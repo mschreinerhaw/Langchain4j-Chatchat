@@ -1,0 +1,49 @@
+server:
+  port: 8091
+spring:
+  application:
+    name: chatchat-runtime-news
+  profiles:
+    default: h2
+  jpa:
+    open-in-view: false
+chatchat:
+  internal-credential:
+    enabled: true
+    username: chatchat_mcp_internal
+    encrypted-secret: ""
+    secret: ""
+    crypto-key: ""
+    crypto-key-file: ""
+  runtime:
+    news:
+      enabled: true
+      attachment:
+        enabled: true
+        worker-count: 2
+        queue-capacity: 500
+        max-file-bytes: 26214400
+        max-attachments-per-article: 20
+        max-extracted-chars: 2000000
+        chunk-size: 1200
+        chunk-overlap: 150
+        max-chunks-per-attachment: 500
+      open-search:
+        enabled: true
+        endpoint: https://192.168.195.221:9200
+        username: admin
+        password: apexSoft12345
+        index-name: runtime-news
+        retention-days: 7
+        zone-id: Asia/Shanghai
+        embedding:
+          enabled: true
+          endpoint: https://llm-7upawl16up8649rh.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/embeddings
+          api-key: sk-720436c855ac470bb955388d0e8c9b89
+          model: text-embedding-v4
+          dimension: 1024
+          vector-field: embedding
+          max-input-chars: 8000
+          batch-size: 16
+          request-timeout-millis: 120000
+          vector-candidate-limit: 100

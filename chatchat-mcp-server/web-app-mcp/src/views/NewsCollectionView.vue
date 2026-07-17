@@ -1,0 +1,142 @@
+<template>
+  <section class="news-admin-view">
+    <el-card shadow="never" class="news-hero">
+      <div><h2>资讯采集后台</h2><p>配置资讯网站、采集周期、限速与精确抽取规则。这里只管理采集，Agent 仅能调用已发布的查询工具。</p></div>
+      <el-button type="primary" @click="createSource">新增资讯源</el-button>
+    </el-card>
+
+    <el-alert title="已内置上交所/深交所首页快照及东方财富、财联社、交易所公告、巨潮资讯等七套模板，默认关闭。站点页面改版后请及时校验配置。" type="info" :closable="false" show-icon />
+
+    <el-table v-loading="loading" :data="sources" border stripe class="news-table" empty-text="暂无资讯源">
+      <el-table-column prop="sourceName" label="资讯源" min-width="170"><template #default="{ row }"><strong>{{ row.sourceName }}</strong><small>{{ row.sourceCode }}</small></template></el-table-column>
+      <el-table-column prop="sourceType" label="类型" width="120" />
+      <el-table-column prop="entryUrl" label="入口地址" min-width="300" show-overflow-tooltip />
+      <el-table-column label="调度计划" width="190">
+        <template #default="{ row }">
+          <span class="schedule-table-label">{{ describeCron(row.scheduleCron) }}</span>
+          <small>{{ row.scheduleCron }}</small>
+        </template>
+      </el-table-column>
+      <el-table-column prop="collectedRecords" label="记录" width="85" />
+      <el-table-column label="状态" width="90"><template #default="{ row }"><el-tag :type="row.enabled ? 'success' : 'info'">{{ row.enabled ? '启用' : '停用' }}</el-tag></template></el-table-column>
+      <el-table-column label="操作" width="280" fixed="right"><template #default="{ row }">
+        <el-button link type="primary" @click="editSource(row)">配置</el-button>
+        <el-button link @click="toggle(row)">{{ row.enabled ? '停用' : '启用' }}</el-button>
+        <el-button link type="success" :disabled="!row.enabled" :loading="collectingId === row.id" @click="collect(row)">立即采集</el-button>
+        <el-button link type="danger" :disabled="row.collectedRecords > 0" @click="remove(row)">删除</el-button>
+      </template></el-table-column>
+    </el-table>
+
+    <el-dialog v-model="dialogOpen" :title="form.id ? '编辑资讯源' : '新增资讯源'" width="900px" destroy-on-close>
+      <el-form label-position="top" class="news-form">
+        <div class="news-form-grid">
+          <el-form-item label="来源编码"><el-input v-model.trim="form.sourceCode" /></el-form-item>
+          <el-form-item label="来源名称"><el-input v-model.trim="form.sourceName" /></el-form-item>
+          <el-form-item label="来源类型"><el-select v-model="form.sourceType"><el-option label="交易所首页（内置）" value="EXCHANGE_HOME" disabled /><el-option label="资讯首页（内置）" value="NEWS_HOME" disabled /><el-option label="财联社电报（内置）" value="CLS_TELEGRAPH" disabled /><el-option label="网页列表" value="WEB_LIST" /><el-option label="固定网页" value="WEB_SINGLE_PAGE" /><el-option label="RSS/Atom" value="RSS" /><el-option label="JSON API" value="API" /></el-select></el-form-item>
+          <el-form-item class="wide" label="入口地址"><el-input v-model.trim="form.entryUrl" /></el-form-item>
+          <el-form-item label="允许域名"><el-input v-model.trim="form.allowedDomain" /></el-form-item>
+          <el-form-item label="启用"><el-switch v-model="form.enabled" /></el-form-item>
+          <el-form-item label="请求间隔(ms)"><el-input-number v-model="form.configuration.sleepMillis" :min="0" :max="60000" /></el-form-item>
+          <el-form-item label="超时(ms)"><el-input-number v-model="form.configuration.timeoutMillis" :min="1000" :max="120000" /></el-form-item>
+        </div>
+        <el-divider content-position="left">采集日历</el-divider>
+        <section class="schedule-builder">
+          <el-radio-group v-model="scheduleEditor.mode" class="schedule-mode" @change="applyVisualSchedule">
+            <el-radio-button label="interval">固定间隔</el-radio-button>
+            <el-radio-button label="daily">每天</el-radio-button>
+            <el-radio-button label="weekly">每周</el-radio-button>
+            <el-radio-button label="monthly">每月</el-radio-button>
+            <el-radio-button label="advanced">高级 Cron</el-radio-button>
+          </el-radio-group>
+
+          <div v-if="scheduleEditor.mode === 'interval'" class="schedule-config-row">
+            <span>每隔</span>
+            <el-select v-model="scheduleEditor.intervalCron" class="schedule-interval-select" @change="applyVisualSchedule">
+              <el-option v-for="option in intervalOptions" :key="option.cron" :label="option.label" :value="option.cron" />
+            </el-select>
+            <span>执行一次</span>
+          </div>
+
+          <div v-else-if="scheduleEditor.mode === 'daily'" class="schedule-config-row">
+            <span>每天</span>
+            <el-time-picker v-model="scheduleEditor.time" format="HH:mm" value-format="HH:mm" :clearable="false" @change="applyVisualSchedule" />
+            <span>开始采集</span>
+          </div>
+
+          <div v-else-if="scheduleEditor.mode === 'weekly'" class="schedule-calendar-block">
+            <span class="schedule-field-label">选择星期</span>
+            <el-checkbox-group v-model="scheduleEditor.weekdays" class="weekday-picker" @change="applyVisualSchedule">
+              <el-checkbox-button v-for="day in weekdayOptions" :key="day.value" :label="day.value">{{ day.label }}</el-checkbox-button>
+            </el-checkbox-group>
+            <div class="schedule-config-row">
+              <span>执行时间</span>
+              <el-time-picker v-model="scheduleEditor.time" format="HH:mm" value-format="HH:mm" :clearable="false" @change="applyVisualSchedule" />
+            </div>
+          </div>
+
+          <div v-else-if="scheduleEditor.mode === 'monthly'" class="schedule-calendar-block">
+            <span class="schedule-field-label">选择每月日期</span>
+            <div class="monthday-picker">
+              <button
+                v-for="day in monthDayOptions"
+                :key="day.value"
+                type="button"
+                :class="{ active: scheduleEditor.monthDays.includes(day.value) }"
+                @click="toggleMonthDay(day.value)"
+              >{{ day.label }}</button>
+            </div>
+            <div class="schedule-config-row">
+              <span>执行时间</span>
+              <el-time-picker v-model="scheduleEditor.time" format="HH:mm" value-format="HH:mm" :clearable="false" @change="applyVisualSchedule" />
+            </div>
+          </div>
+
+          <el-input
+            v-else
+            v-model.trim="form.scheduleCron"
+            placeholder="例如：0 */10 * * * *"
+          >
+            <template #prepend>Cron</template>
+          </el-input>
+
+          <div class="schedule-preview">
+            <strong>{{ describeCron(form.scheduleCron) }}</strong>
+            <code>{{ form.scheduleCron }}</code>
+            <span>时区：{{ form.configuration.zoneId || 'Asia/Shanghai' }}</span>
+          </div>
+        </section>
+        <el-divider v-if="['WEB_LIST','WEB_SINGLE_PAGE'].includes(form.sourceType)" content-position="left">网页抽取规则</el-divider>
+        <div v-if="['WEB_LIST','WEB_SINGLE_PAGE'].includes(form.sourceType)" class="news-form-grid">
+          <el-form-item v-if="form.sourceType === 'WEB_LIST'" class="wide" label="详情链接选择器"><el-input v-model.trim="form.rule.linkSelector" /></el-form-item>
+          <el-form-item label="标题选择器"><el-input v-model.trim="form.rule.titleSelector" /></el-form-item>
+          <el-form-item label="发布时间选择器"><el-input v-model.trim="form.rule.publishTimeSelector" /></el-form-item>
+          <el-form-item label="作者/来源选择器"><el-input v-model.trim="form.rule.authorSelector" /></el-form-item>
+          <el-form-item class="wide" label="正文选择器"><el-input v-model.trim="form.rule.contentSelector" /></el-form-item>
+          <el-form-item class="wide" label="详情页 URL 正则（可选模板或自定义）">
+            <el-select
+              v-model="form.rule.urlPattern"
+              filterable
+              allow-create
+              default-first-option
+              clearable
+              placeholder="选择内置模板，或直接输入 Java 正则表达式"
+            >
+              <el-option
+                v-for="preset in patternPresets"
+                :key="preset.code"
+                :label="preset.name"
+                :value="preset.regex"
+              >
+                <div class="pattern-option"><strong>{{ preset.name }}</strong><small>{{ preset.description }}</small></div>
+              </el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item class="wide" label="附件链接选择器（可留空自动识别 PDF/Word/Excel/CSV）"><el-input v-model.trim="form.configuration.attachmentSelector" placeholder="例如：.attachment-list a" /></el-form-item>
+          <el-form-item class="wide" label="附件额外允许域名"><el-input v-model.trim="form.configuration.attachmentAllowedDomains" placeholder="多个域名用逗号分隔；默认允许资讯源域名及其子域名" /></el-form-item>
+        </div>
+      </el-form>
+      <template #footer><el-button @click="dialogOpen = false">取消</el-button><el-button type="primary" :loading="saving" @click="save">保存</el-button></template>
+    </el-dialog>
+  </section>
+</template>
+<script src="../scripts/views/NewsCollectionView.js"></script>

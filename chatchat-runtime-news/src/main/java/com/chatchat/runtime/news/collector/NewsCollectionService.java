@@ -1,0 +1,43 @@
+package com.chatchat.runtime.news.collector;
+
+import com.chatchat.runtime.news.model.NewsCollectContext;
+import com.chatchat.runtime.news.model.NewsCollectResult;
+import com.chatchat.runtime.news.model.NewsSource;
+import com.chatchat.runtime.news.source.NewsSourceService;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Service;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+
+/** Internal/scheduler entry point. It is intentionally not exposed as an Agent tool. */
+@Service
+public class NewsCollectionService {
+    private final NewsSourceService sourceService;
+    private final List<NewsCollector> collectors;
+    private final Executor executor;
+
+    public NewsCollectionService(NewsSourceService sourceService, List<NewsCollector> collectors,
+                                 @Qualifier("newsCollectorExecutor") Executor executor) {
+        this.sourceService = sourceService;
+        this.collectors = collectors;
+        this.executor = executor;
+    }
+
+    public CompletableFuture<NewsCollectResult> collectAsync(Long sourceId) {
+        String executionId = UUID.randomUUID().toString();
+        return CompletableFuture.supplyAsync(() -> collect(sourceId, executionId), executor);
+    }
+
+    public NewsCollectResult collect(Long sourceId, String executionId) {
+        NewsSource source = sourceService.requireEnabled(sourceId);
+        NewsCollector collector = collectors.stream().filter(item -> item.supports(source.sourceType()))
+            .findFirst().orElseThrow(() -> new IllegalStateException("No collector for " + source.sourceType()));
+        NewsCollectResult result = collector.collect(source, new NewsCollectContext(executionId, Instant.now()));
+        if (result.failedCount() == 0) sourceService.markCollected(sourceId, null);
+        return result;
+    }
+}

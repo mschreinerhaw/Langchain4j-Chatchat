@@ -1,0 +1,847 @@
+
+    create table agent_experience (
+        feedback_adopted bit,
+        feedback_resolved bit,
+        feedback_score integer,
+        feedback_useful bit,
+        create_time datetime(6) not null,
+        update_time datetime(6) not null,
+        attribution_source varchar(32),
+        experience_id varchar(64) not null,
+        feedback_reason_category varchar(64),
+        session_id varchar(64),
+        task_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(64),
+        agent_id varchar(128),
+        scenario_key varchar(128) not null,
+        scenario_name varchar(256),
+        attribution_summary varchar(1000),
+        feedback_comment varchar(1000),
+        answer_summary TEXT,
+        improvement_suggestions_json TEXT,
+        model_raw_output TEXT,
+        primary_factors_json TEXT,
+        question TEXT,
+        success_pattern_json TEXT,
+        primary key (experience_id)
+    ) engine=InnoDB;
+
+    create table agent_task_latest (
+        feedback_adopted bit,
+        feedback_resolved bit,
+        feedback_useful bit,
+        create_time datetime(6) not null,
+        feedback_time datetime(6),
+        update_time datetime(6) not null,
+        status varchar(32) not null,
+        feedback_reason_category varchar(64),
+        session_id varchar(64) not null,
+        task_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(64) not null,
+        agent_id varchar(128),
+        feedback_comment varchar(1000),
+        answer_summary TEXT,
+        error_message TEXT,
+        question TEXT,
+        primary key (task_id)
+    ) engine=InnoDB;
+
+    create table chat_message_index (
+        created_at datetime(6) not null,
+        role varchar(32) not null,
+        message_id varchar(64) not null,
+        session_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(64) not null,
+        rocks_key varchar(512) not null,
+        primary key (message_id)
+    ) engine=InnoDB;
+
+    create table chat_session (
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        status varchar(32) not null,
+        mode varchar(64),
+        session_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(64) not null,
+        model_name varchar(128),
+        skill_id varchar(128),
+        agent_name varchar(256),
+        title varchar(256) not null,
+        primary key (session_id)
+    ) engine=InnoDB;
+
+    create table chunk_type_rule (
+        enabled bit,
+        priority integer,
+        version integer,
+        weight integer,
+        created_at bigint,
+        id bigint not null auto_increment,
+        updated_at bigint,
+        chunk_type varchar(50) not null,
+        keywords TEXT,
+        pattern TEXT,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table conversation_summary (
+        created_at datetime(6) not null,
+        id varchar(64) not null,
+        message_end_id varchar(64) not null,
+        message_start_id varchar(64) not null,
+        session_id varchar(64) not null,
+        summary tinytext not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table data_source (
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        status varchar(32) not null,
+        type varchar(32) not null,
+        id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        name varchar(128) not null,
+        username varchar(128),
+        jdbc_url varchar(512) not null,
+        password_cipher varchar(512),
+        remark varchar(1000),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table embed_login_token (
+        created_at datetime(6) not null,
+        expires_at datetime(6),
+        last_used_at datetime(6),
+        revoked_at datetime(6),
+        updated_at datetime(6) not null,
+        used_count bigint not null,
+        token_preview varchar(24) not null,
+        status varchar(32) not null,
+        created_by varchar(64),
+        id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(64) not null,
+        username varchar(64) not null,
+        created_by_name varchar(128),
+        display_name varchar(128) not null,
+        token varchar(512) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table experience_index (
+        success_rate float(53),
+        adopted_count bigint,
+        created_at datetime(6) not null,
+        failed_count bigint,
+        resolved_count bigint,
+        sample_count bigint,
+        updated_at datetime(6) not null,
+        useful_count bigint,
+        feedback_result varchar(32),
+        id varchar(64) not null,
+        intent_type varchar(64),
+        last_experience_id varchar(64),
+        tenant_id varchar(64) not null,
+        agent_id varchar(128),
+        data_source varchar(128),
+        error_code varchar(128),
+        index_key varchar(128) not null,
+        scenario varchar(128) not null,
+        tool_name varchar(128),
+        workflow_name varchar(128),
+        keywords varchar(1000),
+        tool_chain varchar(1000),
+        avoid_pattern TEXT,
+        best_practice TEXT,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table image_analysis_result (
+        confidence float(53),
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        image_type varchar(32),
+        mode varchar(32),
+        status varchar(32) not null,
+        analysis_source varchar(64),
+        file_id varchar(64) not null,
+        id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(128),
+        question varchar(2000),
+        extracted_text TEXT,
+        structured_data_json TEXT,
+        summary TEXT,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table image_asset (
+        height integer,
+        width integer,
+        created_at datetime(6) not null,
+        size_bytes bigint,
+        file_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        content_type varchar(128),
+        sha256 varchar(128),
+        user_id varchar(128),
+        original_file_name varchar(512),
+        file_path varchar(1000) not null,
+        primary key (file_id)
+    ) engine=InnoDB;
+
+    create table lborganization (
+        fid bigint,
+        grade bigint,
+        id bigint not null,
+        org_order bigint,
+        status bigint,
+        org_code varchar(30),
+        name varchar(200),
+        fdncode varchar(300),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table mcp_capability (
+        enabled bit not null,
+        created_at datetime(6) not null,
+        id bigint not null auto_increment,
+        updated_at datetime(6) not null,
+        capability_type varchar(32) not null,
+        provider_type varchar(32) not null,
+        capability_code varchar(64) not null,
+        capability_name varchar(128) not null,
+        provider_module varchar(128),
+        description varchar(1000),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table mcp_service_config (
+        enabled bit not null,
+        proxy_enabled bit not null,
+        proxy_port integer,
+        timeout_ms integer not null,
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        proxy_type varchar(16) not null,
+        protocol varchar(32) not null,
+        id varchar(64) not null,
+        name varchar(128) not null,
+        proxy_username varchar(128),
+        tool_discovery_path varchar(256) not null,
+        tool_invoke_path varchar(256) not null,
+        base_url varchar(512) not null,
+        proxy_password varchar(512),
+        stdio_command varchar(512),
+        auth_token varchar(1024),
+        stdio_working_directory varchar(1024),
+        custom_headers_json TEXT,
+        proxy_host varchar(255),
+        stdio_args_json TEXT,
+        stdio_env_json TEXT,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table mcp_service_config_version (
+        enabled bit not null,
+        proxy_enabled bit not null,
+        proxy_port integer,
+        timeout_ms integer not null,
+        created_at datetime(6) not null,
+        proxy_type varchar(16) not null,
+        protocol varchar(32) not null,
+        action varchar(64),
+        id varchar(64) not null,
+        service_id varchar(64) not null,
+        name varchar(128) not null,
+        proxy_username varchar(128),
+        tool_discovery_path varchar(256) not null,
+        tool_invoke_path varchar(256) not null,
+        base_url varchar(512) not null,
+        proxy_password varchar(512),
+        stdio_command varchar(512),
+        auth_token varchar(1024),
+        stdio_working_directory varchar(1024),
+        custom_headers_json TEXT,
+        proxy_host varchar(255),
+        stdio_args_json TEXT,
+        stdio_env_json TEXT,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table mcp_tool (
+        enabled bit not null,
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        resource_type varchar(32) not null,
+        status varchar(32) not null,
+        id varchar(64) not null,
+        service_id varchar(64) not null,
+        local_tool_name varchar(128) not null,
+        remote_tool_name varchar(128) not null,
+        service_name varchar(128),
+        description varchar(2000),
+        input_schema_json varchar(4000),
+        output_schema_json varchar(4000),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table mcp_tool_permission (
+        enabled bit not null,
+        created_at datetime(6) not null,
+        expires_at datetime(6),
+        updated_at datetime(6) not null,
+        effect varchar(16) not null,
+        target_type varchar(32) not null,
+        id varchar(64) not null,
+        target_id varchar(64) not null,
+        tenant_id varchar(64),
+        tool_id varchar(64),
+        local_tool_name varchar(128) not null,
+        remark varchar(1000),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table mcp_user_tool_policy (
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        action varchar(32) not null,
+        id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(128) not null,
+        tool_name varchar(256) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table query_expand_rule (
+        enabled bit,
+        priority integer,
+        version integer,
+        weight integer,
+        created_at bigint,
+        id bigint not null auto_increment,
+        updated_at bigint,
+        intent varchar(50),
+        source_word varchar(100),
+        expand_words TEXT,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table query_intent_rule (
+        enabled bit,
+        priority integer,
+        version integer,
+        weight integer,
+        created_at bigint,
+        id bigint not null auto_increment,
+        updated_at bigint,
+        intent varchar(50) not null,
+        name varchar(100),
+        keywords TEXT,
+        regex TEXT,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table role_agent_binding (
+        enabled bit not null,
+        created_at datetime(6) not null,
+        effective_time datetime(6),
+        expire_time datetime(6),
+        updated_at datetime(6) not null,
+        agent_id varchar(64) not null,
+        id varchar(64) not null,
+        role_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table rule_version (
+        active bit,
+        version integer,
+        created_at bigint,
+        id bigint not null auto_increment,
+        updated_at bigint,
+        type varchar(50) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table scheduled_task (
+        max_retries integer,
+        notify_enabled bit not null,
+        retry_count integer,
+        trading_day_only bit not null,
+        created_at datetime(6) not null,
+        expired_at datetime(6),
+        interval_seconds bigint,
+        last_fire_time datetime(6),
+        next_fire_time datetime(6),
+        retry_delay_seconds bigint,
+        updated_at datetime(6) not null,
+        trigger_type varchar(24) not null,
+        last_task_status varchar(32),
+        status varchar(32) not null,
+        last_task_id varchar(64),
+        task_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(64) not null,
+        cron_expr varchar(120),
+        agent_id varchar(128),
+        name varchar(200) not null,
+        last_error varchar(1000),
+        question varchar(4000) not null,
+        payload_json TEXT not null,
+        primary key (task_id)
+    ) engine=InnoDB;
+
+    create table scheduled_task_run (
+        manual_run bit not null,
+        created_at datetime(6) not null,
+        duration_ms bigint,
+        finished_at datetime(6),
+        fire_time datetime(6) not null,
+        updated_at datetime(6) not null,
+        status varchar(32) not null,
+        run_id varchar(64) not null,
+        scheduled_task_id varchar(64) not null,
+        task_id varchar(64),
+        tenant_id varchar(64) not null,
+        user_id varchar(64) not null,
+        agent_id varchar(128),
+        error_message varchar(1000),
+        answer_summary TEXT,
+        question TEXT not null,
+        primary key (run_id)
+    ) engine=InnoDB;
+
+    create table search_feedback (
+        positive bit,
+        created_at bigint,
+        id bigint not null auto_increment,
+        doc_id varchar(100),
+        feedback_type varchar(100),
+        user_id varchar(100),
+        chunk_id varchar(120),
+        query_text varchar(500) not null,
+        chunk_text TEXT,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table semantic_lexicon_entry (
+        builtin bit,
+        enabled bit,
+        priority integer,
+        version integer,
+        weight integer,
+        created_at bigint,
+        id bigint not null auto_increment,
+        updated_at bigint,
+        language varchar(20),
+        category varchar(50),
+        domain varchar(50),
+        mapped_term varchar(120),
+        normalized_term varchar(120) not null,
+        term varchar(120) not null,
+        aliases TEXT,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table skill_config (
+        default_agent boolean default false not null,
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        default_mode varchar(32) not null,
+        market_status varchar(32) not null,
+        id varchar(64) not null,
+        label varchar(128) not null,
+        model_name varchar(128),
+        description varchar(1024),
+        asset_selection_policy_json TEXT,
+        bound_document_ids_json TEXT,
+        bound_document_tags_json TEXT,
+        bound_mcp_service_ids_json TEXT,
+        bound_mcp_tool_names_json TEXT,
+        default_data_asset_json TEXT,
+        first_use_greeting TEXT,
+        preferred_tool_prefixes_json TEXT,
+        quick_questions_json TEXT,
+        routing_settings_json TEXT,
+        skill_tags_json TEXT,
+        system_prompt TEXT,
+        tool_configs_json TEXT,
+        usage_scenarios_json TEXT,
+        workflow_config_json TEXT,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table skill_config_version (
+        default_agent boolean default false not null,
+        created_at datetime(6) not null,
+        default_mode varchar(32) not null,
+        market_status varchar(32),
+        action varchar(64),
+        id varchar(64) not null,
+        skill_id varchar(64) not null,
+        label varchar(128) not null,
+        model_name varchar(128),
+        description varchar(1024),
+        asset_selection_policy_json TEXT,
+        bound_document_ids_json TEXT,
+        bound_document_tags_json TEXT,
+        bound_mcp_service_ids_json TEXT,
+        bound_mcp_tool_names_json TEXT,
+        default_data_asset_json TEXT,
+        first_use_greeting TEXT,
+        preferred_tool_prefixes_json TEXT,
+        quick_questions_json TEXT,
+        routing_settings_json TEXT,
+        skill_tags_json TEXT,
+        system_prompt TEXT,
+        tool_configs_json TEXT,
+        usage_scenarios_json TEXT,
+        workflow_config_json TEXT,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table sys_audit_log (
+        created_at datetime(6) not null,
+        result varchar(32) not null,
+        action_name varchar(64) not null,
+        actor_id varchar(64),
+        id varchar(64) not null,
+        module_name varchar(64) not null,
+        resource_id varchar(64),
+        resource_type varchar(64),
+        tenant_id varchar(64),
+        actor_name varchar(128),
+        detail varchar(4000),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table sys_org (
+        sort_order integer not null,
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        status varchar(32) not null,
+        id varchar(64) not null,
+        org_code varchar(64) not null,
+        parent_id varchar(64),
+        tenant_id varchar(64) not null,
+        org_name varchar(128) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table sys_permission (
+        sort_order integer not null,
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        http_method varchar(16),
+        permission_type varchar(32) not null,
+        status varchar(32) not null,
+        id varchar(64) not null,
+        parent_id varchar(64),
+        icon varchar(128),
+        permission_code varchar(128) not null,
+        permission_name varchar(128) not null,
+        resource_path varchar(512),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table sys_role (
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        role_type varchar(32) not null,
+        status varchar(32) not null,
+        id varchar(64) not null,
+        role_code varchar(64) not null,
+        tenant_id varchar(64) not null,
+        role_name varchar(128) not null,
+        description varchar(1000),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table sys_role_org_scope (
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        scope_type varchar(32) not null,
+        id varchar(64) not null,
+        org_id varchar(64),
+        role_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table sys_role_permission (
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        id varchar(64) not null,
+        permission_id varchar(64) not null,
+        role_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table sys_tenant (
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        status varchar(32) not null,
+        contact_name varchar(64),
+        contact_phone varchar(64),
+        id varchar(64) not null,
+        tenant_code varchar(64) not null,
+        tenant_name varchar(128) not null,
+        description varchar(1000),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table sys_user (
+        created_at datetime(6) not null,
+        last_login_at datetime(6),
+        updated_at datetime(6) not null,
+        status varchar(32) not null,
+        id varchar(64) not null,
+        org_id varchar(64),
+        phone varchar(64),
+        tenant_id varchar(64) not null,
+        username varchar(64) not null,
+        display_name varchar(128) not null,
+        email varchar(128),
+        password_hash varchar(255),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table sys_user_role (
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        id varchar(64) not null,
+        role_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(64) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table task_confirm (
+        confirmed_at datetime(6),
+        created_at datetime(6) not null,
+        expired_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        status varchar(32) not null,
+        confirmed_by varchar(64),
+        id varchar(64) not null,
+        task_id varchar(64) not null,
+        tool_name varchar(200),
+        confirm_message varchar(2000),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table todo_task (
+        created_at datetime(6) not null,
+        expired_at datetime(6),
+        updated_at datetime(6) not null,
+        priority varchar(24) not null,
+        status varchar(32) not null,
+        todo_type varchar(48) not null,
+        id varchar(64) not null,
+        task_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(64) not null,
+        agent_id varchar(128),
+        source varchar(128),
+        title varchar(300) not null,
+        payload_json TEXT,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table tuser (
+        id bigint not null,
+        last_login datetime(6),
+        orgid bigint,
+        status bigint,
+        hr_telephone varchar(30),
+        name varchar(30),
+        oa_telphone varchar(50),
+        userid varchar(50),
+        password varchar(64),
+        oa_email varchar(100),
+        oa_fno varchar(100),
+        eml varchar(128),
+        photo tinyblob,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table user_activity (
+        created_at datetime(6) not null,
+        action_type varchar(32) not null,
+        target_type varchar(32) not null,
+        id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(64) not null,
+        target_id varchar(128) not null,
+        title varchar(300),
+        summary varchar(1000),
+        extra_json TEXT,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table user_favorite (
+        created_at datetime(6) not null,
+        target_type varchar(32) not null,
+        id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(64) not null,
+        category varchar(80),
+        target_id varchar(128) not null,
+        title varchar(300) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create index idx_agent_experience_tenant_score 
+       on agent_experience (tenant_id, feedback_score);
+
+    create index idx_agent_experience_scenario 
+       on agent_experience (tenant_id, scenario_key);
+
+    create index idx_agent_experience_task 
+       on agent_experience (tenant_id, task_id);
+
+    create index idx_agent_task_tenant_created 
+       on agent_task_latest (tenant_id, create_time);
+
+    create index idx_agent_task_session_created 
+       on agent_task_latest (tenant_id, session_id, create_time);
+
+    create index idx_agent_task_status_updated 
+       on agent_task_latest (status, update_time);
+
+    create index idx_chat_message_session_created 
+       on chat_message_index (session_id, created_at);
+
+    create index idx_chat_message_user_created 
+       on chat_message_index (user_id, created_at);
+
+    create index idx_chat_message_tenant_created 
+       on chat_message_index (tenant_id, created_at);
+
+    create index idx_chat_session_user_updated 
+       on chat_session (user_id, updated_at);
+
+    create index idx_chat_session_tenant_updated 
+       on chat_session (tenant_id, updated_at);
+
+    create index idx_chat_session_title 
+       on chat_session (title);
+
+    create index idx_conversation_summary_session_created 
+       on conversation_summary (session_id, created_at);
+
+    create index idx_conversation_summary_end 
+       on conversation_summary (message_end_id);
+
+    alter table embed_login_token 
+       add constraint UK9hrjb14xt3xii2pbm7i13q0lv unique (token);
+
+    create index idx_experience_index_lookup 
+       on experience_index (tenant_id, agent_id, scenario, intent_type);
+
+    create index idx_experience_index_score 
+       on experience_index (tenant_id, success_rate);
+
+    create index idx_experience_index_key 
+       on experience_index (tenant_id, index_key);
+
+    create index idx_image_analysis_file 
+       on image_analysis_result (file_id, created_at);
+
+    create index idx_image_analysis_tenant 
+       on image_analysis_result (tenant_id, created_at);
+
+    create index idx_image_analysis_type 
+       on image_analysis_result (tenant_id, image_type);
+
+    create index idx_image_asset_tenant 
+       on image_asset (tenant_id, created_at);
+
+    create index idx_image_asset_user 
+       on image_asset (tenant_id, user_id);
+
+    alter table mcp_capability 
+       add constraint uk_mcp_capability_code unique (capability_code);
+
+    alter table mcp_tool 
+       add constraint UKfaij0wl39414o3fbantnui3l3 unique (local_tool_name);
+
+    create index idx_mcp_user_tool_policy_lookup 
+       on mcp_user_tool_policy (tenant_id, user_id, tool_name);
+
+    alter table mcp_user_tool_policy 
+       add constraint uk_mcp_user_tool_policy_lookup unique (tenant_id, user_id, tool_name);
+
+    create index idx_role_agent_role 
+       on role_agent_binding (role_id);
+
+    create index idx_role_agent_agent 
+       on role_agent_binding (tenant_id, agent_id);
+
+    create index idx_scheduled_task_tenant_created 
+       on scheduled_task (tenant_id, created_at);
+
+    create index idx_scheduled_task_status_next 
+       on scheduled_task (status, next_fire_time);
+
+    create index idx_scheduled_task_status_expired 
+       on scheduled_task (status, expired_at);
+
+    create index idx_scheduled_task_last_task 
+       on scheduled_task (last_task_id);
+
+    create index idx_scheduled_task_run_schedule_fire 
+       on scheduled_task_run (scheduled_task_id, fire_time);
+
+    create index idx_scheduled_task_run_tenant_agent_fire 
+       on scheduled_task_run (tenant_id, agent_id, fire_time);
+
+    create index idx_scheduled_task_run_task 
+       on scheduled_task_run (task_id);
+
+    create index idx_scheduled_task_run_status_updated 
+       on scheduled_task_run (status, updated_at);
+
+    alter table sys_permission 
+       add constraint UKeul7rmgx0nfvykgb9vmh0cgd8 unique (permission_code);
+
+    alter table sys_tenant 
+       add constraint UKo4lrrl538s0hlmonk47o7r6tk unique (tenant_code);
+
+    alter table sys_user 
+       add constraint UK51bvuyvihefoh4kp5syh2jpi4 unique (username);
+
+    create index idx_task_confirm_task_created 
+       on task_confirm (task_id, created_at);
+
+    create index idx_task_confirm_status_expired 
+       on task_confirm (status, expired_at);
+
+    create index idx_todo_task_tenant_user_status 
+       on todo_task (tenant_id, user_id, status);
+
+    create index idx_todo_task_task_type 
+       on todo_task (tenant_id, task_id, todo_type);
+
+    create index idx_user_activity_user_target 
+       on user_activity (tenant_id, user_id, target_type, created_at);
+
+    create index idx_user_activity_user_action 
+       on user_activity (tenant_id, user_id, target_type, action_type, created_at);
+
+    create index idx_user_favorite_user_created 
+       on user_favorite (tenant_id, user_id, created_at);
+
+    create index idx_user_favorite_user_category 
+       on user_favorite (tenant_id, user_id, category, created_at);
+
+    create index idx_user_favorite_target 
+       on user_favorite (tenant_id, user_id, target_type, target_id);

@@ -1,0 +1,27 @@
+.news-admin-view { display: grid; gap: 18px; }
+.news-hero .el-card__body { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.news-hero h2 { margin: 0 0 8px; }
+.news-hero p { margin: 0; color: var(--el-text-color-secondary); }
+.news-table small { display: block; margin-top: 4px; color: var(--el-text-color-secondary); }
+.news-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; }
+.news-form-grid .wide { grid-column: 1 / -1; }
+.news-form-grid .wide .el-select { width: 100%; }
+.pattern-option { display: flex; align-items: center; gap: 12px; }
+.pattern-option small { overflow: hidden; color: var(--el-text-color-secondary); text-overflow: ellipsis; white-space: nowrap; }
+.schedule-table-label { display: block; font-weight: 600; color: var(--el-text-color-primary); }
+.schedule-builder { display: grid; gap: 18px; padding: 18px; border: 1px solid var(--el-border-color); border-radius: 8px; background: var(--el-fill-color-lighter); }
+.schedule-mode { display: flex; flex-wrap: wrap; }
+.schedule-config-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.schedule-interval-select { width: 180px; }
+.schedule-calendar-block { display: grid; gap: 14px; }
+.schedule-field-label { color: var(--el-text-color-regular); font-size: 14px; font-weight: 600; }
+.weekday-picker { display: flex; flex-wrap: wrap; }
+.monthday-picker { display: grid; grid-template-columns: repeat(7, minmax(38px, 1fr)); gap: 8px; max-width: 520px; }
+.monthday-picker button { min-height: 36px; border: 1px solid var(--el-border-color); border-radius: 6px; background: var(--el-bg-color); color: var(--el-text-color-regular); cursor: pointer; }
+.monthday-picker button:hover { border-color: var(--el-color-primary-light-3); color: var(--el-color-primary); }
+.monthday-picker button.active { border-color: var(--el-color-primary); background: var(--el-color-primary); color: #fff; }
+.schedule-preview { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; padding: 12px 14px; border-radius: 6px; background: var(--el-bg-color); }
+.schedule-preview strong { color: var(--el-color-primary); }
+.schedule-preview code { padding: 3px 7px; border-radius: 4px; background: var(--el-fill-color); color: var(--el-text-color-primary); }
+.schedule-preview span { margin-left: auto; color: var(--el-text-color-secondary); font-size: 13px; }
+@media (max-width: 900px) { .news-form-grid { grid-template-columns: 1fr; } .news-form-grid .wide { grid-column: auto; } }

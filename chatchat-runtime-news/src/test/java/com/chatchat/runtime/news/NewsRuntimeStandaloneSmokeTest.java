@@ -53,4 +53,20 @@ class NewsRuntimeStandaloneSmokeTest {
         assertThat(rule.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(rule.getBody()).contains("\"sourceId\":" + sourceId);
     }
+
+    @Test
+    void persistsNewDedicatedSourceTypesAsVarchar() {
+        var created = rest.withBasicAuth("chatchat_mcp_internal", "test-secret").postForEntity(
+            "/internal/v1/news/sources", Map.of(
+                "sourceCode", "cninfo-enum-smoke",
+                "sourceName", "CNINFO Enum Smoke",
+                "sourceType", "CNINFO_ANNOUNCEMENTS",
+                "entryUrl", "https://www.cninfo.com.cn/new/index",
+                "enabled", false,
+                "configuration", Map.of()
+            ), String.class);
+
+        assertThat(created.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(created.getBody()).contains("CNINFO_ANNOUNCEMENTS");
+    }
 }

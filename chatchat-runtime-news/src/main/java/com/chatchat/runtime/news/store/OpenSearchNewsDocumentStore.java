@@ -264,9 +264,7 @@ public class OpenSearchNewsDocumentStore implements NewsDocumentStore {
             try { client.performRequest(request); }
             catch (ResponseException ex) {
                 if (ex.getResponse() == null || ex.getResponse().getStatusLine().getStatusCode() != 400) throw ex;
-                Request settings = new Request("PUT", "/" + index + "/_settings");
-                settings.setJsonEntity("{\"index.knn\":true}");
-                client.performRequest(settings);
+                enableKnnOnExistingIndex(index);
                 Request mapping = new Request("PUT", "/" + index + "/_mapping");
                 mapping.setJsonEntity(objectMapper.writeValueAsString(Map.of("properties", Map.of(vectorField(), vectorMapping()))));
                 client.performRequest(mapping);
@@ -279,6 +277,20 @@ public class OpenSearchNewsDocumentStore implements NewsDocumentStore {
                 index, properties.getEndpoint(), ex.getMessage());
             return false;
         }
+    }
+
+    private void enableKnnOnExistingIndex(String index) throws Exception {
+        boolean closed = false;
+        try {
+            client.performRequest(new Request("POST", "/" + index + "/_close"));
+            closed = true;
+            Request settings = new Request("PUT", "/" + index + "/_settings");
+            settings.setJsonEntity("{\"index.knn\":true}");
+            client.performRequest(settings);
+        } finally {
+            if (closed) client.performRequest(new Request("POST", "/" + index + "/_open"));
+        }
+        log.info("news_opensearch_existing_index_knn_enabled index={}", index);
     }
 
     private boolean hasVectorIndex(String index) {

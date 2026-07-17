@@ -3,8 +3,7 @@ package com.chatchat.runtime.news.source;
 import com.chatchat.runtime.news.model.NewsSourceType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
+import jakarta.persistence.Convert;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -34,8 +33,8 @@ public class NewsSourceEntity {
     @Column(name = "source_name", nullable = false, length = 128)
     private String sourceName;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "source_type", nullable = false, length = 32)
+    @Convert(converter = NewsSourceTypeConverter.class)
+    @Column(name = "source_type", nullable = false, length = 32, columnDefinition = "varchar(32)")
     private NewsSourceType sourceType;
 
     @Column(name = "entry_url", nullable = false, length = 2000)

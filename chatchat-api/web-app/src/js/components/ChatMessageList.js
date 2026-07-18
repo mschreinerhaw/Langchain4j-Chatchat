@@ -2,7 +2,11 @@ import MarkdownIt from "markdown-it";
 import { Check, CircleCheck, CircleX, Copy } from "@lucide/vue";
 import ResponseReferences from "../../components/ResponseReferences.vue";
 import chartAnalysisMixin from "./ChatMessageListChartAnalysis.js";
-import { extractDocumentSearchPagesFromTraces, extractWebSearchPagesFromTraces } from "../utils/webReferences.js";
+import {
+  extractDocumentSearchPagesFromTraces,
+  extractWebSearchPagesFromTraces,
+  inlineWebCitationLinks
+} from "../utils/webReferences.js";
 
 const markdown = new MarkdownIt({
   html: false,
@@ -489,7 +493,7 @@ export default {
       const prepared = this.prepareMarkdownContent(String(content ?? ""), message);
       const uiContract = this.uiRenderContract(message, prepared.content);
       if (uiContract) {
-        const rendered = this.renderUiRenderContract(uiContract, new Set(prepared.citationUrls));
+        const rendered = this.renderUiRenderContract(uiContract, new Set(prepared.citationUrls), prepared.pages);
         return this.collapseToolEvidenceHtml(this.enhanceResultTables(rendered));
       }
       const rendered = markdown.render(prepared.content, {
@@ -1230,7 +1234,7 @@ export default {
         .replace(/(?:^|\n)\s*#{1,6}\s*(?:\u4e0d\u786e\u5b9a\u6027\u8bf4\u660e|uncertainty)\s*\n*(?=(?:\n\s*#{1,6}\s)|$)/gi, "\n")
         .replace(/(?:^|\n)\s*(?:\u4e0d\u786e\u5b9a\u6027\u8bf4\u660e|uncertainty)\s*[:\uFF1A]?\s*(?=\n|$)/gi, "\n");
     },
-    renderUiRenderContract(contract = {}, citationUrls = new Set()) {
+    renderUiRenderContract(contract = {}, citationUrls = new Set(), pages = []) {
       const env = { webCitationUrls: citationUrls };
       const answerHtml = (contract.answerBlocks || [])
         .map((block) => {
@@ -1238,7 +1242,9 @@ export default {
           if (!text) {
             return "";
           }
-          return `<section class="ui-render-answer-block">${markdown.render(text, env)}</section>`;
+          const linked = inlineWebCitationLinks(text, pages);
+          linked.citationUrls.forEach((url) => citationUrls.add(url));
+          return `<section class="ui-render-answer-block">${markdown.render(linked.content, env)}</section>`;
         })
         .join("");
       const confidence = this.formatConfidencePercent(contract.confidence);
@@ -1320,44 +1326,8 @@ export default {
       );
       const normalizedContent = this.stripExecutedSqlContent(this.normalizeRenderContractBlocks(displayContent));
       const pages = extractWebSearchPagesFromTraces(message.traces || []);
-      if (!pages.length) {
-        return { content: normalizedContent, citationUrls: [] };
-      }
-      const citationUrls = [];
-      const nextContent = normalizedContent.replace(
-        /(?:\[(source|ref|citation)\s*(\d+)\]|\b(source|ref|citation)\s*(\d+)\b)/gi,
-        (...args) => {
-          const match = args[0];
-          const bracketPrefix = args[1];
-          const bracketNumber = args[2];
-          const plainPrefix = args[3];
-          const plainNumber = args[4];
-          const offset = args[args.length - 2];
-          const source = args[args.length - 1];
-
-          if (source[offset + match.length] === "(") {
-            return match;
-          }
-          if (plainNumber && /[A-Za-z0-9_./:#?=&%-]/.test(source[offset - 1] || "")) {
-            return match;
-          }
-
-          const prefix = bracketPrefix || plainPrefix || this.plainCitationPrefix(match) || "source";
-          const normalizedNumber = Number(bracketNumber || plainNumber);
-          if (!Number.isInteger(normalizedNumber) || normalizedNumber < 1) {
-            return match;
-          }
-          const page = pages[normalizedNumber - 1];
-          if (!page?.url) {
-            return match;
-          }
-          citationUrls.push(page.url);
-          const label = `${this.normalizeCitationPrefix(prefix)} ${normalizedNumber}`;
-          const title = this.escapeMarkdownTitle(page.title || page.url);
-          return `[${label}](<${page.url}> "${title}")`;
-        }
-      );
-      return { content: nextContent, citationUrls };
+      const linked = inlineWebCitationLinks(normalizedContent, pages);
+      return { content: linked.content, citationUrls: linked.citationUrls, pages };
     },
     stripExecutedSqlContent(content) {
       return String(content || "")
@@ -1504,19 +1474,6 @@ export default {
       return lines.length > 1
         && /\b(CREATE|SELECT|INSERT|UPDATE|DELETE|MERGE|USING|OPTIONS|FROM|WHERE|JOIN)\b/i.test(text)
         && /[()]/.test(text);
-    },
-    plainCitationPrefix(value) {
-      const match = String(value || "").match(/^(source|ref|citation)/i);
-      return match?.[1] || "";
-    },
-    normalizeCitationPrefix(value) {
-      const prefix = String(value || "").toLowerCase();
-      if (prefix === "ref" || prefix === "citation") {
-        return "source";
-      }
-      return prefix || "source";
-    },    escapeMarkdownTitle(value) {
-      return String(value || "").replace(/"/g, "&quot;");
     },
     parseEvidenceReasoning(content) {
       const text = String(content || "");

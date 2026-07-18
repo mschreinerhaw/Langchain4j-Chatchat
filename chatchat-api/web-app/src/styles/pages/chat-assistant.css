@@ -1937,26 +1937,16 @@
 }
 
 .message-markdown .web-citation-link {
-  display: inline-flex;
-  align-items: center;
-  min-height: 20px;
-  margin: 0 3px;
-  border: 1px solid #dde3ec;
-  border-radius: 6px;
-  padding: 0 6px;
-  background: #f6f8fb;
-  color: #8a8f99;
-  font-size: 12px;
-  font-weight: 800;
-  line-height: 18px;
-  vertical-align: 1px;
+  color: var(--primary-strong);
+  font: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
 }
 
 .message-markdown .web-citation-link:hover {
-  background: #e4efff;
-  border-color: #b9cdfb;
   color: #2b5cff;
-  text-decoration: underline;
+  text-decoration-thickness: 2px;
 }
 
 .message-markdown .evidence-answer-card {

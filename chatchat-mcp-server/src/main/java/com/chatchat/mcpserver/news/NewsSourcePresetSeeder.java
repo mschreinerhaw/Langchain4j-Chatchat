@@ -62,13 +62,21 @@ public class NewsSourcePresetSeeder {
             && "WEB_LIST".equals(current.path("sourceType").asText());
         boolean legacySzse = "szse_announcements".equals(preset.code())
             && LEGACY_SZSE_ENTRY_URL.equals(current.path("entryUrl").asText());
-        if (!legacyCls && !legacyCninfo && !legacySzse) return;
+        boolean outdatedSseHome = "sse_home".equals(preset.code())
+            && current.path("configuration").path("presetVersion").asInt(0) < 2;
+        boolean outdatedEastmoney = "eastmoney_finance".equals(preset.code())
+            && current.path("configuration").path("presetVersion").asInt(0) < 2;
+        if (!legacyCls && !legacyCninfo && !legacySzse && !outdatedSseHome && !outdatedEastmoney) return;
         NewsSourcePresetCatalog.SourceUpsert source = preset.source();
         var request = new NewsSourcePresetCatalog.SourceUpsert(source.sourceCode(), source.sourceName(),
             legacyCls || legacyCninfo ? source.sourceType() : current.path("sourceType").asText(),
             legacySzse ? source.entryUrl() : current.path("entryUrl").asText(), source.allowedDomain(),
             source.scheduleCron(), current.path("enabled").asBoolean(false),
-            legacyCls || legacyCninfo ? source.configuration() : jsonMap(current.path("configuration")));
+            legacyCls || legacyCninfo || outdatedSseHome || outdatedEastmoney
+                ? source.configuration() : jsonMap(current.path("configuration")));
+        if (outdatedEastmoney && preset.rule() != null) {
+            runtime.put("/sources/" + current.path("id").asLong() + "/rule", preset.rule());
+        }
         runtime.put("/sources/" + current.path("id").asLong(), request);
     }
 

@@ -16,8 +16,23 @@ class NewsSourcePresetCatalogTest {
                 assertThat(preset.rule()).isNull();
                 assertThat(preset.source().configuration()).containsKeys("provider", "headlineSelector", "marketUrlTemplate", "marketCodes");
             });
+        assertThat(presets).filteredOn(preset -> "sse_home".equals(preset.code())).singleElement()
+            .satisfies(preset -> {
+                assertThat(preset.source().configuration()).containsKeys(
+                    "presetVersion", "sectionSelectors", "announcementFeeds", "marketDataFeeds",
+                    "detailAllowedDomains", "attachmentAllowedDomains", "ipoIntroductionUrlTemplate", "ipoOverviewUrlTemplate");
+                assertThat(preset.source().configuration().get("marketCodes")).asList()
+                    .containsExactly("000001", "000680", "000888", "000016", "000688", "000010", "000300");
+            });
         assertThat(presets).filteredOn(preset -> "szse_announcements".equals(preset.code())).singleElement()
             .satisfies(preset -> assertThat(preset.source().entryUrl()).isEqualTo("https://www.szse.cn/disclosure/listed/notice/"));
+        assertThat(presets).filteredOn(preset -> "eastmoney_finance".equals(preset.code())).singleElement()
+            .satisfies(preset -> {
+                assertThat(preset.source().configuration()).containsEntry("presetVersion", 2);
+                assertThat(preset.rule().titleSelector()).isEqualTo(".title");
+                assertThat(preset.rule().contentSelector()).isEqualTo("#ContentBody");
+                assertThat(preset.rule().urlPattern()).contains("/a/\\d+");
+            });
         assertThat(presets).filteredOn(preset -> "cls_telegraph".equals(preset.code())).singleElement()
             .satisfies(preset -> {
                 assertThat(preset.source().sourceType()).isEqualTo("CLS_TELEGRAPH");

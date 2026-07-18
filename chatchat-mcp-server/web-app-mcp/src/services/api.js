@@ -37,7 +37,15 @@ export const apiServicesApi = {
   registerLivedata: (ids, overwriteExisting) => apiFetch(`${API_BASE}/livedata-apis/register`, {
     method: 'POST',
     body: JSON.stringify({ ids, overwriteExisting })
-  })
+  }),
+  testLivedata: (id, args) => apiFetch(`${API_BASE}/livedata-apis/${encodeURIComponent(id)}/test`, {
+    method: 'POST',
+    body: JSON.stringify(args || {})
+  }),
+  deleteLivedataRegistration: id => apiFetch(
+    `${API_BASE}/livedata-apis/${encodeURIComponent(id)}/registration`,
+    { method: 'DELETE' }
+  )
 };
 
 export const mcpServicesApi = {

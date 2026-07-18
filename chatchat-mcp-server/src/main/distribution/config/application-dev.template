@@ -81,6 +81,10 @@ chatchat:
         encrypted-password:
         password:
         bearer-token: ""
+    notifications:
+      # Enable notification/alert MCP tool publishing in development.
+      # Individual channels remain controlled from the admin page.
+      enabled: true
     command-templates:
       seed-defaults-enabled: false
     sql-templates:

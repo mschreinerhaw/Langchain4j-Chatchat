@@ -4,6 +4,7 @@ import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -76,6 +77,24 @@ class NotificationMcpToolPublisherTest {
         publisher.refresh();
 
         verify(mcpSyncServer).removeTool("notify_email");
+    }
+
+    @Test
+    void refreshDoesNotPublishChannelsWhenAlertsAreDisabled() {
+        McpSyncServer mcpSyncServer = mock(McpSyncServer.class);
+        NotificationChannelConfigService configService = mock(NotificationChannelConfigService.class);
+        NotificationMcpToolPublisher publisher = new NotificationMcpToolPublisher(
+            mcpSyncServer,
+            configService,
+            mock(NotificationToolSpecFactory.class)
+        );
+        ReflectionTestUtils.setField(publisher, "notificationsEnabled", false);
+
+        publisher.refresh();
+
+        verify(configService, never()).listEnabled();
+        verify(mcpSyncServer, never()).addTool(any());
+        verify(mcpSyncServer).notifyToolsListChanged();
     }
 
     private NotificationChannelConfig notificationConfig(String toolName) {

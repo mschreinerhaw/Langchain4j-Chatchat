@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.livedata;
 
+import com.chatchat.mcpserver.ops.HttpEndpointConfig;
+import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import com.chatchat.tools.builtin.DynamicJdbcDriverLoader;
 import com.chatchat.tools.livedata.LivedataAutoRegistrationProperties;
@@ -8,6 +10,8 @@ import org.junit.jupiter.api.Test;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -18,6 +22,7 @@ class LivedataConfigServiceTest {
     void requiresDatasourceAssetBeforeLoadingApisWhenFallbackJdbcUrlIsMissing() {
         LivedataConfigRepository repository = mock(LivedataConfigRepository.class);
         SqlDatasourceConfigService datasourceConfigService = mock(SqlDatasourceConfigService.class);
+        HttpEndpointConfigService gatewayConfigService = mock(HttpEndpointConfigService.class);
         DynamicJdbcDriverLoader driverLoader = mock(DynamicJdbcDriverLoader.class);
         LivedataAutoRegistrationProperties fallbackProperties = new LivedataAutoRegistrationProperties();
         fallbackProperties.setEnabled(true);
@@ -31,6 +36,7 @@ class LivedataConfigServiceTest {
             repository,
             fallbackProperties,
             datasourceConfigService,
+            gatewayConfigService,
             driverLoader
         );
 
@@ -38,5 +44,35 @@ class LivedataConfigServiceTest {
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("select an enabled SQL datasource asset");
         verifyNoInteractions(driverLoader);
+    }
+
+    @Test
+    void resolvesServiceBaseUrlFromSelectedEnabledGatewayAsset() {
+        LivedataConfigRepository repository = mock(LivedataConfigRepository.class);
+        SqlDatasourceConfigService datasourceConfigService = mock(SqlDatasourceConfigService.class);
+        HttpEndpointConfigService gatewayConfigService = mock(HttpEndpointConfigService.class);
+        DynamicJdbcDriverLoader driverLoader = mock(DynamicJdbcDriverLoader.class);
+        LivedataAutoRegistrationProperties fallbackProperties = new LivedataAutoRegistrationProperties();
+        HttpEndpointConfig gateway = new HttpEndpointConfig();
+        gateway.setId("gateway-1");
+        gateway.setEnabled(true);
+        gateway.setUrlTemplate("http://192.168.195.221:8090");
+        when(gatewayConfigService.getById("gateway-1")).thenReturn(gateway);
+        when(repository.findById(LivedataConfig.SINGLETON_ID)).thenReturn(Optional.empty());
+        when(repository.save(any(LivedataConfig.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        LivedataConfig request = new LivedataConfig();
+        request.setEnabled(true);
+        request.setDatasourceId("datasource-1");
+        request.setGatewayId("gateway-1");
+        request.setServiceBaseUrl("http://untrusted.example");
+        LivedataConfigService service = new LivedataConfigService(
+            repository, fallbackProperties, datasourceConfigService, gatewayConfigService, driverLoader
+        );
+
+        LivedataConfig saved = service.save(request);
+
+        assertThat(saved.getGatewayId()).isEqualTo("gateway-1");
+        assertThat(saved.getServiceBaseUrl()).isEqualTo("http://192.168.195.221:8090");
     }
 }

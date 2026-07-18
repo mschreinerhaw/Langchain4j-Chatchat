@@ -29,6 +29,9 @@ public class LivedataConfig {
     @Column(length = 64)
     private String datasourceId;
 
+    @Column(length = 64)
+    private String gatewayId;
+
     @Column(length = 200)
     private String tableName = "ld_dataservice_api";
 

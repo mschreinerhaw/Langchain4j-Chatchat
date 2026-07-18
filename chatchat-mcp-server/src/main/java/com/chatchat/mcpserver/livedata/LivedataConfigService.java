@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.livedata;
 
+import com.chatchat.mcpserver.ops.HttpEndpointConfig;
+import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import com.chatchat.tools.builtin.DynamicJdbcDriverLoader;
@@ -24,6 +26,7 @@ public class LivedataConfigService implements LivedataSettingsProvider {
     private final LivedataConfigRepository repository;
     private final LivedataAutoRegistrationProperties fallbackProperties;
     private final SqlDatasourceConfigService datasourceConfigService;
+    private final HttpEndpointConfigService gatewayConfigService;
     private final DynamicJdbcDriverLoader driverLoader;
 
     @Transactional(readOnly = true)
@@ -40,8 +43,17 @@ public class LivedataConfigService implements LivedataSettingsProvider {
         if (config.getDatasourceId() != null) {
             datasourceConfigService.getEnabled(config.getDatasourceId());
         }
+        config.setGatewayId(blankToNull(request.getGatewayId()));
+        if (config.getGatewayId() != null) {
+            HttpEndpointConfig gateway = gatewayConfigService.getById(config.getGatewayId());
+            if (!gateway.isEnabled()) {
+                throw new IllegalArgumentException("LiveData gateway asset is disabled: " + config.getGatewayId());
+            }
+            config.setServiceBaseUrl(gateway.getUrlTemplate());
+        } else {
+            config.setServiceBaseUrl(blankToNull(request.getServiceBaseUrl()));
+        }
         config.setTableName(firstText(request.getTableName(), "ld_dataservice_api"));
-        config.setServiceBaseUrl(blankToNull(request.getServiceBaseUrl()));
         config.setServicePathTemplate(firstText(request.getServicePathTemplate(), "/service/{serviceName}/call"));
         config.setLoginEnabled(request.isLoginEnabled());
         config.setLoginPath(firstText(request.getLoginPath(), "/login"));
@@ -65,8 +77,8 @@ public class LivedataConfigService implements LivedataSettingsProvider {
             if (config.getDatasourceId() == null && !hasText(fallbackProperties.getJdbcUrl())) {
                 throw new IllegalArgumentException("datasourceId is required when LiveData is enabled");
             }
-            if (!hasText(config.getServiceBaseUrl())) {
-                throw new IllegalArgumentException("serviceBaseUrl is required when LiveData is enabled");
+            if (config.getGatewayId() == null) {
+                throw new IllegalArgumentException("gatewayId is required when LiveData is enabled");
             }
         }
         return repository.save(config);

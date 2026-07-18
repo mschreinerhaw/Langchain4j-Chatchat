@@ -1,8 +1,11 @@
 package com.chatchat.mcpserver.livedata;
 
 import com.chatchat.common.response.ApiResponse;
+import com.chatchat.mcpserver.api.ApiInvokeResult;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -10,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -43,6 +47,18 @@ public class LivedataApiController {
         return ApiResponse.success(result, "LiveData API manual registration completed");
     }
 
+    @PostMapping("/{id}/test")
+    public ApiResponse<ApiInvokeResult> test(@PathVariable("id") String id,
+                                             @RequestBody(required = false) Map<String, Object> arguments) {
+        return ApiResponse.success(registrationService.test(id, arguments));
+    }
+
+    @DeleteMapping("/{id}/registration")
+    public ApiResponse<LivedataApiRegistrationService.LivedataDeletionResult> deleteRegistration(
+        @PathVariable("id") String id) {
+        return ApiResponse.success(registrationService.deleteRegistration(id), "LiveData API registration deleted");
+    }
+
     @GetMapping("/config")
     public ApiResponse<LivedataConfigView> getConfig() {
         return ApiResponse.success(toView(configService.getConfig()));
@@ -57,6 +73,7 @@ public class LivedataApiController {
         LivedataConfig config = new LivedataConfig();
         config.setEnabled(request.enabled() != null && request.enabled());
         config.setDatasourceId(request.datasourceId());
+        config.setGatewayId(request.gatewayId());
         config.setTableName(request.tableName());
         config.setServiceBaseUrl(request.serviceBaseUrl());
         config.setServicePathTemplate(request.servicePathTemplate());
@@ -84,6 +101,7 @@ public class LivedataApiController {
         return new LivedataConfigView(
             config.isEnabled(),
             config.getDatasourceId(),
+            config.getGatewayId(),
             config.getTableName(),
             config.getServiceBaseUrl(),
             config.getServicePathTemplate(),
@@ -113,6 +131,7 @@ public class LivedataApiController {
     public record LivedataConfigRequest(
         Boolean enabled,
         String datasourceId,
+        String gatewayId,
         String tableName,
         String serviceBaseUrl,
         String servicePathTemplate,
@@ -139,6 +158,7 @@ public class LivedataApiController {
     public record LivedataConfigView(
         boolean enabled,
         String datasourceId,
+        String gatewayId,
         String tableName,
         String serviceBaseUrl,
         String servicePathTemplate,

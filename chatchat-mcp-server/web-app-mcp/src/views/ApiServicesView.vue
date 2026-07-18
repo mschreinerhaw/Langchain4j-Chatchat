@@ -50,7 +50,7 @@
           <el-checkbox v-model="overwriteExisting">覆盖同名工具</el-checkbox>
         </div>
 
-        <el-table class="settings-table" :data="filteredLivedata" border stripe empty-text="暂无 LiveData API">
+        <el-table class="settings-table" :data="paginatedLivedata" border stripe empty-text="暂无 LiveData API">
           <el-table-column label="" width="54" align="center">
             <template #default="{ row }">
               <el-checkbox :model-value="selectedLivedata.has(row.id)" @change="toggleLivedata(row.id)" />
@@ -67,12 +67,36 @@
           </el-table-column>
           <el-table-column prop="status" label="状态" width="110" />
           <el-table-column prop="version" label="版本" width="120" />
+          <el-table-column label="操作" width="180" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" :disabled="busy || !row.registered" @click="testLivedata(row)">
+                请求测试
+              </el-button>
+              <el-button link type="danger" :disabled="busy || !row.registered" @click="deleteLivedata(row)">
+                删除
+              </el-button>
+            </template>
+          </el-table-column>
         </el-table>
+        <footer v-if="livedataApis.length" class="pagination-row">
+          <span>
+            共 {{ filteredLivedata.length }} 个 API，已选择 {{ selectedLivedata.size }} 个
+          </span>
+          <el-pagination
+            v-model:current-page="livedataPage"
+            v-model:page-size="livedataPageSize"
+            :page-sizes="[10, 20, 50, 100]"
+            :total="filteredLivedata.length"
+            layout="sizes, prev, pager, next, jumper"
+            background
+            @size-change="changeLivedataPageSize"
+          />
+        </footer>
       </section>
 
-      <el-dialog v-model="livedataDatasourceDialogOpen" title="选择 LiveData 数据源" width="560px">
+      <el-dialog v-model="livedataDatasourceDialogOpen" title="选择 LiveData 数据源和网关" width="680px">
         <p class="form-dialog-subtitle">
-          从数据资产中心已维护并启用的数据库资产中选择 LiveData 数据源。确认后将保存绑定关系并加载可注册的 API。
+          从数据资产中心选择已维护并启用的数据库资产和 API 网关资产。网关地址取自所选网关资产，确认后保存绑定关系并加载可注册的 API。
         </p>
         <el-form label-position="top">
           <el-form-item label="数据库资产" required>
@@ -91,10 +115,31 @@
               />
             </el-select>
           </el-form-item>
+          <el-form-item label="API 网关资产" required>
+            <el-select
+              v-model="selectedLivedataGatewayId"
+              class="w-100"
+              filterable
+              placeholder="请选择 LiveData API 网关资产"
+              :loading="busy"
+            >
+              <el-option
+                v-for="option in livedataGatewayOptions"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
+              />
+            </el-select>
+          </el-form-item>
         </el-form>
         <el-empty
           v-if="!busy && !livedataDatasourceOptions.length"
           description="暂无已启用的数据库资产，请先到数据资产中心维护并启用 LiveData 数据源"
+          :image-size="72"
+        />
+        <el-empty
+          v-else-if="!busy && !livedataGatewayOptions.length"
+          description="暂无已启用的 API 网关资产，请先到数据资产中心维护并启用 LiveData 网关"
           :image-size="72"
         />
         <template #footer>
@@ -102,7 +147,7 @@
           <el-button
             type="primary"
             :loading="busy"
-            :disabled="busy || !selectedLivedataDatasourceId"
+            :disabled="busy || !selectedLivedataDatasourceId || !selectedLivedataGatewayId"
             @click="confirmLivedataDatasource"
           >
             确认并加载

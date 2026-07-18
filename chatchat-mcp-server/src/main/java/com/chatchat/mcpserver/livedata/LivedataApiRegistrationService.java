@@ -1,6 +1,8 @@
 package com.chatchat.mcpserver.livedata;
 
 import com.chatchat.mcpserver.api.ApiMcpToolPublisher;
+import com.chatchat.mcpserver.api.ApiInvokeResult;
+import com.chatchat.mcpserver.api.ApiInvokeService;
 import com.chatchat.mcpserver.api.ApiServiceConfig;
 import com.chatchat.mcpserver.api.ApiServiceConfigService;
 import com.chatchat.mcpserver.ops.HttpEndpointConfig;
@@ -23,6 +25,7 @@ public class LivedataApiRegistrationService {
     private final LivedataConfigService configService;
     private final LivedataApiConfigMapper mapper;
     private final ApiServiceConfigService apiServiceConfigService;
+    private final ApiInvokeService apiInvokeService;
     private final HttpEndpointConfigService gatewayConfigService;
     private final ApiMcpToolPublisher publisher;
 
@@ -93,6 +96,45 @@ public class LivedataApiRegistrationService {
         return new LivedataRegistrationResult(ids.size(), registered, skipped, missing, errors);
     }
 
+    public ApiInvokeResult test(String id, Map<String, Object> arguments) {
+        ensureEnabled();
+        LivedataApiDefinition definition = findDefinition(id);
+        ApiServiceConfig mapped = mapper.toApiServiceConfig(definition);
+        ApiServiceConfig registered = apiServiceConfigService.findByToolName(mapped.getToolName())
+            .orElseThrow(() -> new IllegalStateException("Register the LiveData API before testing: " + displayName(definition)));
+        return apiInvokeService.invoke(registered, arguments == null ? Map.of() : arguments);
+    }
+
+    /**
+     * Removes the MCP registration while preserving the source definition in LiveData.
+     */
+    public LivedataDeletionResult deleteRegistration(String id) {
+        ensureEnabled();
+        LivedataApiDefinition definition = findDefinition(id);
+        ApiServiceConfig mapped = mapper.toApiServiceConfig(definition);
+        ApiServiceConfig registered = apiServiceConfigService.findByToolName(mapped.getToolName())
+            .orElseThrow(() -> new IllegalStateException("LiveData API is not registered: " + displayName(definition)));
+
+        HttpEndpointConfig generatedGateway = gatewayConfigService.findByToolName(
+                mapper.toGatewayConfig(definition).getToolName())
+            .filter(gateway -> gateway.getId().equals(registered.getGatewayId()))
+            .orElseThrow(() -> new IllegalStateException(
+                "The same-name API service is not managed by LiveData and cannot be deleted here: " + mapped.getToolName()));
+
+        boolean gatewayShared = apiServiceConfigService.listAll().stream()
+            .anyMatch(service -> !service.getId().equals(registered.getId())
+                && generatedGateway.getId().equals(service.getGatewayId()));
+
+        apiServiceConfigService.delete(registered.getId());
+        boolean gatewayDeleted = false;
+        if (!gatewayShared) {
+            gatewayConfigService.delete(generatedGateway.getId());
+            gatewayDeleted = true;
+        }
+        publisher.refresh();
+        return new LivedataDeletionResult(id, registered.getId(), generatedGateway.getId(), gatewayDeleted);
+    }
+
     /**
      * Converts the value to candidate.
      *
@@ -145,6 +187,16 @@ public class LivedataApiRegistrationService {
                 ex.getMessage()
             );
         }
+    }
+
+    private LivedataApiDefinition findDefinition(String id) {
+        if (id == null || id.isBlank()) {
+            throw new IllegalArgumentException("LiveData API id is required");
+        }
+        return configService.findApis().stream()
+            .filter(definition -> id.equals(sourceId(definition)))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("LiveData API not found: " + id));
     }
 
     /**
@@ -223,6 +275,14 @@ public class LivedataApiRegistrationService {
         int skipped,
         int missing,
         List<String> errors
+    ) {
+    }
+
+    public record LivedataDeletionResult(
+        String sourceId,
+        String serviceId,
+        String gatewayId,
+        boolean gatewayDeleted
     ) {
     }
 }

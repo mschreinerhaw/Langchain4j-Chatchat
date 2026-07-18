@@ -60,6 +60,47 @@ export function extractWebSearchPagesFromTraces(traces = []) {
   return uniquePages(traces.flatMap((trace) => extractWebSearchPages(trace)));
 }
 
+/**
+ * Replaces evidence labels such as [网页3] or [source 3] with an inline link on
+ * the nearest preceding clause. The labels remain in the stored answer for
+ * evidence auditing; this function is only used by the presentation layer.
+ */
+export function inlineWebCitationLinks(content, pages = []) {
+  const text = String(content || "");
+  if (!text || !Array.isArray(pages)) {
+    return { content: text, citationUrls: [] };
+  }
+  const marker = /(?:\[(?:网页|網頁|source|ref|citation)\s*(\d+)\]|【(?:网页|網頁)\s*(\d+)】|\b(?:source|ref|citation)\s*(\d+)\b)(?:\(\s*<?(https?:\/\/[^)\s>]+)>?(?:\s+["'][^)]*["'])?\s*\))?/gi;
+  const citationUrls = [];
+  let output = "";
+  let cursor = 0;
+  let match;
+  while ((match = marker.exec(text)) !== null) {
+    output += text.slice(cursor, match.index);
+    cursor = marker.lastIndex;
+    const rank = Number(match[1] || match[2] || match[3]);
+    const page = pages[rank - 1] || {};
+    const url = safeWebUrl(page.url) || safeWebUrl(match[4]);
+    if (!url) {
+      output += match[0];
+      continue;
+    }
+    citationUrls.push(url);
+    const anchor = precedingCitationAnchor(output);
+    const title = escapeMarkdownTitle(page.title || url);
+    if (anchor) {
+      const label = escapeMarkdownLinkText(output.slice(anchor.start, anchor.end));
+      output = `${output.slice(0, anchor.start)}[${label}](<${url}> "${title}")${output.slice(anchor.end)}`;
+    } else if (!outputHasCitationLinkAtEnd(output, url)) {
+      const label = escapeMarkdownLinkText(page.title || displayUrl(url) || url);
+      output += `[${label}](<${url}> "${title}")`;
+    }
+  }
+  output += text.slice(cursor);
+  output = output.replace(/(\]\(<https?:\/\/[^)]+\))\s+([,.;:!?，。；：！？])/g, "$1$2");
+  return { content: output, citationUrls: [...new Set(citationUrls)] };
+}
+
 export function extractDocumentSearchPages(trace) {
   if (!isDocumentSearchTrace(trace)) {
     return [];
@@ -181,6 +222,51 @@ function uniquePages(pages) {
     seen.add(key);
     return true;
   });
+}
+
+function precedingCitationAnchor(content) {
+  const end = String(content || "").search(/\s*$/);
+  if (end <= 0) {
+    return null;
+  }
+  let anchorEnd = end;
+  while (anchorEnd > 0 && /[。！？!?；;，,]/.test(content[anchorEnd - 1])) anchorEnd--;
+  const prefix = content.slice(0, anchorEnd);
+  const boundary = Math.max(
+    prefix.lastIndexOf("。"), prefix.lastIndexOf("！"), prefix.lastIndexOf("？"),
+    prefix.lastIndexOf("!"), prefix.lastIndexOf("?"), prefix.lastIndexOf("；"),
+    prefix.lastIndexOf(";"), prefix.lastIndexOf("，"), prefix.lastIndexOf(","),
+    prefix.lastIndexOf("\n"), prefix.lastIndexOf("|")
+  );
+  let start = boundary + 1;
+  while (start < anchorEnd && /\s/.test(content[start])) start++;
+  const value = content.slice(start, anchorEnd);
+  if (!value || value.length > 160 || /[\[\]`<>]/.test(value) || /^\s*#{1,6}\s/.test(value)) {
+    return null;
+  }
+  return { start, end: anchorEnd };
+}
+
+function outputHasCitationLinkAtEnd(content, url) {
+  const escapedUrl = String(url || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\]\\(<?${escapedUrl}>?(?:\\s+["'][^)]*["'])?\\)\\s*$`, "i").test(content);
+}
+
+function safeWebUrl(value) {
+  try {
+    const parsed = new URL(String(value || "").trim());
+    return ["http:", "https:"].includes(parsed.protocol) ? parsed.href : "";
+  } catch (error) {
+    return "";
+  }
+}
+
+function escapeMarkdownLinkText(value) {
+  return String(value || "").replace(/\\/g, "\\\\").replace(/\[/g, "\\[").replace(/\]/g, "\\]");
+}
+
+function escapeMarkdownTitle(value) {
+  return String(value || "").replace(/"/g, "&quot;");
 }
 
 function uniqueDocumentPages(pages) {

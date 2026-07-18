@@ -1,5 +1,8 @@
 ﻿import CrudCatalog from '../../components/CrudCatalog.vue';
+import { ElMessageBox } from 'element-plus';
 import { apiServicesApi as api, assetsApi } from '../../services/api';
+import { parseJsonObject } from '../../utils/json';
+import { buildTestNotification } from '../../utils/test-result';
 
 const objectSchema = {
   type: 'object',
@@ -20,12 +23,15 @@ export default {
       gatewayAssets: [],
       livedataApis: [],
       livedataKeyword: '',
+      livedataPage: 1,
+      livedataPageSize: 20,
       selectedLivedata: new Set(),
       overwriteExisting: false,
       livedataConfig: null,
       livedataSqlAssets: [],
       livedataDatasourceDialogOpen: false,
       selectedLivedataDatasourceId: '',
+      selectedLivedataGatewayId: '',
       defaults: {
         enabled: true,
         cacheEnabled: false,
@@ -207,7 +213,15 @@ export default {
     filteredLivedata() {
       const keyword = this.livedataKeyword.toLowerCase();
       if (!keyword) return this.livedataApis;
-      return this.livedataApis.filter(item => ['name', 'title', 'toolName', 'serviceName', 'namespace'].some(key => String(item[key] || '').toLowerCase().includes(keyword)));
+      return this.livedataApis.filter(item => [
+        'name', 'apiName', 'apiId', 'title', 'toolName', 'serviceName', 'methodName', 'namespace'
+      ].some(key => String(item[key] || '').toLowerCase().includes(keyword)));
+    },
+    paginatedLivedata() {
+      const maxPage = Math.max(1, Math.ceil(this.filteredLivedata.length / this.livedataPageSize));
+      const page = Math.min(this.livedataPage, maxPage);
+      const start = (page - 1) * this.livedataPageSize;
+      return this.filteredLivedata.slice(start, start + this.livedataPageSize);
     },
     livedataDatasourceOptions() {
       return this.livedataSqlAssets
@@ -218,6 +232,21 @@ export default {
             .filter(Boolean)
             .join(' / ')
         }));
+    },
+    livedataGatewayOptions() {
+      return this.gatewayAssets
+        .filter(asset => asset.enabled !== false)
+        .map(asset => ({
+          value: asset.id,
+          label: [asset.name || asset.title || asset.toolName || asset.id, asset.environment, asset.urlTemplate]
+            .filter(Boolean)
+            .join(' / ')
+        }));
+    }
+  },
+  watch: {
+    livedataKeyword() {
+      this.livedataPage = 1;
     }
   },
   mounted() {
@@ -237,19 +266,25 @@ export default {
     async loadLivedata() {
       this.busy = true;
       try {
-        const [config, sqlAssets] = await Promise.all([
+        const [config, sqlAssets, gatewayAssets] = await Promise.all([
           api.getLivedataConfig(),
-          assetsApi.listSql()
+          assetsApi.listSql(),
+          assetsApi.listHttp()
         ]);
         if (!config?.enabled) {
           throw new Error('LiveData 后台未启用，请先启用 LiveData 配置。');
         }
         this.livedataConfig = config;
         this.livedataSqlAssets = sqlAssets || [];
+        this.gatewayAssets = gatewayAssets || [];
         const configuredAssetExists = this.livedataSqlAssets.some(asset =>
           asset.enabled !== false && asset.id === config.datasourceId
         );
         this.selectedLivedataDatasourceId = configuredAssetExists ? config.datasourceId : '';
+        const configuredGatewayExists = this.gatewayAssets.some(asset =>
+          asset.enabled !== false && asset.id === config.gatewayId
+        );
+        this.selectedLivedataGatewayId = configuredGatewayExists ? config.gatewayId : '';
         this.livedataDatasourceDialogOpen = true;
       } catch (error) {
         this.$emit('error', error);
@@ -258,14 +293,16 @@ export default {
       }
     },
     async confirmLivedataDatasource() {
-      if (!this.selectedLivedataDatasourceId || !this.livedataConfig) return;
+      if (!this.selectedLivedataDatasourceId || !this.selectedLivedataGatewayId || !this.livedataConfig) return;
       this.busy = true;
       try {
         this.livedataConfig = await api.saveLivedataConfig({
           ...this.livedataConfig,
-          datasourceId: this.selectedLivedataDatasourceId
+          datasourceId: this.selectedLivedataDatasourceId,
+          gatewayId: this.selectedLivedataGatewayId
         });
         this.livedataApis = await api.listLivedata() || [];
+        this.livedataPage = 1;
         this.selectedLivedata = new Set();
         this.livedataDatasourceDialogOpen = false;
         this.$emit('notify', {
@@ -284,15 +321,62 @@ export default {
       else next.add(id);
       this.selectedLivedata = next;
     },
+    changeLivedataPageSize(size) {
+      this.livedataPageSize = size;
+      this.livedataPage = 1;
+    },
     async registerSelected() {
       this.busy = true;
       try {
         await api.registerLivedata([...this.selectedLivedata], this.overwriteExisting);
         this.$emit('notify', { title: '注册成功', message: `已提交 ${this.selectedLivedata.size} 个 API` });
         this.selectedLivedata = new Set();
+        this.livedataApis = await api.listLivedata() || [];
         await this.$refs.catalog.load();
       } catch (error) {
         this.$emit('error', error);
+      } finally {
+        this.busy = false;
+      }
+    },
+    async testLivedata(row) {
+      try {
+        const { value: raw } = await ElMessageBox.prompt('请输入请求参数 JSON', '请求测试', {
+          inputType: 'textarea',
+          inputValue: '{}',
+          confirmButtonText: '发送请求',
+          cancelButtonText: '取消'
+        });
+        this.busy = true;
+        const result = await api.testLivedata(row.id, parseJsonObject(raw, {}));
+        this.$emit('notify', buildTestNotification(result));
+        this.$emit('result', {
+          title: `${row.apiName || row.title || row.toolName || 'LiveData API'} 请求测试结果`,
+          value: result
+        });
+      } catch (error) {
+        if (error !== 'cancel' && error !== 'close') this.$emit('error', error);
+      } finally {
+        this.busy = false;
+      }
+    },
+    async deleteLivedata(row) {
+      try {
+        await ElMessageBox.confirm(
+          `确定删除 ${row.apiName || row.title || row.toolName || row.id} 的 MCP 注册吗？LiveData 中的原始 API 定义不会被删除。`,
+          '删除 LiveData API 注册',
+          { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
+        );
+        this.busy = true;
+        await api.deleteLivedataRegistration(row.id);
+        this.livedataApis = await api.listLivedata() || [];
+        const nextSelected = new Set(this.selectedLivedata);
+        nextSelected.delete(row.id);
+        this.selectedLivedata = nextSelected;
+        this.$emit('notify', { title: '删除成功', message: '已删除 MCP API 服务及其专属 LiveData 网关。' });
+        await this.$refs.catalog.load();
+      } catch (error) {
+        if (error !== 'cancel' && error !== 'close') this.$emit('error', error);
       } finally {
         this.busy = false;
       }

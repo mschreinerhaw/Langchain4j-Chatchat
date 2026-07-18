@@ -87,6 +87,10 @@ chatchat:
         encrypted-password:
         password:
         bearer-token: ""
+    notifications:
+      # Enable notification/alert MCP tool publishing in development.
+      # Individual channels remain controlled from the admin page.
+      enabled: true
     command-templates:
       # Seed built-in read-only SSH command templates for asset center management.
       seed-defaults-enabled: true

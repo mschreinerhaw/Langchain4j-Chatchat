@@ -3,6 +3,7 @@ package com.chatchat.mcpserver.notification;
 import io.modelcontextprotocol.server.McpSyncServer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.Ordered;
@@ -22,6 +23,9 @@ public class NotificationMcpToolPublisher {
     private final NotificationToolSpecFactory toolSpecFactory;
     private final Set<String> managedToolNames = ConcurrentHashMap.newKeySet();
 
+    @Value("${chatchat.mcp.notifications.enabled:true}")
+    private boolean notificationsEnabled = true;
+
     @Order(Ordered.LOWEST_PRECEDENCE)
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
@@ -37,6 +41,12 @@ public class NotificationMcpToolPublisher {
             }
         });
         managedToolNames.clear();
+
+        if (!notificationsEnabled) {
+            mcpSyncServer.notifyToolsListChanged();
+            log.info("Notification/alert MCP tool publishing is disabled");
+            return;
+        }
 
         for (NotificationChannelConfig config : configService.listEnabled()) {
             try {

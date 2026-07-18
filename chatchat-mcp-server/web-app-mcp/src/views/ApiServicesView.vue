@@ -69,6 +69,46 @@
           <el-table-column prop="version" label="版本" width="120" />
         </el-table>
       </section>
+
+      <el-dialog v-model="livedataDatasourceDialogOpen" title="选择 LiveData 数据源" width="560px">
+        <p class="form-dialog-subtitle">
+          从数据资产中心已维护并启用的数据库资产中选择 LiveData 数据源。确认后将保存绑定关系并加载可注册的 API。
+        </p>
+        <el-form label-position="top">
+          <el-form-item label="数据库资产" required>
+            <el-select
+              v-model="selectedLivedataDatasourceId"
+              class="w-100"
+              filterable
+              placeholder="请选择 LiveData 数据库资产"
+              :loading="busy"
+            >
+              <el-option
+                v-for="option in livedataDatasourceOptions"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
+              />
+            </el-select>
+          </el-form-item>
+        </el-form>
+        <el-empty
+          v-if="!busy && !livedataDatasourceOptions.length"
+          description="暂无已启用的数据库资产，请先到数据资产中心维护并启用 LiveData 数据源"
+          :image-size="72"
+        />
+        <template #footer>
+          <el-button :disabled="busy" @click="livedataDatasourceDialogOpen = false">取消</el-button>
+          <el-button
+            type="primary"
+            :loading="busy"
+            :disabled="busy || !selectedLivedataDatasourceId"
+            @click="confirmLivedataDatasource"
+          >
+            确认并加载
+          </el-button>
+        </template>
+      </el-dialog>
     </el-tab-pane>
   </el-tabs>
 </template>

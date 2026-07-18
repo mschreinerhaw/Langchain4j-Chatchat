@@ -22,6 +22,10 @@ export default {
       livedataKeyword: '',
       selectedLivedata: new Set(),
       overwriteExisting: false,
+      livedataConfig: null,
+      livedataSqlAssets: [],
+      livedataDatasourceDialogOpen: false,
+      selectedLivedataDatasourceId: '',
       defaults: {
         enabled: true,
         cacheEnabled: false,
@@ -204,6 +208,16 @@ export default {
       const keyword = this.livedataKeyword.toLowerCase();
       if (!keyword) return this.livedataApis;
       return this.livedataApis.filter(item => ['name', 'title', 'toolName', 'serviceName', 'namespace'].some(key => String(item[key] || '').toLowerCase().includes(keyword)));
+    },
+    livedataDatasourceOptions() {
+      return this.livedataSqlAssets
+        .filter(asset => asset.enabled !== false)
+        .map(asset => ({
+          value: asset.id,
+          label: [asset.name || asset.title || asset.toolName || asset.id, asset.environment, asset.databaseType]
+            .filter(Boolean)
+            .join(' / ')
+        }));
     }
   },
   mounted() {
@@ -223,7 +237,41 @@ export default {
     async loadLivedata() {
       this.busy = true;
       try {
+        const [config, sqlAssets] = await Promise.all([
+          api.getLivedataConfig(),
+          assetsApi.listSql()
+        ]);
+        if (!config?.enabled) {
+          throw new Error('LiveData 后台未启用，请先启用 LiveData 配置。');
+        }
+        this.livedataConfig = config;
+        this.livedataSqlAssets = sqlAssets || [];
+        const configuredAssetExists = this.livedataSqlAssets.some(asset =>
+          asset.enabled !== false && asset.id === config.datasourceId
+        );
+        this.selectedLivedataDatasourceId = configuredAssetExists ? config.datasourceId : '';
+        this.livedataDatasourceDialogOpen = true;
+      } catch (error) {
+        this.$emit('error', error);
+      } finally {
+        this.busy = false;
+      }
+    },
+    async confirmLivedataDatasource() {
+      if (!this.selectedLivedataDatasourceId || !this.livedataConfig) return;
+      this.busy = true;
+      try {
+        this.livedataConfig = await api.saveLivedataConfig({
+          ...this.livedataConfig,
+          datasourceId: this.selectedLivedataDatasourceId
+        });
         this.livedataApis = await api.listLivedata() || [];
+        this.selectedLivedata = new Set();
+        this.livedataDatasourceDialogOpen = false;
+        this.$emit('notify', {
+          title: 'LiveData API 加载成功',
+          message: `已加载 ${this.livedataApis.length} 个可注册 API`
+        });
       } catch (error) {
         this.$emit('error', error);
       } finally {
@@ -241,7 +289,7 @@ export default {
       try {
         await api.registerLivedata([...this.selectedLivedata], this.overwriteExisting);
         this.$emit('notify', { title: '注册成功', message: `已提交 ${this.selectedLivedata.size} 个 API` });
-        this.selectedLivedata.clear();
+        this.selectedLivedata = new Set();
         await this.$refs.catalog.load();
       } catch (error) {
         this.$emit('error', error);

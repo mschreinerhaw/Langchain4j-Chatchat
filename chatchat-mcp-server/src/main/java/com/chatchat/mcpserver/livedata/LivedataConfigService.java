@@ -86,6 +86,11 @@ public class LivedataConfigService implements LivedataSettingsProvider {
                 datasource.getDriverClass()
             );
         } else {
+            if (!hasText(settings.getJdbcUrl())) {
+                throw new IllegalStateException(
+                    "LiveData datasource is not configured; select an enabled SQL datasource asset before loading APIs"
+                );
+            }
             dataSource = driverLoader.createDataSource(
                 settings.getJdbcUrl(),
                 settings.getUsername(),

@@ -113,6 +113,13 @@ textarea {
   width: min(300px, 45vw);
 }
 
+.form-dialog-subtitle {
+  margin: 0 0 18px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .bulk-row,
 .pagination-row,
 .split-toolbar {

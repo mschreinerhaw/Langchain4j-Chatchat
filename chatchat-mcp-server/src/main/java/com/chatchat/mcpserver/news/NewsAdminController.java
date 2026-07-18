@@ -49,6 +49,10 @@ public class NewsAdminController {
     public ApiResponse<JsonNode> collect(@PathVariable("id") Long id) {
         return ApiResponse.success(runtime.post("/sources/" + id + "/collect", null), "采集完成");
     }
+    @PostMapping("/sources/{id}/robots-check")
+    public ApiResponse<JsonNode> checkRobots(@PathVariable("id") Long id) {
+        return ApiResponse.success(runtime.post("/sources/" + id + "/robots-check", null), "机器人协议检测完成");
+    }
     @GetMapping("/records")
     public ApiResponse<JsonNode> records(@RequestParam(value = "sourceId", required = false) Long sourceId,
                                          @RequestParam(value = "page", defaultValue = "0") int page,

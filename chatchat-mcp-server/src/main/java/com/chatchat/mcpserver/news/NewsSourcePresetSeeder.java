@@ -60,19 +60,32 @@ public class NewsSourcePresetSeeder {
         boolean legacyCls = "cls_telegraph".equals(preset.code()) && "WEB_LIST".equals(current.path("sourceType").asText());
         boolean legacyCninfo = "cninfo_announcements".equals(preset.code())
             && "WEB_LIST".equals(current.path("sourceType").asText());
+        boolean outdatedSseAnnouncements = "sse_announcements".equals(preset.code())
+            && (!"SSE_ANNOUNCEMENTS".equals(current.path("sourceType").asText())
+                || current.path("configuration").path("presetVersion").asInt(0) < 2);
         boolean legacySzse = "szse_announcements".equals(preset.code())
             && LEGACY_SZSE_ENTRY_URL.equals(current.path("entryUrl").asText());
         boolean outdatedSseHome = "sse_home".equals(preset.code())
             && current.path("configuration").path("presetVersion").asInt(0) < 2;
+        boolean outdatedSzseHome = "szse_home".equals(preset.code())
+            && (!"SZSE_HOME".equals(current.path("sourceType").asText())
+                || current.path("configuration").path("presetVersion").asInt(0) < 2);
+        boolean outdatedCninfoHome = "cninfo_home".equals(preset.code())
+            && (!"CNINFO_HOME".equals(current.path("sourceType").asText())
+                || current.path("configuration").path("presetVersion").asInt(0) < 2);
         boolean outdatedEastmoney = "eastmoney_finance".equals(preset.code())
             && current.path("configuration").path("presetVersion").asInt(0) < 2;
-        if (!legacyCls && !legacyCninfo && !legacySzse && !outdatedSseHome && !outdatedEastmoney) return;
+        if (!legacyCls && !legacyCninfo && !outdatedSseAnnouncements && !legacySzse
+            && !outdatedSseHome && !outdatedSzseHome && !outdatedCninfoHome && !outdatedEastmoney) return;
         NewsSourcePresetCatalog.SourceUpsert source = preset.source();
         var request = new NewsSourcePresetCatalog.SourceUpsert(source.sourceCode(), source.sourceName(),
-            legacyCls || legacyCninfo ? source.sourceType() : current.path("sourceType").asText(),
-            legacySzse ? source.entryUrl() : current.path("entryUrl").asText(), source.allowedDomain(),
+            legacyCls || legacyCninfo || outdatedSseAnnouncements || outdatedSzseHome || outdatedCninfoHome
+                ? source.sourceType() : current.path("sourceType").asText(),
+            legacySzse || outdatedSseAnnouncements || outdatedSzseHome || outdatedCninfoHome
+                ? source.entryUrl() : current.path("entryUrl").asText(), source.allowedDomain(),
             source.scheduleCron(), current.path("enabled").asBoolean(false),
-            legacyCls || legacyCninfo || outdatedSseHome || outdatedEastmoney
+            legacyCls || legacyCninfo || outdatedSseAnnouncements || outdatedSseHome || outdatedSzseHome
+                || outdatedCninfoHome || outdatedEastmoney
                 ? source.configuration() : jsonMap(current.path("configuration")));
         if (outdatedEastmoney && preset.rule() != null) {
             runtime.put("/sources/" + current.path("id").asLong() + "/rule", preset.rule());

@@ -12,9 +12,24 @@ class NewsSourcePresetCatalogTest {
             "sse_home", "szse_home", "eastmoney_finance", "cls_telegraph", "sse_announcements",
             "szse_announcements", "cninfo_home", "cninfo_announcements");
         assertThat(presets).filteredOn(preset -> "EXCHANGE_HOME".equals(preset.source().sourceType()))
-            .hasSize(2).allSatisfy(preset -> {
+            .hasSize(1).allSatisfy(preset -> {
                 assertThat(preset.rule()).isNull();
                 assertThat(preset.source().configuration()).containsKeys("provider", "headlineSelector", "marketUrlTemplate", "marketCodes");
+            });
+        assertThat(presets).filteredOn(preset -> "szse_home".equals(preset.code())).singleElement()
+            .satisfies(preset -> {
+                assertThat(preset.source().sourceType()).isEqualTo("SZSE_HOME");
+                assertThat(preset.source().configuration()).containsKeys(
+                    "presetVersion", "newsSelector", "newsUrlContains", "noticeIndexUrl", "announcementApiUrl",
+                    "announcementStaticBaseUrl", "detailSelector");
+                assertThat(preset.rule()).isNull();
+            });
+        assertThat(presets).filteredOn(preset -> "cninfo_home".equals(preset.code())).singleElement()
+            .satisfies(preset -> {
+                assertThat(preset.source().sourceType()).isEqualTo("CNINFO_HOME");
+                assertThat(preset.source().configuration()).containsKeys(
+                    "presetVersion", "announcementApiUrl", "answersUrl", "researchUrl", "votingUrl", "publicInfoUrl");
+                assertThat(preset.rule()).isNull();
             });
         assertThat(presets).filteredOn(preset -> "sse_home".equals(preset.code())).singleElement()
             .satisfies(preset -> {
@@ -26,6 +41,13 @@ class NewsSourcePresetCatalogTest {
             });
         assertThat(presets).filteredOn(preset -> "szse_announcements".equals(preset.code())).singleElement()
             .satisfies(preset -> assertThat(preset.source().entryUrl()).isEqualTo("https://www.szse.cn/disclosure/listed/notice/"));
+        assertThat(presets).filteredOn(preset -> "sse_announcements".equals(preset.code())).singleElement()
+            .satisfies(preset -> {
+                assertThat(preset.source().sourceType()).isEqualTo("SSE_ANNOUNCEMENTS");
+                assertThat(preset.source().configuration()).containsKeys(
+                    "apiUrl", "staticBaseUrl", "itemLimit", "lookbackDays", "securityType");
+                assertThat(preset.rule()).isNull();
+            });
         assertThat(presets).filteredOn(preset -> "eastmoney_finance".equals(preset.code())).singleElement()
             .satisfies(preset -> {
                 assertThat(preset.source().configuration()).containsEntry("presetVersion", 2);

@@ -52,6 +52,9 @@ public class NewsRuntimeInternalController {
     @PostMapping("/sources/{id}/collect") public ApiResponse<?> collect(@PathVariable("id") Long id) {
         return ApiResponse.success(collection.collect(id, "mcp-admin-" + UUID.randomUUID()), "采集完成");
     }
+    @PostMapping("/sources/{id}/robots-check") public ApiResponse<?> checkRobots(@PathVariable("id") Long id) {
+        return ApiResponse.success(collection.checkRobots(id), "机器人协议检测完成");
+    }
     @GetMapping("/records") public ApiResponse<NewsSourceAdminService.NewsRecordPage> records(
         @RequestParam(value = "sourceId", required = false) Long sourceId,
         @RequestParam(value = "page", defaultValue = "0") int page,

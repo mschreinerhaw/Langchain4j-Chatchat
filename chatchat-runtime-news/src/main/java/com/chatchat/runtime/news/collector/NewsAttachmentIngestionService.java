@@ -95,7 +95,7 @@ public class NewsAttachmentIngestionService {
             log.info("news_attachment_started parentDocumentId={} sourceId={} url={}", parent.documentId(), parent.sourceId(), url);
             HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .timeout(Duration.ofMillis(Math.max(1, properties.getRequestTimeoutMillis())))
-                .header("User-Agent", "ChatChat-NewsAttachment/1.0")
+                .header("User-Agent", "ChatChat-NewsCollector/1.0")
                 .header("Accept", "application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv")
                 .GET().build();
             HttpResponse<InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());

@@ -18,7 +18,7 @@ class NewsSourcePresetSeederTest {
 
         org.assertj.core.api.Assertions.assertThat(synchronizedSuccessfully).isTrue();
         verify(runtime, times(8)).post(eq("/sources"), any());
-        verify(runtime, times(3)).put(contains("/rule"), any());
+        verify(runtime, times(2)).put(contains("/rule"), any());
     }
 
     @Test
@@ -58,6 +58,26 @@ class NewsSourcePresetSeederTest {
     }
 
     @Test
+    void migratesLegacySseWebListToStructuredAnnouncementCollector() throws Exception {
+        NewsRuntimeClient runtime = mock(NewsRuntimeClient.class);
+        when(runtime.get("/sources")).thenReturn(new ObjectMapper().readTree("""
+            [{"id":11,"sourceCode":"sse_announcements","sourceName":"上海证券交易所公告",
+              "sourceType":"WEB_LIST","entryUrl":"https://www.sse.com.cn/disclosure/listedinfo/announcement/",
+              "enabled":true,"configuration":{}}]
+            """));
+        when(runtime.post(eq("/sources"), any())).thenReturn(new ObjectMapper().readTree("{\"id\":12}"));
+
+        assertThat(new NewsSourcePresetSeeder(runtime, new NewsSourcePresetCatalog()).seedMissingPresets()).isTrue();
+
+        var request = org.mockito.ArgumentCaptor.forClass(NewsSourcePresetCatalog.SourceUpsert.class);
+        verify(runtime).put(eq("/sources/11"), request.capture());
+        assertThat(request.getValue().sourceType()).isEqualTo("SSE_ANNOUNCEMENTS");
+        assertThat(request.getValue().enabled()).isTrue();
+        assertThat(request.getValue().entryUrl()).contains("/assortment/stock/list/info/announcement/");
+        assertThat(request.getValue().configuration()).containsKeys("apiUrl", "staticBaseUrl", "lookbackDays");
+    }
+
+    @Test
     void upgradesExistingSseHomepagePresetWhilePreservingEnabledState() throws Exception {
         NewsRuntimeClient runtime = mock(NewsRuntimeClient.class);
         when(runtime.get("/sources")).thenReturn(new ObjectMapper().readTree("""
@@ -74,6 +94,48 @@ class NewsSourcePresetSeederTest {
         assertThat(request.getValue().enabled()).isTrue();
         assertThat(request.getValue().configuration()).containsKeys(
             "sectionSelectors", "announcementFeeds", "marketDataFeeds");
+        assertThat(request.getValue().configuration()).containsEntry("presetVersion", 2);
+    }
+
+    @Test
+    void upgradesExistingSzseHomepageToDynamicCollectorWhilePreservingEnabledState() throws Exception {
+        NewsRuntimeClient runtime = mock(NewsRuntimeClient.class);
+        when(runtime.get("/sources")).thenReturn(new ObjectMapper().readTree("""
+            [{"id":13,"sourceCode":"szse_home","sourceName":"深圳证券交易所首页",
+              "sourceType":"EXCHANGE_HOME","entryUrl":"https://www.szse.cn/index/index.html",
+              "enabled":true,"configuration":{"provider":"SZSE"}}]
+            """));
+        when(runtime.post(eq("/sources"), any())).thenReturn(new ObjectMapper().readTree("{\"id\":12}"));
+
+        assertThat(new NewsSourcePresetSeeder(runtime, new NewsSourcePresetCatalog()).seedMissingPresets()).isTrue();
+
+        var request = org.mockito.ArgumentCaptor.forClass(NewsSourcePresetCatalog.SourceUpsert.class);
+        verify(runtime).put(eq("/sources/13"), request.capture());
+        assertThat(request.getValue().sourceType()).isEqualTo("SZSE_HOME");
+        assertThat(request.getValue().enabled()).isTrue();
+        assertThat(request.getValue().configuration()).containsKeys(
+            "newsSelector", "noticeIndexUrl", "announcementApiUrl");
+        assertThat(request.getValue().configuration()).containsEntry("presetVersion", 2);
+    }
+
+    @Test
+    void upgradesExistingCninfoHomepageToDynamicCollectorWhilePreservingEnabledState() throws Exception {
+        NewsRuntimeClient runtime = mock(NewsRuntimeClient.class);
+        when(runtime.get("/sources")).thenReturn(new ObjectMapper().readTree("""
+            [{"id":14,"sourceCode":"cninfo_home","sourceName":"巨潮资讯首页",
+              "sourceType":"NEWS_HOME","entryUrl":"https://www.cninfo.com.cn/new/index",
+              "enabled":true,"configuration":{}}]
+            """));
+        when(runtime.post(eq("/sources"), any())).thenReturn(new ObjectMapper().readTree("{\"id\":12}"));
+
+        assertThat(new NewsSourcePresetSeeder(runtime, new NewsSourcePresetCatalog()).seedMissingPresets()).isTrue();
+
+        var request = org.mockito.ArgumentCaptor.forClass(NewsSourcePresetCatalog.SourceUpsert.class);
+        verify(runtime).put(eq("/sources/14"), request.capture());
+        assertThat(request.getValue().sourceType()).isEqualTo("CNINFO_HOME");
+        assertThat(request.getValue().enabled()).isTrue();
+        assertThat(request.getValue().configuration()).containsKeys(
+            "announcementApiUrl", "answersUrl", "researchUrl", "votingUrl", "publicInfoUrl");
         assertThat(request.getValue().configuration()).containsEntry("presetVersion", 2);
     }
 

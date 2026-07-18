@@ -26,11 +26,16 @@ public class NewsSourceService {
     }
 
     public NewsSource requireEnabled(Long sourceId) {
-        NewsSourceEntity entity = sourceRepository.findById(sourceId)
-            .orElseThrow(() -> new IllegalArgumentException("News source does not exist: " + sourceId));
-        if (!entity.isEnabled()) {
+        NewsSource source = require(sourceId);
+        if (!source.enabled()) {
             throw new IllegalStateException("News source is disabled: " + sourceId);
         }
+        return source;
+    }
+
+    public NewsSource require(Long sourceId) {
+        NewsSourceEntity entity = sourceRepository.findById(sourceId)
+            .orElseThrow(() -> new IllegalArgumentException("News source does not exist: " + sourceId));
         Map<String, String> selectors = new LinkedHashMap<>();
         ruleRepository.findBySourceId(sourceId).ifPresent(rule -> {
             put(selectors, "listSelector", rule.getListSelector());

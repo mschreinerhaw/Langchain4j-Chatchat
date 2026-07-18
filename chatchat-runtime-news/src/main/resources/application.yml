@@ -18,6 +18,12 @@ chatchat:
   runtime:
     news:
       enabled: true
+      robots:
+        enabled: true
+        user-agent: ChatChat-NewsCollector
+        request-timeout-millis: 10000
+        max-file-bytes: 524288
+        cache-ttl-millis: 1800000
       attachment:
         enabled: true
         worker-count: 2

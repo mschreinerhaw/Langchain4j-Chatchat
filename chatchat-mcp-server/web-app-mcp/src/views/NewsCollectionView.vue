@@ -9,7 +9,7 @@
       </div>
     </el-card>
 
-    <el-alert title="已内置上交所/深交所首页快照及东方财富、财联社、交易所公告、巨潮资讯等七套模板，默认关闭。站点页面改版后请及时校验配置。" type="info" :closable="false" show-icon />
+    <el-alert title="所有资讯源在启用和采集前都会检测 robots.txt。明确禁止或无法可靠确认许可时将停止采集并提示原因；robots.txt 检测不替代网站使用条款及法律审查。" type="warning" :closable="false" show-icon />
 
     <section class="news-list-toolbar">
       <el-input
@@ -43,9 +43,12 @@
       </el-table-column>
       <el-table-column prop="collectedRecords" label="记录" width="85" />
       <el-table-column label="状态" width="90"><template #default="{ row }"><el-tag :type="row.enabled ? 'success' : 'info'">{{ row.enabled ? '启用' : '停用' }}</el-tag></template></el-table-column>
-      <el-table-column label="操作" width="280" fixed="right"><template #default="{ row }">
+      <el-table-column label="操作" width="430" fixed="right"><template #default="{ row }">
         <el-button link type="primary" @click="editSource(row)">配置</el-button>
         <el-button link @click="toggle(row)">{{ row.enabled ? '停用' : '启用' }}</el-button>
+        <el-button link type="warning" :loading="checkingRobotsId === row.id" @click="checkRobots(row)">协议检测</el-button>
+        <el-button v-if="!robotsOverrideActive(row)" link type="warning" @click="openRobotsOverride(row)">忽略检测</el-button>
+        <el-button v-else link type="danger" @click="cancelRobotsOverride(row)">取消忽略</el-button>
         <el-button link type="success" :disabled="!row.enabled" :loading="collectingId === row.id" @click="collect(row)">立即采集</el-button>
         <el-button link type="danger" :disabled="row.collectedRecords > 0" @click="remove(row)">删除</el-button>
       </template></el-table-column>
@@ -68,7 +71,7 @@
         <div class="news-form-grid">
           <el-form-item label="来源编码"><el-input v-model.trim="form.sourceCode" /></el-form-item>
           <el-form-item label="来源名称"><el-input v-model.trim="form.sourceName" /></el-form-item>
-          <el-form-item label="来源类型"><el-select v-model="form.sourceType"><el-option label="交易所首页（内置）" value="EXCHANGE_HOME" disabled /><el-option label="资讯首页（内置）" value="NEWS_HOME" disabled /><el-option label="财联社电报（内置）" value="CLS_TELEGRAPH" disabled /><el-option label="巨潮公告（内置）" value="CNINFO_ANNOUNCEMENTS" disabled /><el-option label="网页列表" value="WEB_LIST" /><el-option label="固定网页" value="WEB_SINGLE_PAGE" /><el-option label="RSS/Atom" value="RSS" /><el-option label="JSON API" value="API" /></el-select></el-form-item>
+          <el-form-item label="来源类型"><el-select v-model="form.sourceType"><el-option label="交易所首页（内置）" value="EXCHANGE_HOME" disabled /><el-option label="深交所首页（内置）" value="SZSE_HOME" disabled /><el-option label="资讯首页（内置）" value="NEWS_HOME" disabled /><el-option label="巨潮资讯首页（内置）" value="CNINFO_HOME" disabled /><el-option label="财联社电报（内置）" value="CLS_TELEGRAPH" disabled /><el-option label="巨潮公告（内置）" value="CNINFO_ANNOUNCEMENTS" disabled /><el-option label="上交所公告（内置）" value="SSE_ANNOUNCEMENTS" disabled /><el-option label="网页列表" value="WEB_LIST" /><el-option label="固定网页" value="WEB_SINGLE_PAGE" /><el-option label="RSS/Atom" value="RSS" /><el-option label="JSON API" value="API" /></el-select></el-form-item>
           <el-form-item class="wide" label="入口地址"><el-input v-model.trim="form.entryUrl" /></el-form-item>
           <el-form-item label="允许域名"><el-input v-model.trim="form.allowedDomain" /></el-form-item>
           <el-form-item label="启用"><el-switch v-model="form.enabled" /></el-form-item>
@@ -192,6 +195,29 @@
         </div>
       </el-form>
       <template #footer><el-button @click="dialogOpen = false">取消</el-button><el-button type="primary" :loading="saving" @click="save">保存</el-button></template>
+    </el-dialog>
+
+    <el-dialog v-model="robotsOverrideDialogOpen" title="临时忽略 robots.txt 检测" width="620px" destroy-on-close>
+      <el-alert
+        title="此操作不会关闭检测：系统仍会保留原始检测结果，但会在有效期内允许该资讯源继续采集。robots.txt 豁免不代表已获得版权、数据使用或网站条款授权。"
+        type="warning"
+        :closable="false"
+        show-icon
+      />
+      <el-form label-position="top" class="news-form robots-override-form">
+        <el-form-item label="忽略原因（必填）">
+          <el-input v-model="robotsOverrideForm.reason" type="textarea" :rows="5" maxlength="500" show-word-limit placeholder="请填写授权依据、业务负责人、临时处置背景或后续处理计划，至少 10 个字符。" />
+        </el-form-item>
+        <el-form-item label="有效时长">
+          <el-input-number v-model="robotsOverrideForm.hours" :min="1" :max="168" />
+          <span style="margin-left: 8px">小时（最长 7 天，到期自动恢复强制拦截）</span>
+        </el-form-item>
+        <el-checkbox v-model="robotsOverrideForm.acknowledged">我已确认具备相应授权，并理解该操作不能替代网站条款、版权及法律审查。</el-checkbox>
+      </el-form>
+      <template #footer>
+        <el-button @click="robotsOverrideDialogOpen = false">取消</el-button>
+        <el-button type="warning" :loading="robotsOverrideSaving" @click="saveRobotsOverride">确认临时忽略</el-button>
+      </template>
     </el-dialog>
 
     <el-dialog v-model="logDialogOpen" title="采集日志" width="1100px" destroy-on-close>

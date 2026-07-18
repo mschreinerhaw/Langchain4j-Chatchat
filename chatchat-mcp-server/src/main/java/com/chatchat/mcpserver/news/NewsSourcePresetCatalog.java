@@ -13,30 +13,38 @@ public class NewsSourcePresetCatalog {
     public List<Preset> presets() {
         return List.of(
             sseHome(),
-            exchangeHome("szse_home", "深圳证券交易所首页", "https://www.szse.cn/index/index.html", "SZSE",
-                ".homem-news-wrap:not(.currentAffairs) a.art-list-link", "https://www.szse.cn/api/market/ssjjhq/getTimeData?marketId=1&code={code}",
-                List.of("399001", "399006")),
+            szseHome(),
             eastmoneyFinance(),
             clsTelegraph(),
-            web("sse_announcements", "上海证券交易所公告", "https://www.sse.com.cn/disclosure/listedinfo/announcement/", "sse.com.cn",
-                "a[href*='/disclosure/listedinfo/announcement/'], a[href$='.pdf']", "h1, .title", ".article-content, .content, body", ".date, .time", ".source",
-                "https?://[^/]*sse\\.com\\.cn/.*", "0 */15 * * * *"),
+            sseAnnouncements(),
             web("szse_announcements", "深圳证券交易所公告", SZSE_ENTRY_URL, "szse.cn",
                 "a[href*='/disclosure/'], a[href$='.pdf']", "h1, .title", ".article-content, .content, body", ".date, .time", ".source",
                 "https?://[^/]*szse\\.cn/.*", "0 */15 * * * *"),
-            newsHome("cninfo_home", "巨潮资讯首页", "https://www.cninfo.com.cn/new/index", "CNINFO",
-                "a[href*='/new/disclosure/detail']", 10, "0 */5 * * * *"),
+            cninfoHome(),
             cninfoAnnouncements()
         );
     }
 
-    private Preset newsHome(String code, String name, String url, String provider, String headlineSelector,
-                            int headlineLimit, String cron) {
-        return new Preset(code, name, "资讯首页关键内容快照，仅采集指定要闻区域。",
-            new SourceUpsert(code, name, "NEWS_HOME", url,
-                URI.create(url).getHost(), cron, false,
-                Map.of("provider", provider, "headlineSelector", headlineSelector, "headlineLimit", headlineLimit,
-                    "sleepMillis", 1000, "timeoutMillis", 20000, "zoneId", "Asia/Shanghai", "language", "zh-CN")), null);
+    private Preset cninfoHome() {
+        String code = "cninfo_home";
+        String name = "巨潮资讯首页";
+        String url = "https://www.cninfo.com.cn/new/index";
+        return new Preset(code, name, "采集巨潮首页最新公告、互动问答、调研信息、网络投票和公开信息。",
+            new SourceUpsert(code, name, "CNINFO_HOME", url,
+                URI.create(url).getHost(), "0 */5 * * * *", false,
+                Map.ofEntries(
+                    Map.entry("presetVersion", 2),
+                    Map.entry("provider", "CNINFO"),
+                    Map.entry("sectionItemLimit", 20),
+                    Map.entry("announcementColumns", "szse,sse"),
+                    Map.entry("announcementApiUrl", "https://www.cninfo.com.cn/new/hisAnnouncement/query"),
+                    Map.entry("staticBaseUrl", "https://static.cninfo.com.cn/"),
+                    Map.entry("answersUrl", "https://www.cninfo.com.cn/new/companyReplies/getAnswersList"),
+                    Map.entry("researchUrl", "https://www.cninfo.com.cn/new/index/researchInformation"),
+                    Map.entry("votingUrl", "https://www.cninfo.com.cn/new/votingCompany/getMeetings"),
+                    Map.entry("publicInfoUrl", "https://www.cninfo.com.cn/data/centerSpecial/getIndexPublicInfo?market="),
+                    Map.entry("sleepMillis", 1000), Map.entry("timeoutMillis", 20000),
+                    Map.entry("zoneId", "Asia/Shanghai"), Map.entry("language", "zh-CN"))), null);
     }
 
     private Preset clsTelegraph() {
@@ -58,14 +66,39 @@ public class NewsSourcePresetCatalog {
                     "sleepMillis", 1000, "timeoutMillis", 20000, "zoneId", "Asia/Shanghai", "language", "zh-CN")), null);
     }
 
-    private Preset exchangeHome(String code, String name, String url, String provider, String headlineSelector,
-                                String marketUrlTemplate, List<String> marketCodes) {
-        return new Preset(code, name, "交易所首页要闻和当日行情快照。",
-            new SourceUpsert(code, name, "EXCHANGE_HOME", url,
+    private Preset szseHome() {
+        String code = "szse_home";
+        String name = "深圳证券交易所首页";
+        String url = "https://www.szse.cn/index/index.html";
+        return new Preset(code, name, "采集深交所要闻、深交所公告和上市公司公告及其二级正文或 PDF。",
+            new SourceUpsert(code, name, "SZSE_HOME", url,
                 URI.create(url).getHost(), "0 */5 * * * *", false,
-                Map.of("provider", provider, "headlineSelector", headlineSelector, "headlineLimit", 12,
-                    "marketUrlTemplate", marketUrlTemplate, "marketCodes", marketCodes,
-                    "sleepMillis", 1000, "timeoutMillis", 20000, "zoneId", "Asia/Shanghai", "language", "zh-CN")), null);
+                Map.ofEntries(
+                    Map.entry("presetVersion", 2), Map.entry("provider", "SZSE"),
+                    Map.entry("newsSelector", ".homem-news-wrap .title a[href]"),
+                    Map.entry("newsUrlContains", "/aboutus/trends/news/"), Map.entry("newsLimit", 10),
+                    Map.entry("noticeIndexUrl", "https://www.szse.cn/disclosure/notice/index.json"),
+                    Map.entry("noticeLimit", 20),
+                    Map.entry("announcementApiUrl", "https://www.cninfo.com.cn/new/hisAnnouncement/query"),
+                    Map.entry("announcementStaticBaseUrl", "https://static.cninfo.com.cn/"),
+                    Map.entry("announcementLimit", 50), Map.entry("cninfoBaseUrl", "https://www.cninfo.com.cn"),
+                    Map.entry("detailSelector", ".article-body,.news-detail-con,.des-content,.article-content,.text-content,.content,article,.g-content"),
+                    Map.entry("sleepMillis", 1000), Map.entry("timeoutMillis", 20000),
+                    Map.entry("zoneId", "Asia/Shanghai"), Map.entry("language", "zh-CN"))), null);
+    }
+
+    private Preset sseAnnouncements() {
+        return new Preset("sse_announcements", "上海证券交易所公告",
+            "通过上交所公司公告页使用的动态 JSON 接口采集一级公告，并异步解析二级 PDF 公告全文。",
+            new SourceUpsert("sse_announcements", "上海证券交易所公告", "SSE_ANNOUNCEMENTS",
+                "https://www.sse.com.cn/assortment/stock/list/info/announcement/index.shtml",
+                "sse.com.cn", "0 */10 * * * *", false,
+                Map.of("presetVersion", 2,
+                    "apiUrl", "https://query.sse.com.cn/security/stock/queryCompanyBulletin.do",
+                    "staticBaseUrl", "https://static.sse.com.cn", "itemLimit", 100, "lookbackDays", 3,
+                    "securityType", "0101,120100,020100,020200,120200",
+                    "sleepMillis", 1000, "timeoutMillis", 20000,
+                    "zoneId", "Asia/Shanghai", "language", "zh-CN")), null);
     }
 
     private Preset eastmoneyFinance() {

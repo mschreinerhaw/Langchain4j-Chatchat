@@ -21,6 +21,8 @@ class NewsAdminControllerTest {
         when(runtime.get("/sources")).thenReturn(new ObjectMapper().readTree("[]"));
         when(runtime.get("/sources/42/rule")).thenReturn(rule);
         when(runtime.get("/records?page=0&size=20")).thenReturn(new ObjectMapper().readTree("{\"items\":[],\"total\":0}"));
+        when(runtime.post("/sources/42/robots-check", null)).thenReturn(new ObjectMapper().readTree(
+            "{\"allowed\":true,\"status\":\"ALLOWED\",\"robotsUrl\":\"https://example.test/robots.txt\"}"));
         when(runtime.invoke(org.mockito.ArgumentMatchers.eq("news_search"), org.mockito.ArgumentMatchers.any()))
             .thenReturn(com.chatchat.common.tool.ToolOutput.success(java.util.Map.of("count", 0, "items", java.util.List.of())));
 
@@ -33,6 +35,10 @@ class NewsAdminControllerTest {
         mvc.perform(get("/api/v1/news/sources/42/rule"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.sourceId").value(42));
         verify(runtime).get("/sources/42/rule");
+
+        mvc.perform(post("/api/v1/news/sources/42/robots-check"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.allowed").value(true));
+        verify(runtime).post("/sources/42/robots-check", null);
 
         mvc.perform(get("/api/v1/news/records"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.total").value(0));

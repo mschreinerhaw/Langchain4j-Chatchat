@@ -5,8 +5,11 @@ public enum NewsSourceType {
     API,
     EXCHANGE_HOME,
     NEWS_HOME,
+    SZSE_HOME,
+    CNINFO_HOME,
     CLS_TELEGRAPH,
     CNINFO_ANNOUNCEMENTS,
+    SSE_ANNOUNCEMENTS,
     WEB_LIST,
     WEB_SINGLE_PAGE
 }

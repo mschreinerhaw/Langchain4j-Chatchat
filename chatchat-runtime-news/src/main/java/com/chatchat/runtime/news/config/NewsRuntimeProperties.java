@@ -15,9 +15,19 @@ public class NewsRuntimeProperties {
     private int collectorQueueCapacity = 20;
     private int maxItemsPerRun = 500;
     private int minimumContentChars = 80;
+    private Robots robots = new Robots();
     private Bulk bulk = new Bulk();
     private Attachment attachment = new Attachment();
     private OpenSearch openSearch = new OpenSearch();
+
+    @Data
+    public static class Robots {
+        private boolean enabled = true;
+        private String userAgent = "ChatChat-NewsCollector";
+        private int requestTimeoutMillis = 10_000;
+        private int maxFileBytes = 512 * 1024;
+        private long cacheTtlMillis = 30 * 60 * 1_000L;
+    }
 
     @Data
     public static class Bulk {

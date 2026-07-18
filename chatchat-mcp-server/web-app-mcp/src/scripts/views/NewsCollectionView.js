@@ -1,4 +1,5 @@
 import { newsApi } from '../../services/api';
+import { ElMessageBox } from 'element-plus';
 import '../../styles/views/news-collection.css';
 
 const emptyRule = () => ({ listSelector: '', linkSelector: '', titleSelector: '', contentSelector: '', authorSelector: '', publishTimeSelector: '', urlPattern: '' });
@@ -23,9 +24,12 @@ const monthDayOptions = [...Array.from({ length: 28 }, (_, index) => ({ label: S
 const emptyScheduleEditor = () => ({ mode: 'interval', intervalCron: '0 */10 * * * *', time: '09:00', weekdays: ['MON'], monthDays: ['1'] });
 const sourceTypeOptions = [
   { label: '交易所首页', value: 'EXCHANGE_HOME' },
+  { label: '深交所首页', value: 'SZSE_HOME' },
   { label: '资讯首页', value: 'NEWS_HOME' },
+  { label: '巨潮资讯首页', value: 'CNINFO_HOME' },
   { label: '财联社电报', value: 'CLS_TELEGRAPH' },
   { label: '巨潮公告', value: 'CNINFO_ANNOUNCEMENTS' },
+  { label: '上交所公告', value: 'SSE_ANNOUNCEMENTS' },
   { label: '网页列表', value: 'WEB_LIST' },
   { label: '固定网页', value: 'WEB_SINGLE_PAGE' },
   { label: 'RSS/Atom', value: 'RSS' },
@@ -110,7 +114,9 @@ export default {
   name: 'NewsCollectionView',
   emits: ['notify', 'error', 'result'],
   data: () => ({
-    sources: [], presets: [], patternPresets: [], loading: false, saving: false, collectingId: null, dialogOpen: false,
+    sources: [], presets: [], patternPresets: [], loading: false, saving: false, collectingId: null, checkingRobotsId: null, dialogOpen: false,
+    robotsOverrideDialogOpen: false, robotsOverrideSaving: false, robotsOverrideSource: null,
+    robotsOverrideForm: { reason: '', hours: 24, acknowledged: false },
     logDialogOpen: false, logsLoading: false, logs: [], logSourceId: '', logPage: 1, logPageSize: 20, logTotal: 0,
     filters: { keyword: '', sourceType: '', enabled: '' }, page: 1, pageSize: 10, pageSizes: [10, 20, 50, 100],
     form: emptyForm(), scheduleEditor: emptyScheduleEditor(), intervalOptions, weekdayOptions, monthDayOptions, sourceTypeOptions, selectorPresets
@@ -217,12 +223,95 @@ export default {
       finally { this.saving = false; }
     },
     async toggle(source) {
-      try { await newsApi.saveSource({ ...source, enabled: !source.enabled }); await this.load(); }
+      try {
+        if (!source.enabled) {
+          const report = await this.runRobotsCheck(source, false);
+          if (!report?.allowed) return;
+        }
+        await newsApi.saveSource({ ...source, enabled: !source.enabled });
+        await this.load();
+      }
       catch (error) { this.$emit('error', error); }
+    },
+    async runRobotsCheck(source, showSuccess = true) {
+      this.checkingRobotsId = source.id;
+      try {
+        const report = await newsApi.checkRobots(source.id);
+        if (!report?.allowed) {
+          this.$emit('notify', { type: 'danger', title: '机器人协议检测未通过', message: report?.message || '无法确认该网站允许采集' });
+          this.$emit('result', { title: `${source.sourceName} robots.txt 检测结果`, value: report });
+        } else if (report?.overridden) {
+          this.$emit('notify', { type: 'warning', title: '已使用临时忽略检测', message: report?.message || '当前采集由人工豁免放行' });
+        } else if (showSuccess) {
+          this.$emit('notify', { title: '机器人协议检测通过', message: report?.message || '允许访问该采集地址' });
+        }
+        return report;
+      } finally { this.checkingRobotsId = null; }
+    },
+    async checkRobots(source) {
+      try { await this.runRobotsCheck(source, true); }
+      catch (error) { this.$emit('error', error); }
+    },
+    robotsOverrideActive(source) {
+      const config = source?.configuration || {};
+      const until = Date.parse(config.robotsPolicyOverrideUntil || '');
+      return config.robotsPolicyOverride === true && Number.isFinite(until) && until > Date.now();
+    },
+    openRobotsOverride(source) {
+      this.robotsOverrideSource = source;
+      this.robotsOverrideForm = { reason: '', hours: 24, acknowledged: false };
+      this.robotsOverrideDialogOpen = true;
+    },
+    async saveRobotsOverride() {
+      const reason = String(this.robotsOverrideForm.reason || '').trim();
+      if (reason.length < 10) {
+        this.$emit('notify', { type: 'danger', title: '请补充忽略原因', message: '忽略原因至少填写 10 个字符，说明授权依据或临时处置背景。' });
+        return;
+      }
+      if (!this.robotsOverrideForm.acknowledged) {
+        this.$emit('notify', { type: 'danger', title: '请确认风险声明', message: '确认后才能创建临时忽略。' });
+        return;
+      }
+      const source = this.robotsOverrideSource;
+      const hours = Math.max(1, Math.min(168, Number(this.robotsOverrideForm.hours || 24)));
+      const now = new Date();
+      const until = new Date(now.getTime() + hours * 60 * 60 * 1000);
+      this.robotsOverrideSaving = true;
+      try {
+        await newsApi.saveSource({ ...source, configuration: { ...(source.configuration || {}),
+          robotsPolicyOverride: true, robotsPolicyOverrideReason: reason,
+          robotsPolicyOverrideAt: now.toISOString(), robotsPolicyOverrideUntil: until.toISOString() } });
+        this.robotsOverrideDialogOpen = false;
+        this.$emit('notify', { type: 'warning', title: '已创建临时忽略', message: `有效期至 ${until.toLocaleString('zh-CN', { hour12: false })}` });
+        await this.load();
+      } catch (error) { this.$emit('error', error); }
+      finally { this.robotsOverrideSaving = false; }
+    },
+    async cancelRobotsOverride(source) {
+      try {
+        await ElMessageBox.confirm('取消后，下次启用或采集将重新强制执行 robots.txt 检测。', '取消忽略检测', {
+          confirmButtonText: '确认取消', cancelButtonText: '保留忽略', type: 'warning'
+        });
+        await newsApi.saveSource({ ...source, configuration: { ...(source.configuration || {}),
+          robotsPolicyOverride: false, robotsPolicyOverrideReason: '', robotsPolicyOverrideUntil: '' } });
+        this.$emit('notify', { title: '已取消忽略检测' });
+        await this.load();
+      } catch (error) {
+        if (error !== 'cancel' && error !== 'close') this.$emit('error', error);
+      }
     },
     async collect(source) {
       this.collectingId = source.id;
-      try { const result = await newsApi.collect(source.id); this.$emit('result', { title: `${source.sourceName} 采集结果`, value: result }); await this.load(); }
+      try {
+        const result = await newsApi.collect(source.id);
+        if (result?.robotsAllowed === false) {
+          this.$emit('notify', { type: 'danger', title: '机器人协议检测未通过', message: result.errorMessage || '采集已停止' });
+        } else if (result?.robotsStatus === 'OVERRIDDEN') {
+          this.$emit('notify', { type: 'warning', title: '本次采集使用了临时忽略', message: `有效期至 ${result.robotsOverrideUntil || '-'}` });
+        }
+        this.$emit('result', { title: `${source.sourceName} 采集结果`, value: result });
+        await this.load();
+      }
       catch (error) { this.$emit('error', error); }
       finally { this.collectingId = null; }
     },

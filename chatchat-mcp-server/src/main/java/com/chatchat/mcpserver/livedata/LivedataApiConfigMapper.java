@@ -64,10 +64,19 @@ public class LivedataApiConfigMapper {
     }
 
     public HttpEndpointConfig toGatewayConfig(LivedataApiDefinition definition) {
+        return toGatewayConfig(definition, null);
+    }
+
+    public HttpEndpointConfig toGatewayConfig(LivedataApiDefinition definition, HttpEndpointConfig sourceGateway) {
         var properties = settingsProvider.current();
         List<ParamDefinition> params = parseParams(definition.params());
         String serviceName = resolveServiceName(definition);
-        String namespace = firstNonBlank(definition.namespace(), properties.getDefaultNamespace());
+        Map<String, Object> sourceHeaders = readJsonObject(sourceGateway == null ? null : sourceGateway.getHeadersJson());
+        String namespace = firstNonBlank(
+            literalHeader(sourceHeaders, "namespace"),
+            definition.namespace(),
+            properties.getDefaultNamespace()
+        );
         HttpEndpointConfig config = new HttpEndpointConfig();
         String toolName = "http_" + toToolName(definition);
         if (toolName.length() > 128) {
@@ -79,8 +88,10 @@ public class LivedataApiConfigMapper {
         config.setDescription(toDescription(definition));
         config.setMethod("POST");
         config.setUrlTemplate(toUrlTemplate(definition, serviceName, namespace));
-        config.setHeadersJson(writeJson(Map.of("Content-Type", "application/json;charset=UTF-8")));
-        config.setBodyTemplate(toBodyTemplate(params, namespace));
+        Map<String, Object> headers = new LinkedHashMap<>(sourceHeaders);
+        putHeaderIfAbsent(headers, "Content-Type", "application/json;charset=UTF-8");
+        config.setHeadersJson(writeJson(headers));
+        config.setBodyTemplate(toBodyTemplate(params, namespace, sourceHeaders));
         config.setInputSchemaJson(toInputSchema(params));
         config.setEnabled(true);
         config.setCategory("api_gateway");
@@ -167,12 +178,19 @@ public class LivedataApiConfigMapper {
      * @return the converted body template
      */
     private String toBodyTemplate(List<ParamDefinition> params, String namespace) {
+        return toBodyTemplate(params, namespace, Map.of());
+    }
+
+    private String toBodyTemplate(List<ParamDefinition> params, String namespace, Map<String, Object> gatewayHeaders) {
         var properties = settingsProvider.current();
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("sessionId", sessionIdTemplate());
+        body.put("sessionId", firstNonBlank(literalHeader(gatewayHeaders, "sessionId"), sessionIdTemplate()));
         body.put("namespace", firstNonBlank(namespace, properties.getDefaultNamespace()));
         Map<String, Object> head = new LinkedHashMap<>();
-        String amsToken = properties.isExposeAmsTokenParameter() ? "{{amsToken}}" : properties.getAmsToken();
+        String amsToken = firstNonBlank(
+            literalHeader(gatewayHeaders, "x-ams-token"),
+            properties.isExposeAmsTokenParameter() ? "{{amsToken}}" : properties.getAmsToken()
+        );
         head.put("x-ams-token", amsToken == null ? "" : amsToken.trim());
         body.put("head", head);
 
@@ -182,6 +200,50 @@ public class LivedataApiConfigMapper {
         }
         body.put("data", data);
         return writeJson(body);
+    }
+
+    private Map<String, Object> readJsonObject(String value) {
+        if (value == null || value.isBlank()) {
+            return Map.of();
+        }
+        try {
+            JsonNode root = objectMapper.readTree(value);
+            if (root == null || !root.isObject()) {
+                return Map.of();
+            }
+            Map<String, Object> result = new LinkedHashMap<>();
+            root.properties().forEach(entry -> {
+                JsonNode node = entry.getValue();
+                if (node != null && !node.isNull()) {
+                    result.put(entry.getKey(), node.isValueNode() ? node.asText() : node);
+                }
+            });
+            return result;
+        } catch (Exception ignored) {
+            return Map.of();
+        }
+    }
+
+    private String literalHeader(Map<String, Object> headers, String name) {
+        if (headers == null || headers.isEmpty()) {
+            return null;
+        }
+        return headers.entrySet().stream()
+            .filter(entry -> entry.getKey() != null && entry.getKey().equalsIgnoreCase(name))
+            .map(Map.Entry::getValue)
+            .filter(value -> value != null && !String.valueOf(value).isBlank())
+            .map(value -> String.valueOf(value).trim())
+            .filter(value -> !value.matches("^\\{\\{[^}]+}}$"))
+            .findFirst()
+            .orElse(null);
+    }
+
+    private void putHeaderIfAbsent(Map<String, Object> headers, String name, String value) {
+        boolean present = headers.keySet().stream()
+            .anyMatch(key -> key != null && key.equalsIgnoreCase(name));
+        if (!present) {
+            headers.put(name, value);
+        }
     }
 
     /**

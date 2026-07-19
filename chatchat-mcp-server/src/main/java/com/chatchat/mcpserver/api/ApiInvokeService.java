@@ -273,7 +273,12 @@ public class ApiInvokeService {
             if (parsed instanceof Map<?, ?> map) {
                 Object code = map.get("code");
                 String codeText = code == null ? "" : String.valueOf(code);
-                return "401".equals(codeText) || "403".equals(codeText);
+                Object note = map.get("note");
+                String noteText = note == null ? "" : String.valueOf(note).toUpperCase(Locale.ROOT);
+                return "401".equals(codeText)
+                    || "403".equals(codeText)
+                    || "-10014".equals(codeText)
+                    || noteText.contains("UNAUTHENTICATED");
             }
         } catch (Exception ignored) {
         }
@@ -288,9 +293,17 @@ public class ApiInvokeService {
      */
     private ApiInvokeResult toResult(HttpResponse<String> response) {
         Object parsedBody = parseBody(response.body());
-        boolean success = response.statusCode() >= 200 && response.statusCode() < 300;
+        boolean httpSuccess = response.statusCode() >= 200 && response.statusCode() < 300;
+        boolean authFailure = isAuthFailure(response);
+        boolean success = httpSuccess && !authFailure;
+        String errorMessage = null;
+        if (!httpSuccess) {
+            errorMessage = "API returned HTTP " + response.statusCode();
+        } else if (authFailure) {
+            errorMessage = "API authentication failed";
+        }
         return new ApiInvokeResult(success, response.statusCode(), response.headers().map(), parsedBody,
-            response.body(), success ? null : "API returned HTTP " + response.statusCode());
+            response.body(), errorMessage);
     }
 
     /**

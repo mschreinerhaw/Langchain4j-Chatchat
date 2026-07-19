@@ -86,6 +86,55 @@ class ApiInvokeServiceTest {
         }
     }
 
+    @Test
+    void http200UnauthenticatedBusinessResponseIsReportedAsFailure() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/livedata", exchange -> {
+            byte[] body = "{\"note\":\"未知异常:UNAUTHENTICATED: 无权限\",\"code\":-10014}"
+                .getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json;charset=UTF-8");
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.start();
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            ApiResponseCacheService cacheService = mock(ApiResponseCacheService.class);
+            when(cacheService.get(any(), anyMap())).thenReturn(Optional.empty());
+            HttpEndpointConfigService gatewayConfigService = mock(HttpEndpointConfigService.class);
+            HttpEndpointConfig gateway = new HttpEndpointConfig();
+            gateway.setId("gateway-1");
+            gateway.setEnabled(true);
+            gateway.setMethod("POST");
+            gateway.setUrlTemplate("http://localhost:" + server.getAddress().getPort() + "/livedata");
+            gateway.setBodyTemplate("{}");
+            gateway.setTimeoutMs(5000);
+            when(gatewayConfigService.getById("gateway-1")).thenReturn(gateway);
+            ApiInvokeService service = new ApiInvokeService(
+                objectMapper,
+                mock(InvocationAuditService.class),
+                cacheService,
+                mockObjectProvider(),
+                new TemplateParameterValidator(objectMapper),
+                gatewayConfigService
+            );
+            ApiServiceConfig config = new ApiServiceConfig();
+            config.setId("api-1");
+            config.setToolName("livedata_test");
+            config.setGatewayId("gateway-1");
+            config.setInputSchemaJson("{\"type\":\"object\",\"properties\":{}}");
+
+            ApiInvokeResult result = service.invoke(config, Map.of());
+
+            assertThat(result.success()).isFalse();
+            assertThat(result.statusCode()).isEqualTo(200);
+            assertThat(result.errorMessage()).isEqualTo("API authentication failed");
+        } finally {
+            server.stop(0);
+        }
+    }
+
     @SuppressWarnings("unchecked")
     private ObjectProvider<LivedataSessionService> mockObjectProvider() {
         ObjectProvider<LivedataSessionService> provider = mock(ObjectProvider.class);

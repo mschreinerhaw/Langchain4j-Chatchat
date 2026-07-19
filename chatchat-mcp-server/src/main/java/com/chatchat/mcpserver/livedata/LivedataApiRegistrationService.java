@@ -67,6 +67,7 @@ public class LivedataApiRegistrationService {
         int skipped = 0;
         int missing = 0;
         List<String> errors = new ArrayList<>();
+        HttpEndpointConfig sourceGateway = configuredGateway();
 
         for (String id : ids) {
             LivedataApiDefinition definition = definitions.get(id);
@@ -75,7 +76,8 @@ public class LivedataApiRegistrationService {
                 continue;
             }
             try {
-                HttpEndpointConfig gateway = gatewayConfigService.upsertByToolName(mapper.toGatewayConfig(definition));
+                HttpEndpointConfig gateway = gatewayConfigService.upsertByToolName(
+                    mapper.toGatewayConfig(definition, sourceGateway));
                 ApiServiceConfig config = mapper.toApiServiceConfig(definition, gateway.getId());
                 boolean exists = apiServiceConfigService.existsByToolName(config.getToolName());
                 if (exists && !overwrite) {
@@ -310,6 +312,18 @@ public class LivedataApiRegistrationService {
         int missing,
         List<String> errors
     ) {
+    }
+
+    private HttpEndpointConfig configuredGateway() {
+        String gatewayId = configService.getConfig().getGatewayId();
+        if (gatewayId == null || gatewayId.isBlank()) {
+            throw new IllegalStateException("LiveData gateway asset is not configured");
+        }
+        HttpEndpointConfig gateway = gatewayConfigService.getById(gatewayId);
+        if (!gateway.isEnabled()) {
+            throw new IllegalStateException("LiveData gateway asset is disabled: " + gatewayId);
+        }
+        return gateway;
     }
 
     private boolean isLivedataGateway(HttpEndpointConfig gateway) {

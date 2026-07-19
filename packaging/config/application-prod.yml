@@ -397,6 +397,7 @@ springdoc:
   use-fqn: false
 
 logging:
+  config: file:./config/logback-spring.xml
   file:
     name: ./logs/chatchat.log
   logback:

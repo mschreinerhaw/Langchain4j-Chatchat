@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="false">
+    <springProperty scope="context" name="APP_NAME" source="spring.application.name"
+                    defaultValue="chatchat-runtime-news"/>
+
+    <!-- Values can be overridden with JVM -D options without editing this file. -->
+    <property name="LOG_DIR" value="${LOG_DIR:-./logs}"/>
+    <property name="LOG_MAX_FILE_SIZE" value="${LOG_MAX_FILE_SIZE:-100MB}"/>
+    <property name="LOG_MAX_HISTORY" value="${LOG_MAX_HISTORY:-14}"/>
+    <property name="LOG_TOTAL_SIZE_CAP" value="${LOG_TOTAL_SIZE_CAP:-2GB}"/>
+    <property name="LOG_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{40} - %msg%n"/>
+
+    <appender name="ROLLING_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/${APP_NAME}.log</file>
+        <append>true</append>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <charset>UTF-8</charset>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/archive/${APP_NAME}.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>${LOG_MAX_FILE_SIZE}</maxFileSize>
+            <maxHistory>${LOG_MAX_HISTORY}</maxHistory>
+            <totalSizeCap>${LOG_TOTAL_SIZE_CAP}</totalSizeCap>
+            <cleanHistoryOnStart>true</cleanHistoryOnStart>
+        </rollingPolicy>
+    </appender>
+
+    <logger name="com.chatchat.runtime.news" level="INFO"/>
+    <root level="INFO">
+        <appender-ref ref="ROLLING_FILE"/>
+    </root>
+</configuration>

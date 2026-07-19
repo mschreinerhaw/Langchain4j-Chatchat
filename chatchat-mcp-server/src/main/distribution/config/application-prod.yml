@@ -86,6 +86,7 @@ chatchat:
         password: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
         bearer-token: ${CHATCHAT_API_AUTH_BEARER_TOKEN:}
 logging:
+  config: file:./config/logback-spring.xml
   file:
     name: ./logs/chatchat-mcp-server.log
   level:

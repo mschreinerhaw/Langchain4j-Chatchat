@@ -75,4 +75,30 @@ class LivedataConfigServiceTest {
         assertThat(saved.getGatewayId()).isEqualTo("gateway-1");
         assertThat(saved.getServiceBaseUrl()).isEqualTo("http://192.168.195.221:8090");
     }
+
+    @Test
+    void removesLoginPathFromSelectedGatewayWhenBuildingServiceBaseUrl() {
+        LivedataConfigRepository repository = mock(LivedataConfigRepository.class);
+        SqlDatasourceConfigService datasourceConfigService = mock(SqlDatasourceConfigService.class);
+        HttpEndpointConfigService gatewayConfigService = mock(HttpEndpointConfigService.class);
+        DynamicJdbcDriverLoader driverLoader = mock(DynamicJdbcDriverLoader.class);
+        HttpEndpointConfig gateway = new HttpEndpointConfig();
+        gateway.setId("gateway-1");
+        gateway.setEnabled(true);
+        gateway.setUrlTemplate("http://192.168.195.224:5006/login");
+        when(gatewayConfigService.getById("gateway-1")).thenReturn(gateway);
+        when(repository.findById(LivedataConfig.SINGLETON_ID)).thenReturn(Optional.empty());
+        when(repository.save(any(LivedataConfig.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        LivedataConfig request = new LivedataConfig();
+        request.setEnabled(true);
+        request.setDatasourceId("datasource-1");
+        request.setGatewayId("gateway-1");
+        request.setLoginPath("/login");
+        LivedataConfigService service = new LivedataConfigService(
+            repository, new LivedataAutoRegistrationProperties(), datasourceConfigService, gatewayConfigService, driverLoader
+        );
+
+        assertThat(service.save(request).getServiceBaseUrl()).isEqualTo("http://192.168.195.224:5006");
+    }
 }

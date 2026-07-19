@@ -49,7 +49,7 @@ public class LivedataConfigService implements LivedataSettingsProvider {
             if (!gateway.isEnabled()) {
                 throw new IllegalArgumentException("LiveData gateway asset is disabled: " + config.getGatewayId());
             }
-            config.setServiceBaseUrl(gateway.getUrlTemplate());
+            config.setServiceBaseUrl(normalizeGatewayBaseUrl(gateway.getUrlTemplate(), request.getLoginPath()));
         } else {
             config.setServiceBaseUrl(blankToNull(request.getServiceBaseUrl()));
         }
@@ -162,7 +162,9 @@ public class LivedataConfigService implements LivedataSettingsProvider {
         properties.setPassword(fallbackProperties.getPassword());
         properties.setDriverClass(fallbackProperties.getDriverClass());
         properties.setTableName(firstText(config.getTableName(), "ld_dataservice_api"));
-        properties.setServiceBaseUrl(firstText(config.getServiceBaseUrl(), fallbackProperties.getServiceBaseUrl()));
+        properties.setServiceBaseUrl(normalizeGatewayBaseUrl(
+            firstText(config.getServiceBaseUrl(), fallbackProperties.getServiceBaseUrl()),
+            firstText(config.getLoginPath(), fallbackProperties.getLoginPath(), "/login")));
         properties.setServicePathTemplate(firstText(config.getServicePathTemplate(), "/service/{serviceName}/call"));
         properties.setLoginEnabled(config.isLoginEnabled());
         properties.setLoginPath(firstText(config.getLoginPath(), "/login"));
@@ -201,6 +203,18 @@ public class LivedataConfigService implements LivedataSettingsProvider {
 
     private void validateTableName(String tableName) {
         safeTableName(tableName);
+    }
+
+    private String normalizeGatewayBaseUrl(String value, String loginPath) {
+        String baseUrl = value == null ? null : value.trim().replaceAll("/+$", "");
+        if (baseUrl == null || baseUrl.isBlank()) return baseUrl;
+        String path = firstText(loginPath, "/login");
+        if (!path.startsWith("/")) path = "/" + path;
+        path = path.replaceAll("/+$", "");
+        if (!path.isBlank() && baseUrl.endsWith(path)) {
+            baseUrl = baseUrl.substring(0, baseUrl.length() - path.length()).replaceAll("/+$", "");
+        }
+        return baseUrl;
     }
 
     private RowMapper<LivedataApiDefinition> rowMapper() {

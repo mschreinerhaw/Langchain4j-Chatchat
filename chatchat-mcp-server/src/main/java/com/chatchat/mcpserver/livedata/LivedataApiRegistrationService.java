@@ -197,6 +197,9 @@ public class LivedataApiRegistrationService {
                 null
             );
         } catch (Exception ex) {
+            String error = exceptionMessage(ex);
+            log.warn("LiveData API cannot be mapped sourceId={} apiId={} serviceName={} error={}",
+                sourceId(definition), definition.apiId(), definition.serviceName(), error, ex);
             return new LivedataApiCandidate(
                 sourceId(definition),
                 definition.apiId(),
@@ -215,7 +218,7 @@ public class LivedataApiRegistrationService {
                 false,
                 null,
                 false,
-                ex.getMessage()
+                error
             );
         }
     }
@@ -315,6 +318,12 @@ public class LivedataApiRegistrationService {
         }
         return java.util.Arrays.stream(gateway.getTags().split("[,\\s]+"))
             .anyMatch(tag -> "livedata".equalsIgnoreCase(tag));
+    }
+
+    private String exceptionMessage(Exception ex) {
+        if (ex == null) return "Unknown LiveData API mapping error";
+        if (ex.getMessage() != null && !ex.getMessage().isBlank()) return ex.getMessage();
+        return ex.getClass().getSimpleName();
     }
 
     public record LivedataDeletionResult(

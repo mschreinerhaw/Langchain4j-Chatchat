@@ -171,9 +171,10 @@ public class LivedataApiConfigMapper {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("sessionId", sessionIdTemplate());
         body.put("namespace", firstNonBlank(namespace, properties.getDefaultNamespace()));
-        body.put("head", Map.of(
-            "x-ams-token", properties.isExposeAmsTokenParameter() ? "{{amsToken}}" : firstNonBlank(properties.getAmsToken(), "")
-        ));
+        Map<String, Object> head = new LinkedHashMap<>();
+        String amsToken = properties.isExposeAmsTokenParameter() ? "{{amsToken}}" : properties.getAmsToken();
+        head.put("x-ams-token", amsToken == null ? "" : amsToken.trim());
+        body.put("head", head);
 
         Map<String, Object> data = new LinkedHashMap<>();
         for (ParamDefinition param : params) {
@@ -394,10 +395,7 @@ public class LivedataApiConfigMapper {
         if (serviceName == null || serviceName.isBlank()) {
             return methodName;
         }
-        if (methodName.isBlank() || serviceName.endsWith("." + methodName) || serviceName.equals(methodName)) {
-            return serviceName;
-        }
-        return serviceName + "." + methodName;
+        return serviceName;
     }
 
     /**

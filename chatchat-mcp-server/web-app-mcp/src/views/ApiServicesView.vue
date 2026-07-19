@@ -53,7 +53,11 @@
         <el-table class="settings-table" :data="paginatedLivedata" border stripe empty-text="暂无 LiveData API">
           <el-table-column label="" width="54" align="center">
             <template #default="{ row }">
-              <el-checkbox :model-value="selectedLivedata.has(row.id)" @change="toggleLivedata(row.id)" />
+              <el-checkbox
+                :model-value="selectedLivedata.has(row.id)"
+                :disabled="busy || !row.canRegister"
+                @change="toggleLivedata(row.id)"
+              />
             </template>
           </el-table-column>
           <el-table-column label="API" min-width="180">
@@ -67,13 +71,10 @@
           </el-table-column>
           <el-table-column prop="status" label="状态" width="110" />
           <el-table-column prop="version" label="版本" width="120" />
-          <el-table-column label="操作" width="180" fixed="right">
+          <el-table-column label="操作" width="110" fixed="right">
             <template #default="{ row }">
-              <el-button link type="primary" :disabled="busy || !row.registered" @click="testLivedata(row)">
+              <el-button link type="primary" :disabled="busy || !row.canRegister" @click="testLivedata(row)">
                 请求测试
-              </el-button>
-              <el-button link type="danger" :disabled="busy || !row.registered" @click="deleteLivedata(row)">
-                删除
               </el-button>
             </template>
           </el-table-column>

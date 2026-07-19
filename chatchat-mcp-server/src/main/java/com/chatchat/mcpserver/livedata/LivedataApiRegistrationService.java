@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -101,8 +102,33 @@ public class LivedataApiRegistrationService {
         LivedataApiDefinition definition = findDefinition(id);
         ApiServiceConfig mapped = mapper.toApiServiceConfig(definition);
         ApiServiceConfig registered = apiServiceConfigService.findByToolName(mapped.getToolName())
-            .orElseThrow(() -> new IllegalStateException("Register the LiveData API before testing: " + displayName(definition)));
+            .orElse(mapped);
         return apiInvokeService.invoke(registered, arguments == null ? Map.of() : arguments);
+    }
+
+    /**
+     * Deletes an API service and its unshared generated gateway when the service originated from LiveData.
+     * Generic API services are left untouched and return an empty result for the normal delete path.
+     */
+    public Optional<LivedataDeletionResult> deleteRegisteredServiceIfManaged(String serviceId) {
+        ApiServiceConfig registered = apiServiceConfigService.getById(serviceId);
+        if (registered.getGatewayId() == null || registered.getGatewayId().isBlank()) {
+            return Optional.empty();
+        }
+        HttpEndpointConfig gateway = gatewayConfigService.getById(registered.getGatewayId());
+        if (!isLivedataGateway(gateway)) {
+            return Optional.empty();
+        }
+        boolean gatewayShared = apiServiceConfigService.listAll().stream()
+            .anyMatch(service -> !service.getId().equals(registered.getId())
+                && gateway.getId().equals(service.getGatewayId()));
+        apiServiceConfigService.delete(registered.getId());
+        boolean gatewayDeleted = false;
+        if (!gatewayShared) {
+            gatewayConfigService.delete(gateway.getId());
+            gatewayDeleted = true;
+        }
+        return Optional.of(new LivedataDeletionResult(null, registered.getId(), gateway.getId(), gatewayDeleted));
     }
 
     /**
@@ -276,6 +302,14 @@ public class LivedataApiRegistrationService {
         int missing,
         List<String> errors
     ) {
+    }
+
+    private boolean isLivedataGateway(HttpEndpointConfig gateway) {
+        if (gateway == null || gateway.getTags() == null) {
+            return false;
+        }
+        return java.util.Arrays.stream(gateway.getTags().split("[,\\s]+"))
+            .anyMatch(tag -> "livedata".equalsIgnoreCase(tag));
     }
 
     public record LivedataDeletionResult(

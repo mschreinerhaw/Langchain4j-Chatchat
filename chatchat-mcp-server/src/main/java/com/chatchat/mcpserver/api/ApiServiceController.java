@@ -5,6 +5,7 @@ import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.mcpserver.search.McpAssetLuceneIndexService;
 import com.chatchat.mcpserver.search.McpTemplateLuceneIndexService;
+import com.chatchat.mcpserver.livedata.LivedataApiRegistrationService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ public class ApiServiceController {
     private final ApiInvokeService invokeService;
     private final McpTemplateLuceneIndexService templateIndexService;
     private final McpAssetLuceneIndexService assetIndexService;
+    private final LivedataApiRegistrationService livedataRegistrationService;
     private final ObjectMapper objectMapper;
 
     /**
@@ -80,7 +82,9 @@ public class ApiServiceController {
      */
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(@PathVariable("id") String id) {
-        configService.delete(id);
+        if (livedataRegistrationService.deleteRegisteredServiceIfManaged(id).isEmpty()) {
+            configService.delete(id);
+        }
         refreshPublishedTemplates();
         return ApiResponse.success(null, "API service deleted");
     }
@@ -93,7 +97,19 @@ public class ApiServiceController {
      */
     @PostMapping("/batch-delete")
     public ApiResponse<Map<String, Object>> batchDelete(@RequestBody BatchDeleteRequest request) {
-        int deleted = configService.deleteAll(request.ids());
+        List<String> requestedIds = request.ids() == null ? List.of() : request.ids().stream()
+            .filter(id -> id != null && !id.isBlank()).map(String::trim).distinct().toList();
+        Map<String, ApiServiceConfig> existing = configService.listAll().stream()
+            .filter(service -> requestedIds.contains(service.getId()))
+            .collect(java.util.stream.Collectors.toMap(ApiServiceConfig::getId, service -> service));
+        int deleted = 0;
+        for (String id : requestedIds) {
+            if (!existing.containsKey(id)) continue;
+            if (livedataRegistrationService.deleteRegisteredServiceIfManaged(id).isEmpty()) {
+                configService.delete(id);
+            }
+            deleted++;
+        }
         refreshPublishedTemplates();
         return ApiResponse.success(Map.of("deleted", deleted), "API services deleted");
     }

@@ -328,10 +328,20 @@ export default {
     async registerSelected() {
       this.busy = true;
       try {
-        await api.registerLivedata([...this.selectedLivedata], this.overwriteExisting);
-        this.$emit('notify', { title: '注册成功', message: `已提交 ${this.selectedLivedata.size} 个 API` });
+        const requested = this.selectedLivedata.size;
+        const result = await api.registerLivedata([...this.selectedLivedata], this.overwriteExisting);
+        if (!result?.registered) {
+          const details = result?.errors?.length ? `：${result.errors.join('；')}` : '';
+          throw new Error(`没有 API 注册成功，跳过 ${result?.skipped || 0} 个，未找到 ${result?.missing || 0} 个${details}`);
+        }
+        this.$emit('notify', {
+          title: '注册成功',
+          message: `提交 ${requested} 个，成功 ${result.registered} 个，跳过 ${result.skipped || 0} 个，未找到 ${result.missing || 0} 个`
+        });
         this.selectedLivedata = new Set();
         this.livedataApis = await api.listLivedata() || [];
+        this.activeTab = 'services';
+        await this.$nextTick();
         await this.$refs.catalog.load();
       } catch (error) {
         this.$emit('error', error);
@@ -354,27 +364,6 @@ export default {
           title: `${row.apiName || row.title || row.toolName || 'LiveData API'} 请求测试结果`,
           value: result
         });
-      } catch (error) {
-        if (error !== 'cancel' && error !== 'close') this.$emit('error', error);
-      } finally {
-        this.busy = false;
-      }
-    },
-    async deleteLivedata(row) {
-      try {
-        await ElMessageBox.confirm(
-          `确定删除 ${row.apiName || row.title || row.toolName || row.id} 的 MCP 注册吗？LiveData 中的原始 API 定义不会被删除。`,
-          '删除 LiveData API 注册',
-          { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
-        );
-        this.busy = true;
-        await api.deleteLivedataRegistration(row.id);
-        this.livedataApis = await api.listLivedata() || [];
-        const nextSelected = new Set(this.selectedLivedata);
-        nextSelected.delete(row.id);
-        this.selectedLivedata = nextSelected;
-        this.$emit('notify', { title: '删除成功', message: '已删除 MCP API 服务及其专属 LiveData 网关。' });
-        await this.$refs.catalog.load();
       } catch (error) {
         if (error !== 'cancel' && error !== 'close') this.$emit('error', error);
       } finally {

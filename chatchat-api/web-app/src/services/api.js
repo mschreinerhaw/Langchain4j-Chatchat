@@ -231,6 +231,23 @@ export function fetchAgentSchedules(filters = {}) {
   return apiRequest(`/agent/tasks/runtime/schedules${query ? `?${query}` : ""}`);
 }
 
+export function fetchAgentScheduleNotificationChannels() {
+  return apiRequest("/agent/tasks/runtime/schedules/notification-channels");
+}
+
+export function saveAgentScheduleNotificationRecipient(channelType, receiver) {
+  return apiRequest(`/agent/tasks/runtime/schedules/notification-recipients/${encodeURIComponent(channelType)}`, {
+    method: "PUT",
+    body: JSON.stringify({ receiver })
+  });
+}
+
+export function deleteAgentScheduleNotificationRecipient(channelType) {
+  return apiRequest(`/agent/tasks/runtime/schedules/notification-recipients/${encodeURIComponent(channelType)}`, {
+    method: "DELETE"
+  });
+}
+
 export function createAgentSchedule(payload) {
   return apiRequest("/agent/tasks/runtime/schedules", {
     method: "POST",
@@ -291,6 +308,19 @@ export function fetchAgentScheduleHistory(scheduleId, filters = {}) {
   }
   const query = params.toString();
   return apiRequest(`/agent/tasks/runtime/schedules/${encodeURIComponent(scheduleId)}/history${query ? `?${query}` : ""}`);
+}
+
+export function fetchAgentScheduleNotificationHistory(scheduleId, filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.tenantId) {
+    params.set("tenantId", filters.tenantId);
+  }
+  if (filters.keyword) {
+    params.set("keyword", filters.keyword);
+  }
+  params.set("page", String(filters.page || 1));
+  params.set("pageSize", String(filters.pageSize || 10));
+  return apiRequest(`/agent/tasks/runtime/schedules/${encodeURIComponent(scheduleId)}/notification-history?${params.toString()}`);
 }
 
 export function fetchAgentTaskEvents(taskId, limit = 50, tenantId = "") {

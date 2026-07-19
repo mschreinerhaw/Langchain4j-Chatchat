@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import org.springframework.data.domain.PageRequest;
 
 @Service
 public class NewsIndexStateService {
@@ -58,5 +59,55 @@ public class NewsIndexStateService {
                 recordRepository.save(record);
             });
         }
+    }
+
+    @Transactional
+    public List<NewsAnalysisTaskEntity> claimAnalysisTasks(int batchSize) {
+        List<NewsAnalysisTaskEntity> tasks = analysisTaskRepository.findNextByStatus(
+            NewsAnalysisStatus.PENDING, PageRequest.of(0, Math.max(1, batchSize)));
+        Instant now = Instant.now();
+        for (NewsAnalysisTaskEntity task : tasks) {
+            task.setStatus(NewsAnalysisStatus.PROCESSING);
+            task.setUpdatedAt(now);
+            task.setErrorMessage(null);
+            recordRepository.findByDocumentId(task.getDocumentId()).ifPresent(record -> {
+                record.setAnalysisStatus(NewsAnalysisStatus.PROCESSING);
+                recordRepository.save(record);
+            });
+        }
+        return analysisTaskRepository.saveAll(tasks);
+    }
+
+    @Transactional
+    public void analysisCompleted(Long taskId, String documentId) {
+        analysisTaskRepository.findById(taskId).ifPresent(task -> {
+            task.setStatus(NewsAnalysisStatus.COMPLETED);
+            task.setUpdatedAt(Instant.now());
+            task.setErrorMessage(null);
+            analysisTaskRepository.save(task);
+        });
+        recordRepository.findByDocumentId(documentId).ifPresent(record -> {
+            record.setAnalysisStatus(NewsAnalysisStatus.COMPLETED);
+            record.setErrorMessage(null);
+            recordRepository.save(record);
+        });
+    }
+
+    @Transactional
+    public void analysisFailed(Long taskId, String documentId, String message) {
+        String error = message == null || message.isBlank() ? "Unknown news analysis error" : message;
+        if (error.length() > 4000) error = error.substring(0, 4000);
+        final String safeError = error;
+        analysisTaskRepository.findById(taskId).ifPresent(task -> {
+            task.setStatus(NewsAnalysisStatus.FAILED);
+            task.setUpdatedAt(Instant.now());
+            task.setErrorMessage(safeError);
+            analysisTaskRepository.save(task);
+        });
+        recordRepository.findByDocumentId(documentId).ifPresent(record -> {
+            record.setAnalysisStatus(NewsAnalysisStatus.FAILED);
+            record.setErrorMessage(safeError);
+            recordRepository.save(record);
+        });
     }
 }

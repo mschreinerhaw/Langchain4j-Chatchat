@@ -923,7 +923,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
         if (hasAllAgentAccess(user.get())) {
             return true;
         }
-        return accessibleAgentIdsForUserId(user.get().getId()).contains(normalizedAgentId);
+        return accessibleAgentIdsForUser(user.get()).contains(normalizedAgentId);
     }
 
     /**
@@ -935,7 +935,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
     @Transactional(readOnly = true)
     public Set<String> accessibleAgentIds(String userId) {
         return resolveUser(userId)
-            .map(user -> hasAllAgentAccess(user) ? Set.<String>of() : accessibleAgentIdsForUserId(user.getId()))
+            .map(user -> hasAllAgentAccess(user) ? Set.<String>of() : accessibleAgentIdsForUser(user))
             .orElse(Set.of());
     }
 
@@ -1023,27 +1023,23 @@ public class EnterpriseAdminService implements ApplicationRunner {
         if (user == null) {
             return false;
         }
-        if ("admin".equalsIgnoreCase(user.getUsername())) {
-            return true;
-        }
-        List<String> roleIds = userRoleRepository.findByUserId(user.getId()).stream()
-            .map(SysUserRole::getRoleId)
-            .toList();
-        if (roleIds.isEmpty()) {
-            return false;
-        }
-        return roleRepository.findAllById(roleIds).stream()
-            .anyMatch(role -> "SUPER_ADMIN".equalsIgnoreCase(role.getRoleCode()));
+        return "admin".equalsIgnoreCase(user.getUsername());
     }
 
-    private Set<String> accessibleAgentIdsForUserId(String userId) {
-        List<String> roleIds = userRoleRepository.findByUserId(userId).stream()
+    private Set<String> accessibleAgentIdsForUser(SysUser user) {
+        if (user == null || user.getId() == null || user.getTenantId() == null) {
+            return Set.of();
+        }
+        String tenantId = user.getTenantId().trim();
+        List<String> roleIds = userRoleRepository.findByUserId(user.getId()).stream()
+            .filter(userRole -> tenantId.equals(userRole.getTenantId()))
             .map(SysUserRole::getRoleId)
             .toList();
         if (roleIds.isEmpty()) {
             return Set.of();
         }
         Set<String> activeRoleIds = roleRepository.findAllById(roleIds).stream()
+            .filter(role -> tenantId.equals(role.getTenantId()))
             .filter(role -> "enabled".equalsIgnoreCase(role.getStatus()))
             .map(SysRole::getId)
             .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
@@ -1052,6 +1048,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
         }
         Instant now = Instant.now();
         return roleAgentBindingRepository.findByRoleIdIn(List.copyOf(activeRoleIds)).stream()
+            .filter(binding -> tenantId.equals(binding.getTenantId()))
             .filter(binding -> isActiveAgentBinding(binding, now))
             .map(RoleAgentBinding::getAgentId)
             .map(this::normalizeAgentId)

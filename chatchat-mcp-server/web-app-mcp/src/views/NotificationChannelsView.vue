@@ -313,11 +313,6 @@
               </button>
               <h3>短信接收配置</h3>
               <el-row v-show="notificationSectionOpen.sms" :gutter="14">
-                <el-col :xs="24">
-                  <el-form-item label="手机号接收人">
-                    <el-input v-model.trim="form.defaultReceiver" placeholder="13800000000，多个手机号用逗号分隔" />
-                  </el-form-item>
-                </el-col>
                 <el-col :xs="24" :md="12">
                   <el-form-item label="短信网关账号">
                     <el-input v-model.trim="form.smsAccount" placeholder="xzxz" />
@@ -363,16 +358,6 @@
               </button>
               <h3>SMTP 邮件参数</h3>
               <el-row v-show="notificationSectionOpen.smtp" :gutter="14">
-                <el-col :xs="24" :md="12">
-                  <el-form-item label="收件人">
-                    <el-input v-model.trim="form.defaultReceiver" placeholder="ops@example.com，多个邮箱用逗号分隔" />
-                  </el-form-item>
-                </el-col>
-                <el-col :xs="24" :md="12">
-                  <el-form-item label="抄送人">
-                    <el-input v-model.trim="form.ccReceiver" placeholder="cc@example.com，多个邮箱用逗号分隔" />
-                  </el-form-item>
-                </el-col>
                 <el-col :xs="24" :md="8">
                   <el-form-item label="SMTP Host">
                     <el-input v-model.trim="form.smtpHost" placeholder="smtp.example.com" />

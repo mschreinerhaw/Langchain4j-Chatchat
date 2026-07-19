@@ -13,6 +13,7 @@ spring:
     open-in-view: false
 
 logging:
+  config: file:./config/logback-spring.xml
   file:
     name: ./logs/chatchat-runtime-news.log
   level:
@@ -53,6 +54,14 @@ chatchat:
         chunk-size: 1200
         chunk-overlap: 150
         max-chunks-per-attachment: 500
+      # 采集日志默认只保留 7 天；只清理 news_collect_record，不删除资讯正文索引。
+      collect-log:
+        enabled: true
+        retention-days: 7
+        cleanup-batch-size: 1000
+        max-batches-per-run: 100
+        cleanup-cron: "0 30 0 * * *"
+        zone-id: Asia/Shanghai
       open-search:
         enabled: true
         endpoint: http://127.0.0.1:9200

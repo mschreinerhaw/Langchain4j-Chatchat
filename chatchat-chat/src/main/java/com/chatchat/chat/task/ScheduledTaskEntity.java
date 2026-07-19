@@ -61,6 +61,15 @@ public class ScheduledTaskEntity {
     @Column(name = "notify_enabled", nullable = false)
     private Boolean notifyEnabled = false;
 
+    @Column(name = "notification_channel_id", length = 64)
+    private String notificationChannelId;
+
+    @Column(name = "notification_channel_type", length = 32)
+    private String notificationChannelType;
+
+    @Column(name = "notification_channel_name", length = 200)
+    private String notificationChannelName;
+
     @Column(name = "trading_day_only", nullable = false)
     private Boolean tradingDayOnly = false;
 

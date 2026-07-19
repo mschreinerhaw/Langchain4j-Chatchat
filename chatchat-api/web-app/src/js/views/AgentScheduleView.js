@@ -1,11 +1,15 @@
 import {
   createAgentSchedule,
+  deleteAgentScheduleNotificationRecipient,
   deleteAgentSchedule,
+  fetchAgentScheduleNotificationChannels,
+  fetchAgentScheduleNotificationHistory,
   fetchAgentSchedules,
   fetchAgentWorkshop,
   pauseAgentSchedule,
   rerunAgentSchedule,
-  resumeAgentSchedule
+  resumeAgentSchedule,
+  saveAgentScheduleNotificationRecipient
 } from "../../services/api.js";
 import "../../styles/pages/agent-schedule.css";
 
@@ -59,6 +63,7 @@ function emptyForm(agentId = "") {
     cron: "0 0 8 * * ?",
     enabled: true,
     notifyEnabled: false,
+    notificationChannelId: "",
     tradingDayOnly: false
   };
 }
@@ -77,6 +82,25 @@ export default {
       saving: false,
       scheduleLoading: false,
       dialogOpen: false,
+      notificationDialogOpen: false,
+      notificationSelectOpen: false,
+      notificationLoading: false,
+      notificationHistoryDialogOpen: false,
+      notificationHistoryLoading: false,
+      notificationHistoryError: "",
+      notificationHistorySchedule: null,
+      notificationHistoryRecords: [],
+      notificationHistoryQuery: {
+        keyword: "",
+        page: 1,
+        pageSize: 10,
+        total: 0,
+        totalPages: 0
+      },
+      notificationChannels: [],
+      notificationRecipientDrafts: {},
+      recipientSaving: "",
+      pendingNotificationId: "",
       error: "",
       notice: "",
       agents: [],
@@ -111,7 +135,7 @@ export default {
     },
     agentOptions() {
       return this.agents
-        .filter((agent) => agent?.id)
+        .filter((agent) => agent?.id && String(agent.marketStatus || "").toLowerCase() === "published")
         .sort((left, right) => {
           const leftPublished = left.marketStatus === "published" ? 0 : 1;
           const rightPublished = right.marketStatus === "published" ? 0 : 1;
@@ -207,7 +231,7 @@ export default {
         this.scheduleLoading = false;
       }
     },
-    async createSchedule() {
+    async createSchedule(notificationConfirmed = false) {
       this.error = "";
       this.notice = "";
       if (!this.selectedAgent) {
@@ -216,6 +240,15 @@ export default {
       }
       if (!this.form.question.trim()) {
         this.error = "请填写问题";
+        return;
+      }
+      if (this.form.notifyEnabled && !this.form.notificationChannelId && !notificationConfirmed) {
+        await this.openNotificationSelector();
+        return;
+      }
+      if (this.form.notifyEnabled && !this.selectedNotificationChannel()?.bound) {
+        this.error = "请选择当前租户已绑定接收人的通知类型";
+        await this.openNotificationSelector();
         return;
       }
       const schedulePayload = this.buildSchedulePayload();
@@ -256,6 +289,7 @@ export default {
         enabled: this.form.enabled,
         question,
         notifyEnabled: this.form.notifyEnabled,
+        notificationChannelId: this.form.notifyEnabled ? this.form.notificationChannelId : null,
         tradingDayOnly: this.form.tradingDayOnly,
         payload
       };
@@ -303,12 +337,176 @@ export default {
       return cronFromTime(this.form.dailyTime);
     },
     openCreateDialog() {
+      if (!this.agentOptions.length) {
+        this.error = "暂无已发布且已授权的Agent，不能创建调度";
+        return;
+      }
       const defaultAgentId = this.filters.agentId || this.form.agentId || this.agentOptions[0]?.id || "";
       this.form = emptyForm(defaultAgentId);
       this.syncFormWithAgent();
       this.error = "";
       this.notice = "";
       this.dialogOpen = true;
+    },
+    async loadNotificationChannels() {
+      this.notificationLoading = true;
+      try {
+        const payload = await fetchAgentScheduleNotificationChannels();
+        this.notificationChannels = Array.isArray(payload) ? payload : [];
+        this.notificationRecipientDrafts = this.notificationChannels.reduce((drafts, channel) => {
+          drafts[channel.channel] = channel.receiver || "";
+          return drafts;
+        }, {});
+      } catch (error) {
+        this.notificationChannels = [];
+        this.error = error.message || "MCP通知类型加载失败";
+      } finally {
+        this.notificationLoading = false;
+      }
+    },
+    async openNotificationOverview() {
+      this.error = "";
+      this.notificationDialogOpen = true;
+      await this.loadNotificationChannels();
+    },
+    async openNotificationHistory(schedule) {
+      this.notificationHistorySchedule = schedule;
+      this.notificationHistoryDialogOpen = true;
+      this.notificationHistoryError = "";
+      this.notificationHistoryRecords = [];
+      this.notificationHistoryQuery = {
+        keyword: "",
+        page: 1,
+        pageSize: 10,
+        total: 0,
+        totalPages: 0
+      };
+      await this.loadNotificationHistory();
+    },
+    closeNotificationHistory() {
+      if (!this.notificationHistoryLoading) {
+        this.notificationHistoryDialogOpen = false;
+        this.notificationHistorySchedule = null;
+      }
+    },
+    async searchNotificationHistory() {
+      this.notificationHistoryQuery.page = 1;
+      await this.loadNotificationHistory();
+    },
+    async changeNotificationHistoryPage(page) {
+      const totalPages = Math.max(1, this.notificationHistoryQuery.totalPages || 1);
+      const target = Math.min(totalPages, Math.max(1, page));
+      if (target === this.notificationHistoryQuery.page) {
+        return;
+      }
+      this.notificationHistoryQuery.page = target;
+      await this.loadNotificationHistory();
+    },
+    async loadNotificationHistory() {
+      const id = scheduleId(this.notificationHistorySchedule);
+      if (!id) {
+        return;
+      }
+      this.notificationHistoryLoading = true;
+      this.notificationHistoryError = "";
+      try {
+        const payload = await fetchAgentScheduleNotificationHistory(id, {
+          tenantId: this.tenantId,
+          keyword: this.notificationHistoryQuery.keyword.trim(),
+          page: this.notificationHistoryQuery.page,
+          pageSize: 10
+        });
+        this.notificationHistoryRecords = Array.isArray(payload?.records) ? payload.records : [];
+        this.notificationHistoryQuery.total = Number(payload?.total || 0);
+        this.notificationHistoryQuery.page = Number(payload?.page || 1);
+        this.notificationHistoryQuery.pageSize = Number(payload?.pageSize || 10);
+        this.notificationHistoryQuery.totalPages = Number(payload?.totalPages || 0);
+      } catch (error) {
+        this.notificationHistoryRecords = [];
+        this.notificationHistoryError = error.message || "通知历史加载失败";
+      } finally {
+        this.notificationHistoryLoading = false;
+      }
+    },
+    notificationHistoryStatusLabel(status) {
+      const labels = {
+        SUCCESS: "发送成功",
+        FAILED: "发送失败",
+        SKIPPED: "已跳过"
+      };
+      return labels[String(status || "").toUpperCase()] || status || "-";
+    },
+    async openNotificationSelector() {
+      this.error = "";
+      this.pendingNotificationId = this.form.notificationChannelId || "";
+      this.notificationSelectOpen = true;
+      await this.loadNotificationChannels();
+    },
+    closeNotificationSelector() {
+      if (!this.saving) {
+        this.notificationSelectOpen = false;
+      }
+    },
+    async confirmNotificationAndCreate() {
+      if (!this.pendingNotificationId) {
+        this.error = "请选择通知类型";
+        return;
+      }
+      this.form.notificationChannelId = this.pendingNotificationId;
+      this.notificationSelectOpen = false;
+      await this.createSchedule(true);
+    },
+    async saveNotificationRecipient(channel) {
+      const receiver = String(this.notificationRecipientDrafts[channel.channel] || "").trim();
+      if (!receiver) {
+        this.error = "请填写接收人";
+        return;
+      }
+      this.recipientSaving = channel.channel;
+      this.error = "";
+      try {
+        await saveAgentScheduleNotificationRecipient(channel.channel, receiver);
+        this.notice = `${this.channelTypeLabel(channel.channel)}接收人已保存`;
+        await this.loadNotificationChannels();
+      } catch (error) {
+        this.error = error.message || "接收人保存失败";
+      } finally {
+        this.recipientSaving = "";
+      }
+    },
+    async deleteNotificationRecipient(channel) {
+      if (!channel?.bound || !window.confirm(`确认解绑${this.channelTypeLabel(channel.channel)}接收人？`)) {
+        return;
+      }
+      this.recipientSaving = channel.channel;
+      this.error = "";
+      try {
+        await deleteAgentScheduleNotificationRecipient(channel.channel);
+        if (this.selectedNotificationChannel()?.channel === channel.channel) {
+          this.form.notificationChannelId = "";
+        }
+        this.notice = `${this.channelTypeLabel(channel.channel)}接收人已解绑`;
+        await this.loadNotificationChannels();
+      } catch (error) {
+        this.error = error.message || "接收人解绑失败";
+      } finally {
+        this.recipientSaving = "";
+      }
+    },
+    boundNotificationChannels() {
+      return this.notificationChannels.filter((channel) => channel.bound && channel.recipientAware);
+    },
+    recipientPlaceholder(channel) {
+      const placeholders = {
+        EMAIL: "请输入邮箱，多个用逗号分隔",
+        SMS: "请输入手机号，多个用逗号分隔",
+        DINGTALK: "请输入钉钉接收人账号/手机号",
+        WECHAT_WORK: "请输入企业微信接收人账号"
+      };
+      return placeholders[channel] || "请输入接收人";
+    },
+    selectedNotificationChannel() {
+      return this.notificationChannels.find((channel) => channel.id === this.form.notificationChannelId) || null;
     },
     closeCreateDialog(force = false) {
       if (this.saving && !force) {
@@ -393,6 +591,21 @@ export default {
       const agent = this.agentOptions.find((item) => item.id === schedule?.agentId);
       return agent?.name || schedule?.agentId || "-";
     },
+    notificationTypeLabel(schedule) {
+      if (!schedule?.notifyEnabled || !schedule?.notificationChannelId) {
+        return "无";
+      }
+      return schedule.notificationChannelName || this.channelTypeLabel(schedule.notificationChannelType);
+    },
+    channelTypeLabel(channel) {
+      const labels = {
+        EMAIL: "邮件",
+        SMS: "短信",
+        WECHAT_WORK: "企业微信",
+        DINGTALK: "钉钉"
+      };
+      return labels[String(channel || "").toUpperCase()] || channel || "无";
+    },
     formatDateTime(value) {
       if (!value) {
         return "-";
@@ -413,6 +626,12 @@ export default {
       if (schedule?.lastTaskStatus === "SKIPPED_NON_TRADING_DAY") {
         return "SKIPPED_NON_TRADING_DAY";
       }
+      if (schedule?.lastTaskStatus === "AGENT_AUTHORIZATION_DENIED") {
+        return "AGENT_AUTHORIZATION_DENIED";
+      }
+      if (schedule?.lastTaskStatus === "AGENT_UNPUBLISHED") {
+        return "AGENT_UNPUBLISHED";
+      }
       return String(schedule?.status || "").toUpperCase();
     },
     scheduleStatusLabel(schedule) {
@@ -422,6 +641,12 @@ export default {
       }
       if (status === "SKIPPED_NON_TRADING_DAY") {
         return "非交易日已跳过";
+      }
+      if (status === "AGENT_AUTHORIZATION_DENIED") {
+        return "Agent未授权";
+      }
+      if (status === "AGENT_UNPUBLISHED") {
+        return "Agent未发布";
       }
       return status || "-";
     }

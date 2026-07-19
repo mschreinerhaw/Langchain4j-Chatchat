@@ -34,6 +34,14 @@ public class NotificationAdminController {
         return ApiResponse.success(configService.listAll().stream().map(this::toView).toList());
     }
 
+    @GetMapping("/enabled-options")
+    public ApiResponse<List<NotificationChannelOption>> enabledOptions() {
+        return ApiResponse.success(configService.listEnabled().stream().map(config -> new NotificationChannelOption(
+            config.getId(), config.getChannel(), config.getToolName(), config.getTitle(),
+            config.getDescription(), config.getDeliveryMode(), recipientAware(config)
+        )).toList());
+    }
+
     @PostMapping
     public ApiResponse<NotificationChannelView> create(@RequestBody NotificationChannelUpsertRequest request) {
         validateHttpCreate(request);
@@ -72,6 +80,19 @@ public class NotificationAdminController {
         return ApiResponse.success(sendService.send(configService.getById(id), arguments == null ? Map.of() : arguments));
     }
 
+    @PostMapping("/{id}/dispatch")
+    public ApiResponse<NotificationSendResult> dispatch(@PathVariable("id") String id,
+                                                        @RequestBody(required = false) Map<String, Object> arguments) {
+        NotificationChannelConfig config = configService.getById(id);
+        if (!config.isEnabled()) {
+            throw new IllegalArgumentException("Notification channel is disabled: " + id);
+        }
+        if (!recipientAware(config)) {
+            throw new IllegalArgumentException("Notification channel template must reference {{receiver}} for tenant-scoped dispatch: " + id);
+        }
+        return ApiResponse.success(sendService.send(config, arguments == null ? Map.of() : arguments));
+    }
+
     @PostMapping("/refresh")
     public ApiResponse<Map<String, Object>> refresh() {
         publisher.refresh();
@@ -92,8 +113,9 @@ public class NotificationAdminController {
         config.setHeadersJson(writeJson(request.headers()));
         config.setBodyTemplate(request.bodyTemplate());
         config.setSecret(request.secret());
-        config.setDefaultReceiver(request.defaultReceiver());
-        config.setCcReceiver(request.ccReceiver());
+        // Recipients are tenant-scoped data maintained by the API scheduler, never by MCP channel config.
+        config.setDefaultReceiver(null);
+        config.setCcReceiver(null);
         config.setSmtpHost(request.smtpHost());
         config.setSmtpPort(request.smtpPort());
         config.setSmtpUsername(request.smtpUsername());
@@ -142,8 +164,8 @@ public class NotificationAdminController {
             readJsonMap(config.getHeadersJson()),
             config.getBodyTemplate(),
             config.getSecret(),
-            config.getDefaultReceiver(),
-            config.getCcReceiver(),
+            null,
+            null,
             config.getSmtpHost(),
             config.getSmtpPort(),
             config.getSmtpUsername(),
@@ -170,8 +192,7 @@ public class NotificationAdminController {
 
     private Map<String, Object> defaultTestPayload(NotificationChannelConfig config) {
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("receiver", firstText(config.getDefaultReceiver(),
-            config.getChannel() == NotificationChannel.SMS ? "13800000000" : "ops@example.com"));
+        payload.put("receiver", config.getChannel() == NotificationChannel.SMS ? "13800000000" : "ops@example.com");
         payload.put("title", "Agent 告警测试");
         payload.put("content", "这是一条来自 ChatChat MCP Server 的通知工具测试消息。");
         payload.put("level", "INFO");
@@ -238,6 +259,26 @@ public class NotificationAdminController {
         String smsExtendCode,
         Integer timeoutMs,
         Integer maxRetries
+    ) {
+    }
+
+    private boolean recipientAware(NotificationChannelConfig config) {
+        if (config != null && "SMTP".equalsIgnoreCase(config.getDeliveryMode())) {
+            return true;
+        }
+        String endpoint = config == null ? "" : firstText(config.getEndpointUrl(), "");
+        String body = config == null ? "" : firstText(config.getBodyTemplate(), "");
+        return endpoint.contains("{{receiver}}") || body.contains("{{receiver}}");
+    }
+
+    public record NotificationChannelOption(
+        String id,
+        NotificationChannel channel,
+        String toolName,
+        String title,
+        String description,
+        String deliveryMode,
+        boolean recipientAware
     ) {
     }
 

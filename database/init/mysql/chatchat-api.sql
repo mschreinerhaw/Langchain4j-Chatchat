@@ -384,14 +384,17 @@
         updated_at datetime(6) not null,
         trigger_type varchar(24) not null,
         last_task_status varchar(32),
+        notification_channel_type varchar(32),
         status varchar(32) not null,
         last_task_id varchar(64),
+        notification_channel_id varchar(64),
         task_id varchar(64) not null,
         tenant_id varchar(64) not null,
         user_id varchar(64) not null,
         cron_expr varchar(120),
         agent_id varchar(128),
         name varchar(200) not null,
+        notification_channel_name varchar(200),
         last_error varchar(1000),
         question varchar(4000) not null,
         payload_json TEXT not null,
@@ -404,7 +407,10 @@
         duration_ms bigint,
         finished_at datetime(6),
         fire_time datetime(6) not null,
+        notification_sent_at datetime(6),
         updated_at datetime(6) not null,
+        notification_channel_type varchar(32),
+        notification_status varchar(32),
         status varchar(32) not null,
         run_id varchar(64) not null,
         scheduled_task_id varchar(64) not null,
@@ -412,7 +418,10 @@
         tenant_id varchar(64) not null,
         user_id varchar(64) not null,
         agent_id varchar(128),
+        notification_channel_name varchar(200),
         error_message varchar(1000),
+        notification_error varchar(1000),
+        notification_receiver varchar(2000),
         answer_summary TEXT,
         question TEXT not null,
         primary key (run_id)
@@ -638,6 +647,16 @@
         primary key (id)
     ) engine=InnoDB;
 
+    create table tenant_notification_recipient (
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        channel_type varchar(32) not null,
+        id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        receiver varchar(2000) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
     create table todo_task (
         created_at datetime(6) not null,
         expired_at datetime(6),
@@ -810,6 +829,9 @@
     create index idx_scheduled_task_run_status_updated 
        on scheduled_task_run (status, updated_at);
 
+    create index idx_scheduled_task_run_notification
+       on scheduled_task_run (tenant_id, scheduled_task_id, notification_sent_at);
+
     alter table sys_permission 
        add constraint UKeul7rmgx0nfvykgb9vmh0cgd8 unique (permission_code);
 
@@ -824,6 +846,12 @@
 
     create index idx_task_confirm_status_expired 
        on task_confirm (status, expired_at);
+
+    create index idx_tenant_notification_recipient_tenant
+       on tenant_notification_recipient (tenant_id);
+
+    alter table tenant_notification_recipient
+       add constraint uk_tenant_notification_recipient_channel unique (tenant_id, channel_type);
 
     create index idx_todo_task_tenant_user_status 
        on todo_task (tenant_id, user_id, status);

@@ -166,9 +166,6 @@ public class NotificationSendService {
 
     private Map<String, Object> normalizeArguments(NotificationChannelConfig config, Map<String, Object> arguments) {
         Map<String, Object> normalized = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
-        if (text(normalized, "receiver") == null || text(normalized, "receiver").isBlank()) {
-            normalized.put("receiver", firstText(config.getDefaultReceiver(), ""));
-        }
         requireText(text(normalized, "receiver"), "receiver is required");
         requireText(text(normalized, "title"), "title is required");
         requireText(text(normalized, "content"), "content is required");
@@ -187,7 +184,6 @@ public class NotificationSendService {
 
     private Map<String, Object> renderArguments(NotificationChannelConfig config, Map<String, Object> arguments) {
         Map<String, Object> renderArgs = new LinkedHashMap<>(arguments);
-        renderArgs.put("defaultReceiver", firstText(config.getDefaultReceiver(), ""));
         renderArgs.put("ccReceiver", firstText(config.getCcReceiver(), ""));
         renderArgs.put("smsAccount", firstText(config.getSmsAccount(), ""));
         renderArgs.put("smsToken", firstText(config.getSmsToken(), firstText(config.getSecret(), "")));

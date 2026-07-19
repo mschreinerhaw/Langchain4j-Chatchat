@@ -3,9 +3,13 @@ package com.chatchat.chat.task;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.chatchat.integration.mcp.service.McpTradingCalendarClient;
+import com.chatchat.integration.mcp.service.McpNotificationClient;
+import com.chatchat.enterprise.service.EnterpriseAdminService;
+import com.chatchat.chat.skills.SkillCatalogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Page;
 import org.springframework.scheduling.support.CronExpression;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +19,8 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
@@ -39,6 +45,10 @@ public class AgentScheduledTaskService {
     private final ObjectMapper objectMapper;
     private final AgentTaskProperties properties;
     private final McpTradingCalendarClient tradingCalendarClient;
+    private final McpNotificationClient notificationClient;
+    private final TenantNotificationRecipientService recipientService;
+    private final EnterpriseAdminService enterpriseAdminService;
+    private final SkillCatalogService skillCatalogService;
 
     @Transactional
     public ScheduledTaskResponse create(ScheduledAgentTaskRequest request) {
@@ -55,6 +65,7 @@ public class AgentScheduledTaskService {
         entity.setTenantId(payload.getTenantId());
         entity.setUserId(payload.getUserId());
         entity.setAgentId(firstText(request.getAgentId(), payload.getAgentId(), payload.getSkillId()));
+        requirePublishedAgent(entity.getAgentId());
         entity.setName(firstText(request.getName(), defaultScheduleName(entity.getAgentId(), payload.getQuery())));
         entity.setTriggerType(triggerType);
         entity.setCronExpr(normalizeCronExpr(triggerType, firstText(request.getCronExpr(), request.getCron())));
@@ -62,6 +73,18 @@ public class AgentScheduledTaskService {
         entity.setPayloadJson(writeJson(payload));
         entity.setQuestion(payload.getQuery());
         entity.setNotifyEnabled(Boolean.TRUE.equals(request.getNotifyEnabled()));
+        if (Boolean.TRUE.equals(entity.getNotifyEnabled())) {
+            McpNotificationClient.NotificationChannelOption option =
+                notificationClient.requireEnabled(request.getNotificationChannelId());
+            if (!option.recipientAware()) {
+                throw new IllegalArgumentException("所选MCP通知通道未在URL或请求模板中使用{{receiver}}，无法保证租户隔离");
+            }
+            entity.setNotificationChannelId(option.id());
+            entity.setNotificationChannelType(option.channel());
+            entity.setNotificationChannelName(firstText(option.title(), option.toolName(), option.channel()));
+            recipientService.receiver(entity.getTenantId(), option.channel())
+                .orElseThrow(() -> new IllegalArgumentException("当前租户尚未绑定" + option.channel() + "接收人"));
+        }
         entity.setTradingDayOnly(Boolean.TRUE.equals(request.getTradingDayOnly()));
         entity.setStatus(enabled ? "ACTIVE" : "PAUSED");
         entity.setNextFireTime(enabled ? resolveInitialFireTime(request, entity, now) : null);
@@ -115,6 +138,7 @@ public class AgentScheduledTaskService {
         if (!"PAUSED".equals(normalizeStatus(entity.getStatus()))) {
             return ScheduledTaskResponse.from(entity);
         }
+        requirePublishedAgent(entity.getAgentId());
         Instant now = Instant.now();
         validateNotExpired(entity, now);
         entity.setStatus("ACTIVE");
@@ -176,6 +200,21 @@ public class AgentScheduledTaskService {
             .toList();
     }
 
+    public ScheduledNotificationHistoryPageResponse notificationHistory(String tenantId, String scheduledTaskId,
+                                                                         String keyword, int page, int pageSize) {
+        ScheduledTaskEntity entity = getForTenant(tenantId, scheduledTaskId);
+        int normalizedPage = Math.max(0, page - 1);
+        int normalizedSize = Math.max(1, Math.min(pageSize, 100));
+        String normalizedKeyword = keyword == null ? "" : keyword.trim();
+        Page<ScheduledTaskRunEntity> result = scheduledTaskRunRepository.searchNotificationHistory(
+            entity.getTenantId(), entity.getTaskId(), normalizedKeyword, PageRequest.of(normalizedPage, normalizedSize)
+        );
+        return new ScheduledNotificationHistoryPageResponse(
+            result.getContent().stream().map(ScheduledNotificationHistoryResponse::from).toList(),
+            result.getTotalElements(), normalizedPage + 1, normalizedSize, result.getTotalPages()
+        );
+    }
+
     @Transactional
     public int scanDueTasks() {
         Instant now = Instant.now();
@@ -235,6 +274,7 @@ public class AgentScheduledTaskService {
             Optional<AgentTaskLatestEntity> latest = latestRepository.findById(run.getTaskId());
             if (latest.isEmpty()) {
                 markRunFailure(run, "Agent task snapshot not found", now);
+                notifyRunCompletion(run, null, "FAILED", "Agent task snapshot not found");
                 changed++;
                 continue;
             }
@@ -243,6 +283,7 @@ public class AgentScheduledTaskService {
                 continue;
             }
             completeRun(run, latest.get(), now);
+            notifyRunCompletion(run, latest.get(), taskStatus, latest.get().getErrorMessage());
             changed++;
         }
         return changed;
@@ -272,6 +313,14 @@ public class AgentScheduledTaskService {
     private ScheduledTaskRunEntity submitRun(ScheduledTaskEntity entity, Instant now, boolean manualRun) {
         ScheduledTaskRunEntity run = newRun(entity, now, manualRun);
         scheduledTaskRunRepository.save(run);
+        if (!skillCatalogService.isPublished(entity.getAgentId())) {
+            finishUnpublishedAgentRun(run, entity, now);
+            return run;
+        }
+        if (!enterpriseAdminService.canAccessAgent(entity.getUserId(), entity.getAgentId())) {
+            finishAuthorizationDeniedRun(run, entity, now, manualRun);
+            return run;
+        }
         if (Boolean.TRUE.equals(entity.getTradingDayOnly())) {
             TradingDayGuardResult guard = checkTradingDay(now);
             if (!guard.success()) {
@@ -300,6 +349,7 @@ public class AgentScheduledTaskService {
             scheduledTaskRepository.save(entity);
         } catch (Exception ex) {
             markRunFailure(run, ex.getMessage(), now);
+            notifyRunCompletion(run, null, "FAILED", ex.getMessage());
             if (!manualRun) {
                 markObservedFailure(entity, "FAILED", ex.getMessage(), now);
             } else {
@@ -348,6 +398,47 @@ public class AgentScheduledTaskService {
             }
         }
         scheduledTaskRepository.save(entity);
+    }
+
+    private void finishAuthorizationDeniedRun(ScheduledTaskRunEntity run, ScheduledTaskEntity entity,
+                                              Instant now, boolean manualRun) {
+        String errorMessage = "当前调度所属用户已无权使用Agent: " + firstText(entity.getAgentId(), "unknown");
+        run.setStatus("AGENT_AUTHORIZATION_DENIED");
+        run.setErrorMessage(truncate(errorMessage, 1000));
+        run.setFinishedAt(now);
+        run.setDurationMs(Math.max(0L, now.toEpochMilli() - run.getFireTime().toEpochMilli()));
+        scheduledTaskRunRepository.save(run);
+
+        entity.setLastFireTime(now);
+        entity.setLastTaskId(null);
+        entity.setLastTaskStatus("AGENT_AUTHORIZATION_DENIED");
+        entity.setLastError(truncate(errorMessage, 1000));
+        if (!manualRun) {
+            entity.setStatus("PAUSED");
+            entity.setNextFireTime(null);
+        }
+        scheduledTaskRepository.save(entity);
+        log.warn("Scheduled Agent task paused because authorization was revoked scheduleId={} tenantId={} userId={} agentId={}",
+            entity.getTaskId(), entity.getTenantId(), entity.getUserId(), entity.getAgentId());
+    }
+
+    private void finishUnpublishedAgentRun(ScheduledTaskRunEntity run, ScheduledTaskEntity entity, Instant now) {
+        String errorMessage = "Agent未发布，不能执行调度: " + firstText(entity.getAgentId(), "unknown");
+        run.setStatus("AGENT_UNPUBLISHED");
+        run.setErrorMessage(truncate(errorMessage, 1000));
+        run.setFinishedAt(now);
+        run.setDurationMs(Math.max(0L, now.toEpochMilli() - run.getFireTime().toEpochMilli()));
+        scheduledTaskRunRepository.save(run);
+
+        entity.setLastFireTime(now);
+        entity.setLastTaskId(null);
+        entity.setLastTaskStatus("AGENT_UNPUBLISHED");
+        entity.setLastError(truncate(errorMessage, 1000));
+        entity.setStatus("PAUSED");
+        entity.setNextFireTime(null);
+        scheduledTaskRepository.save(entity);
+        log.warn("Scheduled Agent task paused because Agent is unpublished scheduleId={} tenantId={} agentId={}",
+            entity.getTaskId(), entity.getTenantId(), entity.getAgentId());
     }
 
     private void markObservedSuccess(ScheduledTaskEntity entity, Instant now) {
@@ -429,6 +520,59 @@ public class AgentScheduledTaskService {
         run.setErrorMessage(truncate(firstText(errorMessage, "Agent task failed"), 1000));
         run.setFinishedAt(now);
         run.setDurationMs(Math.max(0L, now.toEpochMilli() - run.getFireTime().toEpochMilli()));
+        scheduledTaskRunRepository.save(run);
+    }
+
+    private void notifyRunCompletion(ScheduledTaskRunEntity run, AgentTaskLatestEntity latest,
+                                     String taskStatus, String errorMessage) {
+        if (run == null || run.getScheduledTaskId() == null) {
+            return;
+        }
+        scheduledTaskRepository.findById(run.getScheduledTaskId()).ifPresent(entity -> {
+            if (!Boolean.TRUE.equals(entity.getNotifyEnabled())
+                || entity.getNotificationChannelId() == null || entity.getNotificationChannelId().isBlank()) {
+                return;
+            }
+            Map<String, Object> payload = new LinkedHashMap<>();
+            String normalizedStatus = normalizeStatus(taskStatus);
+            boolean success = "SUCCESS".equals(normalizedStatus);
+            payload.put("title", "Agent调度完成：" + entity.getName());
+            payload.put("content", success
+                ? firstText(latest == null ? null : latest.getAnswerSummary(), "Agent任务已成功完成")
+                : firstText(errorMessage, "Agent任务执行失败"));
+            payload.put("level", success ? "INFO" : "CRITICAL");
+            payload.put("sourceTaskId", firstText(run.getTaskId(), entity.getTaskId()));
+            payload.put("scheduleId", entity.getTaskId());
+            payload.put("scheduleName", entity.getName());
+            payload.put("status", normalizedStatus);
+            String receiver = recipientService.receiver(entity.getTenantId(), entity.getNotificationChannelType())
+                .orElse(null);
+            if (receiver == null) {
+                recordNotificationResult(run, entity, null, "SKIPPED", "当前租户未绑定通知接收人");
+                log.warn("Skip scheduled Agent notification because tenant recipient is not bound scheduleId={} tenantId={} channel={}",
+                    entity.getTaskId(), entity.getTenantId(), entity.getNotificationChannelType());
+                return;
+            }
+            payload.put("receiver", receiver);
+            try {
+                notificationClient.dispatch(entity.getNotificationChannelId(), payload);
+                recordNotificationResult(run, entity, receiver, "SUCCESS", null);
+            } catch (Exception ex) {
+                recordNotificationResult(run, entity, receiver, "FAILED", ex.getMessage());
+                log.warn("Failed to send scheduled Agent notification scheduleId={} channelId={}: {}",
+                    entity.getTaskId(), entity.getNotificationChannelId(), ex.getMessage());
+            }
+        });
+    }
+
+    private void recordNotificationResult(ScheduledTaskRunEntity run, ScheduledTaskEntity entity,
+                                          String receiver, String status, String errorMessage) {
+        run.setNotificationChannelType(entity.getNotificationChannelType());
+        run.setNotificationChannelName(entity.getNotificationChannelName());
+        run.setNotificationReceiver(truncate(receiver, 2000));
+        run.setNotificationStatus(status);
+        run.setNotificationSentAt(Instant.now());
+        run.setNotificationError(truncate(errorMessage, 1000));
         scheduledTaskRunRepository.save(run);
     }
 
@@ -574,6 +718,12 @@ public class AgentScheduledTaskService {
 
     private String requireTenant(String tenantId) {
         return requireText(tenantId, "Tenant ID cannot be empty");
+    }
+
+    private void requirePublishedAgent(String agentId) {
+        if (!skillCatalogService.isPublished(agentId)) {
+            throw new IllegalArgumentException("Agent未发布，不能创建或启用调度");
+        }
     }
 
     private String requireText(String value, String message) {

@@ -18,7 +18,30 @@ public class NewsRuntimeProperties {
     private Robots robots = new Robots();
     private Bulk bulk = new Bulk();
     private Attachment attachment = new Attachment();
+    private Analysis analysis = new Analysis();
+    private CollectLog collectLog = new CollectLog();
     private OpenSearch openSearch = new OpenSearch();
+
+    @Data
+    public static class CollectLog {
+        private boolean enabled = true;
+        /** Collection log records older than this many days are deleted. */
+        private int retentionDays = 7;
+        private int cleanupBatchSize = 1_000;
+        private int maxBatchesPerRun = 100;
+        private String cleanupCron = "0 30 0 * * *";
+        private String zoneId = "Asia/Shanghai";
+    }
+
+    @Data
+    public static class Analysis {
+        /** Enables the asynchronous summary, category and tag analysis pipeline. */
+        private boolean enabled = true;
+        private int batchSize = 20;
+        private long pollDelayMillis = 5_000;
+        private int summaryMaxChars = 300;
+        private int maxTags = 8;
+    }
 
     @Data
     public static class Robots {

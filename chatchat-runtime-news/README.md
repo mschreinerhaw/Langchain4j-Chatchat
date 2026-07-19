@@ -47,6 +47,13 @@ java -jar chatchat-runtime-news/target/chatchat-runtime-news-1.0.0-SNAPSHOT.jar 
 从原 MCP/API 数据库迁移时，将 `news_source`、`news_source_rule`、`news_collect_record`、
 `news_analysis_task` 四张表导入 News Runtime 的独立数据库，再启动两个服务。新版本的 MCP/API 初始化脚本不再包含这些表。
 
+## 采集日志保留
+
+`news_collect_record` 采集日志默认只保留 7 天。应用启动后会清理一次，之后默认每天 `00:30` 分批清理；可通过
+`chatchat.runtime.news.collect-log` 下的 `enabled`、`retention-days`、`cleanup-batch-size`、
+`max-batches-per-run` 和 `cleanup-cron` 调整。清理不会删除 OpenSearch 中的资讯正文或附件分片；由于该表也保存 URL
+去重状态，日志过期后再次发现同一旧链接时允许重新采集。
+
 ## 公告附件与向量检索
 
 News Runtime 会在公告详情页及公告列表中识别 `PDF`、`DOC`、`DOCX`、`XLS`、`XLSX`、`CSV` 附件。附件下载和解析使用独立受限队列，

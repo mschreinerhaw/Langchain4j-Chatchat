@@ -9,6 +9,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
@@ -19,7 +20,11 @@ import java.time.Instant;
 @Getter
 @Setter
 @Entity
-@Table(name = "news_collect_record", uniqueConstraints = @UniqueConstraint(name = "uk_news_url_hash", columnNames = "url_hash"))
+@Table(
+    name = "news_collect_record",
+    uniqueConstraints = @UniqueConstraint(name = "uk_news_url_hash", columnNames = "url_hash"),
+    indexes = @Index(name = "idx_news_collect_record_collected_at", columnList = "collected_at")
+)
 public class NewsCollectRecordEntity {
 
     @Id

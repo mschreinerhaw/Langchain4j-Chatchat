@@ -6,12 +6,18 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Optional;
 
 @Component
 @ConditionalOnProperty(prefix = "chatchat.runtime.news.open-search", name = "enabled", havingValue = "false", matchIfMissing = true)
 public class DisabledNewsDocumentStore implements NewsDocumentStore {
     @Override
     public void bulkIndex(List<NewsDocument> documents) {
+        throw new IllegalStateException("News OpenSearch storage is disabled");
+    }
+
+    @Override
+    public Optional<NewsDocument> findById(String documentId) {
         throw new IllegalStateException("News OpenSearch storage is disabled");
     }
 

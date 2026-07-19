@@ -55,8 +55,8 @@ public class NotificationChannelConfigService {
         existing.setHeadersJson(config.getHeadersJson());
         existing.setBodyTemplate(config.getBodyTemplate());
         existing.setSecret(config.getSecret());
-        existing.setDefaultReceiver(config.getDefaultReceiver());
-        existing.setCcReceiver(config.getCcReceiver());
+        existing.setDefaultReceiver(null);
+        existing.setCcReceiver(null);
         existing.setSmtpHost(config.getSmtpHost());
         existing.setSmtpPort(config.getSmtpPort());
         existing.setSmtpUsername(config.getSmtpUsername());
@@ -106,6 +106,22 @@ public class NotificationChannelConfigService {
                 repository.save(defaultConfig(channel));
             }
         }
+        repository.findAll().forEach(config -> {
+            boolean changed = false;
+            if ((config.getDefaultReceiver() != null && !config.getDefaultReceiver().isBlank())
+                || (config.getCcReceiver() != null && !config.getCcReceiver().isBlank())) {
+                config.setDefaultReceiver(null);
+                config.setCcReceiver(null);
+                changed = true;
+            }
+            if (isLegacySharedRecipientTemplate(config)) {
+                config.setBodyTemplate(defaultBodyTemplate(config.getChannel()));
+                changed = true;
+            }
+            if (changed) {
+                repository.save(config);
+            }
+        });
     }
 
     private NotificationChannelConfig defaultConfig(NotificationChannel channel) {
@@ -119,7 +135,8 @@ public class NotificationChannelConfigService {
         config.setMethod("POST");
         config.setHeadersJson(writeJson(Map.of("Content-Type", "application/json")));
         config.setBodyTemplate(defaultBodyTemplate(channel));
-        config.setDefaultReceiver(channel == NotificationChannel.SMS ? "13800000000" : "ops@example.com");
+        config.setDefaultReceiver(null);
+        config.setCcReceiver(null);
         config.setSmtpAuthEnabled(true);
         config.setSmtpStarttlsEnabled(true);
         config.setSmtpSslEnabled(false);
@@ -229,12 +246,28 @@ public class NotificationChannelConfigService {
                 {"phone":"{{receiver}}","account":"{{smsAccount}}","password":"{{smsPassword}}","token":"{{smsToken}}","content":"{{content}}","extno":"{{smsExtendCode}}","rt":"{{smsReturnType}}"}
                 """;
             case WECHAT_WORK -> """
+                {"msgtype":"text","text":{"content":"{{title}}\\n[{{level}}]\\n{{content}}\\nsourceTaskId: {{sourceTaskId}}","mentioned_list":["{{receiver}}"]}}
+                """;
+            case DINGTALK -> """
+                {"msgtype":"markdown","markdown":{"title":"{{title}}","text":"### {{title}}\\n\\n{{content}}\\n\\n级别：{{level}}\\n\\nsourceTaskId：{{sourceTaskId}}"},"at":{"atMobiles":["{{receiver}}"],"isAtAll":false}}
+                """;
+        };
+    }
+
+    private boolean isLegacySharedRecipientTemplate(NotificationChannelConfig config) {
+        if (config == null || config.getChannel() == null || config.getBodyTemplate() == null) {
+            return false;
+        }
+        String legacy = switch (config.getChannel()) {
+            case WECHAT_WORK -> """
                 {"msgtype":"markdown","markdown":{"content":"### {{title}}\\n> {{level}}\\n\\n{{content}}\\n\\nsourceTaskId: {{sourceTaskId}}"}}
                 """;
             case DINGTALK -> """
                 {"msgtype":"markdown","markdown":{"title":"{{title}}","text":"### {{title}}\\n\\n{{content}}\\n\\n级别：{{level}}\\n\\nsourceTaskId：{{sourceTaskId}}"}}
                 """;
+            default -> null;
         };
+        return legacy != null && legacy.trim().equals(config.getBodyTemplate().trim());
     }
 
     private String writeJson(Map<String, Object> value) {

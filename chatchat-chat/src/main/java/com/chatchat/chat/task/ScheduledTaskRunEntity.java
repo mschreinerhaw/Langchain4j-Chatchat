@@ -22,7 +22,8 @@ import java.util.UUID;
         @Index(name = "idx_scheduled_task_run_schedule_fire", columnList = "scheduled_task_id, fire_time"),
         @Index(name = "idx_scheduled_task_run_tenant_agent_fire", columnList = "tenant_id, agent_id, fire_time"),
         @Index(name = "idx_scheduled_task_run_task", columnList = "task_id"),
-        @Index(name = "idx_scheduled_task_run_status_updated", columnList = "status, updated_at")
+        @Index(name = "idx_scheduled_task_run_status_updated", columnList = "status, updated_at"),
+        @Index(name = "idx_scheduled_task_run_notification", columnList = "tenant_id, scheduled_task_id, notification_sent_at")
     }
 )
 public class ScheduledTaskRunEntity {
@@ -69,6 +70,24 @@ public class ScheduledTaskRunEntity {
 
     @Column(name = "manual_run", nullable = false)
     private Boolean manualRun = false;
+
+    @Column(name = "notification_channel_type", length = 32)
+    private String notificationChannelType;
+
+    @Column(name = "notification_channel_name", length = 200)
+    private String notificationChannelName;
+
+    @Column(name = "notification_receiver", length = 2000)
+    private String notificationReceiver;
+
+    @Column(name = "notification_status", length = 32)
+    private String notificationStatus;
+
+    @Column(name = "notification_sent_at")
+    private Instant notificationSentAt;
+
+    @Column(name = "notification_error", length = 1000)
+    private String notificationError;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;

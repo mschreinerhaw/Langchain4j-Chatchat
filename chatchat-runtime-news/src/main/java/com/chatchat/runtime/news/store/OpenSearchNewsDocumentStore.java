@@ -30,6 +30,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.security.GeneralSecurityException;
@@ -179,6 +180,24 @@ public class OpenSearchNewsDocumentStore implements NewsDocumentStore {
             // Older daily indices may not have a vector mapping; lexical recall must remain available.
         }
         return documents(rrf(lexical, vector), requested);
+    }
+
+    @Override
+    public Optional<NewsDocument> findById(String documentId) throws Exception {
+        if (documentId == null || documentId.isBlank()) return Optional.empty();
+        ObjectNode root = objectMapper.createObjectNode();
+        root.put("size", 1);
+        root.putObject("query").putObject("ids").putArray("values").add(documentId);
+        String targets = String.join(",", indexNaming.readableIndices());
+        try {
+            List<NewsDocument> found = documents(hits(searchRequest(targets, root)), 1);
+            return found.stream().findFirst();
+        } catch (ResponseException ex) {
+            if (ex.getResponse() != null && ex.getResponse().getStatusLine().getStatusCode() == 404) {
+                return Optional.empty();
+            }
+            throw ex;
+        }
     }
 
     private JsonNode searchRequest(String targets, ObjectNode body) throws Exception {

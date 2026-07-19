@@ -19,8 +19,8 @@ class DatabaseSchemaGeneratorTest {
         Files.createDirectories(output);
         generate("org.hibernate.dialect.MySQLDialect", output.resolve("chatchat-api-mysql.sql"));
         generate("org.hibernate.dialect.H2Dialect", output.resolve("chatchat-api-h2.sql"));
-        assertSchemaMatches(output.resolve("chatchat-api-mysql.sql"), Path.of("..", "database", "init", "mysql", "chatchat-api.sql"), 42);
-        assertSchemaMatches(output.resolve("chatchat-api-h2.sql"), Path.of("..", "database", "init", "h2", "chatchat-api.sql"), 42);
+        assertSchemaMatches(output.resolve("chatchat-api-mysql.sql"), Path.of("..", "database", "init", "mysql", "chatchat-api.sql"), 43);
+        assertSchemaMatches(output.resolve("chatchat-api-h2.sql"), Path.of("..", "database", "init", "h2", "chatchat-api.sql"), 43);
     }
 
     private void generate(String dialect, Path target) throws Exception {

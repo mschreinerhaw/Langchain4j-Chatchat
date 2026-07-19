@@ -28,8 +28,6 @@ const emptyForm = {
   headers: defaultHeaders,
   bodyTemplate: '',
   secret: '',
-  defaultReceiver: 'ops@example.com',
-  ccReceiver: '',
   smtpHost: '',
   smtpPort: null,
   smtpUsername: '',
@@ -126,13 +124,13 @@ export default {
           title: '邮件告警',
           mode: 'SMTP',
           description: '适合发送详细分析结果、日报和需要留档的告警。',
-          params: ['收件人', '抄送人', 'SMTP Host', '端口', '用户名', '密码', '发件人']
+          params: ['SMTP Host', '端口', '用户名', '密码', '发件人（接收人由 API 租户绑定）']
         },
         SMS: {
           title: '短信告警',
           mode: 'HTTP/Webhook',
           description: '适合发送高优先级、短文本告警，接收人填写手机号。',
-          params: ['手机号接收人', '短信网关账号', 'Token', '密码/MD5 密码', '返回类型', '扩展码']
+          params: ['短信网关账号', 'Token', '密码/MD5 密码', '返回类型', '扩展码（接收人由 API 租户绑定）']
         },
         WECHAT_WORK: {
           title: '企业微信告警',
@@ -220,9 +218,6 @@ export default {
         this.form.deliveryMode = 'HTTP';
       } else if (!this.form.deliveryMode) {
         this.form.deliveryMode = defaults.deliveryMode;
-      }
-      if (this.form.channel === 'SMS' && !this.form.defaultReceiver) {
-        this.form.defaultReceiver = '13800000000';
       }
       this.resetNotificationSections();
     },
@@ -369,6 +364,8 @@ export default {
       payload.maxRetries = Number(payload.maxRetries || 0);
       payload.smtpPort = payload.smtpPort ? Number(payload.smtpPort) : null;
       delete payload.defaultTestPayload;
+      delete payload.defaultReceiver;
+      delete payload.ccReceiver;
       delete payload.createdAt;
       delete payload.updatedAt;
       return payload;
@@ -392,7 +389,6 @@ function newNotificationDraft() {
     description: '通过 HTTP/Webhook 发送用户自定义告警内容。',
     enabled: false,
     deliveryMode: 'HTTP',
-    defaultReceiver: 'ops@example.com',
     defaultTestPayload: clone(defaultTestPayload)
   };
 }

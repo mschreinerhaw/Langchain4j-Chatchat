@@ -34,6 +34,19 @@ chatchat:
         chunk-size: 1200
         chunk-overlap: 150
         max-chunks-per-attachment: 500
+      collect-log:
+        enabled: true
+        retention-days: 7
+        cleanup-batch-size: 1000
+        max-batches-per-run: 100
+        cleanup-cron: "0 30 0 * * *"
+        zone-id: Asia/Shanghai
+      analysis:
+        enabled: true
+        batch-size: 20
+        poll-delay-millis: 5000
+        summary-max-chars: 300
+        max-tags: 8
       open-search:
         enabled: true
         endpoint: https://192.168.195.221:9200
@@ -44,7 +57,7 @@ chatchat:
         retention-days: 7
         zone-id: Asia/Shanghai
         embedding:
-          enabled: true
+          enabled: false
           endpoint: https://llm-7upawl16up8649rh.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/embeddings
           api-key: sk-720436c855ac470bb955388d0e8c9b89
           model: text-embedding-v4

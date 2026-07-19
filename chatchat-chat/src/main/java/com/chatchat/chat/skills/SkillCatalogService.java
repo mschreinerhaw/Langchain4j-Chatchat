@@ -100,6 +100,19 @@ public class SkillCatalogService {
             .orElseGet(this::findDefaultAgentOrGeneralOrDefault);
     }
 
+    /** Returns whether the exact Agent exists and is currently published. */
+    @Transactional(readOnly = true)
+    public synchronized boolean isPublished(String skillId) {
+        if (skillId == null || skillId.isBlank()) {
+            return false;
+        }
+        String id = skillId.trim().toLowerCase(Locale.ROOT);
+        return repository.findById(id)
+            .map(SkillConfigEntity::getMarketStatus)
+            .map(MARKET_STATUS_PUBLISHED::equalsIgnoreCase)
+            .orElse(false);
+    }
+
     /**
      * Returns whether is builtin skill.
      *

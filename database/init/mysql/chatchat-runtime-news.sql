@@ -25,7 +25,8 @@ create table if not exists news_collect_record (
   url_hash varchar(64) not null, content_hash varchar(64), publish_time datetime(6),
   collect_status varchar(32) not null, analysis_status varchar(32) not null,
   document_id varchar(128), collected_at datetime(6), error_message varchar(4000),
-  primary key (id), unique key uk_news_url_hash (url_hash)
+  primary key (id), unique key uk_news_url_hash (url_hash),
+  key idx_news_collect_record_collected_at (collected_at)
 ) engine=InnoDB default charset=utf8mb4;
 
 create table if not exists news_analysis_task (

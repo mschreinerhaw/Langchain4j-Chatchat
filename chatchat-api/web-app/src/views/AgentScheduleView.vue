@@ -9,7 +9,10 @@
         <button type="button" class="light-button" :disabled="loading || scheduleLoading" @click="reload">
           {{ loading || scheduleLoading ? "刷新中" : "刷新" }}
         </button>
-        <button type="button" class="primary-button" :disabled="loading" @click="openCreateDialog">
+        <button type="button" class="light-button" :disabled="notificationLoading" @click="openNotificationOverview">
+          {{ notificationLoading ? "加载中" : "通知方式" }}
+        </button>
+        <button type="button" class="primary-button" :disabled="loading || agentOptions.length === 0" title="只有已发布且已授权的Agent可以创建调度" @click="openCreateDialog">
           新建调度
         </button>
       </div>
@@ -39,6 +42,8 @@
           <option value="COMPLETED">COMPLETED</option>
           <option value="FAILED">FAILED</option>
           <option value="SCHEDULE_ERROR">调度异常</option>
+          <option value="AGENT_AUTHORIZATION_DENIED">Agent未授权</option>
+          <option value="AGENT_UNPUBLISHED">Agent未发布</option>
           <option value="SKIPPED_NON_TRADING_DAY">非交易日已跳过</option>
           <option value="CANCELLED">CANCELLED</option>
           <option value="EXPIRED">EXPIRED</option>
@@ -63,6 +68,7 @@
           <span>Agent</span>
           <span>调度</span>
           <span>下次执行</span>
+          <span>通知类型</span>
           <span>状态</span>
           <span>操作</span>
         </div>
@@ -76,11 +82,13 @@
           <span>{{ scheduleAgentName(schedule) }}</span>
           <span>{{ scheduleTimeLabel(schedule) }}</span>
           <span>{{ formatDateTime(schedule.nextFireTime) }}</span>
+          <span>{{ notificationTypeLabel(schedule) }}</span>
           <div class="schedule-status-cell">
             <b :class="scheduleStatusClass(scheduleEffectiveStatus(schedule))">{{ scheduleStatusLabel(schedule) }}</b>
             <small v-if="schedule.lastError" :title="schedule.lastError">{{ schedule.lastError }}</small>
           </div>
           <div class="schedule-row-actions">
+            <button type="button" class="text-button" @click="openNotificationHistory(schedule)">详情</button>
             <button type="button" class="light-button" :disabled="saving" @click="toggleSchedule(schedule)">
               {{ isScheduleActive(schedule) ? "停用" : "启用" }}
             </button>
@@ -115,6 +123,7 @@
               </option>
             </select>
           </label>
+          <p v-if="agentOptions.length === 0" class="schedule-error">暂无已发布且已授权的 Agent，不能创建调度。</p>
           <div v-if="selectedAgent" class="agent-snapshot">
             <strong>{{ selectedAgent.name || selectedAgent.id }}</strong>
             <p>{{ selectedAgent.description || "暂无描述" }}</p>
@@ -214,6 +223,18 @@
               <span>仅交易日执行</span>
             </label>
           </div>
+          <div v-if="form.notifyEnabled" class="notification-selection-summary">
+            <div>
+              <strong>通知类型</strong>
+              <span v-if="selectedNotificationChannel()">
+                {{ selectedNotificationChannel().title || channelTypeLabel(selectedNotificationChannel().channel) }}
+              </span>
+              <span v-else>保存调度时选择</span>
+            </div>
+            <button type="button" class="light-button" :disabled="saving" @click="openNotificationSelector">
+              {{ selectedNotificationChannel() ? "重新选择" : "选择通知方式" }}
+            </button>
+          </div>
         </section>
 
         <p v-if="error" class="schedule-error">{{ error }}</p>
@@ -226,6 +247,161 @@
           </button>
         </footer>
       </form>
+    </div>
+
+    <div v-if="notificationHistoryDialogOpen" class="schedule-dialog-backdrop notification-history-backdrop">
+      <div class="schedule-dialog notification-history-dialog">
+        <header>
+          <div>
+            <p>Notification History</p>
+            <h2>{{ notificationHistorySchedule?.name || "调度任务" }} · 通知历史</h2>
+          </div>
+          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeNotificationHistory">×</button>
+        </header>
+
+        <div class="notification-history-search">
+          <label class="field">
+            <span>检索记录</span>
+            <input
+              v-model.trim="notificationHistoryQuery.keyword"
+              type="search"
+              placeholder="搜索通知类型、接收人、状态、任务ID或错误信息"
+              @keyup.enter="searchNotificationHistory"
+            />
+          </label>
+          <button type="button" class="primary-button" :disabled="notificationHistoryLoading" @click="searchNotificationHistory">
+            {{ notificationHistoryLoading ? "查询中" : "查询" }}
+          </button>
+        </div>
+
+        <p v-if="notificationHistoryError" class="schedule-error">{{ notificationHistoryError }}</p>
+        <div class="notification-history-table-wrap">
+          <div class="notification-history-table">
+            <div class="notification-history-head">
+              <span>发送时间</span>
+              <span>通知类型</span>
+              <span>接收人</span>
+              <span>结果</span>
+              <span>关联任务</span>
+              <span>说明</span>
+            </div>
+            <p v-if="notificationHistoryLoading" class="schedule-empty">正在加载通知历史…</p>
+            <p v-else-if="notificationHistoryRecords.length === 0" class="schedule-empty">暂无匹配的通知历史</p>
+            <template v-else>
+              <div v-for="record in notificationHistoryRecords" :key="record.runId" class="notification-history-row">
+                <span>{{ formatDateTime(record.sentAt) }}</span>
+                <span>{{ record.channelName || channelTypeLabel(record.channelType) }}</span>
+                <span :title="record.receiver">{{ record.receiver || "-" }}</span>
+                <b :class="String(record.status || '').toLowerCase()">{{ notificationHistoryStatusLabel(record.status) }}</b>
+                <span :title="record.taskId">{{ record.taskId || "-" }}</span>
+                <span class="notification-history-error" :title="record.errorMessage">{{ record.errorMessage || "-" }}</span>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <footer class="notification-history-footer">
+          <span>共 {{ notificationHistoryQuery.total }} 条，每页 10 条</span>
+          <div>
+            <button
+              type="button"
+              class="light-button"
+              :disabled="notificationHistoryLoading || notificationHistoryQuery.page <= 1"
+              @click="changeNotificationHistoryPage(notificationHistoryQuery.page - 1)"
+            >上一页</button>
+            <span>第 {{ notificationHistoryQuery.page }} / {{ Math.max(1, notificationHistoryQuery.totalPages) }} 页</span>
+            <button
+              type="button"
+              class="light-button"
+              :disabled="notificationHistoryLoading || notificationHistoryQuery.page >= Math.max(1, notificationHistoryQuery.totalPages)"
+              @click="changeNotificationHistoryPage(notificationHistoryQuery.page + 1)"
+            >下一页</button>
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <div v-if="notificationDialogOpen" class="schedule-dialog-backdrop">
+      <div class="schedule-dialog notification-dialog">
+        <header>
+          <div>
+            <p>MCP Notification</p>
+            <h2>通知方式与租户接收人</h2>
+          </div>
+          <button type="button" aria-label="关闭" title="关闭" @click="notificationDialogOpen = false">×</button>
+        </header>
+        <p class="notification-readonly-tip">通知通道由 MCP 服务端维护且只读；接收人保存在 API 端，并严格按当前租户隔离。</p>
+        <p v-if="notificationLoading" class="schedule-empty">正在加载通知方式…</p>
+        <p v-else-if="error" class="schedule-error">{{ error }}</p>
+        <p v-else-if="notificationChannels.length === 0" class="schedule-empty">MCP 端暂无已启用的通知方式</p>
+        <div v-else class="notification-option-list">
+          <article v-for="channel in notificationChannels" :key="channel.id" class="notification-option-card">
+            <div>
+              <strong>{{ channel.title || channelTypeLabel(channel.channel) }}</strong>
+              <span>{{ channelTypeLabel(channel.channel) }} · {{ channel.deliveryMode || "-" }}</span>
+            </div>
+            <p>{{ channel.description || "暂无说明" }}</p>
+            <small>工具：{{ channel.toolName || "-" }}</small>
+            <small v-if="!channel.recipientAware" class="notification-channel-warning">
+              当前 MCP URL/请求模板未使用 &#123;&#123;receiver&#125;&#125;，为防止跨租户串发，该通道暂不能用于调度。
+            </small>
+            <div class="tenant-recipient-editor">
+              <label class="field">
+                <span>{{ channelTypeLabel(channel.channel) }}接收人</span>
+                <input
+                  v-model.trim="notificationRecipientDrafts[channel.channel]"
+                  :disabled="recipientSaving === channel.channel"
+                  :placeholder="recipientPlaceholder(channel.channel)"
+                />
+              </label>
+              <div>
+                <button type="button" class="light-button" :disabled="recipientSaving === channel.channel" @click="saveNotificationRecipient(channel)">
+                  {{ recipientSaving === channel.channel ? "保存中" : "保存绑定" }}
+                </button>
+                <button v-if="channel.bound" type="button" class="danger-button" :disabled="recipientSaving === channel.channel" @click="deleteNotificationRecipient(channel)">
+                  解绑
+                </button>
+              </div>
+            </div>
+          </article>
+        </div>
+        <footer>
+          <button type="button" class="primary-button" @click="notificationDialogOpen = false">关闭</button>
+        </footer>
+      </div>
+    </div>
+
+    <div v-if="notificationSelectOpen" class="schedule-dialog-backdrop notification-select-backdrop">
+      <div class="schedule-dialog notification-dialog">
+        <header>
+          <div>
+            <p>Complete Notification</p>
+            <h2>选择完成后的通知类型</h2>
+          </div>
+          <button type="button" aria-label="关闭" title="关闭" @click="closeNotificationSelector">×</button>
+        </header>
+        <p class="notification-readonly-tip">只能选择 MCP 端已启用、且当前租户已经绑定接收人的通知方式。</p>
+        <p v-if="notificationLoading" class="schedule-empty">正在加载通知方式…</p>
+        <p v-else-if="boundNotificationChannels().length === 0" class="schedule-error">当前租户暂无可用通知方式，请先点击“通知方式”绑定接收人。</p>
+        <div v-else class="notification-option-list selectable">
+          <label v-for="channel in boundNotificationChannels()" :key="channel.id" class="notification-option-card">
+            <input v-model="pendingNotificationId" type="radio" name="notificationChannel" :value="channel.id" />
+            <div>
+              <strong>{{ channel.title || channelTypeLabel(channel.channel) }}</strong>
+              <span>{{ channelTypeLabel(channel.channel) }} · {{ channel.deliveryMode || "-" }}</span>
+              <p>{{ channel.description || "暂无说明" }}</p>
+              <small>接收人：{{ channel.receiver }}</small>
+            </div>
+          </label>
+        </div>
+        <p v-if="error" class="schedule-error">{{ error }}</p>
+        <footer>
+          <button type="button" class="light-button" :disabled="saving" @click="closeNotificationSelector">取消</button>
+          <button type="button" class="primary-button" :disabled="saving || notificationLoading || !boundNotificationChannels().length" @click="confirmNotificationAndCreate">
+            {{ saving ? "创建中" : "确认并创建" }}
+          </button>
+        </footer>
+      </div>
     </div>
   </main>
 </template>

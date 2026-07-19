@@ -94,6 +94,7 @@ public class AgentTaskService {
         latest.setSessionId(normalized.getSessionId());
         latest.setStatus("PENDING");
         latest.setQuestion(normalized.getQuery());
+        latest.setRequestPayloadJson(writePayload(new AgentTaskPayload(normalized)));
         latest.setCreateTime(Instant.now());
         latest.setUpdateTime(Instant.now());
         latestRepository.save(latest);
@@ -1485,6 +1486,9 @@ public class AgentTaskService {
      * @param persistQuestionEvent the persist question event value
      */
     private void queueQuestion(AgentTaskLatestEntity latest, AgentTaskSubmitRequest request, boolean persistQuestionEvent) {
+        String requestPayload = writePayload(new AgentTaskPayload(request));
+        latest.setRequestPayloadJson(requestPayload);
+        latestRepository.save(latest);
         AgentEvent question = AgentEvent.builder()
             .taskId(latest.getTaskId())
             .tenantId(latest.getTenantId())
@@ -1493,7 +1497,7 @@ public class AgentTaskService {
             .sessionId(latest.getSessionId())
             .type("QUESTION")
             .status("PENDING")
-            .payload(writePayload(new AgentTaskPayload(request)))
+            .payload(requestPayload)
             .build();
         question.setSequence(nextSequence(question));
         if (persistQuestionEvent) {
@@ -1521,7 +1525,46 @@ public class AgentTaskService {
      */
     private AgentEvent loadQuestionEvent(AgentTaskLatestEntity task) {
         return eventStore.findFirstByTaskAndType(task.getTenantId(), task.getSessionId(), task.getTaskId(), "QUESTION")
-            .orElseThrow(() -> new IllegalStateException("Question payload not found for task: " + task.getTaskId()));
+            .orElseGet(() -> restoreQuestionEvent(task));
+    }
+
+    private AgentEvent restoreQuestionEvent(AgentTaskLatestEntity task) {
+        String payload = task.getRequestPayloadJson();
+        if (payload == null || payload.isBlank()) {
+            payload = legacyRecoveryPayload(task);
+            task.setRequestPayloadJson(payload);
+            latestRepository.save(task);
+        }
+        AgentEvent restored = AgentEvent.builder()
+            .taskId(task.getTaskId())
+            .tenantId(task.getTenantId())
+            .userId(task.getUserId())
+            .agentId(task.getAgentId())
+            .sessionId(task.getSessionId())
+            .type("QUESTION")
+            .status("PENDING")
+            .payload(payload)
+            .build();
+        restored.setSequence(nextSequence(restored));
+        eventStore.save(restored);
+        log.warn("Restored missing QUESTION event from relational task snapshot: taskId={} tenantId={} sessionId={}",
+            task.getTaskId(), task.getTenantId(), task.getSessionId());
+        return restored;
+    }
+
+    private String legacyRecoveryPayload(AgentTaskLatestEntity task) {
+        if (task.getQuestion() == null || task.getQuestion().isBlank()) {
+            throw new IllegalStateException("Question payload not found for task: " + task.getTaskId());
+        }
+        AgentTaskSubmitRequest request = new AgentTaskSubmitRequest();
+        request.setTenantId(task.getTenantId());
+        request.setUserId(task.getUserId());
+        request.setAgentId(task.getAgentId());
+        request.setSkillId(task.getAgentId());
+        request.setSessionId(task.getSessionId());
+        request.setQuery(task.getQuestion());
+        request.setMode("agent_chat");
+        return writePayload(new AgentTaskPayload(request));
     }
 
     /**

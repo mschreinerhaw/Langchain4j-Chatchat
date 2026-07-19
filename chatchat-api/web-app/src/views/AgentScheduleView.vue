@@ -84,7 +84,10 @@
           <span>{{ formatDateTime(schedule.nextFireTime) }}</span>
           <span>{{ notificationTypeLabel(schedule) }}</span>
           <div class="schedule-status-cell">
-            <b :class="scheduleStatusClass(scheduleEffectiveStatus(schedule))">{{ scheduleStatusLabel(schedule) }}</b>
+            <b :class="scheduleStatusClass(scheduleEffectiveStatus(schedule))">
+              <i v-if="isScheduleRunning(schedule)" class="schedule-spinner" aria-hidden="true"></i>
+              {{ scheduleStatusLabel(schedule) }}
+            </b>
             <small v-if="schedule.lastError" :title="schedule.lastError">{{ schedule.lastError }}</small>
           </div>
           <div class="schedule-row-actions">
@@ -92,7 +95,10 @@
             <button type="button" class="light-button" :disabled="saving" @click="toggleSchedule(schedule)">
               {{ isScheduleActive(schedule) ? "停用" : "启用" }}
             </button>
-            <button type="button" class="light-button" :disabled="saving" @click="rerunSchedule(schedule)">执行</button>
+            <button type="button" class="light-button" :disabled="saving || isScheduleRunning(schedule)" @click="rerunSchedule(schedule)">
+              <i v-if="isScheduleRunning(schedule)" class="schedule-spinner" aria-hidden="true"></i>
+              {{ isScheduleRunning(schedule) ? "运行中" : "执行" }}
+            </button>
             <button type="button" class="danger-button" :disabled="saving" @click="removeSchedule(schedule)">删除</button>
           </div>
         </article>

@@ -45,6 +45,7 @@
         answer_summary TEXT,
         error_message TEXT,
         question TEXT,
+        request_payload_json TEXT,
         primary key (task_id)
     );
 

@@ -72,6 +72,7 @@ export default {
       },
       form: clone(emptyForm),
       headersJson: prettyJson(defaultHeaders),
+      testReceiver: defaultTestPayload.receiver,
       testPayloadJson: prettyJson(defaultTestPayload),
       channelOptions: [
         { value: 'EMAIL', label: 'EMAIL' },
@@ -101,6 +102,17 @@ export default {
     formTitle() {
       return this.isNew ? '新增 HTTP 告警' : `配置 ${this.form.toolName || this.form.channel}`;
     },
+    testReceiverLabel() {
+      if (this.form.channel === 'EMAIL') return '测试接收邮箱';
+      if (this.form.channel === 'SMS') return '测试接收手机号';
+      return '测试接收人';
+    },
+    testReceiverPlaceholder() {
+      if (this.form.channel === 'EMAIL') return '例如：name@example.com，多个邮箱可用逗号分隔';
+      if (this.form.channel === 'SMS') return '例如：13800000000';
+      if (this.form.channel === 'WECHAT_WORK') return '填写企微成员、群聊或模板所需的接收人标识';
+      return '填写钉钉成员、群聊或模板所需的接收人标识';
+    },
     templateVariableRows() {
       return [
         { name: '{{receiver}}', usage: '接收人。邮件为邮箱地址，短信为手机号，Webhook 可按平台要求放入接收人字段。' },
@@ -124,25 +136,25 @@ export default {
           title: '邮件告警',
           mode: 'SMTP',
           description: '适合发送详细分析结果、日报和需要留档的告警。',
-          params: ['SMTP Host', '端口', '用户名', '密码', '发件人（接收人由 API 租户绑定）']
+          params: ['SMTP Host', '端口', '用户名', '密码', '发件人', '测试接收邮箱']
         },
         SMS: {
           title: '短信告警',
           mode: 'HTTP/Webhook',
           description: '适合发送高优先级、短文本告警，接收人填写手机号。',
-          params: ['短信网关账号', 'Token', '密码/MD5 密码', '返回类型', '扩展码（接收人由 API 租户绑定）']
+          params: ['短信网关账号', 'Token', '密码/MD5 密码', '返回类型', '扩展码', '测试接收手机号']
         },
         WECHAT_WORK: {
           title: '企业微信告警',
           mode: 'HTTP/Webhook',
           description: '适合团队群机器人或企业微信消息接口通知。',
-          params: ['Webhook URL', '请求头', '渠道密钥', '消息体模板', '测试消息']
+          params: ['Webhook URL', '请求头', '渠道密钥', '消息体模板', '测试接收人', '测试消息']
         },
         DINGTALK: {
           title: '钉钉告警',
           mode: 'HTTP/Webhook',
           description: '适合钉钉机器人或钉钉消息接口通知。',
-          params: ['Webhook URL', '请求头', '渠道密钥', '消息体模板', '测试消息']
+          params: ['Webhook URL', '请求头', '渠道密钥', '消息体模板', '测试接收人', '测试消息']
         }
       };
       return guides[this.form.channel] || guides.DINGTALK;
@@ -193,15 +205,19 @@ export default {
     },
     openTest(channel) {
       this.openEdit(channel);
+      this.showNotificationSection('test');
     },
     closeForm() {
       this.formOpen = false;
     },
     fillForm(channel) {
       const normalized = normalizeChannel(channel);
+      const testPayload = clone(normalized.defaultTestPayload || defaultTestPayload);
       this.form = normalized;
       this.headersJson = prettyJson(normalized.headers || defaultHeaders);
-      this.testPayloadJson = prettyJson(normalized.defaultTestPayload || defaultTestPayload);
+      this.testReceiver = String(testPayload.receiver || '');
+      delete testPayload.receiver;
+      this.testPayloadJson = prettyJson(testPayload);
     },
     channelChanged() {
       const defaults = notificationDefaultsFor(this.form.channel);
@@ -330,6 +346,15 @@ export default {
         this.$emit('notify', { type: 'warning', title: '无法测试', message: '请先保存通知工具。' });
         return;
       }
+      const receiver = this.testReceiver.trim();
+      if (!receiver) {
+        this.$emit('notify', {
+          type: 'warning',
+          title: '请填写测试接收人',
+          message: `${this.testReceiverLabel}不能为空，否则无法验证通知是否真实送达。`
+        });
+        return;
+      }
       let payload;
       try {
         payload = parseJsonObject(this.testPayloadJson, {});
@@ -337,6 +362,7 @@ export default {
         this.$emit('error', new Error(`测试消息 JSON 格式不正确：${error.message}`));
         return;
       }
+      payload.receiver = receiver;
       this.busyAction = 'test';
       try {
         const result = await api.test(this.form.id, payload);

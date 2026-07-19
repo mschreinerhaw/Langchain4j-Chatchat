@@ -48,6 +48,9 @@ public class AgentTaskLatestEntity {
     @Column(columnDefinition = "TEXT")
     private String question;
 
+    @Column(name = "request_payload_json", columnDefinition = "TEXT")
+    private String requestPayloadJson;
+
     @Column(name = "answer_summary", columnDefinition = "TEXT")
     private String answerSummary;
 

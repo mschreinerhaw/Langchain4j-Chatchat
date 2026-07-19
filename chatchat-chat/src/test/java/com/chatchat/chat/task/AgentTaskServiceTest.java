@@ -69,6 +69,57 @@ class AgentTaskServiceTest {
     }
 
     @Test
+    void recoveryRebuildsLegacyQuestionEventFromRelationalSnapshot() throws Exception {
+        AgentEventBus eventBus = mock(AgentEventBus.class);
+        AgentEventStore eventStore = mock(AgentEventStore.class);
+        AgentTaskLatestRepository latestRepository = mock(AgentTaskLatestRepository.class);
+        AgentTaskLatestEntity task = new AgentTaskLatestEntity();
+        task.setTaskId("task-legacy-recovery");
+        task.setTenantId("tenant-1");
+        task.setUserId("user-1");
+        task.setAgentId("general");
+        task.setSessionId("session-1");
+        task.setQuestion("发送今日市场分析邮件");
+        task.setStatus("WAIT_MODEL");
+        task.setCreateTime(Instant.now());
+        task.setUpdateTime(Instant.now());
+        when(latestRepository.findByStatusInOrderByCreateTimeAsc(any())).thenReturn(List.of(task));
+        when(latestRepository.findById(task.getTaskId())).thenReturn(Optional.of(task));
+        when(eventStore.findFirstByTaskAndType(
+            task.getTenantId(), task.getSessionId(), task.getTaskId(), "QUESTION"))
+            .thenReturn(Optional.empty());
+        when(eventStore.nextSequence(task.getTenantId(), task.getSessionId(), task.getTaskId())).thenReturn(1L);
+        ObjectMapper objectMapper = new ObjectMapper();
+        AgentTaskService service = new AgentTaskService(
+            eventBus,
+            eventStore,
+            latestRepository,
+            mock(InteractionOrchestrationService.class),
+            objectMapper,
+            new AgentTaskProperties(),
+            mock(ToolRuntimeService.class),
+            mock(AgentRuntime.class),
+            mock(AgentTaskCancellationRegistry.class),
+            mock(AgentLearningService.class),
+            mock(TaskConfirmRepository.class),
+            mock(InterpretationPlanStore.class),
+            mock(ThreadPoolTaskExecutor.class)
+        );
+
+        int recovered = service.recoverActiveTasks();
+
+        assertThat(recovered).isEqualTo(1);
+        assertThat(task.getStatus()).isEqualTo("PENDING");
+        assertThat(task.getRequestPayloadJson()).isNotBlank();
+        ArgumentCaptor<AgentEvent> published = ArgumentCaptor.forClass(AgentEvent.class);
+        verify(eventBus).publish(published.capture());
+        AgentTaskPayload payload = objectMapper.readValue(published.getValue().getPayload(), AgentTaskPayload.class);
+        assertThat(payload.getRequest().getQuery()).isEqualTo(task.getQuestion());
+        assertThat(payload.getRequest().getSkillId()).isEqualTo(task.getAgentId());
+        assertThat(published.getValue().getType()).isEqualTo("QUESTION");
+    }
+
+    @Test
     void cleanDisplayAnswerPreservesSqlCodeFence() {
         String answer = """
             ## JDBC SQL 案例

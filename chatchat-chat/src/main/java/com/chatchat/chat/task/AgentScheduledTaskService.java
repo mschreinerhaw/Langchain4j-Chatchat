@@ -96,7 +96,7 @@ public class AgentScheduledTaskService {
     }
 
     public Optional<ScheduledTaskResponse> get(String tenantId, String scheduledTaskId) {
-        return Optional.of(ScheduledTaskResponse.from(getForTenant(tenantId, scheduledTaskId)));
+        return Optional.of(toResponse(getForTenant(tenantId, scheduledTaskId)));
     }
 
     public List<ScheduledTaskResponse> list(String tenantId, String agentId, int page, int pageSize) {
@@ -104,16 +104,32 @@ public class AgentScheduledTaskService {
         int normalizedPage = Math.max(0, page - 1);
         int normalizedSize = Math.max(1, Math.min(pageSize, 100));
         if (agentId != null && !agentId.isBlank()) {
-            return scheduledTaskRepository
-                .findByTenantIdAndAgentIdOrderByCreatedAtDesc(normalizedTenant, agentId.trim(), PageRequest.of(normalizedPage, normalizedSize))
-                .stream()
-                .map(ScheduledTaskResponse::from)
-                .toList();
+            return toResponses(scheduledTaskRepository.findByTenantIdAndAgentIdOrderByCreatedAtDesc(
+                normalizedTenant, agentId.trim(), PageRequest.of(normalizedPage, normalizedSize)
+            ));
         }
-        return scheduledTaskRepository
-            .findByTenantIdOrderByCreatedAtDesc(normalizedTenant, PageRequest.of(normalizedPage, normalizedSize))
-            .stream()
-            .map(ScheduledTaskResponse::from)
+        return toResponses(scheduledTaskRepository.findByTenantIdOrderByCreatedAtDesc(
+            normalizedTenant, PageRequest.of(normalizedPage, normalizedSize)
+        ));
+    }
+
+    private ScheduledTaskResponse toResponse(ScheduledTaskEntity entity) {
+        boolean running = "RUNNING".equals(normalizeStatus(entity.getStatus()))
+            || scheduledTaskRunRepository.existsByScheduledTaskIdAndStatus(entity.getTaskId(), "RUNNING");
+        return ScheduledTaskResponse.from(entity, running);
+    }
+
+    private List<ScheduledTaskResponse> toResponses(List<ScheduledTaskEntity> entities) {
+        if (entities == null || entities.isEmpty()) {
+            return List.of();
+        }
+        List<String> scheduleIds = entities.stream().map(ScheduledTaskEntity::getTaskId).toList();
+        Set<String> runningScheduleIds = Set.copyOf(
+            scheduledTaskRunRepository.findScheduledTaskIdsByStatus(scheduleIds, "RUNNING")
+        );
+        return entities.stream()
+            .map(entity -> ScheduledTaskResponse.from(entity,
+                "RUNNING".equals(normalizeStatus(entity.getStatus())) || runningScheduleIds.contains(entity.getTaskId())))
             .toList();
     }
 

@@ -81,6 +81,8 @@ export default {
       loading: false,
       saving: false,
       scheduleLoading: false,
+      scheduleRefreshTimer: null,
+      scheduleRefreshing: false,
       dialogOpen: false,
       notificationDialogOpen: false,
       notificationSelectOpen: false,
@@ -178,6 +180,10 @@ export default {
   },
   mounted() {
     this.reload();
+    this.startSchedulePolling();
+  },
+  beforeUnmount() {
+    this.stopSchedulePolling();
   },
   methods: {
     async reload() {
@@ -229,6 +235,35 @@ export default {
         this.error = error.message || "定时任务加载失败";
       } finally {
         this.scheduleLoading = false;
+      }
+    },
+    startSchedulePolling() {
+      this.stopSchedulePolling();
+      this.scheduleRefreshTimer = window.setInterval(() => this.refreshScheduleStatus(), 5000);
+    },
+    stopSchedulePolling() {
+      if (this.scheduleRefreshTimer) {
+        window.clearInterval(this.scheduleRefreshTimer);
+        this.scheduleRefreshTimer = null;
+      }
+    },
+    async refreshScheduleStatus() {
+      if (this.scheduleRefreshing || this.loading || this.scheduleLoading || this.saving || this.dialogOpen) {
+        return;
+      }
+      this.scheduleRefreshing = true;
+      try {
+        const payload = await fetchAgentSchedules({
+          tenantId: this.tenantId,
+          agentId: this.filters.agentId,
+          page: 1,
+          pageSize: 100
+        });
+        this.schedules = Array.isArray(payload) ? payload : [];
+      } catch (_) {
+        // 静默轮询失败时保留当前列表和用户正在查看的提示。
+      } finally {
+        this.scheduleRefreshing = false;
       }
     },
     async createSchedule(notificationConfirmed = false) {
@@ -544,6 +579,10 @@ export default {
       this.error = "";
       try {
         const result = await rerunAgentSchedule(id, this.tenantId);
+        schedule.running = result?.status === "RUNNING" || result?.status === "SCHEDULED";
+        if (schedule.running) {
+          schedule.lastTaskStatus = "RUNNING";
+        }
         await this.loadSchedules();
         if (result?.status === "TRADING_DAY_CHECK_FAILED") {
           this.error = result.errorMessage || "交易日判断失败";
@@ -577,6 +616,9 @@ export default {
     },
     isScheduleActive(schedule) {
       return schedule?.enabled || schedule?.status === "ACTIVE" || schedule?.status === "RUNNING";
+    },
+    isScheduleRunning(schedule) {
+      return schedule?.running === true || String(schedule?.status || "").toUpperCase() === "RUNNING";
     },
     scheduleTimeLabel(schedule) {
       if (schedule?.triggerType === "INTERVAL") {
@@ -620,6 +662,9 @@ export default {
       return String(status || "").toLowerCase().replace(/_/g, "-");
     },
     scheduleEffectiveStatus(schedule) {
+      if (this.isScheduleRunning(schedule)) {
+        return "RUNNING";
+      }
       if (schedule?.lastTaskStatus === "TRADING_DAY_CHECK_FAILED") {
         return "SCHEDULE_ERROR";
       }

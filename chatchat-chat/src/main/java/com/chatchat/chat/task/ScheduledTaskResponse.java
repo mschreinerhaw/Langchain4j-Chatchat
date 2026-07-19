@@ -21,6 +21,7 @@ public record ScheduledTaskResponse(
     String notificationChannelName,
     Boolean tradingDayOnly,
     String status,
+    Boolean running,
     Instant nextFireTime,
     Instant lastFireTime,
     Instant expiredAt,
@@ -35,6 +36,10 @@ public record ScheduledTaskResponse(
 ) {
 
     static ScheduledTaskResponse from(ScheduledTaskEntity entity) {
+        return from(entity, "RUNNING".equals(entity.getStatus()));
+    }
+
+    static ScheduledTaskResponse from(ScheduledTaskEntity entity, boolean running) {
         return new ScheduledTaskResponse(
             entity.getTaskId(),
             entity.getTaskId(),
@@ -54,6 +59,7 @@ public record ScheduledTaskResponse(
             entity.getNotificationChannelName(),
             entity.getTradingDayOnly(),
             entity.getStatus(),
+            running,
             entity.getNextFireTime(),
             entity.getLastFireTime(),
             entity.getExpiredAt(),

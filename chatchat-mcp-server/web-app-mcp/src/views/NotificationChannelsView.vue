@@ -414,7 +414,16 @@
           </el-col>
 
           <el-col v-show="notificationSectionOpen.test" :xs="24">
-            <el-form-item label="测试消息 JSON">
+            <el-form-item :label="testReceiverLabel" required>
+              <el-input v-model.trim="testReceiver" :placeholder="testReceiverPlaceholder" clearable />
+              <div class="field-hint">
+                仅用于本次测试发送，不会保存到告警渠道配置；正式调用时仍由 API 传入接收人。
+              </div>
+            </el-form-item>
+          </el-col>
+
+          <el-col v-show="notificationSectionOpen.test" :xs="24">
+            <el-form-item label="测试消息内容 JSON（不含接收人）">
               <el-input v-model="testPayloadJson" class="codebox" type="textarea" :rows="6" spellcheck="false" />
             </el-form-item>
           </el-col>

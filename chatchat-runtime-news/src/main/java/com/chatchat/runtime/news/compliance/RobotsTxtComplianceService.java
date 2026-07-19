@@ -2,6 +2,7 @@ package com.chatchat.runtime.news.compliance;
 
 import com.chatchat.runtime.news.config.NewsRuntimeProperties;
 import com.chatchat.runtime.news.model.NewsSource;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.InputStream;
@@ -33,6 +34,7 @@ public class RobotsTxtComplianceService {
     private final HttpClient client;
     private final Map<String, CachedPolicy> cache = new ConcurrentHashMap<>();
 
+    @Autowired
     public RobotsTxtComplianceService(NewsRuntimeProperties runtimeProperties) {
         this(runtimeProperties.getRobots(), HttpClient.newBuilder()
             .followRedirects(HttpClient.Redirect.NORMAL).build());

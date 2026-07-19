@@ -8,6 +8,8 @@ import com.chatchat.tools.builtin.DynamicJdbcDriverLoader;
 import com.chatchat.tools.livedata.LivedataApiDefinition;
 import com.chatchat.tools.livedata.LivedataAutoRegistrationProperties;
 import com.chatchat.tools.livedata.LivedataSettingsProvider;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -28,6 +30,7 @@ public class LivedataConfigService implements LivedataSettingsProvider {
     private final SqlDatasourceConfigService datasourceConfigService;
     private final HttpEndpointConfigService gatewayConfigService;
     private final DynamicJdbcDriverLoader driverLoader;
+    private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
     public LivedataConfig getConfig() {
@@ -168,8 +171,15 @@ public class LivedataConfigService implements LivedataSettingsProvider {
         properties.setServicePathTemplate(firstText(config.getServicePathTemplate(), "/service/{serviceName}/call"));
         properties.setLoginEnabled(config.isLoginEnabled());
         properties.setLoginPath(firstText(config.getLoginPath(), "/login"));
-        properties.setLoginId(firstText(config.getLoginId(), fallbackProperties.getLoginId()));
-        properties.setLoginPwd(firstText(config.getLoginPwd(), fallbackProperties.getLoginPwd()));
+        String loginId = firstText(config.getLoginId(), fallbackProperties.getLoginId());
+        String loginPwd = firstText(config.getLoginPwd(), fallbackProperties.getLoginPwd());
+        if ((!hasText(loginId) || !hasText(loginPwd)) && hasText(config.getGatewayId())) {
+            GatewayLoginCredentials gatewayCredentials = gatewayLoginCredentials(config.getGatewayId());
+            loginId = firstText(loginId, gatewayCredentials.loginId());
+            loginPwd = firstText(loginPwd, gatewayCredentials.loginPwd());
+        }
+        properties.setLoginId(loginId);
+        properties.setLoginPwd(loginPwd);
         properties.setLoginTimeoutMs(clamp(config.getLoginTimeoutMs(), 1000, 60000, 10000));
         properties.setSessionTtlSeconds(clamp(config.getSessionTtlSeconds(), 60, 86400, 1800));
         properties.setAmsToken(firstText(config.getAmsToken(), fallbackProperties.getAmsToken()));
@@ -184,6 +194,31 @@ public class LivedataConfigService implements LivedataSettingsProvider {
         properties.setIncludeUnpublishedAsDisabled(config.isIncludeUnpublishedAsDisabled());
         properties.setExposeAmsTokenParameter(config.isExposeAmsTokenParameter());
         return properties;
+    }
+
+    private GatewayLoginCredentials gatewayLoginCredentials(String gatewayId) {
+        try {
+            HttpEndpointConfig gateway = gatewayConfigService.getById(gatewayId);
+            if (!hasText(gateway.getBodyTemplate())) {
+                return GatewayLoginCredentials.EMPTY;
+            }
+            JsonNode body = objectMapper.readTree(gateway.getBodyTemplate());
+            return new GatewayLoginCredentials(literalText(body, "loginId"), literalText(body, "loginPwd"));
+        } catch (Exception ignored) {
+            return GatewayLoginCredentials.EMPTY;
+        }
+    }
+
+    private String literalText(JsonNode node, String field) {
+        if (node == null || !node.isObject()) {
+            return null;
+        }
+        JsonNode value = node.get(field);
+        if (value == null || !value.isTextual() || !hasText(value.asText())) {
+            return null;
+        }
+        String text = value.asText().trim();
+        return text.matches("^\\{\\{[^}]+}}$") ? null : text;
     }
 
     private String whereClause(LivedataAutoRegistrationProperties properties) {
@@ -215,6 +250,10 @@ public class LivedataConfigService implements LivedataSettingsProvider {
             baseUrl = baseUrl.substring(0, baseUrl.length() - path.length()).replaceAll("/+$", "");
         }
         return baseUrl;
+    }
+
+    private record GatewayLoginCredentials(String loginId, String loginPwd) {
+        private static final GatewayLoginCredentials EMPTY = new GatewayLoginCredentials(null, null);
     }
 
     private RowMapper<LivedataApiDefinition> rowMapper() {

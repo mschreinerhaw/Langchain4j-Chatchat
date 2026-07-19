@@ -5,6 +5,7 @@ import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import com.chatchat.tools.builtin.DynamicJdbcDriverLoader;
 import com.chatchat.tools.livedata.LivedataAutoRegistrationProperties;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
@@ -37,7 +38,8 @@ class LivedataConfigServiceTest {
             fallbackProperties,
             datasourceConfigService,
             gatewayConfigService,
-            driverLoader
+            driverLoader,
+            new ObjectMapper()
         );
 
         assertThatThrownBy(service::findApis)
@@ -67,7 +69,7 @@ class LivedataConfigServiceTest {
         request.setGatewayId("gateway-1");
         request.setServiceBaseUrl("http://untrusted.example");
         LivedataConfigService service = new LivedataConfigService(
-            repository, fallbackProperties, datasourceConfigService, gatewayConfigService, driverLoader
+            repository, fallbackProperties, datasourceConfigService, gatewayConfigService, driverLoader, new ObjectMapper()
         );
 
         LivedataConfig saved = service.save(request);
@@ -96,9 +98,39 @@ class LivedataConfigServiceTest {
         request.setGatewayId("gateway-1");
         request.setLoginPath("/login");
         LivedataConfigService service = new LivedataConfigService(
-            repository, new LivedataAutoRegistrationProperties(), datasourceConfigService, gatewayConfigService, driverLoader
+            repository, new LivedataAutoRegistrationProperties(), datasourceConfigService, gatewayConfigService, driverLoader,
+            new ObjectMapper()
         );
 
         assertThat(service.save(request).getServiceBaseUrl()).isEqualTo("http://192.168.195.224:5006");
+    }
+
+    @Test
+    void resolvesLoginCredentialsFromSelectedGatewayWithoutPersistingThemInLivedataConfig() {
+        LivedataConfigRepository repository = mock(LivedataConfigRepository.class);
+        SqlDatasourceConfigService datasourceConfigService = mock(SqlDatasourceConfigService.class);
+        HttpEndpointConfigService gatewayConfigService = mock(HttpEndpointConfigService.class);
+        DynamicJdbcDriverLoader driverLoader = mock(DynamicJdbcDriverLoader.class);
+        LivedataConfig config = new LivedataConfig();
+        config.setGatewayId("gateway-1");
+        config.setLoginId(null);
+        config.setLoginPwd(null);
+        HttpEndpointConfig gateway = new HttpEndpointConfig();
+        gateway.setId("gateway-1");
+        gateway.setEnabled(true);
+        gateway.setBodyTemplate("{\"loginId\":\"gateway-account\",\"loginPwd\":\"gateway-secret\"}");
+        when(repository.findById(LivedataConfig.SINGLETON_ID)).thenReturn(Optional.of(config));
+        when(gatewayConfigService.getById("gateway-1")).thenReturn(gateway);
+        LivedataConfigService service = new LivedataConfigService(
+            repository, new LivedataAutoRegistrationProperties(), datasourceConfigService, gatewayConfigService, driverLoader,
+            new ObjectMapper()
+        );
+
+        LivedataAutoRegistrationProperties properties = service.current();
+
+        assertThat(properties.getLoginId()).isEqualTo("gateway-account");
+        assertThat(properties.getLoginPwd()).isEqualTo("gateway-secret");
+        assertThat(config.getLoginId()).isNull();
+        assertThat(config.getLoginPwd()).isNull();
     }
 }

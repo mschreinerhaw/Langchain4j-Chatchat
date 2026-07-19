@@ -14,6 +14,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Slf4j
@@ -73,9 +74,7 @@ public class LivedataSessionService {
      */
     private boolean shouldLogin() {
         LivedataAutoRegistrationProperties properties = settingsProvider.current();
-        return properties.isLoginEnabled()
-            && hasText(properties.getLoginId())
-            && hasText(properties.getLoginPwd());
+        return properties.isLoginEnabled();
     }
 
     /**
@@ -84,7 +83,7 @@ public class LivedataSessionService {
      * @return the operation result
      */
     private IllegalStateException loginConfigMissing() {
-        return new IllegalStateException("LiveData login is required. Configure chatchat.tools.livedata.login-id and login-pwd.");
+        return new IllegalStateException("LiveData login is disabled. Enable chatchat.tools.livedata.login-enabled.");
     }
 
     /**
@@ -96,10 +95,14 @@ public class LivedataSessionService {
         try {
             String loginUrl = loginUrl();
             LivedataAutoRegistrationProperties properties = settingsProvider.current();
-            String requestBody = ModelProtocolJson.compact(Map.of(
-                "loginId", properties.getLoginId(),
-                "loginPwd", properties.getLoginPwd()
-            ));
+            Map<String, Object> loginArguments = new LinkedHashMap<>();
+            if (hasText(properties.getLoginId())) {
+                loginArguments.put("loginId", properties.getLoginId().trim());
+            }
+            if (hasText(properties.getLoginPwd())) {
+                loginArguments.put("loginPwd", properties.getLoginPwd());
+            }
+            String requestBody = ModelProtocolJson.compact(loginArguments);
             HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(loginUrl))
                 .timeout(Duration.ofMillis(Math.max(1000, properties.getLoginTimeoutMs())))
@@ -117,7 +120,11 @@ public class LivedataSessionService {
             }
             String sessionId = extractSessionId(response.body());
             if (!hasText(sessionId)) {
-                throw new IllegalStateException("LiveData login response does not contain sessionId");
+                String rejectionReason = extractLoginRejectionReason(response.body());
+                if (hasText(rejectionReason)) {
+                    throw new IllegalStateException("LiveData login was rejected: " + rejectionReason);
+                }
+                throw new IllegalStateException("LiveData login response does not contain sessionId or loginId");
             }
             log.info("LiveData login succeeded, sessionId refreshed");
             return new SessionState(sessionId, Instant.now().plusSeconds(Math.max(60, properties.getSessionTtlSeconds())));
@@ -140,13 +147,30 @@ public class LivedataSessionService {
         JsonNode root = objectMapper.readTree(body);
         return firstText(root,
             "/sessionId",
+            "/loginId",
             "/data",
             "/data/sessionId",
+            "/data/loginId",
             "/result",
             "/result/sessionId",
+            "/result/loginId",
             "/body/sessionId",
-            "/data/body/sessionId"
+            "/body/loginId",
+            "/data/body/sessionId",
+            "/data/body/loginId"
         );
+    }
+
+    private String extractLoginRejectionReason(String body) {
+        if (body == null || body.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(body);
+            return firstText(root, "/note", "/message", "/error", "/data/note", "/data/message");
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     /**

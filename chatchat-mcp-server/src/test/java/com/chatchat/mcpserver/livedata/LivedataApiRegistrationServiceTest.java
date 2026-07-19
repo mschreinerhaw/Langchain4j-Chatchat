@@ -59,14 +59,29 @@ class LivedataApiRegistrationServiceTest {
     @Test
     void testsCandidateBeforeRegistrationWithoutPersistingIt() {
         ApiServiceConfig mapped = apiService(null, "livedata_orders", null);
+        HttpEndpointConfig selectedGateway = gateway("source-gateway", "livedata-base");
+        selectedGateway.setEnabled(true);
+        HttpEndpointConfig transientGateway = gateway(null, "http_livedata_orders");
+        transientGateway.setMethod("POST");
+        transientGateway.setUrlTemplate("http://livedata.local/service/OrderService/call");
+        transientGateway.setHeadersJson("{\"x-ams-token\":\"token\"}");
+        transientGateway.setBodyTemplate("{\"sessionId\":\"session\"}");
+        transientGateway.setTimeoutMs(20000);
+        LivedataConfig config = new LivedataConfig();
+        config.setGatewayId("source-gateway");
         ApiInvokeResult expected = new ApiInvokeResult(true, 200, Map.of(), Map.of("rows", List.of()), "{}", null);
         Map<String, Object> arguments = Map.of("orderId", "A001");
         when(mapper.toApiServiceConfig(definition)).thenReturn(mapped);
         when(apiServiceConfigService.findByToolName("livedata_orders")).thenReturn(Optional.empty());
+        when(configService.getConfig()).thenReturn(config);
+        when(gatewayConfigService.getById("source-gateway")).thenReturn(selectedGateway);
+        when(mapper.toGatewayConfig(definition, selectedGateway)).thenReturn(transientGateway);
         when(apiInvokeService.invoke(mapped, arguments)).thenReturn(expected);
 
         assertThat(service.test("source-1", arguments)).isSameAs(expected);
         verify(apiInvokeService).invoke(mapped, arguments);
+        assertThat(mapped.getHeadersJson()).contains("x-ams-token");
+        assertThat(mapped.getBodyTemplate()).contains("sessionId");
     }
 
     @Test

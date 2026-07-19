@@ -101,25 +101,28 @@ public class ApiInvokeService {
                 .build();
             Map<String, Object> renderArgs = enrichArguments(transport, auditArgs, false);
             HttpRequest request = buildRequest(transport, renderArgs);
-            log.info("MCP execution detail: executionType=HTTP_REQUEST, apiServiceId={}, tool={}, gatewayId={}, method={}, uri={}, timeoutMs={}, args={}",
+            log.info("MCP execution detail: executionType=HTTP_REQUEST, apiServiceId={}, tool={}, gatewayId={}, method={}, uri={}, timeoutMs={}, headerNames={}, args={}",
                 config.getId(),
                 config.getToolName(),
                 transport.gatewayId(),
                 request.method(),
                 safeUri(request.uri()),
                 transport.timeoutMs(),
+                request.headers().map().keySet(),
                 ToolLogSummarizer.summarize(renderArgs));
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            if (isAuthFailure(response) && usesLivedataSession(transport)) {
-                renderArgs = enrichArguments(transport, auditArgs, true);
-                request = buildRequest(transport, renderArgs);
-                log.info("MCP execution detail: executionType=HTTP_REQUEST_RETRY, apiServiceId={}, tool={}, gatewayId={}, method={}, uri={}, timeoutMs={}, reason=refreshed_session",
+            if (isAuthFailure(response) && isLivedataTransport(transport)) {
+                ApiHttpTransport retryTransport = withLivedataSessionPlaceholder(transport);
+                renderArgs = enrichArguments(retryTransport, auditArgs, true);
+                request = buildRequest(retryTransport, renderArgs);
+                log.info("MCP execution detail: executionType=HTTP_REQUEST_RETRY, apiServiceId={}, tool={}, gatewayId={}, method={}, uri={}, timeoutMs={}, headerNames={}, reason=refreshed_session",
                     config.getId(),
                     config.getToolName(),
                     transport.gatewayId(),
                     request.method(),
                     safeUri(request.uri()),
-                    transport.timeoutMs());
+                    transport.timeoutMs(),
+                    request.headers().map().keySet());
                 response = client.send(request, HttpResponse.BodyHandlers.ofString());
             }
             result = toResult(response);
@@ -250,8 +253,60 @@ public class ApiInvokeService {
      * @return whether the condition is satisfied
      */
     private boolean usesLivedataSession(ApiHttpTransport transport) {
-        return transport.bodyTemplate() != null
-            && transport.bodyTemplate().contains("{{" + LivedataSessionService.SESSION_ARGUMENT + "}}");
+        String placeholder = "{{" + LivedataSessionService.SESSION_ARGUMENT + "}}";
+        return (transport.bodyTemplate() != null && transport.bodyTemplate().contains(placeholder))
+            || (transport.headersJson() != null && transport.headersJson().contains(placeholder));
+    }
+
+    private boolean isLivedataTransport(ApiHttpTransport transport) {
+        if (usesLivedataSession(transport) || transport.bodyTemplate() == null || transport.bodyTemplate().isBlank()) {
+            return usesLivedataSession(transport);
+        }
+        try {
+            Object parsed = objectMapper.readValue(transport.bodyTemplate(), Object.class);
+            if (!(parsed instanceof Map<?, ?> body)) {
+                return false;
+            }
+            return body.containsKey("sessionId") && body.get("head") instanceof Map<?, ?> head
+                && head.keySet().stream().anyMatch(key -> "x-ams-token".equalsIgnoreCase(String.valueOf(key)));
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private ApiHttpTransport withLivedataSessionPlaceholder(ApiHttpTransport transport) {
+        String placeholder = "{{" + LivedataSessionService.SESSION_ARGUMENT + "}}";
+        String bodyTemplate = replaceJsonField(transport.bodyTemplate(), "sessionId", placeholder);
+        String headersJson = replaceJsonField(transport.headersJson(), "sessionId", placeholder);
+        return new ApiHttpTransport(
+            transport.gatewayId(),
+            transport.gatewayName(),
+            transport.method(),
+            transport.urlTemplate(),
+            headersJson,
+            bodyTemplate,
+            transport.timeoutMs()
+        );
+    }
+
+    private String replaceJsonField(String json, String fieldName, String value) {
+        if (json == null || json.isBlank()) {
+            return json;
+        }
+        try {
+            Map<String, Object> object = objectMapper.readValue(json, new TypeReference<>() {});
+            String key = object.keySet().stream()
+                .filter(candidate -> candidate != null && candidate.equalsIgnoreCase(fieldName))
+                .findFirst()
+                .orElse(null);
+            if (key == null) {
+                return json;
+            }
+            object.put(key, value);
+            return ModelProtocolJson.compact(object);
+        } catch (Exception ignored) {
+            return json;
+        }
     }
 
     /**
@@ -277,8 +332,10 @@ public class ApiInvokeService {
                 String noteText = note == null ? "" : String.valueOf(note).toUpperCase(Locale.ROOT);
                 return "401".equals(codeText)
                     || "403".equals(codeText)
+                    || "-10002".equals(codeText)
                     || "-10014".equals(codeText)
-                    || noteText.contains("UNAUTHENTICATED");
+                    || noteText.contains("UNAUTHENTICATED")
+                    || (noteText.contains("SESSIONID") && noteText.contains("无效"));
             }
         } catch (Exception ignored) {
         }

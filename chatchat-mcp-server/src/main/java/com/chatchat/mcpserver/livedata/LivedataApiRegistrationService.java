@@ -103,9 +103,25 @@ public class LivedataApiRegistrationService {
         ensureEnabled();
         LivedataApiDefinition definition = findDefinition(id);
         ApiServiceConfig mapped = mapper.toApiServiceConfig(definition);
-        ApiServiceConfig registered = apiServiceConfigService.findByToolName(mapped.getToolName())
-            .orElse(mapped);
-        return apiInvokeService.invoke(registered, arguments == null ? Map.of() : arguments);
+        Optional<ApiServiceConfig> registered = apiServiceConfigService.findByToolName(mapped.getToolName());
+        if (registered.isPresent()) {
+            return apiInvokeService.invoke(registered.get(), arguments == null ? Map.of() : arguments);
+        }
+        HttpEndpointConfig sourceGateway = configuredGateway();
+        HttpEndpointConfig transientGateway = mapper.toGatewayConfig(definition, sourceGateway);
+        applyTransientTransport(mapped, transientGateway);
+        log.info("LiveData candidate test uses selected gateway defaults tool={} sourceGatewayId={}",
+            mapped.getToolName(), sourceGateway.getId());
+        return apiInvokeService.invoke(mapped, arguments == null ? Map.of() : arguments);
+    }
+
+    private void applyTransientTransport(ApiServiceConfig target, HttpEndpointConfig transport) {
+        target.setGatewayId(null);
+        target.setMethod(transport.getMethod());
+        target.setUrlTemplate(transport.getUrlTemplate());
+        target.setHeadersJson(transport.getHeadersJson());
+        target.setBodyTemplate(transport.getBodyTemplate());
+        target.setTimeoutMs(transport.getTimeoutMs());
     }
 
     /**

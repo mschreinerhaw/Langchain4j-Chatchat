@@ -15,12 +15,14 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ApiInvokeServiceTest {
@@ -130,6 +132,74 @@ class ApiInvokeServiceTest {
             assertThat(result.success()).isFalse();
             assertThat(result.statusCode()).isEqualTo(200);
             assertThat(result.errorMessage()).isEqualTo("API authentication failed");
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void registeredLivedataGatewayRefreshesFixedSessionAfterInvalidSessionResponse() throws Exception {
+        AtomicInteger calls = new AtomicInteger();
+        AtomicReference<String> retriedBody = new AtomicReference<>();
+        AtomicReference<String> retriedSessionHeader = new AtomicReference<>();
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/livedata", exchange -> {
+            int call = calls.incrementAndGet();
+            String requestBody = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            String responseBody;
+            if (call == 1) {
+                responseBody = "{\"code\":-10002,\"note\":\"sessionId无效\"}";
+            } else {
+                retriedBody.set(requestBody);
+                retriedSessionHeader.set(exchange.getRequestHeaders().getFirst("sessionId"));
+                responseBody = "{\"code\":0,\"data\":[]}";
+            }
+            byte[] body = responseBody.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json;charset=UTF-8");
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.start();
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            ApiResponseCacheService cacheService = mock(ApiResponseCacheService.class);
+            when(cacheService.get(any(), anyMap())).thenReturn(Optional.empty());
+            HttpEndpointConfigService gatewayConfigService = mock(HttpEndpointConfigService.class);
+            HttpEndpointConfig gateway = new HttpEndpointConfig();
+            gateway.setId("gateway-1");
+            gateway.setEnabled(true);
+            gateway.setMethod("POST");
+            gateway.setUrlTemplate("http://localhost:" + server.getAddress().getPort() + "/livedata");
+            gateway.setHeadersJson("{\"sessionId\":\"expired-session\",\"x-ams-token\":\"token\"}");
+            gateway.setBodyTemplate("{\"sessionId\":\"expired-session\",\"namespace\":\"livedata\",\"head\":{\"x-ams-token\":\"token\"},\"data\":{}}");
+            gateway.setTimeoutMs(5000);
+            when(gatewayConfigService.getById("gateway-1")).thenReturn(gateway);
+            LivedataSessionService sessionService = mock(LivedataSessionService.class);
+            when(sessionService.refreshSessionId()).thenReturn("refreshed-session");
+            ObjectProvider<LivedataSessionService> provider = mock(ObjectProvider.class);
+            when(provider.getIfAvailable()).thenReturn(sessionService);
+            ApiInvokeService service = new ApiInvokeService(
+                objectMapper,
+                mock(InvocationAuditService.class),
+                cacheService,
+                provider,
+                new TemplateParameterValidator(objectMapper),
+                gatewayConfigService
+            );
+            ApiServiceConfig config = new ApiServiceConfig();
+            config.setId("api-1");
+            config.setToolName("livedata_test");
+            config.setGatewayId("gateway-1");
+            config.setInputSchemaJson("{\"type\":\"object\",\"properties\":{}}");
+
+            ApiInvokeResult result = service.invoke(config, Map.of());
+
+            assertThat(result.success()).isTrue();
+            assertThat(calls.get()).isEqualTo(2);
+            assertThat(retriedBody.get()).contains("\"sessionId\":\"refreshed-session\"");
+            assertThat(retriedSessionHeader.get()).isEqualTo("refreshed-session");
+            verify(sessionService).refreshSessionId();
         } finally {
             server.stop(0);
         }

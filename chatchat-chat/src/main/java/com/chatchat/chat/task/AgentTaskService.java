@@ -9,6 +9,7 @@ import com.chatchat.chat.interaction.model.InteractionResponse;
 import com.chatchat.chat.interaction.service.InteractionOrchestrationService;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
@@ -101,6 +102,44 @@ public class AgentTaskService {
 
         queueQuestion(latest, normalized);
         return AgentTaskResponse.from(latest);
+    }
+
+    public Optional<String> finalAnswer(String tenantId, String taskId) {
+        AgentTaskLatestEntity task = getTaskForTenant(tenantId, taskId);
+        List<AgentEvent> events = eventStore.listByTask(
+            task.getTenantId(), task.getSessionId(), task.getTaskId(), Integer.MAX_VALUE);
+        for (int index = events.size() - 1; index >= 0; index--) {
+            AgentEvent event = events.get(index);
+            String type = event == null ? "" : firstText(event.getType(), "");
+            if (!"COMPLETE".equalsIgnoreCase(type)
+                && !"ANSWER".equalsIgnoreCase(type)
+                && !"RESULT".equalsIgnoreCase(type)) {
+                continue;
+            }
+            String answer = extractFullAnswer(event);
+            if (answer != null && !answer.isBlank()) {
+                return Optional.of(answer);
+            }
+        }
+        return Optional.ofNullable(task.getAnswerSummary()).filter(answer -> !answer.isBlank());
+    }
+
+    private String extractFullAnswer(AgentEvent event) {
+        if (event == null || event.getPayload() == null || event.getPayload().isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(event.getPayload());
+            return firstTextValue(
+                root.path("uiResponse").path("answer").asText(null),
+                root.path("executionResult").path("uiResponse").path("answer").asText(null),
+                root.path("answer").asText(null)
+            );
+        } catch (JsonProcessingException ex) {
+            log.warn("Failed to read final answer from task event: taskId={} eventId={} error={}",
+                event.getTaskId(), event.getEventId(), ex.getMessage());
+            return null;
+        }
     }
 
     /**

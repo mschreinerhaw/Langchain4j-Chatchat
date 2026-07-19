@@ -120,6 +120,57 @@ class AgentTaskServiceTest {
     }
 
     @Test
+    void finalAnswerReadsCompleteModelAnswerInsteadOfLatestSummary() throws Exception {
+        AgentEventBus eventBus = mock(AgentEventBus.class);
+        AgentEventStore eventStore = mock(AgentEventStore.class);
+        AgentTaskLatestRepository latestRepository = mock(AgentTaskLatestRepository.class);
+        AgentTaskLatestEntity task = new AgentTaskLatestEntity();
+        task.setTaskId("task-complete-answer");
+        task.setTenantId("tenant-1");
+        task.setUserId("user-1");
+        task.setAgentId("general");
+        task.setSessionId("session-1");
+        task.setStatus("SUCCESS");
+        task.setAnswerSummary("只有五百字的摘要");
+        String fullAnswer = "# 今日市场热点分析\n\n" + "完整模型回答。".repeat(800);
+        ObjectMapper objectMapper = new ObjectMapper();
+        AgentEvent complete = AgentEvent.builder()
+            .taskId(task.getTaskId())
+            .tenantId(task.getTenantId())
+            .userId(task.getUserId())
+            .agentId(task.getAgentId())
+            .sessionId(task.getSessionId())
+            .type("COMPLETE")
+            .status("SUCCESS")
+            .payload(objectMapper.writeValueAsString(
+                java.util.Map.of("uiResponse", java.util.Map.of("answer", fullAnswer))))
+            .build();
+        when(latestRepository.findById(task.getTaskId())).thenReturn(Optional.of(task));
+        when(eventStore.listByTask(task.getTenantId(), task.getSessionId(), task.getTaskId(), Integer.MAX_VALUE))
+            .thenReturn(List.of(complete));
+        AgentTaskService service = new AgentTaskService(
+            eventBus,
+            eventStore,
+            latestRepository,
+            mock(InteractionOrchestrationService.class),
+            objectMapper,
+            new AgentTaskProperties(),
+            mock(ToolRuntimeService.class),
+            mock(AgentRuntime.class),
+            mock(AgentTaskCancellationRegistry.class),
+            mock(AgentLearningService.class),
+            mock(TaskConfirmRepository.class),
+            mock(InterpretationPlanStore.class),
+            mock(ThreadPoolTaskExecutor.class)
+        );
+
+        Optional<String> answer = service.finalAnswer(task.getTenantId(), task.getTaskId());
+
+        assertThat(answer).contains(fullAnswer);
+        assertThat(answer.orElseThrow()).hasSize(fullAnswer.length());
+    }
+
+    @Test
     void cleanDisplayAnswerPreservesSqlCodeFence() {
         String answer = """
             ## JDBC SQL 案例

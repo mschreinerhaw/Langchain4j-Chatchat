@@ -554,7 +554,7 @@ public class AgentScheduledTaskService {
             boolean success = "SUCCESS".equals(normalizedStatus);
             payload.put("title", "Agent调度完成：" + entity.getName());
             payload.put("content", success
-                ? firstText(latest == null ? null : latest.getAnswerSummary(), "Agent任务已成功完成")
+                ? notificationAnswer(entity, run, latest)
                 : firstText(errorMessage, "Agent任务执行失败"));
             payload.put("level", success ? "INFO" : "CRITICAL");
             payload.put("sourceTaskId", firstText(run.getTaskId(), entity.getTaskId()));
@@ -579,6 +579,23 @@ public class AgentScheduledTaskService {
                     entity.getTaskId(), entity.getNotificationChannelId(), ex.getMessage());
             }
         });
+    }
+
+    private String notificationAnswer(ScheduledTaskEntity schedule, ScheduledTaskRunEntity run,
+                                      AgentTaskLatestEntity latest) {
+        String taskId = firstText(run == null ? null : run.getTaskId(), latest == null ? null : latest.getTaskId());
+        if (taskId != null) {
+            try {
+                Optional<String> finalAnswer = taskService.finalAnswer(schedule.getTenantId(), taskId);
+                if (finalAnswer.isPresent()) {
+                    return finalAnswer.get();
+                }
+            } catch (Exception ex) {
+                log.warn("Failed to load full Agent answer for scheduled notification scheduleId={} taskId={}: {}",
+                    schedule.getTaskId(), taskId, ex.getMessage());
+            }
+        }
+        return firstText(latest == null ? null : latest.getAnswerSummary(), "Agent任务已成功完成");
     }
 
     private void recordNotificationResult(ScheduledTaskRunEntity run, ScheduledTaskEntity entity,

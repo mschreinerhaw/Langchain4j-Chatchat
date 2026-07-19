@@ -338,10 +338,15 @@ export default {
           title: '注册成功',
           message: `提交 ${requested} 个，成功 ${result.registered} 个，跳过 ${result.skipped || 0} 个，未找到 ${result.missing || 0} 个`
         });
+        if (result.errors?.length) {
+          this.$emit('result', { title: '部分 LiveData API 注册失败', value: result });
+        }
         this.selectedLivedata = new Set();
         this.livedataApis = await api.listLivedata() || [];
         this.activeTab = 'services';
         await this.$nextTick();
+        this.$refs.catalog.keyword = '';
+        this.$refs.catalog.page = 1;
         await this.$refs.catalog.load();
       } catch (error) {
         this.$emit('error', error);

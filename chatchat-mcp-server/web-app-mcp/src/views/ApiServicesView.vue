@@ -69,7 +69,17 @@
           <el-table-column label="服务" min-width="160">
             <template #default="{ row }">{{ row.serviceName || row.namespace || '-' }}</template>
           </el-table-column>
-          <el-table-column prop="status" label="状态" width="110" />
+          <el-table-column label="状态" width="120">
+            <template #default="{ row }">
+              <el-tag
+                :type="row.registered ? 'success' : (row.canRegister ? 'info' : 'danger')"
+                effect="light"
+                :title="row.error || ''"
+              >
+                {{ row.registered ? '已注册' : (row.canRegister ? '可注册' : '不可注册') }}
+              </el-tag>
+            </template>
+          </el-table-column>
           <el-table-column prop="version" label="版本" width="120" />
           <el-table-column label="操作" width="110" fixed="right">
             <template #default="{ row }">

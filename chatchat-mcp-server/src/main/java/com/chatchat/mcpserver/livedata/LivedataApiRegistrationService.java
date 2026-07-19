@@ -115,7 +115,12 @@ public class LivedataApiRegistrationService {
         if (registered.getGatewayId() == null || registered.getGatewayId().isBlank()) {
             return Optional.empty();
         }
-        HttpEndpointConfig gateway = gatewayConfigService.getById(registered.getGatewayId());
+        HttpEndpointConfig gateway;
+        try {
+            gateway = gatewayConfigService.getById(registered.getGatewayId());
+        } catch (IllegalArgumentException ex) {
+            return Optional.empty();
+        }
         if (!isLivedataGateway(gateway)) {
             return Optional.empty();
         }

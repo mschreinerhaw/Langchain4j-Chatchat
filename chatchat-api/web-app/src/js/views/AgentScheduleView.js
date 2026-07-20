@@ -64,7 +64,11 @@ function emptyForm(agentId = "") {
     enabled: true,
     notifyEnabled: false,
     notificationChannelId: "",
-    tradingDayOnly: false
+    tradingDayOnly: false,
+    scheduleWindowEnabled: false,
+    scheduleWindowStart: "09:00",
+    scheduleWindowEnd: "12:00",
+    zoneId: "Asia/Shanghai"
   };
 }
 
@@ -305,6 +309,21 @@ export default {
     buildSchedulePayload() {
       const agent = this.selectedAgent;
       const question = this.form.question.trim();
+      const scheduleWindowEnabled = this.form.mode !== "once" && this.form.scheduleWindowEnabled;
+      if (scheduleWindowEnabled) {
+        if (!this.form.scheduleWindowStart || !this.form.scheduleWindowEnd) {
+          this.error = "请选择允许执行时段的开始和结束时间";
+          return null;
+        }
+        if (this.form.scheduleWindowStart === this.form.scheduleWindowEnd) {
+          this.error = "允许执行时段的开始时间和结束时间不能相同";
+          return null;
+        }
+        if (!this.form.zoneId.trim()) {
+          this.error = "请填写调度时区";
+          return null;
+        }
+      }
       const payload = {
         tenantId: this.tenantId,
         userId: this.userId || "default-user",
@@ -326,6 +345,10 @@ export default {
         notifyEnabled: this.form.notifyEnabled,
         notificationChannelId: this.form.notifyEnabled ? this.form.notificationChannelId : null,
         tradingDayOnly: this.form.tradingDayOnly,
+        scheduleWindowEnabled,
+        scheduleWindowStart: scheduleWindowEnabled ? this.form.scheduleWindowStart : null,
+        scheduleWindowEnd: scheduleWindowEnabled ? this.form.scheduleWindowEnd : null,
+        zoneId: this.form.zoneId.trim() || "Asia/Shanghai",
         payload
       };
       if (this.form.mode === "once") {
@@ -370,6 +393,12 @@ export default {
         return this.form.cron.trim();
       }
       return cronFromTime(this.form.dailyTime);
+    },
+    setScheduleMode(mode) {
+      this.form.mode = mode;
+      if (mode === "once") {
+        this.form.scheduleWindowEnabled = false;
+      }
     },
     openCreateDialog() {
       if (!this.agentOptions.length) {
@@ -628,6 +657,15 @@ export default {
         return "单次执行";
       }
       return schedule?.cronExpr || "-";
+    },
+    scheduleWindowLabel(schedule) {
+      if (!schedule?.scheduleWindowEnabled) {
+        return "";
+      }
+      const start = schedule.scheduleWindowStart || "--:--";
+      const end = schedule.scheduleWindowEnd || "--:--";
+      const zoneId = schedule.zoneId || "Asia/Shanghai";
+      return `允许 ${start}–${end} · ${zoneId}`;
     },
     scheduleAgentName(schedule) {
       const agent = this.agentOptions.find((item) => item.id === schedule?.agentId);

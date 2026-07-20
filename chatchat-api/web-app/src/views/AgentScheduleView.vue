@@ -78,6 +78,9 @@
             <strong>{{ schedule.name || schedule.taskId }}</strong>
             <p>{{ schedule.question }}</p>
             <small v-if="schedule.tradingDayOnly" class="trading-day-tag">仅交易日</small>
+            <small v-if="schedule.scheduleWindowEnabled" class="schedule-window-tag">
+              {{ scheduleWindowLabel(schedule) }}
+            </small>
           </div>
           <span>{{ scheduleAgentName(schedule) }}</span>
           <span>{{ scheduleTimeLabel(schedule) }}</span>
@@ -165,7 +168,7 @@
               type="button"
               :class="{ active: form.mode === mode.value }"
               :disabled="saving"
-              @click="form.mode = mode.value"
+              @click="setScheduleMode(mode.value)"
             >
               {{ mode.label }}
             </button>
@@ -214,6 +217,28 @@
             <span>CRON</span>
             <input v-model.trim="form.cron" :disabled="saving" placeholder="0 30 8 * * ?" />
           </label>
+
+          <div v-if="form.mode !== 'once'" class="schedule-window-panel">
+            <label class="schedule-window-head">
+              <input v-model="form.scheduleWindowEnabled" :disabled="saving" type="checkbox" />
+              <span>限制每日允许执行时段</span>
+            </label>
+            <div v-if="form.scheduleWindowEnabled" class="schedule-window-grid">
+              <label class="field">
+                <span>开始时间</span>
+                <input v-model="form.scheduleWindowStart" :disabled="saving" type="time" />
+              </label>
+              <label class="field">
+                <span>结束时间</span>
+                <input v-model="form.scheduleWindowEnd" :disabled="saving" type="time" />
+              </label>
+              <label class="field">
+                <span>调度时区</span>
+                <input v-model.trim="form.zoneId" :disabled="saving" placeholder="Asia/Shanghai" />
+              </label>
+            </div>
+            <small>仅限制自动调度，立即执行不受影响；开始时间包含、结束时间不包含，支持 22:00–02:00 跨夜时段。</small>
+          </div>
 
           <div class="schedule-options">
             <label>

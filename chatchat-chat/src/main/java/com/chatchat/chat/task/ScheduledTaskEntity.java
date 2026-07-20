@@ -73,6 +73,18 @@ public class ScheduledTaskEntity {
     @Column(name = "trading_day_only", nullable = false)
     private Boolean tradingDayOnly = false;
 
+    @Column(name = "schedule_window_enabled")
+    private Boolean scheduleWindowEnabled = false;
+
+    @Column(name = "schedule_window_start", length = 5)
+    private String scheduleWindowStart;
+
+    @Column(name = "schedule_window_end", length = 5)
+    private String scheduleWindowEnd;
+
+    @Column(name = "schedule_zone_id", length = 64)
+    private String zoneId = "Asia/Shanghai";
+
     @Column(length = 32, nullable = false)
     private String status = "ACTIVE";
 
@@ -134,6 +146,12 @@ public class ScheduledTaskEntity {
         }
         if (tradingDayOnly == null) {
             tradingDayOnly = false;
+        }
+        if (scheduleWindowEnabled == null) {
+            scheduleWindowEnabled = false;
+        }
+        if (zoneId == null || zoneId.isBlank()) {
+            zoneId = "Asia/Shanghai";
         }
         if (status == null || status.isBlank()) {
             status = "ACTIVE";

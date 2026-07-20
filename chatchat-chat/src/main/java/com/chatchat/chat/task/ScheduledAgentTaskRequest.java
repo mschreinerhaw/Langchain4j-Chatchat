@@ -25,6 +25,10 @@ public class ScheduledAgentTaskRequest {
     private Boolean notifyEnabled;
     private String notificationChannelId;
     private Boolean tradingDayOnly;
+    private Boolean scheduleWindowEnabled;
+    private String scheduleWindowStart;
+    private String scheduleWindowEnd;
+    private String zoneId;
     private AgentTaskSubmitRequest payload;
     private String payloadJson;
 }

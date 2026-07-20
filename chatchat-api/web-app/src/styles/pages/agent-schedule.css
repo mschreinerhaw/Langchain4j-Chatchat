@@ -176,6 +176,17 @@
   font-weight: 800;
 }
 
+.schedule-window-tag {
+  display: inline-flex;
+  margin: 6px 0 0 5px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #ecfdf3;
+  color: #027a48;
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .schedule-status-cell {
   min-width: 0;
   display: grid;
@@ -501,6 +512,42 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
 
+.schedule-window-panel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #dce4f1;
+  border-radius: 8px;
+  background: #f7f9fc;
+}
+
+.schedule-window-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #344054;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.schedule-window-head input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--primary);
+}
+
+.schedule-window-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.schedule-window-panel > small {
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
 .schedule-options {
   display: flex;
   flex-wrap: wrap;
@@ -793,6 +840,7 @@
 
   .schedule-mode-tabs,
   .schedule-time-grid.two,
+  .schedule-window-grid,
   .notification-history-search {
     grid-template-columns: 1fr;
   }

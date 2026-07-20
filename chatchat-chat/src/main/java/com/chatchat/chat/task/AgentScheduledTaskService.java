@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -50,6 +51,7 @@ public class AgentScheduledTaskService {
     private final EnterpriseAdminService enterpriseAdminService;
     private final SkillCatalogService skillCatalogService;
     private final NotificationContentFormatter notificationContentFormatter;
+    private final AgentScheduleWindowPolicy scheduleWindowPolicy;
 
     @Transactional
     public ScheduledTaskResponse create(ScheduledAgentTaskRequest request) {
@@ -87,8 +89,10 @@ public class AgentScheduledTaskService {
                 .orElseThrow(() -> new IllegalArgumentException("当前租户尚未绑定" + option.channel() + "接收人"));
         }
         entity.setTradingDayOnly(Boolean.TRUE.equals(request.getTradingDayOnly()));
+        configureScheduleWindow(entity, request, triggerType);
         entity.setStatus(enabled ? "ACTIVE" : "PAUSED");
-        entity.setNextFireTime(enabled ? resolveInitialFireTime(request, entity, now) : null);
+        Instant initialFireTime = enabled ? resolveInitialFireTime(request, entity, now) : null;
+        entity.setNextFireTime(enabled ? alignInitialFireTime(entity, initialFireTime) : null);
         entity.setExpiredAt(request.getExpiredAt());
         entity.setMaxRetries(normalizeRetryCount(request.getMaxRetries()));
         entity.setRetryDelaySeconds(normalizeRetryDelay(request.getRetryDelaySeconds()));
@@ -160,7 +164,7 @@ public class AgentScheduledTaskService {
         validateNotExpired(entity, now);
         entity.setStatus("ACTIVE");
         Instant nextFireTime = nextFireTime(entity, now);
-        entity.setNextFireTime(nextFireTime == null ? now : nextFireTime);
+        entity.setNextFireTime(alignInitialFireTime(entity, nextFireTime == null ? now : nextFireTime));
         return ScheduledTaskResponse.from(scheduledTaskRepository.save(entity));
     }
 
@@ -317,6 +321,14 @@ public class AgentScheduledTaskService {
                 scheduledTaskRepository.save(entity);
                 continue;
             }
+            if (!scheduleWindowPolicy.allows(entity, now)) {
+                entity.setNextFireTime(nextFireTimeAfterWindowSkip(entity, now));
+                scheduledTaskRepository.save(entity);
+                fired++;
+                log.debug("Skipped Agent schedule outside execution window scheduleId={} nextFireTime={}",
+                    entity.getTaskId(), entity.getNextFireTime());
+                continue;
+            }
             submitScheduledRun(entity, now);
             fired++;
         }
@@ -339,7 +351,7 @@ public class AgentScheduledTaskService {
             return run;
         }
         if (Boolean.TRUE.equals(entity.getTradingDayOnly())) {
-            TradingDayGuardResult guard = checkTradingDay(now);
+            TradingDayGuardResult guard = checkTradingDay(entity, now);
             if (!guard.success()) {
                 finishTradingDayGuardRun(run, entity, now, manualRun, "TRADING_DAY_CHECK_FAILED", guard.message());
                 return run;
@@ -378,9 +390,9 @@ public class AgentScheduledTaskService {
         return run;
     }
 
-    private TradingDayGuardResult checkTradingDay(Instant now) {
+    private TradingDayGuardResult checkTradingDay(ScheduledTaskEntity entity, Instant now) {
         try {
-            LocalDate date = now.atZone(ZoneId.systemDefault()).toLocalDate();
+            LocalDate date = now.atZone(scheduleWindowPolicy.zoneId(entity)).toLocalDate();
             McpTradingCalendarClient.TradingDayResult result = tradingCalendarClient.check(date);
             return new TradingDayGuardResult(true, result.tradingDay(), result.message());
         } catch (Exception ex) {
@@ -698,7 +710,7 @@ public class AgentScheduledTaskService {
             case "INTERVAL" -> after.plusSeconds(Math.max(1L, entity.getIntervalSeconds()));
             case "CRON" -> {
                 ZonedDateTime next = CronExpression.parse(entity.getCronExpr())
-                    .next(ZonedDateTime.ofInstant(after, ZoneId.systemDefault()));
+                    .next(ZonedDateTime.ofInstant(after, scheduleWindowPolicy.zoneId(entity)));
                 if (next == null) {
                     throw new IllegalArgumentException("Cron expression cannot produce a next fire time");
                 }
@@ -736,6 +748,60 @@ public class AgentScheduledTaskService {
             throw new IllegalArgumentException("intervalSeconds must be greater than 0 for INTERVAL scheduled tasks");
         }
         return intervalSeconds;
+    }
+
+    private void configureScheduleWindow(ScheduledTaskEntity entity, ScheduledAgentTaskRequest request,
+                                         String triggerType) {
+        boolean enabled = Boolean.TRUE.equals(request.getScheduleWindowEnabled());
+        if (enabled && "ONCE".equals(triggerType)) {
+            throw new IllegalArgumentException("一次性任务不能设置每日允许执行时段");
+        }
+        String zoneId = firstText(request.getZoneId(), AgentScheduleWindowPolicy.DEFAULT_ZONE_ID);
+        ZoneId.of(zoneId);
+        entity.setZoneId(zoneId);
+        entity.setScheduleWindowEnabled(enabled);
+        if (!enabled) {
+            entity.setScheduleWindowStart(null);
+            entity.setScheduleWindowEnd(null);
+            return;
+        }
+        String start = normalizeWindowTime(request.getScheduleWindowStart(), "scheduleWindowStart");
+        String end = normalizeWindowTime(request.getScheduleWindowEnd(), "scheduleWindowEnd");
+        if (start.equals(end)) {
+            throw new IllegalArgumentException("允许执行时段的开始时间和结束时间不能相同");
+        }
+        entity.setScheduleWindowStart(start);
+        entity.setScheduleWindowEnd(end);
+    }
+
+    private String normalizeWindowTime(String value, String field) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(field + " is required when schedule window is enabled");
+        }
+        return LocalTime.parse(value.trim()).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"));
+    }
+
+    private Instant alignInitialFireTime(ScheduledTaskEntity entity, Instant candidate) {
+        if (candidate == null || scheduleWindowPolicy.allows(entity, candidate)) return candidate;
+        Instant windowStart = scheduleWindowPolicy.nextWindowStart(entity, candidate);
+        if ("INTERVAL".equals(entity.getTriggerType())) return windowStart;
+        if ("CRON".equals(entity.getTriggerType())) {
+            Instant cronCandidate = nextFireTime(entity, windowStart.minusSeconds(1));
+            return scheduleWindowPolicy.allows(entity, cronCandidate) ? cronCandidate : candidate;
+        }
+        return candidate;
+    }
+
+    private Instant nextFireTimeAfterWindowSkip(ScheduledTaskEntity entity, Instant now) {
+        Instant normalNext = nextFireTime(entity, now);
+        Instant windowStart = scheduleWindowPolicy.nextWindowStart(entity, now);
+        if ("INTERVAL".equals(entity.getTriggerType())) {
+            return normalNext.isAfter(windowStart) ? normalNext : windowStart;
+        }
+        if ("CRON".equals(entity.getTriggerType()) && normalNext.isBefore(windowStart)) {
+            return nextFireTime(entity, windowStart.minusSeconds(1));
+        }
+        return normalNext;
     }
 
     private int normalizeRetryCount(Integer value) {

@@ -125,6 +125,10 @@ public class AgentTaskService {
                 return Optional.of(content);
             }
         }
+        AgentNotificationContent persistedContent = extractNotificationContent(task.getFinalNotificationJson(), task.getTaskId());
+        if (persistedContent != null && !persistedContent.answer().isBlank()) {
+            return Optional.of(persistedContent);
+        }
         return Optional.ofNullable(task.getAnswerSummary())
             .filter(answer -> !answer.isBlank())
             .map(answer -> new AgentNotificationContent(answer, List.of()));
@@ -134,8 +138,15 @@ public class AgentTaskService {
         if (event == null || event.getPayload() == null || event.getPayload().isBlank()) {
             return null;
         }
+        return extractNotificationContent(event.getPayload(), event.getTaskId());
+    }
+
+    private AgentNotificationContent extractNotificationContent(String payload, String taskId) {
+        if (payload == null || payload.isBlank()) {
+            return null;
+        }
         try {
-            JsonNode root = objectMapper.readTree(event.getPayload());
+            JsonNode root = objectMapper.readTree(payload);
             String answer = firstTextValue(
                 root.path("uiResponse").path("answer").asText(null),
                 root.path("executionResult").path("uiResponse").path("answer").asText(null),
@@ -147,10 +158,10 @@ public class AgentTaskService {
             addReferenceMaps(references, root.path("executionResult").path("citations"));
             addReferenceMaps(references, root.path("executionResult").path("uiResponse").path("citations"));
             addReferenceMaps(references, root.path("executionResult").path("sources"));
+            addReferenceMaps(references, root.path("references"));
             return answer == null ? null : new AgentNotificationContent(answer, List.copyOf(references));
         } catch (JsonProcessingException ex) {
-            log.warn("Failed to read final answer from task event: taskId={} eventId={} error={}",
-                event.getTaskId(), event.getEventId(), ex.getMessage());
+            log.warn("Failed to read final notification content: taskId={} error={}", taskId, ex.getMessage());
             return null;
         }
     }
@@ -893,7 +904,13 @@ public class AgentTaskService {
                 completeEvent.setCreateTime(Math.max(resultEvent.getCreateTime(), System.currentTimeMillis()));
                 eventStore.save(completeEvent);
                 logAgentTaskEvent("complete", completeEvent);
-                updateLatest(question.getTaskId(), resultContract.status(), summarize(resultContract.answerSummary()), null);
+                updateLatest(
+                    question.getTaskId(),
+                    resultContract.status(),
+                    resultContract.answerSummary(),
+                    null,
+                    finalNotificationPayload(resultContract)
+                );
                 eventBus.publishResult(resultEvent);
                 return;
             }
@@ -940,7 +957,13 @@ public class AgentTaskService {
             completeEvent.setCreateTime(Math.max(errorEvent.getCreateTime(), System.currentTimeMillis()));
             eventStore.save(completeEvent);
             logAgentTaskEvent("complete", completeEvent);
-            updateLatest(question.getTaskId(), "FAILED", summarize(resultContract.answerSummary()), message);
+            updateLatest(
+                question.getTaskId(),
+                "FAILED",
+                resultContract.answerSummary(),
+                message,
+                finalNotificationPayload(resultContract)
+            );
             eventBus.publishResult(errorEvent);
         } finally {
             runningTaskThreads.remove(question.getTaskId());
@@ -1526,6 +1549,12 @@ public class AgentTaskService {
      */
     @Transactional
     protected void updateLatest(String taskId, String status, String answerSummary, String errorMessage) {
+        updateLatest(taskId, status, answerSummary, errorMessage, null);
+    }
+
+    @Transactional
+    protected void updateLatest(String taskId, String status, String answerSummary, String errorMessage,
+                                String finalNotificationJson) {
         latestRepository.findById(taskId).ifPresent(entity -> {
             entity.setStatus(status);
             if (answerSummary != null) {
@@ -1534,9 +1563,19 @@ public class AgentTaskService {
             if (errorMessage != null) {
                 entity.setErrorMessage(errorMessage);
             }
+            if (finalNotificationJson != null) {
+                entity.setFinalNotificationJson(finalNotificationJson);
+            }
             entity.setUpdateTime(Instant.now());
             latestRepository.save(entity);
         });
+    }
+
+    private String finalNotificationPayload(ExecutionResultContract resultContract) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("answer", resultContract == null ? "" : resultContract.answerSummary());
+        payload.put("references", resultContract == null ? List.of() : resultContract.citations());
+        return writePayload(payload);
     }
 
     /**
@@ -1772,7 +1811,7 @@ public class AgentTaskService {
             return "";
         }
         try {
-            return summarize(objectMapper.readTree(event.getPayload()).path("answer").asText(""));
+            return objectMapper.readTree(event.getPayload()).path("answer").asText("");
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Failed to deserialize answer payload", ex);
         }
@@ -2033,20 +2072,6 @@ public class AgentTaskService {
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Failed to serialize agent event payload", ex);
         }
-    }
-
-    /**
-     * Performs the summarize operation.
-     *
-     * @param answer the answer value
-     * @return the operation result
-     */
-    private String summarize(String answer) {
-        if (answer == null || answer.isBlank()) {
-            return "";
-        }
-        int maxLength = 500;
-        return answer.length() <= maxLength ? answer : answer.substring(0, maxLength);
     }
 
     private ExecutionResultContract compileExecutionResult(InteractionResponse response) {

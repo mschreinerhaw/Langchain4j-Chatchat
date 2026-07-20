@@ -54,6 +54,14 @@ public class AgentTaskLatestEntity {
     @Column(name = "answer_summary", columnDefinition = "TEXT")
     private String answerSummary;
 
+    /**
+     * Immutable full answer and readable references used by notification delivery.
+     * Kept separately from transient event storage so scheduled notifications never
+     * have to fall back to a shortened task-list summary.
+     */
+    @Column(name = "final_notification_json", columnDefinition = "TEXT")
+    private String finalNotificationJson;
+
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
 

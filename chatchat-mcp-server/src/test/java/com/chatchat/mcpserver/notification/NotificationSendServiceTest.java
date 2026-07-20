@@ -15,7 +15,8 @@ class NotificationSendServiceTest {
     void neverFallsBackToLegacyMcpDefaultReceiver() {
         NotificationSendService service = new NotificationSendService(
             new ObjectMapper(), mock(InvocationAuditService.class),
-            new NotificationContentProtocolParser(new ObjectMapper())
+            new NotificationContentProtocolParser(new ObjectMapper()),
+            new NotificationChannelContentRenderer()
         );
         NotificationChannelConfig config = new NotificationChannelConfig();
         config.setChannel(NotificationChannel.EMAIL);

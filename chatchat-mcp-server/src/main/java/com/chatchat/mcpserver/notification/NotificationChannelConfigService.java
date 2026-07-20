@@ -246,10 +246,10 @@ public class NotificationChannelConfigService {
                 {"phone":"{{receiver}}","account":"{{smsAccount}}","password":"{{smsPassword}}","token":"{{smsToken}}","content":"{{content}}","extno":"{{smsExtendCode}}","rt":"{{smsReturnType}}"}
                 """;
             case WECHAT_WORK -> """
-                {"msgtype":"text","text":{"content":"{{title}}\\n[{{level}}]\\n{{content}}\\nsourceTaskId: {{sourceTaskId}}","mentioned_list":["{{receiver}}"]}}
+                {"msgtype":"markdown","markdown":{"content":"{{content}}\\n\\n> 级别：{{level}}\\n> 任务：{{sourceTaskId}}\\n\\n<@{{receiver}}>"}}
                 """;
             case DINGTALK -> """
-                {"msgtype":"markdown","markdown":{"title":"{{title}}","text":"### {{title}}\\n\\n{{content}}\\n\\n级别：{{level}}\\n\\nsourceTaskId：{{sourceTaskId}}"},"at":{"atMobiles":["{{receiver}}"],"isAtAll":false}}
+                {"msgtype":"markdown","markdown":{"title":"{{title}}","text":"{{content}}\\n\\n> 级别：{{level}}\\n> 任务：{{sourceTaskId}}"},"at":{"atMobiles":["{{receiver}}"],"isAtAll":false}}
                 """;
         };
     }
@@ -258,16 +258,27 @@ public class NotificationChannelConfigService {
         if (config == null || config.getChannel() == null || config.getBodyTemplate() == null) {
             return false;
         }
-        String legacy = switch (config.getChannel()) {
-            case WECHAT_WORK -> """
-                {"msgtype":"markdown","markdown":{"content":"### {{title}}\\n> {{level}}\\n\\n{{content}}\\n\\nsourceTaskId: {{sourceTaskId}}"}}
-                """;
-            case DINGTALK -> """
-                {"msgtype":"markdown","markdown":{"title":"{{title}}","text":"### {{title}}\\n\\n{{content}}\\n\\n级别：{{level}}\\n\\nsourceTaskId：{{sourceTaskId}}"}}
-                """;
-            default -> null;
+        List<String> legacyTemplates = switch (config.getChannel()) {
+            case WECHAT_WORK -> List.of(
+                """
+                    {"msgtype":"markdown","markdown":{"content":"### {{title}}\\n> {{level}}\\n\\n{{content}}\\n\\nsourceTaskId: {{sourceTaskId}}"}}
+                    """,
+                """
+                    {"msgtype":"text","text":{"content":"{{title}}\\n[{{level}}]\\n{{content}}\\nsourceTaskId: {{sourceTaskId}}","mentioned_list":["{{receiver}}"]}}
+                    """
+            );
+            case DINGTALK -> List.of(
+                """
+                    {"msgtype":"markdown","markdown":{"title":"{{title}}","text":"### {{title}}\\n\\n{{content}}\\n\\n级别：{{level}}\\n\\nsourceTaskId：{{sourceTaskId}}"}}
+                    """,
+                """
+                    {"msgtype":"markdown","markdown":{"title":"{{title}}","text":"### {{title}}\\n\\n{{content}}\\n\\n级别：{{level}}\\n\\nsourceTaskId：{{sourceTaskId}}"},"at":{"atMobiles":["{{receiver}}"],"isAtAll":false}}
+                    """
+            );
+            default -> List.of();
         };
-        return legacy != null && legacy.trim().equals(config.getBodyTemplate().trim());
+        String current = config.getBodyTemplate().trim();
+        return legacyTemplates.stream().map(String::trim).anyMatch(current::equals);
     }
 
     private String writeJson(Map<String, Object> value) {

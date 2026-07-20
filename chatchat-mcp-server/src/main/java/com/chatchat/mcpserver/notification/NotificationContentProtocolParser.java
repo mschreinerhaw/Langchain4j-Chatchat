@@ -51,7 +51,9 @@ class NotificationContentProtocolParser {
         List<Block> blocks = parseAndValidateBlocks(protocol.get("blocks"), lines.size());
 
         resolved.put("title", title);
-        resolved.put("content", render(lines, blocks));
+        // Blocks are presentation metadata only. The immutable source is passed to the
+        // channel renderer verbatim so existing Markdown markers are never duplicated.
+        resolved.put("content", source);
         resolved.put("contentProtocolVersion", version);
         resolved.put("sourceSha256", actualDigest);
         return resolved;
@@ -98,30 +100,6 @@ class NotificationContentProtocolParser {
             throw new IllegalArgumentException("contentProtocol.blocks must include the final source line");
         }
         return blocks;
-    }
-
-    private String render(List<String> lines, List<Block> blocks) {
-        List<String> rendered = new ArrayList<>();
-        for (Block block : blocks) {
-            List<String> sourceLines = lines.subList(block.startLine() - 1, block.endLine());
-            String section = switch (block.type()) {
-                case "HEADING" -> sourceLines.stream().map(line -> line.isBlank() ? line : "## " + line)
-                    .reduce((left, right) -> left + "\n" + right).orElse("");
-                case "LIST" -> sourceLines.stream().map(line -> line.isBlank() || isListLine(line) ? line : "- " + line)
-                    .reduce((left, right) -> left + "\n" + right).orElse("");
-                case "QUOTE" -> sourceLines.stream().map(line -> line.isBlank() ? ">" : "> " + line)
-                    .reduce((left, right) -> left + "\n" + right).orElse("");
-                case "CODE" -> "```\n" + String.join("\n", sourceLines) + "\n```";
-                default -> String.join("\n", sourceLines);
-            };
-            rendered.add(section);
-        }
-        return String.join("\n\n", rendered);
-    }
-
-    private boolean isListLine(String line) {
-        String value = line.stripLeading();
-        return value.matches("(?:[-*+]\\s+|\\d+[.)]\\s+).*?");
     }
 
     private int integer(Object value) {

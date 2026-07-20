@@ -15,7 +15,7 @@ class NotificationContentProtocolParserTest {
     private final NotificationContentProtocolParser parser = new NotificationContentProtocolParser(new ObjectMapper());
 
     @Test
-    void validatesImmutableSourceAndRendersPresentationPlan() {
+    void validatesImmutableSourceWithoutAddingMarkdownMarkers() {
         String source = "风险日报\n系统运行正常\n无新增告警";
         Map<String, Object> resolved = parser.resolve(Map.of(
             "receiver", "ops",
@@ -23,7 +23,7 @@ class NotificationContentProtocolParserTest {
         ));
 
         assertThat(resolved).containsEntry("title", "风险日报")
-            .containsEntry("content", "## 风险日报\n\n- 系统运行正常\n- 无新增告警")
+            .containsEntry("content", source)
             .containsEntry("sourceSha256", ModelProtocolJson.sha256Hex(source));
     }
 

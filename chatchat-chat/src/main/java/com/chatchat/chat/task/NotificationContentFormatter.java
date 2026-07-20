@@ -131,11 +131,20 @@ public class NotificationContentFormatter {
     private String extractedTitle(String source, String proposed) {
         if (proposed != null && !proposed.isBlank() && proposed.trim().length() <= 120
             && source.contains(proposed.trim())) {
-            return proposed.trim();
+            return cleanTitleMarkers(proposed.trim());
         }
         return source.lines().map(String::trim).filter(line -> !line.isBlank()).findFirst()
+            .map(this::cleanTitleMarkers)
             .map(line -> line.substring(0, Math.min(120, line.length())))
             .orElse("Agent 任务通知");
+    }
+
+    private String cleanTitleMarkers(String value) {
+        String title = value.replaceFirst("^(?:#{1,6}|>)\\s+", "").trim();
+        if (title.length() >= 4 && title.startsWith("**") && title.endsWith("**")) {
+            title = title.substring(2, title.length() - 2).trim();
+        }
+        return title.isBlank() ? value : title;
     }
 
     private String jsonObject(String raw) {

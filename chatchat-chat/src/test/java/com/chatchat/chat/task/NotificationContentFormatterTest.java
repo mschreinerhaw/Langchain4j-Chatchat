@@ -69,6 +69,18 @@ class NotificationContentFormatterTest {
         assertThat(fixedAnswer).startsWith(title);
     }
 
+    @Test
+    void fallbackTitleRemovesMarkdownHeadingMarkersOnly() {
+        String fixedAnswer = "### 今日市场热点分析\n正文保持不变";
+
+        Map<String, Object> protocol = new NotificationContentFormatter(provider(null), new ObjectMapper())
+            .format(fixedAnswer);
+
+        assertThat(protocol).containsEntry("title", "今日市场热点分析")
+            .containsEntry("sourceContent", fixedAnswer)
+            .containsEntry("sourceSha256", ModelProtocolJson.sha256Hex(fixedAnswer));
+    }
+
     @SuppressWarnings("unchecked")
     private ObjectProvider<ChatModel> provider(ChatModel model) {
         ObjectProvider<ChatModel> provider = mock(ObjectProvider.class);

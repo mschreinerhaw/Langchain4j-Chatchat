@@ -186,8 +186,12 @@
             </label>
           </div>
 
-          <div v-else-if="form.mode === 'daily'" class="schedule-time-grid">
-            <label class="field">
+          <div v-else-if="form.mode === 'daily'" class="schedule-time-grid schedule-primary-time-card">
+            <div class="schedule-time-copy">
+              <strong>每天执行</strong>
+              <small>Agent 将在每天的固定时间自动触发</small>
+            </div>
+            <label class="field schedule-clock-field">
               <span>每天时间</span>
               <input v-model="form.dailyTime" :disabled="saving" type="time" />
             </label>
@@ -218,21 +222,34 @@
             <input v-model.trim="form.cron" :disabled="saving" placeholder="0 30 8 * * ?" />
           </label>
 
-          <div v-if="form.mode !== 'once'" class="schedule-window-panel">
-            <label class="schedule-window-head">
-              <input v-model="form.scheduleWindowEnabled" :disabled="saving" type="checkbox" />
-              <span>限制每日允许执行时段</span>
-            </label>
+          <div
+            v-if="form.mode !== 'once'"
+            class="schedule-window-panel"
+            :class="{ enabled: form.scheduleWindowEnabled }"
+          >
+            <div class="schedule-window-top">
+              <label class="schedule-window-head">
+                <input v-model="form.scheduleWindowEnabled" :disabled="saving" type="checkbox" />
+                <span>
+                  <strong>限制每日允许执行时段</strong>
+                  <small>只在指定时间范围内执行自动调度</small>
+                </span>
+              </label>
+              <span v-if="form.scheduleWindowEnabled" class="schedule-window-summary">
+                {{ form.scheduleWindowStart }} → {{ form.scheduleWindowEnd }}
+              </span>
+            </div>
             <div v-if="form.scheduleWindowEnabled" class="schedule-window-grid">
-              <label class="field">
+              <label class="field schedule-clock-field">
                 <span>开始时间</span>
                 <input v-model="form.scheduleWindowStart" :disabled="saving" type="time" />
               </label>
-              <label class="field">
+              <span class="schedule-window-arrow" aria-hidden="true">→</span>
+              <label class="field schedule-clock-field">
                 <span>结束时间</span>
                 <input v-model="form.scheduleWindowEnd" :disabled="saving" type="time" />
               </label>
-              <label class="field">
+              <label class="field schedule-zone-field">
                 <span>调度时区</span>
                 <input v-model.trim="form.zoneId" :disabled="saving" placeholder="Asia/Shanghai" />
               </label>

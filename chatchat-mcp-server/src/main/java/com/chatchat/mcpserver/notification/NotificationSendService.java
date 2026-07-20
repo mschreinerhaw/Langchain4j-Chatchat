@@ -8,9 +8,12 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -40,6 +43,7 @@ public class NotificationSendService {
     private final ObjectMapper objectMapper;
     private final InvocationAuditService auditService;
     private final NotificationContentProtocolParser contentProtocolParser;
+    private final NotificationChannelContentRenderer contentRenderer;
 
     public NotificationSendResult send(NotificationChannelConfig config, Map<String, Object> arguments) {
         long startedAt = System.currentTimeMillis();
@@ -70,7 +74,8 @@ public class NotificationSendService {
         return result;
     }
 
-    private NotificationSendResult sendSmtp(NotificationChannelConfig config, Map<String, Object> arguments) {
+    private NotificationSendResult sendSmtp(NotificationChannelConfig config, Map<String, Object> arguments)
+        throws MessagingException {
         requireText(config.getSmtpHost(), "SMTP host is required");
         requireText(config.getSmtpFrom(), "SMTP from address is required");
         JavaMailSenderImpl sender = new JavaMailSenderImpl();
@@ -92,15 +97,19 @@ public class NotificationSendService {
         properties.put("mail.smtp.connectiontimeout", String.valueOf(config.getTimeoutMs()));
         properties.put("mail.smtp.timeout", String.valueOf(config.getTimeoutMs()));
 
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(config.getSmtpFrom());
-        message.setTo(splitReceivers(text(arguments, "receiver")));
+        MimeMessage message = sender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
+        helper.setFrom(config.getSmtpFrom());
+        helper.setTo(splitReceivers(text(arguments, "receiver")));
         String[] cc = splitOptionalReceivers(config.getCcReceiver());
         if (cc.length > 0) {
-            message.setCc(cc);
+            helper.setCc(cc);
         }
-        message.setSubject(text(arguments, "title"));
-        message.setText(text(arguments, "content"));
+        helper.setSubject(text(arguments, "title"));
+        helper.setText(
+            firstText(text(arguments, "contentPlain"), text(arguments, "content")),
+            firstText(text(arguments, "contentHtml"), text(arguments, "content"))
+        );
         sender.send(message);
 
         return new NotificationSendResult(
@@ -180,7 +189,7 @@ public class NotificationSendService {
         }
         normalized.put("level", level);
         normalized.putIfAbsent("sourceTaskId", "");
-        return normalized;
+        return contentRenderer.render(config.getChannel(), normalized);
     }
 
     private Map<String, Object> renderArguments(NotificationChannelConfig config, Map<String, Object> arguments) {

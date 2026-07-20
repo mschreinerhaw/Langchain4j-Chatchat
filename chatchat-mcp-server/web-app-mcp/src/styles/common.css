@@ -281,6 +281,37 @@ textarea {
   font-size: 13px;
 }
 
+.app-notification.el-notification {
+  width: min(420px, calc(100vw - 32px));
+  max-height: min(320px, calc(100vh - 32px));
+  padding: 16px 44px 16px 16px;
+  overflow: hidden;
+}
+
+.app-notification .el-notification__group {
+  min-width: 0;
+  margin-left: 12px;
+}
+
+.app-notification .el-notification__content {
+  max-height: 230px;
+  margin-top: 8px;
+  padding-right: 4px;
+  overflow-y: auto;
+}
+
+.app-notification .el-notification__content p {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.app-notification .el-notification__closeBtn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 1;
+}
+
 .dialog-footer {
   display: flex;
   justify-content: flex-end;

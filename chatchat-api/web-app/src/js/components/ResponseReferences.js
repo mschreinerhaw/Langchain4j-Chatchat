@@ -3,6 +3,7 @@ import {
   documentReferenceTitle,
   extractDocumentSearchPages,
   extractDocumentSearchPagesFromTraces,
+  extractWebCitationPages,
   extractWebSearchPages,
   extractWebSearchPagesFromTraces
 } from "../utils/webReferences.js";
@@ -20,6 +21,10 @@ export default {
   name: "ResponseReferences",
   props: {
     sources: {
+      type: Array,
+      default: () => []
+    },
+    citations: {
       type: Array,
       default: () => []
     },
@@ -61,13 +66,19 @@ export default {
         .filter((item) => item.text);
     },
     webPageRows() {
-      return extractWebSearchPagesFromTraces(this.toolTraces);
+      return this.uniqueWebRows([
+        ...extractWebCitationPages(this.citations),
+        ...extractWebCitationPages(this.sources.filter((source) => this.isWebSource(source))),
+        ...extractWebSearchPagesFromTraces(this.toolTraces)
+      ]);
     },
     documentPageRows() {
       return extractDocumentSearchPagesFromTraces(this.toolTraces);
     },
     documentReferenceRows() {
-      const sourceRows = this.sources.map((source, index) => this.sourceToDocumentRow(source, index));
+      const sourceRows = this.sources
+        .filter((source) => !this.isWebSource(source))
+        .map((source, index) => this.sourceToDocumentRow(source, index));
       return this.uniqueDocumentRows([...sourceRows, ...this.documentPageRows]);
     },
     toolTraceRows() {
@@ -85,6 +96,29 @@ export default {
     }
   },
   methods: {
+    isWebSource(source = {}) {
+      return /^(?:https?:\/\/|web:\/\/)/i.test(String(
+        source.url || source.link || source.href || source.sourceUrl || source.sourceRef || source.source || ""
+      ));
+    },
+    uniqueWebRows(rows = []) {
+      const byKey = new Map();
+      rows.forEach((row, index) => {
+        const key = row.url || `rank:${row.rank || index + 1}`;
+        const current = byKey.get(key) || {};
+        byKey.set(key, {
+          ...current,
+          ...row,
+          rank: row.rank || current.rank || index + 1,
+          title: row.title || current.title || "引用来源",
+          publisher: row.publisher || current.publisher || "",
+          snippet: row.snippet || current.snippet || "",
+          publishDate: row.publishDate || current.publishDate || "",
+          accessedAt: row.accessedAt || current.accessedAt || ""
+        });
+      });
+      return [...byKey.values()].sort((left, right) => left.rank - right.rank);
+    },
     isConfirmationRequired(trace) {
       const runtime = trace?.runtimeMetadata || {};
       const outcome = String(runtime.outcome || trace?.outcome || "").toLowerCase();

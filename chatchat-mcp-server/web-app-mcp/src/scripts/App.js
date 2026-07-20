@@ -73,7 +73,9 @@ export default {
         title: toast.title || '操作完成',
         message: toast.message || '',
         duration: 3200,
-        position: 'bottom-right'
+        position: 'bottom-right',
+        showClose: true,
+        customClass: 'app-notification'
       });
     },
     handleError(error) {

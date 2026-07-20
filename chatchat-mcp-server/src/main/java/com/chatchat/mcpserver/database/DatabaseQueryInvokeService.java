@@ -382,6 +382,14 @@ public class DatabaseQueryInvokeService {
         data.put("steps", modelResultSets);
         data.put("resultSets", modelResultSets);
         data.put("results", modelResultSets);
+        data.put("resolvedSqlPreviews", resultSets.stream()
+            .filter(item -> item.get("resolvedSqlPreview") != null)
+            .map(item -> Map.of(
+                "nodeCode", item.get("nodeCode"),
+                "nodeName", item.get("nodeName"),
+                "sql", item.get("resolvedSqlPreview")
+            ))
+            .toList());
         data.put("nodeExecutions", resultSets.stream().map(item -> Map.of(
             "nodeCode", item.get("nodeCode"),
             "nodeName", item.get("nodeName"),
@@ -481,6 +489,7 @@ public class DatabaseQueryInvokeService {
         result.put("failureStrategy", firstText(stepConfig.getFailureStrategy(), "STOP"));
         result.put("emptyResultStrategy", firstText(stepConfig.getEmptyResultStrategy(), "CONTINUE"));
         result.put("sql", data.getOrDefault("sql", stepConfig.getSqlContent()));
+        result.put("resolvedSqlPreview", data.get("resolvedSqlPreview"));
         result.put("columns", data.getOrDefault("columns", List.of()));
         result.put("columnMetadata", data.getOrDefault("columnMetadata", List.of()));
         result.put("rows", data.getOrDefault("rows", List.of()));

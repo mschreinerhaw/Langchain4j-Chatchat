@@ -199,6 +199,7 @@
         <ResponseReferences
           v-if="message.role === 'assistant' && !message.streaming && !isExecutionRunning(message) && message.status !== 'waiting'"
           :sources="message.sources || []"
+          :citations="[...(message.uiResponse?.citations || []), ...(message.citations || [])]"
           :evidence-premises="message.evidencePremises || []"
           :tool-traces="message.traces || []"
           compact

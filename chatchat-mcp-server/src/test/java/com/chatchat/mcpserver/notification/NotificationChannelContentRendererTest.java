@@ -2,6 +2,7 @@ package com.chatchat.mcpserver.notification;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -57,5 +58,35 @@ class NotificationChannelContentRendererTest {
 
         assertThat(html).doesNotContain("<script>", "href=\"javascript:")
             .contains("&lt;script&gt;");
+    }
+
+    @Test
+    void emailMovesWebReferencesToFooterAndOmitsInternalEvidence() {
+        String markdown = """
+            # 今日市场热点分析
+
+            市场情绪回暖【网页10】[网页2]。
+
+            ## 工具执行证据
+
+            1. `web_search`：成功，输出摘要=内部调试信息。
+            """;
+        Map<String, Object> reference = Map.of(
+            "title", "央行公开市场业务交易公告",
+            "url", "https://www.pbc.gov.cn/example",
+            "text", "中国人民银行公开市场操作信息"
+        );
+
+        Map<String, Object> rendered = renderer.render(NotificationChannel.EMAIL, Map.of(
+            "content", markdown,
+            "references", List.of(reference, reference)
+        ));
+
+        assertThat(rendered.get("contentHtml").toString())
+            .contains("引用来源", "央行公开市场业务交易公告", "href=\"https://www.pbc.gov.cn/example\"")
+            .doesNotContain("网页10", "网页2", "工具执行证据", "内部调试信息");
+        assertThat(rendered.get("contentPlain").toString())
+            .contains("引用来源", "https://www.pbc.gov.cn/example")
+            .doesNotContain("网页10", "工具执行证据");
     }
 }

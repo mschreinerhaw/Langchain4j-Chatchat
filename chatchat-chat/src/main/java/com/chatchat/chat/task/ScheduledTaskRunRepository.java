@@ -3,13 +3,33 @@ package com.chatchat.chat.task;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
 public interface ScheduledTaskRunRepository extends JpaRepository<ScheduledTaskRunEntity, String> {
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+        update ScheduledTaskRunEntity run
+           set run.status = 'COMPLETING'
+         where run.runId = :runId
+           and run.status = 'RUNNING'
+        """)
+    int claimCompletion(@Param("runId") String runId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+        update ScheduledTaskRunEntity run
+           set run.notificationStatus = 'SENDING', run.notificationSentAt = :now
+         where run.runId = :runId
+           and run.notificationStatus is null
+        """)
+    int claimNotification(@Param("runId") String runId, @Param("now") Instant now);
 
     List<ScheduledTaskRunEntity> findByScheduledTaskIdOrderByFireTimeDesc(String scheduledTaskId, Pageable pageable);
 

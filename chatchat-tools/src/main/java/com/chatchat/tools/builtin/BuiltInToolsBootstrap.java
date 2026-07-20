@@ -1484,6 +1484,7 @@ public class BuiltInToolsBootstrap {
          */
         @Override
         public ToolOutput execute(ToolInput input) {
+            String resolvedSqlPreview = null;
             try {
                 if (!properties.isEnabled()) {
                     return ToolOutput.failure("database_query tool is disabled");
@@ -1497,9 +1498,11 @@ public class BuiltInToolsBootstrap {
                 int maxRows = resolveMaxRows(input);
                 int queryTimeoutSeconds = resolveQueryTimeoutSeconds(input);
                 Map<String, Object> params = resolveParams(input);
+                resolvedSqlPreview = renderSqlPreview(safeSql, params);
 
-                log.info("Database query SQL executing: maxRows={}, timeoutSeconds={}, sql={}",
-                    maxRows, queryTimeoutSeconds, safeSql);
+                log.info("Database query SQL executing: maxRows={}, timeoutSeconds={}, parameterTypes={}, sql={}",
+                    maxRows, queryTimeoutSeconds, parameterTypes(params), safeSql);
+                log.info("Database query resolved SQL preview: sql={}", resolvedSqlPreview);
 
                 JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
                 jdbcTemplate.setMaxRows(maxRows);
@@ -1513,6 +1516,7 @@ public class BuiltInToolsBootstrap {
 
                 Map<String, Object> result = new LinkedHashMap<>();
                 result.put("sql", safeSql);
+                result.put("resolvedSqlPreview", resolvedSqlPreview);
                 result.put("dataSource", "external");
                 result.put("rowCount", rows.size());
                 result.put("maxRows", maxRows);
@@ -1523,8 +1527,114 @@ public class BuiltInToolsBootstrap {
 
                 return ToolOutput.success(result, "Database query completed successfully");
             } catch (Exception e) {
-                return ToolOutput.failure(e);
+                String errorMessage = databaseQueryFailureMessage(e);
+                log.warn("Database query SQL execution failed: exceptionType={}, rootCause={}",
+                    e.getClass().getSimpleName(), errorMessage);
+                ToolOutput output = ToolOutput.failure(e);
+                output.setErrorMessage(errorMessage);
+                if (resolvedSqlPreview != null && !resolvedSqlPreview.isBlank()) {
+                    output.setData(Map.of("resolvedSqlPreview", resolvedSqlPreview));
+                }
+                return output;
             }
+        }
+
+        private String renderSqlPreview(String sql, Map<String, Object> params) {
+            StringBuilder preview = new StringBuilder(sql.length() + 64);
+            char quote = 0;
+            for (int index = 0; index < sql.length();) {
+                char current = sql.charAt(index);
+                if (quote != 0) {
+                    preview.append(current);
+                    if (current == quote) {
+                        if (index + 1 < sql.length() && sql.charAt(index + 1) == quote) {
+                            preview.append(sql.charAt(index + 1));
+                            index += 2;
+                            continue;
+                        }
+                        quote = 0;
+                    }
+                    index++;
+                    continue;
+                }
+                if (current == '\'' || current == '"' || current == '`') {
+                    quote = current;
+                    preview.append(current);
+                    index++;
+                    continue;
+                }
+                if (current == ':' && (index == 0 || sql.charAt(index - 1) != ':')
+                    && index + 1 < sql.length() && Character.isJavaIdentifierStart(sql.charAt(index + 1))) {
+                    int end = index + 2;
+                    while (end < sql.length() && Character.isJavaIdentifierPart(sql.charAt(end))) end++;
+                    String name = sql.substring(index + 1, end);
+                    if (params.containsKey(name)) {
+                        preview.append(sqlLiteral(params.get(name)));
+                    } else {
+                        preview.append(':').append(name);
+                    }
+                    index = end;
+                    continue;
+                }
+                preview.append(current);
+                index++;
+            }
+            return preview.toString();
+        }
+
+        private String sqlLiteral(Object value) {
+            if (value == null) return "NULL";
+            if (value instanceof Number || value instanceof Boolean) return String.valueOf(value);
+            if (value instanceof Iterable<?> values) {
+                List<String> literals = new ArrayList<>();
+                values.forEach(item -> literals.add(sqlLiteral(item)));
+                return String.join(", ", literals);
+            }
+            if (value.getClass().isArray() && value instanceof Object[] values) {
+                return Arrays.stream(values).map(this::sqlLiteral).collect(java.util.stream.Collectors.joining(", "));
+            }
+            String text = value instanceof byte[] bytes
+                ? "<binary " + bytes.length + " bytes>"
+                : String.valueOf(value);
+            return "'" + text.replace("'", "''") + "'";
+        }
+
+        private Map<String, String> parameterTypes(Map<String, Object> params) {
+            Map<String, String> types = new LinkedHashMap<>();
+            params.forEach((name, value) -> types.put(name,
+                value == null ? "null" : value.getClass().getSimpleName()));
+            return types;
+        }
+
+        private String databaseQueryFailureMessage(Exception exception) {
+            Throwable root = exception;
+            while (root.getCause() != null && root.getCause() != root) {
+                root = root.getCause();
+            }
+            String detail = root.getMessage();
+            if (root instanceof java.sql.SQLException sqlException) {
+                StringBuilder message = new StringBuilder(detail == null || detail.isBlank()
+                    ? sqlException.getClass().getSimpleName() : detail.trim());
+                if (sqlException.getSQLState() != null && !sqlException.getSQLState().isBlank()) {
+                    message.append(" [SQLState=").append(sqlException.getSQLState()).append(']');
+                }
+                if (sqlException.getErrorCode() != 0) {
+                    message.append(" [errorCode=").append(sqlException.getErrorCode()).append(']');
+                }
+                java.sql.SQLException next = sqlException.getNextException();
+                if (next != null && next != sqlException && next.getMessage() != null
+                    && !next.getMessage().isBlank() && !message.toString().contains(next.getMessage())) {
+                    message.append("; ").append(next.getMessage().trim());
+                }
+                detail = message.toString();
+            }
+            String outer = exception.getMessage();
+            if (detail == null || detail.isBlank()) {
+                detail = outer == null || outer.isBlank() ? exception.getClass().getSimpleName() : outer.trim();
+            } else if (outer != null && !outer.isBlank() && !outer.contains(detail)) {
+                detail = outer.trim() + "; root cause: " + detail;
+            }
+            return detail;
         }
 
         /**

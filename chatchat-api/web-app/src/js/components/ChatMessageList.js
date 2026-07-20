@@ -4,6 +4,7 @@ import ResponseReferences from "../../components/ResponseReferences.vue";
 import chartAnalysisMixin from "./ChatMessageListChartAnalysis.js";
 import {
   extractDocumentSearchPagesFromTraces,
+  extractWebCitationPages,
   extractWebSearchPagesFromTraces,
   inlineWebCitationLinks
 } from "../utils/webReferences.js";
@@ -509,6 +510,25 @@ export default {
         const parser = new DOMParser();
         const doc = parser.parseFromString(`<div>${html}</div>`, "text/html");
         const root = doc.body.firstElementChild;
+        root.querySelectorAll("th").forEach((cell) => {
+          if (/^(?:相关证据|证据来源|引用|引用来源)$/.test(String(cell.textContent || "").trim())) {
+            cell.textContent = "主要来源";
+          }
+        });
+        root.querySelectorAll("td").forEach((cell) => {
+          const sourceTags = [...cell.querySelectorAll("a.web-citation-link")];
+          if (sourceTags.length <= 2) {
+            return;
+          }
+          sourceTags.slice(2).forEach((tag) => tag.classList.add("source-tag-overflow-hidden"));
+          const toggle = doc.createElement("button");
+          toggle.type = "button";
+          toggle.className = "source-tag-overflow-toggle";
+          toggle.dataset.sourceTagsToggle = "collapsed";
+          toggle.textContent = `+${sourceTags.length - 2}`;
+          toggle.setAttribute("aria-label", `展开其余 ${sourceTags.length - 2} 条来源`);
+          cell.append(toggle);
+        });
         const tables = [...root.querySelectorAll("table")];
         const tablePayloads = tables
           .map((table, index) => ({ table, payload: this.resultTablePayload(table, index) }))
@@ -1168,8 +1188,14 @@ export default {
           const rawTitle = String(citation.title || citation.name || citation.sourceTitle || citation.documentName || "").trim();
           const title = this.cleanUiCitationTitle(rawTitle || sourceRef, index);
           const text = this.cleanUiProtocolText(citation.text || citation.snippet || citation.content || citation.summary || "");
-          const url = String(citation.url || citation.link || citation.href || "").trim();
-          return { title, text, url, sourceRef };
+          const urlCandidate = citation.url || citation.link || citation.href || citation.sourceUrl
+            || (/^https?:\/\//i.test(sourceRef) ? sourceRef : "");
+          const url = String(urlCandidate || "").trim();
+          const publisher = this.cleanUiProtocolText(
+            citation.publisher || citation.siteName || citation.sourceName || citation.organization || ""
+          );
+          const publishDate = String(citation.publishDate || citation.publishedAt || citation.publish_time || "").trim();
+          return { title, text, url, sourceRef, publisher, publishDate };
         })
         .filter(Boolean);
     },
@@ -1325,9 +1351,40 @@ export default {
         this.stripExecutedSqlContent(this.stripInternalProtocolBlocks(this.stripVisualizationSpecBlocks(content)))
       );
       const normalizedContent = this.stripExecutedSqlContent(this.normalizeRenderContractBlocks(displayContent));
-      const pages = extractWebSearchPagesFromTraces(message.traces || []);
+      const pages = this.webReferencePages(message);
       const linked = inlineWebCitationLinks(normalizedContent, pages);
       return { content: linked.content, citationUrls: linked.citationUrls, pages };
+    },
+    webReferencePages(message = {}) {
+      const uiResponse = this.extractUiResponse(message) || {};
+      const citations = [
+        ...(Array.isArray(uiResponse.citations) ? uiResponse.citations : []),
+        ...(Array.isArray(message.citations) ? message.citations : []),
+        ...(Array.isArray(message.sources)
+          ? message.sources.filter((source) => /^(?:https?:\/\/|web:\/\/)/i.test(String(
+            source?.url || source?.link || source?.href || source?.sourceUrl || source?.sourceRef || source?.source || ""
+          )))
+          : [])
+      ];
+      const tracePages = extractWebSearchPagesFromTraces(message.traces || []);
+      const citationPages = extractWebCitationPages(citations);
+      const byRank = new Map();
+      [...tracePages, ...citationPages].forEach((page, index) => {
+        const rank = Number(page?.rank) || index + 1;
+        const current = byRank.get(rank) || {};
+        byRank.set(rank, {
+          ...current,
+          ...page,
+          rank,
+          title: page?.title || current.title || "",
+          publisher: page?.publisher || current.publisher || "",
+          url: page?.url || current.url || "",
+          snippet: page?.snippet || current.snippet || "",
+          publishDate: page?.publishDate || current.publishDate || "",
+          accessedAt: page?.accessedAt || current.accessedAt || ""
+        });
+      });
+      return [...byRank.values()].sort((left, right) => left.rank - right.rank);
     },
     stripExecutedSqlContent(content) {
       return String(content || "")
@@ -2288,6 +2345,18 @@ export default {
       return "medium";
     },
     async handleMarkdownClick(event) {
+      const sourceToggle = event.target?.closest?.("[data-source-tags-toggle]");
+      if (sourceToggle) {
+        event.preventDefault();
+        event.stopPropagation();
+        const cell = sourceToggle.closest("td");
+        const hiddenTags = [...(cell?.querySelectorAll("a.source-tag-overflow-hidden") || [])];
+        const collapsed = sourceToggle.dataset.sourceTagsToggle === "collapsed";
+        hiddenTags.forEach((tag) => tag.classList.toggle("source-tag-overflow-visible", collapsed));
+        sourceToggle.dataset.sourceTagsToggle = collapsed ? "expanded" : "collapsed";
+        sourceToggle.textContent = collapsed ? "收起" : `+${hiddenTags.length}`;
+        return;
+      }
       const chartButton = event.target?.closest?.("[data-result-chart-payload]");
       if (chartButton) {
         event.preventDefault();

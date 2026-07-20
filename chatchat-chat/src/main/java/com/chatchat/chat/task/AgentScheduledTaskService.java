@@ -294,6 +294,9 @@ public class AgentScheduledTaskService {
             }
             Optional<AgentTaskLatestEntity> latest = latestRepository.findById(run.getTaskId());
             if (latest.isEmpty()) {
+                if (!claimRunCompletion(run)) {
+                    continue;
+                }
                 markRunFailure(run, "Agent task snapshot not found", now);
                 notifyRunCompletion(run, null, "FAILED", "Agent task snapshot not found");
                 changed++;
@@ -303,11 +306,24 @@ public class AgentScheduledTaskService {
             if (!TERMINAL_TASK_STATUSES.contains(taskStatus)) {
                 continue;
             }
+            if (!claimRunCompletion(run)) {
+                continue;
+            }
             completeRun(run, latest.get(), now);
             notifyRunCompletion(run, latest.get(), taskStatus, latest.get().getErrorMessage());
             changed++;
         }
         return changed;
+    }
+
+    private boolean claimRunCompletion(ScheduledTaskRunEntity run) {
+        if (scheduledTaskRunRepository.claimCompletion(run.getRunId()) != 1) {
+            log.debug("Skipped Agent run completion already claimed by another scheduler instance runId={}",
+                run.getRunId());
+            return false;
+        }
+        run.setStatus("COMPLETING");
+        return true;
     }
 
     private int fireDueTasks(Instant now) {
@@ -329,6 +345,13 @@ public class AgentScheduledTaskService {
                     entity.getTaskId(), entity.getNextFireTime());
                 continue;
             }
+            if (scheduledTaskRepository.claimDueTask(entity.getTaskId(), now) != 1) {
+                log.debug("Skipped Agent schedule already claimed by another scheduler instance scheduleId={}",
+                    entity.getTaskId());
+                continue;
+            }
+            entity.setStatus("RUNNING");
+            entity.setNextFireTime(null);
             submitScheduledRun(entity, now);
             fired++;
         }
@@ -565,9 +588,10 @@ public class AgentScheduledTaskService {
             Map<String, Object> payload = new LinkedHashMap<>();
             String normalizedStatus = normalizeStatus(taskStatus);
             boolean success = "SUCCESS".equals(normalizedStatus);
-            String fixedAnswer = success
-                ? notificationAnswer(entity, run, latest)
-                : firstText(errorMessage, "Agent任务执行失败");
+            NotificationMessage notification = success
+                ? notificationMessage(entity, run, latest)
+                : new NotificationMessage(firstText(errorMessage, "Agent任务执行失败"), List.of());
+            String fixedAnswer = notification.answer();
             if (supportsContentProtocol(entity.getNotificationChannelType())) {
                 Map<String, Object> contentProtocol = notificationContentFormatter.format(fixedAnswer);
                 payload.put("contentProtocol", contentProtocol);
@@ -586,6 +610,9 @@ public class AgentScheduledTaskService {
             payload.put("scheduleId", entity.getTaskId());
             payload.put("scheduleName", entity.getName());
             payload.put("status", normalizedStatus);
+            if (!notification.references().isEmpty()) {
+                payload.put("references", notification.references());
+            }
             String receiver = recipientService.receiver(entity.getTenantId(), entity.getNotificationChannelType())
                 .orElse(null);
             if (receiver == null) {
@@ -595,6 +622,14 @@ public class AgentScheduledTaskService {
                 return;
             }
             payload.put("receiver", receiver);
+            Instant notificationStartedAt = Instant.now();
+            if (scheduledTaskRunRepository.claimNotification(run.getRunId(), notificationStartedAt) != 1) {
+                log.debug("Skipped Agent notification already claimed runId={} scheduleId={}",
+                    run.getRunId(), entity.getTaskId());
+                return;
+            }
+            run.setNotificationStatus("SENDING");
+            run.setNotificationSentAt(notificationStartedAt);
             try {
                 notificationClient.dispatch(entity.getNotificationChannelId(), payload);
                 recordNotificationResult(run, entity, receiver, "SUCCESS", null);
@@ -606,21 +641,28 @@ public class AgentScheduledTaskService {
         });
     }
 
-    private String notificationAnswer(ScheduledTaskEntity schedule, ScheduledTaskRunEntity run,
-                                      AgentTaskLatestEntity latest) {
+    private NotificationMessage notificationMessage(ScheduledTaskEntity schedule, ScheduledTaskRunEntity run,
+                                                    AgentTaskLatestEntity latest) {
         String taskId = firstText(run == null ? null : run.getTaskId(), latest == null ? null : latest.getTaskId());
         if (taskId != null) {
             try {
-                Optional<String> finalAnswer = taskService.finalAnswer(schedule.getTenantId(), taskId);
-                if (finalAnswer.isPresent()) {
-                    return finalAnswer.get();
+                Optional<AgentTaskService.AgentNotificationContent> content =
+                    taskService.finalNotificationContent(schedule.getTenantId(), taskId);
+                if (content.isPresent()) {
+                    return new NotificationMessage(content.get().answer(), content.get().references());
                 }
             } catch (Exception ex) {
                 log.warn("Failed to load full Agent answer for scheduled notification scheduleId={} taskId={}: {}",
                     schedule.getTaskId(), taskId, ex.getMessage());
             }
         }
-        return firstText(latest == null ? null : latest.getAnswerSummary(), "Agent任务已成功完成");
+        return new NotificationMessage(
+            firstText(latest == null ? null : latest.getAnswerSummary(), "Agent任务已成功完成"),
+            List.of()
+        );
+    }
+
+    private record NotificationMessage(String answer, List<Map<String, Object>> references) {
     }
 
     private boolean supportsContentProtocol(String channelType) {

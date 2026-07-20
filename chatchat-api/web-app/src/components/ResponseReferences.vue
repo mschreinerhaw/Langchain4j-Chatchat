@@ -38,10 +38,10 @@
     </details>
 
     <details v-if="webPageRows.length">
-      <summary>网络搜索引用（{{ webPageRows.length }}）</summary>
+      <summary>查看全部 {{ webPageRows.length }} 条来源</summary>
       <article v-for="(page, index) in webPageRows" :key="page.rank + page.url + page.title" class="reference-row web-reference-row">
         <strong>
-          <span class="reference-badge web">引用 {{ page.rank || index + 1 }}</span>
+          <span class="reference-badge web">{{ page.publisher || `来源 ${page.rank || index + 1}` }}</span>
           <a
             v-if="page.url"
             :href="page.url"
@@ -52,6 +52,11 @@
           </a>
           <span v-else>{{ page.title || "引用" }}</span>
         </strong>
+        <small v-if="page.publisher || page.publishDate || page.accessedAt" class="reference-meta">
+          <template v-if="page.publisher">发布机构：{{ page.publisher }}</template>
+          <template v-if="page.publishDate"> · 发布日期：{{ page.publishDate }}</template>
+          <template v-if="page.accessedAt"> · 访问时间：{{ page.accessedAt }}</template>
+        </small>
         <small v-if="page.url">{{ displayUrl(page.url) }}</small>
         <p>{{ page.snippet || "暂无摘要" }}</p>
       </article>

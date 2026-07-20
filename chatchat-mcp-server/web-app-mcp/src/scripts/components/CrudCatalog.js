@@ -202,6 +202,41 @@ export default {
     },
     databasePreviewRows() {
       return Array.isArray(this.databasePreviewData.rows) ? this.databasePreviewData.rows : [];
+    },
+    databaseResolvedSqlPreviews() {
+      const data = this.formTestResult?.data || {};
+      const hasDirectPreviews = Array.isArray(data.resolvedSqlPreviews);
+      const previews = hasDirectPreviews
+        ? data.resolvedSqlPreviews
+        : (Array.isArray(data.resultSets) ? data.resultSets : [data]);
+      return previews
+        .map((item, index) => ({
+          key: item.nodeCode || item.sqlCode || `sql-${index + 1}`,
+          name: item.nodeName || item.sqlName || item.nodeCode || `SQL ${index + 1}`,
+          sql: item.resolvedSqlPreview || (hasDirectPreviews ? item.sql : '')
+        }))
+        .filter(item => String(item.sql || '').trim());
+    },
+    databaseTestTotalRows() {
+      const data = this.formTestResult?.data || {};
+      const resultSets = Array.isArray(data.resultSets) && data.resultSets.length
+        ? data.resultSets
+        : [data];
+      return resultSets.reduce((total, item) => total + Number(item.rowCount || 0), 0);
+    },
+    databaseTestExecutedSteps() {
+      const data = this.formTestResult?.data || {};
+      const nodes = Array.isArray(data.nodeExecutions) && data.nodeExecutions.length
+        ? data.nodeExecutions
+        : (Array.isArray(data.resultSets) ? data.resultSets : []);
+      return nodes.map((item, index) => item.nodeName || item.sqlName || item.nodeCode || `SQL ${index + 1}`).join(' → ');
+    },
+    databaseTestDurationMs() {
+      return this.formTestResult?.data?.execution?.durationMs ?? this.formTestResult?.executionTimeMs ?? null;
+    },
+    databaseTestErrorSummary() {
+      const message = String(this.formTestResult?.errorMessage || '').replace(/\s+/g, ' ').trim();
+      return message.length > 160 ? `${message.slice(0, 160)}…` : message;
     }
   },
   watch: {
@@ -389,6 +424,9 @@ export default {
       try {
         const result = await this.formTestAction(this.formPayload());
         this.formTestResult = result;
+        this.formFields.filter(field => field.type === 'databaseSqlSteps').forEach(field => {
+          this.databaseSqlSideTabs[field.key] = 'test';
+        });
         if (!isTestFailure(result)) this.updateMetadataScopeOptions(result);
         this.$emit('notify', {
           ...buildTestNotification(result)
@@ -596,6 +634,10 @@ export default {
           }
           if (mapping?.sourceType === 'STATIC' && this.isEmptyFieldValue(mapping.defaultValue)) {
             errors.push(`步骤 ${stepIndex + 1} 的固定参数 ${param.name} 未填写值`);
+          }
+          if (mapping?.sourceType === 'STATIC' && param.name === 'busi_date'
+            && /^\d{4}-\d{2}-\d{2}$/.test(String(mapping.defaultValue || '').trim())) {
+            errors.push(`步骤 ${stepIndex + 1} 的参数 busi_date 请使用 YYYYMMDD（如 20260105），或将来源改为“系统变量 / 当前交易日 trade_date”`);
           }
         });
       });

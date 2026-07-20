@@ -335,7 +335,6 @@
                       <label>依赖执行</label>
                       <el-switch :model-value="databaseSqlWorkflowEnabled(field)" @change="setDatabaseSqlWorkflowEnabled(field, $event)" />
                       <el-button v-if="formTestAction" plain :loading="busy" @click="testFormDraft">测试流程</el-button>
-                      <el-button type="primary" @click="addDatabaseSqlStep(field)">添加步骤</el-button>
                     </div>
                   </header>
 
@@ -408,7 +407,7 @@
                                 <el-select v-else-if="mapping.sourceType === 'SYSTEM_CONTEXT'" v-model="mapping.sourceKey" filterable placeholder="选择系统内置参数"><el-option v-for="option in databaseSystemParamSourceOptions" :key="option.value" :label="option.label" :value="option.value" /></el-select>
                                 <el-input v-else-if="mapping.sourceType !== 'STATIC'" v-model.trim="mapping.sourceKey" placeholder="来源字段，默认同名" @change="reconcileDatabaseFlowInputs(databaseParamConfigField())" />
                                 <el-input v-if="mapping.sourceType === 'UPSTREAM_RESULT'" v-model.trim="mapping.sourceExpression" placeholder="$.rows[0].customer_id" />
-                                <el-input v-else v-model="mapping.defaultValue" :placeholder="mapping.sourceType === 'STATIC' ? '固定值' : '默认值'" />
+                                <el-input v-else v-model="mapping.defaultValue" :placeholder="mapping.sourceType === 'STATIC' ? (mapping.parameter === 'busi_date' ? 'YYYYMMDD，如 20260105' : '固定值') : '默认值'" />
                                 <el-checkbox v-model="mapping.required" @change="reconcileDatabaseFlowInputs(databaseParamConfigField())">必填</el-checkbox>
                                 <el-button plain type="danger" size="small" @click="removeDatabaseSqlParameterMapping(entry, mappingIndex)">删除</el-button>
                               </div>
@@ -465,7 +464,18 @@
                       </div>
                       <div v-else class="database-flow-side-panel">
                         <div class="database-flow-side-head"><div><strong>流程测试</strong><small>保存前使用当前配置进行整体试运行</small></div><el-button type="primary" plain size="small" :loading="busy" @click="testFormDraft">运行</el-button></div>
-                        <div v-if="busy" class="database-compact-empty">正在执行查询流程…</div><div v-else-if="!formTestResult" class="database-compact-empty">尚未运行测试。</div><el-alert v-else-if="formTestResult.success === false" type="error" :closable="false" :title="formTestResult.errorMessage || '流程执行失败'" /><div v-else class="database-flow-test-summary"><el-tag type="success">执行成功</el-tag><strong>{{ formTestResult.message || '查询流程已完成' }}</strong><span>返回 {{ databasePreviewData.rowCount ?? databasePreviewRows.length ?? 0 }} 行</span><details><summary>查看完整结果</summary><pre class="json-block"><code>{{ prettyPreviewJson(formTestResult) }}</code></pre></details></div>
+                        <div v-if="busy" class="database-compact-empty">正在执行查询流程…</div>
+                        <div v-else-if="!formTestResult" class="database-compact-empty">尚未运行测试。</div>
+                        <div v-else class="database-flow-test-overview" :class="{ 'is-failed': formTestResult.success === false }">
+                          <div><el-tag :type="formTestResult.success === false ? 'danger' : 'success'">{{ formTestResult.success === false ? '执行失败' : '执行成功' }}</el-tag><strong>{{ formTestResult.success === false ? '查询流程未完成' : '查询流程已完成' }}</strong></div>
+                          <dl>
+                            <div><dt>执行流程</dt><dd>{{ databaseTestExecutedSteps || '当前查询流程' }}</dd></div>
+                            <div><dt>返回记录</dt><dd>{{ databaseTestTotalRows }} 条</dd></div>
+                            <div v-if="databaseTestDurationMs !== null"><dt>执行耗时</dt><dd>{{ databaseTestDurationMs }} ms</dd></div>
+                          </dl>
+                          <p v-if="formTestResult.success === false">{{ databaseTestErrorSummary || '请在下方预览结果中查看详细错误。' }}</p>
+                          <small>参数代入 SQL、数据表和完整错误请查看下方“预览结果”。</small>
+                        </div>
                       </div>
                     </aside>
                   </div>
@@ -554,21 +564,28 @@
         <div class="database-preview-title">
           <div>
             <h3>预览结果</h3>
-            <p>使用当前 SQL 模板和查询参数测试执行结果。</p>
+            <p>集中查看参数代入 SQL、返回数据表、完整错误和 JSON 结果。</p>
           </div>
           <el-text v-if="busy" type="info">正在执行...</el-text>
         </div>
 
         <div v-if="!formTestResult" class="database-preview-empty">
-          填写只读 SQL 后点击测试调用。
+          完成配置后点击“测试流程”，详细结果将在这里展示。
         </div>
-        <el-alert
-          v-else-if="formTestResult.success === false"
-          type="error"
-          :title="formTestResult.errorMessage || '数据库查询执行失败'"
-          :closable="false"
-          show-icon
-        />
+        <div v-else-if="formTestResult.success === false" class="database-preview-result">
+          <el-alert
+            class="database-flow-test-error"
+            type="error"
+            :title="formTestResult.errorMessage || '数据库查询执行失败'"
+            :closable="false"
+            show-icon
+          />
+          <details v-for="preview in databaseResolvedSqlPreviews" :key="preview.key" class="database-resolved-sql" open>
+            <summary>{{ preview.name }} · 参数代入后 SQL</summary>
+            <pre><code>{{ preview.sql }}</code></pre>
+          </details>
+          <details class="database-preview-json"><summary>完整 JSON</summary><pre class="json-block"><code>{{ prettyPreviewJson(formTestResult) }}</code></pre></details>
+        </div>
         <div v-else class="database-preview-result">
           <div class="database-preview-summary">
             <el-tag type="success" effect="light">成功</el-tag>
@@ -577,6 +594,11 @@
             <span>上限 {{ databasePreviewData.maxRows ?? '-' }} 行</span>
             <el-tag v-if="databasePreviewData.possiblyTruncated" type="warning" effect="light">可能已截断</el-tag>
           </div>
+
+          <details v-for="preview in databaseResolvedSqlPreviews" :key="preview.key" class="database-resolved-sql" open>
+            <summary>{{ preview.name }} · 参数代入后 SQL</summary>
+            <pre><code>{{ preview.sql }}</code></pre>
+          </details>
 
           <div v-if="databasePreviewColumns.length" class="database-preview-fields">
             <div class="database-preview-fields-head">

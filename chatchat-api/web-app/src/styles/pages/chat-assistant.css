@@ -1937,16 +1937,48 @@
 }
 
 .message-markdown .web-citation-link {
-  color: var(--primary-strong);
-  font: inherit;
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 2px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  margin: 1px 3px;
+  padding: 1px 8px;
+  border: 1px solid #b9d4ff;
+  border-radius: 999px;
+  background: #eef6ff;
+  color: #1769c2;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-decoration: none;
+  vertical-align: middle;
 }
 
 .message-markdown .web-citation-link:hover {
-  color: #2b5cff;
-  text-decoration-thickness: 2px;
+  border-color: #75adf5;
+  background: #dfeeff;
+  color: #0f57a6;
+  text-decoration: none;
+}
+
+.message-markdown .source-tag-overflow-hidden {
+  display: none;
+}
+
+.message-markdown .source-tag-overflow-hidden.source-tag-overflow-visible {
+  display: inline-flex;
+}
+
+.message-markdown .source-tag-overflow-toggle {
+  min-height: 24px;
+  margin: 1px 3px;
+  padding: 1px 8px;
+  border: 1px dashed #9ebce4;
+  border-radius: 999px;
+  background: #f7faff;
+  color: #42678f;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .message-markdown .evidence-answer-card {

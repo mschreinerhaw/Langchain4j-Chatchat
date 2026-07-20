@@ -18,6 +18,7 @@ import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 
@@ -119,6 +120,37 @@ class BuiltInToolsBootstrapTest {
     }
 
     @Test
+    void databaseQueryFailureMessageIncludesTheUnderlyingJdbcReason() throws Exception {
+        Object tool = databaseQueryTool();
+        Method formatter = tool.getClass().getDeclaredMethod("databaseQueryFailureMessage", Exception.class);
+        formatter.setAccessible(true);
+        SQLException sqlException = new SQLException("SemanticException: incompatible comparison types", "42000", 10014);
+
+        String message = (String) formatter.invoke(tool,
+            new RuntimeException("PreparedStatementCallback; bad SQL grammar", sqlException));
+
+        assertThat(message)
+            .contains("PreparedStatementCallback; bad SQL grammar")
+            .contains("SemanticException: incompatible comparison types")
+            .contains("SQLState=42000")
+            .contains("errorCode=10014");
+    }
+
+    @Test
+    void databaseQueryRendersResolvedSqlPreviewWithoutChangingQuotedTextOrCasts() throws Exception {
+        Object tool = databaseQueryTool();
+        Method renderer = tool.getClass().getDeclaredMethod("renderSqlPreview", String.class, Map.class);
+        renderer.setAccessible(true);
+
+        String sql = (String) renderer.invoke(tool,
+            "select ':ignored' note where busi_date = :busi_date and name = :name and code::text = :code",
+            Map.of("busi_date", "20260105", "name", "O'Reilly", "code", 7));
+
+        assertThat(sql).isEqualTo(
+            "select ':ignored' note where busi_date = '20260105' and name = 'O''Reilly' and code::text = 7");
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void documentSearchEnrichesResultsWithDocumentContentExcerpts() throws Exception {
         startDocumentApi();
@@ -164,21 +196,8 @@ class BuiltInToolsBootstrapTest {
     }
 
     private String validateDatabaseQuerySql(String sql) throws Exception {
-        Class<?> toolClass = Class.forName("com.chatchat.tools.builtin.BuiltInToolsBootstrap$DatabaseQueryTool");
-        Constructor<?> constructor = toolClass.getDeclaredConstructor(
-            DynamicJdbcDriverLoader.class,
-            DatabaseToolProperties.class,
-            String.class,
-            ObjectMapper.class
-        );
-        constructor.setAccessible(true);
-        Object tool = constructor.newInstance(
-            mock(DynamicJdbcDriverLoader.class),
-            new DatabaseToolProperties(),
-            "",
-            new ObjectMapper()
-        );
-        Method validator = toolClass.getDeclaredMethod("validateReadOnlySql", String.class);
+        Object tool = databaseQueryTool();
+        Method validator = tool.getClass().getDeclaredMethod("validateReadOnlySql", String.class);
         validator.setAccessible(true);
         try {
             return (String) validator.invoke(tool, sql);
@@ -192,6 +211,23 @@ class BuiltInToolsBootstrapTest {
             }
             throw new IllegalStateException(cause);
         }
+    }
+
+    private Object databaseQueryTool() throws Exception {
+        Class<?> toolClass = Class.forName("com.chatchat.tools.builtin.BuiltInToolsBootstrap$DatabaseQueryTool");
+        Constructor<?> constructor = toolClass.getDeclaredConstructor(
+            DynamicJdbcDriverLoader.class,
+            DatabaseToolProperties.class,
+            String.class,
+            ObjectMapper.class
+        );
+        constructor.setAccessible(true);
+        return constructor.newInstance(
+            mock(DynamicJdbcDriverLoader.class),
+            new DatabaseToolProperties(),
+            "",
+            new ObjectMapper()
+        );
     }
 
     private void startDocumentApi() throws IOException {

@@ -60,10 +60,51 @@ export function extractWebSearchPagesFromTraces(traces = []) {
   return uniquePages(traces.flatMap((trace) => extractWebSearchPages(trace)));
 }
 
+export function extractWebCitationPages(citations = []) {
+  if (!Array.isArray(citations)) {
+    return [];
+  }
+  return uniquePages(citations
+    .map((item, index) => {
+      const sourceRef = item?.sourceRef || item?.refId || "";
+      const source = item?.source || "";
+      const url = firstSafeWebUrl(
+        item?.url,
+        item?.link,
+        item?.href,
+        item?.sourceUrl,
+        item?.source_url,
+        sourceRef,
+        source
+      );
+      const publisher = cleanSourceLabel(
+        item?.publisher || item?.siteName || item?.sourceName || item?.organization || (url ? source : ""),
+        url
+      );
+      const title = cleanSourceLabel(
+        item?.title || item?.sourceTitle || item?.name || (url ? "" : source),
+        url
+      );
+      return {
+        isWeb: Boolean(url) || /^web:\/\//i.test(String(sourceRef || source || "")),
+        rank: Number(item?.rank) || index + 1,
+        title: title || publisher || displayUrl(url) || `来源 ${index + 1}`,
+        publisher,
+        url,
+        publishDate: item?.publishDate || item?.publishedAt || item?.publish_time || "",
+        accessedAt: item?.accessedAt || item?.accessTime || "",
+        snippet: shortSnippet(
+          item?.snippet || item?.text || item?.summary || item?.description || item?.content
+        )
+      };
+    })
+    .filter((item) => item.isWeb)
+    .map(({ isWeb, ...item }) => item));
+}
+
 /**
- * Replaces evidence labels such as [网页3] or [source 3] with an inline link on
- * the nearest preceding clause. The labels remain in the stored answer for
- * evidence auditing; this function is only used by the presentation layer.
+ * Replaces internal evidence labels such as [网页3] with readable source tags.
+ * Stored answers keep their original labels for evidence auditing.
  */
 export function inlineWebCitationLinks(content, pages = []) {
   const text = String(content || "");
@@ -79,21 +120,16 @@ export function inlineWebCitationLinks(content, pages = []) {
     output += text.slice(cursor, match.index);
     cursor = marker.lastIndex;
     const rank = Number(match[1] || match[2] || match[3]);
-    const page = pages[rank - 1] || {};
+    const page = pages.find((item) => Number(item?.rank) === rank) || pages[rank - 1] || {};
     const url = safeWebUrl(page.url) || safeWebUrl(match[4]);
-    if (!url) {
-      output += match[0];
-      continue;
-    }
-    citationUrls.push(url);
-    const anchor = precedingCitationAnchor(output);
-    const title = escapeMarkdownTitle(page.title || url);
-    if (anchor) {
-      const label = escapeMarkdownLinkText(output.slice(anchor.start, anchor.end));
-      output = `${output.slice(0, anchor.start)}[${label}](<${url}> "${title}")${output.slice(anchor.end)}`;
-    } else if (!outputHasCitationLinkAtEnd(output, url)) {
-      const label = escapeMarkdownLinkText(page.title || displayUrl(url) || url);
+    const sourceLabel = page.publisher || page.title || displayUrl(url) || `来源 ${rank}`;
+    const label = escapeMarkdownLinkText(sourceLabel);
+    if (url) {
+      citationUrls.push(url);
+      const title = escapeMarkdownTitle(page.title || sourceLabel);
       output += `[${label}](<${url}> "${title}")`;
+    } else {
+      output += label;
     }
   }
   output += text.slice(cursor);
@@ -224,34 +260,6 @@ function uniquePages(pages) {
   });
 }
 
-function precedingCitationAnchor(content) {
-  const end = String(content || "").search(/\s*$/);
-  if (end <= 0) {
-    return null;
-  }
-  let anchorEnd = end;
-  while (anchorEnd > 0 && /[。！？!?；;，,]/.test(content[anchorEnd - 1])) anchorEnd--;
-  const prefix = content.slice(0, anchorEnd);
-  const boundary = Math.max(
-    prefix.lastIndexOf("。"), prefix.lastIndexOf("！"), prefix.lastIndexOf("？"),
-    prefix.lastIndexOf("!"), prefix.lastIndexOf("?"), prefix.lastIndexOf("；"),
-    prefix.lastIndexOf(";"), prefix.lastIndexOf("，"), prefix.lastIndexOf(","),
-    prefix.lastIndexOf("\n"), prefix.lastIndexOf("|")
-  );
-  let start = boundary + 1;
-  while (start < anchorEnd && /\s/.test(content[start])) start++;
-  const value = content.slice(start, anchorEnd);
-  if (!value || value.length > 160 || /[\[\]`<>]/.test(value) || /^\s*#{1,6}\s/.test(value)) {
-    return null;
-  }
-  return { start, end: anchorEnd };
-}
-
-function outputHasCitationLinkAtEnd(content, url) {
-  const escapedUrl = String(url || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`\\]\\(<?${escapedUrl}>?(?:\\s+["'][^)]*["'])?\\)\\s*$`, "i").test(content);
-}
-
 function safeWebUrl(value) {
   try {
     const parsed = new URL(String(value || "").trim());
@@ -259,6 +267,18 @@ function safeWebUrl(value) {
   } catch (error) {
     return "";
   }
+}
+
+function firstSafeWebUrl(...values) {
+  return values.map((value) => safeWebUrl(value)).find(Boolean) || "";
+}
+
+function cleanSourceLabel(value, url = "") {
+  const label = String(value || "").replace(/\s+/g, " ").trim();
+  if (!label || /^https?:\/\//i.test(label) || label === url) {
+    return "";
+  }
+  return label.length > 36 ? `${label.slice(0, 36)}…` : label;
 }
 
 function escapeMarkdownLinkText(value) {

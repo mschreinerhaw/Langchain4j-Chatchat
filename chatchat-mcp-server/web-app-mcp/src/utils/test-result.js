@@ -29,11 +29,18 @@ export function testResultMessage(result, fallback = '测试完成。') {
 
 export function buildTestNotification(result, options = {}) {
   const failed = isTestFailure(result);
+  const message = failed
+    ? testResultMessage(result, options.failureMessage || '测试未通过。')
+    : testResultMessage(result, options.successMessage || '测试完成。');
   return {
     type: failed ? 'danger' : 'success',
     title: failed ? (options.failureTitle || '测试失败') : (options.successTitle || '测试成功'),
-    message: failed
-      ? testResultMessage(result, options.failureMessage || '测试未通过。')
-      : testResultMessage(result, options.successMessage || '测试完成。')
+    message: failed ? compactNotificationMessage(message) : message
   };
+}
+
+function compactNotificationMessage(message, maxLength = 260) {
+  const normalized = String(message || '').replace(/\s+/g, ' ').trim();
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength).trim()}…（完整错误请查看测试结果）`;
 }

@@ -105,6 +105,10 @@ public class AgentTaskService {
     }
 
     public Optional<String> finalAnswer(String tenantId, String taskId) {
+        return finalNotificationContent(tenantId, taskId).map(AgentNotificationContent::answer);
+    }
+
+    public Optional<AgentNotificationContent> finalNotificationContent(String tenantId, String taskId) {
         AgentTaskLatestEntity task = getTaskForTenant(tenantId, taskId);
         List<AgentEvent> events = eventStore.listByTask(
             task.getTenantId(), task.getSessionId(), task.getTaskId(), Integer.MAX_VALUE);
@@ -116,29 +120,57 @@ public class AgentTaskService {
                 && !"RESULT".equalsIgnoreCase(type)) {
                 continue;
             }
-            String answer = extractFullAnswer(event);
-            if (answer != null && !answer.isBlank()) {
-                return Optional.of(answer);
+            AgentNotificationContent content = extractNotificationContent(event);
+            if (content != null && !content.answer().isBlank()) {
+                return Optional.of(content);
             }
         }
-        return Optional.ofNullable(task.getAnswerSummary()).filter(answer -> !answer.isBlank());
+        return Optional.ofNullable(task.getAnswerSummary())
+            .filter(answer -> !answer.isBlank())
+            .map(answer -> new AgentNotificationContent(answer, List.of()));
     }
 
-    private String extractFullAnswer(AgentEvent event) {
+    private AgentNotificationContent extractNotificationContent(AgentEvent event) {
         if (event == null || event.getPayload() == null || event.getPayload().isBlank()) {
             return null;
         }
         try {
             JsonNode root = objectMapper.readTree(event.getPayload());
-            return firstTextValue(
+            String answer = firstTextValue(
                 root.path("uiResponse").path("answer").asText(null),
                 root.path("executionResult").path("uiResponse").path("answer").asText(null),
                 root.path("answer").asText(null)
             );
+            List<Map<String, Object>> references = new ArrayList<>();
+            addReferenceMaps(references, root.path("citations"));
+            addReferenceMaps(references, root.path("uiResponse").path("citations"));
+            addReferenceMaps(references, root.path("executionResult").path("citations"));
+            addReferenceMaps(references, root.path("executionResult").path("uiResponse").path("citations"));
+            addReferenceMaps(references, root.path("executionResult").path("sources"));
+            return answer == null ? null : new AgentNotificationContent(answer, List.copyOf(references));
         } catch (JsonProcessingException ex) {
             log.warn("Failed to read final answer from task event: taskId={} eventId={} error={}",
                 event.getTaskId(), event.getEventId(), ex.getMessage());
             return null;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void addReferenceMaps(List<Map<String, Object>> target, JsonNode node) {
+        if (node == null || !node.isArray()) {
+            return;
+        }
+        for (JsonNode item : node) {
+            if (item != null && item.isObject()) {
+                target.add(new LinkedHashMap<>(objectMapper.convertValue(item, Map.class)));
+            }
+        }
+    }
+
+    public record AgentNotificationContent(String answer, List<Map<String, Object>> references) {
+        public AgentNotificationContent {
+            answer = answer == null ? "" : answer;
+            references = references == null ? List.of() : List.copyOf(references);
         }
     }
 
@@ -2407,6 +2439,12 @@ public class AgentTaskService {
                 citation.put("sourceRef", firstTextValue(map.get("source"), map.get("docId"), map.get("url"), ""));
                 citation.put("title", firstTextValue(map.get("title"), map.get("source"), ""));
                 citation.put("text", firstTextValue(map.get("snippet"), map.get("content"), ""));
+                putIfPresent(citation, "url", firstTextValue(
+                    map.get("url"), map.get("link"), map.get("href"), map.get("sourceUrl"), map.get("source_url")));
+                putIfPresent(citation, "publisher", firstTextValue(
+                    map.get("publisher"), map.get("siteName"), map.get("sourceName"), map.get("organization")));
+                putIfPresent(citation, "publishDate", firstTextValue(
+                    map.get("publishDate"), map.get("publishedAt"), map.get("publish_time"), map.get("date")));
                 values.add(citation);
             }
         }
@@ -2429,6 +2467,12 @@ public class AgentTaskService {
             citation.put("text", firstTextValue(item.get("text"), item.get("content"), item.get("summary"), ""));
             citation.put("confidence", firstDouble(item.get("confidence")));
             citation.put("tier", tier);
+            putIfPresent(citation, "url", firstTextValue(
+                item.get("url"), item.get("link"), item.get("href"), item.get("sourceUrl"), item.get("source_url")));
+            putIfPresent(citation, "publisher", firstTextValue(
+                item.get("publisher"), item.get("siteName"), item.get("sourceName"), item.get("organization")));
+            putIfPresent(citation, "publishDate", firstTextValue(
+                item.get("publishDate"), item.get("publishedAt"), item.get("publish_time"), item.get("date")));
             values.add(citation);
         }
     }

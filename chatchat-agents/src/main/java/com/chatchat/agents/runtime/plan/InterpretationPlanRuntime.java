@@ -4049,6 +4049,9 @@ public class InterpretationPlanRuntime {
         if (source == null) {
             return null;
         }
+        if (isWholeStepOutputField(field)) {
+            return source.output();
+        }
         Object value = contractValue(source.output(), field);
         if (value != null) {
             return value;
@@ -4075,6 +4078,9 @@ public class InterpretationPlanRuntime {
     }
 
     private Object contractValue(Object output, String field) {
+        if (isWholeStepOutputField(field)) {
+            return output;
+        }
         Object value = valueAtPath(output, field);
         if (value != null || field == null || field.isBlank()) {
             return value;
@@ -4114,6 +4120,11 @@ public class InterpretationPlanRuntime {
             );
         }
         return null;
+    }
+
+    private boolean isWholeStepOutputField(String field) {
+        String normalized = field == null ? "" : field.trim();
+        return "output".equalsIgnoreCase(normalized) || "$".equals(normalized) || "$.".equals(normalized);
     }
 
     /**

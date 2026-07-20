@@ -9,7 +9,8 @@ import {
   pauseAgentSchedule,
   rerunAgentSchedule,
   resumeAgentSchedule,
-  saveAgentScheduleNotificationRecipient
+  saveAgentScheduleNotificationRecipient,
+  updateAgentSchedule
 } from "../../services/api.js";
 import "../../styles/pages/agent-schedule.css";
 
@@ -72,6 +73,46 @@ function emptyForm(agentId = "") {
   };
 }
 
+function scheduleForm(schedule = {}) {
+  const form = emptyForm(schedule.agentId || "");
+  const triggerType = String(schedule.triggerType || "CRON").toUpperCase();
+  const cron = String(schedule.cronExpr || "").trim();
+  const dailyMatch = cron.match(/^0\s+(\d{1,2})\s+(\d{1,2})\s+\*\s+\*\s+\?$/i);
+  const weeklyMatch = cron.match(/^0\s+(\d{1,2})\s+(\d{1,2})\s+\?\s+\*\s+(MON|TUE|WED|THU|FRI|SAT|SUN)$/i);
+  const clock = (hour, minute) => `${String(Number(hour)).padStart(2, "0")}:${String(Number(minute)).padStart(2, "0")}`;
+  if (triggerType === "ONCE") {
+    form.mode = "once";
+    form.onceAt = schedule.nextFireTime ? toDatetimeLocal(new Date(schedule.nextFireTime)) : defaultOnceAt();
+  } else if (triggerType === "INTERVAL") {
+    form.mode = "interval";
+    form.intervalMinutes = Math.max(1, Math.round(Number(schedule.intervalSeconds || 60) / 60));
+  } else if (weeklyMatch) {
+    form.mode = "weekly";
+    form.weeklyTime = clock(weeklyMatch[2], weeklyMatch[1]);
+    form.weekday = weeklyMatch[3].toUpperCase();
+  } else if (dailyMatch) {
+    form.mode = "daily";
+    form.dailyTime = clock(dailyMatch[2], dailyMatch[1]);
+  } else {
+    form.mode = "cron";
+    form.cron = cron || form.cron;
+  }
+  return {
+    ...form,
+    agentId: schedule.agentId || "",
+    name: schedule.name || "",
+    question: schedule.question || "",
+    enabled: schedule.enabled === true || ["ACTIVE", "RUNNING"].includes(String(schedule.status || "").toUpperCase()),
+    notifyEnabled: schedule.notifyEnabled === true,
+    notificationChannelId: schedule.notificationChannelId || "",
+    tradingDayOnly: schedule.tradingDayOnly === true,
+    scheduleWindowEnabled: schedule.scheduleWindowEnabled === true,
+    scheduleWindowStart: schedule.scheduleWindowStart || "09:00",
+    scheduleWindowEnd: schedule.scheduleWindowEnd || "12:00",
+    zoneId: schedule.zoneId || "Asia/Shanghai"
+  };
+}
+
 export default {
   name: "AgentScheduleView",
   props: {
@@ -88,6 +129,7 @@ export default {
       scheduleRefreshTimer: null,
       scheduleRefreshing: false,
       dialogOpen: false,
+      editingScheduleId: "",
       notificationDialogOpen: false,
       notificationSelectOpen: false,
       notificationLoading: false,
@@ -296,12 +338,17 @@ export default {
       }
       this.saving = true;
       try {
-        await createAgentSchedule(schedulePayload);
-        this.notice = "定时任务已创建";
+        if (this.editingScheduleId) {
+          await updateAgentSchedule(this.editingScheduleId, schedulePayload);
+          this.notice = "定时任务已保存";
+        } else {
+          await createAgentSchedule(schedulePayload);
+          this.notice = "定时任务已创建";
+        }
         this.closeCreateDialog(true);
         await this.loadSchedules();
       } catch (error) {
-        this.error = error.message || "定时任务创建失败";
+        this.error = error.message || (this.editingScheduleId ? "定时任务保存失败" : "定时任务创建失败");
       } finally {
         this.saving = false;
       }
@@ -406,11 +453,26 @@ export default {
         return;
       }
       const defaultAgentId = this.filters.agentId || this.form.agentId || this.agentOptions[0]?.id || "";
+      this.editingScheduleId = "";
       this.form = emptyForm(defaultAgentId);
       this.syncFormWithAgent();
       this.error = "";
       this.notice = "";
       this.dialogOpen = true;
+    },
+    async openEditDialog(schedule) {
+      const id = scheduleId(schedule);
+      if (!id || this.isScheduleRunning(schedule)) {
+        return;
+      }
+      this.editingScheduleId = id;
+      this.form = scheduleForm(schedule);
+      this.error = "";
+      this.notice = "";
+      this.dialogOpen = true;
+      if (this.form.notifyEnabled) {
+        await this.loadNotificationChannels();
+      }
     },
     async loadNotificationChannels() {
       this.notificationLoading = true;
@@ -577,6 +639,7 @@ export default {
         return;
       }
       this.dialogOpen = false;
+      this.editingScheduleId = "";
       this.error = "";
     },
     async toggleSchedule(schedule) {

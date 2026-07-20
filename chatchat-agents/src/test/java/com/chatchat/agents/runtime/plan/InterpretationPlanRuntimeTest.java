@@ -3993,6 +3993,56 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void acceptsOutputEdgeContractAsWholeSuccessfulStepOutput() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("web_search")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("web_search")).thenReturn(ToolMetadata.builder().riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of("results", List.of(Map.of("title", "AI industry update")))),
+            ToolMetadata.builder().id("web_search").build(),
+            null,
+            "success",
+            Map.of()
+        ));
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("web_search", "Collect current AI news", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", "web_search", Map.of("query", "AI news"), List.of(), null, null),
+                    new InterpretationPlan.Step(2, "final_answer", "", Map.of("answer", "done"), List.of(1), null, null)
+                ),
+                List.of(new InterpretationPlan.EdgeContract(1, 2, "output", "any", true))
+            ),
+            new InterpretationPlan.ExecutionPolicy(2, false, List.of("web_search"), List.of(), 30000),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
+            plan,
+            toolRegistry,
+            List.of("web_search"),
+            "tenant-1",
+            "req-output-edge-contract",
+            "conv-output-edge-contract",
+            "user-1",
+            Map.of()
+        ));
+
+        assertThat(result.success())
+            .as(result.status() + ": " + result.errorMessage())
+            .isTrue();
+        assertThat(result.steps()).noneMatch(step -> "edge_contract".equals(step.actionType()));
+    }
+
+    @Test
     void rejectsFinalAnswerDecisionWhenAnyStepsRemain() throws Exception {
         InterpretationPlan plan = new InterpretationPlan(
             "1.0",

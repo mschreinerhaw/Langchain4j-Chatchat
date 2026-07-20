@@ -100,6 +100,64 @@ public class AgentScheduledTaskService {
         return ScheduledTaskResponse.from(scheduledTaskRepository.save(entity));
     }
 
+    @Transactional
+    public ScheduledTaskResponse update(String tenantId, String scheduledTaskId, ScheduledAgentTaskRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Scheduled task request cannot be null");
+        }
+        ScheduledTaskEntity entity = getForTenant(tenantId, scheduledTaskId);
+        if ("RUNNING".equals(normalizeStatus(entity.getStatus()))
+            || scheduledTaskRunRepository.existsByScheduledTaskIdAndStatus(entity.getTaskId(), "RUNNING")) {
+            throw new IllegalArgumentException("调度任务正在执行，暂时不能编辑，请在本次执行结束后重试");
+        }
+
+        Instant now = Instant.now();
+        AgentTaskSubmitRequest payload = normalizePayload(request);
+        String triggerType = normalizeTriggerType(request.getTriggerType());
+        boolean enabled = request.getEnabled() == null
+            ? "ACTIVE".equals(normalizeStatus(entity.getStatus()))
+            : request.getEnabled();
+
+        entity.setUserId(payload.getUserId());
+        entity.setAgentId(firstText(request.getAgentId(), payload.getAgentId(), payload.getSkillId()));
+        requirePublishedAgent(entity.getAgentId());
+        entity.setName(firstText(request.getName(), defaultScheduleName(entity.getAgentId(), payload.getQuery())));
+        entity.setTriggerType(triggerType);
+        entity.setCronExpr(normalizeCronExpr(triggerType, firstText(request.getCronExpr(), request.getCron())));
+        entity.setIntervalSeconds(normalizeInterval(triggerType, request.getIntervalSeconds()));
+        entity.setPayloadJson(writeJson(payload));
+        entity.setQuestion(payload.getQuery());
+        entity.setNotifyEnabled(Boolean.TRUE.equals(request.getNotifyEnabled()));
+        if (Boolean.TRUE.equals(entity.getNotifyEnabled())) {
+            McpNotificationClient.NotificationChannelOption option =
+                notificationClient.requireEnabled(request.getNotificationChannelId());
+            if (!option.recipientAware()) {
+                throw new IllegalArgumentException("所选MCP通知通道未在URL或请求模板中使用{{receiver}}，无法保证租户隔离");
+            }
+            entity.setNotificationChannelId(option.id());
+            entity.setNotificationChannelType(option.channel());
+            entity.setNotificationChannelName(firstText(option.title(), option.toolName(), option.channel()));
+            recipientService.receiver(entity.getTenantId(), option.channel())
+                .orElseThrow(() -> new IllegalArgumentException("当前租户尚未绑定" + option.channel() + "接收人"));
+        } else {
+            entity.setNotificationChannelId(null);
+            entity.setNotificationChannelType(null);
+            entity.setNotificationChannelName(null);
+        }
+        entity.setTradingDayOnly(Boolean.TRUE.equals(request.getTradingDayOnly()));
+        configureScheduleWindow(entity, request, triggerType);
+        entity.setExpiredAt(request.getExpiredAt());
+        entity.setMaxRetries(normalizeRetryCount(request.getMaxRetries()));
+        entity.setRetryDelaySeconds(normalizeRetryDelay(request.getRetryDelaySeconds()));
+        entity.setRetryCount(0);
+        entity.setLastError(null);
+        entity.setStatus(enabled ? "ACTIVE" : "PAUSED");
+        Instant initialFireTime = enabled ? resolveInitialFireTime(request, entity, now) : null;
+        entity.setNextFireTime(enabled ? alignInitialFireTime(entity, initialFireTime) : null);
+        validateNotExpired(entity, now);
+        return ScheduledTaskResponse.from(scheduledTaskRepository.save(entity));
+    }
+
     public Optional<ScheduledTaskResponse> get(String tenantId, String scheduledTaskId) {
         return Optional.of(toResponse(getForTenant(tenantId, scheduledTaskId)));
     }

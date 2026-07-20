@@ -2425,8 +2425,9 @@ public class AgentTaskService {
     }
 
     @SuppressWarnings("unchecked")
-    private List<Map<String, Object>> citations(InteractionResponse response, Map<String, Object> reasoningPayload) {
+    List<Map<String, Object>> citations(InteractionResponse response, Map<String, Object> reasoningPayload) {
         List<Map<String, Object>> values = new ArrayList<>();
+        addWebSearchCitations(values, response == null ? null : response.getToolTraces());
         addEvidenceCitations(values, asStringMap(reasoningPayload.get("evidence")).get("direct"), "direct");
         addEvidenceCitations(values, asStringMap(reasoningPayload.get("evidence")).get("supporting"), "supporting");
         addEvidenceCitations(values, asStringMap(reasoningPayload.get("evidence")).get("context"), "context");
@@ -2449,6 +2450,144 @@ public class AgentTaskService {
             }
         }
         return dedupeCitations(values).stream().limit(12).toList();
+    }
+
+    private void addWebSearchCitations(List<Map<String, Object>> values, List<InteractionToolTrace> traces) {
+        if (traces == null || traces.isEmpty()) {
+            return;
+        }
+        for (InteractionToolTrace trace : traces) {
+            if (trace == null || !trace.isSuccess() || !isWebSearchTrace(trace)) {
+                continue;
+            }
+            Map<String, Object> root = parseJsonObject(trace.getOutput());
+            if (root.isEmpty()) {
+                continue;
+            }
+            List<Map<String, Object>> candidates = new ArrayList<>();
+            addMapItems(candidates, root.get("results"));
+            addMapItems(candidates, root.get("items"));
+            addMapItems(candidates, root.get("organic_results"));
+            addMapItems(candidates, root.get("webPages"));
+            addMapItems(candidates, root.get("pageExcerpts"));
+            addMapItems(candidates, root.get("evidenceSnippets"));
+            addMapItems(candidates, root.get("evidence_chunks"));
+            if (candidates.isEmpty()) {
+                Map<String, Object> data = asStringMap(root.get("data"));
+                addMapItems(candidates, data.get("results"));
+                addMapItems(candidates, data.get("items"));
+                addMapItems(candidates, data.get("webPages"));
+                addMapItems(candidates, data.get("pageExcerpts"));
+                addMapItems(candidates, data.get("evidenceSnippets"));
+                addMapItems(candidates, data.get("evidence_chunks"));
+            }
+
+            Map<String, Map<String, Object>> byUrl = new LinkedHashMap<>();
+            for (Map<String, Object> item : candidates) {
+                Map<String, Object> evidence = asStringMap(item.get("evidence"));
+                String url = firstTextValue(
+                    item.get("url"), item.get("link"), item.get("href"), item.get("sourceUrl"), item.get("source_url"),
+                    evidence.get("url"), evidence.get("sourceUrl"), evidence.get("source_url"));
+                if (!isHttpUrl(url) || byUrl.containsKey(url)) {
+                    continue;
+                }
+                Map<String, Object> citation = new LinkedHashMap<>();
+                citation.put("sourceRef", url);
+                citation.put("url", url);
+                citation.put("title", firstTextValue(
+                    item.get("title"), item.get("name"), evidence.get("title"), item.get("sourceName"), url));
+                citation.put("text", compactCitationText(firstTextValue(
+                    item.get("snippet"), item.get("excerpt"), item.get("pageExcerpt"), item.get("contentExcerpt"),
+                    item.get("summary"), evidence.get("snippet"), evidence.get("summary"), item.get("content"), "")));
+                putIfPresent(citation, "publisher", firstTextValue(
+                    item.get("publisher"), item.get("siteName"), item.get("sourceName"), item.get("organization"),
+                    evidence.get("publisher"), evidence.get("siteName"), evidence.get("sourceName")));
+                putIfPresent(citation, "publishDate", firstTextValue(
+                    item.get("publishDate"), item.get("publishedAt"), item.get("publishTime"), item.get("publish_time"),
+                    item.get("date"), evidence.get("publishDate"), evidence.get("publishedAt"),
+                    evidence.get("publishTime"), evidence.get("publish_time")));
+                byUrl.put(url, citation);
+            }
+
+            List<Map<String, Object>> ordered = orderWebCitations(root, byUrl);
+            for (Map<String, Object> citation : ordered) {
+                citation.put("rank", values.size() + 1);
+                values.add(citation);
+                if (values.size() >= 12) {
+                    return;
+                }
+            }
+        }
+    }
+
+    private List<Map<String, Object>> orderWebCitations(Map<String, Object> root,
+                                                         Map<String, Map<String, Object>> byUrl) {
+        Object references = root.get("reference_urls");
+        List<?> referenceUrls = references instanceof List<?> list ? list : List.of();
+        if (referenceUrls.isEmpty()) {
+            Map<String, Object> data = asStringMap(root.get("data"));
+            references = data.get("reference_urls");
+            referenceUrls = references instanceof List<?> list ? list : List.of();
+        }
+        List<Map<String, Object>> ordered = new ArrayList<>();
+        for (Object value : referenceUrls) {
+            String url = firstTextValue(value);
+            Map<String, Object> citation = byUrl.remove(url);
+            if (citation != null) {
+                ordered.add(citation);
+            } else if (isHttpUrl(url)) {
+                Map<String, Object> fallback = new LinkedHashMap<>();
+                fallback.put("sourceRef", url);
+                fallback.put("url", url);
+                fallback.put("title", url);
+                fallback.put("text", "");
+                ordered.add(fallback);
+            }
+        }
+        ordered.addAll(byUrl.values());
+        return ordered;
+    }
+
+    private Map<String, Object> parseJsonObject(String value) {
+        if (value == null || value.isBlank()) {
+            return Map.of();
+        }
+        try {
+            return objectMapper.convertValue(objectMapper.readTree(value), Map.class);
+        } catch (Exception ignored) {
+            return Map.of();
+        }
+    }
+
+    private void addMapItems(List<Map<String, Object>> target, Object value) {
+        if (!(value instanceof List<?> items)) {
+            return;
+        }
+        for (Object item : items) {
+            Map<String, Object> map = asStringMap(item);
+            if (!map.isEmpty()) {
+                target.add(map);
+            }
+        }
+    }
+
+    private boolean isWebSearchTrace(InteractionToolTrace trace) {
+        String identity = String.join(" ",
+            Objects.toString(trace.getToolName(), ""),
+            Objects.toString(trace.getDisplayName(), ""),
+            Objects.toString(trace.getServiceName(), ""),
+            Objects.toString(trace.getServiceId(), "")
+        ).toLowerCase();
+        return identity.contains("web_search") || identity.contains("web-search") || identity.contains("websearch")
+            || identity.contains("search_web") || identity.contains("网页搜索") || identity.contains("网络搜索");
+    }
+
+    private boolean isHttpUrl(String value) {
+        if (value == null) {
+            return false;
+        }
+        String normalized = value.trim().toLowerCase();
+        return normalized.startsWith("https://") || normalized.startsWith("http://");
     }
 
     private void addEvidenceCitations(List<Map<String, Object>> values, Object rawItems, String tier) {
@@ -2481,7 +2620,10 @@ public class AgentTaskService {
         List<Map<String, Object>> values = new ArrayList<>();
         List<String> seen = new ArrayList<>();
         for (Map<String, Object> citation : citations) {
-            String key = firstTextValue(citation.get("sourceRef"), "") + "|" + firstTextValue(citation.get("text"), "");
+            String url = firstTextValue(citation.get("url"), citation.get("sourceRef"), "");
+            String key = isHttpUrl(url)
+                ? "url|" + url.trim().toLowerCase()
+                : firstTextValue(citation.get("sourceRef"), "") + "|" + firstTextValue(citation.get("text"), "");
             if (!seen.contains(key)) {
                 seen.add(key);
                 values.add(citation);

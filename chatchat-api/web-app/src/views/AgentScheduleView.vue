@@ -95,6 +95,9 @@
           </div>
           <div class="schedule-row-actions">
             <button type="button" class="text-button" @click="openNotificationHistory(schedule)">详情</button>
+            <button type="button" class="light-button" :disabled="saving || isScheduleRunning(schedule)" @click="openEditDialog(schedule)">
+              编辑
+            </button>
             <button type="button" class="light-button" :disabled="saving" @click="toggleSchedule(schedule)">
               {{ isScheduleActive(schedule) ? "停用" : "启用" }}
             </button>
@@ -113,7 +116,7 @@
         <header>
           <div>
             <p>Schedule Form</p>
-            <h2>新建Agent调度</h2>
+            <h2>{{ editingScheduleId ? "编辑Agent调度" : "新建Agent调度" }}</h2>
           </div>
           <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeCreateDialog">×</button>
         </header>
@@ -260,7 +263,7 @@
           <div class="schedule-options">
             <label>
               <input v-model="form.enabled" :disabled="saving" type="checkbox" />
-              <span>创建后启用</span>
+              <span>{{ editingScheduleId ? "保存后启用" : "创建后启用" }}</span>
             </label>
             <label>
               <input v-model="form.notifyEnabled" :disabled="saving" type="checkbox" />
@@ -291,7 +294,7 @@
         <footer>
           <button type="button" class="light-button" :disabled="saving" @click="closeCreateDialog">取消</button>
           <button type="submit" class="primary-button" :disabled="saving || loading">
-            {{ saving ? "创建中" : "创建定时任务" }}
+            {{ saving ? (editingScheduleId ? "保存中" : "创建中") : (editingScheduleId ? "保存修改" : "创建定时任务") }}
           </button>
         </footer>
       </form>

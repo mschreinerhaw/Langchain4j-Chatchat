@@ -130,6 +130,45 @@ public class AgentTaskScheduleController {
         }
     }
 
+    @PutMapping("/{scheduledTaskId}")
+    @Operation(summary = "Update one lightweight Agent Runtime scheduled task")
+    public ApiResponse<ScheduledTaskResponse> update(@PathVariable("scheduledTaskId") String scheduledTaskId,
+                                                     @RequestBody ScheduledAgentTaskRequest request,
+                                                     HttpServletRequest servletRequest) {
+        try {
+            String currentUserId = currentUserId(servletRequest);
+            String currentTenantId = scopedTenantId(servletRequest, request == null ? null : request.getTenantId());
+            if (request != null) {
+                request.setTenantId(currentTenantId);
+                if (request.getPayload() != null) {
+                    request.getPayload().setTenantId(currentTenantId);
+                }
+                if (currentUserId != null) {
+                    request.setUserId(currentUserId);
+                    if (request.getPayload() != null) {
+                        request.getPayload().setUserId(currentUserId);
+                    }
+                }
+            }
+            String requestedAgentId = requestedAgentId(request);
+            if (requestedAgentId == null || !skillCatalogService.isPublished(requestedAgentId)) {
+                return ApiResponse.badRequest("Agent未发布，不能保存调度");
+            }
+            if (currentUserId != null
+                && !enterpriseAdminService.canAccessAgent(currentUserId, requestedAgentId)) {
+                return ApiResponse.badRequest("Current role is not allowed to schedule this Agent");
+            }
+            return ApiResponse.success(
+                scheduledTaskService.update(currentTenantId, scheduledTaskId, request),
+                "Agent Runtime scheduled task updated"
+            );
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.badRequest(e.getMessage());
+        } catch (Exception e) {
+            return ApiResponse.internalError("Agent Runtime scheduled task update failed: " + e.getMessage());
+        }
+    }
+
     @GetMapping
     @Operation(summary = "List lightweight Agent Runtime scheduled tasks")
     public ApiResponse<List<ScheduledTaskResponse>> list(@RequestParam("tenantId") String tenantId,

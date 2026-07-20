@@ -255,6 +255,13 @@ export function createAgentSchedule(payload) {
   });
 }
 
+export function updateAgentSchedule(scheduleId, payload) {
+  return apiRequest(`/agent/tasks/runtime/schedules/${encodeURIComponent(scheduleId)}`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+}
+
 export function pauseAgentSchedule(scheduleId, tenantId = "") {
   const params = new URLSearchParams();
   if (tenantId) {

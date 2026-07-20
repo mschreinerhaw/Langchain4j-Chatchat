@@ -19,10 +19,14 @@ export function extractWebSearchPages(trace) {
     .filter(Array.isArray)
     .flat();
   const pages = candidates
-    .map((item, index) => ({
+    .map((item, index) => {
+      const evidence = item?.evidence && typeof item.evidence === "object" ? item.evidence : {};
+      return {
       rank: item.rank || item.position || index + 1,
-      title: item.title || item.name || item.source || item.url || item.link || "引用",
-      url: item.url || item.link || item.href || item.sourceUrl || "",
+      title: item.title || item.name || evidence.title || item.sourceName || item.source || item.url || item.link || "引用",
+      publisher: item.publisher || item.siteName || item.sourceName || evidence.publisher || evidence.siteName || evidence.sourceName || "",
+      publishDate: item.publishDate || item.publishedAt || item.publishTime || item.publish_time || evidence.publishDate || evidence.publishedAt || evidence.publishTime || "",
+      url: item.url || item.link || item.href || item.sourceUrl || item.source_url || evidence.url || evidence.sourceUrl || "",
       snippet: shortSnippet(
         item.snippet
           || item.excerpt
@@ -33,24 +37,27 @@ export function extractWebSearchPages(trace) {
           || item.content
           || item.text
       )
-    }))
+    };
+    })
     .filter((item) => item.url || item.title);
   if (!referenceUrls?.length) {
-    return uniquePages(pages).slice(0, 10);
+    return uniquePages(pages).slice(0, 12);
   }
   const pagesByUrl = new Map(pages.filter((page) => page.url).map((page) => [page.url, page]));
   return uniquePages(referenceUrls
     .map((url, index) => {
       const matched = pagesByUrl.get(url) || {};
       return {
-        rank: matched.rank || index + 1,
+        rank: index + 1,
         title: matched.title || url,
+        publisher: matched.publisher || "",
+        publishDate: matched.publishDate || "",
         url,
         snippet: matched.snippet || ""
       };
     })
     .filter((item) => item.url || item.title))
-    .slice(0, 10);
+    .slice(0, 12);
 }
 
 export function extractWebSearchPagesFromTraces(traces = []) {
@@ -122,14 +129,14 @@ export function inlineWebCitationLinks(content, pages = []) {
     const rank = Number(match[1] || match[2] || match[3]);
     const page = pages.find((item) => Number(item?.rank) === rank) || pages[rank - 1] || {};
     const url = safeWebUrl(page.url) || safeWebUrl(match[4]);
-    const sourceLabel = page.publisher || page.title || displayUrl(url) || `来源 ${rank}`;
+    const sourceLabel = page.publisher || page.title || displayUrl(url) || "引用来源待补充";
     const label = escapeMarkdownLinkText(sourceLabel);
     if (url) {
       citationUrls.push(url);
       const title = escapeMarkdownTitle(page.title || sourceLabel);
-      output += `[${label}](<${url}> "${title}")`;
+      output += `[${label}](<${url}> "${title}") `;
     } else {
-      output += label;
+      output += `${label} `;
     }
   }
   output += text.slice(cursor);

@@ -58,6 +58,24 @@
 .schedule-row-actions {
   justify-content: flex-start;
   flex-wrap: nowrap;
+  position: sticky;
+  right: 0;
+  z-index: 2;
+  min-height: 40px;
+  padding-left: 10px;
+  background: #fff;
+  box-shadow: -10px 0 14px -14px rgba(16, 24, 40, 0.5);
+}
+
+.schedule-table-head > span:last-child {
+  position: sticky;
+  right: 0;
+  z-index: 3;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  padding-left: 10px;
+  background: #f4f7fb;
 }
 
 .schedule-search-panel {
@@ -106,10 +124,10 @@
 .schedule-table-head,
 .schedule-table-row {
   display: grid;
-  grid-template-columns: minmax(230px, 1.5fr) minmax(110px, 0.7fr) minmax(120px, 0.7fr) minmax(145px, 0.8fr) minmax(110px, 0.65fr) 92px minmax(280px, 1fr);
+  grid-template-columns: minmax(230px, 1.5fr) minmax(110px, 0.7fr) minmax(120px, 0.7fr) minmax(145px, 0.8fr) minmax(110px, 0.65fr) 92px minmax(330px, 1fr);
   gap: 10px;
   align-items: center;
-  min-width: 1240px;
+  min-width: 1290px;
 }
 
 .schedule-table-head {
@@ -130,6 +148,10 @@
 }
 
 .schedule-table-row:hover {
+  background: #fbfdff;
+}
+
+.schedule-table-row:hover .schedule-row-actions {
   background: #fbfdff;
 }
 

@@ -3,7 +3,9 @@ package com.chatchat.chat.task;
 import com.chatchat.agents.runtime.AgentRuntime;
 import com.chatchat.agents.runtime.ToolRuntimeService;
 import com.chatchat.agents.runtime.plan.InterpretationPlanStore;
+import com.chatchat.chat.interaction.model.InteractionResponse;
 import com.chatchat.chat.interaction.service.InteractionOrchestrationService;
+import com.chatchat.common.interaction.InteractionToolTrace;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -11,6 +13,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -215,5 +218,64 @@ class AgentTaskServiceTest {
             .contains("可展示内容")
             .doesNotContain("uiResponse")
             .doesNotContain("```json");
+    }
+
+    @Test
+    void citationsRecoverReadableLinksFromSuccessfulWebSearchTrace() {
+        ObjectMapper objectMapper = new ObjectMapper();
+        AgentTaskService service = new AgentTaskService(
+            mock(AgentEventBus.class),
+            mock(AgentEventStore.class),
+            mock(AgentTaskLatestRepository.class),
+            mock(InteractionOrchestrationService.class),
+            objectMapper,
+            new AgentTaskProperties(),
+            mock(ToolRuntimeService.class),
+            mock(AgentRuntime.class),
+            mock(AgentTaskCancellationRegistry.class),
+            mock(AgentLearningService.class),
+            mock(TaskConfirmRepository.class),
+            mock(InterpretationPlanStore.class),
+            mock(ThreadPoolTaskExecutor.class)
+        );
+        InteractionResponse response = InteractionResponse.builder()
+            .toolTraces(List.of(InteractionToolTrace.builder()
+                .toolName("mcp_chatchat_mcp_server_web_search")
+                .success(true)
+                .output("""
+                    {
+                      "reference_urls": ["https://example.com/news/2", "https://example.com/news/1"],
+                      "results": [
+                        {
+                          "title": "第一条资讯",
+                          "url": "https://example.com/news/1",
+                          "sourceName": "示例财经",
+                          "publishTime": "2026-07-20T10:00:00+08:00",
+                          "snippet": "第一条摘要"
+                        },
+                        {
+                          "title": "第二条资讯",
+                          "sourceUrl": "https://example.com/news/2",
+                          "evidence": {"sourceName": "交易所", "publishTime": "2026-07-20"}
+                        }
+                      ]
+                    }
+                    """)
+                .build()))
+            .build();
+
+        List<Map<String, Object>> citations = service.citations(response, Map.of());
+
+        assertThat(citations).hasSize(2);
+        assertThat(citations.get(0))
+            .containsEntry("rank", 1)
+            .containsEntry("title", "第二条资讯")
+            .containsEntry("publisher", "交易所")
+            .containsEntry("url", "https://example.com/news/2");
+        assertThat(citations.get(1))
+            .containsEntry("rank", 2)
+            .containsEntry("publisher", "示例财经")
+            .containsEntry("publishDate", "2026-07-20T10:00:00+08:00")
+            .containsEntry("url", "https://example.com/news/1");
     }
 }

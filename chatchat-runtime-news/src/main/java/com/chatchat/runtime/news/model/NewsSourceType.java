@@ -6,6 +6,7 @@ public enum NewsSourceType {
     EXCHANGE_HOME,
     NEWS_HOME,
     SZSE_HOME,
+    SZSE_DISCLOSURE,
     CNINFO_HOME,
     CLS_TELEGRAPH,
     CNINFO_ANNOUNCEMENTS,

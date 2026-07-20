@@ -3,7 +3,6 @@
 .news-hero h2 { margin: 0 0 8px; }
 .news-hero p { margin: 0; color: var(--el-text-color-secondary); }
 .news-hero-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
-.cls-legal-alert p { margin: 0; line-height: 1.65; }
 .news-source-name { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .news-list-toolbar { display: grid; grid-template-columns: minmax(260px, 1fr) 180px 150px auto auto; align-items: center; gap: 12px; }
 .news-list-count { justify-self: end; color: var(--el-text-color-secondary); white-space: nowrap; }

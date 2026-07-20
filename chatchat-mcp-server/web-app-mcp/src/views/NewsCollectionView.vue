@@ -10,19 +10,6 @@
     </el-card>
 
     <el-alert title="所有资讯源在启用和采集前都会检测 robots.txt。明确禁止或无法可靠确认许可时将停止采集并提示原因；robots.txt 检测不替代网站使用条款及法律审查。" type="warning" :closable="false" show-icon />
-    <el-alert
-      class="cls-legal-alert"
-      title="财联社电报法律与版权风险提示"
-      type="warning"
-      :closable="false"
-      show-icon
-    >
-      <p>
-        财联社电报采集仅限内部原型验证和实验。证券正式产品不得依赖未经授权的全文抓取；正式上线应使用已获授权的数据源，
-        或仅保存必要元数据及合规的 AI 加工结果，并在上线前完成网站条款、版权、数据使用及法律审查。
-      </p>
-    </el-alert>
-
     <section class="news-list-toolbar">
       <el-input
         v-model="filters.keyword"
@@ -49,11 +36,11 @@
           <div class="news-source-name">
             <strong>{{ row.sourceName }}</strong>
             <el-tag
-              v-if="row.sourceType === 'CLS_TELEGRAPH'"
+              v-if="row.configuration?.legalRisk"
               type="warning"
               effect="plain"
               size="small"
-              title="仅限内部原型验证；正式产品上线前必须确认数据授权与版权合规。"
+              title="该资讯源已被标记为存在法律风险"
             >法律风险</el-tag>
           </div>
           <small>{{ row.sourceCode }}</small>
@@ -131,10 +118,13 @@
         <div class="news-form-grid">
           <el-form-item label="来源编码"><el-input v-model.trim="form.sourceCode" /></el-form-item>
           <el-form-item label="来源名称"><el-input v-model.trim="form.sourceName" /></el-form-item>
-          <el-form-item label="来源类型"><el-select v-model="form.sourceType"><el-option label="交易所首页（内置）" value="EXCHANGE_HOME" disabled /><el-option label="深交所首页（内置）" value="SZSE_HOME" disabled /><el-option label="资讯首页（内置）" value="NEWS_HOME" disabled /><el-option label="巨潮资讯首页（内置）" value="CNINFO_HOME" disabled /><el-option label="财联社电报（内置）" value="CLS_TELEGRAPH" disabled /><el-option label="巨潮公告（内置）" value="CNINFO_ANNOUNCEMENTS" disabled /><el-option label="上交所公告（内置）" value="SSE_ANNOUNCEMENTS" disabled /><el-option label="网页列表" value="WEB_LIST" /><el-option label="固定网页" value="WEB_SINGLE_PAGE" /><el-option label="RSS/Atom" value="RSS" /><el-option label="JSON API" value="API" /></el-select></el-form-item>
+          <el-form-item label="来源类型"><el-select v-model="form.sourceType"><el-option label="交易所首页（内置）" value="EXCHANGE_HOME" disabled /><el-option label="深交所首页（内置）" value="SZSE_HOME" disabled /><el-option label="深交所披露栏目（内置）" value="SZSE_DISCLOSURE" disabled /><el-option label="资讯首页（内置）" value="NEWS_HOME" disabled /><el-option label="巨潮资讯首页（内置）" value="CNINFO_HOME" disabled /><el-option label="财联社电报（内置）" value="CLS_TELEGRAPH" disabled /><el-option label="巨潮公告（内置）" value="CNINFO_ANNOUNCEMENTS" disabled /><el-option label="上交所公告（内置）" value="SSE_ANNOUNCEMENTS" disabled /><el-option label="网页列表" value="WEB_LIST" /><el-option label="固定网页" value="WEB_SINGLE_PAGE" /><el-option label="RSS/Atom" value="RSS" /><el-option label="JSON API" value="API" /></el-select></el-form-item>
           <el-form-item class="wide" label="入口地址"><el-input v-model.trim="form.entryUrl" @blur="fillAllowedDomainFromEntryUrl" /></el-form-item>
           <el-form-item label="允许域名"><el-input v-model.trim="form.allowedDomain" /></el-form-item>
           <el-form-item label="启用"><el-switch v-model="form.enabled" /></el-form-item>
+          <el-form-item label="法律风险标签">
+            <el-switch v-model="form.configuration.legalRisk" active-text="存在法律风险" inactive-text="无风险标记" />
+          </el-form-item>
           <el-form-item label="请求间隔(ms)"><el-input-number v-model="form.configuration.sleepMillis" :min="0" :max="60000" /></el-form-item>
           <el-form-item label="超时(ms)"><el-input-number v-model="form.configuration.timeoutMillis" :min="1000" :max="120000" /></el-form-item>
         </div>

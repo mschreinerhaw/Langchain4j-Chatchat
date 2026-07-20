@@ -17,7 +17,7 @@ class NewsSourcePresetSeederTest {
         boolean synchronizedSuccessfully = new NewsSourcePresetSeeder(runtime, new NewsSourcePresetCatalog()).seedMissingPresets();
 
         org.assertj.core.api.Assertions.assertThat(synchronizedSuccessfully).isTrue();
-        verify(runtime, times(18)).post(eq("/sources"), any());
+        verify(runtime, times(22)).post(eq("/sources"), any());
         verify(runtime, times(6)).put(contains("/rule"), any());
     }
 
@@ -34,7 +34,7 @@ class NewsSourcePresetSeederTest {
         seeder.retryInitialSynchronization();
 
         verify(runtime, times(2)).get("/sources");
-        verify(runtime, times(18)).post(eq("/sources"), any());
+        verify(runtime, times(22)).post(eq("/sources"), any());
     }
 
     @Test
@@ -94,8 +94,29 @@ class NewsSourcePresetSeederTest {
         assertThat(request.getValue().enabled()).isTrue();
         assertThat(request.getValue().configuration())
             .containsEntry("presetVersion", 2)
+            .containsEntry("legalRisk", true)
             .containsEntry("maxPagesPerRun", 200)
             .containsKeys("rollApiUrl", "initialBackfillHours");
+    }
+
+    @Test
+    void addsLegalRiskTagToExistingClsPresetWithoutReplacingItsConfiguration() throws Exception {
+        NewsRuntimeClient runtime = mock(NewsRuntimeClient.class);
+        when(runtime.get("/sources")).thenReturn(new ObjectMapper().readTree("""
+            [{"id":16,"sourceCode":"cls_telegraph","sourceName":"财联社电报",
+              "sourceType":"CLS_TELEGRAPH","entryUrl":"https://www.cls.cn/telegraph",
+              "enabled":false,"configuration":{"presetVersion":2,"itemLimit":37,"customSetting":"keep"}}]
+            """));
+        when(runtime.post(eq("/sources"), any())).thenReturn(new ObjectMapper().readTree("{\"id\":12}"));
+
+        assertThat(new NewsSourcePresetSeeder(runtime, new NewsSourcePresetCatalog()).seedMissingPresets()).isTrue();
+
+        var request = org.mockito.ArgumentCaptor.forClass(NewsSourcePresetCatalog.SourceUpsert.class);
+        verify(runtime).put(eq("/sources/16"), request.capture());
+        assertThat(request.getValue().configuration())
+            .containsEntry("legalRisk", true)
+            .containsEntry("itemLimit", 37)
+            .containsEntry("customSetting", "keep");
     }
 
     @Test
@@ -175,11 +196,32 @@ class NewsSourcePresetSeederTest {
         var sourceRequest = org.mockito.ArgumentCaptor.forClass(NewsSourcePresetCatalog.SourceUpsert.class);
         verify(runtime).put(eq("/sources/10"), sourceRequest.capture());
         assertThat(sourceRequest.getValue().enabled()).isTrue();
-        assertThat(sourceRequest.getValue().configuration()).containsEntry("presetVersion", 2);
+        assertThat(sourceRequest.getValue().configuration())
+            .containsEntry("presetVersion", 2)
+            .containsEntry("legalRisk", true);
 
         var ruleRequest = org.mockito.ArgumentCaptor.forClass(NewsSourcePresetCatalog.RuleUpsert.class);
         verify(runtime).put(eq("/sources/10/rule"), ruleRequest.capture());
         assertThat(ruleRequest.getValue().titleSelector()).isEqualTo(".title");
         assertThat(ruleRequest.getValue().urlPattern()).contains("/a/\\d+");
+    }
+
+    @Test
+    void addsLegalRiskTagToExistingEastmoneyPresetWithoutReplacingItsConfiguration() throws Exception {
+        NewsRuntimeClient runtime = mock(NewsRuntimeClient.class);
+        when(runtime.get("/sources")).thenReturn(new ObjectMapper().readTree("""
+            [{"id":18,"sourceCode":"eastmoney_finance","sourceName":"东方财富财经",
+              "sourceType":"WEB_LIST","entryUrl":"https://finance.eastmoney.com/",
+              "enabled":false,"configuration":{"presetVersion":2,"customSetting":"keep"}}]
+            """));
+        when(runtime.post(eq("/sources"), any())).thenReturn(new ObjectMapper().readTree("{\"id\":12}"));
+
+        assertThat(new NewsSourcePresetSeeder(runtime, new NewsSourcePresetCatalog()).seedMissingPresets()).isTrue();
+
+        var request = org.mockito.ArgumentCaptor.forClass(NewsSourcePresetCatalog.SourceUpsert.class);
+        verify(runtime).put(eq("/sources/18"), request.capture());
+        assertThat(request.getValue().configuration())
+            .containsEntry("legalRisk", true)
+            .containsEntry("customSetting", "keep");
     }
 }

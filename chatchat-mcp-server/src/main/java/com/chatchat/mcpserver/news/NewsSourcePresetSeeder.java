@@ -60,6 +60,9 @@ public class NewsSourcePresetSeeder {
         boolean legacyCls = "cls_telegraph".equals(preset.code()) && "WEB_LIST".equals(current.path("sourceType").asText());
         boolean outdatedCls = "cls_telegraph".equals(preset.code())
             && current.path("configuration").path("presetVersion").asInt(0) < 2;
+        boolean missingDefaultLegalRisk = ("cls_telegraph".equals(preset.code())
+            || "eastmoney_finance".equals(preset.code()))
+            && !current.path("configuration").has("legalRisk");
         boolean legacyCninfo = "cninfo_announcements".equals(preset.code())
             && "WEB_LIST".equals(current.path("sourceType").asText());
         boolean outdatedSseAnnouncements = "sse_announcements".equals(preset.code())
@@ -77,18 +80,24 @@ public class NewsSourcePresetSeeder {
                 || current.path("configuration").path("presetVersion").asInt(0) < 2);
         boolean outdatedEastmoney = "eastmoney_finance".equals(preset.code())
             && current.path("configuration").path("presetVersion").asInt(0) < 2;
-        if (!legacyCls && !outdatedCls && !legacyCninfo && !outdatedSseAnnouncements && !legacySzse
+        if (!legacyCls && !outdatedCls && !missingDefaultLegalRisk && !legacyCninfo && !outdatedSseAnnouncements && !legacySzse
             && !outdatedSseHome && !outdatedSzseHome && !outdatedCninfoHome && !outdatedEastmoney) return;
         NewsSourcePresetCatalog.SourceUpsert source = preset.source();
+        boolean replaceConfiguration = legacyCls || outdatedCls || legacyCninfo || outdatedSseAnnouncements
+            || outdatedSseHome || outdatedSzseHome || outdatedCninfoHome || outdatedEastmoney;
+        Map<String, Object> configuration = replaceConfiguration
+            ? source.configuration() : jsonMap(current.path("configuration"));
+        if (missingDefaultLegalRisk && !configuration.containsKey("legalRisk")) {
+            configuration = new HashMap<>(configuration);
+            configuration.put("legalRisk", true);
+        }
         var request = new NewsSourcePresetCatalog.SourceUpsert(source.sourceCode(), source.sourceName(),
             legacyCls || outdatedCls || legacyCninfo || outdatedSseAnnouncements || outdatedSzseHome || outdatedCninfoHome
                 ? source.sourceType() : current.path("sourceType").asText(),
             legacySzse || outdatedSseAnnouncements || outdatedSzseHome || outdatedCninfoHome
                 ? source.entryUrl() : current.path("entryUrl").asText(), source.allowedDomain(),
             source.scheduleCron(), current.path("enabled").asBoolean(false),
-            legacyCls || outdatedCls || legacyCninfo || outdatedSseAnnouncements || outdatedSseHome || outdatedSzseHome
-                || outdatedCninfoHome || outdatedEastmoney
-                ? source.configuration() : jsonMap(current.path("configuration")));
+            configuration);
         if (outdatedEastmoney && preset.rule() != null) {
             runtime.put("/sources/" + current.path("id").asLong() + "/rule", preset.rule());
         }

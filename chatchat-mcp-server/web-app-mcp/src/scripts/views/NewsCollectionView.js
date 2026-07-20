@@ -3,7 +3,7 @@ import { ElMessageBox } from 'element-plus';
 import '../../styles/views/news-collection.css';
 
 const emptyRule = () => ({ listSelector: '', linkSelector: '', titleSelector: '', contentSelector: '', authorSelector: '', publishTimeSelector: '', urlPattern: '' });
-const emptyForm = () => ({ id: null, sourceCode: '', sourceName: '', sourceType: 'WEB_LIST', entryUrl: '', allowedDomain: '', scheduleCron: '0 */10 * * * *', enabled: false, configuration: { sleepMillis: 1000, timeoutMillis: 20000, zoneId: 'Asia/Shanghai', language: 'zh-CN', scheduleWindowEnabled: false, scheduleWindowStart: '09:00', scheduleWindowEnd: '12:00', attachmentSelector: '', attachmentAllowedDomains: '' }, rule: emptyRule() });
+const emptyForm = () => ({ id: null, sourceCode: '', sourceName: '', sourceType: 'WEB_LIST', entryUrl: '', allowedDomain: '', scheduleCron: '0 */10 * * * *', enabled: false, configuration: { sleepMillis: 1000, timeoutMillis: 20000, zoneId: 'Asia/Shanghai', language: 'zh-CN', legalRisk: false, scheduleWindowEnabled: false, scheduleWindowStart: '09:00', scheduleWindowEnd: '12:00', attachmentSelector: '', attachmentAllowedDomains: '' }, rule: emptyRule() });
 const intervalOptions = [
   { label: '5 分钟', cron: '0 */5 * * * *' },
   { label: '10 分钟', cron: '0 */10 * * * *' },
@@ -25,6 +25,7 @@ const emptyScheduleEditor = () => ({ mode: 'interval', intervalCron: '0 */10 * *
 const sourceTypeOptions = [
   { label: '交易所首页', value: 'EXCHANGE_HOME' },
   { label: '深交所首页', value: 'SZSE_HOME' },
+  { label: '深交所披露栏目', value: 'SZSE_DISCLOSURE' },
   { label: '资讯首页', value: 'NEWS_HOME' },
   { label: '巨潮资讯首页', value: 'CNINFO_HOME' },
   { label: '财联社电报', value: 'CLS_TELEGRAPH' },

@@ -14,6 +14,10 @@ public class NewsSourcePresetCatalog {
         return List.of(
             sseHome(),
             szseHome(),
+            szseFundEtfAnnouncements(),
+            szseMarginBusinessAnnouncements(),
+            szseAuctionPublicInformation(),
+            szseListingDisclosure(),
             eastmoneyFinance(),
             clsTelegraph(),
             sseAnnouncements(),
@@ -68,6 +72,7 @@ public class NewsSourcePresetCatalog {
                     Map.entry("itemLimit", 20), Map.entry("maxPagesPerRun", 200),
                     Map.entry("initialBackfillHours", 24), Map.entry("sleepMillis", 300),
                     Map.entry("minimumContentChars", 1),
+                    Map.entry("legalRisk", true),
                     Map.entry("timeoutMillis", 20000), Map.entry("zoneId", "Asia/Shanghai"),
                     Map.entry("language", "zh-CN"))), null);
     }
@@ -120,6 +125,76 @@ public class NewsSourcePresetCatalog {
                         "上市公司最新公告")),
                     "sleepMillis", 1000, "timeoutMillis", 20000,
                     "zoneId", "Asia/Shanghai", "language", "zh-CN")), null);
+    }
+
+    private Preset szseFundEtfAnnouncements() {
+        String code = "szse_fund_etf_announcements";
+        String name = "深交所基金及ETF公告";
+        String url = "https://www.szse.cn/disclosure/fund/notice/index.html";
+        return new Preset(code, name, "采集深交所基金公告和ETF公告当前最新一页，并解析二级官方PDF原文。",
+            new SourceUpsert(code, name, "SZSE_DISCLOSURE", url, "szse.cn", "0 */10 * * * *", false,
+                Map.ofEntries(
+                    Map.entry("presetVersion", 1), Map.entry("provider", "SZSE"), Map.entry("itemLimit", 50),
+                    Map.entry("feeds", List.of(
+                        Map.of("kind", "FUND", "category", "基金公告",
+                            "url", "https://www.szse.cn/api/disc/info/find/tannInfo?type=2&pageSize=50&pageNum=1",
+                            "attachmentBaseUrl", "https://disc.static.szse.cn"),
+                        Map.of("kind", "FUND", "category", "ETF公告",
+                            "url", "https://www.szse.cn/api/disc/info/find/tannInfo?type=3&pageSize=50&pageNum=1",
+                            "attachmentBaseUrl", "https://disc.static.szse.cn"))),
+                    Map.entry("attachmentAllowedDomains", "disc.static.szse.cn"),
+                    Map.entry("sleepMillis", 500), Map.entry("timeoutMillis", 30000),
+                    Map.entry("zoneId", "Asia/Shanghai"), Map.entry("language", "zh-CN"))), null);
+    }
+
+    private Preset szseMarginBusinessAnnouncements() {
+        String code = "szse_margin_business_announcements";
+        String name = "深交所融资融券业务公告";
+        String url = "https://www.szse.cn/disclosure/margin/business/index.html";
+        return new Preset(code, name, "采集融资融券业务公告当前一级列表，并进入二级文章提取正文及附件。",
+            new SourceUpsert(code, name, "SZSE_DISCLOSURE", url, "szse.cn", "0 */15 * * * *", false,
+                Map.ofEntries(
+                    Map.entry("presetVersion", 1), Map.entry("provider", "SZSE"), Map.entry("itemLimit", 20),
+                    Map.entry("feeds", List.of(Map.of("kind", "CMS_ARTICLES", "category", "融资融券业务公告", "url", url))),
+                    Map.entry("sleepMillis", 800), Map.entry("timeoutMillis", 30000),
+                    Map.entry("zoneId", "Asia/Shanghai"), Map.entry("language", "zh-CN"))), null);
+    }
+
+    private Preset szseAuctionPublicInformation() {
+        String code = "szse_auction_public_information";
+        String name = "深交所竞价交易公开信息";
+        String url = "https://www.szse.cn/disclosure/deal/public/index.html";
+        return new Preset(code, name, "采集竞价交易公开信息当前最新一页，并跟进二级买卖营业部交易明细。",
+            new SourceUpsert(code, name, "SZSE_DISCLOSURE", url, "szse.cn", "0 */10 * * * *", false,
+                Map.ofEntries(
+                    Map.entry("presetVersion", 1), Map.entry("provider", "SZSE"), Map.entry("itemLimit", 10),
+                    Map.entry("feeds", List.of(Map.of(
+                        "kind", "AUCTION_REPORT", "category", "竞价交易公开信息",
+                        "url", "https://www.szse.cn/api/report/ShowReport/data?SHOWTYPE=JSON&CATALOGID=1842_xxpl_after&PAGENO=1",
+                        "detailBaseUrl", "https://www.szse.cn/api/report"))),
+                    Map.entry("sleepMillis", 500), Map.entry("timeoutMillis", 30000),
+                    Map.entry("zoneId", "Asia/Shanghai"), Map.entry("language", "zh-CN"))), null);
+    }
+
+    private Preset szseListingDisclosure() {
+        String code = "szse_listing_disclosure";
+        String name = "深交所发行上市审核披露";
+        String url = "https://www.szse.cn/listing/disclosure/ipo/index.html";
+        String api = "https://www.szse.cn/api/ras/infodisc/query?pageIndex=0&pageSize=10&keywords=&disclosedStartDate=&disclosedEndDate=&catalog=&boardCode=&bizType=";
+        return new Preset(code, name, "采集IPO、再融资、重大资产重组当前一级项目动态及其全部二级披露文件。",
+            new SourceUpsert(code, name, "SZSE_DISCLOSURE", url, "szse.cn", "0 */15 * * * *", false,
+                Map.ofEntries(
+                    Map.entry("presetVersion", 1), Map.entry("provider", "SZSE"), Map.entry("itemLimit", 10),
+                    Map.entry("feeds", List.of(
+                        Map.of("kind", "RAS_PROJECTS", "category", "IPO审核信息披露", "url", api + "1",
+                            "attachmentBaseUrl", "https://reportdocs.static.szse.cn"),
+                        Map.of("kind", "RAS_PROJECTS", "category", "再融资审核信息披露", "url", api + "2",
+                            "attachmentBaseUrl", "https://reportdocs.static.szse.cn"),
+                        Map.of("kind", "RAS_PROJECTS", "category", "重大资产重组审核信息披露", "url", api + "3",
+                            "attachmentBaseUrl", "https://reportdocs.static.szse.cn"))),
+                    Map.entry("attachmentAllowedDomains", "reportdocs.static.szse.cn"),
+                    Map.entry("sleepMillis", 500), Map.entry("timeoutMillis", 30000),
+                    Map.entry("zoneId", "Asia/Shanghai"), Map.entry("language", "zh-CN"))), null);
     }
 
     private Preset cninfoLatestSections() {
@@ -260,8 +335,9 @@ public class NewsSourcePresetCatalog {
             "采集东方财富财经首页的数字编号文章详情，排除栏目和导航页面。",
             new SourceUpsert("eastmoney_finance", "东方财富财经", "WEB_LIST", url, "eastmoney.com",
                 "0 */10 * * * *", false,
-                Map.of("presetVersion", 2, "sleepMillis", 1000, "timeoutMillis", 20000,
-                    "zoneId", "Asia/Shanghai", "language", "zh-CN")),
+                Map.ofEntries(Map.entry("presetVersion", 2), Map.entry("legalRisk", true),
+                    Map.entry("sleepMillis", 1000), Map.entry("timeoutMillis", 20000),
+                    Map.entry("zoneId", "Asia/Shanghai"), Map.entry("language", "zh-CN"))),
             new RuleUpsert(null, "a[href*='/a/'][href$='.html']", ".title",
                 "#ContentBody", ".infos .item:nth-of-type(2)", ".infos .item:first-of-type",
                 "https?://finance\\.eastmoney\\.com/a/\\d+\\.html(?:\\?.*)?"));

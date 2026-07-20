@@ -9,7 +9,8 @@ class NewsSourcePresetCatalogTest {
     void providesSafeDisabledNewsPresetsIncludingExchangeHomeSnapshots() {
         var presets = new NewsSourcePresetCatalog().presets();
         assertThat(presets).extracting(NewsSourcePresetCatalog.Preset::code).containsExactly(
-            "sse_home", "szse_home", "eastmoney_finance", "cls_telegraph", "sse_announcements",
+            "sse_home", "szse_home", "szse_fund_etf_announcements", "szse_margin_business_announcements",
+            "szse_auction_public_information", "szse_listing_disclosure", "eastmoney_finance", "cls_telegraph", "sse_announcements",
             "sse_listing_announcements", "sse_trading_suspension_announcements", "sse_general_announcements",
             "sse_intraday_suspension", "sse_margin_announcements", "sse_fund_announcements",
             "sse_bond_announcements", "sse_option_announcements", "sse_ipo_latest",
@@ -44,6 +45,12 @@ class NewsSourcePresetCatalogTest {
             });
         assertThat(presets).filteredOn(preset -> "szse_announcements".equals(preset.code())).singleElement()
             .satisfies(preset -> assertThat(preset.source().entryUrl()).isEqualTo("https://www.szse.cn/disclosure/listed/notice/"));
+        assertThat(presets).filteredOn(preset -> "SZSE_DISCLOSURE".equals(preset.source().sourceType()))
+            .hasSize(4).allSatisfy(preset -> {
+                assertThat(preset.source().configuration()).containsKeys("feeds", "itemLimit", "provider");
+                assertThat(preset.description()).containsAnyOf("二级", "披露文件");
+                assertThat(preset.rule()).isNull();
+            });
         assertThat(presets).filteredOn(preset -> "sse_announcements".equals(preset.code())).singleElement()
             .satisfies(preset -> {
                 assertThat(preset.source().sourceType()).isEqualTo("SSE_ANNOUNCEMENTS");
@@ -74,6 +81,7 @@ class NewsSourcePresetCatalogTest {
         assertThat(presets).filteredOn(preset -> "eastmoney_finance".equals(preset.code())).singleElement()
             .satisfies(preset -> {
                 assertThat(preset.source().configuration()).containsEntry("presetVersion", 2);
+                assertThat(preset.source().configuration()).containsEntry("legalRisk", true);
                 assertThat(preset.rule().titleSelector()).isEqualTo(".title");
                 assertThat(preset.rule().contentSelector()).isEqualTo("#ContentBody");
                 assertThat(preset.rule().urlPattern()).contains("/a/\\d+");
@@ -81,6 +89,7 @@ class NewsSourcePresetCatalogTest {
         assertThat(presets).filteredOn(preset -> "cls_telegraph".equals(preset.code())).singleElement()
             .satisfies(preset -> {
                 assertThat(preset.source().sourceType()).isEqualTo("CLS_TELEGRAPH");
+                assertThat(preset.source().configuration()).containsEntry("legalRisk", true);
                 assertThat(preset.rule()).isNull();
             });
         assertThat(presets).filteredOn(preset -> "cninfo_announcements".equals(preset.code())).singleElement()

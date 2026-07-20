@@ -402,26 +402,17 @@
                             <div class="database-node-config-block">
                               <div class="database-node-config-head"><div><strong>参数来源</strong><p>明确每个参数来自流程输入、上游结果、固定值或系统变量。</p></div><div class="database-node-config-actions"><el-button plain type="primary" size="small" @click="syncDatabaseSqlStepParams(entry)">同步参数</el-button><el-button plain size="small" @click="addDatabaseSqlParameterMapping(entry)">新增来源</el-button></div></div>
                               <div v-for="(mapping, mappingIndex) in entry.parameterMappings" :key="`${entry.sqlCode}-mapping-${mappingIndex}`" class="database-node-mapping-row">
-                                <el-input v-model.trim="mapping.parameter" placeholder="参数名" />
-                                <el-select v-model="mapping.sourceType"><el-option label="流程输入" value="USER_INPUT" /><el-option label="系统变量" value="SYSTEM_CONTEXT" /><el-option label="上游步骤结果" value="UPSTREAM_RESULT" /><el-option label="固定值" value="STATIC" /></el-select>
+                                <el-input v-model.trim="mapping.parameter" placeholder="参数名" @change="reconcileDatabaseFlowInputs(databaseParamConfigField())" />
+                                <el-select v-model="mapping.sourceType" @change="handleDatabaseSqlMappingSourceChange(mapping)"><el-option label="流程输入" value="USER_INPUT" /><el-option label="系统变量" value="SYSTEM_CONTEXT" /><el-option label="上游步骤结果" value="UPSTREAM_RESULT" /><el-option label="固定值" value="STATIC" /></el-select>
                                 <el-select v-if="mapping.sourceType === 'UPSTREAM_RESULT'" v-model="mapping.sourceNode" placeholder="选择上游步骤"><el-option v-for="option in databaseSqlDependencyOptions(field, entry)" :key="option.value" :label="option.label" :value="option.value" /></el-select>
                                 <el-select v-else-if="mapping.sourceType === 'SYSTEM_CONTEXT'" v-model="mapping.sourceKey" filterable placeholder="选择系统内置参数"><el-option v-for="option in databaseSystemParamSourceOptions" :key="option.value" :label="option.label" :value="option.value" /></el-select>
-                                <el-input v-else-if="mapping.sourceType !== 'STATIC'" v-model.trim="mapping.sourceKey" placeholder="来源字段，默认同名" />
+                                <el-input v-else-if="mapping.sourceType !== 'STATIC'" v-model.trim="mapping.sourceKey" placeholder="来源字段，默认同名" @change="reconcileDatabaseFlowInputs(databaseParamConfigField())" />
                                 <el-input v-if="mapping.sourceType === 'UPSTREAM_RESULT'" v-model.trim="mapping.sourceExpression" placeholder="$.rows[0].customer_id" />
                                 <el-input v-else v-model="mapping.defaultValue" :placeholder="mapping.sourceType === 'STATIC' ? '固定值' : '默认值'" />
-                                <el-checkbox v-model="mapping.required">必填</el-checkbox>
+                                <el-checkbox v-model="mapping.required" @change="reconcileDatabaseFlowInputs(databaseParamConfigField())">必填</el-checkbox>
                                 <el-button plain type="danger" size="small" @click="removeDatabaseSqlParameterMapping(entry, mappingIndex)">删除</el-button>
                               </div>
                               <div v-if="!entry.parameterMappings?.length" class="database-compact-empty">尚无参数来源，点击“同步参数”从 SQL 自动识别。</div>
-                            </div>
-                            <div class="database-node-config-block">
-                              <div class="database-node-config-head"><div><strong>当前步骤固定值</strong><p>仅当前步骤使用，不对 Agent 暴露。</p></div><el-button plain size="small" @click="addDatabaseSqlStaticParameter(entry)">新增固定值</el-button></div>
-                              <div v-for="(parameter, parameterIndex) in entry.staticParameterEntries" :key="`${entry.sqlCode}-static-${parameterIndex}`" class="database-static-parameter-row">
-                                <el-input v-model.trim="parameter.name" placeholder="参数名" /><el-select v-model="parameter.type" @change="normalizeDatabaseSqlStaticParameterValue(parameter)"><el-option label="文本" value="string" /><el-option label="整数" value="integer" /><el-option label="小数" value="number" /><el-option label="布尔值" value="boolean" /><el-option label="日期" value="date" /></el-select>
-                                <el-switch v-if="parameter.type === 'boolean'" v-model="parameter.value" active-text="是" inactive-text="否" /><el-input-number v-else-if="parameter.type === 'integer'" v-model="parameter.value" class="w-100" :precision="0" controls-position="right" /><el-input-number v-else-if="parameter.type === 'number'" v-model="parameter.value" class="w-100" controls-position="right" /><el-date-picker v-else-if="parameter.type === 'date'" v-model="parameter.value" class="w-100" type="date" value-format="YYYY-MM-DD" /><el-input v-else v-model="parameter.value" placeholder="参数值" />
-                                <el-button plain type="danger" size="small" @click="removeDatabaseSqlStaticParameter(entry, parameterIndex)">删除</el-button>
-                              </div>
-                              <div v-if="!entry.staticParameterEntries?.length" class="database-compact-empty">暂无步骤固定值。</div>
                             </div>
                           </div>
 
@@ -446,7 +437,7 @@
                       <div v-if="databaseSqlSideTabs[field.key] === 'inputs'" class="database-flow-side-panel">
                         <template v-for="paramField in [databaseParamConfigField()]" :key="paramField?.key || 'flow-inputs'">
                           <template v-if="paramField">
-                            <div class="database-flow-side-head"><div><strong>对外输入参数</strong><small>Agent 或页面真正需要传入的参数</small></div><el-button text type="primary" @click="addDatabaseParamEntry(paramField)">＋ 新增</el-button></div>
+                            <div class="database-flow-side-head"><div><strong>对外输入参数</strong><small>由各步骤中选择“流程输入”的参数自动汇总</small></div></div>
                             <div
                               v-for="(param, paramIndex) in schemaDraft[paramField.key]"
                               :key="`flow-param-${paramIndex}`"
@@ -457,11 +448,11 @@
                               }"
                             >
                               <div class="database-flow-input-label"><span><i>*</i> 参数名称</span><em v-if="databaseParamRequiresTestValue(param)">必填参数</em></div>
-                              <div><el-input v-model.trim="param.name" placeholder="参数名（必填）" /><el-select v-model="param.type"><el-option v-for="option in schemaTypeOptions" :key="option.value" :label="option.label" :value="option.value" /></el-select></div>
-                              <el-select v-model="param.defaultSource" filterable placeholder="参数来源（必选）" @change="handleDatabaseParamSourceChange(param)"><el-option v-for="option in databaseParamSourceOptions" :key="option.value" :label="option.label" :value="option.value" /></el-select>
-                              <el-input v-model="param.testValue" :disabled="param.defaultSource && param.defaultSource !== 'user_input'" :placeholder="param.defaultSource && param.defaultSource !== 'user_input' ? '运行时由系统自动生成' : databaseParamRequiresTestValue(param) ? '流程测试值（测试必填）' : '流程测试值（选填）'" />
+                              <div><el-input v-model="param.name" disabled /><el-select v-model="param.type"><el-option v-for="option in schemaTypeOptions" :key="option.value" :label="option.label" :value="option.value" /></el-select></div>
+                              <el-tag type="info" effect="plain">来源：流程输入</el-tag>
+                              <el-input v-model="param.testValue" :placeholder="databaseParamRequiresTestValue(param) ? '流程测试值（测试必填）' : '流程测试值（选填）'" />
                               <small v-if="databaseParameterValidationAttempted && databaseParamTestValueMissing(param)" class="database-flow-input-error">请填写该必填参数的流程测试值</small>
-                              <div><el-checkbox v-model="param.required" :disabled="param.defaultSource && param.defaultSource !== 'user_input'">设为必填</el-checkbox><el-button text type="danger" @click="removeDatabaseParamEntry(paramField, paramIndex)">删除</el-button></div>
+                              <div><el-checkbox v-model="param.required" @change="handleDatabaseFlowInputRequiredChange(param)">设为必填</el-checkbox></div>
                             </div>
                             <div v-if="!schemaDraft[paramField.key]?.length" class="database-compact-empty">尚无流程输入，可从当前 SQL 扫描生成。</div>
                             <el-button class="w-100" plain @click="syncDatabaseParamsFromSql(paramField, true)">同步全部步骤参数</el-button>

@@ -193,9 +193,8 @@ textarea {
 .modal-panel-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
-  padding-right: 34px;
+  padding-right: 80px;
 }
 
 .modal-panel-header-title {
@@ -209,17 +208,19 @@ textarea {
 }
 
 .modal-panel-window-button {
+  position: absolute;
+  top: 0;
+  right: 48px;
   display: inline-flex;
-  flex: 0 0 auto;
   align-items: center;
-  gap: 5px;
-  height: 30px;
-  padding: 0 9px;
-  border: 1px solid var(--line);
+  justify-content: center;
+  width: 40px;
+  height: 48px;
+  padding: 0;
+  border: 0;
   border-radius: 6px;
   color: #53657d;
-  font-size: 12px;
-  background: #fff;
+  background: transparent;
   cursor: pointer;
 }
 
@@ -227,6 +228,33 @@ textarea {
   border-color: var(--el-color-primary);
   color: var(--el-color-primary);
   background: #f3f8ff;
+}
+
+.modal-panel-window-icon {
+  position: relative;
+  display: block;
+  width: 12px;
+  height: 10px;
+  border: 1.5px solid currentColor;
+  border-radius: 1px;
+  box-sizing: border-box;
+}
+
+.modal-panel-window-button.is-minimize .modal-panel-window-icon {
+  margin: 2px 0 0 2px;
+}
+
+.modal-panel-window-button.is-minimize .modal-panel-window-icon::before {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  width: 10px;
+  height: 8px;
+  border: 1.5px solid currentColor;
+  border-radius: 1px;
+  background: #fff;
+  box-sizing: border-box;
+  content: '';
 }
 
 .modal-panel--maximized {

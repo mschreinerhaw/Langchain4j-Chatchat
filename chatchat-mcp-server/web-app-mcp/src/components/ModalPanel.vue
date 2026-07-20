@@ -17,12 +17,12 @@
           v-if="maximizable"
           type="button"
           class="modal-panel-window-button"
-          :title="maximized ? '还原窗口' : '最大化窗口'"
-          :aria-label="maximized ? '还原窗口' : '最大化窗口'"
+          :class="{ 'is-minimize': maximized }"
+          :title="maximized ? '最小化窗口' : '最大化窗口'"
+          :aria-label="maximized ? '最小化窗口' : '最大化窗口'"
           @click.stop="toggleMaximized"
         >
-          <span aria-hidden="true">{{ maximized ? '❐' : '□' }}</span>
-          {{ maximized ? '还原' : '最大化' }}
+          <span class="modal-panel-window-icon" aria-hidden="true"></span>
         </button>
       </div>
     </template>

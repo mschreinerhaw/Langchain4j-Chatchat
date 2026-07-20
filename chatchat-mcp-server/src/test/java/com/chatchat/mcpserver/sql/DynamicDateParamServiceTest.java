@@ -54,7 +54,10 @@ class DynamicDateParamServiceTest {
 
         SqlDatasourceConfig datasource = datasource(jdbcUrl);
         Map<String, Object> parameters = service.enrichParameters(
-            Map.of("previous_trade_date", "${trade_date-1}"),
+            Map.of(
+                "previous_trade_date", "${trade_date-1}",
+                "next_trade_date", "{{trade_date+1}}"
+            ),
             datasource,
             "select * from customer_asset where stat_date = :trade_date"
         );
@@ -70,7 +73,8 @@ class DynamicDateParamServiceTest {
             .containsEntry("month_start", "20260701")
             .containsEntry("month_end", "20260731")
             .containsEntry("trade_date", "20260707")
-            .containsEntry("previous_trade_date", "20260706");
+            .containsEntry("previous_trade_date", "20260706")
+            .containsEntry("next_trade_date", "20260708");
         assertThat(sql).isEqualTo("select * from customer_asset where stat_date = 20260706");
     }
 

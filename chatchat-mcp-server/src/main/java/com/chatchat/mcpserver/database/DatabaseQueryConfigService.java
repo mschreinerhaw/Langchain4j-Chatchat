@@ -397,6 +397,14 @@ public class DatabaseQueryConfigService {
             step.setMaxResultRows(Math.max(1, Math.min(1000, maxRows)));
             step.setParameters(normalizeStepParameters(source.getParameters(), index));
             step.setParameterMappings(normalizeParameterMappings(source.getParameterMappings(), index));
+            Set<String> duplicatedParameterSources = new LinkedHashSet<>(step.getParameters().keySet());
+            duplicatedParameterSources.retainAll(step.getParameterMappings().stream()
+                .map(DatabaseQueryParameterMapping::getParameter)
+                .collect(java.util.stream.Collectors.toSet()));
+            if (!duplicatedParameterSources.isEmpty()) {
+                throw new IllegalArgumentException("sqlSteps[" + index + "] parameters must use exactly one source: "
+                    + String.join(", ", duplicatedParameterSources));
+            }
             step.setResultSemantic(source.getResultSemantic());
             if (step.getResultSemantic().getResultSetName() == null || step.getResultSemantic().getResultSetName().isBlank()) {
                 step.getResultSemantic().setResultSetName(code.toLowerCase(Locale.ROOT));

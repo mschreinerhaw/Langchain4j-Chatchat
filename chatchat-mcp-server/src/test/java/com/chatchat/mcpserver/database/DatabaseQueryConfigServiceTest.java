@@ -117,6 +117,27 @@ class DatabaseQueryConfigServiceTest {
     }
 
     @Test
+    void rejectsSqlParameterDeclaredByBothFixedValueAndMapping() throws Exception {
+        DatabaseQueryConfig draft = query();
+        draft.setDatasourceId("asset-1");
+        DatabaseQuerySqlStep step = sqlStep("detail", "Active order rows",
+            "select * from orders where status = :status", 1, Map.of("status", "ACTIVE"));
+        DatabaseQueryParameterMapping mapping = new DatabaseQueryParameterMapping();
+        mapping.setParameter("status");
+        mapping.setSourceType("USER_INPUT");
+        mapping.setSourceKey("status");
+        mapping.setRequired(true);
+        step.setParameterMappings(List.of(mapping));
+        draft.setSqlStepsJson(new ObjectMapper().writeValueAsString(List.of(step)));
+        when(datasourceConfigService.getEnabled("asset-1")).thenReturn(datasource("asset-1"));
+
+        assertThatThrownBy(() -> service.create(draft))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("parameters must use exactly one source")
+            .hasMessageContaining("status");
+    }
+
+    @Test
     void searchesDatabaseQueryTemplatesThroughLucene() {
         DatabaseQueryConfigService searchable = new DatabaseQueryConfigService(
             repository,
@@ -152,6 +173,8 @@ class DatabaseQueryConfigServiceTest {
         DatabaseQueryConfig config = new DatabaseQueryConfig();
         config.setToolName("query_orders");
         config.setTitle("Query orders");
+        config.setDescription("Read order data for analysis");
+        config.setImplementationSteps("Run the configured read-only SQL steps");
         config.setSqlTemplate("select id from orders");
         config.setMaxRows(50);
         config.setTimeoutSeconds(30);

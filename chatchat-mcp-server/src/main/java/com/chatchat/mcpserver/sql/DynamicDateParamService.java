@@ -151,7 +151,15 @@ public class DynamicDateParamService {
             matcher.appendReplacement(buffer, Matcher.quoteReplacement(resolveToken(token, datasource, currentDate)));
         }
         matcher.appendTail(buffer);
-        return buffer.toString();
+        Matcher mustacheMatcher = MUSTACHE_DYNAMIC_PARAM.matcher(buffer.toString());
+        StringBuffer resolved = new StringBuffer();
+        while (mustacheMatcher.find()) {
+            String token = mustacheMatcher.group(1);
+            mustacheMatcher.appendReplacement(resolved,
+                Matcher.quoteReplacement(resolveToken(token, datasource, currentDate)));
+        }
+        mustacheMatcher.appendTail(resolved);
+        return resolved.toString();
     }
 
     private String resolveToken(String token, SqlDatasourceConfig datasource, LocalDate currentDate) {

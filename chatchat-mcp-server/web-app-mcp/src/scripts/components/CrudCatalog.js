@@ -306,6 +306,9 @@ export default {
         this.databaseSqlActiveTabs[field.key] = 'sql';
         this.databaseSqlSideTabs[field.key] = 'inputs';
       });
+      this.formFields.filter(field => field.type === 'databaseParamConfig').forEach(field => {
+        this.syncDatabaseParamsFromSql(field, false);
+      });
       this.formFields.filter(field => field.unitScale).forEach(field => {
         const value = Number(this.form[field.key]);
         if (Number.isFinite(value)) {
@@ -573,6 +576,16 @@ export default {
       steps.forEach((step, stepIndex) => {
         const fixedNames = new Set((step.staticParameterEntries || []).map(item => String(item?.name || '').trim()).filter(Boolean));
         const mappings = new Map((step.parameterMappings || []).map(item => [String(item?.parameter || '').trim(), item]));
+        fixedNames.forEach(name => {
+          if (names.has(name)) {
+            errors.push(`步骤 ${stepIndex + 1} 的参数 ${name} 同时配置了流程输入和固定值，请只保留一种来源`);
+          }
+        });
+        mappings.forEach((mapping, name) => {
+          if (names.has(name) && String(mapping?.sourceType || 'USER_INPUT').toUpperCase() !== 'USER_INPUT') {
+            errors.push(`步骤 ${stepIndex + 1} 的参数 ${name} 同时配置了流程输入和${databaseMappingSourceLabel(mapping.sourceType)}，请只保留一种来源`);
+          }
+        });
         extractDatabaseQueryParameters(step.sqlContent).filter(param => !param.dynamic).forEach(param => {
           const mapping = mappings.get(param.name);
           if (!names.has(param.name) && !fixedNames.has(param.name) && !mapping) {
@@ -810,6 +823,45 @@ export default {
         entry.required = false;
       }
     },
+    reconcileDatabaseFlowInputs(field, stepsOverride = null) {
+      if (!field) return;
+      const rows = this.schemaDraft[field.key] || [];
+      const existing = new Map(rows.map(row => [String(row?.name || '').trim(), row]).filter(([name]) => name));
+      const steps = stepsOverride || normalizeDatabaseSqlSteps(this.form[field.sqlStepsKey], this.form[field.sqlKey]);
+      const externalInputs = new Map();
+      steps.forEach(step => {
+        (step.parameterMappings || []).forEach(mapping => {
+          if (String(mapping?.sourceType || 'USER_INPUT').toUpperCase() !== 'USER_INPUT') return;
+          const parameter = String(mapping?.parameter || '').trim();
+          const sourceKey = String(mapping?.sourceKey || parameter).trim();
+          if (sourceKey && (!externalInputs.has(sourceKey) || mapping.required === true)) {
+            externalInputs.set(sourceKey, mapping);
+          }
+        });
+      });
+      this.schemaDraft[field.key] = [...externalInputs.entries()].map(([name, mapping]) => {
+        const row = existing.get(name) || databaseParamRow({ name, type: 'string', required: mapping.required === true });
+        row.name = name;
+        row.defaultSource = 'user_input';
+        row.required = mapping.required === true;
+        return row;
+      });
+    },
+    handleDatabaseFlowInputRequiredChange(param) {
+      const name = String(param?.name || '').trim();
+      if (!name) return;
+      this.formFields.filter(field => field.type === 'databaseSqlSteps').forEach(field => {
+        this.databaseSqlSteps(field).forEach(step => {
+          (step.parameterMappings || []).forEach(mapping => {
+            const sourceType = String(mapping?.sourceType || 'USER_INPUT').toUpperCase();
+            const sourceKey = String(mapping?.sourceKey || mapping?.parameter || '').trim();
+            if (sourceType === 'USER_INPUT' && sourceKey === name) {
+              mapping.required = param.required === true;
+            }
+          });
+        });
+      });
+    },
     syncDatabaseParamsFromSql(field, notifyUser = false, targetSqlCode = '') {
       const rows = [...(this.schemaDraft[field.key] || [])];
       const steps = normalizeDatabaseSqlSteps(this.form[field.sqlStepsKey], this.form[field.sqlKey]);
@@ -860,7 +912,19 @@ export default {
           .map(mapping => [String(mapping.parameter).trim(), mapping]));
         extractDatabaseQueryParameters(step.sqlContent).forEach(param => {
           if (param.dynamic) {
-            ensureSchemaRow(param);
+            if (!mappingsByName.has(param.name)) {
+              mappings.push({
+                parameter: param.name,
+                sourceType: 'SYSTEM_CONTEXT',
+                sourceKey: param.defaultSource,
+                sourceNode: '',
+                sourceExpression: '$.rows[0]',
+                defaultValue: '',
+                required: false
+              });
+              mappingsByName.set(param.name, mappings[mappings.length - 1]);
+              mappingAdded += 1;
+            }
             dynamicConfigured += 1;
             return;
           }
@@ -875,6 +939,22 @@ export default {
             } else {
               mappedSkipped += 1;
             }
+            return;
+          }
+          const schemaParam = rows.find(row => String(row?.name || '').trim() === param.name);
+          if (schemaParam?.defaultSource && schemaParam.defaultSource !== 'user_input') {
+            mappings.push({
+              parameter: param.name,
+              sourceType: 'SYSTEM_CONTEXT',
+              sourceKey: schemaParam.defaultSource,
+              sourceNode: '',
+              sourceExpression: '$.rows[0]',
+              defaultValue: '',
+              required: false
+            });
+            mappingsByName.set(param.name, mappings[mappings.length - 1]);
+            mappingAdded += 1;
+            mappedSkipped += 1;
             return;
           }
           mappings.push({
@@ -894,6 +974,7 @@ export default {
       });
       this.schemaDraft[field.key] = rows;
       this.form[field.sqlStepsKey] = steps;
+      this.reconcileDatabaseFlowInputs(field, steps);
       const staleUserInputs = targetSqlCode ? [] : rows
           .filter(row => (!row.defaultSource || row.defaultSource === 'user_input') && !detectedNames.has(row.name))
           .map(row => row.name)
@@ -1002,8 +1083,29 @@ export default {
         sourceExpression: '$.rows[0]', defaultValue: '', required: false
       }];
     },
+    handleDatabaseSqlMappingSourceChange(mapping) {
+      const sourceType = String(mapping?.sourceType || 'USER_INPUT').toUpperCase();
+      if (sourceType === 'USER_INPUT') {
+        mapping.sourceKey = String(mapping.sourceKey || mapping.parameter || '').trim();
+        mapping.sourceNode = '';
+        mapping.defaultValue = '';
+      } else if (sourceType === 'SYSTEM_CONTEXT') {
+        mapping.sourceNode = '';
+        mapping.defaultValue = '';
+        mapping.required = false;
+      } else if (sourceType === 'UPSTREAM_RESULT') {
+        mapping.sourceKey = '';
+        mapping.defaultValue = '';
+      } else if (sourceType === 'STATIC') {
+        mapping.sourceKey = '';
+        mapping.sourceNode = '';
+        mapping.required = true;
+      }
+      this.reconcileDatabaseFlowInputs(this.databaseParamConfigField());
+    },
     removeDatabaseSqlParameterMapping(entry, index) {
       entry.parameterMappings = (entry.parameterMappings || []).filter((_, currentIndex) => currentIndex !== index);
+      this.reconcileDatabaseFlowInputs(this.databaseParamConfigField());
     },
     addDatabaseSqlStaticParameter(entry) {
       entry.staticParameterEntries = [...(entry.staticParameterEntries || []), {
@@ -1014,6 +1116,12 @@ export default {
       entry.staticParameterEntries = (entry.staticParameterEntries || []).filter((_, currentIndex) => currentIndex !== index);
     },
     normalizeDatabaseSqlStaticParameterValue(parameter) {
+      if (parameter.type === 'dynamic_date') {
+        if (!/^\$\{(?:today|natural_date|month|month_start|month_end|trade_date(?:[+-]\d+)?)\}$/.test(String(parameter.value || ''))) {
+          parameter.value = '${trade_date}';
+        }
+        return;
+      }
       parameter.value = coerceDatabaseStaticParameterValue(parameter.value, parameter.type || 'string');
     },
     addDatabaseResultUnit(entry) {
@@ -1379,6 +1487,30 @@ function databaseSqlStepRow(step = {}, index = 0) {
   const staticParameterEntries = Array.isArray(step.staticParameterEntries)
     ? step.staticParameterEntries.map(databaseStaticParameterRow)
     : Object.entries(parameters).map(([name, value]) => databaseStaticParameterRow({ name, value }));
+  const parameterMappings = Array.isArray(step.parameterMappings) ? step.parameterMappings.map(mapping => ({
+    parameter: mapping.parameter || '',
+    sourceType: String(mapping.sourceType || 'USER_INPUT').toUpperCase(),
+    sourceKey: mapping.sourceKey || '',
+    sourceNode: mapping.sourceNode || '',
+    sourceExpression: mapping.sourceExpression || '$.rows[0]',
+    defaultValue: mapping.defaultValue ?? '',
+    required: mapping.required === true
+  })) : [];
+  const mappedParameters = new Set(parameterMappings.map(mapping => String(mapping.parameter || '').trim()).filter(Boolean));
+  staticParameterEntries.forEach(parameter => {
+    const name = String(parameter.name || '').trim();
+    if (!name || mappedParameters.has(name)) return;
+    parameterMappings.push({
+      parameter: name,
+      sourceType: 'STATIC',
+      sourceKey: '',
+      sourceNode: '',
+      sourceExpression: '$.rows[0]',
+      defaultValue: parameter.value,
+      required: true
+    });
+    mappedParameters.add(name);
+  });
   const semantic = step.resultSemantic && typeof step.resultSemantic === 'object' ? step.resultSemantic : {};
   const primaryKeys = step.primaryKeysText !== undefined
     ? String(step.primaryKeysText || '').split(',').map(value => value.trim()).filter(Boolean)
@@ -1405,17 +1537,9 @@ function databaseSqlStepRow(step = {}, index = 0) {
     emptyResultStrategy: ['CONTINUE', 'SKIP_DEPENDENTS', 'STOP'].includes(String(step.emptyResultStrategy || '').toUpperCase())
       ? String(step.emptyResultStrategy).toUpperCase() : 'CONTINUE',
     maxResultRows: Number(step.maxResultRows || step.maxRows || 50),
-    parameters: databaseStaticParametersToObject(staticParameterEntries),
-    staticParameterEntries,
-    parameterMappings: Array.isArray(step.parameterMappings) ? step.parameterMappings.map(mapping => ({
-      parameter: mapping.parameter || '',
-      sourceType: String(mapping.sourceType || 'USER_INPUT').toUpperCase(),
-      sourceKey: mapping.sourceKey || '',
-      sourceNode: mapping.sourceNode || '',
-      sourceExpression: mapping.sourceExpression || '$.rows[0]',
-      defaultValue: mapping.defaultValue ?? '',
-      required: mapping.required === true
-    })) : [],
+    parameters: {},
+    staticParameterEntries: [],
+    parameterMappings,
     resultSemantic: {
       resultSetName: semantic.resultSetName || String(step.sqlCode || `sql_${index + 1}`).toLowerCase(),
       businessEntity: semantic.businessEntity || '',
@@ -1434,7 +1558,7 @@ function databaseSqlStepRow(step = {}, index = 0) {
 
 function databaseStaticParameterRow(parameter = {}) {
   const inferredType = databaseStaticParameterType(parameter.value);
-  const type = ['string', 'integer', 'number', 'boolean', 'date'].includes(parameter.type)
+  const type = ['string', 'integer', 'number', 'boolean', 'date', 'dynamic_date'].includes(parameter.type)
     ? parameter.type
     : inferredType;
   return {
@@ -1447,6 +1571,7 @@ function databaseStaticParameterRow(parameter = {}) {
 function databaseStaticParameterType(value) {
   if (typeof value === 'boolean') return 'boolean';
   if (typeof value === 'number') return Number.isInteger(value) ? 'integer' : 'number';
+  if (typeof value === 'string' && /^\$\{(?:today|natural_date|month|month_start|month_end|trade_date(?:[+-]\d+)?)\}$/.test(value)) return 'dynamic_date';
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return 'date';
   return 'string';
 }
@@ -1620,6 +1745,14 @@ function databaseQueryParamDescriptor(name, dynamic, token = name) {
     required: !dynamic,
     example: databaseQueryParamExample(name)
   };
+}
+
+function databaseMappingSourceLabel(sourceType) {
+  return ({
+    SYSTEM_CONTEXT: '系统变量',
+    UPSTREAM_RESULT: '上游步骤结果',
+    STATIC: '固定值'
+  })[String(sourceType || '').toUpperCase()] || '其他来源';
 }
 
 function databaseQueryParamExample(name) {

@@ -49,6 +49,7 @@ public class AgentScheduledTaskService {
     private final TenantNotificationRecipientService recipientService;
     private final EnterpriseAdminService enterpriseAdminService;
     private final SkillCatalogService skillCatalogService;
+    private final NotificationContentFormatter notificationContentFormatter;
 
     @Transactional
     public ScheduledTaskResponse create(ScheduledAgentTaskRequest request) {
@@ -552,10 +553,22 @@ public class AgentScheduledTaskService {
             Map<String, Object> payload = new LinkedHashMap<>();
             String normalizedStatus = normalizeStatus(taskStatus);
             boolean success = "SUCCESS".equals(normalizedStatus);
-            payload.put("title", "Agent调度完成：" + entity.getName());
-            payload.put("content", success
+            String fixedAnswer = success
                 ? notificationAnswer(entity, run, latest)
-                : firstText(errorMessage, "Agent任务执行失败"));
+                : firstText(errorMessage, "Agent任务执行失败");
+            if (supportsContentProtocol(entity.getNotificationChannelType())) {
+                Map<String, Object> contentProtocol = notificationContentFormatter.format(fixedAnswer);
+                payload.put("contentProtocol", contentProtocol);
+                // Compatibility for old MCP servers; protocol-aware servers ignore these two fields.
+                payload.put("title", contentProtocol.get("title"));
+                payload.put("content", fixedAnswer);
+            } else if (isSmsChannel(entity.getNotificationChannelType())) {
+                payload.put("title", notificationContentFormatter.extractTitle(fixedAnswer, 36));
+                payload.put("content", smsBrief(entity.getName(), normalizedStatus));
+            } else {
+                payload.put("title", "Agent调度完成：" + entity.getName());
+                payload.put("content", fixedAnswer);
+            }
             payload.put("level", success ? "INFO" : "CRITICAL");
             payload.put("sourceTaskId", firstText(run.getTaskId(), entity.getTaskId()));
             payload.put("scheduleId", entity.getTaskId());
@@ -596,6 +609,22 @@ public class AgentScheduledTaskService {
             }
         }
         return firstText(latest == null ? null : latest.getAnswerSummary(), "Agent任务已成功完成");
+    }
+
+    private boolean supportsContentProtocol(String channelType) {
+        String channel = channelType == null ? "" : channelType.trim().toUpperCase(Locale.ROOT);
+        return Set.of("EMAIL", "WECHAT_WORK", "DINGTALK").contains(channel);
+    }
+
+    private boolean isSmsChannel(String channelType) {
+        return "SMS".equalsIgnoreCase(channelType == null ? "" : channelType.trim());
+    }
+
+    private String smsBrief(String scheduleName, String status) {
+        String name = firstText(scheduleName, "Agent任务");
+        name = name.substring(0, Math.min(32, name.length()));
+        String statusText = "SUCCESS".equals(status) ? "成功" : "失败";
+        return "任务：" + name + "；状态：" + statusText + "；详情请登录系统查看。";
     }
 
     private void recordNotificationResult(ScheduledTaskRunEntity run, ScheduledTaskEntity entity,

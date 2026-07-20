@@ -64,6 +64,12 @@ public class NewsSourceService {
         sourceRepository.save(entity);
     }
 
+    public String lastCursor(Long sourceId) {
+        NewsSourceEntity entity = sourceRepository.findById(sourceId)
+            .orElseThrow(() -> new IllegalArgumentException("News source does not exist: " + sourceId));
+        return entity.getLastCursor();
+    }
+
     private Map<String, Object> configuration(String json) {
         if (json == null || json.isBlank()) {
             return Map.of();

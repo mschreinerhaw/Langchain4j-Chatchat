@@ -3,6 +3,8 @@
 .news-hero h2 { margin: 0 0 8px; }
 .news-hero p { margin: 0; color: var(--el-text-color-secondary); }
 .news-hero-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.cls-legal-alert p { margin: 0; line-height: 1.65; }
+.news-source-name { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .news-list-toolbar { display: grid; grid-template-columns: minmax(260px, 1fr) 180px 150px auto auto; align-items: center; gap: 12px; }
 .news-list-count { justify-self: end; color: var(--el-text-color-secondary); white-space: nowrap; }
 .news-table small { display: block; margin-top: 4px; color: var(--el-text-color-secondary); }
@@ -13,15 +15,27 @@
 .news-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; }
 .news-form-grid .wide { grid-column: 1 / -1; }
 .news-form-grid .el-select { width: 100%; }
+.collection-template-picker { display: grid; gap: 12px; margin-bottom: 20px; padding: 18px; border: 1px solid var(--el-color-primary-light-7); border-radius: 8px; background: var(--el-color-primary-light-9); }
+.collection-template-picker .el-form-item { margin-bottom: 0; }
+.collection-template-picker .el-select { width: 100%; }
+.collection-template-summary { display: grid; gap: 12px; }
+.collection-template-summary strong { color: var(--el-color-primary); }
+.collection-template-summary p { margin: 5px 0 0; color: var(--el-text-color-regular); line-height: 1.6; }
+.collection-template-summary ol { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 0; padding-left: 22px; color: var(--el-text-color-secondary); font-size: 13px; }
 .pattern-option { display: flex; align-items: center; gap: 12px; }
 .pattern-option small { overflow: hidden; color: var(--el-text-color-secondary); text-overflow: ellipsis; white-space: nowrap; }
 .schedule-table-label { display: block; font-weight: 600; color: var(--el-text-color-primary); }
+.schedule-window-label { color: var(--el-color-success) !important; }
 .schedule-builder { display: grid; gap: 18px; padding: 18px; border: 1px solid var(--el-border-color); border-radius: 8px; background: var(--el-fill-color-lighter); }
 .schedule-mode { display: flex; flex-wrap: wrap; }
 .schedule-config-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
 .schedule-interval-select { width: 180px; }
 .schedule-calendar-block { display: grid; gap: 14px; }
 .schedule-field-label { color: var(--el-text-color-regular); font-size: 14px; font-weight: 600; }
+.schedule-window-config { display: grid; gap: 14px; padding: 14px; border: 1px dashed var(--el-border-color); border-radius: 7px; background: var(--el-bg-color); }
+.schedule-window-heading { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.schedule-window-heading strong, .schedule-window-heading small { display: block; }
+.schedule-window-heading small, .schedule-window-config .schedule-config-row small { color: var(--el-text-color-secondary); }
 .weekday-picker { display: flex; flex-wrap: wrap; }
 .monthday-picker { display: grid; grid-template-columns: repeat(7, minmax(38px, 1fr)); gap: 8px; max-width: 520px; }
 .monthday-picker button { min-height: 36px; border: 1px solid var(--el-border-color); border-radius: 6px; background: var(--el-bg-color); color: var(--el-text-color-regular); cursor: pointer; }
@@ -30,7 +44,7 @@
 .schedule-preview { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; padding: 12px 14px; border-radius: 6px; background: var(--el-bg-color); }
 .schedule-preview strong { color: var(--el-color-primary); }
 .schedule-preview code { padding: 3px 7px; border-radius: 4px; background: var(--el-fill-color); color: var(--el-text-color-primary); }
-.schedule-preview span { margin-left: auto; color: var(--el-text-color-secondary); font-size: 13px; }
+.schedule-preview .schedule-timezone { margin-left: auto; color: var(--el-text-color-secondary); font-size: 13px; }
 @media (max-width: 900px) {
   .news-list-toolbar { grid-template-columns: 1fr 1fr; }
   .news-list-toolbar > :first-child { grid-column: 1 / -1; }

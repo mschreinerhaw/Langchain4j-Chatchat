@@ -52,6 +52,16 @@
 
         <el-table class="settings-table" :data="paginatedLivedata" border stripe empty-text="暂无 LiveData API">
           <el-table-column label="" width="54" align="center">
+            <template #header>
+              <el-checkbox
+                aria-label="选择本页可注册 API"
+                title="选择本页"
+                :model-value="isCurrentLivedataPageSelected"
+                :indeterminate="isCurrentLivedataPageIndeterminate"
+                :disabled="busy || !currentLivedataPageSelectableIds.length"
+                @change="toggleCurrentLivedataPage"
+              />
+            </template>
             <template #default="{ row }">
               <el-checkbox
                 :model-value="selectedLivedata.has(row.id)"

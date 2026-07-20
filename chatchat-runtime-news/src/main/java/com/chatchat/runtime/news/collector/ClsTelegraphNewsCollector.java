@@ -16,12 +16,16 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 
 /** Reads the same JSON cache used by the official CLS telegraph page. */
 @Component
@@ -52,32 +56,96 @@ public class ClsTelegraphNewsCollector implements NewsCollector {
         int accepted = 0;
         int duplicate = 0;
         int rejected = 0;
+        String nextCursor = null;
         try {
-            JsonNode root = request(source);
-            JsonNode items = root.path("data").path("roll_data");
-            if (!items.isArray()) throw new IllegalStateException("CLS response has no roll_data array");
-            for (JsonNode item : items) {
-                discovered++;
-                NewsAcceptance result = sink.accept(toRawItem(source, item));
-                if (result == NewsAcceptance.ACCEPTED) accepted++;
-                else if (result == NewsAcceptance.DUPLICATE) duplicate++;
-                else rejected++;
+            int pageSize = Math.max(1, Math.min(intConfig(source, "itemLimit", 20), 100));
+            int maxPages = Math.max(1, intConfig(source, "maxPagesPerRun", 200));
+            Checkpoint checkpoint = Checkpoint.parse(context.lastCursor());
+            long bootstrapCutoff = context.startedAt().minus(
+                Duration.ofHours(Math.max(1, intConfig(source, "initialBackfillHours", 24)))).getEpochSecond();
+            long pageCursor = 0;
+            Set<Long> seenIds = new HashSet<>();
+            boolean boundaryReached = false;
+            pageLoop:
+            for (int page = 0; page < maxPages; page++) {
+                List<JsonNode> items = requestPage(source, pageCursor, pageSize);
+                if (items.isEmpty()) {
+                    if (checkpoint == null || page > 0) boundaryReached = true;
+                    break;
+                }
+                long oldestTime = Long.MAX_VALUE;
+                for (JsonNode item : items) {
+                    long id = item.path("id").asLong(0);
+                    long ctime = item.path("ctime").asLong(0);
+                    if (nextCursor == null && id > 0 && ctime > 0) nextCursor = id + ":" + ctime;
+                    if (checkpoint != null && (id == checkpoint.id()
+                        || (ctime > 0 && ctime < checkpoint.ctime()))) {
+                        boundaryReached = true;
+                        break pageLoop;
+                    }
+                    if (checkpoint == null && ctime > 0 && ctime < bootstrapCutoff) {
+                        boundaryReached = true;
+                        break pageLoop;
+                    }
+                    if (id > 0 && !seenIds.add(id)) continue;
+                    discovered++;
+                    NewsAcceptance result = sink.accept(toRawItem(source, item));
+                    if (result == NewsAcceptance.ACCEPTED) accepted++;
+                    else if (result == NewsAcceptance.DUPLICATE) duplicate++;
+                    else rejected++;
+                    if (ctime > 0) oldestTime = Math.min(oldestTime, ctime);
+                }
+                if (oldestTime == Long.MAX_VALUE) {
+                    throw new IllegalStateException("CLS pagination made no timestamp progress");
+                }
+                pageCursor = oldestTime;
+                pause(source);
+            }
+            if (!boundaryReached) {
+                throw new IllegalStateException("CLS maxPagesPerRun reached before the saved cursor; cursor not advanced");
+            }
+            if (rejected > 0) {
+                return new NewsCollectResult(context.executionId(), source.id(), discovered, accepted, duplicate,
+                    rejected, 1, "CLS items were rejected; saved cursor was not advanced");
             }
             return new NewsCollectResult(context.executionId(), source.id(), discovered, accepted, duplicate,
-                rejected, 0, null);
+                rejected, 0, null, nextCursor == null ? context.lastCursor() : nextCursor);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            return new NewsCollectResult(context.executionId(), source.id(), discovered, accepted, duplicate,
+                rejected, 1, "CLS collection interrupted");
         } catch (Exception ex) {
             return new NewsCollectResult(context.executionId(), source.id(), discovered, accepted, duplicate,
                 rejected, 1, ex.getMessage());
         }
     }
 
-    private JsonNode request(NewsSource source) throws Exception {
-        int limit = Math.max(1, Math.min(intConfig(source, "itemLimit", 30), 100));
-        long lastTime = Instant.now().getEpochSecond();
-        String apiUrl = stringConfig(source, "apiUrl", "https://www.cls.cn/api/cache");
+    private List<JsonNode> requestPage(NewsSource source, long lastTime, int limit) throws Exception {
+        List<JsonNode> items = new ArrayList<>(request(source,
+            stringConfig(source, "apiUrl", "https://www.cls.cn/api/cache"), Map.of(
+                "rn", String.valueOf(limit), "lastTime", String.valueOf(lastTime), "name", "telegraph")));
+        if (items.size() < limit) {
+            long historyCursor = items.isEmpty() ? lastTime : items.get(items.size() - 1).path("ctime").asLong(lastTime);
+            items.addAll(request(source,
+                stringConfig(source, "rollApiUrl", "https://www.cls.cn/v1/roll/get_roll_list"), Map.of(
+                    "refresh_type", "1", "rn", String.valueOf(limit - items.size()),
+                    "last_time", String.valueOf(historyCursor))));
+        }
+        return items;
+    }
+
+    private List<JsonNode> request(NewsSource source, String apiUrl, Map<String, String> parameters) throws Exception {
+        Map<String, String> signed = new TreeMap<>(parameters);
+        signed.put("app", "CailianpressWeb");
+        signed.put("os", "web");
+        signed.put("sv", stringConfig(source, "apiVersion", "8.7.9"));
+        signed.put("sign", sign(signed));
         String separator = apiUrl.contains("?") ? "&" : "?";
-        String url = apiUrl + separator + "rn=" + limit + "&lastTime=" + lastTime + "&name="
-            + URLEncoder.encode("telegraph", StandardCharsets.UTF_8);
+        String query = signed.entrySet().stream()
+            .map(entry -> URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8) + "="
+                + URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8))
+            .collect(java.util.stream.Collectors.joining("&"));
+        String url = apiUrl + separator + query;
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
             .timeout(Duration.ofMillis(intConfig(source, "timeoutMillis", 20_000)))
             .header("Accept", "application/json")
@@ -92,7 +160,26 @@ public class ClsTelegraphNewsCollector implements NewsCollector {
         if (root.path("errno").asInt(-1) != 0) {
             throw new IllegalStateException("CLS API error: " + root.path("msg").asText(root.toString()));
         }
-        return root;
+        JsonNode items = root.path("data").path("roll_data");
+        if (!items.isArray()) throw new IllegalStateException("CLS response has no roll_data array");
+        List<JsonNode> result = new ArrayList<>();
+        items.forEach(result::add);
+        return result;
+    }
+
+    private String sign(Map<String, String> parameters) throws Exception {
+        String canonical = new TreeMap<>(parameters).entrySet().stream()
+            .map(entry -> entry.getKey() + "=" + entry.getValue())
+            .collect(java.util.stream.Collectors.joining("&"));
+        byte[] sha1 = MessageDigest.getInstance("SHA-1").digest(canonical.getBytes(StandardCharsets.UTF_8));
+        byte[] md5 = MessageDigest.getInstance("MD5").digest(hex(sha1).getBytes(StandardCharsets.UTF_8));
+        return hex(md5);
+    }
+
+    private String hex(byte[] bytes) {
+        StringBuilder value = new StringBuilder(bytes.length * 2);
+        for (byte item : bytes) value.append(String.format("%02x", item & 0xff));
+        return value.toString();
     }
 
     private RawNewsItem toRawItem(NewsSource source, JsonNode item) {
@@ -131,5 +218,22 @@ public class ClsTelegraphNewsCollector implements NewsCollector {
     private int intConfig(NewsSource source, String key, int fallback) {
         Object value = source.configuration().get(key);
         return value instanceof Number number ? number.intValue() : fallback;
+    }
+
+    private void pause(NewsSource source) throws InterruptedException {
+        long millis = Math.max(0, intConfig(source, "sleepMillis", 0));
+        if (millis > 0) Thread.sleep(millis);
+    }
+
+    private record Checkpoint(long id, long ctime) {
+        private static Checkpoint parse(String value) {
+            if (value == null || value.isBlank()) return null;
+            String[] parts = value.trim().split(":", 2);
+            try {
+                return new Checkpoint(Long.parseLong(parts[0]), parts.length > 1 ? Long.parseLong(parts[1]) : 0);
+            } catch (NumberFormatException ex) {
+                throw new IllegalArgumentException("Invalid CLS cursor: " + value, ex);
+            }
+        }
     }
 }

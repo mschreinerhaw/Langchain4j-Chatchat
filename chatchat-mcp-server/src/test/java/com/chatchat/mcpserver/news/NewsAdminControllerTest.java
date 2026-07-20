@@ -27,7 +27,7 @@ class NewsAdminControllerTest {
             .thenReturn(com.chatchat.common.tool.ToolOutput.success(java.util.Map.of("count", 0, "items", java.util.List.of())));
 
         var mvc = standaloneSetup(new NewsAdminController(runtime, mock(NewsSourcePresetCatalog.class),
-            new NewsExtractionPatternCatalog(), presetSeeder)).build();
+            new NewsExtractionPatternCatalog(), new NewsCollectionTemplateCatalog(), presetSeeder)).build();
         mvc.perform(get("/api/v1/news/sources"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data").isArray());
         verify(presetSeeder).seedMissingPresets();
@@ -49,5 +49,9 @@ class NewsAdminControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data[0].code").value("all_http_pages"))
             .andExpect(jsonPath("$.data[5].code").value("document_attachment"));
+        mvc.perform(get("/api/v1/news/collection-templates"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].code").value("disclosure_list_detail"))
+            .andExpect(jsonPath("$.data[0].workflow").isArray());
     }
 }

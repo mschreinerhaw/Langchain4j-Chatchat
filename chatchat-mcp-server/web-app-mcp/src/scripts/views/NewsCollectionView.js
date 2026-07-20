@@ -3,7 +3,7 @@ import { ElMessageBox } from 'element-plus';
 import '../../styles/views/news-collection.css';
 
 const emptyRule = () => ({ listSelector: '', linkSelector: '', titleSelector: '', contentSelector: '', authorSelector: '', publishTimeSelector: '', urlPattern: '' });
-const emptyForm = () => ({ id: null, sourceCode: '', sourceName: '', sourceType: 'WEB_LIST', entryUrl: '', allowedDomain: '', scheduleCron: '0 */10 * * * *', enabled: false, configuration: { sleepMillis: 1000, timeoutMillis: 20000, zoneId: 'Asia/Shanghai', language: 'zh-CN', attachmentSelector: '', attachmentAllowedDomains: '' }, rule: emptyRule() });
+const emptyForm = () => ({ id: null, sourceCode: '', sourceName: '', sourceType: 'WEB_LIST', entryUrl: '', allowedDomain: '', scheduleCron: '0 */10 * * * *', enabled: false, configuration: { sleepMillis: 1000, timeoutMillis: 20000, zoneId: 'Asia/Shanghai', language: 'zh-CN', scheduleWindowEnabled: false, scheduleWindowStart: '09:00', scheduleWindowEnd: '12:00', attachmentSelector: '', attachmentAllowedDomains: '' }, rule: emptyRule() });
 const intervalOptions = [
   { label: '5 分钟', cron: '0 */5 * * * *' },
   { label: '10 分钟', cron: '0 */10 * * * *' },
@@ -114,7 +114,8 @@ export default {
   name: 'NewsCollectionView',
   emits: ['notify', 'error', 'result'],
   data: () => ({
-    sources: [], presets: [], patternPresets: [], loading: false, saving: false, collectingId: null, checkingRobotsId: null, dialogOpen: false,
+    sources: [], presets: [], patternPresets: [], collectionTemplates: [], selectedCollectionTemplateCode: '',
+    loading: false, saving: false, collectingId: null, checkingRobotsId: null, dialogOpen: false,
     robotsOverrideDialogOpen: false, robotsOverrideSaving: false, robotsOverrideSource: null,
     robotsOverrideForm: { reason: '', hours: 24, acknowledged: false },
     logDialogOpen: false, logsLoading: false, logs: [], logSourceId: '', logPage: 1, logPageSize: 20, logTotal: 0,
@@ -138,13 +139,20 @@ export default {
     pagedSources() {
       const start = (this.page - 1) * this.pageSize;
       return this.filteredSources.slice(start, start + this.pageSize);
+    },
+    selectedCollectionTemplate() {
+      return this.collectionTemplates.find(template => template.code === this.selectedCollectionTemplateCode) || null;
     }
   },
   mounted() { this.load(); },
   methods: {
     async load() {
       this.loading = true;
-      try { [this.sources, this.presets, this.patternPresets] = await Promise.all([newsApi.listSources(), newsApi.listPresets(), newsApi.listPatternPresets()]); }
+      try {
+        [this.sources, this.presets, this.patternPresets, this.collectionTemplates] = await Promise.all([
+          newsApi.listSources(), newsApi.listPresets(), newsApi.listPatternPresets(), newsApi.listCollectionTemplates()
+        ]);
+      }
       catch (error) { this.$emit('error', error); }
       finally {
         const lastPage = Math.max(1, Math.ceil(this.filteredSources.length / this.pageSize));
@@ -198,6 +206,7 @@ export default {
     },
     createSource() {
       this.form = emptyForm();
+      this.selectedCollectionTemplateCode = '';
       this.scheduleEditor = decodeCron(this.form.scheduleCron);
       this.dialogOpen = true;
     },
@@ -205,11 +214,42 @@ export default {
       try {
         const rule = await newsApi.getRule(source.id);
         this.form = { ...emptyForm(), ...source, configuration: { ...emptyForm().configuration, ...(source.configuration || {}) }, rule: { ...emptyRule(), ...(rule || {}) } };
+        this.selectedCollectionTemplateCode = source.configuration?.templateCode || '';
         this.scheduleEditor = decodeCron(this.form.scheduleCron);
         this.dialogOpen = true;
       } catch (error) { this.$emit('error', error); }
     },
+    applyCollectionTemplate(code) {
+      const template = this.collectionTemplates.find(item => item.code === code);
+      if (!template) return;
+      const defaults = emptyForm();
+      this.form = {
+        ...defaults,
+        id: this.form.id,
+        sourceCode: this.form.sourceCode,
+        sourceName: this.form.sourceName,
+        entryUrl: this.form.entryUrl,
+        allowedDomain: this.form.allowedDomain,
+        enabled: false,
+        sourceType: template.sourceType,
+        scheduleCron: template.scheduleCron || defaults.scheduleCron,
+        configuration: { ...defaults.configuration, ...(template.configuration || {}) },
+        rule: { ...emptyRule(), ...(template.rule || {}) }
+      };
+      this.scheduleEditor = decodeCron(this.form.scheduleCron);
+      this.$emit('notify', { title: '已应用采集模板', message: template.name });
+    },
+    fillAllowedDomainFromEntryUrl() {
+      if (this.form.allowedDomain || !this.form.entryUrl) return;
+      try {
+        const host = new URL(this.form.entryUrl).hostname.toLowerCase();
+        this.form.allowedDomain = host.startsWith('www.') ? host.slice(4) : host;
+      } catch (error) {
+        // URL validity is checked again when the source is saved.
+      }
+    },
     async save() {
+      if (!this.validateScheduleWindow()) return;
       this.saving = true;
       try {
         this.applyVisualSchedule();
@@ -346,6 +386,23 @@ export default {
     },
     describeCron(cron) {
       return decodeCron(cron).description;
+    },
+    describeScheduleWindow(configuration) {
+      if (!configuration?.scheduleWindowEnabled) return '';
+      return `采集时段 ${configuration.scheduleWindowStart || '--:--'}–${configuration.scheduleWindowEnd || '--:--'}`;
+    },
+    validateScheduleWindow() {
+      const configuration = this.form.configuration || {};
+      if (!configuration.scheduleWindowEnabled) return true;
+      if (!configuration.scheduleWindowStart || !configuration.scheduleWindowEnd) {
+        this.$emit('notify', { type: 'danger', title: '请完整设置采集时段', message: '启用时间段后，开始和结束时间都不能为空。' });
+        return false;
+      }
+      if (configuration.scheduleWindowStart === configuration.scheduleWindowEnd) {
+        this.$emit('notify', { type: 'danger', title: '采集时段无效', message: '开始时间和结束时间不能相同。' });
+        return false;
+      }
+      return true;
     }
   }
 };

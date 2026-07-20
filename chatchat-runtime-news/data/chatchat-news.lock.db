@@ -1,6 +1,6 @@
 #FileLock
-#Sun Jul 19 16:03:52 CST 2026
-server=192.168.96.1\:56505
-hostName=123321123321111
+#Mon Jul 20 11:23:00 CST 2026
+server=10.8.34.97\:61483
+hostName=DESKTOP-O6GJG88
 method=file
-id=19f796724fe4f2de332ae75a878f55d007696f4163d
+id=19f7d8c5a016038d76e874bfc5b1949eefb3cea65ec

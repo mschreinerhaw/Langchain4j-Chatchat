@@ -10,6 +10,18 @@
     </el-card>
 
     <el-alert title="所有资讯源在启用和采集前都会检测 robots.txt。明确禁止或无法可靠确认许可时将停止采集并提示原因；robots.txt 检测不替代网站使用条款及法律审查。" type="warning" :closable="false" show-icon />
+    <el-alert
+      class="cls-legal-alert"
+      title="财联社电报法律与版权风险提示"
+      type="warning"
+      :closable="false"
+      show-icon
+    >
+      <p>
+        财联社电报采集仅限内部原型验证和实验。证券正式产品不得依赖未经授权的全文抓取；正式上线应使用已获授权的数据源，
+        或仅保存必要元数据及合规的 AI 加工结果，并在上线前完成网站条款、版权、数据使用及法律审查。
+      </p>
+    </el-alert>
 
     <section class="news-list-toolbar">
       <el-input
@@ -32,12 +44,27 @@
     </section>
 
     <el-table v-loading="loading" :data="pagedSources" border stripe class="news-table" empty-text="暂无匹配的资讯源">
-      <el-table-column prop="sourceName" label="资讯源" min-width="170"><template #default="{ row }"><strong>{{ row.sourceName }}</strong><small>{{ row.sourceCode }}</small></template></el-table-column>
+      <el-table-column prop="sourceName" label="资讯源" min-width="190">
+        <template #default="{ row }">
+          <div class="news-source-name">
+            <strong>{{ row.sourceName }}</strong>
+            <el-tag
+              v-if="row.sourceType === 'CLS_TELEGRAPH'"
+              type="warning"
+              effect="plain"
+              size="small"
+              title="仅限内部原型验证；正式产品上线前必须确认数据授权与版权合规。"
+            >法律风险</el-tag>
+          </div>
+          <small>{{ row.sourceCode }}</small>
+        </template>
+      </el-table-column>
       <el-table-column label="类型" width="140"><template #default="{ row }">{{ sourceTypeLabel(row.sourceType) }}</template></el-table-column>
       <el-table-column prop="entryUrl" label="入口地址" min-width="300" show-overflow-tooltip />
       <el-table-column label="调度计划" width="190">
         <template #default="{ row }">
           <span class="schedule-table-label">{{ describeCron(row.scheduleCron) }}</span>
+          <small v-if="row.configuration?.scheduleWindowEnabled" class="schedule-window-label">{{ describeScheduleWindow(row.configuration) }}</small>
           <small>{{ row.scheduleCron }}</small>
         </template>
       </el-table-column>
@@ -68,11 +95,44 @@
 
     <el-dialog v-model="dialogOpen" :title="form.id ? '编辑资讯源' : '新增资讯源'" width="900px" destroy-on-close>
       <el-form label-position="top" class="news-form">
+        <section v-if="!form.id" class="collection-template-picker">
+          <el-form-item label="采集流程模板">
+            <el-select
+              v-model="selectedCollectionTemplateCode"
+              clearable
+              filterable
+              placeholder="选择模板快速生成一级页面和二级详情规则"
+              @change="applyCollectionTemplate"
+            >
+              <el-option
+                v-for="template in collectionTemplates"
+                :key="template.code"
+                :label="`${template.category} / ${template.name}`"
+                :value="template.code"
+              />
+            </el-select>
+          </el-form-item>
+          <div v-if="selectedCollectionTemplate" class="collection-template-summary">
+            <div>
+              <strong>{{ selectedCollectionTemplate.name }}</strong>
+              <p>{{ selectedCollectionTemplate.description }}</p>
+            </div>
+            <ol>
+              <li v-for="step in selectedCollectionTemplate.workflow" :key="step">{{ step }}</li>
+            </ol>
+            <el-alert
+              :title="selectedCollectionTemplate.notes.join('；')"
+              type="warning"
+              :closable="false"
+              show-icon
+            />
+          </div>
+        </section>
         <div class="news-form-grid">
           <el-form-item label="来源编码"><el-input v-model.trim="form.sourceCode" /></el-form-item>
           <el-form-item label="来源名称"><el-input v-model.trim="form.sourceName" /></el-form-item>
           <el-form-item label="来源类型"><el-select v-model="form.sourceType"><el-option label="交易所首页（内置）" value="EXCHANGE_HOME" disabled /><el-option label="深交所首页（内置）" value="SZSE_HOME" disabled /><el-option label="资讯首页（内置）" value="NEWS_HOME" disabled /><el-option label="巨潮资讯首页（内置）" value="CNINFO_HOME" disabled /><el-option label="财联社电报（内置）" value="CLS_TELEGRAPH" disabled /><el-option label="巨潮公告（内置）" value="CNINFO_ANNOUNCEMENTS" disabled /><el-option label="上交所公告（内置）" value="SSE_ANNOUNCEMENTS" disabled /><el-option label="网页列表" value="WEB_LIST" /><el-option label="固定网页" value="WEB_SINGLE_PAGE" /><el-option label="RSS/Atom" value="RSS" /><el-option label="JSON API" value="API" /></el-select></el-form-item>
-          <el-form-item class="wide" label="入口地址"><el-input v-model.trim="form.entryUrl" /></el-form-item>
+          <el-form-item class="wide" label="入口地址"><el-input v-model.trim="form.entryUrl" @blur="fillAllowedDomainFromEntryUrl" /></el-form-item>
           <el-form-item label="允许域名"><el-input v-model.trim="form.allowedDomain" /></el-form-item>
           <el-form-item label="启用"><el-switch v-model="form.enabled" /></el-form-item>
           <el-form-item label="请求间隔(ms)"><el-input-number v-model="form.configuration.sleepMillis" :min="0" :max="60000" /></el-form-item>
@@ -138,10 +198,28 @@
             <template #prepend>Cron</template>
           </el-input>
 
+          <div class="schedule-window-config">
+            <div class="schedule-window-heading">
+              <div>
+                <strong>限制每日采集时段</strong>
+                <small>只限制自动调度，“立即采集”不受影响</small>
+              </div>
+              <el-switch v-model="form.configuration.scheduleWindowEnabled" />
+            </div>
+            <div v-if="form.configuration.scheduleWindowEnabled" class="schedule-config-row">
+              <span>每天</span>
+              <el-time-picker v-model="form.configuration.scheduleWindowStart" format="HH:mm" value-format="HH:mm" :clearable="false" />
+              <span>至</span>
+              <el-time-picker v-model="form.configuration.scheduleWindowEnd" format="HH:mm" value-format="HH:mm" :clearable="false" />
+              <small>开始时间包含、结束时间不包含；例如 09:00–12:00。也支持 22:00–02:00 跨夜时段。</small>
+            </div>
+          </div>
+
           <div class="schedule-preview">
             <strong>{{ describeCron(form.scheduleCron) }}</strong>
             <code>{{ form.scheduleCron }}</code>
-            <span>时区：{{ form.configuration.zoneId || 'Asia/Shanghai' }}</span>
+            <el-tag v-if="form.configuration.scheduleWindowEnabled" type="success" effect="plain">{{ describeScheduleWindow(form.configuration) }}</el-tag>
+            <span class="schedule-timezone">时区：{{ form.configuration.zoneId || 'Asia/Shanghai' }}</span>
           </div>
         </section>
         <el-divider v-if="['WEB_LIST','WEB_SINGLE_PAGE'].includes(form.sourceType)" content-position="left">网页抽取规则</el-divider>

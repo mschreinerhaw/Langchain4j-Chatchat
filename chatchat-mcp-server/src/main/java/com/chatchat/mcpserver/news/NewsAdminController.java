@@ -14,13 +14,17 @@ public class NewsAdminController {
     private final NewsRuntimeClient runtime;
     private final NewsSourcePresetCatalog presetCatalog;
     private final NewsExtractionPatternCatalog patternCatalog;
+    private final NewsCollectionTemplateCatalog collectionTemplateCatalog;
     private final NewsSourcePresetSeeder presetSeeder;
 
     public NewsAdminController(NewsRuntimeClient runtime, NewsSourcePresetCatalog presetCatalog,
-                               NewsExtractionPatternCatalog patternCatalog, NewsSourcePresetSeeder presetSeeder) {
+                               NewsExtractionPatternCatalog patternCatalog,
+                               NewsCollectionTemplateCatalog collectionTemplateCatalog,
+                               NewsSourcePresetSeeder presetSeeder) {
         this.runtime = runtime;
         this.presetCatalog = presetCatalog;
         this.patternCatalog = patternCatalog;
+        this.collectionTemplateCatalog = collectionTemplateCatalog;
         this.presetSeeder = presetSeeder;
     }
 
@@ -71,6 +75,10 @@ public class NewsAdminController {
     @GetMapping("/pattern-presets")
     public ApiResponse<List<NewsExtractionPatternCatalog.PatternPreset>> patternPresets() {
         return ApiResponse.success(patternCatalog.presets());
+    }
+    @GetMapping("/collection-templates")
+    public ApiResponse<List<NewsCollectionTemplateCatalog.CollectionTemplate>> collectionTemplates() {
+        return ApiResponse.success(collectionTemplateCatalog.templates());
     }
 
 }

@@ -75,4 +75,57 @@ class SseAnnouncementCollectorTest {
                 List.of(base + "/disclosure/listedinfo/announcement/c/new/2026-07-18/600008_test.pdf"));
         });
     }
+
+    @Test
+    void collectsConfiguredLatestPageFeedsAndKeepsSectionAndSecondaryPdf() throws Exception {
+        server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+        server.createContext("/fund.json", exchange -> {
+            byte[] body = """
+                {"publishData":[{"discloseId":"f1","discloseDate":"2026-07-20",
+                "bulletinTitle":"基金最新公告","bulletinUrl":"/files/fund.pdf",
+                "securityCode":"510001","securityAbbr":"测试基金"}]}
+                """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.createContext("/ipo.json", exchange -> {
+            byte[] body = """
+                {"pageHelp":{"data":[{"stockAuditNum":"2206","stockAuditName":"测试发行人",
+                "updateDate":"20260719220518","currStatusDesc":"已受理"}]}}
+                """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.start();
+        String base = "http://localhost:" + server.getAddress().getPort();
+        List<RawNewsItem> items = new ArrayList<>();
+        SseAnnouncementCollector collector = new SseAnnouncementCollector(
+            item -> { items.add(item); return NewsAcceptance.ACCEPTED; }, new ObjectMapper(),
+            new NewsRuntimeProperties());
+        NewsSource source = new NewsSource(12L, "sse_latest", "上交所最新页",
+            NewsSourceType.SSE_ANNOUNCEMENTS, base + "/entry", "localhost", Map.of(),
+            Map.of("itemLimit", 1, "feeds", List.of(
+                Map.of("url", base + "/fund.json", "itemsPath", "publishData", "category", "最新基金公告",
+                    "titleField", "bulletinTitle", "dateField", "discloseDate", "codeField", "securityCode",
+                    "nameField", "securityAbbr", "urlField", "bulletinUrl", "baseUrl", base),
+                Map.of("url", base + "/ipo.json", "itemsPath", "pageHelp.data", "category", "发行上市最新动态",
+                    "titleField", "stockAuditName", "dateField", "updateDate", "codeField", "stockAuditNum",
+                    "urlTemplate", "/ipo/detail?auditId={stockAuditNum}", "baseUrl", base,
+                    "contentFields", List.of("currStatusDesc")))), true);
+
+        var result = collector.collect(source,
+            new NewsCollectContext("latest", Instant.parse("2026-07-20T04:00:00Z")));
+
+        assertThat(result.failedCount()).isZero();
+        assertThat(result.acceptedCount()).isEqualTo(2);
+        assertThat(items).extracting(RawNewsItem::title).containsExactly("基金最新公告", "测试发行人");
+        assertThat(items.get(0).categories()).containsExactly("最新基金公告");
+        assertThat(items.get(0).metadata().get("attachmentUrls")).isEqualTo(List.of(base + "/files/fund.pdf"));
+        assertThat(items.get(1).sourceUrl()).isEqualTo(base + "/ipo/detail?auditId=2206");
+        assertThat(items.get(1).content()).contains("currStatusDesc：已受理", "二级原文");
+    }
 }

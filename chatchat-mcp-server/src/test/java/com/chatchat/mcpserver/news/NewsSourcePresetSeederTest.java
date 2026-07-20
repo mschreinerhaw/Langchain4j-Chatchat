@@ -17,8 +17,8 @@ class NewsSourcePresetSeederTest {
         boolean synchronizedSuccessfully = new NewsSourcePresetSeeder(runtime, new NewsSourcePresetCatalog()).seedMissingPresets();
 
         org.assertj.core.api.Assertions.assertThat(synchronizedSuccessfully).isTrue();
-        verify(runtime, times(8)).post(eq("/sources"), any());
-        verify(runtime, times(2)).put(contains("/rule"), any());
+        verify(runtime, times(18)).post(eq("/sources"), any());
+        verify(runtime, times(6)).put(contains("/rule"), any());
     }
 
     @Test
@@ -34,7 +34,7 @@ class NewsSourcePresetSeederTest {
         seeder.retryInitialSynchronization();
 
         verify(runtime, times(2)).get("/sources");
-        verify(runtime, times(8)).post(eq("/sources"), any());
+        verify(runtime, times(18)).post(eq("/sources"), any());
     }
 
     @Test
@@ -73,8 +73,29 @@ class NewsSourcePresetSeederTest {
         verify(runtime).put(eq("/sources/11"), request.capture());
         assertThat(request.getValue().sourceType()).isEqualTo("SSE_ANNOUNCEMENTS");
         assertThat(request.getValue().enabled()).isTrue();
-        assertThat(request.getValue().entryUrl()).contains("/assortment/stock/list/info/announcement/");
-        assertThat(request.getValue().configuration()).containsKeys("apiUrl", "staticBaseUrl", "lookbackDays");
+        assertThat(request.getValue().entryUrl()).contains("/disclosure/listedinfo/announcement/");
+        assertThat(request.getValue().configuration()).containsKeys("feeds", "itemLimit", "presetVersion");
+    }
+
+    @Test
+    void upgradesClsToCursorPaginationWhilePreservingEnabledState() throws Exception {
+        NewsRuntimeClient runtime = mock(NewsRuntimeClient.class);
+        when(runtime.get("/sources")).thenReturn(new ObjectMapper().readTree("""
+            [{"id":15,"sourceCode":"cls_telegraph","sourceName":"财联社电报",
+              "sourceType":"CLS_TELEGRAPH","entryUrl":"https://www.cls.cn/telegraph",
+              "enabled":true,"configuration":{"apiUrl":"https://www.cls.cn/api/cache","itemLimit":30}}]
+            """));
+        when(runtime.post(eq("/sources"), any())).thenReturn(new ObjectMapper().readTree("{\"id\":12}"));
+
+        assertThat(new NewsSourcePresetSeeder(runtime, new NewsSourcePresetCatalog()).seedMissingPresets()).isTrue();
+
+        var request = org.mockito.ArgumentCaptor.forClass(NewsSourcePresetCatalog.SourceUpsert.class);
+        verify(runtime).put(eq("/sources/15"), request.capture());
+        assertThat(request.getValue().enabled()).isTrue();
+        assertThat(request.getValue().configuration())
+            .containsEntry("presetVersion", 2)
+            .containsEntry("maxPagesPerRun", 200)
+            .containsKeys("rollApiUrl", "initialBackfillHours");
     }
 
     @Test

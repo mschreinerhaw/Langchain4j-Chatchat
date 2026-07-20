@@ -61,8 +61,9 @@ public class NewsCollectionService {
                 .findFirst().orElseThrow(() -> new IllegalStateException("No collector for " + source.sourceType()));
             log.info("news_collect_started executionId={} sourceId={} sourceCode={} sourceType={} entryUrl={} collector={}",
                 executionId, source.id(), source.code(), source.sourceType(), source.entryUrl(), collector.getClass().getSimpleName());
-            NewsCollectResult result = collector.collect(source, new NewsCollectContext(executionId, Instant.now()));
-            if (result.failedCount() == 0) sourceService.markCollected(sourceId, null);
+            NewsCollectResult result = collector.collect(source,
+                new NewsCollectContext(executionId, Instant.now(), sourceService.lastCursor(sourceId)));
+            if (result.failedCount() == 0) sourceService.markCollected(sourceId, result.nextCursor());
             log.info("news_collect_completed executionId={} sourceId={} sourceCode={} discovered={} accepted={} duplicates={} rejected={} failed={} durationMs={} error={}",
                 executionId, source.id(), source.code(), result.discoveredCount(), result.acceptedCount(),
                 result.duplicateCount(), result.rejectedCount(), result.failedCount(),

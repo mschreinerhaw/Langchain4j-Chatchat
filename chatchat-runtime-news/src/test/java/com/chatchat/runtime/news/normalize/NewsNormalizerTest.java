@@ -14,6 +14,21 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class NewsNormalizerTest {
     @Test
+    void allowsSourceSpecificMinimumForShortTelegraphsWithoutChangingContent() {
+        NewsRuntimeProperties properties = new NewsRuntimeProperties();
+        properties.setMinimumContentChars(80);
+        NewsNormalizer normalizer = new NewsNormalizer(properties);
+        NewsSource source = new NewsSource(2L, "short", "短电报", NewsSourceType.CLS_TELEGRAPH,
+            "https://www.cls.cn/telegraph", "cls.cn", Map.of(), Map.of("minimumContentChars", 1), true);
+
+        var document = normalizer.normalize(new RawNewsItem(source, "停牌提醒", "今日停牌。",
+            null, "财联社", "https://www.cls.cn/detail/2", Instant.now(), "zh-CN",
+            List.of("财联社电报"), List.of(), Map.of()));
+
+        assertThat(document.content()).isEqualTo("今日停牌。");
+    }
+
+    @Test
     void convertsHtmlIntoModelReadyPlainText() {
         NewsRuntimeProperties properties = new NewsRuntimeProperties();
         properties.setMinimumContentChars(10);

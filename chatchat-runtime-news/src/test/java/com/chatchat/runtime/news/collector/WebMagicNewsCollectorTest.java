@@ -4,6 +4,7 @@ import com.chatchat.runtime.news.config.NewsRuntimeProperties;
 import com.chatchat.runtime.news.model.NewsCollectContext;
 import com.chatchat.runtime.news.model.NewsSource;
 import com.chatchat.runtime.news.model.NewsSourceType;
+import com.chatchat.runtime.news.model.RawNewsItem;
 import com.chatchat.runtime.news.normalize.PublishTimeParser;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
@@ -37,8 +38,10 @@ class WebMagicNewsCollectorTest {
         server.start();
         int port = server.getAddress().getPort();
         List<String> urls = new ArrayList<>();
+        List<RawNewsItem> items = new ArrayList<>();
         NewsItemSink sink = raw -> {
             urls.add(raw.sourceUrl());
+            items.add(raw);
             return NewsAcceptance.ACCEPTED;
         };
         NewsRuntimeProperties properties = new NewsRuntimeProperties();
@@ -48,12 +51,15 @@ class WebMagicNewsCollectorTest {
         NewsSource source = new NewsSource(1L, "local", "Local", NewsSourceType.WEB_LIST,
             "http://localhost:" + port + "/list", "localhost",
             Map.of("linkSelector", ".news-list a", "titleSelector", ".title", "contentSelector", ".body",
-                "urlPattern", "http://localhost:" + port + "/news/\\d+"), Map.of("sleepMillis", 0), true);
+                "urlPattern", "http://localhost:" + port + "/news/\\d+"),
+            Map.of("sleepMillis", 0, "category", "测试栏目"), true);
 
         var result = collector.collect(source, new NewsCollectContext("test", Instant.now()));
 
         assertThat(result.failedCount()).isZero();
         assertThat(urls).containsExactly("http://localhost:" + port + "/news/1");
+        assertThat(items).singleElement().satisfies(item ->
+            assertThat(item.categories()).containsExactly("测试栏目"));
     }
 
     @Test

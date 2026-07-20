@@ -15,6 +15,8 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -30,10 +32,12 @@ class ClsTelegraphNewsCollectorTest {
     void collectsTelegraphsAsIndividualModelReadyItems() throws Exception {
         server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
         server.createContext("/api/cache", exchange -> {
-            byte[] body = ("{\"errno\":0,\"data\":{\"roll_data\":[{\"id\":123,\"title\":\"重要快讯\","
+            boolean firstPage = exchange.getRequestURI().getQuery().contains("lastTime=0");
+            byte[] body = (firstPage ? "{\"errno\":0,\"data\":{\"roll_data\":[{\"id\":123,\"title\":\"重要快讯\","
                 + "\"brief\":\"快讯摘要\",\"content\":\"这是一条用于模型分析的重要快讯正文，包含足够完整的事件信息。\","
                 + "\"ctime\":1784260800,\"author\":\"财联社记者\",\"level\":\"A\",\"reading_num\":8,"
-                + "\"subjects\":[{\"subject_name\":\"市场动态\"}] }]}}")
+                + "\"subjects\":[{\"subject_name\":\"市场动态\"}] }]}}"
+                : "{\"errno\":0,\"data\":{\"roll_data\":[]}}")
                 .getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "application/json");
             exchange.sendResponseHeaders(200, body.length);
@@ -47,9 +51,10 @@ class ClsTelegraphNewsCollectorTest {
         String apiUrl = "http://localhost:" + server.getAddress().getPort() + "/api/cache";
         NewsSource source = new NewsSource(1L, "cls_telegraph", "财联社电报", NewsSourceType.CLS_TELEGRAPH,
             "https://www.cls.cn/telegraph", "cls.cn", Map.of(),
-            Map.of("apiUrl", apiUrl, "itemLimit", 20, "timeoutMillis", 5000), true);
+            Map.of("apiUrl", apiUrl, "rollApiUrl", apiUrl, "itemLimit", 1, "timeoutMillis", 5000), true);
 
-        var result = collector.collect(source, new NewsCollectContext("test", Instant.now()));
+        var result = collector.collect(source,
+            new NewsCollectContext("test", Instant.ofEpochSecond(1784264400)));
 
         assertThat(result.acceptedCount()).isOne();
         assertThat(result.failedCount()).isZero();
@@ -57,5 +62,55 @@ class ClsTelegraphNewsCollectorTest {
         assertThat(items.get(0).sourceUrl()).isEqualTo("https://www.cls.cn/detail/123");
         assertThat(items.get(0).tags()).containsExactly("市场动态");
         assertThat(items.get(0).content()).contains("重要快讯正文");
+        assertThat(result.nextCursor()).isEqualTo("123:1784260800");
+    }
+
+    @Test
+    void paginatesUntilSavedCursorAndReturnsNewestCheckpoint() throws Exception {
+        server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+        AtomicInteger historyRequests = new AtomicInteger();
+        AtomicReference<String> historyQuery = new AtomicReference<>();
+        server.createContext("/api/cache", exchange -> {
+            boolean firstPage = exchange.getRequestURI().getQuery().contains("lastTime=0");
+            String json = firstPage
+                ? "{\"errno\":0,\"data\":{\"roll_data\":["
+                    + "{\"id\":3,\"content\":\"新电报三\",\"ctime\":300},"
+                    + "{\"id\":2,\"content\":\"新电报二\",\"ctime\":200}]}}"
+                : "{\"errno\":0,\"data\":{\"roll_data\":[]}}";
+            write(exchange, json);
+        });
+        server.createContext("/v1/roll/get_roll_list", exchange -> {
+            historyRequests.incrementAndGet();
+            historyQuery.set(exchange.getRequestURI().getQuery());
+            write(exchange, "{\"errno\":0,\"data\":{\"roll_data\":["
+                + "{\"id\":1,\"content\":\"上次已采集\",\"ctime\":100}]}}");
+        });
+        server.start();
+        List<RawNewsItem> items = new ArrayList<>();
+        ClsTelegraphNewsCollector collector = new ClsTelegraphNewsCollector(
+            item -> { items.add(item); return NewsAcceptance.ACCEPTED; }, new ObjectMapper());
+        String base = "http://localhost:" + server.getAddress().getPort();
+        NewsSource source = new NewsSource(2L, "cls_cursor", "财联社游标", NewsSourceType.CLS_TELEGRAPH,
+            "https://www.cls.cn/telegraph", "cls.cn", Map.of(),
+            Map.of("apiUrl", base + "/api/cache", "rollApiUrl", base + "/v1/roll/get_roll_list",
+                "itemLimit", 2, "maxPagesPerRun", 5, "timeoutMillis", 5000), true);
+
+        var result = collector.collect(source,
+            new NewsCollectContext("resume", Instant.ofEpochSecond(400), "1:100"));
+
+        assertThat(result.failedCount()).isZero();
+        assertThat(result.discoveredCount()).isEqualTo(2);
+        assertThat(items).extracting(RawNewsItem::content).containsExactly("新电报三", "新电报二");
+        assertThat(historyRequests).hasValue(1);
+        assertThat(historyQuery.get()).contains("sign=62a1a7d6aef4fbcffa8edc118613dbbb");
+        assertThat(result.nextCursor()).isEqualTo("3:300");
+    }
+
+    private void write(com.sun.net.httpserver.HttpExchange exchange, String json) throws java.io.IOException {
+        byte[] body = json.getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().set("Content-Type", "application/json");
+        exchange.sendResponseHeaders(200, body.length);
+        exchange.getResponseBody().write(body);
+        exchange.close();
     }
 }

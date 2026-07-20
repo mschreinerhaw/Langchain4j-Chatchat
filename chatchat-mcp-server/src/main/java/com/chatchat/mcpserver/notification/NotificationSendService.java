@@ -39,6 +39,7 @@ public class NotificationSendService {
 
     private final ObjectMapper objectMapper;
     private final InvocationAuditService auditService;
+    private final NotificationContentProtocolParser contentProtocolParser;
 
     public NotificationSendResult send(NotificationChannelConfig config, Map<String, Object> arguments) {
         long startedAt = System.currentTimeMillis();
@@ -165,7 +166,7 @@ public class NotificationSendService {
     }
 
     private Map<String, Object> normalizeArguments(NotificationChannelConfig config, Map<String, Object> arguments) {
-        Map<String, Object> normalized = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
+        Map<String, Object> normalized = contentProtocolParser.resolve(arguments);
         requireText(text(normalized, "receiver"), "receiver is required");
         requireText(text(normalized, "title"), "title is required");
         requireText(text(normalized, "content"), "content is required");
@@ -268,6 +269,8 @@ public class NotificationSendService {
         notification.put("content", text(arguments, "content"));
         notification.put("level", text(arguments, "level"));
         notification.put("sourceTaskId", text(arguments, "sourceTaskId"));
+        notification.put("contentProtocolVersion", text(arguments, "contentProtocolVersion"));
+        notification.put("sourceSha256", text(arguments, "sourceSha256"));
         return notification;
     }
 

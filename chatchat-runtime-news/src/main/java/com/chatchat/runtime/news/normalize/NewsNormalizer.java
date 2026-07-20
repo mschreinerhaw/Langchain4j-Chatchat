@@ -35,7 +35,8 @@ public class NewsNormalizer {
         boolean hasAttachments = raw.metadata() != null
             && raw.metadata().get("attachmentUrls") instanceof Iterable<?> attachments
             && attachments.iterator().hasNext();
-        if (content.length() < properties.getMinimumContentChars() && !hasAttachments) {
+        int minimumContentChars = sourceMinimumContentChars(raw);
+        if (content.length() < minimumContentChars && !hasAttachments) {
             throw new IllegalArgumentException("News content is shorter than minimumContentChars");
         }
         if (content.isBlank() && hasAttachments) content = title;
@@ -100,5 +101,14 @@ public class NewsNormalizer {
 
     private String defaultString(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
+    }
+
+    private int sourceMinimumContentChars(RawNewsItem raw) {
+        if (raw.source() == null || raw.source().configuration() == null) {
+            return properties.getMinimumContentChars();
+        }
+        Object configured = raw.source().configuration().get("minimumContentChars");
+        return configured instanceof Number number
+            ? Math.max(1, number.intValue()) : properties.getMinimumContentChars();
     }
 }

@@ -105,9 +105,11 @@ public class WebMagicNewsCollector implements NewsCollector {
                 metadata.put("attachmentUrls", attachments);
                 metadata.put("attachmentAllowedDomains", attachmentAllowedDomains());
             }
+            String category = stringConfig(source, "category", null);
             NewsAcceptance acceptance = sink.accept(new RawNewsItem(source, title, content, null, author,
                 page.getUrl().get(), publishTimeParser.parse(published, stringConfig(source, "zoneId", "Asia/Shanghai")),
-                stringConfig(source, "language", null), List.of(), List.of(), Map.copyOf(metadata)));
+                stringConfig(source, "language", null), category == null || category.isBlank() ? List.of() : List.of(category),
+                List.of(), Map.copyOf(metadata)));
             counters.add(acceptance);
         }
 

@@ -223,6 +223,20 @@ export default {
       const start = (page - 1) * this.livedataPageSize;
       return this.filteredLivedata.slice(start, start + this.livedataPageSize);
     },
+    currentLivedataPageSelectableIds() {
+      return this.paginatedLivedata
+        .filter(item => item.canRegister)
+        .map(item => item.id);
+    },
+    isCurrentLivedataPageSelected() {
+      return this.currentLivedataPageSelectableIds.length > 0
+        && this.currentLivedataPageSelectableIds.every(id => this.selectedLivedata.has(id));
+    },
+    isCurrentLivedataPageIndeterminate() {
+      const selectedCount = this.currentLivedataPageSelectableIds
+        .filter(id => this.selectedLivedata.has(id)).length;
+      return selectedCount > 0 && selectedCount < this.currentLivedataPageSelectableIds.length;
+    },
     livedataDatasourceOptions() {
       return this.livedataSqlAssets
         .filter(asset => asset.enabled !== false)
@@ -319,6 +333,14 @@ export default {
       const next = new Set(this.selectedLivedata);
       if (next.has(id)) next.delete(id);
       else next.add(id);
+      this.selectedLivedata = next;
+    },
+    toggleCurrentLivedataPage(checked) {
+      const next = new Set(this.selectedLivedata);
+      this.currentLivedataPageSelectableIds.forEach(id => {
+        if (checked) next.add(id);
+        else next.delete(id);
+      });
       this.selectedLivedata = next;
     },
     changeLivedataPageSize(size) {

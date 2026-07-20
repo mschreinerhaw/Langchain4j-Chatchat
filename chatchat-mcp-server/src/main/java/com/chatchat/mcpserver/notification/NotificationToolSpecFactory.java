@@ -46,11 +46,25 @@ public class NotificationToolSpecFactory {
         ));
         properties.put("title", Map.of(
             "type", "string",
-            "description", "通知标题。发送前必须展示给用户确认。"
+            "description", "兼容字段：通知标题。使用 contentProtocol 时由协议中的逐字提取标题覆盖。"
         ));
         properties.put("content", Map.of(
             "type", "string",
-            "description", "通知正文。发送前必须展示给用户确认。"
+            "description", "兼容字段：通知正文。固定答案不得改写；推荐通过 contentProtocol 发送。"
+        ));
+        properties.put("contentProtocol", Map.of(
+            "type", "object",
+            "description", "邮件、企业微信、钉钉内容发送协议 chatchat.notification.v1。sourceContent 必须是固定答案原文，sourceSha256 为原文 SHA-256；title 只能逐字取自原文且不超过 120 字；blocks 只能按原行号连续分组，禁止改写、删减或重排。",
+            "properties", Map.of(
+                "version", Map.of("type", "string", "const", "chatchat.notification.v1"),
+                "title", Map.of("type", "string", "maxLength", 120),
+                "sourceContent", Map.of("type", "string"),
+                "sourceSha256", Map.of("type", "string", "pattern", "^[0-9a-fA-F]{64}$"),
+                "format", Map.of("type", "string", "const", "MARKDOWN"),
+                "blocks", Map.of("type", "array")
+            ),
+            "required", List.of("version", "title", "sourceContent", "sourceSha256", "format", "blocks"),
+            "additionalProperties", false
         ));
         properties.put("level", Map.of(
             "type", "string",
@@ -65,7 +79,7 @@ public class NotificationToolSpecFactory {
         return new McpSchema.JsonSchema(
             "object",
             properties,
-            List.of("title", "content"),
+            List.of("receiver"),
             false,
             null,
             null
@@ -86,7 +100,7 @@ public class NotificationToolSpecFactory {
         governance.put("input_policy", mutableMap(
             "must_show_parameters", true,
             "sensitive_params", List.of(),
-            "required_preview_params", List.of("receiver", "title", "content", "level", "sourceTaskId")
+            "required_preview_params", List.of("receiver", "title", "content", "contentProtocol", "level", "sourceTaskId")
         ));
         governance.put("audit", mutableMap(
             "enabled", true,

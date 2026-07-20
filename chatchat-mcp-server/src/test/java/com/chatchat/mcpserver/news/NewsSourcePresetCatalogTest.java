@@ -10,7 +10,10 @@ class NewsSourcePresetCatalogTest {
         var presets = new NewsSourcePresetCatalog().presets();
         assertThat(presets).extracting(NewsSourcePresetCatalog.Preset::code).containsExactly(
             "sse_home", "szse_home", "eastmoney_finance", "cls_telegraph", "sse_announcements",
-            "szse_announcements", "cninfo_home", "cninfo_announcements");
+            "sse_listing_announcements", "sse_trading_suspension_announcements", "sse_general_announcements",
+            "sse_intraday_suspension", "sse_margin_announcements", "sse_fund_announcements",
+            "sse_bond_announcements", "sse_option_announcements", "sse_ipo_latest",
+            "szse_announcements", "cninfo_home", "cninfo_announcements", "cninfo_latest_sections");
         assertThat(presets).filteredOn(preset -> "EXCHANGE_HOME".equals(preset.source().sourceType()))
             .hasSize(1).allSatisfy(preset -> {
                 assertThat(preset.rule()).isNull();
@@ -44,10 +47,30 @@ class NewsSourcePresetCatalogTest {
         assertThat(presets).filteredOn(preset -> "sse_announcements".equals(preset.code())).singleElement()
             .satisfies(preset -> {
                 assertThat(preset.source().sourceType()).isEqualTo("SSE_ANNOUNCEMENTS");
-                assertThat(preset.source().configuration()).containsKeys(
-                    "apiUrl", "staticBaseUrl", "itemLimit", "lookbackDays", "securityType");
+                assertThat(preset.source().entryUrl())
+                    .isEqualTo("https://www.sse.com.cn/disclosure/listedinfo/announcement/");
+                assertThat(preset.source().configuration()).containsKeys("feeds", "itemLimit");
                 assertThat(preset.rule()).isNull();
             });
+        assertThat(presets).filteredOn(preset -> "cls_telegraph".equals(preset.code())).singleElement()
+            .satisfies(preset -> {
+                assertThat(preset.source().configuration())
+                    .containsEntry("presetVersion", 2)
+                    .containsEntry("itemLimit", 20)
+                    .containsEntry("maxPagesPerRun", 200)
+                    .containsEntry("initialBackfillHours", 24)
+                    .containsEntry("minimumContentChars", 1)
+                    .containsKey("rollApiUrl");
+                assertThat(preset.description()).contains("断点续采");
+            });
+        assertThat(presets).filteredOn(preset -> "sse_bond_announcements".equals(preset.code())).singleElement()
+            .satisfies(preset -> {
+                assertThat(preset.source().sourceType()).isEqualTo("SSE_ANNOUNCEMENTS");
+                assertThat(preset.source().configuration().get("feeds")).asList().hasSize(5);
+                assertThat(preset.description()).contains("最新一页", "二级");
+            });
+        assertThat(presets).filteredOn(preset -> preset.code().startsWith("sse_")).hasSize(11)
+            .allSatisfy(preset -> assertThat(preset.source().enabled()).isFalse());
         assertThat(presets).filteredOn(preset -> "eastmoney_finance".equals(preset.code())).singleElement()
             .satisfies(preset -> {
                 assertThat(preset.source().configuration()).containsEntry("presetVersion", 2);
@@ -63,8 +86,22 @@ class NewsSourcePresetCatalogTest {
         assertThat(presets).filteredOn(preset -> "cninfo_announcements".equals(preset.code())).singleElement()
             .satisfies(preset -> {
                 assertThat(preset.source().sourceType()).isEqualTo("CNINFO_ANNOUNCEMENTS");
-                assertThat(preset.source().configuration()).containsKeys("apiUrl", "staticBaseUrl", "itemLimit");
+                assertThat(preset.source().configuration())
+                    .containsEntry("apiUrl", "https://www.cninfo.com.cn/new/disclosure")
+                    .containsEntry("column", "szse_latest")
+                    .containsEntry("importantOnly", true)
+                    .containsKeys("staticBaseUrl", "itemLimit");
+                assertThat(preset.source().configuration()).doesNotContainKey("lookbackHours");
                 assertThat(preset.rule()).isNull();
+            });
+        assertThat(presets).filteredOn(preset -> "cninfo_latest_sections".equals(preset.code())).singleElement()
+            .satisfies(preset -> {
+                assertThat(preset.source().sourceType()).isEqualTo("CNINFO_ANNOUNCEMENTS");
+                assertThat(preset.source().configuration().get("columns")).asList().hasSize(12);
+                assertThat(preset.source().configuration())
+                    .doesNotContainKeys("importantOnly", "lookbackHours")
+                    .containsEntry("itemLimit", 30);
+                assertThat(preset.description()).contains("全部板块", "最新一页", "二级");
             });
         assertThat(presets).allSatisfy(preset -> {
             assertThat(preset.source().enabled()).isFalse();

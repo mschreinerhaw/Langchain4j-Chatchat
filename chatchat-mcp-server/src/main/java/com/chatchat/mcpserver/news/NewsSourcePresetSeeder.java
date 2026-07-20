@@ -58,6 +58,8 @@ public class NewsSourcePresetSeeder {
 
     private void migrate(JsonNode current, NewsSourcePresetCatalog.Preset preset) {
         boolean legacyCls = "cls_telegraph".equals(preset.code()) && "WEB_LIST".equals(current.path("sourceType").asText());
+        boolean outdatedCls = "cls_telegraph".equals(preset.code())
+            && current.path("configuration").path("presetVersion").asInt(0) < 2;
         boolean legacyCninfo = "cninfo_announcements".equals(preset.code())
             && "WEB_LIST".equals(current.path("sourceType").asText());
         boolean outdatedSseAnnouncements = "sse_announcements".equals(preset.code())
@@ -75,16 +77,16 @@ public class NewsSourcePresetSeeder {
                 || current.path("configuration").path("presetVersion").asInt(0) < 2);
         boolean outdatedEastmoney = "eastmoney_finance".equals(preset.code())
             && current.path("configuration").path("presetVersion").asInt(0) < 2;
-        if (!legacyCls && !legacyCninfo && !outdatedSseAnnouncements && !legacySzse
+        if (!legacyCls && !outdatedCls && !legacyCninfo && !outdatedSseAnnouncements && !legacySzse
             && !outdatedSseHome && !outdatedSzseHome && !outdatedCninfoHome && !outdatedEastmoney) return;
         NewsSourcePresetCatalog.SourceUpsert source = preset.source();
         var request = new NewsSourcePresetCatalog.SourceUpsert(source.sourceCode(), source.sourceName(),
-            legacyCls || legacyCninfo || outdatedSseAnnouncements || outdatedSzseHome || outdatedCninfoHome
+            legacyCls || outdatedCls || legacyCninfo || outdatedSseAnnouncements || outdatedSzseHome || outdatedCninfoHome
                 ? source.sourceType() : current.path("sourceType").asText(),
             legacySzse || outdatedSseAnnouncements || outdatedSzseHome || outdatedCninfoHome
                 ? source.entryUrl() : current.path("entryUrl").asText(), source.allowedDomain(),
             source.scheduleCron(), current.path("enabled").asBoolean(false),
-            legacyCls || legacyCninfo || outdatedSseAnnouncements || outdatedSseHome || outdatedSzseHome
+            legacyCls || outdatedCls || legacyCninfo || outdatedSseAnnouncements || outdatedSseHome || outdatedSzseHome
                 || outdatedCninfoHome || outdatedEastmoney
                 ? source.configuration() : jsonMap(current.path("configuration")));
         if (outdatedEastmoney && preset.rule() != null) {

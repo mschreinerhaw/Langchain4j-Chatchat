@@ -19,6 +19,8 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,7 +28,7 @@ import java.util.Map;
 /** Collects the structured announcement feed used by the official CNINFO disclosure page. */
 @Component
 public class CninfoAnnouncementCollector implements NewsCollector {
-    private static final String DEFAULT_API_URL = "https://www.cninfo.com.cn/new/hisAnnouncement/query";
+    private static final String DEFAULT_API_URL = "https://www.cninfo.com.cn/new/disclosure";
     private static final String DEFAULT_STATIC_BASE_URL = "https://static.cninfo.com.cn/";
 
     private final NewsItemSink sink;
@@ -60,44 +62,65 @@ public class CninfoAnnouncementCollector implements NewsCollector {
         int accepted = 0;
         int duplicate = 0;
         int rejected = 0;
+        int failed = 0;
+        List<String> errors = new ArrayList<>();
         try {
-            JsonNode announcements = request(source).path("announcements");
-            if (!announcements.isArray()) {
-                throw new IllegalStateException("CNINFO response has no announcements array");
-            }
-            for (JsonNode announcement : announcements) {
+            int perSectionLimit = Math.max(1, intConfig(source, "itemLimit", 50));
+            List<Section> sections = sections(source);
+            for (int sectionIndex = 0; sectionIndex < sections.size(); sectionIndex++) {
+                Section section = sections.get(sectionIndex);
                 if (discovered >= properties.getMaxItemsPerRun()) break;
-                discovered++;
-                NewsAcceptance result = sink.accept(toRawItem(source, announcement));
-                if (result == NewsAcceptance.ACCEPTED) accepted++;
-                else if (result == NewsAcceptance.DUPLICATE) duplicate++;
-                else rejected++;
+                int sectionDiscovered = 0;
+                try {
+                    List<JsonNode> announcements = announcements(request(source, section.column()));
+                    for (JsonNode announcement : announcements) {
+                        if (discovered >= properties.getMaxItemsPerRun() || sectionDiscovered >= perSectionLimit) break;
+                        if (!eligible(source, context, announcement)) continue;
+                        discovered++;
+                        sectionDiscovered++;
+                        NewsAcceptance result = sink.accept(toRawItem(source, announcement, section));
+                        if (result == NewsAcceptance.ACCEPTED) accepted++;
+                        else if (result == NewsAcceptance.DUPLICATE) duplicate++;
+                        else rejected++;
+                    }
+                } catch (Exception ex) {
+                    failed++;
+                    errors.add(section.section() + ": " + ex.getMessage());
+                }
+                if (sectionIndex + 1 < sections.size()) pause(source);
             }
             return new NewsCollectResult(context.executionId(), source.id(), discovered, accepted, duplicate,
-                rejected, 0, null);
+                rejected, failed, errors.isEmpty() ? null : String.join("; ", errors));
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            return new NewsCollectResult(context.executionId(), source.id(), discovered, accepted, duplicate,
+                rejected, failed + 1, "CNINFO collection interrupted");
         } catch (Exception ex) {
             return new NewsCollectResult(context.executionId(), source.id(), discovered, accepted, duplicate,
-                rejected, 1, ex.getMessage());
+                rejected, failed + 1, ex.getMessage());
         }
     }
 
-    private JsonNode request(NewsSource source) throws Exception {
+    private JsonNode request(NewsSource source, String column) throws Exception {
         int pageSize = Math.max(1, Math.min(intConfig(source, "itemLimit", 50),
             Math.min(100, properties.getMaxItemsPerRun())));
-        String body = form(Map.ofEntries(
-            Map.entry("pageNum", "1"), Map.entry("pageSize", String.valueOf(pageSize)),
-            Map.entry("column", stringConfig(source, "column", "szse")),
-            Map.entry("tabName", "fulltext"), Map.entry("plate", ""), Map.entry("stock", ""),
-            Map.entry("searchkey", ""), Map.entry("secid", ""), Map.entry("category", ""),
-            Map.entry("trade", ""), Map.entry("seDate", ""), Map.entry("sortName", ""),
-            Map.entry("sortType", ""), Map.entry("isHLtitle", "true")
-        ));
-        HttpRequest request = HttpRequest.newBuilder(URI.create(stringConfig(source, "apiUrl", DEFAULT_API_URL)))
+        String apiUrl = stringConfig(source, "apiUrl", DEFAULT_API_URL);
+        boolean disclosureApi = apiUrl.replaceAll("[/?#]+$", "").endsWith("/new/disclosure");
+        String body = disclosureApi
+            ? disclosureForm(column, pageSize)
+            : form(Map.ofEntries(
+                Map.entry("pageNum", "1"), Map.entry("pageSize", String.valueOf(pageSize)),
+                Map.entry("column", column),
+                Map.entry("tabName", "fulltext"), Map.entry("plate", ""), Map.entry("stock", ""),
+                Map.entry("searchkey", ""), Map.entry("secid", ""), Map.entry("category", ""),
+                Map.entry("trade", ""), Map.entry("seDate", ""), Map.entry("sortName", ""),
+                Map.entry("sortType", ""), Map.entry("isHLtitle", "true")));
+        HttpRequest request = HttpRequest.newBuilder(URI.create(apiUrl))
             .timeout(Duration.ofMillis(intConfig(source, "timeoutMillis", 20_000)))
             .header("Accept", "application/json, text/plain, */*")
             .header("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
             .header("Origin", origin(source.entryUrl()))
-            .header("Referer", source.entryUrl())
+            .header("Referer", referer(source.entryUrl()))
             .header("X-Requested-With", "XMLHttpRequest")
             .header("User-Agent", "Mozilla/5.0 ChatChat-NewsCollector/1.0")
             .POST(HttpRequest.BodyPublishers.ofString(body)).build();
@@ -108,7 +131,80 @@ public class CninfoAnnouncementCollector implements NewsCollector {
         return objectMapper.readTree(response.body());
     }
 
-    private RawNewsItem toRawItem(NewsSource source, JsonNode item) {
+    /** CNINFO currently returns an empty body when these form fields are reordered. */
+    private String disclosureForm(String column, int pageSize) {
+        Map<String, String> values = new LinkedHashMap<>();
+        values.put("column", column);
+        values.put("pageNum", "1");
+        values.put("pageSize", String.valueOf(pageSize));
+        values.put("sortName", "");
+        values.put("sortType", "");
+        values.put("clusterFlag", "true");
+        return form(values);
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Section> sections(NewsSource source) {
+        Object configured = source.configuration().get("columns");
+        if (!(configured instanceof List<?> values) || values.isEmpty()) {
+            return List.of(new Section(stringConfig(source, "column", "szse_latest"),
+                stringConfig(source, "category", "上市公司公告"), stringConfig(source, "section", "深市")));
+        }
+        List<Section> sections = new ArrayList<>();
+        for (Object value : values) {
+            if (!(value instanceof Map<?, ?> raw)) continue;
+            Map<String, Object> map = (Map<String, Object>) raw;
+            String column = map.get("column") == null ? "" : map.get("column").toString().trim();
+            if (column.isBlank()) continue;
+            String category = map.get("category") == null ? "巨潮最新公告" : map.get("category").toString();
+            String section = map.get("section") == null ? category : map.get("section").toString();
+            sections.add(new Section(column, category, section));
+        }
+        if (sections.isEmpty()) throw new IllegalArgumentException("CNINFO columns configuration is empty");
+        return List.copyOf(sections);
+    }
+
+    private List<JsonNode> announcements(JsonNode response) {
+        if (response == null || !response.isObject()) {
+            throw new IllegalStateException("CNINFO response is not a JSON object");
+        }
+        List<JsonNode> items = new ArrayList<>();
+        JsonNode direct = response.path("announcements");
+        boolean recognized = direct.isArray();
+        if (direct.isArray()) direct.forEach(items::add);
+        JsonNode classified = response.path("classifiedAnnouncements");
+        recognized = recognized || classified.isArray();
+        if (classified.isArray()) {
+            classified.forEach(group -> {
+                if (group.isArray()) group.forEach(items::add);
+            });
+        }
+        if (items.isEmpty() && recognized) return List.of();
+        if (items.isEmpty()) {
+            String shape = "fields=" + java.util.stream.StreamSupport.stream(
+                java.util.Spliterators.spliteratorUnknownSize(response.fieldNames(), 0), false).toList();
+            throw new IllegalStateException("CNINFO response has no announcements (" + shape + ")");
+        }
+        return items;
+    }
+
+    private boolean eligible(NewsSource source, NewsCollectContext context, JsonNode item) {
+        if (booleanConfig(source, "importantOnly", false) && !item.path("important").asBoolean(false)) {
+            return false;
+        }
+        int lookbackHours = intConfig(source, "lookbackHours", 0);
+        if (lookbackHours <= 0) return true;
+        long timestamp = item.path("announcementTime").asLong(item.path("storageTime").asLong(0));
+        if (timestamp <= 0) return false;
+        Instant publishedAt = Instant.ofEpochMilli(timestamp);
+        Instant triggeredAt = context == null || context.startedAt() == null ? Instant.now() : context.startedAt();
+        ZoneId zone = ZoneId.of(stringConfig(source, "zoneId", "Asia/Shanghai"));
+        return !publishedAt.isBefore(triggeredAt.minus(Duration.ofHours(lookbackHours)))
+            && publishedAt.atZone(zone).toLocalDate().equals(triggeredAt.atZone(zone).toLocalDate())
+            && !publishedAt.isAfter(triggeredAt);
+    }
+
+    private RawNewsItem toRawItem(NewsSource source, JsonNode item, Section section) {
         String title = item.path("announcementTitle").asText("").trim();
         String securityCode = item.path("secCode").asText("").trim();
         String securityName = item.path("secName").asText("").trim();
@@ -124,6 +220,10 @@ public class CninfoAnnouncementCollector implements NewsCollector {
         metadata.put("announcementId", announcementId);
         metadata.put("securityCode", securityCode);
         metadata.put("securityName", securityName);
+        metadata.put("important", item.path("important").asBoolean(false));
+        metadata.put("announcementTypeName", item.path("announcementTypeName").asText(""));
+        metadata.put("section", section.section());
+        metadata.put("column", section.column());
         if (!attachmentUrl.isBlank()) {
             metadata.put("attachmentUrls", List.of(attachmentUrl));
             metadata.put("attachmentAllowedDomains", List.of("static.cninfo.com.cn"));
@@ -131,8 +231,12 @@ public class CninfoAnnouncementCollector implements NewsCollector {
         long timestamp = item.path("announcementTime").asLong(0);
         return new RawNewsItem(source, title, content, null, "巨潮资讯网", detailUrl,
             timestamp > 0 ? Instant.ofEpochMilli(timestamp) : null, stringConfig(source, "language", "zh-CN"),
-            List.of("上市公司公告"), securityName.isBlank() ? List.of() : List.of(securityName), Map.copyOf(metadata));
+            item.path("important").asBoolean(false)
+                ? List.of(section.category(), "重要公告") : List.of(section.category()),
+            securityName.isBlank() ? List.of() : List.of(securityName), Map.copyOf(metadata));
     }
+
+    private record Section(String column, String category, String section) { }
 
     private String detailUrl(String entryUrl, String announcementId, String securityCode, String orgId, long time) {
         URI entry = URI.create(entryUrl);
@@ -145,6 +249,11 @@ public class CninfoAnnouncementCollector implements NewsCollector {
     private String origin(String entryUrl) {
         URI uri = URI.create(entryUrl);
         return uri.getScheme() + "://" + uri.getAuthority();
+    }
+
+    private String referer(String entryUrl) {
+        int fragment = entryUrl.indexOf('#');
+        return fragment < 0 ? entryUrl : entryUrl.substring(0, fragment);
     }
 
     private String absolute(String base, String path) {
@@ -171,5 +280,16 @@ public class CninfoAnnouncementCollector implements NewsCollector {
     private int intConfig(NewsSource source, String key, int fallback) {
         Object value = source.configuration().get(key);
         return value instanceof Number number ? number.intValue() : fallback;
+    }
+
+    private boolean booleanConfig(NewsSource source, String key, boolean fallback) {
+        Object value = source.configuration().get(key);
+        return value == null ? fallback
+            : value instanceof Boolean flag ? flag : Boolean.parseBoolean(value.toString());
+    }
+
+    private void pause(NewsSource source) throws InterruptedException {
+        long millis = Math.max(0, intConfig(source, "sleepMillis", 0));
+        if (millis > 0) Thread.sleep(millis);
     }
 }

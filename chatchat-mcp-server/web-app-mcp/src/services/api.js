@@ -60,6 +60,7 @@ export const mcpServicesApi = {
 export const newsApi = {
   listSources: () => apiFetch(`${API_BASE}/news/sources`),
   listPresets: () => apiFetch(`${API_BASE}/news/presets`),
+  listCollectionTemplates: () => apiFetch(`${API_BASE}/news/collection-templates`),
   listPatternPresets: () => apiFetch(`${API_BASE}/news/pattern-presets`),
   getRule: id => apiFetch(`${API_BASE}/news/sources/${encodeURIComponent(id)}/rule`),
   saveSource: source => saveEntity(`${API_BASE}/news/sources`, source),

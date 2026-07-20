@@ -194,10 +194,10 @@
               <strong>每天执行</strong>
               <small>Agent 将在每天的固定时间自动触发</small>
             </div>
-            <label class="field schedule-clock-field">
+            <div class="field schedule-clock-field">
               <span>每天时间</span>
-              <input v-model="form.dailyTime" :disabled="saving" type="time" />
-            </label>
+              <ScheduleTimePicker v-model="form.dailyTime" :disabled="saving" aria-label="每天执行时间" />
+            </div>
           </div>
 
           <div v-else-if="form.mode === 'weekly'" class="schedule-time-grid two">
@@ -207,10 +207,10 @@
                 <option v-for="day in weekdays" :key="day.value" :value="day.value">{{ day.label }}</option>
               </select>
             </label>
-            <label class="field">
+            <div class="field schedule-clock-field">
               <span>时间</span>
-              <input v-model="form.weeklyTime" :disabled="saving" type="time" />
-            </label>
+              <ScheduleTimePicker v-model="form.weeklyTime" :disabled="saving" aria-label="每周执行时间" />
+            </div>
           </div>
 
           <div v-else-if="form.mode === 'interval'" class="schedule-time-grid">
@@ -243,15 +243,15 @@
               </span>
             </div>
             <div v-if="form.scheduleWindowEnabled" class="schedule-window-grid">
-              <label class="field schedule-clock-field">
+              <div class="field schedule-clock-field">
                 <span>开始时间</span>
-                <input v-model="form.scheduleWindowStart" :disabled="saving" type="time" />
-              </label>
+                <ScheduleTimePicker v-model="form.scheduleWindowStart" :disabled="saving" aria-label="允许执行开始时间" />
+              </div>
               <span class="schedule-window-arrow" aria-hidden="true">→</span>
-              <label class="field schedule-clock-field">
+              <div class="field schedule-clock-field">
                 <span>结束时间</span>
-                <input v-model="form.scheduleWindowEnd" :disabled="saving" type="time" />
-              </label>
+                <ScheduleTimePicker v-model="form.scheduleWindowEnd" :disabled="saving" aria-label="允许执行结束时间" />
+              </div>
               <label class="field schedule-zone-field">
                 <span>调度时区</span>
                 <input v-model.trim="form.zoneId" :disabled="saving" placeholder="Asia/Shanghai" />

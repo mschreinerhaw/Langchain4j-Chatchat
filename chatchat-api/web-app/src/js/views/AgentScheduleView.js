@@ -12,6 +12,7 @@ import {
   saveAgentScheduleNotificationRecipient,
   updateAgentSchedule
 } from "../../services/api.js";
+import ScheduleTimePicker from "../../components/ScheduleTimePicker.vue";
 import "../../styles/pages/agent-schedule.css";
 
 function defaultOnceAt() {
@@ -115,6 +116,7 @@ function scheduleForm(schedule = {}) {
 
 export default {
   name: "AgentScheduleView",
+  components: { ScheduleTimePicker },
   props: {
     userId: {
       type: String,

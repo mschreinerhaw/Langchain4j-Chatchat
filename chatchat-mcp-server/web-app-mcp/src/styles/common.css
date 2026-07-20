@@ -190,6 +190,63 @@ textarea {
   overflow: auto;
 }
 
+.modal-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-right: 34px;
+}
+
+.modal-panel-header-title {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 18px;
+  line-height: 24px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modal-panel-window-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: #53657d;
+  font-size: 12px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.modal-panel-window-button:hover {
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
+  background: #f3f8ff;
+}
+
+.modal-panel--maximized {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.modal-panel--maximized .el-dialog__header,
+.modal-panel--maximized .el-dialog__footer {
+  flex: 0 0 auto;
+}
+
+.modal-panel--maximized .el-dialog__body {
+  flex: 1 1 auto;
+  max-height: none;
+  min-height: 0;
+  overflow: auto;
+}
+
 .modal-subtitle {
   margin: -4px 0 14px;
   color: var(--text-muted);

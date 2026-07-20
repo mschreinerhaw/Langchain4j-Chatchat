@@ -50,6 +50,7 @@ class DatabaseQueryAdminControllerTest {
                 "SELECT 1",
                 null,
                 Map.of(),
+                Map.of(),
                 1,
                 75,
                 "asset-dm",

@@ -207,6 +207,7 @@ export default {
       return api.testDraft({
         sql: payload.sqlTemplate,
         sqlSteps: payload.sqlSteps || [],
+        inputSchema: payload.inputSchema || {},
         params: payload.parameters || {},
         maxRows: payload.maxRows,
         timeoutSeconds: payload.timeoutSeconds,

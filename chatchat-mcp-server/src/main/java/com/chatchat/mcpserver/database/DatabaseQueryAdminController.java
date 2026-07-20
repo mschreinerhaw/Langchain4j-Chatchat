@@ -171,6 +171,7 @@ public class DatabaseQueryAdminController {
             draft.setDatasourceId(request.datasourceId());
             draft.setSqlTemplate(request.sql());
             draft.setSqlStepsJson(writeSqlSteps(request.sqlSteps()));
+            draft.setInputSchemaJson(writeJson(request.inputSchema()));
             draft.setMaxRows(request.maxRows() == null ? 50 : request.maxRows());
             draft.setTimeoutSeconds(request.timeoutSeconds() == null ? 30 : request.timeoutSeconds());
             draft.setCapabilitiesJson(ModelProtocolJson.compact(List.of(
@@ -407,6 +408,7 @@ public class DatabaseQueryAdminController {
     public record DatabaseQueryTestRequest(
         String sql,
         List<DatabaseQuerySqlStep> sqlSteps,
+        Map<String, Object> inputSchema,
         Map<String, Object> params,
         Integer maxRows,
         Integer timeoutSeconds,

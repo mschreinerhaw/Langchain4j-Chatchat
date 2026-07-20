@@ -64,6 +64,10 @@ export default {
       metadataScopeKeyword: '',
       metadataScopeOpenKey: '',
       formTestResult: null,
+      databaseSqlSelectedIndexes: {},
+      databaseSqlActiveTabs: {},
+      databaseSqlSideTabs: {},
+      databaseParameterValidationAttempted: false,
       schemaTypeOptions: [
         { value: 'string', label: '文本' },
         { value: 'number', label: '数字' },
@@ -75,6 +79,7 @@ export default {
       databaseParamSourceOptions: [
         { value: 'user_input', label: '用户输入' },
         { value: 'today', label: '当天自然日 today' },
+        { value: 'natural_date', label: '当天自然日 natural_date' },
         { value: 'month', label: '当前月份 month' },
         { value: 'month_start', label: '当月第一天 month_start' },
         { value: 'month_end', label: '当月最后一天 month_end' },
@@ -127,6 +132,12 @@ export default {
         section.fields.push(field);
       });
       return sections;
+    },
+    hasDatabaseWorkflowField() {
+      return this.formFields.some(field => field.type === 'databaseSqlSteps');
+    },
+    databaseSystemParamSourceOptions() {
+      return this.databaseParamSourceOptions.filter(option => option.value !== 'user_input');
     },
     templatePickerTitle() {
       return this.templatePickerField?.label || '选择模板';
@@ -263,6 +274,7 @@ export default {
       this.formOpen = true;
     },
     prepareJsonDraft() {
+      this.databaseParameterValidationAttempted = false;
       this.jsonDraft = {};
       this.formFields.filter(field => field.type === 'json').forEach(field => {
         this.jsonDraft[field.key] = prettyJson(this.form[field.key], field.defaultValue ?? {});
@@ -290,6 +302,9 @@ export default {
       });
       this.formFields.filter(field => field.type === 'databaseSqlSteps').forEach(field => {
         this.form[field.key] = normalizeDatabaseSqlSteps(this.form[field.key], this.form.sqlTemplate);
+        this.databaseSqlSelectedIndexes[field.key] = 0;
+        this.databaseSqlActiveTabs[field.key] = 'sql';
+        this.databaseSqlSideTabs[field.key] = 'inputs';
       });
       this.formFields.filter(field => field.unitScale).forEach(field => {
         const value = Number(this.form[field.key]);
@@ -308,6 +323,7 @@ export default {
     },
     async saveForm() {
       if (!this.validateFormBeforeSubmit()) return;
+      if (!this.validateDatabaseParameterCompleteness(false)) return;
       this.busy = true;
       try {
         const payload = this.formPayload();
@@ -365,6 +381,7 @@ export default {
     async testFormDraft() {
       if (!this.formTestAction) return;
       if (!this.validateFormBeforeSubmit()) return;
+      if (!this.validateDatabaseParameterCompleteness(true)) return;
       this.busy = true;
       try {
         const result = await this.formTestAction(this.formPayload());
@@ -500,6 +517,11 @@ export default {
       if (typeof field.hidden === 'function') return !field.hidden(this.form);
       return field.visible !== false && field.hidden !== true;
     },
+    renderedSectionFields(section) {
+      const fields = Array.isArray(section?.fields) ? section.fields : [];
+      if (!this.hasDatabaseWorkflowField) return fields;
+      return fields.filter(field => field.type !== 'databaseParamConfig');
+    },
     isFieldRequired(field, form = this.form) {
       return typeof field.required === 'function' ? Boolean(field.required(form)) : field.required === true;
     },
@@ -517,6 +539,63 @@ export default {
     },
     validateFormBeforeSubmit() {
       return this.validateFieldsBeforeSubmit(this.form, true);
+    },
+    validateDatabaseParameterCompleteness(requireTestValues) {
+      this.databaseParameterValidationAttempted = Boolean(requireTestValues);
+      const paramField = this.formFields.find(field => field.type === 'databaseParamConfig');
+      if (!paramField) return true;
+      const rows = this.schemaDraft[paramField.key] || [];
+      const errors = [];
+      const names = new Set();
+      rows.forEach((row, index) => {
+        const name = String(row?.name || '').trim();
+        if (!name) {
+          errors.push(`第 ${index + 1} 个流程输入缺少参数名`);
+        } else if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+          errors.push(`参数 ${name} 名称不合法`);
+        } else if (names.has(name)) {
+          errors.push(`参数 ${name} 重复`);
+        } else {
+          names.add(name);
+        }
+        if (!row?.defaultSource) errors.push(`参数 ${name || index + 1} 未选择来源`);
+      });
+
+      const missingTestValues = rows
+        .filter(row => row?.required
+          && (!row.defaultSource || row.defaultSource === 'user_input')
+          && this.isEmptyFieldValue(row.testValue))
+        .map(row => String(row.name || '').trim())
+        .filter(Boolean);
+
+      const workflowField = this.formFields.find(field => field.type === 'databaseSqlSteps');
+      const steps = workflowField ? this.databaseSqlSteps(workflowField) : [];
+      steps.forEach((step, stepIndex) => {
+        const fixedNames = new Set((step.staticParameterEntries || []).map(item => String(item?.name || '').trim()).filter(Boolean));
+        const mappings = new Map((step.parameterMappings || []).map(item => [String(item?.parameter || '').trim(), item]));
+        extractDatabaseQueryParameters(step.sqlContent).filter(param => !param.dynamic).forEach(param => {
+          const mapping = mappings.get(param.name);
+          if (!names.has(param.name) && !fixedNames.has(param.name) && !mapping) {
+            errors.push(`步骤 ${stepIndex + 1} 的参数 ${param.name} 尚未配置来源`);
+          }
+          if (mapping?.sourceType === 'SYSTEM_CONTEXT' && this.isEmptyFieldValue(mapping.sourceKey)) {
+            errors.push(`步骤 ${stepIndex + 1} 的参数 ${param.name} 未选择系统内置参数`);
+          }
+          if (mapping?.sourceType === 'STATIC' && this.isEmptyFieldValue(mapping.defaultValue)) {
+            errors.push(`步骤 ${stepIndex + 1} 的固定参数 ${param.name} 未填写值`);
+          }
+        });
+      });
+
+      if (requireTestValues && missingTestValues.length) {
+        errors.push(`请填写必填参数的流程测试值：${missingTestValues.join('、')}`);
+      }
+      if (!errors.length) return true;
+      if (workflowField) {
+        this.databaseSqlSideTabs[workflowField.key] = 'inputs';
+      }
+      this.$emit('error', new Error(`参数配置不完整：${[...new Set(errors)].join('；')}`));
+      return false;
     },
     validateFieldsBeforeSubmit(form, useDraft) {
       const errors = [];
@@ -731,9 +810,12 @@ export default {
         entry.required = false;
       }
     },
-    syncDatabaseParamsFromSql(field, notifyUser = false) {
+    syncDatabaseParamsFromSql(field, notifyUser = false, targetSqlCode = '') {
       const rows = [...(this.schemaDraft[field.key] || [])];
       const steps = normalizeDatabaseSqlSteps(this.form[field.sqlStepsKey], this.form[field.sqlKey]);
+      const stepsToSync = targetSqlCode
+        ? steps.filter(step => String(step.sqlCode || '') === String(targetSqlCode))
+        : steps;
       const detectedNames = new Set();
       let schemaAdded = 0;
       let mappingAdded = 0;
@@ -768,7 +850,7 @@ export default {
         schemaAdded += 1;
         return true;
       };
-      steps.forEach(step => {
+      stepsToSync.forEach(step => {
         const staticNames = new Set((step.staticParameterEntries || [])
           .map(entry => String(entry?.name || '').trim())
           .filter(Boolean));
@@ -812,10 +894,10 @@ export default {
       });
       this.schemaDraft[field.key] = rows;
       this.form[field.sqlStepsKey] = steps;
-      const staleUserInputs = rows
-        .filter(row => (!row.defaultSource || row.defaultSource === 'user_input') && !detectedNames.has(row.name))
-        .map(row => row.name)
-        .filter(Boolean);
+      const staleUserInputs = targetSqlCode ? [] : rows
+          .filter(row => (!row.defaultSource || row.defaultSource === 'user_input') && !detectedNames.has(row.name))
+          .map(row => row.name)
+          .filter(Boolean);
       if (notifyUser) {
         const details = [
           schemaAdded > 0 ? `新增 ${schemaAdded} 个集合参数` : '集合参数无新增',
@@ -830,6 +912,18 @@ export default {
           message: `${details.join('；')}。`
         });
       }
+    },
+    syncDatabaseSqlStepParams(entry) {
+      if (!String(entry?.sqlContent || '').trim()) {
+        this.$emit('error', '请先填写当前节点的 SQL 模板');
+        return;
+      }
+      const paramField = this.formFields.find(field => field.type === 'databaseParamConfig');
+      if (!paramField) {
+        this.$emit('error', '当前数据库查询未配置参数模型');
+        return;
+      }
+      this.syncDatabaseParamsFromSql(paramField, true, entry.sqlCode);
     },
     databaseParamSummary(field) {
       const params = extractDatabaseQueryParameters(this.databaseSqlTextForField(field));
@@ -850,6 +944,32 @@ export default {
     databaseSqlSteps(field) {
       return Array.isArray(this.form[field.key]) ? this.form[field.key] : [];
     },
+    databaseSelectedSqlStep(field) {
+      const steps = this.databaseSqlSteps(field);
+      if (!steps.length) return null;
+      const index = Math.max(0, Math.min(Number(this.databaseSqlSelectedIndexes[field.key] || 0), steps.length - 1));
+      return steps[index];
+    },
+    databaseSelectedSqlStepIndex(field) {
+      const steps = this.databaseSqlSteps(field);
+      if (!steps.length) return -1;
+      return Math.max(0, Math.min(Number(this.databaseSqlSelectedIndexes[field.key] || 0), steps.length - 1));
+    },
+    selectDatabaseSqlStep(field, index) {
+      this.databaseSqlSelectedIndexes[field.key] = index;
+    },
+    databaseParamConfigField() {
+      return this.formFields.find(field => field.type === 'databaseParamConfig') || null;
+    },
+    databaseSqlStepInputCount(step) {
+      return (step?.staticParameterEntries?.length || 0) + (step?.parameterMappings?.length || 0);
+    },
+    databaseParamRequiresTestValue(param) {
+      return Boolean(param?.required) && (!param.defaultSource || param.defaultSource === 'user_input');
+    },
+    databaseParamTestValueMissing(param) {
+      return this.databaseParamRequiresTestValue(param) && this.isEmptyFieldValue(param.testValue);
+    },
     databaseSqlWorkflowEnabled(field) {
       return this.databaseSqlSteps(field).some(step => step.workflowEnabled === true);
     },
@@ -869,6 +989,12 @@ export default {
     },
     databaseSqlWorkflowLevels(field) {
       return databaseSqlWorkflowLevels(this.databaseSqlSteps(field));
+    },
+    databaseSqlDisplayLevels(field) {
+      const steps = this.databaseSqlSteps(field).filter(step => step?.enabled !== false);
+      return this.databaseSqlWorkflowEnabled(field)
+        ? databaseSqlWorkflowLevels(steps)
+        : steps.map(step => [step]);
     },
     addDatabaseSqlParameterMapping(entry) {
       entry.parameterMappings = [...(entry.parameterMappings || []), {
@@ -901,6 +1027,8 @@ export default {
       steps.push(databaseSqlStepRow({ executionOrder: steps.length + 1, workflowEnabled: true, ...source }, steps.length));
       if (steps.length > 1) steps.forEach(step => { step.workflowEnabled = true; });
       this.form[field.key] = resequenceDatabaseSqlSteps(steps);
+      this.databaseSqlSelectedIndexes[field.key] = steps.length - 1;
+      this.databaseSqlActiveTabs[field.key] = 'basic';
     },
     copyDatabaseSqlStep(field, index) {
       const steps = normalizeDatabaseSqlSteps(this.form[field.key], this.form.sqlTemplate);
@@ -911,11 +1039,13 @@ export default {
       }, index + 1);
       steps.splice(index + 1, 0, copy);
       this.form[field.key] = resequenceDatabaseSqlSteps(steps);
+      this.databaseSqlSelectedIndexes[field.key] = index + 1;
     },
     removeDatabaseSqlStep(field, index) {
       const steps = normalizeDatabaseSqlSteps(this.form[field.key], this.form.sqlTemplate);
       steps.splice(index, 1);
       this.form[field.key] = resequenceDatabaseSqlSteps(steps);
+      this.databaseSqlSelectedIndexes[field.key] = Math.max(0, Math.min(index, steps.length - 1));
     },
     moveDatabaseSqlStep(field, index, delta) {
       const steps = normalizeDatabaseSqlSteps(this.form[field.key], this.form.sqlTemplate);
@@ -924,6 +1054,7 @@ export default {
       const [item] = steps.splice(index, 1);
       steps.splice(nextIndex, 0, item);
       this.form[field.key] = resequenceDatabaseSqlSteps(steps);
+      this.databaseSqlSelectedIndexes[field.key] = nextIndex;
     },
     appendDatabasePreviewParam(field, sampleValue) {
       return this.appendDatabasePreviewParams([field], { [field]: sampleValue });

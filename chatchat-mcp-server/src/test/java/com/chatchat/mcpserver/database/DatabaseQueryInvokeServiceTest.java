@@ -123,6 +123,52 @@ class DatabaseQueryInvokeServiceTest {
     }
 
     @Test
+    void mapsConfiguredTradingDateSourceToBusinessParameterName() throws Exception {
+        DynamicDateParamService dateParamService = mock(DynamicDateParamService.class);
+        DatabaseQueryInvokeService localService = new DatabaseQueryInvokeService(
+            toolRegistry,
+            datasourceConfigService,
+            scriptExecuteService,
+            dateParamService,
+            new ObjectMapper(),
+            auditService,
+            cacheService
+        );
+        SqlDatasourceConfig datasource = dmDatasource();
+        String sql = "SELECT * FROM ORDERS WHERE BUSI_DATE = :busi_date";
+        when(toolRegistry.hasTool("database_query")).thenReturn(true);
+        when(datasourceConfigService.getEnabled("asset-dm")).thenReturn(datasource);
+        when(dateParamService.resolveTokenForSource(eq(datasource),
+            org.mockito.ArgumentMatchers.isNull(), eq("trade_date"))).thenReturn("20260720");
+        when(dateParamService.enrichParameters(anyMap(), eq(datasource), eq(sql)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(dateParamService.resolveSqlPlaceholders(eq(sql), eq(datasource))).thenReturn(sql);
+        when(toolRegistry.executeEnhancedTool(org.mockito.ArgumentMatchers.eq("database_query"),
+            org.mockito.ArgumentMatchers.any(ToolInput.class))).thenReturn(ToolOutput.success(Map.of("rows", List.of())));
+
+        DatabaseQueryConfig config = new DatabaseQueryConfig();
+        config.setId("query-business-date");
+        config.setToolName("query_business_date");
+        config.setTitle("Business date query");
+        config.setDatasourceId("asset-dm");
+        config.setSqlTemplate(sql);
+        config.setInputSchemaJson("""
+            {"type":"object","properties":{"busi_date":{"type":"string","defaultSource":"trade_date"}}}
+            """);
+        config.setMaxRows(10);
+        config.setTimeoutSeconds(30);
+
+        ToolOutput output = localService.invoke(config, Map.of());
+
+        ArgumentCaptor<ToolInput> inputCaptor = ArgumentCaptor.forClass(ToolInput.class);
+        verify(toolRegistry).executeEnhancedTool(org.mockito.ArgumentMatchers.eq("database_query"), inputCaptor.capture());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> params = (Map<String, Object>) inputCaptor.getValue().getParameters().get("params");
+        assertThat(output.isSuccess()).isTrue();
+        assertThat(params).containsEntry("busi_date", "20260720");
+    }
+
+    @Test
     void invokesJsonDslDatabaseQueryStepsAndContinuesAfterOptionalFailure() {
         when(toolRegistry.hasTool("database_query")).thenReturn(true);
         when(datasourceConfigService.getEnabled("asset-dm")).thenReturn(dmDatasource());
@@ -245,6 +291,43 @@ class DatabaseQueryInvokeServiceTest {
         Map<String, Object> secondParams =
             (Map<String, Object>) inputCaptor.getAllValues().get(1).getParameters().get("params");
         assertThat(secondParams).containsEntry("status", "ACTIVE");
+    }
+
+    @Test
+    void returnsWorkflowFailureWithoutCrashingWhenDraftMetadataAndToolErrorAreEmpty() throws Exception {
+        when(toolRegistry.hasTool("database_query")).thenReturn(true);
+        when(datasourceConfigService.getEnabled("asset-dm")).thenReturn(dmDatasource());
+        when(toolRegistry.executeEnhancedTool(org.mockito.ArgumentMatchers.eq("database_query"),
+            org.mockito.ArgumentMatchers.any(ToolInput.class))).thenReturn(ToolOutput.builder()
+                .success(false)
+                .exceptionType("DataAccessException")
+                .build());
+
+        DatabaseQueryConfig config = new DatabaseQueryConfig();
+        config.setId("draft");
+        config.setToolName("draft_database_query");
+        config.setTitle("Draft database query");
+        config.setDatasourceId("asset-dm");
+        config.setSqlTemplate("SELECT * FROM ORDERS WHERE STATUS = :status");
+        config.setMaxRows(50);
+        config.setTimeoutSeconds(30);
+        config.setSqlStepsJson(new ObjectMapper().writeValueAsString(List.of(
+            sqlStep("SQL_1", "Draft step", "SELECT * FROM ORDERS WHERE STATUS = :status", 1, null)
+        )));
+
+        ToolOutput output = service.invoke(config, Map.of("status", "ACTIVE"));
+
+        assertThat(output.isSuccess()).isFalse();
+        assertThat(output.getErrorMessage()).isEqualTo("Database query execution failed (DataAccessException)");
+        assertThat(output.getData()).isInstanceOf(Map.class);
+        Map<?, ?> data = (Map<?, ?>) output.getData();
+        assertThat(data.get("tool")).isEqualTo(Map.of(
+            "name", "draft_database_query",
+            "title", "Draft database query",
+            "description", "",
+            "implementationSteps", ""
+        ));
+        assertThat(data.get("failedResultSetCount")).isEqualTo(1);
     }
 
     private DatabaseQuerySqlStep sqlStep(String code,

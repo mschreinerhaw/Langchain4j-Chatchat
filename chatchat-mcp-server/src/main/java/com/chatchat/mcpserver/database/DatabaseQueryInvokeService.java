@@ -252,7 +252,13 @@ public class DatabaseQueryInvokeService {
             .parameters(parameters)
             .build();
         ToolOutput output = toolRegistry.executeEnhancedTool(TOOL_NAME, input);
-        return output == null ? ToolOutput.failure("database_query tool returned no output") : output;
+        if (output == null) {
+            return ToolOutput.failure("database_query tool returned no output");
+        }
+        if (!output.isSuccess() && (output.getErrorMessage() == null || output.getErrorMessage().isBlank())) {
+            output.setErrorMessage(databaseFailureMessage(output));
+        }
+        return output;
     }
 
     private ToolOutput invokeConfiguredSqlSteps(DatabaseQueryConfig config,
@@ -278,6 +284,15 @@ public class DatabaseQueryInvokeService {
         systemContext.put("currentUser", invocationUserId(userInput));
         systemContext.put("datasourceId", baseParameters.get("datasource_id"));
         systemContext.put("datasourceName", baseParameters.get("datasource_name"));
+        SqlDatasourceConfig workflowDatasource = datasourceConfigService.getEnabled(config.getDatasourceId());
+        steps.stream()
+            .flatMap(step -> step.getParameterMappings().stream())
+            .filter(mapping -> "SYSTEM_CONTEXT".equalsIgnoreCase(mapping.getSourceType()))
+            .map(DatabaseQueryParameterMapping::getSourceKey)
+            .filter(value -> value != null && !value.isBlank())
+            .distinct()
+            .forEach(source -> systemContext.put(source,
+                dynamicDateParamService.resolveTokenForSource(workflowDatasource, null, source)));
         String workflowExecutionNo = UUID.randomUUID().toString();
         log.info("Database query workflow prepared executionNo={} databaseQueryId={} tool={} datasourceId={} datasourceName={} executionMode={} nodeCount={} maxParallelism={} inputParameterKeys={} nodes={}",
             workflowExecutionNo, config.getId(), config.getToolName(), baseParameters.get("datasource_id"),
@@ -334,12 +349,12 @@ public class DatabaseQueryInvokeService {
         data.put("mode", dependencyWorkflow ? "database_query_workflow" : "database_query_multi_sql");
         data.put("schemaVersion", dependencyWorkflow
             ? "database_query_workflow_result.v1" : "database_query_multi_sql_result.v1");
-        data.put("tool", Map.of(
-            "name", config.getToolName(),
-            "title", firstText(config.getTitle(), config.getToolName()),
-            "description", firstText(config.getDescription(), ""),
-            "implementationSteps", firstText(config.getImplementationSteps(), "")
-        ));
+        Map<String, Object> toolInfo = new LinkedHashMap<>();
+        toolInfo.put("name", firstText(config.getToolName(), "database_query"));
+        toolInfo.put("title", firstText(config.getTitle(), config.getToolName(), "Database query"));
+        toolInfo.put("description", emptyIfNull(config.getDescription()));
+        toolInfo.put("implementationSteps", emptyIfNull(config.getImplementationSteps()));
+        data.put("tool", toolInfo);
         data.put("execution", Map.of(
             "executionNo", execution.executionNo(),
             "status", execution.status(),
@@ -532,8 +547,9 @@ public class DatabaseQueryInvokeService {
                 .filter(value -> value != null && !value.isBlank())
                 .collect(Collectors.joining("\n"))
             : config.getSqlTemplate();
+        Map<String, Object> configuredArguments = applyConfiguredParameterSources(config, arguments, datasource);
         Map<String, Object> resolvedArguments = dynamicDateParamService.enrichParameters(
-            arguments,
+            configuredArguments,
             datasource,
             sqlContext
         );
@@ -554,6 +570,33 @@ public class DatabaseQueryInvokeService {
         parameters.put("datasource_name", datasource.getName());
         parameters.put("reload_drivers", false);
         return parameters;
+    }
+
+    private Map<String, Object> applyConfiguredParameterSources(DatabaseQueryConfig config,
+                                                                 Map<String, Object> arguments,
+                                                                 SqlDatasourceConfig datasource) {
+        Map<String, Object> resolved = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
+        if (config.getInputSchemaJson() == null || config.getInputSchemaJson().isBlank()) {
+            return resolved;
+        }
+        Map<String, Object> schema;
+        try {
+            schema = objectMapper.readValue(config.getInputSchemaJson(), new TypeReference<Map<String, Object>>() {});
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("database query inputSchema is invalid", ex);
+        }
+        Map<String, Object> properties = mapValue(schema.get("properties"));
+        properties.forEach((parameter, rawDefinition) -> {
+            if (resolved.containsKey(parameter) && resolved.get(parameter) != null) {
+                return;
+            }
+            String source = text(mapValue(rawDefinition), "defaultSource");
+            if (source == null || source.isBlank() || "user_input".equalsIgnoreCase(source)) {
+                return;
+            }
+            resolved.put(parameter, dynamicDateParamService.resolveTokenForSource(datasource, null, source));
+        });
+        return resolved;
     }
 
     private boolean hasSqlSteps(DatabaseQueryConfig config) {
@@ -633,6 +676,30 @@ public class DatabaseQueryInvokeService {
             }
         }
         return null;
+    }
+
+    private String emptyIfNull(String value) {
+        return value == null ? "" : value;
+    }
+
+    private String databaseFailureMessage(ToolOutput output) {
+        if (output == null) {
+            return "database_query tool returned no output";
+        }
+        Map<String, Object> data = mapValue(output.getData());
+        String detail = firstText(
+            output.getErrorMessage(),
+            output.getMessage(),
+            text(data, "errorMessage"),
+            text(data, "message")
+        );
+        if (detail != null) {
+            return detail;
+        }
+        String exceptionType = firstText(output.getExceptionType());
+        return exceptionType == null
+            ? "Database query execution failed without an error message"
+            : "Database query execution failed (" + exceptionType + ")";
     }
 
     private String invocationUserId(Map<String, Object> parameters) {

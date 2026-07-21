@@ -70,7 +70,7 @@ export default {
         ...extractWebCitationPages(this.citations),
         ...extractWebCitationPages(this.sources.filter((source) => this.isWebSource(source))),
         ...extractWebSearchPagesFromTraces(this.toolTraces)
-      ]);
+      ]).filter((row) => /^https?:\/\//i.test(String(row?.url || "")));
     },
     documentPageRows() {
       return extractDocumentSearchPagesFromTraces(this.toolTraces);

@@ -624,34 +624,38 @@ export default {
       return "";
     },
     collapseToolEvidenceHtml(html = "") {
-      const source = String(html || "");
-      const headingPattern = /<h([2-4])(?:\s[^>]*)?>([\s\S]*?)<\/h\1>/gi;
+      let source = String(html || "");
+      const headingPattern = /<h([1-4])(?:\s[^>]*)?>([\s\S]*?)<\/h\1>/gi;
       const headings = [...source.matchAll(headingPattern)];
-      const target = headings.find((match) => {
+      const targets = headings.map((match, index) => ({
+        match,
+        bodyEnd: headings[index + 1]?.index ?? source.length
+      })).filter(({ match }) => {
+        if (Number(match[1]) < 2) {
+          return false;
+        }
         const title = this.decodeHtml(String(match[2] || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
         return /工具(?:执行|调用|运行)?(?:证据|证明|链路|结果)|Tool\s+(?:execution\s+)?(?:evidence|trace|calls?)/i.test(title);
       });
-      if (!target) {
+      if (!targets.length) {
         return source;
       }
-      const before = source.slice(0, target.index);
-      const bodyStart = target.index + target[0].length;
-      const rest = source.slice(bodyStart);
-      const nextHeadingIndex = rest.search(/<h[1-4](?:\s[^>]*)?>/i);
-      const body = (nextHeadingIndex >= 0 ? rest.slice(0, nextHeadingIndex) : rest).trim();
-      const after = nextHeadingIndex >= 0 ? rest.slice(nextHeadingIndex) : "";
-      if (!body) {
-        return source;
-      }
-      const count = this.extractToolEvidenceItems(body).length;
-      return [
-        before,
-        '<details class="tool-evidence-details">',
-        `<summary><span>工具链调用</span><small>${count ? `${count} steps` : "details"}</small></summary>`,
-        `<div class="tool-evidence-body">${this.formatToolEvidenceBody(body)}</div>`,
-        '</details>',
-        after
-      ].join("");
+      [...targets].reverse().forEach(({ match: target, bodyEnd }) => {
+        const bodyStart = target.index + target[0].length;
+        const body = source.slice(bodyStart, bodyEnd).trim();
+        if (!body) {
+          return;
+        }
+        const count = this.extractToolEvidenceItems(body).length;
+        const collapsed = [
+          '<details class="tool-evidence-details">',
+          `<summary><span>工具链调用</span><small>${count ? `${count} steps` : "details"}</small></summary>`,
+          `<div class="tool-evidence-body">${this.formatToolEvidenceBody(body)}</div>`,
+          '</details>'
+        ].join("");
+        source = `${source.slice(0, target.index)}${collapsed}${source.slice(bodyEnd)}`;
+      });
+      return source;
     },    formatToolEvidenceBody(body = "") {
       const items = this.extractToolEvidenceItems(body);
       if (!items.length) {

@@ -3977,9 +3977,11 @@
 }
 
 .response-references .site-verification-details {
-  margin-top: 4px;
-  border-color: #cfdcf1;
-  background: #f8fbff;
+  margin-top: 2px;
+  border: 0;
+  border-top: 1px solid #e5e7eb;
+  border-radius: 0;
+  background: transparent;
 }
 
 .response-references .site-verification-details > summary {
@@ -3987,13 +3989,20 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  color: var(--primary-strong);
+  padding: 8px 2px;
+  color: #7b8494;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .response-references .site-verification-details > summary small {
-  color: var(--muted);
-  font-size: 12px;
+  color: #98a2b3;
+  font-size: 11px;
   font-weight: 500;
+}
+
+.response-references .site-verification-details[open] > summary {
+  margin-bottom: 8px;
 }
 
 .reference-row {

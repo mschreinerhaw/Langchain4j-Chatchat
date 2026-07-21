@@ -48,8 +48,8 @@
 
     <details v-if="webPageRows.length" class="site-verification-details">
       <summary>
-        <span>查询站点（{{ webPageRows.length }}）</span>
-        <small>默认收起，展开核对原始链接</small>
+        <span>查询站点</span>
+        <small>{{ webPageRows.length }} 个链接</small>
       </summary>
       <article v-for="(page, index) in webPageRows" :key="page.rank + page.url + page.title" class="reference-row web-reference-row">
         <strong>

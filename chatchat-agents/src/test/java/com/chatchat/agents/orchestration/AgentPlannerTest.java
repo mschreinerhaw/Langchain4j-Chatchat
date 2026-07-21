@@ -20,6 +20,31 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AgentPlannerTest {
 
     @Test
+    void plannerPromptAlwaysIncludesAuthoritativeRuntimeDateEvenWithoutWebCrawlerTools() throws Exception {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        Method method = AgentPlanner.class.getDeclaredMethod(
+            "buildPlannerPrompt", String.class, String.class, List.class, List.class, List.class,
+            List.class, List.class, boolean.class, boolean.class, String.class, String.class, Map.class);
+        method.setAccessible(true);
+        String prompt = (String) method.invoke(
+            planner,
+            "\u8bf7\u6839\u636e\u4eca\u65e5\u8d22\u7ecf\u8d44\u8baf\u751f\u6210\u590d\u76d8",
+            "",
+            List.of("mcp_chatchat_mcp_server_news_search"),
+            List.of(), List.of(), List.of(),
+            List.of("mcp_chatchat_mcp_server_news_search"),
+            true, false, null, null,
+            Map.of("timezone", "Asia/Shanghai")
+        );
+
+        assertThat(prompt)
+            .contains("Authoritative Runtime temporal context")
+            .contains("Current date is " + java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai")))
+            .contains("timezone Asia/Shanghai")
+            .contains("Never infer a different current date from model memory");
+    }
+
+    @Test
     void describesPublisherApplicabilityWithoutTurningItIntoToolSelectionPolicy() throws Exception {
         AgentPlanner planner = new AgentPlanner(new TestToolRegistry(true), new ObjectMapper());
         Method method = AgentPlanner.class.getDeclaredMethod("describeTools", List.class, Map.class);

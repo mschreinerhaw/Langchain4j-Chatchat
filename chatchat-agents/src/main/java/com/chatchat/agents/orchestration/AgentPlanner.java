@@ -193,6 +193,15 @@ class AgentPlanner {
         }
         prompt.append("You are an agent planner.\n");
         prompt.append("Goal: produce a safe, executable InterpretationPlan for the MCP runtime.\n");
+        ZoneId runtimeZone = runtimeZoneId(runtimeAttributes);
+        LocalDate runtimeDate = LocalDate.now(runtimeZone);
+        prompt.append("Authoritative Runtime temporal context:\n");
+        prompt.append("- Current date is ").append(runtimeDate).append(" in timezone ")
+            .append(runtimeZone.getId()).append(".\n");
+        prompt.append("- Resolve relative dates such as today/current/\u4eca\u5929/\u4eca\u65e5 from this Runtime value. "
+            + "Never infer a different current date from model memory.\n");
+        prompt.append("- Preserve relative wording in search keywords unless an exact date is required by the tool schema; "
+            + "when an exact date is required, derive it only from this Runtime context.\n\n");
         prompt.append("Planning contract:\n");
         prompt.append("- Output exactly one JSON object. Do not output markdown, code fences, comments, or natural language.\n");
         prompt.append("- The JSON object MUST conform to the InterpretationPlan schema below.\n");
@@ -312,9 +321,6 @@ class AgentPlanner {
                 .append(", bind the selected search result URL into crawler input url, e.g. {\"from\":1,\"output_path\":\"$.results[0].url\",\"to\":2,\"input_field\":\"url\",\"type\":\"jsonpath\"}.\n");
             prompt.append("- Do not use placeholder inputs such as {\"url\":\"\"} or template strings such as ${step1.results[0].url}; use plan.bindings instead.\n\n");
             prompt.append("Web search query fidelity:\n");
-            prompt.append("- Current date for relative-time interpretation is ")
-                .append(LocalDate.now(ZoneId.of("Asia/Shanghai")))
-                .append(" (Asia/Shanghai).\n");
             prompt.append("- For web_search.query, preserve the user's original search phrase as much as possible. Do not append inferred years, stale years, or extra date tokens.\n");
             prompt.append("- If the user says today, latest, current, recent, \u4eca\u5929, \u6700\u65b0, \u8fd1\u671f, or \u5f53\u524d, keep that temporal wording instead of converting it to another year unless the user explicitly requested an absolute date.\n\n");
         }
@@ -1446,6 +1452,27 @@ class AgentPlanner {
         prompt.append("Do not omit any mandatory MCP tool and do not return legacy action JSON. ");
         prompt.append("Keep tool_priority and accuracy_vs_speed values within 0.0 to 1.0.");
         return prompt.toString();
+    }
+
+    private ZoneId runtimeZoneId(Map<String, Object> runtimeAttributes) {
+        Object configured = null;
+        if (runtimeAttributes != null) {
+            for (String key : List.of("timezone", "timeZone", "zoneId")) {
+                Object candidate = runtimeAttributes.get(key);
+                if (candidate != null && !String.valueOf(candidate).isBlank()) {
+                    configured = candidate;
+                    break;
+                }
+            }
+        }
+        if (configured != null) {
+            try {
+                return ZoneId.of(String.valueOf(configured).trim());
+            } catch (Exception ignored) {
+                // Invalid model/request values cannot replace the server's Runtime timezone.
+            }
+        }
+        return ZoneId.systemDefault();
     }
 
     private boolean shouldOptimizeFromExperience(PlanCandidate candidate,

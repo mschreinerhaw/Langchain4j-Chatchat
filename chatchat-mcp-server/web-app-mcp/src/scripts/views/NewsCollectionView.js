@@ -122,6 +122,7 @@ export default {
   emits: ['notify', 'error', 'result'],
   data: () => ({
     sources: [], presets: [], patternPresets: [], collectionTemplates: [], selectedCollectionTemplateCode: '',
+    structuredFlashConfigText: '',
     loading: false, saving: false, collectingId: null, checkingRobotsId: null, dialogOpen: false,
     robotsOverrideDialogOpen: false, robotsOverrideSaving: false, robotsOverrideSource: null,
     robotsOverrideForm: { reason: '', hours: 24, acknowledged: false },
@@ -214,6 +215,7 @@ export default {
     createSource() {
       this.form = emptyForm();
       this.selectedCollectionTemplateCode = '';
+      this.structuredFlashConfigText = '';
       this.scheduleEditor = decodeCron(this.form.scheduleCron);
       this.dialogOpen = true;
     },
@@ -222,6 +224,8 @@ export default {
         const rule = await newsApi.getRule(source.id);
         this.form = { ...emptyForm(), ...source, configuration: { ...emptyForm().configuration, ...(source.configuration || {}) }, rule: { ...emptyRule(), ...(rule || {}) } };
         this.selectedCollectionTemplateCode = source.configuration?.templateCode || '';
+        this.structuredFlashConfigText = source.sourceType === 'STRUCTURED_FLASH'
+          ? JSON.stringify(this.form.configuration, null, 2) : '';
         this.scheduleEditor = decodeCron(this.form.scheduleCron);
         this.dialogOpen = true;
       } catch (error) { this.$emit('error', error); }
@@ -244,6 +248,8 @@ export default {
         configuration: { ...defaults.configuration, ...(template.configuration || {}) },
         rule: { ...emptyRule(), ...(template.rule || {}) }
       };
+      this.structuredFlashConfigText = template.sourceType === 'STRUCTURED_FLASH'
+        ? JSON.stringify(this.form.configuration, null, 2) : '';
       this.scheduleEditor = decodeCron(this.form.scheduleCron);
       this.$emit('notify', { title: '已应用采集模板', message: template.name });
     },
@@ -258,6 +264,29 @@ export default {
     },
     async save() {
       if (!this.validateScheduleWindow()) return;
+      if (this.form.sourceType === 'STRUCTURED_FLASH') {
+        try {
+          const parsed = JSON.parse(this.structuredFlashConfigText || '{}');
+          if (!parsed?.request?.url || !parsed?.response?.itemsPath || !parsed?.mapping?.sourceUrl) {
+            this.$emit('notify', { type: 'danger', title: '结构化快讯配置不完整',
+              message: '请填写 request.url、response.itemsPath 和 mapping.sourceUrl。' });
+            return;
+          }
+          parsed.sleepMillis = this.form.configuration.sleepMillis;
+          parsed.timeoutMillis = this.form.configuration.timeoutMillis;
+          parsed.zoneId = this.form.configuration.zoneId;
+          parsed.language = this.form.configuration.language;
+          parsed.legalRisk = Boolean(this.form.configuration.legalRisk);
+          parsed.compliance = { ...(parsed.compliance || {}), legalRisk: Boolean(this.form.configuration.legalRisk) };
+          parsed.scheduleWindowEnabled = Boolean(this.form.configuration.scheduleWindowEnabled);
+          parsed.scheduleWindowStart = this.form.configuration.scheduleWindowStart;
+          parsed.scheduleWindowEnd = this.form.configuration.scheduleWindowEnd;
+          this.form.configuration = parsed;
+        } catch (error) {
+          this.$emit('notify', { type: 'danger', title: '结构化快讯 JSON 格式错误', message: error.message });
+          return;
+        }
+      }
       this.saving = true;
       try {
         this.applyVisualSchedule();

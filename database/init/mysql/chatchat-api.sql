@@ -18,7 +18,7 @@
         scenario_name varchar(256),
         attribution_summary varchar(1000),
         feedback_comment varchar(1000),
-        answer_summary TEXT,
+        answer_summary LONGTEXT,
         improvement_suggestions_json TEXT,
         model_raw_output TEXT,
         primary_factors_json TEXT,
@@ -42,8 +42,9 @@
         user_id varchar(64) not null,
         agent_id varchar(128),
         feedback_comment varchar(1000),
-        answer_summary TEXT,
+        answer_summary LONGTEXT,
         error_message TEXT,
+        final_notification_json LONGTEXT,
         question TEXT,
         request_payload_json TEXT,
         primary key (task_id)
@@ -423,7 +424,7 @@
         error_message varchar(1000),
         notification_error varchar(1000),
         notification_receiver varchar(2000),
-        answer_summary TEXT,
+        answer_summary LONGTEXT,
         question TEXT not null,
         primary key (run_id)
     ) engine=InnoDB;

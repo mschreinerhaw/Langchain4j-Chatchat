@@ -3976,6 +3976,26 @@
   font-weight: 800;
 }
 
+.response-references .site-verification-details {
+  margin-top: 4px;
+  border-color: #cfdcf1;
+  background: #f8fbff;
+}
+
+.response-references .site-verification-details > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--primary-strong);
+}
+
+.response-references .site-verification-details > summary small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .reference-row {
   margin: 0 12px 12px;
   padding: 10px 12px;

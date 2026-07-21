@@ -129,7 +129,7 @@ export function inlineWebCitationLinks(content, pages = []) {
     const rank = Number(match[1] || match[2] || match[3]);
     const page = pages.find((item) => Number(item?.rank) === rank) || pages[rank - 1] || {};
     const url = safeWebUrl(page.url) || safeWebUrl(match[4]);
-    const sourceLabel = page.publisher || page.title || displayUrl(url) || "引用来源待补充";
+    const sourceLabel = page.publisher || page.title || displayUrl(url) || `来源 ${rank}`;
     const label = escapeMarkdownLinkText(sourceLabel);
     if (url) {
       citationUrls.push(url);

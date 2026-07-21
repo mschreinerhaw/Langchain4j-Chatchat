@@ -51,7 +51,7 @@ public class AgentTaskLatestEntity {
     @Column(name = "request_payload_json", columnDefinition = "TEXT")
     private String requestPayloadJson;
 
-    @Column(name = "answer_summary", columnDefinition = "TEXT")
+    @Column(name = "answer_summary", columnDefinition = "LONGTEXT")
     private String answerSummary;
 
     /**
@@ -59,7 +59,7 @@ public class AgentTaskLatestEntity {
      * Kept separately from transient event storage so scheduled notifications never
      * have to fall back to a shortened task-list summary.
      */
-    @Column(name = "final_notification_json", columnDefinition = "TEXT")
+    @Column(name = "final_notification_json", columnDefinition = "LONGTEXT")
     private String finalNotificationJson;
 
     @Column(name = "error_message", columnDefinition = "TEXT")

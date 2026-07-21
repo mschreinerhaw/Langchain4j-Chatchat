@@ -82,6 +82,20 @@ public class InterpretationPlanRewriter {
                             repairedPlan.steps().size());
                         return new RewriteResult(true, repairedValidation.executable(), repairedPlan, repairedValidation, raw, null);
                     }
+                    InterpretationPlan evidenceOnlyPlan = repairAsEvidenceOnlyFinalPlan(request, rewrittenPlan);
+                    if (evidenceOnlyPlan != null) {
+                        InterpretationPlanValidator.ValidationResult evidenceOnlyValidation = validator.validate(
+                            evidenceOnlyPlan,
+                            request.toolRegistry(),
+                            new java.util.LinkedHashSet<>(request.availableTools() == null ? List.of() : request.availableTools())
+                        );
+                        if (evidenceOnlyValidation.valid()) {
+                            log.info("InterpretationPlan rewrite repaired as evidence-only final plan after successful prior tool evidence. originalErrors={}",
+                                validationSummary(repairedValidation));
+                            return new RewriteResult(true, evidenceOnlyValidation.executable(), evidenceOnlyPlan,
+                                evidenceOnlyValidation, raw, null);
+                        }
+                    }
                     return new RewriteResult(false, false, repairedPlan, repairedValidation, raw,
                         "Rewritten plan failed validation after continuation repair: " + validationSummary(repairedValidation));
                 }
@@ -456,6 +470,52 @@ public class InterpretationPlanRewriter {
             repairedPolicy,
             plan.review()
         );
+    }
+
+    private InterpretationPlan repairAsEvidenceOnlyFinalPlan(RewriteRequest request,
+                                                              InterpretationPlan rewrittenPlan) {
+        if (request == null || rewrittenPlan == null || rewrittenPlan.steps() == null
+            || hasPendingRequiredExecution(request.requiredToolExecutions())
+            || !hasSuccessfulToolEvidence(request.observations())) {
+            return null;
+        }
+        InterpretationPlan.Step finalStep = rewrittenPlan.steps().stream()
+            .filter(step -> step != null && step.finalAnswerAction())
+            .findFirst()
+            .orElse(null);
+        if (finalStep == null) {
+            return null;
+        }
+        InterpretationPlan.Step detachedFinal = new InterpretationPlan.Step(
+            finalStep.id(), finalStep.actionType(), finalStep.toolName(), finalStep.input(),
+            List.of(), finalStep.outputContract(), finalStep.validation());
+        InterpretationPlan.ExecutionPolicy policy = rewrittenPlan.executionPolicy();
+        InterpretationPlan.ExecutionPolicy evidenceOnlyPolicy = policy == null ? null
+            : new InterpretationPlan.ExecutionPolicy(
+                1, false, List.of(), policy.denyTool(), policy.timeoutMs(), policy.maxRewriteTimes(),
+                policy.fallbackMode(), Map.of(), policy.costBudget(), policy.latencyBudgetMs(), policy.accuracyVsSpeed());
+        return new InterpretationPlan(
+            rewrittenPlan.version(), rewrittenPlan.intent(), rewrittenPlan.context(),
+            new InterpretationPlan.Plan(List.of(detachedFinal), List.of(), List.of(), List.of(), null),
+            evidenceOnlyPolicy, rewrittenPlan.review());
+    }
+
+    private boolean hasPendingRequiredExecution(List<RequiredToolExecution> executions) {
+        return executions != null && executions.stream().anyMatch(execution -> execution != null
+            && execution.required() && execution.toolName() != null && !execution.toolName().isBlank());
+    }
+
+    private boolean hasSuccessfulToolEvidence(List<String> observations) {
+        if (observations == null) {
+            return false;
+        }
+        return observations.stream()
+            .filter(java.util.Objects::nonNull)
+            .map(value -> value.toLowerCase(Locale.ROOT))
+            .anyMatch(value -> (value.contains(" tool ")
+                || (value.contains("interpretationplan") && value.contains(" step ")))
+                && (value.contains(" succeeded") || value.contains("success=true")
+                    || value.contains("completed successfully")));
     }
 
     private void collectTransitiveOriginalDependencies(Set<Integer> missingStepIds,

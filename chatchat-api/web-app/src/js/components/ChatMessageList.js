@@ -1350,10 +1350,31 @@ export default {
       const displayContent = this.stripInternalDocumentRefs(
         this.stripExecutedSqlContent(this.stripInternalProtocolBlocks(this.stripVisualizationSpecBlocks(content)))
       );
-      const normalizedContent = this.stripExecutedSqlContent(this.normalizeRenderContractBlocks(displayContent));
       const pages = this.webReferencePages(message);
+      const normalizedContent = this.stripTrailingWebReferenceSection(
+        this.stripExecutedSqlContent(this.normalizeRenderContractBlocks(displayContent)),
+        pages
+      );
       const linked = inlineWebCitationLinks(normalizedContent, pages);
       return { content: linked.content, citationUrls: linked.citationUrls, pages };
+    },
+    stripTrailingWebReferenceSection(content, pages = []) {
+      const text = String(content || "");
+      if (!pages.length || !text.trim()) {
+        return text;
+      }
+      const heading = /(?:^|\n)\s{0,3}#{1,6}\s*(?:引用来源|参考来源|查询来源|来源链接|sources?|references?)\s*[:：]?\s*(?=\n|$)/ig;
+      let match;
+      let lastMatch = null;
+      while ((match = heading.exec(text)) !== null) {
+        lastMatch = match;
+      }
+      if (!lastMatch) {
+        return text;
+      }
+      const trailingSection = text.slice(lastMatch.index);
+      const hasLinkOrList = /https?:\/\/|(?:^|\n)\s*(?:[-*+]\s+|\d+[.)]\s+)/i.test(trailingSection);
+      return hasLinkOrList ? text.slice(0, lastMatch.index).trimEnd() : text;
     },
     webReferencePages(message = {}) {
       const uiResponse = this.extractUiResponse(message) || {};

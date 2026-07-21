@@ -31,6 +31,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 
 /**
  * Executes validated InterpretationPlan DAGs against the MCP tool runtime.
@@ -55,6 +58,12 @@ public class InterpretationPlanRuntime {
     );
     private static final Pattern BINDING_PLACEHOLDER_PATTERN = Pattern.compile(
         "\\{\\{\\s*bindings\\.([A-Za-z0-9_.\\-\\[\\]]+)\\s*}}"
+    );
+    private static final Pattern RELATIVE_TODAY_PATTERN = Pattern.compile(
+        "(?iu)(?:\\btoday\\b|\u4eca\u5929|\u4eca\u65e5|\u672c\u65e5)"
+    );
+    private static final Pattern EXPLICIT_CALENDAR_DATE_PATTERN = Pattern.compile(
+        "(?iu)(?:\\b\\d{4}[-/.]\\d{1,2}[-/.]\\d{1,2}\\b|\\d{4}\u5e74\\d{1,2}\u6708\\d{1,2}\u65e5)"
     );
     private static final ObjectMapper RESULT_OBJECT_MAPPER = new ObjectMapper();
     private static final ToolArgumentCompiler TOOL_ARGUMENT_COMPILER = new ToolArgumentCompiler();
@@ -1528,8 +1537,10 @@ public class InterpretationPlanRuntime {
         Map<String, Object> input = new LinkedHashMap<>(step.input() == null ? Map.of() : step.input());
         InterpretationPlan plan = request == null ? null : request.plan();
         applyBindings(step, plan, completed, input);
+        establishRuntimeTemplateBinding(step, completed, input);
         normalizeModelInvocationEnvelope(step, input);
         normalizeWebSearchInput(step, request, input);
+        normalizeNewsSearchInput(step, request, input);
         compileDirectToolArguments(step, request, input);
         hydrateExecutionContextFromCompletedAssets(step, completed, input);
         normalizeSqlExecutionContext(step, input);
@@ -1586,6 +1597,50 @@ public class InterpretationPlanRuntime {
         input.remove("maxResults");
     }
 
+    private void normalizeNewsSearchInput(InterpretationPlan.Step step,
+                                          ExecutionRequest request,
+                                          Map<String, Object> input) {
+        if (step == null || input == null || !isNewsSearchTool(step.toolName())) {
+            return;
+        }
+        String originalQuery = originalUserQuery(request);
+        if (originalQuery == null || originalQuery.isBlank()) {
+            return;
+        }
+        // The user's wording is authoritative. This removes stale dates invented by the planner.
+        input.put("query", originalQuery);
+        if (!RELATIVE_TODAY_PATTERN.matcher(originalQuery).find()
+            || EXPLICIT_CALENDAR_DATE_PATTERN.matcher(originalQuery).find()) {
+            return;
+        }
+        ZoneId zone = runtimeZoneId(request);
+        ZonedDateTime now = ZonedDateTime.now(zone);
+        LocalDate today = now.toLocalDate();
+        input.put("startTime", today.atStartOfDay(zone).toInstant().toString());
+        input.put("endTime", now.toInstant().toString());
+        input.remove("time_range");
+        input.remove("timeRange");
+        input.remove("category");
+        input.remove("max_results");
+        input.remove("maxResults");
+        log.info("InterpretationPlan resolved relative news date from Runtime stepId={} tool={} date={} timezone={}",
+            step.id(), step.toolName(), today, zone.getId());
+    }
+
+    private ZoneId runtimeZoneId(ExecutionRequest request) {
+        Map<String, Object> attributes = request == null ? null : request.attributes();
+        Object configured = attributes == null ? null : firstNonBlankObject(
+            attributes.get("timezone"), attributes.get("timeZone"), attributes.get("zoneId"));
+        if (configured != null) {
+            try {
+                return ZoneId.of(String.valueOf(configured).trim());
+            } catch (Exception ignored) {
+                // Request/model values cannot replace the server Runtime timezone when invalid.
+            }
+        }
+        return ZoneId.systemDefault();
+    }
+
     @SuppressWarnings("unchecked")
     private void normalizeModelInvocationEnvelope(InterpretationPlan.Step step, Map<String, Object> input) {
         if (step == null || input == null) {
@@ -1633,6 +1688,7 @@ public class InterpretationPlanRuntime {
         }
         Object value = firstMapValue(input, "invocation", "modelInvocation", "model_invocation");
         if (!(value instanceof Map<?, ?> raw)) {
+            enforceRuntimeTemplateBinding(step, input);
             return;
         }
         Map<String, Object> invocation = new LinkedHashMap<>((Map<String, Object>) raw);
@@ -1657,6 +1713,7 @@ public class InterpretationPlanRuntime {
         input.remove("invocation");
         input.remove("modelInvocation");
         input.remove("model_invocation");
+        enforceRuntimeTemplateBinding(step, input);
     }
 
     @SuppressWarnings("unchecked")
@@ -1685,9 +1742,16 @@ public class InterpretationPlanRuntime {
         if (templateId == null) {
             throw new IllegalStateException("TEMPLATE_PARAMETER_PROTOCOL_INVALID: template_id must be a scalar string");
         }
-        String runtimeTemplateId = canonicalTemplateId(firstValueAtAnyPath(input,
-            "$.templateId", "$.template", "$.template_id"));
-        if (runtimeTemplateId != null && !runtimeTemplateId.equals(templateId)) {
+        String runtimeOwnedTemplateId = runtimeOwnedTemplateId(input);
+        String runtimeTemplateId = runtimeOwnedTemplateId != null ? runtimeOwnedTemplateId
+            : canonicalTemplateId(firstValueAtAnyPath(input, "$.templateId", "$.template", "$.template_id"));
+        if (runtimeOwnedTemplateId != null && !runtimeOwnedTemplateId.equals(templateId)) {
+            log.warn("InterpretationPlan ignored model protocol template override stepId={} tool={} modelTemplateId={} runtimeTemplateId={}",
+                step.id(), step.toolName(), templateId, runtimeOwnedTemplateId);
+            templateId = runtimeOwnedTemplateId;
+            input.put("templateId", runtimeOwnedTemplateId);
+            input.put("template", runtimeOwnedTemplateId);
+        } else if (runtimeTemplateId != null && !runtimeTemplateId.equals(templateId)) {
             throw new IllegalStateException("TEMPLATE_PARAMETER_PROTOCOL_INVALID: protocol template_id " + templateId
                 + " does not match the Runtime-bound template " + runtimeTemplateId);
         }
@@ -3560,8 +3624,73 @@ public class InterpretationPlanRuntime {
             }
             putInputValue(input, binding.inputField(), value);
             registerResolvedBinding(resolvedBindings, binding.inputField(), value);
+            if (isTemplateExecutionTool(step.toolName()) && bindingAssignsTemplateId(binding)) {
+                putRuntimeTemplateBinding(input, canonicalTemplateId(value), step.toolName(),
+                    "plan_binding_from_template_discovery");
+            }
         }
         resolveBindingPlaceholders(input, resolvedBindings);
+    }
+
+    private void establishRuntimeTemplateBinding(InterpretationPlan.Step step,
+                                                 Map<Integer, StepExecution> completed,
+                                                 Map<String, Object> input) {
+        if (step == null || input == null || !isTemplateExecutionTool(step.toolName())) {
+            return;
+        }
+        String boundTemplateId = runtimeOwnedTemplateId(input);
+        if (boundTemplateId == null) {
+            boundTemplateId = uniqueCompletedTemplateForExecutor(step.toolName(), completed);
+            putRuntimeTemplateBinding(input, boundTemplateId, step.toolName(),
+                "unique_completed_template_discovery");
+        }
+        enforceRuntimeTemplateBinding(step, input);
+    }
+
+    private boolean bindingAssignsTemplateId(InterpretationPlan.Binding binding) {
+        if (binding == null) {
+            return false;
+        }
+        String inputKey = contractFieldKey(binding.inputField());
+        return "templateid".equals(inputKey) || "template".equals(inputKey);
+    }
+
+    private void enforceRuntimeTemplateBinding(InterpretationPlan.Step step, Map<String, Object> input) {
+        String boundTemplateId = runtimeOwnedTemplateId(input);
+        if (boundTemplateId == null || input == null) {
+            return;
+        }
+        input.put("templateId", boundTemplateId);
+        input.put("template", boundTemplateId);
+        input.remove("template_id");
+        if (step != null) {
+            log.debug("InterpretationPlan enforced Runtime-owned template binding stepId={} tool={} templateId={}",
+                step.id(), step.toolName(), boundTemplateId);
+        }
+    }
+
+    private void putRuntimeTemplateBinding(Map<String, Object> input,
+                                           String templateId,
+                                           String executorTool,
+                                           String source) {
+        if (input == null || templateId == null || templateId.isBlank()) {
+            return;
+        }
+        input.put("runtimeTemplateBinding", Map.of(
+            "schemaVersion", "runtime_template_binding.v1",
+            "source", source,
+            "templateId", templateId,
+            "executorTool", executorTool == null ? "" : executorTool
+        ));
+    }
+
+    private String runtimeOwnedTemplateId(Map<String, Object> input) {
+        if (input == null) {
+            return null;
+        }
+        return canonicalTemplateId(firstValueAtAnyPath(input,
+            "$.runtimeTemplateBinding.templateId",
+            "$.runtimeTemplateBinding.template_id"));
     }
 
     private void registerResolvedBinding(Map<String, Object> resolvedBindings, String inputField, Object value) {
@@ -3823,6 +3952,11 @@ public class InterpretationPlanRuntime {
         String semantic = toolSemanticKey(toolName);
         return "sql_query_execute".equals(semantic) || semantic.endsWith("_sql_query_execute")
             || "sql_script_execute".equals(semantic) || semantic.endsWith("_sql_script_execute");
+    }
+
+    private boolean isNewsSearchTool(String toolName) {
+        String semantic = toolSemanticKey(toolName);
+        return semantic.equals("news_search") || semantic.endsWith("_news_search");
     }
 
     private boolean isLinuxCommandExecuteTool(String toolName) {

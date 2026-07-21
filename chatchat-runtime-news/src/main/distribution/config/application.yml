@@ -70,6 +70,7 @@ chatchat:
         insecure-ssl: false
         index-name: runtime-news
         retention-days: 7
+        rebuild-cron: "0 0 0 * * *"
         zone-id: Asia/Shanghai
         retention-cron: "0 15 0 * * *"
         embedding:

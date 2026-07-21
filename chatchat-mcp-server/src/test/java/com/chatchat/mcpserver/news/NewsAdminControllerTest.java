@@ -52,6 +52,8 @@ class NewsAdminControllerTest {
         mvc.perform(get("/api/v1/news/collection-templates"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data[0].code").value("disclosure_list_detail"))
+            .andExpect(jsonPath("$.data[2].code").value("realtime_flash_cursor"))
+            .andExpect(jsonPath("$.data[2].sourceType").value("STRUCTURED_FLASH"))
             .andExpect(jsonPath("$.data[0].workflow").isArray());
     }
 }

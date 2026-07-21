@@ -218,6 +218,28 @@
             <span class="schedule-timezone">时区：{{ form.configuration.zoneId || 'Asia/Shanghai' }}</span>
           </div>
         </section>
+        <template v-if="form.sourceType === 'STRUCTURED_FLASH'">
+          <el-divider content-position="left">电报/7×24 实时快讯规则</el-divider>
+          <section class="structured-flash-editor">
+            <el-alert
+              title="模板已提供财联社同类快讯的游标采集结构。请按目标站点实际 JSON 接口修改 API 地址、查询参数、响应数组路径和字段映射。"
+              type="info"
+              :closable="false"
+              show-icon
+            />
+            <el-form-item label="结构化快讯配置（JSON）">
+              <el-input
+                v-model="structuredFlashConfigText"
+                type="textarea"
+                :rows="18"
+                resize="vertical"
+                spellcheck="false"
+                placeholder="配置 request、response、mapping、compliance 和游标翻页参数"
+              />
+            </el-form-item>
+            <small>保存前会校验 request.url、response.itemsPath、mapping.sourceUrl；法律风险、请求间隔、超时和采集时段仍以上方表单为准。</small>
+          </section>
+        </template>
         <el-divider v-if="['WEB_LIST','WEB_SINGLE_PAGE'].includes(form.sourceType)" content-position="left">网页抽取规则</el-divider>
         <div v-if="['WEB_LIST','WEB_SINGLE_PAGE'].includes(form.sourceType)" class="news-form-grid">
           <el-form-item v-if="form.sourceType === 'WEB_LIST'" class="wide" label="详情链接选择器"><el-input v-model.trim="form.rule.linkSelector" /></el-form-item>

@@ -37,8 +37,20 @@
       </article>
     </details>
 
-    <details v-if="webPageRows.length">
-      <summary>查看全部 {{ webPageRows.length }} 条来源</summary>
+    <details v-if="toolTraceRows.length">
+      <summary>调用工具</summary>
+      <article v-for="trace in toolTraceRows" :key="trace.toolName + trace.startedAt" class="reference-row">
+        <strong>{{ trace.displayName || trace.toolName || "工具调用" }}</strong>
+        <p>{{ trace.statusText }}</p>
+        <p v-if="trace.errorText" class="tool-error">{{ trace.errorText }}</p>
+      </article>
+    </details>
+
+    <details v-if="webPageRows.length" class="site-verification-details">
+      <summary>
+        <span>查询站点（{{ webPageRows.length }}）</span>
+        <small>默认收起，展开核对原始链接</small>
+      </summary>
       <article v-for="(page, index) in webPageRows" :key="page.rank + page.url + page.title" class="reference-row web-reference-row">
         <strong>
           <span class="reference-badge web">{{ page.publisher || `来源 ${page.rank || index + 1}` }}</span>
@@ -59,15 +71,6 @@
         </small>
         <small v-if="page.url">{{ displayUrl(page.url) }}</small>
         <p>{{ page.snippet || "暂无摘要" }}</p>
-      </article>
-    </details>
-
-    <details v-if="toolTraceRows.length">
-      <summary>调用工具</summary>
-      <article v-for="trace in toolTraceRows" :key="trace.toolName + trace.startedAt" class="reference-row">
-        <strong>{{ trace.displayName || trace.toolName || "工具调用" }}</strong>
-        <p>{{ trace.statusText }}</p>
-        <p v-if="trace.errorText" class="tool-error">{{ trace.errorText }}</p>
       </article>
     </details>
 

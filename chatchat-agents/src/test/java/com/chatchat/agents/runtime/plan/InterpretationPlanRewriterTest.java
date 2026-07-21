@@ -163,6 +163,45 @@ class InterpretationPlanRewriterTest {
     }
 
     @Test
+    void usesSuccessfulPriorEvidenceWhenContinuationPolicyDeniesTheReferencedTool() {
+        CapturingChatModel chatModel = new CapturingChatModel("""
+            {
+              "version": "1.0",
+              "intent": {"type": "web_search", "goal": "Summarize collected market evidence", "risk_level": "low"},
+              "context": {"key_facts": ["two searches succeeded"], "missing_info": [], "assumptions": [], "constraints": []},
+              "plan": {
+                "steps": [
+                  {"id": 2, "action_type": "final_answer", "tool_name": "", "input": {"answer": "Summarize the evidence already collected."}, "depends_on": [1]}
+                ]
+              },
+              "execution_policy": {"max_steps": 1, "allow_parallel": false, "allow_tool": [], "deny_tool": ["document_search"], "timeout_ms": 30000},
+              "review": {"self_check": {"completeness_score": 0.6, "hallucination_risk": 0.1, "tool_sufficiency": true, "missing_steps": []}, "fallback_plan": []}
+            }
+            """);
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("document_search")).thenReturn(true);
+        InterpretationPlan originalPlan = originalPlan();
+        InterpretationPlanRewriter rewriter = new InterpretationPlanRewriter(
+            chatModel, new ObjectMapper(), new InterpretationPlanValidator());
+
+        InterpretationPlanRewriter.RewriteResult result = rewriter.rewrite(
+            new InterpretationPlanRewriter.RewriteRequest(
+                originalPlan,
+                originalPlan.steps().get(0),
+                "Tool result rejected by model review",
+                List.of("InterpretationPlan initial step 1 document_search succeeded."),
+                List.of("document_search"),
+                toolRegistry,
+                List.of()
+            ));
+
+        assertThat(result.valid()).isTrue();
+        assertThat(result.rewrittenPlan().steps()).hasSize(1);
+        assertThat(result.rewrittenPlan().steps().get(0).finalAnswerAction()).isTrue();
+        assertThat(result.rewrittenPlan().steps().get(0).dependsOn()).isEmpty();
+    }
+
+    @Test
     void returnsFailureWhenModelDoesNotReturnJsonPlan() {
         InterpretationPlanRewriter rewriter = new InterpretationPlanRewriter(
             new CapturingChatModel("not json"),

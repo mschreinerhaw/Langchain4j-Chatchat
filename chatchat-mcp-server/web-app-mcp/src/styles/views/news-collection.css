@@ -22,6 +22,10 @@
 .collection-template-summary strong { color: var(--el-color-primary); }
 .collection-template-summary p { margin: 5px 0 0; color: var(--el-text-color-regular); line-height: 1.6; }
 .collection-template-summary ol { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 0; padding-left: 22px; color: var(--el-text-color-secondary); font-size: 13px; }
+.structured-flash-editor { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--el-border-color); border-radius: 8px; background: var(--el-fill-color-lighter); }
+.structured-flash-editor .el-form-item { margin-bottom: 0; }
+.structured-flash-editor textarea { font-family: Consolas, "Courier New", monospace; line-height: 1.5; }
+.structured-flash-editor > small { color: var(--el-text-color-secondary); line-height: 1.6; }
 .pattern-option { display: flex; align-items: center; gap: 12px; }
 .pattern-option small { overflow: hidden; color: var(--el-text-color-secondary); text-overflow: ellipsis; white-space: nowrap; }
 .schedule-table-label { display: block; font-weight: 600; color: var(--el-text-color-primary); }

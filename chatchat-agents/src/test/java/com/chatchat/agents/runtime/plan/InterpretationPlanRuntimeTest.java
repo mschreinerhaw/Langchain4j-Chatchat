@@ -31,6 +31,37 @@ import static org.mockito.Mockito.when;
 class InterpretationPlanRuntimeTest {
 
     @Test
+    void newsSearchUsesOriginalTodayQueryAndRuntimeOwnedDateRange() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class), new InterpretationPlanValidator(), scriptedController(List.of()));
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "normalizeNewsSearchInput", InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class, Map.class);
+        method.setAccessible(true);
+        String userQuery = "\u8bf7\u6839\u636e\u4eca\u65e5\u8d22\u7ecf\u8d44\u8baf\u751f\u6210A\u80a1\u6536\u76d8\u590d\u76d8";
+        Map<String, Object> input = new java.util.LinkedHashMap<>();
+        input.put("query", "2025\u5e744\u67088\u65e5 A\u80a1\u6536\u76d8\u590d\u76d8");
+        input.put("time_range", "today");
+        input.put("category", "finance");
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            1, "mcp_tool", "mcp_chatchat_mcp_server_news_search", Map.of(), List.of(), null, null);
+        InterpretationPlanRuntime.ExecutionRequest request = new InterpretationPlanRuntime.ExecutionRequest(
+            null, null, List.of(), "tenant", "request", "conversation", "user",
+            Map.of("originalUserQuery", userQuery, "timezone", "Asia/Shanghai"));
+
+        method.invoke(runtime, step, request, input);
+
+        java.time.ZoneId zone = java.time.ZoneId.of("Asia/Shanghai");
+        java.time.LocalDate today = java.time.LocalDate.now(zone);
+        assertThat(input.get("query")).isEqualTo(userQuery);
+        assertThat(java.time.Instant.parse(String.valueOf(input.get("startTime"))))
+            .isEqualTo(today.atStartOfDay(zone).toInstant());
+        assertThat(java.time.Instant.parse(String.valueOf(input.get("endTime"))))
+            .isAfter(today.atStartOfDay(zone).toInstant());
+        assertThat(input).doesNotContainKeys("time_range", "category");
+    }
+
+    @Test
     void executesReadyToolStepsInParallelAndThenFinalAnswer() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("document_search")).thenReturn(true);
@@ -3143,7 +3174,7 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
-    void compilesControllerParameterProtocolAfterTemplateDiscovery() {
+    void compilesControllerParameterProtocolAgainstRuntimeDiscoveredTemplate() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool(any())).thenReturn(true);
         when(toolRegistry.getToolMetadata(any())).thenReturn(ToolMetadata.builder().riskLevel("low").build());
@@ -3193,7 +3224,7 @@ class InterpretationPlanRuntimeTest {
                 Map<String, Object> protocol = Map.of(
                     "protocol_version", InterpretationExecutionProtocol.TEMPLATE_PARAMETER_PROTOCOL_VERSION,
                     "step_id", 2,
-                    "template_id", "QUERY_BY_TRADE_DATE",
+                    "template_id", "MODEL_SELECTED_DATASOURCE_ASSET",
                     "arguments", Map.of("trade_date", Map.of(
                         "value", "20260716",
                         "source", "user_query",
@@ -3326,6 +3357,47 @@ class InterpretationPlanRuntimeTest {
             .hasRootCauseInstanceOf(IllegalStateException.class)
             .rootCause()
             .hasMessageContaining("does not match the Runtime-bound template");
+    }
+
+    @Test
+    void runtimeOwnedTemplateBindingOverridesModelProtocolAndInvocationWithoutBusinessHardcoding() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class), new InterpretationPlanValidator(), scriptedController(List.of()));
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "normalizeModelInvocationEnvelope", InterpretationPlan.Step.class, Map.class);
+        method.setAccessible(true);
+        Map<String, Object> input = new java.util.LinkedHashMap<>();
+        input.put("templateId", "RUNTIME_DISCOVERED_TEMPLATE");
+        input.put("runtimeTemplateBinding", Map.of(
+            "schemaVersion", "runtime_template_binding.v1",
+            "source", "plan_binding_from_template_discovery",
+            "templateId", "RUNTIME_DISCOVERED_TEMPLATE",
+            "executorTool", "mcp_chatchat_mcp_server_sql_query_execute"
+        ));
+        input.put("parameterProtocol", Map.of(
+            "protocol_version", InterpretationExecutionProtocol.TEMPLATE_PARAMETER_PROTOCOL_VERSION,
+            "step_id", 7,
+            "template_id", "MODEL_CONFUSED_ASSET_WITH_TEMPLATE",
+            "arguments", Map.of("trade_date", Map.of(
+                "value", "20260721",
+                "source", "user_query",
+                "evidence", "today"
+            )),
+            "unresolved_parameters", List.of()
+        ));
+        input.put("invocation", Map.of(
+            "templateRef", "MODEL_SECOND_OVERRIDE_ATTEMPT",
+            "arguments", Map.of("trade_date", "20260721")
+        ));
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            7, "mcp_tool", "mcp_chatchat_mcp_server_sql_query_execute", Map.of(), List.of(), null, null);
+
+        method.invoke(runtime, step, input);
+
+        assertThat(input.get("templateId")).isEqualTo("RUNTIME_DISCOVERED_TEMPLATE");
+        assertThat(input.get("template")).isEqualTo("RUNTIME_DISCOVERED_TEMPLATE");
+        assertThat(input.get("parameters")).isEqualTo(Map.of("trade_date", "20260721"));
+        assertThat(input.get("runtimeParameterProtocolApplied")).isEqualTo(true);
     }
 
     @Test

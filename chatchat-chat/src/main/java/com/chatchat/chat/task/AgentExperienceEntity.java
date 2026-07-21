@@ -54,7 +54,7 @@ public class AgentExperienceEntity {
     @Column(columnDefinition = "TEXT")
     private String question;
 
-    @Column(name = "answer_summary", columnDefinition = "TEXT")
+    @Column(name = "answer_summary", columnDefinition = "LONGTEXT")
     private String answerSummary;
 
     @Column(name = "feedback_useful")

@@ -447,7 +447,10 @@
                       <div v-if="databaseSqlSideTabs[field.key] === 'inputs'" class="database-flow-side-panel">
                         <template v-for="paramField in [databaseParamConfigField()]" :key="paramField?.key || 'flow-inputs'">
                           <template v-if="paramField">
-                            <div class="database-flow-side-head"><div><strong>对外输入参数</strong><small>仅展示用户主动添加的功能参数；SQL 参数不会自动汇总到这里</small></div><el-button type="primary" plain size="small" @click="addDatabaseFlowInput(paramField)">新增参数</el-button></div>
+                            <div class="database-flow-side-head">
+                              <div><strong>对外输入参数</strong><small>仅展示主动添加的功能参数和内置参数；SQL 参数不会自动汇总到这里</small></div>
+                              <el-button type="primary" plain size="small" @click="addDatabaseFlowInput(paramField)">新增参数</el-button>
+                            </div>
                             <div
                               v-for="(param, paramIndex) in schemaDraft[paramField.key]"
                               :key="`flow-param-${paramIndex}`"
@@ -458,11 +461,17 @@
                               }"
                             >
                               <div class="database-flow-input-label"><span><i>*</i> 参数名称</span><em v-if="databaseParamRequiresTestValue(param)">必填参数</em></div>
-                              <div><el-input v-model.trim="param.name" placeholder="功能参数名" @change="handleDatabaseFlowInputNameChange(param)" /><el-select v-model="param.type"><el-option v-for="option in schemaTypeOptions" :key="option.value" :label="option.label" :value="option.value" /></el-select></div>
-                              <el-tag type="info" effect="plain">来源：流程输入</el-tag>
-                              <el-input v-model="param.testValue" :placeholder="databaseParamRequiresTestValue(param) ? '流程测试值（测试必填）' : '流程测试值（选填）'" />
-                              <small v-if="databaseParameterValidationAttempted && databaseParamTestValueMissing(param)" class="database-flow-input-error">请填写该必填参数的流程测试值</small>
-                              <div><el-checkbox v-model="param.required" @change="handleDatabaseFlowInputRequiredChange(param)">设为必填</el-checkbox><el-button plain type="danger" size="small" @click="removeDatabaseParamEntry(paramField, paramIndex)">删除</el-button></div>
+                              <div><el-input v-model.trim="param.name" placeholder="功能参数名" @change="handleDatabaseFlowInputNameChange(param)" /><el-select v-model="param.type" :disabled="databaseParamIsBuiltInDate(param)"><el-option v-for="option in schemaTypeOptions" :key="option.value" :label="option.label" :value="option.value" /></el-select></div>
+                              <el-select v-model="param.defaultSource" placeholder="选择参数来源" @change="handleDatabaseParamSourceChange(param)"><el-option v-for="option in databaseParamSourceOptions" :key="option.value" :label="option.label" :value="option.value" /></el-select>
+                              <template v-if="databaseParamIsBuiltInDate(param)">
+                                <small class="database-flow-input-hint">{{ databaseBuiltinDateHint(param) }}</small>
+                                <div><el-tag type="success" effect="plain">内置日期变量</el-tag><el-button plain type="danger" size="small" @click="removeDatabaseParamEntry(paramField, paramIndex)">删除</el-button></div>
+                              </template>
+                              <template v-else>
+                                <el-input v-model="param.testValue" :placeholder="databaseParamRequiresTestValue(param) ? '流程测试值（测试必填）' : '流程测试值（选填）'" />
+                                <small v-if="databaseParameterValidationAttempted && databaseParamTestValueMissing(param)" class="database-flow-input-error">请填写该必填参数的流程测试值</small>
+                                <div><el-checkbox v-model="param.required" @change="handleDatabaseFlowInputRequiredChange(param)">设为必填</el-checkbox><el-button plain type="danger" size="small" @click="removeDatabaseParamEntry(paramField, paramIndex)">删除</el-button></div>
+                              </template>
                             </div>
                             <div v-if="!schemaDraft[paramField.key]?.length" class="database-compact-empty">尚未添加对外输入。各 SQL 将使用各自独立的参数配置。</div>
                           </template>

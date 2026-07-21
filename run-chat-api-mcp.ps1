@@ -124,6 +124,35 @@ function Get-ManagedProcess {
     return Get-Process -Id $PidValue -ErrorAction SilentlyContinue
 }
 
+function Get-ModuleJavaProcesses {
+    param([string]$Name)
+
+    $JarPrefix = (Join-Path $ProjectRoot "$Name\target\$Name-").ToLowerInvariant()
+    Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+        Where-Object {
+            ($_.Name -eq "java.exe" -or $_.Name -eq "javaw.exe") -and
+            $_.CommandLine -and
+            $_.CommandLine.ToLowerInvariant().Contains($JarPrefix) -and
+            $_.CommandLine.ToLowerInvariant().Contains(".jar")
+        } |
+        ForEach-Object { Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue }
+}
+
+function Get-AppProcesses {
+    param(
+        [string]$Name,
+        [string]$PidFile
+    )
+
+    $Processes = @()
+    $ManagedProcess = Get-ManagedProcess -PidFile $PidFile
+    if ($ManagedProcess) {
+        $Processes += $ManagedProcess
+    }
+    $Processes += @(Get-ModuleJavaProcesses -Name $Name)
+    return @($Processes | Where-Object { $_ } | Sort-Object Id -Unique)
+}
+
 function Test-PortOpen {
     param([int]$Port)
 
@@ -166,8 +195,8 @@ function Stop-ManagedApp {
         [string]$PidFile
     )
 
-    $Process = Get-ManagedProcess -PidFile $PidFile
-    if (-not $Process) {
+    $Processes = @(Get-AppProcesses -Name $Name -PidFile $PidFile)
+    if ($Processes.Count -eq 0) {
         if (Test-Path $PidFile) {
             Remove-Item -LiteralPath $PidFile -Force -ErrorAction SilentlyContinue
         }
@@ -175,19 +204,22 @@ function Stop-ManagedApp {
         return
     }
 
-    Write-Host "Stopping $Name, pid=$($Process.Id) ..."
-    Stop-Process -Id $Process.Id -ErrorAction SilentlyContinue
-    try {
-        Wait-Process -Id $Process.Id -Timeout 30 -ErrorAction Stop
-    }
-    catch {
-        if (Get-Process -Id $Process.Id -ErrorAction SilentlyContinue) {
-            Stop-Process -Id $Process.Id -Force -ErrorAction SilentlyContinue
+    foreach ($Process in $Processes) {
+        Write-Host "Stopping $Name, pid=$($Process.Id) ..."
+        Stop-Process -Id $Process.Id -ErrorAction SilentlyContinue
+        try {
+            Wait-Process -Id $Process.Id -Timeout 30 -ErrorAction Stop
         }
+        catch {
+            if (Get-Process -Id $Process.Id -ErrorAction SilentlyContinue) {
+                Stop-Process -Id $Process.Id -Force -ErrorAction SilentlyContinue
+                Wait-Process -Id $Process.Id -Timeout 10 -ErrorAction SilentlyContinue
+            }
+        }
+        Write-Host "$Name stopped, pid=$($Process.Id)."
     }
 
     Remove-Item -LiteralPath $PidFile -Force -ErrorAction SilentlyContinue
-    Write-Host "$Name stopped."
 }
 
 function Invoke-Build {
@@ -379,14 +411,18 @@ function Write-ManagedStatus {
         [int]$Port
     )
 
-    $Process = Get-ManagedProcess -PidFile $PidFile
+    $ManagedProcess = Get-ManagedProcess -PidFile $PidFile
+    $Processes = @(Get-AppProcesses -Name $Name -PidFile $PidFile)
     $PortStatus = if (Test-PortOpen -Port $Port) { "open" } else { "closed" }
 
-    if ($Process) {
-        Write-Host "${Name}: running, pid=$($Process.Id), port $Port is $PortStatus"
+    if ($ManagedProcess) {
+        Write-Host "${Name}: running, pid=$($ManagedProcess.Id), port $Port is $PortStatus"
+    }
+    elseif ($Processes.Count -gt 0) {
+        Write-Host "${Name}: running outside PID tracking, pid=$($Processes[0].Id), port $Port is $PortStatus"
     }
     else {
-        Write-Host "${Name}: not managed by this script, port $Port is $PortStatus"
+        Write-Host "${Name}: not running, port $Port is $PortStatus"
     }
 }
 
@@ -437,7 +473,9 @@ switch ($Action) {
     }
     "start" {
         if (-not $SkipBuild) {
-            if ((Get-ManagedProcess -PidFile $ApiPidFile) -or (Get-ManagedProcess -PidFile $McpPidFile) -or (Get-ManagedProcess -PidFile $NewsPidFile)) {
+            if (@(Get-AppProcesses -Name "chatchat-api" -PidFile $ApiPidFile).Count -gt 0 -or
+                @(Get-AppProcesses -Name "chatchat-mcp-server" -PidFile $McpPidFile).Count -gt 0 -or
+                @(Get-AppProcesses -Name "chatchat-runtime-news" -PidFile $NewsPidFile).Count -gt 0) {
                 throw "Managed services are already running. Use -Action restart, or use -Action start -SkipBuild."
             }
 

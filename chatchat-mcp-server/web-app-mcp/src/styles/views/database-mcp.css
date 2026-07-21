@@ -707,6 +707,12 @@
   font-size: 11px;
 }
 
+.database-flow-input-hint {
+  color: #718199;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
 .database-flow-input-card > div {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 92px;

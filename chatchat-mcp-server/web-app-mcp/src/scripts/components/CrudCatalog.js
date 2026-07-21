@@ -934,6 +934,7 @@ export default {
     },
     handleDatabaseParamSourceChange(entry) {
       if (entry.defaultSource && entry.defaultSource !== 'user_input') {
+        entry.type = 'string';
         entry.testValue = '';
         entry.required = false;
       }
@@ -953,8 +954,13 @@ export default {
       });
       rows.forEach(row => {
         const name = String(row?.name || '').trim();
-        row.defaultSource = 'user_input';
-        if (requiredByName.has(name)) row.required = requiredByName.get(name) === true;
+        row.defaultSource = row.defaultSource || 'user_input';
+        if (row.defaultSource !== 'user_input') {
+          row.required = false;
+          row.testValue = '';
+        } else if (requiredByName.has(name)) {
+          row.required = requiredByName.get(name) === true;
+        }
       });
       this.schemaDraft[field.key] = [...rows];
     },
@@ -1164,6 +1170,15 @@ export default {
     databaseParamRequiresTestValue(param) {
       return Boolean(param?.required) && (!param.defaultSource || param.defaultSource === 'user_input');
     },
+    databaseParamIsBuiltInDate(param) {
+      const source = String(param?.defaultSource || 'user_input');
+      return source !== 'user_input';
+    },
+    databaseBuiltinDateHint(param) {
+      const source = String(param?.defaultSource || '');
+      const format = source === 'month' ? 'YYYYMM' : 'YYYYMMDD';
+      return `执行时自动解析系统日期变量 ${source}，按 ${format} 格式注入，无需调用方传入。`;
+    },
     databaseParamTestValueMissing(param) {
       return this.databaseParamRequiresTestValue(param) && this.isEmptyFieldValue(param.testValue);
     },
@@ -1228,9 +1243,15 @@ export default {
       const field = this.databaseParamConfigField();
       if (!field) return [];
       return (this.schemaDraft[field.key] || [])
-        .map(row => String(row?.name || '').trim())
-        .filter(Boolean)
-        .map(name => ({ label: name, value: name }));
+        .map(row => ({
+          name: String(row?.name || '').trim(),
+          builtIn: this.databaseParamIsBuiltInDate(row)
+        }))
+        .filter(option => Boolean(option.name))
+        .map(option => ({
+          label: option.builtIn ? `${option.name}（内置日期）` : option.name,
+          value: option.name
+        }));
     },
     removeDatabaseSqlParameterMapping(entry, index) {
       entry.parameterMappings = (entry.parameterMappings || []).filter((_, currentIndex) => currentIndex !== index);

@@ -141,7 +141,7 @@ export default {
         const typeMatches = !this.filters.sourceType || source.sourceType === this.filters.sourceType;
         const statusMatches = this.filters.enabled === '' || source.enabled === this.filters.enabled;
         return keywordMatches && typeMatches && statusMatches;
-      });
+      }).sort((left, right) => Number(Boolean(right.configuration?.legalRisk)) - Number(Boolean(left.configuration?.legalRisk)));
     },
     pagedSources() {
       const start = (this.page - 1) * this.pageSize;

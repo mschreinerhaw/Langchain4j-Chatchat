@@ -64,6 +64,7 @@ export default {
       metadataScopeKeyword: '',
       metadataScopeOpenKey: '',
       formTestResult: null,
+      databasePreviewActiveTab: '',
       databaseSqlSelectedIndexes: {},
       databaseSqlActiveTabs: {},
       databaseSqlSideTabs: {},
@@ -190,18 +191,35 @@ export default {
       const start = (page - 1) * this.templatePickerPageSize;
       return this.templatePickerFilteredItems.slice(start, start + this.templatePickerPageSize);
     },
-    databasePreviewData() {
+    databasePreviewResultSets() {
       const data = this.formTestResult?.data || {};
-      if (Array.isArray(data.resultSets) && data.resultSets.length) {
-        return data.resultSets.find(item => item.success !== false) || data.resultSets[0];
-      }
-      return data;
+      const nestedResults = Array.isArray(data.resultSets) && data.resultSets.length
+        ? data.resultSets
+        : (Array.isArray(data.results) && data.results.length ? data.results : null);
+      const resultSets = nestedResults || [data];
+      return resultSets.map((item, index) => ({
+        ...item,
+        previewKey: String(item.nodeCode || item.sqlCode || item.statementIndex || `sql-${index + 1}`),
+        previewName: item.nodeName || item.sqlName || item.stepName || item.nodeCode || item.sqlCode || `SQL ${index + 1}`
+      }));
+    },
+    databasePreviewData() {
+      return this.databasePreviewResultSets.find(item => item.previewKey === this.databasePreviewActiveTab)
+        || this.databasePreviewResultSets[0]
+        || {};
     },
     databasePreviewColumns() {
       return Array.isArray(this.databasePreviewData.columns) ? this.databasePreviewData.columns : [];
     },
     databasePreviewRows() {
       return Array.isArray(this.databasePreviewData.rows) ? this.databasePreviewData.rows : [];
+    },
+    databasePreviewResolvedSql() {
+      if (this.databasePreviewData.resolvedSqlPreview) return this.databasePreviewData.resolvedSqlPreview;
+      const data = this.formTestResult?.data || {};
+      const previews = Array.isArray(data.resolvedSqlPreviews) ? data.resolvedSqlPreviews : [];
+      const preview = previews.find(item => String(item.nodeCode || item.sqlCode || '') === this.databasePreviewData.previewKey);
+      return preview?.sql || this.databasePreviewData.sql || '';
     },
     databaseResolvedSqlPreviews() {
       const data = this.formTestResult?.data || {};
@@ -221,14 +239,14 @@ export default {
       const data = this.formTestResult?.data || {};
       const resultSets = Array.isArray(data.resultSets) && data.resultSets.length
         ? data.resultSets
-        : [data];
+        : (Array.isArray(data.results) && data.results.length ? data.results : [data]);
       return resultSets.reduce((total, item) => total + Number(item.rowCount || 0), 0);
     },
     databaseTestExecutedSteps() {
       const data = this.formTestResult?.data || {};
       const nodes = Array.isArray(data.nodeExecutions) && data.nodeExecutions.length
         ? data.nodeExecutions
-        : (Array.isArray(data.resultSets) ? data.resultSets : []);
+        : (Array.isArray(data.resultSets) ? data.resultSets : (Array.isArray(data.results) ? data.results : []));
       return nodes.map((item, index) => item.nodeName || item.sqlName || item.nodeCode || `SQL ${index + 1}`).join(' → ');
     },
     databaseTestDurationMs() {
@@ -296,6 +314,7 @@ export default {
       this.editingId = '';
       this.form = { ...this.defaults };
       this.formTestResult = null;
+      this.databasePreviewActiveTab = '';
       this.prepareJsonDraft();
       this.prepareFormSections();
       this.formOpen = true;
@@ -304,6 +323,7 @@ export default {
       this.editingId = item.id || '';
       this.form = JSON.parse(JSON.stringify({ ...this.defaults, ...item }));
       this.formTestResult = null;
+      this.databasePreviewActiveTab = '';
       this.prepareJsonDraft();
       this.prepareFormSections();
       this.formOpen = true;
@@ -424,6 +444,7 @@ export default {
       try {
         const result = await this.formTestAction(this.formPayload());
         this.formTestResult = result;
+        this.databasePreviewActiveTab = this.databasePreviewResultSets[0]?.previewKey || '';
         this.formFields.filter(field => field.type === 'databaseSqlSteps').forEach(field => {
           this.databaseSqlSideTabs[field.key] = 'test';
         });
@@ -753,6 +774,23 @@ export default {
     },
     removeListEntry(key, index) {
       this.listDraft[key] = (this.listDraft[key] || []).filter((_, currentIndex) => currentIndex !== index);
+    },
+    async applyTextPreset(field, preset) {
+      if (!field?.key || preset?.value == null) return;
+      const current = String(this.form[field.key] || '').trim();
+      const next = String(preset.value);
+      if (current && current !== next.trim()) {
+        try {
+          await ElMessageBox.confirm('当前内容将被快速模板替换，是否继续？', '应用快速模板', {
+            type: 'warning',
+            confirmButtonText: '替换',
+            cancelButtonText: '取消'
+          });
+        } catch (error) {
+          return;
+        }
+      }
+      this.form[field.key] = next;
     },
     openTemplatePicker(field) {
       this.templatePickerField = field;

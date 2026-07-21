@@ -1,6 +1,5 @@
 import {
   createAgentSchedule,
-  deleteAgentScheduleNotificationRecipient,
   deleteAgentSchedule,
   fetchAgentScheduleNotificationChannels,
   fetchAgentScheduleNotificationHistory,
@@ -589,40 +588,31 @@ export default {
       this.notificationSelectOpen = false;
       await this.createSchedule(true);
     },
-    async saveNotificationRecipient(channel) {
-      this.addNotificationRecipients(channel.channel);
-      const receiver = (this.notificationRecipientDrafts[channel.channel] || []).join(",");
-      if (!receiver) {
-        this.error = "请填写接收人";
+    async saveNotificationRecipientsAndClose() {
+      const channels = this.notificationChannels.filter((channel) => channel.recipientAware);
+      channels.forEach((channel) => this.addNotificationRecipients(channel.channel));
+      const missingChannel = channels.find(
+        (channel) => !(this.notificationRecipientDrafts[channel.channel] || []).length
+      );
+      if (missingChannel) {
+        this.error = `请填写${this.channelTypeLabel(missingChannel.channel)}接收人`;
         return;
       }
-      this.recipientSaving = channel.channel;
+      if (!channels.length) {
+        this.error = "暂无可保存接收人的通知方式";
+        return;
+      }
+      this.recipientSaving = "all";
       this.error = "";
       try {
-        await saveAgentScheduleNotificationRecipient(channel.channel, receiver);
-        this.notice = `${this.channelTypeLabel(channel.channel)}接收人已保存`;
-        await this.loadNotificationChannels();
+        for (const channel of channels) {
+          const receiver = this.notificationRecipientDrafts[channel.channel].join(",");
+          await saveAgentScheduleNotificationRecipient(channel.channel, receiver);
+        }
+        this.notice = "通知接收人已保存";
+        this.notificationDialogOpen = false;
       } catch (error) {
         this.error = error.message || "接收人保存失败";
-      } finally {
-        this.recipientSaving = "";
-      }
-    },
-    async deleteNotificationRecipient(channel) {
-      if (!channel?.bound || !window.confirm(`确认解绑${this.channelTypeLabel(channel.channel)}接收人？`)) {
-        return;
-      }
-      this.recipientSaving = channel.channel;
-      this.error = "";
-      try {
-        await deleteAgentScheduleNotificationRecipient(channel.channel);
-        if (this.selectedNotificationChannel()?.channel === channel.channel) {
-          this.form.notificationChannelId = "";
-        }
-        this.notice = `${this.channelTypeLabel(channel.channel)}接收人已解绑`;
-        await this.loadNotificationChannels();
-      } catch (error) {
-        this.error = error.message || "接收人解绑失败";
       } finally {
         this.recipientSaving = "";
       }

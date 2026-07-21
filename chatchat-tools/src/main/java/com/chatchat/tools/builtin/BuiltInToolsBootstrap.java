@@ -1499,9 +1499,14 @@ public class BuiltInToolsBootstrap {
                 int queryTimeoutSeconds = resolveQueryTimeoutSeconds(input);
                 Map<String, Object> params = resolveParams(input);
                 resolvedSqlPreview = renderSqlPreview(safeSql, params);
+                boolean literalParameterExecution = requiresLiteralParameterExecution(input);
+                String executableSql = literalParameterExecution
+                    ? validateReadOnlySql(resolvedSqlPreview)
+                    : safeSql;
 
-                log.info("Database query SQL executing: maxRows={}, timeoutSeconds={}, parameterTypes={}, sql={}",
-                    maxRows, queryTimeoutSeconds, parameterTypes(params), safeSql);
+                log.info("Database query SQL executing: maxRows={}, timeoutSeconds={}, parameterMode={}, parameterTypes={}, sql={}",
+                    maxRows, queryTimeoutSeconds, literalParameterExecution ? "LITERAL_COMPATIBILITY" : "PREPARED",
+                    parameterTypes(params), executableSql);
                 log.info("Database query resolved SQL preview: sql={}", resolvedSqlPreview);
 
                 JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
@@ -1509,7 +1514,9 @@ public class BuiltInToolsBootstrap {
                 jdbcTemplate.setQueryTimeout(queryTimeoutSeconds);
                 NamedParameterJdbcTemplate namedTemplate = new NamedParameterJdbcTemplate(jdbcTemplate);
 
-                List<Map<String, Object>> rows = namedTemplate.queryForList(safeSql, params)
+                List<Map<String, Object>> rows = (literalParameterExecution
+                    ? jdbcTemplate.queryForList(executableSql)
+                    : namedTemplate.queryForList(safeSql, params))
                     .stream()
                     .map(this::normalizeRow)
                     .toList();
@@ -1537,6 +1544,14 @@ public class BuiltInToolsBootstrap {
                 }
                 return output;
             }
+        }
+
+        private boolean requiresLiteralParameterExecution(ToolInput input) {
+            String databaseType = input.getParameterAsString("database_type", "").trim().toLowerCase(Locale.ROOT);
+            String jdbcUrl = input.getParameterAsString("jdbc_url", "").trim().toLowerCase(Locale.ROOT);
+            return "hive".equals(databaseType)
+                || "inceptor".equals(databaseType)
+                || jdbcUrl.startsWith("jdbc:hive2:");
         }
 
         private String renderSqlPreview(String sql, Map<String, Object> params) {

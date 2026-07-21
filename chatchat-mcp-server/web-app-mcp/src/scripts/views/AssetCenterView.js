@@ -10,6 +10,11 @@ const objectSchemaText = JSON.stringify({
   additionalProperties: true
 }, null, 2);
 
+const livedataDynamicSessionBody = JSON.stringify({
+  sessionId: '{{__livedata_session_id}}',
+  data: {}
+}, null, 2);
+
 export default {
   name: 'AssetCenterView',
   components: { CrudCatalog, ModalPanel },
@@ -121,8 +126,8 @@ export default {
         capabilitySpecJson: '{}',
         dependencySpecJson: '{}',
         bodyTemplate: '',
-        routingLabelsJson: '[]',
-        capabilitiesJson: '["http","http_request"]',
+        routingLabelsJson: '["api_gateway","http_endpoint"]',
+        capabilitiesJson: '["api_gateway","http","http_request"]',
         governanceJson: ''
       },
       commandTemplateDefaults: {
@@ -302,7 +307,12 @@ export default {
         { key: 'outputSchemaJson', label: '结果 Schema', type: 'jsonSchemaString', span: 'col-md-6', help: '可视化维护接口返回字段，供需求覆盖评审和模型解释结果使用。' },
         { key: 'capabilitySpecJson', label: '能力说明', type: 'jsonObjectString', span: 'col-md-6', help: '描述业务能力、适用场景和意图别名，不包含真实 URL 或认证信息。' },
         { key: 'dependencySpecJson', label: '依赖说明', type: 'jsonObjectString', span: 'col-md-6', help: '描述前置能力、参数来源和调用顺序，供 Runtime 生成依赖 DAG。' },
-        { key: 'bodyTemplate', label: 'Body 模板', type: 'textarea', rows: 5, span: 'col-12', placeholder: '{\n  "orderId": "{{orderId}}"\n}', help: 'POST/PUT/PATCH 可填写 JSON 模板；变量使用 {{参数名}}，GET 通常留空。' },
+        {
+          key: 'bodyTemplate', label: 'Body 模板', type: 'textarea', rows: 5, span: 'col-12',
+          placeholder: '{\n  "sessionId": "{{sessionId}}",\n  "orderId": "{{orderId}}"\n}',
+          textPresets: [{ label: '使用 LiveData 动态 sessionId', value: livedataDynamicSessionBody }],
+          help: 'POST/PUT/PATCH 可填写 JSON 模板；普通变量使用 {{参数名}} 并由调用方动态传入。LiveData 会话请使用 {{__livedata_session_id}}，服务端会在每次调用时自动获取并在失效后刷新，禁止填写固定 sessionId；GET 通常留空。'
+        },
         { key: 'routingLabelsJson', label: '路由标签', type: 'jsonStringList', placeholder: '输入标签，如 gateway、prod', span: 'col-md-6', help: '用于资产检索和路由匹配。' },
         { key: 'capabilitiesJson', label: '能力标签', type: 'jsonStringList', required: true, requiredAnyOf: ['http_request', 'http', 'rest', 'api_call'], requiredAnyOfMessage: 'API 网关能力标签必须包含 http 或 http_request', placeholder: '输入能力，如 http、api', span: 'col-md-6', help: '描述该资产可提供的能力。' }
       ].map(field => ({ ...field, ...assetFieldLayout('http', field.key) }));

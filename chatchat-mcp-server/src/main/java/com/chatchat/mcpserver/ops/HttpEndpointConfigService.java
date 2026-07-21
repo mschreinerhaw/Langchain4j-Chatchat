@@ -119,11 +119,15 @@ public class HttpEndpointConfigService {
         config.setGovernanceJson(normalizeJsonObject(config.getGovernanceJson(), "governance"));
         config.setEnvironment(normalizeEnvironment(config.getEnvironment()));
         config.setCategory(firstText(config.getCategory(), "api_gateway").toLowerCase(Locale.ROOT));
-        config.setRoutingLabelsJson(normalizeJsonArray(mergedProtocolValues(config.getRoutingLabelsJson(), config.getRoutingLabels()), "routingLabels"));
+        String routingLabelsJson = normalizeJsonArray(
+            mergedProtocolValues(config.getRoutingLabelsJson(), config.getRoutingLabels()), "routingLabels");
+        config.setRoutingLabelsJson(currentId == null && routingLabelsJson == null
+            ? ModelProtocolJson.compact(List.of("api_gateway", "http_endpoint"))
+            : routingLabelsJson);
         String capabilitiesJson = normalizeJsonArray(
             mergedProtocolValues(config.getCapabilitiesJson(), config.getCapabilities()), "capabilities");
-        config.setCapabilitiesJson("[]".equals(capabilitiesJson)
-            ? ModelProtocolJson.compact(List.of("http", "http_request"))
+        config.setCapabilitiesJson(capabilitiesJson == null
+            ? ModelProtocolJson.compact(List.of("api_gateway", "http", "http_request"))
             : capabilitiesJson);
         config.setTags(mergeTags(config.getTags(), config.getRoutingLabelsJson(), config.getCapabilitiesJson()));
         config.setRuntimeAction("readonly");

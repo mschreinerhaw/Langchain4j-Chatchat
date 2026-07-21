@@ -413,7 +413,7 @@
                     <button
                       type="button"
                       :aria-label="`删除接收人 ${receiver}`"
-                      :disabled="recipientSaving === channel.channel"
+                      :disabled="Boolean(recipientSaving)"
                       @click="removeNotificationRecipient(channel.channel, receiver)"
                     >×</button>
                   </span>
@@ -421,32 +421,29 @@
                 <div class="recipient-input-row">
                   <input
                     v-model.trim="notificationRecipientInputs[channel.channel]"
-                    :disabled="recipientSaving === channel.channel"
+                    :disabled="Boolean(recipientSaving)"
                     :placeholder="recipientPlaceholder(channel.channel)"
                     @keydown="handleRecipientKeydown($event, channel.channel)"
                   />
                   <button
                     type="button"
                     class="light-button"
-                    :disabled="recipientSaving === channel.channel || !notificationRecipientInputs[channel.channel]"
+                    :disabled="Boolean(recipientSaving) || !notificationRecipientInputs[channel.channel]"
                     @click="addNotificationRecipients(channel.channel)"
                   >添加</button>
                 </div>
                 <small class="recipient-editor-help">可逐条输入；粘贴多个接收人时使用逗号分隔，前端会自动拆分并去重。</small>
               </div>
-              <div class="recipient-binding-actions">
-                <button type="button" class="light-button" :disabled="recipientSaving === channel.channel" @click="saveNotificationRecipient(channel)">
-                  {{ recipientSaving === channel.channel ? "保存中" : "保存绑定" }}
-                </button>
-                <button v-if="channel.bound" type="button" class="danger-button" :disabled="recipientSaving === channel.channel" @click="deleteNotificationRecipient(channel)">
-                  解绑
-                </button>
-              </div>
             </div>
           </article>
         </div>
         <footer>
-          <button type="button" class="primary-button" @click="notificationDialogOpen = false">关闭</button>
+          <button
+            type="button"
+            class="primary-button"
+            :disabled="Boolean(recipientSaving) || notificationLoading"
+            @click="saveNotificationRecipientsAndClose"
+          >{{ recipientSaving ? "保存中" : "保存绑定" }}</button>
         </footer>
       </div>
     </div>

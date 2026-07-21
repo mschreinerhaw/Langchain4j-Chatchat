@@ -151,6 +151,20 @@ class BuiltInToolsBootstrapTest {
     }
 
     @Test
+    void databaseQueryUsesLiteralParameterCompatibilityForHiveAndInceptorOnly() throws Exception {
+        Object tool = databaseQueryTool();
+        Method detector = tool.getClass().getDeclaredMethod("requiresLiteralParameterExecution", ToolInput.class);
+        detector.setAccessible(true);
+
+        assertThat((Boolean) detector.invoke(tool, ToolInput.builder()
+            .parameters(Map.of("database_type", "inceptor", "jdbc_url", "jdbc:hive2://tdh01:10000/default"))
+            .build())).isTrue();
+        assertThat((Boolean) detector.invoke(tool, ToolInput.builder()
+            .parameters(Map.of("database_type", "mysql", "jdbc_url", "jdbc:mysql://db:3306/app"))
+            .build())).isFalse();
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void documentSearchEnrichesResultsWithDocumentContentExcerpts() throws Exception {
         startDocumentApi();

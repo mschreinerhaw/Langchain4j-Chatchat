@@ -48,9 +48,6 @@
       </el-table-column>
       <el-table-column label="类型" width="140"><template #default="{ row }">{{ sourceTypeLabel(row.sourceType) }}</template></el-table-column>
       <el-table-column prop="entryUrl" label="入口地址" min-width="300" show-overflow-tooltip />
-      <el-table-column prop="collectionDescription" label="采集内容" min-width="320">
-        <template #default="{ row }"><span class="collection-description">{{ row.collectionDescription || '—' }}</span></template>
-      </el-table-column>
       <el-table-column label="调度计划" width="190">
         <template #default="{ row }">
           <span class="schedule-table-label">{{ describeCron(row.scheduleCron) }}</span>
@@ -59,6 +56,9 @@
         </template>
       </el-table-column>
       <el-table-column prop="collectedRecords" label="记录" width="85" />
+      <el-table-column prop="collectionDescription" label="采集内容" min-width="320">
+        <template #default="{ row }"><span class="collection-description">{{ row.collectionDescription || '—' }}</span></template>
+      </el-table-column>
       <el-table-column label="状态" width="90"><template #default="{ row }"><el-tag :type="row.enabled ? 'success' : 'info'">{{ row.enabled ? '启用' : '停用' }}</el-tag></template></el-table-column>
       <el-table-column label="操作" width="430" fixed="right"><template #default="{ row }">
         <el-button link type="primary" @click="editSource(row)">配置</el-button>

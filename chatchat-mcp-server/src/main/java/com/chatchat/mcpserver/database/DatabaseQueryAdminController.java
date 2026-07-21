@@ -4,7 +4,6 @@ import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.common.tool.ToolOutput;
-import com.chatchat.mcpserver.search.McpTemplateLuceneIndexService;
 import com.chatchat.mcpserver.sql.DynamicDateParamService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
@@ -35,8 +34,7 @@ public class DatabaseQueryAdminController {
     private final ToolRegistry toolRegistry;
     private final DatabaseQueryConfigService configService;
     private final DatabaseQueryInvokeService invokeService;
-    private final DatabaseQueryMcpToolPublisher publisher;
-    private final McpTemplateLuceneIndexService templateIndexService;
+    private final DatabaseQueryPublicationService publicationService;
     private final ObjectMapper objectMapper;
     private final SqlDatasourceConfigService datasourceConfigService;
     private final DynamicDateParamService dynamicDateParamService;
@@ -126,17 +124,11 @@ public class DatabaseQueryAdminController {
     }
 
     private void refreshPublishedTemplates() {
-        publisher.refresh();
-        templateIndexService.refreshDatabaseQueryTemplateIndex();
+        publicationService.refreshAsync();
     }
 
     private void refreshPublishedTemplates(DatabaseQueryConfig saved) {
-        publisher.refresh();
-        if (saved != null && saved.isEnabled()) {
-            templateIndexService.upsertDatabaseQueryTemplates(List.of(saved));
-        } else {
-            templateIndexService.refreshDatabaseQueryTemplateIndex();
-        }
+        publicationService.refreshAsync(saved);
     }
 
     /**

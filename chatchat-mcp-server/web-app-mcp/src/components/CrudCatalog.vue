@@ -159,14 +159,25 @@
                 >
                   <el-option v-for="option in fieldOptions(field)" :key="String(option.value)" :label="option.label" :value="option.value" />
                 </el-select>
-                <el-input
-                  v-else-if="field.type === 'textarea'"
-                  v-model="form[field.key]"
-                  type="textarea"
-                  :rows="field.rows || 3"
-                  :placeholder="field.placeholder"
-                  :required="isFieldRequired(field)"
-                />
+                <div v-else-if="field.type === 'textarea'" class="text-template-field">
+                  <el-input
+                    v-model="form[field.key]"
+                    type="textarea"
+                    :rows="field.rows || 3"
+                    :placeholder="field.placeholder"
+                    :required="isFieldRequired(field)"
+                  />
+                  <div v-if="field.textPresets?.length" class="text-template-presets">
+                    <span>快速模板</span>
+                    <el-button
+                      v-for="preset in field.textPresets"
+                      :key="`${field.key}-${preset.label}`"
+                      plain
+                      size="small"
+                      @click="applyTextPreset(field, preset)"
+                    >{{ preset.label }}</el-button>
+                  </div>
+                </div>
                 <el-input
                   v-else-if="field.type === 'json'"
                   v-model="jsonDraft[field.key]"
@@ -572,73 +583,105 @@
         <div v-if="!formTestResult" class="database-preview-empty">
           完成配置后点击“测试流程”，详细结果将在这里展示。
         </div>
-        <div v-else-if="formTestResult.success === false" class="database-preview-result">
+        <div v-else class="database-preview-result">
+          <div class="database-preview-summary">
+            <el-tag :type="formTestResult.success === false ? 'danger' : 'success'" effect="light">
+              {{ formTestResult.success === false ? '失败' : '成功' }}
+            </el-tag>
+            <span>{{ formTestResult.message || '查询完成' }}</span>
+            <span>SQL {{ databasePreviewResultSets.length }} 条</span>
+            <span>合计返回 {{ databaseTestTotalRows }} 行</span>
+          </div>
+
           <el-alert
+            v-if="formTestResult.success === false"
             class="database-flow-test-error"
             type="error"
             :title="formTestResult.errorMessage || '数据库查询执行失败'"
             :closable="false"
             show-icon
           />
-          <details v-for="preview in databaseResolvedSqlPreviews" :key="preview.key" class="database-resolved-sql" open>
-            <summary>{{ preview.name }} · 参数代入后 SQL</summary>
-            <pre><code>{{ preview.sql }}</code></pre>
-          </details>
-          <details class="database-preview-json"><summary>完整 JSON</summary><pre class="json-block"><code>{{ prettyPreviewJson(formTestResult) }}</code></pre></details>
-        </div>
-        <div v-else class="database-preview-result">
-          <div class="database-preview-summary">
-            <el-tag type="success" effect="light">成功</el-tag>
-            <span>{{ formTestResult.message || '查询完成' }}</span>
-            <span>返回 {{ databasePreviewData.rowCount ?? databasePreviewRows.length }} 行</span>
-            <span>上限 {{ databasePreviewData.maxRows ?? '-' }} 行</span>
-            <el-tag v-if="databasePreviewData.possiblyTruncated" type="warning" effect="light">可能已截断</el-tag>
-          </div>
 
-          <details v-for="preview in databaseResolvedSqlPreviews" :key="preview.key" class="database-resolved-sql" open>
-            <summary>{{ preview.name }} · 参数代入后 SQL</summary>
-            <pre><code>{{ preview.sql }}</code></pre>
-          </details>
-
-          <div v-if="databasePreviewColumns.length" class="database-preview-fields">
-            <div class="database-preview-fields-head">
-              <span>从查询结果列名生成参数</span>
-              <el-button plain size="small" @click="appendDatabasePreviewParams(databasePreviewColumns, databasePreviewRows[0] || {})">
-                全部字段
-              </el-button>
-            </div>
-            <div class="database-preview-field-list">
-              <el-button
-                v-for="column in databasePreviewColumns"
-                :key="column"
-                plain
-                size="small"
-                @click="appendDatabasePreviewParam(column, databasePreviewRows[0]?.[column])"
-              >
-                {{ column }}
-              </el-button>
-            </div>
-          </div>
-
-          <el-table
-            v-if="databasePreviewColumns.length"
-            class="database-preview-table"
-            :data="databasePreviewRows"
-            border
-            size="small"
-            empty-text="查询成功，但没有返回行"
-          >
-            <el-table-column
-              v-for="column in databasePreviewColumns"
-              :key="column"
-              :prop="column"
-              :label="column"
-              min-width="140"
+          <el-tabs v-model="databasePreviewActiveTab" type="card" class="database-preview-tabs">
+            <el-tab-pane
+              v-for="resultSet in databasePreviewResultSets"
+              :key="resultSet.previewKey"
+              :name="resultSet.previewKey"
             >
-              <template #default="{ row }">{{ formatPreviewCell(row[column]) }}</template>
-            </el-table-column>
-          </el-table>
-          <div v-else class="database-preview-empty">查询成功，但没有返回列。</div>
+              <template #label>
+                <span class="database-preview-tab-label">
+                  <i :class="resultSet.success === false ? 'is-error' : 'is-success'"></i>
+                  {{ resultSet.previewName }}
+                  <small>{{ resultSet.rowCount ?? (resultSet.rows?.length || 0) }} 行</small>
+                </span>
+              </template>
+
+              <div v-if="databasePreviewActiveTab === resultSet.previewKey" class="database-preview-tab-content">
+                <div class="database-preview-summary database-preview-result-summary">
+                  <el-tag :type="resultSet.success === false ? 'danger' : 'success'" size="small" effect="plain">
+                    {{ resultSet.success === false ? '执行失败' : '执行成功' }}
+                  </el-tag>
+                  <span>返回 {{ databasePreviewData.rowCount ?? databasePreviewRows.length }} 行</span>
+                  <span>上限 {{ databasePreviewData.maxRows ?? '-' }} 行</span>
+                  <span v-if="databasePreviewData.durationMs != null">耗时 {{ databasePreviewData.durationMs }} ms</span>
+                  <el-tag v-if="databasePreviewData.possiblyTruncated" type="warning" size="small" effect="light">可能已截断</el-tag>
+                </div>
+
+                <el-alert
+                  v-if="databasePreviewData.success === false"
+                  type="error"
+                  :title="databasePreviewData.errorMessage || '该 SQL 执行失败'"
+                  :closable="false"
+                  show-icon
+                />
+
+                <details v-if="databasePreviewResolvedSql" class="database-resolved-sql" open>
+                  <summary>{{ databasePreviewData.previewName }} · 参数代入后 SQL</summary>
+                  <pre><code>{{ databasePreviewResolvedSql }}</code></pre>
+                </details>
+
+                <div v-if="databasePreviewColumns.length" class="database-preview-fields">
+                  <div class="database-preview-fields-head">
+                    <span>从查询结果列名生成参数</span>
+                    <el-button plain size="small" @click="appendDatabasePreviewParams(databasePreviewColumns, databasePreviewRows[0] || {})">
+                      全部字段
+                    </el-button>
+                  </div>
+                  <div class="database-preview-field-list">
+                    <el-button
+                      v-for="column in databasePreviewColumns"
+                      :key="column"
+                      plain
+                      size="small"
+                      @click="appendDatabasePreviewParam(column, databasePreviewRows[0]?.[column])"
+                    >
+                      {{ column }}
+                    </el-button>
+                  </div>
+                </div>
+
+                <el-table
+                  v-if="databasePreviewColumns.length"
+                  class="database-preview-table"
+                  :data="databasePreviewRows"
+                  border
+                  size="small"
+                  empty-text="查询成功，但没有返回行"
+                >
+                  <el-table-column
+                    v-for="column in databasePreviewColumns"
+                    :key="column"
+                    :prop="column"
+                    :label="column"
+                    min-width="140"
+                  >
+                    <template #default="{ row }">{{ formatPreviewCell(row[column]) }}</template>
+                  </el-table-column>
+                </el-table>
+                <div v-else-if="databasePreviewData.success !== false" class="database-preview-empty">查询成功，但没有返回列。</div>
+              </div>
+            </el-tab-pane>
+          </el-tabs>
 
           <details class="database-preview-json">
             <summary>完整 JSON</summary>

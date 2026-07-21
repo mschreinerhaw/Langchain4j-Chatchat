@@ -3,7 +3,6 @@ package com.chatchat.mcpserver.database;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.common.tool.ToolOutput;
-import com.chatchat.mcpserver.search.McpTemplateLuceneIndexService;
 import com.chatchat.mcpserver.sql.DynamicDateParamService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
@@ -24,16 +23,14 @@ class DatabaseQueryAdminControllerTest {
     private final ToolRegistry toolRegistry = mock(ToolRegistry.class);
     private final DatabaseQueryConfigService configService = mock(DatabaseQueryConfigService.class);
     private final DatabaseQueryInvokeService invokeService = mock(DatabaseQueryInvokeService.class);
-    private final DatabaseQueryMcpToolPublisher publisher = mock(DatabaseQueryMcpToolPublisher.class);
-    private final McpTemplateLuceneIndexService templateIndexService = mock(McpTemplateLuceneIndexService.class);
+    private final DatabaseQueryPublicationService publicationService = mock(DatabaseQueryPublicationService.class);
     private final SqlDatasourceConfigService datasourceConfigService = mock(SqlDatasourceConfigService.class);
     private final DynamicDateParamService dynamicDateParamService = new DynamicDateParamService(mock(DynamicJdbcDriverLoader.class));
     private final DatabaseQueryAdminController controller = new DatabaseQueryAdminController(
         toolRegistry,
         configService,
         invokeService,
-        publisher,
-        templateIndexService,
+        publicationService,
         new ObjectMapper(),
         datasourceConfigService,
         dynamicDateParamService

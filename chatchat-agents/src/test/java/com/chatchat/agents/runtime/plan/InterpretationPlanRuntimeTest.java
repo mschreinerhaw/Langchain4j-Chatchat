@@ -3993,6 +3993,71 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void normalizesPlannerWebSearchAliasesBeforePublishedSchemaValidation() throws Exception {
+        String toolName = "mcp_chatchat_mcp_server_web_search";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName)
+            .parameters(List.of(
+                ToolParameter.builder().name("query").type("string").required(true).build(),
+                ToolParameter.builder().name("num_results").type("integer").required(false).build()
+            ))
+            .build());
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            1,
+            "mcp_tool",
+            toolName,
+            Map.of(
+                "queries", List.of("今天A股行情 2025", "两融余额 最新数据 2025"),
+                "max_results", 7,
+                "search_type", "hybrid",
+                "freshness", "today"
+            ),
+            List.of(),
+            null,
+            null
+        );
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("web_search", "总结今天A股行情和两融余额", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(step)),
+            new InterpretationPlan.ExecutionPolicy(1, false, List.of(toolName), List.of(), 30000),
+            review()
+        );
+        InterpretationPlanRuntime.ExecutionRequest request = new InterpretationPlanRuntime.ExecutionRequest(
+            plan,
+            toolRegistry,
+            List.of(toolName),
+            "tenant-1",
+            "req-web-search-aliases",
+            "conv-web-search-aliases",
+            "user-1",
+            Map.of("originalUserQuery", "总结今天A股行情和两融余额")
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedStepInput",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class,
+            Map.class
+        );
+        method.setAccessible(true);
+
+        Map<String, Object> resolved = (Map<String, Object>) method.invoke(runtime, step, request, Map.of());
+
+        assertThat(resolved)
+            .containsEntry("query", "总结今天A股行情和两融余额")
+            .containsEntry("num_results", 7)
+            .doesNotContainKeys("queries", "max_results", "search_type", "freshness");
+    }
+
+    @Test
     void acceptsOutputEdgeContractAsWholeSuccessfulStepOutput() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("web_search")).thenReturn(true);
@@ -4032,6 +4097,59 @@ class InterpretationPlanRuntimeTest {
             "tenant-1",
             "req-output-edge-contract",
             "conv-output-edge-contract",
+            "user-1",
+            Map.of()
+        ));
+
+        assertThat(result.success())
+            .as(result.status() + ": " + result.errorMessage())
+            .isTrue();
+        assertThat(result.steps()).noneMatch(step -> "edge_contract".equals(step.actionType()));
+    }
+
+    @Test
+    void acceptsLegacyDataEdgeContractForWebSearchResultEnvelope() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("web_search")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("web_search")).thenReturn(ToolMetadata.builder().riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of(
+                "results", List.of(Map.of("title", "A股市场更新")),
+                "reference_urls", List.of("https://example.com/market")
+            )),
+            ToolMetadata.builder().id("web_search").build(),
+            null,
+            "success",
+            Map.of()
+        ));
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("web_search", "Collect current market news", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", "web_search", Map.of("query", "market news"), List.of(), null, null),
+                    new InterpretationPlan.Step(2, "final_answer", "", Map.of("answer", "done"), List.of(1), null, null)
+                ),
+                List.of(new InterpretationPlan.EdgeContract(1, 2, "data", "any", true))
+            ),
+            new InterpretationPlan.ExecutionPolicy(2, false, List.of("web_search"), List.of(), 30000),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
+            plan,
+            toolRegistry,
+            List.of("web_search"),
+            "tenant-1",
+            "req-data-edge-contract",
+            "conv-data-edge-contract",
             "user-1",
             Map.of()
         ));

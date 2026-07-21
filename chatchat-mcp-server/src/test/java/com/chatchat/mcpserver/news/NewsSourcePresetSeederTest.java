@@ -251,4 +251,31 @@ class NewsSourcePresetSeederTest {
             .containsEntry("legalRisk", true)
             .containsEntry("customSetting", "keep");
     }
+
+    @Test
+    void removesLegalRiskFromExistingOfficialDisclosureSourceWithoutReplacingCustomConfiguration() throws Exception {
+        NewsRuntimeClient runtime = mock(NewsRuntimeClient.class);
+        when(runtime.get("/sources")).thenReturn(new ObjectMapper().readTree("""
+            [{"id":21,"sourceCode":"stcn_quick_news","sourceName":"证券时报快讯",
+              "sourceType":"STRUCTURED_FLASH","entryUrl":"https://www.stcn.com/article/list/kx.html",
+              "collectionDescription":"现有采集说明","enabled":true,
+              "configuration":{"presetVersion":1,"legalRisk":true,"customSetting":"keep",
+                "compliance":{"legalRisk":true,"tags":["证券时报"]}}}]
+            """));
+        when(runtime.post(eq("/sources"), any())).thenReturn(new ObjectMapper().readTree("{\"id\":12}"));
+
+        assertThat(new NewsSourcePresetSeeder(runtime, new NewsSourcePresetCatalog()).seedMissingPresets()).isTrue();
+
+        var request = org.mockito.ArgumentCaptor.forClass(NewsSourcePresetCatalog.SourceUpsert.class);
+        verify(runtime).put(eq("/sources/21"), request.capture());
+        assertThat(request.getValue().enabled()).isTrue();
+        assertThat(request.getValue().collectionDescription()).isEqualTo("现有采集说明");
+        assertThat(request.getValue().configuration())
+            .containsEntry("legalRisk", false)
+            .containsEntry("customSetting", "keep");
+        assertThat(request.getValue().configuration().get("compliance"))
+            .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
+            .containsEntry("legalRisk", false)
+            .containsEntry("tags", java.util.List.of("证券时报"));
+    }
 }

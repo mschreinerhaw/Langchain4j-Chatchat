@@ -467,7 +467,17 @@
               <strong>{{ channel.title || channelTypeLabel(channel.channel) }}</strong>
               <span>{{ channelTypeLabel(channel.channel) }} · {{ channel.deliveryMode || "-" }}</span>
               <p>{{ channel.description || "暂无说明" }}</p>
-              <small>接收人：{{ channel.receiver }}</small>
+              <div class="notification-recipient-summary">
+                <small>接收人：</small>
+                <div>
+                  <span
+                    v-for="recipient in parseNotificationRecipients(channel.receiver)"
+                    :key="`${channel.id}-${recipient}`"
+                    class="notification-recipient-chip"
+                    :title="recipient"
+                  >{{ recipient }}</span>
+                </div>
+              </div>
             </div>
           </label>
         </div>

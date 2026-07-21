@@ -424,6 +424,12 @@ function firstArray(...values) {
   return values.find(Array.isArray) || [];
 }
 
+function firstNonEmptyArray(...values) {
+  return values.find((value) => Array.isArray(value) && value.length > 0)
+    || values.find(Array.isArray)
+    || [];
+}
+
 function firstObject(...values) {
   return values.find((value) => value && typeof value === "object" && !Array.isArray(value)) || null;
 }
@@ -724,10 +730,11 @@ function normalizeMessageVisualization(message = {}) {
 }
 
 function normalizeMessageSources(message = {}) {
-  return firstArray(
+  return firstNonEmptyArray(
     message.sources,
     message.references,
     message.citations,
+    message.uiResponse?.citations,
     message.metadata?.sources,
     message.extra?.sources
   );
@@ -1203,13 +1210,21 @@ function normalizeResponsePayload(response = {}) {
     payload?.executionResult,
     payload?.metadata?.executionResult
   );
+  const directUiResponse = /^ui_response(?:_|$)/i.test(String(payload?.contractVersion || ""))
+    ? payload
+    : null;
+  const directRuntimeUiResponse = /^ui_response(?:_|$)/i.test(String(runtimePayload?.contractVersion || ""))
+    ? runtimePayload
+    : null;
   const uiResponse = firstObject(
     payload?.uiResponse,
     runtimePayload?.uiResponse,
     payload?.metadata?.uiResponse,
     payload?.executionResult?.uiResponse,
     payload?.metadata?.executionResult?.uiResponse,
-    runtimePayload?.executionResult?.uiResponse
+    runtimePayload?.executionResult?.uiResponse,
+    directUiResponse,
+    directRuntimeUiResponse
   );
   const visualizationSpec = firstVisualizationSpec(
     uiResponse?.visualizationSpec,
@@ -1243,7 +1258,7 @@ function normalizeResponsePayload(response = {}) {
     uiResponse,
     debug: firstObject(payload?.debug, runtimePayload?.debug, payload?.metadata?.debug, payload?.executionResult?.debug),
     visualizationSpec,
-    sources: firstArray(
+    sources: firstNonEmptyArray(
       payload?.sources,
       runtimePayload?.sources,
       payload?.references,

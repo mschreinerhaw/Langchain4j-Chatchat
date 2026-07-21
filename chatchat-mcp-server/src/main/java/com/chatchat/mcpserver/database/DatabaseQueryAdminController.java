@@ -140,8 +140,8 @@ public class DatabaseQueryAdminController {
      */
     @PostMapping("/{id}/test")
     public ApiResponse<ToolOutput> testSaved(@PathVariable("id") String id,
-                                             @RequestBody(required = false) Map<String, Object> arguments) {
-        return ApiResponse.success(invokeService.invoke(configService.getById(id), arguments));
+                                              @RequestBody(required = false) Map<String, Object> arguments) {
+        return ApiResponse.success(invokeService.invokePreview(configService.getById(id), arguments));
     }
 
     /**
@@ -168,7 +168,7 @@ public class DatabaseQueryAdminController {
             draft.setTimeoutSeconds(request.timeoutSeconds() == null ? 30 : request.timeoutSeconds());
             draft.setCapabilitiesJson(ModelProtocolJson.compact(List.of(
                 "database_query", "sql_query_execute", "sql_script_execute", "jdbc")));
-            return ApiResponse.success(invokeService.invoke(draft, request.params()));
+            return ApiResponse.success(invokeService.invokePreview(draft, request.params()));
         }
         return ApiResponse.success(invokeService.invoke(toParameters(request)));
     }

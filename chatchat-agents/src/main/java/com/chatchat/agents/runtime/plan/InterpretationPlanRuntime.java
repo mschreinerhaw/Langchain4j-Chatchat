@@ -1529,6 +1529,7 @@ public class InterpretationPlanRuntime {
         InterpretationPlan plan = request == null ? null : request.plan();
         applyBindings(step, plan, completed, input);
         normalizeModelInvocationEnvelope(step, input);
+        normalizeWebSearchInput(step, request, input);
         compileDirectToolArguments(step, request, input);
         hydrateExecutionContextFromCompletedAssets(step, completed, input);
         normalizeSqlExecutionContext(step, input);
@@ -1554,6 +1555,35 @@ public class InterpretationPlanRuntime {
         }
         input.put("url", selectedUrls.get(0));
         return input;
+    }
+
+    private void normalizeWebSearchInput(InterpretationPlan.Step step,
+                                         ExecutionRequest request,
+                                         Map<String, Object> input) {
+        if (step == null || input == null || !isWebSearchTool(step.toolName())) {
+            return;
+        }
+        if (!hasNonBlank(input, "query")) {
+            String query = originalUserQuery(request);
+            if (query == null || query.isBlank()) {
+                query = stringValues(input.get("queries")).stream()
+                    .filter(value -> value != null && !value.isBlank())
+                    .collect(Collectors.joining(" "));
+            }
+            if (query == null || query.isBlank()) {
+                query = planGoalSearchText(request == null ? null : request.plan());
+            }
+            if (query != null && !query.isBlank()) {
+                input.put("query", query.trim());
+            }
+        }
+        if (!input.containsKey("num_results")) {
+            Object resultLimit = firstPresent(input, "max_results", "maxResults", "limit");
+            input.put("num_results", resultLimit == null ? 10 : resultLimit);
+        }
+        input.remove("queries");
+        input.remove("max_results");
+        input.remove("maxResults");
     }
 
     @SuppressWarnings("unchecked")
@@ -4050,6 +4080,10 @@ public class InterpretationPlanRuntime {
             return null;
         }
         if (isWholeStepOutputField(field)) {
+            return source.output();
+        }
+        if (isWebSearchTool(source.toolName()) && "data".equalsIgnoreCase(String.valueOf(field).trim())
+            && source.output() != null) {
             return source.output();
         }
         Object value = contractValue(source.output(), field);

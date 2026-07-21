@@ -294,6 +294,42 @@ class DatabaseQueryInvokeServiceTest {
     }
 
     @Test
+    void keepsIntermediateSqlRowsAvailableForAdministrationPreview() throws Exception {
+        when(toolRegistry.hasTool("database_query")).thenReturn(true);
+        when(datasourceConfigService.getEnabled("asset-dm")).thenReturn(dmDatasource());
+        when(toolRegistry.executeEnhancedTool(eq("database_query"), org.mockito.ArgumentMatchers.any(ToolInput.class)))
+            .thenReturn(ToolOutput.success(Map.of(
+                "columns", List.of("ID"),
+                "rows", List.of(Map.of("ID", 1)),
+                "rowCount", 1
+            )));
+
+        DatabaseQuerySqlStep intermediate = sqlStep("SQL_1", "Intermediate", "SELECT 1 ID", 1, null);
+        intermediate.setReturnToModel(false);
+        DatabaseQueryConfig config = new DatabaseQueryConfig();
+        config.setId("query-preview-intermediate");
+        config.setToolName("query_preview_intermediate");
+        config.setTitle("Preview intermediate SQL");
+        config.setDatasourceId("asset-dm");
+        config.setSqlTemplate("SELECT 1 ID");
+        config.setMaxRows(50);
+        config.setTimeoutSeconds(30);
+        config.setSqlStepsJson(new ObjectMapper().writeValueAsString(List.of(intermediate)));
+
+        ToolOutput output = service.invokePreview(config, Map.of());
+
+        assertThat(output.isSuccess()).isTrue();
+        Map<?, ?> data = (Map<?, ?>) output.getData();
+        assertThat((List<?>) data.get("resultSets")).isEmpty();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> previewResultSets = (List<Map<String, Object>>) data.get("previewResultSets");
+        assertThat(previewResultSets).hasSize(1);
+        assertThat(previewResultSets.get(0))
+            .containsEntry("sqlCode", "SQL_1")
+            .containsEntry("rowCount", 1);
+    }
+
+    @Test
     void returnsWorkflowFailureWithoutCrashingWhenDraftMetadataAndToolErrorAreEmpty() throws Exception {
         when(toolRegistry.hasTool("database_query")).thenReturn(true);
         when(datasourceConfigService.getEnabled("asset-dm")).thenReturn(dmDatasource());

@@ -86,6 +86,9 @@ public class NewsSourcePresetSeeder {
                 || current.path("configuration").path("presetVersion").asInt(0) < 2);
         boolean outdatedEastmoney = "eastmoney_finance".equals(preset.code())
             && current.path("configuration").path("presetVersion").asInt(0) < 2;
+        boolean officialLegalRisk = isOfficialDisclosureSource(preset)
+            && (current.path("configuration").path("legalRisk").asBoolean(false)
+                || current.path("configuration").path("compliance").path("legalRisk").asBoolean(false));
         String currentDescription = current.path("collectionDescription").asText("").trim();
         if (currentDescription.isEmpty()) {
             currentDescription = current.path("configuration").path("collectionDescription").asText("").trim();
@@ -93,7 +96,7 @@ public class NewsSourcePresetSeeder {
         boolean missingCollectionDescription = currentDescription.isEmpty();
         if (!legacyCls && !outdatedCls && !outdatedEastmoney724 && !missingDefaultLegalRisk && !legacyCninfo && !outdatedSseAnnouncements && !legacySzse
             && !outdatedSseHome && !outdatedSzseHome && !outdatedCninfoHome && !outdatedEastmoney
-            && !missingCollectionDescription) return;
+            && !officialLegalRisk && !missingCollectionDescription) return;
         NewsSourcePresetCatalog.SourceUpsert source = preset.source();
         boolean replaceConfiguration = legacyCls || outdatedCls || outdatedEastmoney724 || legacyCninfo || outdatedSseAnnouncements
             || outdatedSseHome || outdatedSzseHome || outdatedCninfoHome || outdatedEastmoney;
@@ -102,6 +105,9 @@ public class NewsSourcePresetSeeder {
         if (missingDefaultLegalRisk && !configuration.containsKey("legalRisk")) {
             configuration = new HashMap<>(configuration);
             configuration.put("legalRisk", true);
+        }
+        if (officialLegalRisk) {
+            configuration = withoutLegalRisk(configuration);
         }
         var request = new NewsSourcePresetCatalog.SourceUpsert(source.sourceCode(), source.sourceName(),
             legacyCls || outdatedCls || outdatedEastmoney724 || legacyCninfo || outdatedSseAnnouncements || outdatedSzseHome || outdatedCninfoHome
@@ -117,6 +123,25 @@ public class NewsSourcePresetSeeder {
             runtime.put("/sources/" + current.path("id").asLong() + "/rule", preset.rule());
         }
         runtime.put("/sources/" + current.path("id").asLong(), request);
+    }
+
+    private boolean isOfficialDisclosureSource(NewsSourcePresetCatalog.Preset preset) {
+        String domain = preset.source().allowedDomain();
+        return "sse.com.cn".equals(domain) || "szse.cn".equals(domain) || "hkex.com.hk".equals(domain)
+            || "stcn.com".equals(domain);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> withoutLegalRisk(Map<String, Object> original) {
+        Map<String, Object> configuration = new HashMap<>(original);
+        configuration.put("legalRisk", false);
+        Object complianceValue = configuration.get("compliance");
+        if (complianceValue instanceof Map<?, ?> compliance) {
+            Map<String, Object> normalizedCompliance = new HashMap<>((Map<String, Object>) compliance);
+            normalizedCompliance.put("legalRisk", false);
+            configuration.put("compliance", normalizedCompliance);
+        }
+        return configuration;
     }
 
     @SuppressWarnings("unchecked")

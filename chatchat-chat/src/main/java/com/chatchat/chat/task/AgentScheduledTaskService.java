@@ -374,6 +374,47 @@ public class AgentScheduledTaskService {
         return changed;
     }
 
+    /**
+     * Reconciles a scheduled run as soon as its Agent task reaches a terminal state.
+     * The periodic scheduler scan remains as a recovery mechanism for missed events.
+     */
+    @Transactional
+    public void reconcileTerminalTask(String taskId) {
+        if (taskId == null || taskId.isBlank()) {
+            return;
+        }
+        reconcileTerminalTask(taskId, Instant.now());
+    }
+
+    private void reconcileTerminalTask(String taskId, Instant now) {
+        Optional<AgentTaskLatestEntity> latest = latestRepository.findById(taskId);
+        if (latest.isEmpty() || !TERMINAL_TASK_STATUSES.contains(normalizeStatus(latest.get().getStatus()))) {
+            return;
+        }
+        Optional<ScheduledTaskRunEntity> scheduledRun = scheduledTaskRunRepository
+            .findFirstByTaskIdOrderByFireTimeDesc(taskId);
+        if (scheduledRun.isEmpty() || !"RUNNING".equals(normalizeStatus(scheduledRun.get().getStatus()))) {
+            return;
+        }
+        ScheduledTaskRunEntity run = scheduledRun.get();
+        if (!claimRunCompletion(run)) {
+            return;
+        }
+        String taskStatus = normalizeStatus(latest.get().getStatus());
+        completeRun(run, latest.get(), now);
+        notifyRunCompletion(run, latest.get(), taskStatus, latest.get().getErrorMessage());
+
+        if (!Boolean.TRUE.equals(run.getManualRun())) {
+            scheduledTaskRepository.findFirstByLastTaskId(taskId).ifPresent(schedule -> {
+                if ("SUCCESS".equals(taskStatus)) {
+                    markObservedSuccess(schedule, now);
+                } else {
+                    markObservedFailure(schedule, taskStatus, latest.get().getErrorMessage(), now);
+                }
+            });
+        }
+    }
+
     private boolean claimRunCompletion(ScheduledTaskRunEntity run) {
         if (scheduledTaskRunRepository.claimCompletion(run.getRunId()) != 1) {
             log.debug("Skipped Agent run completion already claimed by another scheduler instance runId={}",

@@ -20,6 +20,72 @@ import static org.mockito.Mockito.when;
 class AgentScheduledTaskServiceTest {
 
     @Test
+    void terminalTaskEventImmediatelyReconcilesScheduledRunAndSchedule() {
+        ScheduledTaskRepository repository = mock(ScheduledTaskRepository.class);
+        ScheduledTaskRunRepository runRepository = mock(ScheduledTaskRunRepository.class);
+        AgentTaskLatestRepository latestRepository = mock(AgentTaskLatestRepository.class);
+        SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
+
+        AgentTaskLatestEntity latest = new AgentTaskLatestEntity();
+        latest.setTaskId("agent-task-1");
+        latest.setStatus("KILLED");
+        latest.setErrorMessage("Task killed by runtime request");
+
+        ScheduledTaskRunEntity run = new ScheduledTaskRunEntity();
+        run.setRunId("run-1");
+        run.setScheduledTaskId("schedule-1");
+        run.setTaskId("agent-task-1");
+        run.setStatus("RUNNING");
+        run.setManualRun(false);
+        run.setFireTime(Instant.now().minusSeconds(10));
+
+        ScheduledTaskEntity schedule = new ScheduledTaskEntity();
+        schedule.setTaskId("schedule-1");
+        schedule.setTenantId("tenant-1");
+        schedule.setStatus("RUNNING");
+        schedule.setTriggerType("CRON");
+        schedule.setCronExpr("0 0 8 * * ?");
+        schedule.setZoneId("Asia/Shanghai");
+        schedule.setLastTaskId("agent-task-1");
+        schedule.setMaxRetries(0);
+        schedule.setRetryCount(0);
+
+        when(latestRepository.findById("agent-task-1")).thenReturn(Optional.of(latest));
+        when(runRepository.findFirstByTaskIdOrderByFireTimeDesc("agent-task-1")).thenReturn(Optional.of(run));
+        when(runRepository.claimCompletion("run-1")).thenReturn(1);
+        when(repository.findFirstByLastTaskId("agent-task-1")).thenReturn(Optional.of(schedule));
+        when(repository.findById("schedule-1")).thenReturn(Optional.of(schedule));
+        when(repository.save(any(ScheduledTaskEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(runRepository.save(any(ScheduledTaskRunEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AgentScheduledTaskService service = new AgentScheduledTaskService(
+            repository,
+            runRepository,
+            latestRepository,
+            mock(AgentTaskService.class),
+            new ObjectMapper(),
+            new AgentTaskProperties(),
+            mock(McpTradingCalendarClient.class),
+            mock(McpNotificationClient.class),
+            mock(TenantNotificationRecipientService.class),
+            mock(EnterpriseAdminService.class),
+            skillCatalogService,
+            mock(NotificationContentFormatter.class),
+            new AgentScheduleWindowPolicy()
+        );
+
+        service.reconcileTerminalTask("agent-task-1");
+
+        assertThat(run.getStatus()).isEqualTo("CANCELLED");
+        assertThat(run.getFinishedAt()).isNotNull();
+        assertThat(schedule.getLastTaskStatus()).isEqualTo("KILLED");
+        assertThat(schedule.getStatus()).isEqualTo("ACTIVE");
+        assertThat(schedule.getNextFireTime()).isNotNull();
+        verify(runRepository).claimCompletion("run-1");
+        verify(repository).save(schedule);
+    }
+
+    @Test
     void updateKeepsScheduleIdentityAndPersistsEditedDefinition() {
         ScheduledTaskRepository repository = mock(ScheduledTaskRepository.class);
         ScheduledTaskRunRepository runRepository = mock(ScheduledTaskRunRepository.class);

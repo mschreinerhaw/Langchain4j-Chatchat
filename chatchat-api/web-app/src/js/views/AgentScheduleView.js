@@ -12,6 +12,7 @@ import {
   updateAgentSchedule
 } from "../../services/api.js";
 import ScheduleTimePicker from "../../components/ScheduleTimePicker.vue";
+import { onAgentTaskCancelled } from "../utils/agentTaskEvents";
 import "../../styles/pages/agent-schedule.css";
 
 function defaultOnceAt() {
@@ -128,6 +129,7 @@ export default {
       saving: false,
       scheduleLoading: false,
       scheduleRefreshTimer: null,
+      stopTaskCancelledListener: null,
       scheduleRefreshing: false,
       dialogOpen: false,
       editingScheduleId: "",
@@ -229,9 +231,16 @@ export default {
   mounted() {
     this.reload();
     this.startSchedulePolling();
+    this.stopTaskCancelledListener = onAgentTaskCancelled((task) => {
+      this.handleAgentTaskCancelled(task);
+    });
   },
   beforeUnmount() {
     this.stopSchedulePolling();
+    if (this.stopTaskCancelledListener) {
+      this.stopTaskCancelledListener();
+      this.stopTaskCancelledListener = null;
+    }
   },
   methods: {
     async reload() {
@@ -295,8 +304,9 @@ export default {
         this.scheduleRefreshTimer = null;
       }
     },
-    async refreshScheduleStatus() {
-      if (this.scheduleRefreshing || this.loading || this.scheduleLoading || this.saving || this.dialogOpen) {
+    async refreshScheduleStatus(options = {}) {
+      const force = options.force === true;
+      if (this.scheduleRefreshing || this.loading || this.scheduleLoading || this.saving || (!force && this.dialogOpen)) {
         return;
       }
       this.scheduleRefreshing = true;
@@ -313,6 +323,12 @@ export default {
       } finally {
         this.scheduleRefreshing = false;
       }
+    },
+    async handleAgentTaskCancelled(task = {}) {
+      if (task.tenantId && String(task.tenantId) !== String(this.tenantId)) {
+        return;
+      }
+      await this.refreshScheduleStatus({ force: true });
     },
     async createSchedule(notificationConfirmed = false) {
       this.error = "";

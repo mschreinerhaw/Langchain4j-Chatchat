@@ -62,6 +62,17 @@ public class DatabaseQueryInvokeService {
      * @return the operation result
      */
     public ToolOutput invoke(DatabaseQueryConfig config, Map<String, Object> arguments) {
+        return invoke(config, arguments, false);
+    }
+
+    /**
+     * Executes a database query for the administration workbench and retains every node result for preview.
+     */
+    public ToolOutput invokePreview(DatabaseQueryConfig config, Map<String, Object> arguments) {
+        return invoke(config, arguments, true);
+    }
+
+    private ToolOutput invoke(DatabaseQueryConfig config, Map<String, Object> arguments, boolean administrationPreview) {
         long startedAt = System.currentTimeMillis();
         Map<String, Object> auditArgs = arguments == null ? Map.of() : arguments;
         ToolOutput output;
@@ -74,6 +85,7 @@ public class DatabaseQueryInvokeService {
                 config.getSqlTemplate(),
                 ToolLogSummarizer.summarize(arguments));
             Map<String, Object> parameters = toParameters(config, auditArgs);
+            if (administrationPreview) parameters.put("administration_preview", true);
             var cached = cacheService.get(config, parameters);
             if (cached.isPresent()) {
                 output = cached.get();
@@ -382,6 +394,12 @@ public class DatabaseQueryInvokeService {
         data.put("steps", modelResultSets);
         data.put("resultSets", modelResultSets);
         data.put("results", modelResultSets);
+        // Administration previews must show every SQL node, including intermediate nodes that are
+        // intentionally excluded from the model-facing result by returnToModel=false.
+        if (Boolean.TRUE.equals(baseParameters.get("administration_preview"))) {
+            data.put("allResultSets", resultSets);
+            data.put("previewResultSets", resultSets);
+        }
         data.put("resolvedSqlPreviews", resultSets.stream()
             .filter(item -> item.get("resolvedSqlPreview") != null)
             .map(item -> Map.of(

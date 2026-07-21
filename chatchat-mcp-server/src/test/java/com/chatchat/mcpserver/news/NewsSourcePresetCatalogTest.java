@@ -82,21 +82,23 @@ class NewsSourcePresetCatalogTest {
                 && preset.source().configuration().get("mode") == null)
             .hasSize(2).allSatisfy(preset -> {
                 assertThat(preset.source().configuration()).containsEntry("presetVersion", 1)
-                    .containsEntry("legalRisk", true)
+                    .containsEntry("legalRisk", false)
                     .containsKeys("provider", "marginApiUrl", "legalDisclaimer");
                 assertThat(preset.description()).contains("融资融券", "分红");
                 assertThat(preset.rule()).isNull();
             });
         assertThat(presets).filteredOn(preset -> "FUND_SCALE".equals(preset.source().configuration().get("mode")))
             .hasSize(2).allSatisfy(preset -> {
-                assertThat(preset.source().configuration()).containsKeys("fundScaleApiUrl", "legalDisclaimer");
+                assertThat(preset.source().configuration())
+                    .containsEntry("legalRisk", false)
+                    .containsKeys("fundScaleApiUrl", "legalDisclaimer");
                 assertThat(preset.description()).contains("ETF规模", "万份", "全部");
             });
         assertThat(presets).filteredOn(preset -> "three_market_overview".equals(preset.code())).singleElement()
             .satisfies(preset -> {
                 assertThat(preset.source().configuration())
                     .containsEntry("mode", "THREE_MARKET_OVERVIEW")
-                    .containsEntry("legalRisk", true)
+                    .containsEntry("legalRisk", false)
                     .containsKeys("marketHighlightsApiUrl", "legalDisclaimer");
                 assertThat(preset.description()).contains("香港", "上海", "深圳", "总市值", "成交金额");
                 assertThat(preset.rule()).isNull();
@@ -168,8 +170,10 @@ class NewsSourcePresetCatalogTest {
                 assertThat(preset.source().sourceType()).isEqualTo("STRUCTURED_FLASH");
                 assertThat(preset.source().entryUrl()).isEqualTo("https://www.stcn.com/article/list/kx.html");
                 assertThat(preset.source().configuration())
-                    .containsEntry("legalRisk", true)
+                    .containsEntry("legalRisk", false)
                     .containsKeys("request", "response", "mapping", "compliance", "initialState");
+                assertThat(preset.source().configuration().get("compliance")).asInstanceOf(
+                    org.assertj.core.api.InstanceOfAssertFactories.MAP).containsEntry("legalRisk", false);
                 assertThat(preset.source().configuration().get("request")).asInstanceOf(
                     org.assertj.core.api.InstanceOfAssertFactories.MAP).containsEntry("signer", "STCN_WEB");
                 assertThat(preset.rule()).isNull();
@@ -179,7 +183,7 @@ class NewsSourcePresetCatalogTest {
                 assertThat(preset.source().sourceType()).isEqualTo("STCN_DISCLOSURES");
                 assertThat(preset.source().configuration())
                     .containsEntry("pageSize", 20)
-                    .containsEntry("legalRisk", true)
+                    .containsEntry("legalRisk", false)
                     .containsKeys("apiUrl", "sections", "attachmentAllowedDomains", "legalDisclaimer");
                 assertThat(preset.source().configuration().get("sections")).asList().hasSize(12);
                 assertThat(preset.description()).contains("当前第一页", "当天");

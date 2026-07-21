@@ -193,9 +193,12 @@ export default {
     },
     databasePreviewResultSets() {
       const data = this.formTestResult?.data || {};
-      const nestedResults = Array.isArray(data.resultSets) && data.resultSets.length
+      const previewResults = Array.isArray(data.previewResultSets) && data.previewResultSets.length
+        ? data.previewResultSets
+        : (Array.isArray(data.allResultSets) && data.allResultSets.length ? data.allResultSets : null);
+      const nestedResults = previewResults || (Array.isArray(data.resultSets) && data.resultSets.length
         ? data.resultSets
-        : (Array.isArray(data.results) && data.results.length ? data.results : null);
+        : (Array.isArray(data.results) && data.results.length ? data.results : null));
       const resultSets = nestedResults || [data];
       return resultSets.map((item, index) => ({
         ...item,
@@ -237,9 +240,13 @@ export default {
     },
     databaseTestTotalRows() {
       const data = this.formTestResult?.data || {};
-      const resultSets = Array.isArray(data.resultSets) && data.resultSets.length
-        ? data.resultSets
-        : (Array.isArray(data.results) && data.results.length ? data.results : [data]);
+      const resultSets = Array.isArray(data.previewResultSets) && data.previewResultSets.length
+        ? data.previewResultSets
+        : (Array.isArray(data.allResultSets) && data.allResultSets.length
+          ? data.allResultSets
+          : (Array.isArray(data.resultSets) && data.resultSets.length
+            ? data.resultSets
+            : (Array.isArray(data.results) && data.results.length ? data.results : [data])));
       return resultSets.reduce((total, item) => total + Number(item.rowCount || 0), 0);
     },
     databaseTestExecutedSteps() {
@@ -362,6 +369,7 @@ export default {
         this.databaseSqlSideTabs[field.key] = 'inputs';
       });
       this.formFields.filter(field => field.type === 'databaseParamConfig').forEach(field => {
+        this.migrateLegacyAutoDatabaseFlowInputs(field);
         this.syncDatabaseParamsFromSql(field, false);
       });
       this.formFields.filter(field => field.unitScale).forEach(field => {
@@ -635,14 +643,12 @@ export default {
       steps.forEach((step, stepIndex) => {
         const fixedNames = new Set((step.staticParameterEntries || []).map(item => String(item?.name || '').trim()).filter(Boolean));
         const mappings = new Map((step.parameterMappings || []).map(item => [String(item?.parameter || '').trim(), item]));
-        fixedNames.forEach(name => {
-          if (names.has(name)) {
-            errors.push(`步骤 ${stepIndex + 1} 的参数 ${name} 同时配置了流程输入和固定值，请只保留一种来源`);
-          }
-        });
         mappings.forEach((mapping, name) => {
-          if (names.has(name) && String(mapping?.sourceType || 'USER_INPUT').toUpperCase() !== 'USER_INPUT') {
-            errors.push(`步骤 ${stepIndex + 1} 的参数 ${name} 同时配置了流程输入和${databaseMappingSourceLabel(mapping.sourceType)}，请只保留一种来源`);
+          if (String(mapping?.sourceType || 'USER_INPUT').toUpperCase() === 'USER_INPUT') {
+            const sourceKey = String(mapping?.sourceKey || name).trim();
+            if (!sourceKey || !names.has(sourceKey)) {
+              errors.push(`步骤 ${stepIndex + 1} 的参数 ${name} 引用了未添加的流程输入 ${sourceKey || '（空）'}`);
+            }
           }
         });
         extractDatabaseQueryParameters(step.sqlContent).filter(param => !param.dynamic).forEach(param => {
@@ -894,8 +900,37 @@ export default {
     addDatabaseParamEntry(field, param = {}) {
       this.schemaDraft[field.key] = [...(this.schemaDraft[field.key] || []), databaseParamRow(param)];
     },
+    addDatabaseFlowInput(field) {
+      const rows = this.schemaDraft[field.key] || [];
+      const names = rows.map(row => String(row?.name || '').trim()).filter(Boolean);
+      const name = uniqueName('flow_param', names);
+      this.addDatabaseParamEntry(field, {
+        name,
+        type: 'string',
+        required: false,
+        defaultSource: 'user_input',
+        description: 'User-defined workflow input'
+      });
+    },
     removeDatabaseParamEntry(field, index) {
-      this.schemaDraft[field.key] = (this.schemaDraft[field.key] || []).filter((_, currentIndex) => currentIndex !== index);
+      const rows = this.schemaDraft[field.key] || [];
+      const removedName = String(rows[index]?.name || '').trim();
+      this.schemaDraft[field.key] = rows.filter((_, currentIndex) => currentIndex !== index);
+      if (!removedName) return;
+      const workflowField = this.formFields.find(item => item.type === 'databaseSqlSteps');
+      if (!workflowField) return;
+      this.databaseSqlSteps(workflowField).forEach(step => {
+        (step.parameterMappings || []).forEach(mapping => {
+          const sourceType = String(mapping?.sourceType || 'USER_INPUT').toUpperCase();
+          const sourceKey = String(mapping?.sourceKey || mapping?.parameter || '').trim();
+          if (sourceType !== 'USER_INPUT' || sourceKey !== removedName) return;
+          mapping.sourceType = 'STATIC';
+          mapping.sourceKey = '';
+          mapping.sourceNode = '';
+          mapping.defaultValue = mapping.defaultValue ?? '';
+          mapping.required = true;
+        });
+      });
     },
     handleDatabaseParamSourceChange(entry) {
       if (entry.defaultSource && entry.defaultSource !== 'user_input') {
@@ -906,26 +941,49 @@ export default {
     reconcileDatabaseFlowInputs(field, stepsOverride = null) {
       if (!field) return;
       const rows = this.schemaDraft[field.key] || [];
-      const existing = new Map(rows.map(row => [String(row?.name || '').trim(), row]).filter(([name]) => name));
       const steps = stepsOverride || normalizeDatabaseSqlSteps(this.form[field.sqlStepsKey], this.form[field.sqlKey]);
-      const externalInputs = new Map();
+      const requiredByName = new Map();
       steps.forEach(step => {
         (step.parameterMappings || []).forEach(mapping => {
           if (String(mapping?.sourceType || 'USER_INPUT').toUpperCase() !== 'USER_INPUT') return;
           const parameter = String(mapping?.parameter || '').trim();
           const sourceKey = String(mapping?.sourceKey || parameter).trim();
-          if (sourceKey && (!externalInputs.has(sourceKey) || mapping.required === true)) {
-            externalInputs.set(sourceKey, mapping);
-          }
+          if (sourceKey) requiredByName.set(sourceKey, requiredByName.get(sourceKey) === true || mapping.required === true);
         });
       });
-      this.schemaDraft[field.key] = [...externalInputs.entries()].map(([name, mapping]) => {
-        const row = existing.get(name) || databaseParamRow({ name, type: 'string', required: mapping.required === true });
-        row.name = name;
+      rows.forEach(row => {
+        const name = String(row?.name || '').trim();
         row.defaultSource = 'user_input';
-        row.required = mapping.required === true;
-        return row;
+        if (requiredByName.has(name)) row.required = requiredByName.get(name) === true;
       });
+      this.schemaDraft[field.key] = [...rows];
+    },
+    migrateLegacyAutoDatabaseFlowInputs(field) {
+      if (!field) return;
+      const rows = this.schemaDraft[field.key] || [];
+      const legacyRows = new Map(rows
+        .filter(row => String(row?.description || '').trim() === `Query parameter: ${String(row?.name || '').trim()}`)
+        .map(row => [String(row.name).trim(), row]));
+      if (!legacyRows.size) return;
+      const steps = normalizeDatabaseSqlSteps(this.form[field.sqlStepsKey], this.form[field.sqlKey]);
+      const migratedNames = new Set();
+      steps.forEach(step => {
+        (step.parameterMappings || []).forEach(mapping => {
+          const parameter = String(mapping?.parameter || '').trim();
+          const sourceKey = String(mapping?.sourceKey || parameter).trim();
+          if (String(mapping?.sourceType || 'USER_INPUT').toUpperCase() !== 'USER_INPUT' || !legacyRows.has(sourceKey)) return;
+          const legacyRow = legacyRows.get(sourceKey);
+          mapping.sourceType = 'STATIC';
+          mapping.sourceKey = '';
+          mapping.sourceNode = '';
+          mapping.defaultValue = mapping.defaultValue || legacyRow.testValue || legacyRow.exampleValue || '';
+          mapping.required = true;
+          migratedNames.add(sourceKey);
+        });
+      });
+      if (!migratedNames.size) return;
+      this.form[field.sqlStepsKey] = steps;
+      this.schemaDraft[field.key] = rows.filter(row => !migratedNames.has(String(row?.name || '').trim()));
     },
     handleDatabaseFlowInputRequiredChange(param) {
       const name = String(param?.name || '').trim();
@@ -942,46 +1000,35 @@ export default {
         });
       });
     },
+    handleDatabaseFlowInputNameChange(param) {
+      const previousName = String(param?._previousName || '').trim();
+      const name = String(param?.name || '').trim();
+      if (!name || !previousName || name === previousName) {
+        if (param) param._previousName = name;
+        return;
+      }
+      const workflowField = this.formFields.find(field => field.type === 'databaseSqlSteps');
+      if (workflowField) {
+        this.databaseSqlSteps(workflowField).forEach(step => {
+          (step.parameterMappings || []).forEach(mapping => {
+            const sourceType = String(mapping?.sourceType || 'USER_INPUT').toUpperCase();
+            const sourceKey = String(mapping?.sourceKey || mapping?.parameter || '').trim();
+            if (sourceType === 'USER_INPUT' && sourceKey === previousName) mapping.sourceKey = name;
+          });
+        });
+      }
+      param._previousName = name;
+    },
     syncDatabaseParamsFromSql(field, notifyUser = false, targetSqlCode = '') {
       const rows = [...(this.schemaDraft[field.key] || [])];
       const steps = normalizeDatabaseSqlSteps(this.form[field.sqlStepsKey], this.form[field.sqlKey]);
       const stepsToSync = targetSqlCode
         ? steps.filter(step => String(step.sqlCode || '') === String(targetSqlCode))
         : steps;
-      const detectedNames = new Set();
-      let schemaAdded = 0;
       let mappingAdded = 0;
       let fixedSkipped = 0;
       let mappedSkipped = 0;
       let dynamicConfigured = 0;
-      const ensureSchemaRow = param => {
-        detectedNames.add(param.name);
-        const existed = rows.find(row => row.name === param.name);
-        if (existed) {
-          if (param.dynamic) {
-            existed.defaultSource = param.defaultSource;
-            existed.required = false;
-            existed.testValue = '';
-          }
-          if (param.required && (!existed.defaultSource || existed.defaultSource === 'user_input')) {
-            existed.required = true;
-          }
-          return false;
-        }
-        rows.push(databaseParamRow({
-          name: param.name,
-          type: 'string',
-          required: param.required,
-          defaultSource: param.defaultSource,
-          testValue: param.dynamic ? '' : param.example,
-          exampleValue: param.example,
-          description: param.dynamic
-            ? `Runtime dynamic parameter: ${param.defaultSource}`
-            : `Query parameter: ${param.name}`
-        }));
-        schemaAdded += 1;
-        return true;
-      };
       stepsToSync.forEach(step => {
         const staticNames = new Set((step.staticParameterEntries || [])
           .map(entry => String(entry?.name || '').trim())
@@ -1012,15 +1059,11 @@ export default {
             fixedSkipped += 1;
             return;
           }
-          const mapping = mappingsByName.get(param.name);
-          if (mapping) {
-            if (String(mapping.sourceType || 'USER_INPUT').toUpperCase() === 'USER_INPUT') {
-              ensureSchemaRow(param);
-            } else {
-              mappedSkipped += 1;
-            }
-            return;
-          }
+           const mapping = mappingsByName.get(param.name);
+           if (mapping) {
+             mappedSkipped += 1;
+             return;
+           }
           const schemaParam = rows.find(row => String(row?.name || '').trim() === param.name);
           if (schemaParam?.defaultSource && schemaParam.defaultSource !== 'user_input') {
             mappings.push({
@@ -1037,36 +1080,29 @@ export default {
             mappedSkipped += 1;
             return;
           }
-          mappings.push({
-            parameter: param.name,
-            sourceType: 'USER_INPUT',
-            sourceKey: param.name,
-            sourceNode: '',
-            sourceExpression: '$.rows[0]',
-            defaultValue: '',
-            required: true
-          });
-          mappingsByName.set(param.name, mappings[mappings.length - 1]);
-          mappingAdded += 1;
-          ensureSchemaRow(param);
-        });
+           mappings.push({
+             parameter: param.name,
+             sourceType: 'STATIC',
+             sourceKey: '',
+             sourceNode: '',
+             sourceExpression: '$.rows[0]',
+             defaultValue: param.example,
+             required: true
+           });
+           mappingsByName.set(param.name, mappings[mappings.length - 1]);
+           mappingAdded += 1;
+         });
         step.parameterMappings = mappings;
       });
       this.schemaDraft[field.key] = rows;
       this.form[field.sqlStepsKey] = steps;
       this.reconcileDatabaseFlowInputs(field, steps);
-      const staleUserInputs = targetSqlCode ? [] : rows
-          .filter(row => (!row.defaultSource || row.defaultSource === 'user_input') && !detectedNames.has(row.name))
-          .map(row => row.name)
-          .filter(Boolean);
       if (notifyUser) {
         const details = [
-          schemaAdded > 0 ? `新增 ${schemaAdded} 个集合参数` : '集合参数无新增',
-          mappingAdded > 0 ? `生成 ${mappingAdded} 个节点映射` : '节点映射无新增',
-          fixedSkipped > 0 ? `${fixedSkipped} 项由固定参数提供` : '',
-          mappedSkipped > 0 ? `${mappedSkipped} 项已有非用户映射` : '',
-          dynamicConfigured > 0 ? `${dynamicConfigured} 项为系统动态参数` : '',
-          staleUserInputs.length ? `发现 ${staleUserInputs.length} 个未被当前 SQL 使用的旧参数，请人工确认` : ''
+          mappingAdded > 0 ? `新增 ${mappingAdded} 个当前 SQL 独立参数` : '节点参数无新增',
+          fixedSkipped > 0 ? `${fixedSkipped} 项已有独立参数` : '',
+          mappedSkipped > 0 ? `${mappedSkipped} 项保留已有来源` : '',
+          dynamicConfigured > 0 ? `${dynamicConfigured} 项为系统动态参数` : ''
         ].filter(Boolean);
         this.$emit('notify', {
           title: '参数扫描完成',
@@ -1159,14 +1195,19 @@ export default {
     },
     addDatabaseSqlParameterMapping(entry) {
       entry.parameterMappings = [...(entry.parameterMappings || []), {
-        parameter: '', sourceType: 'USER_INPUT', sourceKey: '', sourceNode: '',
-        sourceExpression: '$.rows[0]', defaultValue: '', required: false
+        parameter: '', sourceType: 'STATIC', sourceKey: '', sourceNode: '',
+        sourceExpression: '$.rows[0]', defaultValue: '', required: true
       }];
     },
     handleDatabaseSqlMappingSourceChange(mapping) {
       const sourceType = String(mapping?.sourceType || 'USER_INPUT').toUpperCase();
       if (sourceType === 'USER_INPUT') {
-        mapping.sourceKey = String(mapping.sourceKey || mapping.parameter || '').trim();
+        const inputNames = (this.schemaDraft[this.databaseParamConfigField()?.key] || [])
+          .map(row => String(row?.name || '').trim())
+          .filter(Boolean);
+        mapping.sourceKey = inputNames.includes(String(mapping.sourceKey || '').trim())
+          ? String(mapping.sourceKey).trim()
+          : (inputNames[0] || '');
         mapping.sourceNode = '';
         mapping.defaultValue = '';
       } else if (sourceType === 'SYSTEM_CONTEXT') {
@@ -1182,6 +1223,14 @@ export default {
         mapping.required = true;
       }
       this.reconcileDatabaseFlowInputs(this.databaseParamConfigField());
+    },
+    databaseFlowInputOptions() {
+      const field = this.databaseParamConfigField();
+      if (!field) return [];
+      return (this.schemaDraft[field.key] || [])
+        .map(row => String(row?.name || '').trim())
+        .filter(Boolean)
+        .map(name => ({ label: name, value: name }));
     },
     removeDatabaseSqlParameterMapping(entry, index) {
       entry.parameterMappings = (entry.parameterMappings || []).filter((_, currentIndex) => currentIndex !== index);
@@ -1479,9 +1528,10 @@ function databaseSchemaToRows(schema, testParams = {}) {
 
 function databaseParamRow(param = {}) {
   const defaultSource = param.defaultSource || (param.dynamic ? 'trade_date' : 'user_input');
-  return {
-    name: param.name || '',
-    type: param.type || 'string',
+    return {
+      name: param.name || '',
+      _previousName: param.name || '',
+      type: param.type || 'string',
     required: Boolean(param.required) && defaultSource === 'user_input',
     defaultSource,
     testValue: formatParamValue(param.testValue),

@@ -225,7 +225,7 @@ public class NewsSourcePresetCatalog {
                     Map.entry("marginSummaryLimit", 30), Map.entry("marginDetailLimit", 100),
                     Map.entry("distributionLimit", 100), Map.entry("sleepMillis", 300),
                     Map.entry("timeoutMillis", 30000), Map.entry("zoneId", "Asia/Shanghai"),
-                    Map.entry("language", "zh-CN"), Map.entry("legalRisk", true),
+                    Map.entry("language", "zh-CN"), Map.entry("legalRisk", false),
                     Map.entry("legalDisclaimer", disclaimer))), null);
     }
 
@@ -246,7 +246,7 @@ public class NewsSourcePresetCatalog {
                     Map.entry("monthlyTableCharset", "GBK"), Map.entry("marginDetailPages", 5),
                     Map.entry("distributionLimit", 250), Map.entry("sleepMillis", 300),
                     Map.entry("timeoutMillis", 30000), Map.entry("zoneId", "Asia/Shanghai"),
-                    Map.entry("language", "zh-CN"), Map.entry("legalRisk", true),
+                    Map.entry("language", "zh-CN"), Map.entry("legalRisk", false),
                     Map.entry("legalDisclaimer", disclaimer))), null);
     }
 
@@ -265,7 +265,7 @@ public class NewsSourcePresetCatalog {
                     Map.entry("fundScaleApiUrl", "https://query.sse.com.cn/commonQuery.do"),
                     Map.entry("fundScalePageSize", 100), Map.entry("sleepMillis", 200),
                     Map.entry("timeoutMillis", 30000), Map.entry("zoneId", "Asia/Shanghai"),
-                    Map.entry("language", "zh-CN"), Map.entry("legalRisk", true),
+                    Map.entry("language", "zh-CN"), Map.entry("legalRisk", false),
                     Map.entry("legalDisclaimer", disclaimer))), null);
     }
 
@@ -284,7 +284,7 @@ public class NewsSourcePresetCatalog {
                     Map.entry("fundScaleApiUrl", "https://www.szse.cn/api/report/ShowReport/data?SHOWTYPE=JSON&CATALOGID=scsj_fund_jjgm&jjlb=ETF"),
                     Map.entry("fundScaleLookbackDays", 10), Map.entry("sleepMillis", 200),
                     Map.entry("timeoutMillis", 30000), Map.entry("zoneId", "Asia/Shanghai"),
-                    Map.entry("language", "zh-CN"), Map.entry("legalRisk", true),
+                    Map.entry("language", "zh-CN"), Map.entry("legalRisk", false),
                     Map.entry("legalDisclaimer", disclaimer))), null);
     }
 
@@ -304,7 +304,7 @@ public class NewsSourcePresetCatalog {
                     Map.entry("provider", "HKEX"), Map.entry("providerName", "香港交易所市场概况"),
                     Map.entry("marketHighlightsApiUrl", "https://www.hkex.com.hk/chi/csm/ws/Highlightsearch.asmx/GetData"),
                     Map.entry("sleepMillis", 300), Map.entry("timeoutMillis", 30000), Map.entry("zoneId", "Asia/Hong_Kong"),
-                    Map.entry("language", "zh-HK"), Map.entry("legalRisk", true),
+                    Map.entry("language", "zh-HK"), Map.entry("legalRisk", false),
                     Map.entry("legalDisclaimer", disclaimer))), null);
     }
 
@@ -351,7 +351,7 @@ public class NewsSourcePresetCatalog {
         String disclaimer = "内容版权归证券时报、人民财讯及原作者所有，仅用于内部资讯分析，不构成投资建议；"
             + "使用前请确认已获得符合网站条款及适用法律的授权。";
         return new Preset("stcn_quick_news", "证券时报快讯",
-            "通过证券时报快讯页面使用的 JSON 接口和复合分页状态断点采集；默认附加法律风险标签和使用声明。",
+            "通过证券时报快讯页面使用的 JSON 接口和复合分页状态断点采集，并保留来源与使用声明。",
             new SourceUpsert("stcn_quick_news", "证券时报快讯", "STRUCTURED_FLASH",
                 "https://www.stcn.com/article/list/kx.html", "stcn.com", "0 */2 * * * *", false,
                 Map.ofEntries(
@@ -378,13 +378,13 @@ public class NewsSourcePresetCatalog {
                             "isTop", "isTop", "providerSource", "source")),
                         Map.entry("staticMetadata", Map.of("provider", "STCN", "channel", "人民财讯快讯")))),
                     Map.entry("compliance", Map.of("categories", List.of("证券时报快讯"),
-                        "tags", List.of("证券时报", "人民财讯", "7×24快讯"), "legalRisk", true,
+                        "tags", List.of("证券时报", "人民财讯", "7×24快讯"), "legalRisk", false,
                         "legalDisclaimer", disclaimer)),
                     Map.entry("initialState", Map.of("page", "", "cursor", "")),
                     Map.entry("itemLimit", 30), Map.entry("maxPagesPerRun", 200),
                     Map.entry("initialBackfillHours", 24), Map.entry("numericCursorBoundary", true),
                     Map.entry("sleepMillis", 300), Map.entry("minimumContentChars", 1),
-                    Map.entry("legalRisk", true), Map.entry("legalDisclaimer", disclaimer),
+                    Map.entry("legalRisk", false), Map.entry("legalDisclaimer", disclaimer),
                     Map.entry("timeoutMillis", 20000), Map.entry("zoneId", "Asia/Shanghai"),
                     Map.entry("language", "zh-CN"))), null);
     }
@@ -415,7 +415,7 @@ public class NewsSourcePresetCatalog {
                         Map.of("type", "jg", "name", "监管"))),
                     Map.entry("attachmentAllowedDomains", List.of("stcn.com", "xp.stcn.com",
                         "neeq.com.cn", "sse.com.cn", "hkexnews.hk")),
-                    Map.entry("legalRisk", true), Map.entry("legalDisclaimer", disclaimer),
+                    Map.entry("legalRisk", false), Map.entry("legalDisclaimer", disclaimer),
                     Map.entry("minimumContentChars", 1), Map.entry("sleepMillis", 0),
                     Map.entry("timeoutMillis", 20000), Map.entry("zoneId", "Asia/Shanghai"),
                     Map.entry("language", "zh-CN"))), null);

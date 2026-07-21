@@ -410,6 +410,8 @@
 
 .schedule-dialog {
   width: min(760px, 100%);
+  min-width: 0;
+  box-sizing: border-box;
   max-height: calc(100dvh - 48px);
   display: grid;
   gap: 14px;
@@ -426,6 +428,13 @@
   grid-template-columns: minmax(0, 1fr) 32px;
   gap: 12px;
   align-items: start;
+}
+
+.schedule-dialog > header > div,
+.schedule-dialog > header h2 {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .schedule-dialog > header > button {
@@ -849,6 +858,7 @@
 
 .notification-dialog {
   width: min(680px, 100%);
+  max-width: 100%;
 }
 
 .notification-readonly-tip {
@@ -862,11 +872,15 @@
 .notification-option-list {
   display: grid;
   gap: 9px;
+  min-width: 0;
 }
 
 .notification-option-card {
   display: grid;
   gap: 7px;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   padding: 12px;
   border: 1px solid #e0e7f1;
   border-radius: 8px;
@@ -916,6 +930,35 @@
 .notification-option-list.selectable .notification-option-card > div {
   display: grid;
   gap: 5px;
+  min-width: 0;
+}
+
+.notification-recipient-summary {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.notification-recipient-summary > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.notification-recipient-chip {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 4px 8px;
+  border: 1px solid #d8e4f5;
+  border-radius: 999px;
+  background: #f4f8ff;
+  color: #45658f;
+  font-size: 11px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tenant-recipient-editor {

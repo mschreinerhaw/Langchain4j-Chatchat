@@ -640,21 +640,34 @@ export default {
       if (!targets.length) {
         return source;
       }
-      [...targets].reverse().forEach(({ match: target, bodyEnd }) => {
+      const sections = targets.map(({ match: target, bodyEnd }) => {
         const bodyStart = target.index + target[0].length;
         const body = source.slice(bodyStart, bodyEnd).trim();
-        if (!body) {
-          return;
-        }
-        const count = this.extractToolEvidenceItems(body).length;
-        const collapsed = [
-          '<details class="tool-evidence-details">',
-          `<summary><span>工具链调用</span><small>${count ? `${count} steps` : "details"}</small></summary>`,
-          `<div class="tool-evidence-body">${this.formatToolEvidenceBody(body)}</div>`,
-          '</details>'
-        ].join("");
-        source = `${source.slice(0, target.index)}${collapsed}${source.slice(bodyEnd)}`;
+        return {
+          start: target.index,
+          end: bodyEnd,
+          body,
+          items: body ? this.extractToolEvidenceItems(body) : []
+        };
+      }).filter((section) => section.body);
+      if (!sections.length) {
+        return source;
+      }
+      const items = sections.flatMap((section) => section.items);
+      const mergedBody = items.length
+        ? `<div class="tool-evidence-list">${items.map((item) => this.renderToolEvidenceItem(item)).join("")}</div>`
+        : sections.map((section) => section.body).join("");
+      const collapsed = [
+        '<details class="tool-evidence-details">',
+        `<summary><span>工具链调用</span><small>${items.length ? `${items.length} steps` : "details"}</small></summary>`,
+        `<div class="tool-evidence-body">${mergedBody}</div>`,
+        '</details>'
+      ].join("");
+      [...sections].reverse().forEach((section) => {
+        source = `${source.slice(0, section.start)}${source.slice(section.end)}`;
       });
+      const insertAt = sections[0].start;
+      source = `${source.slice(0, insertAt)}${collapsed}${source.slice(insertAt)}`;
       return source;
     },    formatToolEvidenceBody(body = "") {
       const items = this.extractToolEvidenceItems(body);

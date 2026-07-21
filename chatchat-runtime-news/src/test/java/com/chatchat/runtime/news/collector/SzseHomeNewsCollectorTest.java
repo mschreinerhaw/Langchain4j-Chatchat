@@ -53,6 +53,17 @@ class SzseHomeNewsCollectorTest {
                 "orgId":"gssz0000001","adjunctUrl":"finalpage/2026/notice.PDF"}]}
                 """);
         });
+        server.createContext("/market/", exchange -> {
+            String code = exchange.getRequestURI().getPath().substring("/market/".length());
+            String name = Map.of("399001", "深证成指", "399006", "创业板指",
+                "399330", "深证100", "399673", "创业板50").get(code);
+            respond(exchange, "application/json", """
+                {"datetime":"2026-07-21 10:07","code":"0","data":{"code":"%s","name":"%s",
+                "now":"12345.67","open":"12200.00","high":"12400.00","low":"12100.00",
+                "volume":1000,"amount":2000,"delta":"145.67","deltaPercent":"1.19",
+                "marketTime":"2026-07-21 10:07:01"}}
+                """.formatted(code, name));
+        });
         server.start();
         String base = "http://localhost:" + server.getAddress().getPort();
         List<RawNewsItem> items = new ArrayList<>();
@@ -63,20 +74,24 @@ class SzseHomeNewsCollectorTest {
                 "noticeIndexUrl", base + "/disclosure/notice/index.json",
                 "announcementApiUrl", base + "/new/hisAnnouncement/query",
                 "announcementStaticBaseUrl", base + "/", "cninfoBaseUrl", base,
+                "marketUrlTemplate", base + "/market/{code}",
+                "marketCodes", List.of("399001", "399006", "399330", "399673"),
                 "newsUrlContains", "/news/", "language", "zh-CN"), true);
 
         var result = collector.collect(source, new NewsCollectContext("test", Instant.now()));
 
         assertThat(result.failedCount()).isZero();
-        assertThat(result.discoveredCount()).isEqualTo(3);
-        assertThat(result.acceptedCount()).isEqualTo(3);
+        assertThat(result.discoveredCount()).isEqualTo(4);
+        assertThat(result.acceptedCount()).isEqualTo(4);
         assertThat(announcementRequest.get()).contains("column=szse", "pageNum=1");
         assertThat(items).extracting(item -> item.categories().get(0))
-            .containsExactly("深交所要闻", "深交所公告", "上市公司公告");
+            .containsExactly("深交所要闻", "深交所公告", "上市公司公告", "市场行情");
         assertThat(items.get(0).content()).contains("二级页面完整正文");
         assertThat(items.get(1).content()).contains("官方详情 JSON");
         assertThat(items.get(2).metadata().get("attachmentUrls"))
             .isEqualTo(List.of(base + "/finalpage/2026/notice.PDF"));
+        assertThat(items.get(3).content()).contains("深证成指", "创业板指", "深证100", "创业板50", "涨跌幅 1.19%");
+        assertThat(items.get(3).metadata()).containsEntry("indexCount", 4);
     }
 
     private static void respond(HttpExchange exchange, String contentType, String content) throws IOException {

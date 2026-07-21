@@ -7,6 +7,7 @@
 .news-list-toolbar { display: grid; grid-template-columns: minmax(260px, 1fr) 180px 150px auto auto; align-items: center; gap: 12px; }
 .news-list-count { justify-self: end; color: var(--el-text-color-secondary); white-space: nowrap; }
 .news-table small { display: block; margin-top: 4px; color: var(--el-text-color-secondary); }
+.collection-description { display: block; white-space: pre-wrap; line-height: 1.55; color: var(--el-text-color-regular); }
 .news-pagination { display: flex; justify-content: flex-end; overflow-x: auto; }
 .news-log-toolbar { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .news-log-toolbar .el-select { width: 260px; }

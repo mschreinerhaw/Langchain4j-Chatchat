@@ -112,7 +112,7 @@ chatchat:
         enabled: true
         endpoint: https://llm-7upawl16up8649rh.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/embeddings
         api-key: sk-720436c855ac470bb955388d0e8c9b89
-        model: text-embedding-v4
+        model: qwen3.7-text-embedding
         dimension: 1024
         vector-field: contentVector
         max-input-chars: 6000

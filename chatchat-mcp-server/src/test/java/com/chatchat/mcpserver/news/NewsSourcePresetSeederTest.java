@@ -17,7 +17,7 @@ class NewsSourcePresetSeederTest {
         boolean synchronizedSuccessfully = new NewsSourcePresetSeeder(runtime, new NewsSourcePresetCatalog()).seedMissingPresets();
 
         org.assertj.core.api.Assertions.assertThat(synchronizedSuccessfully).isTrue();
-        verify(runtime, times(22)).post(eq("/sources"), any());
+        verify(runtime, times(34)).post(eq("/sources"), any());
         verify(runtime, times(6)).put(contains("/rule"), any());
     }
 
@@ -34,7 +34,7 @@ class NewsSourcePresetSeederTest {
         seeder.retryInitialSynchronization();
 
         verify(runtime, times(2)).get("/sources");
-        verify(runtime, times(22)).post(eq("/sources"), any());
+        verify(runtime, times(34)).post(eq("/sources"), any());
     }
 
     @Test
@@ -92,15 +92,16 @@ class NewsSourcePresetSeederTest {
         var request = org.mockito.ArgumentCaptor.forClass(NewsSourcePresetCatalog.SourceUpsert.class);
         verify(runtime).put(eq("/sources/15"), request.capture());
         assertThat(request.getValue().enabled()).isTrue();
+        assertThat(request.getValue().sourceType()).isEqualTo("STRUCTURED_FLASH");
         assertThat(request.getValue().configuration())
-            .containsEntry("presetVersion", 2)
+            .containsEntry("presetVersion", 3)
             .containsEntry("legalRisk", true)
             .containsEntry("maxPagesPerRun", 200)
-            .containsKeys("rollApiUrl", "initialBackfillHours");
+            .containsKeys("request", "response", "mapping", "compliance", "initialBackfillHours");
     }
 
     @Test
-    void addsLegalRiskTagToExistingClsPresetWithoutReplacingItsConfiguration() throws Exception {
+    void migratesExistingClsPresetToStructuredTemplate() throws Exception {
         NewsRuntimeClient runtime = mock(NewsRuntimeClient.class);
         when(runtime.get("/sources")).thenReturn(new ObjectMapper().readTree("""
             [{"id":16,"sourceCode":"cls_telegraph","sourceName":"财联社电报",
@@ -113,10 +114,33 @@ class NewsSourcePresetSeederTest {
 
         var request = org.mockito.ArgumentCaptor.forClass(NewsSourcePresetCatalog.SourceUpsert.class);
         verify(runtime).put(eq("/sources/16"), request.capture());
+        assertThat(request.getValue().sourceType()).isEqualTo("STRUCTURED_FLASH");
         assertThat(request.getValue().configuration())
             .containsEntry("legalRisk", true)
-            .containsEntry("itemLimit", 37)
-            .containsEntry("customSetting", "keep");
+            .containsEntry("presetVersion", 3)
+            .containsKeys("request", "response", "mapping", "compliance");
+    }
+
+    @Test
+    void migratesExistingEastmoney724PresetToStructuredTemplate() throws Exception {
+        NewsRuntimeClient runtime = mock(NewsRuntimeClient.class);
+        when(runtime.get("/sources")).thenReturn(new ObjectMapper().readTree("""
+            [{"id":19,"sourceCode":"eastmoney_724","sourceName":"东方财富全球财经资讯 7×24 小时直播",
+              "sourceType":"EASTMONEY_724","entryUrl":"https://kuaixun.eastmoney.com/",
+              "enabled":true,"configuration":{"presetVersion":1,"itemLimit":50}}]
+            """));
+        when(runtime.post(eq("/sources"), any())).thenReturn(new ObjectMapper().readTree("{\"id\":12}"));
+
+        assertThat(new NewsSourcePresetSeeder(runtime, new NewsSourcePresetCatalog()).seedMissingPresets()).isTrue();
+
+        var request = org.mockito.ArgumentCaptor.forClass(NewsSourcePresetCatalog.SourceUpsert.class);
+        verify(runtime).put(eq("/sources/19"), request.capture());
+        assertThat(request.getValue().enabled()).isTrue();
+        assertThat(request.getValue().sourceType()).isEqualTo("STRUCTURED_FLASH");
+        assertThat(request.getValue().configuration())
+            .containsEntry("presetVersion", 2)
+            .containsEntry("legalRisk", true)
+            .containsKeys("request", "response", "mapping", "compliance");
     }
 
     @Test
@@ -144,8 +168,9 @@ class NewsSourcePresetSeederTest {
         NewsRuntimeClient runtime = mock(NewsRuntimeClient.class);
         when(runtime.get("/sources")).thenReturn(new ObjectMapper().readTree("""
             [{"id":13,"sourceCode":"szse_home","sourceName":"深圳证券交易所首页",
-              "sourceType":"EXCHANGE_HOME","entryUrl":"https://www.szse.cn/index/index.html",
-              "enabled":true,"configuration":{"provider":"SZSE"}}]
+              "sourceType":"SZSE_HOME","entryUrl":"https://www.szse.cn/index/index.html",
+              "collectionDescription":"采集深交所要闻、深交所公告和上市公司公告及其二级正文或 PDF。",
+              "enabled":true,"configuration":{"provider":"SZSE","presetVersion":2}}]
             """));
         when(runtime.post(eq("/sources"), any())).thenReturn(new ObjectMapper().readTree("{\"id\":12}"));
 
@@ -155,9 +180,10 @@ class NewsSourcePresetSeederTest {
         verify(runtime).put(eq("/sources/13"), request.capture());
         assertThat(request.getValue().sourceType()).isEqualTo("SZSE_HOME");
         assertThat(request.getValue().enabled()).isTrue();
+        assertThat(request.getValue().collectionDescription()).contains("深证成指", "创业板指");
         assertThat(request.getValue().configuration()).containsKeys(
-            "newsSelector", "noticeIndexUrl", "announcementApiUrl");
-        assertThat(request.getValue().configuration()).containsEntry("presetVersion", 2);
+            "newsSelector", "noticeIndexUrl", "announcementApiUrl", "marketUrlTemplate", "marketCodes");
+        assertThat(request.getValue().configuration()).containsEntry("presetVersion", 3);
     }
 
     @Test
@@ -220,6 +246,7 @@ class NewsSourcePresetSeederTest {
 
         var request = org.mockito.ArgumentCaptor.forClass(NewsSourcePresetCatalog.SourceUpsert.class);
         verify(runtime).put(eq("/sources/18"), request.capture());
+        assertThat(request.getValue().collectionDescription()).isNotBlank();
         assertThat(request.getValue().configuration())
             .containsEntry("legalRisk", true)
             .containsEntry("customSetting", "keep");

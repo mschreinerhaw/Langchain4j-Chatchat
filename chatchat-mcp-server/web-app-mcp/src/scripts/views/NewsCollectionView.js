@@ -3,7 +3,7 @@ import { ElMessageBox } from 'element-plus';
 import '../../styles/views/news-collection.css';
 
 const emptyRule = () => ({ listSelector: '', linkSelector: '', titleSelector: '', contentSelector: '', authorSelector: '', publishTimeSelector: '', urlPattern: '' });
-const emptyForm = () => ({ id: null, sourceCode: '', sourceName: '', sourceType: 'WEB_LIST', entryUrl: '', allowedDomain: '', scheduleCron: '0 */10 * * * *', enabled: false, configuration: { sleepMillis: 1000, timeoutMillis: 20000, zoneId: 'Asia/Shanghai', language: 'zh-CN', legalRisk: false, scheduleWindowEnabled: false, scheduleWindowStart: '09:00', scheduleWindowEnd: '12:00', attachmentSelector: '', attachmentAllowedDomains: '' }, rule: emptyRule() });
+const emptyForm = () => ({ id: null, sourceCode: '', sourceName: '', sourceType: 'WEB_LIST', entryUrl: '', collectionDescription: '', allowedDomain: '', scheduleCron: '0 */10 * * * *', enabled: false, configuration: { sleepMillis: 1000, timeoutMillis: 20000, zoneId: 'Asia/Shanghai', language: 'zh-CN', legalRisk: false, scheduleWindowEnabled: false, scheduleWindowStart: '09:00', scheduleWindowEnd: '12:00', attachmentSelector: '', attachmentAllowedDomains: '' }, rule: emptyRule() });
 const intervalOptions = [
   { label: '5 分钟', cron: '0 */5 * * * *' },
   { label: '10 分钟', cron: '0 */10 * * * *' },
@@ -25,10 +25,16 @@ const emptyScheduleEditor = () => ({ mode: 'interval', intervalCron: '0 */10 * *
 const sourceTypeOptions = [
   { label: '交易所首页', value: 'EXCHANGE_HOME' },
   { label: '深交所首页', value: 'SZSE_HOME' },
+  { label: '香港交易所首页', value: 'HKEX_HOME' },
+  { label: '中证指数首页指数图', value: 'CSINDEX_HOME' },
+  { label: '交易所市场表现数据', value: 'EXCHANGE_MARKET_DATA' },
   { label: '深交所披露栏目', value: 'SZSE_DISCLOSURE' },
   { label: '资讯首页', value: 'NEWS_HOME' },
   { label: '巨潮资讯首页', value: 'CNINFO_HOME' },
   { label: '财联社电报', value: 'CLS_TELEGRAPH' },
+  { label: '东方财富 7×24 快讯', value: 'EASTMONEY_724' },
+  { label: '结构化快讯模板', value: 'STRUCTURED_FLASH' },
+  { label: '证券时报信息披露（内置）', value: 'STCN_DISCLOSURES' },
   { label: '巨潮公告', value: 'CNINFO_ANNOUNCEMENTS' },
   { label: '上交所公告', value: 'SSE_ANNOUNCEMENTS' },
   { label: '网页列表', value: 'WEB_LIST' },
@@ -127,7 +133,7 @@ export default {
     filteredSources() {
       const keyword = String(this.filters.keyword || '').trim().toLowerCase();
       return this.sources.filter((source) => {
-        const searchable = [source.sourceName, source.sourceCode, source.entryUrl, source.allowedDomain, source.sourceType]
+        const searchable = [source.sourceName, source.sourceCode, source.entryUrl, source.collectionDescription, source.allowedDomain, source.sourceType]
           .filter(Boolean)
           .join(' ')
           .toLowerCase();
@@ -230,6 +236,7 @@ export default {
         sourceCode: this.form.sourceCode,
         sourceName: this.form.sourceName,
         entryUrl: this.form.entryUrl,
+        collectionDescription: this.form.collectionDescription || template.description || '',
         allowedDomain: this.form.allowedDomain,
         enabled: false,
         sourceType: template.sourceType,

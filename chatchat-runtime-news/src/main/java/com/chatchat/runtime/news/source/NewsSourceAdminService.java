@@ -8,6 +8,7 @@ import org.springframework.data.domain.PageRequest;
 
 import java.net.URI;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -133,11 +134,19 @@ public class NewsSourceAdminService {
         entity.setSourceName(request.sourceName().trim());
         entity.setSourceType(request.sourceType());
         entity.setEntryUrl(request.entryUrl().trim());
+        String collectionDescription = trim(request.collectionDescription());
         entity.setAllowedDomain(trim(request.allowedDomain()));
         entity.setScheduleCron(trim(request.scheduleCron()));
         entity.setEnabled(request.enabled() == null || request.enabled());
         try {
-            entity.setConfigurationJson(objectMapper.writeValueAsString(request.configuration() == null ? Map.of() : request.configuration()));
+            Map<String, Object> configuration = new LinkedHashMap<>(
+                request.configuration() == null ? Map.of() : request.configuration());
+            if (collectionDescription == null) {
+                collectionDescription = trim(configuration.get("collectionDescription") instanceof String value ? value : null);
+            }
+            if (collectionDescription == null) configuration.remove("collectionDescription");
+            else configuration.put("collectionDescription", collectionDescription);
+            entity.setConfigurationJson(objectMapper.writeValueAsString(configuration));
         } catch (Exception ex) {
             throw new IllegalArgumentException("Invalid news source configuration", ex);
         }
@@ -150,6 +159,9 @@ public class NewsSourceAdminService {
         requireText(request.sourceName(), "sourceName");
         requireText(request.entryUrl(), "entryUrl");
         if (request.sourceType() == null) throw new IllegalArgumentException("sourceType is required");
+        if (request.collectionDescription() != null && request.collectionDescription().trim().length() > 2000) {
+            throw new IllegalArgumentException("collectionDescription must not exceed 2000 characters");
+        }
         URI uri = URI.create(request.entryUrl());
         if (uri.getHost() == null || !("http".equalsIgnoreCase(uri.getScheme()) || "https".equalsIgnoreCase(uri.getScheme()))) {
             throw new IllegalArgumentException("entryUrl must be an absolute HTTP(S) URL");
@@ -168,8 +180,9 @@ public class NewsSourceAdminService {
                 configuration = objectMapper.readValue(entity.getConfigurationJson(), new com.fasterxml.jackson.core.type.TypeReference<>() { });
             }
         } catch (Exception ignored) { }
+        String collectionDescription = trim(configuration.get("collectionDescription") instanceof String value ? value : null);
         return new NewsSourceView(entity.getId(), entity.getCapabilityId(), entity.getSourceCode(), entity.getSourceName(),
-            entity.getSourceType(), entity.getEntryUrl(), entity.getAllowedDomain(), entity.getScheduleCron(), entity.isEnabled(),
+            entity.getSourceType(), entity.getEntryUrl(), collectionDescription, entity.getAllowedDomain(), entity.getScheduleCron(), entity.isEnabled(),
             configuration, entity.getLastCollectedAt(), recordRepository.countBySourceId(entity.getId()), entity.getUpdatedAt());
     }
 
@@ -183,10 +196,11 @@ public class NewsSourceAdminService {
     }
 
     public record NewsSourceUpsert(String sourceCode, String sourceName, NewsSourceType sourceType, String entryUrl,
+                                   String collectionDescription,
                                    String allowedDomain, String scheduleCron, Boolean enabled, Map<String, Object> configuration) { }
 
     public record NewsSourceView(Long id, Long capabilityId, String sourceCode, String sourceName, NewsSourceType sourceType,
-                                 String entryUrl, String allowedDomain, String scheduleCron, boolean enabled,
+                                 String entryUrl, String collectionDescription, String allowedDomain, String scheduleCron, boolean enabled,
                                  Map<String, Object> configuration, Instant lastCollectedAt, long collectedRecords, Instant updatedAt) { }
 
     public record NewsRuleUpsert(String listSelector, String linkSelector, String titleSelector, String contentSelector,

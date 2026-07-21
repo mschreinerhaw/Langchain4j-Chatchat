@@ -28,7 +28,7 @@ MCP Server / NewsRuntimeClient
     ▼
 chatchat-runtime-news:8091
     ├─ Source/Schedule：来源配置与 Cron 调度
-    ├─ Collectors：RSS、API、WebMagic、交易所首页、财联社快讯
+    ├─ Collectors：RSS、API、WebMagic、交易所首页、声明式结构化快讯
     ├─ Normalize：正文清洗、时间解析、去重与证据字段
     ├─ Attachment：受限下载、Tika 解析、重叠切片
     ├─ Bulk Queue：有界队列、批量写入、重试与退避
@@ -51,15 +51,38 @@ chatchat-runtime-news:8091
 | `RSS` | RSS/Atom 资讯流 |
 | `API` | JSON API 资讯源 |
 | `EXCHANGE_HOME` | 上交所、深交所首页要闻与行情快照 |
+| `SZSE_HOME` / `HKEX_HOME` / `CSINDEX_HOME` | 深交所、香港交易所和中证指数首页专用结构化采集 |
+| `EXCHANGE_MARKET_DATA` | 沪深交易所融资融券、公司分红送配，以及ETF基金规模数据；大结果集支持按日期和页码断点续采 |
 | `NEWS_HOME` | 巨潮资讯等首页关键内容 |
 | `CLS_TELEGRAPH` | 财联社电报快讯 |
+| `EASTMONEY_724` | 东方财富全球财经资讯 7×24 小时直播快讯 |
+| `STRUCTURED_FLASH` | 通过模板描述请求、分页、JSON 字段映射和法律声明的结构化快讯；前两项作为旧配置兼容类型保留 |
+| `STCN_DISCLOSURES` | 证券时报信息披露 12 个板块当日第一页快照及公告附件全文 |
 | `CNINFO_ANNOUNCEMENTS` | 巨潮资讯结构化公告与 PDF 原文采集 |
 | `WEB_LIST` | 列表页发现详情页后采集 |
 | `WEB_SINGLE_PAGE` | 固定资讯页面采集 |
 
 网页来源通过 CSS 选择器提取标题、正文、作者和发布时间，通过 Java 正则表达式过滤允许进入的详情 URL。MCP 后台提供内置 URL 正则模板，用户选择模板后仍可编辑为站点专用规则。保存时会编译校验正则。
 
-当配置选择器命中 0 条时，Runtime 会检查未渲染模板表达式、Vue/Next.js、Webpack、空应用根节点和 API 驱动空壳等特征。检测为动态页面时，本次执行明确失败并建议切换官方 JSON API 或专用采集器，不再把 HTTP 200 的空壳页面记录为成功采集。财联社电报和巨潮公告使用专用结构化接口采集器。
+当配置选择器命中 0 条时，Runtime 会检查未渲染模板表达式、Vue/Next.js、Webpack、空应用根节点和 API 驱动空壳等特征。检测为动态页面时，本次执行明确失败并建议切换官方 JSON API 或专用采集器，不再把 HTTP 200 的空壳页面记录为成功采集。财联社电报、东方财富 7×24 快讯、证券时报快讯、金十数据市场快讯和金十数据重要事件使用 `STRUCTURED_FLASH` 模板，巨潮公告继续使用专用结构化接口采集器。
+
+### 3.1 声明式结构化快讯模板
+
+`STRUCTURED_FLASH` 将站点差异限制在来源的 `configuration` 中：
+
+- `request`：接口地址、固定/占位查询参数、请求头和签名适配器名称。
+- `response`：成功状态、错误消息、资讯数组、下一页游标或复合分页状态的 JSON 点路径；分页状态可来自响应根节点或最后一条资讯。
+- `mapping`：ID、游标、标题、正文、摘要、作者、发布时间、详情 URL、动态标签、跳过条件和元数据映射。
+- `compliance`：固定分类、标签、法律风险标记和法律声明。
+- 通用控制项：`itemLimit`、`maxPagesPerRun`、`initialBackfillHours`、`initialCursor`/`initialState`、`snapshotMode`、`sleepMillis` 和 `timeoutMillis`。
+
+请求参数支持 `${cursor}`、`${pageSize}`、`${timestamp}` 以及 `${state.<名称>}` 占位符；详情 URL 支持 `${id}` 和资讯字段占位符。`request.omitBlankQueryParameters` 可让首次请求省略空分页参数。模板不能执行脚本。需要签名时只能引用 Spring 中已注册的白名单 `StructuredFlashRequestSigner`，当前支持 `NONE`、`CLS_WEB` 和 `STCN_WEB`。
+
+采集器将最新 `id:cursor` 持久化为断点。默认将数字游标小于或等于已保存游标的条目视为边界，因此即使边界条目从上游列表消失，也不会无休止翻页。任一条目被拒绝或达到最大页数但未触达边界时，本次游标不会推进。
+
+对于一次返回完整编辑快照且顺序不按时间排列的接口，可启用 `snapshotMode`。该模式每次完整扫描单页并依靠内容存储层去重，不使用游标或时间边界提前终止，因此不会漏掉排在旧条目之后的新内容。
+
+证券时报信息披露使用 `STCN_DISCLOSURES`：固定读取沪市主板、深市主板、科创板、创业板、北交所、新三板、沪股通、深股通、基金、债券、港股和监管的第一页，每页最多 20 条，并仅保留任务执行当天（`Asia/Shanghai`）发布的公告。同一公告命中多个板块时合并板块标签，公告 URL 交给附件管线继续提取原文。
 
 调度器周期扫描已启用来源，根据每个来源保存的六段 Spring Cron 决定是否执行。单次采集数量受 `max-items-per-run` 限制，采集线程池和等待队列都有固定上限。
 

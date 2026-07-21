@@ -27,7 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Collects SZSE homepage news, exchange notices, and listed-company announcement documents. */
+/** Collects SZSE homepage news, notices, listed-company announcements, and official index snapshots. */
 @Component
 public class SzseHomeNewsCollector implements NewsCollector {
     private final NewsItemSink sink;
@@ -61,6 +61,7 @@ public class SzseHomeNewsCollector implements NewsCollector {
         run(errors, counters, "SZSE news", () -> collectNews(source, counters));
         run(errors, counters, "SZSE notices", () -> collectExchangeNotices(source, counters));
         run(errors, counters, "listed-company announcements", () -> collectCompanyAnnouncements(source, counters));
+        run(errors, counters, "SZSE market snapshot", () -> collectMarketSnapshot(source, counters));
         return new NewsCollectResult(context.executionId(), source.id(), counters.discovered, counters.accepted,
             counters.duplicate, counters.rejected, counters.failed, errors.isEmpty() ? null : String.join("; ", errors));
     }
@@ -147,6 +148,38 @@ public class SzseHomeNewsCollector implements NewsCollector {
         }
     }
 
+    private void collectMarketSnapshot(NewsSource source, Counters counters) throws Exception {
+        String template = stringConfig(source, "marketUrlTemplate", null);
+        List<String> codes = stringList(source.configuration().get("marketCodes"));
+        if (template == null || codes.isEmpty()) return;
+        List<String> snapshots = new ArrayList<>();
+        String marketTime = null;
+        for (String code : codes) {
+            JsonNode root = objectMapper.readTree(get(template.replace("{code}", code), source));
+            JsonNode data = root.path("data");
+            if (!"0".equals(root.path("code").asText()) || !data.isObject()) {
+                throw new IllegalStateException("invalid SZSE market snapshot for " + code);
+            }
+            String itemTime = first(data.path("marketTime").asText(null), root.path("datetime").asText(null));
+            marketTime = first(itemTime, marketTime);
+            snapshots.add(String.format(
+                "%s（%s）：最新 %s，涨跌 %s，涨跌幅 %s%%，开盘 %s，最高 %s，最低 %s，成交量 %s，成交额 %s。",
+                data.path("name").asText(code), data.path("code").asText(code), data.path("now").asText("-"),
+                data.path("delta").asText("-"), data.path("deltaPercent").asText("-"),
+                data.path("open").asText("-"), data.path("high").asText("-"), data.path("low").asText("-"),
+                data.path("volume").asText("-"), data.path("amount").asText("-")));
+        }
+        String content = "深圳证券交易所主要指数行情：\n" + String.join("\n", snapshots)
+            + (marketTime == null ? "" : "\n行情时间：" + marketTime + "。")
+            + "\n数据来自深交所官方实时行情接口。";
+        counters.discovered++;
+        counters.add(sink.accept(new RawNewsItem(source, source.name() + "当日行情快照", content,
+            "深证成指、创业板指、深证100和创业板50最新行情。", "深圳证券交易所",
+            source.entryUrl() + "#market-snapshot", Instant.now(), language(source), List.of("市场行情"),
+            List.of("深圳证券交易所", "首页", "行情", "指数"),
+            Map.of("transport", "szse-market-api", "provider", "SZSE", "indexCount", snapshots.size()))));
+    }
+
     private String detailText(String url, NewsSource source, String fallback) {
         try {
             Document page = Jsoup.parse(get(url, source), url);
@@ -224,6 +257,10 @@ public class SzseHomeNewsCollector implements NewsCollector {
     }
     private int limit(NewsSource source, String key, int fallback) {
         return Math.max(1, Math.min(intConfig(source, key, fallback), properties.getMaxItemsPerRun()));
+    }
+    private List<String> stringList(Object value) {
+        if (!(value instanceof List<?> list)) return List.of();
+        return list.stream().map(String::valueOf).filter(item -> !item.isBlank()).toList();
     }
     private String first(String... values) {
         for (String value : values) if (value != null && !value.isBlank()) return value.trim();

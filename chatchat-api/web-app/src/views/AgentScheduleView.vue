@@ -397,15 +397,44 @@
               当前 MCP URL/请求模板未使用 &#123;&#123;receiver&#125;&#125;，为防止跨租户串发，该通道暂不能用于调度。
             </small>
             <div class="tenant-recipient-editor">
-              <label class="field">
-                <span>{{ channelTypeLabel(channel.channel) }}接收人</span>
-                <input
-                  v-model.trim="notificationRecipientDrafts[channel.channel]"
-                  :disabled="recipientSaving === channel.channel"
-                  :placeholder="recipientPlaceholder(channel.channel)"
-                />
-              </label>
-              <div>
+              <div class="recipient-editor-main">
+                <div class="recipient-editor-heading">
+                  <strong>{{ channelTypeLabel(channel.channel) }}接收人</strong>
+                  <span>已添加 {{ notificationRecipientDrafts[channel.channel]?.length || 0 }} 条</span>
+                </div>
+                <div v-if="notificationRecipientDrafts[channel.channel]?.length" class="recipient-chip-list">
+                  <span
+                    v-for="receiver in notificationRecipientDrafts[channel.channel]"
+                    :key="receiver"
+                    class="recipient-chip"
+                    :title="receiver"
+                  >
+                    <span>{{ receiver }}</span>
+                    <button
+                      type="button"
+                      :aria-label="`删除接收人 ${receiver}`"
+                      :disabled="recipientSaving === channel.channel"
+                      @click="removeNotificationRecipient(channel.channel, receiver)"
+                    >×</button>
+                  </span>
+                </div>
+                <div class="recipient-input-row">
+                  <input
+                    v-model.trim="notificationRecipientInputs[channel.channel]"
+                    :disabled="recipientSaving === channel.channel"
+                    :placeholder="recipientPlaceholder(channel.channel)"
+                    @keydown="handleRecipientKeydown($event, channel.channel)"
+                  />
+                  <button
+                    type="button"
+                    class="light-button"
+                    :disabled="recipientSaving === channel.channel || !notificationRecipientInputs[channel.channel]"
+                    @click="addNotificationRecipients(channel.channel)"
+                  >添加</button>
+                </div>
+                <small class="recipient-editor-help">可逐条输入；粘贴多个接收人时使用逗号分隔，前端会自动拆分并去重。</small>
+              </div>
+              <div class="recipient-binding-actions">
                 <button type="button" class="light-button" :disabled="recipientSaving === channel.channel" @click="saveNotificationRecipient(channel)">
                   {{ recipientSaving === channel.channel ? "保存中" : "保存绑定" }}
                 </button>

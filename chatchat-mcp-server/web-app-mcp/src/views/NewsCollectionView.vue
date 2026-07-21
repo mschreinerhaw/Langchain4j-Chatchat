@@ -14,7 +14,7 @@
       <el-input
         v-model="filters.keyword"
         clearable
-        placeholder="搜索名称、编码、地址或域名"
+        placeholder="搜索名称、编码、地址、采集内容或域名"
         @input="resetPage"
       >
         <template #prefix><el-icon><Search /></el-icon></template>
@@ -48,6 +48,9 @@
       </el-table-column>
       <el-table-column label="类型" width="140"><template #default="{ row }">{{ sourceTypeLabel(row.sourceType) }}</template></el-table-column>
       <el-table-column prop="entryUrl" label="入口地址" min-width="300" show-overflow-tooltip />
+      <el-table-column prop="collectionDescription" label="采集内容" min-width="320">
+        <template #default="{ row }"><span class="collection-description">{{ row.collectionDescription || '—' }}</span></template>
+      </el-table-column>
       <el-table-column label="调度计划" width="190">
         <template #default="{ row }">
           <span class="schedule-table-label">{{ describeCron(row.scheduleCron) }}</span>
@@ -118,8 +121,11 @@
         <div class="news-form-grid">
           <el-form-item label="来源编码"><el-input v-model.trim="form.sourceCode" /></el-form-item>
           <el-form-item label="来源名称"><el-input v-model.trim="form.sourceName" /></el-form-item>
-          <el-form-item label="来源类型"><el-select v-model="form.sourceType"><el-option label="交易所首页（内置）" value="EXCHANGE_HOME" disabled /><el-option label="深交所首页（内置）" value="SZSE_HOME" disabled /><el-option label="深交所披露栏目（内置）" value="SZSE_DISCLOSURE" disabled /><el-option label="资讯首页（内置）" value="NEWS_HOME" disabled /><el-option label="巨潮资讯首页（内置）" value="CNINFO_HOME" disabled /><el-option label="财联社电报（内置）" value="CLS_TELEGRAPH" disabled /><el-option label="巨潮公告（内置）" value="CNINFO_ANNOUNCEMENTS" disabled /><el-option label="上交所公告（内置）" value="SSE_ANNOUNCEMENTS" disabled /><el-option label="网页列表" value="WEB_LIST" /><el-option label="固定网页" value="WEB_SINGLE_PAGE" /><el-option label="RSS/Atom" value="RSS" /><el-option label="JSON API" value="API" /></el-select></el-form-item>
+          <el-form-item label="来源类型"><el-select v-model="form.sourceType"><el-option label="交易所首页（内置）" value="EXCHANGE_HOME" disabled /><el-option label="深交所首页（内置）" value="SZSE_HOME" disabled /><el-option label="香港交易所首页（内置）" value="HKEX_HOME" disabled /><el-option label="中证指数首页指数图（内置）" value="CSINDEX_HOME" disabled /><el-option label="交易所市场表现数据（内置）" value="EXCHANGE_MARKET_DATA" disabled /><el-option label="深交所披露栏目（内置）" value="SZSE_DISCLOSURE" disabled /><el-option label="证券时报信息披露（内置）" value="STCN_DISCLOSURES" disabled /><el-option label="资讯首页（内置）" value="NEWS_HOME" disabled /><el-option label="巨潮资讯首页（内置）" value="CNINFO_HOME" disabled /><el-option label="财联社电报（兼容类型）" value="CLS_TELEGRAPH" disabled /><el-option label="东方财富 7×24 快讯（兼容类型）" value="EASTMONEY_724" disabled /><el-option label="结构化快讯模板（内置）" value="STRUCTURED_FLASH" disabled /><el-option label="巨潮公告（内置）" value="CNINFO_ANNOUNCEMENTS" disabled /><el-option label="上交所公告（内置）" value="SSE_ANNOUNCEMENTS" disabled /><el-option label="网页列表" value="WEB_LIST" /><el-option label="固定网页" value="WEB_SINGLE_PAGE" /><el-option label="RSS/Atom" value="RSS" /><el-option label="JSON API" value="API" /></el-select></el-form-item>
           <el-form-item class="wide" label="入口地址"><el-input v-model.trim="form.entryUrl" @blur="fillAllowedDomainFromEntryUrl" /></el-form-item>
+          <el-form-item class="wide" label="采集内容说明">
+            <el-input v-model="form.collectionDescription" type="textarea" :rows="3" maxlength="2000" show-word-limit placeholder="说明该 URL 采集的栏目、页面范围、日期范围和正文/附件范围" />
+          </el-form-item>
           <el-form-item label="允许域名"><el-input v-model.trim="form.allowedDomain" /></el-form-item>
           <el-form-item label="启用"><el-switch v-model="form.enabled" /></el-form-item>
           <el-form-item label="法律风险标签">

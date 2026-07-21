@@ -149,6 +149,7 @@ export default {
       },
       notificationChannels: [],
       notificationRecipientDrafts: {},
+      notificationRecipientInputs: {},
       recipientSaving: "",
       pendingNotificationId: "",
       error: "",
@@ -482,8 +483,12 @@ export default {
         const payload = await fetchAgentScheduleNotificationChannels();
         this.notificationChannels = Array.isArray(payload) ? payload : [];
         this.notificationRecipientDrafts = this.notificationChannels.reduce((drafts, channel) => {
-          drafts[channel.channel] = channel.receiver || "";
+          drafts[channel.channel] = this.parseNotificationRecipients(channel.receiver);
           return drafts;
+        }, {});
+        this.notificationRecipientInputs = this.notificationChannels.reduce((inputs, channel) => {
+          inputs[channel.channel] = "";
+          return inputs;
         }, {});
       } catch (error) {
         this.notificationChannels = [];
@@ -585,7 +590,8 @@ export default {
       await this.createSchedule(true);
     },
     async saveNotificationRecipient(channel) {
-      const receiver = String(this.notificationRecipientDrafts[channel.channel] || "").trim();
+      this.addNotificationRecipients(channel.channel);
+      const receiver = (this.notificationRecipientDrafts[channel.channel] || []).join(",");
       if (!receiver) {
         this.error = "请填写接收人";
         return;
@@ -624,12 +630,41 @@ export default {
     boundNotificationChannels() {
       return this.notificationChannels.filter((channel) => channel.bound && channel.recipientAware);
     },
+    parseNotificationRecipients(value) {
+      const recipients = Array.isArray(value) ? value : String(value || "").split(/[,，;；\n]+/);
+      const seen = new Set();
+      return recipients.reduce((result, item) => {
+        const recipient = String(item || "").trim();
+        const key = recipient.toLocaleLowerCase();
+        if (recipient && !seen.has(key)) {
+          seen.add(key);
+          result.push(recipient);
+        }
+        return result;
+      }, []);
+    },
+    addNotificationRecipients(channel) {
+      const existing = this.notificationRecipientDrafts[channel] || [];
+      const input = this.notificationRecipientInputs[channel] || "";
+      this.notificationRecipientDrafts[channel] = this.parseNotificationRecipients([...existing, ...this.parseNotificationRecipients(input)]);
+      this.notificationRecipientInputs[channel] = "";
+    },
+    removeNotificationRecipient(channel, receiver) {
+      this.notificationRecipientDrafts[channel] = (this.notificationRecipientDrafts[channel] || [])
+        .filter((item) => item !== receiver);
+    },
+    handleRecipientKeydown(event, channel) {
+      if (event.key === "Enter" || event.key === "," || event.key === "，") {
+        event.preventDefault();
+        this.addNotificationRecipients(channel);
+      }
+    },
     recipientPlaceholder(channel) {
       const placeholders = {
-        EMAIL: "请输入邮箱，多个用逗号分隔",
-        SMS: "请输入手机号，多个用逗号分隔",
-        DINGTALK: "请输入钉钉接收人账号/手机号",
-        WECHAT_WORK: "请输入企业微信接收人账号"
+        EMAIL: "输入邮箱后按回车或逗号添加",
+        SMS: "输入手机号后按回车或逗号添加",
+        DINGTALK: "输入钉钉账号或手机号后添加",
+        WECHAT_WORK: "输入企业微信账号后添加"
       };
       return placeholders[channel] || "请输入接收人";
     },

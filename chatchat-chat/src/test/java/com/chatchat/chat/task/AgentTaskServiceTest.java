@@ -330,4 +330,64 @@ class AgentTaskServiceTest {
             .containsEntry("publishDate", "2026-07-20T10:00:00+08:00")
             .containsEntry("url", "https://example.com/news/1");
     }
+
+    @Test
+    void citationsRecoverLinksFromNestedMcpStructuredContentAndEvidenceChunks() {
+        ObjectMapper objectMapper = new ObjectMapper();
+        AgentTaskService service = new AgentTaskService(
+            mock(AgentEventBus.class),
+            mock(AgentEventStore.class),
+            mock(AgentTaskLatestRepository.class),
+            mock(InteractionOrchestrationService.class),
+            objectMapper,
+            new AgentTaskProperties(),
+            mock(ToolRuntimeService.class),
+            mock(AgentRuntime.class),
+            mock(AgentTaskCancellationRegistry.class),
+            mock(AgentLearningService.class),
+            mock(TaskConfirmRepository.class),
+            mock(InterpretationPlanStore.class),
+            mock(ThreadPoolTaskExecutor.class)
+        );
+        InteractionResponse response = InteractionResponse.builder()
+            .toolTraces(List.of(InteractionToolTrace.builder()
+                .toolName("mcp_chatchat_mcp_server_web_search")
+                .success(true)
+                .output("""
+                    {
+                      "structuredContent": {
+                        "data": {
+                          "reference_urls": ["https://www.sse.com.cn/market/view/", "https://www.cls.cn/detail/1"],
+                          "evidence_chunks": [
+                            {
+                              "title": "上交所市场总貌",
+                              "citation": {"url": "https://www.sse.com.cn/market/view/", "publisher": "上交所"},
+                              "snippet": "市场统计"
+                            },
+                            {
+                              "title": "市场新闻",
+                              "url": "https://www.cls.cn/detail/1",
+                              "sourceName": "财联社"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                    """)
+                .build()))
+            .build();
+
+        List<Map<String, Object>> citations = service.citations(response, Map.of());
+
+        assertThat(citations).hasSize(2);
+        assertThat(citations.get(0))
+            .containsEntry("rank", 1)
+            .containsEntry("title", "上交所市场总貌")
+            .containsEntry("publisher", "上交所")
+            .containsEntry("url", "https://www.sse.com.cn/market/view/");
+        assertThat(citations.get(1))
+            .containsEntry("rank", 2)
+            .containsEntry("publisher", "财联社")
+            .containsEntry("url", "https://www.cls.cn/detail/1");
+    }
 }

@@ -2489,30 +2489,27 @@ public class AgentTaskService {
             if (root.isEmpty()) {
                 continue;
             }
+            List<Map<String, Object>> containers = webCitationContainers(root);
             List<Map<String, Object>> candidates = new ArrayList<>();
-            addMapItems(candidates, root.get("results"));
-            addMapItems(candidates, root.get("items"));
-            addMapItems(candidates, root.get("organic_results"));
-            addMapItems(candidates, root.get("webPages"));
-            addMapItems(candidates, root.get("pageExcerpts"));
-            addMapItems(candidates, root.get("evidenceSnippets"));
-            addMapItems(candidates, root.get("evidence_chunks"));
-            if (candidates.isEmpty()) {
-                Map<String, Object> data = asStringMap(root.get("data"));
-                addMapItems(candidates, data.get("results"));
-                addMapItems(candidates, data.get("items"));
-                addMapItems(candidates, data.get("webPages"));
-                addMapItems(candidates, data.get("pageExcerpts"));
-                addMapItems(candidates, data.get("evidenceSnippets"));
-                addMapItems(candidates, data.get("evidence_chunks"));
+            for (Map<String, Object> container : containers) {
+                addMapItems(candidates, container.get("results"));
+                addMapItems(candidates, container.get("items"));
+                addMapItems(candidates, container.get("organic_results"));
+                addMapItems(candidates, container.get("webPages"));
+                addMapItems(candidates, container.get("pageExcerpts"));
+                addMapItems(candidates, container.get("evidenceSnippets"));
+                addMapItems(candidates, container.get("evidence_chunks"));
+                addMapItems(candidates, container.get("evidenceChunks"));
             }
 
             Map<String, Map<String, Object>> byUrl = new LinkedHashMap<>();
             for (Map<String, Object> item : candidates) {
                 Map<String, Object> evidence = asStringMap(item.get("evidence"));
+                Map<String, Object> citationData = asStringMap(item.get("citation"));
                 String url = firstTextValue(
                     item.get("url"), item.get("link"), item.get("href"), item.get("sourceUrl"), item.get("source_url"),
-                    evidence.get("url"), evidence.get("sourceUrl"), evidence.get("source_url"));
+                    evidence.get("url"), evidence.get("sourceUrl"), evidence.get("source_url"),
+                    citationData.get("url"), citationData.get("sourceUrl"), citationData.get("source_url"));
                 if (!isHttpUrl(url) || byUrl.containsKey(url)) {
                     continue;
                 }
@@ -2520,21 +2517,25 @@ public class AgentTaskService {
                 citation.put("sourceRef", url);
                 citation.put("url", url);
                 citation.put("title", firstTextValue(
-                    item.get("title"), item.get("name"), evidence.get("title"), item.get("sourceName"), url));
+                    item.get("title"), item.get("name"), evidence.get("title"), citationData.get("title"),
+                    item.get("sourceName"), url));
                 citation.put("text", compactCitationText(firstTextValue(
                     item.get("snippet"), item.get("excerpt"), item.get("pageExcerpt"), item.get("contentExcerpt"),
-                    item.get("summary"), evidence.get("snippet"), evidence.get("summary"), item.get("content"), "")));
+                    item.get("summary"), evidence.get("snippet"), evidence.get("summary"),
+                    citationData.get("snippet"), citationData.get("text"), item.get("content"), "")));
                 putIfPresent(citation, "publisher", firstTextValue(
                     item.get("publisher"), item.get("siteName"), item.get("sourceName"), item.get("organization"),
-                    evidence.get("publisher"), evidence.get("siteName"), evidence.get("sourceName")));
+                    evidence.get("publisher"), evidence.get("siteName"), evidence.get("sourceName"),
+                    citationData.get("publisher"), citationData.get("siteName"), citationData.get("sourceName")));
                 putIfPresent(citation, "publishDate", firstTextValue(
                     item.get("publishDate"), item.get("publishedAt"), item.get("publishTime"), item.get("publish_time"),
                     item.get("date"), evidence.get("publishDate"), evidence.get("publishedAt"),
-                    evidence.get("publishTime"), evidence.get("publish_time")));
+                    evidence.get("publishTime"), evidence.get("publish_time"), citationData.get("publishDate"),
+                    citationData.get("publishedAt")));
                 byUrl.put(url, citation);
             }
 
-            List<Map<String, Object>> ordered = orderWebCitations(root, byUrl);
+            List<Map<String, Object>> ordered = orderWebCitations(containers, byUrl);
             for (Map<String, Object> citation : ordered) {
                 citation.put("rank", values.size() + 1);
                 values.add(citation);
@@ -2545,14 +2546,19 @@ public class AgentTaskService {
         }
     }
 
-    private List<Map<String, Object>> orderWebCitations(Map<String, Object> root,
+    private List<Map<String, Object>> orderWebCitations(List<Map<String, Object>> containers,
                                                          Map<String, Map<String, Object>> byUrl) {
-        Object references = root.get("reference_urls");
-        List<?> referenceUrls = references instanceof List<?> list ? list : List.of();
-        if (referenceUrls.isEmpty()) {
-            Map<String, Object> data = asStringMap(root.get("data"));
-            references = data.get("reference_urls");
-            referenceUrls = references instanceof List<?> list ? list : List.of();
+        List<Object> referenceUrls = new ArrayList<>();
+        for (Map<String, Object> container : containers) {
+            Object references = container.containsKey("reference_urls")
+                ? container.get("reference_urls") : container.get("referenceUrls");
+            if (references instanceof List<?> list) {
+                for (Object value : list) {
+                    if (!referenceUrls.contains(value)) {
+                        referenceUrls.add(value);
+                    }
+                }
+            }
         }
         List<Map<String, Object>> ordered = new ArrayList<>();
         for (Object value : referenceUrls) {
@@ -2571,6 +2577,37 @@ public class AgentTaskService {
         }
         ordered.addAll(byUrl.values());
         return ordered;
+    }
+
+    private List<Map<String, Object>> webCitationContainers(Map<String, Object> root) {
+        List<Map<String, Object>> containers = new ArrayList<>();
+        addWebCitationContainer(containers, root, 0);
+        return containers;
+    }
+
+    private void addWebCitationContainer(List<Map<String, Object>> containers, Object value, int depth) {
+        if (value == null || depth > 5 || containers.size() >= 32) {
+            return;
+        }
+        Map<String, Object> container = asStringMap(value);
+        if (container.isEmpty()) {
+            return;
+        }
+        containers.add(container);
+        for (String key : List.of("data", "structuredContent", "structured_content", "payload", "result", "output")) {
+            addWebCitationContainer(containers, container.get(key), depth + 1);
+        }
+        Object content = container.get("content");
+        if (content instanceof Collection<?> blocks) {
+            for (Object block : blocks) {
+                addWebCitationContainer(containers, block, depth + 1);
+                Map<String, Object> blockMap = asStringMap(block);
+                Map<String, Object> parsedText = parseJsonObject(firstTextValue(blockMap.get("text"), ""));
+                addWebCitationContainer(containers, parsedText, depth + 2);
+            }
+        } else if (content instanceof String text) {
+            addWebCitationContainer(containers, parseJsonObject(text), depth + 1);
+        }
     }
 
     private Map<String, Object> parseJsonObject(String value) {

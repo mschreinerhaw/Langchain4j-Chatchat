@@ -73,6 +73,10 @@ class ExchangeMarketDataNewsCollectorTest {
             "上交所现金分红：浦发银行（600000）", "上交所送股转增：示例股份（600001）");
         assertThat(items).allSatisfy(item -> assertThat(item.metadata())
             .containsEntry("provider", "SSE").containsEntry("legalRisk", true));
+        assertThat(items.subList(0, 2)).allSatisfy(item -> assertThat(item.metadata())
+            .containsEntry("datasetCode", "margin_trade_daily"));
+        assertThat(items.subList(2, 4)).allSatisfy(item -> assertThat(item.metadata())
+            .containsEntry("datasetCode", "stock_dividend_event"));
         assertThat(items.get(1).metadata()).containsEntry("securityCode", "600000").containsEntry("rzye", 100L)
             .containsEntry("financingBalanceCny", 100L).containsEntry("amountUnit", "CNY");
     }
@@ -144,7 +148,8 @@ class ExchangeMarketDataNewsCollectorTest {
         assertThat(items).extracting(RawNewsItem::title).containsExactly(
             "上交所ETF规模：治理ETF（510010）", "上交所ETF规模：超大ETF（510020）");
         assertThat(items.get(0).metadata()).containsEntry("fundScale10KUnits", "13152.44")
-            .containsEntry("scaleUnit", "10K-fund-units");
+            .containsEntry("scaleUnit", "10K-fund-units")
+            .containsEntry("datasetCode", "etf_scale_daily");
     }
 
     @Test
@@ -210,6 +215,7 @@ class ExchangeMarketDataNewsCollectorTest {
             "香港交易所市场汇总 2026-07-20", "上海证券交易所市场汇总 2026-07-20", "深圳证券交易所市场汇总 2026-07-20");
         assertThat(items).allSatisfy(item -> assertThat(item.metadata())
             .containsEntry("dataset", "沪深港市场汇总")
+            .containsEntry("datasetCode", "market_statistics_daily")
             .containsEntry("tradeDate", "2026-07-20")
             .containsEntry("legalRisk", true)
             .containsKeys("segments", "rawMetrics", "amountUnits"));

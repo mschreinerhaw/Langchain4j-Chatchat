@@ -890,6 +890,68 @@ public class OpenSearchMcpSearchService {
         return requestRaw(method, path, body == null ? "" : json(body), allowNotFound, "application/json");
     }
 
+    /** Raw MCP-governed index used by internal capability modules without separate connection settings. */
+    public synchronized void ensureMarketCatalogIndex(String rawIndexName) {
+        if (!enabled()) return;
+        String index = rawIndexName(rawIndexName);
+        Map<String, Object> fields = new LinkedHashMap<>();
+        for (String field : List.of("title", "description", "business_description")) {
+            fields.put(field, Map.of("type", "text"));
+        }
+        for (String field : List.of("dataset_code", "table_name", "archive_table_name", "storage_location",
+            "archive_storage_location", "history_granularity", "read_tool")) {
+            fields.put(field, Map.of("type", "keyword"));
+        }
+        if (requestRaw("HEAD", "/" + index, "", true, "application/json") == null) {
+            requestRaw("PUT", "/" + index, json(Map.of("mappings", Map.of("properties", fields))),
+                false, "application/json");
+        } else {
+            requestRaw("PUT", "/" + index + "/_mapping", json(Map.of("properties", fields)),
+                false, "application/json");
+        }
+    }
+
+    public void indexMarketCatalog(String rawIndexName, String datasetCode, Map<String, Object> catalog) {
+        if (!enabled()) return;
+        String index = rawIndexName(rawIndexName);
+        Map<String, Object> document = new LinkedHashMap<>(catalog == null ? Map.of() : catalog);
+        document.put("title", firstText(textValue(document.get("asset_name")), datasetCode));
+        document.put("description", firstText(textValue(document.get("business_description")), ""));
+        document.put("storage_location", firstText(textValue(document.get("database_name")), "") + "."
+            + firstText(textValue(document.get("table_name")), ""));
+        String archiveTable = firstText(textValue(document.get("archive_table_name")), "");
+        document.put("archive_storage_location", archiveTable.isBlank() ? ""
+            : firstText(textValue(document.get("database_name")), "") + "." + archiveTable);
+        document.put("read_tool", "web_search");
+        requestRaw("PUT", "/" + index + "/_doc/" + rawIndexName(datasetCode), json(document),
+            false, "application/json");
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> searchMarketCatalog(String rawIndexName, String query, int limit) {
+        if (!enabled()) return List.of();
+        String index = rawIndexName(rawIndexName);
+        Map<String, Object> body = Map.of("size", Math.max(1, Math.min(limit, 50)), "query", Map.of("multi_match", Map.of(
+            "query", query, "fields", List.of("title^4", "description^3", "business_description^2", "dataset_code"))));
+        JsonNode response = searchRequest("POST", "/" + index + "/_search", body);
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (JsonNode hit : response.path("hits").path("hits")) {
+            result.add(objectMapper.convertValue(hit.path("_source"), Map.class));
+        }
+        return List.copyOf(result);
+    }
+
+    private String rawIndexName(String value) {
+        String normalized = value == null ? "" : value.trim().toLowerCase(Locale.ROOT)
+            .replaceAll("[^a-z0-9_-]+", "-");
+        if (normalized.isBlank()) throw new IllegalArgumentException("OpenSearch index name is blank");
+        return normalized;
+    }
+
+    private String textValue(Object value) {
+        return value == null ? "" : String.valueOf(value);
+    }
+
     public synchronized void replaceSqlDatasourceAssets(String datasourceId, List<LuceneMcpSearchService.AssetDoc> docs) {
         if (!enabled() || datasourceId == null || datasourceId.isBlank()) return;
         String index = openSearchIndexName(assetIndexName("sql_datasource"));

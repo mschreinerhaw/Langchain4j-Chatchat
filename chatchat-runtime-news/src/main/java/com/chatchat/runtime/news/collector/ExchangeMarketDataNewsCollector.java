@@ -481,10 +481,21 @@ public class ExchangeMarketDataNewsCollector implements NewsCollector {
         metadata.put("transport", transport);
         metadata.put("provider", provider);
         metadata.put("dataset", dataset);
+        metadata.put("datasetCode", datasetCode(dataset));
         metadata.put("legalRisk", booleanConfig(source, "legalRisk", false));
         metadata.put("legalDisclaimer", stringConfig(source, "legalDisclaimer",
             "数据来自证券交易所官方公开页面，仅用于内部市场研究和资讯检索，不构成投资建议；请以交易所最新披露为准。"));
         return metadata;
+    }
+
+    private String datasetCode(String dataset) {
+        if (dataset.contains("融资融券")) return "margin_trade_daily";
+        if (dataset.contains("分红") || dataset.contains("送股") || dataset.contains("配股")) {
+            return "stock_dividend_event";
+        }
+        if (dataset.contains("ETF规模")) return "etf_scale_daily";
+        if (dataset.contains("市场汇总") || dataset.contains("市场统计")) return "market_statistics_daily";
+        throw new IllegalArgumentException("Unsupported exchange market dataset: " + dataset);
     }
 
     private void accept(NewsSource source, Counters counters, RawNewsItem item) {

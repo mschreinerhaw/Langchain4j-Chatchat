@@ -530,6 +530,7 @@ export default {
           cell.append(toggle);
         });
         const tables = [...root.querySelectorAll("table")];
+        tables.forEach((table) => this.removeEmptySourceColumns(table));
         const tablePayloads = tables
           .map((table, index) => ({ table, payload: this.resultTablePayload(table, index) }))
           .filter((item) => item.payload);
@@ -580,6 +581,50 @@ export default {
         console.warn("Enhance result table failed", error);
         return html;
       }
+    },
+    removeEmptySourceColumns(table) {
+      const headers = [...table.querySelectorAll("thead th")];
+      const bodyRows = [...table.querySelectorAll("tbody tr")];
+      if (!headers.length || !bodyRows.length) {
+        return;
+      }
+      const sourceColumns = headers
+        .map((header, index) => ({
+          index,
+          header,
+          label: this.decodeHtml(header.textContent || "").replace(/\s+/g, " ").trim()
+        }))
+        .filter(({ label }) => /^(?:来源|主要来源|相关证据|证据来源|引用|引用来源|sources?)$/i.test(label));
+      sourceColumns.forEach(({ index, header }) => {
+        header.classList.add("source-column");
+        bodyRows.forEach((row) => {
+          const cell = row.children[index];
+          if (!cell) return;
+          cell.classList.add("source-column");
+          const value = this.decodeHtml(cell.textContent || "").replace(/\s+/g, " ").trim();
+          if (value) cell.title = value;
+          cell.querySelectorAll("a[href]").forEach((link) => {
+            link.title = link.getAttribute("href") || link.textContent || value;
+          });
+        });
+      });
+      const emptySourceIndexes = sourceColumns
+        .filter(({ index }) => bodyRows.every((row) => {
+          const cell = row.children[index];
+          if (!cell) {
+            return true;
+          }
+          if (cell.querySelector("a[href], img[src]")) {
+            return false;
+          }
+          const value = this.decodeHtml(cell.textContent || "").replace(/\s+/g, " ").trim();
+          return !value || /^(?:-|—|–|无|暂无|N\/?A|null)$/i.test(value);
+        }))
+        .map(({ index }) => index)
+        .sort((left, right) => right - left);
+      emptySourceIndexes.forEach((index) => {
+        table.querySelectorAll("tr").forEach((row) => row.children[index]?.remove());
+      });
     },
     resultTablePayload(table, index) {
       const headers = [...table.querySelectorAll("thead th")]

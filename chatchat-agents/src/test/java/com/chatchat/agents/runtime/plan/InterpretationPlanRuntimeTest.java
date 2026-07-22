@@ -346,6 +346,49 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void factChecksUnifiedWebSearchWhenItContainsActualFinancialRows() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "localToolResultReview",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.StepExecution.class
+        );
+        method.setAccessible(true);
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            1, "mcp_tool", "mcp_chatchat_mcp_server_web_search",
+            Map.of("query", "A-share market"), List.of(), null, null
+        );
+        InterpretationPlanRuntime.StepExecution execution = new InterpretationPlanRuntime.StepExecution(
+            1, "mcp_tool", "mcp_chatchat_mcp_server_web_search", true,
+            Map.of("structuredContent", Map.of(
+                "financialObservationCount", 12,
+                "financialData", List.of(Map.of("dataset", "market_quote_daily", "count", 12)))),
+            null, null, null, 5
+        );
+
+        InterpretationPlanRuntime.StepReview review =
+            (InterpretationPlanRuntime.StepReview) method.invoke(runtime, step, execution);
+
+        assertThat(review).isNotNull();
+        assertThat(review.satisfied()).isTrue();
+        assertThat(review.metadata())
+            .containsEntry("localFactCheckHasEvidence", true)
+            .containsEntry("localFactCheckEvidenceType", "financial_data_observations")
+            .containsEntry("financialObservationCount", 12);
+
+        Method skipReviewMethod = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "shouldSkipModelReviewAfterLocalFactCheck",
+            Map.class
+        );
+        skipReviewMethod.setAccessible(true);
+        assertThat((boolean) skipReviewMethod.invoke(runtime, review.metadata())).isTrue();
+    }
+
+    @Test
     void skipsModelReviewForNonEmptyTemplateDiscoveryResult() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_ssh_template_query")).thenReturn(true);

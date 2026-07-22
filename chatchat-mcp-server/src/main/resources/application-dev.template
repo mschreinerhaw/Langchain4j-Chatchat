@@ -1,4 +1,4 @@
-﻿spring:
+spring:
   application:
     name: chatchat-mcp-server
   datasource:
@@ -59,9 +59,6 @@ chatchat:
         enabled: true
         tools:
           web_search: { enabled: true, agent-callable: true, timeout: 30s }
-          news_search: { enabled: true, agent-callable: true, timeout: 30s }
-          news_latest: { enabled: true, agent-callable: true, timeout: 20s }
-          news_source_status: { enabled: true, agent-callable: false, timeout: 10s }
     admin:
       username: admin
       password: admin123

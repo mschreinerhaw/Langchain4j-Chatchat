@@ -13,6 +13,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
     "com.chatchat.tools",
     "com.chatchat.integration.mcp",
     "com.chatchat.runtime.mcp",
+    "com.chatchat.runtime.market",
     "com.chatchat.mcpserver"
 })
 @ConfigurationPropertiesScan(basePackages = {

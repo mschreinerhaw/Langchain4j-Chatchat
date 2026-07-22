@@ -86,6 +86,50 @@ class ToolObservationBuilderEvidenceTest {
     }
 
     @Test
+    void unifiedWebSearchPreservesActualFinancialRowsForAnswerSynthesis() {
+        Map<String, Object> quote = new LinkedHashMap<>();
+        quote.put("observation_date", "2026-07-22");
+        quote.put("source_url", "https://www.sse.com.cn/market/price/report/");
+        quote.put("quote_code", "000001");
+        quote.put("quote_name", "上证指数");
+        quote.put("open", 3839.6654);
+        quote.put("high", 3884.4352);
+        quote.put("low", 3839.6654);
+        quote.put("close", 3867.0336);
+        quote.put("change_pct", 0.07);
+        quote.put("amount", "1258148128160");
+        Map<String, Object> financialResult = new LinkedHashMap<>();
+        financialResult.put("resultType", "financial_data");
+        financialResult.put("dataset", "market_quote_daily");
+        financialResult.put("title", "证券及指数行情：实际观测数据");
+        financialResult.put("snippet", "已从受治理存储位置读取实际金融数据，不是资产目录元数据。");
+        financialResult.put("count", 1);
+        financialResult.put("rows", List.of(quote));
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("query", "A股市场行情");
+        result.put("provider", "chatchat-unified-search");
+        result.put("count", 1);
+        result.put("financialDatasetCount", 1);
+        result.put("financialObservationCount", 1);
+        result.put("results", List.of(financialResult));
+
+        String observation = builder.buildSuccessObservation(
+            "mcp_chatchat_mcp_server_web_search",
+            ToolOutput.success(result, "Unified search completed"),
+            "unused raw output"
+        );
+
+        assertThat(observation)
+            .contains("financialDatasets=1, financialObservations=1")
+            .contains("do not describe the result as asset metadata only")
+            .contains("Actual governed financial observations: dataset=market_quote_daily, returnedRows=1")
+            .contains("quote_name=上证指数")
+            .contains("close=3867.0336")
+            .contains("change_pct=0.07")
+            .contains("amount=1258148128160");
+    }
+
+    @Test
     void sqlExecutionObservationPreservesRowsAndExplicitPartialSemantics() {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("schemaVersion", "tool_execution_result.v1");

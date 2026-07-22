@@ -67,7 +67,8 @@ class CsindexHomeNewsCollectorTest {
             .containsExactly("沪深300（000300）指数图数据", "科创50（000688）指数图数据");
         assertThat(items.get(0).content()).contains("4598.32", "1.53%", "9334", "14.29", "2 个收盘点");
         assertThat(items.get(0).metadata()).containsEntry("indexCode", "000300")
-            .containsEntry("tradeDate", "20260720").containsEntry("legalRisk", true);
+            .containsEntry("tradeDate", "20260720").containsEntry("legalRisk", true)
+            .containsEntry("datasetCode", "index_valuation_daily");
         assertThat(items.get(0).metadata().get("closeHistory")).asList().hasSize(2);
         assertThat(items.get(0).metadata().get("peTtmHistory")).asList().hasSize(2);
         assertThat(items.get(0).publishTime()).isEqualTo(Instant.parse("2026-07-19T16:00:00Z"));

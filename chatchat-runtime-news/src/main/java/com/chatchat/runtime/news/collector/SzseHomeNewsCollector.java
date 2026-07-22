@@ -153,6 +153,7 @@ public class SzseHomeNewsCollector implements NewsCollector {
         List<String> codes = stringList(source.configuration().get("marketCodes"));
         if (template == null || codes.isEmpty()) return;
         List<String> snapshots = new ArrayList<>();
+        List<Map<String, Object>> quotes = new ArrayList<>();
         String marketTime = null;
         for (String code : codes) {
             JsonNode root = objectMapper.readTree(get(template.replace("{code}", code), source));
@@ -162,6 +163,19 @@ public class SzseHomeNewsCollector implements NewsCollector {
             }
             String itemTime = first(data.path("marketTime").asText(null), root.path("datetime").asText(null));
             marketTime = first(itemTime, marketTime);
+            Map<String, Object> quote = new LinkedHashMap<>();
+            quote.put("quoteCode", data.path("code").asText(code));
+            quote.put("quoteName", data.path("name").asText(code));
+            quote.put("marketTime", itemTime == null ? "" : itemTime);
+            quote.put("close", data.path("now").asText(""));
+            quote.put("change", data.path("delta").asText(""));
+            quote.put("changePct", data.path("deltaPercent").asText(""));
+            quote.put("open", data.path("open").asText(""));
+            quote.put("high", data.path("high").asText(""));
+            quote.put("low", data.path("low").asText(""));
+            quote.put("volume", data.path("volume").asText(""));
+            quote.put("amount", data.path("amount").asText(""));
+            quotes.add(Map.copyOf(quote));
             snapshots.add(String.format(
                 "%s（%s）：最新 %s，涨跌 %s，涨跌幅 %s%%，开盘 %s，最高 %s，最低 %s，成交量 %s，成交额 %s。",
                 data.path("name").asText(code), data.path("code").asText(code), data.path("now").asText("-"),
@@ -177,7 +191,9 @@ public class SzseHomeNewsCollector implements NewsCollector {
             "深证成指、创业板指、深证100和创业板50最新行情。", "深圳证券交易所",
             source.entryUrl() + "#market-snapshot", Instant.now(), language(source), List.of("市场行情"),
             List.of("深圳证券交易所", "首页", "行情", "指数"),
-            Map.of("transport", "szse-market-api", "provider", "SZSE", "indexCount", snapshots.size()))));
+            Map.of("transport", "szse-market-api", "provider", "SZSE", "dataset", "行情",
+                "datasetCode", "market_quote_daily",
+                "indexCount", snapshots.size(), "quotes", List.copyOf(quotes)))));
     }
 
     private String detailText(String url, NewsSource source, String fallback) {

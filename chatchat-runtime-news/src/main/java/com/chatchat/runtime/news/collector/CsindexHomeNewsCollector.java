@@ -98,6 +98,8 @@ public class CsindexHomeNewsCollector implements NewsCollector {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("transport", "csindex-home-api");
         metadata.put("provider", "CSINDEX");
+        metadata.put("dataset", "指数估值");
+        metadata.put("datasetCode", "index_valuation_daily");
         metadata.put("indexCode", code);
         metadata.put("indexName", name);
         metadata.put("tradeDate", tradeDate);

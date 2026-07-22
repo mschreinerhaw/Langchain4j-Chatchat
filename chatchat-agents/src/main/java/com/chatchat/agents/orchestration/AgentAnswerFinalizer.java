@@ -50,6 +50,7 @@ class AgentAnswerFinalizer {
     private static final int TOOL_DATA_MARKDOWN_ROW_LIMIT = 20;
     private static final int TOOL_DATA_VISUALIZATION_ROW_LIMIT = 200;
     private static final int TOOL_EVIDENCE_PREVIEW_LIMIT = 1600;
+    private static final int TOOL_DATA_INLINE_CELL_LIMIT = 240;
     private static final Pattern DOCUMENT_REF_PATTERN =
         Pattern.compile("doc://([^\\s\"',;\\]\\)}]+)#chunk=([^\\s\"',;\\]\\)}]+)");
     private static final Pattern WEB_REF_PATTERN =
@@ -986,6 +987,7 @@ class AgentAnswerFinalizer {
         int rowCount = firstInt(dataset.get("rowCount"), rows.size());
         int displayCount = Math.min(rows.size(), TOOL_DATA_MARKDOWN_ROW_LIMIT);
         StringBuilder table = new StringBuilder();
+        List<LongTextCell> longTextCells = new ArrayList<>();
         table.append("## 查询结果明细\n\n");
         table.append("已找到 ").append(rowCount).append(" 行数据，下面展示前 ")
             .append(displayCount).append(" 行；完整结构化数据已随结果返回用于表格展示。\n\n");
@@ -998,14 +1000,62 @@ class AgentAnswerFinalizer {
             table.append("--- | ");
         }
         table.append("\n");
+        int displayedRowIndex = 0;
         for (Map<String, Object> row : rows.stream().limit(TOOL_DATA_MARKDOWN_ROW_LIMIT).toList()) {
+            displayedRowIndex++;
             table.append("| ");
             for (String column : columns) {
-                table.append(escapeTableCell(row.get(column))).append(" | ");
+                Object value = row.get(column);
+                if (isLongTextCell(value)) {
+                    String text = String.valueOf(value);
+                    longTextCells.add(new LongTextCell(displayedRowIndex, column, text));
+                    table.append(escapeTableCell(longTextReference(displayedRowIndex, column, text.length()))).append(" | ");
+                } else {
+                    table.append(escapeTableCell(value)).append(" | ");
+                }
             }
             table.append("\n");
         }
+        appendLongTextCells(table, longTextCells);
         return base.isBlank() ? table.toString().trim() : base + "\n\n" + table.toString().trim();
+    }
+
+    private boolean isLongTextCell(Object value) {
+        if (!(value instanceof CharSequence sequence)) {
+            return false;
+        }
+        String text = sequence.toString();
+        return text.length() > TOOL_DATA_INLINE_CELL_LIMIT || text.indexOf('\n') >= 0 || text.indexOf('\r') >= 0;
+    }
+
+    private String longTextReference(int rowNumber, String column, int length) {
+        return "[完整内容见下方：第 " + rowNumber + " 行 / " + column + "，" + length + " 字符]";
+    }
+
+    private void appendLongTextCells(StringBuilder markdown, List<LongTextCell> cells) {
+        if (cells.isEmpty()) {
+            return;
+        }
+        markdown.append("\n### 长文本字段完整内容\n\n");
+        for (LongTextCell cell : cells) {
+            markdown.append("#### 第 ").append(cell.rowNumber()).append(" 行 · ")
+                .append(escapeInline(cell.column())).append("\n\n");
+            appendFencedText(markdown, cell.value());
+            markdown.append("\n");
+        }
+    }
+
+    private void appendFencedText(StringBuilder markdown, String value) {
+        String text = value == null ? "" : value;
+        String fence = "```";
+        while (text.contains(fence)) {
+            fence += "`";
+        }
+        markdown.append(fence).append("text\n").append(text);
+        if (!text.endsWith("\n")) {
+            markdown.append("\n");
+        }
+        markdown.append(fence).append("\n");
     }
 
     private String appendToolEvidence(String answer, List<Map<String, Object>> evidence) {
@@ -1116,8 +1166,10 @@ class AgentAnswerFinalizer {
         if (value == null) {
             return "";
         }
-        String text = String.valueOf(value).replace("\r", " ").replace("\n", " ").replace("|", "\\|").trim();
-        return text.length() <= 120 ? text : text.substring(0, 120);
+        return String.valueOf(value).replace("\r", " ").replace("\n", " ").replace("|", "\\|").trim();
+    }
+
+    private record LongTextCell(int rowNumber, String column, String value) {
     }
 
     private String escapeInline(String value) {

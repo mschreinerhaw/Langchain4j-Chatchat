@@ -14,10 +14,11 @@ class NewsSourcePresetSeederTest {
         when(runtime.get("/sources")).thenReturn(new ObjectMapper().readTree("[]"));
         when(runtime.post(eq("/sources"), any())).thenReturn(new ObjectMapper().readTree("{\"id\":12}"));
 
-        boolean synchronizedSuccessfully = new NewsSourcePresetSeeder(runtime, new NewsSourcePresetCatalog()).seedMissingPresets();
+        NewsSourcePresetCatalog catalog = new NewsSourcePresetCatalog();
+        boolean synchronizedSuccessfully = new NewsSourcePresetSeeder(runtime, catalog).seedMissingPresets();
 
         org.assertj.core.api.Assertions.assertThat(synchronizedSuccessfully).isTrue();
-        verify(runtime, times(34)).post(eq("/sources"), any());
+        verify(runtime, times(catalog.presets().size())).post(eq("/sources"), any());
         verify(runtime, times(6)).put(contains("/rule"), any());
     }
 
@@ -28,13 +29,14 @@ class NewsSourcePresetSeederTest {
             .thenThrow(new IllegalStateException("runtime unavailable"))
             .thenReturn(new ObjectMapper().readTree("[]"));
         when(runtime.post(eq("/sources"), any())).thenReturn(new ObjectMapper().readTree("{\"id\":12}"));
-        NewsSourcePresetSeeder seeder = new NewsSourcePresetSeeder(runtime, new NewsSourcePresetCatalog());
+        NewsSourcePresetCatalog catalog = new NewsSourcePresetCatalog();
+        NewsSourcePresetSeeder seeder = new NewsSourcePresetSeeder(runtime, catalog);
 
         org.assertj.core.api.Assertions.assertThat(seeder.seedMissingPresets()).isFalse();
         seeder.retryInitialSynchronization();
 
         verify(runtime, times(2)).get("/sources");
-        verify(runtime, times(34)).post(eq("/sources"), any());
+        verify(runtime, times(catalog.presets().size())).post(eq("/sources"), any());
     }
 
     @Test
@@ -160,7 +162,7 @@ class NewsSourcePresetSeederTest {
         assertThat(request.getValue().enabled()).isTrue();
         assertThat(request.getValue().configuration()).containsKeys(
             "sectionSelectors", "announcementFeeds", "marketDataFeeds");
-        assertThat(request.getValue().configuration()).containsEntry("presetVersion", 2);
+        assertThat(request.getValue().configuration()).containsEntry("presetVersion", 3);
     }
 
     @Test
@@ -183,7 +185,52 @@ class NewsSourcePresetSeederTest {
         assertThat(request.getValue().collectionDescription()).contains("深证成指", "创业板指");
         assertThat(request.getValue().configuration()).containsKeys(
             "newsSelector", "noticeIndexUrl", "announcementApiUrl", "marketUrlTemplate", "marketCodes");
-        assertThat(request.getValue().configuration()).containsEntry("presetVersion", 3);
+        assertThat(request.getValue().configuration()).containsEntry("presetVersion", 4);
+    }
+
+    @Test
+    void upgradesAndEnablesExistingDisabledFinancialAssetSourceOnce() throws Exception {
+        NewsRuntimeClient runtime = mock(NewsRuntimeClient.class);
+        when(runtime.get("/sources")).thenReturn(new ObjectMapper().readTree("""
+            [{"id":31,"sourceCode":"sse_market_data","sourceName":"上海证券交易所市场表现数据",
+              "sourceType":"EXCHANGE_MARKET_DATA","entryUrl":"https://www.sse.com.cn/market/othersdata/margin/sum/",
+              "enabled":false,"configuration":{"presetVersion":1,"provider":"SSE"}}]
+            """));
+        when(runtime.post(eq("/sources"), any())).thenReturn(new ObjectMapper().readTree("{\"id\":12}"));
+
+        assertThat(new NewsSourcePresetSeeder(runtime, new NewsSourcePresetCatalog()).seedMissingPresets()).isTrue();
+
+        var request = org.mockito.ArgumentCaptor.forClass(NewsSourcePresetCatalog.SourceUpsert.class);
+        verify(runtime).put(eq("/sources/31"), request.capture());
+        assertThat(request.getValue().enabled()).isTrue();
+        assertThat(request.getValue().configuration()).containsEntry("presetVersion", 2)
+            .containsKeys("marginApiUrl", "distributionApiUrl");
+    }
+
+    @Test
+    void replacesCorruptedChinaBondPresetTextAndConfigurationOnVersionUpgrade() throws Exception {
+        NewsRuntimeClient runtime = mock(NewsRuntimeClient.class);
+        when(runtime.get("/sources")).thenReturn(new ObjectMapper().readTree("""
+            [{"id":97,"sourceCode":"chinabond_home","sourceName":"乱码旧名称",
+              "sourceType":"CHINABOND_HOME","entryUrl":"https://www.chinabond.com.cn/",
+              "collectionDescription":"乱码旧说明","enabled":true,
+              "configuration":{"presetVersion":3,"provider":"CHINABOND","legalRisk":false,
+                "legalDisclaimer":"乱码旧免责声明"}}]
+            """));
+        when(runtime.post(eq("/sources"), any())).thenReturn(new ObjectMapper().readTree("{\"id\":12}"));
+
+        assertThat(new NewsSourcePresetSeeder(runtime, new NewsSourcePresetCatalog()).seedMissingPresets()).isTrue();
+
+        var request = org.mockito.ArgumentCaptor.forClass(NewsSourcePresetCatalog.SourceUpsert.class);
+        verify(runtime).put(eq("/sources/97"), request.capture());
+        assertThat(request.getValue().sourceName()).isEqualTo("中国债券信息网数据分析");
+        assertThat(request.getValue().collectionDescription()).contains("统计概览", "收益率曲线", "担保品信息");
+        assertThat(request.getValue().configuration())
+            .containsEntry("presetVersion", 4)
+            .containsEntry("legalRisk", false)
+            .containsEntry("legalDisclaimer",
+                "数据及报告权益归中央国债登记结算有限责任公司及相关权利人所有；仅用于内部市场研究和资讯检索，"
+                    + "不得未经授权再分发或用于商业数据产品，不构成投资建议。");
     }
 
     @Test

@@ -50,5 +50,13 @@
                 <include>**/*</include>
             </includes>
         </fileSet>
+        <fileSet>
+            <directory>${project.basedir}/../database/init</directory>
+            <outputDirectory>/database/init</outputDirectory>
+            <includes>
+                <include>h2/chatchat-mcp-server.sql</include>
+                <include>mysql/chatchat-mcp-server.sql</include>
+            </includes>
+        </fileSet>
     </fileSets>
 </assembly>

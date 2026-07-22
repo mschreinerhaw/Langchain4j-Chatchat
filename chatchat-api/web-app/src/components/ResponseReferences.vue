@@ -1,5 +1,28 @@
 <template>
   <section v-if="hasDetails" class="response-references" :class="{ compact }">
+    <details v-if="webPageRows.length" class="citation-source-details">
+      <summary>
+        <span>引用来源</span>
+        <small>{{ webPageRows.length }} 个网站</small>
+      </summary>
+      <article
+        v-for="(page, index) in webPageRows"
+        :key="page.rank + page.url + page.title"
+        class="citation-source-row"
+      >
+        <a
+          :href="page.url"
+          target="_blank"
+          rel="noopener noreferrer"
+          :title="page.title || page.url"
+        >
+          <span class="citation-source-site">{{ page.publisher || displayUrl(page.url) || `网站 ${index + 1}` }}</span>
+          <span class="citation-source-title">{{ page.title || "引用网站" }}</span>
+          <small>{{ page.url }}</small>
+        </a>
+      </article>
+    </details>
+
     <details v-if="evidencePremiseRows.length">
       <summary>证据链条（{{ evidencePremiseRows.length }}）</summary>
       <article
@@ -43,34 +66,6 @@
         <strong>{{ trace.displayName || trace.toolName || "工具调用" }}</strong>
         <p>{{ trace.statusText }}</p>
         <p v-if="trace.errorText" class="tool-error">{{ trace.errorText }}</p>
-      </article>
-    </details>
-
-    <details v-if="webPageRows.length" class="site-verification-details">
-      <summary>
-        <span>查询站点</span>
-        <small>{{ webPageRows.length }} 个链接</small>
-      </summary>
-      <article v-for="(page, index) in webPageRows" :key="page.rank + page.url + page.title" class="reference-row web-reference-row">
-        <strong>
-          <span class="reference-badge web">{{ page.publisher || `来源 ${page.rank || index + 1}` }}</span>
-          <a
-            v-if="page.url"
-            :href="page.url"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {{ page.title || page.url }}
-          </a>
-          <span v-else>{{ page.title || "引用" }}</span>
-        </strong>
-        <small v-if="page.publisher || page.publishDate || page.accessedAt" class="reference-meta">
-          <template v-if="page.publisher">发布机构：{{ page.publisher }}</template>
-          <template v-if="page.publishDate"> · 发布日期：{{ page.publishDate }}</template>
-          <template v-if="page.accessedAt"> · 访问时间：{{ page.accessedAt }}</template>
-        </small>
-        <small v-if="page.url">{{ displayUrl(page.url) }}</small>
-        <p>{{ page.snippet || "暂无摘要" }}</p>
       </article>
     </details>
 

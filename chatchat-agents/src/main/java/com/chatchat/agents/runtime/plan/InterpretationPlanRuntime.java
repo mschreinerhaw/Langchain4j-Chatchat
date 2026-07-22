@@ -913,6 +913,10 @@ public class InterpretationPlanRuntime {
             return false;
         }
         String evidenceType = stringValue(metadata.get("localFactCheckEvidenceType"));
+        if ("financial_data_observations".equals(evidenceType)) {
+            Integer returnedCount = integerValue(metadata.get("financialObservationCount"));
+            return returnedCount != null && returnedCount > 0;
+        }
         if (!"template_discovery".equals(evidenceType)) {
             return false;
         }
@@ -1005,6 +1009,22 @@ public class InterpretationPlanRuntime {
     private StepReview localToolResultReview(InterpretationPlan.Step step, StepExecution execution) {
         if (execution == null || !execution.success()) {
             return null;
+        }
+        if (isWebSearchTool(execution.toolName())) {
+            int observationCount = financialObservationCount(execution.output(), 0);
+            if (observationCount > 0) {
+                return StepReview.accepted(
+                    "Unified web_search returned " + observationCount
+                        + " governed financial observation row(s); model review is unnecessary.",
+                    mapOf(
+                        "localFactCheckHasEvidence", true,
+                        "localFactCheckEvidenceType", "financial_data_observations",
+                        "localFactCheckReason", "web_search returned actual structured market rows, not only asset metadata",
+                        "financialObservationCount", observationCount,
+                        "financialObservationStepId", step == null ? null : step.id()
+                    )
+                );
+            }
         }
         if (isAssetDiscoveryTool(execution.toolName())) {
             int returnedCount = discoveredAssetCount(execution.output(), "assets");
@@ -2002,6 +2022,31 @@ public class InterpretationPlanRuntime {
             }
         }
         return null;
+    }
+
+    private int financialObservationCount(Object output, int depth) {
+        if (output == null || depth > 8) return 0;
+        Object normalized = normalizeToolProtocolPayload(output);
+        if (normalized != output) return financialObservationCount(normalized, depth + 1);
+        if (!(output instanceof Map<?, ?> map)) return 0;
+        Integer count = integerValue(firstMapValue(map, "financialObservationCount", "financial_observation_count"));
+        if (count != null && count > 0) return count;
+        Object datasets = firstMapValue(map, "financialData", "financial_data");
+        if (datasets instanceof List<?> values) {
+            int total = 0;
+            for (Object value : values) {
+                if (value instanceof Map<?, ?> dataset) {
+                    Integer datasetCount = integerValue(firstMapValue(dataset, "count", "rowCount", "row_count"));
+                    if (datasetCount != null && datasetCount > 0) total += datasetCount;
+                }
+            }
+            if (total > 0) return total;
+        }
+        for (String key : List.of("structuredContent", "structured_content", "data", "result", "payload", "output")) {
+            int nested = financialObservationCount(firstMapValue(map, key), depth + 1);
+            if (nested > 0) return nested;
+        }
+        return 0;
     }
 
     @SuppressWarnings("unchecked")

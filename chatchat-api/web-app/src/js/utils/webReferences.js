@@ -14,19 +14,22 @@ export function extractWebSearchPages(trace) {
       item?.organic_results,
       item?.webPages,
       item?.pageExcerpts,
-      item?.evidenceSnippets
+      item?.evidenceSnippets,
+      item?.evidence_chunks,
+      item?.evidenceChunks
     ])
     .filter(Array.isArray)
     .flat();
   const pages = candidates
     .map((item, index) => {
       const evidence = item?.evidence && typeof item.evidence === "object" ? item.evidence : {};
+      const citation = item?.citation && typeof item.citation === "object" ? item.citation : {};
       return {
       rank: item.rank || item.position || index + 1,
-      title: item.title || item.name || evidence.title || item.sourceName || item.source || item.url || item.link || "引用",
-      publisher: item.publisher || item.siteName || item.sourceName || evidence.publisher || evidence.siteName || evidence.sourceName || "",
-      publishDate: item.publishDate || item.publishedAt || item.publishTime || item.publish_time || evidence.publishDate || evidence.publishedAt || evidence.publishTime || "",
-      url: item.url || item.link || item.href || item.sourceUrl || item.source_url || evidence.url || evidence.sourceUrl || "",
+      title: item.title || item.name || evidence.title || citation.title || item.sourceName || item.source || item.url || item.link || "引用",
+      publisher: item.publisher || item.siteName || item.sourceName || evidence.publisher || evidence.siteName || evidence.sourceName || citation.publisher || citation.siteName || "",
+      publishDate: item.publishDate || item.publishedAt || item.publishTime || item.publish_time || evidence.publishDate || evidence.publishedAt || evidence.publishTime || citation.publishDate || citation.publishedAt || "",
+      url: item.url || item.link || item.href || item.sourceUrl || item.source_url || evidence.url || evidence.sourceUrl || citation.url || citation.sourceUrl || citation.source_url || "",
       snippet: shortSnippet(
         item.snippet
           || item.excerpt
@@ -36,6 +39,8 @@ export function extractWebSearchPages(trace) {
           || item.summary
           || item.content
           || item.text
+          || citation.snippet
+          || citation.text
       )
     };
     })
@@ -110,15 +115,15 @@ export function extractWebCitationPages(citations = []) {
 }
 
 /**
- * Replaces internal evidence labels such as [网页3] with readable source tags.
- * Stored answers keep their original labels for evidence auditing.
+ * Removes numbered evidence markers from the visible answer. References remain
+ * available in the collapsed source list and stored answers remain unchanged.
  */
 export function inlineWebCitationLinks(content, pages = []) {
   const text = String(content || "");
   if (!text || !Array.isArray(pages)) {
     return { content: text, citationUrls: [] };
   }
-  const marker = /(?:\[(?:网页|網頁|source|ref|citation)\s*(\d+)\]|【(?:网页|網頁)\s*(\d+)】|\b(?:source|ref|citation)\s*(\d+)\b)(?:\(\s*<?(https?:\/\/[^)\s>]+)>?(?:\s+["'][^)]*["'])?\s*\))?/gi;
+  const marker = /(?:\[(?:网页|網頁|来源|source|ref|citation)\s*(?:\[\s*)?(\d+)(?:\s*\])?\]|【(?:网页|網頁|来源)\s*(\d+)】|(?:来源|网页|網頁|source|ref|citation)\s*(?:\[\s*(\d+)\s*\]|(\d+)))(?:\(\s*<?(https?:\/\/[^)\s>]+)>?(?:\s+["'][^)]*["'])?\s*\))?/gi;
   const citationUrls = [];
   let output = "";
   let cursor = 0;
@@ -126,21 +131,18 @@ export function inlineWebCitationLinks(content, pages = []) {
   while ((match = marker.exec(text)) !== null) {
     output += text.slice(cursor, match.index);
     cursor = marker.lastIndex;
-    const rank = Number(match[1] || match[2] || match[3]);
+    const rank = Number(match[1] || match[2] || match[3] || match[4]);
     const page = pages.find((item) => Number(item?.rank) === rank) || pages[rank - 1] || {};
-    const url = safeWebUrl(page.url) || safeWebUrl(match[4]);
-    const sourceLabel = page.publisher || page.title || displayUrl(url) || `来源 ${rank}`;
-    const label = escapeMarkdownLinkText(sourceLabel);
+    const url = safeWebUrl(page.url) || safeWebUrl(match[5]);
     if (url) {
       citationUrls.push(url);
-      const title = escapeMarkdownTitle(page.title || sourceLabel);
-      output += `[${label}](<${url}> "${title}") `;
-    } else {
-      output += `${label} `;
     }
   }
   output += text.slice(cursor);
-  output = output.replace(/(\]\(<https?:\/\/[^)]+\))\s+([,.;:!?，。；：！？])/g, "$1$2");
+  output = output
+    .replace(/[ \t]+([,.;:!?，。；：！？])/g, "$1")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/[ \t]+$/gm, "");
   return { content: output, citationUrls: [...new Set(citationUrls)] };
 }
 
@@ -248,8 +250,21 @@ function referenceContainers(output) {
       value.result,
       value.structuredContent,
       value.structured_content,
-      value.payload
+      value.payload,
+      value.output
     ].forEach((item) => visit(item, depth + 1));
+    if (Array.isArray(value.content)) {
+      value.content.forEach((block) => {
+        visit(block, depth + 1);
+        if (typeof block?.text === "string") {
+          try {
+            visit(JSON.parse(block.text), depth + 2);
+          } catch (error) {
+            // Non-JSON MCP text blocks cannot contribute structured citations.
+          }
+        }
+      });
+    }
   };
   visit(output);
   return containers;
@@ -286,14 +301,6 @@ function cleanSourceLabel(value, url = "") {
     return "";
   }
   return label.length > 36 ? `${label.slice(0, 36)}…` : label;
-}
-
-function escapeMarkdownLinkText(value) {
-  return String(value || "").replace(/\\/g, "\\\\").replace(/\[/g, "\\[").replace(/\]/g, "\\]");
-}
-
-function escapeMarkdownTitle(value) {
-  return String(value || "").replace(/"/g, "&quot;");
 }
 
 function uniqueDocumentPages(pages) {

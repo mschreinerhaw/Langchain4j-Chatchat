@@ -31,14 +31,14 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
             List<NewsDocument> documents = store.search(new NewsSearchQuery(query, List.of(), null, null, List.of(), size));
             List<Map<String, Object>> results = documents.stream().map(document -> {
                 Map<String, Object> item = NewsToolSupport.evidenceItem(document);
+                item.put("resultType", "news");
                 item.put("snippet", document.summary() == null || document.summary().isBlank()
                     ? NewsToolSupport.abbreviate(document.content(), 500) : document.summary());
                 return item;
             }).toList();
             return ToolOutput.success(Map.of("query", query, "provider", "chatchat-runtime-news",
                 "mode", "news_index", "count", results.size(), "results", results,
-                "reference_urls", NewsToolSupport.evidenceUrls(results)),
-                "News index search completed");
+                "reference_urls", NewsToolSupport.evidenceUrls(results)), "News index search completed");
         } catch (Exception ex) {
             return ToolOutput.failure(ex);
         }

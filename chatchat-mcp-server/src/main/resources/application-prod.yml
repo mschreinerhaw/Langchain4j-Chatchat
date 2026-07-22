@@ -1,4 +1,4 @@
-﻿spring:
+spring:
   application:
     name: chatchat-mcp-server
   datasource:
@@ -35,6 +35,13 @@ chatchat:
     crypto-key: ${CHATCHAT_INTERNAL_CRYPTO_KEY:}
     crypto-key-file: ${CHATCHAT_INTERNAL_CRYPTO_KEY_FILE:}
   mcp:
+    market:
+      retention:
+        enabled: ${CHATCHAT_MARKET_RETENTION_ENABLED:true}
+        hot-days: ${CHATCHAT_MARKET_HOT_DAYS:7}
+        weekly-archive-days: ${CHATCHAT_MARKET_WEEKLY_ARCHIVE_DAYS:1825}
+        cron: "${CHATCHAT_MARKET_RETENTION_CRON:0 30 2 * * SUN}"
+        zone-id: ${CHATCHAT_MARKET_RETENTION_ZONE:Asia/Shanghai}
     news-runtime:
       base-url: ${CHATCHAT_NEWS_RUNTIME_URL:http://localhost:8091}
       timeout-millis: ${CHATCHAT_NEWS_RUNTIME_TIMEOUT_MILLIS:30000}
@@ -43,9 +50,6 @@ chatchat:
         enabled: ${CHATCHAT_NEWS_CAPABILITY_ENABLED:true}
         tools:
           web_search: { enabled: true, agent-callable: true, timeout: 30s }
-          news_search: { enabled: true, agent-callable: true, timeout: 30s }
-          news_latest: { enabled: true, agent-callable: true, timeout: 20s }
-          news_source_status: { enabled: true, agent-callable: false, timeout: 10s }
     admin:
       username: ${CHATCHAT_MCP_ADMIN_USERNAME:admin}
       password: ${CHATCHAT_MCP_ADMIN_PASSWORD:}

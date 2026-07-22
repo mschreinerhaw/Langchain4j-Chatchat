@@ -13,6 +13,12 @@ import java.util.Set;
 public class EvidenceNormalizer {
 
     private static final int DEFAULT_LIMIT = 12;
+    private static final int FINANCIAL_ROW_LIMIT = 20;
+    private static final int FINANCIAL_ROW_CHAR_LIMIT = 1_500;
+    private static final Set<String> FINANCIAL_INTERNAL_FIELDS = Set.of(
+        "id", "collected_date", "collected_at", "source_id", "source_code", "record_key",
+        "payload_json", "_omitted_fields", "_storage_tier", "snapshot_mode", "legal_risk"
+    );
 
     private final EvidenceCitationBinder citationBinder;
 
@@ -151,9 +157,13 @@ public class EvidenceNormalizer {
 
     private EvidenceChunk webChunk(Map<String, Object> root, Map<String, Object> item) {
         Map<String, Object> citation = citationMap(item);
+        String financialContent = financialObservationContent(item);
         String url = firstNonBlank(
             firstNonBlank(stringValue(item.get("url")), stringValue(item.get("source_url"))),
-            firstNonBlank(stringValue(citation.get("url")), stringValue(item.get("link")))
+            firstNonBlank(
+                firstNonBlank(stringValue(citation.get("url")), stringValue(item.get("link"))),
+                financialSourceUrl(item)
+            )
         );
         String domain = firstNonBlank(
             firstNonBlank(stringValue(item.get("domain")), stringValue(citation.get("domain"))),
@@ -174,10 +184,13 @@ public class EvidenceNormalizer {
             EvidenceChunk.CONTRACT_VERSION,
             source,
             firstNonBlank(
-                firstNonBlank(stringValue(item.get("content")), stringValue(item.get("excerpt"))),
+                financialContent,
                 firstNonBlank(
-                    stringValue(item.get("pageExcerpt")),
-                    firstNonBlank(stringValue(item.get("snippet")), stringValue(item.get("summary")))
+                    firstNonBlank(stringValue(item.get("content")), stringValue(item.get("excerpt"))),
+                    firstNonBlank(
+                        stringValue(item.get("pageExcerpt")),
+                        firstNonBlank(stringValue(item.get("snippet")), stringValue(item.get("summary")))
+                    )
                 )
             ),
             doubleValue(firstObject(
@@ -190,6 +203,59 @@ public class EvidenceNormalizer {
             governance(root, item),
             traceMap(item)
         );
+    }
+
+    private String financialObservationContent(Map<String, Object> item) {
+        if (!"financial_data".equalsIgnoreCase(stringValue(item.get("resultType")))) {
+            return null;
+        }
+        Object value = item.get("rows");
+        if (!(value instanceof Collection<?> rows) || rows.isEmpty()) {
+            return null;
+        }
+        String dataset = firstNonBlank(stringValue(item.get("dataset")), "unknown");
+        StringBuilder content = new StringBuilder("Actual governed financial observations: dataset=")
+            .append(dataset)
+            .append(", returnedRows=")
+            .append(rows.size())
+            .append(". Values below are factual query results, not asset metadata.");
+        int index = 0;
+        for (Object rowValue : rows) {
+            if (index >= FINANCIAL_ROW_LIMIT) break;
+            Map<String, Object> row = asMap(rowValue);
+            if (row.isEmpty()) continue;
+            StringBuilder line = new StringBuilder();
+            for (Map.Entry<String, Object> entry : row.entrySet()) {
+                String key = entry.getKey();
+                Object fieldValue = entry.getValue();
+                if (key == null || FINANCIAL_INTERNAL_FIELDS.contains(key) || emptyValue(fieldValue)) continue;
+                String fragment = key + "=" + String.valueOf(fieldValue).replaceAll("\\s+", " ").trim();
+                if (line.length() > 0) fragment = ", " + fragment;
+                if (line.length() + fragment.length() > FINANCIAL_ROW_CHAR_LIMIT) break;
+                line.append(fragment);
+            }
+            if (line.length() == 0) continue;
+            content.append("\n[row ").append(++index).append("] ").append(line);
+        }
+        return index == 0 ? null : content.toString();
+    }
+
+    private String financialSourceUrl(Map<String, Object> item) {
+        Object value = item.get("rows");
+        if (!(value instanceof Collection<?> rows)) return null;
+        for (Object rowValue : rows) {
+            String url = stringValue(asMap(rowValue).get("source_url"));
+            if (hasText(url)) return url;
+        }
+        return null;
+    }
+
+    private boolean emptyValue(Object value) {
+        if (value == null) return true;
+        if (value instanceof String text) return text.isBlank();
+        if (value instanceof Collection<?> collection) return collection.isEmpty();
+        if (value instanceof Map<?, ?> map) return map.isEmpty();
+        return false;
     }
 
     private EvidenceType evidenceType(String toolName, Map<String, Object> root) {

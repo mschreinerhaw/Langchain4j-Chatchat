@@ -6,7 +6,7 @@
 - `config/`: external Spring Boot configuration, environment file and database scripts
 - `data/`: persistent local runtime data
 - `lib/`: executable application JAR
-- `logs/`: application, stdout and stderr logs
+- `logs/`: rolling application logs and bounded startup diagnostics
 - `run/`: PID file
 
 ## First production start
@@ -26,6 +26,12 @@ Production logging is configured by `config/logback-spring.xml`. The active log 
 `logs/chatchat-runtime-news.log`; it rolls at midnight or when it reaches 100 MB. Rolled files are gzip-compressed
 under `logs/archive/`, retained for 14 days, and capped at 2 GB in total. Expired files are also cleaned during
 application startup. The production logger does not duplicate application logs to stdout/stderr.
+
+The start scripts pass the Logback file and log directory as absolute locations, so logging does not depend on the
+caller's working directory. `logs/chatchat-runtime-news-startup.log` only captures the Spring banner or failures that
+occur before Logback starts and is overwritten on every start; it is not the application log. A continuously growing
+`chatchat-runtime-news.out` belongs to an older release script and can be removed after the old process is stopped and
+the new release has been verified.
 
 The limits can be overridden through JVM options in `config/env.properties`, for example:
 

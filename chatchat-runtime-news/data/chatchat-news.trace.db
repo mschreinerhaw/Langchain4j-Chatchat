@@ -854,3 +854,6 @@ update news_source set allowed_domain=?,capability_id=?,configuration_json=?,cre
 	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:658)
 	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63)
 	at java.base/java.lang.Thread.run(Thread.java:840)
+2026-07-22 08:33:32 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Table "news_record" not found; SQL statement:
+select s.source_code,s.source_name,s.enabled,count(r.id) record_count,max(r.collected_at) last_collected from news_source s left join news_record r on r.source_id=s.id where s.allowed_domain in ('sse.com.cn','szse.cn','hkex.com.hk','csindex.com.cn') or s.source_type in ('EXCHANGE_HOME','SZSE_HOME','HKEX_HOME','CSINDEX_HOME','EXCHANGE_MARKET_DATA','SZSE_DISCLOSURE','SSE_ANNOUNCEMENTS') group by s.id,s.source_code,s.source_name,s.enabled order by record_count desc,s.id [42102-220]

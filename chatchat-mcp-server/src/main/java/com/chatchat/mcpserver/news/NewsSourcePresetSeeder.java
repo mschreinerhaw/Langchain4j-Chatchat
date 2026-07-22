@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 @Component
 public class NewsSourcePresetSeeder {
@@ -17,6 +18,10 @@ public class NewsSourcePresetSeeder {
     private static final String LEGACY_SZSE_ENTRY_URL = "https://www.szse.cn/disclosure/listed/bulletin/index.html";
     private static final String LEGACY_SZSE_HOME_DESCRIPTION =
         "采集深交所要闻、深交所公告和上市公司公告及其二级正文或 PDF。";
+    private static final Set<String> MARKET_ASSET_SOURCES = Set.of(
+        "sse_home", "szse_home", "csindex_home", "chinabond_home", "sse_market_data", "szse_market_data",
+        "sse_etf_scale", "szse_etf_scale", "three_market_overview",
+        "sse_daily_snapshot", "szse_daily_snapshot");
     private final NewsRuntimeClient runtime;
     private final NewsSourcePresetCatalog catalog;
     private volatile boolean initialSynchronizationCompleted;
@@ -77,10 +82,10 @@ public class NewsSourcePresetSeeder {
         boolean legacySzse = "szse_announcements".equals(preset.code())
             && LEGACY_SZSE_ENTRY_URL.equals(current.path("entryUrl").asText());
         boolean outdatedSseHome = "sse_home".equals(preset.code())
-            && current.path("configuration").path("presetVersion").asInt(0) < 2;
+            && current.path("configuration").path("presetVersion").asInt(0) < 3;
         boolean outdatedSzseHome = "szse_home".equals(preset.code())
             && (!"SZSE_HOME".equals(current.path("sourceType").asText())
-                || current.path("configuration").path("presetVersion").asInt(0) < 3);
+                || current.path("configuration").path("presetVersion").asInt(0) < 4);
         boolean outdatedCninfoHome = "cninfo_home".equals(preset.code())
             && (!"CNINFO_HOME".equals(current.path("sourceType").asText())
                 || current.path("configuration").path("presetVersion").asInt(0) < 2);
@@ -94,12 +99,15 @@ public class NewsSourcePresetSeeder {
             currentDescription = current.path("configuration").path("collectionDescription").asText("").trim();
         }
         boolean missingCollectionDescription = currentDescription.isEmpty();
+        boolean marketAssetUpgrade = MARKET_ASSET_SOURCES.contains(preset.code())
+            && current.path("configuration").path("presetVersion").asInt(0)
+                < ((Number) preset.source().configuration().getOrDefault("presetVersion", 0)).intValue();
         if (!legacyCls && !outdatedCls && !outdatedEastmoney724 && !missingDefaultLegalRisk && !legacyCninfo && !outdatedSseAnnouncements && !legacySzse
             && !outdatedSseHome && !outdatedSzseHome && !outdatedCninfoHome && !outdatedEastmoney
-            && !officialLegalRisk && !missingCollectionDescription) return;
+            && !officialLegalRisk && !missingCollectionDescription && !marketAssetUpgrade) return;
         NewsSourcePresetCatalog.SourceUpsert source = preset.source();
         boolean replaceConfiguration = legacyCls || outdatedCls || outdatedEastmoney724 || legacyCninfo || outdatedSseAnnouncements
-            || outdatedSseHome || outdatedSzseHome || outdatedCninfoHome || outdatedEastmoney;
+            || outdatedSseHome || outdatedSzseHome || outdatedCninfoHome || outdatedEastmoney || marketAssetUpgrade;
         Map<String, Object> configuration = replaceConfiguration
             ? source.configuration() : jsonMap(current.path("configuration"));
         if (missingDefaultLegalRisk && !configuration.containsKey("legalRisk")) {
@@ -114,10 +122,10 @@ public class NewsSourcePresetSeeder {
                 ? source.sourceType() : current.path("sourceType").asText(),
             legacySzse || outdatedSseAnnouncements || outdatedSzseHome || outdatedCninfoHome
                 ? source.entryUrl() : current.path("entryUrl").asText(),
-            missingCollectionDescription || (outdatedSzseHome && LEGACY_SZSE_HOME_DESCRIPTION.equals(currentDescription))
+            marketAssetUpgrade || missingCollectionDescription || (outdatedSzseHome && LEGACY_SZSE_HOME_DESCRIPTION.equals(currentDescription))
                 ? source.collectionDescription() : currentDescription,
             source.allowedDomain(),
-            source.scheduleCron(), current.path("enabled").asBoolean(false),
+            source.scheduleCron(), marketAssetUpgrade ? Boolean.TRUE : current.path("enabled").asBoolean(false),
             configuration);
         if (outdatedEastmoney && preset.rule() != null) {
             runtime.put("/sources/" + current.path("id").asLong() + "/rule", preset.rule());
@@ -128,6 +136,7 @@ public class NewsSourcePresetSeeder {
     private boolean isOfficialDisclosureSource(NewsSourcePresetCatalog.Preset preset) {
         String domain = preset.source().allowedDomain();
         return "sse.com.cn".equals(domain) || "szse.cn".equals(domain) || "hkex.com.hk".equals(domain)
+            || "chinabond.com.cn".equals(domain)
             || "stcn.com".equals(domain);
     }
 

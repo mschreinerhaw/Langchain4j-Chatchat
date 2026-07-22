@@ -435,10 +435,10 @@ mvn -pl chatchat-mcp-server -am spring-boot:run
 .\run-chat-api-mcp.bat
 ```
 
-会先停止脚本托管的旧进程，然后构建 `chatchat-api,chatchat-mcp-server,chatchat-runtime-news`，再按顺序启动：
+会先停止脚本托管的旧进程，然后构建 `chatchat-api,chatchat-mcp-server,chatchat-runtime-news`；Market 能力作为 MCP Server 的内部依赖同时构建和打包。随后按顺序启动：
 
-1. News Runtime: `http://localhost:8091`（仅供内部通信）
-2. MCP Server: `http://localhost:8090/admin`
+1. MCP Server: `http://localhost:8090/admin`（内含 Market 能力）
+2. News Runtime: `http://localhost:8091`（仅供内部通信）
 3. Chat API: `http://localhost:8080`
 
 常用命令：
@@ -455,7 +455,7 @@ run-chat-api-mcp.bat -NewsProfile mysql -NewsPort 8091
 ```
 
 本地一键脚本默认向 News Runtime 传入与 API/MCP 开发配置一致的内部密钥
-`chatchat_internal_default_secret`。如已修改开发内部账户，可使用 `-NewsInternalSecret "新密钥"` 保持三端一致；
+`chatchat_internal_default_secret`。如已修改开发内部账户，可使用 `-NewsInternalSecret "新密钥"` 保持各端一致；
 生产发布仍应在外置 `application.yml` 中配置密文账户，不使用这个本地默认值。
 
 三个服务的日志都在 `logs/local-dev/`，PID 在 `run/local-dev/`。`status` 和 `.bat` 包装器可直接查看三项服务状态。

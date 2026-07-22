@@ -8,6 +8,20 @@
 
 `chatchat-runtime-news` 是面向模型分析与总结的资讯采集、规范化和检索服务，不是通用网页爬虫。
 
+## 金融数据资产闭环
+
+交易所行情、估值、融资融券、分红送配、ETF 规模和市场统计同时进入结构化数据资产层：
+
+1. 采集结果中的 `dataset` 或 `datasetCode` 选择稳定的数据集；未知 API 数据集必须提供安全的英文 `datasetCode`。
+2. `data_schema_registry` 记录源字段、物理字段、推断类型、业务说明和 Schema 版本。新增字段经过标识符清洗后以 `ALTER TABLE ADD COLUMN` 演进，完整原始对象同时保存在 `payload_json`。
+3. 每张业务表包含 `collected_date`、`observation_date`、来源和幂等 `record_key`。MySQL 默认按 `TO_DAYS(collected_date)` 做 32 路 Hash 分区；H2 开发环境建立 `(collected_date, observation_date)` 复合索引。
+4. `market_asset_catalog` 由 MCP Server 内嵌的 Market 能力保存业务描述、关键词、字段说明、更新频率以及数据库/表位置。OpenSearch 的 `financial-data-asset` 只保存这些轻量目录文档，不复制高频观测数据。
+5. Agent 只调用公开的 `web_search`：使用 `query` 同时发现资讯和金融数据资产，使用资产结果中的 `dataset` 再次调用同一工具，按注册字段、日期和最多 200 行的上限读取。工具不接受 SQL、表名或排序表达式。
+
+MCP Server 调用 News Runtime；News Runtime 发现市场观测时回传 MCP 的内部 Market 入口。内部请求使用带时间戳、一次性 nonce 和五分钟有效窗的 HMAC-SHA256 签名。金融数据库不向模型或 MCP 客户端直接开放。
+
+声明式 `API` 来源可配置 `datasetCode`、`datasetName`、`businessDescription` 将返回对象交给自动 Schema 管线；敏感请求头放入 `encryptedHeaders`，值使用 `ENC(base64Iv:base64CipherText)`，运行时解密后才发送。
+
 核心目标：
 
 - 采集要闻、行情快照、公告、快讯和监管披露等有分析价值的内容。
@@ -52,6 +66,7 @@ chatchat-runtime-news:8091
 | `API` | JSON API 资讯源 |
 | `EXCHANGE_HOME` | 上交所、深交所首页要闻与行情快照 |
 | `SZSE_HOME` / `HKEX_HOME` / `CSINDEX_HOME` | 深交所、香港交易所和中证指数首页专用结构化采集 |
+| `CHINABOND_HOME` | 中国债券信息网首页专用采集：完整国债收益率曲线与结算统计进入MCP事实库，研究文章及附件进入资讯索引 |
 | `EXCHANGE_MARKET_DATA` | 沪深交易所融资融券、公司分红送配，以及ETF基金规模数据；大结果集支持按日期和页码断点续采 |
 | `NEWS_HOME` | 巨潮资讯等首页关键内容 |
 | `CLS_TELEGRAPH` | 财联社电报快讯 |

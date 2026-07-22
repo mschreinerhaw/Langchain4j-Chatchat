@@ -219,6 +219,7 @@ public class ExchangeHomeNewsCollector implements NewsCollector {
         List<Map<String, Object>> feeds = mapList(source.configuration().get("marketDataFeeds"));
         if (feeds.isEmpty()) return;
         StringBuilder content = new StringBuilder("上海证券交易所首页市场数据：\n");
+        List<Map<String, Object>> sectionData = new ArrayList<>();
         String statisticDate = null;
         int feedCount = 0;
         for (Map<String, Object> feed : feeds) {
@@ -229,6 +230,9 @@ public class ExchangeHomeNewsCollector implements NewsCollector {
             Map<String, String> values = parseJavascriptAssignments(get(url, source), variable);
             if (values.isEmpty()) throw new IllegalStateException("invalid SSE market data feed: " + section);
             statisticDate = firstText(values.get("dataStatisticDate"), statisticDate);
+            Map<String, Object> structured = new LinkedHashMap<>(values);
+            structured.put("section", section);
+            sectionData.add(Map.copyOf(structured));
             content.append(section).append("：上市公司 ").append(values.getOrDefault("companyNumber", "-"))
                 .append(" 家，上市股票 ").append(values.getOrDefault("stockNumber", "-"))
                 .append(" 只，总股本 ").append(values.getOrDefault("iss_vol", "-"))
@@ -246,7 +250,10 @@ public class ExchangeHomeNewsCollector implements NewsCollector {
             "数据总貌、主板和科创板市场统计。", "上海证券交易所", snapshotUrl(source, "market-data"),
             parseDate(statisticDate, source), language(source), List.of("市场数据"),
             List.of("上海证券交易所", "首页", "市场数据"),
-            Map.of("transport", "sse-market-data", "provider", "SSE", "feedCount", feedCount))));
+            Map.of("transport", "sse-market-data", "provider", "SSE", "dataset", "市场统计",
+                "datasetCode", "market_statistics_daily",
+                "statisticDate", statisticDate == null ? "" : statisticDate, "feedCount", feedCount,
+                "sections", List.copyOf(sectionData)))));
     }
 
     private void collectMarketSnapshot(NewsSource source, Counters counters) throws Exception {
@@ -254,9 +261,11 @@ public class ExchangeHomeNewsCollector implements NewsCollector {
         List<String> codes = stringList(source.configuration().get("marketCodes"));
         if (template == null || codes.isEmpty()) throw new IllegalArgumentException("market URL and codes are required");
         List<String> snapshots = new ArrayList<>();
+        List<Map<String, Object>> snapshotData = new ArrayList<>();
         for (String code : codes) {
             JsonNode root = objectMapper.readTree(get(template.replace("{code}", code), source));
             snapshots.add("SSE".equals(provider(source)) ? sseSnapshot(root, code) : szseSnapshot(root, code));
+            snapshotData.add("SSE".equals(provider(source)) ? sseSnapshotData(root, code) : szseSnapshotData(root, code));
         }
         String content = "交易所首页当日行情摘要：\n" + String.join("\n", snapshots)
             + "\n数据来自交易所首页使用的官方行情接口，数值以接口行情时间为准。";
@@ -264,7 +273,29 @@ public class ExchangeHomeNewsCollector implements NewsCollector {
         counters.add(sink.accept(new RawNewsItem(source, source.name() + "当日行情快照", content,
             "主要指数最新点位、涨跌幅、成交量和成交额。", source.name(), snapshotUrl(source, "market"),
             Instant.now(), language(source), List.of("市场行情"), List.of("首页", "行情", "指数"),
-            Map.of("transport", "exchange-home", "provider", provider(source), "indexCount", snapshots.size()))));
+            Map.of("transport", "exchange-home", "provider", provider(source), "dataset", "行情",
+                "datasetCode", "market_quote_daily",
+                "tradeDate", LocalDate.now(ZoneId.of(stringConfig(source, "zoneId", "Asia/Shanghai"))).toString(), "indexCount", snapshots.size(),
+                "quotes", List.copyOf(snapshotData)))));
+    }
+
+    private Map<String, Object> sseSnapshotData(JsonNode root, String code) {
+        JsonNode snap = root.path("snap");
+        return Map.ofEntries(Map.entry("quoteCode", code), Map.entry("quoteName", snap.path(0).asText(code)),
+            Map.entry("tradeDate", root.path("date").asText("")), Map.entry("marketTime", root.path("time").asText("")),
+            Map.entry("close", snap.path(5).asText("")), Map.entry("change", snap.path(6).asText("")),
+            Map.entry("changePct", snap.path(7).asText("")), Map.entry("volume", snap.path(8).asText("")),
+            Map.entry("amount", snap.path(9).asText("")));
+    }
+
+    private Map<String, Object> szseSnapshotData(JsonNode root, String code) {
+        JsonNode data = root.path("data");
+        return Map.ofEntries(Map.entry("quoteCode", code), Map.entry("quoteName", data.path("name").asText(code)),
+            Map.entry("marketTime", data.path("marketTime").asText(root.path("datetime").asText(""))),
+            Map.entry("close", data.path("now").asText("")), Map.entry("change", data.path("delta").asText("")),
+            Map.entry("changePct", data.path("deltaPercent").asText("")), Map.entry("open", data.path("open").asText("")),
+            Map.entry("high", data.path("high").asText("")), Map.entry("low", data.path("low").asText("")),
+            Map.entry("volume", data.path("volume").asText("")), Map.entry("amount", data.path("amount").asText("")));
     }
 
     private String sseSnapshot(JsonNode root, String code) {

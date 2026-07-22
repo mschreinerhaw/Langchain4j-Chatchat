@@ -6,10 +6,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class NewsSourcePresetCatalogTest {
     @Test
-    void providesSafeDisabledNewsPresetsIncludingExchangeHomeSnapshots() {
+    void providesNewsPresetsAndEnablesRequiredFinancialAssetSources() {
         var presets = new NewsSourcePresetCatalog().presets();
         assertThat(presets).extracting(NewsSourcePresetCatalog.Preset::code).containsExactly(
-            "sse_home", "szse_home", "hkex_home", "csindex_home", "sse_market_data", "szse_market_data", "sse_etf_scale", "szse_etf_scale", "three_market_overview", "szse_fund_etf_announcements", "szse_margin_business_announcements",
+            "sse_home", "szse_home", "hkex_home", "csindex_home", "chinabond_home", "sse_daily_snapshot", "szse_daily_snapshot", "sse_market_data", "szse_market_data", "sse_etf_scale", "szse_etf_scale", "three_market_overview", "szse_fund_etf_announcements", "szse_margin_business_announcements",
             "szse_auction_public_information", "szse_listing_disclosure", "eastmoney_finance", "eastmoney_724", "stcn_quick_news", "stcn_disclosures_today", "jin10_market_flash", "jin10_important_events", "cls_telegraph", "sse_announcements",
             "sse_listing_announcements", "sse_trading_suspension_announcements", "sse_general_announcements",
             "sse_intraday_suspension", "sse_margin_announcements", "sse_fund_announcements",
@@ -26,7 +26,7 @@ class NewsSourcePresetCatalogTest {
                 assertThat(preset.source().configuration()).containsKeys(
                     "presetVersion", "newsSelector", "newsUrlContains", "noticeIndexUrl", "announcementApiUrl",
                     "announcementStaticBaseUrl", "marketUrlTemplate", "marketCodes", "detailSelector");
-                assertThat(preset.source().configuration()).containsEntry("presetVersion", 3);
+                assertThat(preset.source().configuration()).containsEntry("presetVersion", 4);
                 assertThat(preset.source().configuration().get("marketCodes")).asList()
                     .containsExactly("399001", "399006", "399330", "399673");
                 assertThat(preset.description()).contains("深证成指", "创业板指", "深证100", "创业板50");
@@ -68,7 +68,7 @@ class NewsSourcePresetCatalogTest {
         assertThat(presets).filteredOn(preset -> "csindex_home".equals(preset.code())).singleElement()
             .satisfies(preset -> {
                 assertThat(preset.source().sourceType()).isEqualTo("CSINDEX_HOME");
-                assertThat(preset.source().configuration()).containsEntry("presetVersion", 1)
+                assertThat(preset.source().configuration()).containsEntry("presetVersion", 2)
                     .containsEntry("legalRisk", true)
                     .containsKeys("indexCodes", "indexSeriesUrl", "peHistoryUrlTemplate", "legalDisclaimer");
                 assertThat(preset.source().configuration().get("indexCodes")).asList()
@@ -76,12 +76,33 @@ class NewsSourcePresetCatalogTest {
                 assertThat(preset.description()).contains("沪深300", "上证指数", "科创综指", "上证50", "科创50", "滚动市盈率");
                 assertThat(preset.rule()).isNull();
             });
+        assertThat(presets).filteredOn(preset -> "chinabond_home".equals(preset.code())).singleElement()
+            .satisfies(preset -> {
+                assertThat(preset.source().sourceType()).isEqualTo("CHINABOND_HOME");
+                assertThat(preset.source().enabled()).isTrue();
+                assertThat(preset.source().configuration()).containsEntry("presetVersion", 4)
+                    .containsEntry("legalRisk", false)
+                    .containsKeys("overviewHeadlineApiUrl", "overviewMonthlyApiUrl", "yieldMetadataUrl", "yieldApiUrl",
+                        "counterQuoteApiUrl", "settlementApiUrl", "collateralApiUrl", "researchSelector", "legalDisclaimer");
+                assertThat(preset.description()).contains("统计概览", "收益率", "柜台行情", "结算", "担保品", "研究分析", "覆盖写");
+                assertThat(preset.rule()).isNull();
+            });
         assertThat(presets).filteredOn(preset -> "EXCHANGE_MARKET_DATA".equals(preset.source().sourceType()))
-            .hasSize(5);
+            .hasSize(5).allSatisfy(preset -> assertThat(preset.source().enabled()).isTrue());
+        assertThat(presets).filteredOn(preset -> "EXCHANGE_DAILY_SNAPSHOT".equals(preset.source().sourceType()))
+            .hasSize(2).allSatisfy(preset -> {
+                assertThat(preset.source().enabled()).isTrue();
+                assertThat(preset.source().configuration()).containsKeys(
+                    "provider", "providerName", "quotePageUrl", "legalDisclaimer");
+                assertThat(preset.description()).contains("覆盖更新");
+            });
+        assertThat(presets).filteredOn(preset -> java.util.Set.of(
+                "sse_home", "szse_home", "csindex_home").contains(preset.code()))
+            .allSatisfy(preset -> assertThat(preset.source().enabled()).isTrue());
         assertThat(presets).filteredOn(preset -> "EXCHANGE_MARKET_DATA".equals(preset.source().sourceType())
                 && preset.source().configuration().get("mode") == null)
             .hasSize(2).allSatisfy(preset -> {
-                assertThat(preset.source().configuration()).containsEntry("presetVersion", 1)
+                assertThat(preset.source().configuration()).containsEntry("presetVersion", 2)
                     .containsEntry("legalRisk", false)
                     .containsKeys("provider", "marginApiUrl", "legalDisclaimer");
                 assertThat(preset.description()).contains("融资融券", "分红");
@@ -129,7 +150,9 @@ class NewsSourcePresetCatalogTest {
                 assertThat(preset.source().configuration().get("feeds")).asList().hasSize(5);
                 assertThat(preset.description()).contains("最新一页", "二级");
             });
-        assertThat(presets).filteredOn(preset -> preset.code().startsWith("sse_")).hasSize(13)
+        assertThat(presets).filteredOn(preset -> preset.code().startsWith("sse_")
+                && !java.util.Set.of("sse_home", "sse_daily_snapshot", "sse_market_data", "sse_etf_scale").contains(preset.code()))
+            .hasSize(10)
             .allSatisfy(preset -> assertThat(preset.source().enabled()).isFalse());
         assertThat(presets).filteredOn(preset -> "eastmoney_finance".equals(preset.code())).singleElement()
             .satisfies(preset -> {
@@ -220,7 +243,11 @@ class NewsSourcePresetCatalogTest {
                 assertThat(preset.description()).contains("全部板块", "最新一页", "二级");
             });
         assertThat(presets).allSatisfy(preset -> {
-            assertThat(preset.source().enabled()).isFalse();
+            boolean requiredFinancialSource = java.util.Set.of(
+                "sse_home", "szse_home", "csindex_home", "chinabond_home", "sse_market_data", "szse_market_data",
+                "sse_etf_scale", "szse_etf_scale", "three_market_overview",
+                "sse_daily_snapshot", "szse_daily_snapshot").contains(preset.code());
+            assertThat(preset.source().enabled()).isEqualTo(requiredFinancialSource);
             assertThat(preset.source().scheduleCron()).isNotBlank();
             assertThat(preset.source().collectionDescription()).isEqualTo(preset.description()).isNotBlank();
             assertThat(preset.source().configuration()).containsKeys("sleepMillis", "timeoutMillis", "zoneId");

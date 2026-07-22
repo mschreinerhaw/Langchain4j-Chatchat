@@ -475,3 +475,24 @@
 
     alter table mcp_sql_template 
        add constraint UK46shneqbk0h3xgcgi0y01cm1x unique (code);
+
+    -- MCP-owned structured market data catalog. Observation tables evolve at runtime.
+    create table if not exists market_asset_catalog (
+      id bigint not null auto_increment, dataset_code varchar(64) not null,
+      asset_name varchar(160) not null, business_description varchar(4000) not null,
+      business_tags_json varchar(4000) not null, database_name varchar(128) not null,
+      table_name varchar(128) not null, update_frequency varchar(128), source_names_json varchar(4000),
+      archive_table_name varchar(128), hot_retention_days int, archive_retention_days int,
+      history_granularity varchar(64), last_observation_date date, last_collected_at datetime(6),
+      created_at datetime(6) not null, updated_at datetime(6) not null,
+      primary key (id), unique key uk_market_asset_code (dataset_code)
+    ) engine=InnoDB default charset=utf8mb4;
+
+    create table if not exists data_schema_registry (
+      id bigint not null auto_increment, dataset_code varchar(64) not null,
+      table_name varchar(128) not null, field_name varchar(128) not null, source_field varchar(128) not null,
+      field_type varchar(32) not null, business_description varchar(1000), schema_version int not null,
+      created_at datetime(6) not null, updated_at datetime(6) not null,
+      primary key (id), unique key uk_data_schema_field (dataset_code, field_name),
+      key idx_data_schema_dataset (dataset_code)
+    ) engine=InnoDB default charset=utf8mb4;

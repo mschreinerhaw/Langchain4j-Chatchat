@@ -16,6 +16,9 @@ public class NewsSourcePresetCatalog {
             szseHome(),
             hkexHome(),
             csindexHome(),
+            chinaBondHome(),
+            sseDailySnapshot(),
+            szseDailySnapshot(),
             sseMarketData(),
             szseMarketData(),
             sseEtfScale(),
@@ -130,9 +133,9 @@ public class NewsSourcePresetCatalog {
         String url = "https://www.szse.cn/index/index.html";
         return new Preset(code, name, "采集深交所要闻、深交所公告、上市公司公告及其二级正文或 PDF，并生成深证成指、创业板指、深证100和创业板50行情快照。",
             new SourceUpsert(code, name, "SZSE_HOME", url,
-                URI.create(url).getHost(), "0 */5 * * * *", false,
+                URI.create(url).getHost(), "0 */5 * * * *", true,
                 Map.ofEntries(
-                    Map.entry("presetVersion", 3), Map.entry("provider", "SZSE"),
+                    Map.entry("presetVersion", 4), Map.entry("provider", "SZSE"),
                     Map.entry("newsSelector", ".homem-news-wrap .title a[href]"),
                     Map.entry("newsUrlContains", "/aboutus/trends/news/"), Map.entry("newsLimit", 10),
                     Map.entry("noticeIndexUrl", "https://www.szse.cn/disclosure/notice/index.json"),
@@ -194,9 +197,9 @@ public class NewsSourcePresetCatalog {
         return new Preset(code, name,
             "采集中证指数页面顶部沪深300、上证指数、科创综指、上证50、科创50五个指数的更新日期、收盘点位、涨跌幅、成交额，"
                 + "以及页面指数图对应的历史收盘和滚动市盈率序列。",
-            new SourceUpsert(code, name, "CSINDEX_HOME", url, "csindex.com.cn", "0 */10 * * * *", false,
+            new SourceUpsert(code, name, "CSINDEX_HOME", url, "csindex.com.cn", "0 */10 * * * *", true,
                 Map.ofEntries(
-                    Map.entry("presetVersion", 1), Map.entry("provider", "CSINDEX"),
+                    Map.entry("presetVersion", 2), Map.entry("provider", "CSINDEX"),
                     Map.entry("indexCodes", List.of("000300", "000001", "000680", "000016", "000688")),
                     Map.entry("indexSeriesUrl", "https://www.csindex.com.cn/csindex-home/homePage/indexMainAll"),
                     Map.entry("peHistoryUrlTemplate", "https://www.csindex.com.cn/csindex-home/perf/indexCsiDsPe?indexCode={code}&startDate={startDate}&endDate={endDate}"),
@@ -204,6 +207,74 @@ public class NewsSourcePresetCatalog {
                     Map.entry("zoneId", "Asia/Shanghai"),
                     Map.entry("language", "zh-CN"), Map.entry("legalRisk", true),
                     Map.entry("legalDisclaimer", disclaimer))), null);
+    }
+
+    private Preset chinaBondHome() {
+        String code = "chinabond_home";
+        String name = "中国债券信息网数据分析";
+        String url = "https://www.chinabond.com.cn/";
+        String disclaimer = "数据及报告权益归中央国债登记结算有限责任公司及相关权利人所有；仅用于内部市场研究和资讯检索，"
+            + "不得未经授权再分发或用于商业数据产品，不构成投资建议。";
+        return new Preset(code, name,
+            "采集中债统计概览、完整收益率曲线、柜台行情、结算情况、担保品信息，以及首页研究分析报告和PDF。结构化数据按业务日期和业务键覆盖写。",
+            new SourceUpsert(code, name, "CHINABOND_HOME", url, "chinabond.com.cn", "0 */10 * * * *", true,
+                Map.ofEntries(
+                    Map.entry("presetVersion", 4), Map.entry("provider", "CHINABOND"),
+                    Map.entry("overviewHeadlineApiUrl", "https://www.chinabond.com.cn/ccdcdata/QueryZSGLForIndex_CN.json"),
+                    Map.entry("overviewMonthlyApiUrl", "https://www.chinabond.com.cn/ccdcdata/QueryIndexPageZSGLDataByMonth_CN.json"),
+                    Map.entry("yieldMetadataUrl", "https://www.chinabond.com.cn/ccdcdata/yhj_data_xml_CN.xml"),
+                    Map.entry("yieldApiUrl", "https://yield.chinabond.com.cn/cbweb-mn/yc/inityc?xyzSelect=txy&&workTime=&&dxbj=0&&qxll=0&&yqqxN=N&&yqqxK=K&&wrjxCBFlag=0"),
+                    Map.entry("yieldReferer", "https://yield.chinabond.com.cn/cbweb-mn/yhj_chart"),
+                    Map.entry("yieldPageUrl", "https://yield.chinabond.com.cn/cbweb-mn/yield_main?locale=zh_CN"),
+                    Map.entry("counterQuoteApiUrl", "https://www.chinabond.com.cn/ccdcdata/getIndexZybjInfo.json"),
+                    Map.entry("settlementApiUrl", "https://www.chinabond.com.cn/ccdcdata/getRealtimeShtjfromtbl_CN.json"),
+                    Map.entry("settlementPageUrl", "https://www.chinabond.com.cn/zzsj/zzsj_jshq/"),
+                    Map.entry("collateralApiUrl", "https://www.chinabond.com.cn/ccdcdata/queryIndexPageCounterData2_CN.json"),
+                    Map.entry("researchSelector", ".tabNewUl_data li"), Map.entry("researchLimit", 10),
+                    Map.entry("detailSelector", ".TRS_Editor,.article-content,.content,.detail_content,#zoom,article,main"),
+                    Map.entry("sleepMillis", 200), Map.entry("timeoutMillis", 30000),
+                    Map.entry("zoneId", "Asia/Shanghai"), Map.entry("language", "zh-CN"),
+                    Map.entry("legalRisk", false), Map.entry("legalDisclaimer", disclaimer))), null);
+    }
+
+    private Preset sseDailySnapshot() {
+        String code = "sse_daily_snapshot";
+        String name = "上海证券交易所每日市场快照";
+        String url = "https://www.sse.com.cn/market/view/";
+        return new Preset(code, name,
+            "采集上交所市场总貌、每日债券成交情况，以及股票、指数、基金和债券行情报表；同一交易日和业务键重复采集时覆盖更新。",
+            new SourceUpsert(code, name, "EXCHANGE_DAILY_SNAPSHOT", url, "sse.com.cn", "0 */10 * * * *", true,
+                Map.ofEntries(
+                    Map.entry("presetVersion", 1), Map.entry("provider", "SSE"),
+                    Map.entry("providerName", "上海证券交易所"),
+                    Map.entry("sseQueryUrl", "https://query.sse.com.cn/commonQuery.do"),
+                    Map.entry("bondPageUrl", "https://www.sse.com.cn/market/bonddata/overview/day/"),
+                    Map.entry("quotePageUrl", "https://www.sse.com.cn/market/price/report/"),
+                    Map.entry("quoteApiBaseUrl", "https://yunhq.sse.com.cn:32042/v1/sh1/list/exchange/"),
+                    Map.entry("quoteCategories", List.of("equity", "index", "fwr", "bond")),
+                    Map.entry("quotePageSize", 100), Map.entry("sleepMillis", 100),
+                    Map.entry("timeoutMillis", 60000), Map.entry("zoneId", "Asia/Shanghai"),
+                    Map.entry("language", "zh-CN"), Map.entry("legalRisk", false),
+                    Map.entry("legalDisclaimer", "数据来自上海证券交易所官方公开页面，仅用于内部市场研究和资讯检索，不构成投资建议；请以上交所最新披露为准。"))), null);
+    }
+
+    private Preset szseDailySnapshot() {
+        String code = "szse_daily_snapshot";
+        String name = "深圳证券交易所每日市场快照";
+        String url = "https://www.szse.cn/market/overview/index.html";
+        return new Preset(code, name,
+            "采集深交所市场总貌、股票/基金/债券每日概况，以及股票、基金、债券、回购、期权和指数行情；按游标分页，同一交易日和业务键重复采集时覆盖更新。",
+            new SourceUpsert(code, name, "EXCHANGE_DAILY_SNAPSHOT", url, "szse.cn", "0 */10 * * * *", true,
+                Map.ofEntries(
+                    Map.entry("presetVersion", 3), Map.entry("provider", "SZSE"),
+                    Map.entry("providerName", "深圳证券交易所"),
+                    Map.entry("szseReportApiUrl", "https://www.szse.cn/api/report/ShowReport/data"),
+                    Map.entry("quotePageUrl", "https://www.szse.cn/market/trend/index.html"),
+                    Map.entry("lookbackDays", 10), Map.entry("snapshotPagesPerRun", 25),
+                    Map.entry("sleepMillis", 500), Map.entry("requestRetries", 3), Map.entry("timeoutMillis", 30000),
+                    Map.entry("zoneId", "Asia/Shanghai"), Map.entry("language", "zh-CN"),
+                    Map.entry("legalRisk", false),
+                    Map.entry("legalDisclaimer", "数据来自深圳证券交易所官方公开页面，仅用于内部市场研究和资讯检索，不构成投资建议；请以深交所最新披露为准。"))), null);
     }
 
     private Preset sseMarketData() {
@@ -214,9 +285,9 @@ public class NewsSourcePresetCatalog {
             + "融资融券数据以证券公司报送及交易所最新发布为准，使用和再分发前请确认符合网站条款及适用法律。";
         return new Preset(code, name,
             "采集上交所最近30个交易日融资融券汇总、最新交易日个股明细（当前第一页），以及当年现金分红和送股转增记录（当前第一页）。",
-            new SourceUpsert(code, name, "EXCHANGE_MARKET_DATA", url, "sse.com.cn", "0 */30 * * * *", false,
+            new SourceUpsert(code, name, "EXCHANGE_MARKET_DATA", url, "sse.com.cn", "0 */30 * * * *", true,
                 Map.ofEntries(
-                    Map.entry("presetVersion", 1), Map.entry("provider", "SSE"),
+                    Map.entry("presetVersion", 2), Map.entry("provider", "SSE"),
                     Map.entry("providerName", "上海证券交易所"),
                     Map.entry("marginApiUrl", "https://query.sse.com.cn/commonSoaQuery.do"),
                     Map.entry("distributionApiUrl", "https://query.sse.com.cn/commonQuery.do"),
@@ -237,9 +308,9 @@ public class NewsSourcePresetCatalog {
             + "融资融券数据以证券公司报送及交易所最新发布为准，使用和再分发前请确认符合网站条款及适用法律。";
         return new Preset(code, name,
             "采集深交所最新交易日融资融券交易总量和个股明细（前5页、约100只证券），以及最新一期市场统计月报中的分红、送股、配股、除净日和股权登记日。",
-            new SourceUpsert(code, name, "EXCHANGE_MARKET_DATA", url, "szse.cn", "0 */30 * * * *", false,
+            new SourceUpsert(code, name, "EXCHANGE_MARKET_DATA", url, "szse.cn", "0 */30 * * * *", true,
                 Map.ofEntries(
-                    Map.entry("presetVersion", 1), Map.entry("provider", "SZSE"),
+                    Map.entry("presetVersion", 2), Map.entry("provider", "SZSE"),
                     Map.entry("providerName", "深圳证券交易所"),
                     Map.entry("marginApiUrl", "https://www.szse.cn/api/report/ShowReport/data?SHOWTYPE=JSON&CATALOGID=1837_xxpl&loading=first"),
                     Map.entry("monthlyIndexUrl", "https://www.szse.cn/market/periodical/month/index.html"),
@@ -258,9 +329,9 @@ public class NewsSourcePresetCatalog {
             + "页面规模口径为基金总份额（万份），请以上交所最新发布为准。";
         return new Preset(code, name,
             "采集上交所ETF规模页面最新规模日期的全部基金：基金代码、基金简称、ETF类型和总份额（万份）；超过单次上限时按交易日和页码断点续采。",
-            new SourceUpsert(code, name, "EXCHANGE_MARKET_DATA", url, "sse.com.cn", "0 */30 * * * *", false,
+            new SourceUpsert(code, name, "EXCHANGE_MARKET_DATA", url, "sse.com.cn", "0 */30 * * * *", true,
                 Map.ofEntries(
-                    Map.entry("presetVersion", 1), Map.entry("mode", "FUND_SCALE"),
+                    Map.entry("presetVersion", 2), Map.entry("mode", "FUND_SCALE"),
                     Map.entry("provider", "SSE"), Map.entry("providerName", "上海证券交易所"),
                     Map.entry("fundScaleApiUrl", "https://query.sse.com.cn/commonQuery.do"),
                     Map.entry("fundScalePageSize", 100), Map.entry("sleepMillis", 200),
@@ -277,9 +348,9 @@ public class NewsSourcePresetCatalog {
             + "页面规模口径为基金份额（万份），T日晚间数据仅供参考，以T+1日早间更新的T日规模为准。";
         return new Preset(code, name,
             "采集深交所ETF规模页面最近交易日的全部基金：基金代码、基金简称和当前规模（万份）；自动回看最近10日定位交易日，超过单次上限时断点续采。",
-            new SourceUpsert(code, name, "EXCHANGE_MARKET_DATA", url, "szse.cn", "0 */30 * * * *", false,
+            new SourceUpsert(code, name, "EXCHANGE_MARKET_DATA", url, "szse.cn", "0 */30 * * * *", true,
                 Map.ofEntries(
-                    Map.entry("presetVersion", 1), Map.entry("mode", "FUND_SCALE"),
+                    Map.entry("presetVersion", 2), Map.entry("mode", "FUND_SCALE"),
                     Map.entry("provider", "SZSE"), Map.entry("providerName", "深圳证券交易所"),
                     Map.entry("fundScaleApiUrl", "https://www.szse.cn/api/report/ShowReport/data?SHOWTYPE=JSON&CATALOGID=scsj_fund_jjgm&jjlb=ETF"),
                     Map.entry("fundScaleLookbackDays", 10), Map.entry("sleepMillis", 200),
@@ -298,9 +369,9 @@ public class NewsSourcePresetCatalog {
         return new Preset(code, name,
             "采集同一参考交易日的香港、上海、深圳三个市场汇总：香港主板/创业板、上海A股/B股、深圳A股/B股；"
                 + "包括上市公司数、H股及非H股内地企业数、上市证券数、总市值、流通市值、平均市盈率、成交股数、成交金额和市场总成交金额。",
-            new SourceUpsert(code, name, "EXCHANGE_MARKET_DATA", url, "hkex.com.hk", "0 */30 * * * *", false,
+            new SourceUpsert(code, name, "EXCHANGE_MARKET_DATA", url, "hkex.com.hk", "0 */30 * * * *", true,
                 Map.ofEntries(
-                    Map.entry("presetVersion", 1), Map.entry("mode", "THREE_MARKET_OVERVIEW"),
+                    Map.entry("presetVersion", 2), Map.entry("mode", "THREE_MARKET_OVERVIEW"),
                     Map.entry("provider", "HKEX"), Map.entry("providerName", "香港交易所市场概况"),
                     Map.entry("marketHighlightsApiUrl", "https://www.hkex.com.hk/chi/csm/ws/Highlightsearch.asmx/GetData"),
                     Map.entry("sleepMillis", 300), Map.entry("timeoutMillis", 30000), Map.entry("zoneId", "Asia/Hong_Kong"),
@@ -729,7 +800,7 @@ public class NewsSourcePresetCatalog {
     private Preset sseHome() {
         String url = "https://www.sse.com.cn/";
         Map<String, Object> configuration = Map.ofEntries(
-            Map.entry("presetVersion", 2),
+            Map.entry("presetVersion", 3),
             Map.entry("provider", "SSE"),
             Map.entry("headlineSelector", ".hot_dyn a.dynaTitle"),
             Map.entry("headlineLimit", 12),
@@ -767,7 +838,7 @@ public class NewsSourcePresetCatalog {
         return new Preset("sse_home", "上海证券交易所首页",
             "采集首页要闻、热点、栏目更新、指数、市场数据、各类公告和近期上市，并抓取二级详情或公告附件。",
             new SourceUpsert("sse_home", "上海证券交易所首页", "EXCHANGE_HOME", url,
-                URI.create(url).getHost(), "0 */5 * * * *", false, configuration), null);
+                URI.create(url).getHost(), "0 */5 * * * *", true, configuration), null);
     }
 
     private Preset web(String code, String name, String url, String domain, String link, String title,

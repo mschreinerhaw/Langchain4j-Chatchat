@@ -195,4 +195,6 @@ The request timeout above applies to each OpenSearch `_search` request. The inde
 
 ## Web Search
 
-The MCP `web_search` tool is backed by `chatchat-runtime-news`. It searches standardized news already stored in the configured News OpenSearch index and returns compatible `title`, `url`, `snippet`, `results`, and `reference_urls` fields. It does not query Bing or DuckDuckGo and does not crawl the web on demand. Configure collection sources and extraction rules from the built-in News capability on the MCP management page.
+The MCP exposes one public search tool, `web_search`. MCP Server composes standardized news from `chatchat-runtime-news` with its in-process Market capability and the `financial-data-asset` catalog. The Market module is packaged inside MCP Server and reuses MCP's DataSource, OpenSearch client and credentials; it has no independent server or connection configuration. A `financial_data_asset` result includes its dataset code and governed storage location, and the same tool reads bounded structured observations when `dataset` is supplied. `news_search` and `news_latest` remain internal runtime operations and are not published as MCP tools.
+
+The authoritative write path, dynamic schema rules, database/OpenSearch split, recovery behavior and two-stage Agent read contract are documented in [`chatchat-runtime-market/doc/design.md`](../chatchat-runtime-market/doc/design.md).

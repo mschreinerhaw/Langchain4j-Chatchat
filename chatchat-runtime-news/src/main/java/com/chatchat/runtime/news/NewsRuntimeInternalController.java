@@ -7,13 +7,14 @@ import com.chatchat.runtime.news.collector.NewsCollectionService;
 import com.chatchat.runtime.news.source.NewsSourceAdminService;
 import com.chatchat.runtime.news.tool.NewsMcpToolProvider;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.MediaType;
 
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/internal/v1/news")
+@RequestMapping(value = "/internal/v1/news", produces = MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8")
 public class NewsRuntimeInternalController {
     private static final long NEWS_CAPABILITY_ID = 1L;
     private final NewsSourceAdminService sources;

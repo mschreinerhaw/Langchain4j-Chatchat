@@ -21,18 +21,27 @@ public class NewsIngestionService implements NewsItemSink {
     private final NewsCollectRecordRepository repository;
     private final NewsBulkIndexer bulkIndexer;
     private final NewsAttachmentIngestionService attachmentIngestionService;
+    private final McpMarketIngestionClient marketRuntimeIngestionClient;
 
     public NewsIngestionService(NewsNormalizer normalizer, NewsCollectRecordRepository repository,
-                                NewsBulkIndexer bulkIndexer, NewsAttachmentIngestionService attachmentIngestionService) {
+                                NewsBulkIndexer bulkIndexer, NewsAttachmentIngestionService attachmentIngestionService,
+                                McpMarketIngestionClient marketRuntimeIngestionClient) {
         this.normalizer = normalizer;
         this.repository = repository;
         this.bulkIndexer = bulkIndexer;
         this.attachmentIngestionService = attachmentIngestionService;
+        this.marketRuntimeIngestionClient = marketRuntimeIngestionClient;
     }
 
     @Override
     public synchronized NewsAcceptance accept(RawNewsItem rawItem) {
         try {
+            if (marketRuntimeIngestionClient.accepts(rawItem)) {
+                marketRuntimeIngestionClient.accept(rawItem);
+                log.info("market_observation_forwarded sourceId={} url={}",
+                    rawItem.source() == null ? null : rawItem.source().id(), rawItem.sourceUrl());
+                return NewsAcceptance.ACCEPTED;
+            }
             NewsDocument document = normalizer.normalize(rawItem);
             String urlHash = normalizer.urlHash(document.sourceUrl());
             NewsCollectRecordEntity record = repository.findByUrlHash(urlHash).orElse(null);

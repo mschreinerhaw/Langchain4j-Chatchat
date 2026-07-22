@@ -18,6 +18,8 @@ chatchat:
   runtime:
     news:
       enabled: true
+      mcp-server:
+        base-url: ${CHATCHAT_MCP_SERVER_URL:http://localhost:8090}
       robots:
         enabled: true
         user-agent: ChatChat-NewsCollector

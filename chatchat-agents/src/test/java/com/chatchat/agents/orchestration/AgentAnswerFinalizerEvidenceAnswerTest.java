@@ -72,6 +72,46 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
     }
 
     @Test
+    void preservesCompleteLongTextCellsOutsideMarkdownTable() {
+        AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
+            new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok");
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            reviewer,
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        InteractionToolTrace trace = InteractionToolTrace.builder()
+            .toolName("mcp_chatchat_mcp_server_sql_query_execute")
+            .displayName("sql_query_execute")
+            .success(true)
+            .output("""
+                {
+                  "columns": ["Type", "Name", "Status"],
+                  "rowCount": 1,
+                  "rows": [{
+                    "Type": "InnoDB",
+                    "Name": "",
+                    "Status": "BEGIN OF INNODB STATUS\\nBACKGROUND THREAD 012345678901234567890123456789012345678901234567890123456789\\nSEMAPHORES 012345678901234567890123456789012345678901234567890123456789\\nTRANSACTIONS 012345678901234567890123456789012345678901234567890123456789\\nBUFFER POOL AND MEMORY\\nEND OF INNODB MONITOR OUTPUT"
+                  }]
+                }
+                """)
+            .build();
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishExecution(
+            "InnoDB status returned.",
+            List.of(trace),
+            new LinkedHashMap<>(),
+            List.of("SQL query returned one complete InnoDB status row.")
+        );
+
+        assertThat(result.answer())
+            .contains("[完整内容见下方：第 1 行 / Status")
+            .contains("### 长文本字段完整内容")
+            .contains("BEGIN OF INNODB STATUS")
+            .contains("BUFFER POOL AND MEMORY")
+            .contains("END OF INNODB MONITOR OUTPUT");
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void autoBuildsDistributionChartForCategoricalToolRows() {
         AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->

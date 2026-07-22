@@ -30,6 +30,7 @@
         <module>chatchat-tools</module>
         <module>chatchat-runtime-mcp</module>
         <module>chatchat-runtime-news</module>
+        <module>chatchat-runtime-market</module>
         <module>chatchat-knowledge-base</module>
         <module>chatchat-chat</module>
         <module>chatchat-enterprise</module>
@@ -82,6 +83,11 @@
             <dependency>
                 <groupId>com.chatchat</groupId>
                 <artifactId>chatchat-runtime-news</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.chatchat</groupId>
+                <artifactId>chatchat-runtime-market</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

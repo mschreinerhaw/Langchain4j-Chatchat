@@ -96,12 +96,20 @@ class ToolObservationBuilder {
         Map<String, Object> root = asMap(data);
         appendUnifiedEvidence(observation, toolName, data, reviewMetadata);
         if (!root.isEmpty()) {
+            String financialObservationCount = firstNonBlank(
+                stringValue(root.get("financialObservationCount")),
+                "0"
+            );
             observation.append("\nWeb search summary: query=")
                 .append(firstNonBlank(stringValue(root.get("query")), "unknown"))
                 .append(", provider=")
                 .append(firstNonBlank(stringValue(root.get("provider")), stringValue(root.get("configuredProvider"))))
                 .append(", results=")
                 .append(firstNonBlank(stringValue(root.get("count")), "unknown"))
+                .append(", financialDatasets=")
+                .append(firstNonBlank(stringValue(root.get("financialDatasetCount")), "0"))
+                .append(", financialObservations=")
+                .append(financialObservationCount)
                 .append(", referenceUrls=")
                 .append(firstNonBlank(stringValue(root.get("reference_url_count")), "unknown"))
                 .append(", pageExcerpts=")
@@ -109,6 +117,12 @@ class ToolObservationBuilder {
                 .append(", contentMode=")
                 .append(firstNonBlank(stringValue(root.get("contentMode")), "unknown"))
                 .append('.');
+            if (!"0".equals(financialObservationCount)) {
+                observation.append("\nFinancial observation rule: financialObservationCount=")
+                    .append(financialObservationCount)
+                    .append(" proves that actual structured market rows were returned. Use the values in the financial evidence rows above; ")
+                    .append("do not describe the result as asset metadata only or claim that A-share market values are missing.");
+            }
         }
         List<WebCitation> citations = trustedWebCitations(data, observation);
         if (citations.isEmpty()) {

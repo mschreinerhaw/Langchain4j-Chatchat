@@ -1,4 +1,4 @@
-﻿spring:
+spring:
   application:
     name: chatchat-mcp-server
   datasource:
@@ -35,6 +35,13 @@ chatchat:
     crypto-key:
     crypto-key-file:
   mcp:
+    market:
+      retention:
+        enabled: true
+        hot-days: 7
+        weekly-archive-days: 1825
+        cron: "0 30 2 * * SUN"
+        zone-id: Asia/Shanghai
     news-runtime:
       base-url: ${CHATCHAT_NEWS_RUNTIME_URL:http://localhost:8091}
       timeout-millis: 30000
@@ -43,9 +50,6 @@ chatchat:
         enabled: true
         tools:
           web_search: { enabled: true, agent-callable: true, timeout: 30s }
-          news_search: { enabled: true, agent-callable: true, timeout: 30s }
-          news_latest: { enabled: true, agent-callable: true, timeout: 20s }
-          news_source_status: { enabled: true, agent-callable: false, timeout: 10s }
     admin:
       username: admin
       password: admin123
@@ -100,7 +104,7 @@ chatchat:
             queue-timeout-ms: 500
         embedding:
           request-timeout-ms: 300000
-          enabled: true
+          enabled: false
           endpoint: https://llm-7upawl16up8649rh.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/embeddings
           api-key: sk-720436c855ac470bb955388d0e8c9b89
           model: qwen3.7-text-embedding

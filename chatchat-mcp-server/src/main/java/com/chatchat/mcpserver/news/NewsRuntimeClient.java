@@ -1,6 +1,7 @@
 package com.chatchat.mcpserver.news;
 
 import com.chatchat.common.security.InternalCredentialProperties;
+import com.chatchat.common.security.InternalRequestSigner;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolOutput;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -15,7 +16,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Base64;
+import java.time.Instant;
+import java.util.UUID;
 
 @Service
 public class NewsRuntimeClient {
@@ -55,8 +57,17 @@ public class NewsRuntimeClient {
 
     private JsonNode exchange(String method, String path, Object body) {
         try {
-            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(baseUrl + "/internal/v1/news" + path))
-                .timeout(timeout).header("Accept", "application/json").header("Authorization", authorization());
+            String requestPath = "/internal/v1/news" + path;
+            String timestamp = String.valueOf(Instant.now().getEpochSecond());
+            String nonce = UUID.randomUUID().toString().replace("-", "");
+            String signature = InternalRequestSigner.sign(credentials.resolvedSecret(), method,
+                URI.create(requestPath).getPath(), timestamp, nonce);
+            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(baseUrl + requestPath))
+                .timeout(timeout).header("Accept", "application/json")
+                .header(InternalRequestSigner.USER_HEADER, credentials.resolvedUsername())
+                .header(InternalRequestSigner.TIMESTAMP_HEADER, timestamp)
+                .header(InternalRequestSigner.NONCE_HEADER, nonce)
+                .header(InternalRequestSigner.SIGNATURE_HEADER, signature);
             if (body == null) builder.method(method, HttpRequest.BodyPublishers.noBody());
             else builder.header("Content-Type", "application/json").method(method,
                 HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body), StandardCharsets.UTF_8));
@@ -75,8 +86,4 @@ public class NewsRuntimeClient {
         }
     }
 
-    private String authorization() {
-        String pair = credentials.resolvedUsername() + ":" + credentials.resolvedSecret();
-        return "Basic " + Base64.getEncoder().encodeToString(pair.getBytes(StandardCharsets.UTF_8));
-    }
 }

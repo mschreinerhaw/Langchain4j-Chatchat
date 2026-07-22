@@ -1,5 +1,6 @@
 package com.chatchat.runtime.news.collector;
 
+import com.chatchat.common.security.InternalCredentialProperties;
 import com.chatchat.runtime.news.config.NewsRuntimeProperties;
 import com.chatchat.runtime.news.model.NewsCollectContext;
 import com.chatchat.runtime.news.model.NewsCollectResult;
@@ -18,6 +19,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Component
@@ -27,14 +29,17 @@ public class ApiNewsCollector implements NewsCollector {
     private final NewsRuntimeProperties properties;
     private final ObjectMapper objectMapper;
     private final PublishTimeParser publishTimeParser;
+    private final InternalCredentialProperties credentials;
     private final HttpClient client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
 
     public ApiNewsCollector(NewsItemSink sink, NewsRuntimeProperties properties,
-                            ObjectMapper objectMapper, PublishTimeParser publishTimeParser) {
+                            ObjectMapper objectMapper, PublishTimeParser publishTimeParser,
+                            InternalCredentialProperties credentials) {
         this.sink = sink;
         this.properties = properties;
         this.objectMapper = objectMapper;
         this.publishTimeParser = publishTimeParser;
+        this.credentials = credentials;
     }
 
     @Override
@@ -53,6 +58,9 @@ public class ApiNewsCollector implements NewsCollector {
             if (headers instanceof Map<?, ?> values) {
                 values.forEach((key, value) -> builder.header(String.valueOf(key), String.valueOf(value)));
             }
+            Object encryptedHeaders = source.configuration().get("encryptedHeaders");
+            if (encryptedHeaders instanceof Map<?, ?> values) values.forEach((key, value) ->
+                builder.header(String.valueOf(key), credentials.resolveSecret(String.valueOf(value), null)));
             HttpResponse<String> response = client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 throw new IllegalStateException("News API returned HTTP " + response.statusCode());
@@ -64,6 +72,16 @@ public class ApiNewsCollector implements NewsCollector {
             for (JsonNode item : items) {
                 if (counters.discovered >= properties.getMaxItemsPerRun()) break;
                 counters.discovered++;
+                Map<String, Object> metadata = new LinkedHashMap<>();
+                metadata.put("transport", "api");
+                String datasetCode = config(source, "datasetCode", "");
+                if (!datasetCode.isBlank()) {
+                    metadata.putAll(objectMapper.convertValue(item, Map.class));
+                    metadata.put("datasetCode", datasetCode);
+                    metadata.put("datasetName", config(source, "datasetName", datasetCode));
+                    metadata.put("businessDescription", config(source, "businessDescription", ""));
+                }
+                metadata.entrySet().removeIf(entry -> entry.getValue() == null);
                 RawNewsItem raw = new RawNewsItem(source,
                     text(item, config(source, "titleField", "title")),
                     text(item, config(source, "contentField", "content")),
@@ -74,7 +92,7 @@ public class ApiNewsCollector implements NewsCollector {
                         config(source, "zoneId", "Asia/Shanghai")),
                     text(item, config(source, "languageField", "language")),
                     strings(at(item, config(source, "categoriesField", "categories"))),
-                    strings(at(item, config(source, "tagsField", "tags"))), Map.of("transport", "api"));
+                    strings(at(item, config(source, "tagsField", "tags"))), Map.copyOf(metadata));
                 counters.add(sink.accept(raw));
             }
             return counters.result(context, source, null);

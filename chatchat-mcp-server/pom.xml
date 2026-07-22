@@ -18,6 +18,7 @@
     <properties>
         <chatchat.main-class>com.chatchat.mcpserver.ChatChatMcpServerApplication</chatchat.main-class>
         <frontend-maven-plugin.version>1.15.1</frontend-maven-plugin.version>
+        <frontend.skip>false</frontend.skip>
         <maven-antrun-plugin.version>3.1.0</maven-antrun-plugin.version>
         <maven-resources-plugin.version>3.3.1</maven-resources-plugin.version>
         <node.version>v20.19.0</node.version>
@@ -40,6 +41,10 @@
         <dependency>
             <groupId>com.chatchat</groupId>
             <artifactId>chatchat-runtime-mcp</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.chatchat</groupId>
+            <artifactId>chatchat-runtime-market</artifactId>
         </dependency>
         <dependency>
             <groupId>dev.langchain4j</groupId>
@@ -172,6 +177,7 @@
                 <configuration>
                     <workingDirectory>web-app-mcp</workingDirectory>
                     <installDirectory>${project.build.directory}/frontend</installDirectory>
+                    <skip>${frontend.skip}</skip>
                 </configuration>
                 <executions>
                     <execution>

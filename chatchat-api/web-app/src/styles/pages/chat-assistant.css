@@ -1705,6 +1705,27 @@
 
 .message-markdown .query-result-table-card table {
   margin: 0;
+  table-layout: fixed;
+}
+
+.message-markdown .query-result-table-card th.source-column,
+.message-markdown .query-result-table-card td.source-column {
+  width: clamp(140px, 22vw, 260px);
+  max-width: 260px;
+}
+
+.message-markdown .query-result-table-card td.source-column {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.message-markdown .query-result-table-card td.source-column a {
+  max-width: 100%;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .message-markdown .query-result-multi-dataset-card {
@@ -3974,6 +3995,79 @@
   color: #344054;
   font-size: 13px;
   font-weight: 800;
+}
+
+.response-references .citation-source-details {
+  border: 0;
+  border-top: 1px solid #e5e7eb;
+  border-radius: 0;
+  background: transparent;
+}
+
+.response-references .citation-source-details > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 2px;
+  color: #7b8494;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.response-references .citation-source-details > summary small {
+  color: #98a2b3;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.response-references .citation-source-details[open] > summary {
+  margin-bottom: 4px;
+}
+
+.citation-source-row {
+  margin: 0;
+  padding: 0 2px;
+}
+
+.citation-source-row > a {
+  min-height: 30px;
+  display: grid;
+  grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.25fr) minmax(0, 1.4fr);
+  align-items: center;
+  gap: 10px;
+  border-radius: 6px;
+  padding: 5px 8px;
+  color: #667085;
+  font-size: 11px;
+  text-decoration: none;
+}
+
+.citation-source-row > a:hover {
+  background: #f6f8fb;
+}
+
+.citation-source-site,
+.citation-source-title,
+.citation-source-row small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.citation-source-site {
+  color: #667085;
+  font-weight: 600;
+}
+
+.citation-source-title {
+  color: #475467;
+}
+
+.citation-source-row small {
+  color: #98a2b3;
+  font-size: 11px;
 }
 
 .response-references .site-verification-details {

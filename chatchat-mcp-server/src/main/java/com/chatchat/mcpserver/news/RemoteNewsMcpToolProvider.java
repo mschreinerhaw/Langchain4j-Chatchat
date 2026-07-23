@@ -20,10 +20,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /** The only public search tool; it composes independent news and market runtimes. */
 @Component
 public class RemoteNewsMcpToolProvider implements McpToolProvider {
+    private static final Pattern QUERY_DATE = Pattern.compile(
+        "(?<!\\d)(20\\d{2})[-/.年](\\d{1,2})[-/.月](\\d{1,2})(?:日)?");
     private final NewsRuntimeClient newsClient;
     private final FinancialAssetCatalogService marketCatalog;
     private final FinancialDataStore marketStore;
@@ -35,10 +39,10 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         this.marketCatalog = marketCatalog;
         this.marketStore = marketStore;
         McpToolDefinition webSearch = definition("web_search", "Unified Web Search",
-            "Two-stage search for news and governed financial data. The first call searches news plus the "
-                + "financial-data-asset catalog and returns matched datasets, business descriptions, available fields, "
-                + "freshness and relevance scores. To read authoritative values, call web_search again with the exact "
-                + "dataset code and optional filters/date range returned by the first call.",
+            "Unified one-call search for news and governed financial data. The tool searches the compatible "
+                + "financial-data-asset index, directly reads observations from the highest-ranked matched datasets, "
+                + "and returns authoritative rows together with news. The optional dataset parameter remains available "
+                + "for callers that already know the exact dataset code.",
             List.of(text("query", "News topic, business question, or financial data keywords", false),
                 number("num_results", "Maximum number of unified search results to return", 10, 1, 50),
                 text("dataset", "Optional dataset code returned by a financial_data_asset result", false),
@@ -121,36 +125,105 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
             return ToolOutput.failure("Both news and market search are unavailable: " + String.join("; ", warnings));
         }
 
-        List<Map<String, Object>> results = interleave(news, assets, limit);
+        List<Map<String, Object>> financialData = hydrateCompatibleFinancialIndex(
+            query, assets, input, warnings);
+        List<Map<String, Object>> marketResults = new ArrayList<>(financialData);
+        marketResults.addAll(assets);
+        List<Map<String, Object>> results = interleave(news, marketResults, limit);
         List<String> urls = results.stream().map(item -> item.get("url")).filter(String.class::isInstance)
             .map(String.class::cast).filter(value -> !value.isBlank()).distinct().toList();
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("query", query);
         data.put("financialAssetQuery", financialAssetQuery);
         data.put("discovery_id", discoveryId);
-        data.put("result_type", "financial_dataset_discovery");
-        data.put("retrieval_stage", "DISCOVERY");
-        data.put("sample_only", true);
-        data.put("requires_second_query", !assets.isEmpty());
+        data.put("result_type", "unified_search_results");
+        data.put("retrieval_stage", "COMPATIBLE_QUERY");
+        data.put("sample_only", false);
+        data.put("requires_second_query", false);
         data.put("provider", "chatchat-unified-search");
-        data.put("mode", "unified_news_and_financial_asset_discovery");
+        data.put("mode", "unified_news_and_compatible_financial_index_search");
         data.put("count", results.size());
         data.put("newsCount", news.size());
         data.put("financialAssetCount", assets.size());
         data.put("financialAssets", assets);
         data.put("financialIndex", financialIndexGuide(assets, discoveryId));
-        data.put("financialDatasetCount", 0);
-        data.put("financialObservationCount", 0);
-        data.put("financialData", List.of());
+        data.put("financialDatasetCount", financialData.size());
+        data.put("financialObservationCount", financialData.stream()
+            .mapToInt(item -> ((Number) item.getOrDefault("count", 0)).intValue()).sum());
+        data.put("financialData", financialData);
         data.put("results", results);
         data.put("reference_urls", urls);
         if (!warnings.isEmpty()) data.put("warnings", warnings);
-        ToolOutput result = ToolOutput.success(data, "Unified discovery completed; select a dataset and call web_search again");
-        result.getMetadata().put("financialRetrievalStage", "DISCOVERY");
+        ToolOutput result = ToolOutput.success(data, "Unified news and compatible financial index search completed");
+        result.getMetadata().put("financialRetrievalStage", "COMPATIBLE_QUERY");
         result.getMetadata().put("financialDiscoveryId", discoveryId);
         result.getMetadata().put("financialCandidateDatasetCount", assets.size());
-        result.getMetadata().put("financialSecondQueryRequired", !assets.isEmpty());
+        result.getMetadata().put("financialQueriedDatasetCount", financialData.size());
+        result.getMetadata().put("financialSecondQueryRequired", false);
         return result;
+    }
+
+    private List<Map<String, Object>> hydrateCompatibleFinancialIndex(
+        String query, List<Map<String, Object>> assets, ToolInput input, List<String> warnings
+    ) {
+        if (assets.isEmpty()) return List.of();
+        LocalDate explicitStart = date(input.getParameterAsString("startDate", ""));
+        LocalDate explicitEnd = date(input.getParameterAsString("endDate", ""));
+        LocalDate queryDate = queryDate(query);
+        LocalDate startDate = explicitStart == null ? queryDate : explicitStart;
+        LocalDate endDate = explicitEnd == null ? queryDate : explicitEnd;
+        String historyMode = input.getParameterAsString("historyMode", "auto");
+        int rowLimit = bounded(input.getParameterAsNumber("limit"), 20, 1, 50);
+        List<Map<String, Object>> hydrated = new ArrayList<>();
+        for (Map<String, Object> asset : assets.stream().limit(5).toList()) {
+            String dataset = String.valueOf(asset.getOrDefault("dataset", "")).trim();
+            if (dataset.isBlank()) continue;
+            try {
+                List<Map<String, Object>> filters = marketStore.resolveEntityFilters(dataset, query, 5);
+                List<Map<String, Object>> foundRows = new ArrayList<>();
+                if (filters.isEmpty()) {
+                    foundRows.addAll(rows(marketStore.query(
+                        dataset, Map.of(), startDate, endDate, rowLimit, historyMode)));
+                } else {
+                    int perEntityLimit = Math.max(1, rowLimit / filters.size());
+                    for (Map<String, Object> filter : filters) {
+                        foundRows.addAll(rows(marketStore.query(
+                            dataset, filter, startDate, endDate, perEntityLimit, historyMode)));
+                    }
+                }
+                List<Map<String, Object>> compactRows = compactRows(foundRows, rowLimit);
+                if (compactRows.isEmpty()) continue;
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("resultType", "financial_data");
+                item.put("documentKind", "market_observations");
+                item.put("dataset", dataset);
+                item.put("title", firstNonBlank(String.valueOf(asset.getOrDefault("title", "")), dataset)
+                    + "：实际观测数据");
+                item.put("snippet", "已直接从兼容金融索引命中的受治理数据集读取实际观测值。");
+                item.put("count", compactRows.size());
+                item.put("rows", compactRows);
+                if (!filters.isEmpty()) item.put("appliedFilters", filters);
+                if (startDate != null) item.put("startDate", startDate.toString());
+                if (endDate != null) item.put("endDate", endDate.toString());
+                item.put("historyMode", historyMode);
+                hydrated.add(Map.copyOf(item));
+            } catch (Exception ex) {
+                warnings.add("dataset " + dataset + ": " + safe(ex.getMessage()));
+            }
+        }
+        return List.copyOf(hydrated);
+    }
+
+    private LocalDate queryDate(String query) {
+        if (query == null || query.isBlank()) return null;
+        Matcher matcher = QUERY_DATE.matcher(query);
+        if (!matcher.find()) return null;
+        try {
+            return LocalDate.of(Integer.parseInt(matcher.group(1)),
+                Integer.parseInt(matcher.group(2)), Integer.parseInt(matcher.group(3)));
+        } catch (RuntimeException ignored) {
+            return null;
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -245,14 +318,10 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
     private Map<String, Object> financialIndexGuide(List<Map<String, Object>> assets, String discoveryId) {
         return Map.of(
             "name", "financial-data-asset",
-            "purpose", "Discover governed financial datasets by business meaning before reading observations.",
+            "purpose", "Search governed financial datasets by business meaning and directly read matched observations.",
             "matchedDatasets", assets,
-            "secondStage", Map.of(
-                "tool", "web_search",
-                "requiredArgument", "dataset",
-                "discovery_id", discoveryId,
-                "optionalArguments", List.of("filters", "startDate", "endDate", "historyMode", "limit"),
-                "instruction", "Select the most relevant dataset code above, then call web_search again to read values."));
+            "compatibleDirectQuery", true,
+            "discovery_id", discoveryId);
     }
 
     private List<Map<String, Object>> financialFields(Object rawFields) {

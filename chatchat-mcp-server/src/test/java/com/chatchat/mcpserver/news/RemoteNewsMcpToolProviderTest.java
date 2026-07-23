@@ -21,7 +21,7 @@ class RemoteNewsMcpToolProviderTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void discoversQuoteDatasetWithoutReturningSampleObservations() throws Exception {
+    void directlyQueriesCompatibleQuoteIndexForCompanyQuestion() throws Exception {
         NewsRuntimeClient news = mock(NewsRuntimeClient.class);
         FinancialAssetCatalogService market = mock(FinancialAssetCatalogService.class);
         FinancialDataStore store = mock(FinancialDataStore.class);
@@ -46,12 +46,15 @@ class RemoteNewsMcpToolProviderTest {
         assertThat(output.isSuccess()).isTrue();
         Map<String, Object> data = (Map<String, Object>) output.getData();
         assertThat(data).containsEntry("newsCount", 1)
-            .containsEntry("result_type", "financial_dataset_discovery")
-            .containsEntry("sample_only", true)
-            .containsEntry("requires_second_query", true)
-            .containsEntry("financialDatasetCount", 0)
-            .containsEntry("financialObservationCount", 0);
-        assertThat((List<Map<String, Object>>) data.get("financialData")).isEmpty();
+            .containsEntry("result_type", "unified_search_results")
+            .containsEntry("retrieval_stage", "COMPATIBLE_QUERY")
+            .containsEntry("sample_only", false)
+            .containsEntry("requires_second_query", false)
+            .containsEntry("financialDatasetCount", 1)
+            .containsEntry("financialObservationCount", 1);
+        assertThat((List<Map<String, Object>>) data.get("financialData")).singleElement().satisfies(result ->
+            assertThat((List<Map<String, Object>>) result.get("rows")).singleElement().satisfies(row ->
+                assertThat(row).containsEntry("quote_code", "600029").containsEntry("close", 6.31)));
         assertThat((List<Map<String, Object>>) data.get("financialAssets")).singleElement().satisfies(asset -> {
             assertThat(asset).containsEntry("dataset", "market_quote_daily");
             assertThat((Map<String, Object>) asset.get("followUp")).containsEntry("tool", "web_search");
@@ -60,7 +63,7 @@ class RemoteNewsMcpToolProviderTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void requiresSecondQueryForDiscoveredPingAnQuoteDataset() throws Exception {
+    void returnsPingAnQuoteWithoutDependingOnModelSecondQuery() throws Exception {
         NewsRuntimeClient news = mock(NewsRuntimeClient.class);
         FinancialAssetCatalogService market = mock(FinancialAssetCatalogService.class);
         FinancialDataStore store = mock(FinancialDataStore.class);
@@ -84,16 +87,16 @@ class RemoteNewsMcpToolProviderTest {
 
         assertThat(output.isSuccess()).isTrue();
         Map<String, Object> data = (Map<String, Object>) output.getData();
-        assertThat(data).containsEntry("retrieval_stage", "DISCOVERY")
-            .containsEntry("sample_only", true)
-            .containsEntry("requires_second_query", true)
-            .containsEntry("financialObservationCount", 0)
+        assertThat(data).containsEntry("retrieval_stage", "COMPATIBLE_QUERY")
+            .containsEntry("sample_only", false)
+            .containsEntry("requires_second_query", false)
+            .containsEntry("financialObservationCount", 1)
             .containsKey("discovery_id");
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    void returnsRankedDatasetsInsteadOfGuessingAndExecutingAShareQuery() throws Exception {
+    void directlyQueriesHighestRankedCompatibleDatasetWithoutHardcodedSelection() throws Exception {
         NewsRuntimeClient news = mock(NewsRuntimeClient.class);
         FinancialAssetCatalogService market = mock(FinancialAssetCatalogService.class);
         FinancialDataStore store = mock(FinancialDataStore.class);
@@ -120,8 +123,9 @@ class RemoteNewsMcpToolProviderTest {
         assertThat(output.isSuccess()).isTrue();
         Map<String, Object> data = (Map<String, Object>) output.getData();
         assertThat(data).containsEntry("financialAssetCount", 3)
-            .containsEntry("financialDatasetCount", 0)
-            .containsEntry("requires_second_query", true);
+            .containsEntry("financialDatasetCount", 1)
+            .containsEntry("financialObservationCount", 1)
+            .containsEntry("requires_second_query", false);
         assertThat((List<Map<String, Object>>) data.get("financialAssets"))
             .extracting(item -> item.get("dataset"))
             .containsExactly("market_quote_daily", "index_valuation_daily", "market_statistics_daily");
@@ -169,13 +173,14 @@ class RemoteNewsMcpToolProviderTest {
         assertThat(output.isSuccess()).isTrue();
         Map<String, Object> data = (Map<String, Object>) output.getData();
         assertThat(data).containsEntry("newsCount", 1).containsEntry("financialAssetCount", 1)
-            .containsEntry("financialDatasetCount", 0).containsEntry("financialObservationCount", 0)
-            .containsEntry("result_type", "financial_dataset_discovery")
-            .containsEntry("sample_only", true).containsEntry("requires_second_query", true)
-            .containsEntry("count", 2);
+            .containsEntry("financialDatasetCount", 1).containsEntry("financialObservationCount", 1)
+            .containsEntry("result_type", "unified_search_results")
+            .containsEntry("sample_only", false).containsEntry("requires_second_query", false)
+            .containsEntry("count", 3);
         assertThat((Map<String, Object>) data.get("financialIndex"))
             .containsEntry("name", "financial-data-asset")
-            .containsKey("secondStage");
+            .containsEntry("compatibleDirectQuery", true)
+            .doesNotContainKey("secondStage");
         assertThat((List<Map<String, Object>>) data.get("financialAssets")).singleElement().satisfies(asset -> {
             assertThat(asset).containsEntry("dataset", "etf_scale_daily")
                 .containsEntry("updateFrequency", "每日")
@@ -190,8 +195,8 @@ class RemoteNewsMcpToolProviderTest {
         });
         List<Map<String, Object>> results = (List<Map<String, Object>>) data.get("results");
         assertThat(results).extracting(item -> item.get("resultType"))
-            .containsExactly("news", "financial_data_asset");
-        assertThat(results.get(1)).containsEntry("dataset", "etf_scale_daily")
+            .containsExactly("news", "financial_data", "financial_data_asset");
+        assertThat(results.get(2)).containsEntry("dataset", "etf_scale_daily")
             .containsEntry("storageLocation", "chatchat_market.etf_scale_daily")
             .containsEntry("relevanceScore", 12.5D)
             .containsEntry("readTool", "web_search");
@@ -199,7 +204,7 @@ class RemoteNewsMcpToolProviderTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void discoveryReturnsMultipleRankedDatasetsWithoutReadingRows() throws Exception {
+    void compatibleIndexReadsRowsFromMultipleRankedDatasets() throws Exception {
         NewsRuntimeClient news = mock(NewsRuntimeClient.class);
         FinancialAssetCatalogService market = mock(FinancialAssetCatalogService.class);
         FinancialDataStore store = mock(FinancialDataStore.class);
@@ -228,13 +233,42 @@ class RemoteNewsMcpToolProviderTest {
         assertThat(output.isSuccess()).isTrue();
         Map<String, Object> data = (Map<String, Object>) output.getData();
         assertThat(data).containsEntry("financialAssetCount", 3)
-            .containsEntry("financialDatasetCount", 0)
-            .containsEntry("financialObservationCount", 0)
-            .containsEntry("requires_second_query", true);
+            .containsEntry("financialDatasetCount", 3)
+            .containsEntry("financialObservationCount", 3)
+            .containsEntry("requires_second_query", false);
         List<Map<String, Object>> financialAssets = (List<Map<String, Object>>) data.get("financialAssets");
         assertThat(financialAssets).extracting(item -> item.get("dataset"))
             .containsExactly("market_quote_daily", "index_valuation_daily", "market_statistics_daily");
-        assertThat((List<Map<String, Object>>) data.get("financialData")).isEmpty();
+        List<Map<String, Object>> financialData = (List<Map<String, Object>>) data.get("financialData");
+        assertThat(financialData).extracting(item -> item.get("dataset"))
+            .containsExactly("market_quote_daily", "index_valuation_daily", "market_statistics_daily");
+        assertThat((List<Map<String, Object>>) financialData.get(1).get("rows")).singleElement().satisfies(row ->
+            assertThat(row).doesNotContainKeys("payload_json", "close_history")
+                .containsEntry("close", 4739.23));
+    }
+
+    @Test
+    void extractsRequestedDateAndAppliesItToCompatibleIndexQuery() throws Exception {
+        NewsRuntimeClient news = mock(NewsRuntimeClient.class);
+        FinancialAssetCatalogService market = mock(FinancialAssetCatalogService.class);
+        FinancialDataStore store = mock(FinancialDataStore.class);
+        String query = "生成2026年7月23日A股收盘复盘";
+        when(news.invoke(eq("web_search"), any())).thenReturn(ToolOutput.success(Map.of("results", List.of())));
+        when(market.search(query, 10)).thenReturn(List.of(
+            Map.of("dataset_code", "market_quote_daily", "asset_name", "A股行情")));
+        when(store.query(eq("market_quote_daily"), eq(Map.of()),
+            eq(java.time.LocalDate.parse("2026-07-23")), eq(java.time.LocalDate.parse("2026-07-23")),
+            any(Integer.class), eq("auto")))
+            .thenReturn(Map.of("rows", List.of(Map.of("observation_date", "2026-07-23", "close", 3600))));
+        RemoteNewsMcpToolProvider provider = new RemoteNewsMcpToolProvider(news, market, store);
+
+        ToolOutput output = provider.findExecutor("web_search").orElseThrow().execute(ToolInput.builder()
+            .parameters(Map.of("query", query)).build());
+
+        assertThat(output.isSuccess()).isTrue();
+        assertThat((Map<String, Object>) output.getData())
+            .containsEntry("financialObservationCount", 1)
+            .containsEntry("requires_second_query", false);
     }
 
     @Test

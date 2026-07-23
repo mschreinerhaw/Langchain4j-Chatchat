@@ -33,14 +33,14 @@ class McpLicenseServiceTest {
         KeyPair pair = generator.generateKeyPair();
         String privateKey = pem("PRIVATE KEY", pair.getPrivate().getEncoded());
         String publicKey = pem("PUBLIC KEY", pair.getPublic().getEncoded());
-        Path licenseFile = tempDir.resolve("license.dat");
+        Path licenseFile = tempDir.resolve("LIC-EXPIRED.dat");
         LicenseManager issuer = new LicenseManager(mapper, licenseFile, tempDir.resolve("issuer-server.id"), publicKey);
         LicensePayload expired = new LicensePayload("LIC-EXPIRED", "测试客户", "TEST", "LiveMCP",
             "enterprise", List.of("mcp"), 100, "*", LocalDate.now().minusDays(1),
             Map.of("sql_query", true), LocalDate.now().minusYears(1));
         Files.write(licenseFile, issuer.issue(expired, privateKey, "test-key"));
         LicenseProperties properties = new LicenseProperties();
-        properties.setLicenseFile(licenseFile.toString());
+        properties.setLicenseFile(tempDir.resolve("license.dat").toString());
         properties.setServerIdFile(tempDir.resolve("runtime-server.id").toString());
         properties.setPublicKey(publicKey);
         McpLicenseService service = new McpLicenseService(properties, mapper);

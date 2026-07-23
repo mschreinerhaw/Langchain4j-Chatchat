@@ -25,9 +25,7 @@ public class LicenseCenterController {
     @PostMapping("/issue")
     public IssuedLicense issue(@RequestBody LicensePayload payload) {
         byte[] content = issuanceService.issue(payload);
-        String number = payload.licenseNo() == null || payload.licenseNo().isBlank()
-            ? "license" : payload.licenseNo().replaceAll("[^A-Za-z0-9._-]", "_");
-        return new IssuedLicense(number + ".dat", Base64.getEncoder().encodeToString(content));
+        return new IssuedLicense("license.dat", Base64.getEncoder().encodeToString(content));
     }
 
     @ExceptionHandler(LicenseException.class)

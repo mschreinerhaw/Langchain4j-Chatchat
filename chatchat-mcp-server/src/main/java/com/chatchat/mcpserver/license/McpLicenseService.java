@@ -19,7 +19,7 @@ public class McpLicenseService {
         this.properties = properties;
         this.manager = new LicenseManager(
             objectMapper,
-            Path.of(properties.getLicenseFile()),
+            resolveLicenseFile(Path.of(properties.getLicenseFile())),
             Path.of(properties.getServerIdFile()),
             material(properties.getPublicKey(), properties.getPublicKeyPath())
         );
@@ -73,6 +73,22 @@ public class McpLicenseService {
             return Files.readString(Path.of(path).toAbsolutePath().normalize());
         } catch (Exception ex) {
             throw new IllegalArgumentException("无法读取密钥文件: " + path, ex);
+        }
+    }
+
+    private static Path resolveLicenseFile(Path configured) {
+        Path normalized = configured.toAbsolutePath().normalize();
+        if (Files.isRegularFile(normalized)) return normalized;
+        Path directory = normalized.getParent();
+        if (directory == null || !Files.isDirectory(directory)) return normalized;
+        try (var files = Files.list(directory)) {
+            java.util.List<Path> candidates = files
+                .filter(Files::isRegularFile)
+                .filter(path -> path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".dat"))
+                .toList();
+            return candidates.size() == 1 ? candidates.get(0) : normalized;
+        } catch (Exception ignored) {
+            return normalized;
         }
     }
 }

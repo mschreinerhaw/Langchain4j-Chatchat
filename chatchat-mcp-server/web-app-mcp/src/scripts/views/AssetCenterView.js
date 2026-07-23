@@ -63,6 +63,7 @@ export default {
         { value: 'database_query', label: '业务查询索引' },
         { value: 'api_service', label: 'API 服务索引' },
         { value: 'document_search', label: '文档索引' },
+        { value: 'financial_data_asset', label: '金融数据索引（financial-data-asset）' },
         { value: 'news', label: '新闻资讯索引（OpenSearch）' }
       ],
       assetIndexRebuildOptions: [

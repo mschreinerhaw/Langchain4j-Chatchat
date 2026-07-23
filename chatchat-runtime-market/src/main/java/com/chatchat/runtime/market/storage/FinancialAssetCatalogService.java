@@ -42,14 +42,20 @@ public class FinancialAssetCatalogService {
     }
 
     public int synchronizeExistingCatalog() {
-        if (index == null || !index.available()) return 0;
+        int refreshed = store.refreshCatalogDefinitions();
+        if (index == null || !index.available()) {
+            log.info("financial_asset_catalog_definitions_refreshed definitionsRefreshed={} indexAvailable=false",
+                refreshed);
+            return 0;
+        }
         int indexed = 0;
         try {
             index.ensureIndex(indexName);
             for (String datasetCode : store.catalogCodes()) {
                 if (indexCatalog(datasetCode)) indexed++;
             }
-            log.info("financial_asset_catalog_synchronized index={} documents={}", indexName, indexed);
+            log.info("financial_asset_catalog_synchronized index={} documents={} definitionsRefreshed={}",
+                indexName, indexed, refreshed);
         } catch (Exception ex) {
             log.warn("financial_asset_catalog_synchronization_failed index={} indexed={} error={}",
                 indexName, indexed, ex.getMessage());

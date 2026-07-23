@@ -61,10 +61,16 @@ public record FinancialDatasetDefinition(
 
     private static Map<String, FinancialDatasetDefinition> definitions() {
         Map<String, FinancialDatasetDefinition> values = new LinkedHashMap<>();
-        add(values, "market_quote_daily", "market_quote_daily", "证券及指数行情",
-            "记录证券或指数的开盘、最高、最低、最新/收盘、涨跌幅、成交量和成交额，用于与资讯事件联合分析价格表现和交易活跃度。",
-            List.of("行情", "股价", "指数", "涨跌", "成交量", "成交额"), fields(
-                "trade_date", "交易日期", "security_code", "证券代码", "close", "收盘或最新价", "change_pct", "涨跌幅"));
+        add(values, "market_quote_daily", "market_quote_daily", "证券、指数与A股收盘行情",
+            "记录沪深交易所股票、基金、债券、债券回购、期权和主要指数的前收、开盘、最高、最低、最新/收盘、涨跌幅、成交量和成交额。"
+                + "用于A股收盘复盘、主要指数收盘点位及涨跌表现、市场成交活跃度、领涨领跌证券和行情事件联动分析。",
+            List.of("A股收盘复盘", "收盘报告", "行情", "股价", "主要指数", "收盘点位", "涨跌幅",
+                "振幅", "成交量", "成交额", "股票", "基金", "债券", "回购", "期权"), fields(
+                "trade_date", "交易日期", "quote_code", "证券或指数代码", "quote_name", "证券或指数简称",
+                "instrument_type", "证券品类", "previous_close", "前收盘价", "open", "开盘价",
+                "high", "最高价", "low", "最低价", "close", "收盘或最新价",
+                "change_pct", "涨跌幅", "volume10_k_units", "成交量（万单位）",
+                "amount10_k_cny", "成交额（万元）", "amount100_m_cny", "成交额（亿元）"));
         add(values, "stock_valuation_daily", "stock_valuation_daily", "证券估值",
             "记录证券市盈率、市净率、市销率及市值等估值指标，用于评估价格与基本面的相对水平。",
             List.of("估值", "市盈率", "市净率", "PE", "PB", "市值"), Map.of());
@@ -82,9 +88,11 @@ public record FinancialDatasetDefinition(
             "记录沪深交易所ETF代码、名称、类型和基金份额规模，用于分析ETF资金规模变化。",
             List.of("ETF", "基金规模", "基金份额", "资金流向"), fields(
                 "fund_code", "ETF代码", "fund_scale10_k_units", "基金规模或总份额（万份）"));
-        add(values, "market_statistics_daily", "market_statistics_daily", "交易所市场统计",
-            "记录沪深港市场分板块上市公司数、证券数、市值、市盈率、成交股数和成交金额等官方统计。",
-            List.of("市场统计", "总市值", "流通市值", "平均市盈率", "成交金额", "上市公司数"), Map.of());
+        add(values, "market_statistics_daily", "market_statistics_daily", "交易所市场概览与成交统计",
+            "记录沪深市场分板块上市公司数、证券数、总市值、流通市值、平均市盈率、成交股数和成交金额等官方统计，"
+                + "用于A股收盘复盘中的市场规模、成交额及较前一交易日变化分析。",
+            List.of("A股收盘复盘", "市场表现概览", "市场统计", "市场成交额", "总市值",
+                "流通市值", "平均市盈率", "成交金额", "成交股数", "上市公司数"), Map.of());
         add(values, "bond_market_daily", "bond_market_daily", "交易所每日债券成交情况",
             "记录沪深交易所各债券类别每日成交笔数、成交量、成交金额和加权平均价格等官方统计，用于分析债券市场活跃度与结构变化。",
             List.of("债券", "债券成交", "国债", "公司债", "可转债", "回购", "成交金额"), fields(

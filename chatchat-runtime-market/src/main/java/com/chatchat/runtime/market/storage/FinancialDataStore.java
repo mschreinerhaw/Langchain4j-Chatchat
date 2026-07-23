@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.TemporalAdjusters;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -30,6 +31,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /** Owns schema registration, safe DDL evolution and bounded reads of structured financial observations. */
@@ -38,6 +41,7 @@ public class FinancialDataStore {
     private static final Logger log = LoggerFactory.getLogger(FinancialDataStore.class);
     private static final ZoneId SHANGHAI = ZoneId.of("Asia/Shanghai");
     private static final Set<String> RESERVED = Set.of("key", "value", "date", "year", "month", "order", "group", "rank");
+    private static final Pattern SIX_DIGIT_CODE = Pattern.compile("(?<!\\d)([0-9]{6})(?!\\d)");
     private final JdbcTemplate jdbc;
     private final DataSource dataSource;
     private final ObjectMapper mapper;
@@ -82,6 +86,14 @@ public class FinancialDataStore {
             + "business_description varchar(1000), schema_version integer not null, created_at timestamp not null, "
             + "updated_at timestamp not null, constraint uk_data_schema_field unique(dataset_code, field_name))");
         ensureIndex("data_schema_registry", "idx_data_schema_dataset", "dataset_code");
+        jdbc.execute("create table if not exists security_master ("
+            + identity("id") + " primary key, exchange_code varchar(8) not null, security_code varchar(16) not null, "
+            + "security_name varchar(160) not null, security_full_name varchar(300), security_type varchar(32) not null, "
+            + "board_name varchar(64), listing_date date, industry_name varchar(160), source_url varchar(1000) not null, "
+            + "source_refreshed_at timestamp not null, created_at timestamp not null, updated_at timestamp not null, "
+            + "constraint uk_security_master_code unique(exchange_code, security_code))");
+        ensureIndex("security_master", "idx_security_master_code", "security_code");
+        ensureIndex("security_master", "idx_security_master_name", "security_name");
     }
 
     public synchronized StoredObservation store(MarketObservation item) {
@@ -154,6 +166,188 @@ public class FinancialDataStore {
 
     public List<String> catalogCodes() {
         return jdbc.queryForList("select dataset_code from market_asset_catalog order by dataset_code", String.class);
+    }
+
+    /**
+     * Refreshes the business vocabulary independently from data ingestion so
+     * description and keyword improvements become searchable after deployment.
+     */
+    public synchronized int refreshCatalogDefinitions() {
+        int refreshed = 0;
+        for (String code : catalogCodes()) {
+            FinancialDatasetDefinition definition = FinancialDatasetDefinition.byCode(code);
+            if (definition == null) continue;
+            try {
+                String tags = mapper.writeValueAsString(definition.keywords());
+                int updated = jdbc.update("update market_asset_catalog set asset_name=?,business_description=?,"
+                        + "business_tags_json=?,table_name=?,update_frequency=?,updated_at=? where dataset_code=?",
+                    definition.name(), definition.description(), tags, definition.tableName(),
+                    definition.updateFrequency(), java.sql.Timestamp.from(Instant.now()), definition.code());
+                if (updated > 0) refreshed++;
+                definition.fieldDescriptions().forEach((field, description) ->
+                    jdbc.update("update data_schema_registry set business_description=?,updated_at=? "
+                            + "where dataset_code=? and field_name=?",
+                        description, java.sql.Timestamp.from(Instant.now()), definition.code(), field));
+            } catch (Exception ex) {
+                throw new IllegalStateException("Failed to refresh financial catalog definition: " + code, ex);
+            }
+        }
+        return refreshed;
+    }
+
+    /**
+     * Replaces one exchange's official security directory without exposing a partially empty table to readers.
+     */
+    public synchronized int replaceSecurityMaster(String exchangeCode, Collection<SecurityMasterRecord> records) {
+        String exchange = exchangeCode == null ? "" : exchangeCode.trim().toUpperCase(Locale.ROOT);
+        if (exchange.isBlank() || records == null || records.isEmpty()) return 0;
+        Timestamp refreshedAt = Timestamp.from(Instant.now().truncatedTo(ChronoUnit.SECONDS));
+        String columns = "(exchange_code,security_code,security_name,security_full_name,security_type,board_name,"
+            + "listing_date,industry_name,source_url,source_refreshed_at,created_at,updated_at)";
+        String placeholders = "(?,?,?,?,?,?,?,?,?,?,?,?)";
+        String sql = mysql
+            ? "insert into security_master " + columns + " values " + placeholders
+                + " on duplicate key update security_name=values(security_name),"
+                + "security_full_name=values(security_full_name),security_type=values(security_type),"
+                + "board_name=values(board_name),listing_date=values(listing_date),industry_name=values(industry_name),"
+                + "source_url=values(source_url),source_refreshed_at=values(source_refreshed_at),updated_at=values(updated_at)"
+            : "merge into security_master " + columns + " key(exchange_code,security_code) values " + placeholders;
+        List<Object[]> batch = records.stream().filter(record -> record != null
+                && record.securityCode() != null && !record.securityCode().isBlank()
+                && record.securityName() != null && !record.securityName().isBlank())
+            .map(record -> new Object[] {
+                exchange, record.securityCode().trim(), record.securityName().trim(), blankToNull(record.securityFullName()),
+                blankToDefault(record.securityType(), "STOCK"), blankToNull(record.boardName()),
+                record.listingDate() == null ? null : Date.valueOf(record.listingDate()), blankToNull(record.industryName()),
+                blankToDefault(record.sourceUrl(), "official-exchange-directory"), refreshedAt, refreshedAt, refreshedAt
+            }).toList();
+        if (batch.isEmpty()) return 0;
+        jdbc.batchUpdate(sql, batch);
+        jdbc.update("delete from security_master where exchange_code=? and source_refreshed_at<?", exchange, refreshedAt);
+        return batch.size();
+    }
+
+    /** Resolves a name fragment with a parameterized SQL LIKE query before querying quote observations. */
+    public List<String> findSecurityCodes(String nameOrCode, int limit) {
+        String term = nameOrCode == null ? "" : nameOrCode.trim();
+        if (term.isBlank()) return List.of();
+        int bounded = Math.max(1, Math.min(limit, 20));
+        String like = "%" + term.toLowerCase(Locale.ROOT) + "%";
+        return jdbc.queryForList("select security_code from security_master "
+                + "where lower(security_code)=? or lower(security_name) like ? or lower(security_full_name) like ? "
+                + "order by case when lower(security_code)=? then 0 when lower(security_name)=? then 1 "
+                + "when lower(security_name) like ? then 2 else 3 end, exchange_code, security_code limit ?",
+            String.class, term.toLowerCase(Locale.ROOT), like, like, term.toLowerCase(Locale.ROOT),
+            term.toLowerCase(Locale.ROOT), term.toLowerCase(Locale.ROOT) + "%", bounded);
+    }
+
+    /**
+     * Resolves entities mentioned by the Agent against registered fields and stored data.
+     * No company, index, dataset or natural-language phrase is embedded in this resolver.
+     */
+    public List<Map<String, Object>> resolveEntityFilters(String datasetCode, String query, int requestedLimit) {
+        String text = query == null ? "" : query.trim();
+        if (text.isBlank()) return List.of();
+        int limit = Math.max(1, Math.min(requestedLimit, 20));
+        String code = FinancialDatasetDefinition.normalizeCode(datasetCode);
+        Map<String, Object> asset = catalog(code);
+        if (asset.isEmpty()) return List.of();
+        Map<String, String> schema = schemaFields(code);
+        FieldPair pair = entityFieldPair(schema.keySet());
+        if (pair == null) return List.of();
+
+        LinkedHashMap<String, EntityMention> mentions = new LinkedHashMap<>();
+        String table = identifier(String.valueOf(asset.get("table_name")));
+        if (!pair.nameField().isBlank() && tableExists(table)) {
+            String codeColumn = columnName(pair.codeField());
+            String nameColumn = columnName(pair.nameField());
+            String sql = "select distinct `" + codeColumn + "`,`" + nameColumn + "` from `" + table + "` "
+                + "where `" + nameColumn + "` is not null and `" + nameColumn + "`<>'' "
+                + "and lower(?) like concat('%',lower(`" + nameColumn + "`),'%') "
+                + "order by length(`" + nameColumn + "`) desc limit ?";
+            for (Map<String, Object> row : jdbc.queryForList(sql, text.toLowerCase(Locale.ROOT), limit)) {
+                addMention(mentions, row.get(codeColumn), row.get(nameColumn));
+            }
+        }
+        if (mentions.size() < limit) {
+            String sql = "select security_code,security_name from security_master "
+                + "where security_name<>'' and (lower(?) like concat('%',lower(security_name),'%') "
+                + "or (security_full_name is not null and security_full_name<>'' "
+                + "and lower(?) like concat('%',lower(security_full_name),'%'))) "
+                + "order by length(security_name) desc limit ?";
+            for (Map<String, Object> row : jdbc.queryForList(
+                sql, text.toLowerCase(Locale.ROOT), text.toLowerCase(Locale.ROOT), limit)) {
+                addMention(mentions, row.get("security_code"), row.get("security_name"));
+            }
+        }
+
+        List<Map<String, Object>> filters = new ArrayList<>();
+        for (EntityMention mention : mentions.values()) {
+            Map<String, Object> filter = new LinkedHashMap<>();
+            filter.put(pair.codeField(), mention.code());
+            if (!pair.nameField().isBlank()) filter.put(pair.nameField() + "_like", mention.name());
+            filters.add(Map.copyOf(filter));
+            if (filters.size() >= limit) break;
+        }
+        Matcher matcher = SIX_DIGIT_CODE.matcher(text);
+        while (filters.size() < limit && matcher.find()) {
+            String explicitCode = matcher.group(1);
+            if (filters.stream().noneMatch(item -> explicitCode.equals(String.valueOf(item.get(pair.codeField()))))) {
+                filters.add(Map.of(pair.codeField(), explicitCode));
+            }
+        }
+        return List.copyOf(filters);
+    }
+
+    /**
+     * Removes entity aliases maintained in security master so the asset index ranks business intent
+     * rather than the company name. The original question is still used for news and row filtering.
+     */
+    public String assetSearchQuery(String query, int requestedLimit) {
+        String original = query == null ? "" : query.trim();
+        if (original.isBlank()) return original;
+        int limit = Math.max(1, Math.min(requestedLimit, 20));
+        String sql = "select security_name,security_full_name from security_master "
+            + "where security_name<>'' and (lower(?) like concat('%',lower(security_name),'%') "
+            + "or (security_full_name is not null and security_full_name<>'' "
+            + "and lower(?) like concat('%',lower(security_full_name),'%'))) "
+            + "order by greatest(length(security_name),coalesce(length(security_full_name),0)) desc limit ?";
+        String result = original;
+        for (Map<String, Object> row : jdbc.queryForList(
+            sql, original.toLowerCase(Locale.ROOT), original.toLowerCase(Locale.ROOT), limit)) {
+            result = removeLiteralIgnoreCase(result, String.valueOf(row.getOrDefault("security_full_name", "")));
+            result = removeLiteralIgnoreCase(result, String.valueOf(row.getOrDefault("security_name", "")));
+        }
+        result = result.replaceAll("\\s+", " ").trim();
+        return result.isBlank() ? original : result;
+    }
+
+    private String removeLiteralIgnoreCase(String source, String target) {
+        if (source == null || target == null || target.isBlank()) return source;
+        return Pattern.compile(Pattern.quote(target.trim()), Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE)
+            .matcher(source).replaceAll(" ");
+    }
+
+    private void addMention(Map<String, EntityMention> mentions, Object rawCode, Object rawName) {
+        String code = rawCode == null ? "" : String.valueOf(rawCode).trim();
+        String name = rawName == null ? "" : String.valueOf(rawName).trim();
+        if (!code.isBlank() && !name.isBlank()) mentions.putIfAbsent(code + "|" + name, new EntityMention(code, name));
+    }
+
+    private FieldPair entityFieldPair(Set<String> fields) {
+        return fields.stream()
+            .filter(field -> field.endsWith("_code"))
+            .map(codeField -> new FieldPair(codeField, codeField.substring(0, codeField.length() - 5) + "_name"))
+            .filter(pair -> fields.contains(pair.nameField()))
+            .sorted(Comparator.comparing(FieldPair::codeField))
+            .findFirst()
+            .orElseGet(() -> fields.stream().filter(field -> field.endsWith("_code"))
+                .sorted().map(field -> new FieldPair(field, "")).findFirst().orElse(null));
+    }
+
+    public int securityMasterCount() {
+        Integer count = jdbc.queryForObject("select count(*) from security_master", Integer.class);
+        return count == null ? 0 : count;
     }
 
     public Map<String, Object> query(String datasetCode, Map<String, Object> filters,
@@ -576,6 +770,13 @@ public class FinancialDataStore {
     private String identity(String name) {
         return name + (mysql ? " bigint auto_increment" : " bigint generated by default as identity");
     }
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+    private String blankToDefault(String value, String fallback) {
+        String normalized = blankToNull(value);
+        return normalized == null ? fallback : normalized;
+    }
     private String textType() { return mysql ? "longtext" : "clob"; }
     private String sqlType(FieldType type) {
         return switch (type) {
@@ -615,6 +816,11 @@ public class FinancialDataStore {
     enum FieldType { STRING, DECIMAL, BOOLEAN, DATE, JSON }
     record ColumnValue(String name, String sourceName, FieldType type, Object value) { }
     record FilterField(String field, boolean like) { }
+    private record EntityMention(String code, String name) { }
+    private record FieldPair(String codeField, String nameField) { }
+    public record SecurityMasterRecord(String securityCode, String securityName, String securityFullName,
+                                       String securityType, String boardName, LocalDate listingDate,
+                                       String industryName, String sourceUrl) { }
     public record StoredObservation(String datasetCode, String tableName, String recordKey,
                                     LocalDate observationDate, LocalDate collectedDate) { }
     public record RetentionRunResult(LocalDate runDate, int archivedRows, int deletedHotRows,

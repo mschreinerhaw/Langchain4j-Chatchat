@@ -261,17 +261,18 @@ public class NewsSourcePresetCatalog {
     private Preset szseDailySnapshot() {
         String code = "szse_daily_snapshot";
         String name = "深圳证券交易所每日市场快照";
-        String url = "https://www.szse.cn/market/overview/index.html";
+        String url = "https://www.szse.cn/market/trend/index.html";
         return new Preset(code, name,
             "采集深交所市场总貌、股票/基金/债券每日概况，以及股票、基金、债券、回购、期权和指数行情；按游标分页，同一交易日和业务键重复采集时覆盖更新。",
-            new SourceUpsert(code, name, "EXCHANGE_DAILY_SNAPSHOT", url, "szse.cn", "0 */10 * * * *", true,
+            new SourceUpsert(code, name, "EXCHANGE_DAILY_SNAPSHOT", url, "szse.cn", "0 0 8 * * *", true,
                 Map.ofEntries(
-                    Map.entry("presetVersion", 3), Map.entry("provider", "SZSE"),
+                    Map.entry("presetVersion", 4), Map.entry("provider", "SZSE"),
                     Map.entry("providerName", "深圳证券交易所"),
                     Map.entry("szseReportApiUrl", "https://www.szse.cn/api/report/ShowReport/data"),
                     Map.entry("quotePageUrl", "https://www.szse.cn/market/trend/index.html"),
-                    Map.entry("lookbackDays", 10), Map.entry("snapshotPagesPerRun", 25),
-                    Map.entry("sleepMillis", 500), Map.entry("requestRetries", 3), Map.entry("timeoutMillis", 30000),
+                    Map.entry("lookbackDays", 10), Map.entry("snapshotPagesPerRun", 5000),
+                    Map.entry("snapshotBatchSize", 500), Map.entry("sleepMillis", 500),
+                    Map.entry("requestRetries", 5), Map.entry("timeoutMillis", 60000),
                     Map.entry("zoneId", "Asia/Shanghai"), Map.entry("language", "zh-CN"),
                     Map.entry("legalRisk", false),
                     Map.entry("legalDisclaimer", "数据来自深圳证券交易所官方公开页面，仅用于内部市场研究和资讯检索，不构成投资建议；请以深交所最新披露为准。"))), null);

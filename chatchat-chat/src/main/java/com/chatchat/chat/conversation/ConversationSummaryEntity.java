@@ -33,7 +33,7 @@ public class ConversationSummaryEntity {
     private String sessionId;
 
     @Lob
-    @Column(name = "summary", nullable = false)
+    @Column(name = "summary", nullable = false, columnDefinition = "LONGTEXT")
     private String summary;
 
     @Column(name = "message_start_id", length = 64, nullable = false)

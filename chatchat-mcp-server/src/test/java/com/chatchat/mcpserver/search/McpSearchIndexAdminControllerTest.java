@@ -4,7 +4,9 @@ import com.chatchat.common.response.ApiResponse;
 import com.chatchat.mcpserver.database.DatabaseQueryConfigService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import com.chatchat.mcpserver.sql.SqlMetadataSearchService;
+import com.chatchat.runtime.market.storage.FinancialAssetCatalogService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
@@ -27,6 +29,7 @@ class McpSearchIndexAdminControllerTest {
     private final DatabaseQueryConfigService databaseQueryConfigService = mock(DatabaseQueryConfigService.class);
     private final SqlDatasourceConfigService datasourceConfigService = mock(SqlDatasourceConfigService.class);
     private final DocumentSearchAdminClient documentSearchAdminClient = mock(DocumentSearchAdminClient.class);
+    private final FinancialAssetCatalogService financialAssetCatalogService = mock(FinancialAssetCatalogService.class);
     private final McpSearchIndexAdminController controller = new McpSearchIndexAdminController(
         assetIndexService,
         templateIndexService,
@@ -35,8 +38,37 @@ class McpSearchIndexAdminControllerTest {
         databaseQueryConfigService,
         datasourceConfigService,
         documentSearchAdminClient,
+        financialAssetCatalogService,
         new ObjectMapper()
     );
+
+    @Test
+    void searchesFinancialDataAssetIndex() {
+        when(financialAssetCatalogService.search("行情", 10)).thenReturn(List.of(Map.of(
+            "dataset_code", "market_quote_daily",
+            "asset_name", "交易所每日行情",
+            "business_description", "股票、基金、债券、回购、期权和指数行情",
+            "database_name", "live_runtime_mcp",
+            "table_name", "market_quote_daily"
+        )));
+
+        ApiResponse<Map<String, Object>> response = controller.search(Map.of(
+            "indexType", "financial-data-asset",
+            "query", "行情",
+            "limit", 10
+        ));
+
+        verify(financialAssetCatalogService).search("行情", 10);
+        assertThat(response.getData())
+            .containsEntry("indexType", "financial_data_asset")
+            .containsEntry("physicalIndex", "financial-data-asset")
+            .containsEntry("count", 1);
+        assertThat((List<?>) response.getData().get("results")).singleElement()
+            .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
+            .containsEntry("name", "交易所每日行情")
+            .containsEntry("assetType", "financial_data")
+            .containsEntry("table", "market_quote_daily");
+    }
 
     @ParameterizedTest
     @CsvSource({

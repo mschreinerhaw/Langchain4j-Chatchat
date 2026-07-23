@@ -341,7 +341,6 @@ public class AgentScheduledTaskService {
         scheduledTaskRepository.delete(entity);
     }
 
-    @Transactional
     public ScheduledTaskRunResponse rerun(String tenantId, String scheduledTaskId) {
         ScheduledTaskEntity entity = getForTenant(tenantId, scheduledTaskId);
         validateNotExpired(entity, Instant.now());
@@ -395,8 +394,10 @@ public class AgentScheduledTaskService {
         );
     }
 
-    @Transactional
     public int scanDueTasks() {
+        // Keep the scheduler scan outside a single transaction. Each repository write is
+        // committed independently so a slow Agent submission or notification cannot hold
+        // scheduled_task_run row locks for the duration of the whole scan.
         Instant now = Instant.now();
         int changed = expireActiveTasks(now);
         changed += observeRunningRuns(now);
@@ -443,7 +444,7 @@ public class AgentScheduledTaskService {
 
     private int observeRunningRuns(Instant now) {
         List<ScheduledTaskRunEntity> running = scheduledTaskRunRepository
-            .findByStatusOrderByUpdatedAtAsc("RUNNING", batchPage());
+            .findByStatusInOrderByUpdatedAtAsc(List.of("RUNNING", "COMPLETING"), batchPage());
         int changed = 0;
         for (ScheduledTaskRunEntity run : running) {
             if (run.getTaskId() == null || run.getTaskId().isBlank()) {
@@ -479,7 +480,6 @@ public class AgentScheduledTaskService {
      * Reconciles a scheduled run as soon as its Agent task reaches a terminal state.
      * The periodic scheduler scan remains as a recovery mechanism for missed events.
      */
-    @Transactional
     public void reconcileTerminalTask(String taskId) {
         if (taskId == null || taskId.isBlank()) {
             return;
@@ -494,7 +494,8 @@ public class AgentScheduledTaskService {
         }
         Optional<ScheduledTaskRunEntity> scheduledRun = scheduledTaskRunRepository
             .findFirstByTaskIdOrderByFireTimeDesc(taskId);
-        if (scheduledRun.isEmpty() || !"RUNNING".equals(normalizeStatus(scheduledRun.get().getStatus()))) {
+        if (scheduledRun.isEmpty()
+            || !Set.of("RUNNING", "COMPLETING").contains(normalizeStatus(scheduledRun.get().getStatus()))) {
             return;
         }
         ScheduledTaskRunEntity run = scheduledRun.get();
@@ -517,6 +518,11 @@ public class AgentScheduledTaskService {
     }
 
     private boolean claimRunCompletion(ScheduledTaskRunEntity run) {
+        // A previous process may have committed the claim and stopped before persisting
+        // the terminal result. COMPLETING is therefore a recoverable, idempotent state.
+        if ("COMPLETING".equals(normalizeStatus(run.getStatus()))) {
+            return true;
+        }
         if (scheduledTaskRunRepository.claimCompletion(run.getRunId()) != 1) {
             log.debug("Skipped Agent run completion already claimed by another scheduler instance runId={}",
                 run.getRunId());

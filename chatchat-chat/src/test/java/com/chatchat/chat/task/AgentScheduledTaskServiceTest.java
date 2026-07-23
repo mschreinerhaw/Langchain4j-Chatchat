@@ -20,6 +20,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -89,6 +90,54 @@ class AgentScheduledTaskServiceTest {
         assertThat(schedule.getNextFireTime()).isNotNull();
         verify(runRepository).claimCompletion("run-1");
         verify(repository).save(schedule);
+    }
+
+    @Test
+    void terminalTaskEventRecoversPreviouslyClaimedCompletionWithoutReclaimingRow() {
+        ScheduledTaskRepository repository = mock(ScheduledTaskRepository.class);
+        ScheduledTaskRunRepository runRepository = mock(ScheduledTaskRunRepository.class);
+        AgentTaskLatestRepository latestRepository = mock(AgentTaskLatestRepository.class);
+
+        AgentTaskLatestEntity latest = new AgentTaskLatestEntity();
+        latest.setTaskId("agent-task-2");
+        latest.setStatus("SUCCESS");
+        latest.setAnswerSummary("done");
+
+        ScheduledTaskRunEntity run = new ScheduledTaskRunEntity();
+        run.setRunId("run-2");
+        run.setScheduledTaskId("schedule-2");
+        run.setTaskId("agent-task-2");
+        run.setStatus("COMPLETING");
+        run.setManualRun(true);
+        run.setFireTime(Instant.now().minusSeconds(5));
+
+        when(latestRepository.findById("agent-task-2")).thenReturn(Optional.of(latest));
+        when(runRepository.findFirstByTaskIdOrderByFireTimeDesc("agent-task-2")).thenReturn(Optional.of(run));
+        when(repository.findById("schedule-2")).thenReturn(Optional.empty());
+        when(runRepository.save(any(ScheduledTaskRunEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AgentScheduledTaskService service = new AgentScheduledTaskService(
+            repository,
+            runRepository,
+            latestRepository,
+            mock(AgentTaskService.class),
+            new ObjectMapper(),
+            new AgentTaskProperties(),
+            mock(McpTradingCalendarClient.class),
+            mock(McpNotificationClient.class),
+            mock(TenantNotificationRecipientService.class),
+            mock(EnterpriseAdminService.class),
+            mock(SkillCatalogService.class),
+            mock(NotificationContentFormatter.class),
+            new AgentScheduleWindowPolicy()
+        );
+
+        service.reconcileTerminalTask("agent-task-2");
+
+        assertThat(run.getStatus()).isEqualTo("SUCCESS");
+        assertThat(run.getAnswerSummary()).isEqualTo("done");
+        verify(runRepository, never()).claimCompletion("run-2");
+        verify(runRepository).save(run);
     }
 
     @Test

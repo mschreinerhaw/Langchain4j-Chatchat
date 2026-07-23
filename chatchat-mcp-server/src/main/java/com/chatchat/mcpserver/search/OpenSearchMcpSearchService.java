@@ -895,7 +895,8 @@ public class OpenSearchMcpSearchService {
         if (!enabled()) return;
         String index = rawIndexName(rawIndexName);
         Map<String, Object> fields = new LinkedHashMap<>();
-        for (String field : List.of("title", "description", "business_description")) {
+        for (String field : List.of("title", "description", "business_description",
+            "business_tags_json", "search_text")) {
             fields.put(field, Map.of("type", "text"));
         }
         for (String field : List.of("dataset_code", "table_name", "archive_table_name", "storage_location",
@@ -917,6 +918,7 @@ public class OpenSearchMcpSearchService {
         Map<String, Object> document = new LinkedHashMap<>(catalog == null ? Map.of() : catalog);
         document.put("title", firstText(textValue(document.get("asset_name")), datasetCode));
         document.put("description", firstText(textValue(document.get("business_description")), ""));
+        document.put("search_text", marketCatalogSearchText(document, datasetCode));
         document.put("storage_location", firstText(textValue(document.get("database_name")), "") + "."
             + firstText(textValue(document.get("table_name")), ""));
         String archiveTable = firstText(textValue(document.get("archive_table_name")), "");
@@ -932,13 +934,40 @@ public class OpenSearchMcpSearchService {
         if (!enabled()) return List.of();
         String index = rawIndexName(rawIndexName);
         Map<String, Object> body = Map.of("size", Math.max(1, Math.min(limit, 50)), "query", Map.of("multi_match", Map.of(
-            "query", query, "fields", List.of("title^4", "description^3", "business_description^2", "dataset_code"))));
+            "query", query, "fields", List.of("title^5", "description^4", "business_description^4",
+                "search_text^3", "business_tags_json^2", "fields.business_description^2",
+                "fields.field_name", "fields.source_field", "dataset_code"))));
         JsonNode response = searchRequest("POST", "/" + index + "/_search", body);
         List<Map<String, Object>> result = new ArrayList<>();
         for (JsonNode hit : response.path("hits").path("hits")) {
-            result.add(objectMapper.convertValue(hit.path("_source"), Map.class));
+            Map<String, Object> item = new LinkedHashMap<>(
+                objectMapper.convertValue(hit.path("_source"), Map.class));
+            item.put("relevance_score", hit.path("_score").asDouble(0.0D));
+            item.put("physical_index", hit.path("_index").asText(index));
+            result.add(Map.copyOf(item));
         }
         return List.copyOf(result);
+    }
+
+    private String marketCatalogSearchText(Map<String, Object> document, String datasetCode) {
+        List<String> values = new ArrayList<>();
+        values.add(datasetCode);
+        for (String key : List.of("asset_name", "title", "business_description", "description",
+            "business_tags_json", "update_frequency", "history_granularity")) {
+            String value = textValue(document.get(key)).trim();
+            if (!value.isBlank()) values.add(value);
+        }
+        Object fields = document.get("fields");
+        if (fields instanceof Iterable<?> iterable) {
+            for (Object item : iterable) {
+                if (!(item instanceof Map<?, ?> field)) continue;
+                for (String key : List.of("field_name", "source_field", "business_description")) {
+                    String value = textValue(field.get(key)).trim();
+                    if (!value.isBlank()) values.add(value);
+                }
+            }
+        }
+        return String.join(" ", values);
     }
 
     private String rawIndexName(String value) {

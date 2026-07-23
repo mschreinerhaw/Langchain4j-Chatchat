@@ -496,3 +496,14 @@
       primary key (id), unique key uk_data_schema_field (dataset_code, field_name),
       key idx_data_schema_dataset (dataset_code)
     ) engine=InnoDB default charset=utf8mb4;
+
+    create table if not exists security_master (
+      id bigint not null auto_increment, exchange_code varchar(8) not null,
+      security_code varchar(16) not null, security_name varchar(160) not null,
+      security_full_name varchar(300), security_type varchar(32) not null,
+      board_name varchar(64), listing_date date, industry_name varchar(160),
+      source_url varchar(1000) not null, source_refreshed_at datetime(6) not null,
+      created_at datetime(6) not null, updated_at datetime(6) not null,
+      primary key (id), unique key uk_security_master_code (exchange_code, security_code),
+      key idx_security_master_code (security_code), key idx_security_master_name (security_name)
+    ) engine=InnoDB default charset=utf8mb4;

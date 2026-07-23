@@ -448,8 +448,8 @@
                         <template v-for="paramField in [databaseParamConfigField()]" :key="paramField?.key || 'flow-inputs'">
                           <template v-if="paramField">
                             <div class="database-flow-side-head">
-                              <div><strong>对外输入参数</strong><small>仅展示主动添加的功能参数和内置参数；SQL 参数不会自动汇总到这里</small></div>
-                              <el-button type="primary" plain size="small" @click="addDatabaseFlowInput(paramField)">新增参数</el-button>
+                              <div><strong>对外输入参数</strong><small>统一维护流程测试入参；可从所有启用 SQL 自动汇总</small></div>
+                              <div class="database-node-config-actions"><el-button plain size="small" @click="syncDatabaseFlowInputsFromSql(paramField)">同步参数</el-button><el-button type="primary" plain size="small" @click="addDatabaseFlowInput(paramField)">新增参数</el-button></div>
                             </div>
                             <div
                               v-for="(param, paramIndex) in schemaDraft[paramField.key]"
@@ -468,12 +468,13 @@
                                 <div><el-tag type="success" effect="plain">内置日期变量</el-tag><el-button plain type="danger" size="small" @click="removeDatabaseParamEntry(paramField, paramIndex)">删除</el-button></div>
                               </template>
                               <template v-else>
-                                <el-input v-model="param.testValue" :placeholder="databaseParamRequiresTestValue(param) ? '流程测试值（测试必填）' : '流程测试值（选填）'" />
+                                <el-autocomplete v-model="param.testValue" class="w-100" :fetch-suggestions="databaseDateFunctionSuggestions" clearable :placeholder="databaseParamRequiresTestValue(param) ? '流程测试值（测试必填）' : '流程测试值（选填）'" />
+                                <small class="database-flow-input-hint">可填写固定值，或使用 ${today}、${month_start}、${trade_date-1} 等系统日期函数。</small>
                                 <small v-if="databaseParameterValidationAttempted && databaseParamTestValueMissing(param)" class="database-flow-input-error">请填写该必填参数的流程测试值</small>
                                 <div><el-checkbox v-model="param.required" @change="handleDatabaseFlowInputRequiredChange(param)">设为必填</el-checkbox><el-button plain type="danger" size="small" @click="removeDatabaseParamEntry(paramField, paramIndex)">删除</el-button></div>
                               </template>
                             </div>
-                            <div v-if="!schemaDraft[paramField.key]?.length" class="database-compact-empty">尚未添加对外输入。各 SQL 将使用各自独立的参数配置。</div>
+                            <div v-if="!schemaDraft[paramField.key]?.length" class="database-compact-empty">尚未添加流程输入。点击“同步参数”可汇总所有启用 SQL 的占位参数。</div>
                           </template>
                         </template>
                       </div>

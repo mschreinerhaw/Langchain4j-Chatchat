@@ -88,6 +88,16 @@ export default {
         { value: 'trade_date-1', label: '上一交易日 trade_date-1' },
         { value: 'trade_date+1', label: '下一交易日 trade_date+1' }
       ],
+      databaseDateFunctionOptions: [
+        '${today}',
+        '${natural_date}',
+        '${month}',
+        '${month_start}',
+        '${month_end}',
+        '${trade_date}',
+        '${trade_date-1}',
+        '${trade_date+1}'
+      ],
       editingId: ''
     };
   },
@@ -911,6 +921,130 @@ export default {
         defaultSource: 'user_input',
         description: 'User-defined workflow input'
       });
+    },
+    syncDatabaseFlowInputsFromSql(field) {
+      if (!field) return;
+      const workflowField = this.formFields.find(item => item.type === 'databaseSqlSteps');
+      if (!workflowField) {
+        this.$emit('error', '当前数据库查询未配置 SQL 流程');
+        return;
+      }
+      const allSteps = normalizeDatabaseSqlSteps(this.form[workflowField.key], this.form.sqlTemplate);
+      const steps = allSteps.filter(step => step.enabled !== false);
+      if (!steps.length) {
+        this.$emit('error', '当前没有启用的 SQL 步骤');
+        return;
+      }
+      const rows = [...(this.schemaDraft[field.key] || [])];
+      const rowsByName = new Map(rows
+        .map(row => [String(row?.name || '').trim(), row])
+        .filter(([name]) => Boolean(name)));
+      const usages = new Map();
+      let added = 0;
+      let reused = 0;
+      let dynamic = 0;
+      let upstream = 0;
+      steps.forEach(step => {
+        const mappings = [...(step.parameterMappings || [])];
+        const mappingsByName = new Map(mappings
+          .filter(mapping => mapping?.parameter)
+          .map(mapping => [String(mapping.parameter).trim(), mapping]));
+        extractDatabaseQueryParameters(step.sqlContent).forEach(param => {
+          const usage = usages.get(param.name) || new Set();
+          usage.add(step.sqlName || step.sqlCode);
+          usages.set(param.name, usage);
+          let mapping = mappingsByName.get(param.name);
+          if (param.dynamic) {
+            if (!mapping) {
+              mapping = {
+                parameter: param.name, sourceType: 'SYSTEM_CONTEXT', sourceKey: param.defaultSource,
+                sourceNode: '', sourceExpression: '$.rows[0]', defaultValue: '', required: false
+              };
+              mappings.push(mapping);
+              mappingsByName.set(param.name, mapping);
+            } else if (String(mapping.sourceType || '').toUpperCase() !== 'UPSTREAM_RESULT') {
+              Object.assign(mapping, {
+                sourceType: 'SYSTEM_CONTEXT', sourceKey: param.defaultSource,
+                sourceNode: '', defaultValue: '', required: false
+              });
+            }
+            let row = rowsByName.get(param.name);
+            if (!row) {
+              row = databaseParamRow({
+                name: param.name, type: 'string', required: false,
+                defaultSource: param.defaultSource, description: '系统日期参数'
+              });
+              rows.push(row);
+              rowsByName.set(param.name, row);
+              added += 1;
+            } else {
+              row.defaultSource = param.defaultSource;
+              row.required = false;
+              row.testValue = '';
+              reused += 1;
+            }
+            dynamic += 1;
+            return;
+          }
+          if (mapping && String(mapping.sourceType || '').toUpperCase() === 'UPSTREAM_RESULT') {
+            upstream += 1;
+            return;
+          }
+          const previousValue = mapping?.defaultValue ?? '';
+          if (!mapping) {
+            mapping = {
+              parameter: param.name, sourceType: 'USER_INPUT', sourceKey: param.name,
+              sourceNode: '', sourceExpression: '$.rows[0]', defaultValue: '', required: true
+            };
+            mappings.push(mapping);
+            mappingsByName.set(param.name, mapping);
+          } else {
+            Object.assign(mapping, {
+              sourceType: 'USER_INPUT', sourceKey: param.name,
+              sourceNode: '', sourceExpression: '$.rows[0]', defaultValue: '', required: true
+            });
+          }
+          let row = rowsByName.get(param.name);
+          if (!row) {
+            row = databaseParamRow({
+              name: param.name, type: 'string', required: true, defaultSource: 'user_input',
+              testValue: previousValue || param.example,
+              description: 'SQL 流程统一输入参数'
+            });
+            rows.push(row);
+            rowsByName.set(param.name, row);
+            added += 1;
+          } else {
+            row.defaultSource = 'user_input';
+            row.required = true;
+            if (this.isEmptyFieldValue(row.testValue) && previousValue) row.testValue = previousValue;
+            reused += 1;
+          }
+        });
+        step.parameterMappings = mappings;
+      });
+      rows.forEach(row => {
+        const names = usages.get(String(row?.name || '').trim());
+        if (names?.size) row.description = `SQL 流程参数；使用步骤：${[...names].join('、')}`;
+      });
+      this.schemaDraft[field.key] = rows;
+      this.form[workflowField.key] = allSteps;
+      this.reconcileDatabaseFlowInputs(field, steps);
+      this.$emit('notify', {
+        title: '流程参数同步完成',
+        message: [
+          `新增 ${added} 个`,
+          `复用 ${reused} 个`,
+          dynamic ? `系统日期 ${dynamic} 个` : '',
+          upstream ? `保留上游参数 ${upstream} 个` : ''
+        ].filter(Boolean).join('；')
+      });
+    },
+    databaseDateFunctionSuggestions(query, callback) {
+      const keyword = String(query || '').trim().toLowerCase();
+      callback(this.databaseDateFunctionOptions
+        .filter(value => !keyword || value.toLowerCase().includes(keyword))
+        .map(value => ({ value })));
     },
     removeDatabaseParamEntry(field, index) {
       const rows = this.schemaDraft[field.key] || [];

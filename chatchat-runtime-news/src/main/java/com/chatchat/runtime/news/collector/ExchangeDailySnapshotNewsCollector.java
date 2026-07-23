@@ -1,6 +1,7 @@
 package com.chatchat.runtime.news.collector;
 
 import com.chatchat.runtime.news.config.NewsRuntimeProperties;
+import com.chatchat.runtime.news.http.ProxyAwareHttpClientFactory;
 import com.chatchat.runtime.news.model.NewsCollectContext;
 import com.chatchat.runtime.news.model.NewsCollectResult;
 import com.chatchat.runtime.news.model.NewsSource;
@@ -52,7 +53,7 @@ public class ExchangeDailySnapshotNewsCollector implements NewsCollector {
     public ExchangeDailySnapshotNewsCollector(NewsItemSink sink, ObjectMapper mapper,
                                                NewsRuntimeProperties properties) {
         this(sink, mapper, properties,
-            HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build());
+            ProxyAwareHttpClientFactory.builder().followRedirects(HttpClient.Redirect.NORMAL).build());
     }
 
     ExchangeDailySnapshotNewsCollector(NewsItemSink sink, ObjectMapper mapper,
@@ -270,11 +271,13 @@ public class ExchangeDailySnapshotNewsCollector implements NewsCollector {
         SnapshotCursor cursor = SnapshotCursor.parse(rawCursor, date);
         if (cursor.complete) return date + "|complete";
         int pageBudget = intConfig(source, "snapshotPagesPerRun", 50);
+        int batchSize = Math.max(20, intConfig(source, "snapshotBatchSize", 500));
         int used = 0;
         for (int specIndex = cursor.specIndex; specIndex < SZSE_SNAPSHOT_SPECS.size(); specIndex++) {
             SzseSnapshotSpec spec = SZSE_SNAPSHOT_SPECS.get(specIndex);
             int page = specIndex == cursor.specIndex ? cursor.page : 1;
             boolean completedSpec = false;
+            List<Map<String, Object>> batch = new ArrayList<>(batchSize);
             while (used < pageBudget) {
                 Map<String, String> params = new LinkedHashMap<>();
                 params.put("txtBeginDate", date);
@@ -283,9 +286,15 @@ public class ExchangeDailySnapshotNewsCollector implements NewsCollector {
                 JsonNode tab = szseTab(source, spec.catalogId, spec.tabKey, params);
                 JsonNode rows = tab.path("data");
                 int pageCount = Math.max(1, tab.path("metadata").path("pagecount").asInt(1));
-                List<Map<String, Object>> quotes = new ArrayList<>();
-                if (rows.isArray()) for (JsonNode row : rows) quotes.add(szseQuote(row, spec, date));
-                if (!quotes.isEmpty()) accept(counters, quotePage(source, "SZSE", spec.instrumentType, date, quotes));
+                if (rows.isArray()) {
+                    for (JsonNode row : rows) {
+                        batch.add(szseQuote(row, spec, date));
+                        if (batch.size() >= batchSize) {
+                            accept(counters, quotePage(source, "SZSE", spec.instrumentType, date, batch));
+                            batch.clear();
+                        }
+                    }
+                }
                 used++;
                 page++;
                 if (page > pageCount) {
@@ -293,6 +302,7 @@ public class ExchangeDailySnapshotNewsCollector implements NewsCollector {
                     break;
                 }
             }
+            if (!batch.isEmpty()) accept(counters, quotePage(source, "SZSE", spec.instrumentType, date, batch));
             if (used >= pageBudget) {
                 int nextSpec = completedSpec ? specIndex + 1 : specIndex;
                 if (nextSpec >= SZSE_SNAPSHOT_SPECS.size()) return date + "|complete";

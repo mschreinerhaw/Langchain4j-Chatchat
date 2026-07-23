@@ -16,6 +16,8 @@ import java.net.InetSocketAddress;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -94,7 +96,8 @@ class ExchangeDailySnapshotNewsCollectorTest {
         var result = collector(items).collect(source, new NewsCollectContext("szse-daily", Instant.now()));
 
         assertThat(result.failedCount()).isZero();
-        assertThat(result.nextCursor()).isEqualTo("2026-07-22|1|1");
+        assertThat(result.nextCursor()).isEqualTo(
+            LocalDate.now(ZoneId.of("Asia/Shanghai")) + "|1|1");
         assertThat(items).extracting(item -> item.metadata().get("datasetCode"))
             .contains("market_statistics_daily", "bond_market_daily", "market_quote_daily");
     }

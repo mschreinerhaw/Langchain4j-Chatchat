@@ -15,23 +15,15 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.UUID;
 
 /** The only public search tool; it composes independent news and market runtimes. */
 @Component
 public class RemoteNewsMcpToolProvider implements McpToolProvider {
-    private static final Pattern SECURITY_CODE = Pattern.compile("(?<!\\d)([0-9]{6})(?!\\d)");
-    private static final Pattern SECURITY_NAME_WITH_CODE = Pattern.compile(
-        "(?:^|[\\s,，;；])([\\p{IsHan}A-Za-z*]{2,16})\\s*[（(]\\s*[0-9]{6}\\s*[）)]");
-    private static final Pattern SECURITY_NAME_WITH_INTENT = Pattern.compile(
-        "^(?:(?:请)?(?:查询|查看|分析))?\\s*([\\p{IsHan}A-Za-z*]{2,12}?)(?:股票)?(?:的)?(?:行情|股价)(?:查询|分析)?$");
     private final NewsRuntimeClient newsClient;
     private final FinancialAssetCatalogService marketCatalog;
     private final FinancialDataStore marketStore;
@@ -43,7 +35,10 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         this.marketCatalog = marketCatalog;
         this.marketStore = marketStore;
         McpToolDefinition webSearch = definition("web_search", "Unified Web Search",
-            "Searches news and financial data assets. Matching financial assets are automatically resolved to compact governed observations; pass dataset explicitly only for a focused follow-up query.",
+            "Two-stage search for news and governed financial data. The first call searches news plus the "
+                + "financial-data-asset catalog and returns matched datasets, business descriptions, available fields, "
+                + "freshness and relevance scores. To read authoritative values, call web_search again with the exact "
+                + "dataset code and optional filters/date range returned by the first call.",
             List.of(text("query", "News topic, business question, or financial data keywords", false),
                 number("num_results", "Maximum number of unified search results to return", 10, 1, 50),
                 text("dataset", "Optional dataset code returned by a financial_data_asset result", false),
@@ -51,6 +46,7 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
                 text("startDate", "Optional observation start date in YYYY-MM-DD", false),
                 text("endDate", "Optional observation end date in YYYY-MM-DD", false),
                 text("historyMode", "Storage tier: auto (default), daily (7-day hot data), or weekly (snapshots)", false),
+                text("discovery_id", "Discovery identifier returned by the first call; pass it back for retrieval-chain auditing", false),
                 number("limit", "Maximum observation rows to return when dataset is provided", 50, 1, 200)), true, 30);
         this.definitions = Map.of(webSearch.name(), webSearch);
     }
@@ -80,7 +76,19 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
                 data.put("resultView", "compact_model_context");
                 data.put("provider", "chatchat-mcp-market");
                 data.put("mode", "financial_dataset_query");
-                return ToolOutput.success(data, "Financial dataset query completed");
+                data.put("result_type", "financial_dataset_query");
+                data.put("retrieval_stage", "EXECUTION");
+                data.put("sample_only", false);
+                data.put("requires_second_query", false);
+                data.put("empty_result", compactRows.isEmpty());
+                String discoveryId = input.getParameterAsString("discovery_id", "").trim();
+                if (!discoveryId.isBlank()) data.put("discovery_id", discoveryId);
+                ToolOutput result = ToolOutput.success(data, "Financial dataset query completed");
+                result.getMetadata().put("financialRetrievalStage", "EXECUTION");
+                result.getMetadata().put("financialDataset", dataset);
+                result.getMetadata().put("financialEmptyResult", compactRows.isEmpty());
+                if (!discoveryId.isBlank()) result.getMetadata().put("financialDiscoveryId", discoveryId);
+                return result;
             } catch (Exception ex) {
                 return ToolOutput.failure(ex);
             }
@@ -88,6 +96,9 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
 
         String query = input.getParameterAsString("query", "").trim();
         if (query.isBlank()) return ToolOutput.failure("query parameter is required when dataset is absent");
+        String financialAssetQuery = marketStore.assetSearchQuery(query, 10);
+        if (financialAssetQuery == null || financialAssetQuery.isBlank()) financialAssetQuery = query;
+        String discoveryId = UUID.randomUUID().toString();
         int limit = bounded(input.getParameterAsNumber("num_results"), 10, 1, 50);
         List<Map<String, Object>> news = List.of();
         List<Map<String, Object>> assets = List.of();
@@ -100,7 +111,9 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
             warnings.add("news: " + safe(ex.getMessage()));
         }
         try {
-            assets = marketCatalog.search(query, limit).stream().map(this::assetResult).toList();
+            String chainId = discoveryId;
+            assets = marketCatalog.search(financialAssetQuery, limit).stream()
+                .map(source -> assetResult(source, chainId)).toList();
         } catch (Exception ex) {
             warnings.add("market: " + safe(ex.getMessage()));
         }
@@ -108,163 +121,36 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
             return ToolOutput.failure("Both news and market search are unavailable: " + String.join("; ", warnings));
         }
 
-        List<Map<String, Object>> financialData = hydrateFinancialData(query, assets, input, warnings);
-        List<Map<String, Object>> marketResults = new ArrayList<>(financialData);
-        marketResults.addAll(assets);
-        List<Map<String, Object>> results = interleave(news, marketResults, limit);
+        List<Map<String, Object>> results = interleave(news, assets, limit);
         List<String> urls = results.stream().map(item -> item.get("url")).filter(String.class::isInstance)
             .map(String.class::cast).filter(value -> !value.isBlank()).distinct().toList();
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("query", query);
+        data.put("financialAssetQuery", financialAssetQuery);
+        data.put("discovery_id", discoveryId);
+        data.put("result_type", "financial_dataset_discovery");
+        data.put("retrieval_stage", "DISCOVERY");
+        data.put("sample_only", true);
+        data.put("requires_second_query", !assets.isEmpty());
         data.put("provider", "chatchat-unified-search");
-        data.put("mode", "unified_news_and_financial_asset_search");
+        data.put("mode", "unified_news_and_financial_asset_discovery");
         data.put("count", results.size());
         data.put("newsCount", news.size());
         data.put("financialAssetCount", assets.size());
-        data.put("financialDatasetCount", financialData.size());
-        data.put("financialObservationCount", financialData.stream()
-            .mapToInt(item -> ((Number) item.getOrDefault("count", 0)).intValue()).sum());
-        data.put("financialData", financialData);
+        data.put("financialAssets", assets);
+        data.put("financialIndex", financialIndexGuide(assets, discoveryId));
+        data.put("financialDatasetCount", 0);
+        data.put("financialObservationCount", 0);
+        data.put("financialData", List.of());
         data.put("results", results);
         data.put("reference_urls", urls);
         if (!warnings.isEmpty()) data.put("warnings", warnings);
-        return ToolOutput.success(data, "Unified search completed");
-    }
-
-    private List<Map<String, Object>> hydrateFinancialData(String query, List<Map<String, Object>> assets,
-                                                            ToolInput input, List<String> warnings) {
-        List<String> datasets = relevantDatasets(query, assets);
-        if (datasets.isEmpty()) return List.of();
-        LocalDate startDate = date(input.getParameterAsString("startDate", ""));
-        LocalDate endDate = date(input.getParameterAsString("endDate", ""));
-        String historyMode = input.getParameterAsString("historyMode", "auto");
-        int rowLimit = bounded(input.getParameterAsNumber("limit"), 10, 1, 20);
-        List<Map<String, Object>> hydrated = new ArrayList<>();
-        for (String dataset : datasets) {
-            try {
-                List<Map<String, Object>> rows = new ArrayList<>();
-                List<Map<String, Object>> filters = entityFilters(query, dataset);
-                if (filters.isEmpty()) {
-                    rows.addAll(rows(marketStore.query(dataset, Map.of(), startDate, endDate, rowLimit, historyMode)));
-                } else {
-                    for (Map<String, Object> filter : filters) {
-                        rows.addAll(rows(marketStore.query(dataset, filter, startDate, endDate,
-                            Math.min(3, rowLimit), historyMode)));
-                    }
-                }
-                List<Map<String, Object>> compactRows = compactRows(rows, rowLimit);
-                if (compactRows.isEmpty()) {
-                    if (!filters.isEmpty()) warnings.add("dataset " + dataset
-                        + ": no observations matched exact filters " + filters);
-                    continue;
-                }
-                Map<String, Object> asset = assets.stream()
-                    .filter(item -> dataset.equals(item.get("dataset"))).findFirst().orElse(Map.of());
-                Map<String, Object> item = new LinkedHashMap<>();
-                item.put("resultType", "financial_data");
-                item.put("documentKind", "market_observations");
-                item.put("dataset", dataset);
-                item.put("title", firstNonBlank(String.valueOf(asset.getOrDefault("title", "")), dataset)
-                    + "：实际观测数据");
-                item.put("snippet", "已从受治理存储位置读取实际金融数据，不是资产目录元数据。");
-                item.put("count", compactRows.size());
-                item.put("rows", compactRows);
-                if (!filters.isEmpty()) item.put("appliedFilters", filters);
-                item.put("historyMode", historyMode);
-                hydrated.add(item);
-            } catch (Exception ex) {
-                warnings.add("dataset " + dataset + ": " + safe(ex.getMessage()));
-            }
-        }
-        return List.copyOf(hydrated);
-    }
-
-    private List<String> relevantDatasets(String query, List<Map<String, Object>> assets) {
-        Set<String> available = new LinkedHashSet<>();
-        for (Map<String, Object> asset : assets) {
-            String dataset = String.valueOf(asset.getOrDefault("dataset", "")).trim();
-            if (!dataset.isBlank()) available.add(dataset);
-        }
-        if (available.isEmpty()) return List.of();
-        String normalized = query == null ? "" : query.toLowerCase();
-        LinkedHashSet<String> selected = new LinkedHashSet<>();
-        List<String> securityCodes = securityCodes(query);
-        if (!securityCodes.isEmpty() && containsAny(normalized, "行情", "股价", "价格", "涨跌", "成交", "股票", "a股")) {
-            addAvailable(selected, available, "market_quote_daily");
-        } else if (containsAny(normalized, "a股", "股票", "行情", "股价", "大盘", "指数", "上证", "深证", "沪深", "创业板", "科创")) {
-            addAvailable(selected, available, "market_quote_daily", "index_valuation_daily", "market_statistics_daily");
-        }
-        if (!securityCodes.isEmpty() && containsAny(normalized, "估值", "市盈率", "市净率", "pe", "pb")) {
-            addAvailable(selected, available, "stock_valuation_daily");
-        }
-        if (containsAny(normalized, "融资", "融券", "两融")) addAvailable(selected, available, "margin_trade_daily");
-        if (containsAny(normalized, "分红", "送股", "转增", "配股")) addAvailable(selected, available, "stock_dividend_event");
-        if (containsAny(normalized, "etf", "基金规模", "基金份额")) addAvailable(selected, available, "etf_scale_daily");
-        if (containsAny(normalized, "债券", "中债", "收益率", "回购", "结算", "担保品")) {
-            addAvailable(selected, available, "bond_yield_curve_daily", "bond_market_daily",
-                "bond_settlement_daily", "bond_collateral_monthly", "bond_counter_quote_daily");
-        }
-        if (selected.isEmpty()) available.stream().limit(2).forEach(selected::add);
-        return selected.stream().limit(5).toList();
-    }
-
-    private List<Map<String, Object>> entityFilters(String query, String dataset) {
-        if (query == null || query.isBlank()) return List.of();
-        Map<String, String> codes = new LinkedHashMap<>();
-        codes.put("上证指数", "000001");
-        codes.put("沪深300", "000300");
-        codes.put("上证50", "000016");
-        codes.put("科创50", "000688");
-        codes.put("科创综指", "000680");
-        if ("market_quote_daily".equals(dataset)) {
-            codes.put("深证成指", "399001");
-            codes.put("创业板指", "399006");
-            codes.put("深证100", "399330");
-            codes.put("创业板50", "399673");
-        }
-        String field = "index_valuation_daily".equals(dataset) ? "indexCode"
-            : "market_quote_daily".equals(dataset) ? "quoteCode"
-            : Set.of("stock_valuation_daily", "margin_trade_daily", "stock_dividend_event").contains(dataset)
-                ? "securityCode" : "";
-        if (field.isBlank()) return List.of();
-        List<Map<String, Object>> filters = new ArrayList<>();
-        for (String code : securityCodes(query)) filters.add(Map.of(field, code));
-        if ("market_quote_daily".equals(dataset)) {
-            for (String name : securityNames(query)) filters.add(Map.of("quoteNameLike", name));
-        }
-        codes.forEach((name, code) -> {
-            if (query.contains(name) && filters.stream().noneMatch(item -> code.equals(item.get(field)))) {
-                filters.add(Map.of(field, code));
-            }
-        });
-        return filters;
-    }
-
-    private List<String> securityCodes(String query) {
-        if (query == null || query.isBlank()) return List.of();
-        LinkedHashSet<String> codes = new LinkedHashSet<>();
-        Matcher matcher = SECURITY_CODE.matcher(query);
-        while (matcher.find()) codes.add(matcher.group(1));
-        return List.copyOf(codes);
-    }
-
-    private List<String> securityNames(String query) {
-        if (query == null || query.isBlank()) return List.of();
-        LinkedHashSet<String> names = new LinkedHashSet<>();
-        Matcher withCode = SECURITY_NAME_WITH_CODE.matcher(query.trim());
-        while (withCode.find()) addSecurityName(names, withCode.group(1));
-        if (names.isEmpty()) {
-            Matcher withIntent = SECURITY_NAME_WITH_INTENT.matcher(query.trim());
-            if (withIntent.matches()) addSecurityName(names, withIntent.group(1));
-        }
-        return List.copyOf(names);
-    }
-
-    private void addSecurityName(Set<String> names, String candidate) {
-        String name = candidate == null ? "" : candidate.trim();
-        if (name.length() < 2 || Set.of("A股", "股票", "行情", "股价", "大盘", "指数", "今日", "实时", "最新")
-            .contains(name)) return;
-        names.add(name);
+        ToolOutput result = ToolOutput.success(data, "Unified discovery completed; select a dataset and call web_search again");
+        result.getMetadata().put("financialRetrievalStage", "DISCOVERY");
+        result.getMetadata().put("financialDiscoveryId", discoveryId);
+        result.getMetadata().put("financialCandidateDatasetCount", assets.size());
+        result.getMetadata().put("financialSecondQueryRequired", !assets.isEmpty());
+        return result;
     }
 
     @SuppressWarnings("unchecked")
@@ -300,15 +186,6 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         return List.copyOf(unique.values());
     }
 
-    private void addAvailable(Set<String> target, Set<String> available, String... datasets) {
-        for (String dataset : datasets) if (available.contains(dataset)) target.add(dataset);
-    }
-
-    private boolean containsAny(String value, String... tokens) {
-        for (String token : tokens) if (value.contains(token)) return true;
-        return false;
-    }
-
     private String firstNonBlank(String first, String fallback) {
         return first == null || first.isBlank() ? fallback : first;
     }
@@ -319,7 +196,7 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         return values.stream().filter(Map.class::isInstance).map(value -> (Map<String, Object>) value).toList();
     }
 
-    private Map<String, Object> assetResult(Map<String, Object> source) {
+    private Map<String, Object> assetResult(Map<String, Object> source, String discoveryId) {
         String dataset = text(source, "dataset_code", "datasetCode");
         String title = text(source, "title", "asset_name", "assetName");
         String description = text(source, "description", "business_description", "businessDescription");
@@ -339,6 +216,13 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         item.put("dataset", dataset);
         item.put("title", title.isBlank() ? dataset : title);
         item.put("snippet", description);
+        if (source.get("relevance_score") instanceof Number score) {
+            item.put("relevanceScore", score.doubleValue());
+        }
+        item.put("businessTags", source.getOrDefault("business_tags_json", List.of()));
+        item.put("updateFrequency", text(source, "update_frequency", "updateFrequency"));
+        item.put("lastObservationDate", text(source, "last_observation_date", "lastObservationDate"));
+        item.put("availableFields", financialFields(source.get("fields")));
         item.put("storageLocation", storage);
         item.put("archiveStorageLocation", archiveStorage);
         item.put("retentionPolicy", Map.of(
@@ -352,7 +236,50 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         evidence.put("archiveStorageLocation", archiveStorage);
         evidence.put("catalogIndex", "financial-data-asset");
         item.put("evidence", evidence);
+        item.put("followUp", Map.of(
+            "tool", "web_search",
+            "arguments", Map.of("dataset", dataset, "discovery_id", discoveryId, "limit", 50)));
         return item;
+    }
+
+    private Map<String, Object> financialIndexGuide(List<Map<String, Object>> assets, String discoveryId) {
+        return Map.of(
+            "name", "financial-data-asset",
+            "purpose", "Discover governed financial datasets by business meaning before reading observations.",
+            "matchedDatasets", assets,
+            "secondStage", Map.of(
+                "tool", "web_search",
+                "requiredArgument", "dataset",
+                "discovery_id", discoveryId,
+                "optionalArguments", List.of("filters", "startDate", "endDate", "historyMode", "limit"),
+                "instruction", "Select the most relevant dataset code above, then call web_search again to read values."));
+    }
+
+    private List<Map<String, Object>> financialFields(Object rawFields) {
+        if (!(rawFields instanceof Iterable<?> fields)) return List.of();
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Object raw : fields) {
+            if (!(raw instanceof Map<?, ?> field)) continue;
+            String name = firstNonBlank(fieldText(field, "field_name"), fieldText(field, "fieldName"));
+            if (name.isBlank()) continue;
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("name", name);
+            String type = firstNonBlank(fieldText(field, "field_type"), fieldText(field, "fieldType"));
+            if (!type.isBlank()) item.put("type", type);
+            String description = firstNonBlank(
+                fieldText(field, "business_description"), fieldText(field, "businessDescription"));
+            if (!description.isBlank()) item.put("description", description);
+            item.put("exactFilterKey", name);
+            if ("STRING".equalsIgnoreCase(type)) item.put("containsFilterKey", name + "_like");
+            result.add(Map.copyOf(item));
+            if (result.size() >= 40) break;
+        }
+        return List.copyOf(result);
+    }
+
+    private String fieldText(Map<?, ?> field, String key) {
+        Object value = field.get(key);
+        return value == null ? "" : String.valueOf(value);
     }
 
     private List<Map<String, Object>> interleave(List<Map<String, Object>> first,

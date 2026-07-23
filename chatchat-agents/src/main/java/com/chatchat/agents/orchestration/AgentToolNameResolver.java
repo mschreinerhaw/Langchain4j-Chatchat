@@ -109,14 +109,14 @@ class AgentToolNameResolver {
             return null;
         }
         String normalized = toolName.trim();
-        String key = normalized.toLowerCase(Locale.ROOT);
-        if (DOCUMENT_SEARCH_TOOL.equals(key)) {
+        String semantic = toolSemanticKey(normalized);
+        if (DOCUMENT_SEARCH_TOOL.equals(semantic)) {
             return DOCUMENT_SEARCH_TOOL;
         }
-        if (WEB_SEARCH_TOOL.equals(key)) {
+        if (WEB_SEARCH_TOOL.equals(semantic)) {
             return WEB_SEARCH_TOOL;
         }
-        if (SEARCH_AND_EXTRACT_TOOL.equals(key)) {
+        if (SEARCH_AND_EXTRACT_TOOL.equals(semantic)) {
             return SEARCH_AND_EXTRACT_TOOL;
         }
         return normalized;

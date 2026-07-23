@@ -6,6 +6,7 @@ import com.chatchat.mcpserver.database.DatabaseQueryConfigService;
 import com.chatchat.mcpserver.sql.SqlMetadataSearchService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
+import com.chatchat.runtime.market.storage.FinancialAssetCatalogService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ public class McpSearchIndexAdminController {
     private final DatabaseQueryConfigService databaseQueryConfigService;
     private final SqlDatasourceConfigService datasourceConfigService;
     private final DocumentSearchAdminClient documentSearchAdminClient;
+    private final FinancialAssetCatalogService financialAssetCatalogService;
     private final ObjectMapper objectMapper;
 
     @PostMapping("/assets/rebuild")
@@ -155,6 +157,8 @@ public class McpSearchIndexAdminController {
             || "document-search".equalsIgnoreCase(indexType)
             || "documents".equalsIgnoreCase(indexType)) {
             result = documentSearchAdminClient.search(input, limit);
+        } else if (isFinancialDataAssetIndex(indexType)) {
+            result = financialDataAssetSearchResult(input, limit);
         } else {
             Map<String, Object> arguments = new LinkedHashMap<>();
             copy(input, arguments, "query", "q", "tableName", "table_name", "database", "schema", "assetName", "limit", "includeColumns");
@@ -169,6 +173,47 @@ public class McpSearchIndexAdminController {
             result.put("request", arguments);
         }
         return ApiResponse.success(result, "MCP search index query completed");
+    }
+
+    private boolean isFinancialDataAssetIndex(String indexType) {
+        if (indexType == null) return false;
+        String normalized = indexType.trim().toLowerCase(java.util.Locale.ROOT)
+            .replace('-', '_')
+            .replace(':', '_');
+        return "financial_data_asset".equals(normalized)
+            || "financial_data_assets".equals(normalized);
+    }
+
+    private Map<String, Object> financialDataAssetSearchResult(Map<String, Object> request, int limit) {
+        String query = text(firstPresent(request, "query", "q"), "");
+        List<Map<String, Object>> catalogs = financialAssetCatalogService.search(query, limit);
+        if (catalogs == null) catalogs = List.of();
+        List<Map<String, Object>> results = catalogs.stream().map(catalog -> {
+            Map<String, Object> row = new LinkedHashMap<>(catalog);
+            row.put("kind", "financial_data_asset");
+            row.put("assetType", "financial_data");
+            row.put("name", firstText(catalog, "asset_name", "title", "dataset_code"));
+            row.put("description", firstText(catalog, "business_description", "description"));
+            row.put("database", firstText(catalog, "database_name"));
+            row.put("table", firstText(catalog, "table_name"));
+            return row;
+        }).toList();
+        Map<String, Object> value = new LinkedHashMap<>();
+        value.put("indexType", "financial_data_asset");
+        value.put("logicalIndex", "financial-data-asset");
+        value.put("physicalIndex", "financial-data-asset");
+        value.put("count", results.size());
+        value.put("request", request);
+        value.put("results", results);
+        return value;
+    }
+
+    private String firstText(Map<String, Object> value, String... keys) {
+        for (String key : keys) {
+            String text = text(value.get(key), null);
+            if (text != null) return text;
+        }
+        return "";
     }
 
     private String assetTypeForAssetIndex(String indexType) {

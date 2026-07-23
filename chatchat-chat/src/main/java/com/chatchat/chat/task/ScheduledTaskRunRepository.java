@@ -6,6 +6,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
@@ -13,6 +15,7 @@ import java.util.Optional;
 
 public interface ScheduledTaskRunRepository extends JpaRepository<ScheduledTaskRunEntity, String> {
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
         update ScheduledTaskRunEntity run
@@ -22,6 +25,7 @@ public interface ScheduledTaskRunRepository extends JpaRepository<ScheduledTaskR
         """)
     int claimCompletion(@Param("runId") String runId);
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
         update ScheduledTaskRunEntity run
@@ -51,7 +55,7 @@ public interface ScheduledTaskRunRepository extends JpaRepository<ScheduledTaskR
         String tenantId, String userId, String agentId, Pageable pageable
     );
 
-    List<ScheduledTaskRunEntity> findByStatusOrderByUpdatedAtAsc(String status, Pageable pageable);
+    List<ScheduledTaskRunEntity> findByStatusInOrderByUpdatedAtAsc(List<String> statuses, Pageable pageable);
 
     Optional<ScheduledTaskRunEntity> findFirstByTaskIdOrderByFireTimeDesc(String taskId);
 

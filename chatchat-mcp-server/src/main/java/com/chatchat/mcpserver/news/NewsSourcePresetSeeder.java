@@ -120,7 +120,7 @@ public class NewsSourcePresetSeeder {
         var request = new NewsSourcePresetCatalog.SourceUpsert(source.sourceCode(), source.sourceName(),
             legacyCls || outdatedCls || outdatedEastmoney724 || legacyCninfo || outdatedSseAnnouncements || outdatedSzseHome || outdatedCninfoHome
                 ? source.sourceType() : current.path("sourceType").asText(),
-            legacySzse || outdatedSseAnnouncements || outdatedSzseHome || outdatedCninfoHome
+            marketAssetUpgrade || legacySzse || outdatedSseAnnouncements || outdatedSzseHome || outdatedCninfoHome
                 ? source.entryUrl() : current.path("entryUrl").asText(),
             marketAssetUpgrade || missingCollectionDescription || (outdatedSzseHome && LEGACY_SZSE_HOME_DESCRIPTION.equals(currentDescription))
                 ? source.collectionDescription() : currentDescription,

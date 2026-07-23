@@ -242,6 +242,15 @@ class NewsSourcePresetCatalogTest {
                     .containsEntry("itemLimit", 30);
                 assertThat(preset.description()).contains("全部板块", "最新一页", "二级");
             });
+        assertThat(presets).filteredOn(preset -> "szse_daily_snapshot".equals(preset.code())).singleElement()
+            .satisfies(preset -> {
+                assertThat(preset.source().entryUrl()).isEqualTo("https://www.szse.cn/market/trend/index.html");
+                assertThat(preset.source().scheduleCron()).isEqualTo("0 0 8 * * *");
+                assertThat(preset.source().configuration())
+                    .containsEntry("presetVersion", 4)
+                    .containsEntry("snapshotPagesPerRun", 5000)
+                    .containsEntry("snapshotBatchSize", 500);
+            });
         assertThat(presets).allSatisfy(preset -> {
             boolean requiredFinancialSource = java.util.Set.of(
                 "sse_home", "szse_home", "csindex_home", "chinabond_home", "sse_market_data", "szse_market_data",

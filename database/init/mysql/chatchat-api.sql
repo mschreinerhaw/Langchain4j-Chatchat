@@ -96,7 +96,7 @@
         message_end_id varchar(64) not null,
         message_start_id varchar(64) not null,
         session_id varchar(64) not null,
-        summary tinytext not null,
+        summary LONGTEXT not null,
         primary key (id)
     ) engine=InnoDB;
 

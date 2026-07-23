@@ -18,7 +18,6 @@ public class LicenseStartupCheck implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        if (!licenseService.enforcementEnabled()) return;
         if (properties.isFailStartupOnInvalid()) {
             licenseService.requireRuntimeLicense();
             return;

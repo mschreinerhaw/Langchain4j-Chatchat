@@ -48,6 +48,27 @@ class LicenseIssuanceServiceTest {
         assertTrue(new LicenseCrypto(mapper).verify(issued, pem("PUBLIC KEY", pair.getPublic().getEncoded())));
     }
 
+    @Test
+    void createsPersistentKeyPairOnFirstIssue() throws Exception {
+        Path privateKey = tempDir.resolve("keys/license-private.pem");
+        Path publicKey = tempDir.resolve("keys/license-public.pem");
+        LicenseCenterProperties properties = new LicenseCenterProperties();
+        properties.setPrivateKeyPath(privateKey.toString());
+        properties.setPublicKeyPath(publicKey.toString());
+        properties.setKeyId("generated-2026");
+        ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule());
+        LicenseIssuanceService service = new LicenseIssuanceService(properties, mapper);
+        LicensePayload request = new LicensePayload("LIC-AUTO", "Customer", "AUTO", "LiveMCP", "enterprise",
+            List.of("mcp"), 10, "18:3d:2d:68:d9:b6", LocalDate.now().plusYears(1),
+            Map.of("sql_query", true), LocalDate.now());
+
+        LicenseDocument issued = mapper.readValue(service.issue(request), LicenseDocument.class);
+
+        assertTrue(Files.exists(privateKey));
+        assertTrue(Files.exists(publicKey));
+        assertTrue(new LicenseCrypto(mapper).verify(issued, Files.readString(publicKey)));
+    }
+
     private static String pem(String type, byte[] content) {
         return "-----BEGIN " + type + "-----\n"
             + Base64.getMimeEncoder(64, new byte[]{'\n'}).encodeToString(content)

@@ -28,17 +28,16 @@ public class McpLicenseService {
     public LicenseStatus status() { return manager.status(); }
     public String serverId() { return manager.serverId(); }
     public java.util.List<String> macAddresses() { return manager.macAddresses(); }
-    public boolean enforcementEnabled() { return properties.isEnforcementEnabled(); }
+    public boolean enforcementEnabled() { return true; }
     public String currentDocument() { return manager.documentText(); }
-    public boolean hasModule(String module) { return !enforcementEnabled() || manager.hasModule(module); }
-    public boolean hasFeature(String feature) { return !enforcementEnabled() || manager.hasFeature(feature); }
+    public boolean hasModule(String module) { return manager.hasModule(module); }
+    public boolean hasFeature(String feature) { return manager.hasFeature(feature); }
 
     public boolean allowsTool(String toolName) {
         return toolDenialReason(toolName) == null;
     }
 
     public String toolDenialReason(String toolName) {
-        if (!enforcementEnabled()) return null;
         LicenseStatus status = status();
         if (!status.valid()) {
             return switch (status.status()) {
@@ -62,7 +61,6 @@ public class McpLicenseService {
     }
 
     public void requireRuntimeLicense() {
-        if (!enforcementEnabled()) return;
         LicenseStatus status = status();
         if (!status.valid()) throw new LicenseException(status.message());
         if (!manager.hasModule("mcp")) throw new LicenseException("License 未授权 MCP 模块");

@@ -4,15 +4,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "chatchat.license")
 public class LicenseProperties {
-    private boolean enforcementEnabled;
     private boolean failStartupOnInvalid;
     private String licenseFile = "./data/license/license.dat";
     private String serverIdFile = "./data/license/server.id";
     private String publicKey = "";
     private String publicKeyPath = "";
 
-    public boolean isEnforcementEnabled() { return enforcementEnabled; }
-    public void setEnforcementEnabled(boolean value) { this.enforcementEnabled = value; }
     public boolean isFailStartupOnInvalid() { return failStartupOnInvalid; }
     public void setFailStartupOnInvalid(boolean value) { this.failStartupOnInvalid = value; }
     public String getLicenseFile() { return licenseFile; }

@@ -46,14 +46,57 @@ public class LicenseIssuanceService {
         }
     }
 
-    private String privateKey() {
+    private synchronized String privateKey() {
         if (properties.getPrivateKeyPath() == null || properties.getPrivateKeyPath().isBlank()) {
             throw new LicenseException("未配置 License Center 签发私钥");
         }
         try {
-            return Files.readString(Path.of(properties.getPrivateKeyPath()).toAbsolutePath().normalize());
+            Path privateKey = Path.of(properties.getPrivateKeyPath()).toAbsolutePath().normalize();
+            if (!Files.exists(privateKey)) {
+                generateKeyPair(privateKey);
+            }
+            return Files.readString(privateKey);
         } catch (Exception ex) {
+            if (ex instanceof LicenseException licenseException) throw licenseException;
             throw new LicenseException("无法读取 License Center 签发私钥", ex);
+        }
+    }
+
+    private void generateKeyPair(Path privateKey) throws Exception {
+        if (!properties.isAutoGenerateKeys()) {
+            throw new LicenseException("未配置 License Center 签发私钥");
+        }
+        String configuredPublicKey = properties.getPublicKeyPath();
+        Path publicKey = configuredPublicKey == null || configuredPublicKey.isBlank()
+            ? privateKey.resolveSibling("license-public.pem")
+            : Path.of(configuredPublicKey).toAbsolutePath().normalize();
+        if (privateKey.getParent() != null) Files.createDirectories(privateKey.getParent());
+        if (publicKey.getParent() != null) Files.createDirectories(publicKey.getParent());
+
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+        generator.initialize(3072);
+        KeyPair pair = generator.generateKeyPair();
+        Files.writeString(privateKey, pem("PRIVATE KEY", pair.getPrivate().getEncoded()));
+        Files.writeString(publicKey, pem("PUBLIC KEY", pair.getPublic().getEncoded()));
+        restrictPrivateKey(privateKey);
+    }
+
+    private String pem(String type, byte[] content) {
+        return "-----BEGIN " + type + "-----\n"
+            + Base64.getMimeEncoder(64, new byte[]{'\n'}).encodeToString(content)
+            + "\n-----END " + type + "-----\n";
+    }
+
+    private void restrictPrivateKey(Path privateKey) {
+        try {
+            Files.setPosixFilePermissions(privateKey, Set.of(
+                PosixFilePermission.OWNER_READ,
+                PosixFilePermission.OWNER_WRITE
+            ));
+        } catch (UnsupportedOperationException ignored) {
+            // Windows and other non-POSIX file systems use their native ACLs.
+        } catch (Exception ex) {
+            throw new LicenseException("无法限制 License Center 私钥文件权限", ex);
         }
     }
 

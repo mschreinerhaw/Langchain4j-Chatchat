@@ -1,5 +1,10 @@
 server:
   port: ${CHATCHAT_LICENSE_CENTER_PORT:8092}
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
 
 spring:
   application:

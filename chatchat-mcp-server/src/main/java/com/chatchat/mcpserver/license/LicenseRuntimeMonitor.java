@@ -18,7 +18,6 @@ public class LicenseRuntimeMonitor {
     @Scheduled(initialDelayString = "${chatchat.license.status-check-interval-ms:60000}",
         fixedDelayString = "${chatchat.license.status-check-interval-ms:60000}")
     public void checkStatusTransition() {
-        if (!licenseService.enforcementEnabled()) return;
         LicenseStatus current = licenseService.status();
         String previous = previousStatus.getAndSet(current.status());
         if (current.status().equals(previous)) return;

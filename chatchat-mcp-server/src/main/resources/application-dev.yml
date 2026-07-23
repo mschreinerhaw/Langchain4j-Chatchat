@@ -35,12 +35,11 @@ chatchat:
     crypto-key:
     crypto-key-file:
   license:
-    enforcement-enabled: false
     fail-startup-on-invalid: false
     status-check-interval-ms: 60000
     license-file: ./data/license/license.dat
     server-id-file: ./data/license/server.id
-    public-key-path: ${CHATCHAT_LICENSE_PUBLIC_KEY_PATH:}
+    public-key-path: ${CHATCHAT_LICENSE_PUBLIC_KEY_PATH:./data/license/}
   mcp:
     market:
       retention:

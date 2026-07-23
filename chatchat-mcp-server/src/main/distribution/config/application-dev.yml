@@ -31,7 +31,6 @@ chatchat:
     crypto-key:
     crypto-key-file:
   license:
-    enforcement-enabled: false
     fail-startup-on-invalid: false
     status-check-interval-ms: 60000
     license-file: ./data/license/license.dat

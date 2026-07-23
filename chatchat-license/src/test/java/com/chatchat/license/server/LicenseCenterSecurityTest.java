@@ -19,6 +19,14 @@ class LicenseCenterSecurityTest {
     MockMvc mockMvc;
 
     @Test
+    void customLoginPageIsPubliclyAvailable() throws Exception {
+        mockMvc.perform(get("/login.html"))
+            .andExpect(status().isOk())
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("登录授权中心")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("LiveMCP")));
+    }
+
+    @Test
     void anonymousUserCannotOpenInternalLicenseCenter() throws Exception {
         mockMvc.perform(get("/index.html")).andExpect(status().isUnauthorized());
     }

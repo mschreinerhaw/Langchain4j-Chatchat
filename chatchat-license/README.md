@@ -25,6 +25,8 @@ openssl pkey -in license-private.pem -pubout -out license-public.pem
 
 ```text
 CHATCHAT_LICENSE_PRIVATE_KEY_PATH=/secure/license-private.pem
+CHATCHAT_LICENSE_PUBLIC_KEY_PATH=/secure/license-public.pem
+CHATCHAT_LICENSE_AUTO_GENERATE_KEYS=true
 CHATCHAT_LICENSE_KEY_ID=prod-2026
 CHATCHAT_LICENSE_CENTER_USERNAME=license-admin
 CHATCHAT_LICENSE_CENTER_PASSWORD=<strong-password>
@@ -43,7 +45,6 @@ java -jar chatchat-license-1.0.0-SNAPSHOT-server.jar
 ```text
 CHATCHAT_LICENSE_PUBLIC_KEY_PATH=/opt/livemcp/license-public.pem
 CHATCHAT_LICENSE_FILE=/opt/livemcp/license.dat
-CHATCHAT_LICENSE_ENFORCEMENT_ENABLED=true
 CHATCHAT_LICENSE_FAIL_STARTUP_ON_INVALID=false
 CHATCHAT_LICENSE_STATUS_CHECK_INTERVAL_MS=60000
 ```

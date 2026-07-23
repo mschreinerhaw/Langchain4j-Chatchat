@@ -16,9 +16,17 @@ public class LicenseCenterSecurityConfig {
     SecurityFilterChain licenseCenterSecurity(HttpSecurity http) throws Exception {
         return http
             .csrf(csrf -> csrf.disable())
-            .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/login.html", "/login.css", "/login.js").permitAll()
+                .anyRequest().authenticated())
             .httpBasic(Customizer.withDefaults())
-            .formLogin(Customizer.withDefaults())
+            .formLogin(form -> form
+                .loginPage("/login.html")
+                .loginProcessingUrl("/login")
+                .defaultSuccessUrl("/", true)
+                .failureUrl("/login.html?error")
+                .permitAll())
+            .logout(logout -> logout.logoutSuccessUrl("/login.html?logout"))
             .build();
     }
 

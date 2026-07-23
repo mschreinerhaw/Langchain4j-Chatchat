@@ -40,7 +40,6 @@ class McpLicenseServiceTest {
             Map.of("sql_query", true), LocalDate.now().minusYears(1));
         Files.write(licenseFile, issuer.issue(expired, privateKey, "test-key"));
         LicenseProperties properties = new LicenseProperties();
-        properties.setEnforcementEnabled(true);
         properties.setLicenseFile(licenseFile.toString());
         properties.setServerIdFile(tempDir.resolve("runtime-server.id").toString());
         properties.setPublicKey(publicKey);
@@ -52,15 +51,15 @@ class McpLicenseServiceTest {
     }
 
     @Test
-    void transitionModeDoesNotApplyLicenseRestrictions() {
+    void licenseEnforcementCannotBeDisabled() {
         LicenseProperties properties = new LicenseProperties();
-        properties.setEnforcementEnabled(false);
         properties.setLicenseFile(tempDir.resolve("missing.dat").toString());
         properties.setServerIdFile(tempDir.resolve("server.id").toString());
         McpLicenseService service = new McpLicenseService(properties,
             new ObjectMapper().registerModule(new JavaTimeModule()));
 
-        assertThat(service.toolDenialReason("database_query")).isNull();
+        assertThat(service.enforcementEnabled()).isTrue();
+        assertThat(service.toolDenialReason("database_query")).isNotBlank();
     }
 
     private static String pem(String type, byte[] content) {

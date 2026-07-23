@@ -31,7 +31,6 @@ chatchat:
     crypto-key: ${CHATCHAT_INTERNAL_CRYPTO_KEY:}
     crypto-key-file: ${CHATCHAT_INTERNAL_CRYPTO_KEY_FILE:}
   license:
-    enforcement-enabled: ${CHATCHAT_LICENSE_ENFORCEMENT_ENABLED:false}
     fail-startup-on-invalid: ${CHATCHAT_LICENSE_FAIL_STARTUP_ON_INVALID:false}
     status-check-interval-ms: ${CHATCHAT_LICENSE_STATUS_CHECK_INTERVAL_MS:60000}
     license-file: ${CHATCHAT_LICENSE_FILE:./data/license/license.dat}

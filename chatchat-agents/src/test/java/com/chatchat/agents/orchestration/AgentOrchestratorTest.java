@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Method;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +35,117 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentOrchestratorTest {
+
+    @Test
+    void interpretationPlanAttemptsUseOneReviewAndAtMostThreeFullPlans() throws Exception {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        Method attributesMethod = AgentOrchestrator.class.getDeclaredMethod(
+            "workflowAttemptAttributes", Map.class, int.class);
+        attributesMethod.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> attributes = (Map<String, Object>) attributesMethod.invoke(
+            orchestrator, Map.of("existing", true), 2);
+
+        Method maxRewriteMethod = AgentOrchestrator.class.getDeclaredMethod(
+            "maxRewriteTimes", com.chatchat.agents.runtime.plan.InterpretationPlan.class);
+        maxRewriteMethod.setAccessible(true);
+
+        assertThat(attributes)
+            .containsEntry("existing", true)
+            .containsEntry("workflowExecutionAttempt", 2)
+            .containsEntry("toolResultReviewMaxAttempts", 1);
+        assertThat(maxRewriteMethod.invoke(orchestrator, new Object[] {null})).isEqualTo(2);
+    }
+
+    @Test
+    void finalSynthesisPromptSummarizesAllExecutedPlanAttempts() {
+        InterpretationPlanRuntime.ExecutionResult first = attemptResult(
+            "result_unsatisfied", false, "first evidence", "first result was incomplete");
+        InterpretationPlanRuntime.ExecutionResult second = attemptResult(
+            "result_unsatisfied", false, "second evidence", "second result was incomplete");
+        InterpretationPlanRuntime.ExecutionResult third = attemptResult(
+            "success", true, "third evidence", null);
+
+        String prompt = newOrchestrator(mock(ChatModel.class)).buildInterpretationPlanSummaryPrompt(
+            "summarize the evidence",
+            null,
+            third,
+            List.of(first, second, third),
+            List.of(),
+            List.of(),
+            null
+        );
+
+        assertThat(prompt)
+            .contains("Executed plan attempts (3)")
+            .contains("Attempt 1: status=result_unsatisfied, success=false")
+            .contains("Attempt 2: status=result_unsatisfied, success=false")
+            .contains("Attempt 3: status=success, success=true")
+            .contains("first evidence", "second evidence", "third evidence")
+            .contains("reconcile and summarize evidence from all attempts");
+    }
+
+    @Test
+    void partialToolReviewRejectsWholeAttemptSoPlanCanBeRewritten() throws Exception {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        InterpretationPlanRuntime.StepExecution step = new InterpretationPlanRuntime.StepExecution(
+            1,
+            "mcp_tool",
+            "generic_tool",
+            true,
+            Map.of("rows", List.of(Map.of("value", 1))),
+            null,
+            null,
+            null,
+            1L,
+            Map.of(
+                "toolResultReviewSatisfied", false,
+                "toolResultReviewPartialAccepted", true,
+                "toolResultReviewReason", "more evidence is required"
+            )
+        );
+        InterpretationPlanRuntime.ExecutionResult execution = new InterpretationPlanRuntime.ExecutionResult(
+            "success", true, false, null, "partial", List.of(step), Map.of(), 1L);
+        Method method = AgentOrchestrator.class.getDeclaredMethod(
+            "rejectUnsatisfiedInterpretationPlanResult",
+            String.class,
+            InterpretationPlanRuntime.ExecutionResult.class,
+            List.class,
+            Map.class
+        );
+        method.setAccessible(true);
+        List<String> observations = new ArrayList<>();
+        Map<String, Object> metadata = new LinkedHashMap<>();
+
+        InterpretationPlanRuntime.ExecutionResult rejected =
+            (InterpretationPlanRuntime.ExecutionResult) method.invoke(
+                orchestrator, "initial", execution, observations, metadata);
+
+        assertThat(rejected.success()).isFalse();
+        assertThat(rejected.status()).isEqualTo("result_unsatisfied");
+        assertThat(rejected.steps()).isEqualTo(execution.steps());
+        assertThat(observations).anyMatch(value -> value.contains("requires a full plan rewrite"));
+        assertThat(metadata).containsEntry("interpretationPlanResultSatisfied", false);
+    }
+
+    private static InterpretationPlanRuntime.ExecutionResult attemptResult(String status,
+                                                                            boolean success,
+                                                                            String evidence,
+                                                                            String error) {
+        InterpretationPlanRuntime.StepExecution step = new InterpretationPlanRuntime.StepExecution(
+            1,
+            "mcp_tool",
+            "generic_tool",
+            success,
+            Map.of("evidence", evidence),
+            error,
+            null,
+            null,
+            1L
+        );
+        return new InterpretationPlanRuntime.ExecutionResult(
+            status, success, false, error, null, List.of(step), Map.of(), 1L);
+    }
 
     @Test
     void finalSynthesisPromptIncludesCompleteDynamicSqlLongCell() {
@@ -1875,6 +1987,7 @@ class AgentOrchestratorTest {
         properties.setEnforceAllowedTools(true);
         properties.setCircuitBreakerFailureThreshold(3);
         properties.setCircuitBreakerOpenSeconds(30);
+        properties.setDefaultRetryAttempts(0);
         return properties;
     }
 

@@ -1468,7 +1468,7 @@ public class InterpretationPlanRuntime {
                 return 3;
             }
         }
-        return 3;
+        return 1;
     }
 
     private Map<String, Object> executionLock(InterpretationPlan.Step step, StepReview review) {

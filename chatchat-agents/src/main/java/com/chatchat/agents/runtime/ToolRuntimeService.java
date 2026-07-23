@@ -174,6 +174,29 @@ public class ToolRuntimeService {
      * @return the operation result
      */
     public ToolRuntimeExecution execute(ToolRuntimeRequest request) {
+        int retryAttempts = resolveToolRetryAttempts(request);
+        int maxCalls = retryAttempts + 1;
+        ToolRuntimeExecution lastExecution = null;
+        for (int callAttempt = 1; callAttempt <= maxCalls; callAttempt++) {
+            ToolRuntimeRequest attemptRequest = toolRetryRequest(request, callAttempt, maxCalls, retryAttempts);
+            lastExecution = executeOnce(attemptRequest);
+            enrichRetryMetadata(lastExecution, callAttempt, maxCalls, retryAttempts);
+            if (!shouldRetry(lastExecution, callAttempt, maxCalls)) {
+                return lastExecution;
+            }
+            log.info("Retrying tool call tool={} callAttempt={}/{} outcome={} error={}",
+                request == null ? null : request.getToolName(),
+                callAttempt + 1,
+                maxCalls,
+                lastExecution == null ? null : lastExecution.outcome(),
+                lastExecution == null || lastExecution.output() == null
+                    ? null
+                    : lastExecution.output().getErrorMessage());
+        }
+        return lastExecution;
+    }
+
+    private ToolRuntimeExecution executeOnce(ToolRuntimeRequest request) {
         String toolName = normalizeText(request == null ? null : request.getToolName());
         if (toolName == null) {
             return deniedExecution("unknown", request, null, "Tool name is required", "INVALID_REQUEST", null, null);
@@ -226,7 +249,7 @@ public class ToolRuntimeService {
                 executionPlan,
                 policyDecision);
         }
-        if (isCircuitOpen(toolName, policy)) {
+        if (isCircuitOpen(toolName, policy) && !isToolRetryContinuation(request)) {
             return rejectedExecution(toolName, request, metadata,
                 "Tool circuit is open: " + toolName,
                 "TOOL_CIRCUIT_OPEN",
@@ -290,6 +313,102 @@ public class ToolRuntimeService {
         } finally {
             toolCounters.activeCalls.decrementAndGet();
         }
+    }
+
+    private int resolveToolRetryAttempts(ToolRuntimeRequest request) {
+        Map<String, Object> attributes = request == null || request.getAttributes() == null
+            ? Map.of()
+            : request.getAttributes();
+        Object configured = firstPresent(
+            attributes.get("toolRetryAttempts"),
+            attributes.get("toolRetryCount"),
+            attributes.get("maxToolRetries")
+        );
+        if (configured == null) {
+            Map<String, Object> workflow = asMap(attributes.get("mcpWorkflow"));
+            Map<String, Object> strategy = asMap(firstPresent(
+                workflow.get("executionStrategy"),
+                workflow.get("execution_strategy")
+            ));
+            configured = firstPresent(
+                strategy.get("toolRetryAttempts"),
+                strategy.get("tool_retry_attempts"),
+                strategy.get("toolRetryCount"),
+                strategy.get("maxToolRetries")
+            );
+        }
+        Integer parsed = integerValue(configured);
+        int fallback = properties.safeDefaultRetryAttempts();
+        return parsed == null ? fallback : Math.max(0, Math.min(5, parsed));
+    }
+
+    private ToolRuntimeRequest toolRetryRequest(ToolRuntimeRequest request,
+                                                int callAttempt,
+                                                int maxCalls,
+                                                int retryAttempts) {
+        if (request == null) {
+            return null;
+        }
+        Map<String, Object> attributes = new LinkedHashMap<>(
+            request.getAttributes() == null ? Map.of() : request.getAttributes());
+        String workflowAttempt = firstText(
+            stringValue(firstPresent(
+                attributes.get("workflowExecutionAttempt"),
+                attributes.get("interpretationPlanAttempt"),
+                attributes.get("workflowAttempt")
+            )),
+            "0"
+        );
+        attributes.put("toolRetryAttempt", callAttempt - 1);
+        attributes.put("toolRetryAttempts", retryAttempts);
+        attributes.put("toolCallAttempt", callAttempt);
+        attributes.put("toolCallMaxAttempts", maxCalls);
+        attributes.put("workflowExecutionAttempt", workflowAttempt + ".tool-call-" + callAttempt);
+        return ToolRuntimeRequest.builder()
+            .toolName(request.getToolName())
+            .runtimeMode(request.getRuntimeMode())
+            .requestId(request.getRequestId())
+            .conversationId(request.getConversationId())
+            .tenantId(request.getTenantId())
+            .userId(request.getUserId())
+            .allowedTools(request.getAllowedTools())
+            .toolInput(request.getToolInput())
+            .attributes(attributes)
+            .build();
+    }
+
+    private void enrichRetryMetadata(ToolRuntimeExecution execution,
+                                     int callAttempt,
+                                     int maxCalls,
+                                     int retryAttempts) {
+        if (execution == null || execution.output() == null) {
+            return;
+        }
+        if (execution.output().getMetadata() == null) {
+            execution.output().setMetadata(new LinkedHashMap<>());
+        }
+        execution.output().getMetadata().put("toolRetryAttempt", callAttempt - 1);
+        execution.output().getMetadata().put("toolRetryAttempts", retryAttempts);
+        execution.output().getMetadata().put("toolCallAttempt", callAttempt);
+        execution.output().getMetadata().put("toolCallMaxAttempts", maxCalls);
+    }
+
+    private boolean shouldRetry(ToolRuntimeExecution execution, int callAttempt, int maxCalls) {
+        if (callAttempt >= maxCalls || execution == null || execution.output() == null) {
+            return false;
+        }
+        if (execution.output().isSuccess() || !"failed".equalsIgnoreCase(execution.outcome())) {
+            return false;
+        }
+        return execution.output().getMetadata() == null
+            || !Boolean.FALSE.equals(execution.output().getMetadata().get("retryable"));
+    }
+
+    private boolean isToolRetryContinuation(ToolRuntimeRequest request) {
+        Integer callAttempt = integerValue(request == null || request.getAttributes() == null
+            ? null
+            : request.getAttributes().get("toolCallAttempt"));
+        return callAttempt != null && callAttempt > 1;
     }
 
     private void enrichToolInputContext(ToolRuntimeRequest request, ToolInput toolInput) {

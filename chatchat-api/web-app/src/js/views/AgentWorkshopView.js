@@ -115,6 +115,7 @@ function defaultWorkflowConfig() {
       mode: "sequential",
       stopOnError: true,
       maxSteps: 6,
+      toolRetryAttempts: 3,
       allowParallel: false
     },
     steps: [],
@@ -1235,6 +1236,10 @@ export default {
         ...(base.executionStrategy || {})
       };
       base.executionStrategy.maxSteps = Math.max(0, Math.min(50, Number(base.executionStrategy.maxSteps) || selected.length || 6));
+      base.executionStrategy.toolRetryAttempts = Math.max(
+        0,
+        Math.min(5, Number(base.executionStrategy.toolRetryAttempts ?? 3))
+      );
       const existingSteps = Array.isArray(base.steps) ? base.steps : [];
       const byTool = new Map(existingSteps
         .filter((step) => step?.tool || step?.toolName)

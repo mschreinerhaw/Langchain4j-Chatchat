@@ -22,6 +22,94 @@ import static org.mockito.Mockito.when;
 class ToolRuntimeServiceTest {
 
     @Test
+    void defaultsToThreeToolRetries() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata("unstable_tool")).thenReturn(ToolMetadata.builder()
+            .id("unstable_tool")
+            .title("Unstable Tool")
+            .build());
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.failure("temporary failure"));
+        ToolRuntimeProperties retryProperties = new ToolRuntimeProperties();
+        retryProperties.setCircuitBreakerFailureThreshold(10);
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry,
+            new ObjectMapper(),
+            retryProperties,
+            List.of(),
+            List.of()
+        );
+
+        ToolRuntimeExecution execution = service.execute(ToolRuntimeRequest.builder()
+            .toolName("unstable_tool")
+            .runtimeMode("agent_chat")
+            .requestId("req-default-tool-retry")
+            .conversationId("conv-default-tool-retry")
+            .userId("user-1")
+            .allowedTools(List.of("unstable_tool"))
+            .toolInput(ToolInput.builder().userId("user-1").parameters(Map.of()).build())
+            .build());
+
+        assertThat(execution.output().isSuccess()).isFalse();
+        assertThat(execution.output().getMetadata())
+            .containsEntry("toolRetryAttempts", 3)
+            .containsEntry("toolCallAttempt", 4)
+            .containsEntry("toolCallMaxAttempts", 4);
+        verify(toolRegistry, times(4)).executeEnhancedTool(any(), any());
+    }
+
+    @Test
+    void workflowPageConfigurationControlsToolRetries() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata("recovering_tool")).thenReturn(ToolMetadata.builder()
+            .id("recovering_tool")
+            .title("Recovering Tool")
+            .build());
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenReturn(
+            ToolOutput.failure("temporary failure"),
+            ToolOutput.success("recovered")
+        );
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry,
+            new ObjectMapper(),
+            new ToolRuntimeProperties(),
+            List.of(),
+            List.of()
+        );
+
+        ToolRuntimeExecution execution = service.execute(ToolRuntimeRequest.builder()
+            .toolName("recovering_tool")
+            .runtimeMode("agent_chat")
+            .requestId("req-configured-tool-retry")
+            .conversationId("conv-configured-tool-retry")
+            .userId("user-1")
+            .allowedTools(List.of("recovering_tool"))
+            .toolInput(ToolInput.builder().userId("user-1").parameters(Map.of()).build())
+            .attributes(Map.of(
+                "mcpWorkflow", Map.of(
+                    "enabled", true,
+                    "workflow", "retry_workflow",
+                    "executionStrategy", Map.of(
+                        "mode", "sequential",
+                        "stopOnError", true,
+                        "toolRetryAttempts", 1
+                    ),
+                    "steps", List.of(
+                        Map.of("step", 1, "tool", "recovering_tool", "required", true)
+                    )
+                )
+            ))
+            .build());
+
+        assertThat(execution.output().isSuccess()).isTrue();
+        assertThat(execution.output().getDataAsString()).isEqualTo("recovered");
+        assertThat(execution.output().getMetadata())
+            .containsEntry("toolRetryAttempts", 1)
+            .containsEntry("toolCallAttempt", 2)
+            .containsEntry("toolCallMaxAttempts", 2);
+        verify(toolRegistry, times(2)).executeEnhancedTool(any(), any());
+    }
+
+    @Test
     void deniesToolOutsideAllowedPolicy() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.getToolMetadata("sql_query")).thenReturn(ToolMetadata.builder()
@@ -839,6 +927,7 @@ class ToolRuntimeServiceTest {
         properties.setEnforceAllowedTools(true);
         properties.setCircuitBreakerFailureThreshold(3);
         properties.setCircuitBreakerOpenSeconds(30);
+        properties.setDefaultRetryAttempts(0);
         return properties;
     }
 

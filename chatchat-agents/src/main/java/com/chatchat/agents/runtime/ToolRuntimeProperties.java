@@ -21,6 +21,7 @@ public class ToolRuntimeProperties {
     private int circuitBreakerOpenSeconds = 60;
     private int topToolLimit = 6;
     private long defaultToolTimeoutMs = 60_000;
+    private int defaultRetryAttempts = 3;
     private int executionCorePoolSize = 4;
     private int executionMaxPoolSize = 32;
     private int executionQueueCapacity = 256;
@@ -41,5 +42,9 @@ public class ToolRuntimeProperties {
 
     public int safeExecutionQueueCapacity() {
         return Math.max(1, executionQueueCapacity);
+    }
+
+    public int safeDefaultRetryAttempts() {
+        return Math.max(0, Math.min(5, defaultRetryAttempts));
     }
 }

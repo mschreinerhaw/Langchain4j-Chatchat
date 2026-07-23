@@ -54,6 +54,7 @@ import java.util.function.BooleanSupplier;
 public class AgentOrchestrator {
 
     private static final int MAX_STEPS = 3;
+    private static final int MAX_INTERPRETATION_PLAN_ATTEMPTS = 3;
     private static final int WEB_SEARCH_REFERENCE_LIMIT = 10;
     private static final String AGENT_CANCELLATION_ATTRIBUTE = "__agentCancellation";
     private static final String AGENT_MAX_STEPS_ATTRIBUTE = "__agentMaxSteps";
@@ -841,17 +842,6 @@ public class AgentOrchestrator {
         metadata.put("interpretationPlanPipeline", true);
         metadata.put("interpretationPlanVersion", plan.version());
         saveInterpretationPlanSnapshot("initial", plan, tenantId, requestId, runtimeAttributes, metadata);
-        recordLifecyclePhase(
-            runtimeAttributes,
-            metadata,
-            "step_execution",
-            "InterpretationPlan DAG execution started.",
-            metadataOf(
-                "stage", "initial",
-                "planVersion", plan.version(),
-                "stepCount", plan.steps() == null ? 0 : plan.steps().size()
-            )
-        );
 
         InterpretationPlanValidator validator = new InterpretationPlanValidator();
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
@@ -861,15 +851,28 @@ public class AgentOrchestrator {
             request -> reviewInterpretationPlanToolResult(activeChatModel, query, systemPrompt, cancellationCheck, request),
             request -> decideInterpretationPlanDagStep(activeChatModel, query, systemPrompt, cancellationCheck, request)
         );
-        InterpretationPlanRuntime.ExecutionResult firstResult = runtime.execute(planExecutionRequest(
+        List<InterpretationPlanRuntime.ExecutionResult> planAttemptResults = new ArrayList<>();
+        InterpretationPlanValidator.ValidationResult initialEvaluation = validator.validate(
             plan,
-            tenantId,
-            requestId,
-            conversationId,
-            userId,
-            tools,
-            workflowAttemptAttributes(runtimeAttributes, 0)
-        ));
+            toolRegistry,
+            new LinkedHashSet<>(tools == null ? List.of() : tools)
+        );
+        recordInterpretationPlanEvaluation("initial", initialEvaluation, runtimeAttributes, metadata);
+        InterpretationPlanRuntime.ExecutionResult firstResult;
+        if (initialEvaluation.valid()) {
+            recordInterpretationPlanExecutionStarted("initial", plan, runtimeAttributes, metadata);
+            firstResult = runtime.execute(planExecutionRequest(
+                plan,
+                tenantId,
+                requestId,
+                conversationId,
+                userId,
+                tools,
+                workflowAttemptAttributes(runtimeAttributes, 0)
+            ));
+        } else {
+            firstResult = planEvaluationFailure("initial", initialEvaluation);
+        }
         recordPlanRuntimeResult("initial", firstResult, traces, observations, metadata);
         saveInterpretationPlanSnapshot("initial_result", plan, tenantId, requestId, runtimeAttributes, metadata, firstResult);
         runtimeGuard.checkCancelled(cancellationCheck);
@@ -888,6 +891,8 @@ public class AgentOrchestrator {
         if (firstResult.success() && !firstWorkflowGuard.allowed()) {
             firstResult = blockIncompleteWorkflow("initial", firstResult, firstWorkflowGuard, observations, metadata);
         }
+        firstResult = rejectUnsatisfiedInterpretationPlanResult("initial", firstResult, observations, metadata);
+        planAttemptResults.add(firstResult);
         if (firstResult.success()) {
             recordMandatoryWorkflowCompletion(traces, metadata, runtimeAttributes);
             String synthesizedAnswer = synthesizeInterpretationPlanAnswer(
@@ -895,6 +900,7 @@ public class AgentOrchestrator {
                 query,
                 systemPrompt,
                 firstResult,
+                planAttemptResults,
                 runtimeAttributes,
                 observations,
                 metadata,
@@ -920,6 +926,11 @@ public class AgentOrchestrator {
         int maxRewriteTimes = maxRewriteTimes(plan);
         metadata.put("interpretationPlanMaxRewriteTimes", maxRewriteTimes);
         for (int rewriteCount = 1; rewriteCount <= maxRewriteTimes; rewriteCount++) {
+            observations.add(planAttemptRewriteSummary(
+                rewriteCount,
+                currentPlan,
+                currentResult
+            ));
             InterpretationPlan.Step failedStep = failedStep(currentPlan, currentResult);
             Set<String> completedTools = completedWorkflowToolsFromEvents(
                 runtimeAttributes,
@@ -951,31 +962,42 @@ public class AgentOrchestrator {
             }
             runtimeGuard.checkCancelled(cancellationCheck);
 
+            String rewriteStage = rewriteCount == 1 ? "rewrite" : "rewrite" + rewriteCount;
+            recordInterpretationPlanEvaluation(
+                rewriteStage,
+                rewrite.validation(),
+                runtimeAttributes,
+                metadata
+            );
             if (!rewrite.valid() || rewrite.rewrittenPlan() == null) {
-                observations.add("InterpretationPlan rewrite failed: " + firstNonBlank(rewrite.errorMessage(), "rewriter did not return a valid plan"));
-                break;
+                String evaluationError = firstNonBlank(
+                    rewrite.errorMessage(),
+                    "rewriter did not return a valid plan"
+                );
+                observations.add("InterpretationPlan " + rewriteStage
+                    + " failed plan evaluation and was not executed: " + evaluationError);
+                currentResult = planEvaluationFailure(
+                    rewriteStage,
+                    rewrite.validation(),
+                    evaluationError
+                );
+                if (rewrite.rewrittenPlan() != null) {
+                    currentPlan = rewrite.rewrittenPlan();
+                }
+                planAttemptResults.add(currentResult);
+                continue;
             }
 
             currentPlan = rewrite.rewrittenPlan();
             saveInterpretationPlanSnapshot(
-                rewriteCount == 1 ? "rewrite" : "rewrite" + rewriteCount,
+                rewriteStage,
                 currentPlan,
                 tenantId,
                 requestId,
                 runtimeAttributes,
                 metadata
             );
-            recordLifecyclePhase(
-                runtimeAttributes,
-                metadata,
-                "step_execution",
-                "Rewritten InterpretationPlan DAG execution started.",
-                metadataOf(
-                    "stage", rewriteCount == 1 ? "rewrite" : "rewrite" + rewriteCount,
-                    "planVersion", currentPlan.version(),
-                    "stepCount", currentPlan.steps() == null ? 0 : currentPlan.steps().size()
-                )
-            );
+            recordInterpretationPlanExecutionStarted(rewriteStage, currentPlan, runtimeAttributes, metadata);
             currentResult = runtime.execute(planExecutionRequest(
                 currentPlan,
                 tenantId,
@@ -985,9 +1007,9 @@ public class AgentOrchestrator {
                 tools,
                 workflowAttemptAttributes(runtimeAttributes, rewriteCount)
             ));
-            recordPlanRuntimeResult(rewriteCount == 1 ? "rewrite" : "rewrite" + rewriteCount, currentResult, traces, observations, metadata);
+            recordPlanRuntimeResult(rewriteStage, currentResult, traces, observations, metadata);
             saveInterpretationPlanSnapshot(
-                (rewriteCount == 1 ? "rewrite" : "rewrite" + rewriteCount) + "_result",
+                rewriteStage + "_result",
                 currentPlan,
                 tenantId,
                 requestId,
@@ -1016,8 +1038,14 @@ public class AgentOrchestrator {
                     observations,
                     metadata
                 );
-                continue;
             }
+            currentResult = rejectUnsatisfiedInterpretationPlanResult(
+                rewriteCount == 1 ? "rewrite" : "rewrite" + rewriteCount,
+                currentResult,
+                observations,
+                metadata
+            );
+            planAttemptResults.add(currentResult);
             if (currentResult.success()) {
                 recordMandatoryWorkflowCompletion(traces, metadata, runtimeAttributes);
                 String synthesizedAnswer = synthesizeInterpretationPlanAnswer(
@@ -1025,6 +1053,7 @@ public class AgentOrchestrator {
                     query,
                     systemPrompt,
                     currentResult,
+                    planAttemptResults,
                     runtimeAttributes,
                     observations,
                     metadata,
@@ -1087,6 +1116,31 @@ public class AgentOrchestrator {
         );
         if (blockedResult != null) {
             return blockedResult;
+        }
+        if (!planAttemptResults.isEmpty()) {
+            String synthesizedAnswer = synthesizeInterpretationPlanAnswer(
+                activeChatModel,
+                query,
+                systemPrompt,
+                planAttemptResults.get(planAttemptResults.size() - 1),
+                planAttemptResults,
+                runtimeAttributes,
+                observations,
+                metadata,
+                cancellationCheck,
+                "attempts_exhausted"
+            );
+            return answerFinalizer.finishReviewedAnswer(
+                activeChatModel,
+                query,
+                systemPrompt,
+                traces,
+                metadata,
+                observations,
+                synthesizedAnswer,
+                cancellationCheck,
+                "interpretation_plan_attempts_summarized"
+            );
         }
         return answerFinalizer.finishReviewedSummary(
             activeChatModel,
@@ -1202,6 +1256,7 @@ public class AgentOrchestrator {
     private Map<String, Object> workflowAttemptAttributes(Map<String, Object> runtimeAttributes, int attempt) {
         Map<String, Object> attributes = new LinkedHashMap<>(runtimeAttributes == null ? Map.of() : runtimeAttributes);
         attributes.put("workflowExecutionAttempt", Math.max(0, attempt));
+        attributes.put("toolResultReviewMaxAttempts", 1);
         return attributes;
     }
 
@@ -1428,6 +1483,7 @@ public class AgentOrchestrator {
                                                       String query,
                                                       String systemPrompt,
                                                       InterpretationPlanRuntime.ExecutionResult result,
+                                                      List<InterpretationPlanRuntime.ExecutionResult> attemptResults,
                                                       Map<String, Object> runtimeAttributes,
                                                       List<String> observations,
                                                       Map<String, Object> metadata,
@@ -1446,6 +1502,7 @@ public class AgentOrchestrator {
             metadataOf(
                 "stage", stage,
                 "stepCount", result == null || result.steps() == null ? 0 : result.steps().size(),
+                "attemptCount", attemptResults == null ? 0 : attemptResults.size(),
                 "storedObservationCount", storedObservations.size()
             )
         );
@@ -1455,6 +1512,7 @@ public class AgentOrchestrator {
             query,
             systemPrompt,
             result,
+            attemptResults,
             observations,
             storedObservations,
             structuredSqlMetadata
@@ -1481,6 +1539,7 @@ public class AgentOrchestrator {
         if (metadata != null) {
             metadata.put("interpretationPlanSummaryGenerated", true);
             metadata.put("interpretationPlanSummaryStage", stage);
+            metadata.put("interpretationPlanAttemptCount", attemptResults == null ? 0 : attemptResults.size());
             metadata.put("interpretationPlanStoredObservationCount", storedObservations.size());
         }
         if (!structuredSqlMetadata.isBlank()) {
@@ -1578,16 +1637,36 @@ public class AgentOrchestrator {
                                                 List<String> observations,
                                                 List<AgentObservation> storedObservations,
                                                 String authoritativeSqlMetadata) {
+        return buildInterpretationPlanSummaryPrompt(
+            query,
+            systemPrompt,
+            result,
+            result == null ? List.of() : List.of(result),
+            observations,
+            storedObservations,
+            authoritativeSqlMetadata
+        );
+    }
+
+    String buildInterpretationPlanSummaryPrompt(String query,
+                                                String systemPrompt,
+                                                InterpretationPlanRuntime.ExecutionResult result,
+                                                List<InterpretationPlanRuntime.ExecutionResult> attemptResults,
+                                                List<String> observations,
+                                                List<AgentObservation> storedObservations,
+                                                String authoritativeSqlMetadata) {
         StringBuilder prompt = new StringBuilder();
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             prompt.append("System instruction:\n").append(systemPrompt).append("\n\n");
         }
-        prompt.append("You are the final step-by-step answer synthesizer for a completed MCP InterpretationPlan.\n");
-        prompt.append("Answer the user in Chinese using only the executed step records, model review decisions, and stored observations.\n");
+        prompt.append("You are the final step-by-step answer synthesizer for MCP InterpretationPlan attempts.\n");
+        prompt.append("Answer the user in Chinese using only the executed attempt records, model review decisions, and stored observations.\n");
         prompt.append("Return a polished Markdown document, not a single plain paragraph. Use concise headings and lists when they improve readability.\n");
         prompt.append("Do not wrap the Markdown in code fences and do not output JSON.\n");
         prompt.append("Workflow contract:\n");
         prompt.append("- Treat every succeeded tool step with returned data as evidence, even when the model review marked it incomplete or partial.\n");
+        prompt.append("- When multiple plan attempts were executed, reconcile and summarize evidence from all attempts; prefer the latest complete result when evidence conflicts.\n");
+        prompt.append("- Do not hide earlier partial or failed attempts when they contain usable evidence. State unresolved limitations after considering all attempts.\n");
         prompt.append("- Use each step's review reason as the premise for later steps.\n");
         prompt.append("- Summarize what was done step by step, then provide the final answer.\n");
         prompt.append("- If a succeeded SQL/database step is partial, still summarize the returned rows/metrics and explicitly state missing fields or limitations.\n");
@@ -1612,11 +1691,27 @@ public class AgentOrchestrator {
                 .append(result.finalAnswer())
                 .append("\n\n");
         }
-        prompt.append("Executed steps:\n");
-        if (result == null || result.steps() == null || result.steps().isEmpty()) {
+        List<InterpretationPlanRuntime.ExecutionResult> results = attemptResults == null || attemptResults.isEmpty()
+            ? (result == null ? List.of() : List.of(result))
+            : attemptResults;
+        prompt.append("Executed plan attempts (").append(results.size()).append("):\n");
+        if (results.isEmpty()) {
             prompt.append("- (none)\n");
         } else {
-            for (InterpretationPlanRuntime.StepExecution step : result.steps()) {
+            for (int attemptIndex = 0; attemptIndex < results.size(); attemptIndex++) {
+                InterpretationPlanRuntime.ExecutionResult attemptResult = results.get(attemptIndex);
+                prompt.append("\nAttempt ").append(attemptIndex + 1)
+                    .append(": status=").append(attemptResult.status())
+                    .append(", success=").append(attemptResult.success())
+                    .append("\n");
+                if (attemptResult.errorMessage() != null && !attemptResult.errorMessage().isBlank()) {
+                    prompt.append("  attemptError: ").append(attemptResult.errorMessage()).append("\n");
+                }
+                if (attemptResult.steps() == null || attemptResult.steps().isEmpty()) {
+                    prompt.append("  - (no executed steps)\n");
+                    continue;
+                }
+                for (InterpretationPlanRuntime.StepExecution step : attemptResult.steps()) {
                 prompt.append("- step=").append(step.stepId())
                     .append(", action=").append(step.actionType())
                     .append(", tool=").append(firstNonBlank(step.toolName(), ""))
@@ -1656,6 +1751,7 @@ public class AgentOrchestrator {
                         .append(promptPreviewTruncated)
                         .append("\n");
                 }
+            }
             }
         }
         prompt.append("\nStored RunStore/RocksDB observations:\n");
@@ -2214,11 +2310,177 @@ public class AgentOrchestrator {
         return normalized;
     }
 
+    private InterpretationPlanRuntime.ExecutionResult rejectUnsatisfiedInterpretationPlanResult(
+        String stage,
+        InterpretationPlanRuntime.ExecutionResult result,
+        List<String> observations,
+        Map<String, Object> metadata
+    ) {
+        if (result == null || !result.success() || result.steps() == null) {
+            return result;
+        }
+        List<String> reasons = new ArrayList<>();
+        for (InterpretationPlanRuntime.StepExecution step : result.steps()) {
+            Map<String, Object> stepMetadata = step == null || step.metadata() == null
+                ? Map.of()
+                : step.metadata();
+            if (Boolean.TRUE.equals(stepMetadata.get("toolResultReviewPartialAccepted"))
+                || Boolean.FALSE.equals(stepMetadata.get("toolResultReviewSatisfied"))) {
+                reasons.add("step " + step.stepId() + ": " + firstNonBlank(
+                    stringValue(stepMetadata.get("toolResultReviewReason")),
+                    firstNonBlank(
+                        stringValue(stepMetadata.get("toolResultReviewPartialReason")),
+                        "result review was not satisfied"
+                    )
+                ));
+            }
+        }
+        if (reasons.isEmpty()) {
+            if (metadata != null) {
+                metadata.put("interpretationPlanResultSatisfied", true);
+            }
+            return result;
+        }
+        String reason = "Plan attempt did not satisfy result review: " + String.join("; ", reasons);
+        if (observations != null) {
+            observations.add("InterpretationPlan " + stage + " requires a full plan rewrite. " + reason);
+        }
+        if (metadata != null) {
+            metadata.put("interpretationPlanResultSatisfied", false);
+            metadata.put("interpretationPlanUnsatisfiedStage", stage);
+            metadata.put("interpretationPlanUnsatisfiedReasons", reasons);
+        }
+        Map<String, Object> resultMetadata = new LinkedHashMap<>(result.metadata() == null ? Map.of() : result.metadata());
+        resultMetadata.put("planResultSatisfied", false);
+        resultMetadata.put("planResultUnsatisfiedReasons", reasons);
+        return new InterpretationPlanRuntime.ExecutionResult(
+            "result_unsatisfied",
+            false,
+            false,
+            reason,
+            result.finalAnswer(),
+            result.steps(),
+            resultMetadata,
+            result.durationMs()
+        );
+    }
+
     private int maxRewriteTimes(InterpretationPlan plan) {
-        Integer configured = plan == null || plan.executionPolicy() == null
+        return MAX_INTERPRETATION_PLAN_ATTEMPTS - 1;
+    }
+
+    private void recordInterpretationPlanEvaluation(
+        String stage,
+        InterpretationPlanValidator.ValidationResult evaluation,
+        Map<String, Object> runtimeAttributes,
+        Map<String, Object> metadata
+    ) {
+        Map<String, Object> record = new LinkedHashMap<>();
+        record.put("stage", stage);
+        record.put("valid", evaluation != null && evaluation.valid());
+        record.put("executable", evaluation != null && evaluation.executable());
+        record.put("approvalRequired", evaluation != null && evaluation.approvalRequired());
+        record.put("errors", evaluation == null || evaluation.errors() == null ? List.of() : evaluation.errors());
+        record.put("warnings", evaluation == null || evaluation.warnings() == null ? List.of() : evaluation.warnings());
+        record.put(
+            "approvalRequests",
+            evaluation == null || evaluation.approvalRequests() == null ? List.of() : evaluation.approvalRequests()
+        );
+        addCandidateList(metadataList(metadata, "interpretationPlanEvaluations"), List.of(record));
+        recordLifecyclePhase(
+            runtimeAttributes,
+            metadata,
+            "plan_evaluation",
+            evaluation != null && evaluation.valid()
+                ? "InterpretationPlan passed evaluation and may proceed to execution."
+                : "InterpretationPlan failed evaluation and will not be executed.",
+            record
+        );
+    }
+
+    private void recordInterpretationPlanExecutionStarted(
+        String stage,
+        InterpretationPlan plan,
+        Map<String, Object> runtimeAttributes,
+        Map<String, Object> metadata
+    ) {
+        recordLifecyclePhase(
+            runtimeAttributes,
+            metadata,
+            "step_execution",
+            "InterpretationPlan DAG execution started.",
+            metadataOf(
+                "stage", stage,
+                "planVersion", plan == null ? null : plan.version(),
+                "stepCount", plan == null || plan.steps() == null ? 0 : plan.steps().size()
+            )
+        );
+    }
+
+    private InterpretationPlanRuntime.ExecutionResult planEvaluationFailure(
+        String stage,
+        InterpretationPlanValidator.ValidationResult evaluation
+    ) {
+        return planEvaluationFailure(stage, evaluation, null);
+    }
+
+    private InterpretationPlanRuntime.ExecutionResult planEvaluationFailure(
+        String stage,
+        InterpretationPlanValidator.ValidationResult evaluation,
+        String explicitError
+    ) {
+        String validationErrors = evaluation == null || evaluation.errors() == null || evaluation.errors().isEmpty()
             ? null
-            : plan.executionPolicy().maxRewriteTimes();
-        return configured == null ? 1 : Math.max(0, configured);
+            : evaluation.errors().stream()
+                .map(issue -> issue.path() + ": " + issue.message())
+                .collect(java.util.stream.Collectors.joining("; "));
+        String evaluationError = firstNonBlank(
+            explicitError,
+            firstNonBlank(validationErrors, "plan evaluation rejected the generated plan")
+        );
+        return new InterpretationPlanRuntime.ExecutionResult(
+            "plan_evaluation_failed",
+            false,
+            false,
+            "InterpretationPlan " + stage + " was not executed: " + evaluationError,
+            null,
+            List.of(),
+            metadataOf(
+                "planEvaluationValid", false,
+                "planEvaluationStage", stage,
+                "planEvaluationError", evaluationError
+            ),
+            0L
+        );
+    }
+
+    private String planAttemptRewriteSummary(
+        int nextAttempt,
+        InterpretationPlan previousPlan,
+        InterpretationPlanRuntime.ExecutionResult previousResult
+    ) {
+        List<String> failedSteps = new ArrayList<>();
+        if (previousResult != null && previousResult.steps() != null) {
+            for (InterpretationPlanRuntime.StepExecution step : previousResult.steps()) {
+                if (step != null && !step.success()) {
+                    failedSteps.add("step " + step.stepId()
+                        + " (" + firstNonBlank(step.toolName(), firstNonBlank(step.actionType(), "unknown")) + "): "
+                        + firstNonBlank(step.errorMessage(), "result did not satisfy review"));
+                }
+            }
+        }
+        String goal = previousPlan == null || previousPlan.intent() == null
+            ? null
+            : previousPlan.intent().goal();
+        return "Plan attempt " + nextAttempt + " rewrite context summary: previous goal="
+            + firstNonBlank(goal, "unspecified")
+            + "; previous status=" + (previousResult == null ? "unknown" : previousResult.status())
+            + "; previous error=" + firstNonBlank(
+                previousResult == null ? null : previousResult.errorMessage(),
+                "none"
+            )
+            + "; failed steps=" + failedSteps
+            + ". Generate a new complete plan from this evidence, evaluate it, then execute it only if evaluation passes.";
     }
 
     private String fallbackMode(InterpretationPlan plan) {

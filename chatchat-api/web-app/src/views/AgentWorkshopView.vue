@@ -447,6 +447,15 @@
                 <span>最大步骤</span>
                 <input v-model.number="form.workflowConfig.executionStrategy.maxSteps" type="number" min="0" max="50">
               </label>
+              <label>
+                <span>工具失败重试次数</span>
+                <input
+                  v-model.number="form.workflowConfig.executionStrategy.toolRetryAttempts"
+                  type="number"
+                  min="0"
+                  max="5"
+                >
+              </label>
               <label class="checkbox-row">
                 <input v-model="form.workflowConfig.executionStrategy.stopOnError" type="checkbox">
                 <span>失败后停止</span>

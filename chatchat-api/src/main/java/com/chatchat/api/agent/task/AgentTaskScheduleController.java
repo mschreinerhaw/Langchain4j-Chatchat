@@ -29,11 +29,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -185,8 +181,9 @@ public class AgentTaskScheduleController {
                                                        @RequestParam(value = "keywordAgentIds", defaultValue = "") String keywordAgentIds,
                                                        @RequestParam(value = "page", defaultValue = "1") int page,
                                                        @RequestParam(value = "pageSize", defaultValue = "20") int pageSize,
-                                                       HttpServletRequest servletRequest) {
+        HttpServletRequest servletRequest) {
         try {
+            adoptLegacyTasks(servletRequest);
             return ApiResponse.success(scheduledTaskService.search(
                 scopedTenantId(servletRequest, tenantId), visibleUserId(servletRequest), agentId, status, keyword,
                 splitRecipients(keywordAgentIds), page, pageSize
@@ -209,61 +206,13 @@ public class AgentTaskScheduleController {
         HttpServletRequest servletRequest
     ) {
         try {
+            adoptLegacyTasks(servletRequest);
             return ApiResponse.success(scheduledTaskService.audit(
                 scopedTenantId(servletRequest, tenantId), visibleUserId(servletRequest), agentId, status, keyword,
                 splitRecipients(keywordAgentIds), page, pageSize
             ));
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
-        }
-    }
-
-    @PostMapping("/notifications/send")
-    @Operation(summary = "Send a notification to maintained contacts with administrator recipient selection")
-    public ApiResponse<Map<String, Object>> sendNotification(@RequestBody AdminNotificationRequest request,
-        HttpServletRequest servletRequest) {
-        try {
-            if (request == null) {
-                throw new IllegalArgumentException("通知内容不能为空");
-            }
-            McpNotificationClient.NotificationChannelOption option = notificationClient.requireEnabled(request.channelId());
-            String tenantId = scopedTenantId(servletRequest, null);
-            Set<String> maintained = new LinkedHashSet<>(recipientService.receiver(tenantId, option.channel())
-                .map(this::splitRecipients).orElseGet(List::of));
-            if (maintained.isEmpty()) {
-                throw new IllegalArgumentException("当前通知方式尚未维护联系人");
-            }
-            boolean admin = isAdmin(servletRequest);
-            List<String> requestedReceivers = splitRecipients(request.receivers());
-            List<String> selected = admin ? requestedReceivers : List.copyOf(maintained);
-            if (admin && selected.isEmpty()) {
-                throw new IllegalArgumentException("请选择至少一个接收人");
-            }
-            if (admin && !maintained.containsAll(selected)) {
-                throw new IllegalArgumentException("只能向当前通知方式中已维护的联系人发送消息");
-            }
-            String title = requireText(request.title(), "通知标题不能为空");
-            String content = requireText(request.content(), "通知内容不能为空");
-            String level = firstText(request.level(), "INFO").toUpperCase(Locale.ROOT);
-            if (!Set.of("INFO", "WARNING", "CRITICAL").contains(level)) {
-                throw new IllegalArgumentException("通知级别不正确");
-            }
-            int sent = 0;
-            for (String receiver : selected) {
-                Map<String, Object> payload = new LinkedHashMap<>();
-                payload.put("receiver", receiver);
-                payload.put("title", title);
-                payload.put("content", content);
-                payload.put("level", level);
-                payload.put("sourceTaskId", "admin-manual-notification");
-                notificationClient.dispatch(option.id(), payload);
-                sent++;
-            }
-            return ApiResponse.success(Map.of("sent", sent, "total", selected.size()), "通知发送成功");
-        } catch (IllegalArgumentException e) {
-            return ApiResponse.badRequest(e.getMessage());
-        } catch (Exception e) {
-            return ApiResponse.internalError("通知发送失败: " + e.getMessage());
         }
     }
 
@@ -449,9 +398,6 @@ public class AgentTaskScheduleController {
     public record NotificationRecipientRequest(String receiver) {
     }
 
-    public record AdminNotificationRequest(String channelId, String receivers, String title, String content, String level) {
-    }
-
     public record NotificationChannelBindingView(
         String id,
         String channel,
@@ -485,18 +431,30 @@ public class AgentTaskScheduleController {
             .map(String::trim).filter(item -> !item.isBlank()).distinct().toList();
     }
 
-    private String requireText(String value, String message) {
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(message);
-        }
-        return value.trim();
-    }
-
     private boolean isAdmin(HttpServletRequest request) {
         return "admin".equalsIgnoreCase(currentUsername(request));
     }
 
     private String visibleUserId(HttpServletRequest request) {
         return isAdmin(request) ? "" : firstText(currentUserId(request), "__anonymous__");
+    }
+
+    private void adoptLegacyTasks(HttpServletRequest request) {
+        String userId = currentUserId(request);
+        String username = currentUsername(request);
+        String tenantId = scopedTenantId(request, null);
+        if (userId == null || userId.isBlank()) {
+            return;
+        }
+        if (isAdmin(request)) {
+            scheduledTaskService.adoptLegacyTenantTasks(tenantId, List.of("default", "default-user"));
+        }
+        List<String> legacyTenants = isAdmin(request)
+            ? List.of(tenantId, userId, firstText(username, userId), "default", "default-user")
+            : List.of(tenantId, userId, firstText(username, userId));
+        List<String> legacyUsers = isAdmin(request)
+            ? List.of(userId, firstText(username, userId), "admin", "default-user", "anonymous")
+            : List.of(userId, firstText(username, userId));
+        scheduledTaskService.adoptLegacyTasks(tenantId, userId, legacyTenants, legacyUsers);
     }
 }

@@ -275,13 +275,6 @@ export function fetchAgentScheduleAudit(filters = {}) {
   return apiRequest(`/agent/tasks/runtime/schedules/audit?${params.toString()}`);
 }
 
-export function sendAgentScheduleAdminNotification(payload) {
-  return apiRequest("/agent/tasks/runtime/schedules/notifications/send", {
-    method: "POST",
-    body: JSON.stringify(payload)
-  });
-}
-
 export function updateAgentSchedule(scheduleId, payload) {
   return apiRequest(`/agent/tasks/runtime/schedules/${encodeURIComponent(scheduleId)}`, {
     method: "PUT",

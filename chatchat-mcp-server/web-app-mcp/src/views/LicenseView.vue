@@ -9,7 +9,7 @@
       </template>
 
       <div class="license-summary">
-        <section class="license-status-card"><span>当前状态</span><el-tag :type="statusType" size="large">{{ status.message || '正在读取' }}</el-tag><small>强制校验：{{ status.enforcementEnabled ? '已启用' : '部署过渡模式' }}</small></section>
+        <section class="license-status-card"><span>当前状态</span><el-tag :type="statusType" size="large">{{ status.message || '正在读取' }}</el-tag></section>
         <section><span>客户</span><strong>{{ license.customer || '-' }}</strong><small>{{ license.customerCode || '-' }}</small></section>
         <section><span>产品版本</span><strong>{{ license.product || 'LiveMCP' }}</strong><small>{{ license.edition || '-' }}</small></section>
         <section><span>有效期</span><strong>{{ license.expireTime || '-' }}</strong><small>签发：{{ license.issuedTime || '-' }}</small></section>

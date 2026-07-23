@@ -1021,6 +1021,12 @@
   cursor: pointer;
 }
 
+.notification-option-list.selectable .notification-option-card.selected {
+  border-color: #8ab4ff;
+  background: #f8fbff;
+  box-shadow: 0 0 0 3px rgba(47, 124, 246, 0.08);
+}
+
 .notification-option-list.selectable input {
   margin-top: 2px;
   accent-color: var(--primary);
@@ -1030,6 +1036,34 @@
   display: grid;
   gap: 5px;
   min-width: 0;
+}
+
+.schedule-recipient-choice {
+  display: grid;
+  gap: 6px;
+  margin-top: 5px;
+  padding-top: 9px;
+  border-top: 1px solid #e7edf6;
+}
+
+.schedule-recipient-choice > label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 31px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: #f7f9fc;
+  cursor: pointer;
+}
+
+.schedule-recipient-choice > label:hover {
+  background: #eef5ff;
+}
+
+.schedule-recipient-choice > label span {
+  overflow-wrap: anywhere;
+  color: #344054;
 }
 
 .notification-recipient-summary {

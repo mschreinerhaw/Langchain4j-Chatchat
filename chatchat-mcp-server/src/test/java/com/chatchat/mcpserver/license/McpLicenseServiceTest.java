@@ -62,6 +62,22 @@ class McpLicenseServiceTest {
         assertThat(service.toolDenialReason("database_query")).isNotBlank();
     }
 
+    @Test
+    void resolvesPublicKeyFileWhenDirectoryIsConfigured() throws Exception {
+        Path keyDirectory = tempDir.resolve("keys");
+        Files.createDirectories(keyDirectory);
+        Files.writeString(keyDirectory.resolve("license-public.pem"), "test-public-key");
+        LicenseProperties properties = new LicenseProperties();
+        properties.setPublicKeyPath(keyDirectory.toString());
+        properties.setLicenseFile(tempDir.resolve("missing.dat").toString());
+        properties.setServerIdFile(tempDir.resolve("directory-key-server.id").toString());
+
+        McpLicenseService service = new McpLicenseService(properties,
+            new ObjectMapper().registerModule(new JavaTimeModule()));
+
+        assertThat(service.status().status()).isEqualTo("NOT_INSTALLED");
+    }
+
     private static String pem(String type, byte[] content) {
         return "-----BEGIN " + type + "-----\n"
             + Base64.getMimeEncoder(64, new byte[]{'\n'}).encodeToString(content)

@@ -31,6 +31,16 @@ public class TenantNotificationRecipientService {
             .filter(value -> value != null && !value.isBlank());
     }
 
+    public List<String> recipients(String tenantId, String channelType) {
+        return receiver(tenantId, channelType)
+            .map(value -> java.util.Arrays.stream(value.split("[,;，；\\n]+"))
+                .map(String::trim)
+                .filter(item -> !item.isBlank())
+                .distinct()
+                .toList())
+            .orElseGet(List::of);
+    }
+
     @Transactional
     public RecipientView save(String tenantId, String channelType, String receiver) {
         String normalizedTenant = requireTenant(tenantId);

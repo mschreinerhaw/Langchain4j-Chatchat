@@ -70,8 +70,16 @@ public class McpLicenseService {
         if (inline != null && !inline.isBlank()) return inline.trim();
         if (path == null || path.isBlank()) return "";
         try {
-            return Files.readString(Path.of(path).toAbsolutePath().normalize());
+            Path keyFile = Path.of(path).toAbsolutePath().normalize();
+            if (Files.isDirectory(keyFile)) {
+                keyFile = keyFile.resolve("license-public.pem");
+            }
+            if (!Files.isRegularFile(keyFile)) {
+                return "";
+            }
+            return Files.readString(keyFile);
         } catch (Exception ex) {
+            if (ex instanceof IllegalArgumentException argumentException) throw argumentException;
             throw new IllegalArgumentException("无法读取密钥文件: " + path, ex);
         }
     }

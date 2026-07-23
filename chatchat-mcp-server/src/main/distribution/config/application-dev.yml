@@ -35,7 +35,7 @@ chatchat:
     status-check-interval-ms: 60000
     license-file: ./data/license/license.dat
     server-id-file: ./data/license/server.id
-    public-key-path: ${CHATCHAT_LICENSE_PUBLIC_KEY_PATH:}
+    public-key-path: ${CHATCHAT_LICENSE_PUBLIC_KEY_PATH:./data/license/license-public.pem}
   mcp:
     news-runtime:
       base-url: ${CHATCHAT_NEWS_RUNTIME_URL:http://localhost:8091}

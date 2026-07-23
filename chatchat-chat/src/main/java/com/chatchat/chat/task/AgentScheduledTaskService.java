@@ -76,18 +76,7 @@ public class AgentScheduledTaskService {
         entity.setPayloadJson(writeJson(payload));
         entity.setQuestion(payload.getQuery());
         entity.setNotifyEnabled(Boolean.TRUE.equals(request.getNotifyEnabled()));
-        if (Boolean.TRUE.equals(entity.getNotifyEnabled())) {
-            McpNotificationClient.NotificationChannelOption option =
-                notificationClient.requireEnabled(request.getNotificationChannelId());
-            if (!option.recipientAware()) {
-                throw new IllegalArgumentException("所选MCP通知通道未在URL或请求模板中使用{{receiver}}，无法保证租户隔离");
-            }
-            entity.setNotificationChannelId(option.id());
-            entity.setNotificationChannelType(option.channel());
-            entity.setNotificationChannelName(firstText(option.title(), option.toolName(), option.channel()));
-            recipientService.receiver(entity.getTenantId(), option.channel())
-                .orElseThrow(() -> new IllegalArgumentException("当前租户尚未绑定" + option.channel() + "接收人"));
-        }
+        configureNotification(entity, request);
         entity.setTradingDayOnly(Boolean.TRUE.equals(request.getTradingDayOnly()));
         configureScheduleWindow(entity, request, triggerType);
         entity.setStatus(enabled ? "ACTIVE" : "PAUSED");
@@ -129,22 +118,7 @@ public class AgentScheduledTaskService {
         entity.setPayloadJson(writeJson(payload));
         entity.setQuestion(payload.getQuery());
         entity.setNotifyEnabled(Boolean.TRUE.equals(request.getNotifyEnabled()));
-        if (Boolean.TRUE.equals(entity.getNotifyEnabled())) {
-            McpNotificationClient.NotificationChannelOption option =
-                notificationClient.requireEnabled(request.getNotificationChannelId());
-            if (!option.recipientAware()) {
-                throw new IllegalArgumentException("所选MCP通知通道未在URL或请求模板中使用{{receiver}}，无法保证租户隔离");
-            }
-            entity.setNotificationChannelId(option.id());
-            entity.setNotificationChannelType(option.channel());
-            entity.setNotificationChannelName(firstText(option.title(), option.toolName(), option.channel()));
-            recipientService.receiver(entity.getTenantId(), option.channel())
-                .orElseThrow(() -> new IllegalArgumentException("当前租户尚未绑定" + option.channel() + "接收人"));
-        } else {
-            entity.setNotificationChannelId(null);
-            entity.setNotificationChannelType(null);
-            entity.setNotificationChannelName(null);
-        }
+        configureNotification(entity, request);
         entity.setTradingDayOnly(Boolean.TRUE.equals(request.getTradingDayOnly()));
         configureScheduleWindow(entity, request, triggerType);
         entity.setExpiredAt(request.getExpiredAt());
@@ -201,6 +175,58 @@ public class AgentScheduledTaskService {
         return list(tenantId, null, page, pageSize);
     }
 
+    @Transactional
+    public int adoptLegacyTenantTasks(String tenantId, List<String> legacyTenantIds) {
+        String normalizedTenant = requireTenant(tenantId);
+        if (legacyTenantIds == null) {
+            return 0;
+        }
+        List<String> tenants = legacyTenantIds.stream().map(this::text).filter(value -> !value.isBlank())
+            .filter(value -> !normalizedTenant.equals(value)).distinct().toList();
+        if (tenants.isEmpty()) {
+            return 0;
+        }
+        List<ScheduledTaskEntity> legacyTasks = scheduledTaskRepository.findByTenantIdIn(tenants);
+        legacyTasks.forEach(task -> {
+            task.setTenantId(normalizedTenant);
+            scheduledTaskRunRepository.updateOwner(task.getTaskId(), normalizedTenant, task.getUserId());
+        });
+        scheduledTaskRepository.saveAll(legacyTasks);
+        if (!legacyTasks.isEmpty()) {
+            log.info("Adopted {} legacy Agent schedules into tenant={}", legacyTasks.size(), normalizedTenant);
+        }
+        return legacyTasks.size();
+    }
+
+    @Transactional
+    public int adoptLegacyTasks(String tenantId, String userId, List<String> legacyTenantIds,
+                                List<String> legacyUserIds) {
+        String normalizedTenant = requireTenant(tenantId);
+        String normalizedUser = text(userId);
+        if (normalizedUser.isBlank() || legacyTenantIds == null || legacyUserIds == null) {
+            return 0;
+        }
+        List<String> tenants = legacyTenantIds.stream().map(this::text).filter(value -> !value.isBlank())
+            .distinct().toList();
+        List<String> users = legacyUserIds.stream().map(this::text).filter(value -> !value.isBlank())
+            .filter(value -> !normalizedUser.equals(value)).distinct().toList();
+        if (tenants.isEmpty() || users.isEmpty()) {
+            return 0;
+        }
+        List<ScheduledTaskEntity> legacyTasks = scheduledTaskRepository.findByTenantIdInAndUserIdIn(tenants, users);
+        legacyTasks.forEach(task -> {
+            task.setTenantId(normalizedTenant);
+            task.setUserId(normalizedUser);
+            scheduledTaskRunRepository.updateOwner(task.getTaskId(), normalizedTenant, normalizedUser);
+        });
+        scheduledTaskRepository.saveAll(legacyTasks);
+        if (!legacyTasks.isEmpty()) {
+            log.info("Adopted {} legacy Agent schedules into tenant={} user={}",
+                legacyTasks.size(), normalizedTenant, normalizedUser);
+        }
+        return legacyTasks.size();
+    }
+
     public ScheduledTaskPageResponse search(String tenantId, String userId, String agentId, String status, String keyword,
                                             List<String> keywordAgentIds, int page, int pageSize) {
         String normalizedTenant = requireTenant(tenantId);
@@ -210,7 +236,7 @@ public class AgentScheduledTaskService {
             normalizedTenant,
             text(userId),
             text(agentId),
-            normalizeStatus(status),
+            normalizeFilterStatus(status),
             text(keyword),
             normalizeSearchAgentIds(keywordAgentIds),
             PageRequest.of(normalizedPage, normalizedSize)
@@ -230,7 +256,7 @@ public class AgentScheduledTaskService {
             normalizedTenant,
             text(userId),
             text(agentId),
-            normalizeStatus(status),
+            normalizeFilterStatus(status),
             text(keyword),
             normalizeSearchAgentIds(keywordAgentIds),
             PageRequest.of(normalizedPage, normalizedSize)
@@ -787,12 +813,21 @@ public class AgentScheduledTaskService {
             if (!notification.references().isEmpty()) {
                 payload.put("references", notification.references());
             }
-            String receiver = recipientService.receiver(entity.getTenantId(), entity.getNotificationChannelType())
-                .orElse(null);
+            List<String> maintainedRecipients =
+                recipientService.recipients(entity.getTenantId(), entity.getNotificationChannelType());
+            String receiver;
+            if ("SPECIFIC".equalsIgnoreCase(entity.getNotificationRecipientMode())) {
+                receiver = maintainedRecipients.contains(entity.getNotificationReceiver())
+                    ? entity.getNotificationReceiver() : null;
+            } else {
+                receiver = maintainedRecipients.isEmpty() ? null : String.join(",", maintainedRecipients);
+            }
             if (receiver == null) {
-                recordNotificationResult(run, entity, null, "SKIPPED", "当前租户未绑定通知接收人");
-                log.warn("Skip scheduled Agent notification because tenant recipient is not bound scheduleId={} tenantId={} channel={}",
-                    entity.getTaskId(), entity.getTenantId(), entity.getNotificationChannelType());
+                recordNotificationResult(run, entity, entity.getNotificationReceiver(), "SKIPPED",
+                    "任务指定的联系人不存在或当前租户未维护通知接收人");
+                log.warn("Skip scheduled Agent notification because its recipient is unavailable scheduleId={} tenantId={} channel={} mode={}",
+                    entity.getTaskId(), entity.getTenantId(), entity.getNotificationChannelType(),
+                    entity.getNotificationRecipientMode());
                 return;
             }
             payload.put("receiver", receiver);
@@ -864,6 +899,42 @@ public class AgentScheduledTaskService {
         run.setNotificationSentAt(Instant.now());
         run.setNotificationError(truncate(errorMessage, 1000));
         scheduledTaskRunRepository.save(run);
+    }
+
+    private void configureNotification(ScheduledTaskEntity entity, ScheduledAgentTaskRequest request) {
+        if (!Boolean.TRUE.equals(entity.getNotifyEnabled())) {
+            entity.setNotificationChannelId(null);
+            entity.setNotificationChannelType(null);
+            entity.setNotificationChannelName(null);
+            entity.setNotificationRecipientMode("DEFAULT");
+            entity.setNotificationReceiver(null);
+            return;
+        }
+        McpNotificationClient.NotificationChannelOption option =
+            notificationClient.requireEnabled(request.getNotificationChannelId());
+        if (!option.recipientAware()) {
+            throw new IllegalArgumentException("所选MCP通知通道未在URL或请求模板中使用{{receiver}}，无法保证租户隔离");
+        }
+        List<String> maintainedRecipients = recipientService.recipients(entity.getTenantId(), option.channel());
+        if (maintainedRecipients.isEmpty()) {
+            throw new IllegalArgumentException("当前租户尚未绑定" + option.channel() + "接收人");
+        }
+        String recipientMode = "SPECIFIC".equalsIgnoreCase(text(request.getNotificationRecipientMode()))
+            ? "SPECIFIC" : "DEFAULT";
+        String selectedReceiver = text(request.getNotificationReceiver());
+        if ("SPECIFIC".equals(recipientMode)) {
+            if (selectedReceiver.isBlank()) {
+                throw new IllegalArgumentException("请选择一个通知联系人");
+            }
+            if (!maintainedRecipients.contains(selectedReceiver)) {
+                throw new IllegalArgumentException("只能选择当前租户通知方式中已维护的联系人");
+            }
+        }
+        entity.setNotificationChannelId(option.id());
+        entity.setNotificationChannelType(option.channel());
+        entity.setNotificationChannelName(firstText(option.title(), option.toolName(), option.channel()));
+        entity.setNotificationRecipientMode(recipientMode);
+        entity.setNotificationReceiver("SPECIFIC".equals(recipientMode) ? selectedReceiver : null);
     }
 
     private String toRunStatus(String taskStatus) {
@@ -1079,6 +1150,10 @@ public class AgentScheduledTaskService {
 
     private String normalizeStatus(String status) {
         return firstText(status, "UNKNOWN").toUpperCase(Locale.ROOT);
+    }
+
+    private String normalizeFilterStatus(String status) {
+        return text(status).toUpperCase(Locale.ROOT);
     }
 
     private String firstText(String... values) {

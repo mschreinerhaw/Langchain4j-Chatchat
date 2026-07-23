@@ -9,7 +9,6 @@ import {
   pauseAgentSchedule,
   rerunAgentSchedule,
   resumeAgentSchedule,
-  sendAgentScheduleAdminNotification,
   saveAgentScheduleNotificationRecipient,
   updateAgentSchedule
 } from "../../services/api.js";
@@ -68,6 +67,8 @@ function emptyForm(agentId = "") {
     enabled: true,
     notifyEnabled: false,
     notificationChannelId: "",
+    notificationRecipientMode: "DEFAULT",
+    notificationReceiver: "",
     tradingDayOnly: false,
     scheduleWindowEnabled: false,
     scheduleWindowStart: "09:00",
@@ -108,6 +109,8 @@ function scheduleForm(schedule = {}) {
     enabled: schedule.enabled === true || ["ACTIVE", "RUNNING"].includes(String(schedule.status || "").toUpperCase()),
     notifyEnabled: schedule.notifyEnabled === true,
     notificationChannelId: schedule.notificationChannelId || "",
+    notificationRecipientMode: String(schedule.notificationRecipientMode || "DEFAULT").toUpperCase(),
+    notificationReceiver: schedule.notificationReceiver || "",
     tradingDayOnly: schedule.tradingDayOnly === true,
     scheduleWindowEnabled: schedule.scheduleWindowEnabled === true,
     scheduleWindowStart: schedule.scheduleWindowStart || "09:00",
@@ -159,15 +162,13 @@ export default {
       auditPage: { page: 1, pageSize: 10, total: 0, totalPages: 0 },
       auditLoading: false,
       auditRecords: [],
-      adminNotificationOpen: false,
-      adminNotificationSending: false,
-      adminNotificationError: "",
-      adminNotification: { channelId: "", receivers: [], title: "", content: "", level: "INFO" },
       notificationChannels: [],
       notificationRecipientDrafts: {},
       notificationRecipientInputs: {},
       recipientSaving: "",
       pendingNotificationId: "",
+      pendingNotificationRecipientMode: "DEFAULT",
+      pendingNotificationReceiver: "",
       error: "",
       notice: "",
       agents: [],
@@ -205,14 +206,6 @@ export default {
     },
     currentPageState() {
       return this.activeTab === "audit" ? this.auditPage : this.taskPage;
-    },
-    availableAdminRecipients() {
-      const channel = this.notificationChannels.find((item) => item.id === this.adminNotification.channelId);
-      return this.parseNotificationRecipients(channel?.receiver);
-    },
-    allAdminRecipientsSelected() {
-      return this.availableAdminRecipients.length > 0
-        && this.adminNotification.receivers.length === this.availableAdminRecipients.length;
     },
     agentOptions() {
       return this.agents
@@ -440,6 +433,13 @@ export default {
         await this.openNotificationSelector();
         return;
       }
+      if (this.form.notifyEnabled
+        && this.form.notificationRecipientMode === "SPECIFIC"
+        && !this.form.notificationReceiver) {
+        this.error = "请选择一个通知联系人";
+        await this.openNotificationSelector();
+        return;
+      }
       const schedulePayload = this.buildSchedulePayload();
       if (!schedulePayload) {
         return;
@@ -503,6 +503,9 @@ export default {
         question,
         notifyEnabled: this.form.notifyEnabled,
         notificationChannelId: this.form.notifyEnabled ? this.form.notificationChannelId : null,
+        notificationRecipientMode: this.form.notifyEnabled ? this.form.notificationRecipientMode : "DEFAULT",
+        notificationReceiver: this.form.notifyEnabled && this.form.notificationRecipientMode === "SPECIFIC"
+          ? this.form.notificationReceiver : null,
         tradingDayOnly: this.form.tradingDayOnly,
         scheduleWindowEnabled,
         scheduleWindowStart: scheduleWindowEnabled ? this.form.scheduleWindowStart : null,
@@ -611,57 +614,6 @@ export default {
       this.notificationDialogOpen = true;
       await this.loadNotificationChannels();
     },
-    async openAdminNotification() {
-      this.adminNotificationError = "";
-      this.adminNotification = { channelId: "", receivers: [], title: "", content: "", level: "INFO" };
-      this.adminNotificationOpen = true;
-      await this.loadNotificationChannels();
-      const first = this.boundNotificationChannels()[0];
-      if (first) this.adminNotification.channelId = first.id;
-    },
-    closeAdminNotification() {
-      if (!this.adminNotificationSending) this.adminNotificationOpen = false;
-    },
-    syncAdminNotificationRecipients() {
-      this.adminNotification.receivers = [];
-      this.adminNotificationError = "";
-    },
-    toggleAllAdminRecipients(checked) {
-      this.adminNotification.receivers = checked ? [...this.availableAdminRecipients] : [];
-    },
-    async sendAdminNotification() {
-      this.adminNotificationError = "";
-      if (!this.adminNotification.channelId) {
-        this.adminNotificationError = "请选择通知方式";
-        return;
-      }
-      if (this.isAdmin && !this.adminNotification.receivers.length) {
-        this.adminNotificationError = "请选择至少一个接收人";
-        return;
-      }
-      if (!this.isAdmin && !this.availableAdminRecipients.length) {
-        this.adminNotificationError = "当前通知方式尚未维护联系人";
-        return;
-      }
-      if (!this.adminNotification.title.trim() || !this.adminNotification.content.trim()) {
-        this.adminNotificationError = "请填写通知标题和内容";
-        return;
-      }
-      this.adminNotificationSending = true;
-      try {
-        const result = await sendAgentScheduleAdminNotification({
-          ...this.adminNotification,
-          receivers: this.isAdmin ? this.adminNotification.receivers.join(",") : ""
-        });
-        const expected = this.isAdmin ? this.adminNotification.receivers.length : this.availableAdminRecipients.length;
-        this.notice = `通知已发送给 ${Number(result?.sent || expected)} 位联系人`;
-        this.adminNotificationOpen = false;
-      } catch (error) {
-        this.adminNotificationError = error.message || "通知发送失败";
-      } finally {
-        this.adminNotificationSending = false;
-      }
-    },
     async openNotificationHistory(schedule) {
       this.notificationHistorySchedule = schedule;
       this.notificationHistoryDialogOpen = true;
@@ -732,6 +684,8 @@ export default {
     async openNotificationSelector() {
       this.error = "";
       this.pendingNotificationId = this.form.notificationChannelId || "";
+      this.pendingNotificationRecipientMode = this.form.notificationRecipientMode || "DEFAULT";
+      this.pendingNotificationReceiver = this.form.notificationReceiver || "";
       this.notificationSelectOpen = true;
       await this.loadNotificationChannels();
     },
@@ -745,9 +699,36 @@ export default {
         this.error = "请选择通知类型";
         return;
       }
+      const selectedChannel = this.notificationChannels.find((channel) => channel.id === this.pendingNotificationId);
+      const recipients = this.parseNotificationRecipients(selectedChannel?.receiver);
+      if (this.pendingNotificationRecipientMode === "SPECIFIC"
+        && !recipients.includes(this.pendingNotificationReceiver)) {
+        this.error = "请选择该通知方式下的一个联系人";
+        return;
+      }
       this.form.notificationChannelId = this.pendingNotificationId;
+      this.form.notificationRecipientMode = this.pendingNotificationRecipientMode;
+      this.form.notificationReceiver = this.pendingNotificationRecipientMode === "SPECIFIC"
+        ? this.pendingNotificationReceiver : "";
       this.notificationSelectOpen = false;
       await this.createSchedule(true);
+    },
+    selectNotificationChannel(channelId) {
+      if (this.pendingNotificationId !== channelId) {
+        this.pendingNotificationId = channelId;
+        this.pendingNotificationRecipientMode = "DEFAULT";
+        this.pendingNotificationReceiver = "";
+      }
+    },
+    selectDefaultNotificationRecipients(channelId) {
+      this.pendingNotificationId = channelId;
+      this.pendingNotificationRecipientMode = "DEFAULT";
+      this.pendingNotificationReceiver = "";
+    },
+    selectNotificationRecipient(channelId, receiver) {
+      this.pendingNotificationId = channelId;
+      this.pendingNotificationRecipientMode = "SPECIFIC";
+      this.pendingNotificationReceiver = receiver;
     },
     async saveNotificationRecipientsAndClose() {
       const channels = this.notificationChannels.filter((channel) => channel.recipientAware);

@@ -76,4 +76,8 @@ public interface ScheduledTaskRepository extends JpaRepository<ScheduledTaskEnti
     List<ScheduledTaskEntity> findByStatusAndLastTaskIdIsNotNullOrderByUpdatedAtAsc(String status, Pageable pageable);
 
     Optional<ScheduledTaskEntity> findFirstByLastTaskId(String lastTaskId);
+
+    List<ScheduledTaskEntity> findByTenantIdIn(List<String> tenantIds);
+
+    List<ScheduledTaskEntity> findByTenantIdInAndUserIdIn(List<String> tenantIds, List<String> userIds);
 }

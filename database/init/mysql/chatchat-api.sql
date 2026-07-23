@@ -398,6 +398,8 @@
         agent_id varchar(128),
         name varchar(200) not null,
         notification_channel_name varchar(200),
+        notification_recipient_mode varchar(16) default 'DEFAULT',
+        notification_receiver varchar(2000),
         last_error varchar(1000),
         question varchar(4000) not null,
         payload_json TEXT not null,

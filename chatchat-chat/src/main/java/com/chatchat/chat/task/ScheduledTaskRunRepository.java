@@ -31,6 +31,18 @@ public interface ScheduledTaskRunRepository extends JpaRepository<ScheduledTaskR
         """)
     int claimNotification(@Param("runId") String runId, @Param("now") Instant now);
 
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+        update ScheduledTaskRunEntity run
+           set run.tenantId = :tenantId, run.userId = :userId
+         where run.scheduledTaskId = :scheduledTaskId
+        """)
+    int updateOwner(
+        @Param("scheduledTaskId") String scheduledTaskId,
+        @Param("tenantId") String tenantId,
+        @Param("userId") String userId
+    );
+
     List<ScheduledTaskRunEntity> findByScheduledTaskIdOrderByFireTimeDesc(String scheduledTaskId, Pageable pageable);
 
     List<ScheduledTaskRunEntity> findByTenantIdAndAgentIdOrderByFireTimeDesc(String tenantId, String agentId, Pageable pageable);

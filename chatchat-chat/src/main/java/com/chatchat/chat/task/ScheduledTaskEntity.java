@@ -70,6 +70,12 @@ public class ScheduledTaskEntity {
     @Column(name = "notification_channel_name", length = 200)
     private String notificationChannelName;
 
+    @Column(name = "notification_recipient_mode", length = 16)
+    private String notificationRecipientMode = "DEFAULT";
+
+    @Column(name = "notification_receiver", length = 2000)
+    private String notificationReceiver;
+
     @Column(name = "trading_day_only", nullable = false)
     private Boolean tradingDayOnly = false;
 
@@ -143,6 +149,9 @@ public class ScheduledTaskEntity {
         }
         if (notifyEnabled == null) {
             notifyEnabled = false;
+        }
+        if (notificationRecipientMode == null || notificationRecipientMode.isBlank()) {
+            notificationRecipientMode = "DEFAULT";
         }
         if (tradingDayOnly == null) {
             tradingDayOnly = false;

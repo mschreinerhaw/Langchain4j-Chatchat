@@ -24,6 +24,8 @@ public class ScheduledAgentTaskRequest {
     private String question;
     private Boolean notifyEnabled;
     private String notificationChannelId;
+    private String notificationRecipientMode;
+    private String notificationReceiver;
     private Boolean tradingDayOnly;
     private Boolean scheduleWindowEnabled;
     private String scheduleWindowStart;

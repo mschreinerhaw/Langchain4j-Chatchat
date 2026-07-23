@@ -4,7 +4,10 @@ import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.mcpserver.audit.InvocationAuditService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.chatchat.mcpserver.authorization.McpAuthorizationProperties;
+import com.chatchat.mcpserver.authorization.McpAuthorizationService;
+import com.chatchat.mcpserver.license.McpLicenseService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ReadListener;
 import jakarta.servlet.ServletException;
@@ -42,6 +45,8 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
     private final InvocationAuditService auditService;
     private final ObjectMapper objectMapper;
     private final McpAuthorizationProperties authorizationProperties;
+    private final McpAuthorizationService authorizationService;
+    private final McpLicenseService licenseService;
 
     /**
      * Performs the do filter internal operation.
@@ -71,6 +76,12 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
                 && (invocationContext.tenantId() == null || invocationContext.tenantId().isBlank())) {
                 writeTenantRequired(response);
                 recordAudit(wrappedRequest, response, 0L, "TENANT_REQUIRED");
+                return;
+            }
+            McpAuthorizationService.AuthorizationDecision authorization = authorizeToolCalls(requestBodyJson(wrappedRequest));
+            if (!authorization.allowed()) {
+                writeAuthorizationDenied(response, authorization.reason());
+                recordAudit(wrappedRequest, response, 0L, authorization.reason());
                 return;
             }
             filterChain.doFilter(wrappedRequest, response);
@@ -246,6 +257,47 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
             "success", false,
             "error", "TENANT_REQUIRED",
             "message", "missing tenantId in MCP request context"
+        ));
+    }
+
+    private McpAuthorizationService.AuthorizationDecision authorizeToolCalls(JsonNode node) {
+        if (node == null || node.isNull() || node.isMissingNode()) {
+            return McpAuthorizationService.AuthorizationDecision.allowDecision();
+        }
+        if (node.isArray()) {
+            for (JsonNode item : node) {
+                McpAuthorizationService.AuthorizationDecision decision = authorizeToolCalls(item);
+                if (!decision.allowed()) {
+                    return decision;
+                }
+            }
+            return McpAuthorizationService.AuthorizationDecision.allowDecision();
+        }
+        if (!"tools/call".equals(text(node.get("method")))) {
+            return McpAuthorizationService.AuthorizationDecision.allowDecision();
+        }
+        JsonNode params = node.path("params");
+        String toolName = firstText(params.get("name"), params.get("toolName"), params.get("tool_name"));
+        JsonNode argumentsNode = firstNode(params.get("arguments"), params.get("input"));
+        String licenseDenialReason = licenseService.toolDenialReason(toolName);
+        if (licenseDenialReason != null) {
+            return McpAuthorizationService.AuthorizationDecision.denyDecision(
+                licenseDenialReason + ": " + toolName);
+        }
+        Map<String, Object> arguments = argumentsNode != null && argumentsNode.isObject()
+            ? objectMapper.convertValue(argumentsNode, new TypeReference<Map<String, Object>>() { })
+            : new LinkedHashMap<>();
+        return authorizationService.authorize(toolName, arguments);
+    }
+
+    private void writeAuthorizationDenied(HttpServletResponse response, String reason) throws IOException {
+        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+        response.setContentType("application/json;charset=UTF-8");
+        boolean licenseDenied = reason != null && (reason.contains("License") || reason.contains("授权 MCP"));
+        objectMapper.writeValue(response.getWriter(), Map.of(
+            "success", false,
+            "error", licenseDenied ? "MCP_LICENSE_ACCESS_DENIED" : "MCP_ASSET_ACCESS_DENIED",
+            "message", reason == null || reason.isBlank() ? "MCP asset access denied" : reason
         ));
     }
 

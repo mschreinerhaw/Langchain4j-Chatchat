@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LiveMCP License Center</title>
+  <link rel="stylesheet" href="/license-center.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">
+      <span class="brand-mark">L</span>
+      <span><strong>LiveMCP</strong><small>License Center</small></span>
+    </a>
+    <div class="topbar-meta">
+      <span class="environment"><i></i>企业内部环境</span>
+      <span class="security-badge">私钥服务端托管</span>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section class="hero">
+      <div>
+        <span class="eyebrow">LICENSE ISSUANCE</span>
+        <h1>新建客户授权</h1>
+        <p>根据客户服务器 MAC 地址签发离线 License，控制产品模块、功能范围和使用期限。</p>
+      </div>
+      <ol class="steps" aria-label="授权签发流程">
+        <li><b>1</b><span>录入客户</span></li>
+        <li><b>2</b><span>绑定 MAC</span></li>
+        <li><b>3</b><span>配置权限</span></li>
+        <li><b>4</b><span>签发文件</span></li>
+      </ol>
+    </section>
+
+    <form id="licenseForm" class="workspace">
+      <div class="form-column">
+        <section class="form-card">
+          <div class="section-heading"><span class="section-icon">01</span><div><h2>客户与产品</h2><p>记录授权归属及产品版本信息</p></div></div>
+          <div class="field-grid three-columns">
+            <label><span>License 编号 <em>*</em></span><input name="licenseNo" required></label>
+            <label><span>客户名称 <em>*</em></span><input name="customer" required placeholder="例如：国都证券"></label>
+            <label><span>客户编码</span><input name="customerCode" placeholder="例如：GDS"></label>
+            <label><span>产品 <em>*</em></span><input name="product" value="LiveMCP" required></label>
+            <label><span>产品版本</span><select name="edition"><option value="enterprise">Enterprise</option><option value="professional">Professional</option><option value="standard">Standard</option></select></label>
+            <label><span>最大用户数 <em>*</em></span><input name="maxUsers" type="number" min="1" value="100" required></label>
+          </div>
+        </section>
+
+        <section class="form-card">
+          <div class="section-heading"><span class="section-icon">02</span><div><h2>服务器绑定</h2><p>License 仅允许绑定网卡所在服务器使用</p></div></div>
+          <label class="mac-field"><span>客户服务器 MAC 地址 <em>*</em></span><div class="input-prefix"><b>MAC</b><input name="serverId" required placeholder="AA:BB:CC:DD:EE:FF"></div></label>
+          <div class="hint"><span>i</span>支持冒号、短横线或连续 12 位十六进制格式，文件中将标准化为 <code>MAC-AABBCCDDEEFF</code>。</div>
+        </section>
+
+        <section class="form-card">
+          <div class="section-heading"><span class="section-icon">03</span><div><h2>授权范围</h2><p>选择客户购买的产品能力</p></div></div>
+          <div class="permission-grid">
+            <fieldset><legend>产品模块</legend>
+              <label class="check-card"><input type="checkbox" name="modules" value="mcp" checked><span><b>MCP 服务</b><small>统一服务入口及管理能力</small></span></label>
+              <label class="check-card"><input type="checkbox" name="modules" value="sql"><span><b>数据查询</b><small>SQL 与业务查询能力</small></span></label>
+              <label class="check-card"><input type="checkbox" name="modules" value="news"><span><b>新闻中心</b><small>资讯采集与检索服务</small></span></label>
+              <label class="check-card"><input type="checkbox" name="modules" value="agent"><span><b>Agent Runtime</b><small>智能体运行环境</small></span></label>
+              <label class="check-card"><input type="checkbox" name="modules" value="market"><span><b>行情分析</b><small>证券行情数据能力</small></span></label>
+            </fieldset>
+            <fieldset><legend>功能开关</legend>
+              <label class="check-card"><input type="checkbox" name="features" value="sql_query"><span><b>SQL 查询</b><small>执行已授权查询模板</small></span></label>
+              <label class="check-card"><input type="checkbox" name="features" value="news_collect"><span><b>新闻采集</b><small>采集外部新闻资讯</small></span></label>
+              <label class="check-card"><input type="checkbox" name="features" value="agent_runtime"><span><b>智能体运行</b><small>调度和运行 Agent</small></span></label>
+              <label class="check-card"><input type="checkbox" name="features" value="market_analysis"><span><b>行情分析</b><small>市场数据分析工具</small></span></label>
+            </fieldset>
+          </div>
+        </section>
+
+        <section class="form-card">
+          <div class="section-heading"><span class="section-icon">04</span><div><h2>授权期限</h2><p>过期后客户服务进入受限模式</p></div></div>
+          <div class="field-grid two-columns">
+            <label><span>签发日期 <em>*</em></span><input name="issuedTime" type="date" required></label>
+            <label><span>到期日期 <em>*</em></span><input name="expireTime" type="date" required></label>
+          </div>
+          <div class="expiry-note"><b>到期行为</b><span>停止接受新的 MCP 工具调用，保留授权状态页面，便于客户查看原因并续期。</span></div>
+        </section>
+      </div>
+
+      <aside class="summary-card">
+        <div class="summary-title"><span>授权预览</span><i>待签发</i></div>
+        <div class="customer-avatar" id="customerAvatar">L</div>
+        <h3 id="previewCustomer">未填写客户</h3>
+        <p id="previewProduct">LiveMCP · Enterprise</p>
+        <dl>
+          <div><dt>绑定 MAC</dt><dd id="previewMac">尚未填写</dd></div>
+          <div><dt>授权模块</dt><dd id="previewModules">MCP 服务</dd></div>
+          <div><dt>最大用户</dt><dd id="previewUsers">100</dd></div>
+          <div><dt>有效期至</dt><dd id="previewExpiry">-</dd></div>
+        </dl>
+        <div class="signing-info"><span class="shield">✓</span><div><b>RSA 数字签名</b><small>授权内容防篡改，私钥不会离开服务器</small></div></div>
+        <button id="submitButton" type="submit"><span>生成并下载 License</span><b>→</b></button>
+        <p id="message" role="status"></p>
+      </aside>
+    </form>
+  </main>
+  <script src="/license-center.js"></script>
+</body>
+</html>

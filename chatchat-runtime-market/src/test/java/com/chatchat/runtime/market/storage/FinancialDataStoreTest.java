@@ -18,6 +18,26 @@ import static org.assertj.core.api.Assertions.assertThat;
 class FinancialDataStoreTest {
     @Test
     @SuppressWarnings("unchecked")
+    void supportsGovernedLikeFilterForUnindexedQuoteNames() throws Exception {
+        var dataSource = new DriverManagerDataSource(
+            "jdbc:h2:mem:financial_quote_like;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1", "sa", "");
+        var store = new FinancialDataStore(new JdbcTemplate(dataSource), dataSource,
+            new ObjectMapper(), new MarketModuleProperties());
+        store.initialize();
+        MarketSource source = new MarketSource(8L, "sse_daily_snapshot", "上交所行情快照", "https://www.sse.com.cn");
+        store.store(quote(source, "600010", "包钢股份", "2.18"));
+        store.store(quote(source, "600000", "浦发银行", "10.50"));
+
+        Map<String, Object> result = store.query("market_quote_daily", Map.of("quoteNameLike", "包钢"),
+            LocalDate.parse("2026-07-01"), LocalDate.parse("2026-07-31"), 10);
+
+        assertThat(result).containsEntry("count", 1);
+        assertThat((List<Map<String, Object>>) result.get("rows")).singleElement().satisfies(row ->
+            assertThat(row).containsEntry("quote_code", "600010").containsEntry("quote_name", "包钢股份"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void infersSchemaRegistersCatalogAndReturnsBoundedStructuredRows() throws Exception {
         var dataSource = new DriverManagerDataSource(
             "jdbc:h2:mem:financial_asset;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1", "sa", "");
@@ -108,6 +128,14 @@ class FinancialDataStoreTest {
             "https://www.sse.com.cn/etf#510000-" + date, Instant.parse(date + "T08:00:00Z"), "zh-CN",
             List.of("ETF scale"), List.of("ETF"), Map.of("provider", "SSE", "dataset", "ETF规模",
                 "scaleDate", date, "fundCode", "510000", "fundName", "ETF", "fundScale10KUnits", "100"));
+    }
+
+    private MarketObservation quote(MarketSource source, String code, String name, String close) {
+        return new MarketObservation(source, name + "行情", "quote", null, "SSE",
+            "https://www.sse.com.cn/quote#" + code, Instant.parse("2026-07-23T08:00:00Z"), "zh-CN",
+            List.of("行情"), List.of("SSE"), Map.of(
+                "datasetCode", "market_quote_daily", "tradeDate", "2026-07-23",
+                "quoteCode", code, "quoteName", name, "close", close));
     }
 
     private MarketObservation statistics(MarketSource source, String segment, String listedHShares) {

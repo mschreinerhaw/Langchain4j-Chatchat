@@ -1,0 +1,15 @@
+server:
+  port: ${CHATCHAT_LICENSE_CENTER_PORT:8092}
+
+spring:
+  application:
+    name: chatchat-license-center
+
+chatchat:
+  license-center:
+    private-key-path: ${CHATCHAT_LICENSE_PRIVATE_KEY_PATH:./data/license-center/license-private.pem}
+    public-key-path: ${CHATCHAT_LICENSE_PUBLIC_KEY_PATH:./data/license-center/license-public.pem}
+    auto-generate-keys: ${CHATCHAT_LICENSE_AUTO_GENERATE_KEYS:true}
+    key-id: ${CHATCHAT_LICENSE_KEY_ID:default}
+    username: ${CHATCHAT_LICENSE_CENTER_USERNAME:license-admin}
+    password: ${CHATCHAT_LICENSE_CENTER_PASSWORD:123456}

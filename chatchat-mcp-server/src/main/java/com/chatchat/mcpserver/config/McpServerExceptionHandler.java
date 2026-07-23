@@ -1,6 +1,7 @@
 package com.chatchat.mcpserver.config;
 
 import com.chatchat.common.response.ApiResponse;
+import com.chatchat.license.LicenseException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -15,6 +16,11 @@ public class McpServerExceptionHandler {
      */
     @ExceptionHandler(IllegalArgumentException.class)
     public ApiResponse<Void> handleIllegalArgument(IllegalArgumentException ex) {
+        return ApiResponse.badRequest(ex.getMessage());
+    }
+
+    @ExceptionHandler(LicenseException.class)
+    public ApiResponse<Void> handleLicense(LicenseException ex) {
         return ApiResponse.badRequest(ex.getMessage());
     }
 

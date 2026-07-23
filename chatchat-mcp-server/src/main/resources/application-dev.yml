@@ -34,6 +34,13 @@ chatchat:
     secret: chatchat_internal_default_secret
     crypto-key:
     crypto-key-file:
+  license:
+    enforcement-enabled: false
+    fail-startup-on-invalid: false
+    status-check-interval-ms: 60000
+    license-file: ./data/license/license.dat
+    server-id-file: ./data/license/server.id
+    public-key-path: ${CHATCHAT_LICENSE_PUBLIC_KEY_PATH:}
   mcp:
     market:
       retention:
@@ -60,7 +67,9 @@ chatchat:
       encrypted-invocation-token:
       invocation-token: chatchat_internal_default_secret
     authorization:
-      enabled: false
+      enabled: true
+      fail-open: false
+      require-tenant-context: true
       api-base-url: http://localhost:8080
       auth:
         username: chatchat_mcp_internal

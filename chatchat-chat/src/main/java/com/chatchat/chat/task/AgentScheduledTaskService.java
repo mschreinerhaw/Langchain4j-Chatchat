@@ -113,12 +113,13 @@ public class AgentScheduledTaskService {
 
         Instant now = Instant.now();
         AgentTaskSubmitRequest payload = normalizePayload(request);
+        payload.setTenantId(entity.getTenantId());
+        payload.setUserId(entity.getUserId());
         String triggerType = normalizeTriggerType(request.getTriggerType());
         boolean enabled = request.getEnabled() == null
             ? "ACTIVE".equals(normalizeStatus(entity.getStatus()))
             : request.getEnabled();
 
-        entity.setUserId(payload.getUserId());
         entity.setAgentId(firstText(request.getAgentId(), payload.getAgentId(), payload.getSkillId()));
         requirePublishedAgent(entity.getAgentId());
         entity.setName(firstText(request.getName(), defaultScheduleName(entity.getAgentId(), payload.getQuery())));
@@ -200,6 +201,71 @@ public class AgentScheduledTaskService {
         return list(tenantId, null, page, pageSize);
     }
 
+    public ScheduledTaskPageResponse search(String tenantId, String userId, String agentId, String status, String keyword,
+                                            List<String> keywordAgentIds, int page, int pageSize) {
+        String normalizedTenant = requireTenant(tenantId);
+        int normalizedPage = Math.max(0, page - 1);
+        int normalizedSize = Math.max(1, Math.min(pageSize, 100));
+        Page<ScheduledTaskEntity> result = scheduledTaskRepository.search(
+            normalizedTenant,
+            text(userId),
+            text(agentId),
+            normalizeStatus(status),
+            text(keyword),
+            normalizeSearchAgentIds(keywordAgentIds),
+            PageRequest.of(normalizedPage, normalizedSize)
+        );
+        return new ScheduledTaskPageResponse(
+            toResponses(result.getContent()), result.getTotalElements(), normalizedPage + 1,
+            normalizedSize, result.getTotalPages()
+        );
+    }
+
+    public ScheduledTaskRunAuditPageResponse audit(String tenantId, String userId, String agentId, String status, String keyword,
+                                                    List<String> keywordAgentIds, int page, int pageSize) {
+        String normalizedTenant = requireTenant(tenantId);
+        int normalizedPage = Math.max(0, page - 1);
+        int normalizedSize = Math.max(1, Math.min(pageSize, 100));
+        Page<ScheduledTaskRunEntity> result = scheduledTaskRunRepository.searchAudit(
+            normalizedTenant,
+            text(userId),
+            text(agentId),
+            normalizeStatus(status),
+            text(keyword),
+            normalizeSearchAgentIds(keywordAgentIds),
+            PageRequest.of(normalizedPage, normalizedSize)
+        );
+        Map<String, String> scheduleNames = scheduledTaskRepository.findAllById(
+            result.getContent().stream().map(ScheduledTaskRunEntity::getScheduledTaskId).distinct().toList()
+        ).stream().collect(java.util.stream.Collectors.toMap(ScheduledTaskEntity::getTaskId, ScheduledTaskEntity::getName));
+        return new ScheduledTaskRunAuditPageResponse(
+            result.getContent().stream()
+                .map(run -> ScheduledTaskRunAuditResponse.from(run, scheduleNames.get(run.getScheduledTaskId())))
+                .toList(),
+            result.getTotalElements(), normalizedPage + 1, normalizedSize, result.getTotalPages()
+        );
+    }
+
+    private List<String> normalizeSearchAgentIds(List<String> agentIds) {
+        if (agentIds == null || agentIds.isEmpty()) {
+            return List.of("__no_matching_agent__");
+        }
+        List<String> normalized = agentIds.stream().map(this::text).filter(value -> !value.isBlank()).distinct().toList();
+        return normalized.isEmpty() ? List.of("__no_matching_agent__") : normalized;
+    }
+
+    private String text(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    public void requireAccess(String tenantId, String scheduledTaskId, String userId) {
+        ScheduledTaskEntity entity = getForTenant(tenantId, scheduledTaskId);
+        String normalizedUser = text(userId);
+        if (!normalizedUser.isEmpty() && !normalizedUser.equals(entity.getUserId())) {
+            throw new IllegalArgumentException("Scheduled task not found: " + scheduledTaskId);
+        }
+    }
+
     @Transactional
     public ScheduledTaskResponse pause(String tenantId, String scheduledTaskId) {
         ScheduledTaskEntity entity = getForTenant(tenantId, scheduledTaskId);
@@ -268,12 +334,21 @@ public class AgentScheduledTaskService {
     }
 
     public List<ScheduledTaskRunResponse> historyByAgent(String tenantId, String agentId, int page, int pageSize) {
+        return historyByAgent(tenantId, "", agentId, page, pageSize);
+    }
+
+    public List<ScheduledTaskRunResponse> historyByAgent(String tenantId, String userId, String agentId,
+                                                         int page, int pageSize) {
         String normalizedTenant = requireTenant(tenantId);
         String normalizedAgent = requireText(agentId, "Agent ID cannot be empty");
         int normalizedPage = Math.max(0, page - 1);
         int normalizedSize = Math.max(1, Math.min(pageSize, 100));
-        return scheduledTaskRunRepository
-            .findByTenantIdAndAgentIdOrderByFireTimeDesc(normalizedTenant, normalizedAgent, PageRequest.of(normalizedPage, normalizedSize))
+        List<ScheduledTaskRunEntity> runs = text(userId).isEmpty()
+            ? scheduledTaskRunRepository.findByTenantIdAndAgentIdOrderByFireTimeDesc(
+                normalizedTenant, normalizedAgent, PageRequest.of(normalizedPage, normalizedSize))
+            : scheduledTaskRunRepository.findByTenantIdAndUserIdAndAgentIdOrderByFireTimeDesc(
+                normalizedTenant, text(userId), normalizedAgent, PageRequest.of(normalizedPage, normalizedSize));
+        return runs
             .stream()
             .map(ScheduledTaskRunResponse::from)
             .toList();

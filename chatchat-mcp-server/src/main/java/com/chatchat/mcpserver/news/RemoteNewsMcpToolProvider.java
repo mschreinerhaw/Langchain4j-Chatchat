@@ -21,10 +21,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /** The only public search tool; it composes independent news and market runtimes. */
 @Component
 public class RemoteNewsMcpToolProvider implements McpToolProvider {
+    private static final Pattern SECURITY_CODE = Pattern.compile("(?<!\\d)([0-9]{6})(?!\\d)");
+    private static final Pattern SECURITY_NAME_WITH_CODE = Pattern.compile(
+        "(?:^|[\\s,，;；])([\\p{IsHan}A-Za-z*]{2,16})\\s*[（(]\\s*[0-9]{6}\\s*[）)]");
+    private static final Pattern SECURITY_NAME_WITH_INTENT = Pattern.compile(
+        "^(?:(?:请)?(?:查询|查看|分析))?\\s*([\\p{IsHan}A-Za-z*]{2,12}?)(?:股票)?(?:的)?(?:行情|股价)(?:查询|分析)?$");
     private final NewsRuntimeClient newsClient;
     private final FinancialAssetCatalogService marketCatalog;
     private final FinancialDataStore marketStore;
@@ -40,7 +47,7 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
             List.of(text("query", "News topic, business question, or financial data keywords", false),
                 number("num_results", "Maximum number of unified search results to return", 10, 1, 50),
                 text("dataset", "Optional dataset code returned by a financial_data_asset result", false),
-                object("filters", "Exact-match filters on registered fields, such as securityCode"),
+                object("filters", "Exact-match filters on registered fields, such as securityCode or quoteCode"),
                 text("startDate", "Optional observation start date in YYYY-MM-DD", false),
                 text("endDate", "Optional observation end date in YYYY-MM-DD", false),
                 text("historyMode", "Storage tier: auto (default), daily (7-day hot data), or weekly (snapshots)", false),
@@ -146,7 +153,11 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
                     }
                 }
                 List<Map<String, Object>> compactRows = compactRows(rows, rowLimit);
-                if (compactRows.isEmpty()) continue;
+                if (compactRows.isEmpty()) {
+                    if (!filters.isEmpty()) warnings.add("dataset " + dataset
+                        + ": no observations matched exact filters " + filters);
+                    continue;
+                }
                 Map<String, Object> asset = assets.stream()
                     .filter(item -> dataset.equals(item.get("dataset"))).findFirst().orElse(Map.of());
                 Map<String, Object> item = new LinkedHashMap<>();
@@ -158,6 +169,7 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
                 item.put("snippet", "已从受治理存储位置读取实际金融数据，不是资产目录元数据。");
                 item.put("count", compactRows.size());
                 item.put("rows", compactRows);
+                if (!filters.isEmpty()) item.put("appliedFilters", filters);
                 item.put("historyMode", historyMode);
                 hydrated.add(item);
             } catch (Exception ex) {
@@ -176,8 +188,14 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         if (available.isEmpty()) return List.of();
         String normalized = query == null ? "" : query.toLowerCase();
         LinkedHashSet<String> selected = new LinkedHashSet<>();
-        if (containsAny(normalized, "a股", "股票", "大盘", "指数", "上证", "深证", "沪深", "创业板", "科创")) {
+        List<String> securityCodes = securityCodes(query);
+        if (!securityCodes.isEmpty() && containsAny(normalized, "行情", "股价", "价格", "涨跌", "成交", "股票", "a股")) {
+            addAvailable(selected, available, "market_quote_daily");
+        } else if (containsAny(normalized, "a股", "股票", "行情", "股价", "大盘", "指数", "上证", "深证", "沪深", "创业板", "科创")) {
             addAvailable(selected, available, "market_quote_daily", "index_valuation_daily", "market_statistics_daily");
+        }
+        if (!securityCodes.isEmpty() && containsAny(normalized, "估值", "市盈率", "市净率", "pe", "pb")) {
+            addAvailable(selected, available, "stock_valuation_daily");
         }
         if (containsAny(normalized, "融资", "融券", "两融")) addAvailable(selected, available, "margin_trade_daily");
         if (containsAny(normalized, "分红", "送股", "转增", "配股")) addAvailable(selected, available, "stock_dividend_event");
@@ -205,13 +223,48 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
             codes.put("创业板50", "399673");
         }
         String field = "index_valuation_daily".equals(dataset) ? "indexCode"
-            : "market_quote_daily".equals(dataset) ? "quoteCode" : "";
+            : "market_quote_daily".equals(dataset) ? "quoteCode"
+            : Set.of("stock_valuation_daily", "margin_trade_daily", "stock_dividend_event").contains(dataset)
+                ? "securityCode" : "";
         if (field.isBlank()) return List.of();
         List<Map<String, Object>> filters = new ArrayList<>();
+        for (String code : securityCodes(query)) filters.add(Map.of(field, code));
+        if ("market_quote_daily".equals(dataset)) {
+            for (String name : securityNames(query)) filters.add(Map.of("quoteNameLike", name));
+        }
         codes.forEach((name, code) -> {
-            if (query.contains(name)) filters.add(Map.of(field, code));
+            if (query.contains(name) && filters.stream().noneMatch(item -> code.equals(item.get(field)))) {
+                filters.add(Map.of(field, code));
+            }
         });
         return filters;
+    }
+
+    private List<String> securityCodes(String query) {
+        if (query == null || query.isBlank()) return List.of();
+        LinkedHashSet<String> codes = new LinkedHashSet<>();
+        Matcher matcher = SECURITY_CODE.matcher(query);
+        while (matcher.find()) codes.add(matcher.group(1));
+        return List.copyOf(codes);
+    }
+
+    private List<String> securityNames(String query) {
+        if (query == null || query.isBlank()) return List.of();
+        LinkedHashSet<String> names = new LinkedHashSet<>();
+        Matcher withCode = SECURITY_NAME_WITH_CODE.matcher(query.trim());
+        while (withCode.find()) addSecurityName(names, withCode.group(1));
+        if (names.isEmpty()) {
+            Matcher withIntent = SECURITY_NAME_WITH_INTENT.matcher(query.trim());
+            if (withIntent.matches()) addSecurityName(names, withIntent.group(1));
+        }
+        return List.copyOf(names);
+    }
+
+    private void addSecurityName(Set<String> names, String candidate) {
+        String name = candidate == null ? "" : candidate.trim();
+        if (name.length() < 2 || Set.of("A股", "股票", "行情", "股价", "大盘", "指数", "今日", "实时", "最新")
+            .contains(name)) return;
+        names.add(name);
     }
 
     @SuppressWarnings("unchecked")

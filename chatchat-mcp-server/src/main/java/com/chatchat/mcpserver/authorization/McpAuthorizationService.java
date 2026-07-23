@@ -85,19 +85,22 @@ public class McpAuthorizationService {
         if (principal.tenantId() == null && principal.userId() == null && principal.username() == null) {
             return AuthorizationDecision.denyDecision("MCP caller identity is missing");
         }
+        if (properties.isRequireTenantContext() && principal.tenantId() == null) {
+            return AuthorizationDecision.denyDecision("MCP caller tenant context is missing");
+        }
         if (isAdminPrincipal(principal) || snapshot.hasRoleCode(principal, "SUPER_ADMIN")) {
             return AuthorizationDecision.allowDecision();
         }
 
         List<ToolPermission> matched = snapshot.matchedPermissions(principal);
         if (matched.isEmpty()) {
-            return AuthorizationDecision.allowDecision();
+            return AuthorizationDecision.denyDecision("no MCP asset authorization is assigned to caller");
         }
 
         String normalizedToolName = normalize(toolName);
         McpScopeExpression requestedScope = requestedScope(toolName, arguments, principal);
         List<ToolPermission> effective = matched.stream()
-            .filter(permission -> permission.matchesTool(normalizedToolName) || permission.matchesScope(requestedScope))
+            .filter(permission -> permission.matchesRequest(normalizedToolName, requestedScope))
             .toList();
         boolean denied = effective.stream().anyMatch(permission -> DENY.equals(permission.effect()));
         if (denied) {
@@ -690,6 +693,22 @@ public class McpAuthorizationService {
             return "*".equals(local)
                 || "*".equals(id)
                 || (toolName != null && (toolName.equals(local) || toolName.equals(id)));
+        }
+
+        boolean matchesRequest(String toolName, McpScopeExpression requestedScope) {
+            boolean hasToolConstraint = (localToolName != null && !localToolName.isBlank())
+                || (toolId != null && !toolId.isBlank());
+            if (!hasToolConstraint) {
+                return false;
+            }
+            boolean toolMatched = matchesTool(toolName);
+            if (scopeExpression == null || scopeExpression.isBlank()) {
+                return toolMatched;
+            }
+            if (toolMatched && (requestedScope == null || requestedScope.domain() == null)) {
+                return true;
+            }
+            return matchesScope(requestedScope);
         }
 
         boolean matchesScope(McpScopeExpression requestedScope) {

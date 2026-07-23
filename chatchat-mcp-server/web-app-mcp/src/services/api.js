@@ -186,6 +186,10 @@ export const authorizationApi = {
   deleteRolePermission: id => apiFetch(`${API_BASE}/mcp-authorization/role-permissions/${encodeURIComponent(id)}`, { method: 'DELETE' })
 };
 
+export const licenseApi = {
+  status: () => apiFetch(`${API_BASE}/license/status`)
+};
+
 function saveEntity(baseUrl, entity, mapper = value => value) {
   const body = JSON.stringify(mapper(entity));
   if (entity.id) {

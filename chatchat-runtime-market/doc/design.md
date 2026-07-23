@@ -361,12 +361,29 @@ MCP并行获取：
 
 1. 根据 `dataset` 查询 `market_asset_catalog`。
 2. 获取受管物理表和已登记字段。
-3. 只接受Schema注册字段的等值过滤。
+3. 只接受Schema注册字段的等值过滤，以及字符串字段的受控 `Like` 过滤。
 4. 应用观测日期范围。
 5. 根据 `historyMode` 选择存储层：`daily` 只查7天热明细，`weekly` 只查周快照，`auto` 根据时间范围查询一个或两个层级并合并。
 6. 返回行通过 `_storage_tier=daily_hot|weekly_snapshot` 标明证据来源。
 7. 按观测日期和采集时间倒序返回。
 8. 默认最多50行，硬上限200行。
+
+行情快照不要求写入全文索引。对于证券名称检索，可以使用受治理的 `Like` 后缀过滤器：
+
+```json
+{
+  "dataset": "market_quote_daily",
+  "filters": {
+    "quoteNameLike": "包钢股份"
+  },
+  "limit": 20
+}
+```
+
+`Like` 仅允许作用于 `data_schema_registry` 中登记为 `STRING` 的字段，底层使用参数化
+`lower(column) like ?` 查询，并继续应用日期范围与最大返回行数限制。统一搜索识别到
+“包钢股份（600010）”时，会分别执行 `quoteCode=600010` 和
+`quoteNameLike=包钢股份`，然后按行情记录键合并去重。
 
 返回模型前会生成 `resultView=compact_model_context` 的紧凑视图。`payload_json`、`*_history` 等可重复恢复的大字段不进入模型上下文，过长字符串也会被省略，并在 `_omitted_fields` 中标记；数据库中的原始事实数据不会因此改变。这样可避免协议响应或模型上下文被历史序列挤满后发生截断。
 

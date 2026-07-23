@@ -35,6 +35,7 @@
     </KeepAlive>
 
     <button
+      v-if="canAccessView('chat')"
       class="floating-new-conversation"
       v-floating-drag
       type="button"

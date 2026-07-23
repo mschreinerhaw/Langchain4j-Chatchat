@@ -26,6 +26,7 @@
 
     <modules>
         <module>chatchat-common</module>
+        <module>chatchat-license</module>
         <module>chatchat-agents</module>
         <module>chatchat-tools</module>
         <module>chatchat-runtime-mcp</module>
@@ -63,6 +64,11 @@
             <dependency>
                 <groupId>com.chatchat</groupId>
                 <artifactId>chatchat-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.chatchat</groupId>
+                <artifactId>chatchat-license</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

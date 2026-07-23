@@ -5,6 +5,8 @@ import com.chatchat.chat.task.AgentScheduledTaskService;
 import com.chatchat.chat.task.ScheduledAgentTaskRequest;
 import com.chatchat.chat.task.ScheduledTaskRunResponse;
 import com.chatchat.chat.task.ScheduledTaskResponse;
+import com.chatchat.chat.task.ScheduledTaskPageResponse;
+import com.chatchat.chat.task.ScheduledTaskRunAuditPageResponse;
 import com.chatchat.chat.task.ScheduledNotificationHistoryPageResponse;
 import com.chatchat.chat.task.TenantNotificationRecipientService;
 import com.chatchat.chat.skills.SkillCatalogService;
@@ -27,7 +29,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -158,6 +164,7 @@ public class AgentTaskScheduleController {
                 && !enterpriseAdminService.canAccessAgent(currentUserId, requestedAgentId)) {
                 return ApiResponse.badRequest("Current role is not allowed to schedule this Agent");
             }
+            scheduledTaskService.requireAccess(currentTenantId, scheduledTaskId, visibleUserId(servletRequest));
             return ApiResponse.success(
                 scheduledTaskService.update(currentTenantId, scheduledTaskId, request),
                 "Agent Runtime scheduled task updated"
@@ -171,15 +178,92 @@ public class AgentTaskScheduleController {
 
     @GetMapping
     @Operation(summary = "List lightweight Agent Runtime scheduled tasks")
-    public ApiResponse<List<ScheduledTaskResponse>> list(@RequestParam("tenantId") String tenantId,
-                                                         @RequestParam(value = "agentId", required = false) String agentId,
-                                                         @RequestParam(value = "page", defaultValue = "1") int page,
-                                                         @RequestParam(value = "pageSize", defaultValue = "20") int pageSize,
-                                                         HttpServletRequest servletRequest) {
+    public ApiResponse<ScheduledTaskPageResponse> list(@RequestParam("tenantId") String tenantId,
+                                                       @RequestParam(value = "agentId", defaultValue = "") String agentId,
+                                                       @RequestParam(value = "status", defaultValue = "") String status,
+                                                       @RequestParam(value = "keyword", defaultValue = "") String keyword,
+                                                       @RequestParam(value = "keywordAgentIds", defaultValue = "") String keywordAgentIds,
+                                                       @RequestParam(value = "page", defaultValue = "1") int page,
+                                                       @RequestParam(value = "pageSize", defaultValue = "20") int pageSize,
+                                                       HttpServletRequest servletRequest) {
         try {
-            return ApiResponse.success(scheduledTaskService.list(scopedTenantId(servletRequest, tenantId), agentId, page, pageSize));
+            return ApiResponse.success(scheduledTaskService.search(
+                scopedTenantId(servletRequest, tenantId), visibleUserId(servletRequest), agentId, status, keyword,
+                splitRecipients(keywordAgentIds), page, pageSize
+            ));
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
+        }
+    }
+
+    @GetMapping("/audit")
+    @Operation(summary = "Search paged scheduled Agent execution audit records")
+    public ApiResponse<ScheduledTaskRunAuditPageResponse> audit(
+        @RequestParam("tenantId") String tenantId,
+        @RequestParam(value = "agentId", defaultValue = "") String agentId,
+        @RequestParam(value = "status", defaultValue = "") String status,
+        @RequestParam(value = "keyword", defaultValue = "") String keyword,
+        @RequestParam(value = "keywordAgentIds", defaultValue = "") String keywordAgentIds,
+        @RequestParam(value = "page", defaultValue = "1") int page,
+        @RequestParam(value = "pageSize", defaultValue = "20") int pageSize,
+        HttpServletRequest servletRequest
+    ) {
+        try {
+            return ApiResponse.success(scheduledTaskService.audit(
+                scopedTenantId(servletRequest, tenantId), visibleUserId(servletRequest), agentId, status, keyword,
+                splitRecipients(keywordAgentIds), page, pageSize
+            ));
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.badRequest(e.getMessage());
+        }
+    }
+
+    @PostMapping("/notifications/send")
+    @Operation(summary = "Send a notification to maintained contacts with administrator recipient selection")
+    public ApiResponse<Map<String, Object>> sendNotification(@RequestBody AdminNotificationRequest request,
+        HttpServletRequest servletRequest) {
+        try {
+            if (request == null) {
+                throw new IllegalArgumentException("通知内容不能为空");
+            }
+            McpNotificationClient.NotificationChannelOption option = notificationClient.requireEnabled(request.channelId());
+            String tenantId = scopedTenantId(servletRequest, null);
+            Set<String> maintained = new LinkedHashSet<>(recipientService.receiver(tenantId, option.channel())
+                .map(this::splitRecipients).orElseGet(List::of));
+            if (maintained.isEmpty()) {
+                throw new IllegalArgumentException("当前通知方式尚未维护联系人");
+            }
+            boolean admin = isAdmin(servletRequest);
+            List<String> requestedReceivers = splitRecipients(request.receivers());
+            List<String> selected = admin ? requestedReceivers : List.copyOf(maintained);
+            if (admin && selected.isEmpty()) {
+                throw new IllegalArgumentException("请选择至少一个接收人");
+            }
+            if (admin && !maintained.containsAll(selected)) {
+                throw new IllegalArgumentException("只能向当前通知方式中已维护的联系人发送消息");
+            }
+            String title = requireText(request.title(), "通知标题不能为空");
+            String content = requireText(request.content(), "通知内容不能为空");
+            String level = firstText(request.level(), "INFO").toUpperCase(Locale.ROOT);
+            if (!Set.of("INFO", "WARNING", "CRITICAL").contains(level)) {
+                throw new IllegalArgumentException("通知级别不正确");
+            }
+            int sent = 0;
+            for (String receiver : selected) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("receiver", receiver);
+                payload.put("title", title);
+                payload.put("content", content);
+                payload.put("level", level);
+                payload.put("sourceTaskId", "admin-manual-notification");
+                notificationClient.dispatch(option.id(), payload);
+                sent++;
+            }
+            return ApiResponse.success(Map.of("sent", sent, "total", selected.size()), "通知发送成功");
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.badRequest(e.getMessage());
+        } catch (Exception e) {
+            return ApiResponse.internalError("通知发送失败: " + e.getMessage());
         }
     }
 
@@ -189,7 +273,9 @@ public class AgentTaskScheduleController {
                                                   @PathVariable("scheduledTaskId") String scheduledTaskId,
                                                   HttpServletRequest servletRequest) {
         try {
-            return scheduledTaskService.get(scopedTenantId(servletRequest, tenantId), scheduledTaskId)
+            String scopedTenantId = scopedTenantId(servletRequest, tenantId);
+            scheduledTaskService.requireAccess(scopedTenantId, scheduledTaskId, visibleUserId(servletRequest));
+            return scheduledTaskService.get(scopedTenantId, scheduledTaskId)
                 .map(ApiResponse::success)
                 .orElseGet(() -> ApiResponse.notFound("Scheduled task not found: " + scheduledTaskId));
         } catch (IllegalArgumentException e) {
@@ -203,7 +289,9 @@ public class AgentTaskScheduleController {
                                                     @PathVariable("scheduledTaskId") String scheduledTaskId,
                                                     HttpServletRequest servletRequest) {
         try {
-            return ApiResponse.success(scheduledTaskService.pause(scopedTenantId(servletRequest, tenantId), scheduledTaskId), "Scheduled task paused");
+            String scopedTenantId = scopedTenantId(servletRequest, tenantId);
+            scheduledTaskService.requireAccess(scopedTenantId, scheduledTaskId, visibleUserId(servletRequest));
+            return ApiResponse.success(scheduledTaskService.pause(scopedTenantId, scheduledTaskId), "Scheduled task paused");
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         }
@@ -215,7 +303,9 @@ public class AgentTaskScheduleController {
                                                      @PathVariable("scheduledTaskId") String scheduledTaskId,
                                                      HttpServletRequest servletRequest) {
         try {
-            return ApiResponse.success(scheduledTaskService.resume(scopedTenantId(servletRequest, tenantId), scheduledTaskId), "Scheduled task resumed");
+            String scopedTenantId = scopedTenantId(servletRequest, tenantId);
+            scheduledTaskService.requireAccess(scopedTenantId, scheduledTaskId, visibleUserId(servletRequest));
+            return ApiResponse.success(scheduledTaskService.resume(scopedTenantId, scheduledTaskId), "Scheduled task resumed");
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         }
@@ -227,7 +317,9 @@ public class AgentTaskScheduleController {
                                                      @PathVariable("scheduledTaskId") String scheduledTaskId,
                                                      HttpServletRequest servletRequest) {
         try {
-            return ApiResponse.success(scheduledTaskService.cancel(scopedTenantId(servletRequest, tenantId), scheduledTaskId), "Scheduled task cancelled");
+            String scopedTenantId = scopedTenantId(servletRequest, tenantId);
+            scheduledTaskService.requireAccess(scopedTenantId, scheduledTaskId, visibleUserId(servletRequest));
+            return ApiResponse.success(scheduledTaskService.cancel(scopedTenantId, scheduledTaskId), "Scheduled task cancelled");
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         }
@@ -239,7 +331,9 @@ public class AgentTaskScheduleController {
                                                        @PathVariable("scheduledTaskId") String scheduledTaskId,
                                                        HttpServletRequest servletRequest) {
         try {
-            return ApiResponse.success(scheduledTaskService.rerun(scopedTenantId(servletRequest, tenantId), scheduledTaskId), "Scheduled task rerun submitted");
+            String scopedTenantId = scopedTenantId(servletRequest, tenantId);
+            scheduledTaskService.requireAccess(scopedTenantId, scheduledTaskId, visibleUserId(servletRequest));
+            return ApiResponse.success(scheduledTaskService.rerun(scopedTenantId, scheduledTaskId), "Scheduled task rerun submitted");
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         } catch (Exception e) {
@@ -255,7 +349,9 @@ public class AgentTaskScheduleController {
                                                                @RequestParam(value = "pageSize", defaultValue = "20") int pageSize,
                                                                HttpServletRequest servletRequest) {
         try {
-            return ApiResponse.success(scheduledTaskService.history(scopedTenantId(servletRequest, tenantId), scheduledTaskId, page, pageSize));
+            String scopedTenantId = scopedTenantId(servletRequest, tenantId);
+            scheduledTaskService.requireAccess(scopedTenantId, scheduledTaskId, visibleUserId(servletRequest));
+            return ApiResponse.success(scheduledTaskService.history(scopedTenantId, scheduledTaskId, page, pageSize));
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         }
@@ -272,8 +368,10 @@ public class AgentTaskScheduleController {
         HttpServletRequest servletRequest
     ) {
         try {
+            String scopedTenantId = scopedTenantId(servletRequest, tenantId);
+            scheduledTaskService.requireAccess(scopedTenantId, scheduledTaskId, visibleUserId(servletRequest));
             return ApiResponse.success(scheduledTaskService.notificationHistory(
-                scopedTenantId(servletRequest, tenantId), scheduledTaskId, keyword, page, pageSize
+                scopedTenantId, scheduledTaskId, keyword, page, pageSize
             ));
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
@@ -288,7 +386,8 @@ public class AgentTaskScheduleController {
                                                                       @RequestParam(value = "pageSize", defaultValue = "20") int pageSize,
                                                                       HttpServletRequest servletRequest) {
         try {
-            return ApiResponse.success(scheduledTaskService.historyByAgent(scopedTenantId(servletRequest, tenantId), agentId, page, pageSize));
+            return ApiResponse.success(scheduledTaskService.historyByAgent(
+                scopedTenantId(servletRequest, tenantId), visibleUserId(servletRequest), agentId, page, pageSize));
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         }
@@ -300,7 +399,9 @@ public class AgentTaskScheduleController {
                                     @PathVariable("scheduledTaskId") String scheduledTaskId,
                                     HttpServletRequest servletRequest) {
         try {
-            scheduledTaskService.delete(scopedTenantId(servletRequest, tenantId), scheduledTaskId);
+            String scopedTenantId = scopedTenantId(servletRequest, tenantId);
+            scheduledTaskService.requireAccess(scopedTenantId, scheduledTaskId, visibleUserId(servletRequest));
+            scheduledTaskService.delete(scopedTenantId, scheduledTaskId);
             return ApiResponse.success(null, "Scheduled task deleted");
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
@@ -348,6 +449,9 @@ public class AgentTaskScheduleController {
     public record NotificationRecipientRequest(String receiver) {
     }
 
+    public record AdminNotificationRequest(String channelId, String receivers, String title, String content, String level) {
+    }
+
     public record NotificationChannelBindingView(
         String id,
         String channel,
@@ -371,5 +475,28 @@ public class AgentTaskScheduleController {
             }
         }
         return null;
+    }
+
+    private List<String> splitRecipients(String value) {
+        if (value == null || value.isBlank()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(value.split("[,，;；\\n]+"))
+            .map(String::trim).filter(item -> !item.isBlank()).distinct().toList();
+    }
+
+    private String requireText(String value, String message) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(message);
+        }
+        return value.trim();
+    }
+
+    private boolean isAdmin(HttpServletRequest request) {
+        return "admin".equalsIgnoreCase(currentUsername(request));
+    }
+
+    private String visibleUserId(HttpServletRequest request) {
+        return isAdmin(request) ? "" : firstText(currentUserId(request), "__anonymous__");
     }
 }

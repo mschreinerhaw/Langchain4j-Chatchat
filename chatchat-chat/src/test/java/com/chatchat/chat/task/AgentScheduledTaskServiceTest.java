@@ -128,13 +128,13 @@ class AgentScheduledTaskServiceTest {
         );
         AgentTaskSubmitRequest payload = new AgentTaskSubmitRequest();
         payload.setTenantId("tenant-1");
-        payload.setUserId("user-1");
+        payload.setUserId("admin");
         payload.setAgentId("agent-1");
         payload.setSkillId("agent-1");
         payload.setQuery("更新后的问题");
         ScheduledAgentTaskRequest request = new ScheduledAgentTaskRequest();
         request.setTenantId("tenant-1");
-        request.setUserId("user-1");
+        request.setUserId("admin");
         request.setAgentId("agent-1");
         request.setName("更新后的任务");
         request.setQuestion("更新后的问题");
@@ -153,6 +153,8 @@ class AgentScheduledTaskServiceTest {
         ArgumentCaptor<ScheduledTaskEntity> saved = ArgumentCaptor.forClass(ScheduledTaskEntity.class);
         verify(repository).save(saved.capture());
         assertThat(saved.getValue().getTaskId()).isEqualTo("schedule-1");
+        assertThat(saved.getValue().getUserId()).isEqualTo("user-1");
+        assertThat(saved.getValue().getPayloadJson()).contains("\"userId\":\"user-1\"");
         assertThat(saved.getValue().getName()).isEqualTo("更新后的任务");
         assertThat(saved.getValue().getQuestion()).isEqualTo("更新后的问题");
         assertThat(saved.getValue().getCronExpr()).isEqualTo("0 30 9 * * ?");

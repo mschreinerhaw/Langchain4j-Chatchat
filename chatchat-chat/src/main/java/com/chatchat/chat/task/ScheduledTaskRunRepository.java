@@ -35,6 +35,10 @@ public interface ScheduledTaskRunRepository extends JpaRepository<ScheduledTaskR
 
     List<ScheduledTaskRunEntity> findByTenantIdAndAgentIdOrderByFireTimeDesc(String tenantId, String agentId, Pageable pageable);
 
+    List<ScheduledTaskRunEntity> findByTenantIdAndUserIdAndAgentIdOrderByFireTimeDesc(
+        String tenantId, String userId, String agentId, Pageable pageable
+    );
+
     List<ScheduledTaskRunEntity> findByStatusOrderByUpdatedAtAsc(String status, Pageable pageable);
 
     Optional<ScheduledTaskRunEntity> findFirstByTaskIdOrderByFireTimeDesc(String taskId);
@@ -71,6 +75,36 @@ public interface ScheduledTaskRunRepository extends JpaRepository<ScheduledTaskR
         @Param("tenantId") String tenantId,
         @Param("scheduledTaskId") String scheduledTaskId,
         @Param("keyword") String keyword,
+        Pageable pageable
+    );
+
+    @Query("""
+        select run from ScheduledTaskRunEntity run
+        left join ScheduledTaskEntity schedule on schedule.taskId = run.scheduledTaskId
+        where run.tenantId = :tenantId
+          and (:userId = '' or run.userId = :userId)
+          and (:agentId = '' or run.agentId = :agentId)
+          and (:status = '' or run.status = :status)
+          and (
+            :keyword = ''
+            or lower(coalesce(schedule.name, '')) like lower(concat('%', :keyword, '%'))
+            or lower(coalesce(run.question, '')) like lower(concat('%', :keyword, '%'))
+            or lower(coalesce(run.agentId, '')) like lower(concat('%', :keyword, '%'))
+            or lower(coalesce(run.status, '')) like lower(concat('%', :keyword, '%'))
+            or lower(coalesce(run.taskId, '')) like lower(concat('%', :keyword, '%'))
+            or lower(coalesce(run.errorMessage, '')) like lower(concat('%', :keyword, '%'))
+            or lower(coalesce(run.answerSummary, '')) like lower(concat('%', :keyword, '%'))
+            or run.agentId in :keywordAgentIds
+          )
+        order by run.fireTime desc
+        """)
+    Page<ScheduledTaskRunEntity> searchAudit(
+        @Param("tenantId") String tenantId,
+        @Param("userId") String userId,
+        @Param("agentId") String agentId,
+        @Param("status") String status,
+        @Param("keyword") String keyword,
+        @Param("keywordAgentIds") List<String> keywordAgentIds,
         Pageable pageable
     );
 }

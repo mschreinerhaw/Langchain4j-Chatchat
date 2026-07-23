@@ -30,6 +30,7 @@ export default {
       defaults: {
         enabled: true,
         datasourceId: '',
+        businessGroup: 'default',
         maxRows: 50,
         timeoutSeconds: 30,
         inputSchema,
@@ -41,6 +42,7 @@ export default {
         { key: 'toolName', label: '工具名称', type: 'code' },
         { key: 'title', label: '显示名称' },
         { key: 'datasourceId', label: '数据源', formatter: value => this.datasourceLabel(value) },
+        { key: 'businessGroup', label: '分类' },
         { key: 'maxRows', label: '最大行数' },
         { key: 'enabled', label: '状态', type: 'badge', formatter: value => value === false ? '停用' : '启用' }
       ],
@@ -53,7 +55,7 @@ export default {
           help: '用于 MCP Tool 注册，建议使用小写字母、数字和下划线，保存后需保持稳定。',
           section: 'basic',
           sectionTitle: '基础信息',
-          sectionSubtitle: '定义 MCP 工具标识、展示名称和所属数据源。'
+          sectionSubtitle: '定义 MCP 工具标识、展示名称、所属数据源和业务分类。'
         },
         {
           key: 'title',
@@ -71,6 +73,14 @@ export default {
           options: () => this.enabledDatasourceOptions,
           placeholder: '选择资产中心已维护并启用的数据库资产',
           help: '从资产中心已维护并启用的数据库资产中选择，不需要手工填写数据源 ID。',
+          section: 'basic'
+        },
+        {
+          key: 'businessGroup',
+          label: '分类',
+          required: true,
+          placeholder: '如 customer、finance、risk',
+          help: '用于数据库查询的分类展示、检索和资产授权筛选；未特别分类时可填写 default。',
           section: 'basic'
         },
         {

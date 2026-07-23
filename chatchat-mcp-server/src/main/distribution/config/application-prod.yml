@@ -30,6 +30,13 @@ chatchat:
     secret: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
     crypto-key: ${CHATCHAT_INTERNAL_CRYPTO_KEY:}
     crypto-key-file: ${CHATCHAT_INTERNAL_CRYPTO_KEY_FILE:}
+  license:
+    enforcement-enabled: ${CHATCHAT_LICENSE_ENFORCEMENT_ENABLED:false}
+    fail-startup-on-invalid: ${CHATCHAT_LICENSE_FAIL_STARTUP_ON_INVALID:false}
+    status-check-interval-ms: ${CHATCHAT_LICENSE_STATUS_CHECK_INTERVAL_MS:60000}
+    license-file: ${CHATCHAT_LICENSE_FILE:./data/license/license.dat}
+    server-id-file: ${CHATCHAT_LICENSE_SERVER_ID_FILE:./data/license/server.id}
+    public-key-path: ${CHATCHAT_LICENSE_PUBLIC_KEY_PATH:}
   mcp:
     news-runtime:
       base-url: ${CHATCHAT_NEWS_RUNTIME_URL:http://localhost:8091}
@@ -49,7 +56,9 @@ chatchat:
       encrypted-invocation-token: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
       invocation-token: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
     authorization:
-      enabled: ${CHATCHAT_MCP_AUTHORIZATION_ENABLED:false}
+      enabled: ${CHATCHAT_MCP_AUTHORIZATION_ENABLED:true}
+      fail-open: ${CHATCHAT_MCP_AUTHORIZATION_FAIL_OPEN:false}
+      require-tenant-context: ${CHATCHAT_MCP_AUTHORIZATION_REQUIRE_TENANT_CONTEXT:true}
       api-base-url: ${CHATCHAT_API_BASE_URL:http://localhost:8080}
       auth:
         username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}

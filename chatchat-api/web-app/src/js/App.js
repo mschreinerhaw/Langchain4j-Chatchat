@@ -14,6 +14,7 @@ import RetrievalRulesView from "../views/RetrievalRulesView.vue";
 import EvidenceDebuggerView from "../views/EvidenceDebuggerView.vue";
 import SystemManagementView from "../views/SystemManagementView.vue";
 import TasksView from "../views/TasksView.vue";
+import AccessDeniedView from "../views/AccessDeniedView.vue";
 import { Plus } from "@lucide/vue";
 import {
   actAgentTodo,
@@ -24,10 +25,12 @@ import {
   fetchAgentRuntimeSummary,
   fetchAgentTodos,
   fetchConversationHistory,
+  fetchCurrentEnterpriseUser,
   fetchWorkbenchShortcuts,
   getStoredAuthSession,
   killRuntimeTask,
   loginEnterpriseWithEmbedToken,
+  storeAuthSession,
   updateConversationHistoryStatus
 } from "../services/api";
 import { notifyAgentTaskCancelled, onAgentTaskCancelled } from "./utils/agentTaskEvents";
@@ -45,6 +48,20 @@ const ACTIVE_AGENT_TASK_STATUSES = new Set(["PENDING", "RUNNING", "WAIT_TOOL", "
 const DEFAULT_VIEW = "chat";
 const LOGIN_ROUTE = "login";
 const REDIRECT_VIEW_KEY = "chatchat.auth.redirectView";
+const VIEW_PERMISSIONS = {
+  chat: "workspace:chat",
+  search: "workspace:search",
+  market: "capability:market",
+  favorites: "capability:market",
+  library: "capability:library",
+  mcp: "mcp",
+  agents: "platform:agents",
+  schedules: "platform:schedules",
+  runtime: "platform:tasks",
+  rules: "platform:rules",
+  tasks: "platform:tasks",
+  system: "system"
+};
 
 const views = {
   chat: ChatAssistantView,
@@ -126,29 +143,29 @@ export default {
           id: "workspace",
           label: "工作台",
           items: [
-            { id: "chat", label: "智能对话", icon: "chat" },
-            { id: "search", label: "文档检索", icon: "search" }
+            { id: "chat", label: "智能对话", icon: "chat", permissionCode: "workspace:chat" },
+            { id: "search", label: "文档检索", icon: "search", permissionCode: "workspace:search" }
           ]
         },
         {
           id: "capability",
           label: "能力管理",
           items: [
-            { id: "market", label: "能力市场", icon: "grid" },
-            { id: "library", label: "文档库", icon: "book" }
+            { id: "market", label: "能力市场", icon: "grid", permissionCode: "capability:market" },
+            { id: "library", label: "文档库", icon: "book", permissionCode: "capability:library" }
           ]
         },
         {
           id: "platform",
           label: "平台管理",
           items: [
-            { id: "mcp", label: "MCP能力", icon: "mcp" },
-            { id: "agents", label: "Agent管理", icon: "agent" },
-            { id: "schedules", label: "Agent调度", icon: "schedule" },
-            { id: "rules", label: "关键词规则", icon: "search" },
+            { id: "mcp", label: "MCP能力", icon: "mcp", permissionCode: "mcp" },
+            { id: "agents", label: "Agent管理", icon: "agent", permissionCode: "platform:agents" },
+            { id: "schedules", label: "Agent调度", icon: "schedule", permissionCode: "platform:schedules" },
+            { id: "rules", label: "关键词规则", icon: "search", permissionCode: "platform:rules" },
             { id: "debugger", label: "证据调试", icon: "tasks" },
-            { id: "tasks", label: "运行监控", icon: "tasks" },
-            { id: "system", label: "系统管理", icon: "gear" }
+            { id: "tasks", label: "运行监控", icon: "tasks", permissionCode: "platform:tasks" },
+            { id: "system", label: "系统管理", icon: "gear", permissionCode: "system" }
           ]
         }
       ]
@@ -159,12 +176,12 @@ export default {
       return this.navItems.map((group) => ({
         ...group,
         items: Array.isArray(group.items)
-          ? group.items.filter((item) => item.id !== "debugger")
+          ? group.items.filter((item) => item.id !== "debugger" && this.hasPermission(item.permissionCode))
           : []
-      }));
+      })).filter((group) => group.items.length > 0);
     },
     activeComponent() {
-      return views[this.activeView] || ChatAssistantView;
+      return this.canAccessView(this.activeView) ? (views[this.activeView] || ChatAssistantView) : AccessDeniedView;
     },
     activeComponentProps() {
       return this.activeView === "chat"
@@ -193,6 +210,7 @@ export default {
   },
   mounted() {
     window.addEventListener("hashchange", this.handleHashChange);
+    window.addEventListener("focus", this.refreshAuthSession);
     window.addEventListener(AUTH_REQUIRED_EVENT, this.handleAuthRequired);
     this.stopAgentTaskCancelledListener = onAgentTaskCancelled(this.handleAgentTaskCancelled);
     const embedToken = this.consumeEmbedLoginToken();
@@ -201,6 +219,7 @@ export default {
       return;
     }
     if (isAuthenticatedSession(this.authSession)) {
+      this.refreshAuthSession();
       this.ensureAuthenticatedRoute();
       this.loadConversationHistory({ suppressError: true });
       this.loadFavoriteConversationIds();
@@ -215,6 +234,7 @@ export default {
   },
   beforeUnmount() {
     window.removeEventListener("hashchange", this.handleHashChange);
+    window.removeEventListener("focus", this.refreshAuthSession);
     window.removeEventListener(AUTH_REQUIRED_EVENT, this.handleAuthRequired);
     if (this.stopAgentTaskCancelledListener) {
       this.stopAgentTaskCancelledListener();
@@ -225,6 +245,39 @@ export default {
     this.stopTodoTimeoutKill();
   },
   methods: {
+    hasPermission(permissionCode) {
+      const user = this.authSession?.user || {};
+      if (String(user.username || "").toLowerCase() === "admin") {
+        return true;
+      }
+      if (!Array.isArray(user.permissionCodes)) {
+        return true;
+      }
+      return user.permissionCodes.some((code) => code === permissionCode || code.startsWith(`${permissionCode}:`));
+    },
+    canAccessView(view) {
+      const permissionCode = VIEW_PERMISSIONS[view];
+      return Boolean(permissionCode && this.hasPermission(permissionCode));
+    },
+    firstAccessibleView() {
+      return Object.keys(VIEW_PERMISSIONS).find((view) => views[view] && this.canAccessView(view)) || "";
+    },
+    async refreshAuthSession() {
+      if (!isAuthenticatedSession(this.authSession)) return;
+      try {
+        const user = await fetchCurrentEnterpriseUser();
+        if (!user?.id) return;
+        const session = { ...this.authSession, user };
+        this.authSession = session;
+        storeAuthSession(session);
+        if (!this.canAccessView(this.activeView)) {
+          const fallback = this.firstAccessibleView();
+          if (fallback) this.navigateToView(fallback);
+        }
+      } catch (_) {
+        // 认证失效由统一的 AUTH_REQUIRED_EVENT 处理；临时网络错误保留当前会话。
+      }
+    },
     handleLoginSuccess(session) {
       if (!isAuthenticatedSession(session)) {
         this.handleUnauthenticated();
@@ -288,7 +341,12 @@ export default {
       }
       const nextView = viewFromHash();
       if (nextView) {
-        this.activeView = nextView;
+        if (this.canAccessView(nextView)) {
+          this.activeView = nextView;
+        } else {
+          const fallback = this.firstAccessibleView();
+          if (fallback) this.navigateToView(fallback);
+        }
       }
     },
     ensureAuthenticatedRoute() {
@@ -322,7 +380,12 @@ export default {
       return token.trim();
     },
     navigateToView(view) {
-      const nextView = views[view] ? view : DEFAULT_VIEW;
+      const requested = views[view] ? view : DEFAULT_VIEW;
+      const nextView = this.canAccessView(requested) ? requested : this.firstAccessibleView();
+      if (!nextView) {
+        this.activeView = "";
+        return;
+      }
       this.activeView = nextView;
       this.setHashRoute(nextView);
     },

@@ -13,10 +13,53 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class RemoteNewsMcpToolProviderTest {
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void extractsAShareCodeAndQueriesOnlyTheMatchingQuote() throws Exception {
+        NewsRuntimeClient news = mock(NewsRuntimeClient.class);
+        FinancialAssetCatalogService market = mock(FinancialAssetCatalogService.class);
+        FinancialDataStore store = mock(FinancialDataStore.class);
+        String query = "包钢股份（600010）行情查询";
+        when(news.invoke(eq("web_search"), any())).thenReturn(ToolOutput.success(Map.of("results", List.of())));
+        when(market.search(query, 10)).thenReturn(List.of(
+            Map.of("dataset_code", "market_quote_daily", "asset_name", "证券及指数行情"),
+            Map.of("dataset_code", "index_valuation_daily", "asset_name", "指数行情与估值"),
+            Map.of("dataset_code", "market_statistics_daily", "asset_name", "市场统计")));
+        when(store.query(eq("market_quote_daily"),
+            argThat(filters -> "600010".equals(filters.get("quoteCode"))),
+            any(), any(), any(Integer.class), eq("auto")))
+            .thenReturn(Map.of("rows", List.of(Map.of(
+                "quote_code", "600010", "quote_name", "包钢股份", "close", 2.18,
+                "change_pct", "1.40%", "volume", 123456L))));
+        when(store.query(eq("market_quote_daily"),
+            argThat(filters -> "包钢股份".equals(filters.get("quoteNameLike"))),
+            any(), any(), any(Integer.class), eq("auto")))
+            .thenReturn(Map.of("rows", List.of(Map.of(
+                "quote_code", "600010", "quote_name", "包钢股份", "close", 2.18,
+                "change_pct", "1.40%", "volume", 123456L))));
+        RemoteNewsMcpToolProvider provider = new RemoteNewsMcpToolProvider(news, market, store);
+
+        ToolOutput output = provider.findExecutor("web_search").orElseThrow().execute(ToolInput.builder()
+            .parameters(Map.of("query", query)).build());
+
+        assertThat(output.isSuccess()).isTrue();
+        Map<String, Object> data = (Map<String, Object>) output.getData();
+        assertThat(data).containsEntry("financialDatasetCount", 1).containsEntry("financialObservationCount", 1);
+        List<Map<String, Object>> financialData = (List<Map<String, Object>>) data.get("financialData");
+        assertThat(financialData).singleElement().satisfies(item -> {
+            assertThat(item).containsEntry("dataset", "market_quote_daily");
+            assertThat(item.get("appliedFilters")).asList().containsExactly(
+                Map.of("quoteCode", "600010"), Map.of("quoteNameLike", "包钢股份"));
+            assertThat((List<Map<String, Object>>) item.get("rows")).singleElement().satisfies(row ->
+                assertThat(row).containsEntry("quote_code", "600010").containsEntry("close", 2.18));
+        });
+    }
 
     @Test
     void exposesOnlyUnifiedWebSearch() {

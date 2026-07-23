@@ -88,6 +88,10 @@
   overflow: auto;
 }
 
+.authorization-pagination {
+  flex-wrap: wrap;
+}
+
 @media (max-width: 900px) {
   .settings-section-head {
     flex-direction: column;

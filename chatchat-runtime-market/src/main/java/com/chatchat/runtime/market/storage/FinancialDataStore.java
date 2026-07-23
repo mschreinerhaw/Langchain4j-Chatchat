@@ -208,7 +208,10 @@ public class FinancialDataStore {
         result.put("count", rows.size());
         result.put("rows", rows);
         result.put("retention_policy", retentionPolicy());
-        result.put("query_constraints", Map.of("max_rows", properties.getMaxQueryLimit(), "read_only", true));
+        result.put("query_constraints", Map.of(
+            "max_rows", properties.getMaxQueryLimit(),
+            "read_only", true,
+            "filter_operators", List.of("exact", "Like")));
         log.info("Financial data query completed dataset={} table={} storageTiers={} returnedRows={} durationMs={}",
             code, table, tiers, rows.size(), System.currentTimeMillis() - startedAt);
         return result;
@@ -399,14 +402,27 @@ public class FinancialDataStore {
         if (startDate != null) { sql.append(" and observation_date>=?"); args.add(Date.valueOf(startDate)); }
         if (endDate != null) { sql.append(" and observation_date<=?"); args.add(Date.valueOf(endDate)); }
         if (filters != null) for (Map.Entry<String, Object> entry : filters.entrySet()) {
-            String field = columnName(entry.getKey());
+            FilterField filter = filterField(entry.getKey());
+            String field = filter.field();
             boolean governed = allowed.containsKey(field) || Set.of("source_id", "observation_date", "collected_date").contains(field)
                 || ("weekly_snapshot".equals(tier) && "snapshot_week".equals(field));
             if (!governed) {
                 throw new IllegalArgumentException("Filter field is not registered for " + code + ": " + entry.getKey());
             }
-            sql.append(" and `").append(field).append("`=?");
-            args.add(entry.getValue());
+            if (filter.like()) {
+                if (!"STRING".equalsIgnoreCase(allowed.get(field))) {
+                    throw new IllegalArgumentException("Like filter requires a registered string field for "
+                        + code + ": " + entry.getKey());
+                }
+                String value = entry.getValue() == null ? "" : String.valueOf(entry.getValue()).trim();
+                if (value.isBlank()) throw new IllegalArgumentException("Like filter value cannot be blank: " + entry.getKey());
+                if (value.length() > 160) throw new IllegalArgumentException("Like filter value is too long: " + entry.getKey());
+                sql.append(" and lower(`").append(field).append("`) like ?");
+                args.add("%" + value.toLowerCase(Locale.ROOT) + "%");
+            } else {
+                sql.append(" and `").append(field).append("`=?");
+                args.add(entry.getValue());
+            }
         }
         sql.append(" order by observation_date desc,collected_at desc limit ?");
         args.add(limit);
@@ -466,6 +482,15 @@ public class FinancialDataStore {
     private String rowSortKey(Map<String, Object> row) {
         return String.valueOf(row.getOrDefault("observation_date", "")) + "|"
             + String.valueOf(row.getOrDefault("collected_at", ""));
+    }
+
+    private FilterField filterField(String rawName) {
+        String name = rawName == null ? "" : rawName.trim();
+        boolean like = name.endsWith("Like") || name.toLowerCase(Locale.ROOT).endsWith("_like");
+        if (like) name = name.endsWith("Like") ? name.substring(0, name.length() - 4)
+            : name.substring(0, name.length() - 5);
+        if (name.isBlank()) throw new IllegalArgumentException("Filter field cannot be blank");
+        return new FilterField(columnName(name), like);
     }
     private String indexName(String value) { return value.length() <= 64 ? value : value.substring(0, 64); }
 
@@ -589,6 +614,7 @@ public class FinancialDataStore {
 
     enum FieldType { STRING, DECIMAL, BOOLEAN, DATE, JSON }
     record ColumnValue(String name, String sourceName, FieldType type, Object value) { }
+    record FilterField(String field, boolean like) { }
     public record StoredObservation(String datasetCode, String tableName, String recordKey,
                                     LocalDate observationDate, LocalDate collectedDate) { }
     public record RetentionRunResult(LocalDate runDate, int archivedRows, int deletedHotRows,

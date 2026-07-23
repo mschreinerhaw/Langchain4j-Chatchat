@@ -221,6 +221,15 @@ export function fetchAgentSchedules(filters = {}) {
   if (filters.agentId) {
     params.set("agentId", filters.agentId);
   }
+  if (filters.status) {
+    params.set("status", filters.status);
+  }
+  if (filters.keyword) {
+    params.set("keyword", filters.keyword);
+  }
+  if (filters.keywordAgentIds?.length) {
+    params.set("keywordAgentIds", filters.keywordAgentIds.join(","));
+  }
   if (filters.page) {
     params.set("page", String(filters.page));
   }
@@ -250,6 +259,24 @@ export function deleteAgentScheduleNotificationRecipient(channelType) {
 
 export function createAgentSchedule(payload) {
   return apiRequest("/agent/tasks/runtime/schedules", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function fetchAgentScheduleAudit(filters = {}) {
+  const params = new URLSearchParams();
+  ["tenantId", "agentId", "status", "keyword"].forEach((key) => {
+    if (filters[key]) params.set(key, filters[key]);
+  });
+  if (filters.keywordAgentIds?.length) params.set("keywordAgentIds", filters.keywordAgentIds.join(","));
+  params.set("page", String(filters.page || 1));
+  params.set("pageSize", String(filters.pageSize || 10));
+  return apiRequest(`/agent/tasks/runtime/schedules/audit?${params.toString()}`);
+}
+
+export function sendAgentScheduleAdminNotification(payload) {
+  return apiRequest("/agent/tasks/runtime/schedules/notifications/send", {
     method: "POST",
     body: JSON.stringify(payload)
   });
@@ -1050,6 +1077,10 @@ export async function loginEnterpriseWithEmbedToken(token) {
     storeAuthSession(session);
   }
   return session;
+}
+
+export function fetchCurrentEnterpriseUser() {
+  return apiRequest("/enterprise/auth/me");
 }
 
 export function fetchEmbedLoginTokens() {

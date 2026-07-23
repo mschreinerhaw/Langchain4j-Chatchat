@@ -102,6 +102,12 @@ public class EnterpriseAdminController {
         }
     }
 
+    @GetMapping("/auth/me")
+    @Operation(summary = "Current authenticated user and effective permissions")
+    public ApiResponse<EnterpriseAdminService.UserView> currentUser(HttpServletRequest servletRequest) {
+        return ApiResponse.success(adminService.getUserView(currentUserId(servletRequest)));
+    }
+
     /**
      * Lists the admin embed login tokens.
      *
@@ -720,5 +726,10 @@ public class EnterpriseAdminController {
     private String currentUsername(HttpServletRequest request) {
         Object username = request.getAttribute(ApiAuthenticationFilter.CURRENT_USERNAME);
         return username == null ? "" : String.valueOf(username);
+    }
+
+    private String currentUserId(HttpServletRequest request) {
+        Object userId = request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID);
+        return userId == null ? "" : String.valueOf(userId);
     }
 }

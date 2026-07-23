@@ -37,7 +37,9 @@ export default {
       originalAssetKeys: [],
       assetTypeFilter: 'all',
       assetGroupFilter: '',
-      assetKeyword: ''
+      assetKeyword: '',
+      authorizationPage: 1,
+      authorizationPageSize: 10
     };
   },
   computed: {
@@ -135,6 +137,14 @@ export default {
           asset.typeLabel
         ].some(value => String(value || '').toLowerCase().includes(keyword));
       });
+    },
+    pagedAuthorizationAssets() {
+      const page = Math.min(this.authorizationPage, this.authorizationPageCount);
+      const start = (page - 1) * this.authorizationPageSize;
+      return this.filteredAuthorizationAssets.slice(start, start + this.authorizationPageSize);
+    },
+    authorizationPageCount() {
+      return Math.max(1, Math.ceil(this.filteredAuthorizationAssets.length / Math.max(1, this.authorizationPageSize)));
     }
   },
   mounted() {
@@ -296,6 +306,7 @@ export default {
       this.assetTypeFilter = 'all';
       this.assetGroupFilter = '';
       this.assetKeyword = '';
+      this.authorizationPage = 1;
       try {
         const [assets, permissions] = await Promise.all([
           this.fetchAuthorizationAssets(),
@@ -303,10 +314,21 @@ export default {
         ]);
         this.authorizationAssets = assets;
         this.permissions = permissions || [];
-        const assetKeys = new Set(assets.map(asset => asset.toolName));
+        const assetKeys = new Set(assets.map(asset => this.assetAuthorizationKey(asset)));
         const selected = this.permissions
-          .map(permission => permission.localToolName || permission.toolId)
-          .filter(toolName => toolName && assetKeys.has(toolName));
+          .filter(permission => permission.enabled !== false && String(permission.effect || 'allow').toLowerCase() === 'allow')
+          .flatMap(permission => {
+            const key = this.permissionAuthorizationKey(permission);
+            if (assetKeys.has(key)) return [key];
+            if (!permission.scopeExpression) {
+              const toolName = permission.localToolName || permission.toolId;
+              return assets
+                .filter(asset => asset.toolName === toolName)
+                .map(asset => this.assetAuthorizationKey(asset));
+            }
+            return [];
+          })
+          .filter(key => key && assetKeys.has(key));
         this.selectedAssetKeys = Array.from(new Set(selected));
         this.originalAssetKeys = [...this.selectedAssetKeys];
       } catch (error) {
@@ -395,14 +417,15 @@ export default {
       return String(role?.roleCode || '').toUpperCase() === 'SUPER_ADMIN';
     },
     isAssetSelected(asset) {
-      return this.selectedAssetKeys.includes(asset.toolName);
+      return this.selectedAssetKeys.includes(this.assetAuthorizationKey(asset));
     },
     toggleAsset(asset, checked) {
       const values = new Set(this.selectedAssetKeys);
+      const key = this.assetAuthorizationKey(asset);
       if (checked) {
-        values.add(asset.toolName);
+        values.add(key);
       } else {
-        values.delete(asset.toolName);
+        values.delete(key);
       }
       this.selectedAssetKeys = Array.from(values);
     },
@@ -410,12 +433,28 @@ export default {
       const values = new Set(this.selectedAssetKeys);
       this.filteredAuthorizationAssets
         .filter(asset => asset.enabled)
-        .forEach(asset => values.add(asset.toolName));
+        .forEach(asset => values.add(this.assetAuthorizationKey(asset)));
       this.selectedAssetKeys = Array.from(values);
     },
     clearFilteredAssets() {
-      const filtered = new Set(this.filteredAuthorizationAssets.map(asset => asset.toolName));
-      this.selectedAssetKeys = this.selectedAssetKeys.filter(toolName => !filtered.has(toolName));
+      const filtered = new Set(this.filteredAuthorizationAssets.map(asset => this.assetAuthorizationKey(asset)));
+      this.selectedAssetKeys = this.selectedAssetKeys.filter(key => !filtered.has(key));
+    },
+    resetAuthorizationPage() {
+      this.authorizationPage = 1;
+    },
+    changeAuthorizationPage(page) {
+      this.authorizationPage = page;
+    },
+    changeAuthorizationPageSize(size) {
+      this.authorizationPageSize = size;
+      this.authorizationPage = 1;
+    },
+    assetAuthorizationKey(asset) {
+      return `${asset?.toolName || ''}::${asset?.scopeExpression || ''}`;
+    },
+    permissionAuthorizationKey(permission) {
+      return `${permission?.localToolName || permission?.toolId || ''}::${permission?.scopeExpression || ''}`;
     },
     async saveAssetAuthorizations() {
       if (!this.selectedRole || this.isSuperAdmin(this.selectedRole)) return;
@@ -423,28 +462,42 @@ export default {
       try {
         const selected = new Set(this.selectedAssetKeys);
         const original = new Set(this.originalAssetKeys);
-        const managedTools = new Set(this.authorizationAssets.map(asset => asset.toolName));
-        const assetByToolName = new Map(this.authorizationAssets.map(asset => [asset.toolName, asset]));
-        const permissionByToolName = new Map();
+        const managedKeys = new Set(this.authorizationAssets.map(asset => this.assetAuthorizationKey(asset)));
+        const assetByKey = new Map(this.authorizationAssets.map(asset => [this.assetAuthorizationKey(asset), asset]));
+        const scopedTools = new Set(this.authorizationAssets
+          .filter(asset => asset.scopeExpression)
+          .map(asset => asset.toolName));
+        const legacyBroadPermissions = this.permissions.filter(permission =>
+          !permission.scopeExpression
+          && scopedTools.has(permission.localToolName || permission.toolId)
+          && String(permission.effect || 'allow').toLowerCase() === 'allow');
+        const legacyBroadTools = new Set(legacyBroadPermissions.map(permission => permission.localToolName || permission.toolId));
+        const permissionByKey = new Map();
         this.permissions.forEach(permission => {
-          const toolName = permission.localToolName || permission.toolId;
-          if (toolName && managedTools.has(toolName)) {
-            permissionByToolName.set(toolName, permission);
+          const key = this.permissionAuthorizationKey(permission);
+          if (key && managedKeys.has(key)) {
+            permissionByKey.set(key, permission);
           }
         });
 
-        const toCreate = [...selected].filter(toolName => !original.has(toolName));
+        const toCreate = [...selected].filter(key => {
+          const asset = assetByKey.get(key);
+          return !original.has(key) || (asset && legacyBroadTools.has(asset.toolName));
+        });
         const toDelete = [...original]
-          .filter(toolName => !selected.has(toolName))
-          .map(toolName => permissionByToolName.get(toolName))
-          .filter(permission => permission && permission.id);
+          .filter(key => !selected.has(key))
+          .map(key => permissionByKey.get(key))
+          .filter(permission => permission && permission.id)
+          .concat(legacyBroadPermissions)
+          .filter((permission, index, values) => permission?.id
+            && values.findIndex(item => item?.id === permission.id) === index);
 
-        for (const toolName of toCreate) {
-          const asset = assetByToolName.get(toolName);
+        for (const key of toCreate) {
+          const asset = assetByKey.get(key);
           await authorizationApi.createRolePermission({
             roleId: this.selectedRole.id,
             tenantId: this.selectedRole.tenantId,
-            localToolName: toolName,
+            localToolName: asset.toolName,
             scopeExpression: asset?.scopeExpression || '',
             effect: 'allow',
             enabled: true,

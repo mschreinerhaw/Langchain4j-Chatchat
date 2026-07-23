@@ -799,6 +799,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
         entity.setTargetId(requireText(input.getTargetId(), "targetId"));
         entity.setToolId(trimToNull(input.getToolId()));
         entity.setLocalToolName(requireText(input.getLocalToolName(), "localToolName"));
+        entity.setScopeExpression(trimToNull(input.getScopeExpression()));
         entity.setEffect(defaultText(input.getEffect(), "allow").toLowerCase());
         entity.setEnabled(input.isEnabled());
         entity.setExpiresAt(input.getExpiresAt());
@@ -871,6 +872,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
         List<String> roleIds = userRoleRepository.findByUserId(user.getId()).stream()
             .map(SysUserRole::getRoleId)
             .toList();
+        List<String> permissionCodes = permissionCodes(user, roleIds);
         return new UserView(
             user.getId(),
             user.getTenantId(),
@@ -882,9 +884,43 @@ public class EnterpriseAdminService implements ApplicationRunner {
             user.getStatus(),
             user.getLastLoginAt(),
             roleIds,
+            permissionCodes,
             user.getCreatedAt(),
             user.getUpdatedAt()
         );
+    }
+
+    @Transactional(readOnly = true)
+    public UserView getUserView(String userId) {
+        return userRepository.findById(requireText(userId, "userId"))
+            .map(this::toUserView)
+            .orElseThrow(() -> new IllegalArgumentException("user not found"));
+    }
+
+    private List<String> permissionCodes(SysUser user, List<String> roleIds) {
+        if (isAdminUser(user)) {
+            return permissionRepository.findAllByOrderBySortOrderAscPermissionNameAsc().stream()
+                .filter(permission -> "enabled".equalsIgnoreCase(permission.getStatus()))
+                .map(SysPermission::getPermissionCode)
+                .distinct()
+                .toList();
+        }
+        Set<String> enabledRoleIds = roleRepository.findAllById(roleIds).stream()
+            .filter(role -> user.getTenantId().equals(role.getTenantId()))
+            .filter(role -> "enabled".equalsIgnoreCase(role.getStatus()))
+            .map(SysRole::getId)
+            .collect(java.util.stream.Collectors.toSet());
+        Set<String> permissionIds = enabledRoleIds.stream()
+            .flatMap(roleId -> rolePermissionRepository.findByRoleId(roleId).stream())
+            .map(SysRolePermission::getPermissionId)
+            .collect(java.util.stream.Collectors.toSet());
+        return permissionRepository.findAllById(permissionIds).stream()
+            .filter(permission -> "enabled".equalsIgnoreCase(permission.getStatus()))
+            .sorted(java.util.Comparator.comparing(SysPermission::getSortOrder)
+                .thenComparing(SysPermission::getPermissionName))
+            .map(SysPermission::getPermissionCode)
+            .distinct()
+            .toList();
     }
 
     /**
@@ -1322,7 +1358,9 @@ public class EnterpriseAdminService implements ApplicationRunner {
             new PermissionSeed("mcp", "mcp:service:manage", "服务管理", "button", "/api/v1/mcp/**", "*", "server", 32),
             new PermissionSeed("mcp", "mcp:tool:authorize", "工具授权", "button", "/api/v1/enterprise/tool-permissions", "*", "key-round", 33),
             new PermissionSeed("platform", "platform:agents", "Agent管理", "menu", "/index.html#agents", null, "bot", 34),
-            new PermissionSeed("platform", "platform:tasks", "运行监控", "menu", "/index.html#tasks", null, "clipboard-list", 35),
+            new PermissionSeed("platform", "platform:schedules", "Agent调度", "menu", "/index.html#schedules", null, "calendar-clock", 35),
+            new PermissionSeed("platform", "platform:rules", "关键词规则", "menu", "/index.html#rules", null, "list-filter", 36),
+            new PermissionSeed("platform", "platform:tasks", "运行监控", "menu", "/index.html#tasks", null, "clipboard-list", 37),
             new PermissionSeed("platform", "system", "系统管理", "menu", "/index.html#system", null, "settings", 40),
             new PermissionSeed("system", "system:tenant", "租户管理", "menu", "/api/v1/enterprise/tenants", "*", "building", 41),
             new PermissionSeed("system", "system:org", "组织管理", "menu", "/api/v1/enterprise/orgs", "*", "building-2", 42),
@@ -1612,6 +1650,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
         String status,
         Instant lastLoginAt,
         List<String> roleIds,
+        List<String> permissionCodes,
         Instant createdAt,
         Instant updatedAt
     ) {

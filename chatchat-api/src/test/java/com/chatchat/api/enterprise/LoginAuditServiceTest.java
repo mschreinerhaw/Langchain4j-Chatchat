@@ -36,6 +36,7 @@ class LoginAuditServiceTest {
             "enabled",
             Instant.now(),
             List.of("role-admin"),
+            List.of("workspace:chat"),
             Instant.now(),
             Instant.now()
         );

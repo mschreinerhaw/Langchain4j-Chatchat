@@ -10,7 +10,7 @@ public class McpAuthorizationProperties {
     private String snapshotPath = "/api/v1/enterprise/mcp-auth/snapshot";
     private long refreshIntervalMs = 60000L;
     private long staleTtlSeconds = 3600L;
-    private boolean failOpen = true;
+    private boolean failOpen = false;
     private boolean requireTenantContext = true;
     private Auth auth = new Auth();
 

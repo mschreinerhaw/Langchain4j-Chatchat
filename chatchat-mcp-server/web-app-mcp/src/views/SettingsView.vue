@@ -289,7 +289,7 @@
       :title="authorizationDialogTitle"
     >
       <div class="authorization-toolbar">
-        <el-select v-model="assetTypeFilter" class="authorization-filter" placeholder="类型" size="small">
+        <el-select v-model="assetTypeFilter" class="authorization-filter" placeholder="类型" size="small" @change="resetAuthorizationPage">
           <el-option label="全部类型" value="all" />
           <el-option label="数据查询" value="database_query" />
           <el-option label="API 服务" value="api_service" />
@@ -297,10 +297,10 @@
           <el-option label="主机资产" value="ssh_host" />
           <el-option label="SQL 数据源" value="sql_datasource" />
         </el-select>
-        <el-select v-model="assetGroupFilter" class="authorization-filter" clearable filterable placeholder="分类" size="small">
+        <el-select v-model="assetGroupFilter" class="authorization-filter" clearable filterable placeholder="分类" size="small" @change="resetAuthorizationPage">
           <el-option v-for="group in assetGroups" :key="group.value" :label="group.label" :value="group.value" />
         </el-select>
-        <el-input v-model.trim="assetKeyword" class="authorization-search" clearable size="small" placeholder="搜索名称、工具名、描述">
+        <el-input v-model.trim="assetKeyword" class="authorization-search" clearable size="small" placeholder="搜索名称、工具名、描述" @input="resetAuthorizationPage">
           <template #prefix>
             <el-icon><Search /></el-icon>
           </template>
@@ -317,7 +317,7 @@
 
       <el-table
         class="settings-table authorization-asset-table"
-        :data="filteredAuthorizationAssets"
+        :data="pagedAuthorizationAssets"
         border
         stripe
         v-loading="authorizationLoading"
@@ -347,6 +347,22 @@
           </template>
         </el-table-column>
       </el-table>
+
+      <footer class="pagination-row authorization-pagination">
+        <el-text type="info">
+          共 {{ authorizationAssets.length }} 个资产，当前筛选 {{ filteredAuthorizationAssets.length }} 个
+        </el-text>
+        <el-pagination
+          background
+          layout="sizes, prev, pager, next, jumper"
+          :current-page="authorizationPage"
+          :page-size="authorizationPageSize"
+          :page-sizes="[10, 20, 50, 100]"
+          :total="filteredAuthorizationAssets.length"
+          @current-change="changeAuthorizationPage"
+          @size-change="changeAuthorizationPageSize"
+        />
+      </footer>
 
       <template #footer>
         <div class="dialog-footer">

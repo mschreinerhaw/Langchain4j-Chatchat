@@ -1,6 +1,7 @@
 import {
   createAgentSchedule,
   deleteAgentSchedule,
+  fetchAgentScheduleAudit,
   fetchAgentScheduleNotificationChannels,
   fetchAgentScheduleNotificationHistory,
   fetchAgentSchedules,
@@ -8,6 +9,7 @@ import {
   pauseAgentSchedule,
   rerunAgentSchedule,
   resumeAgentSchedule,
+  sendAgentScheduleAdminNotification,
   saveAgentScheduleNotificationRecipient,
   updateAgentSchedule
 } from "../../services/api.js";
@@ -121,6 +123,10 @@ export default {
     userId: {
       type: String,
       default: "default-user"
+    },
+    tenantId: {
+      type: String,
+      default: ""
     }
   },
   data() {
@@ -148,6 +154,15 @@ export default {
         total: 0,
         totalPages: 0
       },
+      activeTab: "tasks",
+      taskPage: { page: 1, pageSize: 10, total: 0, totalPages: 0 },
+      auditPage: { page: 1, pageSize: 10, total: 0, totalPages: 0 },
+      auditLoading: false,
+      auditRecords: [],
+      adminNotificationOpen: false,
+      adminNotificationSending: false,
+      adminNotificationError: "",
+      adminNotification: { channelId: "", receivers: [], title: "", content: "", level: "INFO" },
       notificationChannels: [],
       notificationRecipientDrafts: {},
       notificationRecipientInputs: {},
@@ -182,8 +197,22 @@ export default {
     };
   },
   computed: {
-    tenantId() {
-      return this.userId || "default-user";
+    effectiveTenantId() {
+      return this.tenantId || this.userId || "default-user";
+    },
+    isAdmin() {
+      return String(this.userId || "").toLowerCase() === "admin";
+    },
+    currentPageState() {
+      return this.activeTab === "audit" ? this.auditPage : this.taskPage;
+    },
+    availableAdminRecipients() {
+      const channel = this.notificationChannels.find((item) => item.id === this.adminNotification.channelId);
+      return this.parseNotificationRecipients(channel?.receiver);
+    },
+    allAdminRecipientsSelected() {
+      return this.availableAdminRecipients.length > 0
+        && this.adminNotification.receivers.length === this.availableAdminRecipients.length;
     },
     agentOptions() {
       return this.agents
@@ -257,7 +286,8 @@ export default {
           this.form = emptyForm(this.agentOptions[0].id);
           this.syncFormWithAgent();
         }
-        await this.loadSchedules();
+        if (this.activeTab === "audit") await this.loadAudit();
+        else await this.loadSchedules();
       } catch (error) {
         this.error = error.message || "Agent加载失败";
       } finally {
@@ -282,12 +312,19 @@ export default {
       this.error = "";
       try {
         const payload = await fetchAgentSchedules({
-          tenantId: this.tenantId,
+          tenantId: this.effectiveTenantId,
           agentId: this.filters.agentId,
-          page: 1,
-          pageSize: 100
+          status: this.filters.status,
+          keyword: this.filters.keyword,
+          keywordAgentIds: this.keywordMatchingAgentIds(),
+          page: this.taskPage.page,
+          pageSize: this.taskPage.pageSize
         });
-        this.schedules = Array.isArray(payload) ? payload : [];
+        this.schedules = Array.isArray(payload?.records) ? payload.records : (Array.isArray(payload) ? payload : []);
+        this.taskPage.total = Number(payload?.total ?? this.schedules.length);
+        this.taskPage.page = Number(payload?.page || this.taskPage.page);
+        this.taskPage.pageSize = Number(payload?.pageSize || this.taskPage.pageSize);
+        this.taskPage.totalPages = Number(payload?.totalPages || 0);
       } catch (error) {
         this.error = error.message || "定时任务加载失败";
       } finally {
@@ -312,12 +349,17 @@ export default {
       this.scheduleRefreshing = true;
       try {
         const payload = await fetchAgentSchedules({
-          tenantId: this.tenantId,
+          tenantId: this.effectiveTenantId,
           agentId: this.filters.agentId,
-          page: 1,
-          pageSize: 100
+          status: this.filters.status,
+          keyword: this.filters.keyword,
+          keywordAgentIds: this.keywordMatchingAgentIds(),
+          page: this.taskPage.page,
+          pageSize: this.taskPage.pageSize
         });
-        this.schedules = Array.isArray(payload) ? payload : [];
+        this.schedules = Array.isArray(payload?.records) ? payload.records : (Array.isArray(payload) ? payload : []);
+        this.taskPage.total = Number(payload?.total ?? this.schedules.length);
+        this.taskPage.totalPages = Number(payload?.totalPages || 0);
       } catch (_) {
         // 静默轮询失败时保留当前列表和用户正在查看的提示。
       } finally {
@@ -325,10 +367,58 @@ export default {
       }
     },
     async handleAgentTaskCancelled(task = {}) {
-      if (task.tenantId && String(task.tenantId) !== String(this.tenantId)) {
+      if (task.tenantId && String(task.tenantId) !== String(this.effectiveTenantId)) {
         return;
       }
       await this.refreshScheduleStatus({ force: true });
+    },
+    keywordMatchingAgentIds() {
+      const keyword = this.filters.keyword.trim().toLowerCase();
+      if (!keyword) return [];
+      return this.agentOptions
+        .filter((agent) => String(agent.name || agent.id || "").toLowerCase().includes(keyword))
+        .map((agent) => agent.id);
+    },
+    async applyFilters() {
+      this.taskPage.page = 1;
+      this.auditPage.page = 1;
+      if (this.activeTab === "audit") await this.loadAudit();
+      else await this.loadSchedules();
+    },
+    async switchTab(tab) {
+      this.activeTab = tab;
+      if (tab === "audit") await this.loadAudit();
+    },
+    async changePage(page) {
+      const state = this.currentPageState;
+      state.page = Math.max(1, Math.min(Math.max(1, state.totalPages), page));
+      if (this.activeTab === "audit") await this.loadAudit();
+      else await this.loadSchedules();
+    },
+    async loadAudit() {
+      this.auditLoading = true;
+      this.error = "";
+      try {
+        const payload = await fetchAgentScheduleAudit({
+          tenantId: this.effectiveTenantId,
+          agentId: this.filters.agentId,
+          status: this.filters.status,
+          keyword: this.filters.keyword,
+          keywordAgentIds: this.keywordMatchingAgentIds(),
+          page: this.auditPage.page,
+          pageSize: this.auditPage.pageSize
+        });
+        this.auditRecords = Array.isArray(payload?.records) ? payload.records : [];
+        this.auditPage.total = Number(payload?.total || 0);
+        this.auditPage.page = Number(payload?.page || this.auditPage.page);
+        this.auditPage.pageSize = Number(payload?.pageSize || this.auditPage.pageSize);
+        this.auditPage.totalPages = Number(payload?.totalPages || 0);
+      } catch (error) {
+        this.auditRecords = [];
+        this.error = error.message || "运行审计加载失败";
+      } finally {
+        this.auditLoading = false;
+      }
     },
     async createSchedule(notificationConfirmed = false) {
       this.error = "";
@@ -364,7 +454,11 @@ export default {
           this.notice = "定时任务已创建";
         }
         this.closeCreateDialog(true);
-        await this.loadSchedules();
+        if (this.activeTab === "audit") {
+          await this.loadAudit();
+        } else {
+          await this.loadSchedules();
+        }
       } catch (error) {
         this.error = error.message || (this.editingScheduleId ? "定时任务保存失败" : "定时任务创建失败");
       } finally {
@@ -390,7 +484,7 @@ export default {
         }
       }
       const payload = {
-        tenantId: this.tenantId,
+        tenantId: this.effectiveTenantId,
         userId: this.userId || "default-user",
         agentId: agent.id,
         skillId: agent.id,
@@ -401,7 +495,7 @@ export default {
         availableTools: uniqueToolNames(agent)
       };
       const base = {
-        tenantId: this.tenantId,
+        tenantId: this.effectiveTenantId,
         userId: this.userId || "default-user",
         agentId: agent.id,
         name: this.form.name.trim() || `${agent.name || agent.id} 定时任务`,
@@ -517,6 +611,57 @@ export default {
       this.notificationDialogOpen = true;
       await this.loadNotificationChannels();
     },
+    async openAdminNotification() {
+      this.adminNotificationError = "";
+      this.adminNotification = { channelId: "", receivers: [], title: "", content: "", level: "INFO" };
+      this.adminNotificationOpen = true;
+      await this.loadNotificationChannels();
+      const first = this.boundNotificationChannels()[0];
+      if (first) this.adminNotification.channelId = first.id;
+    },
+    closeAdminNotification() {
+      if (!this.adminNotificationSending) this.adminNotificationOpen = false;
+    },
+    syncAdminNotificationRecipients() {
+      this.adminNotification.receivers = [];
+      this.adminNotificationError = "";
+    },
+    toggleAllAdminRecipients(checked) {
+      this.adminNotification.receivers = checked ? [...this.availableAdminRecipients] : [];
+    },
+    async sendAdminNotification() {
+      this.adminNotificationError = "";
+      if (!this.adminNotification.channelId) {
+        this.adminNotificationError = "请选择通知方式";
+        return;
+      }
+      if (this.isAdmin && !this.adminNotification.receivers.length) {
+        this.adminNotificationError = "请选择至少一个接收人";
+        return;
+      }
+      if (!this.isAdmin && !this.availableAdminRecipients.length) {
+        this.adminNotificationError = "当前通知方式尚未维护联系人";
+        return;
+      }
+      if (!this.adminNotification.title.trim() || !this.adminNotification.content.trim()) {
+        this.adminNotificationError = "请填写通知标题和内容";
+        return;
+      }
+      this.adminNotificationSending = true;
+      try {
+        const result = await sendAgentScheduleAdminNotification({
+          ...this.adminNotification,
+          receivers: this.isAdmin ? this.adminNotification.receivers.join(",") : ""
+        });
+        const expected = this.isAdmin ? this.adminNotification.receivers.length : this.availableAdminRecipients.length;
+        this.notice = `通知已发送给 ${Number(result?.sent || expected)} 位联系人`;
+        this.adminNotificationOpen = false;
+      } catch (error) {
+        this.adminNotificationError = error.message || "通知发送失败";
+      } finally {
+        this.adminNotificationSending = false;
+      }
+    },
     async openNotificationHistory(schedule) {
       this.notificationHistorySchedule = schedule;
       this.notificationHistoryDialogOpen = true;
@@ -559,7 +704,7 @@ export default {
       this.notificationHistoryError = "";
       try {
         const payload = await fetchAgentScheduleNotificationHistory(id, {
-          tenantId: this.tenantId,
+          tenantId: this.effectiveTenantId,
           keyword: this.notificationHistoryQuery.keyword.trim(),
           page: this.notificationHistoryQuery.page,
           pageSize: 10
@@ -694,9 +839,9 @@ export default {
       this.error = "";
       try {
         if (this.isScheduleActive(schedule)) {
-          await pauseAgentSchedule(id, this.tenantId);
+          await pauseAgentSchedule(id, this.effectiveTenantId);
         } else {
-          await resumeAgentSchedule(id, this.tenantId);
+          await resumeAgentSchedule(id, this.effectiveTenantId);
         }
         await this.loadSchedules();
       } catch (error) {
@@ -713,7 +858,7 @@ export default {
       this.saving = true;
       this.error = "";
       try {
-        const result = await rerunAgentSchedule(id, this.tenantId);
+        const result = await rerunAgentSchedule(id, this.effectiveTenantId);
         schedule.running = result?.status === "RUNNING" || result?.status === "SCHEDULED";
         if (schedule.running) {
           schedule.lastTaskStatus = "RUNNING";
@@ -741,7 +886,7 @@ export default {
       this.saving = true;
       this.error = "";
       try {
-        await deleteAgentSchedule(id, this.tenantId);
+        await deleteAgentSchedule(id, this.effectiveTenantId);
         await this.loadSchedules();
       } catch (error) {
         this.error = error.message || "删除定时任务失败";
@@ -801,6 +946,20 @@ export default {
         return "-";
       }
       return date.toLocaleString("zh-CN", { hour12: false });
+    },
+    formatDuration(value) {
+      const duration = Number(value);
+      if (!Number.isFinite(duration)) return "-";
+      if (duration < 1000) return `${duration} ms`;
+      return `${(duration / 1000).toFixed(duration < 10000 ? 1 : 0)} s`;
+    },
+    auditAgentName(record) {
+      const agent = this.agentOptions.find((item) => item.id === record?.agentId);
+      return agent?.name || record?.agentId || "-";
+    },
+    auditScheduleLabel(record) {
+      const name = record?.scheduleName || record?.scheduledTaskId || "-";
+      return this.isAdmin ? `${name} · ${record?.userId || "-"}` : name;
     },
     scheduleStatusClass(status) {
       return String(status || "").toLowerCase().replace(/_/g, "-");

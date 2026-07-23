@@ -12,6 +12,9 @@
         <button type="button" class="light-button" :disabled="notificationLoading" @click="openNotificationOverview">
           {{ notificationLoading ? "加载中" : "通知方式" }}
         </button>
+        <button type="button" class="light-button" @click="openAdminNotification">
+          发送通知
+        </button>
         <button type="button" class="primary-button" :disabled="loading || agentOptions.length === 0" title="只有已发布且已授权的Agent可以创建调度" @click="openCreateDialog">
           新建调度
         </button>
@@ -21,11 +24,11 @@
     <section class="schedule-search-panel">
       <label class="field">
         <span>关键词</span>
-        <input v-model.trim="filters.keyword" type="search" placeholder="搜索任务名称、问题或Agent" />
+        <input v-model.trim="filters.keyword" type="search" placeholder="搜索任务名称、问题或Agent" @keyup.enter="applyFilters" />
       </label>
       <label class="field">
         <span>Agent</span>
-        <select v-model="filters.agentId" :disabled="loading || scheduleLoading" @change="loadSchedules">
+        <select v-model="filters.agentId" :disabled="loading || scheduleLoading" @change="applyFilters">
           <option value="">全部Agent</option>
           <option v-for="agent in agentOptions" :key="agent.id" :value="agent.id">
             {{ agent.name || agent.id }}
@@ -34,11 +37,13 @@
       </label>
       <label class="field">
         <span>状态</span>
-        <select v-model="filters.status">
+        <select v-model="filters.status" @change="applyFilters">
           <option value="">全部状态</option>
           <option value="ACTIVE">ACTIVE</option>
           <option value="PAUSED">PAUSED</option>
+          <option value="SCHEDULED">SCHEDULED</option>
           <option value="RUNNING">RUNNING</option>
+          <option value="SUCCESS">SUCCESS</option>
           <option value="COMPLETED">COMPLETED</option>
           <option value="FAILED">FAILED</option>
           <option value="SCHEDULE_ERROR">调度异常</option>
@@ -49,20 +54,19 @@
           <option value="EXPIRED">EXPIRED</option>
         </select>
       </label>
+      <button type="button" class="primary-button schedule-search-button" :disabled="scheduleLoading || auditLoading" @click="applyFilters">查询</button>
     </section>
 
     <p v-if="error && !dialogOpen" class="schedule-error">{{ error }}</p>
     <p v-if="notice && !dialogOpen" class="schedule-notice">{{ notice }}</p>
 
     <section class="schedule-table-panel">
-      <header>
-        <div>
-          <strong>调度任务</strong>
-          <span>{{ filteredSchedules.length }} / {{ schedules.length }} 个</span>
-        </div>
-      </header>
+      <div class="schedule-content-tabs">
+        <button type="button" :class="{ active: activeTab === 'tasks' }" @click="switchTab('tasks')">调度任务</button>
+        <button type="button" :class="{ active: activeTab === 'audit' }" @click="switchTab('audit')">运行审计</button>
+      </div>
 
-      <div class="schedule-table">
+      <div v-if="activeTab === 'tasks'" class="schedule-table">
         <div class="schedule-table-head">
           <span>任务</span>
           <span>Agent</span>
@@ -72,11 +76,12 @@
           <span>状态</span>
           <span>操作</span>
         </div>
-        <p v-if="!scheduleLoading && filteredSchedules.length === 0" class="schedule-empty">暂无匹配任务</p>
-        <article v-for="schedule in filteredSchedules" :key="schedule.scheduleId || schedule.taskId" class="schedule-table-row">
+        <p v-if="!scheduleLoading && schedules.length === 0" class="schedule-empty">暂无匹配任务</p>
+        <article v-for="schedule in schedules" :key="schedule.scheduleId || schedule.taskId" class="schedule-table-row">
           <div class="schedule-main-cell">
             <strong>{{ schedule.name || schedule.taskId }}</strong>
             <p>{{ schedule.question }}</p>
+            <small v-if="isAdmin" class="schedule-owner-tag">创建人：{{ schedule.userId || "-" }}</small>
             <small v-if="schedule.tradingDayOnly" class="trading-day-tag">仅交易日</small>
             <small v-if="schedule.scheduleWindowEnabled" class="schedule-window-tag">
               {{ scheduleWindowLabel(schedule) }}
@@ -109,6 +114,36 @@
           </div>
         </article>
       </div>
+      <div v-else class="schedule-audit-table-wrap">
+        <div class="schedule-audit-table">
+          <div class="schedule-audit-head">
+            <span>执行时间</span><span>调度任务</span><span>Agent</span><span>类型</span><span>状态</span><span>耗时</span><span>结果 / 错误</span>
+          </div>
+          <p v-if="auditLoading" class="schedule-empty">正在加载运行审计…</p>
+          <p v-else-if="auditRecords.length === 0" class="schedule-empty">暂无匹配的运行记录</p>
+          <template v-else>
+            <div v-for="record in auditRecords" :key="record.runId" class="schedule-audit-row">
+              <span>{{ formatDateTime(record.fireTime) }}</span>
+              <span :title="auditScheduleLabel(record)">{{ auditScheduleLabel(record) }}</span>
+              <span>{{ auditAgentName(record) }}</span>
+              <span>{{ record.manualRun ? "手动执行" : "自动调度" }}</span>
+              <b :class="scheduleStatusClass(record.status)">{{ record.status || "-" }}</b>
+              <span>{{ formatDuration(record.durationMs) }}</span>
+              <span :class="{ 'schedule-audit-error': record.errorMessage }" :title="record.errorMessage || record.answerSummary">
+                {{ record.errorMessage || record.answerSummary || "-" }}
+              </span>
+            </div>
+          </template>
+        </div>
+      </div>
+      <footer class="schedule-pagination">
+        <span>共 {{ currentPageState.total }} 条，每页 {{ currentPageState.pageSize }} 条</span>
+        <div>
+          <button type="button" class="light-button" :disabled="currentPageState.page <= 1 || scheduleLoading || auditLoading" @click="changePage(currentPageState.page - 1)">上一页</button>
+          <span>第 {{ currentPageState.page }} / {{ Math.max(1, currentPageState.totalPages) }} 页</span>
+          <button type="button" class="light-button" :disabled="currentPageState.page >= Math.max(1, currentPageState.totalPages) || scheduleLoading || auditLoading" @click="changePage(currentPageState.page + 1)">下一页</button>
+        </div>
+      </footer>
     </section>
 
     <div v-if="dialogOpen" class="schedule-dialog-backdrop">
@@ -446,6 +481,61 @@
           >{{ recipientSaving ? "保存中" : "保存绑定" }}</button>
         </footer>
       </div>
+    </div>
+
+    <div v-if="adminNotificationOpen" class="schedule-dialog-backdrop notification-select-backdrop">
+      <form class="schedule-dialog notification-dialog" @submit.prevent="sendAdminNotification">
+        <header>
+          <div><p>{{ isAdmin ? "Admin Notification" : "Notification" }}</p><h2>发送通知</h2></div>
+          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeAdminNotification">×</button>
+        </header>
+        <p class="notification-readonly-tip">
+          {{ isAdmin ? "管理员可从已维护联系人中选择单发或群发。" : "普通用户将发送给所选通知方式下的全部已维护联系人。" }}
+        </p>
+        <label class="field">
+          <span>通知方式</span>
+          <select v-model="adminNotification.channelId" :disabled="adminNotificationSending" @change="syncAdminNotificationRecipients">
+            <option value="">请选择通知方式</option>
+            <option v-for="channel in boundNotificationChannels()" :key="channel.id" :value="channel.id">
+              {{ channel.title || channelTypeLabel(channel.channel) }}
+            </option>
+          </select>
+        </label>
+        <fieldset v-if="isAdmin" class="admin-recipient-picker" :disabled="adminNotificationSending || !adminNotification.channelId">
+          <legend>接收人</legend>
+          <label class="admin-select-all">
+            <input type="checkbox" :checked="allAdminRecipientsSelected" @change="toggleAllAdminRecipients($event.target.checked)" />
+            <span>全选（群发）</span>
+          </label>
+          <div>
+            <label v-for="receiver in availableAdminRecipients" :key="receiver">
+              <input v-model="adminNotification.receivers" type="checkbox" :value="receiver" />
+              <span>{{ receiver }}</span>
+            </label>
+          </div>
+          <small v-if="adminNotification.channelId && availableAdminRecipients.length === 0">该通知方式尚未维护联系人</small>
+        </fieldset>
+        <div v-else class="notification-recipient-summary regular-notification-recipients">
+          <strong>接收范围</strong>
+          <div>
+            <span v-for="receiver in availableAdminRecipients" :key="receiver" class="notification-recipient-chip" :title="receiver">{{ receiver }}</span>
+          </div>
+          <small v-if="adminNotification.channelId && availableAdminRecipients.length === 0">该通知方式尚未维护联系人</small>
+        </div>
+        <label class="field"><span>标题</span><input v-model.trim="adminNotification.title" maxlength="200" placeholder="请输入通知标题" /></label>
+        <label class="field"><span>内容</span><textarea v-model.trim="adminNotification.content" rows="6" placeholder="请输入通知内容"></textarea></label>
+        <label class="field">
+          <span>级别</span>
+          <select v-model="adminNotification.level"><option value="INFO">普通</option><option value="WARNING">警告</option><option value="CRITICAL">紧急</option></select>
+        </label>
+        <p v-if="adminNotificationError" class="schedule-error">{{ adminNotificationError }}</p>
+        <footer>
+          <button type="button" class="light-button" :disabled="adminNotificationSending" @click="closeAdminNotification">取消</button>
+          <button type="submit" class="primary-button" :disabled="adminNotificationSending">
+            {{ adminNotificationSending ? "发送中" : `发送给 ${isAdmin ? adminNotification.receivers.length : availableAdminRecipients.length} 人` }}
+          </button>
+        </footer>
+      </form>
     </div>
 
     <div v-if="notificationSelectOpen" class="schedule-dialog-backdrop notification-select-backdrop">

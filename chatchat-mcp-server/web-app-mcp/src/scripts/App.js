@@ -8,6 +8,7 @@ import NotificationChannelsView from '../views/NotificationChannelsView.vue';
 import AuditLogsView from '../views/AuditLogsView.vue';
 import CommandAuditLogsView from '../views/CommandAuditLogsView.vue';
 import SettingsView from '../views/SettingsView.vue';
+import LicenseView from '../views/LicenseView.vue';
 import NewsCollectionView from '../views/NewsCollectionView.vue';
 import ModalPanel from '../components/ModalPanel.vue';
 import JsonBlock from '../components/JsonBlock.vue';
@@ -43,7 +44,8 @@ export default {
         { key: 'notificationChannels', label: '通知告警', icon: 'Bell', component: NotificationChannelsView },
         { key: 'auditLogs', label: '调用审计', icon: 'Tickets', component: AuditLogsView },
         { key: 'commandAuditLogs', label: '命令审计', icon: 'Tickets', component: CommandAuditLogsView },
-        { key: 'settings', label: '系统设置', icon: 'Setting', component: SettingsView }
+        { key: 'settings', label: '系统设置', icon: 'Setting', component: SettingsView },
+        { key: 'license', label: 'License 授权', icon: 'Key', component: LicenseView }
       ]
     };
   },

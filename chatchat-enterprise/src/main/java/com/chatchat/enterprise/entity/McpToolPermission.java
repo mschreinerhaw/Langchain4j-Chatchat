@@ -29,6 +29,9 @@ public class McpToolPermission extends EnterpriseAuditable {
     @Column(length = 128, nullable = false)
     private String localToolName;
 
+    @Column(length = 1000)
+    private String scopeExpression;
+
     @Column(length = 16, nullable = false)
     private String effect = "allow";
 

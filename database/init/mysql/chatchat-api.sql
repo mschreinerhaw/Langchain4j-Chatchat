@@ -305,6 +305,7 @@
         tenant_id varchar(64),
         tool_id varchar(64),
         local_tool_name varchar(128) not null,
+        scope_expression varchar(1000),
         remark varchar(1000),
         primary key (id)
     ) engine=InnoDB;

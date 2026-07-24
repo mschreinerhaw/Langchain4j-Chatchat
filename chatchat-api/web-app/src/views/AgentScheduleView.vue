@@ -103,9 +103,18 @@
             <button type="button" class="light-button" :disabled="saving" @click="toggleSchedule(schedule)">
               {{ isScheduleActive(schedule) ? "停用" : "启用" }}
             </button>
-            <button type="button" class="light-button" :disabled="saving || isScheduleRunning(schedule)" @click="rerunSchedule(schedule)">
-              <i v-if="isScheduleRunning(schedule)" class="schedule-spinner" aria-hidden="true"></i>
-              {{ isScheduleRunning(schedule) ? "运行中" : "执行" }}
+            <button
+              v-if="isScheduleRunning(schedule)"
+              type="button"
+              class="danger-button schedule-stop-button"
+              :disabled="saving || Boolean(stoppingScheduleId)"
+              @click="stopScheduleRun(schedule)"
+            >
+              <i v-if="isStoppingSchedule(schedule)" class="schedule-spinner" aria-hidden="true"></i>
+              {{ isStoppingSchedule(schedule) ? "停止中" : "停止" }}
+            </button>
+            <button v-else type="button" class="light-button" :disabled="saving" @click="rerunSchedule(schedule)">
+              执行
             </button>
             <button type="button" class="danger-button" :disabled="saving" @click="removeSchedule(schedule)">删除</button>
           </div>

@@ -10,6 +10,7 @@ import {
   rerunAgentSchedule,
   resumeAgentSchedule,
   saveAgentScheduleNotificationRecipient,
+  stopAgentScheduleRun,
   updateAgentSchedule
 } from "../../services/api.js";
 import ScheduleTimePicker from "../../components/ScheduleTimePicker.vue";
@@ -143,6 +144,7 @@ export default {
       scheduleLoading: false,
       scheduleRefreshTimer: null,
       stopTaskCancelledListener: null,
+      stoppingScheduleId: "",
       scheduleRefreshing: false,
       dialogOpen: false,
       editingScheduleId: "",
@@ -872,6 +874,33 @@ export default {
       } finally {
         this.saving = false;
       }
+    },
+    async stopScheduleRun(schedule) {
+      const id = scheduleId(schedule);
+      if (!id || !this.isScheduleRunning(schedule) || this.stoppingScheduleId) {
+        return;
+      }
+      if (!window.confirm(`确认停止任务“${schedule.name || id}”的本次执行吗？后续定时调度不受影响。`)) {
+        return;
+      }
+      this.stoppingScheduleId = id;
+      this.error = "";
+      this.notice = "";
+      try {
+        await stopAgentScheduleRun(id, this.effectiveTenantId);
+        this.notice = "本次任务执行已停止，后续定时调度不受影响";
+        await this.loadSchedules();
+        if (this.activeTab === "audit") {
+          await this.loadAuditRecords();
+        }
+      } catch (error) {
+        this.error = error.message || "停止任务执行失败";
+      } finally {
+        this.stoppingScheduleId = "";
+      }
+    },
+    isStoppingSchedule(schedule) {
+      return this.stoppingScheduleId === scheduleId(schedule);
     },
     async removeSchedule(schedule) {
       const id = scheduleId(schedule);

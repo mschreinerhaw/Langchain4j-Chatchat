@@ -28,6 +28,67 @@ import static org.mockito.Mockito.when;
 class AgentScheduledTaskServiceTest {
 
     @Test
+    void stopCurrentRunCancelsOnlyExecutionAndKeepsRecurringScheduleActive() {
+        ScheduledTaskRepository repository = mock(ScheduledTaskRepository.class);
+        ScheduledTaskRunRepository runRepository = mock(ScheduledTaskRunRepository.class);
+        AgentTaskLatestRepository latestRepository = mock(AgentTaskLatestRepository.class);
+        AgentTaskService taskService = mock(AgentTaskService.class);
+
+        AgentTaskLatestEntity latest = new AgentTaskLatestEntity();
+        latest.setTaskId("agent-task-stop");
+        latest.setStatus("CANCELLED");
+        latest.setErrorMessage("Task cancelled by tenant request");
+
+        ScheduledTaskRunEntity run = new ScheduledTaskRunEntity();
+        run.setRunId("run-stop");
+        run.setScheduledTaskId("schedule-stop");
+        run.setTaskId("agent-task-stop");
+        run.setStatus("RUNNING");
+        run.setManualRun(false);
+        run.setFireTime(Instant.now().minusSeconds(5));
+
+        ScheduledTaskEntity schedule = new ScheduledTaskEntity();
+        schedule.setTaskId("schedule-stop");
+        schedule.setTenantId("tenant-1");
+        schedule.setStatus("RUNNING");
+        schedule.setTriggerType("CRON");
+        schedule.setCronExpr("0 0 8 * * ?");
+        schedule.setZoneId("Asia/Shanghai");
+        schedule.setLastTaskId("agent-task-stop");
+        schedule.setMaxRetries(3);
+        schedule.setRetryDelaySeconds(10L);
+        schedule.setRetryCount(0);
+
+        when(repository.findById("schedule-stop")).thenReturn(Optional.of(schedule));
+        when(repository.findFirstByLastTaskId("agent-task-stop")).thenReturn(Optional.of(schedule));
+        when(repository.save(any(ScheduledTaskEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(runRepository.findFirstByScheduledTaskIdAndStatusOrderByFireTimeDesc("schedule-stop", "RUNNING"))
+            .thenReturn(Optional.of(run));
+        when(runRepository.findFirstByTaskIdOrderByFireTimeDesc("agent-task-stop")).thenReturn(Optional.of(run));
+        when(runRepository.claimCompletion("run-stop")).thenReturn(1);
+        when(runRepository.save(any(ScheduledTaskRunEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(latestRepository.findById("agent-task-stop")).thenReturn(Optional.of(latest));
+
+        AgentScheduledTaskService service = new AgentScheduledTaskService(
+            repository, runRepository, latestRepository, taskService, new ObjectMapper(),
+            new AgentTaskProperties(), mock(McpTradingCalendarClient.class), mock(McpNotificationClient.class),
+            mock(TenantNotificationRecipientService.class), mock(EnterpriseAdminService.class),
+            mock(SkillCatalogService.class), mock(NotificationContentFormatter.class),
+            new AgentScheduleWindowPolicy()
+        );
+
+        ScheduledTaskResponse response = service.stopCurrentRun("tenant-1", "schedule-stop");
+
+        verify(taskService).cancel("tenant-1", "agent-task-stop");
+        assertThat(run.getStatus()).isEqualTo("CANCELLED");
+        assertThat(schedule.getStatus()).isEqualTo("ACTIVE");
+        assertThat(schedule.getNextFireTime()).isNotNull();
+        assertThat(schedule.getRetryCount()).isZero();
+        assertThat(response.running()).isFalse();
+        assertThat(response.status()).isEqualTo("ACTIVE");
+    }
+
+    @Test
     void terminalTaskEventImmediatelyReconcilesScheduledRunAndSchedule() {
         ScheduledTaskRepository repository = mock(ScheduledTaskRepository.class);
         ScheduledTaskRunRepository runRepository = mock(ScheduledTaskRunRepository.class);

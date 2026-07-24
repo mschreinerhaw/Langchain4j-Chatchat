@@ -356,6 +356,22 @@ public class AgentScheduledTaskService {
         return ScheduledTaskRunResponse.from(submitRun(entity, Instant.now(), true));
     }
 
+    public ScheduledTaskResponse stopCurrentRun(String tenantId, String scheduledTaskId) {
+        ScheduledTaskEntity entity = getForTenant(tenantId, scheduledTaskId);
+        ScheduledTaskRunEntity run = scheduledTaskRunRepository
+            .findFirstByScheduledTaskIdAndStatusOrderByFireTimeDesc(entity.getTaskId(), "RUNNING")
+            .orElseThrow(() -> new IllegalArgumentException("当前调度任务没有正在运行的执行"));
+        String taskId = text(run.getTaskId());
+        if (taskId.isBlank()) {
+            throw new IllegalArgumentException("当前调度任务缺少可停止的 Agent 任务 ID");
+        }
+        taskService.cancel(entity.getTenantId(), taskId);
+        // The terminal event listener normally reconciles immediately. Keep this call as
+        // an idempotent fallback so the API does not return a stale RUNNING state.
+        reconcileTerminalTask(taskId);
+        return toResponse(getForTenant(tenantId, scheduledTaskId));
+    }
+
     public List<ScheduledTaskRunResponse> history(String tenantId, String scheduledTaskId, int page, int pageSize) {
         ScheduledTaskEntity entity = getForTenant(tenantId, scheduledTaskId);
         int normalizedPage = Math.max(0, page - 1);
@@ -734,7 +750,7 @@ public class AgentScheduledTaskService {
         }
         entity.setLastTaskStatus(normalizeStatus(taskStatus));
         entity.setLastError(truncate(firstText(errorMessage, "Agent task failed"), 1000));
-        if (canRetry(entity)) {
+        if ("FAILED".equals(normalizeStatus(taskStatus)) && canRetry(entity)) {
             entity.setRetryCount(entity.getRetryCount() + 1);
             entity.setStatus("ACTIVE");
             entity.setNextFireTime(now.plusSeconds(Math.max(1L, entity.getRetryDelaySeconds())));

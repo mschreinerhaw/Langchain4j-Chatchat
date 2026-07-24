@@ -290,6 +290,25 @@ public class AgentTaskScheduleController {
         }
     }
 
+    @PostMapping("/{scheduledTaskId}/stop")
+    @Operation(summary = "Stop only the current execution of one scheduled Agent Runtime task")
+    public ApiResponse<ScheduledTaskResponse> stop(@RequestParam("tenantId") String tenantId,
+                                                   @PathVariable("scheduledTaskId") String scheduledTaskId,
+                                                   HttpServletRequest servletRequest) {
+        try {
+            String scopedTenantId = scopedTenantId(servletRequest, tenantId);
+            scheduledTaskService.requireAccess(scopedTenantId, scheduledTaskId, visibleUserId(servletRequest));
+            return ApiResponse.success(
+                scheduledTaskService.stopCurrentRun(scopedTenantId, scheduledTaskId),
+                "当前调度任务执行已停止"
+            );
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.badRequest(e.getMessage());
+        } catch (Exception e) {
+            return ApiResponse.internalError("停止调度任务执行失败: " + e.getMessage());
+        }
+    }
+
     @GetMapping("/{scheduledTaskId}/history")
     @Operation(summary = "List execution history for one scheduled Agent Runtime task")
     public ApiResponse<List<ScheduledTaskRunResponse>> history(@RequestParam("tenantId") String tenantId,

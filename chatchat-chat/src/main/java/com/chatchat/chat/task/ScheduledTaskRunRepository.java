@@ -59,6 +59,10 @@ public interface ScheduledTaskRunRepository extends JpaRepository<ScheduledTaskR
 
     Optional<ScheduledTaskRunEntity> findFirstByTaskIdOrderByFireTimeDesc(String taskId);
 
+    Optional<ScheduledTaskRunEntity> findFirstByScheduledTaskIdAndStatusOrderByFireTimeDesc(
+        String scheduledTaskId, String status
+    );
+
     boolean existsByScheduledTaskIdAndStatus(String scheduledTaskId, String status);
 
     @Query("""

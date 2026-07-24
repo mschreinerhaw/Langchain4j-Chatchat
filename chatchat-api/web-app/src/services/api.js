@@ -312,6 +312,16 @@ export function rerunAgentSchedule(scheduleId, tenantId = "") {
   });
 }
 
+export function stopAgentScheduleRun(scheduleId, tenantId = "") {
+  const params = new URLSearchParams();
+  if (tenantId) {
+    params.set("tenantId", tenantId);
+  }
+  return apiRequest(`/agent/tasks/runtime/schedules/${encodeURIComponent(scheduleId)}/stop?${params.toString()}`, {
+    method: "POST"
+  });
+}
+
 export function deleteAgentSchedule(scheduleId, tenantId = "") {
   const params = new URLSearchParams();
   if (tenantId) {

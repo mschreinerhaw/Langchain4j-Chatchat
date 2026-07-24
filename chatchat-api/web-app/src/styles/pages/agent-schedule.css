@@ -465,6 +465,10 @@
   background: #ffe4e8;
 }
 
+.agent-schedule-view .schedule-stop-button {
+  min-width: 66px;
+}
+
 .agent-schedule-view .primary-button:disabled,
 .agent-schedule-view .light-button:disabled,
 .agent-schedule-view .danger-button:disabled,

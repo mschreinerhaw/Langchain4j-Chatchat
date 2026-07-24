@@ -72,13 +72,21 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
         McpInvocationContext.Context invocationContext = invocationContext(wrappedRequest);
         McpInvocationContext.Scope scope = McpInvocationContext.open(invocationContext);
         try {
+            JsonNode requestJson = requestBodyJson(wrappedRequest);
+            if (isLicenseExpired() && containsMcpRequest(requestJson)) {
+                String reason = licenseService.toolDenialReason(null);
+                writeAuthorizationDenied(response,
+                    reason == null ? "License 已过期，MCP 调用已停止，请联系供应商续期" : reason);
+                recordAudit(wrappedRequest, response, 0L, "MCP_LICENSE_EXPIRED");
+                return;
+            }
             if (authorizationProperties.isRequireTenantContext() && isToolCall(wrappedRequest, requestBody(wrappedRequest))
                 && (invocationContext.tenantId() == null || invocationContext.tenantId().isBlank())) {
                 writeTenantRequired(response);
                 recordAudit(wrappedRequest, response, 0L, "TENANT_REQUIRED");
                 return;
             }
-            McpAuthorizationService.AuthorizationDecision authorization = authorizeToolCalls(requestBodyJson(wrappedRequest));
+            McpAuthorizationService.AuthorizationDecision authorization = authorizeToolCalls(requestJson);
             if (!authorization.allowed()) {
                 writeAuthorizationDenied(response, authorization.reason());
                 recordAudit(wrappedRequest, response, 0L, authorization.reason());
@@ -258,6 +266,27 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
             return false;
         }
         return "tools/call".equals(text(node.get("method")));
+    }
+
+    private boolean containsMcpRequest(JsonNode node) {
+        if (node == null || node.isNull() || node.isMissingNode()) {
+            return false;
+        }
+        if (node.isArray()) {
+            for (JsonNode item : node) {
+                if (containsMcpRequest(item)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        String method = text(node.get("method"));
+        return node.isObject() && method != null && !method.isBlank();
+    }
+
+    private boolean isLicenseExpired() {
+        return licenseService.status() != null
+            && "EXPIRED".equalsIgnoreCase(licenseService.status().status());
     }
 
     private void writeTenantRequired(HttpServletResponse response) throws IOException {

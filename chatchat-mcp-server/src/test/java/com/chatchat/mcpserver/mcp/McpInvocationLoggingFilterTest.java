@@ -24,6 +24,35 @@ import static org.mockito.Mockito.when;
 class McpInvocationLoggingFilterTest {
 
     @Test
+    void rejectsMcpInitializationWhenLicenseIsExpired() throws Exception {
+        InvocationAuditService auditService = mock(InvocationAuditService.class);
+        McpAuthorizationService authorizationService = mock(McpAuthorizationService.class);
+        McpLicenseService licenseService = mock(McpLicenseService.class);
+        McpAuthorizationProperties properties = new McpAuthorizationProperties();
+        when(licenseService.status()).thenReturn(
+            LicenseStatus.invalid("EXPIRED", "License 已过期", "SERVER-TEST", null)
+        );
+        when(licenseService.toolDenialReason(null))
+            .thenReturn("License 已过期，MCP 调用已停止，请联系供应商续期");
+        McpInvocationLoggingFilter filter = new McpInvocationLoggingFilter(
+            auditService, new ObjectMapper(), properties, authorizationService, licenseService);
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/mcp");
+        request.setContentType("application/json");
+        request.setContent("""
+            {"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}
+            """.getBytes(StandardCharsets.UTF_8));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilterInternal(request, response, chain);
+
+        assertThat(response.getStatus()).isEqualTo(403);
+        assertThat(response.getContentAsString())
+            .contains("MCP_LICENSE_EXPIRED", "\"licenseStatus\":\"EXPIRED\"", "License 已过期");
+        verifyNoInteractions(authorizationService, chain);
+    }
+
+    @Test
     void blocksToolBeforeRoleAuthorizationWhenLicenseDoesNotIncludeFeature() throws Exception {
         InvocationAuditService auditService = mock(InvocationAuditService.class);
         McpAuthorizationService authorizationService = mock(McpAuthorizationService.class);

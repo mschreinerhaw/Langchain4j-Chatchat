@@ -108,7 +108,7 @@
               type="button"
               class="danger-button schedule-stop-button"
               :disabled="saving || Boolean(stoppingScheduleId)"
-              @click="stopScheduleRun(schedule)"
+              @click="openStopConfirm(schedule)"
             >
               <i v-if="isStoppingSchedule(schedule)" class="schedule-spinner" aria-hidden="true"></i>
               {{ isStoppingSchedule(schedule) ? "停止中" : "停止" }}
@@ -151,6 +151,47 @@
         </div>
       </footer>
     </section>
+
+    <div
+      v-if="stopConfirmSchedule"
+      class="schedule-dialog-backdrop schedule-stop-confirm-backdrop"
+      @click.self="closeStopConfirm"
+    >
+      <section class="schedule-stop-confirm" role="alertdialog" aria-modal="true" aria-labelledby="schedule-stop-title">
+        <header>
+          <span class="schedule-stop-confirm-icon" aria-hidden="true">■</span>
+          <div>
+            <p>停止本次执行</p>
+            <h2 id="schedule-stop-title">{{ stopConfirmSchedule.name || stopConfirmSchedule.taskId }}</h2>
+          </div>
+          <button
+            type="button"
+            class="app-dialog-close"
+            aria-label="关闭"
+            title="关闭"
+            :disabled="Boolean(stoppingScheduleId)"
+            @click="closeStopConfirm"
+          >×</button>
+        </header>
+        <div class="schedule-stop-confirm-body">
+          <strong>确认立即停止当前正在运行的任务吗？</strong>
+          <p>当前推理和后续执行步骤将被终止，任务会在运行审计中记录为已取消。</p>
+          <div class="schedule-stop-confirm-note">
+            后续定时调度不受影响；已经发送给外部系统的请求或操作无法撤回。
+          </div>
+          <p v-if="error" class="schedule-stop-confirm-error">{{ error }}</p>
+        </div>
+        <footer>
+          <button type="button" class="light-button" :disabled="Boolean(stoppingScheduleId)" @click="closeStopConfirm">
+            继续运行
+          </button>
+          <button type="button" class="danger-button schedule-stop-confirm-action" :disabled="Boolean(stoppingScheduleId)" @click="confirmStopScheduleRun">
+            <i v-if="Boolean(stoppingScheduleId)" class="schedule-spinner" aria-hidden="true"></i>
+            {{ stoppingScheduleId ? "正在停止…" : "确认停止" }}
+          </button>
+        </footer>
+      </section>
+    </div>
 
     <div v-if="dialogOpen" class="schedule-dialog-backdrop">
       <form class="schedule-dialog" @submit.prevent="createSchedule">

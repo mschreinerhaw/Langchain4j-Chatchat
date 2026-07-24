@@ -369,7 +369,33 @@ public class AgentScheduledTaskService {
         // The terminal event listener normally reconciles immediately. Keep this call as
         // an idempotent fallback so the API does not return a stale RUNNING state.
         reconcileTerminalTask(taskId);
+        forceStoppedRunState(run.getRunId(), taskId);
+        ScheduledTaskEntity stoppedSchedule = getForTenant(tenantId, scheduledTaskId);
+        if ("RUNNING".equals(normalizeStatus(stoppedSchedule.getStatus()))
+            && taskId.equals(text(stoppedSchedule.getLastTaskId()))) {
+            markObservedFailure(stoppedSchedule, "CANCELLED", "任务已由用户停止", Instant.now());
+        }
         return toResponse(getForTenant(tenantId, scheduledTaskId));
+    }
+
+    private void forceStoppedRunState(String runId, String taskId) {
+        if (runId == null || runId.isBlank()) {
+            return;
+        }
+        scheduledTaskRunRepository.findById(runId).ifPresent(currentRun -> {
+            String status = normalizeStatus(currentRun.getStatus());
+            if (!Set.of("RUNNING", "COMPLETING", "SCHEDULED").contains(status)) {
+                return;
+            }
+            Instant now = Instant.now();
+            currentRun.setStatus("CANCELLED");
+            currentRun.setErrorMessage("任务已由用户停止");
+            currentRun.setFinishedAt(now);
+            currentRun.setDurationMs(currentRun.getFireTime() == null
+                ? 0L : Math.max(0L, now.toEpochMilli() - currentRun.getFireTime().toEpochMilli()));
+            scheduledTaskRunRepository.save(currentRun);
+            log.info("Forced stopped scheduled Agent run state runId={} taskId={}", runId, taskId);
+        });
     }
 
     public List<ScheduledTaskRunResponse> history(String tenantId, String scheduledTaskId, int page, int pageSize) {

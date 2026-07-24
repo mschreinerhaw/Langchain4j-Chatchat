@@ -469,6 +469,108 @@
   min-width: 66px;
 }
 
+.schedule-stop-confirm-backdrop {
+  z-index: 90;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(3px);
+}
+
+.schedule-stop-confirm {
+  width: min(460px, calc(100vw - 32px));
+  overflow: hidden;
+  border: 1px solid #f6c8ce;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+}
+
+.schedule-stop-confirm > header {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 30px;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 20px 16px;
+}
+
+.schedule-stop-confirm > header p {
+  margin: 0 0 3px;
+  color: #b42335;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.schedule-stop-confirm > header h2 {
+  margin: 0;
+  overflow: hidden;
+  color: #182230;
+  font-size: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-stop-confirm-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff0f1;
+  color: #d92d42;
+  font-size: 14px;
+}
+
+.schedule-stop-confirm-body {
+  display: grid;
+  gap: 9px;
+  padding: 0 20px 20px 74px;
+}
+
+.schedule-stop-confirm-body > strong {
+  color: #344054;
+  font-size: 14px;
+}
+
+.schedule-stop-confirm-body > p {
+  margin: 0;
+  color: #667085;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.schedule-stop-confirm-note {
+  padding: 9px 11px;
+  border-radius: 8px;
+  background: #fff8ed;
+  color: #9a6700;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.schedule-stop-confirm-body > .schedule-stop-confirm-error {
+  color: #b42335;
+  font-weight: 750;
+}
+
+.schedule-stop-confirm > footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  padding: 14px 20px;
+  border-top: 1px solid #edf1f7;
+  background: #fafbfc;
+}
+
+.agent-schedule-view .schedule-stop-confirm-action {
+  min-width: 104px;
+  border-color: #d92d42;
+  background: #d92d42;
+  color: #fff;
+}
+
+.agent-schedule-view .schedule-stop-confirm-action:hover {
+  background: #b42335;
+}
+
 .agent-schedule-view .primary-button:disabled,
 .agent-schedule-view .light-button:disabled,
 .agent-schedule-view .danger-button:disabled,

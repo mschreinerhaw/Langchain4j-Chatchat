@@ -65,7 +65,9 @@ class AgentScheduledTaskServiceTest {
         when(runRepository.findFirstByScheduledTaskIdAndStatusOrderByFireTimeDesc("schedule-stop", "RUNNING"))
             .thenReturn(Optional.of(run));
         when(runRepository.findFirstByTaskIdOrderByFireTimeDesc("agent-task-stop")).thenReturn(Optional.of(run));
-        when(runRepository.claimCompletion("run-stop")).thenReturn(1);
+        // Simulate another scheduler instance claiming completion without finishing it.
+        when(runRepository.claimCompletion("run-stop")).thenReturn(0);
+        when(runRepository.findById("run-stop")).thenReturn(Optional.of(run));
         when(runRepository.save(any(ScheduledTaskRunEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(latestRepository.findById("agent-task-stop")).thenReturn(Optional.of(latest));
 

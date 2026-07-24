@@ -145,6 +145,7 @@ export default {
       scheduleRefreshTimer: null,
       stopTaskCancelledListener: null,
       stoppingScheduleId: "",
+      stopConfirmSchedule: null,
       scheduleRefreshing: false,
       dialogOpen: false,
       editingScheduleId: "",
@@ -875,19 +876,31 @@ export default {
         this.saving = false;
       }
     },
-    async stopScheduleRun(schedule) {
-      const id = scheduleId(schedule);
-      if (!id || !this.isScheduleRunning(schedule) || this.stoppingScheduleId) {
+    openStopConfirm(schedule) {
+      if (!this.isScheduleRunning(schedule) || this.stoppingScheduleId) {
         return;
       }
-      if (!window.confirm(`确认停止任务“${schedule.name || id}”的本次执行吗？后续定时调度不受影响。`)) {
+      this.error = "";
+      this.stopConfirmSchedule = schedule;
+    },
+    closeStopConfirm() {
+      if (!this.stoppingScheduleId) {
+        this.stopConfirmSchedule = null;
+      }
+    },
+    async confirmStopScheduleRun() {
+      const schedule = this.stopConfirmSchedule;
+      const id = scheduleId(schedule);
+      if (!id || !this.isScheduleRunning(schedule) || this.stoppingScheduleId) {
         return;
       }
       this.stoppingScheduleId = id;
       this.error = "";
       this.notice = "";
       try {
-        await stopAgentScheduleRun(id, this.effectiveTenantId);
+        const stopped = await stopAgentScheduleRun(id, this.effectiveTenantId);
+        Object.assign(schedule, stopped || {}, { running: false });
+        this.stopConfirmSchedule = null;
         this.notice = "本次任务执行已停止，后续定时调度不受影响";
         await this.loadSchedules();
         if (this.activeTab === "audit") {

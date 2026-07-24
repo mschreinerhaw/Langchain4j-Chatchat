@@ -322,6 +322,7 @@
         :data="pagedAuthorizationAssets"
         border
         stripe
+        :max-height="420"
         v-loading="authorizationLoading"
         empty-text="暂无可授权资产"
       >
@@ -340,7 +341,11 @@
         <el-table-column label="分类" min-width="170">
           <template #default="{ row }">{{ row.groupName || row.groupCode || 'default' }}</template>
         </el-table-column>
-        <el-table-column label="描述" min-width="220" show-overflow-tooltip>
+        <el-table-column
+          label="描述"
+          min-width="220"
+          :show-overflow-tooltip="{ popperClass: 'authorization-description-tooltip', placement: 'top' }"
+        >
           <template #default="{ row }">{{ row.description || '-' }}</template>
         </el-table-column>
         <el-table-column prop="enabled" label="状态" width="110">

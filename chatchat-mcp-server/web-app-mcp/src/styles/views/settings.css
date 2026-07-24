@@ -84,8 +84,17 @@
 }
 
 .authorization-asset-table {
-  max-height: min(52vh, 520px);
-  overflow: auto;
+  width: 100%;
+}
+
+.el-popper.authorization-description-tooltip {
+  max-width: min(520px, calc(100vw - 32px));
+  max-height: min(240px, calc(100vh - 48px));
+  overflow-x: hidden;
+  overflow-y: auto;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.55;
 }
 
 .authorization-pagination {

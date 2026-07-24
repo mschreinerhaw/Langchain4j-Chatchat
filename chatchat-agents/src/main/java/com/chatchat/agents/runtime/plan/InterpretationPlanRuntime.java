@@ -4371,7 +4371,22 @@ public class InterpretationPlanRuntime {
 
     private boolean isWholeStepOutputField(String field) {
         String normalized = field == null ? "" : field.trim();
-        return "output".equalsIgnoreCase(normalized) || "$".equals(normalized) || "$.".equals(normalized);
+        if ("output".equalsIgnoreCase(normalized) || "$".equals(normalized) || "$.".equals(normalized)) {
+            return true;
+        }
+        String semanticKey = normalized
+            .replace("_", "")
+            .replace("-", "")
+            .replace(" ", "")
+            .toLowerCase(Locale.ROOT);
+        return Set.of(
+            "searchresult", "searchresults",
+            "queryresult", "queryresults",
+            "retrievalresult", "retrievalresults",
+            "toolresult", "toolresults",
+            "evidence", "evidenceresult", "evidenceresults",
+            "搜索结果", "检索结果", "查询结果", "工具结果", "证据结果"
+        ).contains(semanticKey);
     }
 
     /**

@@ -60,6 +60,7 @@ public class InterpretationPlanRewriter {
             ModelProtocolJson.prettyJsonForLog(raw));
         try {
             InterpretationPlan rewrittenPlan = objectMapper.readValue(extractJson(raw), InterpretationPlan.class);
+            rewrittenPlan = normalizeRewritePlan(request.originalPlan(), rewrittenPlan);
             InterpretationPlanValidator.ValidationResult validation = validator.validate(
                 rewrittenPlan,
                 request.toolRegistry(),
@@ -393,6 +394,90 @@ public class InterpretationPlanRewriter {
             return text.substring(firstBrace, lastBrace + 1);
         }
         return text;
+    }
+
+    /**
+     * Model rewrites occasionally preserve the plan's meaning while omitting
+     * protocol-required structural fields. Normalize those omissions before
+     * semantic validation so a recoverable rewrite is not discarded.
+     */
+    private InterpretationPlan normalizeRewritePlan(InterpretationPlan originalPlan,
+                                                    InterpretationPlan rewrittenPlan) {
+        if (rewrittenPlan == null) {
+            return null;
+        }
+        InterpretationPlan.Plan body = rewrittenPlan.plan();
+        List<InterpretationPlan.Step> sourceSteps = body == null || body.steps() == null
+            ? List.of()
+            : body.steps();
+        List<InterpretationPlan.Step> normalizedSteps = new ArrayList<>();
+        List<Integer> precedingStepIds = new ArrayList<>();
+        for (InterpretationPlan.Step step : sourceSteps) {
+            if (step == null) {
+                continue;
+            }
+            String actionType = step.actionType();
+            if (actionType == null || actionType.isBlank()) {
+                actionType = step.toolName() != null && !step.toolName().isBlank()
+                    ? "mcp_tool"
+                    : "final_answer";
+            }
+            List<Integer> dependsOn = step.dependsOn();
+            if (dependsOn == null) {
+                dependsOn = "final_answer".equals(actionType)
+                    ? List.copyOf(precedingStepIds)
+                    : List.of();
+            }
+            normalizedSteps.add(new InterpretationPlan.Step(
+                step.id(),
+                actionType,
+                step.toolName() == null ? "" : step.toolName(),
+                step.input() == null ? Map.of() : step.input(),
+                dependsOn,
+                step.outputContract(),
+                step.validation()
+            ));
+            if (step.id() != null) {
+                precedingStepIds.add(step.id());
+            }
+        }
+
+        InterpretationPlan.Review review = rewrittenPlan.review();
+        InterpretationPlan.SelfCheck selfCheck = review == null ? null : review.selfCheck();
+        if (selfCheck == null && originalPlan != null && originalPlan.review() != null) {
+            selfCheck = originalPlan.review().selfCheck();
+        }
+        if (selfCheck == null) {
+            selfCheck = new InterpretationPlan.SelfCheck(
+                0.5,
+                0.5,
+                false,
+                List.of("Runtime restored the required rewrite self-check structure.")
+            );
+        }
+        InterpretationPlan.Review normalizedReview = new InterpretationPlan.Review(
+            selfCheck,
+            review == null || review.fallbackPlan() == null ? List.of() : review.fallbackPlan()
+        );
+        InterpretationPlan.Plan normalizedBody = new InterpretationPlan.Plan(
+            normalizedSteps,
+            body == null || body.edgeContracts() == null ? List.of() : body.edgeContracts(),
+            body == null || body.dependencyContracts() == null ? List.of() : body.dependencyContracts(),
+            body == null || body.bindings() == null ? List.of() : body.bindings(),
+            body == null ? null : body.stability()
+        );
+        InterpretationPlan.ExecutionPolicy executionPolicy = rewrittenPlan.executionPolicy() == null
+            && originalPlan != null
+            ? originalPlan.executionPolicy()
+            : rewrittenPlan.executionPolicy();
+        return new InterpretationPlan(
+            rewrittenPlan.version(),
+            rewrittenPlan.intent(),
+            rewrittenPlan.context(),
+            normalizedBody,
+            executionPolicy,
+            normalizedReview
+        );
     }
 
     private InterpretationPlan repairContinuationPlan(InterpretationPlan originalPlan, InterpretationPlan rewrittenPlan) {

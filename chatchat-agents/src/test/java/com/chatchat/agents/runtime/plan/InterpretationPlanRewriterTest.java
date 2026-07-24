@@ -381,6 +381,46 @@ class InterpretationPlanRewriterTest {
             .contains("model may order and parameterize them, but must not skip");
     }
 
+    @Test
+    void normalizesOmittedRewriteProtocolFieldsBeforeValidation() {
+        CapturingChatModel chatModel = new CapturingChatModel("""
+            {
+              "version": "1.0",
+              "intent": {"type": "web_search", "goal": "Collect revised evidence", "risk_level": "low"},
+              "context": {"key_facts": [], "missing_info": [], "assumptions": [], "constraints": []},
+              "plan": {
+                "steps": [
+                  {"id": 1, "tool_name": "web_search", "input": {"query": "revised market query"}},
+                  {"id": 2, "tool_name": "", "input": {"answer": "Summarize revised evidence."}}
+                ]
+              },
+              "execution_policy": {"max_steps": 2, "allow_parallel": false, "allow_tool": ["web_search"], "deny_tool": [], "timeout_ms": 30000},
+              "review": {"fallback_plan": []}
+            }
+            """);
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("web_search")).thenReturn(true);
+        InterpretationPlanRewriter rewriter = new InterpretationPlanRewriter(
+            chatModel, new ObjectMapper(), new InterpretationPlanValidator());
+
+        InterpretationPlanRewriter.RewriteResult result = rewriter.rewrite(
+            new InterpretationPlanRewriter.RewriteRequest(
+                originalPlan(),
+                originalPlan().steps().get(0),
+                "prior evidence was insufficient",
+                List.of("document_search failed"),
+                List.of("web_search"),
+                toolRegistry
+            ));
+
+        assertThat(result.valid()).as(result.errorMessage()).isTrue();
+        assertThat(result.rewrittenPlan().review().selfCheck()).isNotNull();
+        assertThat(result.rewrittenPlan().steps()).extracting(InterpretationPlan.Step::actionType)
+            .containsExactly("mcp_tool", "final_answer");
+        assertThat(result.rewrittenPlan().steps().get(0).dependsOn()).isEmpty();
+        assertThat(result.rewrittenPlan().steps().get(1).dependsOn()).containsExactly(1);
+    }
+
     private InterpretationPlan originalPlan() {
         return new InterpretationPlan(
             "1.0",

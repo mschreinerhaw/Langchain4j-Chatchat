@@ -561,14 +561,26 @@
 }
 
 .agent-schedule-view .schedule-stop-confirm-action {
+  position: relative;
   min-width: 104px;
   border-color: #d92d42;
   background: #d92d42;
-  color: #fff;
+  color: #fff !important;
+  font-size: 13px;
+  font-weight: 850;
 }
 
 .agent-schedule-view .schedule-stop-confirm-action:hover {
   background: #b42335;
+}
+
+.agent-schedule-view .schedule-stop-confirm-action > span {
+  position: relative;
+  z-index: 1;
+  display: inline;
+  color: #fff !important;
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 
 .agent-schedule-view .primary-button:disabled,

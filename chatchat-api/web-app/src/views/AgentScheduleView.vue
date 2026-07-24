@@ -187,7 +187,8 @@
           </button>
           <button type="button" class="danger-button schedule-stop-confirm-action" :disabled="Boolean(stoppingScheduleId)" @click="confirmStopScheduleRun">
             <i v-if="Boolean(stoppingScheduleId)" class="schedule-spinner" aria-hidden="true"></i>
-            {{ stoppingScheduleId ? "正在停止…" : "确认停止" }}
+            <span v-if="Boolean(stoppingScheduleId)">正在停止…</span>
+            <span v-else>确认停止</span>
           </button>
         </footer>
       </section>

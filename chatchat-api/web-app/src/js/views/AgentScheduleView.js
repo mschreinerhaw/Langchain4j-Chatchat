@@ -888,19 +888,22 @@ export default {
         this.stopConfirmSchedule = null;
       }
     },
-    async confirmStopScheduleRun() {
+    confirmStopScheduleRun() {
       const schedule = this.stopConfirmSchedule;
       const id = scheduleId(schedule);
       if (!id || !this.isScheduleRunning(schedule) || this.stoppingScheduleId) {
         return;
       }
+      this.stopConfirmSchedule = null;
       this.stoppingScheduleId = id;
       this.error = "";
-      this.notice = "";
+      this.notice = `正在停止任务“${schedule.name || id}”…`;
+      void this.processStopScheduleRun(schedule, id);
+    },
+    async processStopScheduleRun(schedule, id) {
       try {
         const stopped = await stopAgentScheduleRun(id, this.effectiveTenantId);
         Object.assign(schedule, stopped || {}, { running: false });
-        this.stopConfirmSchedule = null;
         this.notice = "本次任务执行已停止，后续定时调度不受影响";
         await this.loadSchedules();
         if (this.activeTab === "audit") {
@@ -908,6 +911,8 @@ export default {
         }
       } catch (error) {
         this.error = error.message || "停止任务执行失败";
+        this.notice = "";
+        await this.loadSchedules();
       } finally {
         this.stoppingScheduleId = "";
       }

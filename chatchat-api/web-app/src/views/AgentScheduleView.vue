@@ -301,6 +301,14 @@
               <input v-model="form.notifyEnabled" :disabled="saving" type="checkbox" />
               <span>完成后通知</span>
             </label>
+            <label title="任务仍会正常执行并保存报告，仅在证据链满足发送条件时通知">
+              <input
+                v-model="form.notificationConditionEnabled"
+                :disabled="saving || !form.notifyEnabled"
+                type="checkbox"
+              />
+              <span>满足条件发送</span>
+            </label>
             <label title="触发时由MCP交易日接口判断；非交易日自动跳过">
               <input v-model="form.tradingDayOnly" :disabled="saving" type="checkbox" />
               <span>仅交易日执行</span>
@@ -319,6 +327,22 @@
               {{ selectedNotificationChannel() ? "重新选择" : "选择通知方式" }}
             </button>
           </div>
+          <label
+            v-if="form.notifyEnabled && form.notificationConditionEnabled"
+            class="notification-condition-panel"
+          >
+            <span>
+              <strong>发送条件</strong>
+              <small>任务每天照常执行；模型只能依据本次运行的事实证据判断，证据不足时不会发送。</small>
+            </span>
+            <textarea
+              v-model.trim="form.notificationCondition"
+              :disabled="saving"
+              maxlength="4000"
+              rows="3"
+              placeholder="例如：仅当主要指数涨跌幅绝对值超过 2%，或出现有正式来源佐证的重大政策事件时发送"
+            ></textarea>
+          </label>
         </section>
 
         <p v-if="error" class="schedule-error">{{ error }}</p>

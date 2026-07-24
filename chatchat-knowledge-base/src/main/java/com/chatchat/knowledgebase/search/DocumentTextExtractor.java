@@ -1,5 +1,6 @@
 package com.chatchat.knowledgebase.search;
 
+import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.AutoDetectParser;
@@ -7,6 +8,8 @@ import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.ocr.TesseractOCRConfig;
 import org.apache.tika.parser.pdf.PDFParserConfig;
 import org.apache.tika.sax.BodyContentHandler;
+import org.xml.sax.ContentHandler;
+import org.xml.sax.SAXException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -37,9 +40,28 @@ public class DocumentTextExtractor {
     private static final Set<String> PLAIN_TEXT_EXTENSIONS = Set.of(
         "txt", "md", "csv", "sql"
     );
+    private static final Set<String> SPREADSHEET_EXTENSIONS = Set.of(
+        "xls", "xlsx"
+    );
     private static final Set<String> SUPPORTED_IMAGE_EXTENSIONS = Set.of(
         "png", "jpg", "jpeg", "bmp", "gif", "tif", "tiff", "webp"
     );
+    private static final EmbeddedDocumentExtractor SKIP_EMBEDDED_DOCUMENTS = new EmbeddedDocumentExtractor() {
+        @Override
+        public boolean shouldParseEmbedded(Metadata metadata) {
+            return false;
+        }
+
+        @Override
+        public void parseEmbedded(InputStream stream,
+                                  ContentHandler handler,
+                                  Metadata metadata,
+                                  boolean outputHtml) throws SAXException, IOException {
+            // Spreadsheet cell content is parsed by the parent parser. Embedded OLE/Visio
+            // payloads are intentionally excluded because they are not searchable sheet data
+            // and a malformed payload must not fail the whole workbook upload.
+        }
+    };
 
     private final AutoDetectParser parser;
     private final SearchProperties properties;
@@ -68,7 +90,7 @@ public class DocumentTextExtractor {
             if (isPlainTextExtension(extension)) {
                 return cleanText(decodePlainText(inputStream.readAllBytes()));
             }
-            String text = parse(inputStream, fileName, shouldUseOcr(extension));
+            String text = parse(inputStream, fileName, extension, shouldUseOcr(extension));
             return isImageExtension(extension) ? markOcrText(text) : text;
         } catch (Exception ex) {
             throw new IllegalStateException("failed to extract text from document: " + fileName, ex);
@@ -81,18 +103,24 @@ public class DocumentTextExtractor {
             || (ocrEnabled() && SUPPORTED_IMAGE_EXTENSIONS.contains(extension));
     }
 
-    private String parse(InputStream inputStream, String fileName, boolean ocr) throws Exception {
+    private String parse(InputStream inputStream,
+                         String fileName,
+                         String extension,
+                         boolean ocr) throws Exception {
         Metadata metadata = new Metadata();
         metadata.set(TikaCoreProperties.RESOURCE_NAME_KEY, fileName);
         BodyContentHandler handler = new BodyContentHandler(-1);
-        parser.parse(inputStream, handler, metadata, parseContext(ocr));
+        parser.parse(inputStream, handler, metadata, parseContext(ocr, extension));
         return cleanText(handler.toString());
     }
 
-    private ParseContext parseContext(boolean ocr) {
+    ParseContext parseContext(boolean ocr, String extension) {
         ParseContext context = new ParseContext();
         context.set(TesseractOCRConfig.class, tesseractConfig(ocr));
         context.set(PDFParserConfig.class, pdfParserConfig(ocr));
+        if (SPREADSHEET_EXTENSIONS.contains(extension)) {
+            context.set(EmbeddedDocumentExtractor.class, SKIP_EMBEDDED_DOCUMENTS);
+        }
         return context;
     }
 

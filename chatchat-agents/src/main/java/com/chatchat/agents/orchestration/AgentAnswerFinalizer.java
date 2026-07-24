@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -351,15 +352,6 @@ class AgentAnswerFinalizer {
             ));
         }
         if (signal != null && signal.shouldReplaceWithGroundedEvidence()) {
-            if (signal.lockedAnswer() != null
-                && signal.lockedAnswer().answer() != null
-                && !signal.lockedAnswer().answer().isBlank()) {
-                candidates.add(new AnswerQualityEvaluator.AnswerCandidate(
-                    AnswerQualityEvaluator.DETERMINISTIC_EVIDENCE,
-                    AnswerQualityEvaluator.DETERMINISTIC_EVIDENCE,
-                    signal.lockedAnswer().answer()
-                ));
-            }
             if (signal.groundedDocumentAnswer() != null && !signal.groundedDocumentAnswer().isBlank()) {
                 candidates.add(new AnswerQualityEvaluator.AnswerCandidate(
                     AnswerQualityEvaluator.DOCUMENT_EVIDENCE,
@@ -378,7 +370,14 @@ class AgentAnswerFinalizer {
                               String systemPrompt,
                               Map<String, Object> metadata) {
         if (answer != null && !answer.isBlank()) {
-            return sanitizeFinalMarkdown(answer);
+            String sanitized = sanitizeFinalMarkdown(answer);
+            if (!sanitized.isBlank()) {
+                return sanitized;
+            }
+            if (metadata != null) {
+                metadata.put("userFacingAnswerRegenerationRequired", true);
+                metadata.put("userFacingAnswerRegenerationReason", "internal_protocol_or_unreadable_answer");
+            }
         }
         return summarizeWithObservations(activeChatModel, query, systemPrompt, observations, metadata);
     }
@@ -454,13 +453,8 @@ class AgentAnswerFinalizer {
             return "";
         }
         String text = answer.trim();
-        String locked = extractBetween(
-            text,
-            DeterministicAnswerCompiler.BEGIN_LOCKED_ANSWER,
-            DeterministicAnswerCompiler.END_LOCKED_ANSWER
-        );
-        if (locked != null && !locked.isBlank()) {
-            text = locked.trim();
+        if (containsInternalEvidenceProtocol(text)) {
+            return "";
         }
         text = stripOuterFenceIfPresent(text, "json");
         String jsonAnswer = extractUserAnswerFromJson(text);
@@ -1694,22 +1688,31 @@ class AgentAnswerFinalizer {
             );
         }
         AnswerDecisionEngine.DeterministicLockedAnswer lockedAnswer = extractDeterministicLockedAnswer(observations);
+        List<AnswerDecisionEngine.GroundedDocumentEvidence> documentEvidence =
+            extractGroundedDocumentEvidence(observations);
+        AnswerQualityAssessment assessment = assessAnswerQuality(answer);
+        if (metadata != null) {
+            metadata.put("answerQualityAssessment", assessment.asMetadata());
+        }
+        boolean shouldReplace = assessment.requiresFallback();
         if (lockedAnswer != null && lockedAnswer.answer() != null && !lockedAnswer.answer().isBlank()) {
             return new AnswerDecisionEngine.EvidenceSignal(
                 false,
                 EXECUTION_CONTRACT,
                 lockedAnswer,
-                List.of(),
-                null,
-                shouldReplaceWithGroundedEvidence(answer),
-                null
+                documentEvidence,
+                documentEvidence.isEmpty() ? null : groundedEvidenceAnswer(documentEvidence),
+                shouldReplace,
+                shouldReplace
+                    ? (answer == null || answer.isBlank()
+                        ? "empty_answer_with_document_evidence"
+                        : "no_match_fallback_with_document_evidence")
+                    : null
             );
         }
-        List<AnswerDecisionEngine.GroundedDocumentEvidence> documentEvidence = extractGroundedDocumentEvidence(observations);
         if (documentEvidence.isEmpty()) {
             return AnswerDecisionEngine.EvidenceSignal.empty();
         }
-        boolean shouldReplace = shouldReplaceWithGroundedEvidence(answer);
         return new AnswerDecisionEngine.EvidenceSignal(
             false,
             null,
@@ -1771,14 +1774,18 @@ class AgentAnswerFinalizer {
     }
 
     private boolean shouldReplaceWithGroundedEvidence(String answer) {
-        if (answer == null || answer.isBlank()) {
-            return true;
+        return assessAnswerQuality(answer).requiresFallback();
+    }
+
+    private AnswerQualityAssessment assessAnswerQuality(String answer) {
+        boolean trulyEmpty = answer == null || answer.isBlank();
+        if (trulyEmpty) {
+            return new AnswerQualityAssessment(false, false, false, false, true, false);
         }
-        if (answer.contains("doc://") || answer.contains("web://")) {
-            return false;
-        }
+        boolean internalProtocol = containsInternalEvidenceProtocol(answer);
+        boolean grounded = answer.contains("doc://") || answer.contains("web://");
         String normalized = answer.toLowerCase();
-        return normalized.contains("\u672a\u80fd")
+        boolean cautiousOrFailureLanguage = normalized.contains("\u672a\u80fd")
             || normalized.contains("\u672a\u627e\u5230")
             || normalized.contains("\u6ca1\u6709\u627e\u5230")
             || normalized.contains("\u672a\u68c0\u7d22\u5230")
@@ -1792,28 +1799,69 @@ class AgentAnswerFinalizer {
             || normalized.contains("no evidence")
             || normalized.contains("unable to find")
             || normalized.contains("insufficient evidence");
+        boolean substantive = !cautiousOrFailureLanguage
+            || grounded
+            || containsAny(normalized,
+                "\u4f46\u786e\u8ba4", "\u4f46\u53ef\u4ee5\u786e\u8ba4", "\u4f46\u6587\u6863\u663e\u793a",
+                "\u5df2\u786e\u8ba4", "\u53ef\u4ee5\u786e\u8ba4", "\u6587\u6863\u663e\u793a",
+                "\u6587\u6863\u8bf4\u660e", "\u91cd\u70b9\u5305\u62ec", "\u4e3b\u8981\u5305\u62ec",
+                "however, the evidence confirms", "but the document confirms");
+        return new AnswerQualityAssessment(
+            substantive,
+            grounded,
+            !internalProtocol,
+            false,
+            false,
+            internalProtocol
+        );
+    }
+
+    private boolean containsInternalEvidenceProtocol(String answer) {
+        if (answer == null || answer.isBlank()) {
+            return false;
+        }
+        String normalized = answer.toLowerCase();
+        return answer.contains(DeterministicAnswerCompiler.LOCK_HEADER)
+            || answer.contains(DeterministicAnswerCompiler.BEGIN_LOCKED_ANSWER)
+            || answer.contains(DeterministicAnswerCompiler.END_LOCKED_ANSWER)
+            || normalized.contains("based on the executed evidence graph path")
+            || (normalized.contains("source references:")
+                && normalized.contains("evidence facts:")
+                && normalized.contains("execution constraint:"));
+    }
+
+    private boolean containsAny(String value, String... candidates) {
+        if (value == null || value.isBlank() || candidates == null) {
+            return false;
+        }
+        for (String candidate : candidates) {
+            if (candidate != null && !candidate.isBlank() && value.contains(candidate)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String groundedEvidenceAnswer(List<AnswerDecisionEngine.GroundedDocumentEvidence> evidence) {
         StringBuilder answer = new StringBuilder();
-        answer.append("\u6839\u636e\u5df2\u68c0\u7d22\u5230\u7684\u6587\u6863\u8bc1\u636e\uff0c\u5f53\u524d\u95ee\u9898\u4e0d\u5e94\u5224\u5b9a\u4e3a\u672a\u547d\u4e2d\u3002\u53ef\u7528\u8bc1\u636e\u5982\u4e0b\uff1a\n\n");
+        answer.append("\u6839\u636e\u5df2\u68c0\u7d22\u5230\u7684\u6587\u6863\uff0c\u53ef\u786e\u8ba4\u7684\u91cd\u70b9\u5185\u5bb9\u5982\u4e0b\uff1a\n\n");
         int limit = Math.min(5, evidence.size());
         for (int i = 0; i < limit; i++) {
             AnswerDecisionEngine.GroundedDocumentEvidence item = evidence.get(i);
             answer.append(i + 1).append(". ");
             if (item.source() != null && !item.source().isBlank()) {
-                answer.append("\u6765\u6e90\uff1a").append(item.source()).append("\u3002");
+                answer.append("**").append(item.source()).append("**\uff1a");
             }
             if (item.section() != null && !item.section().isBlank()) {
-                answer.append("\u7ae0\u8282\uff1a").append(item.section()).append("\u3002");
+                answer.append("[").append(item.section()).append("] ");
             }
-            answer.append(item.content());
+            answer.append(shortText(item.content(), 320));
             if (item.citation() != null && !item.citation().isBlank()) {
                 answer.append(" ").append(item.citation());
             }
             answer.append("\n");
         }
-        answer.append("\n\u7ed3\u8bba\uff1a\u8bf7\u57fa\u4e8e\u4e0a\u8ff0\u8bc1\u636e\u56de\u7b54\uff1b\u5982\u679c\u9700\u8981\u8865\u5145\u201c\u65b9\u6848\u76ee\u6807\u3001\u5b8c\u6574\u6d41\u7a0b\u3001\u5f02\u5e38\u5904\u7406\u201d\u7b49\u7ec6\u8282\uff0c\u53ea\u80fd\u9488\u5bf9\u8bc1\u636e\u672a\u8986\u76d6\u7684\u90e8\u5206\u6807\u6ce8\u7f3a\u53e3\u3002");
+        answer.append("\n\u4ee5\u4e0a\u5185\u5bb9\u5747\u6765\u81ea\u672c\u6b21\u68c0\u7d22\u8bc1\u636e\uff1b\u6587\u6863\u672a\u8986\u76d6\u7684\u7ec6\u8282\u4e0d\u4f5c\u63a8\u6d4b\u3002");
         return answer.toString();
     }
 
@@ -1825,10 +1873,37 @@ class AgentAnswerFinalizer {
         for (String observation : observations) {
             evidence.addAll(extractGroundedDocumentEvidence(observation));
         }
-        return evidence.stream()
-            .filter(item -> item.content() != null && !item.content().isBlank())
-            .limit(8)
-            .toList();
+        Map<String, AnswerDecisionEngine.GroundedDocumentEvidence> unique = new LinkedHashMap<>();
+        for (AnswerDecisionEngine.GroundedDocumentEvidence item : evidence) {
+            if (item == null || item.content() == null || item.content().isBlank()) {
+                continue;
+            }
+            unique.putIfAbsent(groundedEvidenceDedupKey(item), item);
+            if (unique.size() >= 8) {
+                break;
+            }
+        }
+        return List.copyOf(unique.values());
+    }
+
+    private String groundedEvidenceDedupKey(AnswerDecisionEngine.GroundedDocumentEvidence item) {
+        String documentId = documentIdFromCitation(item.citation());
+        String source = firstNonBlank(item.source(), firstNonBlank(documentId, ""));
+        String section = firstNonBlank(item.section(), "");
+        String normalizedContent = item.content()
+            .toLowerCase(Locale.ROOT)
+            .replaceAll("[\\p{P}\\p{S}\\s]+", "");
+        return source.trim().toLowerCase(Locale.ROOT)
+            + "|" + section.trim().toLowerCase(Locale.ROOT)
+            + "|" + normalizedContent;
+    }
+
+    private String documentIdFromCitation(String citation) {
+        if (citation == null || !citation.startsWith("doc://")) {
+            return null;
+        }
+        int fragment = citation.indexOf('#');
+        return fragment > 6 ? citation.substring(6, fragment) : citation.substring(6);
     }
 
     private List<AnswerDecisionEngine.GroundedDocumentEvidence> extractGroundedDocumentEvidence(String observation) {
@@ -1910,7 +1985,10 @@ class AgentAnswerFinalizer {
             || line.startsWith("Evidence audit:")
             || line.startsWith("Document search summary:")
             || line.startsWith("Document evidence snippets:")
-            || line.startsWith("Citation rule:");
+            || line.startsWith("Citation rule:")
+            || line.startsWith(DeterministicAnswerCompiler.LOCK_HEADER)
+            || line.startsWith(DeterministicAnswerCompiler.BEGIN_LOCKED_ANSWER)
+            || line.startsWith(DeterministicAnswerCompiler.END_LOCKED_ANSWER);
     }
 
     private String shortText(String value, int maxChars) {
@@ -2017,6 +2095,36 @@ class AgentAnswerFinalizer {
 
     private String firstNonBlank(String first, String second) {
         return first == null || first.isBlank() ? second : first;
+    }
+
+    private record AnswerQualityAssessment(
+        boolean hasSubstantiveConclusion,
+        boolean groundedByEvidence,
+        boolean addressesQuestion,
+        boolean containsUnsupportedClaims,
+        boolean trulyEmpty,
+        boolean containsInternalProtocolMarker
+    ) {
+        private boolean requiresFallback() {
+            return trulyEmpty
+                || containsInternalProtocolMarker
+                || !addressesQuestion
+                || containsUnsupportedClaims
+                || !hasSubstantiveConclusion;
+        }
+
+        private Map<String, Object> asMetadata() {
+            return Map.of(
+                "contractVersion", "answer_quality_assessment_v1",
+                "hasSubstantiveConclusion", hasSubstantiveConclusion,
+                "groundedByEvidence", groundedByEvidence,
+                "addressesQuestion", addressesQuestion,
+                "containsUnsupportedClaims", containsUnsupportedClaims,
+                "trulyEmpty", trulyEmpty,
+                "containsInternalProtocolMarker", containsInternalProtocolMarker,
+                "requiresFallback", requiresFallback()
+            );
+        }
     }
 
     private static class GroundedDocumentEvidenceBuilder {

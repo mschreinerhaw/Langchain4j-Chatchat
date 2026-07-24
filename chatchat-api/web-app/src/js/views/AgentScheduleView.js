@@ -66,6 +66,8 @@ function emptyForm(agentId = "") {
     cron: "0 0 8 * * ?",
     enabled: true,
     notifyEnabled: false,
+    notificationConditionEnabled: false,
+    notificationCondition: "",
     notificationChannelId: "",
     notificationRecipientMode: "DEFAULT",
     notificationReceiver: "",
@@ -108,6 +110,8 @@ function scheduleForm(schedule = {}) {
     question: schedule.question || "",
     enabled: schedule.enabled === true || ["ACTIVE", "RUNNING"].includes(String(schedule.status || "").toUpperCase()),
     notifyEnabled: schedule.notifyEnabled === true,
+    notificationConditionEnabled: schedule.notificationConditionEnabled === true,
+    notificationCondition: schedule.notificationCondition || "",
     notificationChannelId: schedule.notificationChannelId || "",
     notificationRecipientMode: String(schedule.notificationRecipientMode || "DEFAULT").toUpperCase(),
     notificationReceiver: schedule.notificationReceiver || "",
@@ -440,6 +444,12 @@ export default {
         await this.openNotificationSelector();
         return;
       }
+      if (this.form.notifyEnabled
+        && this.form.notificationConditionEnabled
+        && !this.form.notificationCondition.trim()) {
+        this.error = "请填写满足条件发送的判断条件";
+        return;
+      }
       const schedulePayload = this.buildSchedulePayload();
       if (!schedulePayload) {
         return;
@@ -502,6 +512,9 @@ export default {
         enabled: this.form.enabled,
         question,
         notifyEnabled: this.form.notifyEnabled,
+        notificationConditionEnabled: this.form.notifyEnabled && this.form.notificationConditionEnabled,
+        notificationCondition: this.form.notifyEnabled && this.form.notificationConditionEnabled
+          ? this.form.notificationCondition.trim() : null,
         notificationChannelId: this.form.notifyEnabled ? this.form.notificationChannelId : null,
         notificationRecipientMode: this.form.notifyEnabled ? this.form.notificationRecipientMode : "DEFAULT",
         notificationReceiver: this.form.notifyEnabled && this.form.notificationRecipientMode === "SPECIFIC"
@@ -677,7 +690,8 @@ export default {
       const labels = {
         SUCCESS: "发送成功",
         FAILED: "发送失败",
-        SKIPPED: "已跳过"
+        SKIPPED: "已跳过",
+        SKIPPED_CONDITION: "条件未满足"
       };
       return labels[String(status || "").toUpperCase()] || status || "-";
     },

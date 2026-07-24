@@ -11,7 +11,8 @@ public record ScheduledNotificationHistoryResponse(
     String receiver,
     String status,
     Instant sentAt,
-    String errorMessage
+    String errorMessage,
+    String decisionJson
 ) {
 
     static ScheduledNotificationHistoryResponse from(ScheduledTaskRunEntity entity) {
@@ -24,7 +25,8 @@ public record ScheduledNotificationHistoryResponse(
             entity.getNotificationReceiver(),
             entity.getNotificationStatus(),
             entity.getNotificationSentAt(),
-            entity.getNotificationError()
+            entity.getNotificationError(),
+            entity.getNotificationDecisionJson()
         );
     }
 }

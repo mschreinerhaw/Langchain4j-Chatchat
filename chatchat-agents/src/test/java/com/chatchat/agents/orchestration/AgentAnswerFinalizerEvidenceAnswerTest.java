@@ -631,7 +631,40 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
     }
 
     @Test
-    void deterministicAnswerLockOnlyReplacesFailureFallback() {
+    void cautiousEvidenceBoundaryDoesNotMakeAUsefulAnswerUnusable() {
+        AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
+            new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok");
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            reviewer,
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        String candidate = "\u6587\u6863\u4e2d\u7684\u8bc1\u636e\u4e0d\u8db3\u4ee5\u786e\u8ba4\u90e8\u7f72\u7aef\u53e3\uff0c\u4f46\u786e\u8ba4\u4f7f\u7528\u4e86\u72ec\u7acb\u8fd0\u884c\u5305\u3002";
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishExecution(
+            candidate,
+            List.of(),
+            new java.util.LinkedHashMap<>(),
+            List.of("""
+                Unified evidence context (contractVersion=evidence_v1):
+                [Evidence 1]
+                type: DOCUMENT
+                citation: doc://deployment#chunk=1
+                source: \u90e8\u7f72\u8bf4\u660e
+                content:
+                \u7cfb\u7edf\u901a\u8fc7\u72ec\u7acb\u8fd0\u884c\u5305\u542f\u52a8\u3002
+                """)
+        );
+
+        assertThat(result.answer()).contains(candidate);
+        assertThat(result.metadata())
+            .containsEntry("answerDecision", AnswerDecisionEngine.NO_REWRITE);
+        assertThat((Map<String, Object>) result.metadata().get("answerQualityAssessment"))
+            .containsEntry("hasSubstantiveConclusion", true)
+            .containsEntry("requiresFallback", false);
+    }
+
+    @Test
+    void deterministicAnswerLockIsNeverExposedAsFailureFallback() {
         AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
             new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok");
         AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
@@ -656,14 +689,123 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
         );
 
         assertThat(result.answer())
-            .contains("select * from gdp_ads.ads_ids_sys_data_qlty_rpt_d_i")
-            .contains("doc://file-1#chunk=0")
-            .doesNotContain("\u672a\u80fd\u83b7\u53d6SQL\u5185\u5bb9");
+            .contains("\u672a\u80fd\u83b7\u53d6SQL\u5185\u5bb9")
+            .doesNotContain("select * from gdp_ads.ads_ids_sys_data_qlty_rpt_d_i")
+            .doesNotContain("---BEGIN_LOCKED_ANSWER---");
         assertThat(result.metadata())
             .containsEntry("deterministicAnswerAvailable", true)
-            .containsEntry("deterministicAnswerFallbackApplied", true)
-            .containsEntry("answerDecision", AnswerDecisionEngine.DETERMINISTIC_EVIDENCE_REWRITE)
-            .containsEntry("answerRewriteSource", "evidence_guard");
+            .containsEntry("deterministicAnswerUsedAsEvidence", true)
+            .containsEntry("deterministicAnswerPresentationSuppressed", true)
+            .containsEntry("answerDecision", AnswerDecisionEngine.NO_REWRITE)
+            .containsEntry("answerRewriteSource", "none")
+            .doesNotContainKey("deterministicAnswerFallbackApplied");
+    }
+
+    @Test
+    void documentEvidenceFallbackWinsOverInternalDeterministicAnswer() {
+        AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
+            new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok");
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            reviewer,
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishExecution(
+            """
+                Based on the executed evidence graph path, the answer can be derived from the following traceable evidence.
+                Source references: ;;
+                Evidence facts: raw internal evidence
+                Execution constraint: use only the contract.
+                """,
+            List.of(),
+            new java.util.LinkedHashMap<>(),
+            List.of("""
+                Unified evidence context (contractVersion=evidence_v1):
+                [Evidence 1]
+                type: DOCUMENT
+                citation: doc://marketing-plan#chunk=3
+                source: \u5206\u652f\u673a\u6784\u8425\u9500\u6d3b\u52a8\u9700\u6c42\u6e05\u5355
+                section: \u667a\u80fd\u4ea4\u6613\u4e1a\u52a1
+                content:
+                \u7edf\u8ba1\u65b0\u589e\u667a\u80fd\u4ea4\u6613\u8d26\u6237\u3001\u65b0\u589e\u6709\u6548\u6237\u3001\u65b0\u589e\u8d44\u4ea7\u91cf\u548c\u65b0\u589e\u4ea4\u6613\u91cf\uff0c\u5e76\u6309\u5206\u652f\u673a\u6784\u7ef4\u5ea6\u5c55\u793a\u5b8c\u6210\u7387\u3002
+                Deterministic answer lock (contractVersion=evidence_execution_contract_v2_2):
+                decision: ANSWER_ALLOWED
+                contractHash: abc123
+                graphViewHash: def456
+                lockedAnswer:
+                ---BEGIN_LOCKED_ANSWER---
+                Based on the executed evidence graph path, the answer can be derived from the following traceable evidence.
+                Source references: ;;
+                Evidence facts: raw internal evidence
+                ---END_LOCKED_ANSWER---
+                """)
+        );
+
+        assertThat(result.answer())
+            .contains("\u6839\u636e\u5df2\u68c0\u7d22\u5230\u7684\u6587\u6863")
+            .contains("\u667a\u80fd\u4ea4\u6613\u4e1a\u52a1")
+            .contains("doc://marketing-plan#chunk=3")
+            .doesNotContain("Based on the executed evidence graph path")
+            .doesNotContain("Source references:")
+            .doesNotContain("Evidence facts:")
+            .doesNotContain("---BEGIN_LOCKED_ANSWER---");
+        assertThat(result.metadata())
+            .containsEntry("deterministicAnswerAvailable", true)
+            .containsEntry("deterministicAnswerPresentationSuppressed", true)
+            .containsEntry("evidenceForcedAnswer", true)
+            .containsEntry("answerDecision", AnswerDecisionEngine.DOCUMENT_EVIDENCE_REWRITE)
+            .containsEntry("answerRewriteSource", "evidence_guard")
+            .doesNotContainKey("deterministicAnswerFallbackApplied");
+    }
+
+    @Test
+    void regeneratesAUserFacingAnswerWhenCandidateIsInternalProtocol() {
+        AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
+            new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok");
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            reviewer,
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        Map<String, Object> metadata = new LinkedHashMap<>();
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishReviewedAnswer(
+            new ChatModel() {
+                @Override
+                public String chat(String message) {
+                    return "\u6839\u636e\u6587\u6863\uff0c\u5206\u652f\u673a\u6784\u8425\u9500\u6d3b\u52a8\u91cd\u70b9\u5305\u62ec\u65b0\u589e\u6709\u6548\u6237\u3001\u65b0\u589e\u8d44\u4ea7\u91cf\u548c\u4ea4\u6613\u91cf\u7edf\u8ba1\u3002 doc://marketing-plan#chunk=3";
+                }
+            },
+            "\u5206\u652f\u673a\u6784\u8425\u9500\u6d3b\u52a8\u6709\u54ea\u4e9b\u91cd\u70b9\u5185\u5bb9",
+            "",
+            List.of(),
+            metadata,
+            List.of("""
+                Unified evidence context (contractVersion=evidence_v1):
+                [Evidence 1]
+                type: DOCUMENT
+                citation: doc://marketing-plan#chunk=3
+                source: \u5206\u652f\u673a\u6784\u8425\u9500\u6d3b\u52a8\u9700\u6c42\u6e05\u5355
+                content:
+                \u7edf\u8ba1\u65b0\u589e\u6709\u6548\u6237\u3001\u65b0\u589e\u8d44\u4ea7\u91cf\u548c\u4ea4\u6613\u91cf\u3002
+                """),
+            """
+                Based on the executed evidence graph path, the answer can be derived from the following traceable evidence.
+                Source references: doc://marketing-plan#chunk=3.
+                Evidence facts: raw internal evidence
+                Execution constraint: use only the contract.
+                """,
+            () -> false,
+            "completed"
+        );
+
+        assertThat(result.answer())
+            .contains("\u5206\u652f\u673a\u6784\u8425\u9500\u6d3b\u52a8\u91cd\u70b9")
+            .contains("doc://marketing-plan#chunk=3")
+            .doesNotContain("Based on the executed evidence graph path")
+            .doesNotContain("Evidence facts:");
+        assertThat(result.metadata())
+            .containsEntry("userFacingAnswerRegenerationRequired", true)
+            .containsEntry("userFacingAnswerRegenerationReason", "internal_protocol_or_unreadable_answer");
     }
 
     @Test

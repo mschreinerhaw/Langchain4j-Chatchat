@@ -354,14 +354,22 @@ public class EvidenceNormalizer {
     }
 
     private String dedupeKey(EvidenceChunk chunk) {
-        String refId = stringValue(chunk.citation().get("refId"));
-        if (hasText(refId)) {
-            return refId;
-        }
         EvidenceSource source = chunk.source();
-        return (source == null ? "" : firstNonBlank(source.url(), source.fileId()))
-            + "|"
-            + shortText(chunk.content(), 80);
+        String sourceId = source == null
+            ? ""
+            : firstNonBlank(source.fileId(), firstNonBlank(source.url(), source.name()));
+        String section = source == null ? "" : firstNonBlank(source.section(), "");
+        sourceId = sourceId == null ? "" : sourceId;
+        section = section == null ? "" : section;
+        String normalizedContent = chunk.content() == null
+            ? ""
+            : chunk.content().toLowerCase(Locale.ROOT).replaceAll("[\\p{P}\\p{S}\\s]+", "");
+        if (hasText(sourceId) || hasText(normalizedContent)) {
+            return sourceId.trim().toLowerCase(Locale.ROOT)
+                + "|" + section.trim().toLowerCase(Locale.ROOT)
+                + "|" + normalizedContent;
+        }
+        return firstNonBlank(stringValue(chunk.citation().get("refId")), "");
     }
 
     private String domainOf(String url) {

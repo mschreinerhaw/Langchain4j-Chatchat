@@ -32,8 +32,9 @@ public class DeterministicAnswerCompiler {
         if (!contract.evidencePath().isEmpty()) {
             builder.append("evidencePath: ").append(String.join(" -> ", contract.evidencePath())).append('\n');
         }
-        if (!contract.sourceRefs().isEmpty()) {
-            builder.append("sourceRefs: ").append(String.join(", ", contract.sourceRefs())).append('\n');
+        List<String> sourceRefs = validSourceRefs(contract.sourceRefs());
+        if (!sourceRefs.isEmpty()) {
+            builder.append("sourceRefs: ").append(String.join(", ", sourceRefs)).append('\n');
         }
         if (!contract.sqlLineage().isEmpty()) {
             builder.append("sqlLineage: ").append(String.join(", ", contract.sqlLineage())).append('\n');
@@ -58,9 +59,10 @@ public class DeterministicAnswerCompiler {
 
         StringBuilder answer = new StringBuilder();
         answer.append("Based on the executed evidence graph path, the answer can be derived from the following traceable evidence.");
-        if (!contract.sourceRefs().isEmpty()) {
+        List<String> sourceRefs = validSourceRefs(contract.sourceRefs());
+        if (!sourceRefs.isEmpty()) {
             answer.append("\n\nSource references: ")
-                .append(String.join("; ", contract.sourceRefs()))
+                .append(String.join("; ", sourceRefs))
                 .append(".");
         }
         if (!contract.deterministicFacts().isEmpty()) {
@@ -769,6 +771,18 @@ public class DeterministicAnswerCompiler {
             deduped.add(cleaned);
         }
         return List.copyOf(deduped);
+    }
+
+    private List<String> validSourceRefs(List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return List.of();
+        }
+        return values.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .map(String::trim)
+            .filter(value -> value.matches(".*[\\p{L}\\p{N}].*"))
+            .distinct()
+            .toList();
     }
 
     private String readableSqlType(String sqlType) {

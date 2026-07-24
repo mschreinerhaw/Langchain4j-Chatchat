@@ -61,6 +61,12 @@ public class ScheduledTaskEntity {
     @Column(name = "notify_enabled", nullable = false)
     private Boolean notifyEnabled = false;
 
+    @Column(name = "notification_condition_enabled", nullable = false)
+    private Boolean notificationConditionEnabled = false;
+
+    @Column(name = "notification_condition", columnDefinition = "TEXT")
+    private String notificationCondition;
+
     @Column(name = "notification_channel_id", length = 64)
     private String notificationChannelId;
 
@@ -149,6 +155,9 @@ public class ScheduledTaskEntity {
         }
         if (notifyEnabled == null) {
             notifyEnabled = false;
+        }
+        if (notificationConditionEnabled == null) {
+            notificationConditionEnabled = false;
         }
         if (notificationRecipientMode == null || notificationRecipientMode.isBlank()) {
             notificationRecipientMode = "DEFAULT";

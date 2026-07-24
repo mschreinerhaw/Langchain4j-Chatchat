@@ -89,6 +89,9 @@ public class ScheduledTaskRunEntity {
     @Column(name = "notification_error", length = 1000)
     private String notificationError;
 
+    @Column(name = "notification_decision_json", columnDefinition = "TEXT")
+    private String notificationDecisionJson;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 

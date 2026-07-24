@@ -8,6 +8,7 @@ import com.chatchat.enterprise.service.EnterpriseAdminService;
 import com.chatchat.chat.skills.SkillCatalogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.scheduling.support.CronExpression;
@@ -52,6 +53,12 @@ public class AgentScheduledTaskService {
     private final SkillCatalogService skillCatalogService;
     private final NotificationContentFormatter notificationContentFormatter;
     private final AgentScheduleWindowPolicy scheduleWindowPolicy;
+    private NotificationPolicyEvaluator notificationPolicyEvaluator;
+
+    @Autowired(required = false)
+    void setNotificationPolicyEvaluator(NotificationPolicyEvaluator notificationPolicyEvaluator) {
+        this.notificationPolicyEvaluator = notificationPolicyEvaluator;
+    }
 
     @Transactional
     public ScheduledTaskResponse create(ScheduledAgentTaskRequest request) {
@@ -76,6 +83,7 @@ public class AgentScheduledTaskService {
         entity.setPayloadJson(writeJson(payload));
         entity.setQuestion(payload.getQuery());
         entity.setNotifyEnabled(Boolean.TRUE.equals(request.getNotifyEnabled()));
+        configureNotificationCondition(entity, request);
         configureNotification(entity, request);
         entity.setTradingDayOnly(Boolean.TRUE.equals(request.getTradingDayOnly()));
         configureScheduleWindow(entity, request, triggerType);
@@ -118,6 +126,7 @@ public class AgentScheduledTaskService {
         entity.setPayloadJson(writeJson(payload));
         entity.setQuestion(payload.getQuery());
         entity.setNotifyEnabled(Boolean.TRUE.equals(request.getNotifyEnabled()));
+        configureNotificationCondition(entity, request);
         configureNotification(entity, request);
         entity.setTradingDayOnly(Boolean.TRUE.equals(request.getTradingDayOnly()));
         configureScheduleWindow(entity, request, triggerType);
@@ -845,6 +854,20 @@ public class AgentScheduledTaskService {
             }
             run.setNotificationStatus("SENDING");
             run.setNotificationSentAt(notificationStartedAt);
+            if (Boolean.TRUE.equals(entity.getNotificationConditionEnabled())) {
+                NotificationPolicyEvaluator.Decision decision = notificationPolicyEvaluator == null
+                    ? NotificationPolicyEvaluator.Decision.skip(
+                        "通知条件判断服务不可用，按严格策略不发送", List.of(), List.of(), false)
+                    : notificationPolicyEvaluator.evaluate(
+                        entity.getNotificationCondition(), fixedAnswer, notification.references());
+                run.setNotificationDecisionJson(writeJson(decision.audit()));
+                if (!decision.send()) {
+                    recordNotificationResult(run, entity, receiver, "SKIPPED_CONDITION", decision.reason());
+                    log.info("Skipped scheduled Agent notification by evidence policy scheduleId={} runId={} reason={}",
+                        entity.getTaskId(), run.getRunId(), decision.reason());
+                    return;
+                }
+            }
             try {
                 notificationClient.dispatch(entity.getNotificationChannelId(), payload);
                 recordNotificationResult(run, entity, receiver, "SUCCESS", null);
@@ -914,6 +937,8 @@ public class AgentScheduledTaskService {
             entity.setNotificationChannelName(null);
             entity.setNotificationRecipientMode("DEFAULT");
             entity.setNotificationReceiver(null);
+            entity.setNotificationConditionEnabled(false);
+            entity.setNotificationCondition(null);
             return;
         }
         McpNotificationClient.NotificationChannelOption option =
@@ -941,6 +966,20 @@ public class AgentScheduledTaskService {
         entity.setNotificationChannelName(firstText(option.title(), option.toolName(), option.channel()));
         entity.setNotificationRecipientMode(recipientMode);
         entity.setNotificationReceiver("SPECIFIC".equals(recipientMode) ? selectedReceiver : null);
+    }
+
+    private void configureNotificationCondition(ScheduledTaskEntity entity, ScheduledAgentTaskRequest request) {
+        boolean enabled = Boolean.TRUE.equals(entity.getNotifyEnabled())
+            && Boolean.TRUE.equals(request.getNotificationConditionEnabled());
+        String condition = text(request.getNotificationCondition());
+        if (enabled && condition.isBlank()) {
+            throw new IllegalArgumentException("开启满足条件发送后必须填写发送条件");
+        }
+        if (condition.length() > 4000) {
+            throw new IllegalArgumentException("发送条件不能超过 4000 个字符");
+        }
+        entity.setNotificationConditionEnabled(enabled);
+        entity.setNotificationCondition(enabled ? condition : null);
     }
 
     private String toRunStatus(String taskStatus) {

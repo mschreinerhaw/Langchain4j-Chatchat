@@ -23,6 +23,8 @@ public class ScheduledAgentTaskRequest {
     private Long retryDelaySeconds;
     private String question;
     private Boolean notifyEnabled;
+    private Boolean notificationConditionEnabled;
+    private String notificationCondition;
     private String notificationChannelId;
     private String notificationRecipientMode;
     private String notificationReceiver;

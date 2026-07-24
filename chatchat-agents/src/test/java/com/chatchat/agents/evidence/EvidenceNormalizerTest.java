@@ -62,4 +62,30 @@ class EvidenceNormalizerTest {
         assertThat(chunk.content()).isEqualTo("web evidence snippet");
         assertThat(chunk.governance().userId()).isEqualTo("bob");
     }
+
+    @Test
+    void deduplicatesSameDocumentContentEvenWhenChunkReferencesDiffer() {
+        Map<String, Object> payload = Map.of(
+            "results", List.of(
+                Map.of(
+                    "fileId", "file-1",
+                    "fileName", "plan.pdf",
+                    "section", "targets",
+                    "chunkIndex", 3,
+                    "content", "\u65b0\u589e\u6709\u6548\u6237\u548c\u65b0\u589e\u8d44\u4ea7\u91cf"
+                ),
+                Map.of(
+                    "fileId", "file-1",
+                    "fileName", "plan.pdf",
+                    "section", "targets",
+                    "chunkIndex", 8,
+                    "content", "\u65b0\u589e\u6709\u6548\u6237\u3001\u548c\u65b0\u589e\u8d44\u4ea7\u91cf"
+                )
+            )
+        );
+
+        List<EvidenceChunk> chunks = normalizer.normalize("document_search", payload);
+
+        assertThat(chunks).hasSize(1);
+    }
 }

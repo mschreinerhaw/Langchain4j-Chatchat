@@ -49,17 +49,8 @@ class AnswerDecisionEngine {
             metadata.put("deterministicAnswerContractVersion", evidence.executionContract());
             putIfPresent(metadata, "deterministicAnswerContractHash", locked.contractHash());
             putIfPresent(metadata, "deterministicAnswerGraphViewHash", locked.graphViewHash());
-            if (evidence.shouldReplaceWithGroundedEvidence()) {
-                metadata.put("deterministicAnswerFallbackApplied", true);
-                return decision(
-                    locked.answer(),
-                    DETERMINISTIC_EVIDENCE_REWRITE,
-                    "deterministic_lock_replaces_unusable_candidate",
-                    "evidence_guard",
-                    metadata
-                );
-            }
             metadata.put("deterministicAnswerUsedAsEvidence", true);
+            metadata.put("deterministicAnswerPresentationSuppressed", true);
         }
 
         if (review != null
@@ -91,8 +82,6 @@ class AnswerDecisionEngine {
                 }
                 if (AnswerQualityEvaluator.REVIEWER_SUGGESTION.equals(selected.source())) {
                     metadata.put("answerReviewRewriteApplied", true);
-                } else if (AnswerQualityEvaluator.DETERMINISTIC_EVIDENCE.equals(selected.source())) {
-                    metadata.put("deterministicAnswerFallbackApplied", true);
                 } else if (AnswerQualityEvaluator.DOCUMENT_EVIDENCE.equals(selected.source())) {
                     metadata.put("evidenceForcedAnswer", true);
                     metadata.put("evidenceForcedReason", firstNonBlank(

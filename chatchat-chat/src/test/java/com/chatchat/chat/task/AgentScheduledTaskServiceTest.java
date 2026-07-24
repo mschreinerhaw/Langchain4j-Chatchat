@@ -12,6 +12,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -141,6 +142,74 @@ class AgentScheduledTaskServiceTest {
     }
 
     @Test
+    void conditionalNotificationSkipsDispatchAndPersistsVerifiedDecision() {
+        ScheduledTaskRepository repository = mock(ScheduledTaskRepository.class);
+        ScheduledTaskRunRepository runRepository = mock(ScheduledTaskRunRepository.class);
+        AgentTaskLatestRepository latestRepository = mock(AgentTaskLatestRepository.class);
+        AgentTaskService taskService = mock(AgentTaskService.class);
+        McpNotificationClient notificationClient = mock(McpNotificationClient.class);
+        TenantNotificationRecipientService recipientService = mock(TenantNotificationRecipientService.class);
+        NotificationContentFormatter formatter = mock(NotificationContentFormatter.class);
+        NotificationPolicyEvaluator evaluator = mock(NotificationPolicyEvaluator.class);
+
+        AgentTaskLatestEntity latest = new AgentTaskLatestEntity();
+        latest.setTaskId("agent-task-condition");
+        latest.setStatus("SUCCESS");
+        latest.setAnswerSummary("今日市场平稳");
+        ScheduledTaskRunEntity run = new ScheduledTaskRunEntity();
+        run.setRunId("run-condition");
+        run.setScheduledTaskId("schedule-condition");
+        run.setTaskId(latest.getTaskId());
+        run.setStatus("RUNNING");
+        run.setManualRun(true);
+        run.setFireTime(Instant.now().minusSeconds(5));
+        ScheduledTaskEntity schedule = new ScheduledTaskEntity();
+        schedule.setTaskId("schedule-condition");
+        schedule.setTenantId("tenant-1");
+        schedule.setNotifyEnabled(true);
+        schedule.setNotificationConditionEnabled(true);
+        schedule.setNotificationCondition("主要指数涨跌幅超过2%时发送");
+        schedule.setNotificationChannelId("email-channel");
+        schedule.setNotificationChannelType("EMAIL");
+        schedule.setNotificationChannelName("邮件");
+        schedule.setNotificationRecipientMode("DEFAULT");
+
+        when(latestRepository.findById(latest.getTaskId())).thenReturn(Optional.of(latest));
+        when(runRepository.findFirstByTaskIdOrderByFireTimeDesc(latest.getTaskId())).thenReturn(Optional.of(run));
+        when(runRepository.claimCompletion(run.getRunId())).thenReturn(1);
+        when(runRepository.claimNotification(eq(run.getRunId()), any(Instant.class))).thenReturn(1);
+        when(runRepository.save(any(ScheduledTaskRunEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(repository.findById(schedule.getTaskId())).thenReturn(Optional.of(schedule));
+        when(taskService.finalNotificationContent("tenant-1", latest.getTaskId())).thenReturn(Optional.of(
+            new AgentTaskService.AgentNotificationContent("今日市场平稳",
+                List.of(Map.of("sourceRef", "market://index", "snippet", "上证指数上涨0.3%")))
+        ));
+        when(formatter.format(anyString())).thenReturn(Map.of("title", "今日市场平稳"));
+        when(recipientService.recipients("tenant-1", "EMAIL")).thenReturn(List.of("ops@example.com"));
+        when(evaluator.evaluate(anyString(), anyString(), anyList())).thenReturn(
+            new NotificationPolicyEvaluator.Decision(false, "指数波动未达到阈值",
+                List.of(), List.of(), true)
+        );
+
+        AgentScheduledTaskService service = new AgentScheduledTaskService(
+            repository, runRepository, latestRepository, taskService, new ObjectMapper(),
+            new AgentTaskProperties(), mock(McpTradingCalendarClient.class), notificationClient,
+            recipientService, mock(EnterpriseAdminService.class), mock(SkillCatalogService.class),
+            formatter, new AgentScheduleWindowPolicy()
+        );
+        service.setNotificationPolicyEvaluator(evaluator);
+
+        service.reconcileTerminalTask(latest.getTaskId());
+
+        verify(notificationClient, never()).dispatch(anyString(), any());
+        assertThat(run.getNotificationStatus()).isEqualTo("SKIPPED_CONDITION");
+        assertThat(run.getNotificationError()).contains("未达到阈值");
+        assertThat(run.getNotificationDecisionJson())
+            .contains("\"decision\":\"SKIP\"")
+            .contains("\"verified\":true");
+    }
+
+    @Test
     void updateKeepsScheduleIdentityAndPersistsEditedDefinition() {
         ScheduledTaskRepository repository = mock(ScheduledTaskRepository.class);
         ScheduledTaskRunRepository runRepository = mock(ScheduledTaskRunRepository.class);
@@ -206,6 +275,8 @@ class AgentScheduledTaskServiceTest {
         request.setCron("0 30 9 * * ?");
         request.setEnabled(true);
         request.setNotifyEnabled(true);
+        request.setNotificationConditionEnabled(true);
+        request.setNotificationCondition("仅当存在交易所证据证明主要指数涨跌幅超过2%时发送");
         request.setNotificationChannelId("email-channel");
         request.setNotificationRecipientMode("SPECIFIC");
         request.setNotificationReceiver("selected@example.com");
@@ -228,6 +299,8 @@ class AgentScheduledTaskServiceTest {
         assertThat(saved.getValue().getCronExpr()).isEqualTo("0 30 9 * * ?");
         assertThat(saved.getValue().getNotificationRecipientMode()).isEqualTo("SPECIFIC");
         assertThat(saved.getValue().getNotificationReceiver()).isEqualTo("selected@example.com");
+        assertThat(saved.getValue().getNotificationConditionEnabled()).isTrue();
+        assertThat(saved.getValue().getNotificationCondition()).contains("涨跌幅超过2%");
         assertThat(saved.getValue().getTradingDayOnly()).isTrue();
         assertThat(saved.getValue().getScheduleWindowStart()).isEqualTo("09:00");
         assertThat(saved.getValue().getScheduleWindowEnd()).isEqualTo("12:00");

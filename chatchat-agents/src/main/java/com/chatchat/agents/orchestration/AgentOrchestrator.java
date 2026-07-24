@@ -934,6 +934,7 @@ public class AgentOrchestrator {
         InterpretationPlan currentPlan = plan;
         InterpretationPlanRuntime.ExecutionResult currentResult = firstResult;
         int maxRewriteTimes = maxRewriteTimes(plan);
+        boolean duplicateToolPlanSuppressed = false;
         metadata.put("interpretationPlanMaxRewriteTimes", maxRewriteTimes);
         for (int rewriteCount = 1; rewriteCount <= maxRewriteTimes; rewriteCount++) {
             observations.add(planAttemptRewriteSummary(
@@ -1010,6 +1011,16 @@ public class AgentOrchestrator {
                 }
                 planAttemptResults.add(currentResult);
                 continue;
+            }
+
+            if (ToolCallFingerprint.materiallyEquivalent(currentPlan, rewrite.rewrittenPlan())) {
+                duplicateToolPlanSuppressed = true;
+                metadata.put("duplicateToolPlanSuppressed", true);
+                metadata.put("duplicateToolPlanStage", rewriteStage);
+                metadata.put("duplicateToolPlanFingerprints", ToolCallFingerprint.forPlan(rewrite.rewrittenPlan()));
+                observations.add("InterpretationPlan " + rewriteStage
+                    + " was not executed because its tool calls have no material input change from the previous evidence round.");
+                break;
             }
 
             currentPlan = rewrite.rewrittenPlan();
@@ -1104,20 +1115,25 @@ public class AgentOrchestrator {
             }
         }
 
-        metadata.put("interpretationPlanRewriteBudgetExceeded", maxRewriteTimes <= 0
-            || firstInteger(metadata.get("interpretationPlanRewriteCount"), 0) >= maxRewriteTimes);
+        metadata.put("interpretationPlanRewriteBudgetExceeded", !duplicateToolPlanSuppressed
+            && (maxRewriteTimes <= 0
+                || firstInteger(metadata.get("interpretationPlanRewriteCount"), 0) >= maxRewriteTimes));
         metadata.put("interpretationPlanFallbackMode", fallbackMode(plan));
-        metadata.put("stopReason", "interpretation_plan_evidence_exhausted");
+        metadata.put("stopReason", duplicateToolPlanSuppressed
+            ? "duplicate_tool_plan_suppressed"
+            : "interpretation_plan_evidence_exhausted");
         metadata.put("interpretationPlanEvidenceIterationCount", evidenceHistory.size());
         if (!evidenceHistory.isEmpty()) {
             recordEvidenceStopState(
                 metadata,
                 evidenceHistory.get(evidenceHistory.size() - 1),
-                "evidence_iteration_limit",
+                duplicateToolPlanSuppressed ? "duplicate_tool_plan_suppressed" : "evidence_iteration_limit",
                 evidenceHistory.size()
             );
         }
-        observations.add("InterpretationPlan completed its evidence revision budget; final answer will reconcile all persisted evidence and unresolved gaps.");
+        observations.add(duplicateToolPlanSuppressed
+            ? "InterpretationPlan stopped before a duplicate tool call; final answer will use the persisted evidence chain."
+            : "InterpretationPlan completed its evidence revision budget; final answer will reconcile all persisted evidence and unresolved gaps.");
         runMissingMandatoryWorkflowTools(
             traces,
             observations,

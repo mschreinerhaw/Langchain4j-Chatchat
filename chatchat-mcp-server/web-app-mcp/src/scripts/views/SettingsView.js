@@ -39,7 +39,7 @@ export default {
       assetGroupFilter: '',
       assetKeyword: '',
       authorizationPage: 1,
-      authorizationPageSize: 10
+      authorizationPageSize: 5
     };
   },
   computed: {

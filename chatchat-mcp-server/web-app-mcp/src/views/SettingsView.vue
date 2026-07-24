@@ -340,7 +340,7 @@
         <el-table-column label="分类" min-width="170">
           <template #default="{ row }">{{ row.groupName || row.groupCode || 'default' }}</template>
         </el-table-column>
-        <el-table-column label="描述" min-width="220">
+        <el-table-column label="描述" min-width="220" show-overflow-tooltip>
           <template #default="{ row }">{{ row.description || '-' }}</template>
         </el-table-column>
         <el-table-column prop="enabled" label="状态" width="110">
@@ -359,7 +359,7 @@
           layout="sizes, prev, pager, next, jumper"
           :current-page="authorizationPage"
           :page-size="authorizationPageSize"
-          :page-sizes="[10, 20, 50, 100]"
+          :page-sizes="[5, 10, 20, 50]"
           :total="filteredAuthorizationAssets.length"
           @current-change="changeAuthorizationPage"
           @size-change="changeAuthorizationPageSize"

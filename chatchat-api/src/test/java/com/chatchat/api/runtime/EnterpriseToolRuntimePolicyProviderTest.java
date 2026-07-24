@@ -6,10 +6,14 @@ import com.chatchat.common.tool.ToolInput;
 import com.chatchat.enterprise.entity.McpToolPermission;
 import com.chatchat.enterprise.entity.McpToolAsset;
 import com.chatchat.enterprise.entity.SysRole;
+import com.chatchat.enterprise.entity.SysTenant;
+import com.chatchat.enterprise.entity.SysUser;
 import com.chatchat.enterprise.entity.SysUserRole;
 import com.chatchat.enterprise.repository.McpToolPermissionRepository;
 import com.chatchat.enterprise.repository.McpToolAssetRepository;
 import com.chatchat.enterprise.repository.SysRoleRepository;
+import com.chatchat.enterprise.repository.SysTenantRepository;
+import com.chatchat.enterprise.repository.SysUserRepository;
 import com.chatchat.enterprise.repository.SysUserRoleRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,11 +33,15 @@ class EnterpriseToolRuntimePolicyProviderTest {
     private final McpToolAssetRepository toolAssetRepository = mock(McpToolAssetRepository.class);
     private final SysRoleRepository roleRepository = mock(SysRoleRepository.class);
     private final SysUserRoleRepository userRoleRepository = mock(SysUserRoleRepository.class);
+    private final SysUserRepository userRepository = mock(SysUserRepository.class);
+    private final SysTenantRepository tenantRepository = mock(SysTenantRepository.class);
     private final EnterpriseToolRuntimePolicyProvider provider = new EnterpriseToolRuntimePolicyProvider(
         permissionRepository,
         toolAssetRepository,
         roleRepository,
-        userRoleRepository
+        userRoleRepository,
+        userRepository,
+        tenantRepository
     );
 
     @BeforeEach
@@ -110,6 +118,23 @@ class EnterpriseToolRuntimePolicyProviderTest {
             .toolName("unassigned_tool")
             .attributes(Map.of("roles", List.of("SUPER_ADMIN")))
             .build(), null);
+
+        assertThat(policy.allowed()).isTrue();
+    }
+
+    @Test
+    void adminUserIdBypassesAssetAllowListAfterUsernameResolution() {
+        SysUser admin = new SysUser();
+        admin.setId("user-admin-id");
+        admin.setTenantId("tenant-a");
+        admin.setUsername("admin");
+        SysTenant platformTenant = new SysTenant();
+        platformTenant.setId("tenant-a");
+        platformTenant.setTenantNo(100000L);
+        when(userRepository.findById("user-admin-id")).thenReturn(Optional.of(admin));
+        when(tenantRepository.findById("tenant-a")).thenReturn(Optional.of(platformTenant));
+
+        ToolRuntimePolicy policy = provider.resolve(request("tenant-a", "user-admin-id", Map.of()), null);
 
         assertThat(policy.allowed()).isTrue();
     }

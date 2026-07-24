@@ -51,6 +51,7 @@ export default {
         user.username,
         user.displayName,
         user.tenantId,
+        user.tenantNo,
         user.sourceLabel,
         user.status,
         ...(user.roleIds || [])
@@ -173,6 +174,7 @@ export default {
         username,
         displayName: username,
         tenantId: '',
+        tenantNo: 100000,
         roleIds: ['MCP_ADMIN'],
         status: currentUser.authenticated === false ? 'offline' : 'enabled',
         source: 'mcp',
@@ -185,6 +187,7 @@ export default {
         username: user.username,
         displayName: user.displayName || user.username,
         tenantId: user.tenantId,
+        tenantNo: user.tenantNo,
         roleIds: user.roleIds || [],
         status: user.status || 'enabled',
         source: 'remote',
@@ -223,12 +226,33 @@ export default {
     async loadSnapshot() {
       await this.run(async () => {
         await authorizationApi.snapshot();
+        const [currentUser, remoteUsers, roles] = await Promise.all([
+          authApi.currentUser(),
+          authorizationApi.users(),
+          authorizationApi.roles()
+        ]);
+        this.currentUser = currentUser || {};
+        this.users = [
+          this.localAdminUser(currentUser || {}),
+          ...(remoteUsers || []).map(this.toRemoteUser)
+        ].filter(Boolean);
+        this.roles = roles || [];
       }, '授权已刷新', false);
     },
     async syncSnapshot() {
       await this.run(async () => {
         await authorizationApi.sync();
-        this.roles = await authorizationApi.roles() || [];
+        const [currentUser, remoteUsers, roles] = await Promise.all([
+          authApi.currentUser(),
+          authorizationApi.users(),
+          authorizationApi.roles()
+        ]);
+        this.currentUser = currentUser || {};
+        this.users = [
+          this.localAdminUser(currentUser || {}),
+          ...(remoteUsers || []).map(this.toRemoteUser)
+        ].filter(Boolean);
+        this.roles = roles || [];
       }, '授权已同步');
     },
     async loadRoles() {
@@ -338,7 +362,8 @@ export default {
       }
     },
     async fetchAuthorizationAssets() {
-      const [databaseQueries, apiServices, httpAssets, sshHosts, sqlDatasources] = await Promise.all([
+      const [authorizationSnapshot, databaseQueries, apiServices, httpAssets, sshHosts, sqlDatasources] = await Promise.all([
+        authorizationApi.sync(),
         databaseApi.list(),
         apiServicesApi.list(),
         assetsApi.listHttp(),
@@ -346,6 +371,14 @@ export default {
         assetsApi.listSql()
       ]);
       return [
+        ...((authorizationSnapshot && authorizationSnapshot.tools) || []).map(item => this.toAuthorizationAsset({
+          ...item,
+          id: item.id,
+          toolName: item.localToolName,
+          title: item.remoteToolName || item.localToolName,
+          businessGroup: item.serviceId || 'mcp',
+          businessGroupName: item.serviceName || item.serviceId || 'MCP'
+        }, 'mcp_tool', 'MCP 工具')),
         ...(databaseQueries || []).map(item => this.toAuthorizationAsset(item, 'database_query', '数据查询')),
         ...(apiServices || []).map(item => this.toAuthorizationAsset(item, 'api_service', 'API 服务')),
         ...(httpAssets || []).map(item => this.toAuthorizationAsset(item, 'http_endpoint', 'HTTP 资产', {

@@ -28,6 +28,7 @@ class LoginAuditServiceTest {
         EnterpriseAdminService.UserView user = new EnterpriseAdminService.UserView(
             "user-1",
             "tenant-1",
+            100000L,
             "org-1",
             "admin",
             "Admin",

@@ -579,6 +579,8 @@ public class InterpretationPlanRuntime {
         executionPlan.put("workflow", "interpretation_plan");
         executionPlan.put("protocolVersion", InterpretationExecutionProtocol.VERSION);
         executionPlan.put("executionTraceId", executionTraceId(request));
+        executionPlan.put("workflowExecutionAttempt", workflowExecutionAttempt(request));
+        executionPlan.put("evidenceIteration", evidenceIteration(request));
         executionPlan.put("interpretationPlanStepId", step.id());
         executionPlan.put("actionType", step.actionType());
         executionPlan.put("tool", step.toolName());
@@ -608,8 +610,11 @@ public class InterpretationPlanRuntime {
         metadata.put("workflow", "interpretation_plan");
         metadata.put("protocolVersion", InterpretationExecutionProtocol.VERSION);
         metadata.put("executionTraceId", executionTraceId(request));
+        metadata.put("workflowExecutionAttempt", workflowExecutionAttempt(request));
+        metadata.put("evidenceIteration", evidenceIteration(request));
         metadata.put("lifecyclePhase", "observation");
         metadata.put("interpretationPlanStepId", step.stepId());
+        metadata.put("evidenceId", evidenceId(request, step));
         metadata.put("interpretationPlanActionType", step.actionType());
         metadata.put("toolName", step.toolName());
         metadata.put("success", step.success());
@@ -632,6 +637,35 @@ public class InterpretationPlanRuntime {
             .content(planStepObservation(step))
             .metadata(metadata)
             .build());
+    }
+
+    private Object workflowExecutionAttempt(ExecutionRequest request) {
+        return request == null || request.attributes() == null
+            ? 0
+            : request.attributes().getOrDefault("workflowExecutionAttempt", 0);
+    }
+
+    private int evidenceIteration(ExecutionRequest request) {
+        Object value = workflowExecutionAttempt(request);
+        if (value instanceof Number number) {
+            return Math.max(1, number.intValue() + 1);
+        }
+        String text = String.valueOf(value);
+        int separator = text.indexOf('.');
+        if (separator > 0) {
+            text = text.substring(0, separator);
+        }
+        try {
+            return Math.max(1, Integer.parseInt(text) + 1);
+        } catch (NumberFormatException ignored) {
+            return 1;
+        }
+    }
+
+    private String evidenceId(ExecutionRequest request, StepExecution step) {
+        return "iteration:" + evidenceIteration(request)
+            + ":step:" + step.stepId()
+            + ":tool:" + (step.toolName() == null ? step.actionType() : step.toolName());
     }
 
     private void recordStateUpdate(ExecutionRequest request,

@@ -48,7 +48,67 @@ class InterpretationPlanRewriterTest {
             "Tool execution timed out",
             List.of("document_search failed with timeout"),
             List.of("document_search", "web_search"),
-            toolRegistry
+            toolRegistry,
+            List.of(new InterpretationPlanRewriter.RequiredToolExecution(
+                "web_search", "EVIDENCE_REFINEMENT", true
+            )),
+            List.of(Map.of(
+                "contractVersion", "interpretation_evidence_iteration_v1",
+                "iteration", 1,
+                "sufficient", false,
+                "missingEvidence", List.of("latest market price"),
+                "toolEvidence", List.of(Map.of(
+                    "evidenceId", "iteration:1:step:1:tool:web_search",
+                    "evidenceQuality", Map.of(
+                        "contractVersion", "evidence_quality_v1",
+                        "sourceReliability", Map.of(
+                            "value", 0.8, "status", "ASSESSED", "type", "COMPUTED"
+                        ),
+                        "freshness", Map.of(
+                            "status", "UNKNOWN",
+                            "type", "NOT_ASSESSED",
+                            "reason", "freshness metadata unavailable"
+                        ),
+                        "completeness", Map.of(
+                            "value", 0.6, "status", "ASSESSED", "type", "COMPUTED"
+                        ),
+                        "consistency", Map.of(
+                            "value", 1.0, "status", "ASSESSED", "type", "COMPUTED"
+                        ),
+                        "aggregatePolicy", "NO_PERSISTED_TOTAL_SCORE"
+                    )
+                )),
+                "hypotheses", List.of(Map.of(
+                    "hypothesisId", "H1",
+                    "contractVersion", "hypothesis_tree_v1",
+                    "parentHypothesisId", "H0",
+                    "statement", "The price move is driven by earnings expectations",
+                    "supportEvidenceIds", List.of("iteration:1:step:1:tool:web_search"),
+                    "contradictEvidenceIds", List.of(),
+                    "confidence", 0.55,
+                    "status", "UNRESOLVED"
+                )),
+                "evidenceGraph", Map.of(
+                    "contractVersion", "evidence_graph_v1",
+                    "nodes", List.of(
+                        Map.of("nodeId", "iteration:1:step:1:tool:web_search", "nodeType", "EVIDENCE"),
+                        Map.of("nodeId", "H1", "nodeType", "HYPOTHESIS")
+                    ),
+                    "relations", List.of(Map.of(
+                        "relationId", "R-1",
+                        "relationType", "SUPPORTS",
+                        "from", "iteration:1:step:1:tool:web_search",
+                        "to", "H1",
+                        "status", "ACTIVE"
+                    )),
+                    "rejectedRelations", List.of()
+                ),
+                "nextActions", List.of(Map.of(
+                    "tool", "web_search",
+                    "intent", "close the missing market-price evidence",
+                    "inputChanges", Map.of("query", "平安银行 最新股价 2026-07-23")
+                ))
+            ))
         ));
 
         assertThat(result.valid()).isTrue();
@@ -59,6 +119,15 @@ class InterpretationPlanRewriterTest {
         assertThat(chatModel.lastPrompt())
             .contains("MCP plan rewriter")
             .contains("Tool execution timed out")
+            .contains("interpretation_evidence_iteration_v1")
+            .contains("latest market price")
+            .contains("hypothesisId")
+            .contains("supportEvidenceIds")
+            .contains("evidence_quality_v1")
+            .contains("evidence_graph_v1")
+            .contains("NO_PERSISTED_TOTAL_SCORE")
+            .contains("parentHypothesisId")
+            .contains("EVIDENCE_REFINEMENT")
             .contains("Original plan");
     }
 

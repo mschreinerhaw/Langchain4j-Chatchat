@@ -12,6 +12,9 @@ import lombok.Setter;
 @Table(name = "sys_tenant")
 public class SysTenant extends EnterpriseAuditable {
 
+    @Column(name = "tenant_no", unique = true)
+    private Long tenantNo;
+
     @Column(length = 64, nullable = false, unique = true)
     private String tenantCode;
 

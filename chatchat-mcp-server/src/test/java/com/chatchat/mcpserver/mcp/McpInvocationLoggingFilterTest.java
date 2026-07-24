@@ -4,6 +4,7 @@ import com.chatchat.mcpserver.audit.InvocationAuditService;
 import com.chatchat.mcpserver.authorization.McpAuthorizationProperties;
 import com.chatchat.mcpserver.authorization.McpAuthorizationService;
 import com.chatchat.mcpserver.license.McpLicenseService;
+import com.chatchat.license.LicenseStatus;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.Test;
@@ -31,6 +32,9 @@ class McpInvocationLoggingFilterTest {
         properties.setEnabled(true);
         when(licenseService.toolDenialReason("database_query"))
             .thenReturn("License 已过期，新的 MCP 工具调用已停止");
+        when(licenseService.status()).thenReturn(
+            LicenseStatus.invalid("EXPIRED", "License 已过期", "SERVER-TEST", null)
+        );
         McpInvocationLoggingFilter filter = new McpInvocationLoggingFilter(
             auditService, new ObjectMapper(), properties, authorizationService, licenseService);
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/mcp");
@@ -46,7 +50,9 @@ class McpInvocationLoggingFilterTest {
         filter.doFilterInternal(request, response, chain);
 
         assertThat(response.getStatus()).isEqualTo(403);
-        assertThat(response.getContentAsString()).contains("MCP_LICENSE_ACCESS_DENIED", "License");
+        assertThat(response.getContentAsString())
+            .contains("MCP_LICENSE_EXPIRED", "\"licenseStatus\":\"EXPIRED\"", "License 已过期",
+                "\"retryable\":false", "\"action\":\"STOP\"");
         verifyNoInteractions(authorizationService, chain);
     }
 

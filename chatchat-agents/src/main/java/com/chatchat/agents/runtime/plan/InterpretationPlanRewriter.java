@@ -118,6 +118,12 @@ public class InterpretationPlanRewriter {
         prompt.append("- Preserve the user's original goal and already successful evidence.\n");
         prompt.append("- Treat completed steps and evidence_execution_lock_v1 observations as immutable execution state; do not re-add them as runnable tool steps.\n");
         prompt.append("- Do not repeat a failed MCP tool step unless the failure reason is transient and no safer alternative exists.\n");
+        prompt.append("- Evidence refinement is tool-agnostic: when evidenceHistory marks a round insufficient, use nextActions to revise inputs, repeat a suitable tool, or select another available tool that can close the recorded evidence gap.\n");
+        prompt.append("- Never repeat an identical tool call unless the recorded failure is transient and a retry is explicitly justified. A repeated call must materially change its inputs or execution conditions.\n");
+        prompt.append("- Every revised action must be traceable to evidence IDs, missingEvidence, or conflicts from evidenceHistory. Do not discard useful evidence from earlier rounds.\n");
+        prompt.append("- When hypotheses are present, revise the plan to test unresolved or conflicting hypotheses. Preserve hypothesis IDs through the evidence chain; never treat the hypothesis statement itself as proof.\n");
+        prompt.append("- Use Evidence Object quality dimensions when choosing among competing evidence paths. Read each dimension's value/status/type/reason; UNKNOWN is not a neutral score and must not be treated as 0.5. Never mix MODEL_ESTIMATED modelConfidence with computed evidence quality.\n");
+        prompt.append("- Use evidence_graph_v1 ACTIVE SUPPORTS/CONTRADICTS relations to identify which hypothesis needs validation. Ignore rejectedRelations as factual support and never create a plan from a nonexistent evidence reference.\n");
         prompt.append("- Remove impossible dependencies and keep the result as a DAG.\n");
         prompt.append("- Use only available tools. If no safe tool remains, produce a final_answer step explaining what is missing.\n");
         prompt.append("- Include exactly one final_answer step and keep every depends_on id valid.\n");
@@ -187,6 +193,9 @@ public class InterpretationPlanRewriter {
         prompt.append("Failed step:\n").append(toJson(failedStep(request))).append("\n");
         prompt.append("Failure reason:\n").append(request.failureReason()).append("\n");
         prompt.append("Observations so far:\n").append(request.observations() == null ? List.of() : request.observations()).append("\n");
+        prompt.append("Evidence iteration history (authoritative basis for plan revision):\n")
+            .append(toJson(request.evidenceHistory() == null ? List.of() : request.evidenceHistory()))
+            .append("\n");
         prompt.append("Original plan:\n").append(toJson(request.originalPlan()));
         return prompt.toString();
     }
@@ -650,15 +659,28 @@ public class InterpretationPlanRewriter {
         List<String> observations,
         List<String> availableTools,
         ToolRegistry toolRegistry,
-        List<RequiredToolExecution> requiredToolExecutions
+        List<RequiredToolExecution> requiredToolExecutions,
+        List<Map<String, Object>> evidenceHistory
     ) {
         public RewriteRequest(InterpretationPlan originalPlan,
                               InterpretationPlan.Step failedStep,
                               String failureReason,
                               List<String> observations,
                               List<String> availableTools,
+                              ToolRegistry toolRegistry,
+                              List<RequiredToolExecution> requiredToolExecutions) {
+            this(originalPlan, failedStep, failureReason, observations, availableTools, toolRegistry,
+                requiredToolExecutions, List.of());
+        }
+
+        public RewriteRequest(InterpretationPlan originalPlan,
+                              InterpretationPlan.Step failedStep,
+                              String failureReason,
+                              List<String> observations,
+                              List<String> availableTools,
                               ToolRegistry toolRegistry) {
-            this(originalPlan, failedStep, failureReason, observations, availableTools, toolRegistry, List.of());
+            this(originalPlan, failedStep, failureReason, observations, availableTools, toolRegistry,
+                List.of(), List.of());
         }
     }
 

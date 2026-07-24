@@ -27,6 +27,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static com.chatchat.common.constants.TenantConstants.PLATFORM_TENANT_NO;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -115,8 +117,9 @@ public class McpAuthorizationService {
     }
 
     private boolean isAdminPrincipal(Principal principal) {
-        return "admin".equalsIgnoreCase(principal.userId())
-            || "admin".equalsIgnoreCase(principal.username());
+        return "admin".equalsIgnoreCase(principal.username())
+            && principal.tenantNo() != null
+            && principal.tenantNo() == PLATFORM_TENANT_NO;
     }
 
     public AuthorizationSyncView currentView() {
@@ -129,7 +132,7 @@ public class McpAuthorizationService {
             snapshot.isStale(properties.getStaleTtlSeconds()),
             snapshot.usersById().values().stream()
                 .filter(user -> user.username() == null || !"admin".equalsIgnoreCase(user.username()))
-                .map(user -> new UserView(user.id(), user.tenantId(), user.username(), user.roleIds()))
+                .map(user -> new UserView(user.id(), user.tenantId(), user.tenantNo(), user.username(), user.roleIds()))
                 .toList(),
             localRoleViews(),
             snapshot.tools().stream()
@@ -196,10 +199,15 @@ public class McpAuthorizationService {
     }
 
     private void synchronizeRoles(Snapshot snapshot) {
-        if (snapshot == null || snapshot.rolesById().isEmpty()) {
+        if (snapshot == null) {
             return;
         }
         Instant syncedAt = Instant.now();
+        Set<String> incomingRoleIds = snapshot.rolesById().values().stream()
+            .filter(role -> role.id() != null && !role.id().isBlank())
+            .filter(role -> !"admin".equalsIgnoreCase(role.roleCode()))
+            .map(Role::id)
+            .collect(java.util.stream.Collectors.toSet());
         List<McpSynchronizedRole> roles = snapshot.rolesById().values().stream()
             .filter(role -> role.id() != null && !role.id().isBlank())
             .filter(role -> !"admin".equalsIgnoreCase(role.roleCode()))
@@ -216,8 +224,17 @@ public class McpAuthorizationService {
                 return entity;
             })
             .toList();
-        roleRepository.saveAll(roles);
-        log.info("MCP authorization roles synchronized count={}", roles.size());
+        if (!roles.isEmpty()) {
+            roleRepository.saveAll(roles);
+        }
+        List<McpSynchronizedRole> staleRoles = roleRepository.findAll().stream()
+            .filter(role -> "chatchat-api".equalsIgnoreCase(role.getSource()))
+            .filter(role -> !incomingRoleIds.contains(role.getId()))
+            .toList();
+        if (!staleRoles.isEmpty()) {
+            roleRepository.deleteAllInBatch(staleRoles);
+        }
+        log.info("MCP authorization roles synchronized count={} deleted={}", roles.size(), staleRoles.size());
     }
 
     public List<JsonNode> rolePermissions(String roleId, String tenantId) {
@@ -416,26 +433,41 @@ public class McpAuthorizationService {
 
     private Principal principal(Map<String, Object> arguments, Snapshot snapshot) {
         McpInvocationContext.Context context = McpInvocationContext.current();
+        Map<String, Object> mcpContext = map(arguments, "mcpContext");
+        Map<String, Object> identity = map(mcpContext, "identity");
         String userId = firstText(
             context == null ? null : context.userId(),
             text(arguments, "operatorUserId"),
             text(arguments, "userId"),
-            text(arguments, "user_id")
+            text(arguments, "user_id"),
+            text(mcpContext, "userId"),
+            text(mcpContext, "user_id"),
+            text(identity, "userId"),
+            text(identity, "user_id")
         );
         String username = firstText(
             context == null ? null : context.username(),
             text(arguments, "username"),
             text(arguments, "operator"),
-            text(arguments, "caller")
+            text(arguments, "caller"),
+            text(mcpContext, "username"),
+            text(identity, "username")
         );
         User user = snapshot.resolveUser(userId, username);
-        String resolvedUserId = firstText(userId, user == null ? null : user.id());
+        // Once the caller is found in the synchronized snapshot, always use its
+        // canonical identity. Request arguments are tool input and must not be
+        // able to replace a normal user's username with the admin whitelist name.
+        String resolvedUserId = firstText(user == null ? null : user.id(), userId);
+        String resolvedUsername = firstText(user == null ? null : user.username(), username);
         String tenantId = firstText(
             context == null ? null : context.tenantId(),
             text(arguments, "tenantId"),
             text(arguments, "tenant_id"),
+            text(mcpContext, "tenantId"),
+            text(mcpContext, "tenant_id"),
             user == null ? null : user.tenantId()
         );
+        Long tenantNo = user == null ? null : user.tenantNo();
         Set<String> roleIds = new HashSet<>();
         if (user != null) {
             roleIds.addAll(user.roleIds());
@@ -443,7 +475,15 @@ public class McpAuthorizationService {
         roleIds.addAll(csv(context == null ? null : context.roles()));
         roleIds.addAll(csv(text(arguments, "roles")));
         roleIds.addAll(csv(text(arguments, "roleIds")));
-        return new Principal(tenantId, resolvedUserId, username, roleIds);
+        roleIds.addAll(csv(text(mcpContext, "roles")));
+        roleIds.addAll(csv(text(identity, "roles")));
+        return new Principal(tenantId, tenantNo, resolvedUserId, resolvedUsername, roleIds);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> map(Map<String, Object> values, String key) {
+        Object value = values == null ? null : values.get(key);
+        return value instanceof Map<?, ?> nested ? (Map<String, Object>) nested : Map.of();
     }
 
     private String text(Map<String, Object> arguments, String key) {
@@ -607,7 +647,7 @@ public class McpAuthorizationService {
     ) {
     }
 
-    public record UserView(String id, String tenantId, String username, List<String> roleIds) {
+    public record UserView(String id, String tenantId, Long tenantNo, String username, List<String> roleIds) {
     }
 
     public record RoleView(String id, String tenantId, String roleCode, String roleName, String roleType, String status) {
@@ -650,10 +690,10 @@ public class McpAuthorizationService {
     ) {
     }
 
-    private record Principal(String tenantId, String userId, String username, Set<String> roleIds) {
+    private record Principal(String tenantId, Long tenantNo, String userId, String username, Set<String> roleIds) {
     }
 
-    private record User(String id, String tenantId, String username, List<String> roleIds) {
+    private record User(String id, String tenantId, Long tenantNo, String username, List<String> roleIds) {
     }
 
     private record Role(String id, String tenantId, String roleCode, String roleName, String roleType, String status) {
@@ -758,6 +798,7 @@ public class McpAuthorizationService {
                     User user = new User(
                         node.path("id").asText(null),
                         node.path("tenantId").asText(null),
+                        node.hasNonNull("tenantNo") ? node.path("tenantNo").asLong() : null,
                         node.path("username").asText(null),
                         roleIds
                     );
@@ -840,6 +881,11 @@ public class McpAuthorizationService {
 
         User resolveUser(String userId, String username) {
             User user = userId == null ? null : usersById.get(normalize(userId));
+            // Legacy schedules used the login name as userId. Keep them
+            // resolvable without weakening the admin whitelist.
+            if (user == null && userId != null) {
+                user = usersByUsername.get(normalize(userId));
+            }
             if (user == null && username != null) {
                 user = usersByUsername.get(normalize(username));
             }

@@ -10,6 +10,8 @@ import com.chatchat.enterprise.entity.SysRole;
 import com.chatchat.enterprise.repository.McpToolAssetRepository;
 import com.chatchat.enterprise.repository.McpToolPermissionRepository;
 import com.chatchat.enterprise.repository.SysRoleRepository;
+import com.chatchat.enterprise.repository.SysTenantRepository;
+import com.chatchat.enterprise.repository.SysUserRepository;
 import com.chatchat.enterprise.repository.SysUserRoleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -23,6 +25,8 @@ import java.util.Set;
 import java.util.LinkedHashSet;
 import java.time.Instant;
 
+import static com.chatchat.common.constants.TenantConstants.PLATFORM_TENANT_NO;
+
 @Component
 @RequiredArgsConstructor
 public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyProvider {
@@ -31,6 +35,8 @@ public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyPro
     private final McpToolAssetRepository toolAssetRepository;
     private final SysRoleRepository roleRepository;
     private final SysUserRoleRepository userRoleRepository;
+    private final SysUserRepository userRepository;
+    private final SysTenantRepository tenantRepository;
 
     /**
      * Resolves the resolve.
@@ -55,7 +61,7 @@ public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyPro
 
         String userId = normalize(request.getUserId());
         Set<String> roleIds = resolvedRoleIds(request, tenantId, userId);
-        if ("admin".equals(userId) || hasRoleCode(roleIds, tenantId, "super_admin")) {
+        if (isAdminUser(userId) || hasRoleCode(roleIds, tenantId, "super_admin")) {
             return ToolRuntimePolicy.builder().allowed(true).build();
         }
 
@@ -195,6 +201,18 @@ public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyPro
             .map(SysRole::getId)
             .map(this::normalize)
             .anyMatch(roleIds::contains);
+    }
+
+    private boolean isAdminUser(String userId) {
+        if (userId == null) {
+            return false;
+        }
+        return userRepository.findById(userId)
+            .or(() -> userRepository.findByUsername(userId))
+                .filter(user -> "admin".equalsIgnoreCase(user.getUsername()))
+                .flatMap(user -> tenantRepository.findById(user.getTenantId()))
+                .map(tenant -> tenant.getTenantNo() != null && tenant.getTenantNo() == PLATFORM_TENANT_NO)
+            .orElse(false);
     }
 
     private RequestScope requestedScope(ToolRuntimeRequest request, String tenantId) {

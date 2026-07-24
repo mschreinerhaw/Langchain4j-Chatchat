@@ -493,6 +493,17 @@ public class McpToolRegistryBridge {
             input == null ? null : input.getUserId(),
             "anonymous"
         );
+        String username = firstText(
+            stringValue(arguments.get("username")),
+            stringValue(inputContext.get("username")),
+            stringValue(inputContext.get("userName"))
+        );
+        String roles = firstText(
+            stringValue(arguments.get("roles")),
+            stringValue(arguments.get("roleIds")),
+            stringValue(inputContext.get("roles")),
+            stringValue(inputContext.get("roleIds"))
+        );
         String requestId = firstText(
             stringValue(arguments.get("requestId")),
             stringValue(arguments.get("request_id")),
@@ -510,6 +521,12 @@ public class McpToolRegistryBridge {
             arguments.putIfAbsent("tenantId", tenantId);
         }
         arguments.putIfAbsent("userId", userId);
+        if (username != null) {
+            arguments.putIfAbsent("username", username);
+        }
+        if (roles != null) {
+            arguments.putIfAbsent("roles", roles);
+        }
         if (requestId != null) {
             arguments.putIfAbsent("requestId", requestId);
         }
@@ -532,6 +549,12 @@ public class McpToolRegistryBridge {
             mcpContext.putIfAbsent("tenantId", tenantId);
         }
         mcpContext.putIfAbsent("userId", userId);
+        if (username != null) {
+            mcpContext.putIfAbsent("username", username);
+        }
+        if (roles != null) {
+            mcpContext.putIfAbsent("roles", roles);
+        }
         if (requestId != null) {
             mcpContext.putIfAbsent("traceId", requestId);
         }

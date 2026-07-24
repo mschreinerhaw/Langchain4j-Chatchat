@@ -316,12 +316,36 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
     }
 
     private Map<String, Object> financialIndexGuide(List<Map<String, Object>> assets, String discoveryId) {
-        return Map.of(
-            "name", "financial-data-asset",
-            "purpose", "Search governed financial datasets by business meaning and directly read matched observations.",
-            "matchedDatasets", assets,
-            "compatibleDirectQuery", true,
-            "discovery_id", discoveryId);
+        Map<String, Object> guide = new LinkedHashMap<>();
+        guide.put("name", "financial-data-asset");
+        guide.put("contractVersion", "financial_index_capability_v1");
+        guide.put("purpose",
+            "Search governed financial datasets by business meaning, discover their fields and supported scenarios, "
+                + "and directly read authoritative observations from compatible matched datasets.");
+        guide.put("searchBehavior",
+            "Every web_search call searches the news index first and then this compatible financial index. "
+                + "Revise the query when evidence is incomplete; an exact dataset code is optional.");
+        guide.put("supportedScenarios", List.of(
+            "A-share and exchange-traded instrument price/return/volume lookup",
+            "major index close, change, valuation and market breadth review",
+            "security master lookup by code or Chinese security name",
+            "historical market observations and date-range comparison",
+            "financial dataset and field discovery for follow-up analysis"
+        ));
+        guide.put("matchedDatasets", assets);
+        guide.put("matchedDatasetCount", assets.size());
+        guide.put("availableFieldsByDataset", assets.stream().collect(java.util.stream.Collectors.toMap(
+            asset -> String.valueOf(asset.getOrDefault("dataset", "")),
+            asset -> asset.getOrDefault("availableFields", List.of()),
+            (left, right) -> left,
+            LinkedHashMap::new
+        )));
+        guide.put("compatibleDirectQuery", true);
+        guide.put("queryRevisionHint",
+            "Use the evidence gaps to add the security/index name or code, target metric, event/news topic, "
+                + "and requested date or range. Do not change the web_search tool.");
+        guide.put("discovery_id", discoveryId);
+        return Map.copyOf(guide);
     }
 
     private List<Map<String, Object>> financialFields(Object rawFields) {

@@ -43,12 +43,13 @@
           <el-table-column label="用户" min-width="180">
             <template #default="{ row }">
               <strong>{{ row.displayName || row.username || row.id }}</strong>
-              <div class="table-subtle">{{ row.username || row.id }}</div>
+              <div class="table-subtle">账号：{{ row.username || '-' }}</div>
+              <div class="table-subtle">用户 ID：{{ row.id || '-' }}</div>
             </template>
           </el-table-column>
           <el-table-column prop="sourceLabel" label="来源" width="150" />
-          <el-table-column prop="tenantId" label="租户" min-width="220">
-            <template #default="{ row }"><code>{{ row.tenantId || '-' }}</code></template>
+          <el-table-column prop="tenantNo" label="租户编号（同租户共享）" min-width="190">
+            <template #default="{ row }"><code>{{ row.tenantNo || '-' }}</code></template>
           </el-table-column>
           <el-table-column label="角色" min-width="220">
             <template #default="{ row }">
@@ -290,6 +291,7 @@
     >
       <div class="authorization-toolbar">
         <el-select v-model="assetTypeFilter" class="authorization-filter" placeholder="类型" size="small" @change="resetAuthorizationPage">
+          <el-option label="MCP 工具" value="mcp_tool" />
           <el-option label="全部类型" value="all" />
           <el-option label="数据查询" value="database_query" />
           <el-option label="API 服务" value="api_service" />

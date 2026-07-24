@@ -145,13 +145,20 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
             firstText(
                 request.getHeader("X-User-Id"),
                 request.getHeader("X-Operator-Id"),
-                request.getHeader("X-Principal-Id")
+                request.getHeader("X-Principal-Id"),
+                textAt(body, "params", "arguments", "userId"),
+                textAt(body, "params", "arguments", "user_id"),
+                textAt(body, "params", "arguments", "mcpContext", "userId"),
+                textAt(body, "params", "arguments", "mcpContext", "identity", "userId")
             ),
             firstText(
                 request.getHeader("X-Username"),
                 request.getHeader("X-User-Name"),
                 request.getHeader("X-Operator"),
-                request.getHeader("X-Forwarded-User")
+                request.getHeader("X-Forwarded-User"),
+                textAt(body, "params", "arguments", "username"),
+                textAt(body, "params", "arguments", "mcpContext", "username"),
+                textAt(body, "params", "arguments", "mcpContext", "identity", "username")
             ),
             firstText(
                 request.getHeader("X-Tenant-Id"),
@@ -171,7 +178,10 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
                 request.getHeader("X-Role-Ids"),
                 textAt(body, "user", "roles"),
                 textAt(body, "params", "_meta", "user", "roles"),
-                textAt(body, "params", "arguments", "roles")
+                textAt(body, "params", "arguments", "roles"),
+                textAt(body, "params", "arguments", "roleIds"),
+                textAt(body, "params", "arguments", "mcpContext", "roles"),
+                textAt(body, "params", "arguments", "mcpContext", "identity", "roles")
             ),
             firstText(
                 request.getHeader("X-Workspace-Id"),
@@ -294,10 +304,19 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         response.setContentType("application/json;charset=UTF-8");
         boolean licenseDenied = reason != null && (reason.contains("License") || reason.contains("授权 MCP"));
+        String licenseStatus = licenseDenied && licenseService.status() != null
+            ? licenseService.status().status()
+            : null;
+        String errorCode = "EXPIRED".equalsIgnoreCase(licenseStatus)
+            ? "MCP_LICENSE_EXPIRED"
+            : licenseDenied ? "MCP_LICENSE_ACCESS_DENIED" : "MCP_ASSET_ACCESS_DENIED";
         objectMapper.writeValue(response.getWriter(), Map.of(
             "success", false,
-            "error", licenseDenied ? "MCP_LICENSE_ACCESS_DENIED" : "MCP_ASSET_ACCESS_DENIED",
-            "message", reason == null || reason.isBlank() ? "MCP asset access denied" : reason
+            "error", errorCode,
+            "message", reason == null || reason.isBlank() ? "MCP asset access denied" : reason,
+            "licenseStatus", licenseStatus == null ? "" : licenseStatus,
+            "retryable", false,
+            "action", "STOP"
         ));
     }
 

@@ -56,6 +56,9 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+import static com.chatchat.common.constants.TenantConstants.FIRST_BUSINESS_TENANT_NO;
+import static com.chatchat.common.constants.TenantConstants.PLATFORM_TENANT_NO;
+
 @Service
 @RequiredArgsConstructor
 public class EnterpriseAdminService implements ApplicationRunner {
@@ -327,6 +330,9 @@ public class EnterpriseAdminService implements ApplicationRunner {
     public SysTenant saveTenant(SysTenant input) {
         SysTenant entity = input.getId() == null ? new SysTenant() :
             tenantRepository.findById(input.getId()).orElseGet(SysTenant::new);
+        if (entity.getTenantNo() == null) {
+            entity.setTenantNo(nextTenantNo(input.getTenantCode()));
+        }
         entity.setTenantCode(requireText(input.getTenantCode(), "tenantCode"));
         entity.setTenantName(requireText(input.getTenantName(), "tenantName"));
         entity.setStatus(defaultText(input.getStatus(), "enabled"));
@@ -765,6 +771,16 @@ public class EnterpriseAdminService implements ApplicationRunner {
     @Transactional
     public List<McpToolAsset> syncMcpTools() {
         registryBridge.refreshRegistry();
+        return syncRegisteredMcpTools();
+    }
+
+    /**
+     * Synchronizes the tools already loaded in the local MCP registry.
+     *
+     * @return the synchronized MCP tool assets
+     */
+    @Transactional
+    public List<McpToolAsset> syncRegisteredMcpTools() {
         List<McpToolRegistryBridge.RegisteredMcpTool> registered = registryBridge.listRegisteredTools();
         for (McpToolRegistryBridge.RegisteredMcpTool tool : registered) {
             McpToolAsset asset = toolAssetRepository.findByLocalToolName(tool.localToolName())
@@ -876,6 +892,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
         return new UserView(
             user.getId(),
             user.getTenantId(),
+            tenantRepository.findById(user.getTenantId()).map(SysTenant::getTenantNo).orElse(null),
             user.getOrgId(),
             user.getUsername(),
             user.getDisplayName(),
@@ -1039,7 +1056,14 @@ public class EnterpriseAdminService implements ApplicationRunner {
     }
 
     private boolean isAdminUser(SysUser user) {
-        return user != null && "admin".equalsIgnoreCase(user.getUsername());
+        if (user == null || !"admin".equalsIgnoreCase(user.getUsername())
+            || user.getTenantId() == null || user.getTenantId().isBlank()) {
+            return false;
+        }
+        return tenantRepository.findById(user.getTenantId())
+            .map(SysTenant::getTenantNo)
+            .map(tenantNo -> tenantNo == PLATFORM_TENANT_NO)
+            .orElse(false);
     }
 
     private String generateSecureToken() {
@@ -1056,10 +1080,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
     }
 
     private boolean hasAllAgentAccess(SysUser user) {
-        if (user == null) {
-            return false;
-        }
-        return "admin".equalsIgnoreCase(user.getUsername());
+        return isAdminUser(user);
     }
 
     private Set<String> accessibleAgentIdsForUser(SysUser user) {
@@ -1114,6 +1135,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
      */
     private void initializeDemoData() {
         SysTenant tenant = resolveDefaultTenant();
+        initializeTenantNumbers(tenant);
 
         SysOrg root = ensureNeutralOrg(tenant.getId(), null, "guodu-root", "default-root", "默认组织", 0);
         ensureNeutralOrg(tenant.getId(), root.getId(), "wealth", "operations", "运营部", 10);
@@ -1216,6 +1238,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
                 .map(this::neutralizeDefaultTenant)
                 .orElseGet(() -> {
                     SysTenant seed = new SysTenant();
+                    seed.setTenantNo(PLATFORM_TENANT_NO);
                     seed.setTenantCode(DEFAULT_TENANT_CODE);
                     seed.setTenantName("默认租户");
                     seed.setContactName("平台管理员");
@@ -1231,12 +1254,43 @@ public class EnterpriseAdminService implements ApplicationRunner {
      * @return the operation result
      */
     private SysTenant neutralizeDefaultTenant(SysTenant tenant) {
+        tenant.setTenantNo(PLATFORM_TENANT_NO);
         tenant.setTenantCode(DEFAULT_TENANT_CODE);
         tenant.setTenantName("默认租户");
         tenant.setContactName(defaultText(tenant.getContactName(), "平台管理员"));
         tenant.setDescription("企业级智能问答助手平台默认租户");
         tenant.setStatus(defaultText(tenant.getStatus(), "enabled"));
         return tenantRepository.save(tenant);
+    }
+
+    private void initializeTenantNumbers(SysTenant platformTenant) {
+        if (platformTenant.getTenantNo() == null || platformTenant.getTenantNo() != PLATFORM_TENANT_NO) {
+            platformTenant.setTenantNo(PLATFORM_TENANT_NO);
+            tenantRepository.save(platformTenant);
+        }
+        long next = tenantRepository.findFirstByTenantNoIsNotNullOrderByTenantNoDesc()
+            .map(SysTenant::getTenantNo)
+            .map(value -> Math.max(value + 1L, FIRST_BUSINESS_TENANT_NO))
+            .orElse(FIRST_BUSINESS_TENANT_NO);
+        List<SysTenant> unnumbered = tenantRepository.findAllByOrderByTenantNameAsc().stream()
+            .filter(tenant -> tenant.getTenantNo() == null)
+            .toList();
+        for (SysTenant tenant : unnumbered) {
+            tenant.setTenantNo(next++);
+        }
+        if (!unnumbered.isEmpty()) {
+            tenantRepository.saveAll(unnumbered);
+        }
+    }
+
+    private long nextTenantNo(String tenantCode) {
+        if (DEFAULT_TENANT_CODE.equalsIgnoreCase(defaultText(tenantCode, ""))) {
+            return PLATFORM_TENANT_NO;
+        }
+        return tenantRepository.findFirstByTenantNoIsNotNullOrderByTenantNoDesc()
+            .map(SysTenant::getTenantNo)
+            .map(value -> Math.max(value + 1L, FIRST_BUSINESS_TENANT_NO))
+            .orElse(FIRST_BUSINESS_TENANT_NO);
     }
 
     /**
@@ -1642,6 +1696,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
     public record UserView(
         String id,
         String tenantId,
+        Long tenantNo,
         String orgId,
         String username,
         String displayName,

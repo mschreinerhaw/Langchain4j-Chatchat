@@ -39,8 +39,7 @@ public class EnterpriseMcpAuthorizationSyncController {
             Instant.now(),
             adminService.listUserViews(null).stream()
                 .filter(user -> user.username() == null
-                    || (!"admin".equalsIgnoreCase(user.username())
-                    && !internalCredentialProperties.resolvedUsername().equalsIgnoreCase(user.username())))
+                    || !internalCredentialProperties.resolvedUsername().equalsIgnoreCase(user.username()))
                 .toList(),
             roleRepository.findAll().stream()
                 .filter(role -> !isAdminRole(role))

@@ -179,7 +179,9 @@ class RemoteNewsMcpToolProviderTest {
             .containsEntry("count", 3);
         assertThat((Map<String, Object>) data.get("financialIndex"))
             .containsEntry("name", "financial-data-asset")
+            .containsEntry("contractVersion", "financial_index_capability_v1")
             .containsEntry("compatibleDirectQuery", true)
+            .containsKeys("supportedScenarios", "availableFieldsByDataset", "queryRevisionHint")
             .doesNotContainKey("secondStage");
         assertThat((List<Map<String, Object>>) data.get("financialAssets")).singleElement().satisfies(asset -> {
             assertThat(asset).containsEntry("dataset", "etf_scale_daily")

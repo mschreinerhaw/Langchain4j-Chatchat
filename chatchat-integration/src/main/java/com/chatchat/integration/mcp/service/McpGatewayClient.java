@@ -7,6 +7,7 @@ import com.chatchat.integration.mcp.model.McpToolDefinition;
 import com.chatchat.integration.mcp.model.McpToolInvokeResult;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
@@ -67,6 +68,8 @@ public class McpGatewayClient {
     private static final String ERROR_SESSION_INVALID = "SESSION_INVALID";
     private static final String ERROR_MCP_HTTP = "MCP_HTTP_ERROR";
     private static final String ERROR_MCP_TOOL = "MCP_TOOL_ERROR";
+    private static final String ERROR_MCP_LICENSE_EXPIRED = "MCP_LICENSE_EXPIRED";
+    private static final String ERROR_MCP_LICENSE_ACCESS_DENIED = "MCP_LICENSE_ACCESS_DENIED";
     private static final String ERROR_TOOL_BUSY = "TOOL_BUSY";
     private static final String ACTION_STOP = "STOP";
     private static final String ACTION_REBUILD_SESSION = "REBUILD_SESSION";
@@ -331,8 +334,34 @@ public class McpGatewayClient {
         return failureResult(throwable == null ? null : throwable.getMessage());
     }
 
-    private McpToolInvokeResult failureResult(String message) {
+    McpToolInvokeResult failureResult(String message) {
+        McpHttpError httpError = mcpHttpError(message);
+        if (httpError != null && ERROR_MCP_LICENSE_EXPIRED.equalsIgnoreCase(httpError.errorCode())) {
+            return McpToolInvokeResult.failure(
+                firstText(httpError.message(), "License 已过期，MCP 工具调用已停止，请联系供应商续期"),
+                ERROR_MCP_LICENSE_EXPIRED,
+                false,
+                ACTION_STOP
+            );
+        }
+        if (httpError != null && ERROR_MCP_LICENSE_ACCESS_DENIED.equalsIgnoreCase(httpError.errorCode())) {
+            return McpToolInvokeResult.failure(
+                firstText(httpError.message(), "License 无效，不能调用 MCP 工具"),
+                ERROR_MCP_LICENSE_ACCESS_DENIED,
+                false,
+                ACTION_STOP
+            );
+        }
         String normalized = message == null ? "" : message.toLowerCase(Locale.ROOT);
+        if (normalized.contains("mcp_license_expired") || normalized.contains("license 已过期")) {
+            return McpToolInvokeResult.failure(
+                firstText(httpError == null ? null : httpError.message(), message,
+                    "License 已过期，MCP 工具调用已停止，请联系供应商续期"),
+                ERROR_MCP_LICENSE_EXPIRED,
+                false,
+                ACTION_STOP
+            );
+        }
         if (normalized.contains("tenant_required") || normalized.contains("tenantid")
             || normalized.contains("tenant id")) {
             return McpToolInvokeResult.failure(
@@ -375,6 +404,35 @@ public class McpGatewayClient {
             false,
             ACTION_STOP
         );
+    }
+
+    private McpHttpError mcpHttpError(String message) {
+        if (message == null || message.isBlank()) {
+            return null;
+        }
+        int start = message.indexOf('{');
+        int end = message.lastIndexOf('}');
+        if (start < 0 || end <= start) {
+            return null;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(message.substring(start, end + 1));
+            String errorCode = firstText(
+                root.path("error").asText(null),
+                root.path("errorCode").asText(null),
+                root.path("code").isTextual() ? root.path("code").asText(null) : null
+            );
+            String detail = firstText(
+                root.path("message").asText(null),
+                root.path("errorMessage").asText(null)
+            );
+            return errorCode == null && detail == null ? null : new McpHttpError(errorCode, detail);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private record McpHttpError(String errorCode, String message) {
     }
 
     private String tenantIdFrom(Map<String, Object> arguments) {
@@ -601,6 +659,16 @@ public class McpGatewayClient {
                 stringValue(mcpContext.get("userId")),
                 stringValue(mcpContext.get("user_id"))
             );
+            String username = firstText(
+                stringValue(arguments.get("username")),
+                stringValue(mcpContext.get("username"))
+            );
+            String roles = firstText(
+                stringValue(arguments.get("roles")),
+                stringValue(arguments.get("roleIds")),
+                stringValue(mcpContext.get("roles")),
+                stringValue(mcpContext.get("roleIds"))
+            );
             String requestId = firstText(
                 stringValue(arguments.get("requestId")),
                 stringValue(arguments.get("request_id")),
@@ -610,6 +678,8 @@ public class McpGatewayClient {
 
             setHeaderIfPresent(builder, "X-Tenant-Id", tenantId);
             setHeaderIfPresent(builder, "X-User-Id", userId);
+            setHeaderIfPresent(builder, "X-Username", username);
+            setHeaderIfPresent(builder, "X-Roles", roles);
             setHeaderIfPresent(builder, "X-Request-Id", requestId);
             setHeaderIfPresent(builder, "X-Correlation-Id", requestId);
         } catch (Exception ex) {

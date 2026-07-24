@@ -37,11 +37,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.function.BooleanSupplier;
@@ -842,6 +844,7 @@ public class AgentOrchestrator {
         metadata.put("interpretationPlanPipeline", true);
         metadata.put("interpretationPlanVersion", plan.version());
         saveInterpretationPlanSnapshot("initial", plan, tenantId, requestId, runtimeAttributes, metadata);
+        recordPlanEvolution(null, plan, 1, "INITIAL", List.of(), runtimeAttributes, metadata);
 
         InterpretationPlanValidator validator = new InterpretationPlanValidator();
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
@@ -852,6 +855,7 @@ public class AgentOrchestrator {
             request -> decideInterpretationPlanDagStep(activeChatModel, query, systemPrompt, cancellationCheck, request)
         );
         List<InterpretationPlanRuntime.ExecutionResult> planAttemptResults = new ArrayList<>();
+        List<Map<String, Object>> evidenceHistory = new ArrayList<>();
         InterpretationPlanValidator.ValidationResult initialEvaluation = validator.validate(
             plan,
             toolRegistry,
@@ -893,7 +897,13 @@ public class AgentOrchestrator {
         }
         firstResult = rejectUnsatisfiedInterpretationPlanResult("initial", firstResult, observations, metadata);
         planAttemptResults.add(firstResult);
-        if (firstResult.success()) {
+        Map<String, Object> firstEvidence = analyzeInterpretationPlanEvidence(
+            activeChatModel, query, systemPrompt, plan, firstResult, 1, evidenceHistory,
+            runtimeAttributes, metadata, cancellationCheck
+        );
+        evidenceHistory.add(firstEvidence);
+        if (firstResult.success() && evidenceSufficient(firstEvidence)) {
+            recordEvidenceStopState(metadata, firstEvidence, "evidence_sufficient", 1);
             recordMandatoryWorkflowCompletion(traces, metadata, runtimeAttributes);
             String synthesizedAnswer = synthesizeInterpretationPlanAnswer(
                 activeChatModel,
@@ -916,7 +926,7 @@ public class AgentOrchestrator {
                 observations,
                 synthesizedAnswer,
                 cancellationCheck,
-                "interpretation_plan_completed"
+                "evidence_sufficient"
             );
         }
 
@@ -940,18 +950,23 @@ public class AgentOrchestrator {
                 metadataStringList(metadata, "mandatoryTools"),
                 completedTools
             );
-            InterpretationPlanRewriter.RewriteResult rewrite = rewriter.rewrite(new InterpretationPlanRewriter.RewriteRequest(
-                currentPlan,
-                failedStep,
-                currentResult.errorMessage(),
-                observations,
-                tools,
-                toolRegistry,
+            List<InterpretationPlanRewriter.RequiredToolExecution> rewriteRequirements = new ArrayList<>(
                 requiredToolExecutions(
                     pendingRequiredTools,
                     metadataStringList(metadata, "requiredToolNames"),
                     metadataStringList(metadata, "workflowMandatoryTools")
                 )
+            );
+            rewriteRequirements.addAll(evidenceRefinementRequiredTools(evidenceHistory, tools));
+            InterpretationPlanRewriter.RewriteResult rewrite = rewriter.rewrite(new InterpretationPlanRewriter.RewriteRequest(
+                currentPlan,
+                failedStep,
+                evidenceRewriteReason(currentResult, evidenceHistory),
+                observations,
+                tools,
+                toolRegistry,
+                rewriteRequirements,
+                evidenceHistory
             ));
             metadata.put("interpretationPlanRewriteAttempted", true);
             metadata.put("interpretationPlanRewriteCount", rewriteCount);
@@ -960,6 +975,15 @@ public class AgentOrchestrator {
             if (rewrite.errorMessage() != null && !rewrite.errorMessage().isBlank()) {
                 metadata.put("interpretationPlanRewriteError", rewrite.errorMessage());
             }
+            recordPlanEvolution(
+                currentPlan,
+                rewrite.rewrittenPlan(),
+                rewriteCount + 1,
+                rewrite.valid() ? "ACCEPTED" : "REJECTED",
+                evidenceHistory,
+                runtimeAttributes,
+                metadata
+            );
             runtimeGuard.checkCancelled(cancellationCheck);
 
             String rewriteStage = rewriteCount == 1 ? "rewrite" : "rewrite" + rewriteCount;
@@ -1046,7 +1070,13 @@ public class AgentOrchestrator {
                 metadata
             );
             planAttemptResults.add(currentResult);
-            if (currentResult.success()) {
+            Map<String, Object> currentEvidence = analyzeInterpretationPlanEvidence(
+                activeChatModel, query, systemPrompt, currentPlan, currentResult, rewriteCount + 1,
+                evidenceHistory, runtimeAttributes, metadata, cancellationCheck
+            );
+            evidenceHistory.add(currentEvidence);
+            if (currentResult.success() && evidenceSufficient(currentEvidence)) {
+                recordEvidenceStopState(metadata, currentEvidence, "evidence_sufficient", rewriteCount + 1);
                 recordMandatoryWorkflowCompletion(traces, metadata, runtimeAttributes);
                 String synthesizedAnswer = synthesizeInterpretationPlanAnswer(
                     activeChatModel,
@@ -1069,7 +1099,7 @@ public class AgentOrchestrator {
                     observations,
                     synthesizedAnswer,
                     cancellationCheck,
-                    "interpretation_plan_rewritten"
+                    "evidence_sufficient"
                 );
             }
         }
@@ -1077,8 +1107,17 @@ public class AgentOrchestrator {
         metadata.put("interpretationPlanRewriteBudgetExceeded", maxRewriteTimes <= 0
             || firstInteger(metadata.get("interpretationPlanRewriteCount"), 0) >= maxRewriteTimes);
         metadata.put("interpretationPlanFallbackMode", fallbackMode(plan));
-        metadata.put("stopReason", "interpretation_plan_failed");
-        observations.add("InterpretationPlan failed after rewrite budget. Fallback mode: " + fallbackMode(plan) + ".");
+        metadata.put("stopReason", "interpretation_plan_evidence_exhausted");
+        metadata.put("interpretationPlanEvidenceIterationCount", evidenceHistory.size());
+        if (!evidenceHistory.isEmpty()) {
+            recordEvidenceStopState(
+                metadata,
+                evidenceHistory.get(evidenceHistory.size() - 1),
+                "evidence_iteration_limit",
+                evidenceHistory.size()
+            );
+        }
+        observations.add("InterpretationPlan completed its evidence revision budget; final answer will reconcile all persisted evidence and unresolved gaps.");
         runMissingMandatoryWorkflowTools(
             traces,
             observations,
@@ -1139,7 +1178,7 @@ public class AgentOrchestrator {
                 observations,
                 synthesizedAnswer,
                 cancellationCheck,
-                "interpretation_plan_attempts_summarized"
+                "evidence_iteration_limit"
             );
         }
         return answerFinalizer.finishReviewedSummary(
@@ -1666,6 +1705,15 @@ public class AgentOrchestrator {
         prompt.append("Workflow contract:\n");
         prompt.append("- Treat every succeeded tool step with returned data as evidence, even when the model review marked it incomplete or partial.\n");
         prompt.append("- When multiple plan attempts were executed, reconcile and summarize evidence from all attempts; prefer the latest complete result when evidence conflicts.\n");
+        prompt.append("- Treat interpretation_evidence_iteration_v1 snapshots as the evidence chain: preserve their evidenceId-to-conclusion basis, missingEvidence, conflicts, and nextActions.\n");
+        prompt.append("- Treat hypotheses as testable explanations. Explain which hypothesis is supported, contradicted, or unresolved and bind every claim to supportEvidenceIds or contradictEvidenceIds.\n");
+        prompt.append("- A hypothesis statement is never evidence by itself. Its confidence and status must be justified by persisted Evidence Objects.\n");
+        prompt.append("- Use hypothesis_tree_v1 parent/child relationships to explain broad conclusions through independently validated sub-hypotheses without flattening unresolved children into a supported parent.\n");
+        prompt.append("- Use evidence_quality_v1 as independent quality dimensions. Each dimension has value/status/type/reason; UNKNOWN means not assessed and must never be interpreted as 0.5. modelConfidence is MODEL_ESTIMATED and is not an evidence-quality score.\n");
+        prompt.append("- Use evidence_graph_v1 as the authoritative Evidence-to-Hypothesis relationship layer. Only ACTIVE SUPPORTS or CONTRADICTS relations with existing Evidence nodes may justify a hypothesis; rejectedRelations are audit findings, not evidence.\n");
+        prompt.append("- Use plan_evolution_v1 only to explain why the runtime changed its retrieval or execution path. A plan change is not evidence for the user's factual answer.\n");
+        prompt.append("- The final answer must be grounded in the cumulative MCP results from every iteration. Do not treat an intermediate model conclusion as evidence unless its referenced evidenceId exists in an executed tool result.\n");
+        prompt.append("- Resolve conflicts explicitly. If three iterations still leave a material gap, report that gap instead of filling it with model knowledge.\n");
         prompt.append("- Do not hide earlier partial or failed attempts when they contain usable evidence. State unresolved limitations after considering all attempts.\n");
         prompt.append("- Use each step's review reason as the premise for later steps.\n");
         prompt.append("- Summarize what was done step by step, then provide the final answer.\n");
@@ -1712,7 +1760,10 @@ public class AgentOrchestrator {
                     continue;
                 }
                 for (InterpretationPlanRuntime.StepExecution step : attemptResult.steps()) {
-                prompt.append("- step=").append(step.stepId())
+                prompt.append("- evidenceId=iteration:").append(attemptIndex + 1)
+                    .append(":step:").append(step.stepId())
+                    .append(":tool:").append(firstNonBlank(step.toolName(), step.actionType()))
+                    .append(", step=").append(step.stepId())
                     .append(", action=").append(step.actionType())
                     .append(", tool=").append(firstNonBlank(step.toolName(), ""))
                     .append(", success=").append(step.success())
@@ -1878,6 +1929,33 @@ public class AgentOrchestrator {
         if (refinedIntent != null && !refinedIntent.isBlank()) {
             metadata.put("refinedIntent", refinedIntent);
         }
+        Object iterationSufficient = firstObject(payload,
+            "iteration_sufficient", "iterationSufficient", "evidence_sufficient", "evidenceSufficient");
+        if (iterationSufficient != null) {
+            metadata.put("evidenceIterationSufficient", booleanValue(iterationSufficient));
+        }
+        Object evidenceBasis = firstObject(payload, "evidence_used", "evidenceUsed", "basis", "based_on");
+        if (evidenceBasis != null) {
+            metadata.put("evidenceBasis", evidenceBasis);
+        }
+        Object missingEvidence = firstObject(payload,
+            "missing_evidence", "missingEvidence", "missingAspects", "missing_aspects");
+        if (missingEvidence != null) {
+            metadata.put("missingEvidence", missingEvidence);
+        }
+        Object evidenceConflicts = firstObject(payload, "conflicts", "contradictions", "uncertainty");
+        if (evidenceConflicts != null) {
+            metadata.put("evidenceConflicts", evidenceConflicts);
+        }
+        Object nextActions = firstObject(payload,
+            "next_actions", "nextActions", "next_queries", "nextQueries", "query_revisions", "queryRevisions");
+        if (nextActions != null) {
+            metadata.put("nextActions", nextActions);
+        }
+        Object hypotheses = firstObject(payload, "hypotheses", "hypothesis", "hypothesis_state", "hypothesisState");
+        if (hypotheses != null) {
+            metadata.put("hypotheses", hypotheses);
+        }
         Object confidence = firstObject(payload, "confidence", "score");
         if (confidence != null) {
             metadata.put("toolResultReviewConfidence", confidence);
@@ -1910,10 +1988,15 @@ public class AgentOrchestrator {
         }
         prompt.append("You are the runtime reviewer for one completed MCP tool call.\n");
         prompt.append("Return strict JSON only with this shape:\n");
-        prompt.append("{\"satisfied\":true|false,\"reason\":\"short reason\",\"review_answer\":\"optional audit note, not user-facing final answer\",\"selected_urls\":[\"https://...\"],\"useful_refs\":[\"doc://...#chunk=0\"],\"rejected_refs\":[\"doc://...#chunk=1\"],\"selected_template_ids\":[\"template-id\"],\"rejected_template_ids\":[\"template-id\"],\"refined_intent\":\"optional refined retrieval intent\",\"relevance\":0.0,\"answerability\":0.0,\"supportsQuestionAspect\":[\"process\"],\"missingAspects\":[\"constraints\"],\"usefulness\":\"HIGH|MEDIUM|LOW\",\"shouldExpandQuery\":true|false,\"confidence\":0.0}\n");
+        prompt.append("{\"satisfied\":true|false,\"iteration_sufficient\":true|false,\"reason\":\"short reason\",\"review_answer\":\"optional audit note, not user-facing final answer\",\"evidence_used\":[{\"basis\":\"returned fact\"}],\"missing_evidence\":[\"material gap\"],\"conflicts\":[\"conflict\"],\"hypotheses\":[{\"hypothesis_id\":\"H1\",\"parent_hypothesis_id\":null,\"statement\":\"testable explanation\",\"support_evidence_ids\":[],\"contradict_evidence_ids\":[],\"confidence\":0.0,\"status\":\"SUPPORTED|CONTRADICTED|UNRESOLVED\"}],\"next_actions\":[{\"tool\":\"available_tool_name\",\"intent\":\"evidence gap to close or hypothesis to test\",\"input_changes\":{\"parameter\":\"revised value\"},\"reason\":\"why this action is needed\",\"based_on\":[\"evidenceId\",\"hypothesisId\"]}],\"selected_urls\":[\"https://...\"],\"useful_refs\":[\"doc://...#chunk=0\"],\"rejected_refs\":[\"doc://...#chunk=1\"],\"selected_template_ids\":[\"template-id\"],\"rejected_template_ids\":[\"template-id\"],\"refined_intent\":\"optional refined retrieval intent\",\"relevance\":0.0,\"answerability\":0.0,\"supportsQuestionAspect\":[\"process\"],\"missingAspects\":[\"constraints\"],\"usefulness\":\"HIGH|MEDIUM|LOW\",\"shouldExpandQuery\":true|false,\"confidence\":0.0}\n");
         prompt.append("Rules:\n");
         prompt.append(AgentRuntimeFactGroundingContract.promptSection());
         prompt.append("- Decide whether this tool output is sufficient for the current plan step and user request.\n");
+        prompt.append("- iteration_sufficient evaluates the cumulative user request, not merely whether this one tool call technically succeeded. Set it false when material evidence is still missing and provide evidence_used, missing_evidence, conflicts, and tool-agnostic next_actions.\n");
+        prompt.append("- next_actions may revise the current tool input, call another available tool, validate a conflict, or retrieve a missing fact. Do not assume any particular tool type.\n");
+        prompt.append("- hypotheses must be testable explanations, not facts. Mark each SUPPORTED, CONTRADICTED, or UNRESOLVED and relate it to returned evidence. Runtime will bind the current evidenceId when the model cannot know it yet.\n");
+        prompt.append("- Preserve a hypothesis_id when the same hypothesis is refined later; create a new id only for a materially different explanation.\n");
+        prompt.append("- Use parent_hypothesis_id to decompose a broad hypothesis into independently testable child hypotheses. Do not create cycles or make a hypothesis its own parent.\n");
         prompt.append("- If satisfied=false, explain missing aspects, but never discard succeeded SQL/database rows merely because they are partial or imperfect.\n");
         prompt.append("- For SQL/database outputs, any returned rows, columns, metrics, or result sets are usable partial evidence. Mark them satisfied=true when they can support any part of the answer, and list gaps in missingAspects.\n");
         prompt.append("- For web discovery tools (web_search, web_page_analyze, site_intelligence_resolver, *_site_search), judge candidate URLs/snippets only. Do not require full article content from these tools.\n");
@@ -2452,6 +2535,1088 @@ public class AgentOrchestrator {
             ),
             0L
         );
+    }
+
+    private Map<String, Object> analyzeInterpretationPlanEvidence(
+        ChatModel activeChatModel,
+        String query,
+        String systemPrompt,
+        InterpretationPlan plan,
+        InterpretationPlanRuntime.ExecutionResult result,
+        int iteration,
+        List<Map<String, Object>> previousEvidence,
+        Map<String, Object> runtimeAttributes,
+        Map<String, Object> metadata,
+        BooleanSupplier cancellationCheck
+    ) {
+        runtimeGuard.checkCancelled(cancellationCheck);
+        List<Map<String, Object>> toolEvidence = interpretationToolEvidence(plan, result, iteration);
+        boolean fallbackSufficient = result != null && result.success();
+        Map<String, Object> analysis = new LinkedHashMap<>();
+        List<Object> evidenceUsed = new ArrayList<>();
+        List<Object> missingEvidence = new ArrayList<>();
+        List<Object> conflicts = new ArrayList<>();
+        List<Object> nextActions = new ArrayList<>();
+        List<String> conclusions = new ArrayList<>();
+        List<Map<String, Object>> currentHypotheses = new ArrayList<>();
+        boolean explicitIterationDecision = false;
+        boolean iterationSufficient = fallbackSufficient;
+        for (Map<String, Object> item : toolEvidence) {
+            if (Boolean.TRUE.equals(item.get("success"))) {
+                evidenceUsed.add(metadataOf(
+                    "evidence_id", item.get("evidenceId"),
+                    "basis", firstNonBlank(stringValue(item.get("reviewReason")), "successful MCP result")
+                ));
+            }
+            addEvidenceAnalysisItems(missingEvidence, item.get("missingEvidence"));
+            addEvidenceAnalysisItems(conflicts, item.get("conflicts"));
+            addEvidenceAnalysisItems(nextActions, item.get("nextActions"));
+            currentHypotheses.addAll(normalizeHypotheses(
+                item.get("hypotheses"),
+                stringValue(item.get("evidenceId"))
+            ));
+            String reason = stringValue(item.get("reviewReason"));
+            if (reason != null && !reason.isBlank()) {
+                conclusions.add(reason);
+            }
+            if (item.get("iterationSufficient") != null) {
+                explicitIterationDecision = true;
+                iterationSufficient &= booleanValue(item.get("iterationSufficient"));
+            }
+        }
+        analysis.put("sufficient", explicitIterationDecision ? iterationSufficient : fallbackSufficient);
+        analysis.put("conclusion", conclusions.isEmpty()
+            ? (fallbackSufficient ? "The round returned usable evidence." : "The round did not return sufficient evidence.")
+            : String.join(" ", conclusions));
+        analysis.put("evidence_used", evidenceUsed);
+        analysis.put("missing_evidence", missingEvidence);
+        analysis.put("conflicts", conflicts);
+        analysis.put("next_actions", nextActions);
+
+        List<Map<String, Object>> hypotheses = mergeHypotheses(previousEvidence, currentHypotheses);
+        Map<String, Object> evidenceGraph = buildEvidenceGraph(
+            iteration,
+            previousEvidence,
+            toolEvidence,
+            hypotheses
+        );
+        boolean sufficient = booleanValue(firstObject(analysis, "sufficient", "satisfied", "complete"))
+            && missingEvidence.isEmpty()
+            && conflicts.isEmpty();
+        double confidence = evidenceConfidence(toolEvidence, hypotheses);
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("contractVersion", "interpretation_evidence_iteration_v1");
+        snapshot.put("iteration", iteration);
+        snapshot.put("status", result == null ? "missing" : result.status());
+        snapshot.put("executionSuccess", result != null && result.success());
+        snapshot.put("sufficient", sufficient);
+        snapshot.put("conclusion", firstNonBlank(
+            stringValue(firstObject(analysis, "conclusion", "summary", "analysis")),
+            result == null ? "No execution result was produced." : firstNonBlank(result.errorMessage(),
+                result.success() ? "The round returned usable evidence." : "The round did not return sufficient evidence.")
+        ));
+        snapshot.put("evidenceUsed", evidenceAnalysisValue(analysis,
+            "evidence_used", "evidenceUsed", "basis", "based_on"));
+        snapshot.put("missingEvidence", evidenceAnalysisValue(analysis,
+            "missing_evidence", "missingEvidence", "missing", "gaps"));
+        snapshot.put("conflicts", evidenceAnalysisValue(analysis,
+            "conflicts", "contradictions", "uncertainty"));
+        snapshot.put("hypotheses", hypotheses);
+        snapshot.put("evidenceGraph", evidenceGraph);
+        snapshot.put("confidence", confidence);
+        snapshot.put("confidenceType", evidenceConfidenceType(toolEvidence, hypotheses));
+        snapshot.put("remainingMissing", missingEvidence);
+        snapshot.put("nextActions", evidenceAnalysisValue(analysis,
+            "next_actions", "nextActions", "next_queries", "nextQueries", "query_revisions", "queryRevisions"));
+        snapshot.put("toolEvidence", toolEvidence);
+        snapshot.put("createdAt", System.currentTimeMillis());
+
+        addCandidateList(metadataList(metadata, "interpretationPlanEvidenceHistory"), List.of(snapshot));
+        metadata.put("interpretationPlanEvidenceIterationCount", iteration);
+        metadata.put("interpretationPlanEvidenceSufficient", sufficient);
+        metadata.put("interpretationPlanEvidenceConfidence", confidence);
+        metadata.put("interpretationPlanRemainingMissing", missingEvidence);
+        metadata.put("interpretationPlanEvidenceGraph", evidenceGraph);
+        for (Map<String, Object> evidenceObject : toolEvidence) {
+            runResultAdapter.recordRuntimeObservation(
+                runtimeAttributes,
+                AGENT_RUN_ID_ATTRIBUTE,
+                "Captured " + firstNonBlank(stringValue(evidenceObject.get("evidenceId")), "MCP evidence") + ".",
+                "interpretation_plan_evidence_object",
+                metadataOf(
+                    "type", "evidence",
+                    "workflow", "interpretation_plan",
+                    "lifecyclePhase", "evidence_capture",
+                    "contractVersion", "evidence_object_v1",
+                    "iteration", iteration,
+                    "evidenceId", evidenceObject.get("evidenceId"),
+                    "evidenceObject", evidenceObject
+                )
+            );
+        }
+        runResultAdapter.recordRuntimeObservation(
+            runtimeAttributes,
+            AGENT_RUN_ID_ATTRIBUTE,
+            "Evidence iteration " + iteration + " analyzed: "
+                + firstNonBlank(stringValue(snapshot.get("conclusion")), "no conclusion"),
+            "interpretation_plan_evidence",
+            metadataOf(
+                "type", "evidence",
+                "workflow", "interpretation_plan",
+                "lifecyclePhase", "evidence_analysis",
+                "contractVersion", "interpretation_evidence_iteration_v1",
+                "iteration", iteration,
+                "sufficient", sufficient,
+                "confidence", confidence,
+                "evidenceSnapshot", snapshot
+            )
+        );
+        if (!hypotheses.isEmpty()) {
+            runResultAdapter.recordRuntimeObservation(
+                runtimeAttributes,
+                AGENT_RUN_ID_ATTRIBUTE,
+                "Hypothesis state updated for evidence iteration " + iteration + ".",
+                "interpretation_plan_hypothesis",
+                metadataOf(
+                    "type", "hypothesis",
+                    "workflow", "interpretation_plan",
+                    "lifecyclePhase", "hypothesis_evaluation",
+                    "contractVersion", "interpretation_hypothesis_state_v1",
+                    "iteration", iteration,
+                    "hypotheses", hypotheses
+                )
+            );
+        }
+        if (collectionSize(evidenceGraph.get("relations")) > 0
+            || collectionSize(evidenceGraph.get("rejectedRelations")) > 0) {
+            runResultAdapter.recordRuntimeObservation(
+                runtimeAttributes,
+                AGENT_RUN_ID_ATTRIBUTE,
+                "Evidence graph updated for evidence iteration " + iteration + ".",
+                "interpretation_plan_evidence_graph",
+                metadataOf(
+                    "type", "evidence_graph",
+                    "workflow", "interpretation_plan",
+                    "lifecyclePhase", "evidence_relationship",
+                    "contractVersion", "evidence_graph_v1",
+                    "iteration", iteration,
+                    "evidenceGraph", evidenceGraph
+                )
+            );
+        }
+        return snapshot;
+    }
+
+    private void addEvidenceAnalysisItems(List<Object> target, Object value) {
+        if (target == null || value == null) {
+            return;
+        }
+        if (value instanceof Iterable<?> values) {
+            for (Object item : values) {
+                if (item != null && !String.valueOf(item).isBlank()) {
+                    target.add(item);
+                }
+            }
+            return;
+        }
+        if (!String.valueOf(value).isBlank()) {
+            target.add(value);
+        }
+    }
+
+    private List<Map<String, Object>> interpretationToolEvidence(
+        InterpretationPlan plan,
+        InterpretationPlanRuntime.ExecutionResult result,
+        int iteration
+    ) {
+        if (result == null || result.steps() == null || result.steps().isEmpty()) {
+            return List.of();
+        }
+        Map<Integer, InterpretationPlan.Step> plannedSteps = new LinkedHashMap<>();
+        if (plan != null && plan.steps() != null) {
+            for (InterpretationPlan.Step step : plan.steps()) {
+                if (step != null && step.id() != null) {
+                    plannedSteps.put(step.id(), step);
+                }
+            }
+        }
+        List<Map<String, Object>> evidence = new ArrayList<>();
+        for (InterpretationPlanRuntime.StepExecution step : result.steps()) {
+            if (step == null || step.stepId() == null || "final_answer".equals(step.actionType())) {
+                continue;
+            }
+            String evidenceId = "iteration:" + iteration + ":step:" + step.stepId()
+                + ":tool:" + firstNonBlank(step.toolName(), step.actionType());
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("contractVersion", "evidence_object_v1");
+            item.put("evidenceId", evidenceId);
+            item.put("iteration", iteration);
+            item.put("stepId", step.stepId());
+            item.put("tool", firstNonBlank(step.toolName(), step.actionType()));
+            InterpretationPlan.Step plannedStep = plannedSteps.get(step.stepId());
+            item.put("input", plannedStep == null || plannedStep.input() == null ? Map.of() : plannedStep.input());
+            item.put("success", step.success());
+            item.put("reviewSatisfied", step.metadata() == null ? null
+                : step.metadata().get("toolResultReviewSatisfied"));
+            item.put("reviewReason", step.metadata() == null ? null
+                : step.metadata().get("toolResultReviewReason"));
+            item.put("iterationSufficient", step.metadata() == null ? null
+                : step.metadata().get("evidenceIterationSufficient"));
+            item.put("evidenceBasis", step.metadata() == null ? List.of()
+                : step.metadata().getOrDefault("evidenceBasis", List.of()));
+            item.put("missingEvidence", step.metadata() == null ? List.of()
+                : step.metadata().getOrDefault("missingEvidence", List.of()));
+            item.put("conflicts", step.metadata() == null ? List.of()
+                : step.metadata().getOrDefault("evidenceConflicts", List.of()));
+            item.put("nextActions", step.metadata() == null ? List.of()
+                : step.metadata().getOrDefault("nextActions", List.of()));
+            item.put("hypotheses", step.metadata() == null ? List.of()
+                : step.metadata().getOrDefault("hypotheses", List.of()));
+            if (step.errorMessage() != null && !step.errorMessage().isBlank()) {
+                item.put("error", step.errorMessage());
+            }
+            item.put("output", step.output());
+            item.put("outputFacts", structuredOutputFacts(step.output()));
+            item.put("outputPreview", shortObservationText(stringify(step.output()), 6000));
+            Map<String, Object> evidenceMetadata = new LinkedHashMap<>();
+            evidenceMetadata.put("timestamp", System.currentTimeMillis());
+            evidenceMetadata.put("source", evidenceSource(step));
+            evidenceMetadata.put("confidence", step.metadata() == null
+                ? null
+                : step.metadata().get("toolResultReviewConfidence"));
+            evidenceMetadata.put("success", step.success());
+            evidenceMetadata.put("durationMs", step.durationMs());
+            evidenceMetadata.put("reviewSatisfied", item.get("reviewSatisfied"));
+            evidenceMetadata.put("reviewReason", item.get("reviewReason"));
+            item.put("metadata", evidenceMetadata);
+            item.put("evidenceQuality", evidenceQuality(step, item, evidenceMetadata));
+            item.put("rawResultStored", true);
+            evidence.add(item);
+        }
+        return List.copyOf(evidence);
+    }
+
+    private Map<String, Object> evidenceQuality(
+        InterpretationPlanRuntime.StepExecution step,
+        Map<String, Object> evidence,
+        Map<String, Object> evidenceMetadata
+    ) {
+        Map<String, Object> output = asMap(step == null ? null : step.output());
+        Object explicitReliability = firstObject(output,
+            "sourceReliability", "source_reliability", "reliability");
+        Object explicitFreshness = firstObject(output,
+            "freshness", "freshnessScore", "freshness_score");
+        Double sourceReliabilityScore = explicitQualityScore(explicitReliability);
+        Double freshnessScore = explicitQualityScore(explicitFreshness);
+        int missingCount = collectionSize(evidence == null ? null : evidence.get("missingEvidence"));
+        int conflictCount = collectionSize(evidence == null ? null : evidence.get("conflicts"));
+        boolean hasOutput = step != null && step.output() != null
+            && !stringify(step.output()).isBlank()
+            && !"{}".equals(stringify(step.output()))
+            && !"[]".equals(stringify(step.output()));
+        double completeness = step != null && step.success() && hasOutput
+            ? clampScore(1.0 / (1.0 + (missingCount * 0.35)))
+            : 0.0;
+        double consistency = clampScore(1.0 / (1.0 + conflictCount));
+        Map<String, Object> quality = new LinkedHashMap<>();
+        quality.put("contractVersion", "evidence_quality_v1");
+        quality.put("sourceReliability", sourceReliabilityScore == null
+            ? unknownQualityMetric("Source reliability metadata is unavailable.")
+            : assessedQualityMetric(sourceReliabilityScore, "COMPUTED",
+                "Derived from explicit source reliability metadata returned by the tool."));
+        quality.put("freshness", freshnessScore == null
+            ? unknownQualityMetric("Freshness metadata is unavailable.")
+            : assessedQualityMetric(freshnessScore, "COMPUTED",
+                "Derived from explicit freshness metadata returned by the tool."));
+        quality.put("completeness", assessedQualityMetric(
+            completeness,
+            "COMPUTED",
+            hasOutput
+                ? "Computed from execution success, returned output, and declared evidence gaps."
+                : "No usable output was returned."
+        ));
+        quality.put("consistency", assessedQualityMetric(
+            consistency,
+            "COMPUTED",
+            conflictCount == 0
+                ? "No evidence conflict was declared for this result."
+                : "Reduced by declared evidence conflicts."
+        ));
+        Object rawModelConfidence = evidenceMetadata.get("confidence");
+        Double modelConfidenceScore = explicitQualityScore(rawModelConfidence);
+        quality.put("modelConfidence", modelConfidenceScore == null
+            ? unknownQualityMetric("The model did not provide a confidence estimate.", "MODEL_ESTIMATED")
+            : assessedQualityMetric(modelConfidenceScore, "MODEL_ESTIMATED",
+                "Model-estimated confidence; excluded from evidence quality dimensions."));
+        quality.put("aggregatePolicy", "NO_PERSISTED_TOTAL_SCORE");
+        quality.put("method", "runtime_structural_quality_v1");
+        quality.put("signals", metadataOf(
+            "explicitSourceReliability", sourceReliabilityScore != null,
+            "explicitFreshness", freshnessScore != null,
+            "missingEvidenceCount", missingCount,
+            "conflictCount", conflictCount,
+            "hasOutput", hasOutput
+        ));
+        return quality;
+    }
+
+    private Double explicitQualityScore(Object value) {
+        Object candidate = value;
+        if (value instanceof Map<?, ?> raw) {
+            Map<String, Object> metric = asStringObjectMap(raw);
+            if ("UNKNOWN".equalsIgnoreCase(stringValue(metric.get("status")))) {
+                return null;
+            }
+            candidate = metric.get("value");
+        }
+        if (candidate instanceof Number number) {
+            return clampScore(number.doubleValue());
+        }
+        if (candidate == null || String.valueOf(candidate).isBlank()) {
+            return null;
+        }
+        try {
+            return clampScore(Double.parseDouble(String.valueOf(candidate).trim()));
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private Map<String, Object> assessedQualityMetric(double value, String type, String reason) {
+        Map<String, Object> metric = new LinkedHashMap<>();
+        metric.put("value", clampScore(value));
+        metric.put("status", "ASSESSED");
+        metric.put("type", firstNonBlank(type, "COMPUTED"));
+        metric.put("reason", firstNonBlank(reason, "Quality dimension was assessed."));
+        return metric;
+    }
+
+    private Map<String, Object> unknownQualityMetric(String reason) {
+        return unknownQualityMetric(reason, "NOT_ASSESSED");
+    }
+
+    private Map<String, Object> unknownQualityMetric(String reason, String type) {
+        Map<String, Object> metric = new LinkedHashMap<>();
+        metric.put("value", null);
+        metric.put("status", "UNKNOWN");
+        metric.put("type", firstNonBlank(type, "NOT_ASSESSED"));
+        metric.put("reason", firstNonBlank(reason, "Quality dimension cannot be assessed."));
+        return metric;
+    }
+
+    private int collectionSize(Object value) {
+        if (value instanceof Collection<?> collection) {
+            return collection.size();
+        }
+        if (value instanceof Map<?, ?> map) {
+            return map.size();
+        }
+        return value == null || String.valueOf(value).isBlank() ? 0 : 1;
+    }
+
+    private String evidenceSource(InterpretationPlanRuntime.StepExecution step) {
+        Map<String, Object> output = asMap(step == null ? null : step.output());
+        return firstNonBlank(
+            stringValue(firstObject(output, "source", "provider", "index", "indexName", "dataset")),
+            step == null ? null : firstNonBlank(step.toolName(), step.actionType())
+        );
+    }
+
+    private List<Map<String, Object>> normalizeHypotheses(Object raw, String currentEvidenceId) {
+        List<?> values;
+        if (raw instanceof List<?> list) {
+            values = list;
+        } else if (raw instanceof Map<?, ?> map) {
+            values = List.of(map);
+        } else {
+            return List.of();
+        }
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Object value : values) {
+            if (!(value instanceof Map<?, ?> map)) {
+                continue;
+            }
+            Map<String, Object> source = asStringObjectMap(map);
+            String statement = stringValue(firstObject(source, "statement", "hypothesis", "description"));
+            if (statement == null || statement.isBlank()) {
+                continue;
+            }
+            String status = normalizedHypothesisStatus(stringValue(firstObject(source, "status", "state")));
+            String hypothesisId = firstNonBlank(
+                stringValue(firstObject(source, "hypothesis_id", "hypothesisId", "id")),
+                stableHypothesisId(statement)
+            );
+            List<String> support = new ArrayList<>(stringList(firstObject(source,
+                "support_evidence_ids", "supportEvidenceIds", "support")));
+            List<String> contradict = new ArrayList<>(stringList(firstObject(source,
+                "contradict_evidence_ids", "contradictEvidenceIds", "contradict")));
+            if (currentEvidenceId != null && !currentEvidenceId.isBlank()) {
+                if ("SUPPORTED".equals(status) && !support.contains(currentEvidenceId)) {
+                    support.add(currentEvidenceId);
+                } else if ("CONTRADICTED".equals(status) && !contradict.contains(currentEvidenceId)) {
+                    contradict.add(currentEvidenceId);
+                }
+            }
+            Map<String, Object> hypothesis = new LinkedHashMap<>();
+            hypothesis.put("hypothesisId", hypothesisId);
+            hypothesis.put("contractVersion", "hypothesis_tree_v1");
+            String parentId = stringValue(firstObject(source,
+                "parent_hypothesis_id", "parentHypothesisId", "parentId"));
+            hypothesis.put("parentHypothesisId",
+                parentId == null || parentId.isBlank() || hypothesisId.equals(parentId) ? null : parentId);
+            hypothesis.put("childHypothesisIds", stringList(firstObject(source,
+                "child_hypothesis_ids", "childHypothesisIds", "children")));
+            hypothesis.put("statement", statement.trim());
+            hypothesis.put("supportEvidenceIds", List.copyOf(support));
+            hypothesis.put("contradictEvidenceIds", List.copyOf(contradict));
+            hypothesis.put("confidence", scoreValue(firstObject(source, "confidence", "score")));
+            hypothesis.put("status", status);
+            result.add(hypothesis);
+        }
+        return List.copyOf(result);
+    }
+
+    private List<Map<String, Object>> mergeHypotheses(
+        List<Map<String, Object>> previousEvidence,
+        List<Map<String, Object>> currentHypotheses
+    ) {
+        LinkedHashMap<String, Map<String, Object>> merged = new LinkedHashMap<>();
+        if (previousEvidence != null) {
+            for (Map<String, Object> snapshot : previousEvidence) {
+                Object raw = snapshot == null ? null : snapshot.get("hypotheses");
+                for (Map<String, Object> hypothesis : normalizeHypotheses(raw, null)) {
+                    mergeHypothesis(merged, hypothesis);
+                }
+            }
+        }
+        if (currentHypotheses != null) {
+            currentHypotheses.forEach(hypothesis -> mergeHypothesis(merged, hypothesis));
+        }
+        rebuildHypothesisTree(merged);
+        return List.copyOf(merged.values());
+    }
+
+    private void mergeHypothesis(
+        Map<String, Map<String, Object>> target,
+        Map<String, Object> incoming
+    ) {
+        String id = stringValue(incoming == null ? null : incoming.get("hypothesisId"));
+        if (id == null || id.isBlank()) {
+            return;
+        }
+        Map<String, Object> existing = target.get(id);
+        if (existing == null) {
+            target.put(id, new LinkedHashMap<>(incoming));
+            return;
+        }
+        LinkedHashSet<String> support = new LinkedHashSet<>(stringList(existing.get("supportEvidenceIds")));
+        support.addAll(stringList(incoming.get("supportEvidenceIds")));
+        LinkedHashSet<String> contradict = new LinkedHashSet<>(stringList(existing.get("contradictEvidenceIds")));
+        contradict.addAll(stringList(incoming.get("contradictEvidenceIds")));
+        existing.put("statement", firstNonBlank(
+            stringValue(incoming.get("statement")),
+            stringValue(existing.get("statement"))
+        ));
+        Object incomingParent = incoming.get("parentHypothesisId");
+        if (incomingParent != null && !String.valueOf(incomingParent).isBlank() && !id.equals(String.valueOf(incomingParent))) {
+            existing.put("parentHypothesisId", incomingParent);
+        }
+        existing.put("supportEvidenceIds", List.copyOf(support));
+        existing.put("contradictEvidenceIds", List.copyOf(contradict));
+        existing.put("confidence", incoming.getOrDefault("confidence", existing.getOrDefault("confidence", 0.0)));
+        existing.put("status", incoming.getOrDefault("status", existing.getOrDefault("status", "UNRESOLVED")));
+    }
+
+    private void rebuildHypothesisTree(Map<String, Map<String, Object>> hypotheses) {
+        if (hypotheses == null || hypotheses.isEmpty()) {
+            return;
+        }
+        hypotheses.values().forEach(item -> {
+            item.put("contractVersion", "hypothesis_tree_v1");
+            item.put("childHypothesisIds", new ArrayList<String>());
+        });
+        for (Map.Entry<String, Map<String, Object>> entry : hypotheses.entrySet()) {
+            String id = entry.getKey();
+            Map<String, Object> item = entry.getValue();
+            String parentId = stringValue(item.get("parentHypothesisId"));
+            if (parentId == null || parentId.isBlank() || id.equals(parentId) || !hypotheses.containsKey(parentId)) {
+                item.put("parentHypothesisId", null);
+                continue;
+            }
+            @SuppressWarnings("unchecked")
+            List<String> children = (List<String>) hypotheses.get(parentId).get("childHypothesisIds");
+            if (!children.contains(id)) {
+                children.add(id);
+            }
+        }
+        hypotheses.forEach((id, item) -> {
+            item.put("childHypothesisIds", List.copyOf(stringList(item.get("childHypothesisIds"))));
+            item.put("level", hypothesisLevel(id, hypotheses));
+        });
+        hypotheses.forEach((id, item) -> {
+            List<String> children = stringList(item.get("childHypothesisIds"));
+            if (children.isEmpty()) {
+                item.put("aggregateStatus", item.getOrDefault("status", "UNRESOLVED"));
+                item.put("childStatusCounts", Map.of());
+                return;
+            }
+            Map<String, Long> counts = children.stream()
+                .map(hypotheses::get)
+                .filter(Objects::nonNull)
+                .map(child -> normalizedHypothesisStatus(stringValue(child.get("status"))))
+                .collect(java.util.stream.Collectors.groupingBy(
+                    status -> status,
+                    LinkedHashMap::new,
+                    java.util.stream.Collectors.counting()
+                ));
+            String aggregateStatus;
+            if (counts.getOrDefault("UNRESOLVED", 0L) > 0) {
+                aggregateStatus = "UNRESOLVED";
+            } else if (counts.getOrDefault("SUPPORTED", 0L) > 0) {
+                aggregateStatus = "SUPPORTED";
+            } else {
+                aggregateStatus = "CONTRADICTED";
+            }
+            item.put("aggregateStatus", aggregateStatus);
+            item.put("childStatusCounts", counts);
+        });
+    }
+
+    private int hypothesisLevel(String hypothesisId, Map<String, Map<String, Object>> hypotheses) {
+        int level = 0;
+        String current = hypothesisId;
+        Set<String> visited = new LinkedHashSet<>();
+        boolean cycle = false;
+        while (current != null && hypotheses.containsKey(current) && level < 20) {
+            if (!visited.add(current)) {
+                cycle = true;
+                break;
+            }
+            String parent = stringValue(hypotheses.get(current).get("parentHypothesisId"));
+            if (parent == null || parent.isBlank() || !hypotheses.containsKey(parent)) {
+                break;
+            }
+            level++;
+            current = parent;
+        }
+        if (cycle || level >= 20) {
+            Map<String, Object> cyclic = hypotheses.get(hypothesisId);
+            if (cyclic != null) {
+                cyclic.put("parentHypothesisId", null);
+            }
+            return 0;
+        }
+        return level;
+    }
+
+    private String normalizedHypothesisStatus(String value) {
+        String normalized = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
+        return Set.of("SUPPORTED", "CONTRADICTED", "UNRESOLVED").contains(normalized)
+            ? normalized
+            : "UNRESOLVED";
+    }
+
+    private String stableHypothesisId(String statement) {
+        String normalized = statement == null ? "" : statement.trim().toLowerCase(Locale.ROOT)
+            .replaceAll("\\s+", " ");
+        return "H-" + Integer.toUnsignedString(normalized.hashCode(), 16).toUpperCase(Locale.ROOT);
+    }
+
+    private Map<String, Object> buildEvidenceGraph(
+        int iteration,
+        List<Map<String, Object>> previousEvidence,
+        List<Map<String, Object>> currentEvidence,
+        List<Map<String, Object>> hypotheses
+    ) {
+        LinkedHashMap<String, Map<String, Object>> nodes = new LinkedHashMap<>();
+        if (previousEvidence != null) {
+            for (Map<String, Object> snapshot : previousEvidence) {
+                collectEvidenceGraphNodes(nodes, snapshot == null ? null : snapshot.get("toolEvidence"));
+            }
+        }
+        collectEvidenceGraphNodes(nodes, currentEvidence);
+        if (hypotheses != null) {
+            for (Map<String, Object> hypothesis : hypotheses) {
+                String hypothesisId = stringValue(hypothesis == null ? null : hypothesis.get("hypothesisId"));
+                if (hypothesisId == null || hypothesisId.isBlank()) {
+                    continue;
+                }
+                Map<String, Object> node = new LinkedHashMap<>();
+                node.put("nodeId", hypothesisId);
+                node.put("nodeType", "HYPOTHESIS");
+                node.put("refId", hypothesisId);
+                node.put("status", hypothesis.getOrDefault("status", "UNRESOLVED"));
+                node.put("statement", hypothesis.get("statement"));
+                nodes.put(hypothesisId, node);
+            }
+        }
+
+        LinkedHashMap<String, Map<String, Object>> relations = new LinkedHashMap<>();
+        List<Map<String, Object>> rejectedRelations = new ArrayList<>();
+        if (hypotheses != null) {
+            for (Map<String, Object> hypothesis : hypotheses) {
+                String hypothesisId = stringValue(hypothesis == null ? null : hypothesis.get("hypothesisId"));
+                if (hypothesisId == null || hypothesisId.isBlank()) {
+                    continue;
+                }
+                addEvidenceGraphRelations(
+                    relations,
+                    rejectedRelations,
+                    nodes,
+                    stringList(hypothesis.get("supportEvidenceIds")),
+                    hypothesisId,
+                    "SUPPORTS",
+                    iteration
+                );
+                addEvidenceGraphRelations(
+                    relations,
+                    rejectedRelations,
+                    nodes,
+                    stringList(hypothesis.get("contradictEvidenceIds")),
+                    hypothesisId,
+                    "CONTRADICTS",
+                    iteration
+                );
+                String parentId = stringValue(hypothesis.get("parentHypothesisId"));
+                if (parentId != null && !parentId.isBlank() && nodes.containsKey(parentId)) {
+                    Map<String, Object> relation = evidenceGraphRelation(
+                        parentId,
+                        hypothesisId,
+                        "DECOMPOSES_TO",
+                        iteration
+                    );
+                    relations.put(stringValue(relation.get("relationId")), relation);
+                }
+            }
+        }
+
+        Map<String, Object> graph = new LinkedHashMap<>();
+        graph.put("contractVersion", "evidence_graph_v1");
+        graph.put("graphId", "evidence-graph:iteration:" + iteration);
+        graph.put("iteration", iteration);
+        graph.put("nodes", List.copyOf(nodes.values()));
+        graph.put("relations", List.copyOf(relations.values()));
+        graph.put("rejectedRelations", List.copyOf(rejectedRelations));
+        graph.put("createdAt", System.currentTimeMillis());
+        return graph;
+    }
+
+    private void collectEvidenceGraphNodes(
+        Map<String, Map<String, Object>> nodes,
+        Object rawEvidence
+    ) {
+        if (nodes == null || !(rawEvidence instanceof Iterable<?> evidenceObjects)) {
+            return;
+        }
+        for (Object value : evidenceObjects) {
+            if (!(value instanceof Map<?, ?> raw)) {
+                continue;
+            }
+            Map<String, Object> evidence = asStringObjectMap(raw);
+            String evidenceId = stringValue(evidence.get("evidenceId"));
+            if (evidenceId == null || evidenceId.isBlank()) {
+                continue;
+            }
+            Map<String, Object> node = new LinkedHashMap<>();
+            node.put("nodeId", evidenceId);
+            node.put("nodeType", "EVIDENCE");
+            node.put("refId", evidenceId);
+            node.put("tool", evidence.get("tool"));
+            node.put("iteration", evidence.get("iteration"));
+            node.put("success", evidence.get("success"));
+            nodes.put(evidenceId, node);
+        }
+    }
+
+    private void addEvidenceGraphRelations(
+        Map<String, Map<String, Object>> relations,
+        List<Map<String, Object>> rejectedRelations,
+        Map<String, Map<String, Object>> nodes,
+        List<String> evidenceIds,
+        String hypothesisId,
+        String relationType,
+        int iteration
+    ) {
+        for (String evidenceId : evidenceIds) {
+            if (evidenceId == null || evidenceId.isBlank()) {
+                continue;
+            }
+            if (!nodes.containsKey(evidenceId)) {
+                rejectedRelations.add(metadataOf(
+                    "from", evidenceId,
+                    "to", hypothesisId,
+                    "relationType", relationType,
+                    "reason", "UNKNOWN_EVIDENCE_REFERENCE"
+                ));
+                continue;
+            }
+            Map<String, Object> relation = evidenceGraphRelation(
+                evidenceId,
+                hypothesisId,
+                relationType,
+                iteration
+            );
+            relations.put(stringValue(relation.get("relationId")), relation);
+        }
+    }
+
+    private Map<String, Object> evidenceGraphRelation(
+        String from,
+        String to,
+        String relationType,
+        int iteration
+    ) {
+        String relationKey = from + "|" + relationType + "|" + to;
+        Map<String, Object> relation = new LinkedHashMap<>();
+        relation.put("relationId", "R-"
+            + Integer.toUnsignedString(relationKey.hashCode(), 16).toUpperCase(Locale.ROOT));
+        relation.put("relationType", relationType);
+        relation.put("from", from);
+        relation.put("to", to);
+        relation.put("iteration", iteration);
+        relation.put("status", "ACTIVE");
+        return relation;
+    }
+
+    private double evidenceConfidence(
+        List<Map<String, Object>> toolEvidence,
+        List<Map<String, Object>> hypotheses
+    ) {
+        List<Double> scores = new ArrayList<>();
+        if (hypotheses != null) {
+            hypotheses.stream()
+                .map(item -> scoreValue(item.get("confidence")))
+                .filter(score -> score > 0.0)
+                .forEach(scores::add);
+        }
+        if (scores.isEmpty() && toolEvidence != null) {
+            for (Map<String, Object> evidence : toolEvidence) {
+                Map<String, Object> quality = asMap(evidence.get("evidenceQuality"));
+                for (String dimension : List.of(
+                    "sourceReliability", "freshness", "completeness", "consistency"
+                )) {
+                    Double score = assessedQualityMetricValue(quality.get(dimension));
+                    if (score != null) {
+                        scores.add(score);
+                    }
+                }
+            }
+        }
+        if (scores.isEmpty()) {
+            return 0.0;
+        }
+        return clampScore(scores.stream().mapToDouble(Double::doubleValue).average().orElse(0.0));
+    }
+
+    private String evidenceConfidenceType(
+        List<Map<String, Object>> toolEvidence,
+        List<Map<String, Object>> hypotheses
+    ) {
+        if (hypotheses != null && hypotheses.stream()
+            .map(item -> scoreValue(item.get("confidence")))
+            .anyMatch(score -> score > 0.0)) {
+            return "MODEL_ESTIMATED";
+        }
+        if (toolEvidence != null) {
+            for (Map<String, Object> evidence : toolEvidence) {
+                Map<String, Object> quality = asMap(evidence.get("evidenceQuality"));
+                for (String dimension : List.of(
+                    "sourceReliability", "freshness", "completeness", "consistency"
+                )) {
+                    if (assessedQualityMetricValue(quality.get(dimension)) != null) {
+                        return "EVIDENCE_QUALITY_DERIVED";
+                    }
+                }
+            }
+        }
+        return "UNKNOWN";
+    }
+
+    private Double assessedQualityMetricValue(Object rawMetric) {
+        if (!(rawMetric instanceof Map<?, ?> raw)) {
+            return null;
+        }
+        Map<String, Object> metric = asStringObjectMap(raw);
+        if (!"ASSESSED".equalsIgnoreCase(stringValue(metric.get("status")))
+            || metric.get("value") == null) {
+            return null;
+        }
+        return scoreValue(metric.get("value"));
+    }
+
+    private Object evidenceAnalysisValue(Map<String, Object> analysis, String... keys) {
+        Object value = firstObject(analysis, keys);
+        return value == null ? List.of() : value;
+    }
+
+    private boolean evidenceSufficient(Map<String, Object> snapshot) {
+        return snapshot != null && booleanValue(snapshot.get("sufficient"));
+    }
+
+    private void recordEvidenceStopState(
+        Map<String, Object> metadata,
+        Map<String, Object> snapshot,
+        String stopReason,
+        int iterations
+    ) {
+        if (metadata == null) {
+            return;
+        }
+        Object remainingMissing = snapshot == null
+            ? List.of()
+            : snapshot.getOrDefault("remainingMissing", snapshot.getOrDefault("missingEvidence", List.of()));
+        metadata.put("stopReason", stopReason);
+        metadata.put("evidenceConfidence", snapshot == null ? 0.0 : scoreValue(snapshot.get("confidence")));
+        metadata.put("remainingMissing", remainingMissing);
+        metadata.put("evidenceIterations", Math.max(0, iterations));
+        metadata.put("evidenceStopState", metadataOf(
+            "contractVersion", "agent_evidence_stop_v1",
+            "stopReason", stopReason,
+            "confidence", metadata.get("evidenceConfidence"),
+            "remainingMissing", remainingMissing,
+            "iterations", Math.max(0, iterations)
+        ));
+    }
+
+    private String evidenceRewriteReason(
+        InterpretationPlanRuntime.ExecutionResult result,
+        List<Map<String, Object>> evidenceHistory
+    ) {
+        Map<String, Object> latest = evidenceHistory == null || evidenceHistory.isEmpty()
+            ? Map.of()
+            : evidenceHistory.get(evidenceHistory.size() - 1);
+        return "EVIDENCE_REFINEMENT_REQUIRED: conclusion="
+            + firstNonBlank(stringValue(latest.get("conclusion")), "none")
+            + "; missingEvidence=" + latest.getOrDefault("missingEvidence", List.of())
+            + "; conflicts=" + latest.getOrDefault("conflicts", List.of())
+            + "; previousExecutionError="
+            + firstNonBlank(result == null ? null : result.errorMessage(), "none");
+    }
+
+    private List<InterpretationPlanRewriter.RequiredToolExecution> evidenceRefinementRequiredTools(
+        List<Map<String, Object>> evidenceHistory,
+        List<String> availableTools
+    ) {
+        if (evidenceHistory == null || evidenceHistory.isEmpty()
+            || evidenceSufficient(evidenceHistory.get(evidenceHistory.size() - 1))) {
+            return List.of();
+        }
+        Object nextActions = evidenceHistory.get(evidenceHistory.size() - 1).get("nextActions");
+        if (!(nextActions instanceof Iterable<?> actions)) {
+            return List.of();
+        }
+        List<InterpretationPlanRewriter.RequiredToolExecution> required = new ArrayList<>();
+        for (Object action : actions) {
+            if (!(action instanceof Map<?, ?> actionMap)) {
+                continue;
+            }
+            String requestedTool = stringValue(firstObject(asStringObjectMap(actionMap),
+                "tool", "toolName", "tool_name"));
+            String availableTool = matchingAvailableTool(requestedTool, availableTools);
+            if (availableTool == null) {
+                continue;
+            }
+            boolean alreadyAdded = required.stream().anyMatch(item -> toolNames.sameToolName(
+                item.toolName(), availableTool));
+            if (!alreadyAdded) {
+                required.add(new InterpretationPlanRewriter.RequiredToolExecution(
+                    availableTool, "EVIDENCE_REFINEMENT", true
+                ));
+            }
+        }
+        return List.copyOf(required);
+    }
+
+    private Map<String, Object> asStringObjectMap(Map<?, ?> source) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        if (source != null) {
+            source.forEach((key, value) -> {
+                if (key != null) {
+                    values.put(String.valueOf(key), value);
+                }
+            });
+        }
+        return values;
+    }
+
+    private String matchingAvailableTool(String requestedTool, List<String> availableTools) {
+        if (requestedTool == null || requestedTool.isBlank() || availableTools == null) {
+            return null;
+        }
+        for (String availableTool : availableTools) {
+            if (toolNames.sameToolName(requestedTool, availableTool)) {
+                return availableTool;
+            }
+        }
+        return null;
+    }
+
+    private void recordPlanEvolution(
+        InterpretationPlan previousPlan,
+        InterpretationPlan nextPlan,
+        int iteration,
+        String status,
+        List<Map<String, Object>> evidenceHistory,
+        Map<String, Object> runtimeAttributes,
+        Map<String, Object> metadata
+    ) {
+        if (nextPlan == null) {
+            return;
+        }
+        Map<String, Object> trigger = evidenceHistory == null || evidenceHistory.isEmpty()
+            ? Map.of()
+            : evidenceHistory.get(evidenceHistory.size() - 1);
+        List<Map<String, Object>> changes = planChanges(previousPlan, nextPlan);
+        Map<String, Object> evolution = new LinkedHashMap<>();
+        evolution.put("contractVersion", "plan_evolution_v1");
+        evolution.put("evolutionId", firstNonBlank(
+            stringValue(runtimeAttributes == null ? null : runtimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE)),
+            "agent-run"
+        ) + ":plan-evolution:" + iteration);
+        evolution.put("fromIteration", Math.max(1, iteration - 1));
+        evolution.put("toIteration", iteration);
+        evolution.put("status", firstNonBlank(status, "UNKNOWN"));
+        evolution.put("trigger", metadataOf(
+            "conclusion", trigger.get("conclusion"),
+            "missingEvidence", trigger.getOrDefault("missingEvidence", List.of()),
+            "conflicts", trigger.getOrDefault("conflicts", List.of()),
+            "nextActions", trigger.getOrDefault("nextActions", List.of()),
+            "evidenceIds", evidenceIdsFromSnapshot(trigger),
+            "hypothesisIds", hypothesisIdsFromSnapshot(trigger),
+            "evidenceRelationIds", evidenceRelationIdsFromSnapshot(trigger)
+        ));
+        evolution.put("changes", changes);
+        evolution.put("changed", !changes.isEmpty());
+        evolution.put("previousPlan", previousPlan);
+        evolution.put("nextPlan", nextPlan);
+        evolution.put("createdAt", System.currentTimeMillis());
+        addCandidateList(metadataList(metadata, "interpretationPlanEvolutionHistory"), List.of(evolution));
+        runResultAdapter.recordRuntimeObservation(
+            runtimeAttributes,
+            AGENT_RUN_ID_ATTRIBUTE,
+            "Plan evolution " + Math.max(1, iteration - 1) + " -> " + iteration
+                + " recorded with " + changes.size() + " change(s).",
+            "interpretation_plan_evolution",
+            metadataOf(
+                "type", "plan",
+                "workflow", "interpretation_plan",
+                "lifecyclePhase", "plan_revision",
+                "contractVersion", "plan_evolution_v1",
+                "iteration", iteration,
+                "planEvolution", evolution
+            )
+        );
+    }
+
+    private List<Map<String, Object>> planChanges(InterpretationPlan previousPlan, InterpretationPlan nextPlan) {
+        Map<Integer, InterpretationPlan.Step> previous = planStepsById(previousPlan);
+        Map<Integer, InterpretationPlan.Step> next = planStepsById(nextPlan);
+        LinkedHashSet<Integer> stepIds = new LinkedHashSet<>(previous.keySet());
+        stepIds.addAll(next.keySet());
+        List<Map<String, Object>> changes = new ArrayList<>();
+        for (Integer stepId : stepIds) {
+            InterpretationPlan.Step before = previous.get(stepId);
+            InterpretationPlan.Step after = next.get(stepId);
+            if (before == null) {
+                changes.add(metadataOf("changeType", "STEP_ADDED", "stepId", stepId, "after", after));
+            } else if (after == null) {
+                changes.add(metadataOf("changeType", "STEP_REMOVED", "stepId", stepId, "before", before));
+            } else if (!Objects.equals(before, after)) {
+                List<String> fields = new ArrayList<>();
+                if (!Objects.equals(before.actionType(), after.actionType())) fields.add("actionType");
+                if (!Objects.equals(before.toolName(), after.toolName())) fields.add("toolName");
+                if (!Objects.equals(before.input(), after.input())) fields.add("input");
+                if (!Objects.equals(before.dependsOn(), after.dependsOn())) fields.add("dependsOn");
+                if (!Objects.equals(before.outputContract(), after.outputContract())) fields.add("outputContract");
+                if (!Objects.equals(before.validation(), after.validation())) fields.add("validation");
+                changes.add(metadataOf(
+                    "changeType", "STEP_MODIFIED",
+                    "stepId", stepId,
+                    "fields", fields,
+                    "before", before,
+                    "after", after
+                ));
+            }
+        }
+        if (previousPlan != null && !Objects.equals(previousPlan.executionPolicy(), nextPlan.executionPolicy())) {
+            changes.add(metadataOf(
+                "changeType", "EXECUTION_POLICY_MODIFIED",
+                "before", previousPlan.executionPolicy(),
+                "after", nextPlan.executionPolicy()
+            ));
+        }
+        if (previousPlan != null && !Objects.equals(previousPlan.intent(), nextPlan.intent())) {
+            changes.add(metadataOf(
+                "changeType", "INTENT_MODIFIED",
+                "before", previousPlan.intent(),
+                "after", nextPlan.intent()
+            ));
+        }
+        return List.copyOf(changes);
+    }
+
+    private Map<Integer, InterpretationPlan.Step> planStepsById(InterpretationPlan plan) {
+        Map<Integer, InterpretationPlan.Step> steps = new LinkedHashMap<>();
+        if (plan != null && plan.steps() != null) {
+            for (InterpretationPlan.Step step : plan.steps()) {
+                if (step != null && step.id() != null) {
+                    steps.put(step.id(), step);
+                }
+            }
+        }
+        return steps;
+    }
+
+    private List<String> evidenceIdsFromSnapshot(Map<String, Object> snapshot) {
+        if (snapshot == null || !(snapshot.get("toolEvidence") instanceof Iterable<?> evidence)) {
+            return List.of();
+        }
+        List<String> ids = new ArrayList<>();
+        for (Object item : evidence) {
+            if (item instanceof Map<?, ?> map) {
+                String id = stringValue(asStringObjectMap(map).get("evidenceId"));
+                if (id != null && !id.isBlank()) {
+                    ids.add(id);
+                }
+            }
+        }
+        return ids.stream().distinct().toList();
+    }
+
+    private List<String> hypothesisIdsFromSnapshot(Map<String, Object> snapshot) {
+        if (snapshot == null || !(snapshot.get("hypotheses") instanceof Iterable<?> hypotheses)) {
+            return List.of();
+        }
+        List<String> ids = new ArrayList<>();
+        for (Object item : hypotheses) {
+            if (item instanceof Map<?, ?> map) {
+                String id = stringValue(asStringObjectMap(map).get("hypothesisId"));
+                if (id != null && !id.isBlank()) {
+                    ids.add(id);
+                }
+            }
+        }
+        return ids.stream().distinct().toList();
+    }
+
+    private List<String> evidenceRelationIdsFromSnapshot(Map<String, Object> snapshot) {
+        if (snapshot == null) {
+            return List.of();
+        }
+        Map<String, Object> graph = asMap(snapshot.get("evidenceGraph"));
+        if (!(graph.get("relations") instanceof Iterable<?> relations)) {
+            return List.of();
+        }
+        List<String> ids = new ArrayList<>();
+        for (Object item : relations) {
+            if (item instanceof Map<?, ?> map) {
+                String id = stringValue(asStringObjectMap(map).get("relationId"));
+                if (id != null && !id.isBlank()) {
+                    ids.add(id);
+                }
+            }
+        }
+        return ids.stream().distinct().toList();
     }
 
     private String planAttemptRewriteSummary(

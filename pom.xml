@@ -16,7 +16,7 @@
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring-boot.version>3.5.3</spring-boot.version>
-        <langchain4j.version>1.14.1</langchain4j.version>
+        <langchain4j.version>1.18.0</langchain4j.version>
         <opensearch.client.version>2.12.0</opensearch.client.version>
         <webmagic.version>1.0.3</webmagic.version>
         <rocksdb.version>10.10.1.1</rocksdb.version>

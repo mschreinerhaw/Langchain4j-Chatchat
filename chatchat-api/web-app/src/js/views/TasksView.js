@@ -114,6 +114,8 @@ export default {
       planPanY: 0,
       planDragActive: false,
       planDragStart: null,
+      planDragMoved: false,
+      planControlsVisible: false,
       cancellingTaskIds: {},
       feedbackSubmitting: false,
       feedbackDraft: {
@@ -656,6 +658,7 @@ export default {
       this.resetRuntimePage("events");
       this.selectedPlanDag = null;
       this.selectedPlanVersions = [];
+      this.planControlsVisible = false;
       this.resetPlanDagView();
       await this.reloadEvents();
       if (this.activeTab === "plan") {
@@ -722,6 +725,7 @@ export default {
         this.selectedPlanVersions = Array.isArray(versions) ? versions : [];
         const latestVersion = this.selectedPlanVersions[this.selectedPlanVersions.length - 1];
         this.selectedPlanDag = dag || this.planPayloadFromRecord(latestVersion);
+        this.planControlsVisible = false;
         this.resetPlanDagView();
       } catch (error) {
         if (!silent) {
@@ -739,6 +743,7 @@ export default {
       const payload = this.planPayloadFromRecord(version);
       if (payload) {
         this.selectedPlanDag = payload;
+        this.planControlsVisible = false;
         this.resetPlanDagView();
       }
     },
@@ -765,6 +770,7 @@ export default {
       this.planPanY = 0;
       this.planDragActive = false;
       this.planDragStart = null;
+      this.planDragMoved = false;
     },
     handlePlanDagWheel(event) {
       if (!this.planNodes.length) {
@@ -784,6 +790,7 @@ export default {
       }
       event.currentTarget.setPointerCapture?.(event.pointerId);
       this.planDragActive = true;
+      this.planDragMoved = false;
       this.planDragStart = {
         clientX: event.clientX,
         clientY: event.clientY,
@@ -800,6 +807,12 @@ export default {
       const viewHeight = this.planDagSize.height / this.planZoom;
       const dx = ((event.clientX - this.planDragStart.clientX) / rect.width) * viewWidth;
       const dy = ((event.clientY - this.planDragStart.clientY) / rect.height) * viewHeight;
+      if (
+        Math.abs(event.clientX - this.planDragStart.clientX) > 3
+        || Math.abs(event.clientY - this.planDragStart.clientY) > 3
+      ) {
+        this.planDragMoved = true;
+      }
       this.planPanX = this.planDragStart.panX - dx;
       this.planPanY = this.planDragStart.panY - dy;
     },
@@ -809,6 +822,16 @@ export default {
       }
       this.planDragActive = false;
       this.planDragStart = null;
+    },
+    togglePlanDagControls(event) {
+      if (this.planDragMoved) {
+        this.planDragMoved = false;
+        return;
+      }
+      if (event.target !== event.currentTarget) {
+        return;
+      }
+      this.planControlsVisible = !this.planControlsVisible;
     },
     downloadPlanDagJson() {
       if (!this.selectedPlanDag) {

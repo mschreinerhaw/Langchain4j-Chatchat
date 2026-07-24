@@ -710,7 +710,7 @@
         </aside>
 
         <div class="plan-dag-canvas">
-          <div class="plan-dag-controls">
+          <div v-show="planControlsVisible" class="plan-dag-controls">
             <button type="button" @click="zoomPlanDag(0.8)">-</button>
             <span>{{ planZoomLabel }}</span>
             <button type="button" @click="zoomPlanDag(1.25)">+</button>
@@ -726,6 +726,7 @@
             preserveAspectRatio="xMinYMin meet"
             role="img"
             aria-label="解读计划图"
+            @click="togglePlanDagControls"
             @wheel="handlePlanDagWheel"
             @pointerdown="startPlanDagPan"
             @pointermove="movePlanDagPan"

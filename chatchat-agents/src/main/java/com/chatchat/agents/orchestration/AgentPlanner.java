@@ -225,6 +225,12 @@ class AgentPlanner {
         prompt.append("- Required dependency_contracts MUST also appear in the target step depends_on. Optional dependency_contracts MUST include condition or reason; do not add optional tools as depends_on unless you decide they are needed for this user request.\n");
         prompt.append("- Add plan.edge_contracts when a later step needs a typed field from an earlier tool output.\n");
         prompt.append("- If information is missing, add missing_info and plan the smallest safe retrieval/tool step instead of inventing facts.\n\n");
+        prompt.append("Diagnostic coverage contract:\n");
+        prompt.append("- For health checks, incident diagnosis, capacity checks, or multi-resource operational analysis, add plan.diagnostic_profile.\n");
+        prompt.append("- diagnostic_profile.checks must enumerate every evidence requirement stated by the user, including checks that cannot fit the current execution budget.\n");
+        prompt.append("- Use reusable semantic capabilities and dimensions; never put a concrete template id, asset id, host name, database name, or environment-specific value in check_id or capability.\n");
+        prompt.append("- Map each planned evidence-producing step through step_ids. When max_steps cannot fit a required check, keep that check with step_ids=[] so Runtime reports execution_budget_exhausted instead of silently omitting it.\n");
+        prompt.append("- Do not pre-fill health scores. Scores and confidence are produced only from explicit structured tool evidence; missing checks keep the overall assessment at INSUFFICIENT_EVIDENCE.\n\n");
         prompt.append(AgentRuntimeFactGroundingContract.promptSection());
         prompt.append("MCP interaction contract:\n");
         prompt.append("- The user-bound workflow tool names, required flags, dependencies, and order are the execution contract. Do not insert, replace, or reorder tools based on intent, keywords, metadata, or returned template names.\n");
@@ -2302,7 +2308,8 @@ class AgentPlanner {
             originalPlan == null ? List.of() : originalPlan.edgeContracts(),
             originalPlan == null ? List.of() : originalPlan.dependencyContracts(),
             originalPlan == null ? List.of() : originalPlan.bindings(),
-            originalPlan == null ? null : originalPlan.stability()
+            originalPlan == null ? null : originalPlan.stability(),
+            originalPlan == null ? null : originalPlan.diagnosticProfile()
         );
         return new InterpretationPlan(
             plan.version(),

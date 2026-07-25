@@ -111,6 +111,113 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void publishesDiagnosticCoverageAndEvidenceAssessmentInExecutionMetadata() {
+        String databaseTool = "database_status_query";
+        String hostTool = "host_resource_query";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(databaseTool)).thenReturn(true);
+        when(toolRegistry.hasTool(hostTool)).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenReturn(ToolMetadata.builder().riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest request = invocation.getArgument(0);
+            Object output = databaseTool.equals(request.getToolName())
+                ? Map.of(
+                    "status", "OPEN",
+                    "diagnosticAssessment", Map.of(
+                        "availability", Map.of("score", 100, "confidence", 0.95)
+                    )
+                )
+                : Map.of("cpuPct", 21, "memoryPct", 47, "diskPct", 62);
+            return new ToolRuntimeExecution(
+                ToolOutput.success(output),
+                ToolMetadata.builder().id(request.getToolName()).build(),
+                null,
+                "success",
+                Map.of()
+            );
+        });
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("tool_chain", "analyze database and host health", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(
+                        1, "mcp_tool", databaseTool,
+                        Map.of("diagnosticCapability", "instance_status"),
+                        List.of(), null, null
+                    ),
+                    new InterpretationPlan.Step(
+                        2, "mcp_tool", hostTool,
+                        Map.of("diagnosticCapability", "resource_usage"),
+                        List.of(1), null, null
+                    ),
+                    new InterpretationPlan.Step(
+                        3, "final_answer", "", Map.of("answer", "partial"), List.of(2), null, null
+                    )
+                ),
+                List.of(),
+                List.of(),
+                List.of(),
+                null,
+                new InterpretationPlan.DiagnosticProfile(
+                    "environment_health_check",
+                    "mixed",
+                    List.of(
+                        new InterpretationPlan.DiagnosticCheck(
+                            "database_availability", "instance_status", "availability", true, 1, List.of(1)
+                        ),
+                        new InterpretationPlan.DiagnosticCheck(
+                            "session_pressure", "session_overview", "performance", true, 2, List.of()
+                        ),
+                        new InterpretationPlan.DiagnosticCheck(
+                            "host_resources", "resource_usage", "capacity", true, 3, List.of(2)
+                        )
+                    )
+                )
+            ),
+            new InterpretationPlan.ExecutionPolicy(
+                3, false, List.of(databaseTool, hostTool), List.of(), 30000
+            ),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan,
+                toolRegistry,
+                List.of(databaseTool, hostTool),
+                "tenant-1",
+                "req-diagnostic-coverage",
+                "conv-diagnostic-coverage",
+                "user-1",
+                Map.of()
+            )
+        );
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.metadata().get("diagnosticRun"))
+            .isInstanceOfSatisfying(DiagnosticRun.class, run -> {
+                assertThat(run.coverage())
+                    .isEqualTo(new DiagnosticRun.Coverage(3, 2, 0, 1, 0.667));
+                assertThat(run.checks()).filteredOn(check -> "session_pressure".equals(check.checkId()))
+                    .singleElement()
+                    .satisfies(check -> {
+                        assertThat(check.status()).isEqualTo("missing");
+                        assertThat(check.reason()).isEqualTo("execution_budget_exhausted");
+                    });
+                assertThat(run.assessment().overallStatus()).isEqualTo("INSUFFICIENT_EVIDENCE");
+                assertThat(run.assessment().dimensions().get("availability").score()).isEqualTo(100.0);
+            });
+    }
+
+    @Test
     void stopsDagWhenToolStepFails() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("document_search")).thenReturn(true);

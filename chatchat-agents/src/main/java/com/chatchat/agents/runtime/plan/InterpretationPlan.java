@@ -52,23 +52,54 @@ public record InterpretationPlan(
         @JsonProperty("dependency_contracts")
         List<DependencyContract> dependencyContracts,
         List<Binding> bindings,
-        Stability stability
+        Stability stability,
+        @JsonProperty("diagnostic_profile")
+        DiagnosticProfile diagnosticProfile
     ) {
         public Plan(List<Step> steps) {
-            this(steps, List.of(), List.of(), List.of(), null);
+            this(steps, List.of(), List.of(), List.of(), null, null);
         }
 
         public Plan(List<Step> steps, List<EdgeContract> edgeContracts) {
-            this(steps, edgeContracts, List.of(), List.of(), null);
+            this(steps, edgeContracts, List.of(), List.of(), null, null);
         }
 
         public Plan(List<Step> steps, List<EdgeContract> edgeContracts, Stability stability) {
-            this(steps, edgeContracts, List.of(), List.of(), stability);
+            this(steps, edgeContracts, List.of(), List.of(), stability, null);
         }
 
         public Plan(List<Step> steps, List<EdgeContract> edgeContracts, List<Binding> bindings, Stability stability) {
-            this(steps, edgeContracts, List.of(), bindings, stability);
+            this(steps, edgeContracts, List.of(), bindings, stability, null);
         }
+
+        public Plan(List<Step> steps,
+                    List<EdgeContract> edgeContracts,
+                    List<DependencyContract> dependencyContracts,
+                    List<Binding> bindings,
+                    Stability stability) {
+            this(steps, edgeContracts, dependencyContracts, bindings, stability, null);
+        }
+    }
+
+    public record DiagnosticProfile(
+        @JsonProperty("profile_id")
+        String profileId,
+        @JsonProperty("target_kind")
+        String targetKind,
+        List<DiagnosticCheck> checks
+    ) {
+    }
+
+    public record DiagnosticCheck(
+        @JsonProperty("check_id")
+        String checkId,
+        String capability,
+        String dimension,
+        Boolean required,
+        Integer priority,
+        @JsonProperty("step_ids")
+        List<Integer> stepIds
+    ) {
     }
 
     public record Step(

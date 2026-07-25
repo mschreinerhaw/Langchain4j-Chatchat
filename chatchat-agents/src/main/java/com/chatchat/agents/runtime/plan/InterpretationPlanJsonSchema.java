@@ -149,6 +149,40 @@ public final class InterpretationPlanJsonSchema {
                     "locked_edges": {"type": "boolean"},
                     "mutable_action_types": {"type": "array", "items": {"type": "string"}}
                   }
+                },
+                "diagnostic_profile": {
+                  "type": "object",
+                  "description": "Evidence coverage contract for diagnostic requests. Use abstract capabilities, never concrete template ids.",
+                  "required": ["profile_id", "checks"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "profile_id": {"type": "string"},
+                    "target_kind": {"type": "string"},
+                    "checks": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": "object",
+                        "required": ["check_id", "capability", "dimension", "required", "priority", "step_ids"],
+                        "additionalProperties": false,
+                        "properties": {
+                          "check_id": {"type": "string"},
+                          "capability": {
+                            "type": "string",
+                            "description": "Abstract diagnostic capability such as instance_status or resource_usage; never a template id."
+                          },
+                          "dimension": {"type": "string"},
+                          "required": {"type": "boolean"},
+                          "priority": {"type": "integer", "minimum": 1},
+                          "step_ids": {
+                            "type": "array",
+                            "items": {"type": "integer"},
+                            "description": "Plan steps expected to produce evidence. May be empty when the execution budget cannot fit the check."
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
               }
             },

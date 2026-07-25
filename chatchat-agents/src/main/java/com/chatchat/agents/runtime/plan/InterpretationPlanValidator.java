@@ -100,6 +100,7 @@ public class InterpretationPlanValidator {
         Map<Integer, InterpretationPlan.Step> stepsById = validateSteps(plan, toolRegistry, availableTools, state);
         validateFinalAnswer(steps, state);
         validateExecutionPolicy(plan, steps, toolRegistry, state);
+        validateDiagnosticProfile(plan, stepsById, state);
         validateStability(plan, stepsById, toolRegistry, availableTools, state);
         validateDependencyContracts(plan, stepsById, state);
         validateEdgeContracts(plan, stepsById, state);
@@ -608,6 +609,55 @@ public class InterpretationPlanValidator {
             .count();
         if (finalAnswerCount != 1) {
             state.error("plan.steps", "Exactly one final_answer step is required, found: " + finalAnswerCount);
+        }
+    }
+
+    private void validateDiagnosticProfile(InterpretationPlan plan,
+                                           Map<Integer, InterpretationPlan.Step> stepsById,
+                                           ValidationState state) {
+        InterpretationPlan.DiagnosticProfile profile = plan.plan() == null
+            ? null
+            : plan.plan().diagnosticProfile();
+        if (profile == null) {
+            return;
+        }
+        if (blank(profile.profileId())) {
+            state.error("plan.diagnostic_profile.profile_id", "Diagnostic profile_id is required");
+        }
+        if (profile.checks() == null || profile.checks().isEmpty()) {
+            state.error("plan.diagnostic_profile.checks", "At least one diagnostic check is required");
+            return;
+        }
+        Set<String> checkIds = new LinkedHashSet<>();
+        for (int index = 0; index < profile.checks().size(); index++) {
+            InterpretationPlan.DiagnosticCheck check = profile.checks().get(index);
+            String path = "plan.diagnostic_profile.checks[" + index + "]";
+            if (check == null) {
+                state.error(path, "Diagnostic check cannot be null");
+                continue;
+            }
+            if (blank(check.checkId())) {
+                state.error(path + ".check_id", "Diagnostic check_id is required");
+            } else if (!checkIds.add(normalize(check.checkId()))) {
+                state.error(path + ".check_id", "Diagnostic check_id must be unique: " + check.checkId());
+            }
+            if (blank(check.capability())) {
+                state.error(path + ".capability", "Diagnostic capability is required");
+            }
+            if (blank(check.dimension())) {
+                state.error(path + ".dimension", "Diagnostic dimension is required");
+            }
+            if (check.priority() == null || check.priority() < 1) {
+                state.error(path + ".priority", "Diagnostic priority must be a positive integer");
+            }
+            for (Integer stepId : check.stepIds() == null ? List.<Integer>of() : check.stepIds()) {
+                InterpretationPlan.Step step = stepsById.get(stepId);
+                if (step == null) {
+                    state.error(path + ".step_ids", "Diagnostic check references unknown step: " + stepId);
+                } else if (step.finalAnswerAction()) {
+                    state.error(path + ".step_ids", "Diagnostic evidence cannot map to a final_answer step: " + stepId);
+                }
+            }
         }
     }
 

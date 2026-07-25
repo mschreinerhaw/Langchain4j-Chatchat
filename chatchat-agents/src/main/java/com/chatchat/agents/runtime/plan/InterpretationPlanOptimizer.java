@@ -81,7 +81,8 @@ public class InterpretationPlanOptimizer {
                 remapContractsForRenumber(steps, edgeContracts),
                 remapDependencyContractsForRenumber(steps, dependencyContracts),
                 remapBindingsForRenumber(steps, bindings),
-                remapStabilityForRenumber(steps, plan.plan().stability())
+                remapStabilityForRenumber(steps, plan.plan().stability()),
+                remapDiagnosticProfileForRenumber(steps, plan.plan().diagnosticProfile())
             ),
             retrievalPolicy.executionPolicy(),
             plan.review()
@@ -398,6 +399,37 @@ public class InterpretationPlanOptimizer {
             stability.lockedEdges(),
             stability.mutableActionTypes()
         );
+    }
+
+    private InterpretationPlan.DiagnosticProfile remapDiagnosticProfileForRenumber(
+        List<InterpretationPlan.Step> originalSteps,
+        InterpretationPlan.DiagnosticProfile profile
+    ) {
+        if (profile == null || profile.checks() == null) {
+            return profile;
+        }
+        Map<Integer, Integer> idMap = new LinkedHashMap<>();
+        int next = 1;
+        for (InterpretationPlan.Step step : originalSteps) {
+            if (step != null && step.id() != null) {
+                idMap.put(step.id(), next++);
+            }
+        }
+        List<InterpretationPlan.DiagnosticCheck> checks = profile.checks().stream()
+            .map(check -> check == null ? null : new InterpretationPlan.DiagnosticCheck(
+                check.checkId(),
+                check.capability(),
+                check.dimension(),
+                check.required(),
+                check.priority(),
+                (check.stepIds() == null ? List.<Integer>of() : check.stepIds()).stream()
+                    .filter(idMap::containsKey)
+                    .map(idMap::get)
+                    .distinct()
+                    .toList()
+            ))
+            .toList();
+        return new InterpretationPlan.DiagnosticProfile(profile.profileId(), profile.targetKind(), checks);
     }
 
     private Map<Integer, List<Integer>> dependencyMap(List<InterpretationPlan.Step> steps) {

@@ -6,6 +6,7 @@ import com.chatchat.agents.runtime.AgentRunRequest;
 import com.chatchat.agents.runtime.AgentRunResult;
 import com.chatchat.agents.runtime.AgentRunStatus;
 import com.chatchat.agents.runtime.InMemoryAgentRunStore;
+import com.chatchat.agents.runtime.plan.DiagnosticRun;
 import com.chatchat.agents.runtime.plan.InterpretationExecutionProtocol;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
 import com.chatchat.agents.tool.ToolRegistry;
@@ -83,6 +84,211 @@ class AgentOrchestratorTest {
             .contains("Attempt 3: status=success, success=true")
             .contains("first evidence", "second evidence", "third evidence")
             .contains("reconcile and summarize evidence from all attempts");
+    }
+
+    @Test
+    void finalSynthesisPromptIncludesRuntimeDiagnosticCoverageContract() {
+        DiagnosticRun diagnosticRun = new DiagnosticRun(
+            "environment_health_check",
+            "mixed",
+            List.of(
+                new DiagnosticRun.CheckResult(
+                    "database_availability", "instance_status", "availability", true, 1,
+                    List.of(1), "completed", null, List.of("iteration:1:step:1:tool:database_status_query"),
+                    100.0, 0.95
+                ),
+                new DiagnosticRun.CheckResult(
+                    "session_pressure", "session_overview", "performance", true, 2,
+                    List.of(), "missing", "execution_budget_exhausted", List.of(), null, null
+                )
+            ),
+            new DiagnosticRun.Coverage(2, 1, 0, 1, 0.5),
+            new DiagnosticRun.Assessment(
+                Map.of(
+                    "availability", new DiagnosticRun.DimensionAssessment(100.0, 0.95, 1, 1, "ASSESSED"),
+                    "performance", new DiagnosticRun.DimensionAssessment(null, null, 1, 0, "NOT_ASSESSED")
+                ),
+                null,
+                0.95,
+                "INSUFFICIENT_EVIDENCE"
+            )
+        );
+        InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
+            "completed",
+            true,
+            false,
+            null,
+            "partial",
+            List.of(),
+            Map.of("diagnosticRun", diagnosticRun),
+            1L
+        );
+
+        String prompt = newOrchestrator(mock(ChatModel.class)).buildInterpretationPlanSummaryPrompt(
+            "analyze environment health", null, result, List.of(), List.of(), null
+        );
+
+        assertThat(prompt)
+            .contains("diagnosticRun (runtime-calculated coverage")
+            .contains("database_availability", "session_pressure")
+            .contains("execution_budget_exhausted", "INSUFFICIENT_EVIDENCE")
+            .contains("Never convert tool success");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void incompleteDiagnosticCoveragePreventsPrematureEvidenceStop() throws Exception {
+        DiagnosticRun diagnosticRun = new DiagnosticRun(
+            "environment_health_check",
+            "mixed",
+            List.of(
+                new DiagnosticRun.CheckResult(
+                    "database_availability", "instance_status", "availability", true, 1,
+                    List.of(1), "completed", null, List.of("iteration:1:step:1:tool:database_status_query"),
+                    100.0, 0.95
+                ),
+                new DiagnosticRun.CheckResult(
+                    "lock_contention", "lock_overview", "performance", true, 2,
+                    List.of(), "missing", "execution_budget_exhausted", List.of(), null, null
+                )
+            ),
+            new DiagnosticRun.Coverage(2, 1, 0, 1, 0.5),
+            new DiagnosticRun.Assessment(Map.of(), null, null, "INSUFFICIENT_EVIDENCE")
+        );
+        InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
+            "completed", true, false, null, null, List.of(), Map.of("diagnosticRun", diagnosticRun), 1L
+        );
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        Method method = AgentOrchestrator.class.getDeclaredMethod(
+            "analyzeInterpretationPlanEvidence",
+            ChatModel.class,
+            String.class,
+            String.class,
+            com.chatchat.agents.runtime.plan.InterpretationPlan.class,
+            InterpretationPlanRuntime.ExecutionResult.class,
+            int.class,
+            List.class,
+            Map.class,
+            Map.class,
+            BooleanSupplier.class
+        );
+        method.setAccessible(true);
+
+        Map<String, Object> snapshot = (Map<String, Object>) method.invoke(
+            orchestrator,
+            null,
+            "analyze environment health",
+            null,
+            null,
+            result,
+            1,
+            List.of(),
+            Map.of(),
+            new LinkedHashMap<>(),
+            (BooleanSupplier) () -> false
+        );
+
+        assertThat(snapshot)
+            .containsEntry("sufficient", false)
+            .containsEntry("diagnosticCoverageComplete", false);
+        assertThat((List<?>) snapshot.get("missingEvidence"))
+            .singleElement()
+            .satisfies(gap -> {
+                Map<?, ?> values = (Map<?, ?>) gap;
+                assertThat(String.valueOf(values.get("checkId"))).isEqualTo("lock_contention");
+                assertThat(String.valueOf(values.get("capability"))).isEqualTo("lock_overview");
+                assertThat(String.valueOf(values.get("reason"))).isEqualTo("execution_budget_exhausted");
+            });
+        assertThat((List<?>) snapshot.get("nextActions"))
+            .singleElement()
+            .satisfies(action -> assertThat(String.valueOf(((Map<?, ?>) action).get("action")))
+                .isEqualTo("complete_diagnostic_check"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void diagnosticCoverageAccumulatesAcrossRewriteAttempts() throws Exception {
+        DiagnosticRun firstRun = diagnosticRunForChecks(
+            "completed", "missing", "execution_budget_exhausted"
+        );
+        DiagnosticRun secondRun = diagnosticRunForChecks(
+            "missing", "completed", "already_completed_in_prior_attempt"
+        );
+        InterpretationPlanRuntime.ExecutionResult secondResult = new InterpretationPlanRuntime.ExecutionResult(
+            "completed", true, false, null, null, List.of(), Map.of("diagnosticRun", secondRun), 1L
+        );
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        Method method = AgentOrchestrator.class.getDeclaredMethod(
+            "analyzeInterpretationPlanEvidence",
+            ChatModel.class,
+            String.class,
+            String.class,
+            com.chatchat.agents.runtime.plan.InterpretationPlan.class,
+            InterpretationPlanRuntime.ExecutionResult.class,
+            int.class,
+            List.class,
+            Map.class,
+            Map.class,
+            BooleanSupplier.class
+        );
+        method.setAccessible(true);
+
+        Map<String, Object> snapshot = (Map<String, Object>) method.invoke(
+            orchestrator,
+            null,
+            "analyze environment health",
+            null,
+            null,
+            secondResult,
+            2,
+            List.of(Map.of("diagnosticRun", firstRun)),
+            Map.of(),
+            new LinkedHashMap<>(),
+            (BooleanSupplier) () -> false
+        );
+
+        assertThat(snapshot)
+            .containsEntry("sufficient", true)
+            .containsEntry("diagnosticCoverageComplete", true);
+        assertThat((List<?>) snapshot.get("missingEvidence")).isEmpty();
+        assertThat(((java.util.Set<?>) snapshot.get("previouslyCompletedDiagnosticChecks")).stream()
+            .map(String::valueOf).toList())
+            .contains("databaseavailability");
+    }
+
+    private DiagnosticRun diagnosticRunForChecks(String databaseStatus,
+                                                  String lockStatus,
+                                                  String missingReason) {
+        int completed = ("completed".equals(databaseStatus) ? 1 : 0)
+            + ("completed".equals(lockStatus) ? 1 : 0);
+        return new DiagnosticRun(
+            "environment_health_check",
+            "mixed",
+            List.of(
+                new DiagnosticRun.CheckResult(
+                    "database_availability", "instance_status", "availability", true, 1,
+                    "completed".equals(databaseStatus) ? List.of(1) : List.of(),
+                    databaseStatus,
+                    "completed".equals(databaseStatus) ? null : missingReason,
+                    "completed".equals(databaseStatus)
+                        ? List.of("iteration:1:step:1:tool:database_status_query") : List.of(),
+                    "completed".equals(databaseStatus) ? 100.0 : null,
+                    "completed".equals(databaseStatus) ? 0.95 : null
+                ),
+                new DiagnosticRun.CheckResult(
+                    "lock_contention", "lock_overview", "performance", true, 2,
+                    "completed".equals(lockStatus) ? List.of(2) : List.of(),
+                    lockStatus,
+                    "completed".equals(lockStatus) ? null : missingReason,
+                    "completed".equals(lockStatus)
+                        ? List.of("iteration:2:step:2:tool:database_lock_query") : List.of(),
+                    null,
+                    null
+                )
+            ),
+            new DiagnosticRun.Coverage(2, completed, 0, 2 - completed, completed / 2.0),
+            new DiagnosticRun.Assessment(Map.of(), null, null, "INSUFFICIENT_EVIDENCE")
+        );
     }
 
     @Test

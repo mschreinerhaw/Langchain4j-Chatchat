@@ -19,6 +19,7 @@ import com.chatchat.agents.runtime.ToolRuntimeService;
 import com.chatchat.agents.runtime.plan.InterpretationPlanDagConverter;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.agents.runtime.plan.InterpretationExecutionProtocol;
+import com.chatchat.agents.runtime.plan.DiagnosticRun;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRewriter;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRecord;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
@@ -1731,6 +1732,9 @@ public class AgentOrchestrator {
         prompt.append("- The final answer must be grounded in the cumulative MCP results from every iteration. Do not treat an intermediate model conclusion as evidence unless its referenced evidenceId exists in an executed tool result.\n");
         prompt.append("- Resolve conflicts explicitly. If three iterations still leave a material gap, report that gap instead of filling it with model knowledge.\n");
         prompt.append("- Do not hide earlier partial or failed attempts when they contain usable evidence. State unresolved limitations after considering all attempts.\n");
+        prompt.append("- When diagnosticRun is present, report required/completed/failed/missing counts and the coverage ratio. List missing checks with their exact runtime reason.\n");
+        prompt.append("- diagnosticRun assessment scores are authoritative only when non-null. Never convert tool success, OPEN/running state, capacity size, or coverage ratio into a missing health score.\n");
+        prompt.append("- If diagnosticRun.assessment.overall_status=INSUFFICIENT_EVIDENCE, state that the overall health/performance risk cannot yet be assessed even if individual availability evidence is positive.\n");
         prompt.append("- Use each step's review reason as the premise for later steps.\n");
         prompt.append("- Summarize what was done step by step, then provide the final answer.\n");
         prompt.append("- If a succeeded SQL/database step is partial, still summarize the returned rows/metrics and explicitly state missing fields or limitations.\n");
@@ -1770,6 +1774,14 @@ public class AgentOrchestrator {
                     .append("\n");
                 if (attemptResult.errorMessage() != null && !attemptResult.errorMessage().isBlank()) {
                     prompt.append("  attemptError: ").append(attemptResult.errorMessage()).append("\n");
+                }
+                Object diagnosticRun = attemptResult.metadata() == null
+                    ? null
+                    : attemptResult.metadata().get("diagnosticRun");
+                if (diagnosticRun != null) {
+                    prompt.append("  diagnosticRun (runtime-calculated coverage and explicit-evidence assessment): ")
+                        .append(shortObservationText(stringify(diagnosticRun), 6000))
+                        .append("\n");
                 }
                 if (attemptResult.steps() == null || attemptResult.steps().isEmpty()) {
                     prompt.append("  - (no executed steps)\n");
@@ -2567,7 +2579,13 @@ public class AgentOrchestrator {
     ) {
         runtimeGuard.checkCancelled(cancellationCheck);
         List<Map<String, Object>> toolEvidence = interpretationToolEvidence(plan, result, iteration);
-        boolean fallbackSufficient = result != null && result.success();
+        DiagnosticRun diagnosticRun = diagnosticRun(result);
+        Set<String> previouslyCompletedDiagnosticChecks = completedDiagnosticChecks(previousEvidence);
+        boolean diagnosticCoverageComplete = diagnosticCoverageComplete(
+            diagnosticRun,
+            previouslyCompletedDiagnosticChecks
+        );
+        boolean fallbackSufficient = result != null && result.success() && diagnosticCoverageComplete;
         Map<String, Object> analysis = new LinkedHashMap<>();
         List<Object> evidenceUsed = new ArrayList<>();
         List<Object> missingEvidence = new ArrayList<>();
@@ -2577,6 +2595,34 @@ public class AgentOrchestrator {
         List<Map<String, Object>> currentHypotheses = new ArrayList<>();
         boolean explicitIterationDecision = false;
         boolean iterationSufficient = fallbackSufficient;
+        if (diagnosticRun != null) {
+            for (DiagnosticRun.CheckResult check : diagnosticRun.checks()) {
+                if (check == null || !check.required()
+                    || "completed".equals(check.status())
+                    || previouslyCompletedDiagnosticChecks.contains(normalizedDiagnosticCheckId(check.checkId()))) {
+                    continue;
+                }
+                Map<String, Object> gap = metadataOf(
+                    "type", "diagnostic_check",
+                    "checkId", check.checkId(),
+                    "capability", check.capability(),
+                    "dimension", check.dimension(),
+                    "status", check.status(),
+                    "reason", firstNonBlank(check.reason(), "missing_diagnostic_evidence")
+                );
+                missingEvidence.add(gap);
+                nextActions.add(metadataOf(
+                    "action", "complete_diagnostic_check",
+                    "checkId", check.checkId(),
+                    "capability", check.capability(),
+                    "dimension", check.dimension(),
+                    "reason", firstNonBlank(check.reason(), "missing_diagnostic_evidence")
+                ));
+            }
+            conclusions.add("Diagnostic coverage completed "
+                + diagnosticRun.coverage().completed() + "/" + diagnosticRun.coverage().required()
+                + " required checks in this attempt.");
+        }
         for (Map<String, Object> item : toolEvidence) {
             if (Boolean.TRUE.equals(item.get("success"))) {
                 evidenceUsed.add(metadataOf(
@@ -2645,6 +2691,11 @@ public class AgentOrchestrator {
         snapshot.put("nextActions", evidenceAnalysisValue(analysis,
             "next_actions", "nextActions", "next_queries", "nextQueries", "query_revisions", "queryRevisions"));
         snapshot.put("toolEvidence", toolEvidence);
+        if (diagnosticRun != null) {
+            snapshot.put("diagnosticRun", diagnosticRun);
+            snapshot.put("diagnosticCoverageComplete", diagnosticCoverageComplete);
+            snapshot.put("previouslyCompletedDiagnosticChecks", previouslyCompletedDiagnosticChecks);
+        }
         snapshot.put("createdAt", System.currentTimeMillis());
 
         addCandidateList(metadataList(metadata, "interpretationPlanEvidenceHistory"), List.of(snapshot));
@@ -2721,6 +2772,45 @@ public class AgentOrchestrator {
             );
         }
         return snapshot;
+    }
+
+    private DiagnosticRun diagnosticRun(InterpretationPlanRuntime.ExecutionResult result) {
+        Object value = result == null || result.metadata() == null
+            ? null
+            : result.metadata().get("diagnosticRun");
+        return value instanceof DiagnosticRun run ? run : null;
+    }
+
+    private Set<String> completedDiagnosticChecks(List<Map<String, Object>> previousEvidence) {
+        Set<String> completed = new LinkedHashSet<>();
+        for (Map<String, Object> snapshot : previousEvidence == null ? List.<Map<String, Object>>of() : previousEvidence) {
+            Object value = snapshot == null ? null : snapshot.get("diagnosticRun");
+            if (!(value instanceof DiagnosticRun run) || run.checks() == null) {
+                continue;
+            }
+            run.checks().stream()
+                .filter(check -> check != null && "completed".equals(check.status()))
+                .map(DiagnosticRun.CheckResult::checkId)
+                .map(this::normalizedDiagnosticCheckId)
+                .filter(checkId -> !checkId.isBlank())
+                .forEach(completed::add);
+        }
+        return completed;
+    }
+
+    private boolean diagnosticCoverageComplete(DiagnosticRun run, Set<String> previouslyCompleted) {
+        if (run == null || run.checks() == null) {
+            return true;
+        }
+        Set<String> prior = previouslyCompleted == null ? Set.of() : previouslyCompleted;
+        return run.checks().stream()
+            .filter(check -> check != null && check.required())
+            .allMatch(check -> "completed".equals(check.status())
+                || prior.contains(normalizedDiagnosticCheckId(check.checkId())));
+    }
+
+    private String normalizedDiagnosticCheckId(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
     }
 
     private void addEvidenceAnalysisItems(List<Object> target, Object value) {
@@ -3720,6 +3810,21 @@ public class AgentOrchestrator {
         metadata.put("interpretationPlan" + capitalize(stage) + "Status", result.status());
         metadata.put("interpretationPlan" + capitalize(stage) + "Success", result.success());
         metadata.put("interpretationPlan" + capitalize(stage) + "DurationMs", result.durationMs());
+        Object diagnosticRun = result.metadata() == null ? null : result.metadata().get("diagnosticRun");
+        if (diagnosticRun != null) {
+            metadata.put("diagnosticRun", diagnosticRun);
+            metadata.put("interpretationPlan" + capitalize(stage) + "DiagnosticRun", diagnosticRun);
+            Object diagnosticCoverage = result.metadata().get("diagnosticCoverage");
+            Object diagnosticAssessment = result.metadata().get("diagnosticAssessment");
+            if (diagnosticCoverage != null) {
+                metadata.put("diagnosticCoverage", diagnosticCoverage);
+            }
+            if (diagnosticAssessment != null) {
+                metadata.put("diagnosticAssessment", diagnosticAssessment);
+            }
+            observations.add("InterpretationPlan " + stage + " diagnostic coverage: "
+                + shortObservationText(stringify(diagnosticRun), 2000));
+        }
         if (result.errorMessage() != null && !result.errorMessage().isBlank()) {
             metadata.put("interpretationPlan" + capitalize(stage) + "Error", result.errorMessage());
         }

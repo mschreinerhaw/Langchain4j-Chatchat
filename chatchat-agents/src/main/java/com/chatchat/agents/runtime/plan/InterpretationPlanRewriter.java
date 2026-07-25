@@ -132,6 +132,8 @@ public class InterpretationPlanRewriter {
         prompt.append("- Preserve execution_policy tool priority/cost/latency/accuracy constraints unless the failure proves they are impossible.\n");
         prompt.append("- Preserve plan.stability stable_nodes, critical_tools, and locked_edges; do not alter locked edges.\n");
         prompt.append("- Preserve plan.dependency_contracts. Required dependency_contracts must appear in target depends_on; optional dependency_contracts must keep condition/reason and should only be converted into executable steps when the user request needs them.\n");
+        prompt.append("- Preserve plan.diagnostic_profile check IDs, capabilities, dimensions, and required flags. Update step_ids when steps change; keep an uncovered required check with step_ids=[] instead of deleting it.\n");
+        prompt.append("- Use diagnosticRun missing/failed checks as evidence refinement targets. Do not invent a score for an uncovered check, and do not replace a missing check with a different capability merely to increase coverage.\n");
         prompt.append("- Add or update plan.edge_contracts when the failure was caused by missing or mistyped tool output fields.\n");
         prompt.append("- Keep execution_policy.deny_tool for tools that failed due to policy, permission, or safety.\n\n");
         List<RequiredToolExecution> requiredExecutions = request.requiredToolExecutions() == null
@@ -464,7 +466,13 @@ public class InterpretationPlanRewriter {
             body == null || body.edgeContracts() == null ? List.of() : body.edgeContracts(),
             body == null || body.dependencyContracts() == null ? List.of() : body.dependencyContracts(),
             body == null || body.bindings() == null ? List.of() : body.bindings(),
-            body == null ? null : body.stability()
+            body == null ? null : body.stability(),
+            normalizeDiagnosticProfile(
+                body == null
+                    ? originalPlan == null || originalPlan.plan() == null ? null : originalPlan.plan().diagnosticProfile()
+                    : body.diagnosticProfile(),
+                normalizedSteps
+            )
         );
         InterpretationPlan.ExecutionPolicy executionPolicy = rewrittenPlan.executionPolicy() == null
             && originalPlan != null
@@ -521,7 +529,13 @@ public class InterpretationPlanRewriter {
             rewrittenBody == null || rewrittenBody.edgeContracts() == null ? List.of() : rewrittenBody.edgeContracts(),
             rewrittenBody == null || rewrittenBody.dependencyContracts() == null ? List.of() : rewrittenBody.dependencyContracts(),
             rewrittenBody == null || rewrittenBody.bindings() == null ? List.of() : rewrittenBody.bindings(),
-            rewrittenBody == null ? null : rewrittenBody.stability()
+            rewrittenBody == null ? null : rewrittenBody.stability(),
+            normalizeDiagnosticProfile(
+                rewrittenBody == null
+                    ? originalPlan.plan() == null ? null : originalPlan.plan().diagnosticProfile()
+                    : rewrittenBody.diagnosticProfile(),
+                mergedSteps
+            )
         );
         return new InterpretationPlan(
             rewrittenPlan.version(),
@@ -590,8 +604,42 @@ public class InterpretationPlanRewriter {
                 policy.fallbackMode(), Map.of(), policy.costBudget(), policy.latencyBudgetMs(), policy.accuracyVsSpeed());
         return new InterpretationPlan(
             rewrittenPlan.version(), rewrittenPlan.intent(), rewrittenPlan.context(),
-            new InterpretationPlan.Plan(List.of(detachedFinal), List.of(), List.of(), List.of(), null),
+            new InterpretationPlan.Plan(
+                List.of(detachedFinal),
+                List.of(),
+                List.of(),
+                List.of(),
+                null,
+                normalizeDiagnosticProfile(
+                    rewrittenPlan.plan() == null ? null : rewrittenPlan.plan().diagnosticProfile(),
+                    List.of(detachedFinal)
+                )
+            ),
             evidenceOnlyPolicy, rewrittenPlan.review());
+    }
+
+    private InterpretationPlan.DiagnosticProfile normalizeDiagnosticProfile(
+        InterpretationPlan.DiagnosticProfile profile,
+        List<InterpretationPlan.Step> steps
+    ) {
+        if (profile == null || profile.checks() == null) {
+            return profile;
+        }
+        Set<Integer> availableStepIds = stepIds(steps);
+        List<InterpretationPlan.DiagnosticCheck> checks = profile.checks().stream()
+            .map(check -> check == null ? null : new InterpretationPlan.DiagnosticCheck(
+                check.checkId(),
+                check.capability(),
+                check.dimension(),
+                check.required(),
+                check.priority(),
+                (check.stepIds() == null ? List.<Integer>of() : check.stepIds()).stream()
+                    .filter(availableStepIds::contains)
+                    .distinct()
+                    .toList()
+            ))
+            .toList();
+        return new InterpretationPlan.DiagnosticProfile(profile.profileId(), profile.targetKind(), checks);
     }
 
     private boolean hasPendingRequiredExecution(List<RequiredToolExecution> executions) {

@@ -174,32 +174,32 @@ public class InterpretationPlanRuntime {
             new LinkedHashSet<>(safeList(request.allowedTools()))
         );
         if (!validation.valid()) {
-            return ExecutionResult.failed(
+            return withDiagnosticRun(ExecutionResult.failed(
                 "INVALID_PLAN",
                 validation.errors().stream().map(InterpretationPlanValidator.ValidationIssue::message).collect(Collectors.joining("; ")),
                 List.of(),
                 Map.of("validationIssues", validation.issues()),
                 null,
                 elapsed(startedAt)
-            );
+            ), executableRequest, planStepIds(executablePlan));
         }
         if (validation.approvalRequired()) {
-            return ExecutionResult.approvalRequired(
+            return withDiagnosticRun(ExecutionResult.approvalRequired(
                 validation.approvalRequests(),
                 List.of(),
                 Map.of("validationIssues", validation.issues()),
                 elapsed(startedAt)
-            );
+            ), executableRequest, planStepIds(executablePlan));
         }
         if (dagExecutionController == null) {
-            return ExecutionResult.failed(
+            return withDiagnosticRun(ExecutionResult.failed(
                 "DAG_CONTROLLER_REQUIRED",
                 "InterpretationPlan DAG execution requires an LLM decision controller",
                 List.of(),
                 Map.of("validationIssues", validation.issues()),
                 null,
                 elapsed(startedAt)
-            );
+            ), executableRequest, planStepIds(executablePlan));
         }
 
         Map<Integer, InterpretationPlan.Step> stepsById = executablePlan.steps().stream()
@@ -260,7 +260,7 @@ public class InterpretationPlanRuntime {
                 completedStepIds
             );
             if (!decisionValidation.valid()) {
-                return ExecutionResult.failed(
+                return withDiagnosticRun(ExecutionResult.failed(
                     decisionValidation.status(),
                     decisionValidation.message(),
                     executions,
@@ -275,10 +275,10 @@ public class InterpretationPlanRuntime {
                     ),
                     finalAnswer,
                     elapsed(startedAt)
-                );
+                ), executableRequest, remaining);
             }
             if ("abort".equals(decisionValidation.action())) {
-                return ExecutionResult.failed(
+                return withDiagnosticRun(ExecutionResult.failed(
                     "DAG_ABORTED",
                     decision.reason() == null || decision.reason().isBlank() ? "LLM DAG controller aborted execution" : decision.reason(),
                     executions,
@@ -293,10 +293,10 @@ public class InterpretationPlanRuntime {
                     ),
                     firstText(decision.finalAnswer(), finalAnswer),
                     elapsed(startedAt)
-                );
+                ), executableRequest, remaining);
             }
             if ("rewrite_plan".equals(decisionValidation.action())) {
-                return ExecutionResult.failed(
+                return withDiagnosticRun(ExecutionResult.failed(
                     "DAG_REWRITE_REQUESTED",
                     decision.reason() == null || decision.reason().isBlank() ? "LLM DAG controller requested plan rewrite" : decision.reason(),
                     executions,
@@ -311,7 +311,7 @@ public class InterpretationPlanRuntime {
                     ),
                     firstText(decision.finalAnswer(), finalAnswer),
                     elapsed(startedAt)
-                );
+                ), executableRequest, remaining);
             }
             List<InterpretationPlan.Step> selected = applyDecisionParameterProtocols(
                 decisionValidation.steps(),
@@ -329,7 +329,7 @@ public class InterpretationPlanRuntime {
             StepExecution contractFailure = validateEdgeContracts(executablePlan, waveResults, completed);
             if (contractFailure != null) {
                 executions.add(contractFailure);
-                return ExecutionResult.failed(
+                return withDiagnosticRun(ExecutionResult.failed(
                     "EDGE_CONTRACT_FAILED",
                     contractFailure.errorMessage(),
                     executions,
@@ -339,7 +339,7 @@ public class InterpretationPlanRuntime {
                     ),
                     finalAnswer,
                     elapsed(startedAt)
-                );
+                ), executableRequest, remaining);
             }
             StepExecution failed = waveResults.stream()
                 .filter(step -> !step.success())
@@ -347,7 +347,7 @@ public class InterpretationPlanRuntime {
                 .orElse(null);
             recordStateUpdate(executableRequest, completed, remaining, waveResults, failed);
             if (failed != null) {
-                return ExecutionResult.failed(
+                return withDiagnosticRun(ExecutionResult.failed(
                     "STEP_FAILED",
                     failed.errorMessage(),
                     executions,
@@ -358,11 +358,11 @@ public class InterpretationPlanRuntime {
                     ),
                     finalAnswer,
                     elapsed(startedAt)
-                );
+                ), executableRequest, remaining);
             }
         }
 
-        return new ExecutionResult(
+        return withDiagnosticRun(new ExecutionResult(
             "completed",
             true,
             false,
@@ -381,7 +381,48 @@ public class InterpretationPlanRuntime {
                 "optimizationPasses", optimization.appliedPasses()
             ),
             elapsed(startedAt)
+        ), executableRequest, remaining);
+    }
+
+    private ExecutionResult withDiagnosticRun(ExecutionResult result,
+                                              ExecutionRequest request,
+                                              Set<Integer> remainingStepIds) {
+        if (result == null || request == null || request.plan() == null) {
+            return result;
+        }
+        DiagnosticRun diagnosticRun = DiagnosticRun.evaluate(
+            request.plan(),
+            result.steps(),
+            remainingStepIds,
+            evidenceIteration(request)
         );
+        if (diagnosticRun == null) {
+            return result;
+        }
+        Map<String, Object> metadata = new LinkedHashMap<>(result.metadata() == null ? Map.of() : result.metadata());
+        metadata.put("diagnosticRun", diagnosticRun);
+        metadata.put("diagnosticCoverage", diagnosticRun.coverage());
+        metadata.put("diagnosticAssessment", diagnosticRun.assessment());
+        return new ExecutionResult(
+            result.status(),
+            result.success(),
+            result.approvalRequired(),
+            result.errorMessage(),
+            result.finalAnswer(),
+            result.steps(),
+            metadata,
+            result.durationMs()
+        );
+    }
+
+    private Set<Integer> planStepIds(InterpretationPlan plan) {
+        if (plan == null) {
+            return Set.of();
+        }
+        return plan.steps().stream()
+            .filter(step -> step != null && step.id() != null)
+            .map(InterpretationPlan.Step::id)
+            .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     private DagDecision deterministicReadyToolDecision(InterpretationPlan plan,

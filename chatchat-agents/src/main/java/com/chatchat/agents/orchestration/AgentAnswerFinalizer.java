@@ -168,15 +168,42 @@ class AgentAnswerFinalizer {
                                    List<InteractionToolTrace> traces,
                                    Map<String, Object> metadata,
                                    List<String> observations) {
-        if (maxToolCalls == Integer.MAX_VALUE || traces == null || traces.size() < maxToolCalls) {
+        long remoteToolCalls = remoteToolCallCount(traces);
+        if (maxToolCalls == Integer.MAX_VALUE || remoteToolCalls < maxToolCalls) {
             return false;
         }
         metadata.put("stopReason", "tool_budget_exceeded");
         metadata.put("toolBudgetExceeded", true);
         metadata.put("maxToolCalls", maxToolCalls);
+        metadata.put("remoteToolCalls", remoteToolCalls);
         metadata.put("requestedToolAfterBudget", requestedToolName);
         observations.add("Agent run stopped before executing " + requestedToolName
             + " because the max tool calls budget was reached.");
+        return true;
+    }
+
+    private long remoteToolCallCount(List<InteractionToolTrace> traces) {
+        if (traces == null || traces.isEmpty()) {
+            return 0L;
+        }
+        return traces.stream().filter(this::remoteToolInvoked).count();
+    }
+
+    private boolean remoteToolInvoked(InteractionToolTrace trace) {
+        if (trace == null || trace.getRuntimeMetadata() == null) {
+            return trace != null;
+        }
+        Object explicit = trace.getRuntimeMetadata().get("remoteToolInvoked");
+        if (explicit instanceof Boolean bool) {
+            return bool;
+        }
+        String outcome = String.valueOf(trace.getRuntimeMetadata().get("outcome"));
+        if ("denied".equalsIgnoreCase(outcome)
+            || "confirmation_required".equalsIgnoreCase(outcome)
+            || "rate_limited".equalsIgnoreCase(outcome)
+            || "circuit_open".equalsIgnoreCase(outcome)) {
+            return false;
+        }
         return true;
     }
 

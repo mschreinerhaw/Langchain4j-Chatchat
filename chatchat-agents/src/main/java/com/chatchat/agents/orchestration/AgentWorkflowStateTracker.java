@@ -132,9 +132,6 @@ class AgentWorkflowStateTracker {
                         if (stepId != null) {
                             failedStepIds.add(stepId);
                         }
-                        if (toolName != null && !toolName.isBlank()) {
-                            completedTools.add(toolName);
-                        }
                         continue;
                     }
                     if (success == null && !Boolean.TRUE.equals(metadata.get("structuredRuntimeObservation"))) {

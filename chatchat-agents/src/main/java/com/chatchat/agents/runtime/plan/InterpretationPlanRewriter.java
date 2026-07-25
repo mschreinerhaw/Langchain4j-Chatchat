@@ -13,6 +13,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -61,6 +62,7 @@ public class InterpretationPlanRewriter {
         try {
             InterpretationPlan rewrittenPlan = objectMapper.readValue(extractJson(raw), InterpretationPlan.class);
             rewrittenPlan = normalizeRewritePlan(request.originalPlan(), rewrittenPlan);
+            rewrittenPlan = preserveBudgetCeilings(request.budgetCeilings(), rewrittenPlan);
             InterpretationPlanValidator.ValidationResult validation = validator.validate(
                 rewrittenPlan,
                 request.toolRegistry(),
@@ -69,7 +71,12 @@ public class InterpretationPlanRewriter {
             validation = validateRequiredToolExecutions(rewrittenPlan, request.requiredToolExecutions(), validation);
             if (!validation.valid()) {
                 InterpretationPlan repairedPlan = repairContinuationPlan(request.originalPlan(), rewrittenPlan);
-                repairedPlan = repairExecutionPolicyStepLimit(repairedPlan);
+                repairedPlan = repairExecutionPolicyStepLimit(
+                    repairedPlan,
+                    request.budgetCeilings() == null
+                        ? null
+                        : request.budgetCeilings().maxSteps()
+                );
                 if (repairedPlan != rewrittenPlan) {
                     InterpretationPlanValidator.ValidationResult repairedValidation = validator.validate(
                         repairedPlan,
@@ -136,6 +143,11 @@ public class InterpretationPlanRewriter {
         prompt.append("- Use diagnosticRun missing/failed checks as evidence refinement targets. Do not invent a score for an uncovered check, and do not replace a missing check with a different capability merely to increase coverage.\n");
         prompt.append("- Add or update plan.edge_contracts when the failure was caused by missing or mistyped tool output fields.\n");
         prompt.append("- Keep execution_policy.deny_tool for tools that failed due to policy, permission, or safety.\n\n");
+        if (request.budgetCeilings() != null) {
+            prompt.append("Agent-configured budget ceilings (authoritative): ")
+                .append(toJson(request.budgetCeilings()))
+                .append("\n- The rewritten execution policy may use smaller values but MUST NOT exceed these ceilings.\n\n");
+        }
         List<RequiredToolExecution> requiredExecutions = request.requiredToolExecutions() == null
             ? List.of()
             : request.requiredToolExecutions().stream()
@@ -542,12 +554,41 @@ public class InterpretationPlanRewriter {
             rewrittenPlan.intent(),
             rewrittenPlan.context(),
             repairedBody,
-            repairExecutionPolicy(originalPlan.executionPolicy(), rewrittenPlan.executionPolicy(), mergedSteps),
+            repairExecutionPolicy(
+                originalPlan.executionPolicy(),
+                rewrittenPlan.executionPolicy(),
+                mergedSteps,
+                null
+            ),
             rewrittenPlan.review()
         );
     }
 
-    private InterpretationPlan repairExecutionPolicyStepLimit(InterpretationPlan plan) {
+    private InterpretationPlan preserveBudgetCeilings(InterpretationPlan.ExecutionPolicy budgetCeilings,
+                                                      InterpretationPlan rewrittenPlan) {
+        if (rewrittenPlan == null || budgetCeilings == null) {
+            return rewrittenPlan;
+        }
+        InterpretationPlan.ExecutionPolicy guardedPolicy = repairExecutionPolicy(
+            null,
+            rewrittenPlan.executionPolicy(),
+            rewrittenPlan.steps(),
+            budgetCeilings
+        );
+        if (Objects.equals(guardedPolicy, rewrittenPlan.executionPolicy())) {
+            return rewrittenPlan;
+        }
+        return new InterpretationPlan(
+            rewrittenPlan.version(),
+            rewrittenPlan.intent(),
+            rewrittenPlan.context(),
+            rewrittenPlan.plan(),
+            guardedPolicy,
+            rewrittenPlan.review()
+        );
+    }
+
+    private InterpretationPlan repairExecutionPolicyStepLimit(InterpretationPlan plan, Integer maxStepsCeiling) {
         if (plan == null || plan.executionPolicy() == null) {
             return plan;
         }
@@ -556,9 +597,12 @@ public class InterpretationPlanRewriter {
         if (maxSteps == null || maxSteps >= stepCount) {
             return plan;
         }
+        int repairedMaxSteps = maxStepsCeiling == null
+            ? stepCount
+            : Math.min(stepCount, maxStepsCeiling);
         InterpretationPlan.ExecutionPolicy policy = plan.executionPolicy();
         InterpretationPlan.ExecutionPolicy repairedPolicy = new InterpretationPlan.ExecutionPolicy(
-            stepCount,
+            repairedMaxSteps,
             policy.allowParallel(),
             policy.allowTool(),
             policy.denyTool(),
@@ -738,7 +782,8 @@ public class InterpretationPlanRewriter {
 
     private InterpretationPlan.ExecutionPolicy repairExecutionPolicy(InterpretationPlan.ExecutionPolicy originalPolicy,
                                                                      InterpretationPlan.ExecutionPolicy rewrittenPolicy,
-                                                                     List<InterpretationPlan.Step> mergedSteps) {
+                                                                     List<InterpretationPlan.Step> mergedSteps,
+                                                                     InterpretationPlan.ExecutionPolicy budgetCeilings) {
         if (rewrittenPolicy == null) {
             return originalPolicy;
         }
@@ -746,6 +791,23 @@ public class InterpretationPlanRewriter {
         int stepCount = mergedSteps == null ? 0 : mergedSteps.size();
         if (maxSteps != null && maxSteps < stepCount) {
             maxSteps = stepCount;
+        }
+        if (budgetCeilings != null && budgetCeilings.maxSteps() != null) {
+            maxSteps = maxSteps == null
+                ? budgetCeilings.maxSteps()
+                : Math.min(maxSteps, budgetCeilings.maxSteps());
+        }
+        Double costBudget = rewrittenPolicy.costBudget();
+        if (budgetCeilings != null && budgetCeilings.costBudget() != null) {
+            costBudget = costBudget == null
+                ? budgetCeilings.costBudget()
+                : Math.min(costBudget, budgetCeilings.costBudget());
+        }
+        Integer latencyBudgetMs = rewrittenPolicy.latencyBudgetMs();
+        if (budgetCeilings != null && budgetCeilings.latencyBudgetMs() != null) {
+            latencyBudgetMs = latencyBudgetMs == null
+                ? budgetCeilings.latencyBudgetMs()
+                : Math.min(latencyBudgetMs, budgetCeilings.latencyBudgetMs());
         }
         return new InterpretationPlan.ExecutionPolicy(
             maxSteps,
@@ -756,8 +818,8 @@ public class InterpretationPlanRewriter {
             rewrittenPolicy.maxRewriteTimes(),
             rewrittenPolicy.fallbackMode(),
             rewrittenPolicy.toolPriority(),
-            rewrittenPolicy.costBudget(),
-            rewrittenPolicy.latencyBudgetMs(),
+            costBudget,
+            latencyBudgetMs,
             rewrittenPolicy.accuracyVsSpeed()
         );
     }
@@ -793,8 +855,21 @@ public class InterpretationPlanRewriter {
         List<String> availableTools,
         ToolRegistry toolRegistry,
         List<RequiredToolExecution> requiredToolExecutions,
-        List<Map<String, Object>> evidenceHistory
+        List<Map<String, Object>> evidenceHistory,
+        InterpretationPlan.ExecutionPolicy budgetCeilings
     ) {
+        public RewriteRequest(InterpretationPlan originalPlan,
+                              InterpretationPlan.Step failedStep,
+                              String failureReason,
+                              List<String> observations,
+                              List<String> availableTools,
+                              ToolRegistry toolRegistry,
+                              List<RequiredToolExecution> requiredToolExecutions,
+                              List<Map<String, Object>> evidenceHistory) {
+            this(originalPlan, failedStep, failureReason, observations, availableTools, toolRegistry,
+                requiredToolExecutions, evidenceHistory, null);
+        }
+
         public RewriteRequest(InterpretationPlan originalPlan,
                               InterpretationPlan.Step failedStep,
                               String failureReason,
@@ -803,7 +878,7 @@ public class InterpretationPlanRewriter {
                               ToolRegistry toolRegistry,
                               List<RequiredToolExecution> requiredToolExecutions) {
             this(originalPlan, failedStep, failureReason, observations, availableTools, toolRegistry,
-                requiredToolExecutions, List.of());
+                requiredToolExecutions, List.of(), null);
         }
 
         public RewriteRequest(InterpretationPlan originalPlan,
@@ -813,7 +888,7 @@ public class InterpretationPlanRewriter {
                               List<String> availableTools,
                               ToolRegistry toolRegistry) {
             this(originalPlan, failedStep, failureReason, observations, availableTools, toolRegistry,
-                List.of(), List.of());
+                List.of(), List.of(), null);
         }
     }
 

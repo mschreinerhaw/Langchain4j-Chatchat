@@ -23,6 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -653,6 +654,11 @@ public class ToolRuntimeService {
         toolCounters.totalCalls.incrementAndGet();
         toolCounters.deniedCalls.incrementAndGet();
         Map<String, Object> runtimeMetadata = runtimeMetadata(request, metadata, "denied", errorCode, executionPlan, policyDecision);
+        if ("MCP_WORKFLOW_DENIED".equals(errorCode)) {
+            runtimeMetadata.put("executionStatus", "BLOCKED");
+            runtimeMetadata.put("blockedBeforeInvocation", true);
+            runtimeMetadata.put("blockedReason", workflowBlockedReason(message));
+        }
         ToolOutput output = ToolOutput.failure(message);
         output.setExceptionType(errorCode);
         output.getMetadata().putAll(runtimeMetadata);
@@ -948,6 +954,7 @@ public class ToolRuntimeService {
         values.put("userId", request == null ? null : request.getUserId());
         values.put("outcome", outcome);
         values.put("errorCode", errorCode);
+        values.put("remoteToolInvoked", "success".equalsIgnoreCase(outcome) || "failed".equalsIgnoreCase(outcome));
         values.put("serviceId", resolveServiceId(metadata));
         values.put("serviceName", resolveServiceName(metadata));
         values.put("executionPlan", executionPlan == null ? null : executionPlan.toMap());
@@ -971,6 +978,20 @@ public class ToolRuntimeService {
         values.put("policyDecision", governance.policyDecision());
         values.put("confirmRequired", governance.confirmRequired());
         return values;
+    }
+
+    private String workflowBlockedReason(String message) {
+        String normalized = message == null ? "" : message.toLowerCase(Locale.ROOT);
+        if (normalized.contains("required previous steps") || normalized.contains("dependency not completed")) {
+            return "workflow_dependency_unsatisfied";
+        }
+        if (normalized.contains("max_steps")) {
+            return "workflow_execution_budget_exhausted";
+        }
+        if (normalized.contains("condition is not satisfied")) {
+            return "workflow_condition_unsatisfied";
+        }
+        return "workflow_policy_denied";
     }
 
     private ToolGovernanceDecision governanceDecision(ToolRuntimeRequest request,
@@ -1502,8 +1523,14 @@ public class ToolRuntimeService {
 
         String stateKey = workflowStateKey(request, workflowName);
         WorkflowState state = workflowStates.computeIfAbsent(stateKey, ignored -> new WorkflowState());
+        WorkflowState attemptState = workflowStates.computeIfAbsent(
+            workflowAttemptStateKey(request, workflowName),
+            ignored -> new WorkflowState()
+        );
         Set<String> completed = completedTools(request, state);
-        Set<String> attempted = attemptedTools(request, state);
+        Set<String> attempted = attemptedTools(request, attemptState);
+        Set<String> completedFacts = completedWorkflowFacts(request, state);
+        Set<String> targetRefs = workflowTargetRefs(request);
         List<String> matchedRules = new ArrayList<>();
         matchedRules.add("workflow." + firstText(workflowName, "global") + ".active");
 
@@ -1511,11 +1538,11 @@ public class ToolRuntimeService {
             ? new McpWorkflowProperties.ExecutionStrategy()
             : workflow.getExecutionStrategy();
         int maxSteps = strategy == null ? 0 : strategy.getMaxSteps();
-        if (maxSteps > 0 && state.attemptedSteps.get() + 1 > maxSteps) {
+        if (maxSteps > 0 && attemptState.attemptedSteps.get() + 1 > maxSteps) {
             return new WorkflowDecision(true, workflowName, stateKey, ToolRuntimeAction.DENY,
                 "MCP workflow exceeded max_steps=" + maxSteps, matchedRules);
         }
-        if (strategy != null && strategy.isStopOnError() && state.failed.get()) {
+        if (strategy != null && strategy.isStopOnError() && attemptState.failed.get()) {
             return new WorkflowDecision(true, workflowName, stateKey, ToolRuntimeAction.DENY,
                 "MCP workflow is stopped because a previous required step failed", matchedRules);
         }
@@ -1552,6 +1579,8 @@ public class ToolRuntimeService {
                 toolName,
                 completed,
                 attempted,
+                completedFacts,
+                targetRefs,
                 strategy,
                 matchedRules,
                 stateKey
@@ -1573,7 +1602,12 @@ public class ToolRuntimeService {
 
         List<String> missing = dependencies.stream()
             .filter(value -> value != null && !value.isBlank())
-            .filter(dependency -> !containsTool(completed, dependency))
+            .filter(dependency -> !workflowDependencySatisfied(
+                completed,
+                completedFacts,
+                dependency,
+                targetRefs
+            ))
             .distinct()
             .toList();
         if (!missing.isEmpty()) {
@@ -1651,6 +1685,8 @@ public class ToolRuntimeService {
                                                       String toolName,
                                                       Set<String> completed,
                                                       Set<String> attempted,
+                                                      Set<String> completedFacts,
+                                                      Set<String> targetRefs,
                                                       McpWorkflowProperties.ExecutionStrategy strategy,
                                                       List<String> matchedRules,
                                                       String stateKey) {
@@ -1665,13 +1701,19 @@ public class ToolRuntimeService {
             return WorkflowDecision.allowed(workflowName, stateKey, matchedRules);
         }
         int currentOrder = stepOrder(currentStep);
+        boolean failedAttemptAllowsNextStage = strategy != null && !strategy.isStopOnError();
         List<String> missingRequired = workflow.getSteps().stream()
             .filter(step -> step != null && !stepTools(step).isEmpty())
             .filter(McpWorkflowProperties.WorkflowStep::isRequired)
             .filter(step -> stepOrder(step) < currentOrder)
             .flatMap(step -> stepTools(step).stream())
-            .filter(requiredTool -> !containsTool(attempted, requiredTool)
-                && !containsTool(completed, requiredTool))
+            .filter(requiredTool -> !workflowDependencySatisfied(
+                    completed,
+                    completedFacts,
+                    requiredTool,
+                    targetRefs
+                )
+                && !(failedAttemptAllowsNextStage && containsTool(attempted, requiredTool)))
             .distinct()
             .toList();
         if (!missingRequired.isEmpty()) {
@@ -1765,13 +1807,26 @@ public class ToolRuntimeService {
         String stateKey = firstText(workflowDecision.stateKey(), workflowStateKey(request,
             firstText(workflowDecision.workflowName(), executionPlan == null ? null : executionPlan.workflow())));
         WorkflowState state = workflowStates.computeIfAbsent(stateKey, ignored -> new WorkflowState());
-        state.attemptedSteps.incrementAndGet();
-        state.attemptedTools.add(toolName);
+        WorkflowState attemptState = workflowStates.computeIfAbsent(
+            workflowAttemptStateKey(
+                request,
+                firstText(workflowDecision.workflowName(), executionPlan == null ? null : executionPlan.workflow())
+            ),
+            ignored -> new WorkflowState()
+        );
+        attemptState.attemptedSteps.incrementAndGet();
+        attemptState.attemptedTools.add(toolName);
         if (success) {
             state.completedTools.add(toolName);
-            state.failed.set(false);
+            Set<String> targetRefs = workflowTargetRefs(request);
+            if (targetRefs.isEmpty()) {
+                state.completedFacts.add(workflowFact(toolName, "*"));
+            } else {
+                targetRefs.forEach(targetRef -> state.completedFacts.add(workflowFact(toolName, targetRef)));
+            }
+            attemptState.failed.set(false);
         } else {
-            state.failed.set(true);
+            attemptState.failed.set(true);
         }
     }
 
@@ -2342,7 +2397,11 @@ public class ToolRuntimeService {
      * @return whether the condition is satisfied
      */
     private boolean sameTool(String configuredTool, String actualTool) {
-        return normalizeToolSemanticKey(configuredTool).equals(normalizeToolSemanticKey(actualTool));
+        String configured = normalizeToolSemanticKey(configuredTool);
+        String actual = normalizeToolSemanticKey(actualTool);
+        return configured.equals(actual)
+            || configured.endsWith("_" + actual)
+            || actual.endsWith("_" + configured);
     }
 
     /**
@@ -2403,6 +2462,129 @@ public class ToolRuntimeService {
         return completed;
     }
 
+    private Set<String> completedWorkflowFacts(ToolRuntimeRequest request, WorkflowState state) {
+        Set<String> facts = new HashSet<>(state == null ? Set.of() : state.completedFacts);
+        Object configured = request == null || request.getAttributes() == null
+            ? null
+            : request.getAttributes().get("workflowCompletedFacts");
+        if (configured instanceof List<?> list) {
+            for (Object item : list) {
+                if (item instanceof Map<?, ?> rawFact) {
+                    Map<String, Object> fact = new LinkedHashMap<>();
+                    rawFact.forEach((key, value) -> {
+                        if (key != null) {
+                            fact.put(String.valueOf(key), value);
+                        }
+                    });
+                    String tool = stringValue(firstPresent(
+                        fact.get("tool"),
+                        fact.get("toolName"),
+                        fact.get("capability")
+                    ));
+                    String target = stringValue(firstPresent(
+                        fact.get("targetRef"),
+                        fact.get("targetAssetId"),
+                        fact.get("assetId"),
+                        fact.get("assetName")
+                    ));
+                    if (tool != null && !tool.isBlank()) {
+                        facts.add(workflowFact(tool, firstText(target, "*")));
+                    }
+                } else {
+                    String encoded = stringValue(item);
+                    if (encoded != null && !encoded.isBlank()) {
+                        facts.add(encoded.trim());
+                    }
+                }
+            }
+        }
+        return facts;
+    }
+
+    private boolean workflowDependencySatisfied(Set<String> completedTools,
+                                                Set<String> completedFacts,
+                                                String dependencyTool,
+                                                Set<String> targetRefs) {
+        String semanticTool = normalizeToolSemanticKey(dependencyTool);
+        Set<String> factTargets = new HashSet<>();
+        if (completedFacts != null) {
+            completedFacts.stream()
+                .filter(Objects::nonNull)
+                .map(String::valueOf)
+                .filter(fact -> {
+                    int separator = fact.indexOf("::target=");
+                    return separator > 0 && sameTool(fact.substring(0, separator), semanticTool);
+                })
+                .map(fact -> fact.substring(fact.indexOf("::target=") + "::target=".length()))
+                .forEach(factTargets::add);
+        }
+        if (factTargets.isEmpty()) {
+            return containsTool(completedTools, dependencyTool);
+        }
+        if (targetRefs == null || targetRefs.isEmpty() || factTargets.contains("*")) {
+            return true;
+        }
+        return targetRefs.stream()
+            .map(this::normalizeWorkflowTargetRef)
+            .anyMatch(factTargets::contains);
+    }
+
+    private String workflowFact(String toolName, String targetRef) {
+        return normalizeToolSemanticKey(toolName)
+            + "::target="
+            + firstText(normalizeWorkflowTargetRef(targetRef), "*");
+    }
+
+    private Set<String> workflowTargetRefs(ToolRuntimeRequest request) {
+        Set<String> refs = new HashSet<>();
+        if (request == null) {
+            return refs;
+        }
+        collectWorkflowTargetRefs(refs, request.getAttributes());
+        if (request.getToolInput() != null) {
+            collectWorkflowTargetRefs(refs, request.getToolInput().getParameters());
+            collectWorkflowTargetRefs(refs, request.getToolInput().getContext());
+        }
+        refs.removeIf(value -> value == null || value.isBlank());
+        return refs;
+    }
+
+    private void collectWorkflowTargetRefs(Set<String> refs, Map<String, ?> values) {
+        if (refs == null || values == null || values.isEmpty()) {
+            return;
+        }
+        for (String key : List.of(
+            "workflowTargetRef", "targetAssetId", "targetAssetName",
+            "assetId", "assetName", "databaseAssetId", "databaseAssetName"
+        )) {
+            Object value = values.get(key);
+            String normalized = normalizeWorkflowTargetRef(stringValue(value));
+            if (normalized != null) {
+                refs.add(normalized);
+            }
+        }
+        for (String nestedKey : List.of(
+            "executionContext", "execution_context", "filters", "target",
+            "defaultDataAsset", "mcpExecutionContext", "workflowContext"
+        )) {
+            Object nested = values.get(nestedKey);
+            if (nested instanceof Map<?, ?> rawNested) {
+                Map<String, Object> nestedValues = new LinkedHashMap<>();
+                rawNested.forEach((key, value) -> {
+                    if (key != null) {
+                        nestedValues.put(String.valueOf(key), value);
+                    }
+                });
+                collectWorkflowTargetRefs(refs, nestedValues);
+            }
+        }
+    }
+
+    private String normalizeWorkflowTargetRef(String value) {
+        String normalized = normalizeText(value);
+        return normalized == null ? null : normalized.toLowerCase(Locale.ROOT);
+    }
+
     private Set<String> attemptedTools(ToolRuntimeRequest request, WorkflowState state) {
         Set<String> attempted = new HashSet<>(state == null ? Set.of() : state.attemptedTools);
         Object configured = request == null || request.getAttributes() == null
@@ -2430,10 +2612,14 @@ public class ToolRuntimeService {
         String user = normalizeText(request == null ? null : request.getUserId());
         String conversation = normalizeText(request == null ? null : request.getConversationId());
         String scope = firstText(workflowRunScope(request), firstText(conversation, "adhoc"));
-        String attempt = workflowExecutionAttempt(request);
         return firstText(tenant, "default") + "::" + firstText(user, "anonymous")
-            + "::" + scope + "::attempt=" + firstText(attempt, "0")
-            + "::" + firstText(workflowName, "global");
+            + "::" + scope + "::" + firstText(workflowName, "global");
+    }
+
+    private String workflowAttemptStateKey(ToolRuntimeRequest request, String workflowName) {
+        return workflowStateKey(request, workflowName)
+            + "::attempt="
+            + firstText(workflowExecutionAttempt(request), "0");
     }
 
     private String workflowExecutionAttempt(ToolRuntimeRequest request) {
@@ -3241,6 +3427,7 @@ public class ToolRuntimeService {
 
     private static final class WorkflowState {
         private final Set<String> completedTools = ConcurrentHashMap.newKeySet();
+        private final Set<String> completedFacts = ConcurrentHashMap.newKeySet();
         private final Set<String> attemptedTools = ConcurrentHashMap.newKeySet();
         private final AtomicInteger attemptedSteps = new AtomicInteger();
         private final AtomicBoolean failed = new AtomicBoolean(false);

@@ -23,7 +23,9 @@ public final class AgentRuntimeFactGroundingContract {
             "The model may explain, relate, and summarize facts, but must not add, rename, replace, or contradict them.",
             "Identifiers, counts, statuses, completeness flags, database layers, schemas, tables, fields, and execution results remain exact.",
             "Inferences and recommendations must be explicitly separated from observed facts and must never be presented as retrieved objects.",
-            "Missing evidence must be reported as missing; it must not be filled with examples, conventions, or model knowledge."
+            "Missing evidence must be reported as missing; it must not be filled with examples, conventions, or model knowledge.",
+            "SQL, shell commands, scripts, and validation snippets must not be generated unless their exact text was returned as authorized tool evidence.",
+            "Asset displayName, name, id, and toolName are distinct contract fields and must never be relabeled or substituted."
         ));
         contract.put("enforcementStages", List.of(
             "planning",
@@ -43,6 +45,8 @@ public final class AgentRuntimeFactGroundingContract {
             - Preserve exact identifiers, counts, statuses, completeness/truncation flags, database layers, schemas, tables, fields, and execution outcomes.
             - Keep explicit inference/recommendation separate from observed facts. Never present inferred examples or naming conventions as retrieved results.
             - When evidence is missing, state the missing evidence; do not fill the gap with model knowledge.
+            - Never generate illustrative/manual SQL, shell commands, scripts, or validation snippets unless their exact text was returned by an authorized tool and is explicitly relevant to the answer.
+            - Preserve asset contract semantics exactly: displayName/name is the asset label, assetId/id is the asset identifier, and toolName is the bound execution tool. Never relabel toolName as displayName.
             - Runtime must validate the final answer and rewrite it from original tool evidence when fact mutation is detected.
 
             """;

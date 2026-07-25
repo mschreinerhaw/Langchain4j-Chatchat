@@ -26,6 +26,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
@@ -787,12 +788,21 @@ public class InterpretationPlanRuntime {
         }
         attributes.put("executionPlan", executionPlan);
         attributes.put("completedPlanStepIds", new ArrayList<>(completed.keySet()));
-        List<String> completedTools = completed.values().stream()
+        Set<String> completedToolSet = new LinkedHashSet<>();
+        Object priorCompletedTools = attributes.get("workflowCompletedTools");
+        if (priorCompletedTools instanceof List<?> list) {
+            list.stream()
+                .filter(Objects::nonNull)
+                .map(String::valueOf)
+                .filter(tool -> !tool.isBlank())
+                .forEach(completedToolSet::add);
+        }
+        completed.values().stream()
             .filter(execution -> execution != null && execution.success())
             .map(StepExecution::toolName)
             .filter(tool -> tool != null && !tool.isBlank())
-            .distinct()
-            .toList();
+            .forEach(completedToolSet::add);
+        List<String> completedTools = new ArrayList<>(completedToolSet);
         attributes.put("workflowCompletedTools", completedTools);
         attributes.put("completedTools", completedTools);
         return attributes;

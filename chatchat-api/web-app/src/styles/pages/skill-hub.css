@@ -2480,6 +2480,13 @@
   gap: 10px;
 }
 
+.agent-workshop-view .workflow-budget-hint {
+  margin: 12px 0 8px;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .agent-workshop-view .workflow-step-list {
   display: grid;
   gap: 10px;

@@ -434,6 +434,9 @@
                 <span>启用</span>
               </label>
             </div>
+            <div class="workflow-budget-hint">
+              智能决策可按任务使用更小预算，但不得超过以下 Agent 配置上限。
+            </div>
             <div class="workflow-strategy">
               <label>
                 <span>执行模式</span>
@@ -444,8 +447,28 @@
                 </select>
               </label>
               <label>
-                <span>最大步骤</span>
+                <span>最大步骤（上限）</span>
                 <input v-model.number="form.workflowConfig.executionStrategy.maxSteps" type="number" min="1" max="50" step="1">
+              </label>
+              <label>
+                <span>成本预算上限（额度）</span>
+                <input
+                  v-model.number="form.workflowConfig.executionStrategy.costBudget"
+                  type="number"
+                  min="0"
+                  max="1000000"
+                  step="0.1"
+                >
+              </label>
+              <label>
+                <span>时延预算上限（毫秒）</span>
+                <input
+                  v-model.number="form.workflowConfig.executionStrategy.latencyBudgetMs"
+                  type="number"
+                  min="1"
+                  max="3600000"
+                  step="1000"
+                >
               </label>
               <label>
                 <span>工具失败重试次数</span>

@@ -77,7 +77,8 @@ class AgentPlanner {
             verificationWebSearchTool,
             normalizeList(availableTools),
             query,
-            experiencePrior(runtimeAttributes)
+            experiencePrior(runtimeAttributes),
+            AgentPlanBudgetPolicy.fromRuntimeAttributes(runtimeAttributes)
         );
         String runId = stringValue(runtimeAttributes == null ? null : runtimeAttributes.get("__agentRunId"));
         int maxAttempts = plannerRepairAttempts(runtimeAttributes);
@@ -231,6 +232,7 @@ class AgentPlanner {
         prompt.append("- Use reusable semantic capabilities and dimensions; never put a concrete template id, asset id, host name, database name, or environment-specific value in check_id or capability.\n");
         prompt.append("- Map each planned evidence-producing step through step_ids. When max_steps cannot fit a required check, keep that check with step_ids=[] so Runtime reports execution_budget_exhausted instead of silently omitting it.\n");
         prompt.append("- Do not pre-fill health scores. Scores and confidence are produced only from explicit structured tool evidence; missing checks keep the overall assessment at INSUFFICIENT_EVIDENCE.\n\n");
+        appendAgentBudgetContract(prompt, runtimeAttributes);
         prompt.append(AgentRuntimeFactGroundingContract.promptSection());
         prompt.append("MCP interaction contract:\n");
         prompt.append("- The user-bound workflow tool names, required flags, dependencies, and order are the execution contract. Do not insert, replace, or reorder tools based on intent, keywords, metadata, or returned template names.\n");
@@ -367,6 +369,27 @@ class AgentPlanner {
         }
         prompt.append("User query:\n").append(query);
         return prompt.toString();
+    }
+
+    private void appendAgentBudgetContract(StringBuilder prompt, Map<String, Object> runtimeAttributes) {
+        AgentPlanBudgetPolicy.BudgetCaps caps = AgentPlanBudgetPolicy.fromRuntimeAttributes(runtimeAttributes);
+        if (!caps.configured()) {
+            return;
+        }
+        prompt.append("Agent-configured smart decision budget (authoritative hard ceilings):\n");
+        if (caps.maxSteps() != null) {
+            prompt.append("- execution_policy.max_steps MUST be <= ").append(caps.maxSteps()).append(".\n");
+            prompt.append("- The complete plan, including final_answer, MUST contain no more than ")
+                .append(caps.maxSteps()).append(" steps.\n");
+        }
+        if (caps.costBudget() != null) {
+            prompt.append("- execution_policy.cost_budget MUST be <= ").append(caps.costBudget()).append(".\n");
+        }
+        if (caps.latencyBudgetMs() != null) {
+            prompt.append("- execution_policy.latency_budget_ms MUST be <= ")
+                .append(caps.latencyBudgetMs()).append(".\n");
+        }
+        prompt.append("- You may choose a smaller budget for this task, but never raise or ignore an Agent-configured ceiling.\n\n");
     }
 
     private void appendMcpWorkflowOrchestrationContract(StringBuilder prompt, Map<String, Object> runtimeAttributes) {
@@ -682,6 +705,11 @@ class AgentPlanner {
         }
         payload = normalizeInterpretationPlanPayload(payload);
         InterpretationPlan interpretationPlan = objectMapper.convertValue(payload, InterpretationPlan.class);
+        AgentPlanBudgetPolicy.ApplyResult budgetResult = AgentPlanBudgetPolicy.apply(
+            interpretationPlan,
+            validationContext == null ? null : validationContext.budgetCaps()
+        );
+        interpretationPlan = budgetResult.plan();
         InterpretationPlanValidator.ValidationResult validation =
             interpretationPlanValidator.validate(
                 interpretationPlan,
@@ -689,7 +717,12 @@ class AgentPlanner {
                 new LinkedHashSet<>(validationContext == null ? List.of() : normalizeList(validationContext.availableTools()))
             );
         List<String> runtimeIssues = validateRuntimePlanRules(interpretationPlan, validationContext);
-        Map<String, Object> validationMetadata = validationMetadata(validation, runtimeIssues);
+        Map<String, Object> validationMetadata = new LinkedHashMap<>(validationMetadata(validation, runtimeIssues));
+        if (validationContext != null && validationContext.budgetCaps() != null
+            && validationContext.budgetCaps().configured()) {
+            validationMetadata.put("agentBudgetCaps", validationContext.budgetCaps().metadata());
+            validationMetadata.put("agentBudgetAdjusted", budgetResult.adjusted());
+        }
         if (!validation.valid() || !runtimeIssues.isEmpty()) {
             return new AgentDecision(
                 FINAL,
@@ -2684,8 +2717,22 @@ record PlannerValidationContext(
     String verificationWebSearchTool,
     List<String> availableTools,
     String query,
-    Map<String, Object> experiencePrior
+    Map<String, Object> experiencePrior,
+    AgentPlanBudgetPolicy.BudgetCaps budgetCaps
 ) {
+    PlannerValidationContext(List<String> mandatoryTools,
+                             boolean requireToolBeforeFinal,
+                             boolean requireDocumentWebVerification,
+                             String documentSearchTool,
+                             String verificationWebSearchTool,
+                             List<String> availableTools,
+                             String query,
+                             Map<String, Object> experiencePrior) {
+        this(mandatoryTools, requireToolBeforeFinal, requireDocumentWebVerification,
+            documentSearchTool, verificationWebSearchTool, availableTools, query, experiencePrior,
+            new AgentPlanBudgetPolicy.BudgetCaps(null, null, null));
+    }
+
     PlannerValidationContext(List<String> mandatoryTools,
                              boolean requireToolBeforeFinal,
                              boolean requireDocumentWebVerification,
@@ -2694,7 +2741,8 @@ record PlannerValidationContext(
                              List<String> availableTools,
                              String query) {
         this(mandatoryTools, requireToolBeforeFinal, requireDocumentWebVerification,
-            documentSearchTool, verificationWebSearchTool, availableTools, query, Map.of());
+            documentSearchTool, verificationWebSearchTool, availableTools, query, Map.of(),
+            new AgentPlanBudgetPolicy.BudgetCaps(null, null, null));
     }
 }
 

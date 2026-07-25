@@ -15,6 +15,57 @@ import static org.mockito.Mockito.when;
 class InterpretationPlanRewriterTest {
 
     @Test
+    void rewrittenPlanCannotExceedAgentConfiguredBudgetCeilings() {
+        CapturingChatModel chatModel = new CapturingChatModel("""
+            {
+              "version": "1.0",
+              "intent": {"type": "web_search", "goal": "Recover evidence", "risk_level": "low"},
+              "context": {"key_facts": [], "missing_info": [], "assumptions": [], "constraints": []},
+              "plan": {
+                "steps": [
+                  {"id": 1, "action_type": "mcp_tool", "tool_name": "web_search", "input": {"query": "evidence"}, "depends_on": []},
+                  {"id": 2, "action_type": "final_answer", "tool_name": "", "input": {"answer": "done"}, "depends_on": [1]}
+                ]
+              },
+              "execution_policy": {
+                "max_steps": 8,
+                "allow_parallel": false,
+                "allow_tool": ["web_search"],
+                "deny_tool": [],
+                "cost_budget": 50,
+                "latency_budget_ms": 600000
+              },
+              "review": {"self_check": {"completeness_score": 0.8, "hallucination_risk": 0.1, "tool_sufficiency": true, "missing_steps": []}, "fallback_plan": []}
+            }
+            """);
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("web_search")).thenReturn(true);
+        InterpretationPlanRewriter rewriter = new InterpretationPlanRewriter(
+            chatModel, new ObjectMapper(), new InterpretationPlanValidator());
+        InterpretationPlan.ExecutionPolicy ceilings = new InterpretationPlan.ExecutionPolicy(
+            3, null, null, null, null, null, null, null, 10.0, 120000, null);
+
+        InterpretationPlanRewriter.RewriteResult result = rewriter.rewrite(
+            new InterpretationPlanRewriter.RewriteRequest(
+                originalPlan(),
+                originalPlan().steps().get(0),
+                "prior evidence was insufficient",
+                List.of("document_search failed"),
+                List.of("web_search"),
+                toolRegistry,
+                List.of(),
+                List.of(),
+                ceilings
+            ));
+
+        assertThat(result.valid()).as(result.errorMessage()).isTrue();
+        assertThat(result.rewrittenPlan().executionPolicy().maxSteps()).isEqualTo(3);
+        assertThat(result.rewrittenPlan().executionPolicy().costBudget()).isEqualTo(10.0);
+        assertThat(result.rewrittenPlan().executionPolicy().latencyBudgetMs()).isEqualTo(120000);
+        assertThat(chatModel.lastPrompt()).contains("Agent-configured budget ceilings");
+    }
+
+    @Test
     void rewritesFailedToolPlanIntoValidatedAlternativePlan() {
         CapturingChatModel chatModel = new CapturingChatModel("""
             {

@@ -115,6 +115,8 @@ function defaultWorkflowConfig() {
       mode: "sequential",
       stopOnError: true,
       maxSteps: 3,
+      costBudget: 10,
+      latencyBudgetMs: 120000,
       toolRetryAttempts: 3,
       allowParallel: false
     },
@@ -1239,6 +1241,14 @@ export default {
       base.executionStrategy.maxSteps = Number.isFinite(configuredMaxSteps) && configuredMaxSteps > 0
         ? Math.max(1, Math.min(50, Math.trunc(configuredMaxSteps)))
         : 3;
+      const configuredCostBudget = Number(base.executionStrategy.costBudget);
+      base.executionStrategy.costBudget = Number.isFinite(configuredCostBudget) && configuredCostBudget >= 0
+        ? Math.min(1000000, configuredCostBudget)
+        : 10;
+      const configuredLatencyBudgetMs = Number(base.executionStrategy.latencyBudgetMs);
+      base.executionStrategy.latencyBudgetMs = Number.isFinite(configuredLatencyBudgetMs) && configuredLatencyBudgetMs > 0
+        ? Math.max(1, Math.min(3600000, Math.trunc(configuredLatencyBudgetMs)))
+        : 120000;
       base.executionStrategy.toolRetryAttempts = Math.max(
         0,
         Math.min(5, Number(base.executionStrategy.toolRetryAttempts ?? 3))

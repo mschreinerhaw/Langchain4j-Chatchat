@@ -83,7 +83,10 @@ class AgentOrchestratorTest {
             .contains("Attempt 2: status=result_unsatisfied, success=false")
             .contains("Attempt 3: status=success, success=true")
             .contains("first evidence", "second evidence", "third evidence")
-            .contains("reconcile and summarize evidence from all attempts");
+            .contains("reconcile and summarize evidence from all attempts")
+            .contains("Never generate illustrative, manual, or 'typical' SQL/commands")
+            .contains("Distinguish BLOCKED before invocation")
+            .contains("Never present toolName as displayName");
     }
 
     @Test

@@ -916,8 +916,14 @@ public class SkillCatalogService {
         if (strategy instanceof Map<?, ?> strategyMap) {
             Map<String, Object> normalizedStrategy = new LinkedHashMap<>((Map<String, Object>) strategyMap);
             Object configuredMaxSteps = firstObjectFromMap(strategyMap, "maxSteps", "max_steps");
+            Object configuredCostBudget = firstObjectFromMap(strategyMap, "costBudget", "cost_budget");
+            Object configuredLatencyBudgetMs = firstObjectFromMap(strategyMap, "latencyBudgetMs", "latency_budget_ms");
             normalizedStrategy.remove("max_steps");
+            normalizedStrategy.remove("cost_budget");
+            normalizedStrategy.remove("latency_budget_ms");
             normalizedStrategy.put("maxSteps", normalizeWorkflowMaxSteps(configuredMaxSteps));
+            normalizedStrategy.put("costBudget", normalizeWorkflowCostBudget(configuredCostBudget));
+            normalizedStrategy.put("latencyBudgetMs", normalizeWorkflowLatencyBudgetMs(configuredLatencyBudgetMs));
             normalized.put("executionStrategy", normalizedStrategy);
         }
         Map<String, Object> configuredDependencies = new LinkedHashMap<>();
@@ -1024,6 +1030,37 @@ public class SkillCatalogService {
             }
         }
         return Math.max(1, Math.min(50, maxSteps));
+    }
+
+    private double normalizeWorkflowCostBudget(Object value) {
+        double budget = 10.0d;
+        if (value instanceof Number number) {
+            budget = number.doubleValue();
+        } else if (value != null) {
+            try {
+                budget = Double.parseDouble(String.valueOf(value).trim());
+            } catch (NumberFormatException ignored) {
+                budget = 10.0d;
+            }
+        }
+        if (!Double.isFinite(budget)) {
+            budget = 10.0d;
+        }
+        return Math.max(0.0d, Math.min(1_000_000.0d, budget));
+    }
+
+    private int normalizeWorkflowLatencyBudgetMs(Object value) {
+        long budget = 120_000L;
+        if (value instanceof Number number) {
+            budget = number.longValue();
+        } else if (value != null) {
+            try {
+                budget = Long.parseLong(String.valueOf(value).trim());
+            } catch (NumberFormatException ignored) {
+                budget = 120_000L;
+            }
+        }
+        return (int) Math.max(1L, Math.min(3_600_000L, budget));
     }
 
     /**

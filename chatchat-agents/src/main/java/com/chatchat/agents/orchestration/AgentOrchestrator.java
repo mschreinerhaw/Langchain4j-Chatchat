@@ -842,8 +842,15 @@ public class AgentOrchestrator {
                                                                    int maxToolCalls,
                                                                    BooleanSupplier cancellationCheck) {
         runtimeGuard.checkCancelled(cancellationCheck);
+        AgentPlanBudgetPolicy.BudgetCaps budgetCaps = AgentPlanBudgetPolicy.fromRuntimeAttributes(runtimeAttributes);
+        AgentPlanBudgetPolicy.ApplyResult budgetResult = AgentPlanBudgetPolicy.apply(plan, budgetCaps);
+        plan = budgetResult.plan();
         metadata.put("interpretationPlanPipeline", true);
         metadata.put("interpretationPlanVersion", plan.version());
+        if (budgetCaps.configured()) {
+            metadata.put("agentBudgetCaps", budgetCaps.metadata());
+            metadata.put("agentBudgetAdjusted", budgetResult.adjusted());
+        }
         saveInterpretationPlanSnapshot("initial", plan, tenantId, requestId, runtimeAttributes, metadata);
         recordPlanEvolution(null, plan, 1, "INITIAL", List.of(), runtimeAttributes, metadata);
 
@@ -968,7 +975,22 @@ public class AgentOrchestrator {
                 tools,
                 toolRegistry,
                 rewriteRequirements,
-                evidenceHistory
+                evidenceHistory,
+                budgetCaps.configured()
+                    ? new InterpretationPlan.ExecutionPolicy(
+                        budgetCaps.maxSteps(),
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        budgetCaps.costBudget(),
+                        budgetCaps.latencyBudgetMs(),
+                        null
+                    )
+                    : null
             ));
             metadata.put("interpretationPlanRewriteAttempted", true);
             metadata.put("interpretationPlanRewriteCount", rewriteCount);
@@ -1041,7 +1063,10 @@ public class AgentOrchestrator {
                 conversationId,
                 userId,
                 tools,
-                workflowAttemptAttributes(runtimeAttributes, rewriteCount)
+                workflowAttemptAttributes(
+                    workflowStateTracker.attributesWithCompletedTools(runtimeAttributes, completedTools),
+                    rewriteCount
+                )
             ));
             recordPlanRuntimeResult(rewriteStage, currentResult, traces, observations, metadata);
             saveInterpretationPlanSnapshot(
@@ -1740,6 +1765,9 @@ public class AgentOrchestrator {
         prompt.append("- If a succeeded SQL/database step is partial, still summarize the returned rows/metrics and explicitly state missing fields or limitations.\n");
         prompt.append("- If some step truly failed with no usable output, state the limitation and do not use that failed result as evidence.\n");
         prompt.append("- Do not display executed SQL statements, scripts, or query text in the user-facing answer. Mention only the template/tool and returned data.\n");
+        prompt.append("- Never generate illustrative, manual, or 'typical' SQL/commands when the authorized template evidence did not return their exact text. For an unexecuted check, report only capability, template identifier, status, and exact runtime reason.\n");
+        prompt.append("- Describe the number of plan attempts only from the Executed plan attempts count below. Distinguish BLOCKED before invocation from an actual remote tool execution; do not call a blocked step a completed diagnostic execution.\n");
+        prompt.append("- Preserve canonical asset fields exactly: assets[].asset.displayName/name is the asset label, assets[].asset.id/assetId is the asset identifier, and assets[].asset.toolName is the bound tool. Never present toolName as displayName.\n");
         prompt.append("- A shortened output preview in this prompt is not evidence that the tool output itself was truncated. Claim truncation only when output facts contain explicitTruncation=true or the output has an explicit _truncated/[truncated] marker.\n");
         prompt.append("- Do not invent facts that are not present in the step outputs or observations.\n");
         prompt.append("- For SQL metadata discovery, cite every recommended table by the exact physical identifier returned by the tool (database/schema/tableName when available). Keep any Chinese business description separate; never use it as a substitute for the physical table name.\n");

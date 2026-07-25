@@ -20,6 +20,39 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AgentPlannerTest {
 
     @Test
+    void plannerPromptPublishesAgentConfiguredBudgetAsHardCeilings() throws Exception {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        Method method = AgentPlanner.class.getDeclaredMethod(
+            "buildPlannerPrompt", String.class, String.class, List.class, List.class, List.class,
+            List.class, List.class, boolean.class, boolean.class, String.class, String.class, Map.class);
+        method.setAccessible(true);
+
+        String prompt = (String) method.invoke(
+            planner,
+            "检查数据库状态",
+            "",
+            List.of("database_asset_search"),
+            List.of(), List.of(), List.of(), List.of(),
+            false, false, null, null,
+            Map.of("mcpWorkflow", Map.of(
+                "executionStrategy", Map.of(
+                    "maxSteps", 3,
+                    "costBudget", 7.5,
+                    "latencyBudgetMs", 60000
+                )
+            ))
+        );
+
+        assertThat(prompt)
+            .contains("authoritative hard ceilings")
+            .contains("execution_policy.max_steps MUST be <= 3")
+            .contains("no more than 3 steps")
+            .contains("execution_policy.cost_budget MUST be <= 7.5")
+            .contains("execution_policy.latency_budget_ms MUST be <= 60000")
+            .contains("never raise or ignore an Agent-configured ceiling");
+    }
+
+    @Test
     void plannerPromptAlwaysIncludesAuthoritativeRuntimeDateEvenWithoutWebCrawlerTools() throws Exception {
         AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
         Method method = AgentPlanner.class.getDeclaredMethod(

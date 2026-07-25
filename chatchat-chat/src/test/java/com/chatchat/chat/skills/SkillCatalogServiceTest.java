@@ -51,7 +51,40 @@ class SkillCatalogServiceTest {
             .hasMessageContaining("DEV, TEST, UAT, PROD");
     }
 
+    @Test
+    void normalizesAndPersistsAgentBudgetCeilings() {
+        SkillConfigRepository repository = mock(SkillConfigRepository.class);
+        SkillConfigVersionRepository versionRepository = mock(SkillConfigVersionRepository.class);
+        when(repository.findById("db_ops_assistant")).thenReturn(Optional.empty());
+        when(repository.save(any(SkillConfigEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(versionRepository.save(any(SkillConfigVersionEntity.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        SkillCatalogService service = new SkillCatalogService(
+            repository, versionRepository, new ObjectMapper(), mock(JdbcTemplate.class));
+
+        SkillDefinition saved = service.upsert(draftWithWorkflow(Map.of(
+            "enabled", true,
+            "executionStrategy", Map.of(
+                "max_steps", 6,
+                "cost_budget", 12.5,
+                "latency_budget_ms", 180000
+            )
+        )));
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> strategy = (Map<String, Object>) saved.workflowConfig().get("executionStrategy");
+        assertThat(strategy)
+            .containsEntry("maxSteps", 6)
+            .containsEntry("costBudget", 12.5)
+            .containsEntry("latencyBudgetMs", 180000)
+            .doesNotContainKeys("max_steps", "cost_budget", "latency_budget_ms");
+    }
+
     private SkillDefinition draftWithEnvironment(String environment) {
+        return draftWithWorkflow(Map.of("enabled", true, "runtimeEnvironment", environment));
+    }
+
+    private SkillDefinition draftWithWorkflow(Map<String, Object> workflowConfig) {
         return new SkillDefinition(
             "db_ops_assistant",
             "数据库运维助手",
@@ -69,7 +102,7 @@ class SkillCatalogServiceTest {
             List.of(),
             List.of(),
             null,
-            Map.of("enabled", true, "runtimeEnvironment", environment),
+            workflowConfig,
             null,
             null,
             List.of(),

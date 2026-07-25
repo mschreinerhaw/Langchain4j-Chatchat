@@ -17,6 +17,34 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AgentAnswerFinalizerEvidenceAnswerTest {
 
     @Test
+    void preInvocationWorkflowBlockDoesNotConsumeRemoteToolCallBudget() {
+        AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
+            new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok");
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            reviewer,
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        InteractionToolTrace blocked = InteractionToolTrace.builder()
+            .toolName("database_ops_template_search")
+            .success(false)
+            .runtimeMetadata(Map.of(
+                "outcome", "denied",
+                "blockedBeforeInvocation", true,
+                "remoteToolInvoked", false
+            ))
+            .build();
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        List<String> observations = new java.util.ArrayList<>();
+
+        boolean exceeded = finalizer.markToolBudgetExceeded(
+            "sql_query_execute", 1, List.of(blocked), metadata, observations);
+
+        assertThat(exceeded).isFalse();
+        assertThat(metadata).doesNotContainKey("toolBudgetExceeded");
+        assertThat(observations).isEmpty();
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void appendsToolResultRowsAndVisualizationSpecForTabularData() {
         AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->

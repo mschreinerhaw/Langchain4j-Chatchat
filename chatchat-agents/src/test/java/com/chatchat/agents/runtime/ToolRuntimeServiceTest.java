@@ -923,6 +923,93 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
+    void successfulWorkflowDependenciesAreInheritedAcrossPlanAttemptsInSameRun() {
+        List<String> tools = List.of("database_asset_search", "database_ops_template_search", "sql_query_execute");
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        tools.forEach(tool -> when(toolRegistry.getToolMetadata(tool)).thenReturn(ToolMetadata.builder()
+            .id(tool).title(tool).categories(List.of("mcp")).build()));
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.success("ok"));
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), properties(), new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of());
+        Map<String, Object> workflow = diagnosticWorkflow(tools);
+
+        ToolRuntimeExecution asset = service.execute(diagnosticAttemptRequest(
+            tools.get(0), workflow, tools, 0, "asset-a"));
+        ToolRuntimeExecution templates = service.execute(diagnosticAttemptRequest(
+            tools.get(1), workflow, tools, 1, "asset-a"));
+        ToolRuntimeExecution sql = service.execute(diagnosticAttemptRequest(
+            tools.get(2), workflow, tools, 2, "asset-a"));
+
+        assertThat(asset.output().isSuccess()).isTrue();
+        assertThat(templates.output().isSuccess()).isTrue();
+        assertThat(sql.output().isSuccess()).isTrue();
+        verify(toolRegistry, times(3)).executeEnhancedTool(any(), any());
+    }
+
+    @Test
+    void workflowDependenciesMatchConfiguredFullMcpNamesToRuntimeShortNames() {
+        List<String> runtimeTools = List.of(
+            "database_asset_search",
+            "database_ops_template_search",
+            "sql_query_execute"
+        );
+        List<String> configuredTools = runtimeTools.stream()
+            .map(tool -> "mcp_chatchat_mcp_server_" + tool)
+            .toList();
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        runtimeTools.forEach(tool -> when(toolRegistry.getToolMetadata(tool)).thenReturn(ToolMetadata.builder()
+            .id(tool).title(tool).categories(List.of("mcp")).build()));
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.success("ok"));
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), properties(), new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of());
+        Map<String, Object> workflow = diagnosticWorkflow(configuredTools);
+
+        ToolRuntimeExecution asset = service.execute(diagnosticAttemptRequest(
+            runtimeTools.get(0), workflow, runtimeTools, 0, "asset-a"));
+        ToolRuntimeExecution templates = service.execute(diagnosticAttemptRequest(
+            runtimeTools.get(1), workflow, runtimeTools, 1, "asset-a"));
+        ToolRuntimeExecution sql = service.execute(diagnosticAttemptRequest(
+            runtimeTools.get(2), workflow, runtimeTools, 2, "asset-a"));
+
+        assertThat(asset.output().isSuccess()).isTrue();
+        assertThat(templates.output().isSuccess()).isTrue();
+        assertThat(sql.output().isSuccess()).isTrue();
+        verify(toolRegistry, times(3)).executeEnhancedTool(any(), any());
+    }
+
+    @Test
+    void completedWorkflowFactForOneAssetCannotSatisfyAnotherAsset() {
+        List<String> tools = List.of("database_asset_search", "database_ops_template_search", "sql_query_execute");
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        tools.forEach(tool -> when(toolRegistry.getToolMetadata(tool)).thenReturn(ToolMetadata.builder()
+            .id(tool).title(tool).categories(List.of("mcp")).build()));
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.success("ok"));
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), properties(), new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of());
+        Map<String, Object> workflow = diagnosticWorkflow(tools);
+
+        assertThat(service.execute(diagnosticAttemptRequest(
+            tools.get(0), workflow, tools, 0, "asset-a")).output().isSuccess()).isTrue();
+        ToolRuntimeExecution blocked = service.execute(diagnosticAttemptRequest(
+            tools.get(1), workflow, tools, 1, "asset-b"));
+        ToolRuntimeExecution sameAsset = service.execute(diagnosticAttemptRequest(
+            tools.get(1), workflow, tools, 1, "asset-a"));
+
+        assertThat(blocked.output().isSuccess()).isFalse();
+        assertThat(blocked.output().getErrorMessage()).contains("required previous steps");
+        assertThat(blocked.audit())
+            .containsEntry("executionStatus", "BLOCKED")
+            .containsEntry("blockedBeforeInvocation", true)
+            .containsEntry("blockedReason", "workflow_dependency_unsatisfied")
+            .containsEntry("remoteToolInvoked", false);
+        assertThat(sameAsset.output().isSuccess()).isTrue();
+        verify(toolRegistry, times(2)).executeEnhancedTool(any(), any());
+    }
+
+    @Test
     void failedSequentialStepCountsAsAttemptSoFallbackCanContinueWhenStopOnErrorIsDisabled() {
         String assetSearch = "database_asset_search";
         String templateSearch = "database_template_search";
@@ -1040,6 +1127,44 @@ class ToolRuntimeServiceTest {
             .attributes(Map.of(
                 "mcpWorkflow", workflowConfig,
                 "__agentRunId", "run-rewrite-attempt",
+                "workflowExecutionAttempt", attempt
+            ))
+            .build();
+    }
+
+    private Map<String, Object> diagnosticWorkflow(List<String> tools) {
+        return Map.of(
+            "enabled", true,
+            "workflow", "database_diagnostic",
+            "executionStrategy", Map.of("mode", "sequential", "stopOnError", true, "maxSteps", 8),
+            "steps", List.of(
+                Map.of("step", 1, "tool", tools.get(0), "required", true),
+                Map.of("step", 2, "tool", tools.get(1), "required", true),
+                Map.of("step", 3, "tool", tools.get(2), "required", true)
+            )
+        );
+    }
+
+    private ToolRuntimeRequest diagnosticAttemptRequest(String toolName,
+                                                        Object workflowConfig,
+                                                        List<String> allowedTools,
+                                                        int attempt,
+                                                        String assetId) {
+        return ToolRuntimeRequest.builder()
+            .toolName(toolName)
+            .runtimeMode("interpretation_plan")
+            .requestId("req-diagnostic-" + attempt + "-" + toolName)
+            .conversationId("conv-diagnostic")
+            .tenantId("tenant-1")
+            .userId("user-diagnostic")
+            .allowedTools(allowedTools)
+            .toolInput(ToolInput.builder()
+                .userId("user-diagnostic")
+                .parameters(Map.of("executionContext", Map.of("assetId", assetId)))
+                .build())
+            .attributes(Map.of(
+                "mcpWorkflow", workflowConfig,
+                "__agentRunId", "run-diagnostic",
                 "workflowExecutionAttempt", attempt
             ))
             .build();

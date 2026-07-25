@@ -1621,7 +1621,7 @@ class AgentOrchestratorTest {
         Map<String, Object> workflowConfig = Map.of(
             "enabled", true,
             "workflow", "customer_review",
-            "executionStrategy", Map.of("mode", "sequential", "stopOnError", true),
+            "executionStrategy", Map.of("mode", "sequential", "stopOnError", true, "maxSteps", 7),
             "steps", List.of(
                 Map.of("step", 1, "tool", profileTool, "required", true, "confirmation", "auto_execute"),
                 Map.of("step", 2, "tool", assetTool, "required", true, "confirmation", "auto_execute", "dependsOn", List.of(profileTool))
@@ -1651,6 +1651,7 @@ class AgentOrchestratorTest {
             .containsExactly(profileTool, assetTool);
         assertThat(result.metadata())
             .containsEntry("workflowMandatoryTools", List.of(profileTool, assetTool))
+            .containsEntry("maxSteps", 7)
             .containsEntry("runtimeEnforcedMcpWorkflow", true)
             .doesNotContainKey("workflowToolOverrides");
     }

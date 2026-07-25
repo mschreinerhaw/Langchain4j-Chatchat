@@ -10,6 +10,7 @@ import java.util.function.BooleanSupplier;
  */
 class AgentRuntimeGuard {
 
+    private static final int MAX_CONFIGURABLE_STEPS = 50;
     private final int defaultMaxSteps;
     private final String cancellationAttribute;
     private final String maxStepsAttribute;
@@ -62,10 +63,50 @@ class AgentRuntimeGuard {
     }
 
     int maxSteps(Map<String, Object> runtimeAttributes) {
-        return Math.max(1, (int) runtimeLong(
-            runtimeAttributes == null ? null : runtimeAttributes.get(maxStepsAttribute),
-            defaultMaxSteps
-        ));
+        Object configured = configuredMaxSteps(runtimeAttributes);
+        long value = runtimeLong(configured, defaultMaxSteps);
+        return (int) Math.max(1, Math.min(MAX_CONFIGURABLE_STEPS, value));
+    }
+
+    boolean hasConfiguredMaxSteps(Map<String, Object> runtimeAttributes) {
+        return configuredMaxSteps(runtimeAttributes) != null;
+    }
+
+    private Object configuredMaxSteps(Map<String, Object> runtimeAttributes) {
+        Object configured = runtimeAttributes == null ? null : runtimeAttributes.get(maxStepsAttribute);
+        return configured != null
+            ? configured
+            : workflowMaxSteps(runtimeAttributes == null ? null : runtimeAttributes.get("mcpWorkflow"));
+    }
+
+    private Object workflowMaxSteps(Object workflow) {
+        if (!(workflow instanceof Map<?, ?> workflowMap)) {
+            return null;
+        }
+        Object nestedWorkflow = firstPresent(workflowMap.get("mcpWorkflow"), workflowMap.get("mcp_workflow"));
+        if (nestedWorkflow != null && nestedWorkflow != workflow) {
+            Object nestedMaxSteps = workflowMaxSteps(nestedWorkflow);
+            if (nestedMaxSteps != null) {
+                return nestedMaxSteps;
+            }
+        }
+        Object strategy = firstPresent(workflowMap.get("executionStrategy"), workflowMap.get("execution_strategy"));
+        if (!(strategy instanceof Map<?, ?> strategyMap)) {
+            return null;
+        }
+        return firstPresent(strategyMap.get("maxSteps"), strategyMap.get("max_steps"));
+    }
+
+    private Object firstPresent(Object... values) {
+        if (values == null) {
+            return null;
+        }
+        for (Object value : values) {
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 
     int maxToolCalls(Map<String, Object> runtimeAttributes) {

@@ -55,7 +55,7 @@ import java.util.function.BooleanSupplier;
 @Service
 public class AgentOrchestrator {
 
-    private static final int MAX_STEPS = 3;
+    private static final int DEFAULT_MAX_STEPS = 3;
     private static final int MAX_INTERPRETATION_PLAN_ATTEMPTS = 3;
     private static final int WEB_SEARCH_REFERENCE_LIMIT = 10;
     private static final String AGENT_CANCELLATION_ATTRIBUTE = "__agentCancellation";
@@ -75,7 +75,7 @@ public class AgentOrchestrator {
     private final AgentObservationPipeline observationPipeline;
     private final AgentWorkflowDecisionEngine workflowDecisionEngine = new AgentWorkflowDecisionEngine();
     private final AgentRuntimeGuard runtimeGuard = new AgentRuntimeGuard(
-        MAX_STEPS,
+        DEFAULT_MAX_STEPS,
         AGENT_CANCELLATION_ATTRIBUTE,
         AGENT_MAX_STEPS_ATTRIBUTE,
         AGENT_MAX_TOOL_CALLS_ATTRIBUTE,
@@ -377,7 +377,7 @@ public class AgentOrchestrator {
         if (requireDocumentWebVerification) {
             mandatoryTools = workflowTools.withDocumentWebVerificationMandatoryTools(mandatoryTools, documentSearchTool, verificationWebSearchTool);
         }
-        if (!mandatoryTools.isEmpty()) {
+        if (!mandatoryTools.isEmpty() && !runtimeGuard.hasConfiguredMaxSteps(requestRuntimeAttributes)) {
             maxSteps = Math.max(maxSteps, mandatoryTools.size() + 1);
         }
         boolean requireToolBeforeFinal = !mandatoryTools.isEmpty();

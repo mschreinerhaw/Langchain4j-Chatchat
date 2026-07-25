@@ -37,7 +37,9 @@ public interface ScheduledTaskRepository extends JpaRepository<ScheduledTaskEnti
             or lower(coalesce(task.cronExpr, '')) like lower(concat('%', :keyword, '%'))
             or task.agentId in :keywordAgentIds
           )
-        order by task.createdAt desc
+        order by
+          case when task.status in ('ACTIVE', 'RUNNING') then 0 else 1 end,
+          task.createdAt desc
         """)
     Page<ScheduledTaskEntity> search(
         @Param("tenantId") String tenantId,

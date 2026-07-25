@@ -1503,6 +1503,7 @@ public class ToolRuntimeService {
         String stateKey = workflowStateKey(request, workflowName);
         WorkflowState state = workflowStates.computeIfAbsent(stateKey, ignored -> new WorkflowState());
         Set<String> completed = completedTools(request, state);
+        Set<String> attempted = attemptedTools(request, state);
         List<String> matchedRules = new ArrayList<>();
         matchedRules.add("workflow." + firstText(workflowName, "global") + ".active");
 
@@ -1550,6 +1551,7 @@ public class ToolRuntimeService {
                 currentStep,
                 toolName,
                 completed,
+                attempted,
                 strategy,
                 matchedRules,
                 stateKey
@@ -1648,6 +1650,7 @@ public class ToolRuntimeService {
                                                       McpWorkflowProperties.WorkflowStep currentStep,
                                                       String toolName,
                                                       Set<String> completed,
+                                                      Set<String> attempted,
                                                       McpWorkflowProperties.ExecutionStrategy strategy,
                                                       List<String> matchedRules,
                                                       String stateKey) {
@@ -1667,7 +1670,8 @@ public class ToolRuntimeService {
             .filter(McpWorkflowProperties.WorkflowStep::isRequired)
             .filter(step -> stepOrder(step) < currentOrder)
             .flatMap(step -> stepTools(step).stream())
-            .filter(requiredTool -> !containsTool(completed, requiredTool))
+            .filter(requiredTool -> !containsTool(attempted, requiredTool)
+                && !containsTool(completed, requiredTool))
             .distinct()
             .toList();
         if (!missingRequired.isEmpty()) {
@@ -1762,6 +1766,7 @@ public class ToolRuntimeService {
             firstText(workflowDecision.workflowName(), executionPlan == null ? null : executionPlan.workflow())));
         WorkflowState state = workflowStates.computeIfAbsent(stateKey, ignored -> new WorkflowState());
         state.attemptedSteps.incrementAndGet();
+        state.attemptedTools.add(toolName);
         if (success) {
             state.completedTools.add(toolName);
             state.failed.set(false);
@@ -2396,6 +2401,21 @@ public class ToolRuntimeService {
             }
         }
         return completed;
+    }
+
+    private Set<String> attemptedTools(ToolRuntimeRequest request, WorkflowState state) {
+        Set<String> attempted = new HashSet<>(state == null ? Set.of() : state.attemptedTools);
+        Object configured = request == null || request.getAttributes() == null
+            ? null
+            : firstPresent(request.getAttributes().get("workflowAttemptedTools"), request.getAttributes().get("attemptedTools"));
+        if (configured instanceof List<?> list) {
+            list.stream()
+                .map(this::stringValue)
+                .filter(value -> value != null)
+                .filter(value -> !value.isBlank())
+                .forEach(attempted::add);
+        }
+        return attempted;
     }
 
     /**
@@ -3221,6 +3241,7 @@ public class ToolRuntimeService {
 
     private static final class WorkflowState {
         private final Set<String> completedTools = ConcurrentHashMap.newKeySet();
+        private final Set<String> attemptedTools = ConcurrentHashMap.newKeySet();
         private final AtomicInteger attemptedSteps = new AtomicInteger();
         private final AtomicBoolean failed = new AtomicBoolean(false);
     }

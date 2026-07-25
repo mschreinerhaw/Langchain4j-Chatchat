@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.ops;
 
+import com.chatchat.mcpserver.routing.TargetKindRegistry;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -18,7 +19,8 @@ class TemplateDiscoveryMcpToolPublisherTest {
     void sshTemplateToolIsTypedReadOnlyDiscoveryTool() throws Exception {
         TemplateDiscoveryMcpToolPublisher publisher = new TemplateDiscoveryMcpToolPublisher(
             mock(McpSyncServer.class),
-            mock(CommandTemplateDiscoveryService.class)
+            mock(CommandTemplateDiscoveryService.class),
+            new TargetKindRegistry()
         );
         Method method = TemplateDiscoveryMcpToolPublisher.class.getDeclaredMethod(
             "domainTemplateQueryTool", String.class, String.class, String.class, String.class, String.class, String.class);
@@ -37,6 +39,7 @@ class TemplateDiscoveryMcpToolPublisherTest {
         Map<?, ?> meta = tool.meta();
         Map<?, ?> boundary = (Map<?, ?>) meta.get("toolBoundary");
         Map<?, ?> indexPolicy = (Map<?, ?>) meta.get("indexPolicy");
+        Map<?, ?> routingProtocol = (Map<?, ?>) meta.get("routingProtocol");
 
         assertThat(tool.name()).isEqualTo(TemplateDiscoveryMcpToolPublisher.SSH_TEMPLATE_TOOL_NAME);
         assertThat(meta.get("runtimeAction")).isEqualTo("read_only");
@@ -47,6 +50,9 @@ class TemplateDiscoveryMcpToolPublisherTest {
         assertThat(meta.get("rawExecutionSpecReturned")).isEqualTo(false);
         assertThat(boundary.get("rejectCrossTypeRouting")).isEqualTo(true);
         assertThat(indexPolicy.get("logicalIndex")).isEqualTo("template:ssh_host");
+        assertThat(((List<?>) routingProtocol.get("allowedFilterFields")).stream().map(String::valueOf).toList())
+            .contains("env", "intent", "retrievalsignals")
+            .doesNotContain("templateids");
         assertThat(tool.inputSchema().toString()).contains("bilingualIntent", "intentZh", "intentEn");
     }
 
@@ -54,7 +60,8 @@ class TemplateDiscoveryMcpToolPublisherTest {
     void databaseQueryTemplateToolIsNarrowReadOnlyDiscoveryTool() throws Exception {
         TemplateDiscoveryMcpToolPublisher publisher = new TemplateDiscoveryMcpToolPublisher(
             mock(McpSyncServer.class),
-            mock(CommandTemplateDiscoveryService.class)
+            mock(CommandTemplateDiscoveryService.class),
+            new TargetKindRegistry()
         );
         Method databaseQueryTemplateTool = TemplateDiscoveryMcpToolPublisher.class.getDeclaredMethod("databaseQueryTemplateQueryTool");
         databaseQueryTemplateTool.setAccessible(true);
@@ -75,6 +82,9 @@ class TemplateDiscoveryMcpToolPublisherTest {
         assertThat(meta.get("rawExecutionSpecReturned")).isEqualTo(false);
         assertThat(routingProtocol.get("forcedTargetKind")).isEqualTo("business_database_query");
         assertThat(routingProtocol.get("forcedAssetType")).isEqualTo("database_query");
+        assertThat(((List<?>) routingProtocol.get("allowedFilterFields")).stream().map(String::valueOf).toList())
+            .contains("env", "intent", "retrievalsignals")
+            .doesNotContain("templateids");
         assertThat(tool.inputSchema().toString()).contains("bilingualIntent", "intentZh", "intentEn");
     }
 
@@ -82,7 +92,8 @@ class TemplateDiscoveryMcpToolPublisherTest {
     void typedTemplateArgumentsForceAssetTypeAndTargetKind() throws Exception {
         TemplateDiscoveryMcpToolPublisher publisher = new TemplateDiscoveryMcpToolPublisher(
             mock(McpSyncServer.class),
-            mock(CommandTemplateDiscoveryService.class)
+            mock(CommandTemplateDiscoveryService.class),
+            new TargetKindRegistry()
         );
         Method argumentsMethod = TemplateDiscoveryMcpToolPublisher.class.getDeclaredMethod(
             "forcedTemplateArguments", Map.class, String.class, String.class, String.class);
@@ -105,7 +116,8 @@ class TemplateDiscoveryMcpToolPublisherTest {
     void databaseQueryTemplateArgumentsOverrideMismatchedDatabaseCandidate() throws Exception {
         TemplateDiscoveryMcpToolPublisher publisher = new TemplateDiscoveryMcpToolPublisher(
             mock(McpSyncServer.class),
-            mock(CommandTemplateDiscoveryService.class)
+            mock(CommandTemplateDiscoveryService.class),
+            new TargetKindRegistry()
         );
         Method argumentsMethod = TemplateDiscoveryMcpToolPublisher.class.getDeclaredMethod("databaseQueryTemplateArguments", Map.class);
         argumentsMethod.setAccessible(true);

@@ -914,7 +914,11 @@ public class SkillCatalogService {
         }
         Object strategy = firstObject(config, "executionStrategy", "execution_strategy");
         if (strategy instanceof Map<?, ?> strategyMap) {
-            normalized.put("executionStrategy", new LinkedHashMap<>((Map<String, Object>) strategyMap));
+            Map<String, Object> normalizedStrategy = new LinkedHashMap<>((Map<String, Object>) strategyMap);
+            Object configuredMaxSteps = firstObjectFromMap(strategyMap, "maxSteps", "max_steps");
+            normalizedStrategy.remove("max_steps");
+            normalizedStrategy.put("maxSteps", normalizeWorkflowMaxSteps(configuredMaxSteps));
+            normalized.put("executionStrategy", normalizedStrategy);
         }
         Map<String, Object> configuredDependencies = new LinkedHashMap<>();
         Object dependencies = firstObject(config, "toolDependencies", "tool_dependencies");
@@ -1006,6 +1010,20 @@ public class SkillCatalogService {
             );
         }
         return canonical;
+    }
+
+    private int normalizeWorkflowMaxSteps(Object value) {
+        int maxSteps = 3;
+        if (value instanceof Number number) {
+            maxSteps = number.intValue();
+        } else if (value != null) {
+            try {
+                maxSteps = Integer.parseInt(String.valueOf(value).trim());
+            } catch (NumberFormatException ignored) {
+                maxSteps = 3;
+            }
+        }
+        return Math.max(1, Math.min(50, maxSteps));
     }
 
     /**

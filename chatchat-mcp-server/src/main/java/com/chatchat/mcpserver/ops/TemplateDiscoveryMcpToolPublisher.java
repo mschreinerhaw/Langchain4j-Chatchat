@@ -31,6 +31,7 @@ public class TemplateDiscoveryMcpToolPublisher {
 
     private final McpSyncServer mcpSyncServer;
     private final CommandTemplateDiscoveryService templateDiscoveryService;
+    private final TargetKindRegistry targetKindRegistry;
 
     @Order(Ordered.LOWEST_PRECEDENCE)
     @EventListener(ApplicationReadyEvent.class)
@@ -549,7 +550,8 @@ public class TemplateDiscoveryMcpToolPublisher {
             "routingProtocol", mapOf(
                 "forcedTargetKind", targetKind,
                 "forcedAssetType", assetType,
-                "filtersSchemaVersion", TargetKindRegistry.FILTERS_SCHEMA_VERSION
+                "filtersSchemaVersion", TargetKindRegistry.FILTERS_SCHEMA_VERSION,
+                "allowedFilterFields", List.copyOf(targetKindRegistry.allowedFilterFieldsForTargetKind(targetKind))
             ),
             "rawExecutionSpecReturned", false
         );
@@ -592,7 +594,10 @@ public class TemplateDiscoveryMcpToolPublisher {
             "routingProtocol", mapOf(
                 "forcedTargetKind", "business_database_query",
                 "forcedAssetType", "database_query",
-                "filtersSchemaVersion", TargetKindRegistry.FILTERS_SCHEMA_VERSION
+                "filtersSchemaVersion", TargetKindRegistry.FILTERS_SCHEMA_VERSION,
+                "allowedFilterFields", List.copyOf(
+                    targetKindRegistry.allowedFilterFieldsForTargetKind("business_database_query")
+                )
             ),
             "forbiddenConcreteTargetFields", List.of(
                 "datasourceId",

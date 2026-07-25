@@ -445,7 +445,7 @@
               </label>
               <label>
                 <span>最大步骤</span>
-                <input v-model.number="form.workflowConfig.executionStrategy.maxSteps" type="number" min="0" max="50">
+                <input v-model.number="form.workflowConfig.executionStrategy.maxSteps" type="number" min="1" max="50" step="1">
               </label>
               <label>
                 <span>工具失败重试次数</span>

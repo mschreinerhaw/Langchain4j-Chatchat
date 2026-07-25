@@ -133,7 +133,9 @@
               <span :title="auditScheduleLabel(record)">{{ auditScheduleLabel(record) }}</span>
               <span>{{ auditAgentName(record) }}</span>
               <span>{{ record.manualRun ? "手动执行" : "自动调度" }}</span>
-              <b :class="scheduleStatusClass(record.status)">{{ record.status || "-" }}</b>
+              <b :class="scheduleStatusClass(record.status)" :title="record.status || '-'">
+                {{ record.status || "-" }}
+              </b>
               <span>{{ formatDuration(record.durationMs) }}</span>
               <span :class="{ 'schedule-audit-error': record.errorMessage }" :title="record.errorMessage || record.answerSummary">
                 {{ record.errorMessage || record.answerSummary || "-" }}

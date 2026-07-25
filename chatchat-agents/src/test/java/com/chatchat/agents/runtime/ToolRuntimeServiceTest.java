@@ -922,6 +922,60 @@ class ToolRuntimeServiceTest {
         verify(toolRegistry, times(2)).executeEnhancedTool(any(), any());
     }
 
+    @Test
+    void failedSequentialStepCountsAsAttemptSoFallbackCanContinueWhenStopOnErrorIsDisabled() {
+        String assetSearch = "database_asset_search";
+        String templateSearch = "database_template_search";
+        String hostFallback = "host_resource_query";
+        List<String> tools = List.of(assetSearch, templateSearch, hostFallback);
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        for (String tool : tools) {
+            when(toolRegistry.getToolMetadata(tool)).thenReturn(ToolMetadata.builder()
+                .id(tool)
+                .title(tool)
+                .categories(List.of("mcp"))
+                .build());
+        }
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenReturn(
+            ToolOutput.success(Map.of("asset", "DEV database")),
+            ToolOutput.failure("invalid optional selector"),
+            ToolOutput.success(Map.of("cpuPct", 22, "memoryPct", 48, "diskPct", 61))
+        );
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry,
+            new ObjectMapper(),
+            properties(),
+            new McpPolicyProperties(),
+            new McpWorkflowProperties(),
+            List.of(),
+            List.of()
+        );
+        Map<String, Object> workflowConfig = Map.of(
+            "enabled", true,
+            "workflow", "environment_health_analysis",
+            "executionStrategy", Map.of("mode", "sequential", "stopOnError", false),
+            "steps", List.of(
+                Map.of("step", 1, "tool", assetSearch, "required", true),
+                Map.of("step", 2, "tool", templateSearch, "required", true),
+                Map.of("step", 3, "tool", hostFallback, "required", true)
+            )
+        );
+
+        ToolRuntimeExecution assetResult = service.execute(agentWorkflowRequest(
+            assetSearch, workflowConfig, tools, "req-health-fallback", "conv-health-fallback"));
+        ToolRuntimeExecution templateResult = service.execute(agentWorkflowRequest(
+            templateSearch, workflowConfig, tools, "req-health-fallback", "conv-health-fallback"));
+        ToolRuntimeExecution fallbackResult = service.execute(agentWorkflowRequest(
+            hostFallback, workflowConfig, tools, "req-health-fallback", "conv-health-fallback"));
+
+        assertThat(assetResult.output().isSuccess()).isTrue();
+        assertThat(templateResult.output().isSuccess()).isFalse();
+        assertThat(fallbackResult.output().isSuccess()).isTrue();
+        assertThat(fallbackResult.output().getData()).isEqualTo(
+            Map.of("cpuPct", 22, "memoryPct", 48, "diskPct", 61));
+        verify(toolRegistry, times(3)).executeEnhancedTool(any(), any());
+    }
+
     private ToolRuntimeProperties properties() {
         ToolRuntimeProperties properties = new ToolRuntimeProperties();
         properties.setEnforceAllowedTools(true);

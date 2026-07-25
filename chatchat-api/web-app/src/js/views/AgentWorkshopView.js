@@ -114,7 +114,7 @@ function defaultWorkflowConfig() {
     executionStrategy: {
       mode: "sequential",
       stopOnError: true,
-      maxSteps: 6,
+      maxSteps: 3,
       toolRetryAttempts: 3,
       allowParallel: false
     },
@@ -1235,7 +1235,10 @@ export default {
         ...defaultWorkflowConfig().executionStrategy,
         ...(base.executionStrategy || {})
       };
-      base.executionStrategy.maxSteps = Math.max(0, Math.min(50, Number(base.executionStrategy.maxSteps) || selected.length || 6));
+      const configuredMaxSteps = Number(base.executionStrategy.maxSteps);
+      base.executionStrategy.maxSteps = Number.isFinite(configuredMaxSteps) && configuredMaxSteps > 0
+        ? Math.max(1, Math.min(50, Math.trunc(configuredMaxSteps)))
+        : 3;
       base.executionStrategy.toolRetryAttempts = Math.max(
         0,
         Math.min(5, Number(base.executionStrategy.toolRetryAttempts ?? 3))

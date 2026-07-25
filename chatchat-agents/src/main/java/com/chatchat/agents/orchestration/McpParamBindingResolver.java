@@ -147,10 +147,10 @@ class McpParamBindingResolver {
             return bindSqlQuery(values, userQuery);
         }
         if (isAssetDiscoveryTool(remoteToolName)) {
-            return bindDiscoveryQuery(toolName, values, userQuery, false);
+            return bindDiscoveryQuery(toolName, metadata, values, userQuery, false);
         }
         if (isTemplateDiscoveryTool(remoteToolName)) {
-            return bindDiscoveryQuery(toolName, values, userQuery, true);
+            return bindDiscoveryQuery(toolName, metadata, values, userQuery, true);
         }
         return values;
     }
@@ -217,6 +217,7 @@ class McpParamBindingResolver {
     }
 
     private Map<String, Object> bindDiscoveryQuery(String toolName,
+                                                   ToolMetadata metadata,
                                                    Map<String, Object> values,
                                                    String userQuery,
                                                    boolean templateQuery) {
@@ -294,6 +295,7 @@ class McpParamBindingResolver {
             enrichTemplateIntentSignals(filters, userQuery);
         }
         enrichRetrievalTerms(filters, values, userQuery);
+        repairFiltersFromPublishedContract(metadata, filters);
         if (!filters.isEmpty()) {
             values.put("filters", filters);
         } else if (values.containsKey("query")) {
@@ -359,6 +361,65 @@ class McpParamBindingResolver {
         values.putIfAbsent("limit", 10);
         values.remove("query");
         return values;
+    }
+
+    /**
+     * Keeps discovery arguments aligned with the filter contract published by the remote MCP tool.
+     * Unknown semantic selectors are folded into retrievalSignals when the contract supports that
+     * field; concrete targets are simply discarded by the earlier governance checks.
+     */
+    private void repairFiltersFromPublishedContract(ToolMetadata metadata, Map<String, Object> filters) {
+        Set<String> allowed = publishedFilterFields(metadata);
+        if (filters == null || filters.isEmpty() || allowed.isEmpty()) {
+            return;
+        }
+        List<String> semanticSignals = new ArrayList<>();
+        for (Map.Entry<String, Object> entry : new ArrayList<>(filters.entrySet())) {
+            if (allowed.contains(canonicalField(entry.getKey()))) {
+                continue;
+            }
+            filters.remove(entry.getKey());
+            addSemanticSignals(semanticSignals, entry.getKey(), entry.getValue());
+        }
+        if (!semanticSignals.isEmpty() && allowed.contains(canonicalField("retrievalSignals"))) {
+            filters.put("retrievalSignals", mergeTerms(filters.get("retrievalSignals"), semanticSignals));
+        }
+    }
+
+    private Set<String> publishedFilterFields(ToolMetadata metadata) {
+        if (metadata == null || metadata.getMetadata() == null) {
+            return Set.of();
+        }
+        Map<String, Object> toolMetadata = asMap(metadata.getMetadata().get("mcpToolMeta"));
+        Map<String, Object> routingProtocol = asMap(toolMetadata.get("routingProtocol"));
+        Object rawAllowed = routingProtocol.get("allowedFilterFields");
+        if (!(rawAllowed instanceof Iterable<?> values)) {
+            return Set.of();
+        }
+        java.util.LinkedHashSet<String> allowed = new java.util.LinkedHashSet<>();
+        for (Object value : values) {
+            String canonical = canonicalField(value == null ? null : String.valueOf(value));
+            if (!canonical.isBlank()) {
+                allowed.add(canonical);
+            }
+        }
+        return Set.copyOf(allowed);
+    }
+
+    private void addSemanticSignals(List<String> signals, String field, Object value) {
+        if (signals == null || value == null || value instanceof Map<?, ?>) {
+            return;
+        }
+        List<String> values = new ArrayList<>();
+        addTerms(values, value);
+        for (String item : values) {
+            addTerms(signals, field + ":" + item);
+            addTerms(signals, item);
+        }
+    }
+
+    private String canonicalField(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
     }
 
     @SuppressWarnings("unchecked")

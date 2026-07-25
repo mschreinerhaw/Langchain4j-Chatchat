@@ -199,12 +199,12 @@
   border-radius: 8px;
 }
 
-.schedule-audit-table { min-width: 1040px; }
+.schedule-audit-table { min-width: 1120px; }
 
 .schedule-audit-head,
 .schedule-audit-row {
   display: grid;
-  grid-template-columns: 150px minmax(180px, 1fr) 140px 90px 110px 80px minmax(220px, 1.3fr);
+  grid-template-columns: 150px minmax(180px, 1fr) 140px 90px 190px 80px minmax(220px, 1.3fr);
   gap: 10px;
   align-items: center;
   padding: 10px 12px;
@@ -232,12 +232,18 @@
 }
 
 .schedule-audit-row > b {
+  min-width: 0;
+  max-width: 100%;
   width: fit-content;
+  box-sizing: border-box;
+  overflow: hidden;
   padding: 3px 7px;
   border-radius: 999px;
   background: #eef4ff;
   color: #175cd3;
   font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .schedule-audit-row > b.success { background: #ecfbf4; color: #168555; }

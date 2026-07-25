@@ -346,6 +346,54 @@ class AgentToolArgumentResolverTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void templateDiscoveryRepairsUnsupportedFiltersFromPublishedContract() {
+        String toolName = "mcp_example_database_ops_template_search";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName)
+            .categories(List.of("mcp"))
+            .metadata(Map.of(
+                "remoteToolName", "database_ops_template_search",
+                "mcpToolMeta", Map.of(
+                    "routingProtocol", Map.of(
+                        "allowedFilterFields", List.of("env", "intent", "queryterms", "retrievalsignals")
+                    )
+                )
+            ))
+            .build());
+        AgentToolArgumentResolver contractResolver =
+            new AgentToolArgumentResolver(new AgentToolNameResolver(), 5, toolRegistry);
+
+        Map<String, Object> result = contractResolver.applyToolDefaults(
+            toolName,
+            Map.of(
+                "confidence", 0.95,
+                "filters", Map.of(
+                    "env", "DEV",
+                    "intent", "database health diagnosis",
+                    "templateIds", List.of("INSTANCE_STATUS", "TABLESPACE_USAGE")
+                ),
+                "trace", trace()
+            ),
+            List.of(),
+            List.of(),
+            "analyze the DEV database and host resources",
+            5
+        );
+
+        Map<String, Object> filters = (Map<String, Object>) result.get("filters");
+        assertThat(filters)
+            .containsEntry("env", "DEV")
+            .containsEntry("intent", "database health diagnosis")
+            .doesNotContainKey("templateIds");
+        assertThat((List<String>) filters.get("retrievalSignals"))
+            .contains("templateIds:INSTANCE_STATUS", "INSTANCE_STATUS",
+                "templateIds:TABLESPACE_USAGE", "TABLESPACE_USAGE");
+        assertThat(result).doesNotContainKey("__runtimeParamBindingStatus");
+    }
+
+    @Test
     void sqlGatewayRenamesTemplateIdAndBindsLogicalContext() {
         Map<String, Object> result = resolver.applyToolDefaults(
             "mcp_chatchat_mcp_server_sql_query_execute",

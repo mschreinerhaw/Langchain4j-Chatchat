@@ -143,6 +143,7 @@ export default {
       saving: false,
       scheduleLoading: false,
       scheduleRefreshTimer: null,
+      noticeTimer: null,
       stopTaskCancelledListener: null,
       stoppingScheduleId: "",
       stopConfirmSchedule: null,
@@ -266,6 +267,7 @@ export default {
   },
   beforeUnmount() {
     this.stopSchedulePolling();
+    this.clearNoticeTimer();
     if (this.stopTaskCancelledListener) {
       this.stopTaskCancelledListener();
       this.stopTaskCancelledListener = null;
@@ -340,6 +342,23 @@ export default {
         window.clearInterval(this.scheduleRefreshTimer);
         this.scheduleRefreshTimer = null;
       }
+    },
+    clearNoticeTimer() {
+      if (this.noticeTimer) {
+        window.clearTimeout(this.noticeTimer);
+        this.noticeTimer = null;
+      }
+    },
+    showTransientNotice(message, durationMs = 3000) {
+      this.clearNoticeTimer();
+      this.notice = message;
+      const expectedNotice = message;
+      this.noticeTimer = window.setTimeout(() => {
+        if (this.notice === expectedNotice) {
+          this.notice = "";
+        }
+        this.noticeTimer = null;
+      }, durationMs);
     },
     async refreshScheduleStatus(options = {}) {
       const force = options.force === true;
@@ -461,7 +480,7 @@ export default {
       try {
         if (this.editingScheduleId) {
           await updateAgentSchedule(this.editingScheduleId, schedulePayload);
-          this.notice = "定时任务已保存";
+          this.showTransientNotice("定时任务已保存");
         } else {
           await createAgentSchedule(schedulePayload);
           this.notice = "定时任务已创建";

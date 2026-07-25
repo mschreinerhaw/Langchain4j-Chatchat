@@ -602,9 +602,16 @@ public class SqlTemplateService {
                 List.of("statement digest", "top sql", "slow query", "latency", "rows examined", "performance_issue")),
 
             maintenanceTemplate("ORACLE_SESSION_OVERVIEW", "Oracle current sessions",
-                "Read Oracle session metadata from v$session.",
+                "Summarize Oracle session counts without returning the full v$session payload.",
                 "oracle", "connection",
-                "SELECT * FROM v$session",
+                """
+                    SELECT COUNT(*) AS total_sessions,
+                           SUM(CASE WHEN type = 'USER' THEN 1 ELSE 0 END) AS user_sessions,
+                           SUM(CASE WHEN type = 'USER' AND status = 'ACTIVE' THEN 1 ELSE 0 END) AS active_user_sessions,
+                           SUM(CASE WHEN type = 'USER' AND status = 'INACTIVE' THEN 1 ELSE 0 END) AS inactive_user_sessions,
+                           SUM(CASE WHEN type = 'BACKGROUND' THEN 1 ELSE 0 END) AS background_sessions
+                    FROM v$session
+                    """,
                 List.of("session", "connection", "active session", "connection_overflow")),
             maintenanceTemplate("ORACLE_INSTANCE_STATUS", "Oracle instance status",
                 "Read Oracle instance name and status.",
@@ -612,14 +619,45 @@ public class SqlTemplateService {
                 "SELECT instance_name, status FROM v$instance",
                 List.of("instance", "status", "health", "database status")),
             maintenanceTemplate("ORACLE_LOCKS", "Oracle lock view",
-                "Read Oracle lock metadata from v$lock.",
+                "Read Oracle blocking and waiting locks with a bounded set of diagnostic columns.",
                 "oracle", "lock",
-                "SELECT * FROM v$lock",
+                """
+                    SELECT sid,
+                           type,
+                           id1,
+                           id2,
+                           lmode,
+                           request,
+                           ctime,
+                           block
+                    FROM v$lock
+                    WHERE block = 1 OR request > 0
+                    ORDER BY block DESC, ctime DESC
+                    """,
                 List.of("lock", "blocking", "wait", "lock_check")),
             maintenanceTemplate("ORACLE_SYSTEM_EVENTS", "Oracle system wait events",
-                "Read Oracle system wait event counters for performance analysis.",
+                "Read the top non-idle Oracle system wait events with a bounded set of diagnostic columns.",
                 "oracle", "performance",
-                "SELECT * FROM v$system_event",
+                """
+                    SELECT event,
+                           wait_class,
+                           total_waits,
+                           total_timeouts,
+                           time_waited_seconds,
+                           average_wait_ms
+                    FROM (
+                        SELECT event,
+                               wait_class,
+                               total_waits,
+                               total_timeouts,
+                               ROUND(time_waited_micro / 1000000, 2) AS time_waited_seconds,
+                               ROUND(average_wait * 10, 2) AS average_wait_ms
+                        FROM v$system_event
+                        WHERE wait_class <> 'Idle'
+                        ORDER BY time_waited_micro DESC
+                    )
+                    WHERE ROWNUM <= 20
+                    """,
                 List.of("wait event", "performance", "cpu", "system event", "performance_issue")),
             maintenanceTemplate("ORACLE_TABLESPACE_USAGE", "Oracle tablespace usage",
                 "Summarize Oracle tablespace capacity, used space, free space, and utilization percentage.",

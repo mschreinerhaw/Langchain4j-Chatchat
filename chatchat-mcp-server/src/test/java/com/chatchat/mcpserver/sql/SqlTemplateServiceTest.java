@@ -168,7 +168,17 @@ class SqlTemplateServiceTest {
         assertThat(saved)
             .filteredOn(template -> template.getCode().startsWith("ORACLE_"))
             .hasSize(10)
-            .allSatisfy(template -> assertThat(template.getDatabaseType()).isEqualTo("oracle"));
+            .allSatisfy(template -> {
+                assertThat(template.getDatabaseType()).isEqualTo("oracle");
+                assertThat(template.getSqlTemplate().toLowerCase()).doesNotContain("select *");
+            });
+        assertThat(saved)
+            .filteredOn(template -> "ORACLE_SESSION_OVERVIEW".equals(template.getCode()))
+            .singleElement()
+            .satisfies(template -> assertThat(template.getSqlTemplate())
+                .containsIgnoringCase("total_sessions")
+                .containsIgnoringCase("active_user_sessions")
+                .containsIgnoringCase("background_sessions"));
         assertThat(saved)
             .filteredOn(template -> "ORACLE_TABLESPACE_USAGE".equals(template.getCode()))
             .singleElement()

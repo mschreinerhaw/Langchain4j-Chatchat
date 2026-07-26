@@ -168,6 +168,57 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void appendsRowsFromEverySuccessfulDiagnosticBatchChild() {
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            (chatModel, query, systemPrompt, observations, answer) ->
+                new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok"),
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        InteractionToolTrace trace = InteractionToolTrace.builder()
+            .toolName("mcp_chatchat_mcp_server_sql_query_execute")
+            .success(true)
+            .output("""
+                {
+                  "batchId":"diagnostic-step-3",
+                  "status":"SUCCESS",
+                  "results":[
+                    {
+                      "callId":"instance_status",
+                      "templateCode":"ORACLE_INSTANCE_STATUS",
+                      "status":"SUCCESS",
+                      "output":{"columns":["INSTANCE_NAME","STATUS"],"rowCount":1,
+                        "rows":[{"INSTANCE_NAME":"oraclewind","STATUS":"OPEN"}]}
+                    },
+                    {
+                      "callId":"session_overview",
+                      "templateCode":"ORACLE_SESSION_OVERVIEW",
+                      "status":"SUCCESS",
+                      "output":{"data":{"columns":["TOTAL_SESSIONS","ACTIVE_USER_SESSIONS"],"rowCount":1,
+                        "rows":[{"TOTAL_SESSIONS":18,"ACTIVE_USER_SESSIONS":3}]}}
+                    }
+                  ]
+                }
+                """)
+            .runtimeMetadata(Map.of("batchExecution", true, "remoteToolInvocationCount", 2))
+            .build();
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishExecution(
+            "诊断已完成。", List.of(trace), new LinkedHashMap<>(), List.of());
+
+        assertThat(result.answer())
+            .contains("INSTANCE_NAME", "oraclewind", "OPEN")
+            .contains("TOTAL_SESSIONS", "18")
+            .contains("instance_status", "session_overview");
+        Map<String, Object> visualization = (Map<String, Object>) result.metadata().get("visualizationSpec");
+        Map<String, Object> dataset = (Map<String, Object>) visualization.get("dataset");
+        assertThat((List<Map<String, Object>>) dataset.get("rows"))
+            .hasSize(2)
+            .extracting(row -> row.get("DIAGNOSTIC_CHECK"))
+            .containsExactly("instance_status", "session_overview");
+    }
+
+    @Test
     void preservesCompleteLongTextCellsOutsideMarkdownTable() {
         AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
             new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok");

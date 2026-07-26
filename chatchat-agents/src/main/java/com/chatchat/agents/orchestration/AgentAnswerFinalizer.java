@@ -998,6 +998,10 @@ class AgentAnswerFinalizer {
         if (!direct.isEmpty()) {
             return direct;
         }
+        Map<String, Object> batch = batchTabularData(output);
+        if (!batch.isEmpty()) {
+            return batch;
+        }
         for (String key : List.of("result", "data", "dataset", "payload", "structuredContent")) {
             Object value = output.get(key);
             if (value instanceof Map<?, ?> map) {
@@ -1008,6 +1012,63 @@ class AgentAnswerFinalizer {
             }
         }
         return Map.of();
+    }
+
+    private Map<String, Object> batchTabularData(Map<String, Object> output) {
+        Object rawResults = output == null ? null : output.get("results");
+        if (!(rawResults instanceof List<?> results) || results.isEmpty()) {
+            return Map.of();
+        }
+        List<Map<String, Object>> combinedRows = new ArrayList<>();
+        Set<String> combinedColumns = new LinkedHashSet<>();
+        combinedColumns.add("DIAGNOSTIC_CHECK");
+        combinedColumns.add("TEMPLATE_CODE");
+        int totalRows = 0;
+        for (Object item : results) {
+            if (!(item instanceof Map<?, ?> rawItem)) {
+                continue;
+            }
+            Map<String, Object> child = copyMap(rawItem);
+            Object rawOutput = child.get("output");
+            Map<String, Object> childOutput = rawOutput instanceof Map<?, ?> map
+                ? copyMap(map)
+                : rawOutput instanceof String text ? parseObject(text) : Map.of();
+            Map<String, Object> table = firstTabularData(childOutput);
+            if (table.isEmpty()) {
+                continue;
+            }
+            List<Map<String, Object>> rows = rowMaps(table.get("rows"), table.get("columns"));
+            if (rows.isEmpty()) {
+                continue;
+            }
+            String checkId = firstNonBlank(
+                stringValue(child.get("checkId")),
+                firstNonBlank(stringValue(child.get("callId")), "unknown_check")
+            );
+            String templateCode = firstNonBlank(
+                stringValue(child.get("templateCode")),
+                firstNonBlank(stringValue(child.get("templateId")), "")
+            );
+            for (Map<String, Object> row : rows) {
+                Map<String, Object> annotated = new LinkedHashMap<>();
+                annotated.put("DIAGNOSTIC_CHECK", checkId);
+                annotated.put("TEMPLATE_CODE", templateCode);
+                annotated.putAll(row);
+                combinedRows.add(annotated);
+                combinedColumns.addAll(row.keySet());
+            }
+            totalRows += firstInt(
+                table.get("rowCount"), table.get("total"), table.get("count"), rows.size());
+        }
+        if (combinedRows.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("title", "批量诊断结果明细");
+        data.put("columns", new ArrayList<>(combinedColumns));
+        data.put("rows", combinedRows);
+        data.put("rowCount", totalRows);
+        return data;
     }
 
     private Map<String, Object> tabularData(Map<String, Object> value) {

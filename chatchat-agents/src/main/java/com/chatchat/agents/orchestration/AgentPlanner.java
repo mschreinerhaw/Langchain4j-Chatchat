@@ -2,6 +2,7 @@ package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.AgentRuntimeFactGroundingContract;
+import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.agents.runtime.plan.InterpretationPlanJsonSchema;
 import com.chatchat.agents.runtime.plan.InterpretationPlanValidator;
@@ -239,6 +240,11 @@ class AgentPlanner {
         prompt.append("- Template ids, template names, mcpToolName, and execution.callTool values returned by discovery are template names, not Agent Runtime workflow tool names.\n");
         prompt.append("- Do not put a returned template name into plan.steps[].tool_name. Put it into template/templateId and call the declared executor tool such as sql_query_execute, database_query_execute, linux_command_execute, or http_request_execute.\n");
         prompt.append("- Finding a template or asset is not execution evidence. final_answer must depend on the actual executor step or an explicit error/permission observation.\n\n");
+        prompt.append("Sequential MCP batch contract:\n");
+        prompt.append("- When two or more independent templates must be executed through sql_query_execute, ssh_linux_execute, api_query_execute, or their configured aliases, prefer one mcp_tool step whose input is {batchId, executionMode:\"SEQUENTIAL\", stopOnFailure:false, calls:[{callId,toolName,arguments}]}.\n");
+        prompt.append("- Keep calls in diagnostic priority order. Each call arguments object must satisfy that executor's normal authorized template contract; never include raw SQL, shell commands, URLs, credentials, or transport fields.\n");
+        prompt.append("- A batch is one model planning decision but each child is one real remote tool invocation. Runtime validates and audits every child independently, persists its evidence immediately, continues after individual failures by default, and returns one ordered structured batch result.\n");
+        prompt.append("- Do not create one plan/rewrite/model round per template when all required template identifiers and parameters are already known. final_answer must depend on the single batch step.\n\n");
         appendAgentRuntimeEnvironmentContract(prompt, runtimeAttributes);
         prompt.append("Data template execution contract:\n");
         prompt.append("- Use only the exact tools present in Available tools and the configured workflow; tool metadata may describe input/output contracts but must not cause tool substitution.\n");
@@ -549,6 +555,7 @@ class AgentPlanner {
                     .append(firstNonBlank(configuredDescription, metadata.getDescription()))
                     .append("\n");
                 appendApplicability(sb, metadata);
+                appendBatchInputSchema(sb, toolName, metadata);
             } else {
                 ToolRegistry.Tool simpleTool = toolRegistry.getTool(toolName);
                 String description = simpleTool == null ? "No description available" : simpleTool.getDescription();
@@ -558,6 +565,24 @@ class AgentPlanner {
             }
         }
         return sb.toString();
+    }
+
+    private void appendBatchInputSchema(StringBuilder prompt, String toolName, ToolMetadata metadata) {
+        if (prompt == null || metadata == null || !ToolCallBatchSchema.supports(toolName)) {
+            return;
+        }
+        Map<String, Object> values = asMap(metadata.getMetadata());
+        Map<String, Object> schema = asMap(values.get("inputSchema"));
+        if (schema.isEmpty()) {
+            schema = ToolCallBatchSchema.augment(toolName, Map.of());
+        }
+        try {
+            prompt.append("  Formal runtime inputSchema: ")
+                .append(objectMapper.writeValueAsString(schema))
+                .append("\n");
+        } catch (Exception ex) {
+            log.debug("Unable to serialize batch input schema for tool={}: {}", toolName, ex.getMessage());
+        }
     }
 
     private void appendAgentRuntimeEnvironmentContract(StringBuilder prompt,

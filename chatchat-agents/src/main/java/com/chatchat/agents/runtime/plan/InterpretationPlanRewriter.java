@@ -143,6 +143,9 @@ public class InterpretationPlanRewriter {
         prompt.append("- Use diagnosticRun missing/failed checks as evidence refinement targets. Do not invent a score for an uncovered check, and do not replace a missing check with a different capability merely to increase coverage.\n");
         prompt.append("- Add or update plan.edge_contracts when the failure was caused by missing or mistyped tool output fields.\n");
         prompt.append("- Keep execution_policy.deny_tool for tools that failed due to policy, permission, or safety.\n\n");
+        prompt.append("Sequential MCP batch repair contract:\n");
+        prompt.append("- When multiple remaining authorized template executions use sql_query_execute, ssh_linux_execute, api_query_execute, or configured aliases, combine them into one mcp_tool input {batchId,executionMode:\"SEQUENTIAL\",stopOnFailure:false,calls:[{callId,toolName,arguments}]} instead of creating one model round per call.\n");
+        prompt.append("- Preserve original diagnostic order and exact discovered template identifiers/arguments. Runtime validates, executes, audits, and persists each child independently; do not inline raw SQL, shell commands, URLs, credentials, or transport fields.\n\n");
         if (request.budgetCeilings() != null) {
             prompt.append("Agent-configured budget ceilings (authoritative): ")
                 .append(toJson(request.budgetCeilings()))

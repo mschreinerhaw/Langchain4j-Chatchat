@@ -117,6 +117,14 @@ class AgentAnswerFinalizer {
             values.put("finalAnswerPreview", shortText(mergedAnswer, 1000));
         }
         String finalAnswer = sanitizeFinalMarkdown(mergedAnswer);
+        if (finalAnswer.isBlank()) {
+            String deterministicReport = deterministicBatchReport(traces);
+            if (!deterministicReport.isBlank()) {
+                finalAnswer = deterministicReport;
+                values.put("deterministicFinalizationFallback", true);
+                values.put("deterministicFinalizationSource", "tool_call_batch_result");
+            }
+        }
         Map<String, Object> visualizationSpec = toolResultVisualizationSpec(traces);
         if (!visualizationSpec.isEmpty()) {
             values.putIfAbsent("visualizationSpec", visualizationSpec);
@@ -163,6 +171,66 @@ class AgentAnswerFinalizer {
         );
     }
 
+    private String deterministicBatchReport(List<InteractionToolTrace> traces) {
+        if (traces == null || traces.isEmpty()) {
+            return "";
+        }
+        for (InteractionToolTrace trace : traces) {
+            if (trace == null || trace.getRuntimeMetadata() == null
+                || !Boolean.TRUE.equals(trace.getRuntimeMetadata().get("batchExecution"))) {
+                continue;
+            }
+            Map<String, Object> batch = parseObject(trace.getOutput());
+            Object rawResults = batch.get("results");
+            if (!(rawResults instanceof List<?> results) || results.isEmpty()) {
+                continue;
+            }
+            String status = firstNonBlank(stringValue(batch.get("status")), "NO_PRESENTABLE_RESULT");
+            StringBuilder report = new StringBuilder();
+            report.append("# MCP 批量诊断执行结果\n\n");
+            report.append("- 批次状态：`").append(status).append("`\n");
+            report.append("- 执行模式：`")
+                .append(firstNonBlank(stringValue(batch.get("executionMode")), "SEQUENTIAL"))
+                .append("`\n");
+            report.append("- 已记录调用：").append(results.size()).append(" 项\n\n");
+            report.append("## 执行清单\n\n");
+            for (Object item : results) {
+                if (!(item instanceof Map<?, ?> rawItem)) {
+                    continue;
+                }
+                Map<String, Object> result = copyMap(rawItem);
+                String callId = firstNonBlank(stringValue(result.get("callId")), "unknown_call");
+                String toolName = firstNonBlank(stringValue(result.get("toolName")), "unknown_tool");
+                String callStatus = firstNonBlank(stringValue(result.get("status")), "UNKNOWN");
+                report.append("- `").append(escapeInline(callId)).append("` / `")
+                    .append(escapeInline(toolName)).append("`：")
+                    .append(callStatus);
+                String templateCode = stringValue(result.get("templateCode"));
+                if (templateCode != null && !templateCode.isBlank()) {
+                    report.append("，模板 `").append(escapeInline(templateCode)).append("`");
+                }
+                Object error = result.get("error");
+                if (error instanceof Map<?, ?> errorMap && !errorMap.isEmpty()) {
+                    String message = stringValue(errorMap.get("message"));
+                    if (message != null && !message.isBlank()) {
+                        report.append("，原因：").append(escapeInline(shortText(message, 240)));
+                    }
+                }
+                report.append("\n");
+            }
+            report.append("\n");
+            if ("MODEL_BUDGET_EXHAUSTED".equals(status)) {
+                report.append("最终分析模型预算已耗尽；以上为运行时根据已持久化工具证据生成的确定性清单。");
+            } else if ("TIME_BUDGET_EXHAUSTED".equals(status)) {
+                report.append("诊断总时间预算已耗尽；已完成的工具结果和失败记录均已保留。");
+            } else {
+                report.append("最终模型未生成可用总结；以上为运行时根据已持久化工具证据生成的确定性清单。");
+            }
+            return report.toString().trim();
+        }
+        return "";
+    }
+
     boolean markToolBudgetExceeded(String requestedToolName,
                                    int maxToolCalls,
                                    List<InteractionToolTrace> traces,
@@ -186,7 +254,25 @@ class AgentAnswerFinalizer {
         if (traces == null || traces.isEmpty()) {
             return 0L;
         }
-        return traces.stream().filter(this::remoteToolInvoked).count();
+        return traces.stream().mapToLong(this::remoteToolInvocationCount).sum();
+    }
+
+    private long remoteToolInvocationCount(InteractionToolTrace trace) {
+        if (trace == null || trace.getRuntimeMetadata() == null) {
+            return remoteToolInvoked(trace) ? 1L : 0L;
+        }
+        Object count = trace.getRuntimeMetadata().get("remoteToolInvocationCount");
+        if (count instanceof Number number) {
+            return Math.max(0L, number.longValue());
+        }
+        if (count != null) {
+            try {
+                return Math.max(0L, Long.parseLong(String.valueOf(count)));
+            } catch (NumberFormatException ignored) {
+                // Fall through to legacy single-call accounting.
+            }
+        }
+        return remoteToolInvoked(trace) ? 1L : 0L;
     }
 
     private boolean remoteToolInvoked(InteractionToolTrace trace) {
@@ -1481,11 +1567,11 @@ class AgentAnswerFinalizer {
         if (modelsConfig == null || modelsConfig.getOpenai() == null) {
             return 0L;
         }
-        int timeoutSeconds = modelsConfig.getOpenai().getTimeout();
-        if (timeoutSeconds <= 0) {
+        int timeout = modelsConfig.getOpenai().getTimeout();
+        if (timeout <= 0) {
             return 0L;
         }
-        return TimeUnit.SECONDS.toMillis(timeoutSeconds);
+        return timeout >= 1000 ? timeout : TimeUnit.SECONDS.toMillis(timeout);
     }
 
     private boolean structuredSqlMetadataSemanticGatePassed(Map<String, Object> metadata) {
@@ -1611,20 +1697,12 @@ class AgentAnswerFinalizer {
             );
         }
 
-        List<String> gaps = List.of("\u672a\u53d1\u73b0\u5df2\u5b8c\u6210\u5de5\u5177\u7684\u7ed3\u6784\u5316\u7ed3\u679c",
-            "\u672a\u53d1\u73b0\u5e26\u6765\u6e90\u6807\u8bc6\u7684\u6587\u6863\u6216\u77e5\u8bc6\u5e93\u8bc1\u636e");
-        return new AnswerEvidenceDisclosure(
-            ANSWER_EVIDENCE_INSUFFICIENT,
-            "\u8bc1\u636e\u4e0d\u8db3/\u63a8\u6d4b",
-            "\u8bc1\u636e\u72b6\u6001\uff1a\u8bc1\u636e\u4e0d\u8db3/\u53c2\u8003\u6027\u5206\u6790\u3002\u4ee5\u4e0b\u53ef\u4f5c\u4e3a\u5f85\u9a8c\u8bc1\u7684\u63a8\u6d4b\u3001\u5206\u6790\u601d\u8def\u6216\u4e0b\u4e00\u6b65\u5efa\u8bae\uff0c\u4e0d\u80fd\u4f5c\u4e3a\u786e\u5b9a\u6027\u4e1a\u52a1\u7ed3\u8bba\u3002\u4f9d\u636e\u7f3a\u53e3\uff1a"
-                + String.join("\uff1b", gaps) + "\u3002",
-            gaps
-        );
+        return null;
     }
 
     private String prependAnswerEvidenceDisclosure(String answer, AnswerEvidenceDisclosure disclosure) {
         String safeAnswer = answer == null ? "" : answer.trim();
-        if (safeAnswer.contains("\u8bc1\u636e\u72b6\u6001\uff1a")) {
+        if (disclosure == null || safeAnswer.contains("\u8bc1\u636e\u72b6\u6001\uff1a")) {
             return safeAnswer;
         }
         return "> " + disclosure.message() + (safeAnswer.isBlank() ? "" : "\n\n" + safeAnswer);
@@ -1634,8 +1712,11 @@ class AgentAnswerFinalizer {
                                                 AnswerEvidenceDisclosure disclosure,
                                                 boolean rendered) {
         metadata.put("answerEvidenceDisclosureVersion", ANSWER_EVIDENCE_DISCLOSURE_CONTRACT);
-        metadata.put("answerRequiresEvidenceDisclosure", true);
+        metadata.put("answerRequiresEvidenceDisclosure", disclosure != null);
         metadata.put("answerEvidenceDisclosureRendered", rendered);
+        if (disclosure == null) {
+            return;
+        }
         metadata.put("answerEvidenceStatus", disclosure.status());
         metadata.put("answerEvidenceLabel", disclosure.label());
         metadata.put("answerEvidenceReasons", disclosure.reasons());

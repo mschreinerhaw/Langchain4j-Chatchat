@@ -78,12 +78,14 @@ class EvidenceReasoningContractGoldenTest {
         assertThat(json.at("/result/answer").asText()).doesNotContain("主要流程");
         assertThat(json.at("/result/supportingEvidence")).hasSizeGreaterThanOrEqualTo(2);
         assertThat(json.at("/result/supportingEvidence/0").asText()).contains("Document content supports");
-        assertThat(json.at("/result/supportingEvidence/2").asText()).contains("SQL");
+        assertThat(json.at("/result/supportingEvidence"))
+            .anySatisfy(item -> assertThat(item.asText()).contains("SQL"));
         assertThat(json.at("/result/evidenceClaims")).hasSizeGreaterThanOrEqualTo(3);
         assertThat(json.at("/result/evidenceClaims/0/claim").asText()).contains("Document content supports");
         assertThat(json.at("/result/evidenceClaims/0/support/0/sourceRef").asText()).isEqualTo("doc://generic-flow#chunk=0");
         assertThat(json.at("/result/evidenceClaims/1/support/0/text").asText()).contains("数据");
-        assertThat(json.at("/result/evidenceClaims/2/support/0/text").asText()).contains("SQL");
+        assertThat(json.at("/result/evidenceClaims"))
+            .anySatisfy(item -> assertThat(item.at("/support/0/text").asText()).contains("SQL"));
         assertThat(json.at("/result/evidenceSummary").asText()).contains("Document content supports");
         assertThat(json.at("/result/answer").asText()).contains("SQL");
         assertThat(json.at("/result/answer").asText()).doesNotContain("1. 进入");

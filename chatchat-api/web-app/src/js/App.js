@@ -573,16 +573,16 @@ export default {
       if (status === "SUCCESS") {
         return "completed";
       }
-      if (status === "PARTIAL") {
+      if (status === "PARTIAL" || status === "PARTIAL_SUCCESS") {
         return "partial";
       }
-      if (status === "EMPTY") {
+      if (status === "EMPTY" || status === "NO_PRESENTABLE_RESULT") {
         return "empty";
       }
       if (["CANCELLED", "KILLED", "REJECTED", "TIMEOUT_CANCELLED"].includes(status)) {
         return "cancelled";
       }
-      if (status === "FAILED") {
+      if (["FAILED", "TIME_BUDGET_EXHAUSTED", "MODEL_BUDGET_EXHAUSTED"].includes(status)) {
         return "failed";
       }
       return "completed";

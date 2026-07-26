@@ -137,10 +137,12 @@ class McpParamBindingResolver {
             return values;
         }
         String remoteToolName = remoteToolName(toolName, metadata);
-        if (sameTool(remoteToolName, "linux_command_execute")) {
+        if (sameTool(remoteToolName, "linux_command_execute")
+            || sameTool(remoteToolName, "ssh_linux_execute")) {
             return bindLinuxCommand(values, userQuery);
         }
-        if (sameTool(remoteToolName, "http_request_execute")) {
+        if (sameTool(remoteToolName, "http_request_execute")
+            || sameTool(remoteToolName, "api_query_execute")) {
             return bindHttpRequest(values, userQuery);
         }
         if (sameTool(remoteToolName, "sql_query_execute")) {
@@ -882,7 +884,8 @@ class McpParamBindingResolver {
         if (toolName == null) {
             return "";
         }
-        for (String known : List.of("linux_command_execute", "http_request_execute", "sql_query_execute",
+        for (String known : List.of("linux_command_execute", "ssh_linux_execute",
+            "http_request_execute", "api_query_execute", "sql_query_execute",
             "database_query_execute", "asset_query", "template_query", "database_asset_search",
             "database_ops_template_search", "business_query_template_search", "sql_datasource_asset_query",
             "sql_datasource_template_query", "database_query_template_query")) {

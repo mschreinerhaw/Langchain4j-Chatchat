@@ -383,7 +383,7 @@ class AgentTaskControllerTest {
     }
 
     @Test
-    void emptyFinalAnswerPublishesEmptyResultInsteadOfSuccessAnswer() throws Exception {
+    void emptyFinalAnswerPublishesNoPresentableResultInsteadOfSuccessAnswer() throws Exception {
         reset(orchestrationService);
         when(orchestrationService.chat(any())).thenReturn(InteractionResponse.builder()
             .conversationId("session-empty-answer-001")
@@ -411,7 +411,7 @@ class AgentTaskControllerTest {
             .getContentAsString();
 
         String taskId = objectMapper.readTree(submitResponse).path("data").path("taskId").asText();
-        waitForTaskStatus("tenant-empty-answer-001", taskId, "EMPTY");
+        waitForTaskStatus("tenant-empty-answer-001", taskId, "NO_PRESENTABLE_RESULT");
 
         mockMvc.perform(get("/api/v1/agent/tasks/" + taskId + "/result")
                 .param("tenantId", "tenant-empty-answer-001")
@@ -419,7 +419,7 @@ class AgentTaskControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code").value(200))
             .andExpect(jsonPath("$.data.type").value("RESULT"))
-            .andExpect(jsonPath("$.data.status").value("EMPTY"))
+            .andExpect(jsonPath("$.data.status").value("NO_PRESENTABLE_RESULT"))
             .andExpect(jsonPath("$.data.payload").value(org.hamcrest.Matchers.containsString("executionResult")));
 
         mockMvc.perform(get("/api/v1/agent/tasks/" + taskId + "/result")
@@ -428,15 +428,15 @@ class AgentTaskControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code").value(200))
             .andExpect(jsonPath("$.data.type").value("RESULT"))
-            .andExpect(jsonPath("$.data.status").value("EMPTY"));
+            .andExpect(jsonPath("$.data.status").value("NO_PRESENTABLE_RESULT"));
 
         mockMvc.perform(get("/api/v1/agent/tasks/" + taskId + "/events")
                 .param("tenantId", "tenant-empty-answer-001"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code").value(200))
             .andExpect(jsonPath("$.data[?(@.type == 'ANSWER')]").isEmpty())
-            .andExpect(jsonPath("$.data[?(@.type == 'RESULT' && @.status == 'EMPTY')]").isNotEmpty())
-            .andExpect(jsonPath("$.data[?(@.type == 'COMPLETE' && @.status == 'EMPTY')]").isNotEmpty());
+            .andExpect(jsonPath("$.data[?(@.type == 'RESULT' && @.status == 'NO_PRESENTABLE_RESULT')]").isNotEmpty())
+            .andExpect(jsonPath("$.data[?(@.type == 'COMPLETE' && @.status == 'NO_PRESENTABLE_RESULT')]").isNotEmpty());
     }
 
     @Test

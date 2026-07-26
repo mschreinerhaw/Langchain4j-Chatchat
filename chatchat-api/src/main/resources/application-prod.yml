@@ -22,6 +22,8 @@ spring:
   mvc:
     static-path-pattern: /**
     throw-exception-if-no-handler-found: true
+    async:
+      request-timeout: ${SPRING_MVC_ASYNC_TIMEOUT_MS:1800000}
   resources:
     add-mappings: false
   servlet:
@@ -39,6 +41,8 @@ server:
       force: true
   shutdown: graceful
   tomcat:
+    connection-timeout: ${SERVER_CONNECTION_TIMEOUT:30m}
+    keep-alive-timeout: ${SERVER_KEEP_ALIVE_TIMEOUT:30m}
     max-http-form-post-size: 33554432
     max-swallow-size: -1
   error:
@@ -67,7 +71,7 @@ chatchat:
       admin-password: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
       encrypted-invocation-token: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
       invocation-token: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
-      timeout-ms: 300000
+      timeout-ms: ${CHATCHAT_MCP_TIMEOUT_MS:1800000}
       import-standalone-server: true
     stdio-proxy:
       enabled: true
@@ -85,9 +89,13 @@ chatchat:
     openai:
       apiKey: ${OPENAI_API_KEY:${DASHSCOPE_API_KEY:}}
       baseUrl: ${OPENAI_BASE_URL:https://api.openai.com/v1}
-      timeout: ${OPENAI_TIMEOUT_MS:300000}
+      timeout: ${OPENAI_TIMEOUT_MS:1800000}
       maxTokens: ${OPENAI_MAX_TOKENS:-1}
       maxRetries: ${OPENAI_MAX_RETRIES:3}
+  tool-runtime:
+    default-tool-timeout-ms: ${CHATCHAT_TOOL_TIMEOUT_MS:1800000}
+    max-batch-calls: ${CHATCHAT_MAX_BATCH_CALLS:32}
+    max-batch-payload-bytes: ${CHATCHAT_MAX_BATCH_PAYLOAD_BYTES:262144}
   search:
     engine: lucene
   tools:

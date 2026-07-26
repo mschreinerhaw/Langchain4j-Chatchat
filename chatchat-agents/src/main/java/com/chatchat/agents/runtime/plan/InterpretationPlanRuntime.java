@@ -813,6 +813,17 @@ public class InterpretationPlanRuntime {
                                            StepExecution execution,
                                            Map<Integer, StepExecution> completed,
                                            long startedAt) {
+        if (execution != null
+            && execution.toolExecution() != null
+            && execution.toolExecution().audit() != null
+            && Boolean.TRUE.equals(execution.toolExecution().audit().get("batchExecution"))) {
+            Map<String, Object> batchMetadata = new LinkedHashMap<>(execution.metadata());
+            batchMetadata.put("toolResultReviewSkipped", true);
+            batchMetadata.put("toolResultReviewSkipReason",
+                "ordered batch children were independently validated and audited by ToolRuntimeService");
+            batchMetadata.put("batchExecution", true);
+            return execution.withMetadata(batchMetadata, elapsed(startedAt));
+        }
         StepReview localReview = localToolResultReview(step, execution);
         Map<String, Object> metadata = new LinkedHashMap<>(execution.metadata());
         if (localReview != null) {
@@ -1642,6 +1653,9 @@ public class InterpretationPlanRuntime {
         Map<String, Object> input = new LinkedHashMap<>(step.input() == null ? Map.of() : step.input());
         InterpretationPlan plan = request == null ? null : request.plan();
         applyBindings(step, plan, completed, input);
+        if (batchToolInput(input)) {
+            return input;
+        }
         establishRuntimeTemplateBinding(step, completed, input);
         normalizeModelInvocationEnvelope(step, input);
         normalizeWebSearchInput(step, request, input);
@@ -1671,6 +1685,12 @@ public class InterpretationPlanRuntime {
         }
         input.put("url", selectedUrls.get(0));
         return input;
+    }
+
+    private boolean batchToolInput(Map<String, Object> input) {
+        return input != null && (input.containsKey("calls")
+            || input.containsKey("toolCalls")
+            || input.containsKey("tool_calls"));
     }
 
     private void normalizeWebSearchInput(InterpretationPlan.Step step,

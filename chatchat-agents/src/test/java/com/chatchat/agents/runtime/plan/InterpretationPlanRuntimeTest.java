@@ -7,6 +7,8 @@ import com.chatchat.agents.runtime.InMemoryAgentRunStore;
 import com.chatchat.agents.runtime.ToolRuntimeExecution;
 import com.chatchat.agents.runtime.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.ToolRuntimeService;
+import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
+import com.chatchat.agents.runtime.batch.ToolCallResult;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolParameter;
@@ -5030,6 +5032,76 @@ class InterpretationPlanRuntimeTest {
             .doesNotContainKeys("trace", "finalDecision", "filtersSchemaVersion");
         assertThat(resolved).containsEntry("finalDecision", "database");
         assertThat(resolved.get("trace").toString()).doesNotContain("routingForcedByTypedDiscoveryTool");
+    }
+
+    @Test
+    void orderedBatchSkipsPerStepModelReviewer() {
+        String toolName = "sql_query_execute";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(toolName)).thenReturn(true);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName).riskLevel("low").build());
+        ToolCallBatchResult batchResult = new ToolCallBatchResult(
+            "oracle-health",
+            "SEQUENTIAL",
+            "2026-07-26T00:00:00Z",
+            "2026-07-26T00:00:01Z",
+            "SUCCESS",
+            new ToolCallBatchResult.Summary(2, 2, 0, 0, 0, 2),
+            List.of(
+                new ToolCallResult("one", toolName, "ONE", "SUCCESS", 10, "e-1", Map.of("ok", true), Map.of()),
+                new ToolCallResult("two", toolName, "TWO", "SUCCESS", 10, "e-2", Map.of("ok", true), Map.of())
+            )
+        );
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(batchResult),
+            ToolMetadata.builder().id(toolName).build(),
+            null,
+            "success",
+            Map.of("batchExecution", true, "remoteToolInvocationCount", 2)
+        ));
+        AtomicInteger reviewerCalls = new AtomicInteger();
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            null,
+            request -> {
+                reviewerCalls.incrementAndGet();
+                return InterpretationPlanRuntime.StepReview.accepted("should not run", Map.of());
+            },
+            scriptedController(List.of(List.of(1), List.of(2)))
+        );
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("database_health", "execute ordered checks", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", toolName, Map.of(
+                    "executionMode", "SEQUENTIAL",
+                    "calls", List.of(
+                        Map.of("callId", "one", "toolName", toolName, "arguments", Map.of("templateCode", "ONE")),
+                        Map.of("callId", "two", "toolName", toolName, "arguments", Map.of("templateCode", "TWO"))
+                    )
+                ), List.of(), null, null),
+                new InterpretationPlan.Step(2, "final_answer", "", Map.of("answer", "done"), List.of(1), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(2, false, List.of(toolName), List.of(), 30_000),
+            review()
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, toolRegistry, List.of(toolName), "tenant-1", "req-batch-review",
+                "conv-batch-review", "user-1", Map.of()
+            )
+        );
+
+        assertThat(result.success()).isTrue();
+        assertThat(reviewerCalls).hasValue(0);
+        assertThat(result.steps().get(0).metadata())
+            .containsEntry("toolResultReviewSkipped", true)
+            .containsEntry("batchExecution", true);
     }
 
     private InterpretationPlan.Context context() {

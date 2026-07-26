@@ -887,7 +887,7 @@ public class AgentOrchestrator {
         }
         recordPlanRuntimeResult("initial", firstResult, traces, observations, metadata);
         saveInterpretationPlanSnapshot("initial_result", plan, tenantId, requestId, runtimeAttributes, metadata, firstResult);
-        runtimeGuard.checkCancelled(cancellationCheck);
+        checkCancelledUnlessBatchEvidence(cancellationCheck, firstResult, metadata);
 
         if (firstResult.approvalRequired()) {
             metadata.put("stopReason", "confirmation_required");
@@ -925,7 +925,7 @@ public class AgentOrchestrator {
                 cancellationCheck,
                 "initial"
             );
-            return answerFinalizer.finishReviewedAnswer(
+            return finishSynthesizedInterpretationPlanAnswer(
                 activeChatModel,
                 query,
                 systemPrompt,
@@ -1078,7 +1078,7 @@ public class AgentOrchestrator {
                 metadata,
                 currentResult
             );
-            runtimeGuard.checkCancelled(cancellationCheck);
+            checkCancelledUnlessBatchEvidence(cancellationCheck, currentResult, metadata);
 
             if (currentResult.approvalRequired()) {
                 metadata.put("stopReason", "confirmation_required");
@@ -1127,7 +1127,7 @@ public class AgentOrchestrator {
                     cancellationCheck,
                     rewriteCount == 1 ? "rewrite" : "rewrite" + rewriteCount
                 );
-                return answerFinalizer.finishReviewedAnswer(
+                return finishSynthesizedInterpretationPlanAnswer(
                     activeChatModel,
                     query,
                     systemPrompt,
@@ -1211,7 +1211,7 @@ public class AgentOrchestrator {
                 cancellationCheck,
                 "attempts_exhausted"
             );
-            return answerFinalizer.finishReviewedAnswer(
+            return finishSynthesizedInterpretationPlanAnswer(
                 activeChatModel,
                 query,
                 systemPrompt,
@@ -1233,6 +1233,65 @@ public class AgentOrchestrator {
             cancellationCheck,
             "interpretation_plan_failed"
         );
+    }
+
+    private AgentExecutionResult finishSynthesizedInterpretationPlanAnswer(
+        ChatModel activeChatModel,
+        String query,
+        String systemPrompt,
+        List<InteractionToolTrace> traces,
+        Map<String, Object> metadata,
+        List<String> observations,
+        String synthesizedAnswer,
+        BooleanSupplier cancellationCheck,
+        String stopReason
+    ) {
+        if (hasBatchExecutionTrace(traces)) {
+            metadata.put("stopReason", stopReason);
+            metadata.put("reservedFinalizationCalls", 1);
+            metadata.put("batchFinalizationModelCalls", 1);
+            metadata.put("answerReviewSkipped", true);
+            metadata.put("answerReviewSkipReason",
+                "batch diagnostics reserve the single post-execution model call for final synthesis");
+            return answerFinalizer.finishExecution(synthesizedAnswer, traces, metadata, observations);
+        }
+        return answerFinalizer.finishReviewedAnswer(
+            activeChatModel,
+            query,
+            systemPrompt,
+            traces,
+            metadata,
+            observations,
+            synthesizedAnswer,
+            cancellationCheck,
+            stopReason
+        );
+    }
+
+    private boolean hasBatchExecutionTrace(List<InteractionToolTrace> traces) {
+        return traces != null && traces.stream().anyMatch(trace ->
+            trace != null
+                && trace.getRuntimeMetadata() != null
+                && Boolean.TRUE.equals(trace.getRuntimeMetadata().get("batchExecution")));
+    }
+
+    private void checkCancelledUnlessBatchEvidence(
+        BooleanSupplier cancellationCheck,
+        InterpretationPlanRuntime.ExecutionResult result,
+        Map<String, Object> metadata
+    ) {
+        try {
+            runtimeGuard.checkCancelled(cancellationCheck);
+        } catch (CancellationException ex) {
+            String message = firstNonBlank(ex.getMessage(), "");
+            if (!hasBatchExecutionResult(result)
+                || !message.toLowerCase(Locale.ROOT).contains("timed out")) {
+                throw ex;
+            }
+            metadata.put("stopReason", "time_budget_exhausted");
+            metadata.put("executionStatus", "TIME_BUDGET_EXHAUSTED");
+            metadata.put("completedEvidencePreservedAfterTimeout", true);
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -1301,16 +1360,12 @@ public class AgentOrchestrator {
             + String.join(", ", missingMandatoryTools)
             + ".");
         metadata.put("failureSummaryRequiresToolCompletionContext", true);
-        return answerFinalizer.finishReviewedSummary(
-            activeChatModel,
-            query,
-            systemPrompt,
-            traces,
-            metadata,
-            observations,
-            cancellationCheck,
-            stopReason
-        );
+        metadata.put("deterministicMandatoryWorkflowFailure", true);
+        String deterministicFailure = "必需工具 "
+            + String.join(", ", missingMandatoryTools)
+            + " 未执行到终态，本次执行被工作流依赖校验阻断。"
+            + " 已完成的工具证据和失败原因均已保留，可在补齐依赖后继续诊断。";
+        return answerFinalizer.finishExecution(deterministicFailure, traces, metadata, observations);
     }
 
     private InterpretationPlanRuntime.ExecutionRequest planExecutionRequest(InterpretationPlan plan,
@@ -1570,7 +1625,18 @@ public class AgentOrchestrator {
                                                       Map<String, Object> metadata,
                                                       BooleanSupplier cancellationCheck,
                                                       String stage) {
-        runtimeGuard.checkCancelled(cancellationCheck);
+        try {
+            runtimeGuard.checkCancelled(cancellationCheck);
+        } catch (CancellationException ex) {
+            if (!hasBatchExecutionResult(result)) {
+                throw ex;
+            }
+            metadata.put("stopReason", "time_budget_exhausted");
+            metadata.put("executionStatus", "TIME_BUDGET_EXHAUSTED");
+            metadata.put("interpretationPlanSummaryGenerated", false);
+            metadata.put("interpretationPlanSummaryFailure", firstNonBlank(ex.getMessage(), "Agent run timed out"));
+            return "";
+        }
         if (activeChatModel == null) {
             return result == null ? "" : firstNonBlank(result.finalAnswer(), "");
         }
@@ -1607,7 +1673,16 @@ public class AgentOrchestrator {
             prompt.length(),
             result == null || result.steps() == null ? 0 : result.steps().size(),
             storedObservations.size());
-        String answer = activeChatModel.chat(prompt);
+        String answer;
+        try {
+            answer = activeChatModel.chat(prompt);
+        } catch (RuntimeException ex) {
+            metadata.put("interpretationPlanSummaryGenerated", false);
+            metadata.put("interpretationPlanSummaryFailure",
+                firstNonBlank(ex.getMessage(), ex.getClass().getSimpleName()));
+            metadata.putIfAbsent("executionStatus", "NO_PRESENTABLE_RESULT");
+            return "";
+        }
         log.info("agentModelResponse phase=interpretation_plan_summary runId={} stage={} durationMs={} responseChars={}",
             firstNonBlank(runId, ""),
             stage,
@@ -1666,6 +1741,16 @@ public class AgentOrchestrator {
         return answer == null || answer.isBlank()
             ? (result == null ? "" : firstNonBlank(result.finalAnswer(), ""))
             : answer;
+    }
+
+    private boolean hasBatchExecutionResult(InterpretationPlanRuntime.ExecutionResult result) {
+        return result != null
+            && result.steps() != null
+            && result.steps().stream().anyMatch(step ->
+                step != null
+                    && step.toolExecution() != null
+                    && step.toolExecution().audit() != null
+                    && Boolean.TRUE.equals(step.toolExecution().audit().get("batchExecution")));
     }
 
     private String mergeStructuredSqlMetadataAnswer(String structuredSqlMetadata, String modelAnswer) {
@@ -2505,7 +2590,12 @@ public class AgentOrchestrator {
     }
 
     private int maxRewriteTimes(InterpretationPlan plan) {
-        return MAX_INTERPRETATION_PLAN_ATTEMPTS - 1;
+        int runtimeMaximum = MAX_INTERPRETATION_PLAN_ATTEMPTS - 1;
+        if (plan == null || plan.executionPolicy() == null
+            || plan.executionPolicy().maxRewriteTimes() == null) {
+            return runtimeMaximum;
+        }
+        return Math.max(0, Math.min(runtimeMaximum, plan.executionPolicy().maxRewriteTimes()));
     }
 
     private void recordInterpretationPlanEvaluation(
@@ -2605,7 +2695,7 @@ public class AgentOrchestrator {
         Map<String, Object> metadata,
         BooleanSupplier cancellationCheck
     ) {
-        runtimeGuard.checkCancelled(cancellationCheck);
+        checkCancelledUnlessBatchEvidence(cancellationCheck, result, metadata);
         List<Map<String, Object>> toolEvidence = interpretationToolEvidence(plan, result, iteration);
         DiagnosticRun diagnosticRun = diagnosticRun(result);
         Set<String> previouslyCompletedDiagnosticChecks = completedDiagnosticChecks(previousEvidence);

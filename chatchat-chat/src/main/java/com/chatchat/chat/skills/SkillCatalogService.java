@@ -1050,14 +1050,14 @@ public class SkillCatalogService {
     }
 
     private int normalizeWorkflowLatencyBudgetMs(Object value) {
-        long budget = 120_000L;
+        long budget = 1_800_000L;
         if (value instanceof Number number) {
             budget = number.longValue();
         } else if (value != null) {
             try {
                 budget = Long.parseLong(String.valueOf(value).trim());
             } catch (NumberFormatException ignored) {
-                budget = 120_000L;
+                budget = 1_800_000L;
             }
         }
         return (int) Math.max(1L, Math.min(3_600_000L, budget));

@@ -801,9 +801,15 @@ function statusTitle(status) {
     case "SUCCESS":
       return "\u6267\u884c\u5b8c\u6210";
     case "PARTIAL":
+    case "PARTIAL_SUCCESS":
       return "\u83b7\u5f97\u90e8\u5206\u7ed3\u679c";
     case "EMPTY":
+    case "NO_PRESENTABLE_RESULT":
       return "\u672a\u4ea7\u751f\u6709\u6548\u7ed3\u679c";
+    case "TIME_BUDGET_EXHAUSTED":
+      return "\u6267\u884c\u8d85\u65f6";
+    case "MODEL_BUDGET_EXHAUSTED":
+      return "\u6a21\u578b\u8c03\u7528\u9884\u7b97\u8017\u5c3d";
     case "FAILED":
       return "\u6267\u884c\u5931\u8d25";
     case "CANCELLED":
@@ -857,7 +863,11 @@ function isTerminalAgentEvent(event = {}) {
     || type === "COMPLETE"
     || status === "SUCCESS"
     || status === "PARTIAL"
+    || status === "PARTIAL_SUCCESS"
     || status === "EMPTY"
+    || status === "NO_PRESENTABLE_RESULT"
+    || status === "TIME_BUDGET_EXHAUSTED"
+    || status === "MODEL_BUDGET_EXHAUSTED"
     || status === "FAILED"
     || status === "CANCELLED"
     || status === "WAIT_CONFIRMATION";
@@ -898,7 +908,7 @@ function eventStepId(event = {}, payload = {}) {
     if (status === "WAIT_TOOL") {
       return "tool-execution";
     }
-    if (["FAILED", "CANCELLED", "KILLED"].includes(status)) {
+    if (["FAILED", "CANCELLED", "KILLED", "TIME_BUDGET_EXHAUSTED", "MODEL_BUDGET_EXHAUSTED", "NO_PRESENTABLE_RESULT"].includes(status)) {
       return "final-result";
     }
     return `status:${status || "runtime"}`;
@@ -1083,11 +1093,13 @@ function agentEventToExecutionStep(event = {}) {
     };
   }
   if (type === "RESULT") {
+    const noResult = status === "EMPTY" || status === "NO_PRESENTABLE_RESULT";
+    const budgetExhausted = status === "TIME_BUDGET_EXHAUSTED" || status === "MODEL_BUDGET_EXHAUSTED";
     return {
       ...base,
-      title: status === "PARTIAL" ? "\u83b7\u5f97\u90e8\u5206\u7ed3\u679c" : "\u672a\u4ea7\u751f\u6709\u6548\u7ed3\u679c",
+      title: statusTitle(status),
       detail: compactText(payload.executionResult?.message || payload.message || "", 96),
-      status: status === "EMPTY" ? "empty" : "partial"
+      status: noResult ? "empty" : (budgetExhausted ? "error" : "partial")
     };
   }
   if (type === "COMPLETE") {
@@ -1102,7 +1114,7 @@ function agentEventToExecutionStep(event = {}) {
     };
   }
   if (type === "STATUS") {
-    const failed = ["FAILED", "CANCELLED", "KILLED"].includes(status);
+    const failed = ["FAILED", "CANCELLED", "KILLED", "TIME_BUDGET_EXHAUSTED", "MODEL_BUDGET_EXHAUSTED", "NO_PRESENTABLE_RESULT"].includes(status);
     return {
       ...base,
       title: statusTitle(status),

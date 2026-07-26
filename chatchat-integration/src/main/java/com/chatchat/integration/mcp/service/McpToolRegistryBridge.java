@@ -1,6 +1,7 @@
 package com.chatchat.integration.mcp.service;
 
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.chatchat.integration.mcp.entity.McpServiceConfig;
 import com.chatchat.integration.mcp.model.McpToolDefinition;
 import com.chatchat.integration.mcp.model.McpToolInvokeResult;
@@ -140,7 +141,10 @@ public class McpToolRegistryBridge {
         Map<String, Object> extraMetadata = new LinkedHashMap<>();
         extraMetadata.put("serviceId", service.getId());
         extraMetadata.put("remoteToolName", definition.name());
-        extraMetadata.put("inputSchema", definition.inputSchema() == null ? Map.of() : definition.inputSchema());
+        extraMetadata.put("inputSchema", ToolCallBatchSchema.augment(
+            definition.name(),
+            definition.inputSchema() == null ? Map.of() : definition.inputSchema()
+        ));
         if (definition.meta() != null && !definition.meta().isEmpty()) {
             extraMetadata.put("mcpToolMeta", definition.meta());
             copyToolResultInstruction(extraMetadata, definition.meta());

@@ -46,7 +46,11 @@ public class AgentTaskService {
 
     private static final List<String> ACTIVE_STATUSES = List.of("PENDING", "RUNNING", "WAIT_TOOL", "WAIT_MODEL", "WAIT_CONFIRMATION", "WAITING_CONFIRM");
     private static final List<String> RECOVERABLE_STATUSES = List.of("PENDING", "RUNNING", "WAIT_TOOL", "WAIT_MODEL");
-    private static final List<String> TERMINAL_STATUSES = List.of("SUCCESS", "PARTIAL", "EMPTY", "FAILED", "CANCELLED", "REJECTED", "TIMEOUT_CANCELLED", "KILLED");
+    private static final List<String> TERMINAL_STATUSES = List.of(
+        "SUCCESS", "PARTIAL", "PARTIAL_SUCCESS", "EMPTY", "NO_PRESENTABLE_RESULT",
+        "FAILED", "TIME_BUDGET_EXHAUSTED", "MODEL_BUDGET_EXHAUSTED",
+        "CANCELLED", "REJECTED", "TIMEOUT_CANCELLED", "KILLED"
+    );
     private static final int MAX_IDLE_POLLS = 3;
     private static final int MAX_CONFIRMATION_ROUNDS = 20;
     private static final int DEBUG_TEXT_LIMIT = 8000;
@@ -2087,19 +2091,26 @@ public class AgentTaskService {
         boolean hasToolOutput = response != null && response.getToolTraces() != null && !response.getToolTraces().isEmpty();
         boolean hasObservations = metadataList(response == null ? null : response.getMetadata(), "observations");
         boolean hasArtifact = hasAnswer || hasSources || hasToolOutput || hasObservations;
-        String status = fatalExecutionBlocked ? "FAILED" : (hasAnswer ? "SUCCESS" : (hasArtifact ? "PARTIAL" : "EMPTY"));
+        String explicitTerminalStatus = explicitExecutionTerminalStatus(response, agentMetadata);
+        String status = explicitTerminalStatus != null
+            ? explicitTerminalStatus
+            : (fatalExecutionBlocked ? "FAILED" : (hasAnswer ? "SUCCESS" : (hasArtifact ? "PARTIAL" : "NO_PRESENTABLE_RESULT")));
         String message = switch (status) {
             case "SUCCESS" -> "Agent task completed";
             case "FAILED" -> "Agent task failed before required tool workflow completed";
-            case "PARTIAL" -> "Agent task completed with partial result";
-            case "EMPTY" -> "Agent task completed without displayable result";
+            case "PARTIAL", "PARTIAL_SUCCESS" -> "Agent task completed with partial result";
+            case "TIME_BUDGET_EXHAUSTED" -> "Agent diagnostic execution time budget exhausted";
+            case "MODEL_BUDGET_EXHAUSTED" -> "Agent model invocation budget exhausted";
+            case "EMPTY", "NO_PRESENTABLE_RESULT" -> "Agent task completed without displayable result";
             default -> "Agent task completed";
         };
         String displayAnswer = switch (status) {
             case "SUCCESS" -> answer;
             case "FAILED" -> firstText(answer, firstTextValue(agentMetadata.get("errorMessage"), "必需工具未完成，已阻断最终回答。请检查工具调用失败原因后重试。"));
-            case "PARTIAL" -> "本次执行已完成，并获取到部分工具结果或中间产物，但没有生成最终回答。请查看执行步骤、引用来源或工具轨迹，必要时补充要求后重试。";
-            case "EMPTY" -> "本次执行已结束，但没有产生可展示的回答或结果产物。请检查 Agent 配置、模型服务，或换一种问法后重试。";
+            case "PARTIAL", "PARTIAL_SUCCESS" -> firstText(answer, "本次诊断已获得部分工具结果；已保留成功证据和失败记录。");
+            case "TIME_BUDGET_EXHAUSTED" -> firstText(answer, "诊断总执行时间已达到上限；已完成的工具证据和失败记录均已保留。");
+            case "MODEL_BUDGET_EXHAUSTED" -> firstText(answer, "模型调用预算已耗尽；已返回运行时根据工具证据生成的确定性执行清单。");
+            case "EMPTY", "NO_PRESENTABLE_RESULT" -> firstText(answer, "执行已结束，但结果整理失败。请查看已保留的工具轨迹和结构化证据。");
             default -> answer;
         };
         Map<String, Object> flags = new LinkedHashMap<>();
@@ -2112,6 +2123,40 @@ public class AgentTaskService {
         UiResponseContract uiResponse = uiResponse(status, displayAnswer, response, reasoningPayload);
         Map<String, Object> debug = debugPayload(response, reasoningPayload);
         return new ExecutionResultContract(status, message, flags, uiResponse, debug);
+    }
+
+    private String explicitExecutionTerminalStatus(InteractionResponse response,
+                                                   Map<String, Object> agentMetadata) {
+        String stopReason = normalizeStatus(firstTextValue(
+            agentMetadata == null ? null : agentMetadata.get("stopReason"),
+            agentMetadata == null ? null : agentMetadata.get("executionStatus")
+        ));
+        if (stopReason.contains("TIME_BUDGET") || stopReason.contains("TIMED_OUT")) {
+            return "TIME_BUDGET_EXHAUSTED";
+        }
+        if (stopReason.contains("MODEL_BUDGET")) {
+            return "MODEL_BUDGET_EXHAUSTED";
+        }
+        List<InteractionToolTrace> traces = response == null || response.getToolTraces() == null
+            ? List.of()
+            : response.getToolTraces();
+        for (int index = traces.size() - 1; index >= 0; index--) {
+            InteractionToolTrace trace = traces.get(index);
+            Map<String, Object> runtime = trace == null || trace.getRuntimeMetadata() == null
+                ? Map.of()
+                : trace.getRuntimeMetadata();
+            String status = normalizeStatus(firstTextValue(
+                runtime.get("executionStatus"),
+                runtime.get("outcome")
+            ));
+            if (List.of(
+                "PARTIAL_SUCCESS", "TIME_BUDGET_EXHAUSTED",
+                "MODEL_BUDGET_EXHAUSTED", "NO_PRESENTABLE_RESULT"
+            ).contains(status)) {
+                return status;
+            }
+        }
+        return null;
     }
 
     private ExecutionResultContract compileFailureResult(String message, String errorCode) {

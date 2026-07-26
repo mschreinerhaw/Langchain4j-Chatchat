@@ -1,6 +1,7 @@
 package com.chatchat.agents.runtime;
 
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
@@ -20,6 +21,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ToolRuntimeServiceTest {
+
+    @Test
+    void diagnosticAndToolTimeoutDefaultsAreThirtyMinutes() {
+        assertThat(AgentRunRequest.DEFAULT_TIMEOUT_MS).isEqualTo(1_800_000L);
+        assertThat(new ToolRuntimeProperties().safeDefaultToolTimeoutMs()).isEqualTo(1_800_000L);
+    }
 
     @Test
     void defaultsToThreeToolRetries() {
@@ -284,7 +291,7 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
-    void doesNotTimeoutMcpToolExecution() {
+    void mcpToolExecutionHonorsConfiguredTimeout() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_web_search")).thenReturn(ToolMetadata.builder()
             .id("mcp_chatchat_mcp_server_web_search")
@@ -296,7 +303,11 @@ class ToolRuntimeServiceTest {
             Thread.sleep(80);
             return ToolOutput.success("search result");
         });
-        ToolRuntimeService service = new ToolRuntimeService(toolRegistry, new ObjectMapper(), properties(), List.of(), List.of());
+        ToolRuntimeProperties runtimeProperties = properties();
+        runtimeProperties.setDefaultRetryAttempts(0);
+        runtimeProperties.setCircuitBreakerFailureThreshold(10);
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), runtimeProperties, List.of(), List.of());
 
         try {
             ToolRuntimeExecution execution = service.execute(ToolRuntimeRequest.builder()
@@ -310,9 +321,9 @@ class ToolRuntimeServiceTest {
                 .toolInput(ToolInput.builder().userId("user-mcp").parameters(Map.of("query", "market")).build())
                 .build());
 
-            assertThat(execution.output().isSuccess()).isTrue();
-            assertThat(execution.output().getDataAsString()).isEqualTo("search result");
-            assertThat(execution.output().getExceptionType()).isNull();
+            assertThat(execution.output().isSuccess()).isFalse();
+            assertThat(execution.output().getExceptionType()).isEqualTo("TOOL_TIMEOUT");
+            assertThat(execution.output().getErrorMessage()).contains("timed out");
         } finally {
             service.shutdown();
         }
@@ -1010,6 +1021,193 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
+    void sequentialBatchPreservesOrderAndContinuesAfterOneFailure() {
+        String shortName = "sql_query_execute";
+        String fullName = "mcp_chatchat_mcp_server_sql_query_execute";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        for (String tool : List.of(shortName, fullName)) {
+            when(toolRegistry.getToolMetadata(tool)).thenReturn(ToolMetadata.builder()
+                .id(tool).title(tool).categories(List.of("mcp")).build());
+        }
+        List<String> executedTemplates = new ArrayList<>();
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenAnswer(invocation -> {
+            ToolInput input = invocation.getArgument(1);
+            String template = String.valueOf(input.getParameters().get("templateCode"));
+            executedTemplates.add(template);
+            return "ORACLE_LOCKS".equals(template)
+                ? ToolOutput.failure("lock query failed")
+                : ToolOutput.success(Map.of("template", template));
+        });
+        ToolRuntimeProperties runtimeProperties = properties();
+        runtimeProperties.setDefaultRetryAttempts(0);
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), runtimeProperties, new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of());
+        List<Map<String, Object>> calls = List.of(
+            batchCall("instance", shortName, "ORACLE_INSTANCE_STATUS"),
+            batchCall("sessions", fullName, "ORACLE_SESSION_OVERVIEW"),
+            batchCall("locks", shortName, "ORACLE_LOCKS"),
+            batchCall("events", fullName, "ORACLE_SYSTEM_EVENTS"),
+            batchCall("tablespace", shortName, "ORACLE_TABLESPACE_SIZE")
+        );
+
+        ToolRuntimeExecution execution = service.execute(batchRequest(calls, false, Map.of()));
+        ToolCallBatchResult result = (ToolCallBatchResult) execution.output().getData();
+
+        assertThat(execution.output().isSuccess()).isTrue();
+        assertThat(result.status()).isEqualTo("PARTIAL_SUCCESS");
+        assertThat(result.summary().success()).isEqualTo(4);
+        assertThat(result.summary().failed()).isEqualTo(1);
+        assertThat(result.summary().remoteToolInvocations()).isEqualTo(5);
+        assertThat(result.results()).extracting(item -> item.callId())
+            .containsExactly("instance", "sessions", "locks", "events", "tablespace");
+        assertThat(executedTemplates).containsExactly(
+            "ORACLE_INSTANCE_STATUS",
+            "ORACLE_SESSION_OVERVIEW",
+            "ORACLE_LOCKS",
+            "ORACLE_SYSTEM_EVENTS",
+            "ORACLE_TABLESPACE_SIZE"
+        );
+    }
+
+    @Test
+    void sequentialBatchStopsImmediatelyWhenStopOnFailureIsEnabled() {
+        String toolName = "sql_query_execute";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName).title(toolName).categories(List.of("mcp")).build());
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.failure("first failed"));
+        ToolRuntimeProperties runtimeProperties = properties();
+        runtimeProperties.setDefaultRetryAttempts(0);
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), runtimeProperties, new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of());
+        List<Map<String, Object>> calls = List.of(
+            batchCall("first", toolName, "ONE"),
+            batchCall("second", toolName, "TWO"),
+            batchCall("third", toolName, "THREE")
+        );
+
+        ToolCallBatchResult result = (ToolCallBatchResult) service.execute(
+            batchRequest(calls, true, Map.of())).output().getData();
+
+        assertThat(result.status()).isEqualTo("FAILED");
+        assertThat(result.summary().failed()).isEqualTo(1);
+        assertThat(result.summary().skipped()).isEqualTo(2);
+        assertThat(result.results()).extracting(item -> item.status())
+            .containsExactly("FAILED", "SKIPPED", "SKIPPED");
+        verify(toolRegistry, times(1)).executeEnhancedTool(any(), any());
+    }
+
+    @Test
+    void expiredDiagnosticDeadlineBlocksWholeBatchWithoutRemoteCalls() {
+        String toolName = "sql_query_execute";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName).title(toolName).categories(List.of("mcp")).build());
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), properties(), new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of());
+        List<Map<String, Object>> calls = List.of(
+            batchCall("first", toolName, "ONE"),
+            batchCall("second", toolName, "TWO")
+        );
+
+        ToolRuntimeExecution execution = service.execute(batchRequest(
+            calls, false, Map.of("__agentDeadlineAt", System.currentTimeMillis() - 1)));
+        ToolCallBatchResult result = (ToolCallBatchResult) execution.output().getData();
+
+        assertThat(execution.output().isSuccess()).isFalse();
+        assertThat(result.status()).isEqualTo("TIME_BUDGET_EXHAUSTED");
+        assertThat(result.summary().remoteToolInvocations()).isZero();
+        assertThat(result.results()).extracting(item -> item.status())
+            .containsExactly("TIME_BUDGET_EXHAUSTED", "SKIPPED");
+        verify(toolRegistry, never()).executeEnhancedTool(any(), any());
+    }
+
+    @Test
+    void rejectsOversizedBatchBeforeAnyRemoteInvocation() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(any())).thenReturn(ToolMetadata.builder()
+            .id("sql_query_execute").categories(List.of("mcp")).build());
+        ToolRuntimeProperties runtimeProperties = properties();
+        runtimeProperties.setMaxBatchPayloadBytes(1024);
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), runtimeProperties, new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of());
+        Map<String, Object> oversized = Map.of(
+            "callId", "large",
+            "toolName", "sql_query_execute",
+            "arguments", Map.of("templateCode", "CHECK", "value", "x".repeat(2_000))
+        );
+
+        ToolRuntimeExecution execution = service.execute(batchRequest(List.of(oversized), false, Map.of()));
+
+        assertThat(execution.output().isSuccess()).isFalse();
+        assertThat(execution.output().getExceptionType()).isEqualTo("BATCH_PAYLOAD_TOO_LARGE");
+        assertThat(execution.audit())
+            .containsEntry("blockedBeforeInvocation", true)
+            .containsEntry("remoteToolInvoked", false);
+        verify(toolRegistry, never()).executeEnhancedTool(any(), any());
+    }
+
+    @Test
+    void rejectsCallLimitAndNestedBatchBeforeAnyRemoteInvocation() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(any())).thenReturn(ToolMetadata.builder()
+            .id("sql_query_execute").categories(List.of("mcp")).build());
+        ToolRuntimeProperties runtimeProperties = properties();
+        runtimeProperties.setMaxBatchCalls(1);
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), runtimeProperties, new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of());
+
+        ToolRuntimeExecution tooMany = service.execute(batchRequest(List.of(
+            batchCall("one", "sql_query_execute", "ONE"),
+            batchCall("two", "sql_query_execute", "TWO")
+        ), false, Map.of()));
+        Map<String, Object> nested = Map.of(
+            "callId", "nested",
+            "toolName", "sql_query_execute",
+            "arguments", Map.of(
+                "executionMode", "SEQUENTIAL",
+                "calls", List.of(batchCall("inner", "sql_query_execute", "INNER"))
+            )
+        );
+        ToolRuntimeExecution nestedResult = service.execute(batchRequest(List.of(nested), false, Map.of()));
+
+        assertThat(tooMany.output().getExceptionType()).isEqualTo("BATCH_CALL_LIMIT_EXCEEDED");
+        assertThat(nestedResult.output().getExceptionType()).isEqualTo("BATCH_NESTING_NOT_ALLOWED");
+        assertThat(tooMany.audit()).containsEntry("remoteToolInvoked", false);
+        assertThat(nestedResult.audit()).containsEntry("remoteToolInvoked", false);
+        verify(toolRegistry, never()).executeEnhancedTool(any(), any());
+    }
+
+    @Test
+    void rejectsNonWhitelistedOuterOrChildBatchTool() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(any())).thenReturn(ToolMetadata.builder().build());
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), properties(), new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of());
+        ToolRuntimeRequest invalidOuter = batchRequest(
+            List.of(batchCall("one", "sql_query_execute", "ONE")), false, Map.of());
+        invalidOuter.setToolName("document_search");
+        Map<String, Object> invalidChild = Map.of(
+            "callId", "unsafe",
+            "toolName", "document_search",
+            "arguments", Map.of("query", "not allowed in batch")
+        );
+
+        ToolRuntimeExecution outer = service.execute(invalidOuter);
+        ToolRuntimeExecution child = service.execute(batchRequest(List.of(invalidChild), false, Map.of()));
+
+        assertThat(outer.output().getExceptionType()).isEqualTo("BATCH_TOOL_NOT_ALLOWED");
+        assertThat(child.output().getExceptionType()).isEqualTo("BATCH_TOOL_NOT_ALLOWED");
+        verify(toolRegistry, never()).executeEnhancedTool(any(), any());
+    }
+
+    @Test
     void failedSequentialStepCountsAsAttemptSoFallbackCanContinueWhenStopOnErrorIsDisabled() {
         String assetSearch = "database_asset_search";
         String templateSearch = "database_template_search";
@@ -1167,6 +1365,45 @@ class ToolRuntimeServiceTest {
                 "__agentRunId", "run-diagnostic",
                 "workflowExecutionAttempt", attempt
             ))
+            .build();
+    }
+
+    private Map<String, Object> batchCall(String callId, String toolName, String templateCode) {
+        return Map.of(
+            "callId", callId,
+            "toolName", toolName,
+            "arguments", Map.of(
+                "assetId", "asset-a",
+                "templateCode", templateCode
+            )
+        );
+    }
+
+    private ToolRuntimeRequest batchRequest(List<Map<String, Object>> calls,
+                                            boolean stopOnFailure,
+                                            Map<String, Object> attributes) {
+        List<String> allowedTools = calls.stream()
+            .map(call -> String.valueOf(call.get("toolName")))
+            .distinct()
+            .toList();
+        return ToolRuntimeRequest.builder()
+            .toolName("sql_query_execute")
+            .runtimeMode("interpretation_plan")
+            .requestId("req-batch")
+            .conversationId("conv-batch")
+            .tenantId("tenant-1")
+            .userId("user-batch")
+            .allowedTools(allowedTools)
+            .toolInput(ToolInput.builder()
+                .userId("user-batch")
+                .parameters(Map.of(
+                    "batchId", "oracle-health",
+                    "executionMode", "SEQUENTIAL",
+                    "stopOnFailure", stopOnFailure,
+                    "calls", calls
+                ))
+                .build())
+            .attributes(attributes)
             .build();
     }
 

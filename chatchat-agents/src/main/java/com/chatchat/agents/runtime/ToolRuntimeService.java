@@ -1,6 +1,12 @@
 package com.chatchat.agents.runtime;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
+import com.chatchat.agents.runtime.batch.BatchExecutionMode;
+import com.chatchat.agents.runtime.batch.ToolCallBatch;
+import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
+import com.chatchat.agents.runtime.batch.ToolCallRequest;
+import com.chatchat.agents.runtime.batch.ToolCallResult;
+import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.tool.ToolInput;
@@ -14,6 +20,7 @@ import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -175,6 +182,23 @@ public class ToolRuntimeService {
      * @return the operation result
      */
     public ToolRuntimeExecution execute(ToolRuntimeRequest request) {
+        BatchValidation batchValidation = validateBatchEnvelope(request);
+        if (batchValidation.present() && !batchValidation.valid()) {
+            String toolName = normalizeText(request == null ? null : request.getToolName());
+            return deniedExecution(
+                firstText(toolName, "tool_call_batch"),
+                request,
+                toolRegistry.getToolMetadata(toolName),
+                batchValidation.message(),
+                batchValidation.errorCode(),
+                null,
+                null
+            );
+        }
+        ToolCallBatch batch = toolCallBatch(request);
+        if (batch != null) {
+            return executeBatchRequest(batch, request);
+        }
         int retryAttempts = resolveToolRetryAttempts(request);
         int maxCalls = retryAttempts + 1;
         ToolRuntimeExecution lastExecution = null;
@@ -195,6 +219,176 @@ public class ToolRuntimeService {
                     : lastExecution.output().getErrorMessage());
         }
         return lastExecution;
+    }
+
+    public ToolCallBatchResult executeBatch(ToolCallBatch batch, ToolRuntimeRequest context) {
+        long startedAt = System.currentTimeMillis();
+        String startedAtText = Instant.ofEpochMilli(startedAt).toString();
+        String batchId = firstText(batch == null ? null : batch.batchId(), UUID.randomUUID().toString());
+        List<ToolCallRequest> calls = batch == null || batch.calls() == null ? List.of() : batch.calls();
+        BatchValidation validation = validateBatchObject(batch, context);
+        if (!validation.valid()) {
+            return invalidBatchResult(batchId, startedAtText, validation);
+        }
+        List<ToolCallResult> results = new ArrayList<>();
+        int success = 0;
+        int failed = 0;
+        int blocked = 0;
+        int skipped = 0;
+        int remoteToolInvocations = 0;
+        boolean timeBudgetExhausted = false;
+        boolean stop = false;
+
+        for (int index = 0; index < calls.size(); index++) {
+            ToolCallRequest call = calls.get(index);
+            String callId = firstText(call == null ? null : call.callId(), "call-" + (index + 1));
+            String toolName = normalizeText(call == null ? null : call.toolName());
+            Map<String, Object> arguments = call == null || call.arguments() == null
+                ? Map.of()
+                : call.arguments();
+            if (stop) {
+                skipped++;
+                results.add(skippedBatchResult(callId, toolName, arguments, "SKIPPED",
+                    "BATCH_STOPPED", "Skipped because a previous call stopped the batch"));
+                continue;
+            }
+            if (diagnosticRemainingTimeMs(context) == 0L) {
+                timeBudgetExhausted = true;
+                skipped++;
+                results.add(skippedBatchResult(callId, toolName, arguments, "TIME_BUDGET_EXHAUSTED",
+                    "TIME_BUDGET_EXHAUSTED", "Diagnostic execution time budget exhausted before invocation"));
+                stop = true;
+                continue;
+            }
+            if (toolName == null || !batchCapableTool(toolName)) {
+                failed++;
+                results.add(skippedBatchResult(callId, toolName, arguments, "FAILED",
+                    "BATCH_TOOL_NOT_ALLOWED", "Batch calls support sql_query_execute, ssh_linux_execute, api_query_execute and their configured aliases"));
+                stop = batch != null && batch.stopOnFailure();
+                continue;
+            }
+
+            ToolRuntimeRequest childRequest = batchChildRequest(context, batchId, callId, toolName, arguments, index);
+            ToolRuntimeExecution execution = execute(childRequest);
+            ToolOutput output = execution == null ? null : execution.output();
+            Map<String, Object> audit = execution == null || execution.audit() == null
+                ? Map.of()
+                : execution.audit();
+            boolean invoked = Boolean.TRUE.equals(audit.get("remoteToolInvoked"));
+            if (invoked) {
+                remoteToolInvocations++;
+            }
+            boolean callBlocked = Boolean.TRUE.equals(audit.get("blockedBeforeInvocation"));
+            String exceptionType = output == null ? "TOOL_NO_RESULT" : output.getExceptionType();
+            String status;
+            if ("TIME_BUDGET_EXHAUSTED".equalsIgnoreCase(exceptionType)
+                || "time_budget_exhausted".equalsIgnoreCase(execution == null ? null : execution.outcome())) {
+                status = "TIME_BUDGET_EXHAUSTED";
+                timeBudgetExhausted = true;
+                failed++;
+            } else if (callBlocked) {
+                status = "BLOCKED";
+                blocked++;
+            } else if (output != null && output.isSuccess()) {
+                status = "SUCCESS";
+                success++;
+            } else {
+                status = "FAILED";
+                failed++;
+            }
+            long durationMs = output == null || output.getExecutionTimeMs() == null
+                ? 0L
+                : output.getExecutionTimeMs();
+            String evidenceId = firstText(stringValue(audit.get("auditId")),
+                batchId + ":" + callId + ":" + (index + 1));
+            Map<String, Object> error = output == null || output.isSuccess()
+                ? Map.of()
+                : errorPayload(firstText(exceptionType,
+                        firstText(stringValue(audit.get("errorCode")), "TOOL_FAILED")),
+                    firstText(output.getErrorMessage(), "Tool call failed"));
+            results.add(new ToolCallResult(
+                callId,
+                toolName,
+                templateCode(arguments),
+                status,
+                durationMs,
+                evidenceId,
+                output == null ? null : output.getData(),
+                error
+            ));
+            if ((output == null || !output.isSuccess()) && batch != null && batch.stopOnFailure()) {
+                stop = true;
+            }
+            if (timeBudgetExhausted) {
+                stop = true;
+            }
+        }
+
+        String status;
+        if (timeBudgetExhausted) {
+            status = "TIME_BUDGET_EXHAUSTED";
+        } else if (success == calls.size() && !calls.isEmpty()) {
+            status = "SUCCESS";
+        } else if (success > 0) {
+            status = "PARTIAL_SUCCESS";
+        } else {
+            status = "FAILED";
+        }
+        long completedAt = System.currentTimeMillis();
+        return new ToolCallBatchResult(
+            batchId,
+            BatchExecutionMode.SEQUENTIAL.name(),
+            startedAtText,
+            Instant.ofEpochMilli(completedAt).toString(),
+            status,
+            new ToolCallBatchResult.Summary(
+                calls.size(), success, failed, blocked, skipped, remoteToolInvocations),
+            List.copyOf(results)
+        );
+    }
+
+    private ToolRuntimeExecution executeBatchRequest(ToolCallBatch batch, ToolRuntimeRequest request) {
+        long startedAt = System.currentTimeMillis();
+        ToolCallBatchResult result = executeBatch(batch, request);
+        long finishedAt = System.currentTimeMillis();
+        boolean successful = "SUCCESS".equals(result.status()) || "PARTIAL_SUCCESS".equals(result.status());
+        ToolOutput output = ToolOutput.builder()
+            .success(successful)
+            .data(result)
+            .message("Tool call batch completed with status " + result.status())
+            .errorMessage(successful ? null : "Tool call batch completed with status " + result.status())
+            .exceptionType(successful ? null : result.status())
+            .executionTimeMs(Math.max(0L, finishedAt - startedAt))
+            .metadata(new LinkedHashMap<>())
+            .build();
+        Map<String, Object> runtimeMetadata = new LinkedHashMap<>();
+        runtimeMetadata.put("runtimeMode", normalizeMode(request));
+        runtimeMetadata.put("requestId", request == null ? null : request.getRequestId());
+        runtimeMetadata.put("conversationId", request == null ? null : request.getConversationId());
+        runtimeMetadata.put("outcome", result.status().toLowerCase(Locale.ROOT));
+        runtimeMetadata.put("executionStatus", result.status());
+        runtimeMetadata.put("remoteToolInvoked", false);
+        runtimeMetadata.put("remoteToolInvocationCount", result.summary().remoteToolInvocations());
+        runtimeMetadata.put("batchExecution", true);
+        runtimeMetadata.put("batchId", result.batchId());
+        output.getMetadata().putAll(runtimeMetadata);
+        ToolMetadata metadata = toolRegistry.getToolMetadata(request == null ? null : request.getToolName());
+        InteractionToolTrace trace = buildTrace(
+            request == null ? "tool_call_batch" : request.getToolName(),
+            metadata,
+            request == null ? null : request.getToolInput(),
+            output,
+            startedAt,
+            finishedAt,
+            runtimeMetadata
+        );
+        return new ToolRuntimeExecution(
+            output,
+            metadata,
+            trace,
+            result.status().toLowerCase(Locale.ROOT),
+            runtimeMetadata
+        );
     }
 
     private ToolRuntimeExecution executeOnce(ToolRuntimeRequest request) {
@@ -263,6 +457,14 @@ public class ToolRuntimeService {
                 "Tool rate limit exceeded: " + toolName,
                 "TOOL_RATE_LIMITED",
                 "rate_limited",
+                executionPlan,
+                policyDecision);
+        }
+        if (diagnosticRemainingTimeMs(request) == 0L) {
+            return rejectedExecution(toolName, request, metadata,
+                "Diagnostic execution time budget exhausted before tool invocation: " + toolName,
+                "TIME_BUDGET_EXHAUSTED",
+                "time_budget_exhausted",
                 executionPlan,
                 policyDecision);
         }
@@ -469,6 +671,11 @@ public class ToolRuntimeService {
                                               ToolRuntimePolicy policy,
                                               ToolMetadata metadata) {
         long timeoutMs = resolveToolTimeoutMs(request, policy, metadata);
+        if (timeoutMs == 0L && diagnosticRemainingTimeMs(request) == 0L) {
+            ToolOutput output = ToolOutput.failure("Diagnostic execution time budget exhausted before tool invocation: " + toolName);
+            output.setExceptionType("TIME_BUDGET_EXHAUSTED");
+            return output;
+        }
         CompletableFuture<ToolOutput> future;
         try {
             future = CompletableFuture.supplyAsync(() -> toolRegistry.executeEnhancedTool(toolName, toolInput), toolExecutionExecutor);
@@ -485,7 +692,9 @@ public class ToolRuntimeService {
         } catch (TimeoutException ex) {
             future.cancel(true);
             ToolOutput output = ToolOutput.failure("Tool execution timed out after " + timeoutMs + " ms: " + toolName);
-            output.setExceptionType("TOOL_TIMEOUT");
+            output.setExceptionType(diagnosticRemainingTimeMs(request) == 0L
+                ? "TIME_BUDGET_EXHAUSTED"
+                : "TOOL_TIMEOUT");
             return output;
         } catch (InterruptedException ex) {
             future.cancel(true);
@@ -502,26 +711,45 @@ public class ToolRuntimeService {
     }
 
     private long resolveToolTimeoutMs(ToolRuntimeRequest request, ToolRuntimePolicy policy, ToolMetadata metadata) {
-        String toolName = request == null ? null : request.getToolName();
-        if (isMcpTool(toolName, metadata)) {
-            return 0L;
-        }
         Object value = firstPresent(
             request == null || request.getAttributes() == null ? null : request.getAttributes().get("toolTimeoutMs"),
             policy == null || policy.attributes() == null ? null : policy.attributes().get("toolTimeoutMs"),
             metadata == null ? null : metadata.getTimeoutMillis()
         );
+        long configuredTimeoutMs = properties.safeDefaultToolTimeoutMs();
         if (value instanceof Number number) {
-            return number.longValue();
-        }
-        if (value != null) {
+            configuredTimeoutMs = number.longValue();
+        } else if (value != null) {
             try {
-                return Long.parseLong(String.valueOf(value));
+                configuredTimeoutMs = Long.parseLong(String.valueOf(value));
             } catch (NumberFormatException ignored) {
-                return properties.safeDefaultToolTimeoutMs();
+                configuredTimeoutMs = properties.safeDefaultToolTimeoutMs();
             }
         }
-        return properties.safeDefaultToolTimeoutMs();
+        if (configuredTimeoutMs <= 0L) {
+            configuredTimeoutMs = properties.safeDefaultToolTimeoutMs();
+        }
+        long remainingMs = diagnosticRemainingTimeMs(request);
+        if (remainingMs < 0L) {
+            return Math.max(0L, configuredTimeoutMs);
+        }
+        return Math.max(0L, Math.min(configuredTimeoutMs, remainingMs));
+    }
+
+    private long diagnosticRemainingTimeMs(ToolRuntimeRequest request) {
+        Map<String, Object> attributes = request == null || request.getAttributes() == null
+            ? Map.of()
+            : request.getAttributes();
+        Object rawDeadline = firstPresent(
+            attributes.get("__agentDeadlineAt"),
+            attributes.get("diagnosticDeadlineAt"),
+            attributes.get("deadlineAt")
+        );
+        Long deadlineAt = longValue(rawDeadline);
+        if (deadlineAt == null || deadlineAt <= 0L) {
+            return -1L;
+        }
+        return Math.max(0L, deadlineAt - System.currentTimeMillis());
     }
 
     private boolean isMcpTool(String toolName, ToolMetadata metadata) {
@@ -658,6 +886,10 @@ public class ToolRuntimeService {
             runtimeMetadata.put("executionStatus", "BLOCKED");
             runtimeMetadata.put("blockedBeforeInvocation", true);
             runtimeMetadata.put("blockedReason", workflowBlockedReason(message));
+        } else if (errorCode != null && errorCode.startsWith("BATCH_")) {
+            runtimeMetadata.put("executionStatus", "FAILED");
+            runtimeMetadata.put("blockedBeforeInvocation", true);
+            runtimeMetadata.put("blockedReason", "batch_validation_failed");
         }
         ToolOutput output = ToolOutput.failure(message);
         output.setExceptionType(errorCode);
@@ -699,6 +931,11 @@ public class ToolRuntimeService {
             toolCounters.circuitOpenRejects.incrementAndGet();
         }
         Map<String, Object> runtimeMetadata = runtimeMetadata(request, metadata, outcome, errorCode, executionPlan, policyDecision);
+        if ("TIME_BUDGET_EXHAUSTED".equals(errorCode)) {
+            runtimeMetadata.put("executionStatus", "TIME_BUDGET_EXHAUSTED");
+            runtimeMetadata.put("blockedBeforeInvocation", true);
+            runtimeMetadata.put("blockedReason", "time_budget_exhausted");
+        }
         ToolOutput output = ToolOutput.failure(message);
         output.setExceptionType(errorCode);
         output.getMetadata().putAll(runtimeMetadata);
@@ -978,6 +1215,283 @@ public class ToolRuntimeService {
         values.put("policyDecision", governance.policyDecision());
         values.put("confirmRequired", governance.confirmRequired());
         return values;
+    }
+
+    private ToolCallBatch toolCallBatch(ToolRuntimeRequest request) {
+        if (request == null
+            || request.getAttributes() != null && Boolean.TRUE.equals(request.getAttributes().get("__toolBatchChild"))
+            || request.getToolInput() == null
+            || request.getToolInput().getParameters() == null) {
+            return null;
+        }
+        Map<String, Object> parameters = request.getToolInput().getParameters();
+        Object rawCalls = firstPresent(parameters.get("calls"), parameters.get("toolCalls"), parameters.get("tool_calls"));
+        if (!(rawCalls instanceof List<?> calls) || calls.isEmpty()) {
+            return null;
+        }
+        List<ToolCallRequest> parsedCalls = new ArrayList<>();
+        int index = 0;
+        for (Object item : calls) {
+            index++;
+            Map<String, Object> call = asMap(item);
+            String callId = firstText(
+                stringValue(firstPresent(call.get("callId"), call.get("call_id"), call.get("id"))),
+                "call-" + index
+            );
+            String toolName = firstText(
+                stringValue(firstPresent(call.get("toolName"), call.get("tool_name"))),
+                request.getToolName()
+            );
+            Map<String, Object> arguments = asMap(firstPresent(
+                call.get("arguments"), call.get("input"), call.get("parameters")
+            ));
+            parsedCalls.add(new ToolCallRequest(callId, toolName, arguments));
+        }
+        String mode = firstText(
+            stringValue(firstPresent(parameters.get("executionMode"), parameters.get("execution_mode"))),
+            BatchExecutionMode.SEQUENTIAL.name()
+        );
+        if (!BatchExecutionMode.SEQUENTIAL.name().equalsIgnoreCase(mode)) {
+            throw new IllegalArgumentException("Only SEQUENTIAL tool call batches are supported");
+        }
+        boolean stopOnFailure = Boolean.TRUE.equals(booleanValue(firstPresent(
+            parameters.get("stopOnFailure"), parameters.get("stop_on_failure")
+        )));
+        String batchId = firstText(
+            stringValue(firstPresent(parameters.get("batchId"), parameters.get("batch_id"))),
+            firstText(request.getRequestId(), UUID.randomUUID().toString()) + "-batch"
+        );
+        return new ToolCallBatch(batchId, BatchExecutionMode.SEQUENTIAL, stopOnFailure, parsedCalls);
+    }
+
+    private BatchValidation validateBatchEnvelope(ToolRuntimeRequest request) {
+        if (request == null || request.getToolInput() == null || request.getToolInput().getParameters() == null) {
+            return BatchValidation.absent();
+        }
+        Map<String, Object> parameters = request.getToolInput().getParameters();
+        boolean present = parameters.containsKey("calls")
+            || parameters.containsKey("toolCalls")
+            || parameters.containsKey("tool_calls");
+        if (!present) {
+            return BatchValidation.absent();
+        }
+        if (request.getAttributes() != null && Boolean.TRUE.equals(request.getAttributes().get("__toolBatchChild"))) {
+            return BatchValidation.invalid("BATCH_NESTING_NOT_ALLOWED",
+                "Nested tool call batches are not allowed");
+        }
+        String outerTool = normalizeText(request.getToolName());
+        if (!ToolCallBatchSchema.supports(outerTool)) {
+            return BatchValidation.invalid("BATCH_TOOL_NOT_ALLOWED",
+                "The outer batch tool must be an allowed SQL, SSH, or API template executor");
+        }
+        try {
+            if (objectMapper.writeValueAsBytes(parameters).length > properties.safeMaxBatchPayloadBytes()) {
+                return BatchValidation.invalid("BATCH_PAYLOAD_TOO_LARGE",
+                    "Tool call batch payload exceeds " + properties.safeMaxBatchPayloadBytes() + " bytes");
+            }
+        } catch (Exception ex) {
+            return BatchValidation.invalid("BATCH_PAYLOAD_INVALID",
+                "Tool call batch payload cannot be serialized");
+        }
+        Object rawCalls = firstPresent(parameters.get("calls"), parameters.get("toolCalls"), parameters.get("tool_calls"));
+        if (!(rawCalls instanceof List<?> calls) || calls.isEmpty()) {
+            return BatchValidation.invalid("BATCH_CALLS_REQUIRED",
+                "Tool call batch calls must be a non-empty array");
+        }
+        if (calls.size() > properties.safeMaxBatchCalls()) {
+            return BatchValidation.invalid("BATCH_CALL_LIMIT_EXCEEDED",
+                "Tool call batch exceeds the maximum of " + properties.safeMaxBatchCalls() + " calls");
+        }
+        Set<String> callIds = new HashSet<>();
+        for (int index = 0; index < calls.size(); index++) {
+            Object item = calls.get(index);
+            if (!(item instanceof Map<?, ?> rawCall)) {
+                return BatchValidation.invalid("BATCH_CALL_INVALID",
+                    "Batch call " + (index + 1) + " must be an object");
+            }
+            Map<String, Object> call = asMap(rawCall);
+            String callId = firstText(
+                stringValue(firstPresent(call.get("callId"), call.get("call_id"), call.get("id"))),
+                "call-" + (index + 1)
+            );
+            if (callId.length() > 128 || !callIds.add(callId)) {
+                return BatchValidation.invalid("BATCH_CALL_ID_INVALID",
+                    "Batch call ids must be unique strings of at most 128 characters");
+            }
+            String toolName = firstText(
+                stringValue(firstPresent(call.get("toolName"), call.get("tool_name"))),
+                outerTool
+            );
+            if (!ToolCallBatchSchema.supports(toolName)) {
+                return BatchValidation.invalid("BATCH_TOOL_NOT_ALLOWED",
+                    "Batch call " + callId + " is not an allowed SQL, SSH, or API template executor");
+            }
+            Object rawArguments = firstPresent(call.get("arguments"), call.get("input"), call.get("parameters"));
+            if (!(rawArguments instanceof Map<?, ?> arguments)) {
+                return BatchValidation.invalid("BATCH_ARGUMENTS_INVALID",
+                    "Batch call " + callId + " arguments must be an object");
+            }
+            if (containsBatchEnvelope(arguments)) {
+                return BatchValidation.invalid("BATCH_NESTING_NOT_ALLOWED",
+                    "Batch call " + callId + " contains a nested batch");
+            }
+        }
+        return BatchValidation.accepted();
+    }
+
+    private BatchValidation validateBatchObject(ToolCallBatch batch, ToolRuntimeRequest context) {
+        if (batch == null || batch.calls() == null || batch.calls().isEmpty()) {
+            return BatchValidation.invalid("BATCH_CALLS_REQUIRED",
+                "Tool call batch calls must be a non-empty array");
+        }
+        if (batch.executionMode() != BatchExecutionMode.SEQUENTIAL) {
+            return BatchValidation.invalid("BATCH_MODE_NOT_ALLOWED",
+                "Only SEQUENTIAL tool call batches are supported");
+        }
+        if (batch.calls().size() > properties.safeMaxBatchCalls()) {
+            return BatchValidation.invalid("BATCH_CALL_LIMIT_EXCEEDED",
+                "Tool call batch exceeds the maximum of " + properties.safeMaxBatchCalls() + " calls");
+        }
+        Set<String> callIds = new HashSet<>();
+        for (int index = 0; index < batch.calls().size(); index++) {
+            ToolCallRequest call = batch.calls().get(index);
+            String callId = firstText(call == null ? null : call.callId(), "call-" + (index + 1));
+            if (callId.length() > 128 || !callIds.add(callId)) {
+                return BatchValidation.invalid("BATCH_CALL_ID_INVALID",
+                    "Batch call ids must be unique strings of at most 128 characters");
+            }
+            if (call == null || !ToolCallBatchSchema.supports(call.toolName())) {
+                return BatchValidation.invalid("BATCH_TOOL_NOT_ALLOWED",
+                    "Batch call " + callId + " is not an allowed SQL, SSH, or API template executor");
+            }
+            if (containsBatchEnvelope(call.arguments())) {
+                return BatchValidation.invalid("BATCH_NESTING_NOT_ALLOWED",
+                    "Batch call " + callId + " contains a nested batch");
+            }
+        }
+        try {
+            if (objectMapper.writeValueAsBytes(batch).length > properties.safeMaxBatchPayloadBytes()) {
+                return BatchValidation.invalid("BATCH_PAYLOAD_TOO_LARGE",
+                    "Tool call batch payload exceeds " + properties.safeMaxBatchPayloadBytes() + " bytes");
+            }
+        } catch (Exception ex) {
+            return BatchValidation.invalid("BATCH_PAYLOAD_INVALID",
+                "Tool call batch payload cannot be serialized");
+        }
+        if (context != null && !ToolCallBatchSchema.supports(context.getToolName())) {
+            return BatchValidation.invalid("BATCH_TOOL_NOT_ALLOWED",
+                "The outer batch tool must be an allowed SQL, SSH, or API template executor");
+        }
+        return BatchValidation.accepted();
+    }
+
+    private boolean containsBatchEnvelope(Map<?, ?> values) {
+        return values != null && (values.containsKey("calls")
+            || values.containsKey("toolCalls")
+            || values.containsKey("tool_calls"));
+    }
+
+    private ToolCallBatchResult invalidBatchResult(String batchId,
+                                                   String startedAt,
+                                                   BatchValidation validation) {
+        ToolCallResult failure = new ToolCallResult(
+            "batch-validation",
+            null,
+            null,
+            "BLOCKED",
+            0L,
+            null,
+            null,
+            errorPayload(validation.errorCode(), validation.message())
+        );
+        return new ToolCallBatchResult(
+            batchId,
+            BatchExecutionMode.SEQUENTIAL.name(),
+            startedAt,
+            Instant.now().toString(),
+            "FAILED",
+            new ToolCallBatchResult.Summary(0, 0, 0, 1, 0, 0),
+            List.of(failure)
+        );
+    }
+
+    private ToolRuntimeRequest batchChildRequest(ToolRuntimeRequest parent,
+                                                 String batchId,
+                                                 String callId,
+                                                 String toolName,
+                                                 Map<String, Object> arguments,
+                                                 int index) {
+        Map<String, Object> attributes = new LinkedHashMap<>(
+            parent == null || parent.getAttributes() == null ? Map.of() : parent.getAttributes());
+        attributes.put("__toolBatchChild", true);
+        attributes.put("toolCallBatchId", batchId);
+        attributes.put("toolCallBatchCallId", callId);
+        attributes.put("toolCallBatchIndex", index);
+        Object attempt = firstPresent(
+            attributes.get("workflowExecutionAttempt"),
+            attributes.get("interpretationPlanAttempt"),
+            0
+        );
+        attributes.put("workflowExecutionAttempt", String.valueOf(attempt) + ".batch-" + index);
+        ToolInput parentInput = parent == null ? null : parent.getToolInput();
+        return ToolRuntimeRequest.builder()
+            .toolName(toolName)
+            .runtimeMode(parent == null ? null : parent.getRuntimeMode())
+            .requestId(firstText(parent == null ? null : parent.getRequestId(), batchId) + ":" + callId)
+            .conversationId(parent == null ? null : parent.getConversationId())
+            .tenantId(parent == null ? null : parent.getTenantId())
+            .userId(parent == null ? null : parent.getUserId())
+            .allowedTools(parent == null ? List.of() : parent.getAllowedTools())
+            .toolInput(ToolInput.builder()
+                .requestId(parentInput == null ? null : parentInput.getRequestId())
+                .conversationId(parentInput == null ? null : parentInput.getConversationId())
+                .userId(parentInput == null ? null : parentInput.getUserId())
+                .parameters(new LinkedHashMap<>(arguments))
+                .context(parentInput == null || parentInput.getContext() == null
+                    ? new LinkedHashMap<>()
+                    : new LinkedHashMap<>(parentInput.getContext()))
+                .build())
+            .attributes(attributes)
+            .build();
+    }
+
+    private boolean batchCapableTool(String toolName) {
+        return ToolCallBatchSchema.supports(toolName);
+    }
+
+    private ToolCallResult skippedBatchResult(String callId,
+                                              String toolName,
+                                              Map<String, Object> arguments,
+                                              String status,
+                                              String errorCode,
+                                              String message) {
+        return new ToolCallResult(
+            callId,
+            toolName,
+            templateCode(arguments),
+            status,
+            0L,
+            null,
+            null,
+            errorPayload(errorCode, message)
+        );
+    }
+
+    private Map<String, Object> errorPayload(String code, String message) {
+        Map<String, Object> error = new LinkedHashMap<>();
+        error.put("code", firstText(code, "TOOL_FAILED"));
+        error.put("message", firstText(message, "Tool call failed"));
+        return error;
+    }
+
+    private String templateCode(Map<String, Object> arguments) {
+        return stringValue(firstPresent(
+            arguments == null ? null : arguments.get("templateCode"),
+            arguments == null ? null : arguments.get("template_code"),
+            arguments == null ? null : arguments.get("templateId"),
+            arguments == null ? null : arguments.get("template_id"),
+            arguments == null ? null : arguments.get("template")
+        ));
     }
 
     private String workflowBlockedReason(String message) {
@@ -2871,6 +3385,24 @@ public class ToolRuntimeService {
         return (Map<String, Object>) map;
     }
 
+    private record BatchValidation(boolean present,
+                                   boolean valid,
+                                   String errorCode,
+                                   String message) {
+
+        private static BatchValidation absent() {
+            return new BatchValidation(false, true, null, null);
+        }
+
+        private static BatchValidation accepted() {
+            return new BatchValidation(true, true, null, null);
+        }
+
+        private static BatchValidation invalid(String errorCode, String message) {
+            return new BatchValidation(true, false, errorCode, message);
+        }
+    }
+
     /**
      * Performs the string list operation.
      *
@@ -2933,6 +3465,17 @@ public class ToolRuntimeService {
         }
         try {
             return value == null ? null : Integer.parseInt(String.valueOf(value).trim());
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    private Long longValue(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        try {
+            return value == null ? null : Long.parseLong(String.valueOf(value).trim());
         } catch (NumberFormatException ignored) {
             return null;
         }

@@ -231,7 +231,7 @@ class EvidenceGraphExecutionEngineTest {
             .contains("Deterministic answer lock (contractVersion=evidence_execution_contract_v2_2)")
             .contains("---BEGIN_LOCKED_ANSWER---")
             .contains("---END_LOCKED_ANSWER---")
-            .contains("\"type\" : \"evidence_reasoning_v2\"")
+            .contains("\"type\": \"evidence_reasoning_v2\"")
             .contains("Execution constraint: this answer uses only paths")
             .contains("select * from gdp_ads.ads_ids_sys_data_qlty_rpt_d_i");
     }

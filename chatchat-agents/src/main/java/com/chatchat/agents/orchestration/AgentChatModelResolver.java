@@ -50,13 +50,17 @@ class AgentChatModelResolver {
             .logRequests(true)
             .logResponses(true);
         if (modelsConfig.getOpenai().getTimeout() > 0) {
-            builder.timeout(Duration.ofSeconds(modelsConfig.getOpenai().getTimeout()));
+            builder.timeout(resolveOpenAiTimeout(modelsConfig.getOpenai().getTimeout()));
         }
         HttpClientBuilder httpClientBuilder = resolveOpenAiHttpClientBuilder();
         if (httpClientBuilder != null) {
             builder.httpClientBuilder(httpClientBuilder);
         }
         return builder.build();
+    }
+
+    private Duration resolveOpenAiTimeout(int timeout) {
+        return timeout >= 1000 ? Duration.ofMillis(timeout) : Duration.ofSeconds(timeout);
     }
 
     private HttpClientBuilder resolveOpenAiHttpClientBuilder() {

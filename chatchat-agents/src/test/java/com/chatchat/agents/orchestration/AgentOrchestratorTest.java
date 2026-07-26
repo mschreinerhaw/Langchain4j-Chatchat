@@ -2,6 +2,7 @@ package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.runtime.ToolRuntimeService;
 import com.chatchat.agents.runtime.ToolRuntimeProperties;
+import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.chatchat.agents.runtime.AgentRunRequest;
 import com.chatchat.agents.runtime.AgentRunResult;
 import com.chatchat.agents.runtime.AgentRunStatus;
@@ -32,6 +33,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -455,7 +457,117 @@ class AgentOrchestratorTest {
         assertThat(result.metadata())
             .containsEntry("interpretationPlanPipeline", true)
             .containsEntry("interpretationPlanInitialSuccess", true)
-            .containsEntry("stopReason", "interpretation_plan_completed");
+            .containsEntry("stopReason", "evidence_sufficient");
+    }
+
+    @Test
+    void fiveCallBatchUsesOneFinalSynthesisAndNoPerResultModelReview() {
+        String toolName = "sql_query_execute";
+        String plan = """
+            {
+              "version": "1.0",
+              "intent": {"type": "database_health", "goal": "Execute five Oracle checks", "risk_level": "low"},
+              "context": {"key_facts": [], "assumptions": [], "missing_info": [], "constraints": ["Use authorized templates"]},
+              "plan": {
+                "steps": [
+                  {
+                    "id": 1,
+                    "action_type": "mcp_tool",
+                    "tool_name": "sql_query_execute",
+                    "input": {
+                      "batchId": "oracle-health",
+                      "executionMode": "SEQUENTIAL",
+                      "stopOnFailure": false,
+                      "calls": [
+                        {"callId":"instance","toolName":"sql_query_execute","arguments":{"assetId":"asset-a","templateCode":"ORACLE_INSTANCE_STATUS"}},
+                        {"callId":"sessions","toolName":"sql_query_execute","arguments":{"assetId":"asset-a","templateCode":"ORACLE_SESSION_OVERVIEW"}},
+                        {"callId":"locks","toolName":"sql_query_execute","arguments":{"assetId":"asset-a","templateCode":"ORACLE_LOCKS"}},
+                        {"callId":"events","toolName":"sql_query_execute","arguments":{"assetId":"asset-a","templateCode":"ORACLE_SYSTEM_EVENTS"}},
+                        {"callId":"tablespace","toolName":"sql_query_execute","arguments":{"assetId":"asset-a","templateCode":"ORACLE_TABLESPACE_SIZE"}}
+                      ]
+                    },
+                    "depends_on": []
+                  },
+                  {"id": 2, "action_type": "final_answer", "tool_name": "", "input": {"answer": "Summarize the batch evidence."}, "depends_on": [1]}
+                ]
+              },
+              "execution_policy": {
+                "max_steps": 2,
+                "allow_parallel": false,
+                "allow_tool": ["sql_query_execute"],
+                "deny_tool": [],
+                "max_rewrite_times": 0,
+                "fallback_mode": "partial_result"
+              },
+              "review": {"self_check": {"completeness_score": 0.9, "hallucination_risk": 0.1, "tool_sufficiency": true, "missing_steps": []}, "fallback_plan": []}
+            }
+            """;
+        CapturingQueueChatModel chatModel = new CapturingQueueChatModel(plan);
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(toolName)).thenReturn(true);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName)
+            .title("SQL template executor")
+            .description("Execute authorized SQL templates")
+            .riskLevel("low")
+            .categories(List.of("mcp"))
+            .metadata(Map.of("inputSchema", ToolCallBatchSchema.augment(
+                toolName, Map.of("type", "object", "properties", Map.of("templateCode", Map.of("type", "string")))
+            )))
+            .build());
+        when(toolRegistry.executeEnhancedTool(eq(toolName), any())).thenAnswer(invocation -> {
+            com.chatchat.common.tool.ToolInput input = invocation.getArgument(1);
+            return ToolOutput.success(Map.of(
+                "templateCode", input.getParameters().get("templateCode"),
+                "status", "ok"
+            ));
+        });
+        ToolRuntimeProperties runtimeProperties = toolRuntimeProperties();
+        runtimeProperties.setDefaultRetryAttempts(0);
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            chatModel,
+            toolRegistry,
+            new ToolRuntimeService(toolRegistry, new ObjectMapper(), runtimeProperties, List.of(), List.of()),
+            new ObjectMapper(),
+            new ModelsConfig()
+        );
+
+        AgentOrchestrator.AgentExecutionResult result = orchestrator.executeAgent(
+            "Check Oracle health",
+            "tenant-1",
+            List.of(toolName),
+            "Use only authorized templates.",
+            null,
+            List.of(),
+            List.of(),
+            "database",
+            "req-batch-model-count",
+            "conv-batch-model-count",
+            "user-1",
+            10,
+            List.of(),
+            false
+        );
+
+        assertThat(result.toolTraces()).hasSize(1);
+        assertThat(result.toolTraces().get(0).getRuntimeMetadata())
+            .containsEntry("batchExecution", true)
+            .containsEntry("remoteToolInvocationCount", 5);
+        assertThat(chatModel.messages.stream()
+            .filter(message -> message.contains("final step-by-step answer synthesizer"))
+            .count()).isEqualTo(1);
+        assertThat(chatModel.messages.stream()
+            .filter(message -> message.contains("runtime reviewer for one completed MCP tool call"))
+            .count()).isZero();
+        assertThat(chatModel.messages.stream()
+            .filter(message -> message.contains("answer quality"))
+            .count()).isZero();
+        assertThat(chatModel.messages.get(0))
+            .contains("Formal runtime inputSchema", "x-chatchat-batch", "\"maxItems\":32");
+        assertThat(result.metadata())
+            .containsEntry("batchFinalizationModelCalls", 1)
+            .containsEntry("answerReviewSkipped", true);
+        verify(toolRegistry, times(5)).executeEnhancedTool(eq(toolName), any());
     }
 
     @Test
@@ -646,7 +758,7 @@ class AgentOrchestratorTest {
             Map.of("plannerMaxRepairAttempts", 9)
         );
 
-        assertThat(result.answer()).isEqualTo("Attribution selected the document-backed plan.");
+        assertThat(result.answer()).contains("Attribution selected the document-backed plan.");
         assertThat(result.toolTraces()).extracting(InteractionToolTrace::getToolName)
             .containsExactly("document_search");
         List<Map<String, Object>> plannerSteps = (List<Map<String, Object>>) result.metadata().get("plannerSteps");
@@ -715,7 +827,7 @@ class AgentOrchestratorTest {
             Map.of("plannerMaxRepairAttempts", 9)
         );
 
-        assertThat(result.answer()).isEqualTo("Coverage selected the evidence-backed plan.");
+        assertThat(result.answer()).contains("Coverage selected the evidence-backed plan.");
         assertThat(result.toolTraces()).extracting(InteractionToolTrace::getToolName)
             .containsExactly("document_search");
         List<Map<String, Object>> plannerSteps = (List<Map<String, Object>>) result.metadata().get("plannerSteps");
@@ -813,14 +925,14 @@ class AgentOrchestratorTest {
             false
         );
 
-        assertThat(result.answer()).isEqualTo("Use web evidence fallback.");
+        assertThat(result.answer()).contains("Use web evidence fallback.");
         assertThat(result.toolTraces()).extracting(InteractionToolTrace::getToolName)
             .containsExactly("document_search", "web_search");
         assertThat(result.metadata())
             .containsEntry("interpretationPlanRewriteAttempted", true)
             .containsEntry("interpretationPlanRewriteValid", true)
             .containsEntry("interpretationPlanRewriteSuccess", true)
-            .containsEntry("stopReason", "interpretation_plan_rewritten");
+            .containsEntry("stopReason", "evidence_sufficient");
     }
 
     @Test
@@ -878,11 +990,11 @@ class AgentOrchestratorTest {
             false
         );
 
-        assertThat(result.answer()).isEqualTo("Internal evidence is unavailable, so only a partial result can be provided.");
+        assertThat(result.answer()).contains("Synthesized answer from executed steps.");
         assertThat(result.metadata())
             .containsEntry("interpretationPlanRewriteBudgetExceeded", true)
             .containsEntry("interpretationPlanFallbackMode", "partial_result")
-            .containsEntry("stopReason", "interpretation_plan_failed");
+            .containsEntry("stopReason", "evidence_iteration_limit");
         assertThat(result.metadata()).doesNotContainKey("interpretationPlanRewriteAttempted");
     }
 
@@ -989,14 +1101,14 @@ class AgentOrchestratorTest {
             Map.of()
         );
 
-        assertThat(result.answer()).isEqualTo("Use the required document evidence.");
+        assertThat(result.answer()).contains("Use the required document evidence.");
         assertThat(result.toolTraces())
             .extracting(InteractionToolTrace::getToolName)
             .containsExactly("document_search");
         assertThat(result.metadata())
             .containsEntry("interpretationPlanPipeline", true)
             .containsEntry("mandatoryWorkflowCompleted", true)
-            .containsEntry("stopReason", "interpretation_plan_completed");
+            .containsEntry("stopReason", "evidence_sufficient");
         verify(toolRegistry).executeEnhancedTool(eq("document_search"), any());
     }
 
@@ -1127,7 +1239,7 @@ class AgentOrchestratorTest {
             .build());
 
         assertThat(result.status()).isEqualTo(AgentRunStatus.COMPLETED);
-        assertThat(result.answer()).isEqualTo("Fallback answer from one observed tool.");
+        assertThat(result.answer()).contains("Fallback answer from one observed tool.");
         assertThat(result.stopReason()).isEqualTo("max_steps_or_fallback");
         assertThat(result.metadata())
             .containsEntry("maxSteps", 1)
@@ -2020,7 +2132,7 @@ class AgentOrchestratorTest {
             Map.of("mcpWorkflow", workflowConfig)
         );
 
-        assertThat(result.answer()).isEqualTo("Both internal tools have been observed.");
+        assertThat(result.answer()).contains("Both internal tools have been observed.");
         assertThat(result.toolTraces())
             .extracting(InteractionToolTrace::getToolName)
             .containsExactly(documentSearch, knowledgeSearch);

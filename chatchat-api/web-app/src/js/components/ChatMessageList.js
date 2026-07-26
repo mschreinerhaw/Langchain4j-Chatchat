@@ -1293,7 +1293,7 @@ export default {
         .map((warning) => this.cleanUiProtocolText(warning?.message || warning?.text || warning))
         .filter(Boolean);
       const status = String(uiResponse.status || "").trim().toUpperCase();
-      if (["FAILED", "PARTIAL", "EMPTY", "CONFLICTED"].includes(status) && !warnings.length) {
+      if (["FAILED", "PARTIAL", "PARTIAL_SUCCESS", "EMPTY", "NO_PRESENTABLE_RESULT", "TIME_BUDGET_EXHAUSTED", "MODEL_BUDGET_EXHAUSTED", "CONFLICTED"].includes(status) && !warnings.length) {
         warnings.push(this.uiStatusWarning(status));
       }
       return warnings.filter(Boolean);
@@ -1304,6 +1304,15 @@ export default {
       }
       if (status === "EMPTY") {
         return "\u672a\u627e\u5230\u53ef\u76f4\u63a5\u5c55\u793a\u7684\u7ed3\u679c\u3002";
+      }
+      if (status === "NO_PRESENTABLE_RESULT") {
+        return "\u6267\u884c\u5df2\u7ed3\u675f\uff0c\u4f46\u7ed3\u679c\u6574\u7406\u5931\u8d25\uff1b\u5df2\u4fdd\u7559\u5de5\u5177\u8f68\u8ff9\u548c\u7ed3\u6784\u5316\u8bc1\u636e\u3002";
+      }
+      if (status === "TIME_BUDGET_EXHAUSTED") {
+        return "\u8bca\u65ad\u603b\u6267\u884c\u65f6\u95f4\u5df2\u8fbe\u4e0a\u9650\uff1b\u5df2\u5b8c\u6210\u7684\u8bc1\u636e\u4ecd\u7136\u4fdd\u7559\u3002";
+      }
+      if (status === "MODEL_BUDGET_EXHAUSTED") {
+        return "\u6a21\u578b\u8c03\u7528\u9884\u7b97\u5df2\u8017\u5c3d\uff1b\u9875\u9762\u5c55\u793a\u7684\u662f\u8fd0\u884c\u65f6\u751f\u6210\u7684\u786e\u5b9a\u6027\u6267\u884c\u6e05\u5355\u3002";
       }
       if (status === "CONFLICTED") {
         return "\u8bc1\u636e\u4e4b\u95f4\u5b58\u5728\u51b2\u7a81\uff0c\u5df2\u4fdd\u7559\u8fb9\u754c\u8bf4\u660e\u3002";

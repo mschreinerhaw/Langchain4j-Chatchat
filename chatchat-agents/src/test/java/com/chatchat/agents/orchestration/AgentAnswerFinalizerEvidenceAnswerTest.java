@@ -45,6 +45,74 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
     }
 
     @Test
+    void batchRemoteInvocationCountUsesChildCallsInsteadOfSyntheticTrace() {
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            (chatModel, query, systemPrompt, observations, answer) ->
+                new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok"),
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        InteractionToolTrace batch = InteractionToolTrace.builder()
+            .toolName("sql_query_execute")
+            .success(true)
+            .runtimeMetadata(Map.of(
+                "batchExecution", true,
+                "remoteToolInvoked", false,
+                "remoteToolInvocationCount", 5
+            ))
+            .build();
+        Map<String, Object> metadata = new LinkedHashMap<>();
+
+        boolean exceeded = finalizer.markToolBudgetExceeded(
+            "next_tool", 5, List.of(batch), metadata, new java.util.ArrayList<>());
+
+        assertThat(exceeded).isTrue();
+        assertThat(metadata).containsEntry("remoteToolCalls", 5L);
+    }
+
+    @Test
+    void emptyModelAnswerFallsBackToDeterministicBatchExecutionReport() {
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            (chatModel, query, systemPrompt, observations, answer) ->
+                new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok"),
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        InteractionToolTrace batch = InteractionToolTrace.builder()
+            .toolName("sql_query_execute")
+            .success(true)
+            .output("""
+                {
+                  "batchId":"oracle-health",
+                  "executionMode":"SEQUENTIAL",
+                  "status":"PARTIAL_SUCCESS",
+                  "results":[
+                    {"callId":"instance","toolName":"sql_query_execute","templateCode":"ORACLE_INSTANCE_STATUS","status":"SUCCESS","error":{}},
+                    {"callId":"locks","toolName":"sql_query_execute","templateCode":"ORACLE_LOCKS","status":"FAILED","error":{"code":"TOOL_TIMEOUT","message":"查询执行超时"}}
+                  ]
+                }
+                """)
+            .runtimeMetadata(Map.of(
+                "batchExecution", true,
+                "executionStatus", "PARTIAL_SUCCESS",
+                "remoteToolInvoked", false,
+                "remoteToolInvocationCount", 2
+            ))
+            .build();
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishExecution(
+            "", List.of(batch), new LinkedHashMap<>(), List.of());
+
+        assertThat(result.answer())
+            .contains("MCP 批量诊断执行结果")
+            .contains("instance")
+            .contains("ORACLE_INSTANCE_STATUS")
+            .contains("locks")
+            .contains("查询执行超时");
+        assertThat(result.metadata())
+            .containsEntry("deterministicFinalizationFallback", true)
+            .containsEntry("deterministicFinalizationSource", "tool_call_batch_result");
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void appendsToolResultRowsAndVisualizationSpecForTabularData() {
         AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
@@ -191,7 +259,7 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
     }
 
     @Test
-    void labelsAnswerWithoutEvidenceAsSpeculation() {
+    void doesNotAddEvidenceDisclosureWhenNoEvidenceCarrierExists() {
         AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
             new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok");
         AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
@@ -207,12 +275,12 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
         );
 
         assertThat(result.answer())
-            .contains("\u8bc1\u636e\u72b6\u6001\uff1a\u8bc1\u636e\u4e0d\u8db3")
-            .contains("\u63a8\u6d4b")
-            .contains("\u53ef\u80fd\u662f\u6570\u636e\u5e93\u6162\u67e5\u8be2");
+            .isEqualTo("\u53ef\u80fd\u662f\u6570\u636e\u5e93\u6162\u67e5\u8be2\u5bfc\u81f4\u54cd\u5e94\u5ef6\u8fdf\u3002")
+            .doesNotContain("\u8bc1\u636e\u72b6\u6001\uff1a");
         assertThat(result.metadata())
-            .containsEntry("answerEvidenceStatus", "EVIDENCE_INSUFFICIENT")
-            .containsEntry("answerEvidenceLabel", "\u8bc1\u636e\u4e0d\u8db3/\u63a8\u6d4b");
+            .containsEntry("answerRequiresEvidenceDisclosure", false)
+            .containsEntry("answerEvidenceDisclosureRendered", false)
+            .doesNotContainKeys("answerEvidenceStatus", "answerEvidenceLabel");
     }
 
     @Test

@@ -22,6 +22,8 @@ spring:
   mvc:
     static-path-pattern: /**
     throw-exception-if-no-handler-found: true
+    async:
+      request-timeout: 1800000
   resources:
     add-mappings: false
   servlet:
@@ -31,6 +33,11 @@ spring:
 
 server:
   port: 8080
+  tomcat:
+    connection-timeout: 30m
+    keep-alive-timeout: 30m
+    max-http-form-post-size: 33554432
+    max-swallow-size: -1
   servlet:
     context-path: /
     encoding:
@@ -38,9 +45,6 @@ server:
       enabled: true
       force: true
   shutdown: graceful
-  tomcat:
-    max-http-form-post-size: 33554432
-    max-swallow-size: -1
 
 chatchat:
   internal-credential:
@@ -64,7 +68,7 @@ chatchat:
       admin-password: chatchat_internal_default_secret
       encrypted-invocation-token:
       invocation-token: chatchat_internal_default_secret
-      timeout-ms: 0
+      timeout-ms: 1800000
       import-standalone-server: true
     stdio-proxy:
       enabled: true
@@ -82,9 +86,13 @@ chatchat:
     openai:
       apiKey: sk-7f5c64a84f774201829be1dc7193d09a
       baseUrl: https://api.deepseek.com
-      timeout: 300000
+      timeout: 1800000
       maxTokens: -1
       maxRetries: 3
+  tool-runtime:
+    default-tool-timeout-ms: 1800000
+    max-batch-calls: 32
+    max-batch-payload-bytes: 262144
   search:
     engine: opensearch
     store-path: ./data/search-rocksdb

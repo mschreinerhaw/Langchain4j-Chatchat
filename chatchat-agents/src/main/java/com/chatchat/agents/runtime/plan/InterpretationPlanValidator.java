@@ -1,5 +1,6 @@
 package com.chatchat.agents.runtime.plan;
 
+import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolParameter;
@@ -210,11 +211,15 @@ public class InterpretationPlanValidator {
             && !templatePlaceholderStep(plan, step, availableTools)) {
             state.error(path + ".tool_name", "Tool is not registered or available: " + step.toolName());
         }
-        validateToolInput(plan, step, path, toolRegistry, state);
-        validateSqlTemplateExecutionContract(plan, step, path, state);
-        validateHttpTemplateExecutionContract(step, path, state);
-        validateSshTemplateExecutionContract(step, path, state);
-        validateTemplateArgumentShape(plan, step, path, state);
+        if (batchToolInput(step.input())) {
+            validateBatchToolInput(step, path, toolRegistry, availableTools, allowTools, state);
+        } else {
+            validateToolInput(plan, step, path, toolRegistry, state);
+            validateSqlTemplateExecutionContract(plan, step, path, state);
+            validateHttpTemplateExecutionContract(step, path, state);
+            validateSshTemplateExecutionContract(step, path, state);
+            validateTemplateArgumentShape(plan, step, path, state);
+        }
         if (isHighRisk(plan, step, toolRegistry) && !containsTool(allowTools, step.toolName())) {
             state.approval(path + ".tool_name", "High-risk tool requires explicit allow_tool approval: " + step.toolName());
         }
@@ -610,6 +615,82 @@ public class InterpretationPlanValidator {
         if (finalAnswerCount != 1) {
             state.error("plan.steps", "Exactly one final_answer step is required, found: " + finalAnswerCount);
         }
+    }
+
+    private void validateBatchToolInput(InterpretationPlan.Step step,
+                                        String path,
+                                        ToolRegistry toolRegistry,
+                                        Set<String> availableTools,
+                                        Set<String> allowTools,
+                                        ValidationState state) {
+        if (step == null || !ToolCallBatchSchema.supports(step.toolName())) {
+            state.error(path + ".tool_name",
+                "Only registered SQL, SSH, or API template executors may carry a tool call batch.");
+            return;
+        }
+        Object mode = firstPresent(step.input(), "executionMode", "execution_mode");
+        if (mode != null && !"SEQUENTIAL".equalsIgnoreCase(String.valueOf(mode))) {
+            state.error(path + ".input.executionMode", "Only SEQUENTIAL tool call batches are supported.");
+        }
+        Object rawCalls = firstPresent(step.input(), "calls", "toolCalls", "tool_calls");
+        if (!(rawCalls instanceof List<?> calls) || calls.isEmpty()) {
+            state.error(path + ".input.calls", "Tool call batch calls must be a non-empty array.");
+            return;
+        }
+        if (calls.size() > ToolCallBatchSchema.DEFAULT_MAX_CALLS) {
+            state.error(path + ".input.calls",
+                "Tool call batch exceeds the formal schema maximum of "
+                    + ToolCallBatchSchema.DEFAULT_MAX_CALLS + " calls.");
+        }
+        Set<String> callIds = new LinkedHashSet<>();
+        for (int index = 0; index < calls.size(); index++) {
+            String callPath = path + ".input.calls[" + index + "]";
+            if (!(calls.get(index) instanceof Map<?, ?> call)) {
+                state.error(callPath, "Batch call must be an object.");
+                continue;
+            }
+            Object rawId = batchValue(call, "callId", "call_id", "id");
+            String callId = rawId == null ? "call-" + (index + 1) : String.valueOf(rawId).trim();
+            if (callId.isEmpty() || callId.length() > 128 || !callIds.add(callId)) {
+                state.error(callPath + ".callId",
+                    "Batch callId must be unique and at most 128 characters.");
+            }
+            Object rawTool = batchValue(call, "toolName", "tool_name");
+            String toolName = rawTool == null ? step.toolName() : String.valueOf(rawTool);
+            if (!ToolCallBatchSchema.supports(toolName)) {
+                state.error(callPath + ".toolName",
+                    "Batch child tool must be a SQL, SSH, or API template executor.");
+            } else if (!toolExists(toolName, toolRegistry, availableTools)) {
+                state.error(callPath + ".toolName",
+                    "Batch child tool is not registered or available: " + toolName);
+            }
+            Object arguments = batchValue(call, "arguments", "input", "parameters");
+            if (!(arguments instanceof Map<?, ?> map)) {
+                state.error(callPath + ".arguments",
+                    "Batch child arguments must be an object.");
+            } else if (map.containsKey("calls") || map.containsKey("toolCalls") || map.containsKey("tool_calls")) {
+                state.error(callPath + ".arguments",
+                    "Nested tool call batches are not allowed.");
+            }
+        }
+    }
+
+    private boolean batchToolInput(Map<String, Object> input) {
+        return input != null && (input.containsKey("calls")
+            || input.containsKey("toolCalls")
+            || input.containsKey("tool_calls"));
+    }
+
+    private Object batchValue(Map<?, ?> values, String... keys) {
+        if (values == null || keys == null) {
+            return null;
+        }
+        for (String key : keys) {
+            if (values.containsKey(key)) {
+                return values.get(key);
+            }
+        }
+        return null;
     }
 
     private void validateDiagnosticProfile(InterpretationPlan plan,

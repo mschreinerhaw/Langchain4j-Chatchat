@@ -349,8 +349,12 @@ public class InterpretationPlanRuntime {
                 .orElse(null);
             recordStateUpdate(executableRequest, completed, remaining, waveResults, failed);
             if (failed != null) {
+                String failureStatus = failed.errorMessage() != null
+                    && failed.errorMessage().startsWith("STEP_OUTPUT_CONTRACT_FAILED:")
+                    ? "STEP_OUTPUT_CONTRACT_FAILED"
+                    : "STEP_FAILED";
                 return withDiagnosticRun(ExecutionResult.failed(
-                    "STEP_FAILED",
+                    failureStatus,
                     failed.errorMessage(),
                     executions,
                     Map.of(
@@ -565,6 +569,7 @@ public class InterpretationPlanRuntime {
                 if (result.success()) {
                     result = reviewToolResult(request, step, result, completed, startedAt);
                 }
+                result = validateStepOutput(request.plan(), step, result, completed);
                 recordPlanObservation(request, result, execution == null ? null : execution.output());
                 return result;
             } catch (RuntimeException ex) {
@@ -600,6 +605,7 @@ public class InterpretationPlanRuntime {
                 stringValue(firstPresent(step.input(), "answer", "response", "text", "result")),
                 elapsed(startedAt)
             );
+            result = validateStepOutput(request.plan(), step, result, completed);
             recordPlanObservation(request, result, null);
             return result;
         }
@@ -614,8 +620,144 @@ public class InterpretationPlanRuntime {
             null,
             elapsed(startedAt)
         );
+        result = validateStepOutput(request.plan(), step, result, completed);
         recordPlanObservation(request, result, null);
         return result;
+    }
+
+    private StepExecution validateStepOutput(InterpretationPlan plan,
+                                             InterpretationPlan.Step step,
+                                             StepExecution execution,
+                                             Map<Integer, StepExecution> completed) {
+        if (step == null || execution == null || !execution.success()) {
+            return execution;
+        }
+        List<String> violations = new ArrayList<>();
+        InterpretationPlan.OutputContract outputContract = step.outputContract();
+        if (outputContract != null && outputContract.type() != null && !outputContract.type().isBlank()) {
+            String expectedType = outputContract.type().trim().toLowerCase(Locale.ROOT);
+            if (!matchesOutputContractType(expectedType, execution.output())) {
+                violations.add("output_contract expected " + expectedType + " but was "
+                    + outputTypeName(execution.output()));
+            }
+        }
+        InterpretationPlan.Validation validation = step.validation();
+        boolean required = validation != null && Boolean.TRUE.equals(validation.required());
+        String rule = validation == null || validation.rule() == null
+            ? ""
+            : validation.rule().trim().toLowerCase(Locale.ROOT);
+        if (required && execution.output() == null) {
+            violations.add("validation.required output is missing");
+        }
+        if ("non_empty".equals(rule) && isEmptyOutput(execution.output())) {
+            violations.add("validation.non_empty output is empty");
+        }
+        if ("confidence_threshold".equals(rule)) {
+            Double actual = outputConfidence(execution.output());
+            double threshold = validation.threshold() == null ? 0.0 : validation.threshold();
+            if (actual == null || actual < threshold) {
+                violations.add("validation.confidence_threshold expected >= " + threshold
+                    + " but was " + (actual == null ? "missing" : actual));
+            }
+        }
+        if (plan != null && plan.plan() != null && plan.plan().edgeContracts() != null) {
+            for (InterpretationPlan.EdgeContract contract : plan.plan().edgeContracts()) {
+                if (contract == null || !Objects.equals(step.id(), contract.from())) {
+                    continue;
+                }
+                if (runtimeOwnsDiagnosticTemplateTransport(
+                    plan, contract.from(), contract.to(), contract.field(), completed
+                )) {
+                    continue;
+                }
+                ContractCheck check = checkContract(contract, execution);
+                if (!check.success()) {
+                    violations.add(check.message());
+                }
+            }
+        }
+        if (violations.isEmpty()) {
+            return execution;
+        }
+        Map<String, Object> metadata = new LinkedHashMap<>(
+            execution.metadata() == null ? Map.of() : execution.metadata()
+        );
+        metadata.put("outputContractValidated", true);
+        metadata.put("outputContractSatisfied", false);
+        metadata.put("outputContractViolations", List.copyOf(violations));
+        metadata.put("repairable", true);
+        metadata.put("repairAction", "rewrite_plan");
+        return new StepExecution(
+            execution.stepId(),
+            execution.actionType(),
+            execution.toolName(),
+            false,
+            execution.output(),
+            "STEP_OUTPUT_CONTRACT_FAILED: " + String.join("; ", violations),
+            execution.toolExecution(),
+            execution.finalAnswer(),
+            execution.durationMs(),
+            Map.copyOf(metadata)
+        );
+    }
+
+    private boolean matchesOutputContractType(String expectedType, Object output) {
+        if (output == null) {
+            return false;
+        }
+        return switch (expectedType) {
+            case "json" -> output instanceof Map<?, ?> || output instanceof List<?>;
+            case "text" -> output instanceof CharSequence;
+            case "table" -> output instanceof Iterable<?> || output instanceof Map<?, ?>
+                || output.getClass().isArray();
+            case "stream" -> output instanceof Iterable<?>
+                || output instanceof java.util.stream.BaseStream<?, ?>;
+            default -> false;
+        };
+    }
+
+    private String outputTypeName(Object output) {
+        return output == null ? "missing" : output.getClass().getSimpleName();
+    }
+
+    private boolean isEmptyOutput(Object output) {
+        if (output == null) {
+            return true;
+        }
+        if (output instanceof CharSequence text) {
+            return text.toString().isBlank();
+        }
+        if (output instanceof Map<?, ?> map) {
+            return map.isEmpty();
+        }
+        if (output instanceof java.util.Collection<?> collection) {
+            return collection.isEmpty();
+        }
+        if (output.getClass().isArray()) {
+            return java.lang.reflect.Array.getLength(output) == 0;
+        }
+        return false;
+    }
+
+    private Double outputConfidence(Object output) {
+        if (!(output instanceof Map<?, ?> map)) {
+            return null;
+        }
+        Map<String, Object> values = new LinkedHashMap<>();
+        map.forEach((key, value) -> {
+            if (key != null) {
+                values.put(String.valueOf(key), value);
+            }
+        });
+        Object value = firstPresent(values, "confidence", "score", "probability");
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        try {
+            return value == null ? null : Double.parseDouble(String.valueOf(value));
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 
     private void recordPlanStep(ExecutionRequest request,
@@ -4242,6 +4384,15 @@ public class InterpretationPlanRuntime {
             if (binding == null || !step.id().equals(binding.to())) {
                 continue;
             }
+            if (runtimeOwnsDiagnosticTemplateTransport(
+                plan, binding.from(), binding.to(),
+                firstText(binding.outputPath(), "") + " " + firstText(binding.inputField(), ""), completed
+            )) {
+                log.info("InterpretationPlan ignored model template transport binding because Runtime "
+                        + "will compile the authorized diagnostic batch: fromStep={}, toStep={}, outputPath={}, inputField={}",
+                    binding.from(), binding.to(), binding.outputPath(), binding.inputField());
+                continue;
+            }
             StepExecution source = completed == null ? null : completed.get(binding.from());
             if (source == null || !source.success()) {
                 if (binding.required() == null || binding.required()) {
@@ -4768,6 +4919,14 @@ public class InterpretationPlanRuntime {
             if (contract == null || !completedNow.contains(contract.from())) {
                 continue;
             }
+            if (runtimeOwnsDiagnosticTemplateTransport(
+                plan, contract.from(), contract.to(), contract.field(), completed
+            )) {
+                log.info("InterpretationPlan ignored model template transport edge contract because Runtime "
+                        + "will compile the authorized diagnostic batch: fromStep={}, toStep={}, field={}",
+                    contract.from(), contract.to(), contract.field());
+                continue;
+            }
             StepExecution source = completed.get(contract.from());
             ContractCheck check = checkContract(contract, source);
             if (!check.success()) {
@@ -4785,6 +4944,47 @@ public class InterpretationPlanRuntime {
             }
         }
         return null;
+    }
+
+    private boolean runtimeOwnsDiagnosticTemplateTransport(InterpretationPlan plan,
+                                                           Integer fromStepId,
+                                                           Integer toStepId,
+                                                           String field,
+                                                           Map<Integer, StepExecution> completed) {
+        if (plan == null || plan.plan() == null || plan.plan().diagnosticProfile() == null
+            || fromStepId == null || toStepId == null || field == null
+            || !field.toLowerCase(Locale.ROOT).contains("template")) {
+            return false;
+        }
+        InterpretationPlan.Step sourceStep = plan.steps().stream()
+            .filter(candidate -> candidate != null && fromStepId.equals(candidate.id()))
+            .findFirst()
+            .orElse(null);
+        InterpretationPlan.Step targetStep = plan.steps().stream()
+            .filter(candidate -> candidate != null && toStepId.equals(candidate.id()))
+            .findFirst()
+            .orElse(null);
+        if (sourceStep == null || sourceStep.mcpToolAction()
+            || targetStep == null || !targetStep.mcpToolAction()
+            || !isTemplateExecutionTool(targetStep.toolName())) {
+            return false;
+        }
+        long mappedRequiredChecks = (plan.plan().diagnosticProfile().checks() == null
+            ? List.<InterpretationPlan.DiagnosticCheck>of()
+            : plan.plan().diagnosticProfile().checks()).stream()
+            .filter(Objects::nonNull)
+            .filter(check -> !Boolean.FALSE.equals(check.required()))
+            .filter(check -> check.stepIds() != null && check.stepIds().contains(toStepId))
+            .count();
+        if (mappedRequiredChecks < 2 || completed == null || completed.isEmpty()) {
+            return false;
+        }
+        return completed.values().stream()
+            .filter(Objects::nonNull)
+            .filter(StepExecution::success)
+            .filter(execution -> isTemplateDiscoveryTool(execution.toolName()))
+            .mapToInt(execution -> templateCandidates(execution.output()).size())
+            .sum() >= 2;
     }
 
     private ContractCheck checkContract(InterpretationPlan.EdgeContract contract, StepExecution source) {

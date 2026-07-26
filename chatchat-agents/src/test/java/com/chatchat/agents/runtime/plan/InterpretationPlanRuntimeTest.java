@@ -4212,8 +4212,72 @@ class InterpretationPlanRuntimeTest {
         ));
 
         assertThat(result.success()).isFalse();
-        assertThat(result.status()).isEqualTo("EDGE_CONTRACT_FAILED");
+        assertThat(result.status()).isEqualTo("STEP_OUTPUT_CONTRACT_FAILED");
         assertThat(result.errorMessage()).contains("missing required field data.results");
+        assertThat(result.steps()).hasSize(1);
+        assertThat(result.steps().get(0).stepId()).isEqualTo(1);
+        assertThat(result.steps().get(0).metadata())
+            .containsEntry("outputContractSatisfied", false)
+            .containsEntry("repairable", true)
+            .containsEntry("repairAction", "rewrite_plan");
+    }
+
+    @Test
+    void blocksDownstreamWhenStepOutputDoesNotMatchDeclaredContract() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("document_search")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("document_search"))
+            .thenReturn(ToolMetadata.builder().riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success("not-json"),
+            ToolMetadata.builder().id("document_search").build(),
+            null,
+            "success",
+            Map.of()
+        ));
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("document_retrieval", "Collect structured evidence", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(
+                    1,
+                    "mcp_tool",
+                    "document_search",
+                    Map.of("query", "internal"),
+                    List.of(),
+                    new InterpretationPlan.OutputContract("json", "object with items"),
+                    new InterpretationPlan.Validation(true, "schema_check", null)
+                ),
+                new InterpretationPlan.Step(
+                    2, "final_answer", "", Map.of("answer", "done"),
+                    List.of(1), null, null
+                )
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                2, false, List.of("document_search"), List.of(), 30_000
+            ),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, toolRegistry, List.of("document_search"), "tenant-1",
+                "req-output-contract", "conv-output-contract", "user-1", Map.of()
+            )
+        );
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.status()).isEqualTo("STEP_OUTPUT_CONTRACT_FAILED");
+        assertThat(result.errorMessage()).contains("expected json").contains("String");
+        assertThat(result.steps()).hasSize(1);
+        verify(toolRuntimeService, times(1)).execute(any());
     }
 
     @Test
@@ -5202,11 +5266,11 @@ class InterpretationPlanRuntimeTest {
         });
 
         List<InterpretationPlan.DiagnosticCheck> checks = List.of(
-            new InterpretationPlan.DiagnosticCheck("instance_status", "instance_status", "availability", true, 1, List.of(2)),
-            new InterpretationPlan.DiagnosticCheck("current_sessions", "session_info", "concurrency", true, 2, List.of(2)),
-            new InterpretationPlan.DiagnosticCheck("lock_wait", "lock_wait", "concurrency", true, 3, List.of(2)),
-            new InterpretationPlan.DiagnosticCheck("system_wait_events", "system_wait_events", "performance", true, 4, List.of(2)),
-            new InterpretationPlan.DiagnosticCheck("tablespace_usage", "tablespace_usage", "capacity", true, 5, List.of(2))
+            new InterpretationPlan.DiagnosticCheck("instance_status", "instance_status", "availability", true, 1, List.of(3)),
+            new InterpretationPlan.DiagnosticCheck("current_sessions", "session_info", "concurrency", true, 2, List.of(3)),
+            new InterpretationPlan.DiagnosticCheck("lock_wait", "lock_wait", "concurrency", true, 3, List.of(3)),
+            new InterpretationPlan.DiagnosticCheck("system_wait_events", "system_wait_events", "performance", true, 4, List.of(3)),
+            new InterpretationPlan.DiagnosticCheck("tablespace_usage", "tablespace_usage", "capacity", true, 5, List.of(3))
         );
         InterpretationPlan plan = new InterpretationPlan(
             "1.0",
@@ -5219,7 +5283,12 @@ class InterpretationPlanRuntimeTest {
                         List.of(), null, null
                     ),
                     new InterpretationPlan.Step(
-                        2, "mcp_tool", executorTool,
+                        2, "reasoning", "",
+                        Map.of("task", "Map the five discovered templates into five output fields"),
+                        List.of(1), null, null
+                    ),
+                    new InterpretationPlan.Step(
+                        3, "mcp_tool", executorTool,
                         Map.of(
                             "executionMode", "SEQUENTIAL",
                             "calls", List.of(),
@@ -5231,28 +5300,55 @@ class InterpretationPlanRuntimeTest {
                             ),
                             "parameters", Map.of()
                         ),
-                        List.of(1), null, null
+                        List.of(2), null, null
                     ),
                     new InterpretationPlan.Step(
-                        3, "final_answer", "", Map.of("answer", "done"),
-                        List.of(2), null, null
+                        4, "final_answer", "", Map.of("answer", "done"),
+                        List.of(3), null, null
                     )
                 ),
+                List.of(
+                    new InterpretationPlan.EdgeContract(2, 3, "instance_status_template", "string", true),
+                    new InterpretationPlan.EdgeContract(2, 3, "session_template", "string", true),
+                    new InterpretationPlan.EdgeContract(2, 3, "lock_wait_template", "string", true),
+                    new InterpretationPlan.EdgeContract(2, 3, "wait_event_template", "string", true),
+                    new InterpretationPlan.EdgeContract(2, 3, "tablespace_template", "string", true)
+                ),
                 List.of(),
-                List.of(),
-                List.of(),
+                List.of(
+                    new InterpretationPlan.Binding(
+                        2, "$.instance_status_template", 3,
+                        "templateBindings.instance_status_template", "jsonpath", true
+                    ),
+                    new InterpretationPlan.Binding(
+                        2, "$.session_template", 3,
+                        "templateBindings.session_template", "jsonpath", true
+                    ),
+                    new InterpretationPlan.Binding(
+                        2, "$.lock_wait_template", 3,
+                        "templateBindings.lock_wait_template", "jsonpath", true
+                    ),
+                    new InterpretationPlan.Binding(
+                        2, "$.wait_event_template", 3,
+                        "templateBindings.wait_event_template", "jsonpath", true
+                    ),
+                    new InterpretationPlan.Binding(
+                        2, "$.tablespace_template", 3,
+                        "templateBindings.tablespace_template", "jsonpath", true
+                    )
+                ),
                 null,
                 new InterpretationPlan.DiagnosticProfile("oracle_health", "database", checks)
             ),
             new InterpretationPlan.ExecutionPolicy(
-                3, false, List.of(discoveryTool, executorTool), List.of(), 30_000
+                4, false, List.of(discoveryTool, executorTool), List.of(), 30_000
             ),
             review()
         );
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             toolRuntimeService,
             new InterpretationPlanValidator(),
-            scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3), List.of(4)))
         );
 
         InterpretationPlanRuntime.ExecutionResult result = runtime.execute(

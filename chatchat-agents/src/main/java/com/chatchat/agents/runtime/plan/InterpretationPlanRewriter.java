@@ -142,10 +142,13 @@ public class InterpretationPlanRewriter {
         prompt.append("- Preserve plan.diagnostic_profile check IDs, capabilities, dimensions, and required flags. Update step_ids when steps change; keep an uncovered required check with step_ids=[] instead of deleting it.\n");
         prompt.append("- Use diagnosticRun missing/failed checks as evidence refinement targets. Do not invent a score for an uncovered check, and do not replace a missing check with a different capability merely to increase coverage.\n");
         prompt.append("- Add or update plan.edge_contracts when the failure was caused by missing or mistyped tool output fields.\n");
+        prompt.append("- STEP_OUTPUT_CONTRACT_FAILED is a runtime gate, not usable completion evidence. Repair the producing step, its binding, or its declared contract so the required type and fields are actually present; never bypass the gate or execute its downstream step with missing output.\n");
+        prompt.append("- Preserve the exact output-contract violations from the previous execution error while repairing. Do not replace a missing structured field with explanatory prose.\n");
         prompt.append("- Keep execution_policy.deny_tool for tools that failed due to policy, permission, or safety.\n\n");
         prompt.append("Sequential MCP batch repair contract:\n");
         prompt.append("- When multiple remaining authorized template executions use sql_query_execute, ssh_linux_execute, api_query_execute, or configured aliases, combine them into one mcp_tool input {batchId,executionMode:\"SEQUENTIAL\",stopOnFailure:false,calls:[{callId,toolName,arguments}]} instead of creating one model round per call.\n");
         prompt.append("- Preserve original diagnostic order and exact discovered template identifiers/arguments. Runtime validates, executes, audits, and persists each child independently; do not inline raw SQL, shell commands, URLs, credentials, or transport fields.\n\n");
+        prompt.append("- Never repair a diagnostic batch by adding a reasoning/aggregation step that copies discovered template ids into invented output fields. Map diagnostic checks to the executor step and let Runtime deterministically resolve only asset-scoped authorized template metadata.\n\n");
         if (request.budgetCeilings() != null) {
             prompt.append("Agent-configured budget ceilings (authoritative): ")
                 .append(toJson(request.budgetCeilings()))

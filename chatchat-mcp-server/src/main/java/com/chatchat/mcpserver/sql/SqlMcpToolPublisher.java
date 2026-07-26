@@ -901,6 +901,7 @@ public class SqlMcpToolPublisher {
 
     private Map<String, Object> templateSummary(SqlTemplateConfig template) {
         Map<String, Object> parameterSchema = readJsonObject(template.getParameterSchemaJson());
+        Map<String, Object> evidencePolicy = readJsonObject(template.getEvidencePolicyJson());
         List<String> requiredParameters = requiredParameters(parameterSchema);
         return mutableMap(
             "templateId", template.getCode(),
@@ -914,6 +915,7 @@ public class SqlMcpToolPublisher {
             "templateDsl", templateDslMetadata(template),
             "intentSignals", readStringList(template.getIntentSignalsJson()),
             "parameterSchema", parameterSchema,
+            "evidencePolicy", evidencePolicy,
             "requiredParameters", requiredParameters,
             "parameterContract", parameterContract(template.getCode(), parameterSchema),
             "invocationExample", invocationExample(template.getCode(), parameterSchema),

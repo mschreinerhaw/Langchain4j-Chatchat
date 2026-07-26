@@ -110,6 +110,7 @@ public class SqlTemplateService {
         config.setDatasourceId(blankToNull(request.getDatasourceId()));
         config.setRoutingLabelsJson(request.getRoutingLabelsJson());
         config.setIntentSignalsJson(request.getIntentSignalsJson());
+        config.setEvidencePolicyJson(request.getEvidencePolicyJson());
         config.setEnabled(request.isEnabled());
         normalize(config);
         return repository.save(config);
@@ -198,6 +199,7 @@ public class SqlTemplateService {
         metadata.put("businessDescription", config.getDescription());
         metadata.put("category", config.getCategory());
         metadata.put("riskLevel", config.getRiskLevel());
+        metadata.put("evidencePolicy", readJsonObject(config.getEvidencePolicyJson()));
         return metadata;
     }
 
@@ -236,6 +238,7 @@ public class SqlTemplateService {
                 config.setDatabaseType(template.databaseType());
                 config.setRoutingLabelsJson(writeJson(template.routingLabels()));
                 config.setIntentSignalsJson(writeJson(template.intentSignals()));
+                config.setEvidencePolicyJson(writeJson(template.evidencePolicy()));
                 config.setEnabled(true);
                 repository.save(config);
             } else {
@@ -248,6 +251,7 @@ public class SqlTemplateService {
         String parameterSchema = writeJson(template.schema());
         String routingLabels = writeJson(template.routingLabels());
         String intentSignals = writeJson(template.intentSignals());
+        String evidencePolicy = writeJson(template.evidencePolicy());
         if (Objects.equals(existing.getTitle(), template.title())
             && Objects.equals(existing.getDescription(), template.description())
             && Objects.equals(existing.getSqlTemplate(), template.sql())
@@ -257,6 +261,7 @@ public class SqlTemplateService {
             && Objects.equals(existing.getDatabaseType(), template.databaseType())
             && Objects.equals(existing.getRoutingLabelsJson(), routingLabels)
             && Objects.equals(existing.getIntentSignalsJson(), intentSignals)
+            && Objects.equals(existing.getEvidencePolicyJson(), evidencePolicy)
             && existing.getDatasourceId() == null) {
             return;
         }
@@ -270,6 +275,7 @@ public class SqlTemplateService {
         existing.setDatasourceId(null);
         existing.setRoutingLabelsJson(routingLabels);
         existing.setIntentSignalsJson(intentSignals);
+        existing.setEvidencePolicyJson(evidencePolicy);
         repository.save(existing);
         log.info("Refreshed managed SQL default template: {}", template.code());
     }
@@ -294,6 +300,7 @@ public class SqlTemplateService {
         config.setRoutingLabelsJson(normalizeJsonArray(config.getRoutingLabelsJson()));
         config.setParameterSchemaJson(normalizeJsonObject(config.getParameterSchemaJson()));
         config.setIntentSignalsJson(normalizeJsonArray(config.getIntentSignalsJson()));
+        config.setEvidencePolicyJson(normalizeJsonMap(config.getEvidencePolicyJson()));
     }
 
     private void assertCompatible(SqlTemplateConfig template, SqlDatasourceConfig datasource) {
@@ -482,6 +489,25 @@ public class SqlTemplateService {
         return writeJson(List.of());
     }
 
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> readJsonObject(String json) {
+        if (json == null || json.isBlank()) {
+            return Map.of();
+        }
+        try {
+            Object value = objectMapper.readValue(json, Object.class);
+            return value instanceof Map<?, ?> map
+                ? new LinkedHashMap<>((Map<String, Object>) map)
+                : Map.of();
+        } catch (Exception ignored) {
+            return Map.of();
+        }
+    }
+
+    private String normalizeJsonMap(String json) {
+        return writeJson(readJsonObject(json));
+    }
+
     private String safeSqlLiteral(String name, Object value) {
         if (value == null) {
             throw new IllegalArgumentException("SQL template parameter is required: " + name);
@@ -612,12 +638,21 @@ public class SqlTemplateService {
                            SUM(CASE WHEN type = 'BACKGROUND' THEN 1 ELSE 0 END) AS background_sessions
                     FROM v$session
                     """,
-                List.of("session", "connection", "active session", "connection_overflow")),
+                List.of("session", "connection", "active session", "connection_overflow"),
+                evidencePolicy(
+                    "activity_health", true,
+                    List.of("TOTAL_SESSIONS", "USER_SESSIONS", "ACTIVE_USER_SESSIONS",
+                        "INACTIVE_USER_SESSIONS", "BACKGROUND_SESSIONS"),
+                    "POINT_IN_TIME", List.of(), 300)),
             maintenanceTemplate("ORACLE_INSTANCE_STATUS", "Oracle instance status",
-                "Read Oracle instance name and status.",
+                "Read Oracle instance name, status, and startup time.",
                 "oracle", "instance",
-                "SELECT instance_name, status FROM v$instance",
-                List.of("instance", "status", "health", "database status")),
+                "SELECT instance_name, status, startup_time FROM v$instance",
+                List.of("instance", "status", "health", "database status"),
+                evidencePolicy(
+                    "availability_health", true,
+                    List.of("INSTANCE_NAME", "STATUS", "STARTUP_TIME"),
+                    "POINT_IN_TIME", List.of(), 300)),
             maintenanceTemplate("ORACLE_LOCKS", "Oracle lock view",
                 "Read Oracle blocking and waiting locks with a bounded set of diagnostic columns.",
                 "oracle", "lock",
@@ -634,7 +669,10 @@ public class SqlTemplateService {
                     WHERE block = 1 OR request > 0
                     ORDER BY block DESC, ctime DESC
                     """,
-                List.of("lock", "blocking", "wait", "lock_check")),
+                List.of("lock", "blocking", "wait", "lock_check"),
+                evidencePolicy(
+                    "concurrency_health", true, List.of(),
+                    "POINT_IN_TIME", List.of(), 300, true)),
             maintenanceTemplate("ORACLE_SYSTEM_EVENTS", "Oracle system wait events",
                 "Read the top non-idle Oracle system wait events with a bounded set of diagnostic columns.",
                 "oracle", "performance",
@@ -658,7 +696,11 @@ public class SqlTemplateService {
                     )
                     WHERE ROWNUM <= 20
                     """,
-                List.of("wait event", "performance", "cpu", "system event", "performance_issue")),
+                List.of("wait event", "performance", "cpu", "system event", "performance_issue"),
+                evidencePolicy(
+                    "performance_health", true,
+                    List.of("EVENT", "WAIT_CLASS", "TOTAL_WAITS", "TIME_WAITED_SECONDS", "AVERAGE_WAIT_MS"),
+                    "SINCE_INSTANCE_START", List.of("STARTUP_TIME"), 300)),
             maintenanceTemplate("ORACLE_TABLESPACE_USAGE", "Oracle tablespace usage",
                 "Summarize Oracle tablespace capacity, used space, free space, and utilization percentage.",
                 "oracle", "storage",
@@ -671,12 +713,20 @@ public class SqlTemplateService {
                     + "LEFT JOIN (SELECT tablespace_name, SUM(bytes) AS free_bytes FROM dba_free_space GROUP BY tablespace_name) fs "
                     + "ON fs.tablespace_name = df.tablespace_name ORDER BY used_pct DESC",
                 List.of("tablespace usage", "tablespace utilization", "used space", "free space", "usage rate",
-                    "utilization", "storage usage", "storage_check")),
+                    "utilization", "storage usage", "storage_check"),
+                evidencePolicy(
+                    "capacity_health", true,
+                    List.of("TABLESPACE_NAME", "TOTAL_MB", "USED_MB", "FREE_MB", "USED_PCT"),
+                    "POINT_IN_TIME", List.of(), 300)),
             maintenanceTemplate("ORACLE_TABLESPACE_SIZE", "Oracle tablespace size",
                 "Summarize Oracle tablespace size in megabytes.",
                 "oracle", "storage",
                 "SELECT tablespace_name, SUM(bytes)/1024/1024 AS size_mb FROM dba_data_files GROUP BY tablespace_name",
-                List.of("tablespace", "storage", "space", "database size", "storage_check")),
+                List.of("tablespace", "storage", "space", "database size", "storage_check"),
+                evidencePolicy(
+                    "capacity_inventory", false,
+                    List.of("TABLESPACE_NAME", "SIZE_MB"),
+                    "POINT_IN_TIME", List.of(), 300)),
             maintenanceTemplate("ORACLE_DATABASE_OVERVIEW", "Oracle database overview",
                 "Read Oracle database and instance overview for health inspection.",
                 "oracle", "instance",
@@ -1592,6 +1642,18 @@ public class SqlTemplateService {
                                                 String maintenanceCategory,
                                                 String sql,
                                                 List<String> intentSignals) {
+        return maintenanceTemplate(
+            code, title, description, databaseType, maintenanceCategory, sql, intentSignals, Map.of());
+    }
+
+    private DefaultTemplate maintenanceTemplate(String code,
+                                                String title,
+                                                String description,
+                                                String databaseType,
+                                                String maintenanceCategory,
+                                                String sql,
+                                                List<String> intentSignals,
+                                                Map<String, Object> evidencePolicy) {
         return new DefaultTemplate(
             code,
             title,
@@ -1602,8 +1664,39 @@ public class SqlTemplateService {
             "maintenance_" + maintenanceCategory,
             databaseType,
             List.of(databaseType, "maintenance", maintenanceCategory),
-            templateSignals(code, title, description, intentSignals)
+            templateSignals(code, title, description, intentSignals),
+            evidencePolicy == null ? Map.of() : Map.copyOf(evidencePolicy)
         );
+    }
+
+    private Map<String, Object> evidencePolicy(String purpose,
+                                               boolean healthCapability,
+                                               List<String> requiredMetrics,
+                                               String timeSemantics,
+                                               List<String> requiresContext,
+                                               int freshnessMaxAgeSeconds) {
+        return evidencePolicy(
+            purpose, healthCapability, requiredMetrics, timeSemantics,
+            requiresContext, freshnessMaxAgeSeconds, false);
+    }
+
+    private Map<String, Object> evidencePolicy(String purpose,
+                                               boolean healthCapability,
+                                               List<String> requiredMetrics,
+                                               String timeSemantics,
+                                               List<String> requiresContext,
+                                               int freshnessMaxAgeSeconds,
+                                               boolean emptyResultIsSuccess) {
+        Map<String, Object> policy = new LinkedHashMap<>();
+        policy.put("schemaVersion", "diagnostic_template_evidence_policy_v1");
+        policy.put("purpose", purpose);
+        policy.put("healthCapability", healthCapability);
+        policy.put("requiredMetrics", requiredMetrics == null ? List.of() : List.copyOf(requiredMetrics));
+        policy.put("timeSemantics", timeSemantics);
+        policy.put("requiresContext", requiresContext == null ? List.of() : List.copyOf(requiresContext));
+        policy.put("freshnessMaxAgeSeconds", freshnessMaxAgeSeconds);
+        policy.put("emptyResultIsSuccess", emptyResultIsSuccess);
+        return Map.copyOf(policy);
     }
 
     private Map<String, Object> emptySchema() {
@@ -1664,6 +1757,7 @@ public class SqlTemplateService {
                                    String category,
                                    String databaseType,
                                    List<String> routingLabels,
-                                   List<String> intentSignals) {
+                                   List<String> intentSignals,
+                                   Map<String, Object> evidencePolicy) {
     }
 }

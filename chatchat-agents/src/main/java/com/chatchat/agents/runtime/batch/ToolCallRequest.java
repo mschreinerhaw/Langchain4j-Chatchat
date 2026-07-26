@@ -9,17 +9,26 @@ public record ToolCallRequest(
     String toolName,
     Map<String, Object> arguments,
     Boolean emptyResultIsSuccess,
-    List<String> requiredFields
+    List<String> requiredFields,
+    ToolEvidencePolicy evidencePolicy
 ) {
     public ToolCallRequest(String callId, String toolName, Map<String, Object> arguments) {
-        this(callId, toolName, arguments, null, List.of());
+        this(callId, toolName, arguments, null, List.of(), ToolEvidencePolicy.empty());
     }
 
     public ToolCallRequest(String callId,
                            String toolName,
                            Map<String, Object> arguments,
                            Boolean emptyResultIsSuccess) {
-        this(callId, toolName, arguments, emptyResultIsSuccess, List.of());
+        this(callId, toolName, arguments, emptyResultIsSuccess, List.of(), ToolEvidencePolicy.empty());
+    }
+
+    public ToolCallRequest(String callId,
+                           String toolName,
+                           Map<String, Object> arguments,
+                           Boolean emptyResultIsSuccess,
+                           List<String> requiredFields) {
+        this(callId, toolName, arguments, emptyResultIsSuccess, requiredFields, ToolEvidencePolicy.empty());
     }
 
     public ToolCallRequest {
@@ -29,5 +38,16 @@ public record ToolCallRequest(
             .map(String::trim)
             .distinct()
             .toList();
+        evidencePolicy = evidencePolicy == null ? ToolEvidencePolicy.empty() : evidencePolicy;
+        if (evidencePolicy.requiredMetrics().isEmpty() && !requiredFields.isEmpty()) {
+            evidencePolicy = new ToolEvidencePolicy(
+                evidencePolicy.purpose(),
+                evidencePolicy.healthCapability(),
+                requiredFields,
+                evidencePolicy.timeSemantics(),
+                evidencePolicy.requiresContext(),
+                evidencePolicy.freshnessMaxAgeSeconds()
+            );
+        }
     }
 }

@@ -1616,7 +1616,8 @@ public class AgentOrchestrator {
         }
         Map<String, Object> snapshot = compactMap(
             source, "contractVersion", "batchId", "executionMode", "status", "batchStatus",
-            "executionStatus", "assessmentStatus", "evidenceCoverage", "cardinality", "summary");
+            "executionStatus", "assessmentStatus", "evidenceCoverage", "evidenceQuality",
+            "cardinality", "summary");
         List<Map<String, Object>> childSnapshots = new ArrayList<>();
         for (Object item : results) {
             Map<String, Object> child = objectMap(item);
@@ -1625,7 +1626,7 @@ public class AgentOrchestrator {
             }
             Map<String, Object> childSnapshot = compactMap(
                 child, "callId", "checkId", "templateId", "templateCode", "toolName",
-                "status", "invoked", "durationMs", "evidenceId", "error");
+                "status", "invoked", "durationMs", "evidenceId", "evidenceQuality", "error");
             Object finding = firstObject(child, "finding", "output");
             Map<String, Object> table = tabularEvidenceSnapshot(finding, 0);
             if (!table.isEmpty()) {
@@ -1966,6 +1967,10 @@ public class AgentOrchestrator {
         prompt.append("- A missing diagnostic child with no ToolCallResult is NOT_EXECUTED. Do not speculate that it timed out, hit resource contention, lacked permissions, or failed remotely unless a child result explicitly records that status/reason.\n");
         prompt.append("- Do not recommend manual one-by-one execution as the product solution when an ordered runtime batch is expected. Report the missing batch dispatch/evidence and recommend repairing or retrying the batch workflow.\n");
         prompt.append("- diagnosticRun assessment scores are authoritative only when non-null. Never convert tool success, OPEN/running state, capacity size, or coverage ratio into a missing health score.\n");
+        prompt.append("- Keep execution coverage and evidence quality separate. A successful query with incomplete requiredMetrics remains executed and covered, but its health assessment capability is LIMITED; never reduce coverage merely because quality is incomplete.\n");
+        prompt.append("- Respect diagnostic_evidence_quality_v1 purpose and healthCapability. Inventory evidence may be displayed but must not be presented as a complete health assessment.\n");
+        prompt.append("- Respect timeSemantics. SINCE_INSTANCE_START values are cumulative, not current pressure. When required context such as instance uptime or a sample window is missing, describe the historical cumulative observation and prohibit a real-time bottleneck conclusion.\n");
+        prompt.append("- For point-in-time session and lock evidence, use sampling language: say 'at the current sample' or 'within the current sampling window'; never turn one sample into a historical trend claim.\n");
         prompt.append("- diagnosticRun.confidence_engine is the authoritative evidence-coverage classification. When partial_conclusion_allowed=true, provide a bounded partial diagnosis from completed checks and separately list what the missing checks prevent you from concluding.\n");
         prompt.append("- assessment.overall_status=INSUFFICIENT_EVIDENCE means no complete health score is available; it does not erase completed check evidence and must not force the entire report to say that nothing can be assessed.\n");
         prompt.append("- Never turn successful execution alone into a healthy finding. State metric conclusions only from returned values, and do not infer that an environment has no serious anomaly merely because queries succeeded.\n");

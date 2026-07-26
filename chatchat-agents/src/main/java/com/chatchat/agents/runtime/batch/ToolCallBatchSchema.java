@@ -56,26 +56,53 @@ public final class ToolCallBatchSchema {
         callSchema.put("type", "object");
         callSchema.put("additionalProperties", false);
         callSchema.put("required", List.of("callId", "toolName", "arguments"));
-        callSchema.put("properties", Map.of(
-            "callId", Map.of("type", "string", "minLength", 1, "maxLength", 128),
-            "toolName", Map.of(
+        Map<String, Object> callProperties = new LinkedHashMap<>();
+        callProperties.put("callId", Map.of("type", "string", "minLength", 1, "maxLength", 128));
+        callProperties.put("toolName", Map.of(
                 "type", "string",
                 "description", "A registered SQL/SSH/API template executor from the Agent allow-list."
-            ),
-            "emptyResultIsSuccess", Map.of(
+            ));
+        callProperties.put("emptyResultIsSuccess", Map.of(
                 "type", "boolean",
                 "description", "Template-declared evidence policy. True only when an empty result is a valid diagnostic outcome."
-            ),
-            "requiredFields", Map.of(
+            ));
+        callProperties.put("requiredFields", Map.of(
                 "type", "array",
                 "items", Map.of("type", "string"),
-                "description", "Template-declared output fields required for usable health evidence."
-            ),
-            "arguments", Map.of(
+                "description", "Backward-compatible alias for requiredMetrics; missing fields reduce evidence quality, not execution coverage."
+            ));
+        callProperties.put("purpose", Map.of(
+                "type", "string",
+                "description", "Template-owned purpose such as inventory, monitor, health, or root_cause."
+            ));
+        callProperties.put("healthCapability", Map.of(
+                "type", "boolean",
+                "description", "Whether the template can directly support a health assessment."
+            ));
+        callProperties.put("requiredMetrics", Map.of(
+                "type", "array",
+                "items", Map.of("type", "string"),
+                "description", "Metrics required for complete assessment quality. Missing metrics do not turn a successful invocation into a failed invocation."
+            ));
+        callProperties.put("timeSemantics", Map.of(
+                "type", "string",
+                "description", "Metric time meaning, for example POINT_IN_TIME, SAMPLE_WINDOW, or SINCE_INSTANCE_START."
+            ));
+        callProperties.put("requiresContext", Map.of(
+                "type", "array",
+                "items", Map.of("type", "string"),
+                "description", "Context metrics required before values may support a strong conclusion."
+            ));
+        callProperties.put("freshnessMaxAgeSeconds", Map.of(
+                "type", "integer",
+                "minimum", 0,
+                "description", "Maximum accepted observation age when a timestamp is available."
+            ));
+        callProperties.put("arguments", Map.of(
                 "type", "object",
                 "description", "The normal authorized input schema for the selected child executor."
-            )
-        ));
+            ));
+        callSchema.put("properties", callProperties);
 
         Map<String, Object> schema = new LinkedHashMap<>();
         schema.put("type", "object");

@@ -2635,6 +2635,57 @@ public class InterpretationPlanRuntime {
             if (!requiredFields.isEmpty()) {
                 call.put("requiredFields", requiredFields);
             }
+            List<String> requiredMetrics = stringValues(firstValueAtAnyPath(template,
+                "$.requiredMetrics",
+                "$.required_metrics",
+                "$.evidencePolicy.requiredMetrics",
+                "$.qualityPolicy.requiredMetrics"));
+            if (requiredMetrics.isEmpty()) {
+                requiredMetrics = requiredFields;
+            }
+            if (!requiredMetrics.isEmpty()) {
+                call.put("requiredMetrics", requiredMetrics);
+            }
+            Object purpose = firstValueAtAnyPath(template,
+                "$.purpose",
+                "$.diagnosticPurpose",
+                "$.evidencePolicy.purpose",
+                "$.qualityPolicy.purpose");
+            if (purpose != null && !String.valueOf(purpose).isBlank()) {
+                call.put("purpose", String.valueOf(purpose));
+            }
+            Boolean healthCapability = booleanObject(firstValueAtAnyPath(template,
+                "$.healthCapability",
+                "$.health_capability",
+                "$.evidencePolicy.healthCapability",
+                "$.qualityPolicy.healthCapability"));
+            if (healthCapability != null) {
+                call.put("healthCapability", healthCapability);
+            }
+            Object timeSemantics = firstValueAtAnyPath(template,
+                "$.timeSemantics",
+                "$.time_semantics",
+                "$.evidencePolicy.timeSemantics",
+                "$.qualityPolicy.timeSemantics");
+            if (timeSemantics != null && !String.valueOf(timeSemantics).isBlank()) {
+                call.put("timeSemantics", String.valueOf(timeSemantics));
+            }
+            List<String> requiresContext = stringValues(firstValueAtAnyPath(template,
+                "$.requiresContext",
+                "$.requires_context",
+                "$.evidencePolicy.requiresContext",
+                "$.qualityPolicy.requiresContext"));
+            if (!requiresContext.isEmpty()) {
+                call.put("requiresContext", requiresContext);
+            }
+            Integer freshnessMaxAgeSeconds = integerValue(firstValueAtAnyPath(template,
+                "$.freshnessMaxAgeSeconds",
+                "$.freshness_max_age_seconds",
+                "$.evidencePolicy.freshnessMaxAgeSeconds",
+                "$.qualityPolicy.freshnessMaxAgeSeconds"));
+            if (freshnessMaxAgeSeconds != null && freshnessMaxAgeSeconds >= 0) {
+                call.put("freshnessMaxAgeSeconds", freshnessMaxAgeSeconds);
+            }
             calls.add(call);
         }
         if (calls.size() < 2 || outerTool == null) {
@@ -2796,6 +2847,7 @@ public class InterpretationPlanRuntime {
                     diagnosticTemplateIdentity(templates.get(templateIndex))
                 );
                 if (score > 0) {
+                    score += diagnosticHealthCapabilityBonus(templates.get(templateIndex));
                     candidates.add(new DiagnosticTemplateMatch(checkIndex, templateIndex, score));
                 }
             }
@@ -2826,6 +2878,8 @@ public class InterpretationPlanRuntime {
             firstValueAtAnyPath(template, "$.displayName"),
             firstValueAtAnyPath(template, "$.capability"),
             firstValueAtAnyPath(template, "$.diagnosticCapability"),
+            firstValueAtAnyPath(template, "$.purpose"),
+            firstValueAtAnyPath(template, "$.diagnosticPurpose"),
             firstValueAtAnyPath(template, "$.description"),
             firstValueAtAnyPath(template, "$.category"),
             firstValueAtAnyPath(template, "$.operationType"),
@@ -2854,6 +2908,23 @@ public class InterpretationPlanRuntime {
             }
         }
         return score;
+    }
+
+    private int diagnosticHealthCapabilityBonus(Map<String, Object> template) {
+        Boolean healthCapability = booleanObject(firstValueAtAnyPath(template,
+            "$.healthCapability",
+            "$.health_capability",
+            "$.evidencePolicy.healthCapability",
+            "$.qualityPolicy.healthCapability"));
+        if (Boolean.TRUE.equals(healthCapability)) {
+            return 1000;
+        }
+        String purpose = stringValue(firstValueAtAnyPath(template,
+            "$.purpose",
+            "$.diagnosticPurpose",
+            "$.evidencePolicy.purpose",
+            "$.qualityPolicy.purpose"));
+        return purpose != null && purpose.toLowerCase(Locale.ROOT).contains("health") ? 500 : 0;
     }
 
     private Set<String> diagnosticTokens(String value) {

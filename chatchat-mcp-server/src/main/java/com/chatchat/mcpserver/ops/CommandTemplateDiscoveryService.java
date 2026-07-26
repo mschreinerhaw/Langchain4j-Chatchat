@@ -906,6 +906,7 @@ public class CommandTemplateDiscoveryService {
                                                  int rank) {
         List<String> signals = intentSignals(template);
         Map<String, Object> parameterSchema = parameterSchema(template.getParameterSchemaJson());
+        Map<String, Object> evidencePolicy = parameterSchema(template.getEvidencePolicyJson());
         List<String> requiredParameters = requiredParameters(parameterSchema);
         return mapOf(
             "schemaVersion", TEMPLATE_SCHEMA_VERSION,
@@ -932,6 +933,7 @@ public class CommandTemplateDiscoveryService {
                 "contextKeys", List.of("assetName", "env", "environment", "cluster", "database", "databaseType", "dbType", "dialect", "databaseRole", "service", "target", "labels")
             ),
             "parameterSchema", parameterSchema,
+            "evidencePolicy", evidencePolicy,
             "requiredParameters", requiredParameters,
             "parameterContract", parameterContract(template.getCode(), parameterSchema, "sql_query_execute.parameters", "sql_query_execute"),
             "invocationExample", invocationExample(template.getCode(), parameterSchema, "sql_query_execute", "<logical datasource assetName from user context or template routing>", "<env>"),

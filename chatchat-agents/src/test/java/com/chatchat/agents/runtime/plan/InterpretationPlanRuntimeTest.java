@@ -5210,6 +5210,16 @@ class InterpretationPlanRuntimeTest {
                 "requiredFields", "ORACLE_TABLESPACE_SIZE".equals(templateId)
                     ? List.of("TABLESPACE_NAME", "USED_PERCENT")
                     : List.of(),
+                "purpose", "ORACLE_TABLESPACE_SIZE".equals(templateId)
+                    ? "capacity_inventory"
+                    : "health",
+                "healthCapability", !"ORACLE_TABLESPACE_SIZE".equals(templateId),
+                "timeSemantics", "ORACLE_SYSTEM_EVENTS".equals(templateId)
+                    ? "SINCE_INSTANCE_START"
+                    : "POINT_IN_TIME",
+                "requiresContext", "ORACLE_SYSTEM_EVENTS".equals(templateId)
+                    ? List.of("INSTANCE_UPTIME")
+                    : List.of(),
                 "parameterSchema", Map.of("type", "object", "required", List.of()),
                 "sqlExecutionBinding", Map.of(
                     "toolName", executorTool,
@@ -5395,6 +5405,17 @@ class InterpretationPlanRuntimeTest {
         assertThat((List<String>) ((List<Map<String, Object>>) batchRequest.getToolInput()
             .getParameters().get("calls")).get(4).get("requiredFields"))
             .containsExactly("TABLESPACE_NAME", "USED_PERCENT");
+        List<Map<String, Object>> compiledCalls =
+            (List<Map<String, Object>>) batchRequest.getToolInput().getParameters().get("calls");
+        assertThat(compiledCalls.get(3))
+            .containsEntry("purpose", "health")
+            .containsEntry("healthCapability", true)
+            .containsEntry("timeSemantics", "SINCE_INSTANCE_START")
+            .containsEntry("requiresContext", List.of("INSTANCE_UPTIME"));
+        assertThat(compiledCalls.get(4))
+            .containsEntry("purpose", "capacity_inventory")
+            .containsEntry("healthCapability", false)
+            .containsEntry("requiredMetrics", List.of("TABLESPACE_NAME", "USED_PERCENT"));
         assertThat((List<Map<String, Object>>) batchRequest.getToolInput().getParameters().get("calls"))
             .allSatisfy(call -> {
                 Map<?, ?> arguments = (Map<?, ?>) call.get("arguments");

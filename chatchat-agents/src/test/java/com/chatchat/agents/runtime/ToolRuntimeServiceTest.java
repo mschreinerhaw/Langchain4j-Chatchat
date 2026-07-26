@@ -1088,7 +1088,8 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
-    void templateDeclaredRequiredFieldsDowngradeIncompleteHealthEvidence() {
+    @SuppressWarnings("unchecked")
+    void templateDeclaredRequiredFieldsReduceQualityWithoutReducingExecutionCoverage() {
         String toolName = "sql_query_execute";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
@@ -1108,23 +1109,24 @@ class ToolRuntimeServiceTest {
         instance.put("requiredFields", List.of("INSTANCE_NAME", "STATUS"));
         Map<String, Object> tablespace = new LinkedHashMap<>(
             batchCall("tablespace", toolName, "ORACLE_TABLESPACE_HEALTH"));
-        tablespace.put("requiredFields", List.of(
+        tablespace.put("requiredMetrics", List.of(
             "TABLESPACE_NAME", "TOTAL_MB", "USED_MB", "FREE_MB", "USED_PERCENT"));
+        tablespace.put("purpose", "capacity_health");
+        tablespace.put("healthCapability", true);
 
         ToolRuntimeExecution execution = service.execute(
             batchRequest(List.of(instance, tablespace), false, Map.of()));
         ToolCallBatchResult result = (ToolCallBatchResult) execution.output().getData();
 
         assertThat(execution.output().isSuccess()).isTrue();
-        assertThat(result.status()).isEqualTo("PARTIAL_SUCCESS");
-        assertThat(result.summary().success()).isEqualTo(1);
-        assertThat(result.summary().failed()).isEqualTo(1);
+        assertThat(result.status()).isEqualTo("SUCCESS");
+        assertThat(result.summary().success()).isEqualTo(2);
+        assertThat(result.summary().failed()).isZero();
         assertThat(result.results()).extracting(ToolCallResult::status)
-            .containsExactly("SUCCESS", "RESULT_MISSING");
-        assertThat(result.results().get(1).error())
-            .containsEntry("code", "REQUIRED_EVIDENCE_FIELDS_MISSING");
-        assertThat((Map<String, Object>) result.results().get(1).error().get("details"))
-            .containsEntry("missingFields", List.of("TOTAL_MB", "USED_MB", "FREE_MB", "USED_PERCENT"));
+            .containsExactly("SUCCESS", "SUCCESS");
+        assertThat(result.results().get(1).evidencePolicy().requiredMetrics())
+            .containsExactly("TABLESPACE_NAME", "TOTAL_MB", "USED_MB", "FREE_MB", "USED_PERCENT");
+        assertThat(result.results().get(1).error()).isEmpty();
     }
 
     @Test

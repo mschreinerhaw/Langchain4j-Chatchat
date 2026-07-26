@@ -60,6 +60,10 @@ public class SqlTemplateConfig {
     @Column(columnDefinition = "longtext")
     private String intentSignalsJson;
 
+    @Lob
+    @Column(columnDefinition = "longtext")
+    private String evidencePolicyJson;
+
     @Column(nullable = false)
     private boolean enabled = true;
 

@@ -172,6 +172,28 @@ class SqlTemplateServiceTest {
                 assertThat(template.getDatabaseType()).isEqualTo("oracle");
                 assertThat(template.getSqlTemplate().toLowerCase()).doesNotContain("select *");
             });
+        SqlTemplateConfig waitEvents = saved.stream()
+            .filter(template -> "ORACLE_SYSTEM_EVENTS".equals(template.getCode()))
+            .findFirst()
+            .orElseThrow();
+        SqlTemplateConfig tablespaceUsage = saved.stream()
+            .filter(template -> "ORACLE_TABLESPACE_USAGE".equals(template.getCode()))
+            .findFirst()
+            .orElseThrow();
+        SqlTemplateConfig tablespaceSize = saved.stream()
+            .filter(template -> "ORACLE_TABLESPACE_SIZE".equals(template.getCode()))
+            .findFirst()
+            .orElseThrow();
+        assertThat(waitEvents.getEvidencePolicyJson())
+            .contains("\"purpose\":\"performance_health\"")
+            .contains("\"timeSemantics\":\"SINCE_INSTANCE_START\"")
+            .contains("\"STARTUP_TIME\"");
+        assertThat(tablespaceUsage.getEvidencePolicyJson())
+            .contains("\"healthCapability\":true")
+            .contains("\"USED_PCT\"");
+        assertThat(tablespaceSize.getEvidencePolicyJson())
+            .contains("\"purpose\":\"capacity_inventory\"")
+            .contains("\"healthCapability\":false");
         assertThat(saved)
             .filteredOn(template -> "ORACLE_SESSION_OVERVIEW".equals(template.getCode()))
             .singleElement()

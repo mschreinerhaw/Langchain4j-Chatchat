@@ -10,6 +10,7 @@ import com.chatchat.agents.runtime.AgentRunStore;
 import com.chatchat.agents.runtime.ToolRuntimeExecution;
 import com.chatchat.agents.runtime.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.ToolRuntimeService;
+import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.chatchat.agents.runtime.toolcall.ToolArgumentCompiler;
 import com.chatchat.agents.orchestration.McpToolRouter;
 import com.chatchat.common.tool.ToolOutput;
@@ -502,12 +503,17 @@ public class InterpretationPlanRuntime {
                     ? routingDecision.resolvedToolName()
                     : step.toolName();
                 List<String> allowedTools = new ArrayList<>(safeList(request.allowedTools()));
-                TemplateExecutorInvocation templateInvocation = templateExecutorInvocation(
-                    step,
-                    completed,
-                    resolvedInput,
-                    allowedTools
+                TemplateExecutorInvocation templateInvocation = diagnosticBatchInvocation(
+                    step, request.plan(), completed, resolvedInput, allowedTools
                 );
+                if (templateInvocation == null) {
+                    templateInvocation = templateExecutorInvocation(
+                        step,
+                        completed,
+                        resolvedInput,
+                        allowedTools
+                    );
+                }
                 if (templateInvocation != null) {
                     executionToolName = templateInvocation.toolName();
                     resolvedInput = templateInvocation.arguments();
@@ -552,7 +558,8 @@ public class InterpretationPlanRuntime {
                     execution == null || execution.output() == null ? "Tool returned no execution" : execution.output().getErrorMessage(),
                     execution,
                     null,
-                    elapsed(startedAt)
+                    elapsed(startedAt),
+                    Map.of("resolvedInput", new LinkedHashMap<>(resolvedInput))
                 );
                 if (result.success()) {
                     result = reviewToolResult(request, step, result, completed, startedAt);
@@ -787,6 +794,7 @@ public class InterpretationPlanRuntime {
             attributes.put("toolRouterDecision", routingDecision.metadata());
         }
         attributes.put("executionPlan", executionPlan);
+        appendDiagnosticBatchAttributes(attributes, request.plan(), step, resolvedInput);
         attributes.put("completedPlanStepIds", new ArrayList<>(completed.keySet()));
         Set<String> completedToolSet = new LinkedHashSet<>();
         Object priorCompletedTools = attributes.get("workflowCompletedTools");
@@ -806,6 +814,51 @@ public class InterpretationPlanRuntime {
         attributes.put("workflowCompletedTools", completedTools);
         attributes.put("completedTools", completedTools);
         return attributes;
+    }
+
+    private void appendDiagnosticBatchAttributes(
+        Map<String, Object> attributes,
+        InterpretationPlan plan,
+        InterpretationPlan.Step step,
+        Map<String, Object> resolvedInput
+    ) {
+        if (attributes == null || plan == null || plan.plan() == null
+            || plan.plan().diagnosticProfile() == null || step == null || step.id() == null
+            || !batchToolInput(resolvedInput)) {
+            return;
+        }
+        List<String> declared = (plan.plan().diagnosticProfile().checks() == null
+            ? List.<InterpretationPlan.DiagnosticCheck>of()
+            : plan.plan().diagnosticProfile().checks()).stream()
+            .filter(Objects::nonNull)
+            .filter(check -> !Boolean.FALSE.equals(check.required()))
+            .filter(check -> check.stepIds() != null && check.stepIds().contains(step.id()))
+            .map(InterpretationPlan.DiagnosticCheck::checkId)
+            .filter(Objects::nonNull)
+            .toList();
+        Object rawCalls = firstPresent(resolvedInput, "calls", "toolCalls", "tool_calls");
+        List<String> compiled = new ArrayList<>();
+        if (rawCalls instanceof Iterable<?> calls) {
+            for (Object value : calls) {
+                if (value instanceof Map<?, ?> call) {
+                    Object id = call.containsKey("callId") ? call.get("callId")
+                        : call.containsKey("call_id") ? call.get("call_id")
+                        : call.get("id");
+                    if (id != null && !String.valueOf(id).isBlank()) {
+                        compiled.add(String.valueOf(id));
+                    }
+                }
+            }
+        }
+        List<String> missing = declared.stream().filter(id -> !compiled.contains(id)).toList();
+        attributes.put("diagnosticRunId", firstText(
+            stringValue(attributes.get(AGENT_RUN_ID_ATTRIBUTE)),
+            stringValue(attributes.get("__agentRunId"))
+        ));
+        attributes.put("diagnosticDeclaredCheckIds", declared);
+        attributes.put("diagnosticDeclaredCheckCount", declared.size());
+        attributes.put("diagnosticCompiledCallCount", compiled.size());
+        attributes.put("diagnosticMissingAuthorizedCheckIds", missing);
     }
 
     private StepExecution reviewToolResult(ExecutionRequest request,
@@ -2299,6 +2352,285 @@ public class InterpretationPlanRuntime {
         return new TemplateExecutorInvocation(executionTool, arguments);
     }
 
+    /**
+     * Compiles a scalar executor step shared by multiple diagnostic checks into one formal,
+     * sequential batch after template discovery has returned the authorized templates.
+     *
+     * <p>This is deliberately metadata driven: no database vendor or template code is built into
+     * Runtime. Checks are matched to discovered template identifiers/capabilities and every child
+     * call keeps the exact check id as its auditable call id.</p>
+     */
+    @SuppressWarnings("unchecked")
+    private TemplateExecutorInvocation diagnosticBatchInvocation(
+        InterpretationPlan.Step step,
+        InterpretationPlan plan,
+        Map<Integer, StepExecution> completed,
+        Map<String, Object> input,
+        List<String> allowedTools
+    ) {
+        if (step == null || step.id() == null || plan == null || plan.plan() == null
+            || plan.plan().diagnosticProfile() == null || batchToolInput(input)
+            || completed == null || completed.isEmpty()) {
+            return null;
+        }
+        List<InterpretationPlan.DiagnosticCheck> profileChecks =
+            plan.plan().diagnosticProfile().checks() == null
+                ? List.of()
+                : plan.plan().diagnosticProfile().checks();
+        List<InterpretationPlan.DiagnosticCheck> checks = profileChecks.stream()
+            .filter(Objects::nonNull)
+            .filter(check -> !Boolean.FALSE.equals(check.required()))
+            .filter(check -> check.stepIds() != null && check.stepIds().contains(step.id()))
+            .sorted(java.util.Comparator.comparingInt(check ->
+                check.priority() == null ? Integer.MAX_VALUE : check.priority()))
+            .toList();
+        if (checks.size() < 2) {
+            return null;
+        }
+
+        String targetAssetId = contextText(input, "assetId", "asset_id");
+        List<Map<String, Object>> templates = new ArrayList<>();
+        for (StepExecution execution : completed.values()) {
+            if (execution == null || !execution.success() || !isTemplateDiscoveryTool(execution.toolName())) {
+                continue;
+            }
+            for (Object item : templateCandidates(execution.output())) {
+                if (!(item instanceof Map<?, ?> map)) {
+                    continue;
+                }
+                Map<String, Object> template = new LinkedHashMap<>((Map<String, Object>) map);
+                String executor = templateExecutorTool(template);
+                String resolvedExecutor = resolveExecutionToolName(executor, allowedTools);
+                String templateAssetId = templateAssetId(template);
+                boolean sameAsset = targetAssetId == null
+                    || templateAssetId == null
+                    || targetAssetId.equals(templateAssetId);
+                if (sameAsset && resolvedExecutor != null && ToolCallBatchSchema.supports(resolvedExecutor)) {
+                    templates.add(template);
+                }
+            }
+        }
+        if (templates.size() < 2) {
+            return null;
+        }
+
+        Set<Integer> usedTemplates = new LinkedHashSet<>();
+        List<Map<String, Object>> calls = new ArrayList<>();
+        String outerTool = null;
+        for (InterpretationPlan.DiagnosticCheck check : checks) {
+            int matchIndex = bestDiagnosticTemplate(check, templates, usedTemplates);
+            if (matchIndex < 0) {
+                continue;
+            }
+            Map<String, Object> template = templates.get(matchIndex);
+            String templateId = canonicalTemplateId(template);
+            String childTool = resolveExecutionToolName(templateExecutorTool(template), allowedTools);
+            Map<String, Object> arguments = diagnosticBatchArguments(input, template, templateId);
+            if (templateId == null || childTool == null || !requiredTemplateParametersSatisfied(template, arguments)) {
+                continue;
+            }
+            usedTemplates.add(matchIndex);
+            if (outerTool == null) {
+                outerTool = childTool;
+            }
+            Map<String, Object> call = new LinkedHashMap<>();
+            call.put("callId", check.checkId());
+            call.put("toolName", childTool);
+            call.put("arguments", arguments);
+            Boolean emptyResultIsSuccess = booleanObject(firstValueAtAnyPath(template,
+                "$.emptyResultIsSuccess",
+                "$.resultPolicy.emptyResultIsSuccess",
+                "$.evidencePolicy.emptyResultIsSuccess"));
+            if (emptyResultIsSuccess != null) {
+                call.put("emptyResultIsSuccess", emptyResultIsSuccess);
+            }
+            calls.add(call);
+        }
+        if (calls.size() < 2 || outerTool == null) {
+            return null;
+        }
+        Map<String, Object> batch = new LinkedHashMap<>();
+        batch.put("batchId", "diagnostic-step-" + step.id());
+        batch.put("executionMode", "SEQUENTIAL");
+        batch.put("stopOnFailure", false);
+        batch.put("calls", calls);
+        log.info("InterpretationPlan compiled diagnostic batch: stepId={}, declaredChecks={}, compiledCalls={}, callIds={}",
+            step.id(), checks.size(), calls.size(),
+            calls.stream().map(call -> call.get("callId")).toList());
+        return new TemplateExecutorInvocation(outerTool, batch);
+    }
+
+    private String templateExecutorTool(Map<String, Object> template) {
+        return stringValue(firstValueAtAnyPath(template,
+            "$.sqlExecutionBinding.toolName",
+            "$.executionBinding.toolName",
+            "$.parameterContract.executionTool",
+            "$.execution.executorTool",
+            "$.execution.toolName",
+            "$.execution.executionTool",
+            "$.executionTool",
+            "$.invocationExample.tool"));
+    }
+
+    private String templateAssetId(Map<String, Object> template) {
+        return stringValue(firstValueAtAnyPath(template,
+            "$.assetId",
+            "$.asset.id",
+            "$.sqlExecutionBinding.assetId",
+            "$.sqlExecutionBinding.executionContext.assetId",
+            "$.executionBinding.assetId",
+            "$.executionBinding.executionContext.assetId",
+            "$.executionContext.assetId",
+            "$.execution.executionContext.assetId"));
+    }
+
+    private String contextText(Map<String, Object> input, String... keys) {
+        Object context = firstMapValue(input, "executionContext", "mcpExecutionContext");
+        if (context instanceof Map<?, ?> map) {
+            for (String key : keys) {
+                Object value = map.get(key);
+                if (value != null && !String.valueOf(value).isBlank()) {
+                    return String.valueOf(value);
+                }
+            }
+        }
+        return null;
+    }
+
+    private int bestDiagnosticTemplate(
+        InterpretationPlan.DiagnosticCheck check,
+        List<Map<String, Object>> templates,
+        Set<Integer> usedTemplates
+    ) {
+        int bestIndex = -1;
+        int bestScore = 0;
+        for (int index = 0; index < templates.size(); index++) {
+            if (usedTemplates.contains(index)) {
+                continue;
+            }
+            Map<String, Object> template = templates.get(index);
+            String identity = String.join(" ", java.util.stream.Stream.of(
+                    canonicalTemplateId(template),
+                    stringValue(firstValueAtAnyPath(template, "$.name", "$.displayName", "$.capability",
+                        "$.diagnosticCapability", "$.description"))
+                )
+                .filter(Objects::nonNull)
+                .filter(value -> !value.isBlank())
+                .toList());
+            int score = diagnosticSemanticScore(check, identity);
+            if (score > bestScore) {
+                bestScore = score;
+                bestIndex = index;
+            }
+        }
+        return bestIndex;
+    }
+
+    private int diagnosticSemanticScore(InterpretationPlan.DiagnosticCheck check, String templateIdentity) {
+        if (check == null || templateIdentity == null || templateIdentity.isBlank()) {
+            return 0;
+        }
+        Set<String> templateTokens = diagnosticTokens(templateIdentity);
+        Set<String> checkTokens = diagnosticTokens(
+            firstText(check.checkId(), "") + " " + firstText(check.capability(), "")
+        );
+        int score = 0;
+        for (String token : checkTokens) {
+            if (templateTokens.contains(token)) {
+                score += token.length();
+            }
+        }
+        return score;
+    }
+
+    private Set<String> diagnosticTokens(String value) {
+        if (value == null || value.isBlank()) {
+            return Set.of();
+        }
+        Set<String> ignored = Set.of(
+            "oracle", "database", "query", "execute", "template", "diagnostic", "health", "check"
+        );
+        Set<String> tokens = new LinkedHashSet<>();
+        for (String raw : value.toLowerCase(Locale.ROOT).split("[^a-z0-9]+")) {
+            String token = raw.endsWith("s") && raw.length() > 4
+                ? raw.substring(0, raw.length() - 1)
+                : raw;
+            if (token.length() >= 4 && !ignored.contains(token)) {
+                tokens.add(token);
+            }
+        }
+        return tokens;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> diagnosticBatchArguments(
+        Map<String, Object> input,
+        Map<String, Object> template,
+        String templateId
+    ) {
+        Map<String, Object> arguments = new LinkedHashMap<>(input == null ? Map.of() : input);
+        for (String key : List.of(
+            "calls", "toolCalls", "tool_calls", "batchId", "executionMode", "stopOnFailure",
+            "templateCode", "template_code", "templateId", "template_id", "template",
+            "runtimeTemplateBinding"
+        )) {
+            arguments.remove(key);
+        }
+        arguments.put("templateId", templateId);
+        arguments.put("template", templateId);
+        Object existingContext = firstMapValue(arguments, "executionContext", "mcpExecutionContext");
+        Map<String, Object> executionContext = existingContext instanceof Map<?, ?> map
+            ? new LinkedHashMap<>((Map<String, Object>) map)
+            : new LinkedHashMap<>();
+        Object templateContext = firstValueAtAnyPath(template,
+            "$.sqlExecutionBinding.executionContext",
+            "$.executionBinding.executionContext",
+            "$.execution.executionContext",
+            "$.executionContext");
+        if (templateContext instanceof Map<?, ?> map) {
+            map.forEach((key, value) -> {
+                if (key != null && value != null) {
+                    executionContext.putIfAbsent(String.valueOf(key), value);
+                }
+            });
+        }
+        if (!executionContext.isEmpty()) {
+            arguments.put("executionContext", executionContext);
+        }
+        return arguments;
+    }
+
+    private boolean requiredTemplateParametersSatisfied(
+        Map<String, Object> template,
+        Map<String, Object> arguments
+    ) {
+        List<String> required = requiredTemplateParameters(template);
+        if (required.isEmpty()) {
+            return true;
+        }
+        Object parametersValue = arguments == null ? null : arguments.get("parameters");
+        if (!(parametersValue instanceof Map<?, ?> parameters)) {
+            return false;
+        }
+        return required.stream().allMatch(name -> {
+            Object value = parameters.get(name);
+            return value != null && !String.valueOf(value).isBlank();
+        });
+    }
+
+    private Boolean booleanObject(Object value) {
+        if (value instanceof Boolean flag) {
+            return flag;
+        }
+        if (value == null || String.valueOf(value).isBlank()) {
+            return null;
+        }
+        String normalized = String.valueOf(value).trim();
+        return "true".equalsIgnoreCase(normalized) ? Boolean.TRUE
+            : "false".equalsIgnoreCase(normalized) ? Boolean.FALSE
+            : null;
+    }
+
     private Map<String, Object> completedTemplateMetadataByToolName(Map<Integer, StepExecution> completed, String toolName) {
         if (completed == null || completed.isEmpty() || toolName == null || toolName.isBlank()) {
             return Map.of();
@@ -3232,10 +3564,6 @@ public class InterpretationPlanRuntime {
         Map<String, Object> context = existing instanceof Map<?, ?> map
             ? new LinkedHashMap<>((Map<String, Object>) map)
             : new LinkedHashMap<>();
-        if (hasUsableNonBlank(context, "assetName", "asset_name", "name")
-            && hasUsableNonBlank(context, "env", "environment")) {
-            return;
-        }
         Map<String, Object> assetContext = firstCompletedAssetExecutionContext(completed);
         if (assetContext.isEmpty()) {
             return;
@@ -3312,6 +3640,20 @@ public class InterpretationPlanRuntime {
             "$.assets[0].databaseRole",
             "$.asset.databaseRole",
             "$.databaseRole");
+        Object assetId = firstValueAtAnyPath(output,
+            "$.assets[0].asset.id",
+            "$.assets[0].asset.assetId",
+            "$.assets[0].assetId",
+            "$.asset.id",
+            "$.asset.assetId");
+        Object displayName = firstValueAtAnyPath(output,
+            "$.assets[0].asset.displayName",
+            "$.assets[0].displayName",
+            "$.asset.displayName");
+        Object assetToolName = firstValueAtAnyPath(output,
+            "$.assets[0].asset.toolName",
+            "$.assets[0].toolName",
+            "$.asset.toolName");
         if (assetName != null && !String.valueOf(assetName).isBlank()) {
             context.put("assetName", String.valueOf(assetName));
         }
@@ -3320,6 +3662,15 @@ public class InterpretationPlanRuntime {
         }
         if (databaseRole != null && !String.valueOf(databaseRole).isBlank()) {
             context.put("databaseRole", String.valueOf(databaseRole));
+        }
+        if (assetId != null && !String.valueOf(assetId).isBlank()) {
+            context.put("assetId", String.valueOf(assetId));
+        }
+        if (displayName != null && !String.valueOf(displayName).isBlank()) {
+            context.put("assetDisplayName", String.valueOf(displayName));
+        }
+        if (assetToolName != null && !String.valueOf(assetToolName).isBlank()) {
+            context.put("assetToolName", String.valueOf(assetToolName));
         }
         return context;
     }

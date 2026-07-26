@@ -62,6 +62,10 @@ public final class ToolCallBatchSchema {
                 "type", "string",
                 "description", "A registered SQL/SSH/API template executor from the Agent allow-list."
             ),
+            "emptyResultIsSuccess", Map.of(
+                "type", "boolean",
+                "description", "Template-declared evidence policy. True only when an empty result is a valid diagnostic outcome."
+            ),
             "arguments", Map.of(
                 "type", "object",
                 "description", "The normal authorized input schema for the selected child executor."

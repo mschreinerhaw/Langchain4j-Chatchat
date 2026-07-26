@@ -146,6 +146,92 @@ class DiagnosticRunTest {
     }
 
     @Test
+    void doesNotMarkMultipleChecksCompletedFromOneScalarExecutorResult() {
+        InterpretationPlan plan = plan(
+            List.of(
+                check("instance_status", "instance_status", "availability", 1, List.of(1)),
+                check("session_overview", "session_overview", "performance", 2, List.of(1)),
+                check("locks", "lock_overview", "performance", 3, List.of(1)),
+                check("system_events", "system_wait_events", "performance", 4, List.of(1)),
+                check("tablespace_size", "tablespace_usage", "capacity", 5, List.of(1))
+            ),
+            6
+        );
+
+        DiagnosticRun run = DiagnosticRun.evaluate(
+            plan,
+            List.of(execution(1, "sql_query_execute",
+                Map.of("rows", List.of(Map.of("INSTANCE_NAME", "oraclewind", "STATUS", "OPEN"))))),
+            Set.of(),
+            1
+        );
+
+        assertThat(run.coverage()).isEqualTo(new DiagnosticRun.Coverage(5, 0, 0, 5, 0.0));
+        assertThat(run.checks()).allSatisfy(check -> {
+            assertThat(check.status()).isEqualTo("missing");
+            assertThat(check.reason()).isEqualTo("no_check_specific_evidence");
+            assertThat(check.evidenceRefs()).isEmpty();
+        });
+    }
+
+    @Test
+    void completesSharedChecksOnlyFromTheirOrderedBatchChildEvidence() {
+        InterpretationPlan plan = plan(
+            List.of(
+                check("instance_status", "instance_status", "availability", 1, List.of(1)),
+                check("session_overview", "session_overview", "performance", 2, List.of(1)),
+                check("locks", "lock_overview", "performance", 3, List.of(1))
+            ),
+            4
+        );
+        Map<String, Object> output = Map.of("results", List.of(
+            Map.of("callId", "instance_status", "status", "SUCCESS", "output", Map.of("STATUS", "OPEN")),
+            Map.of("callId", "session_overview", "status", "SUCCESS", "output", Map.of("ACTIVE", 3)),
+            Map.of("callId", "locks", "status", "FAILED", "error", Map.of("message", "timeout"))
+        ));
+
+        DiagnosticRun run = DiagnosticRun.evaluate(
+            plan,
+            List.of(execution(1, "sql_query_execute", output)),
+            Set.of(),
+            1
+        );
+
+        assertThat(run.coverage()).isEqualTo(new DiagnosticRun.Coverage(3, 2, 1, 0, 0.667));
+        assertThat(run.checks()).extracting(DiagnosticRun.CheckResult::status)
+            .containsExactly("completed", "completed", "failed");
+    }
+
+    @Test
+    void creditsOnlyTheTemplateExplicitlyResolvedForASharedScalarStep() {
+        InterpretationPlan plan = plan(
+            List.of(
+                check("instance_status", "instance_status", "availability", 1, List.of(1)),
+                check("session_overview", "session_overview", "performance", 2, List.of(1))
+            ),
+            3
+        );
+        InterpretationPlanRuntime.StepExecution execution = new InterpretationPlanRuntime.StepExecution(
+            1,
+            "mcp_tool",
+            "sql_query_execute",
+            true,
+            Map.of("rows", List.of(Map.of("INSTANCE_NAME", "oraclewind", "STATUS", "OPEN"))),
+            null,
+            null,
+            null,
+            5,
+            Map.of("resolvedInput", Map.of("templateCode", "ORACLE_INSTANCE_STATUS"))
+        );
+
+        DiagnosticRun run = DiagnosticRun.evaluate(plan, List.of(execution), Set.of(), 1);
+
+        assertThat(run.coverage()).isEqualTo(new DiagnosticRun.Coverage(2, 1, 0, 1, 0.5));
+        assertThat(run.checks()).extracting(DiagnosticRun.CheckResult::status)
+            .containsExactly("completed", "missing");
+    }
+
+    @Test
     void optimizerPreservesAndRemapsDiagnosticStepReferences() {
         InterpretationPlan.DiagnosticProfile profile = new InterpretationPlan.DiagnosticProfile(
             "generic_health_check",

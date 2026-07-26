@@ -2,6 +2,7 @@ package com.chatchat.agents.runtime;
 
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
+import com.chatchat.agents.runtime.batch.ToolCallResult;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
@@ -9,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -1059,8 +1061,23 @@ class ToolRuntimeServiceTest {
         assertThat(result.summary().success()).isEqualTo(4);
         assertThat(result.summary().failed()).isEqualTo(1);
         assertThat(result.summary().remoteToolInvocations()).isEqualTo(5);
+        assertThat(result.summary().total()).isEqualTo(result.results().size()).isEqualTo(5);
+        assertThat(execution.audit())
+            .containsEntry("declaredCheckCount", 5)
+            .containsEntry("compiledCallCount", 5)
+            .containsEntry("executedCallCount", 5)
+            .containsEntry("resultCount", 5)
+            .containsEntry("batchResultCountConsistent", true);
         assertThat(result.results()).extracting(item -> item.callId())
             .containsExactly("instance", "sessions", "locks", "events", "tablespace");
+        assertThat(result.results()).extracting(item -> item.assetId())
+            .containsOnly("asset-a");
+        assertThat(result.results()).extracting(item -> item.assetDisplayName())
+            .containsOnly("Oracle DEV");
+        assertThat(result.results()).extracting(item -> item.assetToolName())
+            .containsOnly("db_query_oracle_dev");
+        assertThat(result.results()).extracting(item -> item.sequence())
+            .containsExactly(1, 2, 3, 4, 5);
         assertThat(executedTemplates).containsExactly(
             "ORACLE_INSTANCE_STATUS",
             "ORACLE_SESSION_OVERVIEW",
@@ -1068,6 +1085,144 @@ class ToolRuntimeServiceTest {
             "ORACLE_SYSTEM_EVENTS",
             "ORACLE_TABLESPACE_SIZE"
         );
+    }
+
+    @Test
+    void batchResultCannotClaimSuccessWhenDeclaredAndReturnedCountsDiffer() {
+        ToolCallBatchResult result = new ToolCallBatchResult(
+            "incomplete-batch",
+            "SEQUENTIAL",
+            "start",
+            "end",
+            "SUCCESS",
+            new ToolCallBatchResult.Summary(5, 1, 0, 0, 0, 1),
+            List.of(new ToolCallResult(
+                "instance_status",
+                "sql_query_execute",
+                "ORACLE_INSTANCE_STATUS",
+                "asset-a",
+                "SUCCESS",
+                10,
+                "evidence-1",
+                Map.of("STATUS", "OPEN"),
+                Map.of()
+            ))
+        );
+
+        assertThat(result.status()).isEqualTo("PARTIAL_SUCCESS");
+        assertThat(result.summary().total()).isEqualTo(5);
+        assertThat(result.results()).hasSize(1);
+    }
+
+    @Test
+    void compilationGapProducesExplicitNotExecutedResultAndCardinality() {
+        String toolName = "sql_query_execute";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName).title(toolName).categories(List.of("mcp")).build());
+        when(toolRegistry.executeEnhancedTool(any(), any()))
+            .thenReturn(ToolOutput.success(Map.of("ok", true)));
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), properties(), new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of());
+        List<Map<String, Object>> calls = List.of(
+            batchCall("instance_status", toolName, "ORACLE_INSTANCE_STATUS"),
+            batchCall("current_sessions", toolName, "ORACLE_SESSION_OVERVIEW"),
+            batchCall("lock_wait", toolName, "ORACLE_LOCKS"),
+            batchCall("system_wait_events", toolName, "ORACLE_SYSTEM_EVENTS")
+        );
+        Map<String, Object> attributes = Map.of(
+            "diagnosticRunId", "run-oracle",
+            "diagnosticDeclaredCheckCount", 5,
+            "diagnosticCompiledCallCount", 4,
+            "diagnosticMissingAuthorizedCheckIds", List.of("tablespace_usage")
+        );
+
+        ToolRuntimeExecution execution = service.execute(batchRequest(calls, false, attributes));
+        ToolCallBatchResult result = (ToolCallBatchResult) execution.output().getData();
+
+        assertThat(execution.output().isSuccess()).isTrue();
+        assertThat(result.status()).isEqualTo("BATCH_COMPILATION_INCOMPLETE");
+        assertThat(result.cardinality())
+            .isEqualTo(new ToolCallBatchResult.Cardinality(5, 4, 4, 4));
+        assertThat(result.results()).hasSize(5);
+        assertThat(result.results().get(4)).satisfies(missing -> {
+            assertThat(missing.callId()).isEqualTo("tablespace_usage");
+            assertThat(missing.checkId()).isEqualTo("tablespace_usage");
+            assertThat(missing.status()).isEqualTo("NOT_EXECUTED");
+            assertThat(missing.invoked()).isFalse();
+            assertThat(missing.error()).containsEntry("code", "AUTHORIZED_TEMPLATE_NOT_FOUND");
+        });
+    }
+
+    @Test
+    void diagnosticBatchRejectsDuplicateCallsMissingAssetAndCrossAssetMixing() {
+        String toolName = "sql_query_execute";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName).title(toolName).categories(List.of("mcp")).build());
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), properties(), new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of());
+        Map<String, Object> diagnostic = Map.of("diagnosticDeclaredCheckCount", 2);
+
+        ToolRuntimeExecution duplicate = service.execute(batchRequest(List.of(
+            batchCall("same", toolName, "ONE"),
+            batchCall("same", toolName, "TWO")
+        ), false, diagnostic));
+        ToolRuntimeExecution missingAsset = service.execute(batchRequest(List.of(
+            Map.of(
+                "callId", "one",
+                "toolName", toolName,
+                "arguments", Map.of("templateCode", "ONE")
+            )
+        ), false, Map.of("diagnosticDeclaredCheckCount", 1)));
+        ToolRuntimeExecution crossAsset = service.execute(batchRequest(List.of(
+            batchCall("one", toolName, "ONE"),
+            Map.of(
+                "callId", "two",
+                "toolName", toolName,
+                "arguments", Map.of(
+                    "templateCode", "TWO",
+                    "executionContext", Map.of("assetId", "asset-b")
+                )
+            )
+        ), false, diagnostic));
+
+        assertThat(duplicate.output().getExceptionType()).isEqualTo("BATCH_CALL_ID_INVALID");
+        assertThat(missingAsset.output().getExceptionType()).isEqualTo("BATCH_ASSET_ID_REQUIRED");
+        assertThat(crossAsset.output().getExceptionType()).isEqualTo("BATCH_ASSET_MISMATCH");
+        verify(toolRegistry, never()).executeEnhancedTool(any(), any());
+    }
+
+    @Test
+    void emptyDiagnosticResultUsesPerCheckTemplatePolicy() {
+        String toolName = "sql_query_execute";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName).title(toolName).categories(List.of("mcp")).build());
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.success(List.of()));
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), properties(), new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of());
+        Map<String, Object> emptyIsHealthy = new LinkedHashMap<>(batchCall("locks", toolName, "ORACLE_LOCKS"));
+        emptyIsHealthy.put("emptyResultIsSuccess", true);
+        Map<String, Object> emptyNeedsRows =
+            new LinkedHashMap<>(batchCall("sessions", toolName, "ORACLE_SESSION_OVERVIEW"));
+        emptyNeedsRows.put("emptyResultIsSuccess", false);
+
+        ToolRuntimeExecution execution = service.execute(batchRequest(
+            List.of(emptyIsHealthy, emptyNeedsRows),
+            false,
+            Map.of("diagnosticDeclaredCheckCount", 2)
+        ));
+        ToolCallBatchResult result = (ToolCallBatchResult) execution.output().getData();
+
+        assertThat(result.status()).isEqualTo("PARTIAL_SUCCESS");
+        assertThat(result.results()).extracting(ToolCallResult::status)
+            .containsExactly("SUCCESS", "RESULT_MISSING");
+        assertThat(result.results()).extracting(ToolCallResult::evidenceUsable)
+            .containsExactly(true, false);
     }
 
     @Test
@@ -1095,7 +1250,7 @@ class ToolRuntimeServiceTest {
         assertThat(result.summary().failed()).isEqualTo(1);
         assertThat(result.summary().skipped()).isEqualTo(2);
         assertThat(result.results()).extracting(item -> item.status())
-            .containsExactly("FAILED", "SKIPPED", "SKIPPED");
+            .containsExactly("FAILED", "NOT_EXECUTED", "NOT_EXECUTED");
         verify(toolRegistry, times(1)).executeEnhancedTool(any(), any());
     }
 
@@ -1121,7 +1276,7 @@ class ToolRuntimeServiceTest {
         assertThat(result.status()).isEqualTo("TIME_BUDGET_EXHAUSTED");
         assertThat(result.summary().remoteToolInvocations()).isZero();
         assertThat(result.results()).extracting(item -> item.status())
-            .containsExactly("TIME_BUDGET_EXHAUSTED", "SKIPPED");
+            .containsExactly("TIME_BUDGET_EXHAUSTED", "NOT_EXECUTED");
         verify(toolRegistry, never()).executeEnhancedTool(any(), any());
     }
 
@@ -1373,7 +1528,11 @@ class ToolRuntimeServiceTest {
             "callId", callId,
             "toolName", toolName,
             "arguments", Map.of(
-                "assetId", "asset-a",
+                "executionContext", Map.of(
+                    "assetId", "asset-a",
+                    "assetDisplayName", "Oracle DEV",
+                    "assetToolName", "db_query_oracle_dev"
+                ),
                 "templateCode", templateCode
             )
         );

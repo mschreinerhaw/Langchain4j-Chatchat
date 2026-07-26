@@ -5049,8 +5049,8 @@ class InterpretationPlanRuntimeTest {
             "SUCCESS",
             new ToolCallBatchResult.Summary(2, 2, 0, 0, 0, 2),
             List.of(
-                new ToolCallResult("one", toolName, "ONE", "SUCCESS", 10, "e-1", Map.of("ok", true), Map.of()),
-                new ToolCallResult("two", toolName, "TWO", "SUCCESS", 10, "e-2", Map.of("ok", true), Map.of())
+                new ToolCallResult("one", toolName, "ONE", "asset-a", "SUCCESS", 10, "e-1", Map.of("ok", true), Map.of()),
+                new ToolCallResult("two", toolName, "TWO", "asset-a", "SUCCESS", 10, "e-2", Map.of("ok", true), Map.of())
             )
         );
         ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
@@ -5102,6 +5102,158 @@ class InterpretationPlanRuntimeTest {
         assertThat(result.steps().get(0).metadata())
             .containsEntry("toolResultReviewSkipped", true)
             .containsEntry("batchExecution", true);
+    }
+
+    @Test
+    void compilesSharedDiagnosticExecutorIntoFiveAuditableTemplateCalls() {
+        String discoveryTool = "database_ops_template_search";
+        String executorTool = "sql_query_execute";
+        List<String> templateIds = List.of(
+            "ORACLE_INSTANCE_STATUS",
+            "ORACLE_SESSION_OVERVIEW",
+            "ORACLE_LOCKS",
+            "ORACLE_SYSTEM_EVENTS",
+            "ORACLE_TABLESPACE_SIZE"
+        );
+        java.util.ArrayList<Map<String, Object>> templates = new java.util.ArrayList<>(templateIds.stream()
+            .map(templateId -> Map.<String, Object>of(
+                "templateId", templateId,
+                "parameterSchema", Map.of("type", "object", "required", List.of()),
+                "sqlExecutionBinding", Map.of(
+                    "toolName", executorTool,
+                    "templateId", templateId,
+                    "executionContext", Map.of("assetId", "asset-oracle-dev")
+                )
+            ))
+            .toList());
+        templates.add(0, Map.of(
+            "templateId", "ORACLE_TABLESPACE_SIZE_OTHER_ASSET",
+            "parameterSchema", Map.of("type", "object", "required", List.of()),
+            "sqlExecutionBinding", Map.of(
+                "toolName", executorTool,
+                "templateId", "ORACLE_TABLESPACE_SIZE_OTHER_ASSET",
+                "executionContext", Map.of("assetId", "asset-other")
+            )
+        ));
+
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(discoveryTool)).thenReturn(true);
+        when(toolRegistry.hasTool(executorTool)).thenReturn(true);
+        when(toolRegistry.getToolMetadata(discoveryTool))
+            .thenReturn(ToolMetadata.builder().id(discoveryTool).riskLevel("low").build());
+        when(toolRegistry.getToolMetadata(executorTool))
+            .thenReturn(ToolMetadata.builder().id(executorTool).riskLevel("low").build());
+
+        java.util.ArrayList<ToolRuntimeRequest> requests = new java.util.ArrayList<>();
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest request = invocation.getArgument(0);
+            requests.add(request);
+            if (discoveryTool.equals(request.getToolName())) {
+                return new ToolRuntimeExecution(
+                    ToolOutput.success(Map.of("templates", templates)),
+                    ToolMetadata.builder().id(discoveryTool).build(),
+                    null,
+                    "success",
+                    Map.of("remoteToolInvoked", true)
+                );
+            }
+            List<ToolCallResult> results = templateIds.stream()
+                .map(templateId -> new ToolCallResult(
+                    templateId.toLowerCase(), executorTool, templateId, "asset-oracle-dev", "SUCCESS",
+                    1, "evidence-" + templateId, Map.of("ok", true), Map.of()
+                ))
+                .toList();
+            return new ToolRuntimeExecution(
+                ToolOutput.success(new ToolCallBatchResult(
+                    "diagnostic-step-2", "SEQUENTIAL", "start", "end", "SUCCESS",
+                    new ToolCallBatchResult.Summary(5, 5, 0, 0, 0, 5),
+                    results
+                )),
+                ToolMetadata.builder().id(executorTool).build(),
+                null,
+                "success",
+                Map.of("batchExecution", true, "remoteToolInvocationCount", 5)
+            );
+        });
+
+        List<InterpretationPlan.DiagnosticCheck> checks = List.of(
+            new InterpretationPlan.DiagnosticCheck("instance_status", "instance_status", "availability", true, 1, List.of(2)),
+            new InterpretationPlan.DiagnosticCheck("current_sessions", "session_info", "concurrency", true, 2, List.of(2)),
+            new InterpretationPlan.DiagnosticCheck("lock_wait", "lock_wait", "concurrency", true, 3, List.of(2)),
+            new InterpretationPlan.DiagnosticCheck("system_wait_events", "system_wait_events", "performance", true, 4, List.of(2)),
+            new InterpretationPlan.DiagnosticCheck("tablespace_usage", "tablespace_usage", "capacity", true, 5, List.of(2))
+        );
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("database_health", "check oracle health", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(
+                        1, "mcp_tool", discoveryTool, Map.of("query", "oracle health"),
+                        List.of(), null, null
+                    ),
+                    new InterpretationPlan.Step(
+                        2, "mcp_tool", executorTool,
+                        Map.of(
+                            "templateId", "ORACLE_INSTANCE_STATUS",
+                            "template", "ORACLE_INSTANCE_STATUS",
+                            "executionContext", Map.of(
+                                "assetId", "asset-oracle-dev",
+                                "assetName", "oracle-dev",
+                                "env", "DEV"
+                            ),
+                            "parameters", Map.of()
+                        ),
+                        List.of(1), null, null
+                    ),
+                    new InterpretationPlan.Step(
+                        3, "final_answer", "", Map.of("answer", "done"),
+                        List.of(2), null, null
+                    )
+                ),
+                List.of(),
+                List.of(),
+                List.of(),
+                null,
+                new InterpretationPlan.DiagnosticProfile("oracle_health", "database", checks)
+            ),
+            new InterpretationPlan.ExecutionPolicy(
+                3, false, List.of(discoveryTool, executorTool), List.of(), 30_000
+            ),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, toolRegistry, List.of(discoveryTool, executorTool),
+                "tenant", "request-diagnostic-batch", "conversation", "user", Map.of()
+            )
+        );
+
+        assertThat(result.success())
+            .as("status=%s error=%s metadata=%s steps=%s",
+                result.status(), result.errorMessage(), result.metadata(), result.steps())
+            .isTrue();
+        ToolRuntimeRequest batchRequest = requests.stream()
+            .filter(request -> executorTool.equals(request.getToolName()))
+            .findFirst()
+            .orElseThrow();
+        assertThat(batchRequest.getToolInput().getParameters())
+            .containsEntry("executionMode", "SEQUENTIAL");
+        assertThat((List<?>) batchRequest.getToolInput().getParameters().get("calls")).hasSize(5);
+        assertThat((List<Map<String, Object>>) batchRequest.getToolInput().getParameters().get("calls"))
+            .extracting(call -> call.get("callId"))
+            .containsExactly("instance_status", "current_sessions", "lock_wait", "system_wait_events", "tablespace_usage");
+        assertThat((List<Map<String, Object>>) batchRequest.getToolInput().getParameters().get("calls"))
+            .extracting(call -> String.valueOf(((Map<?, ?>) call.get("arguments")).get("templateId")))
+            .containsExactlyElementsOf(templateIds);
     }
 
     private InterpretationPlan.Context context() {

@@ -1843,6 +1843,8 @@ public class AgentOrchestrator {
         prompt.append("- Resolve conflicts explicitly. If three iterations still leave a material gap, report that gap instead of filling it with model knowledge.\n");
         prompt.append("- Do not hide earlier partial or failed attempts when they contain usable evidence. State unresolved limitations after considering all attempts.\n");
         prompt.append("- When diagnosticRun is present, report required/completed/failed/missing counts and the coverage ratio. List missing checks with their exact runtime reason.\n");
+        prompt.append("- A missing diagnostic child with no ToolCallResult is NOT_EXECUTED. Do not speculate that it timed out, hit resource contention, lacked permissions, or failed remotely unless a child result explicitly records that status/reason.\n");
+        prompt.append("- Do not recommend manual one-by-one execution as the product solution when an ordered runtime batch is expected. Report the missing batch dispatch/evidence and recommend repairing or retrying the batch workflow.\n");
         prompt.append("- diagnosticRun assessment scores are authoritative only when non-null. Never convert tool success, OPEN/running state, capacity size, or coverage ratio into a missing health score.\n");
         prompt.append("- If diagnosticRun.assessment.overall_status=INSUFFICIENT_EVIDENCE, state that the overall health/performance risk cannot yet be assessed even if individual availability evidence is positive.\n");
         prompt.append("- Use each step's review reason as the premise for later steps.\n");

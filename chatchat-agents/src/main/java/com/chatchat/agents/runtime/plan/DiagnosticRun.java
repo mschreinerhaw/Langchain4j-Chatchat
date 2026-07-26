@@ -16,7 +16,9 @@ import java.util.Set;
  * Evidence coverage and assessment snapshot for a diagnostic InterpretationPlan.
  *
  * <p>The runtime only aggregates explicit plan/check mappings and structured assessment values
- * returned by tools. It never derives a health score from template names or domain keywords.</p>
+ * returned by tools. A step shared by multiple checks requires check-specific execution evidence;
+ * step success alone cannot inflate coverage. It never derives a health score from template names
+ * or domain keywords.</p>
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record DiagnosticRun(
@@ -56,6 +58,7 @@ public record DiagnosticRun(
         boolean planBudgetSaturated = plan.executionPolicy() != null
             && plan.executionPolicy().maxSteps() != null
             && plan.steps().size() >= plan.executionPolicy().maxSteps();
+        Map<Integer, Integer> mappedCheckCounts = mappedCheckCounts(profile.checks(), plannedSteps);
         List<CheckResult> results = profile.checks().stream()
             .filter(check -> check != null && hasText(check.checkId()))
             .sorted(Comparator.comparingInt(check -> check.priority() == null ? Integer.MAX_VALUE : check.priority()))
@@ -65,7 +68,8 @@ public record DiagnosticRun(
                 executedSteps,
                 remainingStepIds == null ? Set.of() : remainingStepIds,
                 planBudgetSaturated,
-                Math.max(1, evidenceIteration)
+                Math.max(1, evidenceIteration),
+                mappedCheckCounts
             ))
             .toList();
 
@@ -92,7 +96,8 @@ public record DiagnosticRun(
         Map<Integer, InterpretationPlanRuntime.StepExecution> executedSteps,
         Set<Integer> remainingStepIds,
         boolean planBudgetSaturated,
-        int evidenceIteration
+        int evidenceIteration,
+        Map<Integer, Integer> mappedCheckCounts
     ) {
         Set<Integer> mappedStepIds = new LinkedHashSet<>();
         if (check.stepIds() != null) {
@@ -105,9 +110,13 @@ public record DiagnosticRun(
                 .forEach(mappedStepIds::add);
         }
 
-        List<InterpretationPlanRuntime.StepExecution> evidenceSteps = mappedStepIds.stream()
+        List<InterpretationPlanRuntime.StepExecution> executedMappedSteps = mappedStepIds.stream()
             .map(executedSteps::get)
             .filter(execution -> execution != null)
+            .toList();
+        List<InterpretationPlanRuntime.StepExecution> evidenceSteps = executedMappedSteps.stream()
+            .filter(execution -> mappedCheckCounts.getOrDefault(execution.stepId(), 0) <= 1
+                || checkEvidenceState(execution, check) != CheckEvidenceState.UNKNOWN)
             .toList();
         List<String> evidenceRefs = evidenceSteps.stream()
             .map(execution -> evidenceRef(evidenceIteration, execution))
@@ -115,22 +124,33 @@ public record DiagnosticRun(
 
         String status;
         String reason = null;
-        if (evidenceSteps.stream().anyMatch(execution -> !execution.success())) {
+        if (executedMappedSteps.stream().anyMatch(execution -> !execution.success())
+            || evidenceSteps.stream().anyMatch(execution -> checkEvidenceState(execution, check) == CheckEvidenceState.FAILED)) {
             status = "failed";
-            reason = evidenceSteps.stream()
+            reason = executedMappedSteps.stream()
                 .filter(execution -> !execution.success())
                 .map(InterpretationPlanRuntime.StepExecution::errorMessage)
                 .filter(DiagnosticRun::hasText)
                 .findFirst()
-                .orElse("diagnostic_step_failed");
-        } else if (!mappedStepIds.isEmpty() && evidenceSteps.size() == mappedStepIds.size()) {
+                .orElse("diagnostic_check_failed");
+        } else if (!mappedStepIds.isEmpty()
+            && evidenceSteps.size() == mappedStepIds.size()
+            && evidenceSteps.stream().allMatch(execution ->
+                mappedCheckCounts.getOrDefault(execution.stepId(), 0) <= 1
+                    || checkEvidenceState(execution, check) == CheckEvidenceState.SUCCESS)) {
             status = "completed";
         } else {
             status = "missing";
             boolean mappedButRemaining = mappedStepIds.stream().anyMatch(remainingStepIds::contains);
             reason = planBudgetSaturated && (mappedStepIds.isEmpty() || mappedButRemaining)
                 ? "execution_budget_exhausted"
-                : mappedStepIds.isEmpty() ? "no_matching_step" : "not_executed";
+                : mappedStepIds.isEmpty() ? "no_matching_step"
+                : executedMappedSteps.size() == mappedStepIds.size()
+                    ? evidenceSteps.stream().anyMatch(execution ->
+                        checkEvidenceState(execution, check) == CheckEvidenceState.NOT_EXECUTED)
+                        ? "not_executed"
+                        : "no_check_specific_evidence"
+                    : "not_executed";
         }
 
         ExplicitAssessment explicit = explicitAssessment(check.dimension(), evidenceSteps);
@@ -147,6 +167,123 @@ public record DiagnosticRun(
             explicit.score(),
             explicit.confidence()
         );
+    }
+
+    private static Map<Integer, Integer> mappedCheckCounts(
+        List<InterpretationPlan.DiagnosticCheck> checks,
+        Map<Integer, InterpretationPlan.Step> plannedSteps
+    ) {
+        Map<Integer, Integer> counts = new LinkedHashMap<>();
+        for (InterpretationPlan.DiagnosticCheck check : checks == null ? List.<InterpretationPlan.DiagnosticCheck>of() : checks) {
+            if (check == null) {
+                continue;
+            }
+            Set<Integer> ids = new LinkedHashSet<>();
+            if (check.stepIds() != null) {
+                check.stepIds().stream().filter(plannedSteps::containsKey).forEach(ids::add);
+            }
+            if (ids.isEmpty()) {
+                plannedSteps.values().stream()
+                    .filter(step -> stepMatchesCheck(step, check))
+                    .map(InterpretationPlan.Step::id)
+                    .forEach(ids::add);
+            }
+            ids.forEach(id -> counts.merge(id, 1, Integer::sum));
+        }
+        return counts;
+    }
+
+    private static CheckEvidenceState checkEvidenceState(
+        InterpretationPlanRuntime.StepExecution execution,
+        InterpretationPlan.DiagnosticCheck check
+    ) {
+        if (execution == null || !execution.success()) {
+            return CheckEvidenceState.FAILED;
+        }
+        if (matchesCheckIdentity(execution.metadata() == null ? null : execution.metadata().get("resolvedInput"), check)
+            || matchesCheckIdentity(execution.output(), check)) {
+            return CheckEvidenceState.SUCCESS;
+        }
+        Object results = property(execution.output(), "results");
+        if (results instanceof Iterable<?> children) {
+            for (Object child : children) {
+                if (!matchesCheckIdentity(child, check)) {
+                    continue;
+                }
+                String childStatus = textProperty(child, "status");
+                String evidenceUsable = textProperty(child, "evidenceUsable");
+                if ("NOT_EXECUTED".equalsIgnoreCase(childStatus)
+                    || "SKIPPED".equalsIgnoreCase(childStatus)
+                    || "TIME_BUDGET_EXHAUSTED".equalsIgnoreCase(childStatus)
+                    || "RESULT_MISSING".equalsIgnoreCase(childStatus)
+                    || "false".equalsIgnoreCase(evidenceUsable)) {
+                    return CheckEvidenceState.NOT_EXECUTED;
+                }
+                return childStatus == null
+                    || "SUCCESS".equalsIgnoreCase(childStatus)
+                    || "COMPLETED".equalsIgnoreCase(childStatus)
+                    ? CheckEvidenceState.SUCCESS
+                    : CheckEvidenceState.FAILED;
+            }
+        }
+        return CheckEvidenceState.UNKNOWN;
+    }
+
+    private static boolean matchesCheckIdentity(Object value, InterpretationPlan.DiagnosticCheck check) {
+        if (value == null || check == null) {
+            return false;
+        }
+        String identity = firstObjectText(value,
+            "diagnosticCheckId", "diagnostic_check_id", "checkId", "check_id", "callId", "call_id");
+        if (sameToken(check.checkId(), identity)) {
+            return true;
+        }
+        String capability = firstObjectText(value,
+            "diagnosticCapability", "diagnostic_capability", "capability");
+        if (sameToken(check.capability(), capability)) {
+            return true;
+        }
+        String template = firstObjectText(value,
+            "templateCode", "template_code", "templateId", "template_id", "template");
+        return semanticTemplateMatch(template, check.checkId())
+            || semanticTemplateMatch(template, check.capability());
+    }
+
+    private static boolean semanticTemplateMatch(String template, String semanticCheck) {
+        String templateToken = canonical(template);
+        String checkToken = canonical(semanticCheck);
+        return templateToken.length() >= 6
+            && checkToken.length() >= 6
+            && (templateToken.endsWith(checkToken) || checkToken.endsWith(templateToken));
+    }
+
+    private static String firstObjectText(Object value, String... keys) {
+        for (String key : keys) {
+            String text = textProperty(value, key);
+            if (hasText(text)) {
+                return text;
+            }
+        }
+        return null;
+    }
+
+    private static String textProperty(Object value, String key) {
+        Object property = property(value, key);
+        return property == null ? null : String.valueOf(property).trim();
+    }
+
+    private static Object property(Object value, String key) {
+        if (value instanceof Map<?, ?> map) {
+            return map.get(key);
+        }
+        if (value == null || key == null || key.isBlank()) {
+            return null;
+        }
+        try {
+            return value.getClass().getMethod(key).invoke(value);
+        } catch (ReflectiveOperationException ignored) {
+            return null;
+        }
     }
 
     private static boolean stepMatchesCheck(InterpretationPlan.Step step,
@@ -364,6 +501,20 @@ public record DiagnosticRun(
         Double score,
         Double confidence
     ) {
+        @JsonProperty("execution_state")
+        public String executionState() {
+            if ("completed".equals(status)) {
+                return "SUCCESS";
+            }
+            if ("failed".equals(status)) {
+                String normalizedReason = reason == null ? "" : reason.toLowerCase(Locale.ROOT);
+                return normalizedReason.contains("blocked") ? "BLOCKED" : "FAILED";
+            }
+            if ("no_matching_step".equals(reason)) {
+                return "PLANNED";
+            }
+            return "NOT_EXECUTED";
+        }
     }
 
     public record Coverage(
@@ -396,5 +547,12 @@ public record DiagnosticRun(
     }
 
     private record ExplicitAssessment(Double score, Double confidence) {
+    }
+
+    private enum CheckEvidenceState {
+        SUCCESS,
+        FAILED,
+        NOT_EXECUTED,
+        UNKNOWN
     }
 }

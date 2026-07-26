@@ -5105,6 +5105,7 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     void compilesSharedDiagnosticExecutorIntoFiveAuditableTemplateCalls() {
         String discoveryTool = "database_ops_template_search";
         String executorTool = "sql_query_execute";
@@ -5131,8 +5132,7 @@ class InterpretationPlanRuntimeTest {
                 "parameterSchema", Map.of("type", "object", "required", List.of()),
                 "sqlExecutionBinding", Map.of(
                     "toolName", executorTool,
-                    "templateId", templateId,
-                    "executionContext", Map.of("assetId", "asset-oracle-dev")
+                    "templateId", templateId
                 )
             ))
             .toList());
@@ -5161,7 +5161,21 @@ class InterpretationPlanRuntimeTest {
             requests.add(request);
             if (discoveryTool.equals(request.getToolName())) {
                 return new ToolRuntimeExecution(
-                    ToolOutput.success(Map.of("templates", templates)),
+                    ToolOutput.success(Map.of(
+                        "queryIr", Map.of(
+                            "asset", Map.of(
+                                "scoped", true,
+                                "selected", Map.of(
+                                    "id", "asset-oracle-dev",
+                                    "name", "oracle-dev",
+                                    "title", "Oracle DEV",
+                                    "toolName", "db_query_oracle_dev",
+                                    "environment", "DEV"
+                                )
+                            )
+                        ),
+                        "templates", templates
+                    )),
                     ToolMetadata.builder().id(discoveryTool).build(),
                     null,
                     "success",
@@ -5212,7 +5226,6 @@ class InterpretationPlanRuntimeTest {
                             "templateId", "ORACLE_INSTANCE_STATUS",
                             "template", "ORACLE_INSTANCE_STATUS",
                             "executionContext", Map.of(
-                                "assetId", "asset-oracle-dev",
                                 "assetName", "oracle-dev",
                                 "env", "DEV"
                             ),
@@ -5266,6 +5279,18 @@ class InterpretationPlanRuntimeTest {
         assertThat((List<Map<String, Object>>) batchRequest.getToolInput().getParameters().get("calls"))
             .extracting(call -> String.valueOf(((Map<?, ?>) call.get("arguments")).get("templateId")))
             .containsExactlyElementsOf(templateIds);
+        assertThat((List<Map<String, Object>>) batchRequest.getToolInput().getParameters().get("calls"))
+            .allSatisfy(call -> {
+                Map<?, ?> arguments = (Map<?, ?>) call.get("arguments");
+                Map<String, Object> executionContext =
+                    (Map<String, Object>) arguments.get("executionContext");
+                assertThat(executionContext)
+                    .containsEntry("assetId", "asset-oracle-dev")
+                    .containsEntry("assetName", "oracle-dev")
+                    .containsEntry("assetDisplayName", "Oracle DEV")
+                    .containsEntry("assetToolName", "db_query_oracle_dev")
+                    .containsEntry("env", "DEV");
+            });
     }
 
     private InterpretationPlan.Context context() {

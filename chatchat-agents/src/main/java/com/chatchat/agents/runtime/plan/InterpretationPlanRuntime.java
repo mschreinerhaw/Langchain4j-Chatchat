@@ -2391,7 +2391,14 @@ public class InterpretationPlanRuntime {
             return null;
         }
 
-        String targetAssetId = contextText(input, "assetId", "asset_id");
+        Map<String, Object> batchInput = new LinkedHashMap<>(input == null ? Map.of() : input);
+        hydrateDiagnosticBatchAssetContext(completed, batchInput);
+        String targetAssetId = contextText(batchInput, "assetId", "asset_id");
+        if (targetAssetId == null || targetAssetId.isBlank()) {
+            throw new IllegalStateException(
+                "DIAGNOSTIC_CANONICAL_ASSET_ID_REQUIRED: authorized diagnostic batch compilation "
+                    + "requires the canonical asset id returned by asset or template discovery");
+        }
         List<Map<String, Object>> templates = new ArrayList<>();
         for (StepExecution execution : completed.values()) {
             if (execution == null || !execution.success() || !isTemplateDiscoveryTool(execution.toolName())) {
@@ -2429,7 +2436,7 @@ public class InterpretationPlanRuntime {
             Map<String, Object> template = templates.get(matchIndex);
             String templateId = canonicalTemplateId(template);
             String childTool = resolveExecutionToolName(templateExecutorTool(template), allowedTools);
-            Map<String, Object> arguments = diagnosticBatchArguments(input, template, templateId);
+            Map<String, Object> arguments = diagnosticBatchArguments(batchInput, template, templateId);
             if (templateId == null || childTool == null || !requiredTemplateParametersSatisfied(template, arguments)) {
                 continue;
             }
@@ -2469,6 +2476,94 @@ public class InterpretationPlanRuntime {
             step.id(), checks.size(), calls.size(),
             calls.stream().map(call -> call.get("callId")).toList(), missingCheckIds);
         return new TemplateExecutorInvocation(outerTool, batch);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void hydrateDiagnosticBatchAssetContext(Map<Integer, StepExecution> completed,
+                                                    Map<String, Object> input) {
+        if (completed == null || completed.isEmpty() || input == null) {
+            return;
+        }
+        Object existing = firstMapValue(input, "executionContext", "mcpExecutionContext");
+        Map<String, Object> context = existing instanceof Map<?, ?> map
+            ? new LinkedHashMap<>((Map<String, Object>) map)
+            : new LinkedHashMap<>();
+        Map<String, Object> assetDiscoveryContext = firstCompletedAssetExecutionContext(completed);
+        Map<String, Object> templateDiscoveryContext =
+            firstCompletedTemplateAssetExecutionContext(completed);
+        String assetDiscoveryId = stringValue(assetDiscoveryContext.get("assetId"));
+        String templateDiscoveryId = stringValue(templateDiscoveryContext.get("assetId"));
+        if (assetDiscoveryId != null && templateDiscoveryId != null
+            && !assetDiscoveryId.equals(templateDiscoveryId)) {
+            throw new IllegalStateException(
+                "DIAGNOSTIC_ASSET_CONTEXT_MISMATCH: asset discovery and authorized template "
+                    + "discovery resolved different canonical assets");
+        }
+        Map<String, Object> discovered = assetDiscoveryContext.isEmpty()
+            ? templateDiscoveryContext
+            : assetDiscoveryContext;
+        String canonicalAssetId = stringValue(discovered.get("assetId"));
+        String suppliedAssetId = contextText(Map.of("executionContext", context), "assetId", "asset_id");
+        if (canonicalAssetId != null && suppliedAssetId != null
+            && !canonicalAssetId.equals(suppliedAssetId)) {
+            throw new IllegalStateException(
+                "DIAGNOSTIC_ASSET_CONTEXT_MISMATCH: planned executionContext.assetId does not "
+                    + "match the canonical asset returned by discovery");
+        }
+        discovered.forEach((key, value) -> putIfAbsentOrPlaceholder(context, key, value));
+        if (canonicalAssetId != null) {
+            context.put("assetId", canonicalAssetId);
+        }
+        if (!context.isEmpty()) {
+            input.put("executionContext", context);
+        }
+    }
+
+    private Map<String, Object> firstCompletedTemplateAssetExecutionContext(
+        Map<Integer, StepExecution> completed
+    ) {
+        for (StepExecution execution : completed.values()) {
+            if (execution == null || !execution.success() || !isTemplateDiscoveryTool(execution.toolName())) {
+                continue;
+            }
+            Map<String, Object> context = templateDiscoveryAssetExecutionContext(execution.output());
+            if (!context.isEmpty()) {
+                return context;
+            }
+        }
+        return Map.of();
+    }
+
+    private Map<String, Object> templateDiscoveryAssetExecutionContext(Object output) {
+        Object scoped = firstValueAtAnyPath(output, "$.queryIr.asset.scoped");
+        if (!Boolean.TRUE.equals(booleanValue(scoped))) {
+            return Map.of();
+        }
+        Map<String, Object> context = new LinkedHashMap<>();
+        putIfPresent(context, "assetId", firstValueAtAnyPath(output,
+            "$.queryIr.asset.selected.id",
+            "$.queryIr.asset.selected.assetId"));
+        putIfPresent(context, "assetName", firstValueAtAnyPath(output,
+            "$.queryIr.asset.selected.name",
+            "$.queryIr.asset.selected.displayName",
+            "$.queryIr.asset.selected.title"));
+        putIfPresent(context, "assetDisplayName", firstValueAtAnyPath(output,
+            "$.queryIr.asset.selected.title",
+            "$.queryIr.asset.selected.displayName",
+            "$.queryIr.asset.selected.name"));
+        putIfPresent(context, "assetToolName", firstValueAtAnyPath(output,
+            "$.queryIr.asset.selected.toolName",
+            "$.queryIr.asset.selected.tool_name"));
+        putIfPresent(context, "env", firstValueAtAnyPath(output,
+            "$.queryIr.asset.selected.environment",
+            "$.queryIr.asset.selected.env"));
+        return context.containsKey("assetId") ? context : Map.of();
+    }
+
+    private void putIfPresent(Map<String, Object> target, String key, Object value) {
+        if (target != null && key != null && value != null && !String.valueOf(value).isBlank()) {
+            target.put(key, String.valueOf(value));
+        }
     }
 
     private String templateExecutorTool(Map<String, Object> template) {

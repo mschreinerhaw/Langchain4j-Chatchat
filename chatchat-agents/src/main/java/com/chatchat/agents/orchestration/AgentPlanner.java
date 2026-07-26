@@ -2586,13 +2586,15 @@ class AgentPlanner {
         if (semantic.contains("search_and_extract")) {
             return "search_and_extract";
         }
-        if ("asset_query".equals(semantic) || "asset_discovery".equals(semantic)) {
+        if ("asset_query".equals(semantic)
+            || "asset_search".equals(semantic)
+            || "asset_discovery".equals(semantic)) {
             return "asset_discovery";
         }
         if ("template_query".equals(semantic) || "template_discovery".equals(semantic)) {
             return "template_discovery";
         }
-        if (semantic.endsWith("_asset_query")) {
+        if (semantic.endsWith("_asset_query") || semantic.endsWith("_asset_search")) {
             return "asset_discovery";
         }
         if (semantic.endsWith("_template_query") || semantic.endsWith("_template_search")) {
@@ -2609,11 +2611,14 @@ class AgentPlanner {
             String semantic = toolSemanticKey(availableTool);
             if (semanticToolName.equals(semantic)
                 || ("asset_discovery".equals(semanticToolName) && "asset_query".equals(semantic))
+                || ("asset_discovery".equals(semanticToolName) && "asset_search".equals(semantic))
                 || ("template_discovery".equals(semanticToolName) && "template_query".equals(semantic))
                 || ("asset_discovery".equals(semanticToolName) && semantic.endsWith("_asset_query"))
+                || ("asset_discovery".equals(semanticToolName) && semantic.endsWith("_asset_search"))
                 || ("template_discovery".equals(semanticToolName) && semantic.endsWith("_template_query"))
                 || ("template_discovery".equals(semanticToolName) && semantic.endsWith("_template_search"))
                 || ("asset_query".equals(semanticToolName) && semantic.endsWith("_asset_query"))
+                || ("asset_query".equals(semanticToolName) && semantic.endsWith("_asset_search"))
                 || ("template_query".equals(semanticToolName) && semantic.endsWith("_template_query"))
                 || ("template_query".equals(semanticToolName) && semantic.endsWith("_template_search"))) {
                 return availableTool;
@@ -2651,7 +2656,9 @@ class AgentPlanner {
     private boolean isAssetDiscoverySemantic(String semantic) {
         return "asset_discovery".equals(semantic)
             || "asset_query".equals(semantic)
-            || (semantic != null && semantic.endsWith("_asset_query"));
+            || "asset_search".equals(semantic)
+            || (semantic != null
+                && (semantic.endsWith("_asset_query") || semantic.endsWith("_asset_search")));
     }
 
     private boolean isTemplateDiscoverySemantic(String semantic) {

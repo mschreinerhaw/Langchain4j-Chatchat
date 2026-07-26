@@ -680,6 +680,99 @@ class AgentPlannerTest {
     }
 
     @Test
+    void acceptsDatabaseAssetSearchAsTypedAssetDiscovery() throws Exception {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        List<String> requiredTools = List.of(
+            "mcp_chatchat_mcp_server_database_asset_search",
+            "mcp_chatchat_mcp_server_database_ops_template_search",
+            "mcp_chatchat_mcp_server_sql_query_execute"
+        );
+        PlannerValidationContext context = new PlannerValidationContext(
+            requiredTools,
+            true,
+            false,
+            null,
+            null,
+            requiredTools,
+            "分析 DEV 环境风控 Oracle 数据库健康状态"
+        );
+        String raw = """
+            {
+              "version": "1.0",
+              "intent": {"type": "tool_chain", "goal": "分析 DEV 环境风控 Oracle 数据库健康状态", "risk_level": "low"},
+              "context": {
+                "key_facts": ["目标环境：DEV"],
+                "assumptions": ["DEV 环境中存在已注册的 Oracle 风控数据库资产"],
+                "missing_info": ["具体资产名称尚待发现"],
+                "constraints": ["只能使用已注册的只读模板"]
+              },
+              "plan": {
+                "steps": [
+                  {
+                    "id": 1,
+                    "action_type": "mcp_tool",
+                    "tool_name": "mcp_chatchat_mcp_server_database_asset_search",
+                    "input": {"filters": {"env": "DEV", "intent": "风控 Oracle"}, "limit": 10},
+                    "depends_on": []
+                  },
+                  {
+                    "id": 2,
+                    "action_type": "mcp_tool",
+                    "tool_name": "mcp_chatchat_mcp_server_database_ops_template_search",
+                    "input": {"filters": {"env": "DEV", "intent": "Oracle health check"}, "limit": 10},
+                    "depends_on": [1]
+                  },
+                  {
+                    "id": 3,
+                    "action_type": "mcp_tool",
+                    "tool_name": "mcp_chatchat_mcp_server_sql_query_execute",
+                    "input": {"parameters": {}},
+                    "depends_on": [1, 2]
+                  },
+                  {
+                    "id": 4,
+                    "action_type": "final_answer",
+                    "tool_name": "",
+                    "input": {"answer": "after tools"},
+                    "depends_on": [3]
+                  }
+                ],
+                "edge_contracts": [
+                  {"from": 1, "to": 2, "field": "assets[0].asset.name", "type": "string", "required": true},
+                  {"from": 1, "to": 3, "field": "assets[0].asset.name", "type": "string", "required": true},
+                  {"from": 2, "to": 3, "field": "templates[0].templateId", "type": "string", "required": true}
+                ],
+                "bindings": [
+                  {"from": 1, "output_path": "$.assets[0].asset.name", "to": 2, "input_field": "filters.assetName", "type": "jsonpath", "required": true},
+                  {"from": 1, "output_path": "$.assets[0].asset.name", "to": 3, "input_field": "executionContext.assetName", "type": "jsonpath", "required": true},
+                  {"from": 2, "output_path": "$.templates[0].templateId", "to": 3, "input_field": "template", "type": "jsonpath", "required": true}
+                ]
+              },
+              "execution_policy": {
+                "max_steps": 4,
+                "allow_tool": [
+                  "mcp_chatchat_mcp_server_database_asset_search",
+                  "mcp_chatchat_mcp_server_database_ops_template_search",
+                  "mcp_chatchat_mcp_server_sql_query_execute"
+                ],
+                "fallback_mode": "partial_result"
+              },
+              "review": {"self_check": {"tool_sufficiency": false, "missing_steps": []}, "fallback_plan": []}
+            }
+            """;
+
+        Method parseDecision = AgentPlanner.class.getDeclaredMethod(
+            "parseDecision", String.class, PlannerValidationContext.class);
+        parseDecision.setAccessible(true);
+        AgentDecision decision = (AgentDecision) parseDecision.invoke(planner, raw, context);
+
+        assertThat(decision.action()).isEqualTo("tool");
+        assertThat((List<?>) decision.executionPlan().get("interpretationPlanRuntimeIssues"))
+            .noneSatisfy(issue -> assertThat(String.valueOf(issue))
+                .contains("plan context must not assume assetName/env/datasource"));
+    }
+
+    @Test
     void normalizesCompoundContextStringAsExactAssetName() throws Exception {
         AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
         List<String> requiredTools = List.of("mcp_chatchat_mcp_server_asset_query");

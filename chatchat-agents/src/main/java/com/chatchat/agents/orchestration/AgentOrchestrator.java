@@ -1570,6 +1570,8 @@ public class AgentOrchestrator {
         prompt.append("- When the selected template declares parameters, extract only values supported by the current User query and return them in parameter_protocols using template_parameter_protocol_v1. Use the exact declared parameter names and exact discovered template_id.\n");
         prompt.append("- Every model-extracted argument must be {value, source: user_query, evidence}. Never copy parameterSchema, requiredParameters, defaults, routing fields, or an entire template object into arguments. Runtime applies defaults and compiles the concrete MCP request.\n");
         prompt.append("- Put parameters that cannot be obtained from the User query in unresolved_parameters. When a required parameter is unresolved and no completed dependency supplies it, request rewrite_plan instead of executing with an invented or empty value.\n");
+        prompt.append("- Batch child output snapshots are structure-aware and authoritative. sampleRows are bounded previews of real returned rows; returnedRowCount larger than sampleRows means preview truncation, not missing tool data.\n");
+        prompt.append("- Never claim that a tool failed to transmit row data when a child snapshot has dataPresent=true. Use the sample values for the next decision and leave full rendering to the finalizer.\n");
         prompt.append("- Do not call tools directly; Java will only execute the step ids you choose after safety validation.\n\n");
         prompt.append("User query:\n").append(query == null ? "" : query).append("\n\n");
         prompt.append("decision_count: ").append(request.decisionCount()).append("\n");
@@ -1591,7 +1593,7 @@ public class AgentOrchestrator {
                     .append(", error=").append(firstNonBlank(execution.errorMessage(), ""))
                     .append("\n");
                 prompt.append("  output: ")
-                    .append(shortObservationText(stringify(execution.output()), 3000))
+                    .append(shortObservationText(stringify(dagDecisionOutputSnapshot(execution.output())), 12000))
                     .append("\n");
                 if (execution.metadata() != null && !execution.metadata().isEmpty()) {
                     prompt.append("  metadata: ")
@@ -1602,6 +1604,116 @@ public class AgentOrchestrator {
         }
         prompt.append("\nReturn only the decision JSON.");
         return prompt.toString();
+    }
+
+    Map<String, Object> dagDecisionOutputSnapshot(Object output) {
+        Map<String, Object> source = objectMap(output);
+        Object rawResults = source.get("results");
+        if (!(rawResults instanceof List<?> results) || results.isEmpty()) {
+            return source;
+        }
+        Map<String, Object> snapshot = compactMap(
+            source, "batchId", "executionMode", "status", "cardinality", "summary");
+        List<Map<String, Object>> childSnapshots = new ArrayList<>();
+        for (Object item : results) {
+            Map<String, Object> child = objectMap(item);
+            if (child.isEmpty()) {
+                continue;
+            }
+            Map<String, Object> childSnapshot = compactMap(
+                child, "callId", "checkId", "templateId", "templateCode", "toolName",
+                "status", "invoked", "durationMs", "evidenceId", "error");
+            Map<String, Object> table = tabularEvidenceSnapshot(child.get("output"), 0);
+            if (!table.isEmpty()) {
+                childSnapshot.put("output", table);
+            } else {
+                childSnapshot.put("output", compactStructuredOutput(child.get("output")));
+            }
+            childSnapshots.add(childSnapshot);
+        }
+        snapshot.put("results", childSnapshots);
+        snapshot.put("resultCount", childSnapshots.size());
+        return snapshot;
+    }
+
+    private Map<String, Object> tabularEvidenceSnapshot(Object value, int depth) {
+        if (value == null || depth > 6) {
+            return Map.of();
+        }
+        Map<String, Object> map = objectMap(value);
+        if (map.isEmpty()) {
+            return Map.of();
+        }
+        Object rawRows = firstObject(map, "rows", "records", "items");
+        Object rawColumns = firstObject(map, "columns", "fields");
+        if (rawRows instanceof List<?> rows) {
+            Map<String, Object> table = new LinkedHashMap<>();
+            table.put("dataPresent", !rows.isEmpty());
+            table.put("rowCount", firstIntValue(
+                firstObject(map, "rowCount", "total", "count"), rows.size()));
+            table.put("returnedRowCount", rows.size());
+            table.put("columns", rawColumns == null ? inferredColumns(rows) : rawColumns);
+            table.put("sampleRows", rows.stream().limit(3).toList());
+            table.put("previewTruncated", rows.size() > 3);
+            return table;
+        }
+        for (String envelope : List.of(
+            "data", "result", "payload", "dataset", "structuredContent", "structured_content", "operation"
+        )) {
+            Map<String, Object> nested = tabularEvidenceSnapshot(map.get(envelope), depth + 1);
+            if (!nested.isEmpty()) {
+                return nested;
+            }
+        }
+        return Map.of();
+    }
+
+    private Map<String, Object> objectMap(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            return asStringObjectMap(map);
+        }
+        if (value instanceof String text) {
+            return asMap(text);
+        }
+        if (value == null) {
+            return Map.of();
+        }
+        try {
+            return objectMapper.convertValue(value, Map.class);
+        } catch (IllegalArgumentException ignored) {
+            return Map.of();
+        }
+    }
+
+    private Object compactStructuredOutput(Object value) {
+        Map<String, Object> map = objectMap(value);
+        return map.isEmpty()
+            ? value == null ? Map.of() : shortObservationText(String.valueOf(value), 1000)
+            : compactMap(map, "success", "schemaVersion", "rowCount", "columns", "message", "error");
+    }
+
+    private List<String> inferredColumns(List<?> rows) {
+        LinkedHashSet<String> columns = new LinkedHashSet<>();
+        for (Object row : rows.stream().limit(3).toList()) {
+            if (row instanceof Map<?, ?> map) {
+                map.keySet().stream().filter(Objects::nonNull).map(String::valueOf).forEach(columns::add);
+            }
+        }
+        return new ArrayList<>(columns);
+    }
+
+    private int firstIntValue(Object value, int fallback) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value != null) {
+            try {
+                return Integer.parseInt(String.valueOf(value));
+            } catch (NumberFormatException ignored) {
+                // Use the observed row count.
+            }
+        }
+        return fallback;
     }
 
     private String planGenerationLifecycleContent(AgentDecision decision) {
@@ -1858,6 +1970,7 @@ public class AgentOrchestrator {
         prompt.append("- Describe the number of plan attempts only from the Executed plan attempts count below. Distinguish BLOCKED before invocation from an actual remote tool execution; do not call a blocked step a completed diagnostic execution.\n");
         prompt.append("- Preserve canonical asset fields exactly: assets[].asset.displayName/name is the asset label, assets[].asset.id/assetId is the asset identifier, and assets[].asset.toolName is the bound tool. Never present toolName as displayName.\n");
         prompt.append("- A shortened output preview in this prompt is not evidence that the tool output itself was truncated. Claim truncation only when output facts contain explicitTruncation=true or the output has an explicit _truncated/[truncated] marker.\n");
+        prompt.append("- For batch child evidence, dataPresent=true and sampleRows contain real runtime-returned values. previewTruncated=true means only this prompt preview was bounded; it does not mean the tool result lost its rows.\n");
         prompt.append("- Do not invent facts that are not present in the step outputs or observations.\n");
         prompt.append("- For SQL metadata discovery, cite every recommended table by the exact physical identifier returned by the tool (database/schema/tableName when available). Keep any Chinese business description separate; never use it as a substitute for the physical table name.\n");
         prompt.append("- When returned metadata includes columns, list the exact physical column names under their corresponding physical table and preserve returned type/key/comment details. Never translate, rename, or invent identifiers.\n");
@@ -1929,6 +2042,12 @@ public class AgentOrchestrator {
                 if (!outputFacts.isEmpty()) {
                     prompt.append("  outputFacts: ")
                         .append(shortObservationText(stringify(outputFacts), 1800))
+                        .append("\n");
+                }
+                Map<String, Object> rawOutputMap = objectMap(step.output());
+                if (rawOutputMap.get("results") instanceof List<?>) {
+                    prompt.append("  batchChildEvidenceSnapshot (bounded per child; sampleRows are real values):\n")
+                        .append(shortObservationText(stringify(dagDecisionOutputSnapshot(step.output())), 12000))
                         .append("\n");
                 }
                 String executionEvidence = step.success()

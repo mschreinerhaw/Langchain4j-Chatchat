@@ -1741,9 +1741,11 @@ public class InterpretationPlanRuntime {
     }
 
     private boolean batchToolInput(Map<String, Object> input) {
-        return input != null && (input.containsKey("calls")
-            || input.containsKey("toolCalls")
-            || input.containsKey("tool_calls"));
+        if (input == null) {
+            return false;
+        }
+        Object rawCalls = firstPresent(input, "calls", "toolCalls", "tool_calls");
+        return rawCalls instanceof List<?> calls && !calls.isEmpty();
     }
 
     private void normalizeWebSearchInput(InterpretationPlan.Step step,

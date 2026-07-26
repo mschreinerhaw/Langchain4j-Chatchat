@@ -5197,6 +5197,8 @@ class InterpretationPlanRuntimeTest {
                     new InterpretationPlan.Step(
                         2, "mcp_tool", executorTool,
                         Map.of(
+                            "executionMode", "SEQUENTIAL",
+                            "calls", List.of(),
                             "templateId", "ORACLE_INSTANCE_STATUS",
                             "template", "ORACLE_INSTANCE_STATUS",
                             "executionContext", Map.of(

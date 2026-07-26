@@ -350,8 +350,9 @@ public class InterpretationPlanRuntime {
             recordStateUpdate(executableRequest, completed, remaining, waveResults, failed);
             if (failed != null) {
                 String failureStatus = failed.errorMessage() != null
-                    && failed.errorMessage().startsWith("STEP_OUTPUT_CONTRACT_FAILED:")
-                    ? "STEP_OUTPUT_CONTRACT_FAILED"
+                    && failed.errorMessage().startsWith(
+                        DiagnosticRunStateMachine.FailureCode.STEP_OUTPUT_CONTRACT_FAILED.wireValue() + ":")
+                    ? DiagnosticRunStateMachine.FailureCode.STEP_OUTPUT_CONTRACT_FAILED.wireValue()
                     : "STEP_FAILED";
                 return withDiagnosticRun(ExecutionResult.failed(
                     failureStatus,
@@ -400,7 +401,9 @@ public class InterpretationPlanRuntime {
             request.plan(),
             result.steps(),
             remainingStepIds,
-            evidenceIteration(request)
+            evidenceIteration(request),
+            result.status(),
+            result.success()
         );
         if (diagnosticRun == null) {
             return result;
@@ -410,6 +413,14 @@ public class InterpretationPlanRuntime {
         metadata.put("diagnosticCoverage", diagnosticRun.coverage());
         metadata.put("diagnosticAssessment", diagnosticRun.assessment());
         metadata.put("diagnosticConfidence", diagnosticRun.confidenceEngine());
+        metadata.put("diagnosticState", diagnosticRun.state());
+        metadata.put("diagnosticOutcome", diagnosticRun.outcome());
+        if (diagnosticRun.failureCode() != null) {
+            metadata.put("diagnosticFailureCode", diagnosticRun.failureCode());
+        }
+        if (diagnosticRun.recoveryAction() != null) {
+            metadata.put("diagnosticRecoveryAction", diagnosticRun.recoveryAction());
+        }
         return new ExecutionResult(
             result.status(),
             result.success(),
@@ -686,14 +697,16 @@ public class InterpretationPlanRuntime {
         metadata.put("outputContractSatisfied", false);
         metadata.put("outputContractViolations", List.copyOf(violations));
         metadata.put("repairable", true);
-        metadata.put("repairAction", "rewrite_plan");
+        metadata.put("repairAction",
+            DiagnosticRunStateMachine.RecoveryAction.REWRITE_PLAN.wireValue());
         return new StepExecution(
             execution.stepId(),
             execution.actionType(),
             execution.toolName(),
             false,
             execution.output(),
-            "STEP_OUTPUT_CONTRACT_FAILED: " + String.join("; ", violations),
+            DiagnosticRunStateMachine.FailureCode.STEP_OUTPUT_CONTRACT_FAILED.message(
+                String.join("; ", violations)),
             execution.toolExecution(),
             execution.finalAnswer(),
             execution.durationMs(),

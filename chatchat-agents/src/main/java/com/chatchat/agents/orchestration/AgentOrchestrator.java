@@ -20,6 +20,7 @@ import com.chatchat.agents.runtime.plan.InterpretationPlanDagConverter;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.agents.runtime.plan.InterpretationExecutionProtocol;
 import com.chatchat.agents.runtime.plan.DiagnosticRun;
+import com.chatchat.agents.runtime.plan.DiagnosticRunStateMachine;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRewriter;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRecord;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
@@ -1289,7 +1290,8 @@ public class AgentOrchestrator {
                 throw ex;
             }
             metadata.put("stopReason", "time_budget_exhausted");
-            metadata.put("executionStatus", "TIME_BUDGET_EXHAUSTED");
+            metadata.put("executionStatus",
+                DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue());
             metadata.put("completedEvidencePreservedAfterTimeout", true);
         }
     }
@@ -1744,7 +1746,8 @@ public class AgentOrchestrator {
                 throw ex;
             }
             metadata.put("stopReason", "time_budget_exhausted");
-            metadata.put("executionStatus", "TIME_BUDGET_EXHAUSTED");
+            metadata.put("executionStatus",
+                DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue());
             metadata.put("interpretationPlanSummaryGenerated", false);
             metadata.put("interpretationPlanSummaryFailure", firstNonBlank(ex.getMessage(), "Agent run timed out"));
             return "";

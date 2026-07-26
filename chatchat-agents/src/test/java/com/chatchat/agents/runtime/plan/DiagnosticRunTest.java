@@ -271,11 +271,61 @@ class DiagnosticRunTest {
         assertThat(run.confidenceEngine().partialConclusionAllowed()).isTrue();
         assertThat(run.confidenceEngine().remainingRetries()).isEqualTo(2);
         assertThat(run.confidenceEngine().completionStatus()).isEqualTo("RETRY_MISSING_EVIDENCE");
+        assertThat(run.state()).isEqualTo(DiagnosticRunStateMachine.State.REPAIRING);
+        assertThat(run.outcome()).isEqualTo(DiagnosticRunStateMachine.Outcome.PARTIAL_SUCCESS);
+        assertThat(run.failureCode()).isNull();
+        assertThat(run.recoveryAction())
+            .isEqualTo(DiagnosticRunStateMachine.RecoveryAction.RETRY_MISSING_EVIDENCE);
         assertThat(run.confidenceEngine().missingEvidence()).singleElement().satisfies(missing -> {
             assertThat(missing.checkId()).isEqualTo("system_events");
             assertThat(missing.priority()).isEqualTo("HIGH");
             assertThat(missing.retryEligible()).isTrue();
         });
+    }
+
+    @Test
+    void mapsRuntimeContractFailureIntoRepairingStateWithoutLosingPartialEvidence() {
+        InterpretationPlan plan = plan(
+            List.of(
+                check("instance_status", "instance_status", "availability", 1, List.of(1)),
+                check("sessions", "session_overview", "performance", 2, List.of(2))
+            ),
+            3
+        );
+        List<InterpretationPlanRuntime.StepExecution> executions = List.of(
+            execution(1, "sql_query_execute", Map.of(
+                "diagnosticCheckId", "instance_status",
+                "rows", List.of(Map.of("STATUS", "OPEN"))
+            )),
+            new InterpretationPlanRuntime.StepExecution(
+                2,
+                "reasoning",
+                "",
+                false,
+                Map.of("message", "not structured"),
+                DiagnosticRunStateMachine.FailureCode.STEP_OUTPUT_CONTRACT_FAILED.message(
+                    "missing required field session_template"),
+                null,
+                null,
+                1
+            )
+        );
+
+        DiagnosticRun run = DiagnosticRun.evaluate(
+            plan,
+            executions,
+            Set.of(2),
+            1,
+            DiagnosticRunStateMachine.FailureCode.STEP_OUTPUT_CONTRACT_FAILED.wireValue(),
+            false
+        );
+
+        assertThat(run.state()).isEqualTo(DiagnosticRunStateMachine.State.REPAIRING);
+        assertThat(run.outcome()).isEqualTo(DiagnosticRunStateMachine.Outcome.PARTIAL_SUCCESS);
+        assertThat(run.failureCode())
+            .isEqualTo(DiagnosticRunStateMachine.FailureCode.STEP_OUTPUT_CONTRACT_FAILED);
+        assertThat(run.recoveryAction())
+            .isEqualTo(DiagnosticRunStateMachine.RecoveryAction.REWRITE_PLAN);
     }
 
     @Test

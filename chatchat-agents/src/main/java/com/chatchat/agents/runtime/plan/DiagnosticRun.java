@@ -30,20 +30,45 @@ public record DiagnosticRun(
     Coverage coverage,
     Assessment assessment,
     @JsonProperty("confidence_engine")
-    ConfidenceEngine confidenceEngine
+    ConfidenceEngine confidenceEngine,
+    DiagnosticRunStateMachine.State state,
+    DiagnosticRunStateMachine.Outcome outcome,
+    @JsonProperty("failure_code")
+    DiagnosticRunStateMachine.FailureCode failureCode,
+    @JsonProperty("recovery_action")
+    DiagnosticRunStateMachine.RecoveryAction recoveryAction
 ) {
     public DiagnosticRun(String profileId,
                          String targetKind,
                          List<CheckResult> checks,
                          Coverage coverage,
                          Assessment assessment) {
-        this(profileId, targetKind, checks, coverage, assessment, null);
+        this(profileId, targetKind, checks, coverage, assessment, null, null, null, null, null);
+    }
+
+    public DiagnosticRun(String profileId,
+                         String targetKind,
+                         List<CheckResult> checks,
+                         Coverage coverage,
+                         Assessment assessment,
+                         ConfidenceEngine confidenceEngine) {
+        this(profileId, targetKind, checks, coverage, assessment, confidenceEngine,
+            null, null, null, null);
     }
 
     public static DiagnosticRun evaluate(InterpretationPlan plan,
                                          List<InterpretationPlanRuntime.StepExecution> executions,
                                          Set<Integer> remainingStepIds,
                                          int evidenceIteration) {
+        return evaluate(plan, executions, remainingStepIds, evidenceIteration, null, false);
+    }
+
+    public static DiagnosticRun evaluate(InterpretationPlan plan,
+                                         List<InterpretationPlanRuntime.StepExecution> executions,
+                                         Set<Integer> remainingStepIds,
+                                         int evidenceIteration,
+                                         String runtimeStatus,
+                                         boolean runtimeSuccess) {
         InterpretationPlan.DiagnosticProfile profile = plan == null || plan.plan() == null
             ? null
             : plan.plan().diagnosticProfile();
@@ -92,13 +117,24 @@ public record DiagnosticRun(
         Coverage coverage = new Coverage(required, completed, failed, missing, ratio);
         ConfidenceEngine confidenceEngine = confidenceEngine(
             profile, results, coverage, Math.max(1, evidenceIteration));
+        boolean hasRemainingSteps = remainingStepIds != null && !remainingStepIds.isEmpty();
+        DiagnosticRunStateMachine.Snapshot snapshot = runtimeStatus == null
+            ? DiagnosticRunStateMachine.resolveEvidenceOnly(
+                completed, failed, missing, hasRemainingSteps, confidenceEngine.remainingRetries())
+            : DiagnosticRunStateMachine.resolve(
+                runtimeStatus, runtimeSuccess, completed, failed, missing,
+                hasRemainingSteps, confidenceEngine.remainingRetries());
         return new DiagnosticRun(
             profile.profileId(),
             profile.targetKind(),
             results,
             coverage,
             assessment(results, coverage),
-            confidenceEngine
+            confidenceEngine,
+            snapshot.state(),
+            snapshot.outcome(),
+            snapshot.failureCode(),
+            snapshot.recoveryAction()
         );
     }
 
@@ -294,7 +330,8 @@ public record DiagnosticRun(
                 String evidenceUsable = textProperty(child, "evidenceUsable");
                 if ("NOT_EXECUTED".equalsIgnoreCase(childStatus)
                     || "SKIPPED".equalsIgnoreCase(childStatus)
-                    || "TIME_BUDGET_EXHAUSTED".equalsIgnoreCase(childStatus)
+                    || DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue()
+                        .equalsIgnoreCase(childStatus)
                     || "RESULT_MISSING".equalsIgnoreCase(childStatus)
                     || "false".equalsIgnoreCase(evidenceUsable)) {
                     return CheckEvidenceState.NOT_EXECUTED;

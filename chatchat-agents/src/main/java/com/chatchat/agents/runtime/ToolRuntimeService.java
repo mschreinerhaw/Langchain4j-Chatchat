@@ -7,6 +7,7 @@ import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
 import com.chatchat.agents.runtime.batch.ToolCallRequest;
 import com.chatchat.agents.runtime.batch.ToolCallResult;
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
+import com.chatchat.agents.runtime.plan.DiagnosticRunStateMachine;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.tool.ToolInput;
@@ -262,7 +263,8 @@ public class ToolRuntimeService {
                 timeBudgetExhausted = true;
                 skipped++;
                 results.add(skippedBatchResult(context, batchId, index, callId, toolName, arguments,
-                    "TIME_BUDGET_EXHAUSTED", "TIME_BUDGET_EXHAUSTED",
+                    DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue(),
+                    DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue(),
                     "Diagnostic execution time budget exhausted before invocation"));
                 stop = true;
                 continue;
@@ -311,9 +313,10 @@ public class ToolRuntimeService {
                     || !diagnosticBatch
                     || Boolean.TRUE.equals(call.emptyResultIsSuccess()));
             String status;
-            if ("TIME_BUDGET_EXHAUSTED".equalsIgnoreCase(exceptionType)
+            if (DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue()
+                .equalsIgnoreCase(exceptionType)
                 || "time_budget_exhausted".equalsIgnoreCase(execution == null ? null : execution.outcome())) {
-                status = "TIME_BUDGET_EXHAUSTED";
+                status = DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue();
                 timeBudgetExhausted = true;
                 failed++;
             } else if (callBlocked) {
@@ -405,13 +408,13 @@ public class ToolRuntimeService {
         } else if (!missingAuthorizedChecks.isEmpty()) {
             status = "BATCH_COMPILATION_INCOMPLETE";
         } else if (timeBudgetExhausted) {
-            status = "TIME_BUDGET_EXHAUSTED";
+            status = DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue();
         } else if (success == calls.size() && !calls.isEmpty()) {
-            status = "SUCCESS";
+            status = DiagnosticRunStateMachine.Outcome.SUCCESS.wireValue();
         } else if (success > 0) {
-            status = "PARTIAL_SUCCESS";
+            status = DiagnosticRunStateMachine.Outcome.PARTIAL_SUCCESS.wireValue();
         } else {
-            status = "FAILED";
+            status = DiagnosticRunStateMachine.State.FAILED.wireValue();
         }
         long completedAt = System.currentTimeMillis();
         return new ToolCallBatchResult(
@@ -436,8 +439,8 @@ public class ToolRuntimeService {
         long startedAt = System.currentTimeMillis();
         ToolCallBatchResult result = executeBatch(batch, request);
         long finishedAt = System.currentTimeMillis();
-        boolean successful = "SUCCESS".equals(result.status())
-            || "PARTIAL_SUCCESS".equals(result.status())
+        boolean successful = DiagnosticRunStateMachine.Outcome.SUCCESS.wireValue().equals(result.status())
+            || DiagnosticRunStateMachine.Outcome.PARTIAL_SUCCESS.wireValue().equals(result.status())
             || "BATCH_COMPILATION_INCOMPLETE".equals(result.status())
             || "BATCH_RESULT_INCONSISTENT".equals(result.status());
         ToolOutput output = ToolOutput.builder()
@@ -557,7 +560,7 @@ public class ToolRuntimeService {
         if (diagnosticRemainingTimeMs(request) == 0L) {
             return rejectedExecution(toolName, request, metadata,
                 "Diagnostic execution time budget exhausted before tool invocation: " + toolName,
-                "TIME_BUDGET_EXHAUSTED",
+                DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue(),
                 "time_budget_exhausted",
                 executionPlan,
                 policyDecision);
@@ -767,7 +770,7 @@ public class ToolRuntimeService {
         long timeoutMs = resolveToolTimeoutMs(request, policy, metadata);
         if (timeoutMs == 0L && diagnosticRemainingTimeMs(request) == 0L) {
             ToolOutput output = ToolOutput.failure("Diagnostic execution time budget exhausted before tool invocation: " + toolName);
-            output.setExceptionType("TIME_BUDGET_EXHAUSTED");
+            output.setExceptionType(DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue());
             return output;
         }
         CompletableFuture<ToolOutput> future;
@@ -787,7 +790,7 @@ public class ToolRuntimeService {
             future.cancel(true);
             ToolOutput output = ToolOutput.failure("Tool execution timed out after " + timeoutMs + " ms: " + toolName);
             output.setExceptionType(diagnosticRemainingTimeMs(request) == 0L
-                ? "TIME_BUDGET_EXHAUSTED"
+                ? DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue()
                 : "TOOL_TIMEOUT");
             return output;
         } catch (InterruptedException ex) {
@@ -1025,8 +1028,9 @@ public class ToolRuntimeService {
             toolCounters.circuitOpenRejects.incrementAndGet();
         }
         Map<String, Object> runtimeMetadata = runtimeMetadata(request, metadata, outcome, errorCode, executionPlan, policyDecision);
-        if ("TIME_BUDGET_EXHAUSTED".equals(errorCode)) {
-            runtimeMetadata.put("executionStatus", "TIME_BUDGET_EXHAUSTED");
+        if (DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue().equals(errorCode)) {
+            runtimeMetadata.put("executionStatus",
+                DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue());
             runtimeMetadata.put("blockedBeforeInvocation", true);
             runtimeMetadata.put("blockedReason", "time_budget_exhausted");
         }

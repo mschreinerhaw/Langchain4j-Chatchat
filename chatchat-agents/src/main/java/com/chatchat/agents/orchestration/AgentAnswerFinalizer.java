@@ -7,6 +7,7 @@ import com.chatchat.agents.evidence.EvidenceAnswerGroundingGuard;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.AgentAnswerReview;
 import com.chatchat.agents.runtime.AgentAnswerReviewer;
+import com.chatchat.agents.runtime.plan.DiagnosticRunStateMachine;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.config.ModelsConfig;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -219,9 +220,9 @@ class AgentAnswerFinalizer {
                 report.append("\n");
             }
             report.append("\n");
-            if ("MODEL_BUDGET_EXHAUSTED".equals(status)) {
+            if (DiagnosticRunStateMachine.FailureCode.MODEL_BUDGET_EXHAUSTED.wireValue().equals(status)) {
                 report.append("最终分析模型预算已耗尽；以上为运行时根据已持久化工具证据生成的确定性清单。");
-            } else if ("TIME_BUDGET_EXHAUSTED".equals(status)) {
+            } else if (DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue().equals(status)) {
                 report.append("诊断总时间预算已耗尽；已完成的工具结果和失败记录均已保留。");
             } else {
                 report.append("最终模型未生成可用总结；以上为运行时根据已持久化工具证据生成的确定性清单。");

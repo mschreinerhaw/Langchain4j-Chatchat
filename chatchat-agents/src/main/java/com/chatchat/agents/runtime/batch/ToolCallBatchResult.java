@@ -1,5 +1,7 @@
 package com.chatchat.agents.runtime.batch;
 
+import com.chatchat.agents.runtime.plan.DiagnosticRunStateMachine;
+
 import java.util.List;
 
 public record ToolCallBatchResult(
@@ -39,8 +41,11 @@ public record ToolCallBatchResult(
         boolean countMismatch = summary != null
             && (summary.total() != results.size()
                 || summary.success() + summary.failed() + summary.blocked() + summary.skipped() != summary.total());
-        if (countMismatch && "SUCCESS".equalsIgnoreCase(status)) {
-            status = summary.success() > 0 ? "PARTIAL_SUCCESS" : "FAILED";
+        if (countMismatch
+            && DiagnosticRunStateMachine.Outcome.SUCCESS.wireValue().equalsIgnoreCase(status)) {
+            status = summary.success() > 0
+                ? DiagnosticRunStateMachine.Outcome.PARTIAL_SUCCESS.wireValue()
+                : DiagnosticRunStateMachine.State.FAILED.wireValue();
         }
     }
 

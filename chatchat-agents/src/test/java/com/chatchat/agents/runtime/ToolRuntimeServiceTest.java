@@ -1088,6 +1088,46 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
+    void templateDeclaredRequiredFieldsDowngradeIncompleteHealthEvidence() {
+        String toolName = "sql_query_execute";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName).title(toolName).categories(List.of("mcp")).build());
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenAnswer(invocation -> {
+            ToolInput input = invocation.getArgument(1);
+            String template = String.valueOf(input.getParameters().get("templateCode"));
+            return "ORACLE_INSTANCE_STATUS".equals(template)
+                ? ToolOutput.success(Map.of("rows", List.of(Map.of("INSTANCE_NAME", "oraclewind", "STATUS", "OPEN"))))
+                : ToolOutput.success(Map.of("rows", List.of(Map.of("TABLESPACE_NAME", "USERS", "SIZE_MB", 500))));
+        });
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), properties(), new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of());
+        Map<String, Object> instance = new LinkedHashMap<>(
+            batchCall("instance_status", toolName, "ORACLE_INSTANCE_STATUS"));
+        instance.put("requiredFields", List.of("INSTANCE_NAME", "STATUS"));
+        Map<String, Object> tablespace = new LinkedHashMap<>(
+            batchCall("tablespace", toolName, "ORACLE_TABLESPACE_HEALTH"));
+        tablespace.put("requiredFields", List.of(
+            "TABLESPACE_NAME", "TOTAL_MB", "USED_MB", "FREE_MB", "USED_PERCENT"));
+
+        ToolRuntimeExecution execution = service.execute(
+            batchRequest(List.of(instance, tablespace), false, Map.of()));
+        ToolCallBatchResult result = (ToolCallBatchResult) execution.output().getData();
+
+        assertThat(execution.output().isSuccess()).isTrue();
+        assertThat(result.status()).isEqualTo("PARTIAL_SUCCESS");
+        assertThat(result.summary().success()).isEqualTo(1);
+        assertThat(result.summary().failed()).isEqualTo(1);
+        assertThat(result.results()).extracting(ToolCallResult::status)
+            .containsExactly("SUCCESS", "RESULT_MISSING");
+        assertThat(result.results().get(1).error())
+            .containsEntry("code", "REQUIRED_EVIDENCE_FIELDS_MISSING");
+        assertThat((Map<String, Object>) result.results().get(1).error().get("details"))
+            .containsEntry("missingFields", List.of("TOTAL_MB", "USED_MB", "FREE_MB", "USED_PERCENT"));
+    }
+
+    @Test
     void batchResultCannotClaimSuccessWhenDeclaredAndReturnedCountsDiffer() {
         ToolCallBatchResult result = new ToolCallBatchResult(
             "incomplete-batch",

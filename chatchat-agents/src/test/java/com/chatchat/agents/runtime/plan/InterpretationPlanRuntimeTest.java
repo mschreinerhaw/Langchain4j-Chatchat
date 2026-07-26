@@ -5140,16 +5140,21 @@ class InterpretationPlanRuntimeTest {
             "1.0",
             new InterpretationPlan.Intent("database_health", "execute ordered checks", "low"),
             context(),
-            new InterpretationPlan.Plan(List.of(
-                new InterpretationPlan.Step(1, "mcp_tool", toolName, Map.of(
-                    "executionMode", "SEQUENTIAL",
-                    "calls", List.of(
-                        Map.of("callId", "one", "toolName", toolName, "arguments", Map.of("templateCode", "ONE")),
-                        Map.of("callId", "two", "toolName", toolName, "arguments", Map.of("templateCode", "TWO"))
-                    )
-                ), List.of(), null, null),
-                new InterpretationPlan.Step(2, "final_answer", "", Map.of("answer", "done"), List.of(1), null, null)
-            )),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", toolName, Map.of(
+                        "executionMode", "SEQUENTIAL",
+                        "calls", List.of(
+                            Map.of("callId", "one", "toolName", toolName, "arguments", Map.of("templateCode", "ONE")),
+                            Map.of("callId", "two", "toolName", toolName, "arguments", Map.of("templateCode", "TWO"))
+                        )
+                    ), List.of(),
+                        new InterpretationPlan.OutputContract("json", "diagnostic_evidence_v1"),
+                        new InterpretationPlan.Validation(true, "schema_check", null)),
+                    new InterpretationPlan.Step(2, "final_answer", "", Map.of("answer", "done"), List.of(1), null, null)
+                ),
+                List.of(new InterpretationPlan.EdgeContract(1, 2, "results", "array", true))
+            ),
             new InterpretationPlan.ExecutionPolicy(2, false, List.of(toolName), List.of(), 30_000),
             review()
         );
@@ -5163,9 +5168,18 @@ class InterpretationPlanRuntimeTest {
 
         assertThat(result.success()).isTrue();
         assertThat(reviewerCalls).hasValue(0);
+        assertThat(result.steps().get(0).output()).isInstanceOfSatisfying(Map.class, output -> {
+            assertThat(output)
+                .containsEntry("contractVersion", "diagnostic_evidence_v1")
+                .containsEntry("executionStatus", "SUCCESS")
+                .containsEntry("assessmentStatus", "PRELIMINARY_AVAILABLE")
+                .containsEntry("evidenceCoverage", 1.0);
+            assertThat(output.get("results")).isInstanceOf(List.class);
+        });
         assertThat(result.steps().get(0).metadata())
             .containsEntry("toolResultReviewSkipped", true)
-            .containsEntry("batchExecution", true);
+            .containsEntry("batchExecution", true)
+            .containsEntry("diagnosticEvidenceNormalized", true);
     }
 
     @Test
@@ -5193,6 +5207,9 @@ class InterpretationPlanRuntimeTest {
                 "name", "ORACLE_SYSTEM_EVENTS".equals(templateId)
                     ? "Oracle system wait events"
                     : "ORACLE_LOCKS".equals(templateId) ? "Oracle lock view" : templateId,
+                "requiredFields", "ORACLE_TABLESPACE_SIZE".equals(templateId)
+                    ? List.of("TABLESPACE_NAME", "USED_PERCENT")
+                    : List.of(),
                 "parameterSchema", Map.of("type", "object", "required", List.of()),
                 "sqlExecutionBinding", Map.of(
                     "toolName", executorTool,
@@ -5375,6 +5392,9 @@ class InterpretationPlanRuntimeTest {
         assertThat((List<Map<String, Object>>) batchRequest.getToolInput().getParameters().get("calls"))
             .extracting(call -> String.valueOf(((Map<?, ?>) call.get("arguments")).get("templateId")))
             .containsExactlyElementsOf(templateIds);
+        assertThat((List<String>) ((List<Map<String, Object>>) batchRequest.getToolInput()
+            .getParameters().get("calls")).get(4).get("requiredFields"))
+            .containsExactly("TABLESPACE_NAME", "USED_PERCENT");
         assertThat((List<Map<String, Object>>) batchRequest.getToolInput().getParameters().get("calls"))
             .allSatisfy(call -> {
                 Map<?, ?> arguments = (Map<?, ?>) call.get("arguments");

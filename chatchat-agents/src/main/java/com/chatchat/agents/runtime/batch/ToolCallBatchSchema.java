@@ -66,6 +66,11 @@ public final class ToolCallBatchSchema {
                 "type", "boolean",
                 "description", "Template-declared evidence policy. True only when an empty result is a valid diagnostic outcome."
             ),
+            "requiredFields", Map.of(
+                "type", "array",
+                "items", Map.of("type", "string"),
+                "description", "Template-declared output fields required for usable health evidence."
+            ),
             "arguments", Map.of(
                 "type", "object",
                 "description", "The normal authorized input schema for the selected child executor."

@@ -1615,7 +1615,8 @@ public class AgentOrchestrator {
             return source;
         }
         Map<String, Object> snapshot = compactMap(
-            source, "batchId", "executionMode", "status", "cardinality", "summary");
+            source, "contractVersion", "batchId", "executionMode", "status", "batchStatus",
+            "executionStatus", "assessmentStatus", "evidenceCoverage", "cardinality", "summary");
         List<Map<String, Object>> childSnapshots = new ArrayList<>();
         for (Object item : results) {
             Map<String, Object> child = objectMap(item);
@@ -1625,11 +1626,15 @@ public class AgentOrchestrator {
             Map<String, Object> childSnapshot = compactMap(
                 child, "callId", "checkId", "templateId", "templateCode", "toolName",
                 "status", "invoked", "durationMs", "evidenceId", "error");
-            Map<String, Object> table = tabularEvidenceSnapshot(child.get("output"), 0);
+            Object finding = firstObject(child, "finding", "output");
+            Map<String, Object> table = tabularEvidenceSnapshot(finding, 0);
             if (!table.isEmpty()) {
+                childSnapshot.put("finding", table);
                 childSnapshot.put("output", table);
             } else {
-                childSnapshot.put("output", compactStructuredOutput(child.get("output")));
+                Object compactFinding = compactStructuredOutput(finding);
+                childSnapshot.put("finding", compactFinding);
+                childSnapshot.put("output", compactFinding);
             }
             childSnapshots.add(childSnapshot);
         }

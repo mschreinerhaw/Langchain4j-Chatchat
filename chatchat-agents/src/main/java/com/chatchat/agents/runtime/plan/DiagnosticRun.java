@@ -33,6 +33,8 @@ public record DiagnosticRun(
     ConfidenceEngine confidenceEngine,
     DiagnosticRunStateMachine.State state,
     DiagnosticRunStateMachine.Outcome outcome,
+    @JsonProperty("assessment_status")
+    DiagnosticRunStateMachine.AssessmentStatus assessmentStatus,
     @JsonProperty("failure_code")
     DiagnosticRunStateMachine.FailureCode failureCode,
     @JsonProperty("recovery_action")
@@ -43,7 +45,8 @@ public record DiagnosticRun(
                          List<CheckResult> checks,
                          Coverage coverage,
                          Assessment assessment) {
-        this(profileId, targetKind, checks, coverage, assessment, null, null, null, null, null);
+        this(profileId, targetKind, checks, coverage, assessment, null,
+            null, null, null, null, null);
     }
 
     public DiagnosticRun(String profileId,
@@ -53,7 +56,7 @@ public record DiagnosticRun(
                          Assessment assessment,
                          ConfidenceEngine confidenceEngine) {
         this(profileId, targetKind, checks, coverage, assessment, confidenceEngine,
-            null, null, null, null);
+            null, null, null, null, null);
     }
 
     public static DiagnosticRun evaluate(InterpretationPlan plan,
@@ -124,18 +127,35 @@ public record DiagnosticRun(
             : DiagnosticRunStateMachine.resolve(
                 runtimeStatus, runtimeSuccess, completed, failed, missing,
                 hasRemainingSteps, confidenceEngine.remainingRetries());
+        Assessment assessment = assessment(results, coverage);
+        DiagnosticRunStateMachine.AssessmentStatus assessmentStatus = assessment.overallScore() != null
+            ? DiagnosticRunStateMachine.AssessmentStatus.COMPLETE
+            : completed > 0
+                ? DiagnosticRunStateMachine.AssessmentStatus.PRELIMINARY_AVAILABLE
+                : DiagnosticRunStateMachine.AssessmentStatus.NOT_AVAILABLE;
         return new DiagnosticRun(
             profile.profileId(),
             profile.targetKind(),
             results,
             coverage,
-            assessment(results, coverage),
+            assessment,
             confidenceEngine,
             snapshot.state(),
             snapshot.outcome(),
+            assessmentStatus,
             snapshot.failureCode(),
             snapshot.recoveryAction()
         );
+    }
+
+    @JsonProperty("execution_status")
+    public DiagnosticRunStateMachine.Outcome executionStatus() {
+        return outcome;
+    }
+
+    @JsonProperty("evidence_coverage")
+    public double evidenceCoverage() {
+        return coverage == null ? 0.0D : coverage.ratio();
     }
 
     private static CheckResult evaluateCheck(

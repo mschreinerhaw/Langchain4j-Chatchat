@@ -308,10 +308,14 @@ public class ToolRuntimeService {
             }
             boolean callBlocked = Boolean.TRUE.equals(audit.get("blockedBeforeInvocation"));
             String exceptionType = output == null ? "TOOL_NO_RESULT" : output.getExceptionType();
+            List<String> missingRequiredFields = output == null
+                ? call.requiredFields()
+                : missingRequiredEvidenceFields(output.getData(), call.requiredFields());
             boolean evidenceUsable = output != null && output.isSuccess()
                 && (!emptyResult(output.getData())
                     || !diagnosticBatch
-                    || Boolean.TRUE.equals(call.emptyResultIsSuccess()));
+                    || Boolean.TRUE.equals(call.emptyResultIsSuccess()))
+                && missingRequiredFields.isEmpty();
             String status;
             if (DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue()
                 .equalsIgnoreCase(exceptionType)
@@ -338,8 +342,18 @@ public class ToolRuntimeService {
             String evidenceId = firstText(stringValue(audit.get("auditId")),
                 batchId + ":" + callId + ":" + (index + 1));
             Map<String, Object> error = output != null && output.isSuccess() && !evidenceUsable
-                ? errorPayload("EMPTY_RESULT_NOT_ACCEPTED",
-                    "The diagnostic result is empty and the template did not authorize empty evidence")
+                ? !missingRequiredFields.isEmpty()
+                    ? errorPayload(
+                        "REQUIRED_EVIDENCE_FIELDS_MISSING",
+                        "Diagnostic result is missing template-declared required fields: "
+                            + String.join(", ", missingRequiredFields),
+                        Map.of(
+                            "requiredFields", call.requiredFields(),
+                            "missingFields", missingRequiredFields
+                        )
+                    )
+                    : errorPayload("EMPTY_RESULT_NOT_ACCEPTED",
+                        "The diagnostic result is empty and the template did not authorize empty evidence")
                 : output == null || output.isSuccess() ? Map.of()
                 : errorPayload(firstText(exceptionType,
                         firstText(stringValue(audit.get("errorCode")), "TOOL_FAILED")),
@@ -1346,7 +1360,11 @@ public class ToolRuntimeService {
             Boolean emptyResultIsSuccess = booleanValue(firstPresent(
                 call.get("emptyResultIsSuccess"), call.get("empty_result_is_success")
             ));
-            parsedCalls.add(new ToolCallRequest(callId, toolName, arguments, emptyResultIsSuccess));
+            List<String> requiredFields = stringList(firstPresent(
+                call.get("requiredFields"), call.get("required_fields")
+            ));
+            parsedCalls.add(new ToolCallRequest(
+                callId, toolName, arguments, emptyResultIsSuccess, requiredFields));
         }
         String mode = firstText(
             stringValue(firstPresent(parameters.get("executionMode"), parameters.get("execution_mode"))),
@@ -1632,6 +1650,16 @@ public class ToolRuntimeService {
         return error;
     }
 
+    private Map<String, Object> errorPayload(String code,
+                                             String message,
+                                             Map<String, Object> details) {
+        Map<String, Object> error = errorPayload(code, message);
+        if (details != null && !details.isEmpty()) {
+            error.put("details", new LinkedHashMap<>(details));
+        }
+        return error;
+    }
+
     private String templateCode(Map<String, Object> arguments) {
         return stringValue(firstPresent(
             arguments == null ? null : arguments.get("templateCode"),
@@ -1656,6 +1684,65 @@ public class ToolRuntimeService {
             return text.toString().isBlank();
         }
         return false;
+    }
+
+    private List<String> missingRequiredEvidenceFields(Object output, List<String> requiredFields) {
+        if (requiredFields == null || requiredFields.isEmpty()) {
+            return List.of();
+        }
+        Set<String> available = new HashSet<>();
+        collectEvidenceFieldNames(output, available, 0);
+        return requiredFields.stream()
+            .filter(field -> !available.contains(canonicalEvidenceField(field)))
+            .toList();
+    }
+
+    private void collectEvidenceFieldNames(Object value, Set<String> target, int depth) {
+        if (value == null || target == null || depth > 8) {
+            return;
+        }
+        if (value instanceof Map<?, ?> map) {
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                if (entry.getKey() != null) {
+                    target.add(canonicalEvidenceField(String.valueOf(entry.getKey())));
+                }
+                collectEvidenceFieldNames(entry.getValue(), target, depth + 1);
+            }
+            return;
+        }
+        if (value instanceof Iterable<?> iterable) {
+            int count = 0;
+            for (Object item : iterable) {
+                if (count++ >= 100) {
+                    break;
+                }
+                if (item instanceof String field) {
+                    target.add(canonicalEvidenceField(field));
+                } else {
+                    collectEvidenceFieldNames(item, target, depth + 1);
+                }
+            }
+            return;
+        }
+        if (value.getClass().isRecord()) {
+            try {
+                collectEvidenceFieldNames(objectMapper.convertValue(value, Map.class), target, depth + 1);
+            } catch (IllegalArgumentException ignored) {
+                // A non-serializable record simply contributes no field evidence.
+            }
+        }
+    }
+
+    private String canonicalEvidenceField(String field) {
+        if (field == null) {
+            return "";
+        }
+        String leaf = field.trim();
+        int separator = Math.max(leaf.lastIndexOf('.'), leaf.lastIndexOf('/'));
+        if (separator >= 0 && separator + 1 < leaf.length()) {
+            leaf = leaf.substring(separator + 1);
+        }
+        return leaf.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
     }
 
     private String templateId(Map<String, Object> arguments) {

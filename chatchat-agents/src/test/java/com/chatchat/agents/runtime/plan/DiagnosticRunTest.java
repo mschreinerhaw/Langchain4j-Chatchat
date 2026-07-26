@@ -273,6 +273,11 @@ class DiagnosticRunTest {
         assertThat(run.confidenceEngine().completionStatus()).isEqualTo("RETRY_MISSING_EVIDENCE");
         assertThat(run.state()).isEqualTo(DiagnosticRunStateMachine.State.REPAIRING);
         assertThat(run.outcome()).isEqualTo(DiagnosticRunStateMachine.Outcome.PARTIAL_SUCCESS);
+        assertThat(run.executionStatus())
+            .isEqualTo(DiagnosticRunStateMachine.Outcome.PARTIAL_SUCCESS);
+        assertThat(run.assessmentStatus())
+            .isEqualTo(DiagnosticRunStateMachine.AssessmentStatus.PRELIMINARY_AVAILABLE);
+        assertThat(run.evidenceCoverage()).isEqualTo(0.8);
         assertThat(run.failureCode()).isNull();
         assertThat(run.recoveryAction())
             .isEqualTo(DiagnosticRunStateMachine.RecoveryAction.RETRY_MISSING_EVIDENCE);

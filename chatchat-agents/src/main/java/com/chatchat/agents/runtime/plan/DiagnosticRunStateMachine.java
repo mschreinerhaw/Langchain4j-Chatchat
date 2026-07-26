@@ -118,6 +118,17 @@ public final class DiagnosticRunStateMachine {
         }
     }
 
+    public enum AssessmentStatus {
+        NOT_AVAILABLE,
+        PRELIMINARY_AVAILABLE,
+        COMPLETE;
+
+        @JsonValue
+        public String wireValue() {
+            return name();
+        }
+    }
+
     public enum FailureCode {
         STEP_OUTPUT_CONTRACT_FAILED,
         EDGE_CONTRACT_FAILED,

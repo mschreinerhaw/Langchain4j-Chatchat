@@ -2,6 +2,7 @@ package com.chatchat.agents.runtime.plan;
 
 import com.chatchat.agents.evidence.EvidenceExecutionLock;
 import com.chatchat.agents.evidence.EvidenceLockGraph;
+import com.chatchat.agents.evidence.DiagnosticEvidenceNormalizer;
 import com.chatchat.agents.runtime.AgentObservation;
 import com.chatchat.agents.runtime.AgentRunEvent;
 import com.chatchat.agents.runtime.AgentRunEventType;
@@ -69,6 +70,8 @@ public class InterpretationPlanRuntime {
     );
     private static final ObjectMapper RESULT_OBJECT_MAPPER = new ObjectMapper();
     private static final ToolArgumentCompiler TOOL_ARGUMENT_COMPILER = new ToolArgumentCompiler();
+    private static final DiagnosticEvidenceNormalizer DIAGNOSTIC_EVIDENCE_NORMALIZER =
+        new DiagnosticEvidenceNormalizer();
     private static final Set<String> DISCOVERY_FILTER_PROTOCOL_FIELDS = Set.of(
         "trace",
         "routingTrace",
@@ -565,17 +568,29 @@ public class InterpretationPlanRuntime {
                     elapsed(startedAt),
                     execution == null || execution.output() == null ? null : execution.output().getErrorMessage(),
                     summarize(execution == null || execution.output() == null ? null : execution.output().getData()));
+                Object rawOutput = execution == null || execution.output() == null
+                    ? null
+                    : execution.output().getData();
+                Object normalizedOutput = DIAGNOSTIC_EVIDENCE_NORMALIZER.normalize(rawOutput);
+                Map<String, Object> stepMetadata = new LinkedHashMap<>();
+                stepMetadata.put("resolvedInput", new LinkedHashMap<>(resolvedInput));
+                if (normalizedOutput != rawOutput) {
+                    stepMetadata.put("diagnosticEvidenceNormalized", true);
+                    stepMetadata.put("diagnosticEvidenceContractVersion",
+                        DiagnosticEvidenceNormalizer.CONTRACT_VERSION);
+                    stepMetadata.put("rawOutputType", rawOutput.getClass().getSimpleName());
+                }
                 StepExecution result = new StepExecution(
                     step.id(),
                     step.actionType(),
                     executionToolName,
                     success,
-                    execution == null || execution.output() == null ? null : execution.output().getData(),
+                    normalizedOutput,
                     execution == null || execution.output() == null ? "Tool returned no execution" : execution.output().getErrorMessage(),
                     execution,
                     null,
                     elapsed(startedAt),
-                    Map.of("resolvedInput", new LinkedHashMap<>(resolvedInput))
+                    Map.copyOf(stepMetadata)
                 );
                 if (result.success()) {
                     result = reviewToolResult(request, step, result, completed, startedAt);
@@ -2608,6 +2623,17 @@ public class InterpretationPlanRuntime {
                 "$.evidencePolicy.emptyResultIsSuccess"));
             if (emptyResultIsSuccess != null) {
                 call.put("emptyResultIsSuccess", emptyResultIsSuccess);
+            }
+            List<String> requiredFields = stringValues(firstValueAtAnyPath(template,
+                "$.requiredFields",
+                "$.required_fields",
+                "$.outputSchema.required",
+                "$.output_schema.required",
+                "$.resultPolicy.requiredFields",
+                "$.evidencePolicy.requiredFields",
+                "$.qualityPolicy.requiredFields"));
+            if (!requiredFields.isEmpty()) {
+                call.put("requiredFields", requiredFields);
             }
             calls.add(call);
         }

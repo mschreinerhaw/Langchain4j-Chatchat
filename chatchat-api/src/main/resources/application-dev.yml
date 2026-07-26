@@ -84,7 +84,7 @@ chatchat:
     availableChatModels:
       - deepseek-v4-pro
     openai:
-      apiKey: sk-7f5c64a84f774201829be1dc7193d09a
+      apiKey: sk-dfa0ad97eba946b6b5ba6041a04e833d
       baseUrl: https://api.deepseek.com
       timeout: 1800000
       maxTokens: -1

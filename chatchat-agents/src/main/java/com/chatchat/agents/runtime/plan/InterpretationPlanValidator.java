@@ -727,6 +727,10 @@ public class InterpretationPlanValidator {
             if (blank(check.capability())) {
                 state.error(path + ".capability", "Diagnostic capability is required");
             }
+            if (check.weight() != null
+                && (!Double.isFinite(check.weight()) || check.weight() <= 0.0D)) {
+                state.error(path + ".weight", "Diagnostic check weight must be a positive finite number.");
+            }
             if (blank(check.dimension())) {
                 state.error(path + ".dimension", "Diagnostic dimension is required");
             }
@@ -740,6 +744,31 @@ public class InterpretationPlanValidator {
                 } else if (step.finalAnswerAction()) {
                     state.error(path + ".step_ids", "Diagnostic evidence cannot map to a final_answer step: " + stepId);
                 }
+            }
+        }
+        InterpretationPlan.DiagnosticCompletionPolicy completionPolicy = profile.completionPolicy();
+        if (completionPolicy != null) {
+            if (completionPolicy.retryBudget() != null && completionPolicy.retryBudget() < 0) {
+                state.error("plan.diagnostic_profile.completion_policy.retry_budget",
+                    "Diagnostic retry_budget cannot be negative.");
+            }
+            if (completionPolicy.maxAttempts() != null && completionPolicy.maxAttempts() < 1) {
+                state.error("plan.diagnostic_profile.completion_policy.max_attempts",
+                    "Diagnostic max_attempts must be at least 1.");
+            }
+            Double high = completionPolicy.highConfidenceThreshold();
+            Double partial = completionPolicy.partialEvidenceThreshold();
+            if (high != null && (!Double.isFinite(high) || high < 0.0D || high > 1.0D)) {
+                state.error("plan.diagnostic_profile.completion_policy.high_confidence_threshold",
+                    "high_confidence_threshold must be between 0 and 1.");
+            }
+            if (partial != null && (!Double.isFinite(partial) || partial < 0.0D || partial > 1.0D)) {
+                state.error("plan.diagnostic_profile.completion_policy.partial_evidence_threshold",
+                    "partial_evidence_threshold must be between 0 and 1.");
+            }
+            if (high != null && partial != null && partial > high) {
+                state.error("plan.diagnostic_profile.completion_policy",
+                    "partial_evidence_threshold cannot exceed high_confidence_threshold.");
             }
         }
     }

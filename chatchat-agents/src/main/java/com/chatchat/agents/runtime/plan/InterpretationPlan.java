@@ -86,8 +86,13 @@ public record InterpretationPlan(
         String profileId,
         @JsonProperty("target_kind")
         String targetKind,
-        List<DiagnosticCheck> checks
+        List<DiagnosticCheck> checks,
+        @JsonProperty("completion_policy")
+        DiagnosticCompletionPolicy completionPolicy
     ) {
+        public DiagnosticProfile(String profileId, String targetKind, List<DiagnosticCheck> checks) {
+            this(profileId, targetKind, checks, null);
+        }
     }
 
     public record DiagnosticCheck(
@@ -98,7 +103,28 @@ public record InterpretationPlan(
         Boolean required,
         Integer priority,
         @JsonProperty("step_ids")
-        List<Integer> stepIds
+        List<Integer> stepIds,
+        Double weight
+    ) {
+        public DiagnosticCheck(String checkId,
+                               String capability,
+                               String dimension,
+                               Boolean required,
+                               Integer priority,
+                               List<Integer> stepIds) {
+            this(checkId, capability, dimension, required, priority, stepIds, null);
+        }
+    }
+
+    public record DiagnosticCompletionPolicy(
+        @JsonProperty("retry_budget")
+        Integer retryBudget,
+        @JsonProperty("max_attempts")
+        Integer maxAttempts,
+        @JsonProperty("high_confidence_threshold")
+        Double highConfidenceThreshold,
+        @JsonProperty("partial_evidence_threshold")
+        Double partialEvidenceThreshold
     ) {
     }
 

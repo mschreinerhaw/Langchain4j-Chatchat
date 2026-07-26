@@ -1846,7 +1846,9 @@ public class AgentOrchestrator {
         prompt.append("- A missing diagnostic child with no ToolCallResult is NOT_EXECUTED. Do not speculate that it timed out, hit resource contention, lacked permissions, or failed remotely unless a child result explicitly records that status/reason.\n");
         prompt.append("- Do not recommend manual one-by-one execution as the product solution when an ordered runtime batch is expected. Report the missing batch dispatch/evidence and recommend repairing or retrying the batch workflow.\n");
         prompt.append("- diagnosticRun assessment scores are authoritative only when non-null. Never convert tool success, OPEN/running state, capacity size, or coverage ratio into a missing health score.\n");
-        prompt.append("- If diagnosticRun.assessment.overall_status=INSUFFICIENT_EVIDENCE, state that the overall health/performance risk cannot yet be assessed even if individual availability evidence is positive.\n");
+        prompt.append("- diagnosticRun.confidence_engine is the authoritative evidence-coverage classification. When partial_conclusion_allowed=true, provide a bounded partial diagnosis from completed checks and separately list what the missing checks prevent you from concluding.\n");
+        prompt.append("- assessment.overall_status=INSUFFICIENT_EVIDENCE means no complete health score is available; it does not erase completed check evidence and must not force the entire report to say that nothing can be assessed.\n");
+        prompt.append("- Never turn successful execution alone into a healthy finding. State metric conclusions only from returned values, and do not infer that an environment has no serious anomaly merely because queries succeeded.\n");
         prompt.append("- Use each step's review reason as the premise for later steps.\n");
         prompt.append("- Summarize what was done step by step, then provide the final answer.\n");
         prompt.append("- If a succeeded SQL/database step is partial, still summarize the returned rows/metrics and explicitly state missing fields or limitations.\n");
@@ -2705,7 +2707,11 @@ public class AgentOrchestrator {
             diagnosticRun,
             previouslyCompletedDiagnosticChecks
         );
-        boolean fallbackSufficient = result != null && result.success() && diagnosticCoverageComplete;
+        boolean diagnosticRetriesExhausted = diagnosticRun != null
+            && diagnosticRun.confidenceEngine() != null
+            && diagnosticRun.confidenceEngine().remainingRetries() == 0;
+        boolean fallbackSufficient = result != null && result.success()
+            && (diagnosticCoverageComplete || diagnosticRetriesExhausted);
         Map<String, Object> analysis = new LinkedHashMap<>();
         List<Object> evidenceUsed = new ArrayList<>();
         List<Object> missingEvidence = new ArrayList<>();
@@ -2742,6 +2748,14 @@ public class AgentOrchestrator {
             conclusions.add("Diagnostic coverage completed "
                 + diagnosticRun.coverage().completed() + "/" + diagnosticRun.coverage().required()
                 + " required checks in this attempt.");
+            if (diagnosticRun.confidenceEngine() != null) {
+                conclusions.add("Weighted evidence coverage is "
+                    + diagnosticRun.confidenceEngine().weightedCoverage()
+                    + " with evidence level "
+                    + diagnosticRun.confidenceEngine().evidenceLevel()
+                    + "; completion status="
+                    + diagnosticRun.confidenceEngine().completionStatus() + ".");
+            }
         }
         for (Map<String, Object> item : toolEvidence) {
             if (Boolean.TRUE.equals(item.get("success"))) {

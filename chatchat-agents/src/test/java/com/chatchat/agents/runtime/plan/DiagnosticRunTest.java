@@ -232,6 +232,53 @@ class DiagnosticRunTest {
     }
 
     @Test
+    void calculatesWeightedPartialEvidenceAndBoundedRetryProtocol() {
+        List<InterpretationPlan.DiagnosticCheck> checks = List.of(
+            weightedCheck("instance_status", "instance_status", "availability", 1, 30, List.of(1)),
+            weightedCheck("sessions", "session_overview", "performance", 2, 15, List.of(1)),
+            weightedCheck("locks", "lock_overview", "performance", 3, 20, List.of(1)),
+            weightedCheck("system_events", "system_wait_events", "performance", 4, 25, List.of(1)),
+            weightedCheck("tablespace", "tablespace_usage", "capacity", 5, 10, List.of(1))
+        );
+        InterpretationPlan base = plan(checks, 6);
+        InterpretationPlan plan = new InterpretationPlan(
+            base.version(), base.intent(), base.context(),
+            new InterpretationPlan.Plan(
+                base.plan().steps(), base.plan().edgeContracts(), base.plan().dependencyContracts(),
+                base.plan().bindings(), base.plan().stability(),
+                new InterpretationPlan.DiagnosticProfile(
+                    "weighted_oracle_health",
+                    "database",
+                    checks,
+                    new InterpretationPlan.DiagnosticCompletionPolicy(2, 3, 0.8, 0.6)
+                )
+            ),
+            base.executionPolicy(), base.review()
+        );
+        Map<String, Object> output = Map.of("results", List.of(
+            Map.of("callId", "instance_status", "status", "SUCCESS"),
+            Map.of("callId", "sessions", "status", "SUCCESS"),
+            Map.of("callId", "locks", "status", "SUCCESS"),
+            Map.of("callId", "tablespace", "status", "SUCCESS")
+        ));
+
+        DiagnosticRun run = DiagnosticRun.evaluate(
+            plan, List.of(execution(1, "sql_query_execute", output)), Set.of(), 1);
+
+        assertThat(run.coverage().ratio()).isEqualTo(0.8);
+        assertThat(run.confidenceEngine().weightedCoverage()).isEqualTo(0.75);
+        assertThat(run.confidenceEngine().evidenceLevel()).isEqualTo("PARTIAL_EVIDENCE");
+        assertThat(run.confidenceEngine().partialConclusionAllowed()).isTrue();
+        assertThat(run.confidenceEngine().remainingRetries()).isEqualTo(2);
+        assertThat(run.confidenceEngine().completionStatus()).isEqualTo("RETRY_MISSING_EVIDENCE");
+        assertThat(run.confidenceEngine().missingEvidence()).singleElement().satisfies(missing -> {
+            assertThat(missing.checkId()).isEqualTo("system_events");
+            assertThat(missing.priority()).isEqualTo("HIGH");
+            assertThat(missing.retryEligible()).isTrue();
+        });
+    }
+
+    @Test
     void optimizerPreservesAndRemapsDiagnosticStepReferences() {
         InterpretationPlan.DiagnosticProfile profile = new InterpretationPlan.DiagnosticProfile(
             "generic_health_check",
@@ -317,6 +364,17 @@ class DiagnosticRunTest {
                                                      List<Integer> stepIds) {
         return new InterpretationPlan.DiagnosticCheck(
             checkId, capability, dimension, true, priority, stepIds
+        );
+    }
+
+    private InterpretationPlan.DiagnosticCheck weightedCheck(String checkId,
+                                                             String capability,
+                                                             String dimension,
+                                                             int priority,
+                                                             double weight,
+                                                             List<Integer> stepIds) {
+        return new InterpretationPlan.DiagnosticCheck(
+            checkId, capability, dimension, true, priority, stepIds, weight
         );
     }
 

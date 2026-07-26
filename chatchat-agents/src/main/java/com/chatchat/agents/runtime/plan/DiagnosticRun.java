@@ -28,8 +28,17 @@ public record DiagnosticRun(
     String targetKind,
     List<CheckResult> checks,
     Coverage coverage,
-    Assessment assessment
+    Assessment assessment,
+    @JsonProperty("confidence_engine")
+    ConfidenceEngine confidenceEngine
 ) {
+    public DiagnosticRun(String profileId,
+                         String targetKind,
+                         List<CheckResult> checks,
+                         Coverage coverage,
+                         Assessment assessment) {
+        this(profileId, targetKind, checks, coverage, assessment, null);
+    }
 
     public static DiagnosticRun evaluate(InterpretationPlan plan,
                                          List<InterpretationPlanRuntime.StepExecution> executions,
@@ -81,12 +90,15 @@ public record DiagnosticRun(
         int missing = Math.max(0, required - completed - failed);
         double ratio = required == 0 ? 1.0D : round((double) completed / required);
         Coverage coverage = new Coverage(required, completed, failed, missing, ratio);
+        ConfidenceEngine confidenceEngine = confidenceEngine(
+            profile, results, coverage, Math.max(1, evidenceIteration));
         return new DiagnosticRun(
             profile.profileId(),
             profile.targetKind(),
             results,
             coverage,
-            assessment(results, coverage)
+            assessment(results, coverage),
+            confidenceEngine
         );
     }
 
@@ -165,8 +177,76 @@ public record DiagnosticRun(
             reason,
             evidenceRefs,
             explicit.score(),
-            explicit.confidence()
+            explicit.confidence(),
+            validWeight(check.weight())
         );
+    }
+
+    private static ConfidenceEngine confidenceEngine(
+        InterpretationPlan.DiagnosticProfile profile,
+        List<CheckResult> results,
+        Coverage coverage,
+        int evidenceIteration
+    ) {
+        InterpretationPlan.DiagnosticCompletionPolicy policy = profile.completionPolicy();
+        int retryBudget = policy == null || policy.retryBudget() == null
+            ? 2 : Math.max(0, policy.retryBudget());
+        int maxAttempts = policy == null || policy.maxAttempts() == null
+            ? retryBudget + 1 : Math.max(1, policy.maxAttempts());
+        double highThreshold = policy == null || policy.highConfidenceThreshold() == null
+            ? 0.8D : clamp(policy.highConfidenceThreshold(), 0.0D, 1.0D);
+        double partialThreshold = policy == null || policy.partialEvidenceThreshold() == null
+            ? 0.6D : clamp(policy.partialEvidenceThreshold(), 0.0D, highThreshold);
+
+        List<CheckResult> requiredChecks = results.stream().filter(CheckResult::required).toList();
+        double totalWeight = requiredChecks.stream().mapToDouble(CheckResult::weight).sum();
+        double completedWeight = requiredChecks.stream()
+            .filter(check -> "completed".equals(check.status()))
+            .mapToDouble(CheckResult::weight)
+            .sum();
+        double weightedCoverage = totalWeight <= 0.0D ? 1.0D : round(completedWeight / totalWeight);
+        String evidenceLevel = weightedCoverage >= 1.0D
+            ? "FULL_EVIDENCE"
+            : weightedCoverage >= highThreshold
+                ? "HIGH_CONFIDENCE"
+                : weightedCoverage >= partialThreshold
+                    ? "PARTIAL_EVIDENCE"
+                    : "INSUFFICIENT";
+        boolean partialConclusionAllowed = weightedCoverage >= partialThreshold;
+        int attemptsUsed = Math.min(maxAttempts, Math.max(1, evidenceIteration));
+        int remainingRetries = Math.max(0, Math.min(retryBudget, maxAttempts - attemptsUsed));
+        double averageWeight = requiredChecks.isEmpty() ? 0.0D : totalWeight / requiredChecks.size();
+        List<MissingEvidence> missingEvidence = requiredChecks.stream()
+            .filter(check -> !"completed".equals(check.status()))
+            .map(check -> new MissingEvidence(
+                check.checkId(),
+                check.capability(),
+                check.reason(),
+                check.weight(),
+                check.weight() >= averageWeight ? "HIGH" : "NORMAL",
+                remainingRetries > 0
+            ))
+            .toList();
+        String completionStatus = missingEvidence.isEmpty()
+            ? "COMPLETE"
+            : remainingRetries > 0
+                ? "RETRY_MISSING_EVIDENCE"
+                : partialConclusionAllowed ? "PARTIAL_FINAL" : "INSUFFICIENT_FINAL";
+        return new ConfidenceEngine(
+            coverage.ratio(),
+            weightedCoverage,
+            evidenceLevel,
+            partialConclusionAllowed,
+            "evidence_based",
+            attemptsUsed,
+            remainingRetries,
+            completionStatus,
+            missingEvidence
+        );
+    }
+
+    private static double validWeight(Double weight) {
+        return weight == null || !Double.isFinite(weight) || weight <= 0.0D ? 1.0D : weight;
     }
 
     private static Map<Integer, Integer> mappedCheckCounts(
@@ -499,8 +579,24 @@ public record DiagnosticRun(
         @JsonProperty("evidence_refs")
         List<String> evidenceRefs,
         Double score,
-        Double confidence
+        Double confidence,
+        double weight
     ) {
+        public CheckResult(String checkId,
+                           String capability,
+                           String dimension,
+                           boolean required,
+                           Integer priority,
+                           List<Integer> stepIds,
+                           String status,
+                           String reason,
+                           List<String> evidenceRefs,
+                           Double score,
+                           Double confidence) {
+            this(checkId, capability, dimension, required, priority, stepIds, status, reason,
+                evidenceRefs, score, confidence, 1.0D);
+        }
+
         @JsonProperty("execution_state")
         public String executionState() {
             if ("completed".equals(status)) {
@@ -543,6 +639,40 @@ public record DiagnosticRun(
         int required,
         int completed,
         String status
+    ) {
+    }
+
+    public record ConfidenceEngine(
+        @JsonProperty("evidence_coverage")
+        double evidenceCoverage,
+        @JsonProperty("weighted_coverage")
+        double weightedCoverage,
+        @JsonProperty("evidence_level")
+        String evidenceLevel,
+        @JsonProperty("partial_conclusion_allowed")
+        boolean partialConclusionAllowed,
+        @JsonProperty("reasoning_mode")
+        String reasoningMode,
+        @JsonProperty("attempts_used")
+        int attemptsUsed,
+        @JsonProperty("remaining_retries")
+        int remainingRetries,
+        @JsonProperty("completion_status")
+        String completionStatus,
+        @JsonProperty("missing_evidence")
+        List<MissingEvidence> missingEvidence
+    ) {
+    }
+
+    public record MissingEvidence(
+        @JsonProperty("check_id")
+        String checkId,
+        String capability,
+        String reason,
+        double weight,
+        String priority,
+        @JsonProperty("retry_eligible")
+        boolean retryEligible
     ) {
     }
 

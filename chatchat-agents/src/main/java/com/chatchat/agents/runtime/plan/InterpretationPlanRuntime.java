@@ -405,6 +405,7 @@ public class InterpretationPlanRuntime {
         metadata.put("diagnosticRun", diagnosticRun);
         metadata.put("diagnosticCoverage", diagnosticRun.coverage());
         metadata.put("diagnosticAssessment", diagnosticRun.assessment());
+        metadata.put("diagnosticConfidence", diagnosticRun.confidenceEngine());
         return new ExecutionResult(
             result.status(),
             result.success(),
@@ -2416,12 +2417,13 @@ public class InterpretationPlanRuntime {
             return null;
         }
 
-        Set<Integer> usedTemplates = new LinkedHashSet<>();
+        Map<Integer, Integer> templateAssignments = diagnosticTemplateAssignments(checks, templates);
         List<Map<String, Object>> calls = new ArrayList<>();
         String outerTool = null;
-        for (InterpretationPlan.DiagnosticCheck check : checks) {
-            int matchIndex = bestDiagnosticTemplate(check, templates, usedTemplates);
-            if (matchIndex < 0) {
+        for (int checkIndex = 0; checkIndex < checks.size(); checkIndex++) {
+            InterpretationPlan.DiagnosticCheck check = checks.get(checkIndex);
+            Integer matchIndex = templateAssignments.get(checkIndex);
+            if (matchIndex == null) {
                 continue;
             }
             Map<String, Object> template = templates.get(matchIndex);
@@ -2431,7 +2433,6 @@ public class InterpretationPlanRuntime {
             if (templateId == null || childTool == null || !requiredTemplateParametersSatisfied(template, arguments)) {
                 continue;
             }
-            usedTemplates.add(matchIndex);
             if (outerTool == null) {
                 outerTool = childTool;
             }
@@ -2456,9 +2457,17 @@ public class InterpretationPlanRuntime {
         batch.put("executionMode", "SEQUENTIAL");
         batch.put("stopOnFailure", false);
         batch.put("calls", calls);
-        log.info("InterpretationPlan compiled diagnostic batch: stepId={}, declaredChecks={}, compiledCalls={}, callIds={}",
+        Set<String> compiledCheckIds = calls.stream()
+            .map(call -> stringValue(call.get("callId")))
+            .filter(Objects::nonNull)
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        List<String> missingCheckIds = checks.stream()
+            .map(InterpretationPlan.DiagnosticCheck::checkId)
+            .filter(checkId -> checkId != null && !compiledCheckIds.contains(checkId))
+            .toList();
+        log.info("InterpretationPlan compiled diagnostic batch: stepId={}, declaredChecks={}, compiledCalls={}, callIds={}, missingCheckIds={}",
             step.id(), checks.size(), calls.size(),
-            calls.stream().map(call -> call.get("callId")).toList());
+            calls.stream().map(call -> call.get("callId")).toList(), missingCheckIds);
         return new TemplateExecutorInvocation(outerTool, batch);
     }
 
@@ -2499,33 +2508,59 @@ public class InterpretationPlanRuntime {
         return null;
     }
 
-    private int bestDiagnosticTemplate(
-        InterpretationPlan.DiagnosticCheck check,
-        List<Map<String, Object>> templates,
-        Set<Integer> usedTemplates
+    private Map<Integer, Integer> diagnosticTemplateAssignments(
+        List<InterpretationPlan.DiagnosticCheck> checks,
+        List<Map<String, Object>> templates
     ) {
-        int bestIndex = -1;
-        int bestScore = 0;
-        for (int index = 0; index < templates.size(); index++) {
-            if (usedTemplates.contains(index)) {
-                continue;
-            }
-            Map<String, Object> template = templates.get(index);
-            String identity = String.join(" ", java.util.stream.Stream.of(
-                    canonicalTemplateId(template),
-                    stringValue(firstValueAtAnyPath(template, "$.name", "$.displayName", "$.capability",
-                        "$.diagnosticCapability", "$.description"))
-                )
-                .filter(Objects::nonNull)
-                .filter(value -> !value.isBlank())
-                .toList());
-            int score = diagnosticSemanticScore(check, identity);
-            if (score > bestScore) {
-                bestScore = score;
-                bestIndex = index;
+        List<DiagnosticTemplateMatch> candidates = new ArrayList<>();
+        for (int checkIndex = 0; checkIndex < checks.size(); checkIndex++) {
+            for (int templateIndex = 0; templateIndex < templates.size(); templateIndex++) {
+                int score = diagnosticSemanticScore(
+                    checks.get(checkIndex),
+                    diagnosticTemplateIdentity(templates.get(templateIndex))
+                );
+                if (score > 0) {
+                    candidates.add(new DiagnosticTemplateMatch(checkIndex, templateIndex, score));
+                }
             }
         }
-        return bestIndex;
+        candidates.sort(java.util.Comparator
+            .comparingInt(DiagnosticTemplateMatch::score).reversed()
+            .thenComparingInt(DiagnosticTemplateMatch::checkIndex)
+            .thenComparingInt(DiagnosticTemplateMatch::templateIndex));
+        Set<Integer> assignedChecks = new LinkedHashSet<>();
+        Set<Integer> assignedTemplates = new LinkedHashSet<>();
+        Map<Integer, Integer> assignments = new LinkedHashMap<>();
+        for (DiagnosticTemplateMatch candidate : candidates) {
+            if (assignedChecks.contains(candidate.checkIndex())
+                || assignedTemplates.contains(candidate.templateIndex())) {
+                continue;
+            }
+            assignedChecks.add(candidate.checkIndex());
+            assignedTemplates.add(candidate.templateIndex());
+            assignments.put(candidate.checkIndex(), candidate.templateIndex());
+        }
+        return assignments;
+    }
+
+    private String diagnosticTemplateIdentity(Map<String, Object> template) {
+        List<Object> values = java.util.Arrays.asList(
+            canonicalTemplateId(template),
+            firstValueAtAnyPath(template, "$.name"),
+            firstValueAtAnyPath(template, "$.displayName"),
+            firstValueAtAnyPath(template, "$.capability"),
+            firstValueAtAnyPath(template, "$.diagnosticCapability"),
+            firstValueAtAnyPath(template, "$.description"),
+            firstValueAtAnyPath(template, "$.category"),
+            firstValueAtAnyPath(template, "$.operationType"),
+            firstValueAtAnyPath(template, "$.keywords"),
+            firstValueAtAnyPath(template, "$.tags")
+        );
+        return values.stream()
+            .filter(Objects::nonNull)
+            .map(String::valueOf)
+            .filter(value -> !value.isBlank())
+            .collect(java.util.stream.Collectors.joining(" "));
     }
 
     private int diagnosticSemanticScore(InterpretationPlan.DiagnosticCheck check, String templateIdentity) {
@@ -4014,6 +4049,9 @@ public class InterpretationPlanRuntime {
     }
 
     private record TemplateExecutorInvocation(String toolName, Map<String, Object> arguments) {
+    }
+
+    private record DiagnosticTemplateMatch(int checkIndex, int templateIndex, int score) {
     }
 
     private Map<String, Object> routingTraceForStep(InterpretationPlan.Step step, ExecutionRequest request) {

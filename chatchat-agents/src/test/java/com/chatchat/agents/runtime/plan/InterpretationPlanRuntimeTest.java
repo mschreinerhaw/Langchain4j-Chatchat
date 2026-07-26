@@ -5115,9 +5115,19 @@ class InterpretationPlanRuntimeTest {
             "ORACLE_SYSTEM_EVENTS",
             "ORACLE_TABLESPACE_SIZE"
         );
-        java.util.ArrayList<Map<String, Object>> templates = new java.util.ArrayList<>(templateIds.stream()
+        List<String> discoveryTemplateIds = List.of(
+            "ORACLE_INSTANCE_STATUS",
+            "ORACLE_SESSION_OVERVIEW",
+            "ORACLE_SYSTEM_EVENTS",
+            "ORACLE_LOCKS",
+            "ORACLE_TABLESPACE_SIZE"
+        );
+        java.util.ArrayList<Map<String, Object>> templates = new java.util.ArrayList<>(discoveryTemplateIds.stream()
             .map(templateId -> Map.<String, Object>of(
                 "templateId", templateId,
+                "name", "ORACLE_SYSTEM_EVENTS".equals(templateId)
+                    ? "Oracle system wait events"
+                    : "ORACLE_LOCKS".equals(templateId) ? "Oracle lock view" : templateId,
                 "parameterSchema", Map.of("type", "object", "required", List.of()),
                 "sqlExecutionBinding", Map.of(
                     "toolName", executorTool,

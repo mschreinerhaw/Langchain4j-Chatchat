@@ -10,16 +10,21 @@
       <input
         v-model="keyword"
         placeholder="搜索文档标题、来源、标签或正文关键词"
-        @keyup.enter="performSearch"
+        @keyup.enter="handleSearchAction"
       >
       <button type="button" class="upload-trigger" @click="openUploadDialog">上传</button>
-      <button type="button" :disabled="loading" @click="performSearch">
-        {{ loading ? "检索中" : "检索" }}
+      <button
+        type="button"
+        :class="{ 'search-stop-action': Boolean(searchController) }"
+        :disabled="loading && !searchController"
+        @click="handleSearchAction"
+      >
+        {{ searchController ? "停止" : (loading ? "处理中" : "检索") }}
       </button>
     </div>
 
     <section v-if="searched || loading" class="inline-results">
-      <p v-if="loading" class="search-empty">正在检索文档库...</p>
+      <p v-if="searchController" class="search-empty">正在检索文档库，点击“停止”可终止本租户的当前检索...</p>
       <p v-else-if="error" class="search-error">{{ error }}</p>
       <p v-else-if="results.length === 0" class="search-empty">
         {{ resultMessage || "没有找到匹配文档。请先上传文档，或换一个关键词再检索。" }}

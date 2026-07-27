@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
 
@@ -550,6 +551,7 @@ public class SearchService {
                                           Integer page,
                                           Integer limit,
                                           SearchPermissionContext permissionContext) {
+        assertSearchNotCancelled();
         SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
         long startedAt = System.nanoTime();
         int pageSize = normalizeLimit(limit);
@@ -578,6 +580,7 @@ public class SearchService {
         Map<String, Integer> titleMemoryScores = shouldRunTitleMemoryRecall(recallMode, focusedKeyword)
             ? titleMemoryCandidateScores(focusedKeyword, significantTerms, context)
             : Map.of();
+        assertSearchNotCancelled();
         log.info(
             "frontend_search_route query='{}' focusedQuery='{}' mode={} queryTokens={} significantTerms={} memoryCandidates={}",
             safeLogQuery(normalizedKeyword),
@@ -594,7 +597,9 @@ public class SearchService {
         Set<String> scopedIds = scopedDocumentIds.isEmpty() ? Set.of() : new LinkedHashSet<>(scopedDocumentIds);
 
         List<SearchDocument> documents = loadLatestDocuments(context);
+        assertSearchNotCancelled();
         List<SearchDocument> candidates = documents.stream()
+            .peek(document -> assertSearchNotCancelled())
             .filter(document -> scopedIds.isEmpty() || scopedIds.contains(document.getDocId()))
             .filter(document -> matchesQuickFilter(document.getTags(), tagTerms))
             .filter(document -> matchesQuickFilter(document.getCompanies(), companyTerms))
@@ -602,6 +607,7 @@ public class SearchService {
             .toList();
         FrontendQuickCorpus corpus = frontendQuickCorpus(candidates);
         List<SearchResult> quickCandidates = candidates.stream()
+            .peek(document -> assertSearchNotCancelled())
             .map(document -> toFrontendQuickResult(
                 document,
                 focusedKeyword,
@@ -613,6 +619,7 @@ public class SearchService {
             .sorted(resultComparator())
             .toList();
         List<SearchResult> allResults = quickCandidates.stream()
+            .peek(result -> assertSearchNotCancelled())
             .filter(result -> !hasKeyword(keyword) || isFrontendQuickRelevant(result, significantTerms, recallMode))
             .toList();
 
@@ -634,6 +641,7 @@ public class SearchService {
                 pageSize,
                 context
             );
+            assertSearchNotCancelled();
             log.info(
                 "frontend_search_fallback_result query='{}' mode={} fallbackResults={} fallbackTotal={}",
                 safeLogQuery(normalizedKeyword),
@@ -668,6 +676,7 @@ public class SearchService {
         );
 
         List<SearchResult> results = allResults.stream()
+            .peek(result -> assertSearchNotCancelled())
             .skip(pageOffset(pageNumber, pageSize))
             .limit(pageSize)
             .toList();
@@ -697,6 +706,12 @@ public class SearchService {
             documents.size(),
             buildSearchMessage(allResults.size(), documents.size(), queryTokens)
         );
+    }
+
+    private void assertSearchNotCancelled() {
+        if (Thread.currentThread().isInterrupted()) {
+            throw new CancellationException("document search cancelled");
+        }
     }
 
     /**

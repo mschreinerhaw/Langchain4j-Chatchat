@@ -73,6 +73,16 @@
   border: 1px solid var(--line);
 }
 
+.ai-search-view .search-panel .search-stop-action {
+  background: #d92d20;
+  border-color: #d92d20;
+}
+
+.ai-search-view .search-panel .search-stop-action:hover {
+  background: #b42318;
+  border-color: #b42318;
+}
+
 .ai-search-view .search-error,
 .ai-search-view .search-empty {
   max-width: none;

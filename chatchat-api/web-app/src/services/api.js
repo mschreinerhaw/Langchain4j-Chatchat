@@ -876,8 +876,27 @@ export function searchDocuments(filters = {}) {
   if (filters.pageSize) {
     params.set("pageSize", String(filters.pageSize));
   }
+  if (filters.requestId) {
+    params.set("requestId", filters.requestId);
+  }
   const query = params.toString();
-  return apiRequest(`/search/frontend${query ? `?${query}` : ""}`);
+  return apiRequest(`/search/frontend${query ? `?${query}` : ""}`, {
+    signal: filters.signal
+  });
+}
+
+export function cancelDocumentSearch(requestId, filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.tenantId) {
+    params.set("tenantId", filters.tenantId);
+  }
+  if (filters.userId) {
+    params.set("userId", filters.userId);
+  }
+  const query = params.toString();
+  return apiRequest(`/search/frontend/${encodeURIComponent(requestId)}/cancel${query ? `?${query}` : ""}`, {
+    method: "POST"
+  });
 }
 
 export function debugDocumentDecision(payload = {}) {

@@ -1,5 +1,6 @@
 ﻿import "../../styles/pages/ai-search.css";
 import {
+  cancelDocumentSearch,
   cancelSearchDocumentUpload,
   deleteSearchDocument,
   fetchResearchLibrary,
@@ -73,6 +74,9 @@ export default {
       pageSize: 6,
       pageCount: 1,
       loading: false,
+      searchController: null,
+      searchRequestId: "",
+      searchStopped: false,
       uploading: false,
       documentUploadController: null,
       documentUploadRequestId: "",
@@ -138,8 +142,26 @@ export default {
     }
   },
   methods: {
+    handleSearchAction() {
+      if (this.searchController) {
+        this.stopSearch();
+        return;
+      }
+      if (this.loading) {
+        return;
+      }
+      this.performSearch();
+    },
     async performSearch(resetPage = true) {
+      if (this.loading) {
+        return;
+      }
+      const requestId = `search-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      const controller = new AbortController();
       this.loading = true;
+      this.searchStopped = false;
+      this.searchRequestId = requestId;
+      this.searchController = controller;
       this.error = "";
       this.searched = true;
       this.searchedKeyword = this.keyword.trim();
@@ -152,8 +174,13 @@ export default {
           page: this.page,
           pageSize: this.pageSize,
           tenantId: this.effectiveTenantId,
-          userId: this.userId
+          userId: this.userId,
+          requestId,
+          signal: controller.signal
         });
+        if (this.searchStopped || controller.signal.aborted) {
+          return;
+        }
         this.results = payload?.results || [];
         this.resultTotal = payload?.total || 0;
         this.page = payload?.page || this.page;
@@ -165,6 +192,11 @@ export default {
         this.clampPage();
         this.recordSearchHits();
       } catch (error) {
+        if (error?.name === "AbortError" || this.searchStopped) {
+          this.error = "";
+          this.resultMessage = "检索已停止。";
+          return;
+        }
         this.error = error.message || "检索失败";
         this.results = [];
         this.resultTotal = 0;
@@ -174,7 +206,36 @@ export default {
         this.hasMoreResults = false;
         this.page = 1;
       } finally {
-        this.loading = false;
+        if (this.searchController === controller) {
+          this.searchController = null;
+          this.searchRequestId = "";
+          this.loading = false;
+        }
+      }
+    },
+    async stopSearch() {
+      if (!this.loading || !this.searchController) {
+        return;
+      }
+      const requestId = this.searchRequestId;
+      const controller = this.searchController;
+      this.searchStopped = true;
+      this.resultMessage = "正在停止检索...";
+      controller.abort();
+      try {
+        await cancelDocumentSearch(requestId, {
+          tenantId: this.effectiveTenantId,
+          userId: this.userId
+        });
+      } catch (error) {
+        // The browser request is already aborted; the search may also have completed naturally.
+      } finally {
+        if (this.searchController === controller) {
+          this.searchController = null;
+          this.searchRequestId = "";
+          this.loading = false;
+          this.resultMessage = "检索已停止。";
+        }
       }
     },
     async openUploadDialog() {

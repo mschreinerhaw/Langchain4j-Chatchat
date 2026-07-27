@@ -48,6 +48,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 
 @RestController
 @RequiredArgsConstructor
@@ -59,6 +60,7 @@ public class SearchController {
     private final SearchFeedbackService searchFeedbackService;
     private final DocumentSearchEvidenceService documentSearchEvidenceService;
     private final DocumentUploadCancellationRegistry uploadCancellationRegistry;
+    private final DocumentSearchCancellationRegistry searchCancellationRegistry;
     private final CategoryReindexTaskService categoryReindexTaskService;
     private final ApiLimitProperties limitProperties;
 
@@ -112,18 +114,64 @@ public class SearchController {
                                                   @RequestParam(value = "limit", required = false) Integer limit,
                                                   @RequestParam(value = "tenantId", required = false) String tenantId,
                                                   @RequestParam(value = "userId", required = false) String userId,
-                                                  @RequestParam(value = "roles", required = false) String roles) {
-        SearchPage pageResult = searchService.frontendQuickSearch(
-            keyword,
-            tag,
-            company,
-            industry,
-            docIds,
-            page,
-            pageSize == null ? limit : pageSize,
-            permissionContext(tenantId, userId, roles)
+                                                  @RequestParam(value = "roles", required = false) String roles,
+                                                  @RequestParam(value = "requestId", required = false) String requestId,
+                                                  HttpServletRequest servletRequest) {
+        SearchPermissionContext context = authenticatedPermissionContext(servletRequest, tenantId, userId, roles);
+        searchCancellationRegistry.register(context.tenantId(), requestId);
+        try {
+            SearchPage pageResult = searchService.frontendQuickSearch(
+                keyword,
+                tag,
+                company,
+                industry,
+                docIds,
+                page,
+                pageSize == null ? limit : pageSize,
+                context
+            );
+            return ApiResponse.success(lightweightSearchPage(pageResult));
+        } catch (CancellationException ex) {
+            return ApiResponse.error(499, "检索已停止");
+        } finally {
+            searchCancellationRegistry.complete(context.tenantId(), requestId);
+            // Servlet container threads are pooled; do not leak a cancellation interrupt
+            // into the next request that reuses this worker thread.
+            if (Thread.currentThread().isInterrupted()) {
+                Thread.interrupted();
+            }
+        }
+    }
+
+    ApiResponse<SearchPage> frontendSearch(String keyword,
+                                           String tag,
+                                           String company,
+                                           String industry,
+                                           String docIds,
+                                           Integer page,
+                                           Integer pageSize,
+                                           Integer limit,
+                                           String tenantId,
+                                           String userId,
+                                           String roles) {
+        return frontendSearch(keyword, tag, company, industry, docIds, page, pageSize, limit,
+            tenantId, userId, roles, null, null);
+    }
+
+    @PostMapping("/frontend/{requestId}/cancel")
+    @Operation(summary = "Stop one tenant-scoped web document search")
+    public ApiResponse<SearchCancellationResult> cancelFrontendSearch(
+        @PathVariable("requestId") String requestId,
+        @RequestParam(value = "tenantId", required = false) String tenantId,
+        @RequestParam(value = "userId", required = false) String userId,
+        HttpServletRequest servletRequest
+    ) {
+        SearchPermissionContext context = authenticatedPermissionContext(servletRequest, tenantId, userId, null);
+        boolean cancelled = searchCancellationRegistry.cancel(context.tenantId(), requestId);
+        return ApiResponse.success(
+            new SearchCancellationResult(requestId, context.tenantId(), cancelled),
+            cancelled ? "检索停止信号已发送" : "检索任务已结束或不存在"
         );
-        return ApiResponse.success(lightweightSearchPage(pageResult));
     }
 
     @PostMapping
@@ -664,6 +712,33 @@ public class SearchController {
 
     private SearchPermissionContext permissionContext(String tenantId, String userId, String roles) {
         return SearchPermissionContext.of(tenantId, userId, parseCsv(roles));
+    }
+
+    private SearchPermissionContext authenticatedPermissionContext(HttpServletRequest request,
+                                                                   String tenantId,
+                                                                   String userId,
+                                                                   String roles) {
+        String authenticatedTenant = requestAttribute(request, ApiAuthenticationFilter.CURRENT_TENANT_ID);
+        String authenticatedUser = requestAttribute(request, ApiAuthenticationFilter.CURRENT_USER_ID);
+        return SearchPermissionContext.of(
+            authenticatedTenant == null ? tenantId : authenticatedTenant,
+            authenticatedUser == null ? userId : authenticatedUser,
+            parseCsv(roles)
+        );
+    }
+
+    private String requestAttribute(HttpServletRequest request, String name) {
+        if (request == null) {
+            return null;
+        }
+        Object value = request.getAttribute(name);
+        if (value == null || String.valueOf(value).isBlank()) {
+            return null;
+        }
+        return String.valueOf(value).trim();
+    }
+
+    public record SearchCancellationResult(String requestId, String tenantId, boolean cancelled) {
     }
 
     private String mergeCategoryTag(String category, String tags) {

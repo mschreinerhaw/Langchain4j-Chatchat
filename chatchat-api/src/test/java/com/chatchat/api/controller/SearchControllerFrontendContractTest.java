@@ -14,6 +14,7 @@ import com.chatchat.knowledgebase.search.SearchScoreBreakdown;
 import com.chatchat.knowledgebase.search.SearchService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockHttpServletRequest;
 
 import java.util.List;
 import java.util.Map;
@@ -22,9 +23,42 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SearchControllerFrontendContractTest {
+
+    @Test
+    void frontendSearchUsesAuthenticatedTenantInsteadOfCallerSuppliedTenant() {
+        SearchService searchService = mock(SearchService.class);
+        SearchController controller = new SearchController(
+            searchService,
+            mock(SearchFeedbackService.class),
+            mock(DocumentSearchEvidenceService.class),
+            new DocumentUploadCancellationRegistry(),
+            new DocumentSearchCancellationRegistry(),
+            mock(CategoryReindexTaskService.class),
+            new ApiLimitProperties()
+        );
+        when(searchService.frontendQuickSearch(
+            any(), any(), any(), any(), any(), any(), any(), any(SearchPermissionContext.class)
+        )).thenReturn(new SearchPage(
+            "", List.of(), List.of(), 0, 6, 1, 6, 1, false, 0L, 0, "ok"
+        ));
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID, "authenticated-tenant");
+        request.setAttribute(ApiAuthenticationFilter.CURRENT_USER_ID, "authenticated-user");
+
+        controller.frontendSearch(
+            "", null, null, null, null, 1, 6, null,
+            "other-tenant", "other-user", null, "search-1", request
+        );
+
+        verify(searchService).frontendQuickSearch(
+            eq(""), any(), any(), any(), any(), eq(1), eq(6),
+            eq(SearchPermissionContext.of("authenticated-tenant", "authenticated-user", List.of()))
+        );
+    }
 
     @Test
     void frontendSearchDoesNotExposeRecallDebugTokensAsDisplayFields() {
@@ -34,6 +68,7 @@ class SearchControllerFrontendContractTest {
             mock(SearchFeedbackService.class),
             mock(DocumentSearchEvidenceService.class),
             new DocumentUploadCancellationRegistry(),
+            new DocumentSearchCancellationRegistry(),
             mock(CategoryReindexTaskService.class),
             new ApiLimitProperties()
         );
@@ -93,6 +128,7 @@ class SearchControllerFrontendContractTest {
             mock(SearchFeedbackService.class),
             mock(DocumentSearchEvidenceService.class),
             new DocumentUploadCancellationRegistry(),
+            new DocumentSearchCancellationRegistry(),
             mock(CategoryReindexTaskService.class),
             limits
         );
@@ -197,6 +233,7 @@ class SearchControllerFrontendContractTest {
             mock(SearchFeedbackService.class),
             mock(DocumentSearchEvidenceService.class),
             new DocumentUploadCancellationRegistry(),
+            new DocumentSearchCancellationRegistry(),
             mock(CategoryReindexTaskService.class),
             new ApiLimitProperties()
         );
@@ -225,6 +262,7 @@ class SearchControllerFrontendContractTest {
             mock(SearchFeedbackService.class),
             mock(DocumentSearchEvidenceService.class),
             new DocumentUploadCancellationRegistry(),
+            new DocumentSearchCancellationRegistry(),
             mock(CategoryReindexTaskService.class),
             new ApiLimitProperties()
         );

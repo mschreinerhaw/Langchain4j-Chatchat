@@ -4281,6 +4281,70 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void acceptsStructuredMcpResultForTextOutputContract() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("web_search")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("web_search"))
+            .thenReturn(ToolMetadata.builder().riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        Map<String, Object> structuredResult = new java.util.LinkedHashMap<>();
+        structuredResult.put("results", List.of(Map.of(
+            "title", "Market update",
+            "url", "https://example.test/market"
+        )));
+        structuredResult.put("query", "A-share market");
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(structuredResult),
+            ToolMetadata.builder().id("web_search").build(),
+            null,
+            "success",
+            Map.of()
+        ));
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("web_search", "Collect market evidence", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(
+                    1,
+                    "mcp_tool",
+                    "web_search",
+                    Map.of("query", "A-share market"),
+                    List.of(),
+                    new InterpretationPlan.OutputContract("text", "news titles and summaries"),
+                    null
+                ),
+                new InterpretationPlan.Step(
+                    2, "final_answer", "", Map.of("answer", "done"),
+                    List.of(1), null, null
+                )
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                2, false, List.of("web_search"), List.of(), 30_000
+            ),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, toolRegistry, List.of("web_search"), "tenant-1",
+                "req-text-contract", "conv-text-contract", "user-1", Map.of()
+            )
+        );
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.status()).isEqualTo("completed");
+        assertThat(result.steps()).hasSize(2);
+        assertThat(result.steps().get(0).output()).isSameAs(structuredResult);
+        verify(toolRuntimeService, times(1)).execute(any());
+    }
+
+    @Test
     void acceptsLogicalSearchResultContractAsSuccessfulWholeToolOutput() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("web_search")).thenReturn(true);

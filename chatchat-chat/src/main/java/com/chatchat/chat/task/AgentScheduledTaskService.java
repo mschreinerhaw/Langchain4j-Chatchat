@@ -874,8 +874,9 @@ public class AgentScheduledTaskService {
                 recipientService.recipients(entity.getTenantId(), entity.getNotificationChannelType());
             String receiver;
             if ("SPECIFIC".equalsIgnoreCase(entity.getNotificationRecipientMode())) {
-                receiver = maintainedRecipients.contains(entity.getNotificationReceiver())
-                    ? entity.getNotificationReceiver() : null;
+                List<String> selectedRecipients = parseNotificationRecipients(entity.getNotificationReceiver());
+                receiver = !selectedRecipients.isEmpty() && maintainedRecipients.containsAll(selectedRecipients)
+                    ? String.join(",", selectedRecipients) : null;
             } else {
                 receiver = maintainedRecipients.isEmpty() ? null : String.join(",", maintainedRecipients);
             }
@@ -996,18 +997,31 @@ public class AgentScheduledTaskService {
             ? "SPECIFIC" : "DEFAULT";
         String selectedReceiver = text(request.getNotificationReceiver());
         if ("SPECIFIC".equals(recipientMode)) {
-            if (selectedReceiver.isBlank()) {
-                throw new IllegalArgumentException("请选择一个通知联系人");
+            List<String> selectedRecipients = parseNotificationRecipients(selectedReceiver);
+            if (selectedRecipients.isEmpty()) {
+                throw new IllegalArgumentException("请至少选择一个通知联系人");
             }
-            if (!maintainedRecipients.contains(selectedReceiver)) {
+            if (!maintainedRecipients.containsAll(selectedRecipients)) {
                 throw new IllegalArgumentException("只能选择当前租户通知方式中已维护的联系人");
             }
+            selectedReceiver = String.join(",", selectedRecipients);
         }
         entity.setNotificationChannelId(option.id());
         entity.setNotificationChannelType(option.channel());
         entity.setNotificationChannelName(firstText(option.title(), option.toolName(), option.channel()));
         entity.setNotificationRecipientMode(recipientMode);
         entity.setNotificationReceiver("SPECIFIC".equals(recipientMode) ? selectedReceiver : null);
+    }
+
+    private List<String> parseNotificationRecipients(String receiver) {
+        if (receiver == null || receiver.isBlank()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(receiver.split("[,;，；\\n]+"))
+            .map(String::trim)
+            .filter(item -> !item.isBlank())
+            .distinct()
+            .toList();
     }
 
     private void configureNotificationCondition(ScheduledTaskEntity entity, ScheduledAgentTaskRequest request) {

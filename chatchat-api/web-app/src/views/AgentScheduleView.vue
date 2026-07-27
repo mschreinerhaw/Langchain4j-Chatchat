@@ -372,7 +372,9 @@
               <strong>通知类型</strong>
               <span v-if="selectedNotificationChannel()">
                 {{ selectedNotificationChannel().title || channelTypeLabel(selectedNotificationChannel().channel) }}
-                · {{ form.notificationRecipientMode === "SPECIFIC" ? form.notificationReceiver : "默认联系人" }}
+                · {{ form.notificationRecipientMode === "SPECIFIC"
+                  ? `指定联系人（${parseNotificationRecipients(form.notificationReceiver).length}）`
+                  : "默认联系人" }}
               </span>
               <span v-else>保存调度时选择</span>
             </div>
@@ -598,16 +600,31 @@
                   />
                   <span>默认联系人（当前方式下全部已维护联系人）</span>
                 </label>
+                <div class="schedule-recipient-mode" role="group" aria-label="指定联系人选择方式">
+                  <span>指定联系人</span>
+                  <button
+                    type="button"
+                    :class="{ active: pendingNotificationId === channel.id
+                      && pendingNotificationRecipientMode === 'SPECIFIC'
+                      && pendingNotificationSelectionMode === 'SINGLE' }"
+                    @click="selectNotificationSelectionMode(channel.id, 'SINGLE')"
+                  >单选</button>
+                  <button
+                    type="button"
+                    :class="{ active: pendingNotificationId === channel.id
+                      && pendingNotificationRecipientMode === 'SPECIFIC'
+                      && pendingNotificationSelectionMode === 'MULTIPLE' }"
+                    @click="selectNotificationSelectionMode(channel.id, 'MULTIPLE')"
+                  >多选</button>
+                </div>
                 <label
                     v-for="recipient in parseNotificationRecipients(channel.receiver)"
                     :key="`${channel.id}-${recipient}`"
                   >
                   <input
-                    type="radio"
+                    :type="pendingNotificationSelectionMode === 'MULTIPLE' ? 'checkbox' : 'radio'"
                     :name="`notificationRecipient-${channel.id}`"
-                    :checked="pendingNotificationId === channel.id
-                      && pendingNotificationRecipientMode === 'SPECIFIC'
-                      && pendingNotificationReceiver === recipient"
+                    :checked="isNotificationRecipientSelected(channel.id, recipient)"
                     @change="selectNotificationRecipient(channel.id, recipient)"
                   />
                   <span>{{ recipient }}</span>

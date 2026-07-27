@@ -1233,6 +1233,42 @@
   color: #344054;
 }
 
+.schedule-recipient-mode {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+}
+
+.schedule-recipient-mode > span {
+  margin-right: auto;
+  color: #667085;
+  font-size: 12px;
+}
+
+.schedule-recipient-mode button {
+  min-width: 52px;
+  padding: 5px 12px;
+  border: 1px solid #d8e2f0;
+  border-radius: 999px;
+  background: #fff;
+  color: #526174;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.schedule-recipient-mode button:hover,
+.schedule-recipient-mode button.active {
+  border-color: #76a8ff;
+  background: #eaf3ff;
+  color: #1768d5;
+}
+
+.schedule-recipient-mode button.active {
+  box-shadow: inset 0 0 0 1px rgba(47, 124, 246, 0.18);
+  font-weight: 700;
+}
+
 .notification-recipient-summary {
   display: grid;
   gap: 6px;

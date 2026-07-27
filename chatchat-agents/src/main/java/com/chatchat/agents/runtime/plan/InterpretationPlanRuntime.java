@@ -735,7 +735,14 @@ public class InterpretationPlanRuntime {
         }
         return switch (expectedType) {
             case "json" -> output instanceof Map<?, ?> || output instanceof List<?>;
-            case "text" -> output instanceof CharSequence;
+            // Structured tool results are rendered as JSON text when they are supplied to
+            // the model. Keep the original value for evidence/citation extraction, but
+            // treat JSON-compatible containers as satisfying a textual consumption
+            // contract instead of rejecting successful MCP calls solely by Java type.
+            case "text" -> output instanceof CharSequence
+                || output instanceof Map<?, ?>
+                || output instanceof Iterable<?>
+                || output.getClass().isArray();
             case "table" -> output instanceof Iterable<?> || output instanceof Map<?, ?>
                 || output.getClass().isArray();
             case "stream" -> output instanceof Iterable<?>

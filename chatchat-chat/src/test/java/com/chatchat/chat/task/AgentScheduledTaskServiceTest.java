@@ -235,7 +235,8 @@ class AgentScheduledTaskServiceTest {
         schedule.setNotificationChannelId("email-channel");
         schedule.setNotificationChannelType("EMAIL");
         schedule.setNotificationChannelName("邮件");
-        schedule.setNotificationRecipientMode("DEFAULT");
+        schedule.setNotificationRecipientMode("SPECIFIC");
+        schedule.setNotificationReceiver("ops@example.com,risk@example.com");
 
         when(latestRepository.findById(latest.getTaskId())).thenReturn(Optional.of(latest));
         when(runRepository.findFirstByTaskIdOrderByFireTimeDesc(latest.getTaskId())).thenReturn(Optional.of(run));
@@ -248,7 +249,8 @@ class AgentScheduledTaskServiceTest {
                 List.of(Map.of("sourceRef", "market://index", "snippet", "上证指数上涨0.3%")))
         ));
         when(formatter.format(anyString())).thenReturn(Map.of("title", "今日市场平稳"));
-        when(recipientService.recipients("tenant-1", "EMAIL")).thenReturn(List.of("ops@example.com"));
+        when(recipientService.recipients("tenant-1", "EMAIL"))
+            .thenReturn(List.of("ops@example.com", "risk@example.com"));
         when(evaluator.evaluate(anyString(), anyString(), anyList())).thenReturn(
             new NotificationPolicyEvaluator.Decision(false, "指数波动未达到阈值",
                 List.of(), List.of(), true)
@@ -266,6 +268,7 @@ class AgentScheduledTaskServiceTest {
 
         verify(notificationClient, never()).dispatch(anyString(), any());
         assertThat(run.getNotificationStatus()).isEqualTo("SKIPPED_CONDITION");
+        assertThat(run.getNotificationReceiver()).isEqualTo("ops@example.com,risk@example.com");
         assertThat(run.getNotificationError()).contains("未达到阈值");
         assertThat(run.getNotificationDecisionJson())
             .contains("\"decision\":\"SKIP\"")
@@ -342,7 +345,7 @@ class AgentScheduledTaskServiceTest {
         request.setNotificationCondition("仅当存在交易所证据证明主要指数涨跌幅超过2%时发送");
         request.setNotificationChannelId("email-channel");
         request.setNotificationRecipientMode("SPECIFIC");
-        request.setNotificationReceiver("selected@example.com");
+        request.setNotificationReceiver(" selected@example.com；default@example.com;selected@example.com ");
         request.setTradingDayOnly(true);
         request.setScheduleWindowEnabled(true);
         request.setScheduleWindowStart("09:00");
@@ -361,7 +364,8 @@ class AgentScheduledTaskServiceTest {
         assertThat(saved.getValue().getQuestion()).isEqualTo("更新后的问题");
         assertThat(saved.getValue().getCronExpr()).isEqualTo("0 30 9 * * ?");
         assertThat(saved.getValue().getNotificationRecipientMode()).isEqualTo("SPECIFIC");
-        assertThat(saved.getValue().getNotificationReceiver()).isEqualTo("selected@example.com");
+        assertThat(saved.getValue().getNotificationReceiver())
+            .isEqualTo("selected@example.com,default@example.com");
         assertThat(saved.getValue().getNotificationConditionEnabled()).isTrue();
         assertThat(saved.getValue().getNotificationCondition()).contains("涨跌幅超过2%");
         assertThat(saved.getValue().getTradingDayOnly()).isTrue();

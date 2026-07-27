@@ -176,6 +176,7 @@ export default {
       recipientSaving: "",
       pendingNotificationId: "",
       pendingNotificationRecipientMode: "DEFAULT",
+      pendingNotificationSelectionMode: "SINGLE",
       pendingNotificationReceiver: "",
       error: "",
       notice: "",
@@ -461,8 +462,8 @@ export default {
       }
       if (this.form.notifyEnabled
         && this.form.notificationRecipientMode === "SPECIFIC"
-        && !this.form.notificationReceiver) {
-        this.error = "请选择一个通知联系人";
+        && !this.parseNotificationRecipients(this.form.notificationReceiver).length) {
+        this.error = "请选择至少一个通知联系人";
         await this.openNotificationSelector();
         return;
       }
@@ -722,6 +723,8 @@ export default {
       this.pendingNotificationId = this.form.notificationChannelId || "";
       this.pendingNotificationRecipientMode = this.form.notificationRecipientMode || "DEFAULT";
       this.pendingNotificationReceiver = this.form.notificationReceiver || "";
+      this.pendingNotificationSelectionMode =
+        this.parseNotificationRecipients(this.pendingNotificationReceiver).length > 1 ? "MULTIPLE" : "SINGLE";
       this.notificationSelectOpen = true;
       await this.loadNotificationChannels();
     },
@@ -737,15 +740,17 @@ export default {
       }
       const selectedChannel = this.notificationChannels.find((channel) => channel.id === this.pendingNotificationId);
       const recipients = this.parseNotificationRecipients(selectedChannel?.receiver);
+      const selectedRecipients = this.parseNotificationRecipients(this.pendingNotificationReceiver);
       if (this.pendingNotificationRecipientMode === "SPECIFIC"
-        && !recipients.includes(this.pendingNotificationReceiver)) {
-        this.error = "请选择该通知方式下的一个联系人";
+        && (!selectedRecipients.length
+          || selectedRecipients.some((recipient) => !recipients.includes(recipient)))) {
+        this.error = "请选择该通知方式下至少一个有效联系人";
         return;
       }
       this.form.notificationChannelId = this.pendingNotificationId;
       this.form.notificationRecipientMode = this.pendingNotificationRecipientMode;
       this.form.notificationReceiver = this.pendingNotificationRecipientMode === "SPECIFIC"
-        ? this.pendingNotificationReceiver : "";
+        ? selectedRecipients.join(",") : "";
       this.notificationSelectOpen = false;
       await this.createSchedule(true);
     },
@@ -753,6 +758,7 @@ export default {
       if (this.pendingNotificationId !== channelId) {
         this.pendingNotificationId = channelId;
         this.pendingNotificationRecipientMode = "DEFAULT";
+        this.pendingNotificationSelectionMode = "SINGLE";
         this.pendingNotificationReceiver = "";
       }
     },
@@ -761,10 +767,33 @@ export default {
       this.pendingNotificationRecipientMode = "DEFAULT";
       this.pendingNotificationReceiver = "";
     },
+    selectNotificationSelectionMode(channelId, mode) {
+      const normalizedMode = mode === "MULTIPLE" ? "MULTIPLE" : "SINGLE";
+      const selectedRecipients = this.parseNotificationRecipients(this.pendingNotificationReceiver);
+      this.pendingNotificationId = channelId;
+      this.pendingNotificationRecipientMode = "SPECIFIC";
+      this.pendingNotificationSelectionMode = normalizedMode;
+      this.pendingNotificationReceiver = normalizedMode === "SINGLE"
+        ? (selectedRecipients[0] || "") : selectedRecipients.join(",");
+    },
     selectNotificationRecipient(channelId, receiver) {
       this.pendingNotificationId = channelId;
       this.pendingNotificationRecipientMode = "SPECIFIC";
+      if (this.pendingNotificationSelectionMode === "MULTIPLE") {
+        const selected = this.parseNotificationRecipients(this.pendingNotificationReceiver);
+        this.pendingNotificationReceiver = (
+          selected.includes(receiver)
+            ? selected.filter((recipient) => recipient !== receiver)
+            : [...selected, receiver]
+        ).join(",");
+        return;
+      }
       this.pendingNotificationReceiver = receiver;
+    },
+    isNotificationRecipientSelected(channelId, receiver) {
+      return this.pendingNotificationId === channelId
+        && this.pendingNotificationRecipientMode === "SPECIFIC"
+        && this.parseNotificationRecipients(this.pendingNotificationReceiver).includes(receiver);
     },
     async saveNotificationRecipientsAndClose() {
       const channels = this.notificationChannels.filter((channel) => channel.recipientAware);

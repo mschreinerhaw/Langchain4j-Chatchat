@@ -89,7 +89,50 @@ class AgentOrchestratorTest {
             .contains("MUST NOT produce a refusal or an empty answer")
             .contains("Never generate illustrative, manual, or 'typical' SQL/commands")
             .contains("Distinguish BLOCKED before invocation")
+            .contains("Do not make the tool evidence list, document heading path, execution trace, or JSON field names the body of the answer")
+            .contains("deduplicate repeated headings")
+            .contains("Do not claim that enterprise standards, terms, dictionaries, or other governed metadata do not exist")
             .contains("Never present toolName as displayName");
+    }
+
+    @Test
+    void interpretationPlanWorkflowBlockStopsBeforeAttemptsExhaustedSynthesis() throws Exception {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        Method method = AgentOrchestrator.class.getDeclaredMethod(
+            "finishInterpretationPlanWorkflowBlockedIfPending",
+            List.class,
+            Map.class,
+            List.class,
+            String.class,
+            String.class
+        );
+        method.setAccessible(true);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("interpretationPlanWorkflowBlocked", true);
+        metadata.put("interpretationPlanWorkflowMissingTools", List.of());
+        metadata.put("interpretationPlanWorkflowMissingPlanStepIds", List.of(1));
+        List<String> observations = new ArrayList<>();
+
+        AgentOrchestrator.AgentExecutionResult result = (AgentOrchestrator.AgentExecutionResult) method.invoke(
+            orchestrator,
+            List.of(),
+            metadata,
+            observations,
+            "interpretation_plan_workflow_incomplete",
+            "InterpretationPlan workflow guard blocked final_answer before all required DAG steps completed."
+        );
+
+        assertThat(result).isNotNull();
+        assertThat(result.answer())
+            .contains("InterpretationPlan workflow is incomplete")
+            .doesNotContain("Synthesized answer from executed steps");
+        assertThat(result.metadata())
+            .containsEntry("stopReason", "interpretation_plan_workflow_incomplete")
+            .containsEntry("fatalExecutionBlocked", true)
+            .containsEntry("errorCode", "PLAN_INVALID_REQUIRED_STEP_NOT_EXECUTED");
+        assertThat(observations)
+            .anyMatch(value -> value.contains("Missing tools: []")
+                && value.contains("missing plan steps: [1]"));
     }
 
     @Test

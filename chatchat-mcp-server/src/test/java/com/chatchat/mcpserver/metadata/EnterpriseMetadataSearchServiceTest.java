@@ -71,4 +71,62 @@ class EnterpriseMetadataSearchServiceTest {
             .containsEntry("type", "metadata_field")
             .containsEntry("source", "enterprise_field_catalog");
     }
+
+    @Test
+    void enterpriseMetadataSearchAlwaysRetrievesFieldsTermsAndDictionaries() {
+        EnterpriseMetadataProperties properties = new EnterpriseMetadataProperties();
+        EnterpriseMetadataWorkbookLoader loader = mock(EnterpriseMetadataWorkbookLoader.class);
+        OpenSearchMcpSearchService openSearch = mock(OpenSearchMcpSearchService.class);
+        EnterpriseMetadataTaxonomyService taxonomyService = mock(EnterpriseMetadataTaxonomyService.class);
+        when(taxonomyService.taxonomy()).thenReturn(new EnterpriseMetadataTaxonomyService.TaxonomySnapshot(
+            List.of(),
+            new EnterpriseMetadataTaxonomyService.ScenarioDefinition(
+                "fallback", "general_metadata", "General", "General metadata", "common",
+                List.of(), 999, true, List.of()
+            )
+        ));
+        EnterpriseMetadataScenarioClassifier classifier =
+            new EnterpriseMetadataScenarioClassifier(properties, taxonomyService);
+        EnterpriseMetadataVectorizer vectorizer = new EnterpriseMetadataVectorizer(properties);
+        when(openSearch.enabled()).thenReturn(false);
+        properties.setSourceLocationPattern("memory:test");
+        when(loader.load("memory:test")).thenReturn(List.of(
+            new EnterpriseMetadataRecord(
+                "F001", "metadata_field", "enterprise_field_catalog",
+                "Customer Number", "CUST_NUM", "Customer identifier", "active", "fields.xlsx#fields",
+                Map.of("dataType", "string")
+            ),
+            new EnterpriseMetadataRecord(
+                "T001", "metadata_term", "enterprise_term_dictionary",
+                "Customer", "CUST", "Customer root term", "active", "terms.xlsx#terms",
+                Map.of("englishName", "Customer", "abbreviation", "CUST")
+            ),
+            new EnterpriseMetadataRecord(
+                "D001:1", "metadata_dictionary", "enterprise_term_dictionary",
+                "Customer Type", "CUSTOMER_TYPE", "Customer dictionary value", "active", "dictionary.xlsx#dictionary",
+                Map.of("code", "1", "codeDescription", "Individual customer")
+            )
+        ));
+        EnterpriseMetadataCatalog catalog =
+            new EnterpriseMetadataCatalog(properties, loader, classifier, vectorizer, openSearch);
+        catalog.refresh();
+        EnterpriseMetadataSearchService service =
+            new EnterpriseMetadataSearchService(catalog, properties, openSearch, classifier, vectorizer);
+
+        Map<String, Object> response = service.search(new EnterpriseMetadataSearchService.SearchRequest(
+            "customer", List.of("metadata_field"), List.of(), 10));
+
+        assertThat(response).containsEntry("count", 3);
+        assertThat((List<String>) response.get("requiredTypes"))
+            .containsExactly("metadata_field", "metadata_term", "metadata_dictionary");
+        Map<String, Object> countsByType = (Map<String, Object>) response.get("countsByType");
+        assertThat(countsByType)
+            .containsEntry("metadata_field", 1)
+            .containsEntry("metadata_term", 1)
+            .containsEntry("metadata_dictionary", 1);
+        Map<String, Object> requiredRetrieval = (Map<String, Object>) response.get("requiredRetrieval");
+        assertThat(requiredRetrieval)
+            .containsEntry("complete", true)
+            .containsEntry("policy", "enterprise_metadata_search_always_queries_standard_fields_terms_and_dictionaries");
+    }
 }

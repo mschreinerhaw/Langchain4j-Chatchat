@@ -19,6 +19,11 @@ import java.util.Set;
 public class EnterpriseMetadataSearchService {
 
     public static final String RESULT_SCHEMA_VERSION = "enterprise_metadata_search_result.v2";
+    public static final List<String> REQUIRED_METADATA_TYPES = List.of(
+        "metadata_field",
+        "metadata_term",
+        "metadata_dictionary"
+    );
 
     private final EnterpriseMetadataCatalog catalog;
     private final EnterpriseMetadataProperties properties;
@@ -49,7 +54,8 @@ public class EnterpriseMetadataSearchService {
         if (query == null) {
             throw new IllegalArgumentException("query is required");
         }
-        List<String> types = normalizeTypes(effective.types());
+        List<String> requestedTypes = normalizeTypes(effective.types());
+        List<String> types = requiredSearchTypes(requestedTypes);
         List<String> statuses = normalizeValues(effective.statuses());
         List<String> scenarios = normalizeValues(effective.scenarios());
         int limit = effective.limit() == null ? properties.getDefaultLimit() : effective.limit();
@@ -60,13 +66,13 @@ public class EnterpriseMetadataSearchService {
         List<Float> queryVector = properties.getKnn().isEnabled()
             ? vectorizer.vectorize(semanticQuery)
             : List.of();
-        List<Map<String, Object>> results = searchOpenSearch(
-            expandedQuery, types, statuses, scenarios, queryVector, limit);
-        String backend = "opensearch";
-        if (results.isEmpty()) {
-            results = searchMemory(query, expandedQuery, types, statuses, scenarios, limit);
-            backend = "memory";
+        List<SearchBucket> buckets = new ArrayList<>();
+        for (String type : types) {
+            buckets.add(searchRequiredType(query, expandedQuery, type, statuses, scenarios, queryVector, limit));
         }
+        List<Map<String, Object>> results = mergeBuckets(buckets);
+        String backend = aggregateBackend(buckets);
+        Map<String, Object> countsByType = countsByType(results);
 
         List<Map<String, Object>> evidence = results.stream()
             .map(this::evidenceObject)
@@ -77,6 +83,8 @@ public class EnterpriseMetadataSearchService {
         response.put("query", query);
         response.put("expandedQuery", expandedQuery);
         response.put("semanticQuery", semanticQuery);
+        response.put("requestedTypes", requestedTypes);
+        response.put("requiredTypes", REQUIRED_METADATA_TYPES);
         response.put("detectedScenarios", scenarioClassifier.classifyQuery(query));
         response.put("backend", backend);
         response.put("retrievalMode", "memory".equals(backend)
@@ -87,6 +95,16 @@ public class EnterpriseMetadataSearchService {
                 .findFirst()
                 .orElse("bm25"));
         response.put("count", results.size());
+        response.put("countsByType", countsByType);
+        response.put("requiredRetrieval", Map.of(
+            "complete", true,
+            "policy", "enterprise_metadata_search_always_queries_standard_fields_terms_and_dictionaries",
+            "types", REQUIRED_METADATA_TYPES,
+            "attemptedTypes", types,
+            "emptyTypes", REQUIRED_METADATA_TYPES.stream()
+                .filter(type -> ((Number) countsByType.getOrDefault(type, 0)).intValue() == 0)
+                .toList()
+        ));
         response.put("results", results);
         response.put("evidenceObjects", evidence);
         response.put("evidencePolicy", Map.of(
@@ -95,6 +113,65 @@ public class EnterpriseMetadataSearchService {
             "sourceAuthority", "configured_enterprise_metadata_catalog"
         ));
         return response;
+    }
+
+    private SearchBucket searchRequiredType(String originalQuery,
+                                            String expandedQuery,
+                                            String type,
+                                            List<String> statuses,
+                                            List<String> scenarios,
+                                            List<Float> queryVector,
+                                            int limit) {
+        List<String> singleType = List.of(type);
+        List<Map<String, Object>> results = searchOpenSearch(
+            expandedQuery, singleType, statuses, scenarios, queryVector, limit);
+        if (!results.isEmpty()) {
+            return new SearchBucket(type, results, "opensearch");
+        }
+        return new SearchBucket(
+            type,
+            searchMemory(originalQuery, expandedQuery, singleType, statuses, scenarios, limit),
+            "memory"
+        );
+    }
+
+    private List<Map<String, Object>> mergeBuckets(List<SearchBucket> buckets) {
+        Map<String, Map<String, Object>> merged = new LinkedHashMap<>();
+        for (SearchBucket bucket : buckets == null ? List.<SearchBucket>of() : buckets) {
+            for (Map<String, Object> result : bucket.results()) {
+                String key = String.valueOf(result.getOrDefault("metadataType", bucket.type()))
+                    + ":"
+                    + String.valueOf(result.getOrDefault("id", merged.size()));
+                merged.putIfAbsent(key, result);
+            }
+        }
+        return List.copyOf(merged.values());
+    }
+
+    private Map<String, Object> countsByType(List<Map<String, Object>> results) {
+        Map<String, Object> counts = new LinkedHashMap<>();
+        REQUIRED_METADATA_TYPES.forEach(type -> counts.put(type, 0));
+        for (Map<String, Object> result : results == null ? List.<Map<String, Object>>of() : results) {
+            String type = normalize(String.valueOf(result.get("metadataType")));
+            if (type != null) {
+                counts.put(type, ((Number) counts.getOrDefault(type, 0)).intValue() + 1);
+            }
+        }
+        return counts;
+    }
+
+    private String aggregateBackend(List<SearchBucket> buckets) {
+        Set<String> backends = new LinkedHashSet<>();
+        for (SearchBucket bucket : buckets == null ? List.<SearchBucket>of() : buckets) {
+            backends.add(bucket.backend());
+        }
+        if (backends.isEmpty()) {
+            return "none";
+        }
+        if (backends.size() == 1) {
+            return backends.iterator().next();
+        }
+        return "mixed";
     }
 
     private List<Map<String, Object>> searchOpenSearch(String query,
@@ -284,6 +361,16 @@ public class EnterpriseMetadataSearchService {
             .toList();
     }
 
+    private List<String> requiredSearchTypes(List<String> requestedTypes) {
+        Set<String> types = new LinkedHashSet<>(REQUIRED_METADATA_TYPES);
+        if (requestedTypes != null) {
+            requestedTypes.stream()
+                .filter(REQUIRED_METADATA_TYPES::contains)
+                .forEach(types::add);
+        }
+        return List.copyOf(types);
+    }
+
     private List<String> normalizeValues(List<String> values) {
         if (values == null) return List.of();
         return values.stream().map(this::normalize).filter(java.util.Objects::nonNull).distinct().toList();
@@ -330,6 +417,13 @@ public class EnterpriseMetadataSearchService {
 
         public SearchRequest(String query, List<String> types, List<String> statuses, Integer limit) {
             this(query, types, statuses, List.of(), limit);
+        }
+    }
+
+    private record SearchBucket(String type, List<Map<String, Object>> results, String backend) {
+        private SearchBucket {
+            results = results == null ? List.of() : List.copyOf(results);
+            backend = backend == null || backend.isBlank() ? "unknown" : backend;
         }
     }
 }

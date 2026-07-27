@@ -984,7 +984,7 @@ public class InterpretationPlanRuntime {
                 .forEach(completedToolSet::add);
         }
         completed.values().stream()
-            .filter(execution -> execution != null && execution.success())
+            .filter(this::terminalToolExecutionSucceeded)
             .map(StepExecution::toolName)
             .filter(tool -> tool != null && !tool.isBlank())
             .forEach(completedToolSet::add);
@@ -992,6 +992,18 @@ public class InterpretationPlanRuntime {
         attributes.put("workflowCompletedTools", completedTools);
         attributes.put("completedTools", completedTools);
         return attributes;
+    }
+
+    private boolean terminalToolExecutionSucceeded(StepExecution execution) {
+        if (execution == null) {
+            return false;
+        }
+        if (execution.success()) {
+            return true;
+        }
+        return execution.toolExecution() != null
+            && execution.toolExecution().output() != null
+            && execution.toolExecution().output().isSuccess();
     }
 
     private void appendDiagnosticBatchAttributes(

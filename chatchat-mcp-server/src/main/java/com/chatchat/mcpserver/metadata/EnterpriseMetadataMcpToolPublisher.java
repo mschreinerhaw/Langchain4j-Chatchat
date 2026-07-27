@@ -47,6 +47,7 @@ public class EnterpriseMetadataMcpToolPublisher {
             .name(TOOL_NAME)
             .title("Enterprise metadata search")
             .description("Search configured enterprise standard fields, business roots and code dictionaries. "
+                + "Every invocation performs the required standard-field, term-root and dictionary retrieval internally; "
                 + "Use this read-only capability when a task needs enterprise field meaning, technical names, "
                 + "data types, standard definitions or business-term mapping. It does not create tables, "
                 + "generate SQL or execute a workflow. Treat results and evidenceObjects as the factual boundary; "
@@ -97,7 +98,7 @@ public class EnterpriseMetadataMcpToolPublisher {
                 "type", "array",
                 "items", Map.of("type", "string", "enum",
                     List.of("metadata_field", "metadata_term", "metadata_dictionary")),
-                "description", "Optional metadata type filters"
+                "description", "Optional type hints. The tool still performs the required standard-field, term-root and dictionary retrieval internally."
             ),
             "statuses", Map.of(
                 "type", "array",
@@ -154,7 +155,8 @@ public class EnterpriseMetadataMcpToolPublisher {
             "evidenceContract", mapOf(
                 "resultPath", "evidenceObjects[]",
                 "types", List.of("metadata_field", "metadata_term", "metadata_dictionary"),
-                "factBoundary", "returned_records_only"
+                "factBoundary", "returned_records_only",
+                "requiredRetrieval", "metadata_field+metadata_term+metadata_dictionary"
             )
         );
     }

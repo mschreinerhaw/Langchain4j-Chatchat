@@ -1295,6 +1295,16 @@ public class AgentOrchestrator {
         if (blockedResult != null) {
             return blockedResult;
         }
+        AgentExecutionResult planWorkflowBlockedResult = finishInterpretationPlanWorkflowBlockedIfPending(
+            traces,
+            metadata,
+            observations,
+            "interpretation_plan_workflow_incomplete",
+            "InterpretationPlan workflow guard blocked final_answer before all required DAG steps completed."
+        );
+        if (planWorkflowBlockedResult != null) {
+            return planWorkflowBlockedResult;
+        }
         if (!planAttemptResults.isEmpty()) {
             String synthesizedAnswer = synthesizeInterpretationPlanAnswer(
                 activeChatModel,
@@ -1330,6 +1340,39 @@ public class AgentOrchestrator {
             cancellationCheck,
             "interpretation_plan_failed"
         );
+    }
+
+    private AgentExecutionResult finishInterpretationPlanWorkflowBlockedIfPending(
+        List<InteractionToolTrace> traces,
+        Map<String, Object> metadata,
+        List<String> observations,
+        String stopReason,
+        String reason
+    ) {
+        if (metadata == null || !Boolean.TRUE.equals(metadata.get("interpretationPlanWorkflowBlocked"))) {
+            return null;
+        }
+        List<String> missingTools = metadataStringList(metadata, "interpretationPlanWorkflowMissingTools");
+        List<String> missingStepIds = metadataStringList(metadata, "interpretationPlanWorkflowMissingPlanStepIds");
+        if (missingTools.isEmpty() && missingStepIds.isEmpty()) {
+            return null;
+        }
+        metadata.put("stopReason", stopReason);
+        metadata.put("fatalExecutionBlocked", true);
+        metadata.put("mandatoryWorkflowBlocked", true);
+        metadata.put("mandatoryWorkflowCompleted", false);
+        metadata.put("mandatoryWorkflowPending", true);
+        metadata.put("errorCode", "PLAN_INVALID_REQUIRED_STEP_NOT_EXECUTED");
+        metadata.put("errorMessage", "PLAN_INVALID_REQUIRED_STEP_NOT_EXECUTED: " + reason
+            + " Missing tools: " + missingTools
+            + "; missing plan steps: " + missingStepIds);
+        observations.add(reason + " Missing tools: " + missingTools
+            + "; missing plan steps: " + missingStepIds);
+        String deterministicFailure = "InterpretationPlan workflow is incomplete. final_answer was blocked before all required DAG steps completed."
+            + " Missing tools: " + missingTools
+            + "; missing plan steps: " + missingStepIds
+            + ". Completed tool evidence has been preserved, but this run will not synthesize a final answer from an incomplete workflow.";
+        return answerFinalizer.finishExecution(deterministicFailure, traces, metadata, observations);
     }
 
     private AgentExecutionResult finishSynthesizedInterpretationPlanAnswer(
@@ -2046,6 +2089,12 @@ public class AgentOrchestrator {
         prompt.append("Answer the user in Chinese using only the executed attempt records, model review decisions, and stored observations.\n");
         prompt.append("Return a polished Markdown document, not a single plain paragraph. Use concise headings and lists when they improve readability.\n");
         prompt.append("Do not wrap the Markdown in code fences and do not output JSON.\n");
+        prompt.append("Primary answer contract:\n");
+        prompt.append("- Start by directly answering the user's requested deliverable. For a summary request, synthesize the document's main content and value points first.\n");
+        prompt.append("- Do not make the tool evidence list, document heading path, execution trace, or JSON field names the body of the answer.\n");
+        prompt.append("- Use source/document references only as support after the synthesized conclusion. Avoid copying retrieved heading paths or raw chunk structure unless the user explicitly asks for provenance.\n");
+        prompt.append("- If retrieved text is noisy, deduplicate repeated headings, repair line-break artifacts, and summarize the underlying meaning instead of echoing the retrieval format.\n");
+        prompt.append("- If a required metadata search was blocked by workflow dependency validation, report it as a runtime workflow blockage. Do not claim that enterprise standards, terms, dictionaries, or other governed metadata do not exist unless the corresponding search tool executed successfully and returned an empty result.\n");
         prompt.append("Workflow contract:\n");
         prompt.append("- Treat every succeeded tool step with returned data as evidence, even when the model review marked it incomplete or partial.\n");
         prompt.append("- If any MCP tool returned non-empty data, you MUST analyze the supported parts of the user's task. Evidence gaps may reduce confidence and require a limitations section, but MUST NOT produce a refusal or an empty answer.\n");

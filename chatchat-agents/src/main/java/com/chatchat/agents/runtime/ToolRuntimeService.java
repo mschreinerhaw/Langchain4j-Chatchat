@@ -3196,14 +3196,24 @@ public class ToolRuntimeService {
      */
     private String normalizeToolSemanticKey(String toolName) {
         String normalized = normalizePolicyKey(toolName);
-        if (normalized.contains("document_search")) {
-            return "document_search";
+        if (normalized.isBlank()) {
+            return "";
         }
-        if (normalized.contains("search_and_extract")) {
-            return "search_and_extract";
-        }
-        if (normalized.contains("web_search")) {
-            return "web_search";
+        String[] prefixes = {
+            "mcp_chatchat_mcp_server_",
+            "chatchat_mcp_server_",
+            "mcp_server_",
+            "mcp_"
+        };
+        boolean changed = true;
+        while (changed) {
+            changed = false;
+            for (String prefix : prefixes) {
+                if (normalized.startsWith(prefix)) {
+                    normalized = normalized.substring(prefix.length());
+                    changed = true;
+                }
+            }
         }
         return normalized;
     }

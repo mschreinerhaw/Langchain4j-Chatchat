@@ -9,7 +9,7 @@ import static org.mockito.Mockito.verify;
 class DatabaseQueryPublicationServiceTest {
 
     @Test
-    void queuesEnabledTemplateForIncrementalPublicationRefresh() {
+    void queuesFullRefreshForEnabledTemplateToKeepKnnIndexCoherent() {
         DatabaseQueryMcpToolPublisher publisher = mock(DatabaseQueryMcpToolPublisher.class);
         McpTemplateLuceneIndexService indexService = mock(McpTemplateLuceneIndexService.class);
         DatabaseQueryPublicationService service = new DatabaseQueryPublicationService(
@@ -21,7 +21,7 @@ class DatabaseQueryPublicationServiceTest {
         service.refreshAsync(saved);
 
         verify(publisher).refresh();
-        verify(indexService).upsertDatabaseQueryTemplates(java.util.List.of(saved));
+        verify(indexService).refreshDatabaseQueryTemplateIndex();
     }
 
     @Test

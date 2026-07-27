@@ -186,6 +186,11 @@ public class DatabaseQueryAdminController {
         config.setDatasourceId(request.datasourceId());
         config.setDescription(request.description());
         config.setImplementationSteps(request.implementationSteps());
+        config.setCategoryId(request.categoryId());
+        config.setCapabilityCategory(request.capabilityCategory());
+        config.setDomain(request.domain());
+        config.setBusinessScope(request.businessScope());
+        config.setIndexTagsJson(writeJsonArray(request.indexTags()));
         config.setBusinessGroup(request.businessGroup());
         config.setBusinessGroupName(request.businessGroupName());
         config.setBusinessGroupDescription(request.businessGroupDescription());
@@ -232,6 +237,11 @@ public class DatabaseQueryAdminController {
             config.getDatasourceId(),
             config.getDescription(),
             config.getImplementationSteps(),
+            config.getCategoryId(),
+            config.getCapabilityCategory(),
+            config.getDomain(),
+            config.getBusinessScope(),
+            readJsonArray(config.getIndexTagsJson()),
             config.getBusinessGroup(),
             config.getBusinessGroupName(),
             config.getBusinessGroupDescription(),
@@ -419,6 +429,11 @@ public class DatabaseQueryAdminController {
         String datasourceId,
         String description,
         String implementationSteps,
+        String categoryId,
+        String capabilityCategory,
+        String domain,
+        String businessScope,
+        List<String> indexTags,
         String businessGroup,
         String businessGroupName,
         String businessGroupDescription,
@@ -461,6 +476,11 @@ public class DatabaseQueryAdminController {
         String datasourceId,
         String description,
         String implementationSteps,
+        String categoryId,
+        String capabilityCategory,
+        String domain,
+        String businessScope,
+        List<String> indexTags,
         String businessGroup,
         String businessGroupName,
         String businessGroupDescription,

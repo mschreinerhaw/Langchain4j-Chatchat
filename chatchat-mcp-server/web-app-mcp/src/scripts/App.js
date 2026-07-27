@@ -39,7 +39,7 @@ export default {
         { key: 'mcpServices', label: 'MCP 服务', icon: 'Cpu', component: McpServicesView },
         { key: 'newsCollection', label: '资讯采集', icon: 'Tickets', component: NewsCollectionView },
         { key: 'assetCenter', label: '资产中心', icon: 'FolderOpened', component: AssetCenterView },
-        { key: 'databaseMcp', label: '数据库查询', icon: 'Coin', component: DatabaseMcpView },
+        { key: 'databaseMcp', label: '数据能力中心', icon: 'Coin', component: DatabaseMcpView },
         { key: 'cacheSettings', label: '缓存设置', icon: 'DataLine', component: CacheSettingsView },
         { key: 'notificationChannels', label: '通知告警', icon: 'Bell', component: NotificationChannelsView },
         { key: 'auditLogs', label: '调用审计', icon: 'Tickets', component: AuditLogsView },

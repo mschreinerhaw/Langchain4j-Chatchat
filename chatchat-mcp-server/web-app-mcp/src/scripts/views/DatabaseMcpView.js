@@ -20,6 +20,9 @@ export default {
       activeTab: 'queries',
       busy: false,
       sqlAssets: [],
+      categories: [],
+      allQueries: [],
+      selectedCategory: '',
       calendarFunctionName: 'trade_date',
       calendarQueryTestPassed: false,
       calendar: {
@@ -34,7 +37,12 @@ export default {
       defaults: {
         enabled: true,
         datasourceId: '',
-        businessGroup: 'default',
+        categoryId: '',
+        capabilityCategory: '',
+        domain: 'finance',
+        businessScope: '面向金融业务分析的只读数据查询能力。',
+        tags: [],
+        indexTags: [],
         maxRows: 50,
         timeoutSeconds: 30,
         inputSchema,
@@ -46,7 +54,8 @@ export default {
         { key: 'toolName', label: '工具名称', type: 'code' },
         { key: 'title', label: '显示名称' },
         { key: 'datasourceId', label: '数据源', formatter: value => this.datasourceLabel(value) },
-        { key: 'businessGroup', label: '分类' },
+        { key: 'businessGroupName', label: '能力分类' },
+        { key: 'domain', label: '业务领域' },
         { key: 'maxRows', label: '最大行数' },
         { key: 'enabled', label: '状态', type: 'badge', formatter: value => value === false ? '停用' : '启用' }
       ],
@@ -80,11 +89,31 @@ export default {
           section: 'basic'
         },
         {
-          key: 'businessGroup',
-          label: '分类',
+          key: 'categoryId',
+          label: '能力分类',
+          type: 'select',
           required: true,
-          placeholder: '如 customer、finance、risk',
-          help: '用于数据库查询的分类展示、检索和资产授权筛选；未特别分类时可填写 default。',
+          options: () => this.categoryOptions,
+          placeholder: '选择金融数据能力分类',
+          help: '分类参与能力隔离、MCP 元数据发布、索引过滤和 Agent Tool Discovery。',
+          section: 'basic'
+        },
+        {
+          key: 'domain',
+          label: '业务领域',
+          required: true,
+          placeholder: '如 finance',
+          help: '用于领域隔离和索引过滤，金融数据能力默认填写 finance。',
+          section: 'basic'
+        },
+        {
+          key: 'businessScope',
+          label: '业务范围',
+          type: 'textarea',
+          required: true,
+          span: 'col-12',
+          placeholder: '说明能力适用的业务边界、数据范围和不适用场景。',
+          help: '业务范围参与 BM25 与 kNN 混合检索。',
           section: 'basic'
         },
         {
@@ -118,6 +147,26 @@ export default {
           section: 'query',
           sectionTitle: 'SQL 流程编排',
           sectionSubtitle: '维护只读 SQL 节点、执行依赖、独立参数映射和结果集业务语义。'
+        },
+        {
+          key: 'tags',
+          label: '业务标签',
+          type: 'jsonStringList',
+          payloadAsArray: true,
+          span: 'col-md-6',
+          placeholder: '输入债券、收益率、客户、核验等标签',
+          help: '作为 MCP metadata 标签参与工具发现。',
+          section: 'query'
+        },
+        {
+          key: 'indexTags',
+          label: '索引标签',
+          type: 'jsonStringList',
+          payloadAsArray: true,
+          span: 'col-md-6',
+          placeholder: '输入检索同义词、业务对象和指标口径',
+          help: '专用于 BM25 与 kNN 能力索引，可补充工具名称中没有出现的业务表达。',
+          section: 'query'
         },
         {
           key: 'queryParameters',
@@ -174,6 +223,21 @@ export default {
     datasourceSelectOptions() {
       return this.datasourceOptions(false);
     },
+    categoryOptions() {
+      return this.categories
+        .filter(item => item.enabled !== false)
+        .map(item => ({ value: item.id, label: `${item.name} / ${item.code}` }));
+    },
+    categoryCards() {
+      return [
+        { id: '', code: '', name: '全部能力', description: '查看全部数据查询能力', count: this.allQueries.length },
+        ...this.categories.filter(item => item.enabled !== false).map(item => ({
+          ...item,
+          count: this.allQueries.filter(query =>
+            query.categoryId === item.id || query.capabilityCategory === item.code).length
+        }))
+      ];
+    },
     tradingCalendarFunctionOptions() {
       return [
         { value: 'trade_date', label: '当前交易日 trade_date' },
@@ -188,9 +252,30 @@ export default {
   },
   mounted() {
     this.loadSqlAssets();
+    this.loadCategories();
     this.loadTradingCalendar();
   },
   methods: {
+    async loadCategories() {
+      try {
+        const [categories, queries] = await Promise.all([api.listCategories(), api.list()]);
+        this.categories = categories || [];
+        this.allQueries = queries || [];
+      } catch (error) {
+        this.$emit('error', error);
+      }
+    },
+    async listQueries() {
+      const queries = await api.list() || [];
+      this.allQueries = queries;
+      if (!this.selectedCategory) return queries;
+      return queries.filter(query => query.categoryId === this.selectedCategory
+        || query.capabilityCategory === this.selectedCategory);
+    },
+    async selectCategory(category) {
+      this.selectedCategory = category.id || category.code || '';
+      await this.$refs.catalog?.load?.();
+    },
     datasourceOptions(enabledOnly) {
       return this.sqlAssets
         .filter(asset => !enabledOnly || asset.enabled !== false)

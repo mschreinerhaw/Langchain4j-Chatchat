@@ -4,6 +4,7 @@ import com.chatchat.mcpserver.api.ApiServiceConfig;
 import com.chatchat.mcpserver.api.ApiServiceConfigService;
 import com.chatchat.mcpserver.database.DatabaseQueryConfig;
 import com.chatchat.mcpserver.database.DatabaseQueryConfigService;
+import com.chatchat.mcpserver.database.DatabaseQuerySqlStep;
 import com.chatchat.mcpserver.ops.CommandTemplateConfig;
 import com.chatchat.mcpserver.ops.CommandTemplateService;
 import com.chatchat.mcpserver.ops.HttpEndpointConfig;
@@ -174,10 +175,34 @@ public class McpTemplateLuceneIndexService {
         signals.addAll(readStringArray(config.getRoutingLabelsJson()));
         signals.addAll(readStringArray(config.getCapabilitiesJson()));
         signals.addAll(readStringArray(config.getTagsJson()));
+        signals.addAll(readStringArray(config.getIndexTagsJson()));
         signals.addAll(governanceTerms(config.getGovernanceJson()));
+        List<DatabaseQuerySqlStep> workflowSteps = readDatabaseQuerySteps(config.getSqlStepsJson());
+        List<String> stepNames = workflowSteps.stream()
+            .map(DatabaseQuerySqlStep::getSqlName)
+            .filter(value -> value != null && !value.isBlank())
+            .toList();
+        List<String> stepDescriptions = workflowSteps.stream()
+            .map(DatabaseQuerySqlStep::getSqlDescription)
+            .filter(value -> value != null && !value.isBlank())
+            .toList();
+        addTerms(signals, config.getCapabilityCategory(), config.getDomain(), config.getBusinessScope());
+        stepNames.forEach(value -> addTerms(signals, value));
+        stepDescriptions.forEach(value -> addTerms(signals, value));
         databaseQueryDatasource(config).ifPresent(datasource -> addTerms(signals,
             datasource.getId(), datasource.getName(), datasource.getTitle(), datasource.getToolName(),
             datasource.getDescription(), datasource.getEnvironment(), datasource.getDatabaseType()));
+        String semanticText = java.util.stream.Stream.of(
+            firstText(config.getTitle(), config.getToolName()),
+            firstText(config.getDescription(), ""),
+            firstText(config.getImplementationSteps(), ""),
+            firstText(config.getCapabilityCategory(), ""),
+            firstText(config.getDomain(), ""),
+            firstText(config.getBusinessScope(), ""),
+            String.join(" ", readStringArray(config.getIndexTagsJson())),
+            String.join(" ", stepNames),
+            String.join(" ", stepDescriptions)
+        ).filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.joining("\n"));
         return new LuceneMcpSearchService.TemplateDoc(
             config.getId(),
             "database_query",
@@ -186,13 +211,31 @@ public class McpTemplateLuceneIndexService {
                 + firstText(config.getImplementationSteps(), "") + " "
                 + firstText(config.getBusinessGroupName(), "") + " "
                 + firstText(config.getBusinessGroupDescription(), ""),
-            firstText(config.getBusinessGroup(), "sql_template_registry"),
+            firstText(config.getCapabilityCategory(), firstText(config.getBusinessGroup(), "data_asset_exploration")),
             SqlDatasourceConfigService.normalizeDatabaseTypeToken(config.getDatabaseType()),
             String.join(" ", distinct(signals)),
             firstText(config.getRiskLevel(), "read_only"),
             distinct(signals),
-            "database_query_template_registry"
+            "database_query_template_registry",
+            config.getToolName(),
+            config.getDescription(),
+            config.getImplementationSteps(),
+            config.getDomain(),
+            config.getBusinessScope(),
+            readStringArray(config.getIndexTagsJson()),
+            stepNames,
+            stepDescriptions,
+            FeatureHashVectorizer.vectorize(semanticText, 256)
         );
+    }
+
+    private List<DatabaseQuerySqlStep> readDatabaseQuerySteps(String json) {
+        if (json == null || json.isBlank()) return List.of();
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<DatabaseQuerySqlStep>>() {});
+        } catch (Exception ignored) {
+            return List.of();
+        }
     }
 
     public void upsertApiServiceTemplates(List<ApiServiceConfig> templates) {

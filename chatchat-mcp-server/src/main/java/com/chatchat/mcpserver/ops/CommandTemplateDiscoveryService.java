@@ -435,7 +435,7 @@ public class CommandTemplateDiscoveryService {
                 "selectionHint", "Generate and use bilingual Chinese and English retrieval terms, then choose the returned template whose name, description, intentSignals, relevanceScore, and matchReasons best match the user intent; do not use asset allowed template order as semantic ranking.",
                 "fallback", "If authorized candidates exist but intent ranking returns no match, the engine broadens intent and marks resolutionTrace[].fallbackUsed=true.",
                 "selectionFields", List.of("templateId", "name", "description", "capabilitySpec", "outputSchema", "dependencySpec", "templateConfig", "intentSignals", "parameterSchema", "requiredParameters", "parameterContract", "invocationExample"),
-                "sqlDisclosure", "business_query_template_search returns executable template references and parameter contracts only; it must not return raw SQL text or stored query bodies.",
+                "sqlDisclosure", "Template discovery never returns raw SQL text or stored query bodies. Business database capabilities are exposed as dedicated MCP tools.",
                 "onEmptyResult", "No existing authorized template matched the request after asset, type and authorization filters. Do not suggest a new template name unless the user asks to administer templates."
             ),
             "selectionProtocol", mapOf(

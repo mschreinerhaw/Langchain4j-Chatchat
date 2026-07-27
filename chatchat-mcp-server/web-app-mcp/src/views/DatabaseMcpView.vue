@@ -4,30 +4,45 @@
       <template #header>
         <div class="panel-heading">
           <div>
-            <h2>数据库查询</h2>
-            <p>注册面向分析场景的只读 SQL 查询，并将其发布为 MCP 工具。</p>
+            <h2>数据能力中心</h2>
+            <p>按金融业务分类管理可被 Agent 发现和调用的只读数据能力。</p>
           </div>
         </div>
       </template>
 
       <el-tabs v-model="activeTab" class="workspace-tabs">
-        <el-tab-pane label="查询模板" name="queries" />
+        <el-tab-pane label="数据查询能力" name="queries" />
         <el-tab-pane label="交易日历" name="calendar" />
         <el-tab-pane label="批量导入" name="dsl" />
       </el-tabs>
     </el-card>
 
+    <section v-if="activeTab === 'queries'" class="capability-category-grid">
+      <button
+        v-for="category in categoryCards"
+        :key="category.id || 'all'"
+        type="button"
+        class="capability-category-card"
+        :class="{ active: selectedCategory === (category.id || category.code || '') }"
+        @click="selectCategory(category)"
+      >
+        <span class="capability-category-title">{{ category.name }}</span>
+        <strong>{{ category.count }}</strong>
+        <small>{{ category.description }}</small>
+      </button>
+    </section>
+
     <CrudCatalog
       v-if="activeTab === 'queries'"
       ref="catalog"
-      title="数据库查询"
-      subtitle="将安全 SQL 查询发布为 MCP 工具。"
-      search-placeholder="搜索工具名称、标题、分类、描述或数据源"
+      title="数据查询能力"
+      subtitle="分类维护金融数据服务，并将安全查询发布为带业务元数据的 MCP 工具。"
+      search-placeholder="搜索名称、描述、实现步骤、工作台步骤、标签或数据源"
       :columns="columns"
       :form-fields="formFields"
       :defaults="defaults"
-      :searchable-fields="['toolName', 'title', 'businessGroup', 'businessGroupName', 'description', 'datasourceId']"
-      :list-action="api.list"
+      :searchable-fields="['toolName', 'title', 'capabilityCategory', 'businessGroupName', 'domain', 'businessScope', 'description', 'implementationSteps', 'tags', 'indexTags', 'sqlSteps', 'datasourceId']"
+      :list-action="listQueries"
       :save-action="api.save"
       :remove-action="api.remove"
       :batch-remove="api.batchRemove"
@@ -38,7 +53,7 @@
       form-preview-type="databaseQuery"
       :rebuild-action="api.rebuildIndex"
       rebuild-label="重建索引"
-      form-subtitle="配置只读 SQL 查询模板。请先填写工具名称、数据源和 SQL，再按 SQL 占位符维护输入参数。"
+      form-subtitle="配置可检索的数据能力。显示名称、描述、实现步骤、工作台步骤名称与说明、业务及索引标签都会进入 BM25+kNN 混合索引。"
       @notify="$emit('notify', $event)"
       @error="$emit('error', $event)"
       @result="$emit('result', $event)"

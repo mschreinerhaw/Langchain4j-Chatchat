@@ -2,6 +2,8 @@ package com.chatchat.mcpserver.search;
 
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.mcpserver.database.DatabaseQueryConfigService;
+import com.chatchat.mcpserver.metadata.EnterpriseMetadataCatalog;
+import com.chatchat.mcpserver.metadata.EnterpriseMetadataSearchService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import com.chatchat.mcpserver.sql.SqlMetadataSearchService;
 import com.chatchat.runtime.market.storage.FinancialAssetCatalogService;
@@ -30,6 +32,9 @@ class McpSearchIndexAdminControllerTest {
     private final SqlDatasourceConfigService datasourceConfigService = mock(SqlDatasourceConfigService.class);
     private final DocumentSearchAdminClient documentSearchAdminClient = mock(DocumentSearchAdminClient.class);
     private final FinancialAssetCatalogService financialAssetCatalogService = mock(FinancialAssetCatalogService.class);
+    private final EnterpriseMetadataCatalog enterpriseMetadataCatalog = mock(EnterpriseMetadataCatalog.class);
+    private final EnterpriseMetadataSearchService enterpriseMetadataSearchService =
+        mock(EnterpriseMetadataSearchService.class);
     private final McpSearchIndexAdminController controller = new McpSearchIndexAdminController(
         assetIndexService,
         templateIndexService,
@@ -39,8 +44,53 @@ class McpSearchIndexAdminControllerTest {
         datasourceConfigService,
         documentSearchAdminClient,
         financialAssetCatalogService,
+        enterpriseMetadataCatalog,
+        enterpriseMetadataSearchService,
         new ObjectMapper()
     );
+
+    @Test
+    void searchesEnterpriseMetadataTestIndex() {
+        when(enterpriseMetadataCatalog.status()).thenReturn(Map.of(
+            "indexName", "enterprise_metadata_catalog",
+            "recordCount", 10068
+        ));
+        when(enterpriseMetadataSearchService.search(any())).thenReturn(Map.of(
+            "schemaVersion", EnterpriseMetadataSearchService.RESULT_SCHEMA_VERSION,
+            "backend", "opensearch",
+            "count", 1,
+            "results", List.of(Map.of(
+                "id", "F001",
+                "metadataType", "metadata_field",
+                "name", "客户编码",
+                "technicalName", "CUST_NUM",
+                "dataType", "字符型",
+                "status", "标准",
+                "relevanceScore", 5.5D
+            )),
+            "evidenceObjects", List.of()
+        ));
+
+        ApiResponse<Map<String, Object>> response = controller.search(Map.of(
+            "indexType", "enterprise_metadata",
+            "query", "客户编码",
+            "metadataType", "metadata_field",
+            "status", "标准",
+            "limit", 10
+        ));
+
+        assertThat(response.getData())
+            .containsEntry("indexType", "enterprise_metadata")
+            .containsEntry("physicalIndex", "enterprise_metadata_catalog")
+            .containsEntry("catalogRecordCount", 10068)
+            .containsEntry("count", 1);
+        assertThat((List<?>) response.getData().get("results")).singleElement()
+            .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
+            .containsEntry("technicalName", "CUST_NUM")
+            .containsEntry("kind", "metadata_field")
+            .containsEntry("assetType", "enterprise_metadata")
+            .containsEntry("score", 5.5D);
+    }
 
     @Test
     void searchesFinancialDataAssetIndex() {

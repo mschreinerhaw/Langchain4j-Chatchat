@@ -354,6 +354,12 @@ public class StandardToolExecutionResultFactory {
     @SuppressWarnings("unchecked")
     public Map<String, Object> fromDatabaseQuery(DatabaseQueryConfig config, Map<String, Object> arguments,
                                                 ToolOutput output) {
+        return fromDatabaseQuery(config, arguments, output, null);
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> fromDatabaseQuery(DatabaseQueryConfig config, Map<String, Object> arguments,
+                                                ToolOutput output, String publishedToolName) {
         boolean success = output != null && output.isSuccess();
         long durationMs = output == null || output.getExecutionTimeMs() == null
             ? 0L
@@ -371,7 +377,8 @@ public class StandardToolExecutionResultFactory {
             stringValue(resultData.get("sql")),
             config == null ? null : config.getSqlTemplate()
         );
-        String toolName = firstText(config == null ? null : config.getToolName(), "database_query");
+        String toolName = firstText(publishedToolName,
+            config == null ? null : config.getToolName(), "database_query");
         String errorMessage = output == null ? "database_query returned no output" : output.getErrorMessage();
         Map<String, Object> analysisContext = databaseQueryAnalysisContext(config);
         Map<String, Object> payload = base(

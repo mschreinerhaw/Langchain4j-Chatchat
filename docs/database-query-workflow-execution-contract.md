@@ -478,7 +478,7 @@ chatchat:
 
 ## 模板发现契约
 
-`business_query_template_search` 返回模板时，应包含：
+专项数据库查询 MCP 工具对外发布时，应包含：
 
 - 工具名称和工具描述。
 - 集合层 `implementationSteps`。
@@ -675,4 +675,3 @@ chatchat:
 - 不允许引入任意脚本作为参数或条件表达式。
 
 当流程扩展到 HTTP、MCP、SSH 等节点类型时，应新建通用数据查询工作流协议，而不是继续把非 SQL 逻辑塞入数据库查询流程。
-

@@ -8,6 +8,7 @@ import com.chatchat.tools.workflow.SqlWorkflowNode;
 import com.chatchat.tools.workflow.SqlWorkflowParameterMapping;
 import com.chatchat.mcpserver.api.ApiServiceConfigRepository;
 import com.chatchat.mcpserver.search.LuceneMcpSearchService;
+import com.chatchat.mcpserver.search.FeatureHashVectorizer;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import com.chatchat.runtime.market.analysis.FinancialAnalysisQuerySamples;
@@ -31,7 +32,11 @@ import java.util.regex.Pattern;
 public class DatabaseQueryConfigService {
 
     private static final Pattern TOOL_NAME_PATTERN = Pattern.compile("^[A-Za-z0-9_-]{1,128}$");
-    private static final Set<String> RESERVED_TOOL_NAMES = Set.of("database_query", "database_query_execute");
+    private static final Set<String> RESERVED_TOOL_NAMES = Set.of(
+        "database_query",
+        "database_query_execute",
+        "enterprise_metadata_search"
+    );
     private static final Set<String> PARAMETER_SOURCE_TYPES = Set.of("USER_INPUT", "SYSTEM_CONTEXT", "UPSTREAM_RESULT", "STATIC");
     private static final SqlWorkflowEngine SQL_WORKFLOW_ENGINE = new SqlWorkflowEngine();
 
@@ -41,13 +46,24 @@ public class DatabaseQueryConfigService {
     private final ObjectMapper objectMapper;
     private final SqlDatasourceConfigService datasourceConfigService;
     private final LuceneMcpSearchService luceneSearchService;
+    private final DataQueryCategoryService categoryService;
 
     public DatabaseQueryConfigService(DatabaseQueryConfigRepository repository,
                                       ApiServiceConfigRepository apiServiceConfigRepository,
                                       ToolRegistry toolRegistry,
                                       ObjectMapper objectMapper,
                                       SqlDatasourceConfigService datasourceConfigService) {
-        this(repository, apiServiceConfigRepository, toolRegistry, objectMapper, datasourceConfigService, null);
+        this(repository, apiServiceConfigRepository, toolRegistry, objectMapper, datasourceConfigService, null, null);
+    }
+
+    public DatabaseQueryConfigService(DatabaseQueryConfigRepository repository,
+                                      ApiServiceConfigRepository apiServiceConfigRepository,
+                                      ToolRegistry toolRegistry,
+                                      ObjectMapper objectMapper,
+                                      SqlDatasourceConfigService datasourceConfigService,
+                                      LuceneMcpSearchService luceneSearchService) {
+        this(repository, apiServiceConfigRepository, toolRegistry, objectMapper, datasourceConfigService,
+            luceneSearchService, null);
     }
 
     @Autowired
@@ -56,13 +72,15 @@ public class DatabaseQueryConfigService {
                                       ToolRegistry toolRegistry,
                                       ObjectMapper objectMapper,
                                       SqlDatasourceConfigService datasourceConfigService,
-                                      LuceneMcpSearchService luceneSearchService) {
+                                      LuceneMcpSearchService luceneSearchService,
+                                      DataQueryCategoryService categoryService) {
         this.repository = repository;
         this.apiServiceConfigRepository = apiServiceConfigRepository;
         this.toolRegistry = toolRegistry;
         this.objectMapper = objectMapper;
         this.datasourceConfigService = datasourceConfigService;
         this.luceneSearchService = luceneSearchService;
+        this.categoryService = categoryService;
     }
 
     /**
@@ -155,6 +173,11 @@ public class DatabaseQueryConfigService {
         current.setDatasourceId(draft.getDatasourceId());
         current.setDescription(draft.getDescription());
         current.setImplementationSteps(draft.getImplementationSteps());
+        current.setCategoryId(draft.getCategoryId());
+        current.setCapabilityCategory(draft.getCapabilityCategory());
+        current.setDomain(draft.getDomain());
+        current.setBusinessScope(draft.getBusinessScope());
+        current.setIndexTagsJson(draft.getIndexTagsJson());
         current.setBusinessGroup(draft.getBusinessGroup());
         current.setBusinessGroupName(draft.getBusinessGroupName());
         current.setBusinessGroupDescription(draft.getBusinessGroupDescription());
@@ -283,6 +306,18 @@ public class DatabaseQueryConfigService {
         config.setDatasourceId(blankToNull(config.getDatasourceId()));
         config.setDescription(normalizeRequired(config.getDescription(), "description"));
         config.setImplementationSteps(normalizeRequired(config.getImplementationSteps(), "implementationSteps"));
+        config.setBusinessScope(firstText(blankToNull(config.getBusinessScope()), config.getDescription()));
+        config.setDomain(firstText(blankToNull(config.getDomain()), "finance"));
+        config.setIndexTagsJson(normalizeJsonArray(config.getIndexTagsJson(), "indexTags"));
+        if (categoryService != null) {
+            String selectedCategory = firstText(blankToNull(config.getCategoryId()),
+                blankToNull(config.getCapabilityCategory()));
+            if (selectedCategory == null) {
+                categoryService.assignBest(config);
+            } else {
+                categoryService.apply(config, selectedCategory);
+            }
+        }
         config.setBusinessGroup(normalizeBusinessGroup(config.getBusinessGroup()));
         config.setBusinessGroupName(firstText(blankToNull(config.getBusinessGroupName()), config.getBusinessGroup()));
         config.setBusinessGroupDescription(blankToNull(config.getBusinessGroupDescription()));
@@ -606,6 +641,10 @@ public class DatabaseQueryConfigService {
         labels.add(firstText(config.getBusinessGroup(), ""));
         labels.add(firstText(config.getBusinessGroupName(), ""));
         labels.add(firstText(config.getBusinessGroupDescription(), ""));
+        labels.add(firstText(config.getCapabilityCategory(), ""));
+        labels.add(firstText(config.getDomain(), ""));
+        labels.add(firstText(config.getBusinessScope(), ""));
+        labels.addAll(readJsonArray(config.getIndexTagsJson()));
         labels.add(firstText(config.getImplementationSteps(), ""));
         labels.add(firstText(config.getToolName(), ""));
         labels.add(firstText(config.getTitle(), ""));
@@ -625,6 +664,27 @@ public class DatabaseQueryConfigService {
             labels.add(firstText(datasource.getDatabaseType(), ""));
             labels.add(firstText(datasource.getMetadataScopeValue(), ""));
         });
+        List<DatabaseQuerySqlStep> workflowSteps = readSqlSteps(config.getSqlStepsJson());
+        List<String> stepNames = workflowSteps.stream()
+            .map(DatabaseQuerySqlStep::getSqlName)
+            .filter(value -> value != null && !value.isBlank())
+            .toList();
+        List<String> stepDescriptions = workflowSteps.stream()
+            .map(DatabaseQuerySqlStep::getSqlDescription)
+            .filter(value -> value != null && !value.isBlank())
+            .toList();
+        List<String> indexTags = readJsonArray(config.getIndexTagsJson());
+        String semanticText = java.util.stream.Stream.of(
+            firstText(config.getTitle(), config.getToolName()),
+            firstText(config.getDescription(), ""),
+            firstText(config.getImplementationSteps(), ""),
+            firstText(config.getCapabilityCategory(), ""),
+            firstText(config.getDomain(), ""),
+            firstText(config.getBusinessScope(), ""),
+            String.join(" ", indexTags),
+            String.join(" ", stepNames),
+            String.join(" ", stepDescriptions)
+        ).filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.joining("\n"));
         return new LuceneMcpSearchService.TemplateDoc(
             config.getId(),
             "database_query",
@@ -633,18 +693,31 @@ public class DatabaseQueryConfigService {
                 + firstText(config.getImplementationSteps(), "") + " "
                 + firstText(config.getBusinessGroupName(), "") + " "
                 + firstText(config.getBusinessGroupDescription(), "") + " "
+                + firstText(config.getCapabilityCategory(), "") + " "
+                + firstText(config.getDomain(), "") + " "
+                + firstText(config.getBusinessScope(), "") + " "
+                + String.join(" ", readJsonArray(config.getIndexTagsJson())) + " "
                 + firstText(config.getSqlTemplate(), "") + " "
                 + datasourceFor(config)
                     .map(datasource -> firstText(datasource.getName(), "") + " "
                         + firstText(datasource.getTitle(), "") + " "
                         + firstText(datasource.getDescription(), ""))
                     .orElse(""),
-            "sql_template_registry",
+            firstText(config.getCapabilityCategory(), firstText(config.getBusinessGroup(), "data_asset_exploration")),
             normalizeDatabaseType(config.getDatabaseType()),
             String.join(" ", labels),
             firstText(config.getRiskLevel(), "read_only"),
             labels,
-            "database_query_registry"
+            "database_query_registry",
+            config.getToolName(),
+            config.getDescription(),
+            config.getImplementationSteps(),
+            config.getDomain(),
+            config.getBusinessScope(),
+            indexTags,
+            stepNames,
+            stepDescriptions,
+            FeatureHashVectorizer.vectorize(semanticText, 256)
         );
     }
 

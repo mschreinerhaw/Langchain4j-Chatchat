@@ -565,9 +565,6 @@ public class McpAuthorizationService {
         if ("database_ops_template_search".equals(semantic)) {
             return new ToolScope("sql_datasource", "template", "query");
         }
-        if ("business_query_template_search".equals(semantic)) {
-            return new ToolScope("database_query", "template", "query");
-        }
         if (semantic.endsWith("_asset_query")) {
             return new ToolScope(normalizeAssetType(semantic.substring(0, semantic.length() - "_asset_query".length())), "asset", "query");
         }
@@ -590,6 +587,7 @@ public class McpAuthorizationService {
             case "sql_query_execute" -> new ToolScope("sql_datasource", "execute", "query");
             case "sql_script_execute" -> new ToolScope("sql_datasource", "execute", "script");
             case "sql_metadata_search" -> new ToolScope("sql_datasource", "metadata", "search");
+            case "enterprise_metadata_search" -> new ToolScope("enterprise_metadata", "metadata", "search");
             default -> new ToolScope(null, null, null);
         };
     }

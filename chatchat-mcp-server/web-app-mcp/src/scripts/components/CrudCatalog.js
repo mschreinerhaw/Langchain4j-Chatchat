@@ -419,7 +419,9 @@ export default {
         payload[field.key] = parseJsonObject(this.jsonDraft[field.key], field.defaultValue ?? {});
       });
       this.formFields.filter(field => field.type === 'jsonStringList' || field.type === 'templatePicker').forEach(field => {
-        payload[field.key] = JSON.stringify(this.listDraft[field.key] || []);
+        payload[field.key] = field.payloadAsArray
+          ? [...(this.listDraft[field.key] || [])]
+          : JSON.stringify(this.listDraft[field.key] || []);
       });
       this.formFields.filter(field => field.type === 'jsonObjectString').forEach(field => {
         payload[field.key] = JSON.stringify(rowsToObject(this.objectDraft[field.key] || []));

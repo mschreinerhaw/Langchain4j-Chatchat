@@ -20,6 +20,7 @@ public class DatabaseQueryMcpToolPublisher {
     private final McpSyncServer mcpSyncServer;
     private final DatabaseQueryConfigService configService;
     private final DatabaseQueryToolSpecFactory toolSpecFactory;
+    private final DatabaseQueryMcpNamingPolicy namingPolicy;
     private final Set<String> managedToolNames = ConcurrentHashMap.newKeySet();
 
     @Order(Ordered.LOWEST_PRECEDENCE)
@@ -32,8 +33,20 @@ public class DatabaseQueryMcpToolPublisher {
         managedToolNames.forEach(this::remove);
         managedToolNames.clear();
 
+        int published = 0;
+        for (DatabaseQueryConfig config : configService.listEnabled()) {
+            try {
+                mcpSyncServer.addTool(toolSpecFactory.toToolSpecification(config));
+                managedToolNames.add(namingPolicy.toolName(config));
+                published++;
+            } catch (Exception ex) {
+                log.error("Database query specialized MCP tool publication failed tool={} category={}: {}",
+                    config.getToolName(), config.getCapabilityCategory(), ex.getMessage(), ex);
+            }
+        }
         mcpSyncServer.notifyToolsListChanged();
-        log.info("Database query per-template MCP publishing disabled; use business_query_template_search and follow its execution binding (sql_script_execute for DAG/multi-SQL templates)");
+        log.info("Database query specialized MCP tools refreshed published={} tools={}",
+            published, managedToolNames.stream().sorted().toList());
     }
 
     private void remove(String toolName) {

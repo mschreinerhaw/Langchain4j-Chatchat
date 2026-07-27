@@ -38,6 +38,22 @@ public class DatabaseQueryConfig {
     @Column(columnDefinition = "longtext")
     private String implementationSteps;
 
+    @Column(length = 64)
+    private String categoryId;
+
+    @Column(length = 128)
+    private String capabilityCategory;
+
+    @Column(length = 128)
+    private String domain = "finance";
+
+    @Column(length = 1000)
+    private String businessScope;
+
+    @Lob
+    @Column(columnDefinition = "longtext")
+    private String indexTagsJson;
+
     @Column(length = 128)
     private String businessGroup = "default";
 
@@ -185,6 +201,16 @@ public class DatabaseQueryConfig {
     public void setDescription(String description) { this.description = description; }
     public String getImplementationSteps() { return implementationSteps; }
     public void setImplementationSteps(String implementationSteps) { this.implementationSteps = implementationSteps; }
+    public String getCategoryId() { return categoryId; }
+    public void setCategoryId(String categoryId) { this.categoryId = categoryId; }
+    public String getCapabilityCategory() { return capabilityCategory; }
+    public void setCapabilityCategory(String capabilityCategory) { this.capabilityCategory = capabilityCategory; }
+    public String getDomain() { return domain; }
+    public void setDomain(String domain) { this.domain = domain; }
+    public String getBusinessScope() { return businessScope; }
+    public void setBusinessScope(String businessScope) { this.businessScope = businessScope; }
+    public String getIndexTagsJson() { return indexTagsJson; }
+    public void setIndexTagsJson(String indexTagsJson) { this.indexTagsJson = indexTagsJson; }
     public String getBusinessGroup() { return businessGroup; }
     public void setBusinessGroup(String businessGroup) { this.businessGroup = businessGroup; }
     public String getBusinessGroupName() { return businessGroupName; }

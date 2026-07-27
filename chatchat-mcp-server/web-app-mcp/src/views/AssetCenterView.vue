@@ -159,7 +159,17 @@
           <h2>索引检索测试</h2>
           <p>直接查询当前系统本地索引，查看 MCP 检索实际返回的结构化结果。</p>
         </div>
-        <el-button type="primary" :loading="searchBusy" @click="runSearch">检索</el-button>
+        <el-space>
+          <el-button
+            v-if="search.indexType === 'enterprise_metadata'"
+            plain
+            :loading="busyAction === 'enterprise-metadata-index'"
+            @click="rebuildEnterpriseMetadataIndex"
+          >
+            从 Excel 重新导入
+          </el-button>
+          <el-button type="primary" :loading="searchBusy" @click="runSearch">检索</el-button>
+        </el-space>
       </header>
 
       <el-form class="entity-form" label-position="top" @submit.prevent="runSearch">
@@ -218,6 +228,34 @@
               </el-select>
             </el-form-item>
           </el-col>
+          <el-col v-if="search.indexType === 'enterprise_metadata'" :xs="24" :md="8" :lg="4">
+            <el-form-item label="元数据类型">
+              <el-select v-model="search.metadataType" class="w-100">
+                <el-option label="全部" value="" />
+                <el-option label="标准字段" value="metadata_field" />
+                <el-option label="业务词根" value="metadata_term" />
+                <el-option label="标准字典" value="metadata_dictionary" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col v-if="search.indexType === 'enterprise_metadata'" :xs="24" :md="8" :lg="4">
+            <el-form-item label="状态">
+              <el-input v-model.trim="search.status" placeholder="标准 / 草案 / 启用" />
+            </el-form-item>
+          </el-col>
+          <el-col v-if="search.indexType === 'enterprise_metadata'" :xs="24" :md="8" :lg="4">
+            <el-form-item label="业务场景">
+              <el-select v-model="search.scenario" class="w-100" filterable clearable>
+                <el-option label="全部场景" value="" />
+                <el-option
+                  v-for="option in enterpriseScenarioOptions"
+                  :key="option.code"
+                  :label="option.name"
+                  :value="option.code"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
           <el-col :xs="24" :md="8" :lg="4">
             <el-form-item label="Limit">
               <el-input-number v-model="search.limit" class="w-100" :min="1" :max="50" controls-position="right" />
@@ -246,6 +284,24 @@
         <el-table-column prop="publishedAt" label="发布时间" width="190" />
         <el-table-column prop="documentKind" label="文档类型" width="130" />
         <el-table-column prop="summary" label="摘要" min-width="260" show-overflow-tooltip />
+      </el-table>
+      <el-table
+        v-else-if="searchRows.length && search.indexType === 'enterprise_metadata'"
+        class="settings-table"
+        :data="searchRows"
+        border
+        stripe
+      >
+        <el-table-column prop="metadataType" label="类型" width="150" />
+        <el-table-column prop="name" label="中文名称" min-width="180" />
+        <el-table-column prop="technicalName" label="技术名称" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="scenarioNames" label="业务场景" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="dataType" label="数据类型" width="110" />
+        <el-table-column prop="retrievalMode" label="召回方式" width="150" />
+        <el-table-column prop="status" label="状态" width="90" />
+        <el-table-column prop="score" label="分数" width="100" />
+        <el-table-column prop="description" label="标准说明" min-width="240" show-overflow-tooltip />
+        <el-table-column prop="source" label="来源" min-width="240" show-overflow-tooltip />
       </el-table>
       <el-table v-else-if="searchRows.length" class="settings-table" :data="searchRows" border stripe>
         <el-table-column prop="kind" label="类型" width="100" />

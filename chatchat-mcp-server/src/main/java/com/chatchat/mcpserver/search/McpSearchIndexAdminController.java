@@ -3,6 +3,8 @@ package com.chatchat.mcpserver.search;
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.mcpserver.database.DatabaseQueryConfig;
 import com.chatchat.mcpserver.database.DatabaseQueryConfigService;
+import com.chatchat.mcpserver.metadata.EnterpriseMetadataCatalog;
+import com.chatchat.mcpserver.metadata.EnterpriseMetadataSearchService;
 import com.chatchat.mcpserver.sql.SqlMetadataSearchService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
@@ -33,6 +35,8 @@ public class McpSearchIndexAdminController {
     private final SqlDatasourceConfigService datasourceConfigService;
     private final DocumentSearchAdminClient documentSearchAdminClient;
     private final FinancialAssetCatalogService financialAssetCatalogService;
+    private final EnterpriseMetadataCatalog enterpriseMetadataCatalog;
+    private final EnterpriseMetadataSearchService enterpriseMetadataSearchService;
     private final ObjectMapper objectMapper;
 
     @PostMapping("/assets/rebuild")
@@ -83,6 +87,14 @@ public class McpSearchIndexAdminController {
     public ApiResponse<Map<String, Object>> rebuildApiServiceIndex() {
         templateLuceneIndexService.refreshApiServiceTemplateIndex();
         return ApiResponse.success(Map.of("refreshed", true), "MCP API service Lucene index rebuilt");
+    }
+
+    @PostMapping("/enterprise-metadata/rebuild")
+    public ApiResponse<Map<String, Object>> rebuildEnterpriseMetadataIndex() {
+        return ApiResponse.success(
+            enterpriseMetadataCatalog.refresh(),
+            "Enterprise metadata index rebuilt from configured Excel sources"
+        );
     }
 
     @PostMapping("/search")
@@ -159,6 +171,8 @@ public class McpSearchIndexAdminController {
             result = documentSearchAdminClient.search(input, limit);
         } else if (isFinancialDataAssetIndex(indexType)) {
             result = financialDataAssetSearchResult(input, limit);
+        } else if (isEnterpriseMetadataIndex(indexType)) {
+            result = enterpriseMetadataSearchResult(input, limit);
         } else {
             Map<String, Object> arguments = new LinkedHashMap<>();
             copy(input, arguments, "query", "q", "tableName", "table_name", "database", "schema", "assetName", "limit", "includeColumns");
@@ -173,6 +187,68 @@ public class McpSearchIndexAdminController {
             result.put("request", arguments);
         }
         return ApiResponse.success(result, "MCP search index query completed");
+    }
+
+    private boolean isEnterpriseMetadataIndex(String indexType) {
+        if (indexType == null) return false;
+        String normalized = indexType.trim().toLowerCase(java.util.Locale.ROOT)
+            .replace('-', '_')
+            .replace(':', '_');
+        return "enterprise_metadata".equals(normalized)
+            || "enterprise_metadata_catalog".equals(normalized)
+            || "standard_field".equals(normalized)
+            || "standard_fields".equals(normalized);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> enterpriseMetadataSearchResult(Map<String, Object> request, int limit) {
+        List<String> types = stringList(firstPresent(request, "types", "metadataTypes"));
+        String metadataType = text(firstPresent(request, "metadataType", "type"), null);
+        if (types.isEmpty() && metadataType != null) {
+            types = List.of(metadataType);
+        }
+        List<String> statuses = stringList(request.get("statuses"));
+        String status = text(request.get("status"), null);
+        if (statuses.isEmpty() && status != null) {
+            statuses = List.of(status);
+        }
+        List<String> scenarios = stringList(firstPresent(request, "scenarios", "scenarioCodes"));
+        String scenario = text(firstPresent(request, "scenario", "scenarioCode"), null);
+        if (scenarios.isEmpty() && scenario != null) {
+            scenarios = List.of(scenario);
+        }
+        Map<String, Object> searched = enterpriseMetadataSearchService.search(
+            new EnterpriseMetadataSearchService.SearchRequest(
+                text(firstPresent(request, "query", "q"), null),
+                types,
+                statuses,
+                scenarios,
+                limit
+            )
+        );
+        List<Map<String, Object>> sourceRows = searched.get("results") instanceof List<?> list
+                ? list.stream()
+                        .filter(Map.class::isInstance)
+                        .map(item -> (Map<String, Object>) new LinkedHashMap<>((Map<String, Object>) item))
+                        .toList()
+                : List.of();
+        List<Map<String, Object>> rows = sourceRows.stream().map(source -> {
+            Map<String, Object> row = new LinkedHashMap<>(source);
+            row.put("kind", source.get("metadataType"));
+            row.put("score", source.get("relevanceScore"));
+            row.put("assetType", "enterprise_metadata");
+            return row;
+        }).toList();
+        Map<String, Object> result = new LinkedHashMap<>(searched);
+        Map<String, Object> catalogStatus = enterpriseMetadataCatalog.status();
+        result.put("indexType", "enterprise_metadata");
+        result.put("logicalIndex", "enterprise_metadata:*");
+        result.put("physicalIndex", catalogStatus.get("indexName"));
+        result.put("catalogRecordCount", catalogStatus.get("recordCount"));
+        result.put("request", request);
+        result.put("count", rows.size());
+        result.put("results", rows);
+        return result;
     }
 
     private boolean isFinancialDataAssetIndex(String indexType) {

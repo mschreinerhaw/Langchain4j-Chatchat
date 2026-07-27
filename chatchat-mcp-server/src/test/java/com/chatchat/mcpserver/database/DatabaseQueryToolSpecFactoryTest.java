@@ -18,15 +18,19 @@ import static org.mockito.Mockito.when;
 class DatabaseQueryToolSpecFactoryTest {
 
     @Test
-    void toolDescriptionIncludesBusinessGroupContextForModelSelection() {
+    void toolPurposeDescriptionIsFullyChineseAndIncludesBusinessContext() {
         DatabaseQueryConfig config = new DatabaseQueryConfig();
         config.setId("query-1");
         config.setToolName("query_fund_nav_check");
-        config.setTitle("Fund NAV check");
-        config.setDescription("Read fund NAV reconciliation rows.");
+        config.setTitle("基金净值一致性核验");
+        config.setDescription("查询基金在不同渠道的净值差异记录。");
         config.setBusinessGroup("fund_nav");
-        config.setBusinessGroupName("Fund NAV reconciliation");
-        config.setBusinessGroupDescription("Business queries for cross-channel fund NAV consistency analysis");
+        config.setBusinessGroupName("数据核验");
+        config.setBusinessGroupDescription("用于跨渠道基金净值一致性核验。");
+        config.setCapabilityCategory("data_validation");
+        config.setDomain("finance");
+        config.setBusinessScope("基金产品净值一致性核验。");
+        config.setImplementationSteps("比较各渠道净值并返回差异。");
 
         AgentRuntimeGovernanceFactory governanceFactory = mock(AgentRuntimeGovernanceFactory.class);
         McpToolConcurrencyManager concurrencyManager = mock(McpToolConcurrencyManager.class);
@@ -37,15 +41,31 @@ class DatabaseQueryToolSpecFactoryTest {
             new ObjectMapper(),
             governanceFactory,
             concurrencyManager,
-            mock(StandardToolExecutionResultFactory.class)
+            mock(StandardToolExecutionResultFactory.class),
+            new DatabaseQueryMcpNamingPolicy()
         );
 
         McpServerFeatures.SyncToolSpecification spec = factory.toToolSpecification(config);
 
         assertThat(spec.tool().description())
-            .contains("Read fund NAV reconciliation rows.")
-            .contains("Fund NAV reconciliation")
-            .contains("fund_nav")
-            .contains("cross-channel fund NAV consistency analysis");
+            .contains("查询基金在不同渠道的净值差异记录")
+            .contains("业务领域：金融")
+            .contains("能力分类：数据核验")
+            .contains("data_validation")
+            .contains("分类用途：用于跨渠道基金净值一致性核验")
+            .contains("适用范围：基金产品净值一致性核验")
+            .contains("实现步骤：比较各渠道净值并返回差异")
+            .doesNotContain("Domain:", "Capability category:", "Business group:", "Group context:");
+        assertThat(spec.tool().name()).isEqualTo("data_validation_fund_nav_check");
+        assertThat(spec.tool().title()).isEqualTo("【数据核验】基金净值一致性核验");
+        assertThat(spec.tool().meta())
+            .containsEntry("category", "data_validation")
+            .containsEntry("domain", "finance")
+            .containsEntry("businessScope", "基金产品净值一致性核验。");
+        Map<?, ?> applicability = (Map<?, ?>) spec.tool().meta().get("applicability");
+        assertThat(applicability.get("scopeLabel").toString()).contains("专项数据能力");
+        assertThat(applicability.get("summary").toString())
+            .contains("按照已声明的参数契约执行")
+            .doesNotContain("Execute", "Business data capability");
     }
 }

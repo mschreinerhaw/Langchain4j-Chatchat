@@ -112,10 +112,10 @@ chatchat:
             queue-timeout-ms: 500
         embedding:
           request-timeout-ms: 300000
-          enabled: false
-          endpoint: https://llm-7upawl16up8649rh.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/embeddings
-          api-key: sk-720436c855ac470bb955388d0e8c9b89
-          model: qwen3.7-text-embedding
+          enabled: true
+          endpoint: https://tokenhub.tencentmaas.com/v1/embeddings
+          api-key: sk-e9xW4FEk6ONVAy50XyQunS7A6dmE1a9X1errk7LW7yShFcvL
+          model: kinfra-text-embedding-4b
           dimension: 1024
           vector-field: mcpContentVector
           max-input-chars: 6000

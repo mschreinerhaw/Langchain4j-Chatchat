@@ -616,6 +616,7 @@ public class LuceneMcpSearchService {
             dbType.setMinimumNumberShouldMatch(1);
             root.add(dbType.build(), BooleanClause.Occur.MUST);
         }
+        addExact(root, FIELD_CATEGORY, request.category(), BooleanClause.Occur.MUST);
         String queryText = normalizeText(request.intentText());
         if (queryText != null) {
             root.add(new BoostQuery(textQuery(queryText, FIELD_INTENT_TEXT, FIELD_TEXT), 2.0f), BooleanClause.Occur.MUST);
@@ -676,6 +677,7 @@ public class LuceneMcpSearchService {
         addExact(document, FIELD_ASSET_TYPE, doc.assetType());
         addExact(document, FIELD_DB_TYPE, doc.dbType());
         addExact(document, FIELD_RISK_LEVEL, doc.riskLevel());
+        addExact(document, FIELD_CATEGORY, doc.category());
         addStored(document, FIELD_ASSET_TYPE, doc.assetType());
         addStored(document, FIELD_DB_TYPE, doc.dbType());
         addStored(document, FIELD_NAME, doc.name());
@@ -684,7 +686,9 @@ public class LuceneMcpSearchService {
         addStored(document, FIELD_RISK_LEVEL, doc.riskLevel());
         addText(document, FIELD_INTENT_TEXT, join(doc.intent(), doc.category(), String.join(" ", doc.intentSignals())));
         addText(document, FIELD_TEXT, join(doc.id(), doc.name(), doc.description(), doc.category(), doc.intent(),
-            doc.dbType(), String.join(" ", doc.intentSignals())));
+            doc.dbType(), doc.toolName(), doc.toolDescription(), doc.implementationSteps(), doc.domain(),
+            doc.businessScope(), String.join(" ", doc.indexTags()), String.join(" ", doc.stepNames()),
+            String.join(" ", doc.stepDescriptions()), String.join(" ", doc.intentSignals())));
         addStored(document, "source", doc.source());
         return document;
     }
@@ -829,10 +833,38 @@ public class LuceneMcpSearchService {
                               String intent,
                               String riskLevel,
                               List<String> intentSignals,
-                              String source) {
+                              String source,
+                              String toolName,
+                              String toolDescription,
+                              String implementationSteps,
+                              String domain,
+                              String businessScope,
+                              List<String> indexTags,
+                              List<String> stepNames,
+                              List<String> stepDescriptions,
+                              List<Float> capabilityVector) {
 
         public TemplateDoc {
             intentSignals = intentSignals == null ? List.of() : intentSignals;
+            indexTags = indexTags == null ? List.of() : indexTags;
+            stepNames = stepNames == null ? List.of() : stepNames;
+            stepDescriptions = stepDescriptions == null ? List.of() : stepDescriptions;
+            capabilityVector = capabilityVector == null ? List.of() : capabilityVector;
+        }
+
+        public TemplateDoc(String id,
+                           String assetType,
+                           String name,
+                           String description,
+                           String category,
+                           String dbType,
+                           String intent,
+                           String riskLevel,
+                           List<String> intentSignals,
+                           String source) {
+            this(id, assetType, name, description, category, dbType, intent, riskLevel,
+                intentSignals, source, null, null, null, null, null,
+                List.of(), List.of(), List.of(), List.of());
         }
     }
 
@@ -861,7 +893,11 @@ public class LuceneMcpSearchService {
     public record TemplateSearchRequest(String assetType,
                                         String dbType,
                                         String intentText,
-                                        int limit) {
+                                        int limit,
+                                        String category) {
+        public TemplateSearchRequest(String assetType, String dbType, String intentText, int limit) {
+            this(assetType, dbType, intentText, limit, null);
+        }
     }
 
     public record SearchHit(String id,

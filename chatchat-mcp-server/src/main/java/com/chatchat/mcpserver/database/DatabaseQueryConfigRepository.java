@@ -28,4 +28,6 @@ public interface DatabaseQueryConfigRepository extends JpaRepository<DatabaseQue
      * @return the matching by tool name ignore case
      */
     Optional<DatabaseQueryConfig> findByToolNameIgnoreCase(String toolName);
+
+    long countByCategoryId(String categoryId);
 }

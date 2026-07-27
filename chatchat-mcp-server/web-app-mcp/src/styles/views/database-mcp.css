@@ -925,3 +925,45 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+.capability-category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+}
+
+.capability-category-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 12px;
+  min-height: 104px;
+  padding: 16px;
+  border: 1px solid #dbe4f0;
+  border-radius: 10px;
+  background: #fff;
+  color: #344054;
+  text-align: left;
+  cursor: pointer;
+}
+
+.capability-category-card:hover,
+.capability-category-card.active {
+  border-color: #409eff;
+  background: #f2f7ff;
+  box-shadow: 0 5px 18px rgba(64, 158, 255, 0.12);
+}
+
+.capability-category-card strong {
+  color: #1677ff;
+  font-size: 20px;
+}
+
+.capability-category-card small {
+  grid-column: 1 / -1;
+  color: #667085;
+  line-height: 1.5;
+}
+
+.capability-category-title {
+  font-size: 16px;
+  font-weight: 600;
+}

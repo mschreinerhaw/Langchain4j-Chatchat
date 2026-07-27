@@ -79,6 +79,7 @@ public class OpenSearchMcpSearchService {
     private static final String MCP_IK_INDEX_ANALYZER = "chatchat_mcp_ik_index";
     private static final String MCP_IK_SEARCH_ANALYZER = "chatchat_mcp_ik_search";
     private static final String MCP_PINYIN_ANALYZER = "chatchat_mcp_pinyin";
+    private static final String CAPABILITY_VECTOR = "capabilityVector";
     private static final int BULK_BATCH_SIZE = 10;
 
     private final LuceneSearchProperties properties;
@@ -129,16 +130,15 @@ public class OpenSearchMcpSearchService {
     }
 
     public void indexDatabaseQueryTemplates(List<LuceneMcpSearchService.TemplateDoc> docs) {
-        rebuild(DATABASE_QUERY_TEMPLATE_INDEX, safeTemplateDocs(docs).stream().map(this::templateSource).toList());
+        rebuildDatabaseQueryTemplates(docs);
     }
 
     public void upsertDatabaseQueryTemplates(List<LuceneMcpSearchService.TemplateDoc> docs) {
-        upsert(DATABASE_QUERY_TEMPLATE_INDEX, safeTemplateDocs(docs).stream().map(this::templateSource).toList());
+        upsertDatabaseQueryCapabilityTemplates(docs);
     }
 
     public List<LuceneMcpSearchService.SearchHit> searchDatabaseQueryTemplates(LuceneMcpSearchService.TemplateSearchRequest request) {
-        return search(DATABASE_QUERY_TEMPLATE_INDEX, templateQueryBody(request), request.limit(), request.intentText(),
-            templateFilterBody(request), generatedSearchRequestId());
+        return searchDatabaseQueryCapabilities(request);
     }
 
     public void indexApiServiceTemplates(List<LuceneMcpSearchService.TemplateDoc> docs) {
@@ -665,11 +665,21 @@ public class OpenSearchMcpSearchService {
                 "minimum_should_match", 1
             )));
         }
+        addExactFilter(must, FIELD_CATEGORY, request.category());
         String queryText = normalizeText(request.intentText());
         if (queryText != null) {
             must.add(Map.of("multi_match", Map.of(
                 "query", queryText,
                 "fields", List.of(
+                    "toolName^5.0",
+                    FIELD_NAME + "^5.0",
+                    "toolDescription^4.5",
+                    "implementationSteps^4.0",
+                    "businessScope^3.5",
+                    "stepNames^4.0",
+                    "stepDescriptions^4.0",
+                    "indexTags^4.5",
+                    "domain^2.5",
                     FIELD_INTENT_TEXT + "^2.4",
                     FIELD_INTENT_TEXT + ".ngram^1.5",
                     FIELD_INTENT_TEXT + ".pinyin^1.6",
@@ -695,6 +705,7 @@ public class OpenSearchMcpSearchService {
                 "minimum_should_match", 1
             )));
         }
+        addExactFilter(filter, FIELD_CATEGORY, request.category());
         return filter.isEmpty() ? Map.of("match_all", Map.of()) : Map.of("bool", Map.of("filter", filter));
     }
 
@@ -775,11 +786,188 @@ public class OpenSearchMcpSearchService {
         put(source, FIELD_NAME, doc.name());
         put(source, FIELD_DESCRIPTION, doc.description());
         put(source, FIELD_CATEGORY, doc.category());
+        put(source, "toolName", doc.toolName());
+        put(source, "toolDescription", doc.toolDescription());
+        put(source, "implementationSteps", doc.implementationSteps());
+        put(source, "domain", doc.domain());
+        put(source, "businessScope", doc.businessScope());
+        if (!doc.indexTags().isEmpty()) source.put("indexTags", doc.indexTags());
+        if (!doc.stepNames().isEmpty()) source.put("stepNames", doc.stepNames());
+        if (!doc.stepDescriptions().isEmpty()) source.put("stepDescriptions", doc.stepDescriptions());
+        if (!doc.capabilityVector().isEmpty()) source.put(CAPABILITY_VECTOR, doc.capabilityVector());
         put(source, FIELD_INTENT_TEXT, join(doc.intent(), doc.category(), String.join(" ", doc.intentSignals())));
         put(source, FIELD_TEXT, join(doc.id(), doc.name(), doc.description(), doc.category(), doc.intent(),
-            doc.dbType(), String.join(" ", doc.intentSignals())));
+            doc.dbType(), doc.toolName(), doc.toolDescription(), doc.implementationSteps(), doc.domain(),
+            doc.businessScope(), String.join(" ", doc.indexTags()), String.join(" ", doc.stepNames()),
+            String.join(" ", doc.stepDescriptions()), String.join(" ", doc.intentSignals())));
         put(source, "source", doc.source());
         return source;
+    }
+
+    private synchronized void rebuildDatabaseQueryTemplates(List<LuceneMcpSearchService.TemplateDoc> docs) {
+        String index = openSearchIndexName(DATABASE_QUERY_TEMPLATE_INDEX);
+        List<Map<String, Object>> sources = safeTemplateDocs(docs).stream().map(this::templateSource).toList();
+        int dimension = sources.stream()
+            .map(source -> source.get(CAPABILITY_VECTOR))
+            .filter(List.class::isInstance)
+            .map(List.class::cast)
+            .mapToInt(List::size)
+            .filter(value -> value > 0)
+            .findFirst()
+            .orElse(256);
+        ensureDatabaseQueryCapabilityIndex(index, dimension);
+        request("POST", "/" + index + "/_delete_by_query?conflicts=proceed&refresh=true",
+            Map.of("query", Map.of("match_all", Map.of())), true);
+        int written = bulkCapabilityDocuments(index, sources);
+        log.info("Database query capability index rebuilt index={} docs={} vectorDimension={}",
+            index, written, dimension);
+    }
+
+    private synchronized void upsertDatabaseQueryCapabilityTemplates(List<LuceneMcpSearchService.TemplateDoc> docs) {
+        String index = openSearchIndexName(DATABASE_QUERY_TEMPLATE_INDEX);
+        List<Map<String, Object>> sources = safeTemplateDocs(docs).stream().map(this::templateSource).toList();
+        int dimension = sources.stream()
+            .map(source -> source.get(CAPABILITY_VECTOR))
+            .filter(List.class::isInstance)
+            .map(List.class::cast)
+            .mapToInt(List::size)
+            .filter(value -> value > 0)
+            .findFirst()
+            .orElse(256);
+        ensureDatabaseQueryCapabilityIndex(index, dimension);
+        bulkCapabilityDocuments(index, sources);
+    }
+
+    private List<LuceneMcpSearchService.SearchHit> searchDatabaseQueryCapabilities(
+        LuceneMcpSearchService.TemplateSearchRequest request) {
+        String index = openSearchIndexName(DATABASE_QUERY_TEMPLATE_INDEX);
+        if (!physicalIndexExists(index)) return List.of();
+        int limit = Math.max(1, Math.min(maxResults(), request.limit()));
+        Map<String, Object> lexicalBody = Map.of(
+            "size", Math.max(limit, 50),
+            "query", templateQueryBody(request)
+        );
+        JsonNode lexical = searchRequest("POST", "/" + index + "/_search", lexicalBody);
+        List<LuceneMcpSearchService.SearchHit> lexicalHits = parseHits(lexical, "opensearch_bm25");
+        String query = normalizeText(request.intentText());
+        if (query == null) return lexicalHits.stream().limit(limit).toList();
+        int dimension = databaseQueryVectorDimension(index);
+        List<Float> vector = FeatureHashVectorizer.vectorize(query, dimension);
+        if (vector.isEmpty()) return lexicalHits.stream().limit(limit).toList();
+        try {
+            Map<String, Object> options = new LinkedHashMap<>();
+            options.put("vector", vector);
+            options.put("k", Math.max(limit, 100));
+            Map<String, Object> filter = templateFilterBody(request);
+            if (!filter.containsKey("match_all")) options.put("filter", filter);
+            JsonNode knn = searchRequest("POST", "/" + index + "/_search", Map.of(
+                "size", Math.max(limit, 100),
+                "query", Map.of("knn", Map.of(CAPABILITY_VECTOR, options))
+            ));
+            List<LuceneMcpSearchService.SearchHit> vectorHits = parseHits(knn, "opensearch_vector");
+            return mergeHits(lexicalHits, vectorHits, limit);
+        } catch (Exception ex) {
+            log.warn("Database query capability KNN search degraded to BM25 index={} error={}",
+                index, ex.getMessage());
+            return lexicalHits.stream().limit(limit).toList();
+        }
+    }
+
+    private void ensureDatabaseQueryCapabilityIndex(String index, int dimension) {
+        if (physicalIndexExists(index) && !databaseQueryKnnCompatible(index, dimension)) {
+            deleteEnterpriseMetadataIndexOrAlias(index);
+        }
+        if (physicalIndexExists(index)) return;
+        Map<String, Object> settings = new LinkedHashMap<>();
+        settings.put("index.max_ngram_diff", 13);
+        settings.put("analysis", analysisSettings());
+        settings.put("index.knn", true);
+        settings.put("index.knn.algo_param.ef_search", 100);
+        Map<String, Object> mappings = new LinkedHashMap<>(Map.ofEntries(
+            Map.entry(FIELD_ID, Map.of("type", "keyword")),
+            Map.entry(FIELD_KIND, Map.of("type", "keyword")),
+            Map.entry(FIELD_ASSET_TYPE, Map.of("type", "keyword")),
+            Map.entry(FIELD_DB_TYPE, Map.of("type", "keyword")),
+            Map.entry(FIELD_RISK_LEVEL, Map.of("type", "keyword")),
+            Map.entry(FIELD_CATEGORY, Map.of("type", "keyword")),
+            Map.entry("domain", Map.of("type", "keyword")),
+            Map.entry("indexTags", Map.of("type", "keyword")),
+            Map.entry("toolName", textMapping()),
+            Map.entry(FIELD_NAME, chineseTextMapping(false)),
+            Map.entry(FIELD_DESCRIPTION, chineseTextMapping(false)),
+            Map.entry("toolDescription", chineseTextMapping(false)),
+            Map.entry("implementationSteps", chineseTextMapping(false)),
+            Map.entry("businessScope", chineseTextMapping(false)),
+            Map.entry("stepNames", chineseTextMapping(false)),
+            Map.entry("stepDescriptions", chineseTextMapping(false)),
+            Map.entry(FIELD_INTENT_TEXT, textMapping()),
+            Map.entry(FIELD_TEXT, textMapping()),
+            Map.entry("source", Map.of("type", "keyword")),
+            Map.entry(CAPABILITY_VECTOR, Map.of(
+                "type", "knn_vector",
+                "dimension", Math.max(8, dimension),
+                "method", Map.of(
+                    "name", "hnsw",
+                    "space_type", "cosinesimil",
+                    "engine", "lucene",
+                    "parameters", Map.of("ef_construction", 128, "m", 16)
+                )
+            ))
+        ));
+        request("PUT", "/" + index, Map.of(
+            "settings", settings,
+            "mappings", Map.of("properties", mappings)
+        ), false);
+    }
+
+    private boolean databaseQueryKnnCompatible(String index, int dimension) {
+        try {
+            JsonNode settings = request("GET", "/" + index + "/_settings", null, false);
+            JsonNode mappings = request("GET", "/" + index + "/_mapping", null, false);
+            JsonNode indexSettings = settings.path(index).path("settings").path("index");
+            if (indexSettings.isMissingNode() && settings.fields().hasNext()) {
+                indexSettings = settings.fields().next().getValue().path("settings").path("index");
+            }
+            JsonNode properties = mappings.path(index).path("mappings").path("properties");
+            if (properties.isMissingNode() && mappings.fields().hasNext()) {
+                properties = mappings.fields().next().getValue().path("mappings").path("properties");
+            }
+            JsonNode vector = properties.path(CAPABILITY_VECTOR);
+            return "true".equalsIgnoreCase(indexSettings.path("knn").asText())
+                && "knn_vector".equalsIgnoreCase(vector.path("type").asText())
+                && vector.path("dimension").asInt() == Math.max(8, dimension);
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    private int databaseQueryVectorDimension(String index) {
+        try {
+            JsonNode mappings = request("GET", "/" + index + "/_mapping", null, false);
+            JsonNode properties = mappings.path(index).path("mappings").path("properties");
+            if (properties.isMissingNode() && mappings.fields().hasNext()) {
+                properties = mappings.fields().next().getValue().path("mappings").path("properties");
+            }
+            return Math.max(8, properties.path(CAPABILITY_VECTOR).path("dimension").asInt(256));
+        } catch (Exception ignored) {
+            return 256;
+        }
+    }
+
+    private int bulkCapabilityDocuments(String index, List<Map<String, Object>> documents) {
+        if (documents == null || documents.isEmpty()) return 0;
+        StringBuilder body = new StringBuilder();
+        int written = 0;
+        for (Map<String, Object> source : documents) {
+            String id = textValue(source.get(FIELD_ID));
+            if (id.isBlank()) continue;
+            body.append(json(Map.of("index", Map.of("_index", index, "_id", id)))).append('\n');
+            body.append(json(source)).append('\n');
+            written++;
+            if (written % 500 == 0) flushBulk(index, body);
+        }
+        flushBulk(index, body);
+        return written;
     }
 
     private Map<String, Object> baseSource(String kind, String id) {
@@ -947,6 +1135,327 @@ public class OpenSearchMcpSearchService {
             result.add(Map.copyOf(item));
         }
         return List.copyOf(result);
+    }
+
+    /**
+     * Replaces the data-driven enterprise metadata catalog used by the generic
+     * enterprise_metadata_search capability.
+     */
+    public synchronized void replaceEnterpriseMetadata(String rawIndexName, List<Map<String, Object>> documents) {
+        replaceEnterpriseMetadata(rawIndexName, documents, false, "scenarioVector", 256);
+    }
+
+    public synchronized void replaceEnterpriseMetadata(String rawIndexName,
+                                                       List<Map<String, Object>> documents,
+                                                       boolean knnEnabled,
+                                                       String vectorField,
+                                                       int vectorDimension) {
+        if (!enabled()) return;
+        String index = rawIndexName(rawIndexName);
+        ensureEnterpriseMetadataIndex(index, knnEnabled, vectorField, vectorDimension);
+        request("POST", "/" + index + "/_delete_by_query?conflicts=proceed&refresh=true",
+            Map.of("query", Map.of("match_all", Map.of())), true);
+        List<Map<String, Object>> sources = documents == null ? List.of() : documents.stream()
+            .filter(java.util.Objects::nonNull)
+            .map(document -> enterpriseMetadataSource(document, vectorField))
+            .toList();
+        bulkEnterpriseMetadata(index, sources);
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> searchEnterpriseMetadata(String rawIndexName,
+                                                              String query,
+                                                              List<String> metadataTypes,
+                                                              List<String> statuses,
+                                                              int limit) {
+        return searchEnterpriseMetadata(rawIndexName, query, metadataTypes, statuses, List.of(), List.of(),
+            "scenarioVector", Math.max(limit, 100), 1.0D, 0.0D, limit);
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> searchEnterpriseMetadata(String rawIndexName,
+                                                              String query,
+                                                              List<String> metadataTypes,
+                                                              List<String> statuses,
+                                                              List<String> scenarios,
+                                                              List<Float> queryVector,
+                                                              String vectorField,
+                                                              int vectorCandidateLimit,
+                                                              double bm25Weight,
+                                                              double vectorWeight,
+                                                              int limit) {
+        if (!enabled() || query == null || query.isBlank()) return List.of();
+        String index = rawIndexName(rawIndexName);
+        if (!physicalIndexExists(index)) return List.of();
+        List<Map<String, Object>> filters = new ArrayList<>();
+        if (metadataTypes != null && !metadataTypes.isEmpty()) {
+            filters.add(Map.of("terms", Map.of("metadataType", metadataTypes)));
+        }
+        if (statuses != null && !statuses.isEmpty()) {
+            filters.add(Map.of("terms", Map.of("status", statuses)));
+        }
+        if (scenarios != null && !scenarios.isEmpty()) {
+            filters.add(Map.of("terms", Map.of("scenarioCodes", scenarios)));
+        }
+        Map<String, Object> lexical = Map.of("multi_match", Map.of(
+            "query", query,
+            "fields", List.of("name^6", "technicalName^5", "description^4", "searchText^3",
+                "scenarioNames^4", "scenarioDescription^3", "semanticText^2",
+                "attributes.englishName^3", "attributes.abbreviation^4",
+                "attributes.codeDescription^3", "attributes.fullPinyin^2")
+        ));
+        Map<String, Object> effectiveQuery = filters.isEmpty()
+            ? lexical
+            : Map.of("bool", Map.of("must", List.of(lexical), "filter", filters));
+        int resultLimit = Math.max(1, Math.min(limit, 100));
+        JsonNode lexicalResponse = searchRequest("POST", "/" + index + "/_search", Map.of(
+            "size", Math.max(resultLimit, Math.min(vectorCandidateLimit, 500)),
+            "query", effectiveQuery
+        ));
+        JsonNode vectorResponse = null;
+        if (queryVector != null && !queryVector.isEmpty()) {
+            try {
+                Map<String, Object> knnOptions = new LinkedHashMap<>();
+                knnOptions.put("vector", queryVector);
+                knnOptions.put("k", Math.max(resultLimit, Math.min(vectorCandidateLimit, 500)));
+                if (!filters.isEmpty()) {
+                    knnOptions.put("filter", Map.of("bool", Map.of("filter", filters)));
+                }
+                vectorResponse = searchRequest("POST", "/" + index + "/_search", Map.of(
+                    "size", Math.max(resultLimit, Math.min(vectorCandidateLimit, 500)),
+                    "query", Map.of("knn", Map.of(vectorField, knnOptions))
+                ));
+            } catch (Exception ex) {
+                log.warn("Enterprise metadata KNN search degraded to BM25 index={} error={}", index, ex.getMessage());
+            }
+        }
+        return mergeEnterpriseMetadataHits(
+            index, lexicalResponse, vectorResponse, bm25Weight, vectorWeight, resultLimit);
+    }
+
+    private synchronized void ensureEnterpriseMetadataIndex(String index,
+                                                            boolean knnEnabled,
+                                                            String vectorField,
+                                                            int vectorDimension) {
+        Map<String, Object> fields = new LinkedHashMap<>();
+        for (String field : List.of("name", "technicalName", "description", "searchText",
+            "scenarioDescription", "semanticText")) {
+            fields.put(field, Map.of("type", "text"));
+        }
+        for (String field : List.of("id", "metadataType", "logicalIndex", "status", "source")) {
+            fields.put(field, Map.of("type", "keyword"));
+        }
+        fields.put("scenarioCodes", Map.of("type", "keyword"));
+        fields.put("scenarioNames", Map.of("type", "text", "fields", Map.of(
+            "keyword", Map.of("type", "keyword", "ignore_above", 256)
+        )));
+        fields.put("attributes", Map.of("type", "object", "dynamic", true));
+        if (knnEnabled) {
+            fields.put(vectorField, Map.of(
+                "type", "knn_vector",
+                "dimension", Math.max(8, vectorDimension),
+                "method", Map.of(
+                    "name", "hnsw",
+                    "space_type", "cosinesimil",
+                    "engine", "lucene",
+                    "parameters", Map.of("ef_construction", 128, "m", 16)
+                )
+            ));
+        }
+        if (physicalIndexExists(index) && knnEnabled
+            && !enterpriseKnnCompatible(index, vectorField, vectorDimension)) {
+            log.info("Recreating enterprise metadata index for KNN mapping index={} field={} dimension={}",
+                index, vectorField, vectorDimension);
+            deleteEnterpriseMetadataIndexOrAlias(index);
+        }
+        if (!physicalIndexExists(index)) {
+            Map<String, Object> definition = new LinkedHashMap<>();
+            if (knnEnabled) {
+                definition.put("settings", Map.of(
+                    "index.knn", true,
+                    "index.knn.algo_param.ef_search", 100
+                ));
+            }
+            definition.put("mappings", Map.of("properties", fields));
+            requestRaw("PUT", "/" + index, json(definition), false, "application/json");
+        } else {
+            requestRaw("PUT", "/" + index + "/_mapping", json(Map.of("properties", fields)),
+                false, "application/json");
+        }
+    }
+
+    private Map<String, Object> enterpriseMetadataSource(Map<String, Object> document, String vectorField) {
+        Map<String, Object> source = new LinkedHashMap<>(document);
+        Object attributes = source.entrySet().stream()
+            .filter(entry -> !List.of("id", "metadataType", "logicalIndex", "name", "technicalName",
+                "description", "status", "source", "scenarioCodes", "scenarioNames",
+                "scenarioDescription", "semanticText", vectorField).contains(entry.getKey()))
+            .collect(Collectors.toMap(
+                Map.Entry::getKey,
+                Map.Entry::getValue,
+                (left, right) -> right,
+                LinkedHashMap::new
+        ));
+        source.keySet().removeIf(key -> !List.of("id", "metadataType", "logicalIndex", "name",
+            "technicalName", "description", "status", "source", "scenarioCodes", "scenarioNames",
+            "scenarioDescription", "semanticText", vectorField).contains(key));
+        source.put("attributes", attributes);
+        Map<String, Object> searchable = new LinkedHashMap<>(document);
+        searchable.remove(vectorField);
+        source.put("searchText", String.join(" ", flattenMetadataValues(searchable)));
+        return source;
+    }
+
+    private boolean enterpriseKnnCompatible(String index, String vectorField, int vectorDimension) {
+        try {
+            JsonNode settings = request("GET", "/" + index + "/_settings", null, false);
+            JsonNode mappings = request("GET", "/" + index + "/_mapping", null, false);
+            JsonNode indexSettings = settings.path(index).path("settings").path("index");
+            if (indexSettings.isMissingNode() && settings.fields().hasNext()) {
+                indexSettings = settings.fields().next().getValue().path("settings").path("index");
+            }
+            JsonNode properties = mappings.path(index).path("mappings").path("properties");
+            if (properties.isMissingNode() && mappings.fields().hasNext()) {
+                properties = mappings.fields().next().getValue().path("mappings").path("properties");
+            }
+            JsonNode vector = properties.path(vectorField);
+            return "true".equalsIgnoreCase(indexSettings.path("knn").asText())
+                && "knn_vector".equalsIgnoreCase(vector.path("type").asText())
+                && vector.path("dimension").asInt() == Math.max(8, vectorDimension);
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    private void deleteEnterpriseMetadataIndexOrAlias(String index) {
+        JsonNode aliases = request("GET", "/_alias/" + index, null, true);
+        if (aliases == null || aliases.isEmpty()) {
+            request("DELETE", "/" + index, null, false);
+            return;
+        }
+        List<Map<String, Object>> actions = new ArrayList<>();
+        List<String> backingIndices = new ArrayList<>();
+        aliases.fieldNames().forEachRemaining(backingIndex -> {
+            backingIndices.add(backingIndex);
+            actions.add(Map.of("remove", Map.of("index", backingIndex, "alias", index)));
+        });
+        if (!actions.isEmpty()) {
+            request("POST", "/_aliases", Map.of("actions", actions), false);
+        }
+        for (String backingIndex : backingIndices) {
+            request("DELETE", "/" + backingIndex, null, false);
+        }
+    }
+
+    private int bulkEnterpriseMetadata(String index, List<Map<String, Object>> documents) {
+        if (documents == null || documents.isEmpty()) {
+            return 0;
+        }
+        int written = 0;
+        StringBuilder body = new StringBuilder();
+        for (Map<String, Object> source : documents) {
+            String id = textValue(source.get("metadataType")) + ":" + textValue(source.get(FIELD_ID));
+            if (id.endsWith(":")) {
+                continue;
+            }
+            body.append(json(Map.of("index", Map.of("_index", index, "_id", id)))).append('\n');
+            body.append(json(source)).append('\n');
+            written++;
+            if (written % 500 == 0) {
+                flushBulk(index, body);
+            }
+        }
+        flushBulk(index, body);
+        return written;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> mergeEnterpriseMetadataHits(String index,
+                                                                  JsonNode lexicalResponse,
+                                                                  JsonNode vectorResponse,
+                                                                  double bm25Weight,
+                                                                  double vectorWeight,
+                                                                  int limit) {
+        Map<String, Map<String, Object>> merged = new LinkedHashMap<>();
+        double maxBm25 = maxJsonScore(lexicalResponse);
+        double maxKnn = maxJsonScore(vectorResponse);
+        addEnterpriseMetadataHits(merged, lexicalResponse, index, "bm25Score", maxBm25);
+        addEnterpriseMetadataHits(merged, vectorResponse, index, "knnScore", maxKnn);
+        return merged.values().stream()
+            .peek(item -> {
+                double bm25 = number(item.get("bm25Score"));
+                double knn = number(item.get("knnScore"));
+                item.put("relevanceScore", roundScore(bm25 * bm25Weight + knn * vectorWeight));
+                item.put("retrievalMode", knn > 0.0D
+                    ? (bm25 > 0.0D ? "hybrid_bm25_knn" : "knn")
+                    : "bm25");
+            })
+            .sorted(Comparator.comparingDouble((Map<String, Object> item) ->
+                number(item.get("relevanceScore"))).reversed())
+            .limit(limit)
+            .map(Map::copyOf)
+            .toList();
+    }
+
+    @SuppressWarnings("unchecked")
+    private void addEnterpriseMetadataHits(Map<String, Map<String, Object>> merged,
+                                           JsonNode response,
+                                           String index,
+                                           String scoreField,
+                                           double maxScore) {
+        if (response == null) {
+            return;
+        }
+        for (JsonNode hit : response.path("hits").path("hits")) {
+            Map<String, Object> source = new LinkedHashMap<>(
+                objectMapper.convertValue(hit.path("_source"), Map.class));
+            String key = textValue(source.get("metadataType")) + ":" + textValue(source.get("id"));
+            Map<String, Object> item = merged.computeIfAbsent(key, ignored -> {
+                source.remove("searchText");
+                source.remove("semanticText");
+                source.keySet().removeIf(field -> field.toLowerCase(Locale.ROOT).contains("vector"));
+                source.put("physicalIndex", hit.path("_index").asText(index));
+                return source;
+            });
+            double normalized = maxScore <= 0.0D ? 0.0D : hit.path("_score").asDouble() / maxScore;
+            item.put(scoreField, roundScore(normalized));
+        }
+    }
+
+    private double maxJsonScore(JsonNode response) {
+        double max = 0.0D;
+        if (response != null) {
+            for (JsonNode hit : response.path("hits").path("hits")) {
+                max = Math.max(max, hit.path("_score").asDouble(0.0D));
+            }
+        }
+        return max;
+    }
+
+    private double number(Object value) {
+        return value instanceof Number number ? number.doubleValue() : 0.0D;
+    }
+
+    private double roundScore(double value) {
+        return Math.round(value * 1_000_000D) / 1_000_000D;
+    }
+
+    private List<String> flattenMetadataValues(Map<String, Object> document) {
+        List<String> values = new ArrayList<>();
+        if (document == null) return values;
+        for (Object value : document.values()) {
+            if (value instanceof Iterable<?> iterable) {
+                iterable.forEach(item -> addMetadataValue(values, item));
+            } else {
+                addMetadataValue(values, value);
+            }
+        }
+        return values;
+    }
+
+    private void addMetadataValue(List<String> target, Object value) {
+        String text = textValue(value).trim();
+        if (!text.isBlank()) target.add(text);
     }
 
     private String marketCatalogSearchText(Map<String, Object> document, String datasetCode) {

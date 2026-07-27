@@ -29,7 +29,10 @@ public class DatabaseQueryPublicationService {
     }
 
     public void refreshAsync(DatabaseQueryConfig saved) {
-        submit(saved, saved == null || !saved.isEnabled());
+        // The capability index contains category and HNSW vector state. Rebuild the
+        // small registry as one coherent snapshot so a mapping upgrade or category
+        // move can never leave a partial discovery index.
+        submit(saved, true);
     }
 
     private void submit(DatabaseQueryConfig saved, boolean fullIndexRefresh) {

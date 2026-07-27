@@ -27,6 +27,7 @@ export default {
       busyAction: '',
       sshCommandTemplates: [],
       sqlOpsTemplates: [],
+      enterpriseScenarioOptions: [],
       searchBusy: false,
       searchResult: '',
       searchRows: [],
@@ -47,6 +48,9 @@ export default {
         assetType: '',
         env: '',
         databaseType: '',
+        metadataType: '',
+        scenario: '',
+        status: '',
         labels: '',
         limit: 10,
         includeColumns: true
@@ -63,6 +67,7 @@ export default {
         { value: 'database_query', label: '业务查询索引' },
         { value: 'api_service', label: 'API 服务索引' },
         { value: 'document_search', label: '文档索引' },
+        { value: 'enterprise_metadata', label: '企业标准字段与词根索引（enterprise_metadata_catalog）' },
         { value: 'financial_data_asset', label: '金融数据索引（financial-data-asset）' },
         { value: 'news', label: '新闻资讯索引（OpenSearch）' }
       ],
@@ -414,8 +419,17 @@ export default {
   mounted() {
     this.loadSshCommandTemplates();
     this.loadSqlOpsTemplates();
+    this.loadEnterpriseMetadataStatus();
   },
   methods: {
+    async loadEnterpriseMetadataStatus() {
+      try {
+        const status = await api.enterpriseMetadataStatus();
+        this.enterpriseScenarioOptions = Array.isArray(status?.scenarios) ? status.scenarios : [];
+      } catch (error) {
+        this.enterpriseScenarioOptions = [];
+      }
+    },
     async loadSshCommandTemplates() {
       try {
         this.sshCommandTemplates = await api.listCommandTemplates() || [];
@@ -459,6 +473,13 @@ export default {
     },
     async rebuildTemplateIndex() {
       await this.runAction('template-index', () => api.rebuildTemplateIndex(), '模板索引已重建');
+    },
+    async rebuildEnterpriseMetadataIndex() {
+      await this.runAction(
+        'enterprise-metadata-index',
+        () => api.rebuildEnterpriseMetadataIndex(),
+        '企业标准字段与词根索引已从 Excel 重新导入'
+      );
     },
     async runAction(key, action, title) {
       this.busyAction = key;
@@ -521,6 +542,9 @@ export default {
         env: this.search.env,
         databaseType: this.search.databaseType,
         dbType: this.search.databaseType,
+        metadataType: this.search.metadataType,
+        scenario: this.search.scenario,
+        status: this.search.status,
         labels,
         limit: this.search.limit,
         includeColumns: this.search.includeColumns

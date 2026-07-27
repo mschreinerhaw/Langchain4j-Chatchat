@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class DefaultAgentAnswerReviewerTest {
 
     @Test
-    void revisesAnswerWhenReviewerReturnsRejectedPayload() {
+    void reportsIssuesWithoutReplacingCandidateWhenReviewerReturnsLegacyRevision() {
         DefaultAgentAnswerReviewer reviewer = new DefaultAgentAnswerReviewer(new ObjectMapper());
         QueueChatModel chatModel = new QueueChatModel(
             "```json\n{\"accepted\":false,\"feedback\":\"Missing concrete steps\",\"revisedAnswer\":\"Create the database, import schema.sql, update config, then restart.\"}\n```"
@@ -27,11 +27,12 @@ class DefaultAgentAnswerReviewerTest {
             "Please check the deployment document."
         );
 
-        assertThat(review.status()).isEqualTo(AgentAnswerReview.REVISED);
-        assertThat(review.answer()).contains("schema.sql");
+        assertThat(review.status()).isEqualTo(AgentAnswerReview.REJECTED);
+        assertThat(review.answer()).isEqualTo("Please check the deployment document.");
         assertThat(review.feedback()).isEqualTo("Missing concrete steps");
         assertThat(chatModel.messages().get(0))
             .contains("final answer quality reviewer")
+            .contains("authority is diagnostic only")
             .contains("Document evidence snippets");
     }
 
@@ -71,7 +72,7 @@ class DefaultAgentAnswerReviewerTest {
         );
 
         assertThat(review.status()).isEqualTo(AgentAnswerReview.REJECTED);
-        assertThat(review.answer()).isBlank();
+        assertThat(review.answer()).isEqualTo("Unable to provide the latest update.");
         assertThat(review.feedback()).isEqualTo("No concrete evidence was produced");
     }
 

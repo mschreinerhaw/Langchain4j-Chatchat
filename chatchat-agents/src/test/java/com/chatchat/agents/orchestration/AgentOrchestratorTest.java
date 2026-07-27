@@ -86,6 +86,7 @@ class AgentOrchestratorTest {
             .contains("Attempt 3: status=success, success=true")
             .contains("first evidence", "second evidence", "third evidence")
             .contains("reconcile and summarize evidence from all attempts")
+            .contains("MUST NOT produce a refusal or an empty answer")
             .contains("Never generate illustrative, manual, or 'typical' SQL/commands")
             .contains("Distinguish BLOCKED before invocation")
             .contains("Never present toolName as displayName");
@@ -585,7 +586,7 @@ class AgentOrchestratorTest {
                       {"id": 2, "action_type": "final_answer", "tool_name": "", "input": {"answer": "Use the retrieved JDBC and Filesystem chunks, and state that the combined sync example is missing."}, "depends_on": [1]}
                     ]
                   },
-                  "execution_policy": {"max_steps": 2, "allow_parallel": false, "allow_tool": ["document_search"], "deny_tool": [], "timeout_ms": 30000},
+                  "execution_policy": {"max_steps": 2, "allow_parallel": false, "allow_tool": ["document_search"], "deny_tool": [], "timeout_ms": 30000, "max_rewrite_times": 0},
                   "review": {"self_check": {"completeness_score": 0.8, "hallucination_risk": 0.2, "tool_sufficiency": true, "missing_steps": []}, "fallback_plan": []}
                 }
                 """,
@@ -631,6 +632,11 @@ class AgentOrchestratorTest {
             .isNotEqualTo("Use the retrieved JDBC and Filesystem chunks, and state that the combined sync example is missing.");
         assertThat(result.toolTraces()).extracting(InteractionToolTrace::getToolName)
             .containsExactly("document_search");
+        assertThat(result.metadata())
+            .containsEntry("evidenceAugmentationOverrideApplied", true)
+            .containsEntry("interpretationPlanConfiguredMaxRewriteTimes", 0)
+            .containsEntry("interpretationPlanMaxRewriteTimes", 1)
+            .containsEntry("interpretationPlanRewriteAttempted", true);
         List<Map<String, Object>> steps = (List<Map<String, Object>>) result.metadata().get("interpretationPlanStepExecutions");
         assertThat(steps)
             .anySatisfy(step -> {
@@ -1402,22 +1408,21 @@ class AgentOrchestratorTest {
 
         assertThat(result.answer()).isEqualTo("Please check the MySQL setup section in the deployment document.");
         assertThat(result.metadata())
-            .containsEntry("answerReviewStatus", "revised")
+            .containsEntry("answerReviewStatus", "rejected")
             .containsEntry("answerReviewFeedback", "The answer did not directly provide the initialization steps.")
             .containsEntry("answerDecisionContractVersion", AnswerDecisionEngine.CONTRACT_VERSION)
-            .containsEntry("answerQualityAvailable", true)
-            .containsEntry("answerQualityLlmSelectedId", "candidate")
-            .containsEntry("answerQualityAggregationVersion", AnswerDecisionEngine.QUALITY_AGGREGATION_VERSION)
-            .containsEntry("answerQualitySelectedId", "candidate")
             .containsEntry("answerDecision", AnswerDecisionEngine.NO_REWRITE)
-            .containsEntry("answerRewriteSource", "none")
-            .containsEntry("answerReviewRewriteSuggested", true)
+            .containsEntry("answerRewriteSource", "planner_candidate")
+            .containsEntry("answerReviewAuthority", "diagnostic_only")
             .containsEntry("answerReviewRewriteApplied", false)
-            .containsEntry("answerReviewRewriteSkippedReason", "quality_aggregation_selected_original_candidate");
+            .containsEntry("answerReviewRewriteSkippedReason", "protected_business_result")
+            .containsEntry("answerLifecycleStatus", "SELECTED")
+            .containsEntry("evidenceRequirement", "OPTIONAL")
+            .doesNotContainKey("answerQualityAvailable");
     }
 
     @Test
-    void selectsHighestQualityAnswerCandidateAfterReview() {
+    void reviewerSuggestionDoesNotBecomeACompetingBusinessAnswer() {
         QueueChatModel chatModel = new QueueChatModel(
             "{\"action\":\"final\",\"answer\":\"Please check the MySQL setup section in the deployment document.\"}",
             "{\"accepted\":false,\"feedback\":\"The answer did not directly provide the initialization steps.\",\"revisedAnswer\":\"Initialize LiveData by creating the MySQL database and user, then import schema.sql, update the datasource config, and restart the service to verify connectivity.\"}",
@@ -1442,16 +1447,17 @@ class AgentOrchestratorTest {
             false
         );
 
-        assertThat(result.answer()).contains("schema.sql");
+        assertThat(result.answer())
+            .isEqualTo("Please check the MySQL setup section in the deployment document.")
+            .doesNotContain("schema.sql");
         assertThat(result.metadata())
-            .containsEntry("answerQualityAvailable", true)
-            .containsEntry("answerQualityLlmSelectedId", "reviewer_suggestion")
-            .containsEntry("answerQualityAggregationVersion", AnswerDecisionEngine.QUALITY_AGGREGATION_VERSION)
-            .containsEntry("answerQualitySelectedId", "reviewer_suggestion")
-            .containsEntry("answerQualitySelectedSource", AnswerQualityEvaluator.REVIEWER_SUGGESTION)
-            .containsEntry("answerDecision", AnswerDecisionEngine.QUALITY_SELECTED_ANSWER)
-            .containsEntry("answerRewriteSource", "quality_aggregator")
-            .containsEntry("answerReviewRewriteApplied", true);
+            .containsEntry("answerReviewStatus", "rejected")
+            .containsEntry("answerDecision", AnswerDecisionEngine.NO_REWRITE)
+            .containsEntry("answerRewriteSource", "planner_candidate")
+            .containsEntry("answerReviewAuthority", "diagnostic_only")
+            .containsEntry("answerReviewRewriteApplied", false)
+            .containsEntry("answerLifecycleStatus", "SELECTED")
+            .doesNotContainKey("answerQualityAvailable");
     }
 
     @Test

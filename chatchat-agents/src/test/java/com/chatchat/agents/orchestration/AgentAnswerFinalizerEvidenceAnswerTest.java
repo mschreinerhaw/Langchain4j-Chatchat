@@ -1040,7 +1040,8 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
             .containsEntry("answerRewriteSource", "none")
             .containsEntry("answerReviewRewriteSuggested", true)
             .containsEntry("answerReviewRewriteApplied", false)
-            .containsEntry("answerReviewRewriteSkippedReason", "reviewer_rewrite_disabled");
+            .containsEntry("answerReviewRewriteSkippedReason", "reviewer_diagnostic_only")
+            .containsEntry("answerReviewAuthority", "diagnostic_only");
     }
 
     @Test
@@ -1191,7 +1192,7 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
     }
 
     @Test
-    void reviewerRevisionCanOverrideFinalAnswerWhenExplicitlyEnabled() {
+    void reviewerRevisionCannotOverrideFinalAnswerEvenWithLegacyFlag() {
         AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
             new AgentAnswerReview(
                 AgentAnswerReview.REVISED,
@@ -1217,12 +1218,13 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
             "final_answer"
         );
 
-        assertThat(result.answer()).contains("Reviewer rewritten answer that is explicitly allowed.");
+        assertThat(result.answer()).contains("Original final answer from the agent.");
         assertThat(result.metadata())
             .containsEntry("answerReviewStatus", AgentAnswerReview.REVISED)
-            .containsEntry("answerDecision", AnswerDecisionEngine.REVIEWER_REWRITE)
-            .containsEntry("answerRewriteSource", "reviewer")
+            .containsEntry("answerDecision", AnswerDecisionEngine.NO_REWRITE)
+            .containsEntry("answerRewriteSource", "none")
             .containsEntry("answerReviewRewriteSuggested", true)
-            .containsEntry("answerReviewRewriteApplied", true);
+            .containsEntry("answerReviewRewriteApplied", false)
+            .containsEntry("answerReviewRewriteSkippedReason", "reviewer_diagnostic_only");
     }
 }

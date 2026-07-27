@@ -38,7 +38,7 @@ public class DefaultAgentAnswerReviewer implements AgentAnswerReviewer {
             @SuppressWarnings("unchecked")
             Map<String, Object> payload = objectMapper.readValue(extractJson(raw), Map.class);
             boolean accepted = booleanValue(payload.get("accepted"));
-            String feedback = stringValue(payload.get("feedback"));
+            String feedback = reviewFeedback(payload);
             String revisedAnswer = stringValue(payload.get("revisedAnswer"));
             if (accepted) {
                 return new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, feedback);
@@ -51,11 +51,11 @@ public class DefaultAgentAnswerReviewer implements AgentAnswerReviewer {
                         + firstNonBlank(feedback, "none")
                 );
             }
-            if (revisedAnswer != null && !revisedAnswer.isBlank()) {
-                return new AgentAnswerReview(AgentAnswerReview.REVISED, revisedAnswer, feedback);
-            }
-            return new AgentAnswerReview(AgentAnswerReview.REJECTED, "",
-                firstNonBlank(feedback, "Review rejected without revised answer"));
+            return new AgentAnswerReview(
+                AgentAnswerReview.REJECTED,
+                answer,
+                firstNonBlank(feedback, "Reviewer reported issues without changing the business result.")
+            );
         } catch (Exception ex) {
             log.debug("Failed to parse answer review: {}", raw, ex);
             return new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "Answer review unavailable");
@@ -65,7 +65,8 @@ public class DefaultAgentAnswerReviewer implements AgentAnswerReviewer {
     String buildPrompt(String query, String systemPrompt, List<String> observations, String answer) {
         StringBuilder prompt = new StringBuilder();
         prompt.append("You are the final answer quality reviewer for an enterprise AI assistant.\n");
-        prompt.append("Decide whether the candidate answer satisfies the user's actual formal request.\n");
+        prompt.append("Evaluate whether the candidate answer satisfies the user's actual formal request.\n");
+        prompt.append("Your authority is diagnostic only. Do not rewrite the answer, change the task type, or replace a generated business result.\n");
         prompt.append("Reject answers that only point to documents/tools, summarize where information may be, or avoid giving the concrete requested result.\n");
         prompt.append("A good answer must directly address the user request, use the available observations as evidence, and clearly state missing evidence when the observations are insufficient.\n");
         prompt.append("Do not invent facts that are absent from the observations.\n");
@@ -84,8 +85,7 @@ public class DefaultAgentAnswerReviewer implements AgentAnswerReviewer {
         prompt.append("If observations include answer_assembly_policy_v1, enforce its mode, citation placement, partial-answer, conflict-handling, and missingInfo requirements.\n");
         prompt.append("If observations include web citation labels such as [网页1], web-derived claims in the answer must keep the matching labels; reject and revise answers that omit those labels.\n");
         prompt.append("Do not remove citation markers that prove which web page supports a statement.\n");
-        prompt.append("If the user's request is in Chinese, the revised answer must be in Chinese.\n");
-        prompt.append("If you provide revisedAnswer, it must be a polished Markdown document, not a single plain paragraph. Do not wrap it in code fences.\n\n");
+        prompt.append("Report concrete issues and optional enhancement suggestions. Missing optional context is a limitation, not automatic grounds for refusal.\n\n");
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             prompt.append("System instruction:\n").append(systemPrompt).append("\n\n");
         }
@@ -98,8 +98,38 @@ public class DefaultAgentAnswerReviewer implements AgentAnswerReviewer {
         }
         prompt.append("\nCandidate answer:\n").append(answer).append("\n\n");
         prompt.append("Respond with strict JSON only:\n");
-        prompt.append("{\"accepted\":true|false,\"feedback\":\"brief reason\",\"revisedAnswer\":\"if rejected, provide the improved final Markdown answer; otherwise empty string\"}");
+        prompt.append("{\"accepted\":true|false,\"feedback\":\"brief assessment\",\"issues\":[\"concrete issue\"],\"suggestions\":[\"optional enhancement\"]}");
         return prompt.toString();
+    }
+
+    private String reviewFeedback(Map<String, Object> payload) {
+        String feedback = stringValue(payload.get("feedback"));
+        List<String> issues = stringList(payload.get("issues"));
+        List<String> suggestions = stringList(payload.get("suggestions"));
+        StringBuilder value = new StringBuilder(firstNonBlank(feedback, ""));
+        if (!issues.isEmpty()) {
+            if (!value.isEmpty()) {
+                value.append(' ');
+            }
+            value.append("Issues: ").append(String.join("; ", issues)).append('.');
+        }
+        if (!suggestions.isEmpty()) {
+            if (!value.isEmpty()) {
+                value.append(' ');
+            }
+            value.append("Suggestions: ").append(String.join("; ", suggestions)).append('.');
+        }
+        return value.toString();
+    }
+
+    private List<String> stringList(Object value) {
+        if (!(value instanceof List<?> list)) {
+            return List.of();
+        }
+        return list.stream()
+            .map(this::stringValue)
+            .filter(item -> item != null && !item.isBlank())
+            .toList();
     }
 
     private String extractJson(String raw) {

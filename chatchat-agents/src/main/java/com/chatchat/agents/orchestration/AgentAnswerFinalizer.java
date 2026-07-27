@@ -1,5 +1,9 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.assessment.TaskResultAssessment;
+import com.chatchat.agents.assessment.TaskResultAssessmentCompiler;
+import com.chatchat.agents.assessment.RuntimeAnswerCandidate;
+import com.chatchat.agents.assessment.McpResultEvidencePolicy;
 import com.chatchat.agents.evidence.AnswerAssemblyEngine;
 import com.chatchat.agents.evidence.AnswerAssemblyPolicy;
 import com.chatchat.agents.evidence.DeterministicAnswerCompiler;
@@ -63,6 +67,10 @@ class AgentAnswerFinalizer {
     private final long modelRequestTimeoutMs;
     private final EvidenceAnswerGroundingGuard groundingGuard = new EvidenceAnswerGroundingGuard();
     private final AnswerAssemblyEngine answerAssemblyEngine = new AnswerAssemblyEngine();
+    private final TaskResultAssessmentCompiler taskResultAssessmentCompiler =
+        new TaskResultAssessmentCompiler();
+    private final McpResultEvidencePolicy mcpResultEvidencePolicy =
+        new McpResultEvidencePolicy();
     private final AnswerDecisionEngine answerDecisionEngine = new AnswerDecisionEngine();
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final AnswerQualityEvaluator answerQualityEvaluator = new AnswerQualityEvaluator(objectMapper);
@@ -94,19 +102,26 @@ class AgentAnswerFinalizer {
                                                                       Map<String, Object> metadata,
                                                                       List<String> observations) {
         Map<String, Object> values = metadata == null ? new LinkedHashMap<>() : metadata;
+        McpResultEvidencePolicy.Assessment mcpAssessment =
+            recordMcpResultEvidencePolicy(values, traces);
+        String policyCompliantCandidate = enforceMcpResultAnalysisPolicy(
+            candidateAnswer, mcpAssessment, values);
+        AnswerQualityEvaluator.QualityReport policyCompliantQuality =
+            Boolean.TRUE.equals(values.get("evidenceRefusalBlocked")) ? null : qualityReport;
         AnswerDecisionEngine.EvidenceSignal signal = evidenceSignal == null
-            ? evidenceSignal(candidateAnswer, observations, values)
+            ? evidenceSignal(policyCompliantCandidate, observations, values)
             : evidenceSignal;
         AnswerDecisionEngine.AnswerDecision decision = answerDecisionEngine.decide(
             new AnswerDecisionEngine.AnswerDecisionRequest(
-                candidateAnswer,
+                policyCompliantCandidate,
                 review,
                 signal,
-                qualityReport,
+                policyCompliantQuality,
                 values
             )
         );
         values.putAll(decision.metadata());
+        recordSelectedAnswerCandidate(values, decision);
         String answerBeforeSqlMetadataMerge = decision.finalAnswer();
         String mergedAnswer = mergeStructuredSqlMetadataAnswer(
             structuredSqlMetadataMarkdown(values),
@@ -125,6 +140,12 @@ class AgentAnswerFinalizer {
                 values.put("deterministicFinalizationFallback", true);
                 values.put("deterministicFinalizationSource", "tool_call_batch_result");
             }
+        }
+        if (finalAnswer.isBlank() && mcpAssessment.resultAvailable()) {
+            finalAnswer = mcpResultAnalysisFallback();
+            values.put("evidenceRefusalBlocked", true);
+            values.put("evidenceRefusalBlockedReason",
+                "non_empty_mcp_result_with_empty_answer");
         }
         Map<String, Object> visualizationSpec = toolResultVisualizationSpec(traces);
         if (!visualizationSpec.isEmpty()) {
@@ -164,6 +185,7 @@ class AgentAnswerFinalizer {
         values.put("observations", observations == null ? List.of() : List.copyOf(observations));
         values.put("toolTraceCount", traces == null ? 0 : traces.size());
         attachAnswerAssemblyPolicy(values, observations);
+        attachTaskResultAssessment(values, traces, observations);
         attachEvidenceAnswerContract(finalAnswer, values, observations);
         return new AgentOrchestrator.AgentExecutionResult(
             finalAnswer,
@@ -302,6 +324,7 @@ class AgentAnswerFinalizer {
                                                                  List<String> observations,
                                                                  BooleanSupplier cancellationCheck) {
         runtimeGuard.checkCancelled(cancellationCheck);
+        recordMcpResultEvidencePolicy(metadata, traces);
         String finalAnswer = summarizeWithObservations(activeChatModel, query, systemPrompt, observations, metadata);
         recordCancellationAfterAnswer(cancellationCheck, metadata, "after_summary");
         AgentAnswerReview review = reviewAnswer(activeChatModel, query, systemPrompt, observations, finalAnswer, metadata);
@@ -330,6 +353,7 @@ class AgentAnswerFinalizer {
                                                                  BooleanSupplier cancellationCheck,
                                                                  String stopReason) {
         runtimeGuard.checkCancelled(cancellationCheck);
+        recordMcpResultEvidencePolicy(metadata, traces);
         String finalAnswer = summarizeWithObservations(activeChatModel, query, systemPrompt, observations, metadata);
         recordCancellationAfterAnswer(cancellationCheck, metadata, "after_summary");
         AgentAnswerReview review = reviewAnswer(activeChatModel, query, systemPrompt, observations, finalAnswer, metadata);
@@ -358,6 +382,7 @@ class AgentAnswerFinalizer {
                                                                 String answer,
                                                                 BooleanSupplier cancellationCheck,
                                                                 String stopReason) {
+        recordMcpResultEvidencePolicy(metadata, traces);
         String finalAnswer = safeAnswer(activeChatModel, answer, query, observations, systemPrompt, metadata);
         recordCancellationAfterAnswer(cancellationCheck, metadata, "after_answer");
         AgentAnswerReview review = reviewAnswer(activeChatModel, query, systemPrompt, observations, finalAnswer, metadata);
@@ -455,16 +480,6 @@ class AgentAnswerFinalizer {
                 candidateAnswer
             ));
         }
-        if (review != null
-            && AgentAnswerReview.REVISED.equals(review.status())
-            && review.answer() != null
-            && !review.answer().isBlank()) {
-            candidates.add(new AnswerQualityEvaluator.AnswerCandidate(
-                AnswerQualityEvaluator.REVIEWER_SUGGESTION,
-                AnswerQualityEvaluator.REVIEWER_SUGGESTION,
-                review.answer()
-            ));
-        }
         if (signal != null && signal.shouldReplaceWithGroundedEvidence()) {
             if (signal.groundedDocumentAnswer() != null && !signal.groundedDocumentAnswer().isBlank()) {
                 candidates.add(new AnswerQualityEvaluator.AnswerCandidate(
@@ -518,6 +533,7 @@ class AgentAnswerFinalizer {
         prompt.append("For document QA, use natural Chinese section titles such as phenomenon summary, key evidence, troubleshooting steps, fix suggestions, and risk notes when they are relevant.\n");
         prompt.append("Use SQL snippets and document citations as support, but do not let raw SQL or chunk titles replace the actual explanation.\n");
         prompt.append("If a tool or SQL query returned structured rows, preserve and display the returned data even when it is incomplete, unexpected, or does not satisfy the user's requested metric definition. Do not suppress returned rows only because fields are missing or quality is uncertain; present the data first, then explain gaps, uncertainty, and next checks separately.\n");
+        prompt.append("Hard Runtime policy: when any MCP tool successfully returned a non-empty query result, analysis is mandatory. Evidence completeness may lower confidence and add limitations, but MUST NOT produce an insufficient-evidence refusal.\n");
         prompt.append("Keep execution coverage separate from diagnostic evidence quality. Missing requiredMetrics limits assessment quality but does not erase a successful query result or its execution coverage.\n");
         prompt.append("Honor template purpose, healthCapability, and assessmentCapability. Inventory-only evidence cannot support a complete health conclusion.\n");
         prompt.append("Honor timeSemantics: cumulative SINCE_INSTANCE_START counters are not real-time pressure. Without required uptime/sample-window context, report only the cumulative observation and explicitly withhold a current bottleneck conclusion.\n");
@@ -537,9 +553,23 @@ class AgentAnswerFinalizer {
                 .append(structuredSqlMetadata)
                 .append("\n\n");
         }
-        if (containsEvidence(observations == null ? List.of() : observations)) {
-            AnswerAssemblyPolicy assemblyPolicy = answerAssemblyEngine.plan(observations);
+        if (containsEvidence(observations == null ? List.of() : observations)
+            || mcpResultAvailable(metadata)) {
+            AnswerAssemblyPolicy assemblyPolicy = answerAssemblyEngine.plan(
+                observations, mcpResultAvailable(metadata));
             prompt.append(answerAssemblyEngine.promptInstructions(assemblyPolicy)).append("\n");
+        }
+        TaskResultAssessment taskAssessment = taskResultAssessmentCompiler.compile(
+            metadata,
+            List.of(),
+            answerAssemblyPolicy(observations, metadata)
+        );
+        if (metadata != null) {
+            metadata.put(TaskResultAssessmentCompiler.METADATA_KEY, taskAssessment.toMap());
+        }
+        String taskResultInstructions = taskResultAssessmentCompiler.promptInstructions(taskAssessment);
+        if (!taskResultInstructions.isBlank()) {
+            prompt.append(taskResultInstructions).append("\n");
         }
         if (observations == null || observations.isEmpty()) {
             prompt.append("No external tool observation is available.\n");
@@ -1820,15 +1850,168 @@ class AgentAnswerFinalizer {
         if (metadata == null) {
             return;
         }
-        if (!containsEvidence(observations == null ? List.of() : observations)) {
+        boolean mcpResultAvailable = mcpResultAvailable(metadata);
+        if (!containsEvidence(observations == null ? List.of() : observations)
+            && !mcpResultAvailable) {
             return;
         }
-        AnswerAssemblyPolicy policy = answerAssemblyEngine.plan(observations);
+        AnswerAssemblyPolicy policy =
+            answerAssemblyEngine.plan(observations, mcpResultAvailable);
         metadata.put("answerAssemblyPolicy", policy.toMap());
         metadata.put("answerAssemblyMode", policy.mode().name());
         if (!policy.missingInfo().isEmpty()) {
             metadata.put("answerAssemblyMissingInfo", policy.missingInfo());
         }
+    }
+
+    private McpResultEvidencePolicy.Assessment recordMcpResultEvidencePolicy(
+        Map<String, Object> metadata,
+        List<InteractionToolTrace> traces
+    ) {
+        McpResultEvidencePolicy.Assessment assessment =
+            mcpResultEvidencePolicy.assess(traces);
+        if (metadata == null) {
+            return assessment;
+        }
+        metadata.put("mcpResultEvidencePolicyContractVersion", assessment.contractVersion());
+        metadata.put("mcpResultEvidenceAvailability", assessment.availability().name());
+        metadata.put("mcpSuccessfulToolCount", assessment.successfulToolCount());
+        metadata.put("mcpAvailableResultCount", assessment.availableResultCount());
+        metadata.put("mcpEmptyResultCount", assessment.emptyResultCount());
+        metadata.put("mcpResultAnswerAllowed", assessment.resultAvailable());
+        metadata.put("mcpResultAnalysisCapability",
+            assessment.resultAvailable() ? "PARTIAL" : "NONE");
+        return assessment;
+    }
+
+    private String enforceMcpResultAnalysisPolicy(
+        String candidateAnswer,
+        McpResultEvidencePolicy.Assessment assessment,
+        Map<String, Object> metadata
+    ) {
+        if (assessment == null || !assessment.resultAvailable()) {
+            return candidateAnswer;
+        }
+        String answer = candidateAnswer == null ? "" : candidateAnswer.trim();
+        if (answer.isBlank()) {
+            return candidateAnswer;
+        }
+        if (!refusesAnalysis(answer)) {
+            return candidateAnswer;
+        }
+        if (metadata != null) {
+            metadata.put("evidenceRefusalBlocked", true);
+            metadata.put("evidenceRefusalBlockedReason",
+                answer.isBlank()
+                    ? "non_empty_mcp_result_with_empty_answer"
+                    : "non_empty_mcp_result_with_insufficient_evidence_refusal");
+            metadata.put("originalRefusalPreview", shortText(answer, 1000));
+        }
+        return mcpResultAnalysisFallback();
+    }
+
+    private String mcpResultAnalysisFallback() {
+        return """
+            ## 基于 MCP 查询结果的分析
+
+            MCP 工具已经成功返回非空查询结果，因此可以并且必须基于现有数据进行分析。以下工具结果是本次分析的事实基础。
+
+            当前结果可能没有覆盖用户期望的全部字段或指标；这只影响分析完整度和置信度，不影响对已返回数据的展示与分析。缺失内容将在限制说明中单独列出。
+            """.trim();
+    }
+
+    private boolean refusesAnalysis(String answer) {
+        if (answer == null || answer.isBlank()) {
+            return true;
+        }
+        AnswerQualityAssessment quality = assessAnswerQuality(answer);
+        if (!quality.requiresFallback()) {
+            return false;
+        }
+        String normalized = answer.toLowerCase(Locale.ROOT);
+        return containsAny(normalized,
+            "无法分析", "不能分析", "无法生成完整", "无法生成报告", "无法给出分析",
+            "证据不足", "数据不足", "信息不足", "关键数据缺失", "数据完全缺失",
+            "insufficient evidence", "unable to analyze", "cannot analyze",
+            "cannot generate", "not enough data");
+    }
+
+    private boolean mcpResultAvailable(Map<String, Object> metadata) {
+        if (metadata == null) {
+            return false;
+        }
+        Object value = metadata.get("mcpResultAnswerAllowed");
+        return Boolean.TRUE.equals(value)
+            || (value != null && Boolean.parseBoolean(String.valueOf(value)));
+    }
+
+    private void recordSelectedAnswerCandidate(Map<String, Object> metadata,
+                                               AnswerDecisionEngine.AnswerDecision decision) {
+        if (metadata == null || decision == null || decision.finalAnswer() == null
+            || decision.finalAnswer().isBlank()) {
+            return;
+        }
+        RuntimeAnswerCandidate selected;
+        Object current = metadata.get("answerCandidate");
+        if (current instanceof RuntimeAnswerCandidate candidate
+            && decision.finalAnswer().equals(candidate.content())) {
+            selected = candidate.transition(
+                RuntimeAnswerCandidate.Status.SELECTED,
+                Map.of("selectionReason", decision.reason())
+            );
+        } else {
+            selected = new RuntimeAnswerCandidate(
+                RuntimeAnswerCandidate.CONTRACT_VERSION,
+                decision.finalAnswer(),
+                "final_answer",
+                "none".equals(decision.rewriteSource())
+                    ? "runtime_candidate" : decision.rewriteSource(),
+                RuntimeAnswerCandidate.Status.SELECTED,
+                Map.of(
+                    "selectionReason", decision.reason(),
+                    "decision", decision.action()
+                )
+            );
+        }
+        metadata.put("answerCandidate", selected);
+        metadata.put("answerCandidateContractVersion", selected.contractVersion());
+        metadata.put("answerLifecycleStatus", selected.status().name());
+        metadata.put("answerOrigin", selected.source());
+    }
+
+    private void attachTaskResultAssessment(
+                                            Map<String, Object> metadata,
+                                            List<InteractionToolTrace> traces,
+                                            List<String> observations) {
+        if (metadata == null) {
+            return;
+        }
+        TaskResultAssessment assessment = taskResultAssessmentCompiler.compile(
+            metadata,
+            traces,
+            answerAssemblyPolicy(observations, metadata)
+        );
+        metadata.put(TaskResultAssessmentCompiler.METADATA_KEY, assessment.toMap());
+        metadata.put("taskResultAssessmentContractVersion", assessment.contractVersion());
+        metadata.put("taskResultExecutionStatus", assessment.execution().status().name());
+        metadata.put("taskResultEvidenceStatus", assessment.evidence().status().name());
+        metadata.put("taskResultEvidenceAvailability", assessment.evidence().availability().name());
+        metadata.put("taskResultAnalysisCapability", assessment.evidence().analysisCapability().name());
+        metadata.put("taskResultAnswerAllowed", assessment.evidence().answerAllowed());
+        if (assessment.evidence().blockingReason() != null) {
+            metadata.put("taskResultBlockingReason", assessment.evidence().blockingReason());
+        }
+        metadata.put("taskResultFulfillmentStatus", assessment.fulfillment().status().name());
+        metadata.put("taskResultDeliveryDecision", assessment.delivery().decision().name());
+    }
+
+    private AnswerAssemblyPolicy answerAssemblyPolicy(List<String> observations,
+                                                      Map<String, Object> metadata) {
+        List<String> safeObservations = observations == null ? List.of() : observations;
+        boolean mcpResultAvailable = mcpResultAvailable(metadata);
+        return containsEvidence(safeObservations) || mcpResultAvailable
+            ? answerAssemblyEngine.plan(safeObservations, mcpResultAvailable)
+            : null;
     }
 
     private boolean containsEvidence(List<String> observations) {

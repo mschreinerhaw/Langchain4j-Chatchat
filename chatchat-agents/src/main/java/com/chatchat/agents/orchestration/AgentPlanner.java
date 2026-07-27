@@ -1,5 +1,7 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.assessment.RuntimeAnswerCandidate;
+import com.chatchat.agents.assessment.TaskContract;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.AgentRuntimeFactGroundingContract;
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
@@ -21,6 +23,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Builds planner prompts and parses planner decisions.
@@ -33,6 +37,12 @@ class AgentPlanner {
     private static final String TOOL = "tool";
     private static final int DEFAULT_PLAN_REPAIR_ATTEMPTS = 3;
     private static final int MAX_PLAN_REPAIR_ATTEMPTS = 3;
+    private static final Pattern FINAL_ANSWER_STEP_PATTERN = Pattern.compile(
+        "(?s)\"action_type\"\\s*:\\s*\"final_answer\".*?\"answer\"\\s*:\\s*\"(.*?)\"\\s*}\\s*,\\s*\"depends_on\""
+    );
+    private static final Pattern CANDIDATE_ANSWER_PATTERN = Pattern.compile(
+        "(?s)\"candidate_answer\"\\s*:\\s*\\{.*?\"content\"\\s*:\\s*\"(.*?)\"\\s*,\\s*\"type\""
+    );
 
     private final ToolRegistry toolRegistry;
     private final ObjectMapper objectMapper;
@@ -43,19 +53,41 @@ class AgentPlanner {
         this.objectMapper = objectMapper;
     }
 
-    AgentDecision decideNextAction(ChatModel activeChatModel,
-                                   String query,
-                                   String systemPrompt,
-                                   List<String> availableTools,
-                                   List<String> observations,
-                                   List<String> boundDocumentIds,
-                                   List<String> boundDocumentTags,
-                                   List<String> mandatoryTools,
-                                   boolean requireToolBeforeFinal,
-                                   boolean requireDocumentWebVerification,
-                                   String documentSearchTool,
-                                   String verificationWebSearchTool,
-                                   Map<String, Object> runtimeAttributes) {
+    PlannerExecutionResult decideNextAction(ChatModel activeChatModel,
+                                            String query,
+                                            String systemPrompt,
+                                            List<String> availableTools,
+                                            List<String> observations,
+                                            List<String> boundDocumentIds,
+                                            List<String> boundDocumentTags,
+                                            List<String> mandatoryTools,
+                                            boolean requireToolBeforeFinal,
+                                            boolean requireDocumentWebVerification,
+                                            String documentSearchTool,
+                                            String verificationWebSearchTool,
+                                            Map<String, Object> runtimeAttributes) {
+        AgentDecision decision = decideNextDecision(
+            activeChatModel, query, systemPrompt, availableTools, observations,
+            boundDocumentIds, boundDocumentTags, mandatoryTools, requireToolBeforeFinal,
+            requireDocumentWebVerification, documentSearchTool, verificationWebSearchTool,
+            runtimeAttributes
+        );
+        return plannerExecutionResult(decision, query, mandatoryTools, requireToolBeforeFinal);
+    }
+
+    private AgentDecision decideNextDecision(ChatModel activeChatModel,
+                                             String query,
+                                             String systemPrompt,
+                                             List<String> availableTools,
+                                             List<String> observations,
+                                             List<String> boundDocumentIds,
+                                             List<String> boundDocumentTags,
+                                             List<String> mandatoryTools,
+                                             boolean requireToolBeforeFinal,
+                                             boolean requireDocumentWebVerification,
+                                             String documentSearchTool,
+                                             String verificationWebSearchTool,
+                                             Map<String, Object> runtimeAttributes) {
         String prompt = buildPlannerPrompt(
             query,
             systemPrompt,
@@ -110,7 +142,8 @@ class AgentPlanner {
             logPlannerRawOutput(logRunId, attempt, maxAttempts, raw);
             AgentDecision decision = parseDecision(raw, validationContext);
             if (decision == null) {
-                lastDecision = invalidPlannerDecision(raw, "non_json_response", "Planner did not return valid JSON.");
+                lastDecision = invalidPlannerDecision(
+                    raw, "non_json_response", "Planner did not return valid JSON.", validationContext);
                 logPlannerDecision(logRunId, attempt, maxAttempts, lastDecision);
             } else {
                 logPlannerDecision(logRunId, attempt, maxAttempts, decision);
@@ -173,8 +206,100 @@ class AgentPlanner {
             return attributionDecision;
         }
         return lastDecision == null
-            ? invalidPlannerDecision(lastRaw, "non_json_response", "Planner did not return valid JSON.")
+            ? invalidPlannerDecision(
+                lastRaw, "non_json_response", "Planner did not return valid JSON.", validationContext)
             : lastDecision;
+    }
+
+    private PlannerExecutionResult plannerExecutionResult(AgentDecision decision,
+                                                          String query,
+                                                          List<String> mandatoryTools,
+                                                          boolean requireToolBeforeFinal) {
+        Map<String, Object> executionPlan = decision == null || decision.executionPlan() == null
+            ? Map.of() : decision.executionPlan();
+        boolean planValid = Boolean.TRUE.equals(executionPlan.get("interpretationPlanValid"));
+        boolean planExecutable = Boolean.TRUE.equals(executionPlan.get("interpretationPlanExecutable"));
+        List<String> issues = stringList(executionPlan.get("interpretationPlanRuntimeIssues"));
+        PlannerPlanProduct planProduct = new PlannerPlanProduct(
+            decision == null ? null : decision.interpretationPlan(),
+            planValid,
+            planExecutable,
+            issues
+        );
+
+        String answer = candidateAnswer(decision);
+        RuntimeAnswerCandidate candidate = null;
+        boolean explicitlyPreserved = Boolean.TRUE.equals(
+            executionPlan.get("plannerCandidateAnswerPreserved"));
+        boolean legacyBusinessAnswer = decision != null
+            && FINAL.equals(decision.action())
+            && !"non_json_response".equals(decision.reason())
+            && !"invalid_interpretation_plan".equals(decision.reason());
+        if (answer != null && !answer.isBlank()
+            && (planValid || explicitlyPreserved || legacyBusinessAnswer)) {
+            candidate = new RuntimeAnswerCandidate(
+                RuntimeAnswerCandidate.CONTRACT_VERSION,
+                answer,
+                firstNonBlank(stringValue(executionPlan.get("generationType")), "generated_artifact"),
+                firstNonBlank(stringValue(executionPlan.get("answerOrigin")), "planner_generated"),
+                RuntimeAnswerCandidate.Status.GENERATED,
+                Map.of(
+                    "planSyntaxValid", planValid,
+                    "planExecutable", planExecutable,
+                    "contentPreservedIndependently", true
+                )
+            );
+        }
+
+        boolean evidenceRequired = requireToolBeforeFinal
+            || (mandatoryTools != null && !mandatoryTools.isEmpty());
+        String taskType = decision != null
+            && decision.interpretationPlan() != null
+            && decision.interpretationPlan().intent() != null
+            ? decision.interpretationPlan().intent().type()
+            : "generation";
+        String userGoal = decision != null
+            && decision.interpretationPlan() != null
+            && decision.interpretationPlan().intent() != null
+            ? firstNonBlank(decision.interpretationPlan().intent().goal(), query)
+            : query;
+        TaskContract taskContract = new TaskContract(
+            TaskContract.CONTRACT_VERSION,
+            taskType,
+            userGoal,
+            evidenceRequired
+                ? TaskContract.EvidenceRequirement.REQUIRED
+                : TaskContract.EvidenceRequirement.OPTIONAL,
+            !evidenceRequired,
+            candidate == null ? "answer" : candidate.type(),
+            normalizeList(mandatoryTools)
+        );
+        return new PlannerExecutionResult(planProduct, candidate, taskContract, decision);
+    }
+
+    private String candidateAnswer(AgentDecision decision) {
+        if (decision == null) {
+            return null;
+        }
+        String independent = stringValue(
+            decision.executionPlan() == null
+                ? null : decision.executionPlan().get("candidateAnswerContent"));
+        if (independent != null && !independent.isBlank()) {
+            return independent;
+        }
+        if (decision.answer() != null && !decision.answer().isBlank()) {
+            return decision.answer();
+        }
+        InterpretationPlan plan = decision.interpretationPlan();
+        if (plan == null || plan.steps() == null) {
+            return null;
+        }
+        return plan.steps().stream()
+            .filter(step -> step != null && step.finalAnswerAction())
+            .map(step -> answerFromFinalStep(plan, step))
+            .filter(value -> value != null && !value.isBlank())
+            .findFirst()
+            .orElse(null);
     }
 
     private String buildPlannerPrompt(String query,
@@ -205,8 +330,9 @@ class AgentPlanner {
         prompt.append("- Preserve relative wording in search keywords unless an exact date is required by the tool schema; "
             + "when an exact date is required, derive it only from this Runtime context.\n\n");
         prompt.append("Planning contract:\n");
-        prompt.append("- Output exactly one JSON object. Do not output markdown, code fences, comments, or natural language.\n");
-        prompt.append("- The JSON object MUST conform to the InterpretationPlan schema below.\n");
+        prompt.append("- Output exactly one InterpretationPlan JSON object. Do not output an envelope, markdown, code fences, comments, or natural language.\n");
+        prompt.append("- The InterpretationPlan is the single source of truth for this loop iteration.\n");
+        prompt.append("- Do not emit candidate_answer or another answer channel. A user-facing result belongs only in final_answer.input.answer.\n");
         prompt.append("- The user query MUST first be converted into this executable InterpretationPlan before any tool execution.\n");
         prompt.append("- Do not output legacy action/tool JSON such as {\"action\":\"tool\"} or {\"action\":\"final\"}.\n");
         prompt.append("- The plan is declarative. Do not claim that a tool has already run unless it appears in Observations so far.\n");
@@ -674,16 +800,21 @@ class AgentPlanner {
         }
         String json = extractJson(raw);
         try {
-            Map<String, Object> payload = objectMapper.readValue(json, Map.class);
+            Map<String, Object> envelope = objectMapper.readValue(json, Map.class);
+            Map<String, Object> candidatePayload = asMap(
+                firstObject(envelope, "candidate_answer", "candidateAnswer"));
+            Map<String, Object> planningPayload = asMap(envelope.get("planning"));
+            Map<String, Object> payload = planningPayload.isEmpty() ? envelope : planningPayload;
             AgentDecision interpretationPlanDecision = parseInterpretationPlanDecision(payload, validationContext);
             if (interpretationPlanDecision != null) {
-                return interpretationPlanDecision;
+                return attachCandidateAnswer(interpretationPlanDecision, candidatePayload);
             }
             if (requiresStrictInterpretationPlan(validationContext)) {
                 return invalidPlannerDecision(
                     raw,
                     "legacy_action_not_allowed",
-                    "MCP workflow requires an InterpretationPlan; legacy action JSON is not allowed."
+                    "MCP workflow requires an InterpretationPlan; legacy action JSON is not allowed.",
+                    validationContext
                 );
             }
             String action = stringValue(payload.get("action"));
@@ -725,6 +856,37 @@ class AgentPlanner {
             log.debug("Failed to parse planner decision: {}", raw, ex);
             return null;
         }
+    }
+
+    private AgentDecision attachCandidateAnswer(AgentDecision decision,
+                                                Map<String, Object> candidatePayload) {
+        if (decision == null || candidatePayload == null || candidatePayload.isEmpty()) {
+            return decision;
+        }
+        String content = stringValue(firstObject(candidatePayload, "content", "answer"));
+        if (content == null || content.isBlank()) {
+            return decision;
+        }
+        Map<String, Object> executionPlan = new LinkedHashMap<>(
+            decision.executionPlan() == null ? Map.of() : decision.executionPlan());
+        executionPlan.put("plannerCandidateAnswerPreserved", true);
+        executionPlan.put("protectedCandidateAnswer", true);
+        executionPlan.put("candidateAnswerContent", content);
+        executionPlan.put("answerOrigin", "planner_generated");
+        executionPlan.put("generationType", firstNonBlank(
+            stringValue(firstObject(candidatePayload, "type", "answerType")),
+            "generated_artifact"
+        ));
+        return new AgentDecision(
+            decision.action(),
+            decision.toolName(),
+            decision.arguments(),
+            FINAL.equals(decision.action()) ? content : decision.answer(),
+            decision.reason(),
+            executionPlan,
+            decision.sufficient(),
+            decision.interpretationPlan()
+        );
     }
 
     private AgentDecision parseInterpretationPlanDecision(Map<String, Object> payload,
@@ -1464,7 +1626,10 @@ class AgentPlanner {
         return value.substring(0, maxChars) + "...";
     }
 
-    private AgentDecision invalidPlannerDecision(String raw, String reason, String issue) {
+    private AgentDecision invalidPlannerDecision(String raw,
+                                                 String reason,
+                                                 String issue,
+                                                 PlannerValidationContext validationContext) {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("plannerProtocol", "interpretation_plan");
         metadata.put("interpretationPlanValid", false);
@@ -1472,15 +1637,67 @@ class AgentPlanner {
         metadata.put("interpretationPlanRuntimeRulesValid", false);
         metadata.put("interpretationPlanExecutable", false);
         metadata.put("interpretationPlanRuntimeIssues", issue == null || issue.isBlank() ? List.of() : List.of(issue));
+        String recoveredAnswer = recoverFinalAnswerCandidate(raw);
+        if (recoveredAnswer != null && !recoveredAnswer.isBlank()) {
+            boolean requiredEvidence = validationContext != null
+                && (validationContext.requireToolBeforeFinal()
+                || !normalizeList(validationContext.mandatoryTools()).isEmpty());
+            metadata.put("plannerCandidateAnswerPreserved", true);
+            metadata.put("protectedCandidateAnswer", true);
+            metadata.put("answerOrigin", "planner_generated_recovered");
+            metadata.put("generationType", "generated_artifact");
+            metadata.put("planningStatus", "PROTOCOL_INVALID");
+            metadata.put("requiredEvidence", requiredEvidence);
+            metadata.put("taskBoundary", Map.of(
+                "userIntent", validationContext == null
+                    ? "" : firstNonBlank(validationContext.query(), ""),
+                "requiredEvidence", requiredEvidence,
+                "mandatoryTools", validationContext == null
+                    ? List.of() : normalizeList(validationContext.mandatoryTools()),
+                "reviewerMayChangeTaskType", false
+            ));
+        }
         return new AgentDecision(
             FINAL,
             null,
             Map.of(),
-            raw,
+            recoveredAnswer == null || recoveredAnswer.isBlank() ? raw : recoveredAnswer,
             reason,
             metadata,
             false
         );
+    }
+
+    /**
+     * Keeps a generated user artifact independent from the executable planning channel.
+     * No recovered step is ever executed; only final_answer.input.answer is retained.
+     */
+    private String recoverFinalAnswerCandidate(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        Matcher matcher = CANDIDATE_ANSWER_PATTERN.matcher(raw);
+        boolean matched = matcher.find();
+        if (!matched || matcher.group(1) == null || matcher.group(1).isBlank()) {
+            matcher = FINAL_ANSWER_STEP_PATTERN.matcher(raw);
+            matched = matcher.find();
+        }
+        if (!matched) {
+            return null;
+        }
+        String encoded = matcher.group(1);
+        try {
+            return objectMapper.readValue("\"" + encoded + "\"", String.class).trim();
+        } catch (Exception ignored) {
+            return encoded
+                .replace("\\r\\n", "\n")
+                .replace("\\n", "\n")
+                .replace("\\r", "\n")
+                .replace("\\t", "\t")
+                .replace("\\\"", "\"")
+                .replace("\\\\", "\\")
+                .trim();
+        }
     }
 
     private String buildPlannerRepairPrompt(String originalPrompt,
@@ -2800,6 +3017,25 @@ record AgentDecision(
                   Map<String, Object> executionPlan,
                   Boolean sufficient) {
         this(action, toolName, arguments, answer, reason, executionPlan, sufficient, null);
+    }
+}
+
+record PlannerExecutionResult(
+    PlannerPlanProduct plan,
+    RuntimeAnswerCandidate candidateAnswer,
+    TaskContract taskContract,
+    AgentDecision decision
+) {
+}
+
+record PlannerPlanProduct(
+    InterpretationPlan plan,
+    boolean valid,
+    boolean executable,
+    List<String> issues
+) {
+    PlannerPlanProduct {
+        issues = issues == null ? List.of() : List.copyOf(issues);
     }
 }
 

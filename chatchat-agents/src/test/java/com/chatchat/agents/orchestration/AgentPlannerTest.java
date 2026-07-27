@@ -8,6 +8,7 @@ import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolParameter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
+import dev.langchain4j.model.chat.ChatModel;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
@@ -18,6 +19,155 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class AgentPlannerTest {
+
+    @Test
+    void parsesPlanningAndCandidateAnswerAsIndependentProducts() {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        String envelope = """
+            {
+              "planning":{
+                "version":"1.0",
+                "intent":{"type":"design","goal":"设计通用表","risk_level":"low"},
+                "context":{"key_facts":[],"assumptions":[],"missing_info":[],"constraints":[]},
+                "plan":{"steps":[{
+                  "id":1,
+                  "action_type":"final_answer",
+                  "tool_name":"",
+                  "input":{"answer":""},
+                  "depends_on":[]
+                }]},
+                "execution_policy":{"max_steps":1,"allow_parallel":false,"allow_tool":[],"deny_tool":[],"max_rewrite_times":0,"fallback_mode":"safe_answer"},
+                "review":{"self_check":{"completeness_score":0.8,"hallucination_risk":0.1,"tool_sufficiency":true,"missing_steps":[]},"fallback_plan":[]}
+              },
+              "candidate_answer":{
+                "content":"# 通用表设计\\n\\n这是独立的业务成果。",
+                "type":"design_advice"
+              }
+            }
+            """;
+        ChatModel model = new ChatModel() {
+            @Override
+            public String chat(String message) {
+                return envelope;
+            }
+        };
+
+        PlannerExecutionResult result = planner.decideNextAction(
+            model, "设计通用表", "", List.of(), List.of(), List.of(), List.of(),
+            List.of(), false, false, null, null, Map.of("plannerMaxRepairAttempts", 1));
+
+        assertThat(result.plan().valid()).isTrue();
+        assertThat(result.candidateAnswer().content()).contains("独立的业务成果");
+        assertThat(result.candidateAnswer().type()).isEqualTo("design_advice");
+        assertThat(result.decision().answer()).contains("独立的业务成果");
+    }
+
+    @Test
+    void preservesFinalAnswerAsIndependentProductWhenPlanJsonIsInvalid() {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        String malformedPlan = """
+            {
+              "intent":{"type":"reasoning","goal":"设计通用客户信息表" "risk_level":"low"},
+              "plan":{"steps":[{
+                "id":1,
+                "action_type":"final_answer",
+                "tool_name":"",
+                "input":{"answer":"# 客户信息表设计\\n\\n| 字段 | 类型 |\\n|---|---|\\n| cust_id | BIGINT |"},
+                "depends_on":[],
+                "output_contract":{"type":"text"}
+              }]}
+            }
+            """;
+        ChatModel model = new ChatModel() {
+            @Override
+            public String chat(String message) {
+                return malformedPlan;
+            }
+        };
+
+        PlannerExecutionResult result = planner.decideNextAction(
+            model,
+            "请设计一张通用客户信息表",
+            "",
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of(),
+            false,
+            false,
+            null,
+            null,
+            Map.of("plannerMaxRepairAttempts", 1)
+        );
+
+        assertThat(result.plan().valid()).isFalse();
+        assertThat(result.plan().executable()).isFalse();
+        assertThat(result.candidateAnswer()).isNotNull();
+        assertThat(result.candidateAnswer().content())
+            .contains("# 客户信息表设计")
+            .contains("cust_id");
+        assertThat(result.candidateAnswer().status())
+            .isEqualTo(com.chatchat.agents.assessment.RuntimeAnswerCandidate.Status.GENERATED);
+        assertThat(result.taskContract().evidenceRequirement())
+            .isEqualTo(com.chatchat.agents.assessment.TaskContract.EvidenceRequirement.OPTIONAL);
+        assertThat(result.decision().executionPlan())
+            .containsEntry("plannerCandidateAnswerPreserved", true)
+            .containsEntry("protectedCandidateAnswer", true);
+    }
+
+    @Test
+    void recoversFinalStepAnswerWhenLegacyEnvelopeContainsEmptyCandidateAnswer() {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        String malformedEnvelope = """
+            {
+              "planning":{
+                "intent":{"type":"design","goal":"design customer table" "risk_level":"low"},
+                "plan":{"steps":[{
+                  "id":1,
+                  "action_type":"final_answer",
+                  "tool_name":"",
+                  "input":{"answer":"# Customer table\\n\\n```sql\\nCREATE TABLE dim_customer (customer_id BIGINT);\\n```"},
+                  "depends_on":[],
+                  "output_contract":{"type":"text"}
+                }]}
+              },
+              "candidate_answer":{"content":"","type":"answer"}
+            }
+            """;
+        ChatModel model = new ChatModel() {
+            @Override
+            public String chat(String message) {
+                return malformedEnvelope;
+            }
+        };
+
+        PlannerExecutionResult result = planner.decideNextAction(
+            model,
+            "design customer table",
+            "",
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of(),
+            false,
+            false,
+            null,
+            null,
+            Map.of("plannerMaxRepairAttempts", 1)
+        );
+
+        assertThat(result.plan().valid()).isFalse();
+        assertThat(result.decision().reason()).isEqualTo("non_json_response");
+        assertThat(result.decision().answer())
+            .contains("# Customer table")
+            .contains("CREATE TABLE dim_customer")
+            .doesNotContain("\"planning\"");
+        assertThat(result.candidateAnswer()).isNotNull();
+        assertThat(result.candidateAnswer().content())
+            .contains("CREATE TABLE dim_customer");
+    }
 
     @Test
     void plannerPromptPublishesAgentConfiguredBudgetAsHardCeilings() throws Exception {
@@ -44,6 +194,9 @@ class AgentPlannerTest {
         );
 
         assertThat(prompt)
+            .contains("single source of truth")
+            .contains("Do not emit candidate_answer")
+            .doesNotContain("Planner Response envelope")
             .contains("authoritative hard ceilings")
             .contains("execution_policy.max_steps MUST be <= 3")
             .contains("no more than 3 steps")

@@ -2,7 +2,7 @@
 
 本文档定义 Agent Runtime 对用户勾选工具、能力、资产范围的强制执行契约。该契约属于运行时安全边界，不是 planner prompt 建议，也不是模型可自行裁剪的业务规则。
 
-工具执行完成后的事实使用和模型总结必须同时遵守 [`Agent Runtime 事实落地契约`](../../docs/agent-runtime-fact-grounding-contract.md)。
+工具执行完成后的事实使用和模型总结必须同时遵守 [`Agent Runtime 事实落地契约`](../../docs/agent-runtime-fact-grounding-contract.md) 和 [`Agent Runtime 证据增强契约`](../../docs/agent-runtime-evidence-augmentation-contract.md)。
 
 ## Engineering Values
 
@@ -189,7 +189,31 @@ Finalizer:
 - 未执行工具时对结果的预设。
 - 只有模板发现或资产发现、没有执行 observation 的信息。
 
-当证据不足时，Finalizer 只能输出阻断说明、证据缺口和下一步所需工具/参数，不能输出业务结论。
+## Agent Loop 核心原则：证据增强，不是证据门禁
+
+本节的规范性定义、稳定字段、决策优先级和兼容规则以 [`Agent Runtime Evidence Augmentation Contract v1`](../../docs/agent-runtime-evidence-augmentation-contract.md) 为准。
+
+Agent Loop 的目标是通过检索、验证和计划演进提高答案可靠性，而不是用证据完整度裁决是否允许回答。
+
+Runtime 必须区分：
+
+- `Evidence Availability`：是否存在可使用的事实。
+- `Evidence Completeness`：事实是否覆盖全部分析维度。
+- `Answer Capability`：当前事实能够支持哪些分析结论。
+
+循环决策统一采用 `evidence_augmentation_decision_v1`：
+
+- `COMPLETE`：证据已支持任务完成。
+- `RETRIEVE_MORE`：存在可执行的证据缺口且仍有工具、次数和时间预算，继续探索。
+- `ANALYZE_WITH_LIMITATIONS`：已有事实，但补充手段或预算已耗尽；必须输出阶段性分析，并单独披露限制。
+- `NO_EVIDENCE` / `EXACT_RESULT_UNAVAILABLE`：没有任何可用事实，或用户明确要求精确结果但无法取得。
+- `BLOCKED_AUTHORIZATION`：高风险操作缺少必要授权。
+
+硬规则：
+
+> 证据存在决定可分析范围；证据完整度只影响置信度、限制说明和下一步行动，不得直接触发拒答。
+
+只要 MCP 工具返回非空结果，Finalizer 就必须分析该结果能够支持的部分。不得仅因字段、指标或维度不完整而输出“无法分析”、空答案或整体拒绝。只有完全无事实、缺少高风险操作授权，或用户明确要求的精确结果无法取得时，才允许进入阻断说明。
 
 ## Answer Evidence Disclosure
 
@@ -197,7 +221,7 @@ Finalizer:
 
 回答开头必须声明以下三类之一：
 
-- `有事实依据的分析`：已经存在成功工具返回的结构化结果，或存在带来源标识的文档、知识库、网页、执行证据。
+- `有事实依据的分析`：已经存在工具返回的非空结构化结果，或存在带来源标识的文档、知识库、网页、执行证据；结果不完整时仍属于有事实依据的阶段性分析，并必须披露限制。
 - `执行阻断/证据不足`：工具执行失败、权限不足、参数不足、强制工具流程未完成，回答可说明失败事实、流程状态和排查参考，不能作为确定性业务结论。
 - `证据不足/推测`：没有可追溯事实来源，回答可作为待验证的推测、分析思路或下一步建议，不能作为确定性业务结论。
 

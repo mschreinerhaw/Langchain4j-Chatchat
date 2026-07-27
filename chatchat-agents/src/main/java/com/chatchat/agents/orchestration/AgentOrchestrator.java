@@ -1,5 +1,8 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.assessment.EvidenceAugmentationPolicy;
+import com.chatchat.agents.assessment.RuntimeAnswerCandidate;
+import com.chatchat.agents.assessment.TaskContract;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.AgentAnswerReviewer;
 import com.chatchat.agents.runtime.AgentObservation;
@@ -99,6 +102,7 @@ public class AgentOrchestrator {
     private final SqlMetadataGroundingGuard sqlMetadataGroundingGuard = new SqlMetadataGroundingGuard();
     private final ExecutionGraphSemanticValidator executionGraphSemanticValidator = new ExecutionGraphSemanticValidator();
     private final InterpretationPlanWorkflowGuard interpretationPlanWorkflowGuard = new InterpretationPlanWorkflowGuard();
+    private final EvidenceAugmentationPolicy evidenceAugmentationPolicy = new EvidenceAugmentationPolicy();
 
     public AgentOrchestrator(ChatModel chatModel,
                              ToolRegistry toolRegistry,
@@ -492,7 +496,7 @@ public class AgentOrchestrator {
             );
             List<String> plannerMandatoryTools = workflowTools.missingMandatoryTools(mandatoryTools, plannerCompletedTools);
             boolean plannerRequiresToolBeforeFinal = !plannerMandatoryTools.isEmpty();
-            AgentDecision decision = planner.decideNextAction(
+            PlannerExecutionResult plannerResult = planner.decideNextAction(
                 activeChatModel,
                 query,
                 systemPrompt,
@@ -507,6 +511,29 @@ public class AgentOrchestrator {
                 verificationWebSearchTool,
                 requestRuntimeAttributes
             );
+            AgentDecision decision = plannerResult.decision();
+            metadata.put("taskContract", plannerResult.taskContract());
+            metadata.put("taskContractVersion", plannerResult.taskContract().contractVersion());
+            metadata.put("taskType", plannerResult.taskContract().taskType());
+            metadata.put("evidenceRequirement",
+                plannerResult.taskContract().evidenceRequirement().name());
+            RuntimeAnswerCandidate plannerCandidate = plannerResult.candidateAnswer();
+            if (plannerCandidate != null) {
+                plannerCandidate = plannerCandidate.transition(
+                    RuntimeAnswerCandidate.Status.VALIDATED,
+                    metadataOf(
+                        "contentPresent", !plannerCandidate.content().isBlank(),
+                        "planValidityIndependent", true
+                    )
+                );
+                metadata.put("answerCandidate", plannerCandidate);
+                metadata.put("answerCandidateContractVersion", plannerCandidate.contractVersion());
+                metadata.put("answerOrigin", plannerCandidate.source());
+                metadata.put("answerGenerationType", plannerCandidate.type());
+                metadata.put("answerLifecycleStatus", plannerCandidate.status().name());
+                metadata.put("protectedCandidateAnswer", true);
+                metadata.put("plannerCandidateAnswerPreserved", true);
+            }
             runtimeGuard.checkCancelled(cancellationCheck);
             String plannedToolName = toolNames.normalizeToolName(decision.toolName(), decision.arguments(), tools);
             metadata.put("steps", step);
@@ -604,6 +631,14 @@ public class AgentOrchestrator {
                         + verificationWebSearchTool + " observations before final answer.");
                     metadata.put("rejectedFinalBeforeVerification", true);
                     continue;
+                }
+                if (plannerCandidate != null) {
+                    RuntimeAnswerCandidate selectedCandidate = plannerCandidate.transition(
+                        RuntimeAnswerCandidate.Status.SELECTED,
+                        metadataOf("selectionReason", "planner_business_result_retained")
+                    );
+                    metadata.put("answerCandidate", selectedCandidate);
+                    metadata.put("answerLifecycleStatus", selectedCandidate.status().name());
                 }
                 return answerFinalizer.finishReviewedAnswer(
                     activeChatModel,
@@ -911,7 +946,22 @@ public class AgentOrchestrator {
             runtimeAttributes, metadata, cancellationCheck
         );
         evidenceHistory.add(firstEvidence);
-        if (firstResult.success() && evidenceSufficient(firstEvidence)) {
+        int configuredMaxRewriteTimes = maxRewriteTimes(plan);
+        boolean firstEvidenceAvailable = usableEvidenceAvailable(firstEvidence);
+        boolean augmentationOverrideAvailable = configuredMaxRewriteTimes == 0
+            && firstEvidenceAvailable
+            && MAX_INTERPRETATION_PLAN_ATTEMPTS > 1;
+        EvidenceAugmentationPolicy.Outcome latestAugmentationDecision = decideEvidenceAugmentation(
+            firstEvidence,
+            firstResult,
+            tools != null && !tools.isEmpty()
+                && (configuredMaxRewriteTimes > 0 || augmentationOverrideAvailable),
+            false,
+            metadata
+        );
+        recordEvidenceAugmentationDecision(
+            latestAugmentationDecision, 1, runtimeAttributes, metadata);
+        if (latestAugmentationDecision.decision() == EvidenceAugmentationPolicy.Decision.COMPLETE) {
             recordEvidenceStopState(metadata, firstEvidence, "evidence_sufficient", 1);
             recordMandatoryWorkflowCompletion(traces, metadata, runtimeAttributes);
             String synthesizedAnswer = synthesizeInterpretationPlanAnswer(
@@ -942,9 +992,20 @@ public class AgentOrchestrator {
         InterpretationPlanRewriter rewriter = new InterpretationPlanRewriter(activeChatModel, objectMapper, validator);
         InterpretationPlan currentPlan = plan;
         InterpretationPlanRuntime.ExecutionResult currentResult = firstResult;
-        int maxRewriteTimes = maxRewriteTimes(plan);
+        int maxRewriteTimes = augmentationOverrideAvailable && latestAugmentationDecision.continueLoop()
+            ? 1
+            : configuredMaxRewriteTimes;
         boolean duplicateToolPlanSuppressed = false;
+        boolean usablePartialAnalysis = latestAugmentationDecision.decision()
+            == EvidenceAugmentationPolicy.Decision.ANALYZE_WITH_LIMITATIONS
+            && firstEvidenceAvailable;
+        metadata.put("interpretationPlanConfiguredMaxRewriteTimes", configuredMaxRewriteTimes);
         metadata.put("interpretationPlanMaxRewriteTimes", maxRewriteTimes);
+        if (maxRewriteTimes > configuredMaxRewriteTimes) {
+            metadata.put("evidenceAugmentationOverrideApplied", true);
+            metadata.put("evidenceAugmentationOverrideReason",
+                "A non-empty MCP result had an actionable evidence gap; one bounded refinement round was preserved.");
+        }
         for (int rewriteCount = 1; rewriteCount <= maxRewriteTimes; rewriteCount++) {
             observations.add(planAttemptRewriteSummary(
                 rewriteCount,
@@ -1113,7 +1174,16 @@ public class AgentOrchestrator {
                 evidenceHistory, runtimeAttributes, metadata, cancellationCheck
             );
             evidenceHistory.add(currentEvidence);
-            if (currentResult.success() && evidenceSufficient(currentEvidence)) {
+            latestAugmentationDecision = decideEvidenceAugmentation(
+                currentEvidence,
+                currentResult,
+                tools != null && !tools.isEmpty() && rewriteCount < maxRewriteTimes,
+                false,
+                metadata
+            );
+            recordEvidenceAugmentationDecision(
+                latestAugmentationDecision, rewriteCount + 1, runtimeAttributes, metadata);
+            if (latestAugmentationDecision.decision() == EvidenceAugmentationPolicy.Decision.COMPLETE) {
                 recordEvidenceStopState(metadata, currentEvidence, "evidence_sufficient", rewriteCount + 1);
                 recordMandatoryWorkflowCompletion(traces, metadata, runtimeAttributes);
                 String synthesizedAnswer = synthesizeInterpretationPlanAnswer(
@@ -1140,25 +1210,51 @@ public class AgentOrchestrator {
                     "evidence_sufficient"
                 );
             }
+            if (latestAugmentationDecision.decision()
+                == EvidenceAugmentationPolicy.Decision.ANALYZE_WITH_LIMITATIONS) {
+                usablePartialAnalysis = usableEvidenceAvailable(currentEvidence);
+                break;
+            }
         }
 
-        metadata.put("interpretationPlanRewriteBudgetExceeded", !duplicateToolPlanSuppressed
+        if (!usablePartialAnalysis && evidenceHistory.stream().anyMatch(this::usableEvidenceAvailable)) {
+            usablePartialAnalysis = true;
+            latestAugmentationDecision = evidenceAugmentationPolicy.decide(
+                new EvidenceAugmentationPolicy.Context(
+                    true,
+                    false,
+                    true,
+                    false,
+                    false,
+                    taskEvidenceRequirement(metadata)
+                )
+            );
+            recordEvidenceAugmentationDecision(
+                latestAugmentationDecision, evidenceHistory.size(), runtimeAttributes, metadata);
+        }
+        metadata.put("interpretationPlanRewriteBudgetExceeded", !usablePartialAnalysis
+            && !duplicateToolPlanSuppressed
             && (maxRewriteTimes <= 0
                 || firstInteger(metadata.get("interpretationPlanRewriteCount"), 0) >= maxRewriteTimes));
         metadata.put("interpretationPlanFallbackMode", fallbackMode(plan));
-        metadata.put("stopReason", duplicateToolPlanSuppressed
-            ? "duplicate_tool_plan_suppressed"
-            : "interpretation_plan_evidence_exhausted");
+        String evidenceCompletionReason = usablePartialAnalysis
+            ? "evidence_partial_analysis"
+            : duplicateToolPlanSuppressed
+                ? "duplicate_tool_plan_suppressed"
+                : "evidence_iteration_limit";
+        metadata.put("stopReason", evidenceCompletionReason);
         metadata.put("interpretationPlanEvidenceIterationCount", evidenceHistory.size());
         if (!evidenceHistory.isEmpty()) {
             recordEvidenceStopState(
                 metadata,
                 evidenceHistory.get(evidenceHistory.size() - 1),
-                duplicateToolPlanSuppressed ? "duplicate_tool_plan_suppressed" : "evidence_iteration_limit",
+                evidenceCompletionReason,
                 evidenceHistory.size()
             );
         }
-        observations.add(duplicateToolPlanSuppressed
+        observations.add(usablePartialAnalysis
+            ? "InterpretationPlan has usable evidence and will produce a stage analysis with explicit limitations."
+            : duplicateToolPlanSuppressed
             ? "InterpretationPlan stopped before a duplicate tool call; final answer will use the persisted evidence chain."
             : "InterpretationPlan completed its evidence revision budget; final answer will reconcile all persisted evidence and unresolved gaps.");
         runMissingMandatoryWorkflowTools(
@@ -1221,7 +1317,7 @@ public class AgentOrchestrator {
                 observations,
                 synthesizedAnswer,
                 cancellationCheck,
-                "evidence_iteration_limit"
+                evidenceCompletionReason
             );
         }
         return answerFinalizer.finishReviewedSummary(
@@ -1952,6 +2048,7 @@ public class AgentOrchestrator {
         prompt.append("Do not wrap the Markdown in code fences and do not output JSON.\n");
         prompt.append("Workflow contract:\n");
         prompt.append("- Treat every succeeded tool step with returned data as evidence, even when the model review marked it incomplete or partial.\n");
+        prompt.append("- If any MCP tool returned non-empty data, you MUST analyze the supported parts of the user's task. Evidence gaps may reduce confidence and require a limitations section, but MUST NOT produce a refusal or an empty answer.\n");
         prompt.append("- When multiple plan attempts were executed, reconcile and summarize evidence from all attempts; prefer the latest complete result when evidence conflicts.\n");
         prompt.append("- Treat interpretation_evidence_iteration_v1 snapshots as the evidence chain: preserve their evidenceId-to-conclusion basis, missingEvidence, conflicts, and nextActions.\n");
         prompt.append("- Treat hypotheses as testable explanations. Explain which hypothesis is supported, contradicted, or unresolved and bind every claim to supportEvidenceIds or contradictEvidenceIds.\n");
@@ -3723,6 +3820,123 @@ public class AgentOrchestrator {
 
     private boolean evidenceSufficient(Map<String, Object> snapshot) {
         return snapshot != null && booleanValue(snapshot.get("sufficient"));
+    }
+
+    private EvidenceAugmentationPolicy.Outcome decideEvidenceAugmentation(
+        Map<String, Object> snapshot,
+        InterpretationPlanRuntime.ExecutionResult result,
+        boolean explorationAvailable,
+        boolean authorizationRequired,
+        Map<String, Object> metadata
+    ) {
+        boolean sufficient = evidenceSufficient(snapshot);
+        boolean materialGap = !sufficient && (
+            result == null
+                || !result.success()
+                || collectionSize(snapshot == null ? null : snapshot.get("remainingMissing")) > 0
+                || collectionSize(snapshot == null ? null : snapshot.get("conflicts")) > 0
+        );
+        return evidenceAugmentationPolicy.decide(new EvidenceAugmentationPolicy.Context(
+            usableEvidenceAvailable(snapshot),
+            sufficient,
+            materialGap,
+            explorationAvailable,
+            authorizationRequired,
+            taskEvidenceRequirement(metadata)
+        ));
+    }
+
+    private TaskContract.EvidenceRequirement taskEvidenceRequirement(Map<String, Object> metadata) {
+        Object contract = metadata == null ? null : metadata.get("taskContract");
+        if (contract instanceof TaskContract taskContract) {
+            return taskContract.evidenceRequirement();
+        }
+        String configured = stringValue(metadata == null ? null : metadata.get("evidenceRequirement"));
+        if (configured != null) {
+            try {
+                return TaskContract.EvidenceRequirement.valueOf(configured.trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException ignored) {
+                // Use the safe default below for older runtime metadata.
+            }
+        }
+        return TaskContract.EvidenceRequirement.OPTIONAL;
+    }
+
+    private boolean usableEvidenceAvailable(Map<String, Object> snapshot) {
+        if (snapshot == null || !(snapshot.get("toolEvidence") instanceof Iterable<?> evidenceItems)) {
+            return false;
+        }
+        for (Object rawItem : evidenceItems) {
+            if (!(rawItem instanceof Map<?, ?> rawMap)) {
+                continue;
+            }
+            Map<String, Object> item = asStringObjectMap(rawMap);
+            if (meaningfulEvidenceValue(item.get("outputFacts"))
+                || meaningfulEvidenceValue(item.get("output"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean meaningfulEvidenceValue(Object value) {
+        if (value == null) {
+            return false;
+        }
+        if (value instanceof CharSequence text) {
+            String normalized = text.toString().trim();
+            return !normalized.isEmpty()
+                && !"null".equalsIgnoreCase(normalized)
+                && !"[]".equals(normalized)
+                && !"{}".equals(normalized);
+        }
+        if (value instanceof Map<?, ?> map) {
+            return !map.isEmpty() && map.values().stream().anyMatch(this::meaningfulEvidenceValue);
+        }
+        if (value instanceof Iterable<?> values) {
+            return values.iterator().hasNext();
+        }
+        if (value.getClass().isArray()) {
+            return java.lang.reflect.Array.getLength(value) > 0;
+        }
+        return true;
+    }
+
+    private void recordEvidenceAugmentationDecision(
+        EvidenceAugmentationPolicy.Outcome outcome,
+        int iteration,
+        Map<String, Object> runtimeAttributes,
+        Map<String, Object> metadata
+    ) {
+        if (outcome == null || metadata == null) {
+            return;
+        }
+        Map<String, Object> decision = metadataOf(
+            "contractVersion", outcome.contractVersion(),
+            "iteration", iteration,
+            "decision", outcome.decision().name(),
+            "answerAllowed", outcome.answerAllowed(),
+            "continueLoop", outcome.continueLoop(),
+            "reason", outcome.reason()
+        );
+        addCandidateList(metadataList(metadata, "evidenceAugmentationHistory"), List.of(decision));
+        metadata.put("evidenceAugmentationDecision", outcome.decision().name());
+        metadata.put("evidenceAugmentationAnswerAllowed", outcome.answerAllowed());
+        metadata.put("evidenceAugmentationContinueLoop", outcome.continueLoop());
+        metadata.put("evidenceAugmentationContractVersion", outcome.contractVersion());
+        runResultAdapter.recordRuntimeObservation(
+            runtimeAttributes,
+            AGENT_RUN_ID_ATTRIBUTE,
+            "Evidence augmentation decision for iteration " + iteration + ": "
+                + outcome.decision().name() + ".",
+            "evidence_augmentation_decision",
+            metadataOf(
+                "type", "evidence",
+                "workflow", "interpretation_plan",
+                "lifecyclePhase", "loop_decision",
+                "decision", decision
+            )
+        );
     }
 
     private void recordEvidenceStopState(

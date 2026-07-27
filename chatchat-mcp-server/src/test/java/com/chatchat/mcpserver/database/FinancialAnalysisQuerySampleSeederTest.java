@@ -56,12 +56,40 @@ class FinancialAnalysisQuerySampleSeederTest {
         DatabaseQueryConfigRepository repository = mock(DatabaseQueryConfigRepository.class);
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
         when(jdbc.queryForObject(anyString(), eq(Integer.class), anyString())).thenReturn(1);
+        when(repository.findById(anyString())).thenReturn(Optional.empty());
         FinancialAnalysisQuerySampleSeeder seeder =
             new FinancialAnalysisQuerySampleSeeder(repository, jdbc, new ObjectMapper());
 
         seeder.seedOnce();
 
         verify(repository, times(0)).save(any(DatabaseQueryConfig.class));
+        verify(jdbc, times(0)).update(anyString(), any(), any());
+    }
+
+    @Test
+    void upgradesSeededSystemSamplesThatStillUseLegacyObservationSelection() {
+        DatabaseQueryConfigRepository repository = mock(DatabaseQueryConfigRepository.class);
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.queryForObject(anyString(), eq(Integer.class), anyString())).thenReturn(1);
+        DatabaseQueryConfig existing = new DatabaseQueryConfig();
+        existing.setId("builtin-market-latest-movers");
+        existing.setDatasourceId(FinancialAnalysisQuerySamples.INTERNAL_DATASOURCE_ID);
+        existing.setOwner("system");
+        existing.setEnabled(true);
+        existing.setSqlTemplate("SELECT * FROM market_quote_daily ORDER BY collected_at DESC");
+        when(repository.findById(anyString())).thenReturn(Optional.empty());
+        when(repository.findById("builtin-market-latest-movers")).thenReturn(Optional.of(existing));
+        when(repository.save(any(DatabaseQueryConfig.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        FinancialAnalysisQuerySampleSeeder seeder =
+            new FinancialAnalysisQuerySampleSeeder(repository, jdbc, new ObjectMapper());
+
+        seeder.seedOnce();
+
+        ArgumentCaptor<DatabaseQueryConfig> captor = ArgumentCaptor.forClass(DatabaseQueryConfig.class);
+        verify(repository).save(captor.capture());
+        assertThat(captor.getValue().isEnabled()).isTrue();
+        assertThat(captor.getValue().getSqlTemplate()).contains("observation_rank", "ROW_NUMBER()");
+        assertThat(captor.getValue().getSqlStepsJson()).contains("observation_rank");
         verify(jdbc, times(0)).update(anyString(), any(), any());
     }
 }

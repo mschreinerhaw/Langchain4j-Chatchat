@@ -55,6 +55,102 @@ class FinancialDataStoreTest {
     }
 
     @Test
+    void keepsObservationIdentityStableWhenSourceDatabaseIdChanges() throws Exception {
+        var dataSource = new DriverManagerDataSource(
+            "jdbc:h2:mem:financial_stable_source_identity;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1", "sa", "");
+        var jdbc = new JdbcTemplate(dataSource);
+        var store = new FinancialDataStore(jdbc, dataSource,
+            new ObjectMapper(), new MarketModuleProperties());
+        store.initialize();
+        MarketSource middaySource = new MarketSource(
+            6L, "sse_daily_snapshot", "上交所行情快照", "https://www.sse.com.cn");
+        MarketSource closeSource = new MarketSource(
+            167L, "sse_daily_snapshot", "上交所行情快照", "https://www.sse.com.cn");
+
+        store.store(quote(middaySource, "000001", "上证指数", "3829.38"));
+        store.store(quote(closeSource, "000001", "上证指数", "3858.25"));
+
+        assertThat(jdbc.queryForObject("select count(*) from market_quote_daily", Integer.class)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select close from market_quote_daily", java.math.BigDecimal.class))
+            .isEqualByComparingTo("3858.25");
+        assertThat(jdbc.queryForObject("select source_id from market_quote_daily", Long.class)).isEqualTo(167L);
+    }
+
+    @Test
+    void catalogFreshnessNeverRegressesAndRetainsAllGovernedSourceNames() throws Exception {
+        var dataSource = new DriverManagerDataSource(
+            "jdbc:h2:mem:financial_catalog_monotonic;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1", "sa", "");
+        var jdbc = new JdbcTemplate(dataSource);
+        var store = new FinancialDataStore(jdbc, dataSource,
+            new ObjectMapper(), new MarketModuleProperties());
+        store.initialize();
+        MarketSource sse = new MarketSource(6L, "sse_daily_snapshot", "上交所行情快照", "https://www.sse.com.cn");
+        MarketSource szse = new MarketSource(7L, "szse_daily_snapshot", "深交所行情快照", "https://www.szse.cn");
+
+        store.store(quoteOnDate(sse, "000001", "上证指数", "3858.25", "2026-07-27"));
+        store.store(quoteOnDate(szse, "399001", "深证成指", "14148.73", "2026-07-24"));
+
+        assertThat(jdbc.queryForObject("select last_observation_date from market_asset_catalog "
+            + "where dataset_code='market_quote_daily'", LocalDate.class)).isEqualTo(LocalDate.parse("2026-07-27"));
+        assertThat(jdbc.queryForObject("select source_names_json from market_asset_catalog "
+            + "where dataset_code='market_quote_daily'", String.class))
+            .contains("上交所行情快照", "深交所行情快照");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void diversifiesUnfilteredRowsAcrossCollectorBatchesBeforeApplyingLimit() throws Exception {
+        var dataSource = new DriverManagerDataSource(
+            "jdbc:h2:mem:financial_batch_diversity;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1", "sa", "");
+        var store = new FinancialDataStore(new JdbcTemplate(dataSource), dataSource,
+            new ObjectMapper(), new MarketModuleProperties());
+        store.initialize();
+        MarketSource source = new MarketSource(
+            8L, "sse_daily_snapshot", "上交所行情快照", "https://www.sse.com.cn");
+        store.store(quote(source, "000001", "上证指数", "3858.25", "INDEX", "index"));
+        store.store(quote(source, "000688", "科创50", "1807.95", "INDEX", "index"));
+        store.store(quote(source, "751460", "浦发银行债", "100.00", "BOND", "bond"));
+        store.store(quote(source, "751461", "交通银行债", "101.00", "BOND", "bond"));
+        store.store(quote(source, "751462", "中国银行债", "102.00", "BOND", "bond"));
+
+        Map<String, Object> result = store.query("market_quote_daily", Map.of(),
+            LocalDate.parse("2026-07-23"), LocalDate.parse("2026-07-23"), 2);
+
+        assertThat((List<Map<String, Object>>) result.get("rows"))
+            .extracting(row -> row.get("instrument_type"))
+            .containsExactlyInAnyOrder("INDEX", "BOND");
+        assertThat((Map<String, Object>) result.get("query_constraints"))
+            .containsEntry("selection_strategy", "latest_stable_observation_then_batch_diversity");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void hidesLegacyDuplicatesCreatedByMutableSourceIds() throws Exception {
+        var dataSource = new DriverManagerDataSource(
+            "jdbc:h2:mem:financial_legacy_duplicate;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1", "sa", "");
+        var jdbc = new JdbcTemplate(dataSource);
+        var store = new FinancialDataStore(jdbc, dataSource,
+            new ObjectMapper(), new MarketModuleProperties());
+        store.initialize();
+        MarketSource source = new MarketSource(
+            167L, "sse_daily_snapshot", "上交所行情快照", "https://www.sse.com.cn");
+        store.store(quote(source, "000001", "上证指数", "3858.25"));
+        jdbc.update("insert into market_quote_daily("
+                + "collected_date,observation_date,collected_at,source_id,source_code,source_url,record_key,payload_json,"
+                + "dataset_code,trade_date,quote_code,quote_name,close) "
+                + "select collected_date,observation_date,dateadd('MINUTE',-30,collected_at),6,source_code,source_url,?,"
+                + "payload_json,dataset_code,trade_date,quote_code,quote_name,? from market_quote_daily",
+            "legacy-source-id-key", new java.math.BigDecimal("3829.38"));
+
+        Map<String, Object> result = store.query("market_quote_daily", Map.of("quoteCode", "000001"),
+            LocalDate.parse("2026-07-23"), LocalDate.parse("2026-07-23"), 10);
+
+        assertThat(result).containsEntry("count", 1);
+        assertThat((List<Map<String, Object>>) result.get("rows")).singleElement().satisfies(row ->
+            assertThat(row.get("close").toString()).isEqualTo("3858.2500000000"));
+    }
+
+    @Test
     void resolvesQuestionEntitiesFromStoredDatasetWithoutLanguageRules() throws Exception {
         var dataSource = new DriverManagerDataSource(
             "jdbc:h2:mem:financial_entity_resolution;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1", "sa", "");
@@ -194,10 +290,28 @@ class FinancialDataStoreTest {
     }
 
     private MarketObservation quote(MarketSource source, String code, String name, String close) {
+        return quote(source, code, name, close, null, null);
+    }
+
+    private MarketObservation quote(MarketSource source, String code, String name, String close,
+                                    String instrumentType, String batch) {
+        String sourceUrl = batch == null
+            ? "https://www.sse.com.cn/quote#" + code
+            : "https://www.sse.com.cn/quote#snapshot-" + batch + "-2026-07-23#observation=" + code;
+        Map<String, Object> metadata = new java.util.LinkedHashMap<>(Map.of(
+            "datasetCode", "market_quote_daily", "tradeDate", "2026-07-23",
+            "quoteCode", code, "quoteName", name, "close", close));
+        if (instrumentType != null) metadata.put("instrumentType", instrumentType);
         return new MarketObservation(source, name + "行情", "quote", null, "SSE",
-            "https://www.sse.com.cn/quote#" + code, Instant.parse("2026-07-23T08:00:00Z"), "zh-CN",
-            List.of("行情"), List.of("SSE"), Map.of(
-                "datasetCode", "market_quote_daily", "tradeDate", "2026-07-23",
+            sourceUrl, Instant.parse("2026-07-23T08:00:00Z"), "zh-CN",
+            List.of("行情"), List.of("SSE"), Map.copyOf(metadata));
+    }
+
+    private MarketObservation quoteOnDate(MarketSource source, String code, String name, String close, String date) {
+        return new MarketObservation(source, name + "行情", "quote", null, source.name(),
+            source.entryUrl() + "/quote#" + code + "-" + date, Instant.parse(date + "T08:00:00Z"), "zh-CN",
+            List.of("行情"), List.of(source.code()), Map.of(
+                "datasetCode", "market_quote_daily", "tradeDate", date,
                 "quoteCode", code, "quoteName", name, "close", close));
     }
 

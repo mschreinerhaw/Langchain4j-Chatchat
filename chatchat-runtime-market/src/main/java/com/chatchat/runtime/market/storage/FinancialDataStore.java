@@ -125,7 +125,10 @@ public class FinancialDataStore {
                         : new ColumnValue(left.name(), left.sourceName(), FieldType.STRING, left.value()));
                 String identity = item.sourceUrl() == null || item.sourceUrl().isBlank()
                     ? item.title() + "|" + observationDate + "|" + mapper.writeValueAsString(payload) : item.sourceUrl();
-                String recordKey = sha256(current.code() + "|" + item.source().id() + "|" + identity);
+                // A database id is an installation detail and may change when a governed source is
+                // reseeded.  The source code is the stable business identity used by the collector
+                // registry, so repeated intraday snapshots keep updating the same observation.
+                String recordKey = sha256(current.code() + "|" + item.source().code() + "|" + identity);
                 prepared.add(new PreparedObservation(item, observationDate, payload, columns, recordKey));
             }
             if (definition == null || prepared.isEmpty()) return List.of();
@@ -389,8 +392,8 @@ public class FinancialDataStore {
         }
         Map<String, Map<String, Object>> unique = new LinkedHashMap<>();
         for (Map<String, Object> row : combined) {
-            String key = String.valueOf(row.get("record_key")) + "|" + row.get("observation_date") + "|" + row.get("_storage_tier");
-            unique.putIfAbsent(key, row);
+            String key = logicalObservationKey(row);
+            unique.merge(key, row, this::newerObservation);
         }
         List<Map<String, Object>> rows = unique.values().stream()
             .sorted(Comparator.comparing(this::rowSortKey).reversed()).limit(limit).toList();
@@ -405,7 +408,8 @@ public class FinancialDataStore {
         result.put("query_constraints", Map.of(
             "max_rows", properties.getMaxQueryLimit(),
             "read_only", true,
-            "filter_operators", List.of("exact", "Like")));
+            "filter_operators", List.of("exact", "Like"),
+            "selection_strategy", "latest_stable_observation_then_batch_diversity"));
         log.info("Financial data query completed dataset={} table={} storageTiers={} returnedRows={} durationMs={}",
             code, table, tiers, rows.size(), System.currentTimeMillis() - startedAt);
         return result;
@@ -569,7 +573,13 @@ public class FinancialDataStore {
     private void upsertCatalog(FinancialDatasetDefinition definition, MarketObservation item, LocalDate observationDate)
         throws JsonProcessingException {
         String database = databaseName();
-        String sources = mapper.writeValueAsString(List.of(item.source().name()));
+        List<Map<String, Object>> existingRows = jdbc.queryForList(
+            "select source_names_json,last_observation_date from market_asset_catalog where dataset_code=?",
+            definition.code());
+        Map<String, Object> existing = existingRows.isEmpty() ? Map.of() : existingRows.get(0);
+        String sources = mergedSourceNames(existing.get("source_names_json"), item.source().name());
+        LocalDate effectiveObservationDate = laterDate(
+            localDate(existing.get("last_observation_date")), observationDate);
         String tags = mapper.writeValueAsString(definition.keywords());
         Instant now = Instant.now();
         int updated = jdbc.update("update market_asset_catalog set asset_name=?,business_description=?,business_tags_json=?,"
@@ -577,7 +587,7 @@ public class FinancialDataStore {
                 + "update_frequency=?,source_names_json=?,last_observation_date=?,last_collected_at=?,updated_at=? "
                 + "where dataset_code=?", definition.name(), definition.description(), tags, database, definition.tableName(),
             archiveTable(definition.tableName()), hotDays(), archiveDays(), "DAILY_7D_WEEKLY", definition.updateFrequency(),
-            sources, Date.valueOf(observationDate), java.sql.Timestamp.from(now),
+            sources, Date.valueOf(effectiveObservationDate), java.sql.Timestamp.from(now),
             java.sql.Timestamp.from(now), definition.code());
         if (updated == 0) jdbc.update("insert into market_asset_catalog(dataset_code,asset_name,business_description,business_tags_json,"
                 + "database_name,table_name,archive_table_name,hot_retention_days,archive_retention_days,history_granularity,"
@@ -586,6 +596,38 @@ public class FinancialDataStore {
             database, definition.tableName(), archiveTable(definition.tableName()), hotDays(), archiveDays(), "DAILY_7D_WEEKLY",
             definition.updateFrequency(), sources, Date.valueOf(observationDate),
             java.sql.Timestamp.from(now), java.sql.Timestamp.from(now), java.sql.Timestamp.from(now));
+    }
+
+    private String mergedSourceNames(Object existingValue, String currentName) throws JsonProcessingException {
+        Set<String> names = new java.util.LinkedHashSet<>();
+        if (existingValue != null && !String.valueOf(existingValue).isBlank()) {
+            try {
+                for (Object value : mapper.readValue(String.valueOf(existingValue), List.class)) {
+                    if (value != null && !String.valueOf(value).isBlank()) names.add(String.valueOf(value).trim());
+                }
+            } catch (JsonProcessingException ignored) {
+                names.add(String.valueOf(existingValue).trim());
+            }
+        }
+        if (currentName != null && !currentName.isBlank()) names.add(currentName.trim());
+        return mapper.writeValueAsString(names);
+    }
+
+    private LocalDate localDate(Object value) {
+        if (value == null) return null;
+        if (value instanceof LocalDate date) return date;
+        if (value instanceof Date date) return date.toLocalDate();
+        try {
+            return LocalDate.parse(String.valueOf(value).substring(0, 10));
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private LocalDate laterDate(LocalDate left, LocalDate right) {
+        if (left == null) return right;
+        if (right == null) return left;
+        return left.isAfter(right) ? left : right;
     }
 
     private List<Map<String, Object>> queryTable(String table, String code, Map<String, String> allowed,
@@ -618,11 +660,49 @@ public class FinancialDataStore {
                 args.add(entry.getValue());
             }
         }
-        sql.append(" order by observation_date desc,collected_at desc limit ?");
+        String identityRanked = "select source_rows.*,row_number() over("
+            + "partition by observation_date,source_code,source_url "
+            + "order by collected_at desc,id desc) as _identity_rank from (" + sql + ") source_rows";
+        String latestIdentity = "select * from (" + identityRanked + ") identity_ranked where _identity_rank=1";
+        if (filters == null || filters.isEmpty()) {
+            String observationGroup = "case when locate('#observation=',source_url)>0 "
+                + "then substring(source_url,1,locate('#observation=',source_url)-1) else source_url end";
+            sql = new StringBuilder("select * from (select latest_rows.*,row_number() over("
+                + "partition by observation_date,source_code," + observationGroup + " "
+                + "order by collected_at desc,id desc) as _group_rank from (")
+                .append(latestIdentity)
+                .append(") latest_rows) diversified_rows "
+                    + "order by observation_date desc,_group_rank asc,collected_at desc,id desc limit ?");
+        } else {
+            sql = new StringBuilder("select * from (")
+                .append(latestIdentity)
+                .append(") latest_rows order by observation_date desc,collected_at desc,id desc limit ?");
+        }
         args.add(limit);
         List<Map<String, Object>> rows = jdbc.queryForList(sql.toString(), args.toArray());
-        return rows.stream().map(row -> { Map<String, Object> value = new LinkedHashMap<>(row);
-            value.put("_storage_tier", tier); return value; }).toList();
+        return rows.stream().map(row -> {
+            Map<String, Object> value = new LinkedHashMap<>(row);
+            value.remove("_identity_rank");
+            value.remove("_group_rank");
+            value.put("_storage_tier", tier);
+            return value;
+        }).toList();
+    }
+
+    private String logicalObservationKey(Map<String, Object> row) {
+        String sourceCode = String.valueOf(row.getOrDefault("source_code", "")).trim();
+        String sourceUrl = String.valueOf(row.getOrDefault("source_url", "")).trim();
+        String observationDate = String.valueOf(row.getOrDefault("observation_date", "")).trim();
+        if (!sourceCode.isBlank() && !sourceUrl.isBlank()) {
+            return sourceCode + "|" + sourceUrl + "|" + observationDate;
+        }
+        return String.valueOf(row.getOrDefault("record_key", "")) + "|" + observationDate;
+    }
+
+    private Map<String, Object> newerObservation(Map<String, Object> left, Map<String, Object> right) {
+        int comparison = rowSortKey(left).compareTo(rowSortKey(right));
+        if (comparison != 0) return comparison >= 0 ? left : right;
+        return "daily_hot".equals(right.get("_storage_tier")) ? right : left;
     }
 
     private void ensureArchiveTable(String sourceTable, String archiveTable) {

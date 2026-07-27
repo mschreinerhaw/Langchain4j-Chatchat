@@ -18,6 +18,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Seeds each built-in example at most once. A separate seed-state row is retained
@@ -40,8 +41,17 @@ public class FinancialAnalysisQuerySampleSeeder {
     public void seedOnce() {
         ensureStateTable();
         int created = 0;
+        int upgraded = 0;
         for (Sample sample : FinancialAnalysisQuerySamples.all()) {
             if (seedRecorded(sample.id())) {
+                Optional<DatabaseQueryConfig> existing = repository.findById(sample.id());
+                if (existing.isPresent() && requiresStableObservationUpgrade(existing.get(), sample)) {
+                    DatabaseQueryConfig config = existing.get();
+                    config.setSqlTemplate(sample.sql());
+                    config.setSqlStepsJson(writeJson(List.of(sqlStep(sample))));
+                    repository.save(config);
+                    upgraded++;
+                }
                 continue;
             }
             if (repository.findById(sample.id()).isEmpty()
@@ -51,8 +61,18 @@ public class FinancialAnalysisQuerySampleSeeder {
             }
             recordSeed(sample.id());
         }
-        log.info("Financial database analysis samples initialized created={} total={} enabled=false",
-            created, FinancialAnalysisQuerySamples.all().size());
+        log.info("Financial database analysis samples initialized created={} upgraded={} total={} enabled=false",
+            created, upgraded, FinancialAnalysisQuerySamples.all().size());
+    }
+
+    private boolean requiresStableObservationUpgrade(DatabaseQueryConfig existing, Sample sample) {
+        if (!FinancialAnalysisQuerySamples.INTERNAL_DATASOURCE_ID.equals(existing.getDatasourceId())
+            || !"system".equalsIgnoreCase(existing.getOwner())) {
+            return false;
+        }
+        String currentSql = existing.getSqlTemplate() == null ? "" : existing.getSqlTemplate();
+        return sample.sql().contains("observation_rank")
+            && !currentSql.contains("observation_rank");
     }
 
     private DatabaseQueryConfig toConfig(Sample sample) {

@@ -61,6 +61,24 @@ class AnswerDecisionEngine {
             metadata.put("answerReviewSuggestedAnswerPreview", shortText(review.answer(), 1000));
         }
 
+        if (protectedBusinessCandidate(request == null ? null : request.metadata())
+            && !candidate.isBlank()
+            && (evidence == null || !evidence.shouldReplaceWithGroundedEvidence())) {
+            if (quality != null) {
+                attachQualityMetadata(metadata, quality);
+            }
+            metadata.put("answerReviewAuthority", "diagnostic_only");
+            metadata.put("answerReviewRewriteApplied", false);
+            metadata.put("answerReviewRewriteSkippedReason", "protected_business_result");
+            return decision(
+                candidate,
+                NO_REWRITE,
+                "protected_business_result_retained",
+                "planner_candidate",
+                metadata
+            );
+        }
+
         if (quality != null) {
             attachQualityMetadata(metadata, quality);
             QualitySelection selection = selectByQuality(quality, evidence);
@@ -131,18 +149,9 @@ class AnswerDecisionEngine {
             && AgentAnswerReview.REVISED.equals(review.status())
             && review.answer() != null
             && !review.answer().isBlank()) {
-            if (reviewerRewriteAllowed(request.metadata())) {
-                metadata.put("answerReviewRewriteApplied", true);
-                return decision(
-                    review.answer(),
-                    REVIEWER_REWRITE,
-                    "reviewer_rewrite_explicitly_enabled",
-                    "reviewer",
-                    metadata
-                );
-            }
             metadata.put("answerReviewRewriteApplied", false);
-            metadata.put("answerReviewRewriteSkippedReason", "reviewer_rewrite_disabled");
+            metadata.put("answerReviewAuthority", "diagnostic_only");
+            metadata.put("answerReviewRewriteSkippedReason", "reviewer_diagnostic_only");
         }
 
         if (!candidate.isBlank()) {
@@ -175,15 +184,13 @@ class AnswerDecisionEngine {
         );
     }
 
-    private boolean reviewerRewriteAllowed(Map<String, Object> metadata) {
+    private boolean protectedBusinessCandidate(Map<String, Object> metadata) {
         if (metadata == null) {
             return false;
         }
-        Object value = metadata.get("allowReviewerRewrite");
-        if (value instanceof Boolean bool) {
-            return bool;
-        }
-        return value != null && Boolean.parseBoolean(String.valueOf(value));
+        Object value = metadata.get("protectedCandidateAnswer");
+        return Boolean.TRUE.equals(value)
+            || (value != null && Boolean.parseBoolean(String.valueOf(value)));
     }
 
     private void attachQualityMetadata(Map<String, Object> metadata, AnswerQualityEvaluator.QualityReport quality) {

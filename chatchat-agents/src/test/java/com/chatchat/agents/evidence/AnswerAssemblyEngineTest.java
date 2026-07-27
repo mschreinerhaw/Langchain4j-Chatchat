@@ -54,4 +54,15 @@ class AnswerAssemblyEngineTest {
         assertThat(policy.mode()).isEqualTo(AnswerAssemblyMode.REVIEW_REQUIRED);
         assertThat(policy.missingInfo()).contains("conflicting evidence must be explained before answering");
     }
+
+    @Test
+    void nonEmptyMcpResultCannotProduceRefuseAssemblyMode() {
+        AnswerAssemblyPolicy policy = engine.plan(List.of(), true);
+
+        assertThat(policy.mode()).isEqualTo(AnswerAssemblyMode.PARTIAL);
+        assertThat(policy.partialAnswerAllowed()).isTrue();
+        assertThat(engine.promptInstructions(policy))
+            .contains("must be analyzed")
+            .contains("never justify refusal");
+    }
 }

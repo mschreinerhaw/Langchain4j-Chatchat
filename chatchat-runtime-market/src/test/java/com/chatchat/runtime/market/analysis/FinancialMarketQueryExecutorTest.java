@@ -64,6 +64,55 @@ class FinancialMarketQueryExecutorTest {
     }
 
     @Test
+    void builtInMarketQueryKeepsOnlyLatestStableObservation() {
+        jdbc.execute("""
+            create table market_quote_daily (
+                id bigint primary key,
+                observation_date date,
+                collected_at timestamp,
+                source_code varchar(64),
+                source_url varchar(1000),
+                quote_code varchar(32),
+                quote_name varchar(160),
+                instrument_type varchar(32),
+                previous_close decimal(20,4),
+                open decimal(20,4),
+                high decimal(20,4),
+                low decimal(20,4),
+                close decimal(20,4),
+                change_pct decimal(20,4),
+                volume10_k_units decimal(20,4),
+                amount10_k_cny decimal(20,4),
+                amount100_m_cny decimal(20,4)
+            )
+            """);
+        jdbc.update("""
+            insert into market_quote_daily(
+                id,observation_date,collected_at,source_code,source_url,quote_code,quote_name,instrument_type,close,change_pct
+            ) values(?,?,?,?,?,?,?,?,?,?)
+            """, 1L, java.sql.Date.valueOf("2026-07-27"), java.sql.Timestamp.valueOf("2026-07-27 11:30:00"),
+            "sse_daily_snapshot", "https://example.test/index#observation=000001", "000001", "上证指数",
+            "INDEX", 3829.38, 0.40);
+        jdbc.update("""
+            insert into market_quote_daily(
+                id,observation_date,collected_at,source_code,source_url,quote_code,quote_name,instrument_type,close,change_pct
+            ) values(?,?,?,?,?,?,?,?,?,?)
+            """, 2L, java.sql.Date.valueOf("2026-07-27"), java.sql.Timestamp.valueOf("2026-07-27 15:30:00"),
+            "sse_daily_snapshot", "https://example.test/index#observation=000001", "000001", "上证指数",
+            "INDEX", 3858.25, 1.15);
+        String sql = FinancialAnalysisQuerySamples.all().stream()
+            .filter(sample -> "sample_market_latest_movers".equals(sample.toolName()))
+            .findFirst().orElseThrow().sql();
+
+        FinancialMarketQueryExecutor.QueryResult result = executor.execute(sql, Map.of(), 200, 10);
+
+        assertThat(result.rows()).singleElement().satisfies(row -> {
+            assertThat(row.get("quote_code")).isEqualTo("000001");
+            assertThat(String.valueOf(row.get("close"))).isEqualTo("3858.2500");
+        });
+    }
+
+    @Test
     void exposesEightCompleteDisabledSampleDefinitions() {
         assertThat(FinancialAnalysisQuerySamples.all()).hasSize(8);
         assertThat(FinancialAnalysisQuerySamples.all()).allSatisfy(sample -> {

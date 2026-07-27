@@ -16,6 +16,11 @@ public class AnswerAssemblyEngine {
         Pattern.compile("(?i)\"?minAnswerCitations\"?\\s*[:=]\\s*(\\d+)");
 
     public AnswerAssemblyPolicy plan(List<String> observations) {
+        return plan(observations, false);
+    }
+
+    public AnswerAssemblyPolicy plan(List<String> observations,
+                                     boolean nonEmptyMcpResultAvailable) {
         String evidenceText = observations == null ? "" : String.join("\n", observations);
         List<String> missingInfo = new ArrayList<>();
         boolean hasEvidence = containsEvidence(evidenceText);
@@ -27,7 +32,11 @@ public class AnswerAssemblyEngine {
 
         AnswerAssemblyMode mode;
         boolean partialAllowed;
-        if (!hasEvidence) {
+        if (!hasEvidence && nonEmptyMcpResultAvailable) {
+            mode = AnswerAssemblyMode.PARTIAL;
+            partialAllowed = true;
+            missingInfo.add("additional evidence may be needed for a complete analysis");
+        } else if (!hasEvidence) {
             mode = AnswerAssemblyMode.REFUSE;
             partialAllowed = false;
             missingInfo.add("no evidence available for answer assembly");
@@ -72,6 +81,7 @@ public class AnswerAssemblyEngine {
             - If mode is REFUSE, do not answer with facts; state that evidence is unavailable.
             - If mode is REVIEW_REQUIRED, explain the evidence conflict or review need before giving any conclusion.
             - If mode is PARTIAL, answer only the supported portion and list missing evidence.
+            - A successful non-empty MCP query result must be analyzed. Missing fields reduce completeness but never justify refusal.
             """.formatted(
             safePolicy.contractVersion(),
             safePolicy.mode().name(),

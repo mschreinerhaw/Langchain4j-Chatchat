@@ -24,7 +24,8 @@ class AgentRuntimeFactGroundingContractTest {
         assertThat(AgentRuntimeFactGroundingContract.promptSection())
             .contains("immutable fact boundary")
             .contains("must not add, rename, replace")
-            .contains("Never generate illustrative/manual SQL")
+            .contains("Never present illustrative/manual SQL")
+            .contains("non-executed draft for human review")
             .contains("Never relabel toolName as displayName")
             .contains("rewrite it from original tool evidence");
     }

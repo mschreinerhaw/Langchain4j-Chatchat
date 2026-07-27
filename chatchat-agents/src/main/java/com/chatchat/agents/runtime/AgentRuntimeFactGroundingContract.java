@@ -24,7 +24,8 @@ public final class AgentRuntimeFactGroundingContract {
             "Identifiers, counts, statuses, completeness flags, database layers, schemas, tables, fields, and execution results remain exact.",
             "Inferences and recommendations must be explicitly separated from observed facts and must never be presented as retrieved objects.",
             "Missing evidence must be reported as missing; it must not be filled with examples, conventions, or model knowledge.",
-            "SQL, shell commands, scripts, and validation snippets must not be generated unless their exact text was returned as authorized tool evidence.",
+            "SQL, shell commands, scripts, and validation snippets must not be presented as executed, authorized, or retrieved unless their exact text was returned as tool evidence.",
+            "When the user explicitly asks to draft SQL, DDL, commands, or scripts, the model may generate a clearly labeled non-executed draft using observed facts plus explicit assumptions for human review.",
             "Asset displayName, name, id, and toolName are distinct contract fields and must never be relabeled or substituted."
         ));
         contract.put("enforcementStages", List.of(
@@ -45,7 +46,8 @@ public final class AgentRuntimeFactGroundingContract {
             - Preserve exact identifiers, counts, statuses, completeness/truncation flags, database layers, schemas, tables, fields, and execution outcomes.
             - Keep explicit inference/recommendation separate from observed facts. Never present inferred examples or naming conventions as retrieved results.
             - When evidence is missing, state the missing evidence; do not fill the gap with model knowledge.
-            - Never generate illustrative/manual SQL, shell commands, scripts, or validation snippets unless their exact text was returned by an authorized tool and is explicitly relevant to the answer.
+            - Never present illustrative/manual SQL, shell commands, scripts, or validation snippets as executed, authorized, retrieved, or factual tool output unless their exact text was returned by an authorized tool.
+            - If the user explicitly asks to draft SQL, DDL, commands, or scripts, you may generate a clearly labeled non-executed draft for human review. Use observed facts where available, mark assumptions and unresolved choices, and never imply Runtime executed or approved it.
             - Preserve asset contract semantics exactly: displayName/name is the asset label, assetId/id is the asset identifier, and toolName is the bound execution tool. Never relabel toolName as displayName.
             - Runtime must validate the final answer and rewrite it from original tool evidence when fact mutation is detected.
 

@@ -10,6 +10,7 @@ import com.chatchat.mcpserver.api.ApiServiceConfigRepository;
 import com.chatchat.mcpserver.search.LuceneMcpSearchService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
+import com.chatchat.runtime.market.analysis.FinancialAnalysisQuerySamples;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -309,8 +310,13 @@ public class DatabaseQueryConfigService {
         if (config.getDatasourceId() == null) {
             throw new IllegalArgumentException("datasourceId is required");
         }
-        SqlDatasourceConfig datasource = datasourceConfigService.getEnabled(config.getDatasourceId());
-        config.setDatabaseType(normalizeDatabaseType(firstText(explicitDatabaseType(config.getDatabaseType()), datasource.getDatabaseType())));
+        if (isInternalFinancialMarketDatasource(config)) {
+            config.setDatabaseType("financial_market");
+        } else {
+            SqlDatasourceConfig datasource = datasourceConfigService.getEnabled(config.getDatasourceId());
+            config.setDatabaseType(normalizeDatabaseType(
+                firstText(explicitDatabaseType(config.getDatabaseType()), datasource.getDatabaseType())));
+        }
         config.setTemplateIntent(normalizeIntent(firstText(config.getTemplateIntent(), governanceString(config.getGovernanceJson(), "intent"))));
         config.setTagsJson(normalizeJsonArray(mergedProtocolValues(config.getTagsJson(), governanceTags(config.getGovernanceJson())), "tags"));
         config.setRiskLevel(normalizeMarketplaceRisk(firstText(explicitRiskLevel(config.getRiskLevel()), governanceString(config.getGovernanceJson(), "riskLevel"))));
@@ -819,6 +825,9 @@ public class DatabaseQueryConfigService {
     }
 
     private boolean hasUsableDatasource(DatabaseQueryConfig config) {
+        if (isInternalFinancialMarketDatasource(config)) {
+            return true;
+        }
         if (blankToNull(config.getDatasourceId()) != null) {
             try {
                 datasourceConfigService.getEnabled(config.getDatasourceId());
@@ -828,5 +837,10 @@ public class DatabaseQueryConfigService {
             }
         }
         return false;
+    }
+
+    private boolean isInternalFinancialMarketDatasource(DatabaseQueryConfig config) {
+        return config != null && FinancialAnalysisQuerySamples.INTERNAL_DATASOURCE_ID
+            .equals(config.getDatasourceId());
     }
 }

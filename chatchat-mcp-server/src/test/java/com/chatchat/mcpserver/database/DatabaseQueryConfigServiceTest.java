@@ -6,6 +6,7 @@ import com.chatchat.mcpserver.search.LuceneMcpSearchService;
 import com.chatchat.mcpserver.search.LuceneSearchProperties;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
+import com.chatchat.runtime.market.analysis.FinancialAnalysisQuerySamples;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -90,6 +91,25 @@ class DatabaseQueryConfigServiceTest {
         assertThat(saved.getOwner()).isEqualTo("bi-admin");
         assertThat(saved.getRating()).isEqualTo(5.0);
         assertThat(saved.getUsageCount()).isZero();
+    }
+
+    @Test
+    void acceptsGovernedInternalFinancialDatasourceWithoutExposingApplicationJdbc() {
+        DatabaseQueryConfig draft = query();
+        draft.setDatasourceId(FinancialAnalysisQuerySamples.INTERNAL_DATASOURCE_ID);
+        draft.setEnabled(false);
+        when(toolRegistry.hasTool("query_orders")).thenReturn(false);
+        when(apiServiceConfigRepository.findByToolNameIgnoreCase("query_orders")).thenReturn(Optional.empty());
+        when(repository.findByToolNameIgnoreCase("query_orders")).thenReturn(Optional.empty());
+        when(repository.save(any(DatabaseQueryConfig.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        DatabaseQueryConfig saved = service.create(draft);
+
+        assertThat(saved.getDatasourceId()).isEqualTo(FinancialAnalysisQuerySamples.INTERNAL_DATASOURCE_ID);
+        assertThat(saved.getDatabaseType()).isEqualTo("financial_market");
+        assertThat(saved.getJdbcUrl()).isNull();
+        assertThat(saved.getUsername()).isNull();
+        assertThat(saved.getPassword()).isNull();
     }
 
     @Test

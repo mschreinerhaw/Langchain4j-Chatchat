@@ -4,6 +4,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /** Stable business vocabulary placed in the asset catalog; physical columns may evolve independently. */
 public record FinancialDatasetDefinition(
@@ -39,6 +41,19 @@ public record FinancialDatasetDefinition(
 
     public static FinancialDatasetDefinition byCode(String code) {
         return code == null ? null : DEFINITIONS.get(normalizeCode(code));
+    }
+
+    public static List<FinancialDatasetDefinition> all() {
+        return DEFINITIONS.values().stream()
+            .sorted(java.util.Comparator.comparing(FinancialDatasetDefinition::code))
+            .toList();
+    }
+
+    public static Set<String> governedTableNames() {
+        return DEFINITIONS.values().stream()
+            .flatMap(definition -> java.util.stream.Stream.of(
+                definition.tableName(), definition.tableName() + "_weekly_snapshot"))
+            .collect(Collectors.toUnmodifiableSet());
     }
 
     private static FinancialDatasetDefinition dynamic(String raw, Map<String, Object> metadata) {

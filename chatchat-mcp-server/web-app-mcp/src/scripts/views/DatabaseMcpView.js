@@ -5,6 +5,10 @@ import { buildTestNotification } from '../../utils/test-result';
 import '../../styles/views/database-mcp.css';
 
 const inputSchema = { type: 'object', properties: {}, required: [], additionalProperties: false };
+const internalFinancialDatasource = {
+  value: 'builtin_financial_market',
+  label: 'builtin_financial_market / 内置金融采集库 / financial_market'
+};
 
 export default {
   name: 'DatabaseMcpView',
@@ -165,7 +169,7 @@ export default {
   },
   computed: {
     enabledDatasourceOptions() {
-      return this.datasourceOptions(true);
+      return [internalFinancialDatasource, ...this.datasourceOptions(true)];
     },
     datasourceSelectOptions() {
       return this.datasourceOptions(false);
@@ -198,6 +202,7 @@ export default {
     },
     datasourceLabel(value) {
       if (!value) return '-';
+      if (value === internalFinancialDatasource.value) return internalFinancialDatasource.label;
       return this.datasourceSelectOptions.find(option => option.value === value)?.label || value;
     },
     async loadSqlAssets() {

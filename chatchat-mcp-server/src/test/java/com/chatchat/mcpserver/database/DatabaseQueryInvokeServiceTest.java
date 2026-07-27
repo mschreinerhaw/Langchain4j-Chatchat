@@ -9,6 +9,8 @@ import com.chatchat.mcpserver.sql.DynamicDateParamService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import com.chatchat.mcpserver.sql.SqlScriptExecuteService;
+import com.chatchat.runtime.market.analysis.FinancialAnalysisQuerySamples;
+import com.chatchat.runtime.market.analysis.FinancialMarketQueryExecutor;
 import com.chatchat.tools.builtin.DynamicJdbcDriverLoader;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -76,6 +78,40 @@ class DatabaseQueryInvokeServiceTest {
         assertThat(parameters).containsEntry("datasource_id", "asset-dm");
         assertThat(parameters).containsEntry("timeoutSeconds", 90);
         assertThat(parameters).containsEntry("timeout_seconds", 90);
+    }
+
+    @Test
+    void executesBuiltInFinancialSampleWithoutExternalDatasourceCredentials() {
+        FinancialMarketQueryExecutor executor = mock(FinancialMarketQueryExecutor.class);
+        service.setFinancialMarketQueryExecutor(executor);
+        when(executor.execute(
+            eq("SELECT dataset_code FROM market_asset_catalog"),
+            eq(Map.of()), eq(25), eq(30)
+        )).thenReturn(new FinancialMarketQueryExecutor.QueryResult(
+            "SELECT dataset_code FROM market_asset_catalog",
+            List.of("dataset_code"),
+            List.of(Map.of("dataset_code", "market_quote_daily")),
+            1, 25, false
+        ));
+        DatabaseQueryConfig config = new DatabaseQueryConfig();
+        config.setId("builtin-market-test");
+        config.setToolName("sample_market_test");
+        config.setTitle("Market test");
+        config.setDatasourceId(FinancialAnalysisQuerySamples.INTERNAL_DATASOURCE_ID);
+        config.setSqlTemplate("SELECT dataset_code FROM market_asset_catalog");
+        config.setCapabilitiesJson("[\"database_query\",\"financial_market_analysis\"]");
+        config.setMaxRows(25);
+        config.setTimeoutSeconds(30);
+
+        ToolOutput output = service.invoke(config, Map.of());
+
+        assertThat(output.isSuccess()).isTrue();
+        assertThat(output.getData()).asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
+            .containsEntry("dataSource", FinancialAnalysisQuerySamples.INTERNAL_DATASOURCE_ID)
+            .containsEntry("rowCount", 1)
+            .containsEntry("governedFinancialTablesOnly", true);
+        verify(executor).execute(
+            "SELECT dataset_code FROM market_asset_catalog", Map.of(), 25, 30);
     }
 
     @Test

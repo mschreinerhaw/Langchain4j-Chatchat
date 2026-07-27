@@ -14,6 +14,8 @@ import com.chatchat.mcpserver.sql.SqlScriptExecuteService;
 import com.chatchat.mcpserver.template.AgentRuntimeTemplateDsl;
 import com.chatchat.mcpserver.template.AgentRuntimeTemplateDsl.TemplatePlan;
 import com.chatchat.mcpserver.template.AgentRuntimeTemplateDsl.TemplateStep;
+import com.chatchat.runtime.market.analysis.FinancialAnalysisQuerySamples;
+import com.chatchat.runtime.market.analysis.FinancialMarketQueryExecutor;
 import com.chatchat.tools.workflow.SqlWorkflowEngine;
 import com.chatchat.tools.workflow.SqlWorkflowExecution;
 import com.chatchat.tools.workflow.SqlWorkflowNode;
@@ -24,6 +26,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 
 import java.util.LinkedHashMap;
@@ -50,6 +53,7 @@ public class DatabaseQueryInvokeService {
     private final InvocationAuditService auditService;
     private final DatabaseQueryCacheService cacheService;
     private final SqlWorkflowEngine workflowEngine = new SqlWorkflowEngine();
+    private FinancialMarketQueryExecutor financialMarketQueryExecutor;
 
     @Value("${chatchat.tools.database-query.workflow.max-parallelism:4}")
     private int workflowMaxParallelism = 4;
@@ -84,24 +88,28 @@ public class DatabaseQueryInvokeService {
                 config.getMaxRows(),
                 config.getSqlTemplate(),
                 ToolLogSummarizer.summarize(arguments));
-            Map<String, Object> parameters = toParameters(config, auditArgs);
-            if (administrationPreview) parameters.put("administration_preview", true);
-            var cached = cacheService.get(config, parameters);
-            if (cached.isPresent()) {
-                output = cached.get();
-                output.setExecutionTimeMs(Math.max(0L, System.currentTimeMillis() - startedAt));
-                log.info("Database query invoke cache hit databaseQueryId={} tool={} durationMs={}",
-                    config.getId(),
-                    config.getToolName(),
-                    Math.max(0L, System.currentTimeMillis() - startedAt));
+            if (isInternalFinancialMarketQuery(config)) {
+                output = invokeInternalFinancialMarket(config, auditArgs, startedAt);
             } else {
-                output = hasSqlSteps(config)
-                    ? invokeConfiguredSqlSteps(config, parameters, startedAt)
-                    : invoke(parameters);
-                if (output.getMetadata() != null) {
-                    output.getMetadata().putIfAbsent("cacheHit", false);
+                Map<String, Object> parameters = toParameters(config, auditArgs);
+                if (administrationPreview) parameters.put("administration_preview", true);
+                var cached = cacheService.get(config, parameters);
+                if (cached.isPresent()) {
+                    output = cached.get();
+                    output.setExecutionTimeMs(Math.max(0L, System.currentTimeMillis() - startedAt));
+                    log.info("Database query invoke cache hit databaseQueryId={} tool={} durationMs={}",
+                        config.getId(),
+                        config.getToolName(),
+                        Math.max(0L, System.currentTimeMillis() - startedAt));
+                } else {
+                    output = hasSqlSteps(config)
+                        ? invokeConfiguredSqlSteps(config, parameters, startedAt)
+                        : invoke(parameters);
+                    if (output.getMetadata() != null) {
+                        output.getMetadata().putIfAbsent("cacheHit", false);
+                    }
+                    cacheService.put(config, parameters, output);
                 }
-                cacheService.put(config, parameters, output);
             }
         } catch (Exception ex) {
             log.warn("Database query invoke failed databaseQueryId={} tool={} error={}",
@@ -254,6 +262,41 @@ public class DatabaseQueryInvokeService {
         output.setExecutionTimeMs(durationMs);
         output.getMetadata().put("executionMode", data.get("mode"));
         output.getMetadata().put("statementCount", statements.size());
+        return output;
+    }
+
+    @Autowired(required = false)
+    void setFinancialMarketQueryExecutor(FinancialMarketQueryExecutor financialMarketQueryExecutor) {
+        this.financialMarketQueryExecutor = financialMarketQueryExecutor;
+    }
+
+    private boolean isInternalFinancialMarketQuery(DatabaseQueryConfig config) {
+        return config != null && FinancialAnalysisQuerySamples.INTERNAL_DATASOURCE_ID
+            .equals(config.getDatasourceId());
+    }
+
+    private ToolOutput invokeInternalFinancialMarket(DatabaseQueryConfig config,
+                                                     Map<String, Object> arguments,
+                                                     long startedAt) {
+        if (financialMarketQueryExecutor == null) {
+            throw new IllegalStateException("内置金融数据查询能力不可用");
+        }
+        FinancialMarketQueryExecutor.QueryResult result = financialMarketQueryExecutor.execute(
+            config.getSqlTemplate(), arguments, config.getMaxRows(), config.getTimeoutSeconds());
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("sql", result.sql());
+        data.put("dataSource", FinancialAnalysisQuerySamples.INTERNAL_DATASOURCE_ID);
+        data.put("columns", result.columns());
+        data.put("rows", result.rows());
+        data.put("rowCount", result.rowCount());
+        data.put("maxRows", result.maxRows());
+        data.put("possiblyTruncated", result.possiblyTruncated());
+        data.put("readOnly", true);
+        data.put("governedFinancialTablesOnly", true);
+        ToolOutput output = ToolOutput.success(data, "Financial market query completed successfully");
+        output.setExecutionTimeMs(Math.max(0L, System.currentTimeMillis() - startedAt));
+        output.getMetadata().put("cacheHit", false);
+        output.getMetadata().put("internalFinancialDatasource", true);
         return output;
     }
 

@@ -1,5 +1,20 @@
 <template>
   <div class="view-stack">
+    <section class="capability-category-grid capability-summary-grid" aria-label="数据能力汇总">
+      <button
+        v-for="category in categoryCards"
+        :key="category.id || 'all'"
+        type="button"
+        class="capability-category-card"
+        :class="{ active: selectedCategory === (category.id || category.code || '') }"
+        @click="selectCategory(category)"
+      >
+        <span class="capability-category-title">{{ category.name }}</span>
+        <strong>{{ category.count }}</strong>
+        <small>{{ category.description }}</small>
+      </button>
+    </section>
+
     <el-card class="workspace-panel el-workspace-card" shadow="never">
       <template #header>
         <div class="panel-heading">
@@ -16,21 +31,6 @@
         <el-tab-pane label="批量导入" name="dsl" />
       </el-tabs>
     </el-card>
-
-    <section v-if="activeTab === 'queries'" class="capability-category-grid">
-      <button
-        v-for="category in categoryCards"
-        :key="category.id || 'all'"
-        type="button"
-        class="capability-category-card"
-        :class="{ active: selectedCategory === (category.id || category.code || '') }"
-        @click="selectCategory(category)"
-      >
-        <span class="capability-category-title">{{ category.name }}</span>
-        <strong>{{ category.count }}</strong>
-        <small>{{ category.description }}</small>
-      </button>
-    </section>
 
     <CrudCatalog
       v-if="activeTab === 'queries'"

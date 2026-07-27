@@ -83,7 +83,8 @@ public class ImageUnderstandingController {
                     requestBody == null ? null : requestBody.question(),
                     requestBody == null ? "auto" : requestBody.mode(),
                     firstText(requestBody == null ? null : requestBody.tenantId(), currentTenantId(servletRequest), "default"),
-                    firstText(currentUsername(servletRequest), currentUserId(servletRequest), "anonymous")
+                    firstText(currentUsername(servletRequest), currentUserId(servletRequest), "anonymous"),
+                    requestBody == null ? null : requestBody.modelName()
                 )
             );
             return ApiResponse.success(view, "image analyzed");
@@ -148,7 +149,8 @@ public class ImageUnderstandingController {
         String fileId,
         String question,
         String mode,
-        String tenantId
+        String tenantId,
+        String modelName
     ) {
     }
 }

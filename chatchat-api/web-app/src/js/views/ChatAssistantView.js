@@ -2609,7 +2609,8 @@ export default {
           fileId: asset?.fileId,
           question: this.imageForm.question || this.question || "",
           mode: this.imageForm.mode || "auto",
-          tenantId: this.effectiveTenantId()
+          tenantId: this.effectiveTenantId(),
+          modelName: this.selectedAgent?.modelName || this.defaultModelName || undefined
         });
         this.pendingImageAnalysis = analysis;
       } catch (error) {
@@ -2626,7 +2627,7 @@ export default {
       if (!exists) {
         this.contextImageAnalyses.push(this.pendingImageAnalysis);
       }
-      this.uploadNotice = "图片解析已加入上下文，将随下一次提问进入 Planner。";
+      this.uploadNotice = "图片分析已加入上下文，将随下一次提问进入当前 Agent。";
       this.imageDialogOpen = false;
       this.imageUploadError = "";
       this.pendingImageAnalysis = null;
@@ -2655,6 +2656,13 @@ export default {
         return "未知";
       }
       return `${Math.round(value * 100)}%`;
+    },
+    formatImageAnalysisSource(value) {
+      const labels = {
+        multimodal_llm: "当前多模态模型",
+        tika_ocr_fallback: "OCR 回退"
+      };
+      return labels[value] || value || "未知来源";
     },
     closeUploadDialog() {
       if (this.uploadingDocument) {

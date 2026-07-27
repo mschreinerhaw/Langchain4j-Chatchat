@@ -1,9 +1,17 @@
 package com.chatchat.chat.image;
 
+import com.chatchat.agents.orchestration.AgentChatModelResolver;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.chatchat.knowledgebase.search.DocumentTextExtractor;
-import lombok.RequiredArgsConstructor;
+import dev.langchain4j.data.message.ImageContent;
+import dev.langchain4j.data.message.TextContent;
+import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.response.ChatResponse;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,8 +31,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
+@Slf4j
 @Service
-@RequiredArgsConstructor
 public class ImageUnderstandingService {
 
     private static final List<String> SUPPORTED_MODES = List.of("auto", "screenshot", "document", "chart");
@@ -33,6 +41,27 @@ public class ImageUnderstandingService {
     private final ImageAnalysisResultRepository resultRepository;
     private final ObjectMapper objectMapper;
     private final DocumentTextExtractor documentTextExtractor;
+    private final AgentChatModelResolver chatModelResolver;
+
+    @Autowired
+    public ImageUnderstandingService(ImageAssetRepository assetRepository,
+                                     ImageAnalysisResultRepository resultRepository,
+                                     ObjectMapper objectMapper,
+                                     DocumentTextExtractor documentTextExtractor,
+                                     AgentChatModelResolver chatModelResolver) {
+        this.assetRepository = assetRepository;
+        this.resultRepository = resultRepository;
+        this.objectMapper = objectMapper;
+        this.documentTextExtractor = documentTextExtractor;
+        this.chatModelResolver = chatModelResolver;
+    }
+
+    ImageUnderstandingService(ImageAssetRepository assetRepository,
+                              ImageAnalysisResultRepository resultRepository,
+                              ObjectMapper objectMapper,
+                              DocumentTextExtractor documentTextExtractor) {
+        this(assetRepository, resultRepository, objectMapper, documentTextExtractor, null);
+    }
 
     @Value("${chatchat.images.storage-dir:./data/images}")
     private String storageDir;
@@ -100,6 +129,27 @@ public class ImageUnderstandingService {
                                              String mode,
                                              String tenantId,
                                              String userId) {
+        return analyze(fileId, question, mode, tenantId, userId, null);
+    }
+
+    /**
+     * Analyzes an uploaded image with the selected multimodal model and falls back to OCR.
+     *
+     * @param fileId the file id value
+     * @param question the user question value
+     * @param mode the analysis mode value
+     * @param tenantId the tenant id value
+     * @param userId the user id value
+     * @param modelName the current conversation model name
+     * @return the stored analysis result
+     */
+    @Transactional
+    public ImageAnalysisResultEntity analyze(String fileId,
+                                             String question,
+                                             String mode,
+                                             String tenantId,
+                                             String userId,
+                                             String modelName) {
         ImageAssetEntity asset = assetRepository.findById(requireText(fileId, "fileId"))
             .orElseThrow(() -> new IllegalArgumentException("image file not found: " + fileId));
         String normalizedTenant = normalize(tenantId, asset.getTenantId());
@@ -107,10 +157,31 @@ public class ImageUnderstandingService {
             throw new IllegalArgumentException("image file does not belong to tenant");
         }
         String normalizedMode = normalizeMode(mode);
-        String imageType = inferImageType(asset, question, normalizedMode);
-        String extractedText = extractOcrText(asset);
-        String summary = buildSummary(asset, question, imageType, normalizedMode, extractedText);
-        Map<String, Object> structuredData = structuredData(asset, imageType, normalizedMode, extractedText);
+        VisionAttempt visionAttempt = analyzeWithVisionModel(asset, question, normalizedMode, modelName);
+        VisionAnalysis vision = visionAttempt.analysis();
+        String imageType;
+        String extractedText;
+        String summary;
+        Map<String, Object> structuredData;
+        double confidence;
+        String analysisSource;
+
+        if (vision != null) {
+            imageType = firstText(vision.imageType(), inferImageType(asset, question, normalizedMode));
+            extractedText = truncate(vision.extractedText(), 16000);
+            summary = firstText(vision.summary(), "多模态模型已完成图片分析。");
+            confidence = normalizeConfidence(vision.confidence(), 0.85D);
+            structuredData = visionStructuredData(asset, imageType, normalizedMode, vision, modelName);
+            analysisSource = "multimodal_llm";
+        } else {
+            imageType = inferImageType(asset, question, normalizedMode);
+            extractedText = extractOcrText(asset);
+            summary = buildFallbackSummary(asset, question, imageType, normalizedMode, extractedText);
+            confidence = fallbackConfidence(normalizedMode, imageType, extractedText);
+            structuredData = fallbackStructuredData(
+                asset, imageType, normalizedMode, extractedText, modelName, visionAttempt.failureReason());
+            analysisSource = "tika_ocr_fallback";
+        }
 
         ImageAnalysisResultEntity result = new ImageAnalysisResultEntity();
         result.setFileId(asset.getFileId());
@@ -122,8 +193,8 @@ public class ImageUnderstandingService {
         result.setExtractedText(extractedText);
         result.setSummary(summary);
         result.setStructuredDataJson(writeJson(structuredData));
-        result.setConfidence(confidence(normalizedMode, imageType, extractedText));
-        result.setAnalysisSource("tika_ocr");
+        result.setConfidence(confidence);
+        result.setAnalysisSource(analysisSource);
         result.setStatus("COMPLETED");
         return resultRepository.save(result);
     }
@@ -286,24 +357,150 @@ public class ImageUnderstandingService {
         return truncate(text, 16000);
     }
 
-    private String buildSummary(ImageAssetEntity asset, String question, String imageType, String mode, String extractedText) {
-        StringBuilder builder = new StringBuilder();
-        builder.append("Tika OCR completed for image classified as ").append(imageType)
-            .append(" with mode ").append(mode).append(". ");
-        if (extractedText == null || extractedText.isBlank()) {
-            builder.append("No OCR text was extracted; verify the image quality, language pack, and Tesseract installation. ");
-        } else {
-            builder.append("Extracted ").append(extractedText.length()).append(" characters of OCR text. ");
+    private VisionAttempt analyzeWithVisionModel(ImageAssetEntity asset,
+                                                 String question,
+                                                 String mode,
+                                                 String modelName) {
+        if (chatModelResolver == null) {
+            return new VisionAttempt(null, "multimodal model resolver is unavailable");
         }
-        builder.append("Stored file ").append(asset.getFileId())
-            .append(" (").append(nullToEmpty(asset.getOriginalFileName())).append(").");
+        try {
+            Path imagePath = Path.of(requireText(asset.getFilePath(), "image file path"));
+            if (!Files.isRegularFile(imagePath)) {
+                return new VisionAttempt(null, "stored image file is unavailable");
+            }
+            ChatModel chatModel = chatModelResolver.resolveChatModel(modelName);
+            UserMessage message = UserMessage.from(
+                TextContent.from(visionPrompt(question, mode)),
+                ImageContent.from(imagePath, normalize(asset.getContentType(), "image/png"))
+            );
+            ChatResponse response = chatModel.chat(message);
+            String responseText = response == null || response.aiMessage() == null
+                ? null
+                : trimToNull(response.aiMessage().text());
+            if (responseText == null) {
+                return new VisionAttempt(null, "multimodal model returned an empty response");
+            }
+            return new VisionAttempt(
+                parseVisionResponse(responseText, response.modelName(), asset, question, mode),
+                null
+            );
+        } catch (Exception ex) {
+            log.warn("Multimodal image analysis failed for fileId={}, falling back to OCR: {}",
+                asset.getFileId(), ex.getMessage());
+            return new VisionAttempt(null, truncate(ex.getClass().getSimpleName() + ": " + nullToEmpty(ex.getMessage()), 500));
+        }
+    }
+
+    private String visionPrompt(String question, String mode) {
+        return """
+            你是企业多模态图片分析助手。请直接理解随消息提供的图片，识别文字、表格、图表、界面结构和关键视觉关系。
+            分析模式：%s
+            用户问题：%s
+
+            只返回一个 JSON 对象，不要使用 Markdown 代码块。字段如下：
+            {
+              "imageType": "screenshot|document|chart",
+              "summary": "结合用户问题给出的完整中文分析",
+              "extractedText": "图片中可确认的关键文字，无法确认的内容不要猜测",
+              "confidence": 0.0,
+              "observations": ["关键观察"],
+              "limitations": ["需要人工复核的内容"]
+            }
+            confidence 取值范围为 0 到 1。必须区分图片中的事实与分析推断。
+            """.formatted(mode, firstText(question, "请完整识别并解释图片内容。"));
+    }
+
+    private VisionAnalysis parseVisionResponse(String responseText,
+                                               String responseModelName,
+                                               ImageAssetEntity asset,
+                                               String question,
+                                               String mode) {
+        String json = stripJsonFence(responseText);
+        try {
+            JsonNode root = objectMapper.readTree(json);
+            if (root != null && root.isObject()) {
+                Map<String, Object> modelData = objectMapper.convertValue(root, Map.class);
+                return new VisionAnalysis(
+                    text(root, "imageType"),
+                    text(root, "summary"),
+                    text(root, "extractedText"),
+                    root.path("confidence").isNumber() ? root.path("confidence").doubleValue() : null,
+                    responseModelName,
+                    modelData
+                );
+            }
+        } catch (Exception ignored) {
+            // A useful natural-language model response is still preferable to OCR fallback.
+        }
+        return new VisionAnalysis(
+            inferImageType(asset, question, mode),
+            responseText,
+            "",
+            0.75D,
+            responseModelName,
+            Map.of("rawResponse", truncate(responseText, 16000))
+        );
+    }
+
+    private Map<String, Object> visionStructuredData(ImageAssetEntity asset,
+                                                     String imageType,
+                                                     String mode,
+                                                     VisionAnalysis vision,
+                                                     String requestedModelName) {
+        Map<String, Object> data = baseStructuredData(asset, imageType, mode);
+        data.put("visionModelEnabled", true);
+        data.put("visionAttempted", true);
+        data.put("fallbackUsed", false);
+        data.put("requestedModelName", trimToNull(requestedModelName));
+        data.put("responseModelName", trimToNull(vision.responseModelName()));
+        data.put("modelResult", vision.modelData() == null ? Map.of() : vision.modelData());
+        return data;
+    }
+
+    private String buildFallbackSummary(ImageAssetEntity asset, String question, String imageType, String mode, String extractedText) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("多模态模型识别不可用，已回退到 Tika/Tesseract OCR。图片类型：")
+            .append(imageType).append("，分析模式：").append(mode).append("。");
+        if (extractedText == null || extractedText.isBlank()) {
+            builder.append("未提取到有效文字，请检查图片质量、语言包和 Tesseract 安装。");
+        } else {
+            builder.append("共提取 ").append(extractedText.length()).append(" 个字符。");
+        }
+        builder.append("文件：").append(nullToEmpty(asset.getOriginalFileName())).append("。");
         if (question != null && !question.isBlank()) {
-            builder.append(" User question: ").append(question.trim());
+            builder.append("用户问题：").append(question.trim());
         }
         return builder.toString();
     }
 
-    private Map<String, Object> structuredData(ImageAssetEntity asset, String imageType, String mode, String extractedText) {
+    private Map<String, Object> fallbackStructuredData(ImageAssetEntity asset,
+                                                       String imageType,
+                                                       String mode,
+                                                       String extractedText,
+                                                       String modelName,
+                                                       String failureReason) {
+        Map<String, Object> data = baseStructuredData(asset, imageType, mode);
+        data.put("visionModelEnabled", true);
+        data.put("visionAttempted", true);
+        data.put("fallbackUsed", true);
+        data.put("requestedModelName", trimToNull(modelName));
+        data.put("fallbackReason", trimToNull(failureReason));
+        data.put("ocrEnabled", true);
+        data.put("ocrEngine", "tika+tesseract");
+        data.put("sourceType", DocumentTextExtractor.OCR_CHUNK_TYPE);
+        data.put("textLength", extractedText == null ? 0 : extractedText.length());
+        data.put("confidenceTier", "low");
+        data.put("limitations", List.of(
+            "OCR回退仅提供纯文本",
+            "不重建表格结构",
+            "不提供视觉关系推理",
+            "复杂中文排版、模糊、倾斜或手写内容置信度较低"
+        ));
+        return data;
+    }
+
+    private Map<String, Object> baseStructuredData(ImageAssetEntity asset, String imageType, String mode) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("fileId", asset.getFileId());
         data.put("fileName", asset.getOriginalFileName());
@@ -313,27 +510,54 @@ public class ImageUnderstandingService {
         data.put("width", asset.getWidth());
         data.put("height", asset.getHeight());
         data.put("sizeBytes", asset.getSizeBytes());
-        data.put("ocrEnabled", true);
-        data.put("ocrEngine", "tika+tesseract");
-        data.put("sourceType", DocumentTextExtractor.OCR_CHUNK_TYPE);
-        data.put("textLength", extractedText == null ? 0 : extractedText.length());
-        data.put("confidenceTier", "low");
-        data.put("visionModelEnabled", false);
-        data.put("limitations", List.of(
-            "plain text OCR only",
-            "no table reconstruction",
-            "no visual reasoning",
-            "low confidence for complex Chinese layout, blur, skew, or handwriting"
-        ));
         return data;
     }
 
-    private double confidence(String mode, String imageType, String extractedText) {
+    private double fallbackConfidence(String mode, String imageType, String extractedText) {
         if (extractedText == null || extractedText.isBlank()) {
             return 0.2D;
         }
         double base = "auto".equals(mode) && imageType != null ? 0.52D : 0.6D;
         return Math.min(0.68D, base + Math.min(0.08D, extractedText.length() / 4000.0D));
+    }
+
+    private double normalizeConfidence(Double value, double fallback) {
+        if (value == null || value.isNaN() || value.isInfinite()) {
+            return fallback;
+        }
+        return Math.max(0D, Math.min(1D, value));
+    }
+
+    private String stripJsonFence(String value) {
+        String text = value == null ? "" : value.trim();
+        if (text.startsWith("```")) {
+            int firstLine = text.indexOf('\n');
+            int lastFence = text.lastIndexOf("```");
+            if (firstLine >= 0 && lastFence > firstLine) {
+                return text.substring(firstLine + 1, lastFence).trim();
+            }
+        }
+        int objectStart = text.indexOf('{');
+        int objectEnd = text.lastIndexOf('}');
+        return objectStart >= 0 && objectEnd > objectStart
+            ? text.substring(objectStart, objectEnd + 1)
+            : text;
+    }
+
+    private String text(JsonNode node, String field) {
+        JsonNode value = node == null ? null : node.get(field);
+        return value == null || value.isNull() ? null : trimToNull(value.asText());
+    }
+
+    private String firstText(String... values) {
+        if (values != null) {
+            for (String value : values) {
+                if (value != null && !value.isBlank()) {
+                    return value.trim();
+                }
+            }
+        }
+        return null;
     }
 
     private String normalizeMode(String mode) {
@@ -444,6 +668,19 @@ public class ImageUnderstandingService {
     }
 
     private record ImageInfo(Integer width, Integer height) {
+    }
+
+    private record VisionAttempt(VisionAnalysis analysis, String failureReason) {
+    }
+
+    private record VisionAnalysis(
+        String imageType,
+        String summary,
+        String extractedText,
+        Double confidence,
+        String responseModelName,
+        Map<String, Object> modelData
+    ) {
     }
 
     public record ImageAssetView(

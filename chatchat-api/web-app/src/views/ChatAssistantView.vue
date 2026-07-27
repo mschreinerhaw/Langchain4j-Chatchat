@@ -212,7 +212,7 @@
           <header>
             <div>
               <p>多模态输入</p>
-              <h2>上传图片并解析</h2>
+              <h2>使用当前模型分析图片</h2>
             </div>
             <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" :disabled="uploadingImage" @click="closeImageDialog">×</button>
           </header>
@@ -243,7 +243,7 @@
           <section v-if="pendingImageAnalysis" class="image-analysis-preview">
             <div class="image-analysis-summary">
               <strong>{{ formatImageType(pendingImageAnalysis.imageType) }}</strong>
-              <span>置信度 {{ formatConfidence(pendingImageAnalysis.confidence) }}</span>
+              <span>{{ formatImageAnalysisSource(pendingImageAnalysis.analysisSource) }} · 置信度 {{ formatConfidence(pendingImageAnalysis.confidence) }}</span>
             </div>
             <p>{{ pendingImageAnalysis.summary }}</p>
             <pre>{{ pendingImageAnalysis.extractedText }}</pre>
@@ -263,7 +263,7 @@
               加入上下文
             </button>
             <button v-else type="submit" class="primary-button" :disabled="uploadingImage">
-              {{ uploadingImage ? "解析中" : "上传并解析" }}
+              {{ uploadingImage ? "分析中" : "上传并分析" }}
             </button>
           </footer>
         </form>

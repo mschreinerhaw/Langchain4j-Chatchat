@@ -24,12 +24,10 @@ public class ImageUnderstandingToolRegistrar {
     public void register() {
         ToolMetadata metadata = ToolMetadata.builder()
             .id("image_understanding")
-            .title("Image OCR")
-            .description("Extract plain text from a previously uploaded image using Apache Tika OCR. "
-                + "Use it when the user asks to read text from screenshots, scanned document images, reports, forms or contracts. "
-                + "This tool is a low-confidence OCR text extractor: it does not perform visual reasoning, chart interpretation, "
-                + "table reconstruction, handwriting recognition, or high-precision document understanding.")
-            .version("1.0.0")
+            .title("多模态图片理解")
+            .description("使用当前 Agent 选择的多模态大模型直接理解已上传图片，可识别截图、扫描文档、表格、图表及视觉关系。"
+                + "当模型不支持图片、调用失败或返回空结果时，自动回退到 Apache Tika/Tesseract OCR，并在结果中明确标记分析来源和限制。")
+            .version("2.0.0")
             .author("ChatChat System")
             .categories(List.of("multimodal", "image", "ocr", "vision"))
             .category("multimodal_image_understanding")
@@ -47,13 +45,13 @@ public class ImageUnderstandingToolRegistrar {
             .outputPolicy(Map.of("mask_fields", List.of()))
             .outputType("json")
             .returnDirect(false)
-            .timeoutMillis(15000L)
+            .timeoutMillis(180000L)
             .agentCompatible(true)
             .parameters(List.of(
                 ToolParameter.builder()
                     .name("fileId")
                     .type("string")
-                    .description("Uploaded image file id.")
+                    .description("已上传图片的文件编号。")
                     .required(true)
                     .minLength(1)
                     .maxLength(128)
@@ -61,28 +59,28 @@ public class ImageUnderstandingToolRegistrar {
                 ToolParameter.builder()
                     .name("question")
                     .type("string")
-                    .description("Optional user question used only as OCR context; the tool returns extracted text, not visual reasoning.")
+                    .description("用户希望模型重点分析的问题；模型会结合图片文字、结构和视觉关系回答。")
                     .required(false)
                     .maxLength(2000)
                     .build(),
                 ToolParameter.builder()
                     .name("mode")
                     .type("string")
-                    .description("OCR context mode: auto, screenshot, document or chart. Chart mode still performs text OCR only.")
+                    .description("图片分析模式：auto、screenshot、document 或 chart。")
                     .required(false)
                     .defaultValue("auto")
                     .build()
             ))
             .tags(List.of("image", "ocr", "vision", "agent"))
             .metadata(Map.of(
-                "engine", "apache_tika_tesseract",
-                "sourceType", "OCR_TEXT",
-                "confidenceTier", "low",
+                "engine", "current_multimodal_model_with_ocr_fallback",
+                "primarySourceType", "MULTIMODAL_LLM",
+                "fallbackSourceType", "OCR_TEXT",
                 "behaviorRules", List.of(
-                    "Treat output as plain OCR text only",
-                    "Do not assume table structure, bounding boxes, or visual reasoning",
-                    "If extracted text is empty or weak, report insufficient OCR evidence",
-                    "Prefer verification for complex Chinese layout, blur, skew, handwriting, charts, invoices, or IDs"
+                    "优先使用当前会话模型直接分析图片",
+                    "仅在模型不支持图片、调用失败或空响应时回退OCR",
+                    "结果必须标记 multimodal_llm 或 tika_ocr_fallback 来源",
+                    "OCR回退结果不得声称具备表格重建或视觉关系推理能力"
                 )
             ))
             .build();
@@ -112,7 +110,8 @@ public class ImageUnderstandingToolRegistrar {
                 String question = input.getParameterAsString("question", input.getRawInput());
                 String mode = input.getParameterAsString("mode", "auto");
                 String tenantId = input.getContext() == null ? null : String.valueOf(input.getContext().getOrDefault("tenantId", "default"));
-                var result = imageUnderstandingService.analyze(fileId, question, mode, tenantId, input.getUserId());
+                String modelName = input.getContext() == null ? null : String.valueOf(input.getContext().getOrDefault("modelName", ""));
+                var result = imageUnderstandingService.analyze(fileId, question, mode, tenantId, input.getUserId(), modelName);
                 return ToolOutput.success(
                     imageUnderstandingService.toAnalysisView(result),
                     "Image understanding completed"

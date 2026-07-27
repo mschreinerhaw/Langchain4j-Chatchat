@@ -274,6 +274,8 @@ export default {
     },
     async selectCategory(category) {
       this.selectedCategory = category.id || category.code || '';
+      this.activeTab = 'queries';
+      await this.$nextTick();
       await this.$refs.catalog?.load?.();
     },
     datasourceOptions(enabledOnly) {

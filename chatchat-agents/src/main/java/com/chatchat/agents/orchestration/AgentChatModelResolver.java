@@ -5,6 +5,7 @@ import dev.langchain4j.http.client.HttpClientBuilder;
 import dev.langchain4j.http.client.jdk.JdkHttpClientBuilder;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
+import org.springframework.stereotype.Component;
 
 import java.net.InetSocketAddress;
 import java.net.ProxySelector;
@@ -16,18 +17,19 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Resolves chat model instances for agent runs.
  */
-class AgentChatModelResolver {
+@Component
+public class AgentChatModelResolver {
 
     private final ChatModel defaultChatModel;
     private final ModelsConfig modelsConfig;
     private final Map<String, ChatModel> chatModelsByName = new ConcurrentHashMap<>();
 
-    AgentChatModelResolver(ChatModel defaultChatModel, ModelsConfig modelsConfig) {
+    public AgentChatModelResolver(ChatModel defaultChatModel, ModelsConfig modelsConfig) {
         this.defaultChatModel = defaultChatModel;
         this.modelsConfig = modelsConfig;
     }
 
-    ChatModel resolveChatModel(String modelName) {
+    public ChatModel resolveChatModel(String modelName) {
         String normalized = normalizeModelName(modelName);
         if (normalized == null || normalized.equals(modelsConfig.getDefaultChatModel())) {
             return defaultChatModel;

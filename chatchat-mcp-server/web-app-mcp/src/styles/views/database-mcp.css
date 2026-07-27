@@ -931,6 +931,10 @@
   gap: 12px;
 }
 
+.capability-summary-grid {
+  padding: 4px 0;
+}
+
 .capability-category-card {
   display: grid;
   grid-template-columns: 1fr auto;

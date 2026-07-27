@@ -23,6 +23,7 @@ public class HttpEndpointConfigService {
 
     private static final Pattern TOOL_NAME_PATTERN = Pattern.compile("^http_[A-Za-z0-9_]{2,123}$");
     private static final List<String> ALLOWED_METHODS = List.of("GET", "POST", "PUT", "DELETE");
+    private static final String DEFAULT_CAPABILITY = "http_request";
 
     private final HttpEndpointConfigRepository repository;
     private final ObjectMapper objectMapper;
@@ -126,12 +127,21 @@ public class HttpEndpointConfigService {
             : routingLabelsJson);
         String capabilitiesJson = normalizeJsonArray(
             mergedProtocolValues(config.getCapabilitiesJson(), config.getCapabilities()), "capabilities");
-        config.setCapabilitiesJson(capabilitiesJson == null
+        capabilitiesJson = capabilitiesJson == null
             ? ModelProtocolJson.compact(List.of("api_gateway", "http", "http_request"))
+            : capabilitiesJson;
+        config.setCapabilitiesJson(currentId == null
+            ? appendDefaultCapability(capabilitiesJson)
             : capabilitiesJson);
         config.setTags(mergeTags(config.getTags(), config.getRoutingLabelsJson(), config.getCapabilitiesJson()));
         config.setRuntimeAction("readonly");
         config.setTimeoutMs(Math.max(1000, Math.min(config.getTimeoutMs(), 60000)));
+    }
+
+    private String appendDefaultCapability(String capabilitiesJson) {
+        LinkedHashSet<String> capabilities = new LinkedHashSet<>(readJsonArray(capabilitiesJson));
+        capabilities.add(DEFAULT_CAPABILITY);
+        return ModelProtocolJson.compact(capabilities);
     }
 
     private void assertUniqueName(String name, String currentId) {

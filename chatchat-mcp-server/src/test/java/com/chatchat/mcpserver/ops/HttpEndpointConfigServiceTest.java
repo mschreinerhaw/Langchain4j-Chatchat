@@ -35,4 +35,25 @@ class HttpEndpointConfigServiceTest {
             .containsExactly("api_gateway", "http", "http_request");
         assertThat(saved.getTags()).contains("api_gateway", "http_endpoint", "http_request");
     }
+
+    @Test
+    void appendsDefaultCapabilityWhenCreatingAnAssetWithCustomCapabilities() throws Exception {
+        HttpEndpointConfigRepository repository = mock(HttpEndpointConfigRepository.class);
+        when(repository.findByNameIgnoreCase("行情查询网关")).thenReturn(Optional.empty());
+        when(repository.findByToolNameIgnoreCase("http_market_quote")).thenReturn(Optional.empty());
+        when(repository.save(any(HttpEndpointConfig.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        ObjectMapper objectMapper = new ObjectMapper();
+        HttpEndpointConfigService service = new HttpEndpointConfigService(repository, objectMapper);
+        HttpEndpointConfig config = new HttpEndpointConfig();
+        config.setName("行情查询网关");
+        config.setToolName("http_market_quote");
+        config.setUrlTemplate("https://api.example.com/market/quote");
+        config.setCapabilitiesJson("[\"market_quote\"]");
+
+        HttpEndpointConfig saved = service.create(config);
+
+        assertThat(objectMapper.readValue(saved.getCapabilitiesJson(), String[].class))
+            .containsExactly("market_quote", "http_request");
+        assertThat(saved.getTags()).contains("market_quote", "http_request");
+    }
 }

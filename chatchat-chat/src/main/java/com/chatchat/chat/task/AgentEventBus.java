@@ -16,7 +16,7 @@ public class AgentEventBus {
     private final ApplicationEventPublisher eventPublisher;
     private final Map<String, BlockingQueue<AgentEvent>> tenantQueues = new ConcurrentHashMap<>();
     private final Map<String, BlockingQueue<AgentEvent>> resultQueues = new ConcurrentHashMap<>();
-    private final Map<String, BlockingQueue<AgentEvent>> confirmationQueues = new ConcurrentHashMap<>();
+    private final BlockingQueue<AgentEvent> confirmationQueue;
 
     /**
      * Creates a new AgentEventBus instance.
@@ -27,6 +27,7 @@ public class AgentEventBus {
     public AgentEventBus(AgentTaskProperties properties, ApplicationEventPublisher eventPublisher) {
         this.properties = properties;
         this.eventPublisher = eventPublisher;
+        this.confirmationQueue = new LinkedBlockingQueue<>(properties.getQueueCapacity());
     }
 
     /**
@@ -53,6 +54,10 @@ public class AgentEventBus {
      */
     public AgentEvent poll(String tenantId, long timeout, TimeUnit unit) throws InterruptedException {
         return queueForTenant(tenantId).poll(timeout, unit);
+    }
+
+    public int pendingQuestionCount(String tenantId) {
+        return queueForTenant(tenantId).size();
     }
 
     /**
@@ -98,12 +103,8 @@ public class AgentEventBus {
      * @param event the event value
      */
     public void publishConfirmation(AgentEvent event) {
-        BlockingQueue<AgentEvent> queue = confirmationQueues.computeIfAbsent(
-            event.getTaskId(),
-            ignored -> new LinkedBlockingQueue<>(properties.getQueueCapacity())
-        );
-        if (!queue.offer(event)) {
-            throw new IllegalStateException("Agent confirmation queue is full: " + event.getTaskId());
+        if (!confirmationQueue.offer(event)) {
+            throw new IllegalStateException("Agent confirmation event queue is full");
         }
         eventPublisher.publishEvent(event);
     }
@@ -111,22 +112,13 @@ public class AgentEventBus {
     /**
      * Performs the poll confirmation operation.
      *
-     * @param taskId the task id value
      * @param timeout the timeout value
      * @param unit the unit value
      * @return the operation result
      * @throws InterruptedException if the operation fails
      */
-    public AgentEvent pollConfirmation(String taskId, long timeout, TimeUnit unit) throws InterruptedException {
-        BlockingQueue<AgentEvent> queue = confirmationQueues.computeIfAbsent(
-            taskId,
-            ignored -> new LinkedBlockingQueue<>(properties.getQueueCapacity())
-        );
-        AgentEvent event = queue.poll(timeout, unit);
-        if (queue.isEmpty() && event != null) {
-            confirmationQueues.remove(taskId, queue);
-        }
-        return event;
+    public AgentEvent pollConfirmation(long timeout, TimeUnit unit) throws InterruptedException {
+        return confirmationQueue.poll(timeout, unit);
     }
 
     /**
@@ -147,7 +139,7 @@ public class AgentEventBus {
      */
     public void clearConfirmations(String taskId) {
         if (taskId != null && !taskId.isBlank()) {
-            confirmationQueues.remove(taskId);
+            confirmationQueue.removeIf(event -> taskId.equals(event.getTaskId()));
         }
     }
 

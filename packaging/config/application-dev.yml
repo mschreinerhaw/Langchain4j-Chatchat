@@ -95,13 +95,12 @@ chatchat:
   models:
     defaultProvider: openai
     defaultChatModel: qwen3.6-plus
-    timeout: 0
+    timeout: 1800000
     openai:
       # OpenAI-compatible API key. For DashScope compatible mode, set DASHSCOPE_API_KEY or OPENAI_API_KEY.
       api-key:
       baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
-      # 0 means do not set a client-side model request timeout.
-      timeout: 0
+      timeout: 1800000
       # Maximum model completion tokens. -1 means do not set a model-side token limit.
       maxTokens: -1
       maxRetries: 3
@@ -120,8 +119,10 @@ chatchat:
   agent:
     task:
       queue-capacity: 1000
-      core-pool-size: 4
+      core-pool-size: 16
       max-pool-size: 16
+      max-concurrent-tasks-per-tenant: 4
+      execution-timeout-ms: 3600000
       keep-alive-seconds: 60
       list-limit: 50
       event-store:
@@ -292,7 +293,7 @@ chatchat:
     circuit-breaker-open-seconds: 60
     top-tool-limit: 6
     # 0 means wait for tool completion without a runtime timeout.
-    default-tool-timeout-ms: 0
+    default-tool-timeout-ms: 1800000
     execution-core-pool-size: 4
     execution-max-pool-size: 32
     execution-queue-capacity: 256

@@ -89,6 +89,13 @@ chatchat:
       timeout: 1800000
       maxTokens: -1
       maxRetries: 3
+  agent:
+    task:
+      queue-capacity: 1000
+      core-pool-size: 16
+      max-pool-size: 16
+      max-concurrent-tasks-per-tenant: 4
+      execution-timeout-ms: 3600000
   tool-runtime:
     default-tool-timeout-ms: 1800000
     max-batch-calls: 32

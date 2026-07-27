@@ -12,9 +12,11 @@ import org.springframework.stereotype.Component;
 public class AgentTaskProperties {
 
     private int queueCapacity = 1000;
-    private int corePoolSize = 4;
+    private int corePoolSize = 16;
     private int maxPoolSize = 16;
+    private int maxConcurrentTasksPerTenant = 4;
     private int keepAliveSeconds = 60;
+    private long executionTimeoutMs = 3_600_000;
     private int listLimit = 50;
     private int recoveryBatchSize = 200;
     private int confirmationWaitSeconds = 600;

@@ -92,6 +92,13 @@ chatchat:
       timeout: ${OPENAI_TIMEOUT_MS:1800000}
       maxTokens: ${OPENAI_MAX_TOKENS:-1}
       maxRetries: ${OPENAI_MAX_RETRIES:3}
+  agent:
+    task:
+      queue-capacity: ${CHATCHAT_AGENT_TASK_QUEUE_CAPACITY:1000}
+      core-pool-size: ${CHATCHAT_AGENT_TASK_CORE_POOL_SIZE:16}
+      max-pool-size: ${CHATCHAT_AGENT_TASK_MAX_POOL_SIZE:16}
+      max-concurrent-tasks-per-tenant: ${CHATCHAT_AGENT_TASK_TENANT_CONCURRENCY:4}
+      execution-timeout-ms: ${CHATCHAT_AGENT_TASK_TIMEOUT_MS:3600000}
   tool-runtime:
     default-tool-timeout-ms: ${CHATCHAT_TOOL_TIMEOUT_MS:1800000}
     max-batch-calls: ${CHATCHAT_MAX_BATCH_CALLS:32}

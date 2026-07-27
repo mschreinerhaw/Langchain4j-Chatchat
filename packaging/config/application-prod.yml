@@ -94,11 +94,11 @@ chatchat:
   models:
     defaultProvider: openai
     defaultChatModel: qwen3.6-plus
-    timeout: 300
+    timeout: 1800000
     openai:
       apiKey: 
       baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
-      timeout: 300
+      timeout: 1800000
       # Maximum model completion tokens. -1 means do not set a model-side token limit.
       maxTokens: -1
       maxRetries: 3
@@ -117,8 +117,10 @@ chatchat:
   agent:
     task:
       queue-capacity: 1000
-      core-pool-size: 4
+      core-pool-size: 16
       max-pool-size: 16
+      max-concurrent-tasks-per-tenant: 4
+      execution-timeout-ms: 3600000
       keep-alive-seconds: 60
       list-limit: 50
       event-store:
@@ -288,7 +290,7 @@ chatchat:
     circuit-breaker-failure-threshold: 3
     circuit-breaker-open-seconds: 60
     top-tool-limit: 6
-    default-tool-timeout-ms: 60000
+    default-tool-timeout-ms: 1800000
     execution-core-pool-size: 4
     execution-max-pool-size: 32
     execution-queue-capacity: 256

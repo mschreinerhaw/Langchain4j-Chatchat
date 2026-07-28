@@ -138,6 +138,14 @@ class AgentAnswerFinalizer {
         }
         String finalAnswer = sanitizeFinalMarkdown(mergedAnswer);
         if (finalAnswer.isBlank()) {
+            String metadataReport = deterministicEnterpriseMetadataReport(traces);
+            if (!metadataReport.isBlank()) {
+                finalAnswer = metadataReport;
+                values.put("deterministicFinalizationFallback", true);
+                values.put("deterministicFinalizationSource", "enterprise_metadata_field_discovery.v1");
+            }
+        }
+        if (finalAnswer.isBlank()) {
             String deterministicReport = deterministicBatchReport(traces);
             if (!deterministicReport.isBlank()) {
                 finalAnswer = deterministicReport;
@@ -258,6 +266,111 @@ class AgentAnswerFinalizer {
             return report.toString().trim();
         }
         return "";
+    }
+
+    private String deterministicEnterpriseMetadataReport(List<InteractionToolTrace> traces) {
+        if (traces == null || traces.isEmpty()) {
+            return "";
+        }
+        for (InteractionToolTrace trace : traces) {
+            if (trace == null || !trace.isSuccess()) {
+                continue;
+            }
+            Map<String, Object> payload = findEnterpriseMetadataPayload(parseObject(trace.getOutput()), 0);
+            if (payload.isEmpty()) {
+                continue;
+            }
+            Map<String, Object> target = mapValue(payload.get("targetObject"));
+            Map<String, Object> sourceSchema = mapValue(payload.get("sourceSchema"));
+            List<Map<String, Object>> fieldMatches = mapValues(payload.get("fieldMatches"));
+            StringBuilder report = new StringBuilder();
+            report.append("## 元数据匹配结果\n\n")
+                .append("- 目标对象：`")
+                .append(escapeInline(firstNonBlank(stringValue(target.get("name")),
+                    stringValue(sourceSchema.get("table")))))
+                .append("`\n")
+                .append("- 协议：`")
+                .append(escapeInline(firstNonBlank(stringValue(payload.get("schemaVersion")),
+                    "enterprise_metadata_field_discovery.v1")))
+                .append("`\n")
+                .append("- 已处理字段：")
+                .append(fieldMatches.size())
+                .append("\n\n")
+                .append("| 字段 | 中文名称 | 数据类型 | 可空 | 推荐标准字段 | 建议 | 主要理由 |\n")
+                .append("|---|---|---|---|---|---|---|\n");
+            for (Map<String, Object> fieldMatch : fieldMatches) {
+                Map<String, Object> input = mapValue(fieldMatch.get("input"));
+                Map<String, Object> analysis = mapValue(fieldMatch.get("analysis"));
+                Map<String, Object> recommended = mapValue(analysis.get("recommendedField"));
+                report.append("| ")
+                    .append(escapeTableCell(firstNonBlank(stringValue(input.get("fieldName")), "-")))
+                    .append(" | ")
+                    .append(escapeTableCell(firstNonBlank(
+                        firstNonBlank(stringValue(input.get("fieldCnName")), stringValue(input.get("description"))),
+                        "-")))
+                    .append(" | ")
+                    .append(escapeTableCell(firstNonBlank(stringValue(input.get("dataType")), "-")))
+                    .append(" | ")
+                    .append(escapeTableCell(firstNonBlank(stringValue(input.get("nullable")), "-")))
+                    .append(" | ")
+                    .append(escapeTableCell(firstNonBlank(
+                        firstNonBlank(stringValue(recommended.get("technicalName")), stringValue(recommended.get("name"))),
+                        "-")))
+                    .append(" | ")
+                    .append(escapeTableCell(firstNonBlank(stringValue(analysis.get("recommendation")), "REVIEW")))
+                    .append(" | ")
+                    .append(escapeTableCell(joinValues(analysis.get("reason"))))
+                    .append(" |\n");
+            }
+            report.append("\n以上内容由已成功返回的结构化元数据证据确定性生成；完整候选、词根、字典及证据对象仍保留在工具轨迹中。");
+            return report.toString();
+        }
+        return "";
+    }
+
+    private Map<String, Object> findEnterpriseMetadataPayload(Map<String, Object> value, int depth) {
+        if (value == null || value.isEmpty() || depth > 5) {
+            return Map.of();
+        }
+        if ("enterprise_metadata_field_discovery.v1".equals(stringValue(value.get("schemaVersion")))) {
+            return value;
+        }
+        for (String key : List.of("data", "structuredContent", "structured_content", "payload", "result")) {
+            Map<String, Object> found = findEnterpriseMetadataPayload(mapValue(value.get(key)), depth + 1);
+            if (!found.isEmpty()) {
+                return found;
+            }
+        }
+        return Map.of();
+    }
+
+    private Map<String, Object> mapValue(Object value) {
+        return value instanceof Map<?, ?> map ? copyMap(map) : Map.of();
+    }
+
+    private List<Map<String, Object>> mapValues(Object value) {
+        if (!(value instanceof List<?> values)) {
+            return List.of();
+        }
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Object item : values) {
+            Map<String, Object> map = mapValue(item);
+            if (!map.isEmpty()) {
+                result.add(map);
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    private String joinValues(Object value) {
+        if (value instanceof List<?> values) {
+            return values.stream()
+                .filter(item -> item != null && !String.valueOf(item).isBlank())
+                .map(String::valueOf)
+                .reduce((left, right) -> left + "；" + right)
+                .orElse("-");
+        }
+        return firstNonBlank(stringValue(value), "-");
     }
 
     boolean markToolBudgetExceeded(String requestedToolName,
@@ -591,7 +704,22 @@ class AgentAnswerFinalizer {
             activeChatModel == null ? null : activeChatModel.getClass().getName(),
             promptText.length(),
             observations == null ? 0 : observations.size());
-        String answer = activeChatModel.chat(promptText);
+        String answer;
+        try {
+            answer = activeChatModel.chat(promptText);
+        } catch (RuntimeException ex) {
+            if (metadata != null) {
+                metadata.put("summaryGenerated", false);
+                metadata.put("summaryFailure", firstNonBlank(ex.getMessage(), ex.getClass().getSimpleName()));
+                metadata.put("summaryFallback", "deterministic_tool_evidence");
+            }
+            log.warn("agentModelFailed phase=summary runId={} promptChars={} errorType={} error={}",
+                firstNonBlank(runId, ""),
+                promptText.length(),
+                ex.getClass().getSimpleName(),
+                ex.getMessage());
+            return "";
+        }
         log.info("agentModelResponse phase=summary runId={} durationMs={} responseChars={}",
             firstNonBlank(runId, ""),
             System.currentTimeMillis() - startedAt,

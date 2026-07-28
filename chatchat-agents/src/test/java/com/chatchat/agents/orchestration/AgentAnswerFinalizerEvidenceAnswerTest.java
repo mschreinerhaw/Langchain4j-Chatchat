@@ -17,6 +17,69 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AgentAnswerFinalizerEvidenceAnswerTest {
 
     @Test
+    void summaryFailureFallsBackToPersistedEnterpriseMetadataFieldsInsteadOfEmptyResult() {
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            (chatModel, query, systemPrompt, observations, answer) ->
+                new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok"),
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        InteractionToolTrace trace = InteractionToolTrace.builder()
+            .toolName("mcp_chatchat_mcp_server_enterprise_metadata_search")
+            .success(true)
+            .output("""
+                {
+                  "schemaVersion":"enterprise_metadata_field_discovery.v1",
+                  "success":true,
+                  "targetObject":{"type":"TABLE","name":"gdp_ads.ads_ids_clr_acc_liab_d_i"},
+                  "sourceSchema":{"table":"gdp_ads.ads_ids_clr_acc_liab_d_i","fieldCount":1},
+                  "fieldMatches":[{
+                    "fieldRef":"field-1",
+                    "input":{"fieldName":"acc_clas_code","fieldCnName":"账户类别代码","description":"账户类别代码"},
+                    "analysis":{
+                      "recommendation":"REUSE",
+                      "recommendedField":{"name":"账户类别代码","technicalName":"ACC_CLAS_CODE"},
+                      "reason":["字段中文名称一致","英文名称符合标准"]
+                    }
+                  }]
+                }
+                """)
+            .runtimeMetadata(Map.of("outcome", "success"))
+            .build();
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("agentRunId", "enterprise-metadata-summary-failure");
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishReviewedAnswer(
+            new ChatModel() {
+                @Override
+                public String chat(String message) {
+                    throw new IllegalStateException("context length exceeded");
+                }
+            },
+            "补全字段注释",
+            "",
+            List.of(trace),
+            metadata,
+            List.of("enterprise_metadata_model_context.v1: compact evidence"),
+            "",
+            () -> false,
+            "attempts_exhausted"
+        );
+
+        assertThat(result.answer())
+            .contains("元数据匹配结果")
+            .contains("gdp_ads.ads_ids_clr_acc_liab_d_i")
+            .contains("acc_clas_code")
+            .contains("ACC_CLAS_CODE")
+            .contains("账户类别代码");
+        assertThat(result.toolTraces()).containsExactly(trace);
+        assertThat(result.metadata())
+            .containsEntry("summaryGenerated", false)
+            .containsEntry("summaryFailure", "context length exceeded")
+            .containsEntry("deterministicFinalizationSource", "enterprise_metadata_field_discovery.v1")
+            .containsEntry("toolTraceCount", 1);
+    }
+
+    @Test
     void preInvocationWorkflowBlockDoesNotConsumeRemoteToolCallBudget() {
         AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
             new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok");

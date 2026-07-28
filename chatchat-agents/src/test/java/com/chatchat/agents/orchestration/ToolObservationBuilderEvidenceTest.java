@@ -14,6 +14,93 @@ class ToolObservationBuilderEvidenceTest {
     private final ToolObservationBuilder builder = new ToolObservationBuilder(new EvidenceTrustEvaluator());
 
     @Test
+    void enterpriseMetadataEvidenceExtractsOnlyFieldEnglishNameAndCommentForEveryReturnedCandidate() {
+        List<Map<String, Object>> candidates = java.util.stream.IntStream.rangeClosed(1, 5)
+            .mapToObj(index -> Map.<String, Object>of(
+                "metadataType", "metadata_field",
+                "id", "std-" + index,
+                "name", "标准字段" + index,
+                "technicalName", "STANDARD_FIELD_" + index,
+                "score", 1.0D - index * 0.01D,
+                "matchLevel", "SEMANTIC",
+                "metadata", Map.of(
+                    "name", "标准字段" + index,
+                    "technicalName", "STANDARD_FIELD_" + index,
+                    "description", "标准注释" + index,
+                    "status", "active",
+                    "largeInternalPayload", "x".repeat(100_000)
+                )
+            ))
+            .toList();
+        Map<String, Object> fieldMatch = new LinkedHashMap<>();
+        fieldMatch.put("fieldRef", "field-1");
+        fieldMatch.put("input", Map.of(
+            "fieldName", "acc_clas_code",
+            "fieldCnName", "账户类别代码",
+            "description", "账户类别代码",
+            "dataType", "string",
+            "nullable", true
+        ));
+        fieldMatch.put("searchPlan", Map.of("tokens", List.of("acc", "clas", "code")));
+        fieldMatch.put("standardFields", candidates);
+        fieldMatch.put("termRoots", List.of(Map.of(
+            "name", "账户",
+            "technicalName", "ACCOUNT",
+            "metadata", Map.of("description", "账户业务词根", "internal", "y".repeat(100_000))
+        )));
+        fieldMatch.put("dictionaries", List.of(Map.of(
+            "name", "账户类别",
+            "technicalName", "ACCOUNT_CLASS",
+            "metadata", Map.of("codeDescription", "账户类别代码字典", "internal", "z".repeat(100_000))
+        )));
+        fieldMatch.put("analysis", Map.of("recommendation", "REVIEW", "reason", List.of("internal reason")));
+
+        Map<String, Object> protocol = new LinkedHashMap<>();
+        protocol.put("schemaVersion", "enterprise_metadata_field_discovery.v1");
+        protocol.put("success", true);
+        protocol.put("retrievalMode", "UNIFIED_FIELD_EVIDENCE_BUNDLE");
+        protocol.put("targetObject", Map.of("type", "TABLE", "name", "gdp_ads.target_table"));
+        protocol.put("sourceSchema", Map.of(
+            "table", "gdp_ads.target_table",
+            "fieldCount", 1,
+            "fields", List.of(fieldMatch.get("input"))
+        ));
+        protocol.put("fieldMatches", List.of(fieldMatch));
+        protocol.put("providerExchange", Map.of("raw", "p".repeat(100_000)));
+        protocol.put("evidenceObjects", List.of(Map.of("raw", "e".repeat(100_000))));
+
+        Map<String, Object> wrapped = Map.of(
+            "schemaVersion", "tool_execution_result.v1",
+            "kind", "metadata",
+            "success", true,
+            "data", protocol
+        );
+        String observation = builder.buildSuccessObservation(
+            "mcp_chatchat_mcp_server_enterprise_metadata_search",
+            ToolOutput.success(wrapped, "metadata matched"),
+            "unused raw output"
+        );
+        String synthesisEvidence = builder.buildAuthoritativeExecutionEvidence(
+            "mcp_chatchat_mcp_server_enterprise_metadata_search", wrapped);
+
+        assertThat(observation)
+            .contains("\"schemaVersion\":\"enterprise_metadata_model_context.v1\"")
+            .contains("\"field\":\"账户类别代码\"")
+            .contains("\"englishName\":\"acc_clas_code\"")
+            .contains("\"comment\":\"账户类别代码\"")
+            .contains("\"field\":\"标准字段1\"")
+            .contains("\"englishName\":\"STANDARD_FIELD_5\"")
+            .contains("\"comment\":\"标准注释5\"")
+            .contains("\"field\":\"账户\"", "\"englishName\":\"ACCOUNT\"", "\"comment\":\"账户业务词根\"")
+            .contains("\"field\":\"账户类别\"", "\"englishName\":\"ACCOUNT_CLASS\"", "\"comment\":\"账户类别代码字典\"")
+            .contains("\"allRetrievalLimitedCandidatesIncluded\":true")
+            .doesNotContain("searchPlan", "\"score\"", "matchLevel", "providerExchange",
+                "evidenceObjects", "largeInternalPayload", "internal reason", "unused raw output");
+        assertThat(observation.length()).isLessThan(10_000);
+        assertThat(synthesisEvidence).isEqualTo(observation);
+    }
+
+    @Test
     void preservesCompleteSqlMetadataCatalogAndReturnedColumnDetails() {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("schemaVersion", "sql_metadata_search_result.v1");

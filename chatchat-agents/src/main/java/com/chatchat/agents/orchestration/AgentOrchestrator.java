@@ -2218,7 +2218,7 @@ public class AgentOrchestrator {
                     ? toolObservationBuilder.buildAuthoritativeExecutionEvidence(step.toolName(), step.output())
                     : null;
                 if (executionEvidence != null && !executionEvidence.isBlank()) {
-                    prompt.append("  authoritativeToolResultEvidence (complete runtime-returned data; operation inputs omitted):\n")
+                    prompt.append("  authoritativeToolResultEvidence (runtime evidence projection; operation inputs omitted):\n")
                         .append(executionEvidence)
                         .append("\n  promptPreviewTruncated=false\n");
                 } else {
@@ -2251,9 +2251,10 @@ public class AgentOrchestrator {
         }
         if (observations != null && !observations.isEmpty()) {
             prompt.append("\nIn-memory observations:\n");
-            observations.forEach(observation -> prompt.append("- ")
-                .append(observation)
-                .append("\n"));
+            observations.stream()
+                .filter(observation -> observation == null
+                    || !observation.contains("enterprise_metadata_model_context.v1"))
+                .forEach(observation -> prompt.append("- ").append(observation).append("\n"));
         }
         prompt.append("\nReturn only the final user-facing Markdown answer, no JSON.");
         return prompt.toString();

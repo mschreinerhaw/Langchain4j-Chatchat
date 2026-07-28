@@ -16,6 +16,7 @@ import com.chatchat.agents.evidence.EvidenceGraphView;
 import com.chatchat.agents.evidence.EvidenceNormalizer;
 import com.chatchat.agents.evidence.EvidenceOsV2Formatter;
 import com.chatchat.agents.evidence.EvidencePathExecutor;
+import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.common.tool.ToolOutput;
 
 import java.util.ArrayList;
@@ -58,6 +59,10 @@ class ToolObservationBuilder {
 
     String buildSuccessObservation(String toolName, ToolOutput output, String outputText, Map<String, Object> reviewMetadata) {
         Object data = output == null ? null : output.getData();
+        Map<String, Object> enterpriseMetadata = enterpriseMetadataPayload(data);
+        if (!enterpriseMetadata.isEmpty()) {
+            return buildEnterpriseMetadataObservation(toolName, output, enterpriseMetadata);
+        }
         if (isDocumentSearchToolName(toolName)) {
             return buildDocumentSearchObservation(toolName, output, data, outputText, reviewMetadata);
         }
@@ -276,6 +281,10 @@ class ToolObservationBuilder {
      * Legacy payloads retain semantic fallbacks for compatibility.
      */
     String buildAuthoritativeExecutionEvidence(String toolName, Object data) {
+        Map<String, Object> enterpriseMetadata = enterpriseMetadataPayload(data);
+        if (!enterpriseMetadata.isEmpty()) {
+            return buildEnterpriseMetadataObservation(toolName, null, enterpriseMetadata);
+        }
         if (isStandardExecutionResult(data)) {
             return buildStandardExecutionObservation(toolName, null, data);
         }
@@ -286,6 +295,114 @@ class ToolObservationBuilder {
             return buildLinuxCommandObservation(toolName, null, data);
         }
         return null;
+    }
+
+    /**
+     * Formats the unified metadata protocol for model review. Retrieval already applies
+     * its configured result limits, so this projection keeps every returned field and
+     * candidate while extracting only names and comments. The provider exchange,
+     * tokenization plan, scores and duplicate evidence objects remain in the tool trace.
+     */
+    private String buildEnterpriseMetadataObservation(String toolName,
+                                                      ToolOutput output,
+                                                      Map<String, Object> payload) {
+        Map<String, Object> sourceSchema = asMap(payload.get("sourceSchema"));
+        List<Map<String, Object>> fields = mapList(sourceSchema.get("fields"));
+        List<Map<String, Object>> fieldMatches = mapList(payload.get("fieldMatches"));
+        List<Map<String, Object>> formattedFields = new ArrayList<>();
+        for (Map<String, Object> fieldMatch : fieldMatches) {
+            Map<String, Object> formattedField = new LinkedHashMap<>();
+            putIfPresent(formattedField, "fieldRef", fieldMatch.get("fieldRef"));
+            formattedField.put("source", sourceFieldProjection(asMap(fieldMatch.get("input"))));
+            formattedField.put("standardFields",
+                metadataCandidateProjections(mapList(fieldMatch.get("standardFields"))));
+            formattedField.put("termRoots",
+                metadataCandidateProjections(mapList(fieldMatch.get("termRoots"))));
+            formattedField.put("dictionaries",
+                metadataCandidateProjections(mapList(fieldMatch.get("dictionaries"))));
+            formattedFields.add(formattedField);
+        }
+        Map<String, Object> context = new LinkedHashMap<>();
+        context.put("schemaVersion", "enterprise_metadata_model_context.v1");
+        context.put("sourceSchemaVersion",
+            firstNonBlank(stringValue(payload.get("schemaVersion")), "unknown"));
+        context.put("retrievalMode", firstNonBlank(stringValue(payload.get("retrievalMode")),
+            "UNIFIED_FIELD_EVIDENCE_BUNDLE"));
+        context.put("success", booleanValue(payload.get("success")));
+        context.put("target", asMap(payload.get("targetObject")));
+        context.put("sourceTable", firstNonBlank(stringValue(sourceSchema.get("table")), "unknown"));
+        context.put("sourceFieldCount", firstNonBlank(stringValue(sourceSchema.get("fieldCount")),
+            String.valueOf(fields.size())));
+        context.put("matchedFieldCount", fieldMatches.size());
+        context.put("fields", List.copyOf(formattedFields));
+        context.put("projection", Map.of(
+            "includedCandidateProperties", List.of("field", "englishName", "comment"),
+            "allRetrievalLimitedCandidatesIncluded", true,
+            "fullProtocolEvidenceLocation", "toolTrace"
+        ));
+        if (payload.get("errorCode") != null) {
+            context.put("error", Map.of(
+                "code", payload.get("errorCode"),
+                "message", firstNonBlank(stringValue(payload.get("errorMessage")), "")
+            ));
+        }
+        return ModelProtocolJson.compact(context);
+    }
+
+    private List<Map<String, Object>> metadataCandidateProjections(List<Map<String, Object>> candidates) {
+        return candidates.stream()
+            .map(this::metadataCandidateProjection)
+            .toList();
+    }
+
+    private Map<String, Object> sourceFieldProjection(Map<String, Object> input) {
+        Map<String, Object> projected = new LinkedHashMap<>();
+        putIfPresent(projected, "field", firstNonBlank(
+            stringValue(input.get("fieldCnName")), stringValue(input.get("fieldName"))));
+        putIfPresent(projected, "englishName", input.get("fieldName"));
+        putIfPresent(projected, "comment", firstNonBlank(
+            stringValue(input.get("description")), stringValue(input.get("fieldCnName"))));
+        return projected;
+    }
+
+    private Map<String, Object> metadataCandidateProjection(Map<String, Object> candidate) {
+        Map<String, Object> metadata = asMap(candidate.get("metadata"));
+        Map<String, Object> projected = new LinkedHashMap<>();
+        putIfPresent(projected, "field", firstNonBlank(
+            stringValue(candidate.get("name")), stringValue(metadata.get("name"))));
+        putIfPresent(projected, "englishName", firstNonBlank(
+            stringValue(candidate.get("technicalName")),
+            firstNonBlank(
+                stringValue(metadata.get("technicalName")),
+                firstNonBlank(
+                    stringValue(metadata.get("englishName")),
+                    stringValue(metadata.get("dictionaryEnglishName"))))));
+        putIfPresent(projected, "comment", firstNonBlank(
+            stringValue(metadata.get("description")),
+            firstNonBlank(
+                stringValue(metadata.get("standardDescription")),
+                firstNonBlank(
+                    stringValue(metadata.get("remark")),
+                    stringValue(metadata.get("codeDescription"))))));
+        return projected;
+    }
+
+    private void putIfPresent(Map<String, Object> target, String key, Object value) {
+        if (value != null && !String.valueOf(value).isBlank()) {
+            target.put(key, value);
+        }
+    }
+
+    private Map<String, Object> enterpriseMetadataPayload(Object data) {
+        Map<String, Object> root = unwrapStructuredRoot(data);
+        if ("enterprise_metadata_field_discovery.v1".equals(stringValue(root.get("schemaVersion")))) {
+            return root;
+        }
+        Map<String, Object> nestedData = asMap(root.get("data"));
+        if ("enterprise_metadata_field_discovery.v1".equals(stringValue(nestedData.get("schemaVersion")))) {
+            return nestedData;
+        }
+        return Map.of();
     }
 
     private String buildStandardExecutionObservation(String toolName, ToolOutput output, Object data) {

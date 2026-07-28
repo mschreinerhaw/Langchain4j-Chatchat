@@ -3,6 +3,7 @@ package com.chatchat.agents.orchestration;
 import com.chatchat.agents.runtime.ToolRuntimeService;
 import com.chatchat.agents.runtime.ToolRuntimeProperties;
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
+import com.chatchat.agents.runtime.AgentObservation;
 import com.chatchat.agents.runtime.AgentRunRequest;
 import com.chatchat.agents.runtime.AgentRunResult;
 import com.chatchat.agents.runtime.AgentRunStatus;
@@ -10,6 +11,7 @@ import com.chatchat.agents.runtime.InMemoryAgentRunStore;
 import com.chatchat.agents.runtime.plan.DiagnosticRun;
 import com.chatchat.agents.runtime.plan.InterpretationExecutionProtocol;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
+import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.config.ModelsConfig;
 import com.chatchat.common.interaction.InteractionToolTrace;
@@ -26,6 +28,7 @@ import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 import java.util.function.BooleanSupplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -120,6 +123,112 @@ class AgentOrchestratorTest {
             .contains(lateEvidence)
             .contains("Mandatory workflow observations are executed after the listed plan attempts")
             .contains("resolves earlier missing_evidence claims");
+    }
+
+    @Test
+    void dagDecisionPromptSnapshotCompactsLargeEnterpriseMetadataPayload() throws Exception {
+        List<Map<String, Object>> fieldMatches = new ArrayList<>();
+        for (int index = 0; index < 86; index++) {
+            fieldMatches.add(Map.of(
+                "input", Map.of("fieldName", "field_" + index),
+                "standardFields", List.of(Map.of("raw", "raw-provider-payload-".repeat(1_000))),
+                "termRoots", List.of(),
+                "dictionaries", List.of()
+            ));
+        }
+        Map<String, Object> output = new LinkedHashMap<>();
+        output.put("schemaVersion", "enterprise_metadata_field_discovery.v1");
+        output.put("success", true);
+        output.put("sourceSchema", Map.of("fieldCount", 86, "fields", List.of()));
+        output.put("fieldMatches", fieldMatches);
+        output.put("evidenceObjects", List.of("evidence"));
+
+        Object snapshot = newOrchestrator(mock(ChatModel.class)).dagDecisionPromptOutputSnapshot(
+            "mcp_chatchat_mcp_server_enterprise_metadata_search",
+            output
+        );
+        String serialized = new ObjectMapper().writeValueAsString(snapshot);
+
+        assertThat(serialized)
+            .hasSizeLessThan(10_000)
+            .contains("\"sourceFieldCount\":86", "\"matchedFieldCount\":86")
+            .doesNotContain("raw-provider-payload");
+    }
+
+    @Test
+    void finalSynthesisDoesNotRepeatRawStepOutputFromStoredObservationMetadata() {
+        InterpretationPlanRuntime.ExecutionResult result = attemptResult(
+            "success", true, "usable projected evidence", null);
+        String rawMarker = "raw-step-output-must-not-be-repeated";
+        AgentObservation storedObservation = AgentObservation.builder()
+            .type("tool")
+            .source("enterprise_metadata_search")
+            .content("Enterprise metadata step completed.")
+            .metadata(Map.of(
+                "workflow", "interpretation_plan",
+                "toolName", "enterprise_metadata_search",
+                "stepOutput", Map.of("raw", rawMarker.repeat(20_000))
+            ))
+            .build();
+
+        String prompt = newOrchestrator(mock(ChatModel.class)).buildInterpretationPlanSummaryPrompt(
+            "设计客户信息表",
+            null,
+            result,
+            List.of(result),
+            List.of(),
+            List.of(storedObservation),
+            null
+        );
+
+        assertThat(prompt)
+            .contains("usable projected evidence")
+            .contains("stepOutputLocation")
+            .doesNotContain(rawMarker)
+            .hasSizeLessThan(100_000);
+    }
+
+    @Test
+    void dagControllerFailureStillSelectsSoleReadyFinalAnswerStep() {
+        InterpretationPlan.Step finalStep = new InterpretationPlan.Step(
+            3,
+            "final_answer",
+            "",
+            Map.of("answer", "生成客户信息表 DDL"),
+            List.of(1, 2),
+            null,
+            null
+        );
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            null,
+            null,
+            new InterpretationPlan.Plan(List.of(finalStep)),
+            null,
+            null
+        );
+        InterpretationPlanRuntime.DagDecisionRequest request =
+            new InterpretationPlanRuntime.DagDecisionRequest(
+                plan,
+                Set.of(3),
+                Map.of(),
+                List.of(),
+                Set.of(1, 2),
+                3,
+                InterpretationExecutionProtocol.VERSION,
+                "trace",
+                ""
+            );
+
+        InterpretationPlanRuntime.DagDecision decision =
+            newOrchestrator(mock(ChatModel.class)).dagDecisionFailureFallback(
+                request,
+                new IllegalStateException()
+            );
+
+        assertThat(decision.action()).isEqualTo("execute_step");
+        assertThat(decision.stepIds()).containsExactly(3);
+        assertThat(decision.reason()).contains("sole remaining final_answer step");
     }
 
     @Test

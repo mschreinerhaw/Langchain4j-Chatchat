@@ -32,6 +32,7 @@ import com.chatchat.agents.runtime.plan.InterpretationPlanValidator;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.tool.ToolInput;
+import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.config.ModelsConfig;
@@ -63,6 +64,8 @@ public class AgentOrchestrator {
     private static final int DEFAULT_MAX_STEPS = 3;
     private static final int MAX_INTERPRETATION_PLAN_ATTEMPTS = 3;
     private static final int WEB_SEARCH_REFERENCE_LIMIT = 10;
+    private static final int DAG_DECISION_OUTPUT_SUMMARY_CHARS = 64_000;
+    private static final int SUMMARY_OBSERVATION_METADATA_CHARS = 16_000;
     private static final String AGENT_CANCELLATION_ATTRIBUTE = "__agentCancellation";
     private static final String AGENT_MAX_STEPS_ATTRIBUTE = "__agentMaxSteps";
     private static final String AGENT_MAX_TOOL_CALLS_ATTRIBUTE = "__agentMaxToolCalls";
@@ -1651,7 +1654,17 @@ public class AgentOrchestrator {
             request.remainingStepIds() == null ? 0 : request.remainingStepIds().size(),
             request.completedStepIds() == null ? 0 : request.completedStepIds().size(),
             activeChatModel.getClass().getName());
-        String raw = activeChatModel.chat(prompt);
+        String raw;
+        try {
+            raw = activeChatModel.chat(prompt);
+        } catch (RuntimeException ex) {
+            log.warn("agentModelFailed phase=interpretation_plan_dag_decision decisionCount={} promptChars={} errorType={} error={}",
+                request.decisionCount(),
+                prompt.length(),
+                ex.getClass().getSimpleName(),
+                firstNonBlank(ex.getMessage(), "(no message)"));
+            return dagDecisionFailureFallback(request, ex);
+        }
         log.info("agentModelResponse phase=interpretation_plan_dag_decision decisionCount={} durationMs={} responseChars={}",
             request.decisionCount(),
             System.currentTimeMillis() - startedAt,
@@ -1741,7 +1754,7 @@ public class AgentOrchestrator {
         prompt.append("- When the selected template declares parameters, extract only values supported by the current User query and return them in parameter_protocols using template_parameter_protocol_v1. Use the exact declared parameter names and exact discovered template_id.\n");
         prompt.append("- Every model-extracted argument must be {value, source: user_query, evidence}. Never copy parameterSchema, requiredParameters, defaults, routing fields, or an entire template object into arguments. Runtime applies defaults and compiles the concrete MCP request.\n");
         prompt.append("- Put parameters that cannot be obtained from the User query in unresolved_parameters. When a required parameter is unresolved and no completed dependency supplies it, request rewrite_plan instead of executing with an invented or empty value.\n");
-        prompt.append("- Executed tool outputs below are complete Runtime inputs. Runtime must not sample, shorten, or truncate them; result-size control belongs to each tool contract.\n");
+        prompt.append("- Executed step output summaries below are scheduling projections. Full tool results remain Runtime-owned for bindings, review, and final synthesis; do not infer missing evidence from an omitted raw field.\n");
         prompt.append("- Do not call tools directly; Java will only execute the step ids you choose after safety validation.\n\n");
         prompt.append("User query:\n").append(query == null ? "" : query).append("\n\n");
         prompt.append("decision_count: ").append(request.decisionCount()).append("\n");
@@ -1763,17 +1776,53 @@ public class AgentOrchestrator {
                     .append(", error=").append(firstNonBlank(execution.errorMessage(), ""))
                     .append("\n");
                 prompt.append("  output: ")
-                    .append(stringify(execution.output()))
+                    .append(stringify(dagDecisionPromptOutputSnapshot(
+                        execution.toolName(), execution.output())))
                     .append("\n");
                 if (execution.metadata() != null && !execution.metadata().isEmpty()) {
                     prompt.append("  metadata: ")
-                        .append(stringify(execution.metadata()))
+                        .append(stringify(ToolLogSummarizer.summarize(
+                            execution.metadata(), DAG_DECISION_OUTPUT_SUMMARY_CHARS)))
                         .append("\n");
                 }
             }
         }
         prompt.append("\nReturn only the decision JSON.");
         return prompt.toString();
+    }
+
+    Object dagDecisionPromptOutputSnapshot(String toolName, Object output) {
+        return ToolLogSummarizer.summarizeResult(toolName, output);
+    }
+
+    InterpretationPlanRuntime.DagDecision dagDecisionFailureFallback(
+        InterpretationPlanRuntime.DagDecisionRequest request,
+        RuntimeException failure
+    ) {
+        if (request != null && request.remainingStepIds() != null
+            && request.remainingStepIds().size() == 1 && request.plan() != null
+            && request.plan().plan() != null && request.plan().plan().steps() != null) {
+            Integer remainingStepId = request.remainingStepIds().iterator().next();
+            InterpretationPlan.Step remainingStep = request.plan().plan().steps().stream()
+                .filter(step -> step != null && Objects.equals(step.id(), remainingStepId))
+                .findFirst()
+                .orElse(null);
+            boolean dependenciesCompleted = remainingStep != null
+                && (remainingStep.dependsOn() == null
+                    || (request.completedStepIds() != null
+                        && request.completedStepIds().containsAll(remainingStep.dependsOn())));
+            if (dependenciesCompleted && "final_answer".equalsIgnoreCase(remainingStep.actionType())) {
+                return InterpretationPlanRuntime.DagDecision.executeStep(
+                    remainingStepId,
+                    "DAG controller model failed after all dependencies completed; Runtime selected the sole remaining final_answer step."
+                );
+            }
+        }
+        return InterpretationPlanRuntime.DagDecision.abort(
+            "DAG controller model failed: "
+                + firstNonBlank(failure == null ? null : failure.getMessage(),
+                    failure == null ? "unknown error" : failure.getClass().getSimpleName())
+        );
     }
 
     Map<String, Object> dagDecisionOutputSnapshot(Object output) {
@@ -2173,7 +2222,7 @@ public class AgentOrchestrator {
                     .append("\n");
                 if (observation.metadata() != null && !observation.metadata().isEmpty()) {
                     prompt.append("  metadata: ")
-                        .append(stringify(observation.metadata()))
+                        .append(stringify(summaryObservationMetadata(observation.metadata())))
                         .append("\n");
                 }
             }
@@ -2184,6 +2233,19 @@ public class AgentOrchestrator {
         }
         prompt.append("\nReturn only the final user-facing Markdown answer, no JSON.");
         return prompt.toString();
+    }
+
+    private Object summaryObservationMetadata(Map<String, Object> metadata) {
+        if (metadata == null || metadata.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> auditMetadata = new LinkedHashMap<>(metadata);
+        auditMetadata.remove("stepOutput");
+        auditMetadata.put("stepOutputLocation", "executed plan attempt evidence above");
+        return ToolLogSummarizer.summarize(
+            auditMetadata,
+            SUMMARY_OBSERVATION_METADATA_CHARS
+        );
     }
 
     private List<AgentObservation> storedInterpretationPlanObservations(Map<String, Object> runtimeAttributes) {

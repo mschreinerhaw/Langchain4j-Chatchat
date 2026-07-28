@@ -90,6 +90,28 @@ public class InvocationAuditController {
         );
     }
 
+    @GetMapping("/commands")
+    public ApiResponse<AuditLogPageView> searchCommands(
+        @RequestParam(value = "page", required = false) Integer page,
+        @RequestParam(value = "pageSize", required = false) Integer pageSize,
+        @RequestParam(value = "keyword", required = false) String keyword,
+        @RequestParam(value = "commandType", required = false) String commandType,
+        @RequestParam(value = "username", required = false) String username,
+        @RequestParam(value = "datasourceName", required = false) String datasourceName,
+        @RequestParam(value = "success", required = false) Boolean success
+    ) {
+        return search(page, pageSize, keyword, null, null, null, null, null, null,
+            "COMMAND_EXECUTION", commandType, username, datasourceName, success, null, null, null);
+    }
+
+    @GetMapping("/commands/{id}")
+    public ApiResponse<AuditLogView> commandDetail(@PathVariable("id") String id) {
+        InvocationAuditLog log = auditService.findById(id)
+            .filter(item -> "COMMAND_EXECUTION".equals(item.getAuditCategory()))
+            .orElseThrow(() -> new IllegalArgumentException("Command audit log not found: " + id));
+        return ApiResponse.success(toView(log, true));
+    }
+
     /**
      * Converts the value to view.
      *

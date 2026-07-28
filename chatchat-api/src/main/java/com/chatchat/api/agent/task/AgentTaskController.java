@@ -78,8 +78,16 @@ public class AgentTaskController {
     public ApiResponse<AgentTaskResponse> submit(@RequestBody AgentTaskSubmitRequest request,
                                                  HttpServletRequest servletRequest) {
         try {
+            String authenticatedTenantId = currentTenantId(servletRequest);
+            String authenticatedUserId = currentUserId(servletRequest);
+            if (authenticatedTenantId != null) {
+                request.setTenantId(authenticatedTenantId);
+            }
+            if (authenticatedUserId != null) {
+                request.setUserId(authenticatedUserId);
+            }
             String requestedAgentId = firstText(request.getSkillId(), request.getAgentId());
-            String currentUserId = currentUserId(servletRequest);
+            String currentUserId = authenticatedUserId;
             if (requestedAgentId != null
                 && currentUserId != null
                 && !enterpriseAdminService.canAccessAgent(currentUserId, requestedAgentId)) {
@@ -106,9 +114,10 @@ public class AgentTaskController {
     @GetMapping("/{taskId}")
     @Operation(summary = "Get latest Agent task status")
     public ApiResponse<AgentTaskResponse> get(@RequestParam("tenantId") String tenantId,
-                                              @PathVariable("taskId") String taskId) {
+                                              @PathVariable("taskId") String taskId,
+                                              HttpServletRequest servletRequest) {
         try {
-            return taskService.get(tenantId, taskId)
+            return taskService.get(scopedTenantId(servletRequest, tenantId), taskId)
                 .map(ApiResponse::success)
                 .orElseGet(() -> ApiResponse.notFound("Task not found: " + taskId));
         } catch (IllegalArgumentException e) {
@@ -130,9 +139,10 @@ public class AgentTaskController {
     public ApiResponse<List<AgentTaskResponse>> list(@RequestParam("tenantId") String tenantId,
                                                      @RequestParam(value = "sessionId", required = false) String sessionId,
                                                      @RequestParam(value = "page", defaultValue = "1") int page,
-                                                     @RequestParam(value = "pageSize", defaultValue = "20") int pageSize) {
+                                                     @RequestParam(value = "pageSize", defaultValue = "20") int pageSize,
+                                                     HttpServletRequest servletRequest) {
         try {
-            return ApiResponse.success(taskService.list(tenantId, sessionId, page, pageSize));
+            return ApiResponse.success(taskService.list(scopedTenantId(servletRequest, tenantId), sessionId, page, pageSize));
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         }
@@ -148,9 +158,10 @@ public class AgentTaskController {
     @GetMapping("/runtime")
     @Operation(summary = "Get Agent Runtime dashboard summary")
     public ApiResponse<AgentRuntimeSummary> runtime(@RequestParam("tenantId") String tenantId,
-                                                    @RequestParam(value = "latestLimit", defaultValue = "10") int latestLimit) {
+                                                    @RequestParam(value = "latestLimit", defaultValue = "10") int latestLimit,
+                                                    HttpServletRequest servletRequest) {
         try {
-            return ApiResponse.success(taskService.summarizeRuntime(tenantId, latestLimit));
+            return ApiResponse.success(taskService.summarizeRuntime(scopedTenantId(servletRequest, tenantId), latestLimit));
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         }
@@ -160,9 +171,14 @@ public class AgentTaskController {
     @Operation(summary = "List Runtime todos that need human handling")
     public ApiResponse<AgentTodoService.TodoTaskPayload> todos(@RequestParam("tenantId") String tenantId,
                                                                @RequestParam(value = "userId", required = false) String userId,
-                                                               @RequestParam(value = "limit", defaultValue = "20") int limit) {
+                                                               @RequestParam(value = "limit", defaultValue = "20") int limit,
+                                                               HttpServletRequest servletRequest) {
         try {
-            return ApiResponse.success(todoService.listTodos(tenantId, userId, limit));
+            return ApiResponse.success(todoService.listTodos(
+                scopedTenantId(servletRequest, tenantId),
+                scopedUserId(servletRequest, userId),
+                limit
+            ));
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         }
@@ -171,9 +187,13 @@ public class AgentTaskController {
     @PostMapping("/runtime/todos/{todoId}/actions")
     @Operation(summary = "Resolve one Runtime todo")
     public ApiResponse<AgentTodoService.TodoActionResult> todoAction(@PathVariable("todoId") String todoId,
-                                                                     @RequestBody AgentTodoService.TodoActionRequest request) {
+                                                                     @RequestParam(value = "tenantId", required = false) String tenantId,
+                                                                     @RequestBody AgentTodoService.TodoActionRequest request,
+                                                                     HttpServletRequest servletRequest) {
         try {
-            return ApiResponse.success(todoService.executeAction(todoId, request), "Runtime todo handled");
+            return ApiResponse.success(todoService.executeAction(
+                scopedTenantId(servletRequest, tenantId), todoId, request
+            ), "Runtime todo handled");
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         } catch (Exception e) {
@@ -193,9 +213,10 @@ public class AgentTaskController {
     @Operation(summary = "List recent tenant tool runtime audit logs")
     public ApiResponse<List<ToolAuditView>> toolAudits(@RequestParam("tenantId") String tenantId,
                                                        @RequestParam(value = "outcome", required = false) String outcome,
-                                                       @RequestParam(value = "limit", defaultValue = "20") int limit) {
+                                                       @RequestParam(value = "limit", defaultValue = "20") int limit,
+                                                       HttpServletRequest servletRequest) {
         try {
-            String normalizedTenant = requireTenant(tenantId);
+            String normalizedTenant = scopedTenantId(servletRequest, tenantId);
             String normalizedOutcome = normalizeText(outcome);
             int normalizedLimit = Math.max(1, Math.min(limit, 50));
             List<ToolAuditView> data = auditLogRepository
@@ -223,9 +244,10 @@ public class AgentTaskController {
     @Operation(summary = "List RocksDB Agent event history for one task")
     public ApiResponse<List<AgentEvent>> events(@RequestParam("tenantId") String tenantId,
                                                 @PathVariable("taskId") String taskId,
-                                                @RequestParam(value = "limit", defaultValue = "50") int limit) {
+                                                @RequestParam(value = "limit", defaultValue = "50") int limit,
+                                                HttpServletRequest servletRequest) {
         try {
-            return ApiResponse.success(taskService.listEvents(tenantId, taskId, limit));
+            return ApiResponse.success(taskService.listEvents(scopedTenantId(servletRequest, tenantId), taskId, limit));
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         }
@@ -234,9 +256,11 @@ public class AgentTaskController {
     @GetMapping("/{taskId}/plan")
     @Operation(summary = "Get latest InterpretationPlan snapshot for one task")
     public ApiResponse<InterpretationPlanRecord> plan(@RequestParam("tenantId") String tenantId,
-                                                      @PathVariable("taskId") String taskId) {
+                                                      @PathVariable("taskId") String taskId,
+                                                      HttpServletRequest servletRequest) {
         try {
-            return ApiResponse.success(interpretationPlanStore.getSnapshot(requireTenant(tenantId), taskId).orElse(null));
+            return ApiResponse.success(interpretationPlanStore
+                .getSnapshot(scopedTenantId(servletRequest, tenantId), taskId).orElse(null));
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         }
@@ -245,10 +269,11 @@ public class AgentTaskController {
     @GetMapping("/{taskId}/plan-dag")
     @Operation(summary = "Get latest InterpretationPlan DAG for one task")
     public ApiResponse<Map<String, Object>> planDag(@RequestParam("tenantId") String tenantId,
-                                                    @PathVariable("taskId") String taskId) {
+                                                    @PathVariable("taskId") String taskId,
+                                                    HttpServletRequest servletRequest) {
         try {
             return ApiResponse.success(interpretationPlanStore
-                .getSnapshot(requireTenant(tenantId), taskId)
+                .getSnapshot(scopedTenantId(servletRequest, tenantId), taskId)
                 .map(this::toPlanDagPayload)
                 .orElse(null));
         } catch (IllegalArgumentException e) {
@@ -259,9 +284,11 @@ public class AgentTaskController {
     @GetMapping("/{taskId}/plan/versions")
     @Operation(summary = "List InterpretationPlan versions for one task")
     public ApiResponse<List<InterpretationPlanRecord>> planVersions(@RequestParam("tenantId") String tenantId,
-                                                                    @PathVariable("taskId") String taskId) {
+                                                                    @PathVariable("taskId") String taskId,
+                                                                    HttpServletRequest servletRequest) {
         try {
-            return ApiResponse.success(interpretationPlanStore.listVersions(requireTenant(tenantId), taskId));
+            return ApiResponse.success(interpretationPlanStore
+                .listVersions(scopedTenantId(servletRequest, tenantId), taskId));
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         }
@@ -279,9 +306,11 @@ public class AgentTaskController {
     @Operation(summary = "Poll Agent task result queue")
     public ApiResponse<AgentEvent> pollResult(@RequestParam("tenantId") String tenantId,
                                               @PathVariable("taskId") String taskId,
-                                              @RequestParam(value = "timeoutMs", defaultValue = "1200") long timeoutMs) {
+                                              @RequestParam(value = "timeoutMs", defaultValue = "1200") long timeoutMs,
+                                              HttpServletRequest servletRequest) {
         try {
-            return ApiResponse.success(taskService.pollResult(tenantId, taskId, timeoutMs).orElse(null));
+            return ApiResponse.success(taskService
+                .pollResult(scopedTenantId(servletRequest, tenantId), taskId, timeoutMs).orElse(null));
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         }
@@ -297,9 +326,12 @@ public class AgentTaskController {
     @PostMapping("/{taskId}/cancel")
     @Operation(summary = "Cancel one active Agent task")
     public ApiResponse<AgentTaskResponse> cancel(@RequestParam("tenantId") String tenantId,
-                                                 @PathVariable("taskId") String taskId) {
+                                                 @PathVariable("taskId") String taskId,
+                                                 HttpServletRequest servletRequest) {
         try {
-            return ApiResponse.success(taskService.cancel(tenantId, taskId), "Agent task cancelled");
+            return ApiResponse.success(taskService.cancel(
+                scopedTenantId(servletRequest, tenantId), taskId
+            ), "Agent task cancelled");
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         } catch (Exception e) {
@@ -311,9 +343,12 @@ public class AgentTaskController {
     @Operation(summary = "Confirm one waiting Runtime task")
     public ApiResponse<AgentTaskResponse> confirm(@RequestParam("tenantId") String tenantId,
                                                   @PathVariable("taskId") String taskId,
-                                                  @RequestBody(required = false) AgentTaskSubmitRequest request) {
+                                                  @RequestBody(required = false) AgentTaskSubmitRequest request,
+                                                  HttpServletRequest servletRequest) {
         try {
-            return ApiResponse.success(taskService.confirm(tenantId, taskId, request), "Runtime task confirmed");
+            return ApiResponse.success(taskService.confirm(
+                scopedTenantId(servletRequest, tenantId), taskId, request
+            ), "Runtime task confirmed");
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ApiResponse.badRequest(e.getMessage());
         } catch (Exception e) {
@@ -328,12 +363,13 @@ public class AgentTaskController {
                                                  @RequestBody(required = false) Map<String, Object> request,
                                                  HttpServletRequest servletRequest) {
         try {
-            String userId = firstText(
-                request == null ? null : stringValue(request.get("userId")),
-                currentUsername(servletRequest),
-                currentUserId(servletRequest)
+            String userId = scopedUserId(
+                servletRequest,
+                request == null ? null : stringValue(request.get("userId"))
             );
-            return ApiResponse.success(taskService.reject(tenantId, taskId, userId), "Runtime task rejected");
+            return ApiResponse.success(taskService.reject(
+                scopedTenantId(servletRequest, tenantId), taskId, userId
+            ), "Runtime task rejected");
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ApiResponse.badRequest(e.getMessage());
         } catch (Exception e) {
@@ -344,9 +380,12 @@ public class AgentTaskController {
     @PostMapping("/runtime/tasks/{taskId}/kill")
     @Operation(summary = "Kill one active Runtime task")
     public ApiResponse<AgentTaskResponse> kill(@RequestParam("tenantId") String tenantId,
-                                               @PathVariable("taskId") String taskId) {
+                                               @PathVariable("taskId") String taskId,
+                                               HttpServletRequest servletRequest) {
         try {
-            return ApiResponse.success(taskService.kill(tenantId, taskId), "Runtime task killed");
+            return ApiResponse.success(taskService.kill(
+                scopedTenantId(servletRequest, tenantId), taskId
+            ), "Runtime task killed");
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         } catch (Exception e) {
@@ -364,9 +403,12 @@ public class AgentTaskController {
     @PostMapping("/{taskId}/retry")
     @Operation(summary = "Retry one failed or cancelled Agent task")
     public ApiResponse<AgentTaskResponse> retry(@RequestParam("tenantId") String tenantId,
-                                                @PathVariable("taskId") String taskId) {
+                                                @PathVariable("taskId") String taskId,
+                                                HttpServletRequest servletRequest) {
         try {
-            return ApiResponse.success(taskService.retry(tenantId, taskId), "Agent task retried");
+            return ApiResponse.success(taskService.retry(
+                scopedTenantId(servletRequest, tenantId), taskId
+            ), "Agent task retried");
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         } catch (Exception e) {
@@ -388,6 +430,26 @@ public class AgentTaskController {
         }
         Object value = request.getAttribute(ApiAuthenticationFilter.CURRENT_USERNAME);
         return value == null ? null : String.valueOf(value);
+    }
+
+    private String currentTenantId(HttpServletRequest request) {
+        if (request == null) {
+            return null;
+        }
+        Object value = request.getAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID);
+        return value == null ? null : normalizeText(String.valueOf(value));
+    }
+
+    private String scopedTenantId(HttpServletRequest request, String requestedTenantId) {
+        return requireTenant(firstText(currentTenantId(request), requestedTenantId));
+    }
+
+    private String scopedUserId(HttpServletRequest request, String requestedUserId) {
+        String currentUserId = currentUserId(request);
+        if (currentUserId == null || "admin".equalsIgnoreCase(currentUsername(request))) {
+            return normalizeText(requestedUserId);
+        }
+        return currentUserId;
     }
 
     private String firstText(String... values) {
@@ -412,9 +474,12 @@ public class AgentTaskController {
     @GetMapping("/runtime/effects")
     @Operation(summary = "Get Agent effect analytics from user feedback")
     public ApiResponse<AgentEffectAnalytics> effects(@RequestParam("tenantId") String tenantId,
-                                                     @RequestParam(value = "lowScoreLimit", defaultValue = "10") int lowScoreLimit) {
+                                                     @RequestParam(value = "lowScoreLimit", defaultValue = "10") int lowScoreLimit,
+                                                     HttpServletRequest servletRequest) {
         try {
-            return ApiResponse.success(taskService.summarizeEffectAnalytics(tenantId, lowScoreLimit));
+            return ApiResponse.success(taskService.summarizeEffectAnalytics(
+                scopedTenantId(servletRequest, tenantId), lowScoreLimit
+            ));
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         }
@@ -430,9 +495,12 @@ public class AgentTaskController {
     @GetMapping("/runtime/experiences")
     @Operation(summary = "Get Agent Experience Store entries and scenario metrics")
     public ApiResponse<AgentExperienceSummary> experiences(@RequestParam("tenantId") String tenantId,
-                                                           @RequestParam(value = "limit", defaultValue = "20") int limit) {
+                                                           @RequestParam(value = "limit", defaultValue = "20") int limit,
+                                                           HttpServletRequest servletRequest) {
         try {
-            return ApiResponse.success(learningService.summarize(tenantId, limit));
+            return ApiResponse.success(learningService.summarize(
+                scopedTenantId(servletRequest, tenantId), limit
+            ));
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         }
@@ -446,9 +514,10 @@ public class AgentTaskController {
      */
     @GetMapping("/runtime/tool-governance")
     @Operation(summary = "List tool governance levels and default runtime actions")
-    public ApiResponse<ToolGovernanceSummary> toolGovernance(@RequestParam("tenantId") String tenantId) {
+    public ApiResponse<ToolGovernanceSummary> toolGovernance(@RequestParam("tenantId") String tenantId,
+                                                             HttpServletRequest servletRequest) {
         try {
-            String normalizedTenant = requireTenant(tenantId);
+            String normalizedTenant = scopedTenantId(servletRequest, tenantId);
             Map<String, McpToolRegistryBridge.RegisteredMcpTool> mcpToolsByName = mcpToolRegistryBridge
                 .listRegisteredTools()
                 .stream()
@@ -488,9 +557,12 @@ public class AgentTaskController {
     @Operation(summary = "Record product discovery feedback for one completed Agent task")
     public ApiResponse<AgentTaskResponse> feedback(@RequestParam("tenantId") String tenantId,
                                                    @PathVariable("taskId") String taskId,
-                                                   @RequestBody AgentTaskFeedbackRequest request) {
+                                                   @RequestBody AgentTaskFeedbackRequest request,
+                                                   HttpServletRequest servletRequest) {
         try {
-            return ApiResponse.success(feedbackQueueService.enqueueFeedback(tenantId, taskId, request), "Agent task feedback queued");
+            return ApiResponse.success(feedbackQueueService.enqueueFeedback(
+                scopedTenantId(servletRequest, tenantId), taskId, request
+            ), "Agent task feedback queued");
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         } catch (Exception e) {

@@ -1,10 +1,9 @@
 package com.chatchat.chat.task;
 
 import jakarta.annotation.PreDestroy;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
@@ -16,20 +15,27 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class AgentTaskFeedbackQueueService {
 
     private static final int MAX_IDLE_POLLS = 3;
 
     private final AgentTaskService taskService;
     private final AgentTaskProperties properties;
-
-    @Qualifier("agentTaskExecutor")
-    private final ThreadPoolTaskExecutor taskExecutor;
+    private final TaskExecutor taskExecutor;
 
     private final Map<String, BlockingQueue<FeedbackCommand>> tenantQueues = new ConcurrentHashMap<>();
     private final Map<String, AtomicBoolean> workerStates = new ConcurrentHashMap<>();
     private volatile boolean stopping;
+
+    public AgentTaskFeedbackQueueService(
+        AgentTaskService taskService,
+        AgentTaskProperties properties,
+        @Qualifier("agentFeedbackExecutor") TaskExecutor taskExecutor
+    ) {
+        this.taskService = taskService;
+        this.properties = properties;
+        this.taskExecutor = taskExecutor;
+    }
 
     /**
      * Queues user feedback and returns an optimistic task view for fast UI updates.
@@ -73,7 +79,7 @@ public class AgentTaskFeedbackQueueService {
         if (!started.compareAndSet(false, true)) {
             return;
         }
-        taskExecutor.submit(() -> consumeTenantQueue(tenantId, started));
+        taskExecutor.execute(() -> consumeTenantQueue(tenantId, started));
     }
 
     private void consumeTenantQueue(String tenantId, AtomicBoolean started) {

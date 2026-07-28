@@ -7,6 +7,7 @@ import com.chatchat.license.LicensePayload;
 import com.chatchat.license.MachineIdentity;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,11 +22,22 @@ public class LicenseIssuanceService {
     private final LicenseCenterProperties properties;
     private final ObjectMapper objectMapper;
     private final LicenseCrypto crypto;
+    private final McpMenuCatalogClient menuCatalogClient;
+
+    @Autowired
+    public LicenseIssuanceService(LicenseCenterProperties properties, ObjectMapper objectMapper,
+                                  McpMenuCatalogClient menuCatalogClient) {
+        this.properties = properties;
+        this.objectMapper = objectMapper;
+        this.crypto = new LicenseCrypto(objectMapper);
+        this.menuCatalogClient = menuCatalogClient;
+    }
 
     public LicenseIssuanceService(LicenseCenterProperties properties, ObjectMapper objectMapper) {
         this.properties = properties;
         this.objectMapper = objectMapper;
         this.crypto = new LicenseCrypto(objectMapper);
+        this.menuCatalogClient = null;
     }
 
     public byte[] issue(LicensePayload requested) {
@@ -109,5 +121,14 @@ public class LicenseIssuanceService {
             throw new LicenseException("授权到期日不能早于签发日");
         }
         if (payload.maxUsers() != null && payload.maxUsers() <= 0) throw new LicenseException("最大用户数必须大于 0");
+        if (menuCatalogClient != null) {
+            Set<String> available = menuCatalogClient.load().stream()
+                .map(McpMenuCatalogClient.MenuModule::key)
+                .collect(java.util.stream.Collectors.toSet());
+            java.util.List<String> unknown = payload.modules().stream()
+                .filter(module -> !"mcp".equalsIgnoreCase(module) && !available.contains(module))
+                .toList();
+            if (!unknown.isEmpty()) throw new LicenseException("包含 MCP 服务未发布的菜单模块: " + String.join(", ", unknown));
+        }
     }
 }

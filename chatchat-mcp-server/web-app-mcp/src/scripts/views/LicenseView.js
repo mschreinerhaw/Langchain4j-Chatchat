@@ -4,19 +4,26 @@ import '../../styles/views/license.css';
 export default {
   name: 'LicenseView',
   emits: ['notify', 'error'],
-  data: () => ({ busy: false, status: {} }),
+  data: () => ({ busy: false, status: {}, menus: [] }),
   computed: {
     license() { return this.status.license || {}; },
     statusType() { return this.status.valid ? 'success' : (this.status.status === 'NOT_INSTALLED' ? 'warning' : 'danger'); },
     enabledFeatures() {
       return Object.entries(this.license.features || {}).filter(([, enabled]) => enabled).map(([name]) => name);
+    },
+    authorizedMenus() {
+      return this.menus.filter(item => item.authorized);
     }
   },
   mounted() { this.loadStatus(); },
   methods: {
     async loadStatus() {
       this.busy = true;
-      try { this.status = await licenseApi.status() || {}; }
+      try {
+        const [status, menus] = await Promise.all([licenseApi.status(), licenseApi.menus()]);
+        this.status = status || {};
+        this.menus = Array.isArray(menus) ? menus : [];
+      }
       catch (error) { this.$emit('error', error); }
       finally { this.busy = false; }
     },

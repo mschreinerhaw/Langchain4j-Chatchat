@@ -83,9 +83,9 @@ class EnterpriseToolRuntimePolicyProviderTest {
     @Test
     void resolvesUserRoleAndAllowsOnlyMatchingAssetScope() {
         SysRole role = role("role-analyst", "tenant-a", "ANALYST");
-        SysUserRole binding = new SysUserRole();
-        binding.setUserId("user-a");
-        binding.setRoleId(role.getId());
+        SysUser user = user("user-a", "tenant-a", "analyst");
+        SysUserRole binding = binding(user, role);
+        when(userRepository.findById("user-a")).thenReturn(Optional.of(user));
         when(roleRepository.findByTenantIdOrderByRoleNameAsc("tenant-a")).thenReturn(List.of(role));
         when(userRoleRepository.findByUserId("user-a")).thenReturn(List.of(binding));
         when(permissionRepository.findByTenantIdAndTargetTypeAndTargetIdAndEnabledTrueOrderByUpdatedAtDesc(
@@ -108,18 +108,45 @@ class EnterpriseToolRuntimePolicyProviderTest {
     }
 
     @Test
-    void superAdminBypassesAssetAllowList() {
+    void assignedSuperAdminBypassesAssetAllowList() {
         SysRole role = role("role-super", "tenant-a", "SUPER_ADMIN");
+        SysUser user = user("user-a", "tenant-a", "business-admin");
+        when(userRepository.findById("user-a")).thenReturn(Optional.of(user));
+        when(roleRepository.findByTenantIdOrderByRoleNameAsc("tenant-a")).thenReturn(List.of(role));
+        when(userRoleRepository.findByUserId("user-a")).thenReturn(List.of(binding(user, role)));
+
+        ToolRuntimePolicy policy = provider.resolve(request("tenant-a", "user-a", Map.of()), null);
+
+        assertThat(policy.allowed()).isTrue();
+    }
+
+    @Test
+    void ignoresForgedSuperAdminRoleFromRequest() {
+        SysRole role = role("role-super", "tenant-a", "SUPER_ADMIN");
+        SysUser user = user("user-a", "tenant-a", "analyst");
+        when(userRepository.findById("user-a")).thenReturn(Optional.of(user));
         when(roleRepository.findByTenantIdOrderByRoleNameAsc("tenant-a")).thenReturn(List.of(role));
 
         ToolRuntimePolicy policy = provider.resolve(ToolRuntimeRequest.builder()
             .tenantId("tenant-a")
             .userId("user-a")
-            .toolName("unassigned_tool")
-            .attributes(Map.of("roles", List.of("SUPER_ADMIN")))
+            .toolName("sql_asset_query")
+            .attributes(Map.of("roles", List.of("SUPER_ADMIN"), "roleIds", List.of("role-super")))
             .build(), null);
 
-        assertThat(policy.allowed()).isTrue();
+        assertThat(policy.allowed()).isFalse();
+        assertThat(policy.reason()).contains("No MCP asset authorization");
+    }
+
+    @Test
+    void deniesCanonicalUserWhenRequestTenantIsForged() {
+        SysUser user = user("user-a", "tenant-a", "analyst");
+        when(userRepository.findById("user-a")).thenReturn(Optional.of(user));
+
+        ToolRuntimePolicy policy = provider.resolve(request("tenant-b", "user-a", Map.of()), null);
+
+        assertThat(policy.allowed()).isFalse();
+        assertThat(policy.reason()).contains("does not belong");
     }
 
     @Test
@@ -155,6 +182,22 @@ class EnterpriseToolRuntimePolicyProviderTest {
         role.setRoleCode(code);
         role.setRoleName(code);
         return role;
+    }
+
+    private SysUser user(String id, String tenantId, String username) {
+        SysUser user = new SysUser();
+        user.setId(id);
+        user.setTenantId(tenantId);
+        user.setUsername(username);
+        return user;
+    }
+
+    private SysUserRole binding(SysUser user, SysRole role) {
+        SysUserRole binding = new SysUserRole();
+        binding.setTenantId(user.getTenantId());
+        binding.setUserId(user.getId());
+        binding.setRoleId(role.getId());
+        return binding;
     }
 
     private McpToolPermission permission(String tenantId,

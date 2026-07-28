@@ -54,6 +54,20 @@
         primary key (id)
     ) engine=InnoDB;
 
+    create table mcp_data_query_category (
+        enabled bit not null,
+        sort_order integer not null,
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        id varchar(64) not null,
+        code varchar(128) not null,
+        domain varchar(128) not null,
+        name varchar(200) not null,
+        description varchar(1000),
+        keywords_json longtext,
+        primary key (id)
+    ) engine=InnoDB;
+
     create table mcp_database_query_cache_config (
         cache_empty_results bit not null,
         cache_error_results bit not null,
@@ -80,10 +94,13 @@
         usage_count bigint not null,
         cache_storage varchar(32),
         risk_level varchar(32),
+        category_id varchar(64),
         database_type varchar(64),
         datasource_id varchar(64),
         id varchar(64) not null,
         business_group varchar(128),
+        capability_category varchar(128),
+        domain varchar(128),
         owner varchar(128),
         template_intent varchar(128),
         tool_name varchar(128) not null,
@@ -92,12 +109,14 @@
         driver_class varchar(500),
         username varchar(500),
         business_group_description varchar(1000),
+        business_scope varchar(1000),
         description varchar(1000),
         password varchar(1000),
         jdbc_url varchar(2000),
         capabilities_json longtext,
         governance_json longtext,
         implementation_steps longtext,
+        index_tags_json longtext,
         input_schema_json longtext,
         routing_labels_json longtext,
         sql_steps_json longtext,
@@ -139,6 +158,7 @@
         created_at datetime(6) not null,
         updated_at datetime(6) not null,
         datasource_id varchar(64),
+        gateway_id varchar(64),
         id varchar(64) not null,
         tool_name_prefix varchar(80),
         default_namespace varchar(100),
@@ -162,6 +182,115 @@
         username varchar(128),
         user_agent varchar(1000),
         detail varchar(4000),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table mcp_metadata_domain (
+        enabled bit not null,
+        priority integer not null,
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        code varchar(64) not null,
+        id varchar(64) not null,
+        name varchar(128) not null,
+        description varchar(1000),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table mcp_metadata_governance_policy (
+        enabled bit not null,
+        created_at datetime(6) not null,
+        revision bigint not null,
+        updated_at datetime(6) not null,
+        id varchar(64) not null,
+        code varchar(128) not null,
+        policy_json tinytext not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table mcp_metadata_scenario (
+        enabled bit not null,
+        fallback_scenario bit not null,
+        priority integer not null,
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        code varchar(64) not null,
+        domain_id varchar(64),
+        id varchar(64) not null,
+        name varchar(128) not null,
+        description varchar(1000),
+        metadata_types_json longtext,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table mcp_metadata_standard_dictionary (
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        status varchar(64),
+        id varchar(128) not null,
+        english_name varchar(256),
+        name varchar(256) not null,
+        source varchar(1000),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table mcp_metadata_standard_dictionary_item (
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        status varchar(64),
+        code varchar(128) not null,
+        dictionary_id varchar(128) not null,
+        source varchar(1000),
+        code_description varchar(2000),
+        id varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table mcp_metadata_standard_field (
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        nullable_flag varchar(32),
+        repeatable_flag varchar(32),
+        data_length varchar(64),
+        data_precision varchar(64),
+        status varchar(64),
+        abbreviation varchar(128),
+        data_type varchar(128),
+        id varchar(128) not null,
+        chinese_name varchar(256) not null,
+        english_name varchar(256),
+        full_pinyin varchar(512),
+        default_value varchar(1000),
+        source varchar(1000),
+        standard_description varchar(2000),
+        value_range varchar(2000),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table mcp_metadata_standard_term (
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        status varchar(64) not null,
+        abbreviation varchar(128),
+        id varchar(128) not null,
+        chinese_name varchar(256) not null,
+        english_name varchar(256),
+        source varchar(1000),
+        remark varchar(2000),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table mcp_metadata_term_mapping (
+        enabled bit not null,
+        priority integer not null,
+        weight decimal(8,4) not null,
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        match_type varchar(32) not null,
+        id varchar(64) not null,
+        scenario_id varchar(64) not null,
+        normalized_term varchar(128) not null,
+        term varchar(128) not null,
         primary key (id)
     ) engine=InnoDB;
 
@@ -427,6 +556,7 @@
         code varchar(128) not null,
         title varchar(200) not null,
         description varchar(1000),
+        evidence_policy_json longtext,
         intent_signals_json longtext,
         parameter_schema_json longtext,
         routing_labels_json longtext,
@@ -449,11 +579,38 @@
     alter table mcp_capability 
        add constraint uk_mcp_capability_code unique (capability_code);
 
+    alter table mcp_data_query_category 
+       add constraint UKo0octivd1pxdl7wjecnewp0ld unique (code);
+
     alter table mcp_database_query_config 
        add constraint UK2mm9rpbyp87c1vybxptacvvfh unique (tool_name);
 
     alter table mcp_execution_target 
        add constraint UK4i47rfmekaw59964we5pvcb30 unique (target_key);
+
+    alter table mcp_metadata_domain 
+       add constraint UK90mcr2jebg5r4fw9owshha2s4 unique (code);
+
+    alter table mcp_metadata_governance_policy 
+       add constraint UK298w4a17g1atjl3m0ba352mrf unique (code);
+
+    create index idx_metadata_scenario_domain 
+       on mcp_metadata_scenario (domain_id);
+
+    alter table mcp_metadata_scenario 
+       add constraint UK1p937xgxstjdtnw9skv8ulq3w unique (code);
+
+    create index idx_metadata_dictionary_item_dictionary 
+       on mcp_metadata_standard_dictionary_item (dictionary_id);
+
+    alter table mcp_metadata_standard_dictionary_item 
+       add constraint uk_metadata_dictionary_code unique (dictionary_id, code);
+
+    create index idx_metadata_term_scenario 
+       on mcp_metadata_term_mapping (scenario_id);
+
+    alter table mcp_metadata_term_mapping 
+       add constraint uk_metadata_scenario_term unique (scenario_id, normalized_term);
 
     alter table mcp_notification_channel_config 
        add constraint UK2lqjlk2p72ebl3aqvxharj5k6 unique (tool_name);
@@ -476,34 +633,17 @@
     alter table mcp_sql_template 
        add constraint UK46shneqbk0h3xgcgi0y01cm1x unique (code);
 
-    -- MCP-owned structured market data catalog. Observation tables evolve at runtime.
-    create table if not exists market_asset_catalog (
-      id bigint not null auto_increment, dataset_code varchar(64) not null,
-      asset_name varchar(160) not null, business_description varchar(4000) not null,
-      business_tags_json varchar(4000) not null, database_name varchar(128) not null,
-      table_name varchar(128) not null, update_frequency varchar(128), source_names_json varchar(4000),
-      archive_table_name varchar(128), hot_retention_days int, archive_retention_days int,
-      history_granularity varchar(64), last_observation_date date, last_collected_at datetime(6),
-      created_at datetime(6) not null, updated_at datetime(6) not null,
-      primary key (id), unique key uk_market_asset_code (dataset_code)
-    ) engine=InnoDB default charset=utf8mb4;
+    alter table mcp_metadata_scenario 
+       add constraint fk_metadata_scenario_domain 
+       foreign key (domain_id) 
+       references mcp_metadata_domain (id);
 
-    create table if not exists data_schema_registry (
-      id bigint not null auto_increment, dataset_code varchar(64) not null,
-      table_name varchar(128) not null, field_name varchar(128) not null, source_field varchar(128) not null,
-      field_type varchar(32) not null, business_description varchar(1000), schema_version int not null,
-      created_at datetime(6) not null, updated_at datetime(6) not null,
-      primary key (id), unique key uk_data_schema_field (dataset_code, field_name),
-      key idx_data_schema_dataset (dataset_code)
-    ) engine=InnoDB default charset=utf8mb4;
+    alter table mcp_metadata_standard_dictionary_item 
+       add constraint fk_metadata_dictionary_item 
+       foreign key (dictionary_id) 
+       references mcp_metadata_standard_dictionary (id);
 
-    create table if not exists security_master (
-      id bigint not null auto_increment, exchange_code varchar(8) not null,
-      security_code varchar(16) not null, security_name varchar(160) not null,
-      security_full_name varchar(300), security_type varchar(32) not null,
-      board_name varchar(64), listing_date date, industry_name varchar(160),
-      source_url varchar(1000) not null, source_refreshed_at datetime(6) not null,
-      created_at datetime(6) not null, updated_at datetime(6) not null,
-      primary key (id), unique key uk_security_master_code (exchange_code, security_code),
-      key idx_security_master_code (security_code), key idx_security_master_name (security_name)
-    ) engine=InnoDB default charset=utf8mb4;
+    alter table mcp_metadata_term_mapping 
+       add constraint fk_metadata_term_scenario 
+       foreign key (scenario_id) 
+       references mcp_metadata_scenario (id);

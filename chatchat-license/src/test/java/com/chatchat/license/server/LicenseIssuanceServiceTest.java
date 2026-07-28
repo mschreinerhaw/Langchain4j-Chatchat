@@ -19,6 +19,9 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class LicenseIssuanceServiceTest {
 
@@ -67,6 +70,23 @@ class LicenseIssuanceServiceTest {
         assertTrue(Files.exists(privateKey));
         assertTrue(Files.exists(publicKey));
         assertTrue(new LicenseCrypto(mapper).verify(issued, Files.readString(publicKey)));
+    }
+
+    @Test
+    void rejectsMenuThatTargetMcpServiceDoesNotPublish() {
+        LicenseCenterProperties properties = new LicenseCenterProperties();
+        ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule());
+        McpMenuCatalogClient catalog = mock(McpMenuCatalogClient.class);
+        when(catalog.load()).thenReturn(List.of(
+            new McpMenuCatalogClient.MenuModule("databaseMcp", "数据能力中心", "Coin")));
+        LicenseIssuanceService service = new LicenseIssuanceService(properties, mapper, catalog);
+        LicensePayload request = new LicensePayload("LIC-INVALID-MENU", "Customer", "C1", "LiveMCP", "enterprise",
+            List.of("cacheSettings"), 10, "18:3d:2d:68:d9:b6", LocalDate.now().plusYears(1),
+            Map.of(), LocalDate.now());
+
+        var error = assertThrows(com.chatchat.license.LicenseException.class, () -> service.issue(request));
+
+        assertTrue(error.getMessage().contains("未发布的菜单模块"));
     }
 
     private static String pem(String type, byte[] content) {

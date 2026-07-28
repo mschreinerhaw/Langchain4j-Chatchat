@@ -1332,6 +1332,9 @@ public class CommandTemplateDiscoveryService {
         if (containsAnyToken(primaryTokens, "metadata", "schema", "column", "field", "\u5143\u6570\u636e", "\u8868\u7ed3\u6784", "\u5b57\u6bb5", "\u5217")) {
             return new NormalizedIntent("metadata_query", List.of("metadata", "schema", "column"), "ops", 0.92);
         }
+        if (containsAnyToken(primaryTokens, "connection", "connections", "session", "processlist", "\u8fde\u63a5", "\u4f1a\u8bdd", "\u8fde\u63a5\u6570")) {
+            return new NormalizedIntent("connection_check", List.of("connection", "session", "processlist"), "ops", 0.92);
+        }
         if (containsAnyToken(primaryTokens, "status", "instance", "database health", "health check",
             "\u72b6\u6001", "\u6570\u636e\u5e93\u72b6\u6001", "\u72b6\u6001\u5206\u6790", "\u5065\u5eb7\u68c0\u67e5")) {
             return new NormalizedIntent("db_status", List.of("status", "health", "instance"), "ops", 0.94);
@@ -1450,12 +1453,12 @@ public class CommandTemplateDiscoveryService {
     private List<String> sqlAssetRetrievalSignals(List<SqlDatasourceConfig> datasources) {
         Set<String> signals = new LinkedHashSet<>();
         for (SqlDatasourceConfig datasource : datasources == null ? List.<SqlDatasourceConfig>of() : datasources) {
-            addWords(signals, datasource.getName());
-            addWords(signals, datasource.getTitle());
-            addWords(signals, datasource.getToolName());
-            addWords(signals, datasource.getEnvironment());
-            addWords(signals, datasource.getDatabaseType());
-            addWords(signals, datasource.getMetadataScopeValue());
+            addRetrievalValue(signals, datasource.getName());
+            addRetrievalValue(signals, datasource.getTitle());
+            addRetrievalValue(signals, datasource.getToolName());
+            addRetrievalValue(signals, datasource.getEnvironment());
+            addRetrievalValue(signals, datasource.getDatabaseType());
+            addRetrievalValue(signals, datasource.getMetadataScopeValue());
             addJsonLabels(signals, datasource.getRoutingLabelsJson());
             addJsonLabels(signals, datasource.getCapabilitiesJson());
             addGovernanceSignals(signals, datasource.getGovernanceJson());
@@ -3078,6 +3081,16 @@ public class CommandTemplateDiscoveryService {
 
     private void addWords(List<String> words, Object value) {
         addWordsToCollection(words, value);
+    }
+
+    private void addRetrievalValue(java.util.Collection<String> values, Object value) {
+        if (value != null) {
+            String original = String.valueOf(value).trim();
+            if (!original.isBlank()) {
+                values.add(original);
+            }
+        }
+        addWordsToCollection(values, value);
     }
 
     private void addWordsToCollection(java.util.Collection<String> words, Object value) {

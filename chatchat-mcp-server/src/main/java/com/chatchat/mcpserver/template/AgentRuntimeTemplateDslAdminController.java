@@ -25,4 +25,24 @@ public class AgentRuntimeTemplateDslAdminController {
         @RequestBody AgentRuntimeTemplateDslImportService.ImportRequest request) {
         return ApiResponse.success(importService.importTemplate(request), "Agent runtime template DSL imported");
     }
+
+    @PostMapping("/database-query/validate")
+    public ApiResponse<AgentRuntimeTemplateDslImportService.ValidationResult> validateDatabaseQuery(
+        @RequestBody AgentRuntimeTemplateDslImportService.ImportRequest request) {
+        return ApiResponse.success(importService.validate(asDatabaseQuery(request)),
+            "Database query runtime template DSL validated");
+    }
+
+    @PostMapping("/database-query/import")
+    public ApiResponse<AgentRuntimeTemplateDslImportService.ImportResult> importDatabaseQuery(
+        @RequestBody AgentRuntimeTemplateDslImportService.ImportRequest request) {
+        return ApiResponse.success(importService.importTemplate(asDatabaseQuery(request)),
+            "Database query runtime template DSL imported");
+    }
+
+    private AgentRuntimeTemplateDslImportService.ImportRequest asDatabaseQuery(
+        AgentRuntimeTemplateDslImportService.ImportRequest request) {
+        return new AgentRuntimeTemplateDslImportService.ImportRequest(
+            request.dsl(), "DATABASE_QUERY", request.targetRegistry(), request.datasourceId());
+    }
 }

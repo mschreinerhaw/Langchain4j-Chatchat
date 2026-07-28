@@ -96,7 +96,7 @@
         message_end_id varchar(64) not null,
         message_start_id varchar(64) not null,
         session_id varchar(64) not null,
-        summary clob not null,
+        summary LONGTEXT not null,
         primary key (id)
     );
 
@@ -306,8 +306,8 @@
         tenant_id varchar(64),
         tool_id varchar(64),
         local_tool_name varchar(128) not null,
-        scope_expression varchar(1000),
         remark varchar(1000),
+        scope_expression varchar(1000),
         primary key (id)
     );
 
@@ -377,9 +377,13 @@
 
     create table scheduled_task (
         max_retries integer,
+        notification_condition_enabled boolean not null,
         notify_enabled boolean not null,
         retry_count integer,
+        schedule_window_enabled boolean,
         trading_day_only boolean not null,
+        schedule_window_end varchar(5),
+        schedule_window_start varchar(5),
         created_at timestamp(6) with time zone not null,
         expired_at timestamp(6) with time zone,
         interval_seconds bigint,
@@ -387,12 +391,14 @@
         next_fire_time timestamp(6) with time zone,
         retry_delay_seconds bigint,
         updated_at timestamp(6) with time zone not null,
+        notification_recipient_mode varchar(16),
         trigger_type varchar(24) not null,
         last_task_status varchar(32),
         notification_channel_type varchar(32),
         status varchar(32) not null,
         last_task_id varchar(64),
         notification_channel_id varchar(64),
+        schedule_zone_id varchar(64),
         task_id varchar(64) not null,
         tenant_id varchar(64) not null,
         user_id varchar(64) not null,
@@ -400,10 +406,10 @@
         agent_id varchar(128),
         name varchar(200) not null,
         notification_channel_name varchar(200),
-        notification_recipient_mode varchar(16) default 'DEFAULT',
-        notification_receiver varchar(2000),
         last_error varchar(1000),
+        notification_receiver varchar(2000),
         question varchar(4000) not null,
+        notification_condition TEXT,
         payload_json TEXT not null,
         primary key (task_id)
     );
@@ -429,7 +435,8 @@
         error_message varchar(1000),
         notification_error varchar(1000),
         notification_receiver varchar(2000),
-        answer_summary LONGTEXT,
+        answer_summary TEXT,
+        notification_decision_json TEXT,
         question TEXT not null,
         primary key (run_id)
     );
@@ -603,6 +610,7 @@
 
     create table sys_tenant (
         created_at timestamp(6) with time zone not null,
+        tenant_no bigint unique,
         updated_at timestamp(6) with time zone not null,
         status varchar(32) not null,
         contact_name varchar(64),
@@ -825,7 +833,7 @@
     create index idx_scheduled_task_run_status_updated 
        on scheduled_task_run (status, updated_at);
 
-    create index idx_scheduled_task_run_notification
+    create index idx_scheduled_task_run_notification 
        on scheduled_task_run (tenant_id, scheduled_task_id, notification_sent_at);
 
     create index idx_task_confirm_task_created 
@@ -834,7 +842,7 @@
     create index idx_task_confirm_status_expired 
        on task_confirm (status, expired_at);
 
-    create index idx_tenant_notification_recipient_tenant
+    create index idx_tenant_notification_recipient_tenant 
        on tenant_notification_recipient (tenant_id);
 
     create index idx_todo_task_tenant_user_status 

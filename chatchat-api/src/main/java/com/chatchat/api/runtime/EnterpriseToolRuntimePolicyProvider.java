@@ -7,6 +7,7 @@ import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.enterprise.entity.McpToolPermission;
 import com.chatchat.enterprise.entity.McpToolAsset;
 import com.chatchat.enterprise.entity.SysRole;
+import com.chatchat.enterprise.entity.SysUser;
 import com.chatchat.enterprise.repository.McpToolAssetRepository;
 import com.chatchat.enterprise.repository.McpToolPermissionRepository;
 import com.chatchat.enterprise.repository.SysRoleRepository;
@@ -59,8 +60,13 @@ public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyPro
             return denied("MCP asset authorization requires tenant and tool context");
         }
 
-        String userId = normalize(request.getUserId());
-        Set<String> roleIds = resolvedRoleIds(request, tenantId, userId);
+        String requestedUserId = normalize(request.getUserId());
+        SysUser caller = resolveUser(requestedUserId);
+        if (caller != null && !tenantId.equals(normalize(caller.getTenantId()))) {
+            return denied("Authenticated user does not belong to request tenant");
+        }
+        String userId = caller == null ? requestedUserId : normalize(caller.getId());
+        Set<String> roleIds = resolvedRoleIds(tenantId, caller);
         if (isAdminUser(userId) || hasRoleCode(roleIds, tenantId, "super_admin")) {
             return ToolRuntimePolicy.builder().allowed(true).build();
         }
@@ -162,32 +168,20 @@ public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyPro
         return false;
     }
 
-    private Set<String> resolvedRoleIds(ToolRuntimeRequest request, String tenantId, String userId) {
+    private Set<String> resolvedRoleIds(String tenantId, SysUser user) {
         Set<String> roles = new LinkedHashSet<>();
-        if (request == null) {
+        if (user == null) {
             return roles;
         }
-        collectRoles(request.getAttributes(), roles);
-        if (request.getToolInput() != null) {
-            collectRoles(request.getToolInput().getContext(), roles);
-        }
-        if (userId != null) {
-            userRoleRepository.findByUserId(userId).forEach(binding -> roles.add(normalize(binding.getRoleId())));
-        }
-        Map<String, String> codeToId = new LinkedHashMap<>();
-        roleRepository.findByTenantIdOrderByRoleNameAsc(tenantId).forEach(role -> {
-            String id = normalize(role.getId());
-            String code = normalize(role.getRoleCode());
-            if (id != null && code != null) {
-                codeToId.put(code, id);
-            }
-        });
-        new ArrayList<>(roles).forEach(role -> {
-            String roleId = codeToId.get(role);
-            if (roleId != null) {
-                roles.add(roleId);
-            }
-        });
+        Map<String, SysRole> tenantRoles = new LinkedHashMap<>();
+        roleRepository.findByTenantIdOrderByRoleNameAsc(tenantId).stream()
+            .filter(role -> "enabled".equalsIgnoreCase(role.getStatus()))
+            .forEach(role -> tenantRoles.put(normalize(role.getId()), role));
+        userRoleRepository.findByUserId(user.getId()).stream()
+            .filter(binding -> tenantId.equals(normalize(binding.getTenantId())))
+            .map(binding -> normalize(binding.getRoleId()))
+            .filter(tenantRoles::containsKey)
+            .forEach(roles::add);
         roles.remove(null);
         return roles;
     }
@@ -213,6 +207,15 @@ public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyPro
                 .flatMap(user -> tenantRepository.findById(user.getTenantId()))
                 .map(tenant -> tenant.getTenantNo() != null && tenant.getTenantNo() == PLATFORM_TENANT_NO)
             .orElse(false);
+    }
+
+    private SysUser resolveUser(String userId) {
+        if (userId == null) {
+            return null;
+        }
+        return userRepository.findById(userId)
+            .or(() -> userRepository.findByUsername(userId))
+            .orElse(null);
     }
 
     private RequestScope requestedScope(ToolRuntimeRequest request, String tenantId) {
@@ -262,35 +265,6 @@ public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyPro
             }
         }
         return null;
-    }
-
-    private void collectRoles(Map<String, Object> values, Set<String> roles) {
-        if (values == null || values.isEmpty() || roles == null) {
-            return;
-        }
-        collectRoleValue(values.get("roles"), roles);
-        collectRoleValue(values.get("role"), roles);
-        collectRoleValue(values.get("roleIds"), roles);
-        collectRoleValue(values.get("role_ids"), roles);
-    }
-
-    private void collectRoleValue(Object value, Set<String> roles) {
-        if (value == null || roles == null) {
-            return;
-        }
-        if (value instanceof Iterable<?> iterable) {
-            for (Object item : iterable) {
-                collectRoleValue(item, roles);
-            }
-            return;
-        }
-        String text = String.valueOf(value);
-        for (String item : text.split(",")) {
-            String normalized = normalize(item);
-            if (normalized != null) {
-                roles.add(normalized);
-            }
-        }
     }
 
     /**

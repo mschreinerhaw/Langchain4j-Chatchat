@@ -67,6 +67,13 @@ public class DatabaseQueryCacheService {
             return get(config, parameters).orElseGet(loader);
         }
         try {
+            // A previous leader may have completed between the initial cache read and
+            // this request acquiring leadership. Recheck before invoking the loader.
+            Optional<ToolOutput> filledByPreviousLoad = get(config, parameters);
+            if (filledByPreviousLoad.isPresent()) {
+                ownLoad.complete(null);
+                return filledByPreviousLoad.get();
+            }
             ToolOutput loaded = loader.get();
             put(config, parameters, loaded);
             ownLoad.complete(null);

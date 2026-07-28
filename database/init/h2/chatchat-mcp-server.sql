@@ -55,6 +55,20 @@
         constraint uk_mcp_capability_code unique (capability_code)
     );
 
+    create table mcp_data_query_category (
+        enabled boolean not null,
+        sort_order integer not null,
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        id varchar(64) not null,
+        code varchar(128) not null unique,
+        domain varchar(128) not null,
+        name varchar(200) not null,
+        description varchar(1000),
+        keywords_json longtext,
+        primary key (id)
+    );
+
     create table mcp_database_query_cache_config (
         cache_empty_results boolean not null,
         cache_error_results boolean not null,
@@ -81,10 +95,13 @@
         usage_count bigint not null,
         cache_storage varchar(32),
         risk_level varchar(32),
+        category_id varchar(64),
         database_type varchar(64),
         datasource_id varchar(64),
         id varchar(64) not null,
         business_group varchar(128),
+        capability_category varchar(128),
+        domain varchar(128),
         owner varchar(128),
         template_intent varchar(128),
         tool_name varchar(128) not null unique,
@@ -93,12 +110,14 @@
         driver_class varchar(500),
         username varchar(500),
         business_group_description varchar(1000),
+        business_scope varchar(1000),
         description varchar(1000),
         password varchar(1000),
         jdbc_url varchar(2000),
         capabilities_json longtext,
         governance_json longtext,
         implementation_steps longtext,
+        index_tags_json longtext,
         input_schema_json longtext,
         routing_labels_json longtext,
         sql_steps_json longtext,
@@ -140,6 +159,7 @@
         created_at timestamp(6) with time zone not null,
         updated_at timestamp(6) with time zone not null,
         datasource_id varchar(64),
+        gateway_id varchar(64),
         id varchar(64) not null,
         tool_name_prefix varchar(80),
         default_namespace varchar(100),
@@ -164,6 +184,117 @@
         user_agent varchar(1000),
         detail varchar(4000),
         primary key (id)
+    );
+
+    create table mcp_metadata_domain (
+        enabled boolean not null,
+        priority integer not null,
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        code varchar(64) not null unique,
+        id varchar(64) not null,
+        name varchar(128) not null,
+        description varchar(1000),
+        primary key (id)
+    );
+
+    create table mcp_metadata_governance_policy (
+        enabled boolean not null,
+        created_at timestamp(6) with time zone not null,
+        revision bigint not null,
+        updated_at timestamp(6) with time zone not null,
+        id varchar(64) not null,
+        code varchar(128) not null unique,
+        policy_json clob not null,
+        primary key (id)
+    );
+
+    create table mcp_metadata_scenario (
+        enabled boolean not null,
+        fallback_scenario boolean not null,
+        priority integer not null,
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        code varchar(64) not null unique,
+        domain_id varchar(64),
+        id varchar(64) not null,
+        name varchar(128) not null,
+        description varchar(1000),
+        metadata_types_json longtext,
+        primary key (id)
+    );
+
+    create table mcp_metadata_standard_dictionary (
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        status varchar(64),
+        id varchar(128) not null,
+        english_name varchar(256),
+        name varchar(256) not null,
+        source varchar(1000),
+        primary key (id)
+    );
+
+    create table mcp_metadata_standard_dictionary_item (
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        status varchar(64),
+        code varchar(128) not null,
+        dictionary_id varchar(128) not null,
+        source varchar(1000),
+        code_description varchar(2000),
+        id varchar(255) not null,
+        primary key (id),
+        constraint uk_metadata_dictionary_code unique (dictionary_id, code)
+    );
+
+    create table mcp_metadata_standard_field (
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        nullable_flag varchar(32),
+        repeatable_flag varchar(32),
+        data_length varchar(64),
+        data_precision varchar(64),
+        status varchar(64),
+        abbreviation varchar(128),
+        data_type varchar(128),
+        id varchar(128) not null,
+        chinese_name varchar(256) not null,
+        english_name varchar(256),
+        full_pinyin varchar(512),
+        default_value varchar(1000),
+        source varchar(1000),
+        standard_description varchar(2000),
+        value_range varchar(2000),
+        primary key (id)
+    );
+
+    create table mcp_metadata_standard_term (
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        status varchar(64) not null,
+        abbreviation varchar(128),
+        id varchar(128) not null,
+        chinese_name varchar(256) not null,
+        english_name varchar(256),
+        source varchar(1000),
+        remark varchar(2000),
+        primary key (id)
+    );
+
+    create table mcp_metadata_term_mapping (
+        enabled boolean not null,
+        priority integer not null,
+        weight numeric(8,4) not null,
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        match_type varchar(32) not null,
+        id varchar(64) not null,
+        scenario_id varchar(64) not null,
+        normalized_term varchar(128) not null,
+        term varchar(128) not null,
+        primary key (id),
+        constraint uk_metadata_scenario_term unique (scenario_id, normalized_term)
     );
 
     create table mcp_notification_channel_config (
@@ -428,6 +559,7 @@
         code varchar(128) not null unique,
         title varchar(200) not null,
         description varchar(1000),
+        evidence_policy_json longtext,
         intent_signals_json longtext,
         parameter_schema_json longtext,
         routing_labels_json longtext,
@@ -444,33 +576,26 @@
         primary key (id)
     );
 
-    -- MCP-owned structured market data catalog. Observation tables evolve at runtime.
-    create table if not exists market_asset_catalog (
-        id bigint generated by default as identity primary key, dataset_code varchar(64) not null,
-        asset_name varchar(160) not null, business_description varchar(4000) not null,
-        business_tags_json varchar(4000) not null, database_name varchar(128) not null,
-        table_name varchar(128) not null, update_frequency varchar(128), source_names_json varchar(4000),
-        archive_table_name varchar(128), hot_retention_days integer, archive_retention_days integer,
-        history_granularity varchar(64), last_observation_date date, last_collected_at timestamp,
-        created_at timestamp not null, updated_at timestamp not null,
-        constraint uk_market_asset_code unique (dataset_code)
-    );
-    create table if not exists data_schema_registry (
-        id bigint generated by default as identity primary key, dataset_code varchar(64) not null,
-        table_name varchar(128) not null, field_name varchar(128) not null, source_field varchar(128) not null,
-        field_type varchar(32) not null, business_description varchar(1000), schema_version integer not null,
-        created_at timestamp not null, updated_at timestamp not null,
-        constraint uk_data_schema_field unique (dataset_code, field_name)
-    );
-    create index if not exists idx_data_schema_dataset on data_schema_registry(dataset_code);
-    create table if not exists security_master (
-        id bigint generated by default as identity primary key, exchange_code varchar(8) not null,
-        security_code varchar(16) not null, security_name varchar(160) not null,
-        security_full_name varchar(300), security_type varchar(32) not null,
-        board_name varchar(64), listing_date date, industry_name varchar(160),
-        source_url varchar(1000) not null, source_refreshed_at timestamp not null,
-        created_at timestamp not null, updated_at timestamp not null,
-        constraint uk_security_master_code unique (exchange_code, security_code)
-    );
-    create index if not exists idx_security_master_code on security_master(security_code);
-    create index if not exists idx_security_master_name on security_master(security_name);
+    create index idx_metadata_scenario_domain 
+       on mcp_metadata_scenario (domain_id);
+
+    create index idx_metadata_dictionary_item_dictionary 
+       on mcp_metadata_standard_dictionary_item (dictionary_id);
+
+    create index idx_metadata_term_scenario 
+       on mcp_metadata_term_mapping (scenario_id);
+
+    alter table if exists mcp_metadata_scenario 
+       add constraint fk_metadata_scenario_domain 
+       foreign key (domain_id) 
+       references mcp_metadata_domain;
+
+    alter table if exists mcp_metadata_standard_dictionary_item 
+       add constraint fk_metadata_dictionary_item 
+       foreign key (dictionary_id) 
+       references mcp_metadata_standard_dictionary;
+
+    alter table if exists mcp_metadata_term_mapping 
+       add constraint fk_metadata_term_scenario 
+       foreign key (scenario_id) 
+       references mcp_metadata_scenario;

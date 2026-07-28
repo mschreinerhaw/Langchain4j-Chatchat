@@ -425,7 +425,9 @@ public class EnterpriseAdminService implements ApplicationRunner {
     public UserView saveUser(SysUser input, List<String> roleIds) {
         SysUser entity = input.getId() == null ? new SysUser() :
             userRepository.findById(input.getId()).orElseGet(SysUser::new);
-        entity.setTenantId(requireText(input.getTenantId(), "tenantId"));
+        String tenantId = requireText(input.getTenantId(), "tenantId");
+        List<SysRole> assignedRoles = validateRolesForTenant(tenantId, roleIds);
+        entity.setTenantId(tenantId);
         entity.setOrgId(trimToNull(input.getOrgId()));
         entity.setUsername(requireText(input.getUsername(), "username"));
         entity.setDisplayName(requireText(input.getDisplayName(), "displayName"));
@@ -436,11 +438,11 @@ public class EnterpriseAdminService implements ApplicationRunner {
         SysUser saved = userRepository.save(entity);
         if (roleIds != null) {
             userRoleRepository.deleteByUserId(saved.getId());
-            roleIds.stream().filter(id -> id != null && !id.isBlank()).distinct().forEach(roleId -> {
+            assignedRoles.forEach(role -> {
                 SysUserRole userRole = new SysUserRole();
                 userRole.setTenantId(saved.getTenantId());
                 userRole.setUserId(saved.getId());
-                userRole.setRoleId(roleId.trim());
+                userRole.setRoleId(role.getId());
                 userRoleRepository.save(userRole);
             });
         }
@@ -534,6 +536,10 @@ public class EnterpriseAdminService implements ApplicationRunner {
         SysRole role = roleRepository.findById(requireText(roleId, "roleId"))
             .orElseThrow(() -> new IllegalArgumentException("role not found"));
         String tenantId = role.getTenantId();
+        List<SysUser> assignedUsers = validateUsersForTenant(
+            tenantId,
+            request == null ? null : request.userIds()
+        );
 
         rolePermissionRepository.deleteByRoleId(role.getId());
         List<String> permissionIds = request == null || request.permissionIds() == null
@@ -555,6 +561,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
         List<RoleOrgScopeInput> orgScopes = request == null || request.orgScopes() == null
             ? List.of()
             : request.orgScopes();
+        validateOrgScopesForTenant(tenantId, orgScopes);
         orgScopes.stream()
             .filter(Objects::nonNull)
             .forEach(scopeInput -> {
@@ -569,14 +576,10 @@ public class EnterpriseAdminService implements ApplicationRunner {
 
         if (request != null && request.userIds() != null) {
             userRoleRepository.deleteByRoleId(role.getId());
-            request.userIds().stream()
-                .filter(id -> id != null && !id.isBlank())
-                .map(String::trim)
-                .distinct()
-                .forEach(userId -> {
+            assignedUsers.forEach(user -> {
                     SysUserRole userRole = new SysUserRole();
                     userRole.setTenantId(tenantId);
-                    userRole.setUserId(userId);
+                    userRole.setUserId(user.getId());
                     userRole.setRoleId(role.getId());
                     userRoleRepository.save(userRole);
                 });
@@ -604,6 +607,56 @@ public class EnterpriseAdminService implements ApplicationRunner {
                 + ", scopes=" + orgScopes.size()
                 + ", agents=" + agentIds.size());
         return getRoleAuthorization(role.getId());
+    }
+
+    private List<SysRole> validateRolesForTenant(String tenantId, List<String> roleIds) {
+        if (roleIds == null) {
+            return List.of();
+        }
+        return roleIds.stream()
+            .filter(id -> id != null && !id.isBlank())
+            .map(String::trim)
+            .distinct()
+            .map(id -> roleRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("role not found: " + id)))
+            .peek(role -> {
+                if (!tenantId.equals(role.getTenantId())) {
+                    throw new IllegalArgumentException("role does not belong to user tenant: " + role.getId());
+                }
+            })
+            .toList();
+    }
+
+    private List<SysUser> validateUsersForTenant(String tenantId, List<String> userIds) {
+        if (userIds == null) {
+            return List.of();
+        }
+        return userIds.stream()
+            .filter(id -> id != null && !id.isBlank())
+            .map(String::trim)
+            .distinct()
+            .map(id -> userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("user not found: " + id)))
+            .peek(user -> {
+                if (!tenantId.equals(user.getTenantId())) {
+                    throw new IllegalArgumentException("user does not belong to role tenant: " + user.getId());
+                }
+            })
+            .toList();
+    }
+
+    private void validateOrgScopesForTenant(String tenantId, List<RoleOrgScopeInput> orgScopes) {
+        orgScopes.stream()
+            .filter(Objects::nonNull)
+            .filter(scope -> !"all".equalsIgnoreCase(defaultText(scope.scopeType(), "org_and_children")))
+            .forEach(scope -> {
+                String orgId = requireText(scope.orgId(), "orgId");
+                SysOrg org = orgRepository.findById(orgId)
+                    .orElseThrow(() -> new IllegalArgumentException("organization not found: " + orgId));
+                if (!tenantId.equals(org.getTenantId())) {
+                    throw new IllegalArgumentException("organization does not belong to role tenant: " + orgId);
+                }
+            });
     }
 
     /**
@@ -1427,8 +1480,10 @@ public class EnterpriseAdminService implements ApplicationRunner {
             new PermissionSeed("mcp", "mcp:tool:authorize", "工具授权", "button", "/api/v1/enterprise/tool-permissions", "*", "key-round", 33),
             new PermissionSeed("platform", "platform:agents", "Agent管理", "menu", "/index.html#agents", null, "bot", 34),
             new PermissionSeed("platform", "platform:schedules", "Agent调度", "menu", "/index.html#schedules", null, "calendar-clock", 35),
+            new PermissionSeed("platform:schedules", "platform:schedules:manage", "Agent调度管理", "button", "/api/v1/agent/tasks/runtime/schedules/**", "*", "calendar-check", 35),
             new PermissionSeed("platform", "platform:rules", "关键词规则", "menu", "/index.html#rules", null, "list-filter", 36),
             new PermissionSeed("platform", "platform:tasks", "运行监控", "menu", "/index.html#tasks", null, "clipboard-list", 37),
+            new PermissionSeed("platform:tasks", "platform:tasks:monitor", "运行监控查询", "button", "/api/v1/agent/tasks/**", "GET", "activity", 38),
             new PermissionSeed("platform", "system", "系统管理", "menu", "/index.html#system", null, "settings", 40),
             new PermissionSeed("system", "system:tenant", "租户管理", "menu", "/api/v1/enterprise/tenants", "*", "building", 41),
             new PermissionSeed("system", "system:org", "组织管理", "menu", "/api/v1/enterprise/orgs", "*", "building-2", 42),

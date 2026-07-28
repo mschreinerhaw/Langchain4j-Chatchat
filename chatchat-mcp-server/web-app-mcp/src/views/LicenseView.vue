@@ -17,7 +17,7 @@
       </div>
 
       <div class="license-detail-grid">
-        <section class="license-panel"><h3>授权模块</h3><div class="license-tags"><el-tag v-for="item in license.modules || []" :key="item">{{ item }}</el-tag><span v-if="!(license.modules || []).length">暂无模块授权</span></div></section>
+        <section class="license-panel"><h3>授权菜单模块</h3><div class="license-tags"><el-tag v-for="item in authorizedMenus" :key="item.key">{{ item.label }}</el-tag><span v-if="!authorizedMenus.length">暂无菜单授权</span></div></section>
         <section class="license-panel"><h3>授权功能</h3><div class="license-tags"><el-tag v-for="item in enabledFeatures" :key="item" type="success">{{ item }}</el-tag><span v-if="!enabledFeatures.length">暂无功能授权</span></div></section>
         <section class="license-panel server-panel"><h3>服务器机器码</h3><code>{{ status.serverId || '-' }}</code><el-button link type="primary" @click="copyValue(status.serverId, '机器码已复制')">复制</el-button></section>
       </div>

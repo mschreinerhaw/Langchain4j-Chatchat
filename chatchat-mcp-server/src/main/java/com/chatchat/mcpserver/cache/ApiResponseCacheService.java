@@ -64,6 +64,13 @@ public class ApiResponseCacheService {
             return get(config, arguments).orElseGet(loader);
         }
         try {
+            // Close the late-arrival window after an earlier leader has populated
+            // the shared cache and removed its in-flight marker.
+            Optional<ApiInvokeResult> filledByPreviousLoad = get(config, arguments);
+            if (filledByPreviousLoad.isPresent()) {
+                ownLoad.complete(null);
+                return filledByPreviousLoad.get();
+            }
             ApiInvokeResult loaded = loader.get();
             put(config, arguments, loaded);
             ownLoad.complete(null);

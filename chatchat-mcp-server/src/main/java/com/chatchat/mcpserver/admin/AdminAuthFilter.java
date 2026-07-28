@@ -9,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -16,12 +18,14 @@ import java.io.IOException;
 import java.util.Map;
 
 @Component
+@Order(Ordered.HIGHEST_PRECEDENCE + 20)
 @RequiredArgsConstructor
 public class AdminAuthFilter extends OncePerRequestFilter {
 
     private static final String API_PREFIX = "/api/v1/";
     private static final String LOGIN_PATH = "/api/v1/admin/auth/login";
     private static final String HEARTBEAT_PATH = "/api/v1/mcp-services/heartbeat";
+    private static final String LICENSE_CATALOG_PATH = "/api/v1/license/menu-catalog";
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final AdminAuthService authService;
@@ -39,7 +43,8 @@ public class AdminAuthFilter extends OncePerRequestFilter {
         return "OPTIONS".equalsIgnoreCase(request.getMethod())
             || !path.startsWith(API_PREFIX)
             || LOGIN_PATH.equals(path)
-            || HEARTBEAT_PATH.equals(path);
+            || HEARTBEAT_PATH.equals(path)
+            || LICENSE_CATALOG_PATH.equals(path);
     }
 
     /**

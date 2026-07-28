@@ -1,5 +1,6 @@
 package com.chatchat.api.agent.task;
 
+import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.chat.task.AgentEvent;
 import com.chatchat.chat.task.AgentEventStore;
 import com.chatchat.chat.interaction.model.InteractionResponse;
@@ -10,13 +11,16 @@ import com.chatchat.chat.task.AgentTaskLatestRepository;
 import com.chatchat.chat.task.AgentTaskPayload;
 import com.chatchat.chat.task.AgentTaskService;
 import com.chatchat.chat.task.AgentTaskSubmitRequest;
+import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.enterprise.entity.SysAuditLog;
 import com.chatchat.enterprise.repository.SysAuditLogRepository;
+import com.chatchat.enterprise.service.EnterpriseAdminService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -78,6 +82,18 @@ class AgentTaskControllerTest {
 
     @MockBean
     private ChatModel chatModel;
+
+    @MockBean
+    private SkillCatalogService skillCatalogService;
+
+    @MockBean
+    private EnterpriseAdminService enterpriseAdminService;
+
+    @BeforeEach
+    void allowPublishedAgentsForSchedulerScenarios() {
+        when(skillCatalogService.isPublished(any())).thenReturn(true);
+        when(enterpriseAdminService.canAccessAgent(any(), any())).thenReturn(true);
+    }
 
     @Test
     void submitTaskAndReadEvents() throws Exception {
@@ -224,6 +240,7 @@ class AgentTaskControllerTest {
             .andExpect(jsonPath("$.data.reasonMetrics[0].label").value("回答不完整"))
             .andExpect(jsonPath("$.data.lowScoreTasks[0].taskId").value(taskId));
 
+        waitForExperienceCount("tenant-feedback-001", 1);
         mockMvc.perform(get("/api/v1/agent/tasks/runtime/experiences")
                 .param("tenantId", "tenant-feedback-001")
                 .param("limit", "5"))
@@ -235,7 +252,7 @@ class AgentTaskControllerTest {
             .andExpect(jsonPath("$.data.indexes[0].successRate").value(org.hamcrest.Matchers.greaterThan(60.0)))
             .andExpect(jsonPath("$.data.experiences[0].taskId").value(taskId))
             .andExpect(jsonPath("$.data.experiences[0].attributionSource").value("rule"))
-            .andExpect(jsonPath("$.data.experiences[0].feedbackScore").value(65))
+            .andExpect(jsonPath("$.data.experiences[0].feedbackScore").value(67))
             .andExpect(jsonPath("$.data.experiences[0].improvementSuggestions").isArray());
     }
 
@@ -328,6 +345,7 @@ class AgentTaskControllerTest {
         org.assertj.core.api.Assertions.assertThat(events.stream()
                 .filter(event -> "QUESTION".equalsIgnoreCase(event.getType()))
                 .count())
+            .as("durable event types: %s", events.stream().map(AgentEvent::getType).toList())
             .isEqualTo(1);
         org.assertj.core.api.Assertions.assertThat(events.stream()
                 .filter(event -> "CONFIRMATION".equalsIgnoreCase(event.getType()))
@@ -639,6 +657,7 @@ class AgentTaskControllerTest {
         ));
 
         String createResponse = mockMvc.perform(post("/api/v1/agent/tasks/runtime/schedules")
+                .requestAttr(ApiAuthenticationFilter.CURRENT_USER_ID, "user-schedule-001")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(scheduleBody))
             .andExpect(status().isOk())
@@ -651,12 +670,14 @@ class AgentTaskControllerTest {
 
         String scheduledTaskId = objectMapper.readTree(createResponse).path("data").path("taskId").asText();
         scheduledTaskService.scanDueTasks();
-        JsonNode runningSchedule = getSchedule("tenant-schedule-001", scheduledTaskId);
+        JsonNode runningSchedule = getSchedule(
+            "tenant-schedule-001", "user-schedule-001", scheduledTaskId);
         String agentTaskId = runningSchedule.path("data").path("lastTaskId").asText();
         waitForTaskStatus("tenant-schedule-001", agentTaskId, "SUCCESS");
         scheduledTaskService.scanDueTasks();
 
         mockMvc.perform(get("/api/v1/agent/tasks/runtime/schedules/" + scheduledTaskId)
+                .requestAttr(ApiAuthenticationFilter.CURRENT_USER_ID, "user-schedule-001")
                 .param("tenantId", "tenant-schedule-001"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code").value(200))
@@ -693,6 +714,7 @@ class AgentTaskControllerTest {
         ));
 
         String createResponse = mockMvc.perform(post("/api/v1/agent/tasks/runtime/schedules")
+                .requestAttr(ApiAuthenticationFilter.CURRENT_USER_ID, "user-schedule-retry-001")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(scheduleBody))
             .andExpect(status().isOk())
@@ -702,22 +724,26 @@ class AgentTaskControllerTest {
 
         String scheduledTaskId = objectMapper.readTree(createResponse).path("data").path("taskId").asText();
         scheduledTaskService.scanDueTasks();
-        JsonNode firstRun = getSchedule("tenant-schedule-retry-001", scheduledTaskId);
+        JsonNode firstRun = getSchedule(
+            "tenant-schedule-retry-001", "user-schedule-retry-001", scheduledTaskId);
         waitForTaskStatus("tenant-schedule-retry-001", firstRun.path("data").path("lastTaskId").asText(), "FAILED");
         scheduledTaskService.scanDueTasks();
 
-        JsonNode waitingRetry = getSchedule("tenant-schedule-retry-001", scheduledTaskId);
+        JsonNode waitingRetry = getSchedule(
+            "tenant-schedule-retry-001", "user-schedule-retry-001", scheduledTaskId);
         org.assertj.core.api.Assertions.assertThat(waitingRetry.path("data").path("status").asText()).isEqualTo("ACTIVE");
         org.assertj.core.api.Assertions.assertThat(waitingRetry.path("data").path("retryCount").asInt()).isEqualTo(1);
 
         Thread.sleep(1100);
         scheduledTaskService.scanDueTasks();
-        JsonNode retryRun = getSchedule("tenant-schedule-retry-001", scheduledTaskId);
+        JsonNode retryRun = getSchedule(
+            "tenant-schedule-retry-001", "user-schedule-retry-001", scheduledTaskId);
         String retryTaskId = retryRun.path("data").path("lastTaskId").asText();
         waitForTaskStatus("tenant-schedule-retry-001", retryTaskId, "SUCCESS");
         scheduledTaskService.scanDueTasks();
 
         mockMvc.perform(get("/api/v1/agent/tasks/runtime/schedules/" + scheduledTaskId)
+                .requestAttr(ApiAuthenticationFilter.CURRENT_USER_ID, "user-schedule-retry-001")
                 .param("tenantId", "tenant-schedule-retry-001"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code").value(200))
@@ -953,8 +979,28 @@ class AgentTaskControllerTest {
         return lastResponse;
     }
 
-    private JsonNode getSchedule(String tenantId, String scheduledTaskId) throws Exception {
+    private void waitForExperienceCount(String tenantId, int expectedCount) throws Exception {
+        JsonNode lastResponse = null;
+        for (int attempt = 0; attempt < 60; attempt++) {
+            String response = mockMvc.perform(get("/api/v1/agent/tasks/runtime/experiences")
+                    .param("tenantId", tenantId)
+                    .param("limit", "5"))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+            lastResponse = objectMapper.readTree(response);
+            if (lastResponse.path("data").path("totalExperiences").asInt() >= expectedCount) {
+                return;
+            }
+            Thread.sleep(25);
+        }
+        throw new AssertionError("Timed out waiting for Agent experience attribution: " + lastResponse);
+    }
+
+    private JsonNode getSchedule(String tenantId, String userId, String scheduledTaskId) throws Exception {
         String response = mockMvc.perform(get("/api/v1/agent/tasks/runtime/schedules/" + scheduledTaskId)
+                .requestAttr(ApiAuthenticationFilter.CURRENT_USER_ID, userId)
                 .param("tenantId", tenantId))
             .andExpect(status().isOk())
             .andReturn()

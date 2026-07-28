@@ -122,8 +122,8 @@ export const databaseApi = {
   testSaved: (id, params) => apiFetch(`${API_BASE}/database-query/${encodeURIComponent(id)}/test`, { method: 'POST', body: JSON.stringify(params || {}) }),
   testDraft: payload => apiFetch(`${API_BASE}/database-query/test`, { method: 'POST', body: JSON.stringify(payload) }),
   rebuildIndex: () => apiFetch(`${SEARCH_INDEX_URL}/database-queries/rebuild`, { method: 'POST' }),
-  validateDsl: request => apiFetch(`${API_BASE}/template-dsl/validate`, { method: 'POST', body: JSON.stringify({ ...(request || {}), templateType: 'DATABASE_QUERY' }) }),
-  importDsl: request => apiFetch(`${API_BASE}/template-dsl/import`, { method: 'POST', body: JSON.stringify({ ...(request || {}), templateType: 'DATABASE_QUERY' }) }),
+  validateDsl: request => apiFetch(`${API_BASE}/template-dsl/database-query/validate`, { method: 'POST', body: JSON.stringify(request || {}) }),
+  importDsl: request => apiFetch(`${API_BASE}/template-dsl/database-query/import`, { method: 'POST', body: JSON.stringify(request || {}) }),
   getTradingCalendar: () => apiFetch(`${API_BASE}/dynamic-date-params/trading-calendar/config`),
   saveTradingCalendar: config => apiFetch(`${API_BASE}/dynamic-date-params/trading-calendar/config`, { method: 'PUT', body: JSON.stringify(config || {}) }),
   testTradingCalendar: config => apiFetch(`${API_BASE}/dynamic-date-params/trading-calendar/test`, { method: 'POST', body: JSON.stringify(config || {}) }),
@@ -166,7 +166,15 @@ export const auditApi = {
     });
     return apiFetch(`${API_BASE}/audit-logs${query.toString() ? `?${query}` : ''}`);
   },
-  get: id => apiFetch(`${API_BASE}/audit-logs/${encodeURIComponent(id)}`)
+  get: id => apiFetch(`${API_BASE}/audit-logs/${encodeURIComponent(id)}`),
+  listCommands: params => {
+    const query = new URLSearchParams();
+    Object.entries(params || {}).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && String(value) !== '') query.set(key, value);
+    });
+    return apiFetch(`${API_BASE}/audit-logs/commands${query.toString() ? `?${query}` : ''}`);
+  },
+  getCommand: id => apiFetch(`${API_BASE}/audit-logs/commands/${encodeURIComponent(id)}`)
 };
 
 export const authorizationApi = {
@@ -192,7 +200,8 @@ export const authorizationApi = {
 };
 
 export const licenseApi = {
-  status: () => apiFetch(`${API_BASE}/license/status`)
+  status: () => apiFetch(`${API_BASE}/license/status`),
+  menus: () => apiFetch(`${API_BASE}/license/menus`)
 };
 
 function saveEntity(baseUrl, entity, mapper = value => value) {

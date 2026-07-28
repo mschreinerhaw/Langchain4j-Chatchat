@@ -3,11 +3,14 @@ package com.chatchat.api.controller;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
+import com.chatchat.enterprise.entity.McpToolAsset;
 import com.chatchat.enterprise.entity.McpToolPermission;
 import com.chatchat.enterprise.entity.SysAuditLog;
+import com.chatchat.enterprise.repository.McpToolAssetRepository;
 import com.chatchat.enterprise.repository.McpToolPermissionRepository;
 import com.chatchat.enterprise.repository.SysAuditLogRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.langchain4j.model.chat.ChatModel;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,8 +50,14 @@ class InteractionControllerTest {
     @Autowired
     private McpToolPermissionRepository toolPermissionRepository;
 
+    @Autowired
+    private McpToolAssetRepository toolAssetRepository;
+
     @MockBean
     private ToolRegistry toolRegistry;
+
+    @MockBean
+    private ChatModel chatModel;
 
     @Test
     void toolDirectWritesPersistentAuditLog() throws Exception {
@@ -92,6 +101,13 @@ class InteractionControllerTest {
     void tenantToolPermissionCanDenyToolRuntime() throws Exception {
         String tenantId = "tenant-p4-002";
         String toolName = "mcp_demo_blocked_tool";
+
+        McpToolAsset tool = new McpToolAsset();
+        tool.setLocalToolName(toolName);
+        tool.setRemoteToolName("blocked_tool");
+        tool.setServiceId("svc-blocked");
+        tool.setServiceName("Blocked");
+        toolAssetRepository.save(tool);
 
         McpToolPermission permission = new McpToolPermission();
         permission.setTenantId(tenantId);

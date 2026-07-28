@@ -12,13 +12,7 @@ const preview = {
   expiry: document.querySelector('#previewExpiry')
 };
 
-const moduleLabels = {
-  mcp: 'MCP 服务',
-  sql: '数据查询',
-  news: '新闻中心',
-  agent: 'Agent Runtime',
-  market: '行情分析'
-};
+const moduleLabels = {};
 
 const dateText = value => value.toISOString().slice(0, 10);
 const issued = new Date();
@@ -53,6 +47,40 @@ form.addEventListener('input', updatePreview);
 form.addEventListener('change', updatePreview);
 updatePreview();
 
+async function loadMcpMenus() {
+  const container = document.querySelector('#mcpMenuModules');
+  try {
+    const response = await fetch('/api/licenses/mcp-menus');
+    const menus = await response.json();
+    if (!response.ok) throw new Error(menus.message || '同步 MCP 菜单失败');
+    container.replaceChildren();
+    menus.forEach((menu, index) => {
+      moduleLabels[menu.key] = menu.label;
+      const label = document.createElement('label');
+      label.className = 'check-card';
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.name = 'modules';
+      input.value = menu.key;
+      input.checked = index === 0;
+      const text = document.createElement('span');
+      const title = document.createElement('b');
+      title.textContent = menu.label;
+      const detail = document.createElement('small');
+      detail.textContent = `MCP 菜单 ID：${menu.key}`;
+      text.append(title, detail);
+      label.append(input, text);
+      container.append(label);
+    });
+    updatePreview();
+  } catch (error) {
+    container.textContent = error.message;
+    message.style.color = '#d14956';
+    message.textContent = error.message;
+  }
+}
+loadMcpMenus();
+
 form.addEventListener('submit', async event => {
   event.preventDefault();
   message.textContent = '';
@@ -60,8 +88,6 @@ form.addEventListener('submit', async event => {
   button.querySelector('span').textContent = '正在签发…';
 
   const data = new FormData(form);
-  const features = {};
-  data.getAll('features').forEach(name => { features[name] = true; });
   const payload = {
     licenseNo: data.get('licenseNo'),
     customer: data.get('customer'),
@@ -73,7 +99,7 @@ form.addEventListener('submit', async event => {
     serverId: data.get('serverId'),
     issuedTime: data.get('issuedTime'),
     expireTime: data.get('expireTime'),
-    features
+    features: {}
   };
 
   try {

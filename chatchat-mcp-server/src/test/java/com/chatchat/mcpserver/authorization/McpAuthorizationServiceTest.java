@@ -1,6 +1,7 @@
 package com.chatchat.mcpserver.authorization;
 
 import com.chatchat.common.security.InternalCredentialProperties;
+import com.chatchat.mcpserver.mcp.McpInvocationContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -10,9 +11,14 @@ import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -141,6 +147,159 @@ class McpAuthorizationServiceTest {
     }
 
     @Test
+    void businessAdministratorsAreIsolatedBySynchronizedTenantAndRole() throws Exception {
+        McpAuthorizationService service = service(multiTenantBusinessAdminSnapshot());
+
+        McpAuthorizationService.AuthorizationDecision tenantAOwnAsset = service.authorize(
+            "sql_query_execute",
+            Map.of(
+                "userId", "business-admin-a",
+                "tenantId", "tenant-a",
+                "scopeExpression", "mcp:sql_datasource:execute:query@tenant=tenant-a;domain=db-a;level=read"
+            )
+        );
+        McpAuthorizationService.AuthorizationDecision tenantAOtherAsset = service.authorize(
+            "sql_query_execute",
+            Map.of(
+                "userId", "business-admin-a",
+                "tenantId", "tenant-a",
+                "scopeExpression", "mcp:sql_datasource:execute:query@tenant=tenant-a;domain=db-b;level=read"
+            )
+        );
+        McpAuthorizationService.AuthorizationDecision tenantBOwnAsset = service.authorize(
+            "sql_query_execute",
+            Map.of(
+                "userId", "business-admin-b",
+                "tenantId", "tenant-b",
+                "scopeExpression", "mcp:sql_datasource:execute:query@tenant=tenant-b;domain=db-b;level=read"
+            )
+        );
+
+        assertThat(tenantAOwnAsset.allowed()).isTrue();
+        assertThat(tenantAOtherAsset.allowed()).isFalse();
+        assertThat(tenantBOwnAsset.allowed()).isTrue();
+    }
+
+    @Test
+    void synchronizedBusinessAdministratorCannotOverrideTenant() throws Exception {
+        McpAuthorizationService service = service(multiTenantBusinessAdminSnapshot());
+
+        McpAuthorizationService.AuthorizationDecision decision = service.authorize(
+            "sql_query_execute",
+            Map.of(
+                "userId", "business-admin-a",
+                "tenantId", "tenant-b",
+                "roles", "BUSINESS_ADMIN,role-business-b",
+                "scopeExpression", "mcp:sql_datasource:execute:query@tenant=tenant-b;domain=db-b;level=read"
+            )
+        );
+
+        assertThat(decision.allowed()).isFalse();
+        assertThat(decision.reason()).contains("tenant does not match");
+    }
+
+    @Test
+    void concurrentBusinessAdministratorRequestsRemainTenantIsolated() throws Exception {
+        McpAuthorizationService service = service(multiTenantBusinessAdminSnapshot());
+        ExecutorService executor = Executors.newFixedThreadPool(8);
+        try {
+            List<Callable<Boolean>> requests = java.util.stream.IntStream.range(0, 40)
+                .mapToObj(index -> (Callable<Boolean>) () -> {
+                    boolean tenantA = index % 2 == 0;
+                    String tenantId = tenantA ? "tenant-a" : "tenant-b";
+                    String userId = tenantA ? "business-admin-a" : "business-admin-b";
+                    String ownDomain = tenantA ? "db-a" : "db-b";
+                    String otherDomain = tenantA ? "db-b" : "db-a";
+                    try (McpInvocationContext.Scope ignored = McpInvocationContext.open(
+                        invocationContext(userId, tenantId)
+                    )) {
+                        McpAuthorizationService.AuthorizationDecision own = service.authorize(
+                            "sql_query_execute",
+                            Map.of("scopeExpression", scope(tenantId, ownDomain))
+                        );
+                        McpAuthorizationService.AuthorizationDecision cross = service.authorize(
+                            "sql_query_execute",
+                            Map.of("scopeExpression", scope(tenantId, otherDomain))
+                        );
+                        return own.allowed() && !cross.allowed();
+                    }
+                })
+                .toList();
+
+            for (Future<Boolean> result : executor.invokeAll(requests)) {
+                assertThat(result.get()).isTrue();
+            }
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void synchronizedUserCannotInjectSuperAdminRole() throws Exception {
+        McpAuthorizationService service = service(multiTenantBusinessAdminSnapshot());
+
+        McpAuthorizationService.AuthorizationDecision decision = service.authorize(
+            "web_search",
+            Map.of(
+                "userId", "business-admin-a",
+                "tenantId", "tenant-a",
+                "roleIds", "SUPER_ADMIN"
+            )
+        );
+
+        assertThat(decision.allowed()).isFalse();
+        assertThat(decision.reason()).contains("allow list");
+    }
+
+    @Test
+    void rolePermissionTenantMustMatchSynchronizedRoleTenant() throws Exception {
+        McpSynchronizedRoleRepository repository = mock(McpSynchronizedRoleRepository.class);
+        McpSynchronizedRole role = synchronizedRole("role-business-a", "chatchat-api");
+        role.setTenantId("tenant-a");
+        when(repository.findById("role-business-a")).thenReturn(Optional.of(role));
+        McpAuthorizationService service = service(multiTenantBusinessAdminSnapshot(), repository);
+
+        assertThatThrownBy(() -> service.createRolePermission(
+            new McpAuthorizationService.RolePermissionRequest(
+                "tenant-b",
+                "role-business-a",
+                null,
+                "sql_query_execute",
+                "mcp:sql_datasource:execute:query@tenant=tenant-b;domain=db-b;level=read",
+                "allow",
+                true,
+                "cross tenant"
+            )
+        ))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("role tenant does not match");
+    }
+
+    @Test
+    void rolePermissionScopeTenantMustMatchSynchronizedRoleTenant() throws Exception {
+        McpSynchronizedRoleRepository repository = mock(McpSynchronizedRoleRepository.class);
+        McpSynchronizedRole role = synchronizedRole("role-business-a", "chatchat-api");
+        role.setTenantId("tenant-a");
+        when(repository.findById("role-business-a")).thenReturn(Optional.of(role));
+        McpAuthorizationService service = service(multiTenantBusinessAdminSnapshot(), repository);
+
+        assertThatThrownBy(() -> service.createRolePermission(
+            new McpAuthorizationService.RolePermissionRequest(
+                "tenant-a",
+                "role-business-a",
+                null,
+                "sql_query_execute",
+                "mcp:sql_datasource:execute:query@tenant=tenant-b;domain=db-b;level=read",
+                "allow",
+                true,
+                "cross tenant scope"
+            )
+        ))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("scope tenant does not match");
+    }
+
+    @Test
     void nestedMcpIdentityIsResolvedForAuthorization() throws Exception {
         McpAuthorizationService service = service(snapshot("[]"));
 
@@ -249,6 +408,55 @@ class McpAuthorizationServiceTest {
             }
             """.formatted(permissions));
         return snapshotFrom(data);
+    }
+
+    private Object multiTenantBusinessAdminSnapshot() throws Exception {
+        JsonNode data = objectMapper.readTree("""
+            {
+              "users":[
+                {"id":"business-admin-a","tenantId":"tenant-a","username":"business-a","roleIds":["role-business-a"]},
+                {"id":"business-admin-b","tenantId":"tenant-b","username":"business-b","roleIds":["role-business-b"]}
+              ],
+              "roles":[
+                {"id":"role-business-a","tenantId":"tenant-a","roleCode":"BUSINESS_ADMIN","roleName":"业务管理员","status":"enabled"},
+                {"id":"role-business-b","tenantId":"tenant-b","roleCode":"BUSINESS_ADMIN","roleName":"业务管理员","status":"enabled"}
+              ],
+              "tools":[],
+              "permissions":[
+                {
+                  "tenantId":"tenant-a",
+                  "targetType":"role",
+                  "targetId":"role-business-a",
+                  "localToolName":"sql_query_execute",
+                  "scopeExpression":"mcp:sql_datasource:execute:query@tenant=tenant-a;domain=db-a;level=read",
+                  "effect":"allow",
+                  "enabled":true
+                },
+                {
+                  "tenantId":"tenant-b",
+                  "targetType":"role",
+                  "targetId":"role-business-b",
+                  "localToolName":"sql_query_execute",
+                  "scopeExpression":"mcp:sql_datasource:execute:query@tenant=tenant-b;domain=db-b;level=read",
+                  "effect":"allow",
+                  "enabled":true
+                }
+              ]
+            }
+            """);
+        return snapshotFrom(data);
+    }
+
+    private McpInvocationContext.Context invocationContext(String userId, String tenantId) {
+        return new McpInvocationContext.Context(
+            "test", "127.0.0.1", "junit", "request-" + userId, "client",
+            userId, null, tenantId, "SUPER_ADMIN", "workspace", "test", "trace",
+            "sql_datasource", null, "read", null
+        );
+    }
+
+    private String scope(String tenantId, String domain) {
+        return "mcp:sql_datasource:execute:query@tenant=" + tenantId + ";domain=" + domain + ";level=read";
     }
 
     private Object snapshotFrom(JsonNode data) throws Exception {

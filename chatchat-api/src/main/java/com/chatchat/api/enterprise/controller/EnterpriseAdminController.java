@@ -170,8 +170,9 @@ public class EnterpriseAdminController {
      */
     @GetMapping("/menus")
     @Operation(summary = "Enterprise portal menu")
-    public ApiResponse<List<MenuGroup>> menus() {
-        return ApiResponse.success(List.of(
+    public ApiResponse<List<MenuGroup>> menus(HttpServletRequest servletRequest) {
+        List<String> permissionCodes = adminService.getUserView(currentUserId(servletRequest)).permissionCodes();
+        List<MenuGroup> catalog = List.of(
             new MenuGroup("workspace", "工作台", List.of(
                 new MenuItem("chat", "智能对话", "/index.html#chat"),
                 new MenuItem("search", "文档检索", "/index.html#search")
@@ -183,10 +184,26 @@ public class EnterpriseAdminController {
             new MenuGroup("platform", "平台管理", List.of(
                 new MenuItem("mcp", "MCP服务", "/index.html#mcp"),
                 new MenuItem("agents", "Agent管理", "/index.html#agents"),
+                new MenuItem("schedules", "Agent调度", "/index.html#schedules"),
+                new MenuItem("rules", "关键词规则", "/index.html#rules"),
                 new MenuItem("tasks", "运行监控", "/index.html#tasks"),
                 new MenuItem("system", "系统管理", "/index.html#system")
             ))
-        ));
+        );
+        return ApiResponse.success(catalog.stream()
+            .map(group -> new MenuGroup(group.id(), group.title(), group.children().stream()
+                .filter(item -> hasMenuPermission(permissionCodes, group.id(), item.id()))
+                .toList()))
+            .filter(group -> !group.children().isEmpty())
+            .toList());
+    }
+
+    private boolean hasMenuPermission(List<String> permissionCodes, String groupId, String itemId) {
+        String permissionCode = "platform".equals(groupId) && "mcp".equals(itemId)
+            ? "mcp"
+            : groupId + ":" + itemId;
+        return permissionCodes != null && permissionCodes.stream()
+            .anyMatch(code -> permissionCode.equals(code) || code.startsWith(permissionCode + ":"));
     }
 
     /**

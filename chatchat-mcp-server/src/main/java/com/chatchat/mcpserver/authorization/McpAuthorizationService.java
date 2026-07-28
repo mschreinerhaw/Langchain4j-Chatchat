@@ -90,7 +90,13 @@ public class McpAuthorizationService {
         if (properties.isRequireTenantContext() && principal.tenantId() == null) {
             return AuthorizationDecision.denyDecision("MCP caller tenant context is missing");
         }
-        if (isAdminPrincipal(principal) || snapshot.hasRoleCode(principal, "SUPER_ADMIN")) {
+        if (isAdminPrincipal(principal)) {
+            return AuthorizationDecision.allowDecision();
+        }
+        if (principal.tenantMismatch()) {
+            return AuthorizationDecision.denyDecision("MCP caller tenant does not match synchronized user tenant");
+        }
+        if (principal.snapshotResolved() && snapshot.hasRoleCode(principal, "SUPER_ADMIN")) {
             return AuthorizationDecision.allowDecision();
         }
 
@@ -277,11 +283,29 @@ public class McpAuthorizationService {
     }
 
     public JsonNode createRolePermission(RolePermissionRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("role permission request is required");
+        }
+        String roleId = blankToNull(request.roleId());
+        if (roleId == null) {
+            throw new IllegalArgumentException("roleId is required");
+        }
+        McpSynchronizedRole role = roleRepository.findById(roleId)
+            .orElseThrow(() -> new IllegalArgumentException("role not found: " + roleId));
+        String roleTenantId = blankToNull(role.getTenantId());
+        String requestedTenantId = blankToNull(request.tenantId());
+        if (roleTenantId != null && requestedTenantId != null
+            && !roleTenantId.equalsIgnoreCase(requestedTenantId)) {
+            throw new IllegalArgumentException("role tenant does not match permission tenant");
+        }
+        String permissionTenantId = firstText(roleTenantId, requestedTenantId);
+        validateScopeTenant(request.scopeExpression(), permissionTenantId);
+
         try {
             Map<String, Object> body = new LinkedHashMap<>();
-            body.put("tenantId", blankToNull(request.tenantId()));
+            body.put("tenantId", permissionTenantId);
             body.put("targetType", "role");
-            body.put("targetId", request.roleId());
+            body.put("targetId", roleId);
             body.put("toolId", blankToNull(request.toolId()));
             body.put("localToolName", request.localToolName());
             body.put("scopeExpression", blankToNull(request.scopeExpression()));
@@ -293,6 +317,19 @@ public class McpAuthorizationService {
             return saved;
         } catch (Exception ex) {
             throw new IllegalStateException("failed to save role permission: " + ex.getMessage(), ex);
+        }
+    }
+
+    private void validateScopeTenant(String scopeExpression, String permissionTenantId) {
+        String expression = blankToNull(scopeExpression);
+        if (expression == null) {
+            return;
+        }
+        McpScopeExpression scope = McpScopeExpression.parse(expression);
+        String scopeTenantId = blankToNull(scope.tenantId());
+        if (scopeTenantId != null && !"*".equals(scopeTenantId)
+            && (permissionTenantId == null || !scopeTenantId.equalsIgnoreCase(permissionTenantId))) {
+            throw new IllegalArgumentException("scope tenant does not match role tenant");
         }
     }
 
@@ -459,25 +496,32 @@ public class McpAuthorizationService {
         // able to replace a normal user's username with the admin whitelist name.
         String resolvedUserId = firstText(user == null ? null : user.id(), userId);
         String resolvedUsername = firstText(user == null ? null : user.username(), username);
-        String tenantId = firstText(
+        String requestedTenantId = firstText(
             context == null ? null : context.tenantId(),
             text(arguments, "tenantId"),
             text(arguments, "tenant_id"),
             text(mcpContext, "tenantId"),
-            text(mcpContext, "tenant_id"),
-            user == null ? null : user.tenantId()
+            text(mcpContext, "tenant_id")
         );
+        String canonicalTenantId = user == null ? null : firstText(user.tenantId());
+        boolean tenantMismatch = canonicalTenantId != null
+            && requestedTenantId != null
+            && !canonicalTenantId.equalsIgnoreCase(requestedTenantId);
+        String tenantId = firstText(canonicalTenantId, requestedTenantId);
         Long tenantNo = user == null ? null : user.tenantNo();
         Set<String> roleIds = new HashSet<>();
         if (user != null) {
             roleIds.addAll(user.roleIds());
         }
-        roleIds.addAll(csv(context == null ? null : context.roles()));
-        roleIds.addAll(csv(text(arguments, "roles")));
-        roleIds.addAll(csv(text(arguments, "roleIds")));
-        roleIds.addAll(csv(text(mcpContext, "roles")));
-        roleIds.addAll(csv(text(identity, "roles")));
-        return new Principal(tenantId, tenantNo, resolvedUserId, resolvedUsername, roleIds);
+        return new Principal(
+            tenantId,
+            tenantNo,
+            resolvedUserId,
+            resolvedUsername,
+            roleIds,
+            user != null,
+            tenantMismatch
+        );
     }
 
     @SuppressWarnings("unchecked")
@@ -501,19 +545,6 @@ public class McpAuthorizationService {
             }
         }
         return null;
-    }
-
-    private Set<String> csv(String value) {
-        Set<String> values = new HashSet<>();
-        if (value == null || value.isBlank()) {
-            return values;
-        }
-        for (String item : value.split(",")) {
-            if (item != null && !item.isBlank()) {
-                values.add(item.trim());
-            }
-        }
-        return values;
     }
 
     private static String normalize(String value) {
@@ -688,7 +719,15 @@ public class McpAuthorizationService {
     ) {
     }
 
-    private record Principal(String tenantId, Long tenantNo, String userId, String username, Set<String> roleIds) {
+    private record Principal(
+        String tenantId,
+        Long tenantNo,
+        String userId,
+        String username,
+        Set<String> roleIds,
+        boolean snapshotResolved,
+        boolean tenantMismatch
+    ) {
     }
 
     private record User(String id, String tenantId, Long tenantNo, String username, List<String> roleIds) {
@@ -917,7 +956,10 @@ public class McpAuthorizationService {
                     && (targetId.equals(normalize(principal.userId())) || targetId.equals(normalize(principal.username())))) {
                     matched.add(permission);
                 } else if ("role".equals(targetType) && targetId != null && roleIds.contains(targetId)) {
-                    matched.add(permission);
+                    Role role = rolesById.get(targetId);
+                    if (role != null && activeRole(role) && sameTenant(role.tenantId(), principal.tenantId())) {
+                        matched.add(permission);
+                    }
                 }
             }
             return matched;
@@ -938,7 +980,10 @@ public class McpAuthorizationService {
                     return true;
                 }
                 Role matched = rolesById.get(normalizedRole);
-                if (matched != null && normalizedCode.equals(normalize(matched.roleCode()))) {
+                if (matched != null
+                    && activeRole(matched)
+                    && sameTenant(matched.tenantId(), principal.tenantId())
+                    && normalizedCode.equals(normalize(matched.roleCode()))) {
                     return true;
                 }
             }
@@ -951,6 +996,11 @@ public class McpAuthorizationService {
                 return true;
             }
             return permissionTenant.equals(normalize(callerTenantId));
+        }
+
+        private boolean activeRole(Role role) {
+            String status = role == null ? null : normalize(role.status());
+            return status == null || "enabled".equals(status) || "active".equals(status);
         }
 
         private static Instant parseInstant(String value) {

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -366,6 +367,10 @@ public class MetadataIndexService {
                 }
             }
             return candidates;
+        } catch (Exception ex) {
+            log.warn("Dialect metadata table query failed; using JDBC metadata fallback: datasourceId={}, databaseType={}, error={}",
+                datasource.getId(), datasourceType, ex.getMessage());
+            return queryTableLocationsFromJdbcMetadata(datasource, datasourceType, scopeValues);
         }
     }
 
@@ -403,9 +408,106 @@ public class MetadataIndexService {
             }
             return columns;
         } catch (Exception ex) {
-            log.warn("Metadata column index build failed: datasourceId={}, error={}", datasource.getId(), ex.getMessage());
+            log.warn("Dialect metadata column query failed; using JDBC metadata fallback: datasourceId={}, databaseType={}, error={}",
+                datasource.getId(), datasourceType, ex.getMessage());
+            return queryColumnsFromJdbcMetadata(datasource, datasourceType, scopeValues);
+        }
+    }
+
+    private List<TableLocation> queryTableLocationsFromJdbcMetadata(SqlDatasourceConfig datasource,
+                                                                     String datasourceType,
+                                                                     List<ScopeValue> scopeValues) {
+        try (Connection connection = openConnection(datasource)) {
+            DatabaseMetaData metadata = connection.getMetaData();
+            Map<String, TableLocation> candidates = new LinkedHashMap<>();
+            for (ScopeValue scope : scopeValues) {
+                JdbcMetadataScope jdbcScope = jdbcMetadataScope(metadata, scope.value());
+                try (ResultSet resultSet = metadata.getTables(
+                    jdbcScope.catalog(), jdbcScope.schemaPattern(), "%", new String[]{"TABLE", "VIEW"})) {
+                    while (resultSet.next() && candidates.size() < 20000) {
+                        String schema = firstText(
+                            readOptionalString(resultSet, "TABLE_SCHEM"),
+                            readOptionalString(resultSet, "TABLE_CAT"),
+                            scope.value()
+                        );
+                        String table = blankToNull(readOptionalString(resultSet, "TABLE_NAME"));
+                        if (schema == null || table == null) {
+                            continue;
+                        }
+                        TableLocation location = new TableLocation(
+                            datasource.getId(),
+                            schema,
+                            schema,
+                            table,
+                            readOptionalString(resultSet, "TABLE_TYPE"),
+                            null,
+                            blankToNull(readOptionalString(resultSet, "REMARKS")),
+                            firstText(datasource.getDescription(), datasource.getTitle(), datasource.getName()),
+                            0.0
+                        );
+                        candidates.putIfAbsent(tableKey(schema, table), location);
+                    }
+                }
+            }
+            return new ArrayList<>(candidates.values());
+        } catch (Exception ex) {
+            log.warn("JDBC metadata table fallback failed: datasourceId={}, error={}", datasource.getId(), ex.getMessage());
             return List.of();
         }
+    }
+
+    private List<MetadataColumn> queryColumnsFromJdbcMetadata(SqlDatasourceConfig datasource,
+                                                               String datasourceType,
+                                                               List<ScopeValue> scopeValues) {
+        try (Connection connection = openConnection(datasource)) {
+            DatabaseMetaData metadata = connection.getMetaData();
+            Map<String, MetadataColumn> columns = new LinkedHashMap<>();
+            for (ScopeValue scope : scopeValues) {
+                JdbcMetadataScope jdbcScope = jdbcMetadataScope(metadata, scope.value());
+                try (ResultSet resultSet = metadata.getColumns(
+                    jdbcScope.catalog(), jdbcScope.schemaPattern(), "%", "%")) {
+                    while (resultSet.next() && columns.size() < 50000) {
+                        String schema = firstText(
+                            readOptionalString(resultSet, "TABLE_SCHEM"),
+                            readOptionalString(resultSet, "TABLE_CAT"),
+                            scope.value()
+                        );
+                        String table = blankToNull(readOptionalString(resultSet, "TABLE_NAME"));
+                        String name = blankToNull(readOptionalString(resultSet, "COLUMN_NAME"));
+                        if (schema == null || table == null || name == null) {
+                            continue;
+                        }
+                        MetadataColumn column = new MetadataColumn(
+                            datasource.getId(),
+                            schema,
+                            schema,
+                            table,
+                            name,
+                            readOptionalString(resultSet, "TYPE_NAME"),
+                            readOptionalString(resultSet, "TYPE_NAME"),
+                            null,
+                            blankToNull(readOptionalString(resultSet, "REMARKS")),
+                            !Integer.valueOf(DatabaseMetaData.columnNoNulls)
+                                .equals(readOptionalInteger(resultSet, "NULLABLE")),
+                            readOptionalInteger(resultSet, "ORDINAL_POSITION")
+                        );
+                        columns.putIfAbsent(tableKey(schema, table) + "." + normalizeIdentifier(name), column);
+                    }
+                }
+            }
+            return new ArrayList<>(columns.values());
+        } catch (Exception ex) {
+            log.warn("JDBC metadata column fallback failed: datasourceId={}, error={}", datasource.getId(), ex.getMessage());
+            return List.of();
+        }
+    }
+
+    private JdbcMetadataScope jdbcMetadataScope(DatabaseMetaData metadata, String scopeValue) throws Exception {
+        boolean schemaScoped = metadata.supportsSchemasInTableDefinitions();
+        boolean catalogScoped = metadata.supportsCatalogsInTableDefinitions();
+        return schemaScoped || !catalogScoped
+            ? new JdbcMetadataScope(null, scopeValue)
+            : new JdbcMetadataScope(scopeValue, null);
     }
 
     private Connection openConnection(SqlDatasourceConfig datasource) throws Exception {
@@ -677,6 +779,9 @@ public class MetadataIndexService {
     }
 
     private record ScopeValue(String value, String normalized) {
+    }
+
+    private record JdbcMetadataScope(String catalog, String schemaPattern) {
     }
 
     private record CacheEntry<T>(T value, long createdAtMs) {

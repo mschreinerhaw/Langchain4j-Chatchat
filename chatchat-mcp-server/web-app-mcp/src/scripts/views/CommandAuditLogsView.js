@@ -59,7 +59,7 @@ export default {
       this.busy = true;
       try {
         const params = this.queryParams();
-        const result = await auditApi.list(params);
+        const result = await auditApi.listCommands(params);
         const items = Array.isArray(result) ? result : result?.items || result?.records || [];
         this.logs = items;
         this.pageInfo = {
@@ -92,7 +92,7 @@ export default {
       this.detail = log;
       if (!log.id) return;
       try {
-        this.detail = await auditApi.get(log.id);
+        this.detail = await auditApi.getCommand(log.id);
       } catch (error) {
         this.$emit('error', error);
       }

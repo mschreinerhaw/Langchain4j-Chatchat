@@ -15,8 +15,23 @@ import JsonBlock from '../components/JsonBlock.vue';
 import { ElNotification } from 'element-plus';
 import { MCP_ENDPOINT } from '../services/config';
 import { UnauthorizedError } from '../services/http';
+import { licenseApi } from '../services/api';
 import { getToken, getUser, logout } from '../services/session';
 import '../styles/layout.css';
+
+const menuComponents = {
+  apiServices: ApiServicesView,
+  mcpServices: McpServicesView,
+  newsCollection: NewsCollectionView,
+  assetCenter: AssetCenterView,
+  databaseMcp: DatabaseMcpView,
+  cacheSettings: CacheSettingsView,
+  notificationChannels: NotificationChannelsView,
+  auditLogs: AuditLogsView,
+  commandAuditLogs: CommandAuditLogsView,
+  settings: SettingsView
+};
+const licenseMenu = { key: 'license', label: 'License 授权', icon: 'Key', component: LicenseView };
 
 export default {
   name: 'App',
@@ -34,19 +49,7 @@ export default {
       resultOpen: false,
       resultTitle: '',
       resultValue: null,
-      navItems: [
-        { key: 'apiServices', label: 'API 服务', icon: 'Connection', component: ApiServicesView },
-        { key: 'mcpServices', label: 'MCP 服务', icon: 'Cpu', component: McpServicesView },
-        { key: 'newsCollection', label: '资讯采集', icon: 'Tickets', component: NewsCollectionView },
-        { key: 'assetCenter', label: '资产中心', icon: 'FolderOpened', component: AssetCenterView },
-        { key: 'databaseMcp', label: '数据能力中心', icon: 'Coin', component: DatabaseMcpView },
-        { key: 'cacheSettings', label: '缓存设置', icon: 'DataLine', component: CacheSettingsView },
-        { key: 'notificationChannels', label: '通知告警', icon: 'Bell', component: NotificationChannelsView },
-        { key: 'auditLogs', label: '调用审计', icon: 'Tickets', component: AuditLogsView },
-        { key: 'commandAuditLogs', label: '命令审计', icon: 'Tickets', component: CommandAuditLogsView },
-        { key: 'settings', label: '系统设置', icon: 'Setting', component: SettingsView },
-        { key: 'license', label: 'License 授权', icon: 'Key', component: LicenseView }
-      ]
+      navItems: [licenseMenu]
     };
   },
   computed: {
@@ -54,11 +57,32 @@ export default {
       return this.navItems.find(item => item.key === this.activeView) || this.navItems[0];
     }
   },
+  mounted() {
+    if (this.authenticated) this.loadLicensedMenus();
+  },
   methods: {
-    handleAuthenticated(user) {
+    async handleAuthenticated(user) {
       this.authenticated = true;
       this.user = user?.username || getUser();
+      await this.loadLicensedMenus();
       this.notify({ title: '登录成功' });
+    },
+    async loadLicensedMenus() {
+      try {
+        const access = await licenseApi.menus();
+        const licensed = (Array.isArray(access) ? access : [])
+          .filter(item => item.authorized && menuComponents[item.key])
+          .map(item => ({ ...item, component: menuComponents[item.key] }));
+        this.navItems = [...licensed, licenseMenu];
+        if (!this.navItems.some(item => item.key === this.activeView)) {
+          this.activeView = licensed[0]?.key || 'license';
+        }
+      } catch (error) {
+        this.navItems = [licenseMenu];
+        this.activeView = 'license';
+        if (error instanceof UnauthorizedError) this.authenticated = false;
+        else this.handleError(error);
+      }
     },
     async handleLogout() {
       await logout();

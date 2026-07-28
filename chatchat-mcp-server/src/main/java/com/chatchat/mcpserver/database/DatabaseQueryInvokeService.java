@@ -326,8 +326,10 @@ public class DatabaseQueryInvokeService {
         if (steps.isEmpty()) {
             return ToolOutput.failure("database query template has no enabled SQL steps");
         }
-        Map<String, DatabaseQuerySqlStep> stepConfigs = steps.stream().collect(Collectors.toMap(
-            DatabaseQuerySqlStep::getSqlCode, item -> item, (first, ignored) -> first, LinkedHashMap::new));
+        Map<String, DatabaseQuerySqlStep> stepConfigs = new LinkedHashMap<>();
+        for (DatabaseQuerySqlStep step : steps) {
+            stepConfigs.putIfAbsent(step.getSqlCode(), step);
+        }
         boolean dependencyWorkflow = steps.stream().anyMatch(step -> Boolean.TRUE.equals(step.getWorkflowEnabled()));
         List<SqlWorkflowNode> workflowNodes = dependencyWorkflow
             ? steps.stream().map(this::toWorkflowNode).toList()

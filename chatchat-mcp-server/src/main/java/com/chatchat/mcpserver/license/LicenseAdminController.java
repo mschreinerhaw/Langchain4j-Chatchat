@@ -13,10 +13,21 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/license")
 public class LicenseAdminController {
     private final McpLicenseService licenseService;
+    private final McpAdminMenuCatalog menuCatalog;
 
     @GetMapping("/status")
     public ApiResponse<LicenseAdminView> status() {
         return ApiResponse.success(view(licenseService.status()));
+    }
+
+    @GetMapping("/menu-catalog")
+    public ApiResponse<java.util.List<McpAdminMenuCatalog.MenuDefinition>> menuCatalog() {
+        return ApiResponse.success(menuCatalog.menus());
+    }
+
+    @GetMapping("/menus")
+    public ApiResponse<java.util.List<McpAdminMenuCatalog.MenuAccess>> menus() {
+        return ApiResponse.success(menuCatalog.access(licenseService.status()));
     }
 
     private LicenseAdminView view(LicenseStatus status) {

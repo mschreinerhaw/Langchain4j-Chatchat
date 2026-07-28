@@ -14,6 +14,9 @@ public class AgentTaskProperties {
     private int queueCapacity = 1000;
     private int corePoolSize = 16;
     private int maxPoolSize = 16;
+    private int feedbackCorePoolSize = 2;
+    private int feedbackMaxPoolSize = 8;
+    private int feedbackQueueCapacity = 1000;
     private int maxConcurrentTasksPerTenant = 4;
     private int keepAliveSeconds = 60;
     private long executionTimeoutMs = 3_600_000;

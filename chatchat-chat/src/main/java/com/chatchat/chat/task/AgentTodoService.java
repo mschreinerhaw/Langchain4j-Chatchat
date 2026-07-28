@@ -54,10 +54,14 @@ public class AgentTodoService {
     }
 
     @Transactional
-    public TodoActionResult executeAction(String todoId, TodoActionRequest request) {
+    public TodoActionResult executeAction(String tenantId, String todoId, TodoActionRequest request) {
+        String normalizedTenant = requireText(tenantId, "Tenant ID cannot be empty");
         String normalizedTodoId = requireText(todoId, "Todo ID cannot be empty");
         TodoTaskEntity todo = todoTaskRepository.findById(normalizedTodoId)
             .orElseThrow(() -> new IllegalArgumentException("Todo task not found: " + normalizedTodoId));
+        if (!normalizedTenant.equals(todo.getTenantId())) {
+            throw new IllegalArgumentException("Todo task not found: " + normalizedTodoId);
+        }
         String action = normalizeText(request == null ? null : request.action());
         if (action == null) {
             throw new IllegalArgumentException("Todo action cannot be empty");

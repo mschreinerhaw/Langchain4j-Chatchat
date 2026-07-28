@@ -607,9 +607,10 @@ public class AgentScheduledTaskService {
                     entity.getTaskId());
                 continue;
             }
-            entity.setStatus("RUNNING");
-            entity.setNextFireTime(null);
-            submitScheduledRun(entity, now);
+            ScheduledTaskEntity claimed = scheduledTaskRepository.findById(entity.getTaskId())
+                .orElseThrow(() -> new IllegalStateException(
+                    "Claimed Agent schedule disappeared before submission: " + entity.getTaskId()));
+            submitScheduledRun(claimed, now);
             fired++;
         }
         return fired;

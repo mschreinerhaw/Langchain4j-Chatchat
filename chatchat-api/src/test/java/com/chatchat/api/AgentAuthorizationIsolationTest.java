@@ -60,10 +60,19 @@ class AgentAuthorizationIsolationTest {
         SysRole tenantBSuperAdmin = adminService.saveRole(role(tenantB.getId(), "SUPER_ADMIN"));
 
         EnterpriseAdminService.UserView userA = adminService.saveUser(user(tenantA.getId(), "agent-user-a"), List.of(roleA.getId()));
-        EnterpriseAdminService.UserView userB = adminService.saveUser(user(tenantB.getId(), "agent-user-b"), List.of(roleA.getId()));
+        assertThatThrownBy(() -> adminService.saveUser(
+            user(tenantB.getId(), "agent-user-cross-tenant"), List.of(roleA.getId())
+        )).isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("does not belong");
+        EnterpriseAdminService.UserView userB = adminService.saveUser(user(tenantB.getId(), "agent-user-b"), List.of());
         EnterpriseAdminService.UserView userBSuper = adminService.saveUser(
             user(tenantB.getId(), "tenant-super-admin-b"), List.of(tenantBSuperAdmin.getId())
         );
+        assertThatThrownBy(() -> adminService.saveRoleAuthorization(
+            roleA.getId(),
+            new EnterpriseAdminService.RoleAuthorizationRequest(List.of(), List.of(), List.of(userB.id()), List.of())
+        )).isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("does not belong");
         adminService.saveRoleAuthorization(roleA.getId(), new EnterpriseAdminService.RoleAuthorizationRequest(
             List.of(), List.of(), null, List.of("agent-alpha")
         ));

@@ -89,7 +89,7 @@ public class AgentTaskService {
         validate(request);
         AgentTaskSubmitRequest normalized = normalize(request);
         if (normalized.getResumeTaskId() != null && !normalized.getResumeTaskId().isBlank()) {
-            return resumeWaitingTask(normalized.getTenantId(), normalized.getResumeTaskId(), normalized);
+            return confirm(normalized.getTenantId(), normalized.getResumeTaskId(), normalized);
         }
         String taskId = UUID.randomUUID().toString();
         AgentTaskLatestEntity latest = new AgentTaskLatestEntity();

@@ -65,7 +65,11 @@ Input:
 }
 ```
 
-Output schema: `enterprise_metadata_search_result.v2`.
+Filtered catalog/admin search keeps output schema `enterprise_metadata_search_result.v2`.
+The MCP required-bundle capability uses `enterprise_metadata_search_result.v3`;
+it attempts standard fields, term roots, and dictionaries independently, applies
+`limit` to the merged result, and reports `allTypesAttempted`,
+`evidenceComplete`, `emptyTypes`, and `omittedTypes` separately.
 
 The result contains:
 
@@ -102,6 +106,11 @@ The taxonomy database is also the source of truth:
 Taxonomy changes invalidate the local cache and rebuild the OpenSearch catalog.
 Agent Runtime continues to discover only `enterprise_metadata_search`; it does
 not contain scenario-specific branches.
+
+The required metadata bundle, type aliases, preferred statuses, term expansion,
+search weights, and confidence conversion come from the active
+`mcp_metadata_governance_policy` database record rather than YAML or Runtime
+business branches.
 
 ## Operations
 

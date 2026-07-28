@@ -21,6 +21,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 @Slf4j
 @Service
@@ -28,13 +32,52 @@ import java.util.TreeMap;
 public class DatabaseQueryCacheService {
 
     private static final String KEY_PREFIX = "db-query-cache:";
-    private static final String KEY_SCHEMA_VERSION = "template-key.v2";
+    private static final String KEY_SCHEMA_VERSION = "template-key.v3";
 
     private final McpCacheProperties properties;
     private final McpRocksDbStore rocksDbStore;
     private final RedisCacheStore redisCacheStore;
     private final ObjectMapper objectMapper;
     private final DatabaseQueryCacheConfigService configService;
+    private final Map<String, CompletableFuture<Void>> inFlightLoads = new ConcurrentHashMap<>();
+
+    public ToolOutput getOrLoad(DatabaseQueryConfig config,
+                                Map<String, Object> parameters,
+                                Supplier<ToolOutput> loader) {
+        if (loader == null) {
+            throw new IllegalArgumentException("Database query cache loader is required");
+        }
+        Optional<ToolOutput> cached = get(config, parameters);
+        if (cached.isPresent()) {
+            return cached.get();
+        }
+        DatabaseQueryCacheConfig cacheConfig = configService.current();
+        if (!isUsable(config, cacheConfig)) {
+            return loader.get();
+        }
+        String key = key(config, parameters);
+        CompletableFuture<Void> ownLoad = new CompletableFuture<>();
+        CompletableFuture<Void> activeLoad = inFlightLoads.putIfAbsent(key, ownLoad);
+        if (activeLoad != null) {
+            try {
+                activeLoad.join();
+            } catch (CompletionException ignored) {
+                // The failed leader did not publish a cache entry. This caller may retry normally.
+            }
+            return get(config, parameters).orElseGet(loader);
+        }
+        try {
+            ToolOutput loaded = loader.get();
+            put(config, parameters, loaded);
+            ownLoad.complete(null);
+            return loaded;
+        } catch (RuntimeException ex) {
+            ownLoad.completeExceptionally(ex);
+            throw ex;
+        } finally {
+            inFlightLoads.remove(key, ownLoad);
+        }
+    }
 
     public Optional<ToolOutput> get(DatabaseQueryConfig config, Map<String, Object> parameters) {
         DatabaseQueryCacheConfig cacheConfig = configService.current();
@@ -236,6 +279,7 @@ public class DatabaseQueryCacheService {
             identity.put("templateId", config.getId());
             identity.put("templateRevision", config.getUpdatedAt() == null ? null : config.getUpdatedAt().toEpochMilli());
             identity.put("datasourceId", config.getDatasourceId());
+            identity.put("tenantId", invocationTenant());
             identity.put("parameters", normalize(parameters == null ? Map.of() : parameters));
             if ("TEMPLATE_ID_PARAMS_DATASOURCE_USER".equals(configService.current().getKeyStrategy())) {
                 identity.put("user", invocationUser());
@@ -250,7 +294,15 @@ public class DatabaseQueryCacheService {
     }
 
     String templatePrefix(DatabaseQueryConfig config) {
-        return KEY_PREFIX + "v2:template:" + sanitize(config == null ? null : config.getId()) + ":";
+        return KEY_PREFIX + "v3:template:" + sanitize(config == null ? null : config.getId()) + ":";
+    }
+
+    private String invocationTenant() {
+        McpInvocationContext.Context context = McpInvocationContext.current();
+        if (context == null || context.tenantId() == null || context.tenantId().isBlank()) {
+            return "tenant-unspecified";
+        }
+        return context.tenantId().trim();
     }
 
     private String invocationUser() {

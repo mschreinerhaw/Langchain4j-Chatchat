@@ -51,7 +51,8 @@ class EnterpriseMetadataSearchServiceTest {
             new EnterpriseMetadataCatalog(properties, loader, classifier, vectorizer, openSearch);
         catalog.refresh();
         EnterpriseMetadataSearchService service =
-            new EnterpriseMetadataSearchService(catalog, properties, openSearch, classifier, vectorizer);
+            new EnterpriseMetadataSearchService(catalog, properties, openSearch, classifier, vectorizer,
+                EnterpriseMetadataTestProperties.policyService());
 
         Map<String, Object> response = service.search(new EnterpriseMetadataSearchService.SearchRequest(
             "客户信息", List.of("metadata_field"), List.of("标准"), 10));
@@ -111,12 +112,27 @@ class EnterpriseMetadataSearchServiceTest {
             new EnterpriseMetadataCatalog(properties, loader, classifier, vectorizer, openSearch);
         catalog.refresh();
         EnterpriseMetadataSearchService service =
-            new EnterpriseMetadataSearchService(catalog, properties, openSearch, classifier, vectorizer);
+            new EnterpriseMetadataSearchService(catalog, properties, openSearch, classifier, vectorizer,
+                EnterpriseMetadataTestProperties.policyService());
 
-        Map<String, Object> response = service.search(new EnterpriseMetadataSearchService.SearchRequest(
+        Map<String, Object> filtered = service.search(new EnterpriseMetadataSearchService.SearchRequest(
             "customer", List.of("metadata_field"), List.of(), 10));
 
-        assertThat(response).containsEntry("count", 3);
+        assertThat(filtered)
+            .containsEntry("schemaVersion", EnterpriseMetadataSearchService.RESULT_SCHEMA_VERSION)
+            .containsEntry("count", 1)
+            .doesNotContainKey("requiredRetrieval");
+        assertThat((List<Map<String, Object>>) filtered.get("results"))
+            .extracting(item -> item.get("metadataType"))
+            .containsExactly("metadata_field");
+
+        Map<String, Object> response = service.searchRequiredBundle(
+            new EnterpriseMetadataSearchService.SearchRequest(
+                "customer", List.of("metadata_field"), List.of(), 10));
+
+        assertThat(response)
+            .containsEntry("schemaVersion", EnterpriseMetadataSearchService.REQUIRED_BUNDLE_SCHEMA_VERSION)
+            .containsEntry("count", 3);
         assertThat((List<String>) response.get("requiredTypes"))
             .containsExactly("metadata_field", "metadata_term", "metadata_dictionary");
         Map<String, Object> countsByType = (Map<String, Object>) response.get("countsByType");
@@ -126,7 +142,22 @@ class EnterpriseMetadataSearchServiceTest {
             .containsEntry("metadata_dictionary", 1);
         Map<String, Object> requiredRetrieval = (Map<String, Object>) response.get("requiredRetrieval");
         assertThat(requiredRetrieval)
-            .containsEntry("complete", true)
+            .containsEntry("allTypesAttempted", true)
+            .containsEntry("evidenceComplete", true)
+            .containsEntry("emptyTypes", List.of())
+            .containsEntry("omittedTypes", List.of())
             .containsEntry("policy", "enterprise_metadata_search_always_queries_standard_fields_terms_and_dictionaries");
+
+        Map<String, Object> limited = service.searchRequiredBundle(
+            new EnterpriseMetadataSearchService.SearchRequest(
+                "customer", List.of(), List.of(), 2));
+        assertThat(limited).containsEntry("count", 2);
+        Map<String, Object> limitedRetrieval =
+            (Map<String, Object>) limited.get("requiredRetrieval");
+        assertThat(limitedRetrieval)
+            .containsEntry("allTypesAttempted", true)
+            .containsEntry("evidenceComplete", false)
+            .containsEntry("emptyTypes", List.of())
+            .containsEntry("omittedTypes", List.of("metadata_dictionary"));
     }
 }

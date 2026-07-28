@@ -11,6 +11,7 @@ import com.chatchat.agents.evidence.EvidenceAnswerGroundingGuard;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.AgentAnswerReview;
 import com.chatchat.agents.runtime.AgentAnswerReviewer;
+import com.chatchat.agents.runtime.DraftArtifactRuntimePolicy;
 import com.chatchat.agents.runtime.plan.DiagnosticRunStateMachine;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.config.ModelsConfig;
@@ -72,6 +73,8 @@ class AgentAnswerFinalizer {
     private final McpResultEvidencePolicy mcpResultEvidencePolicy =
         new McpResultEvidencePolicy();
     private final AnswerDecisionEngine answerDecisionEngine = new AnswerDecisionEngine();
+    private final DraftArtifactRuntimePolicy draftArtifactRuntimePolicy =
+        new DraftArtifactRuntimePolicy();
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final AnswerQualityEvaluator answerQualityEvaluator = new AnswerQualityEvaluator(objectMapper);
 
@@ -91,10 +94,11 @@ class AgentAnswerFinalizer {
                                                            List<InteractionToolTrace> traces,
                                                            Map<String, Object> metadata,
                                                            List<String> observations) {
-        return finishWithDecision(answer, null, null, null, traces, metadata, observations);
+        return finishWithDecision(null, answer, null, null, null, traces, metadata, observations);
     }
 
-    private AgentOrchestrator.AgentExecutionResult finishWithDecision(String candidateAnswer,
+    private AgentOrchestrator.AgentExecutionResult finishWithDecision(String query,
+                                                                      String candidateAnswer,
                                                                       AgentAnswerReview review,
                                                                       AnswerDecisionEngine.EvidenceSignal evidenceSignal,
                                                                       AnswerQualityEvaluator.QualityReport qualityReport,
@@ -178,7 +182,9 @@ class AgentAnswerFinalizer {
         AnswerEvidenceDisclosure disclosure = answerEvidenceDisclosure(values, observations, toolEvidence, traces);
         String answerWithEvidenceDisclosure = prependAnswerEvidenceDisclosure(finalAnswer, disclosure);
         recordAnswerEvidenceDisclosure(values, disclosure, !answerWithEvidenceDisclosure.equals(finalAnswer));
-        finalAnswer = answerWithEvidenceDisclosure;
+        DraftArtifactRuntimePolicy.Result draftArtifact = draftArtifactRuntimePolicy.enforce(
+            answerWithEvidenceDisclosure, values);
+        finalAnswer = draftArtifact.answer();
         values.put("finalAnswerPreview", shortText(finalAnswer, 1000));
         logAnswerDecision(decision, values);
         values.put("runtimeContractVersion", "agent_runtime_v1");
@@ -341,7 +347,7 @@ class AgentAnswerFinalizer {
             review,
             signal
         );
-        return finishWithDecision(finalAnswer, review, signal, quality, traces, metadata, observations);
+        return finishWithDecision(query, finalAnswer, review, signal, quality, traces, metadata, observations);
     }
 
     AgentOrchestrator.AgentExecutionResult finishReviewedSummary(ChatModel activeChatModel,
@@ -370,7 +376,7 @@ class AgentAnswerFinalizer {
             review,
             signal
         );
-        return finishWithDecision(finalAnswer, review, signal, quality, traces, metadata, observations);
+        return finishWithDecision(query, finalAnswer, review, signal, quality, traces, metadata, observations);
     }
 
     AgentOrchestrator.AgentExecutionResult finishReviewedAnswer(ChatModel activeChatModel,
@@ -399,7 +405,7 @@ class AgentAnswerFinalizer {
             review,
             signal
         );
-        return finishWithDecision(finalAnswer, review, signal, quality, traces, metadata, observations);
+        return finishWithDecision(query, finalAnswer, review, signal, quality, traces, metadata, observations);
     }
 
     private void recordCancellationAfterAnswer(BooleanSupplier cancellationCheck,

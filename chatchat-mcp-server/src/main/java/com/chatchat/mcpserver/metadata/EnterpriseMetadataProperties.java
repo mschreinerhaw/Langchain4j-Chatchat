@@ -20,7 +20,6 @@ public class EnterpriseMetadataProperties {
     private int defaultLimit = 20;
     private int maxResults = 100;
     private boolean refreshOnStartup = true;
-    private SearchWeights searchWeights = new SearchWeights();
     private Knn knn = new Knn();
     private ScenarioClassification scenarioClassification = new ScenarioClassification();
 
@@ -33,14 +32,6 @@ public class EnterpriseMetadataProperties {
             .map(String::trim)
             .distinct()
             .toList();
-    }
-
-    @Data
-    public static class SearchWeights {
-        private double exact = 1.0D;
-        private double contains = 0.75D;
-        private double token = 0.25D;
-        private double standard = 0.10D;
     }
 
     @Data

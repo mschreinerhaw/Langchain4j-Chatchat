@@ -38,7 +38,7 @@ class DatabaseQueryCacheKeyContractTest {
         String first = service.key(template, firstParameters);
         String reordered = service.key(template, reorderedParameters);
 
-        assertThat(first).startsWith("db-query-cache:v2:template:template-orders:");
+        assertThat(first).startsWith("db-query-cache:v3:template:template-orders:");
         assertThat(reordered).isEqualTo(first);
 
         template.setToolName("renamed_order_query");
@@ -47,7 +47,7 @@ class DatabaseQueryCacheKeyContractTest {
 
         template.setId("template-orders-v2");
         assertThat(service.key(template, reorderedParameters))
-            .startsWith("db-query-cache:v2:template:template-orders-v2:")
+            .startsWith("db-query-cache:v3:template:template-orders-v2:")
             .isNotEqualTo(first);
     }
 

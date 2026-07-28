@@ -21,6 +21,56 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AgentPlannerTest {
 
     @Test
+    void propagatesStructuredDraftArtifactContractWithoutKeywordInference() {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        String response = """
+            {
+              "version":"1.0",
+              "intent":{"type":"reasoning","goal":"produce governed artifact","risk_level":"low"},
+              "context":{"key_facts":[],"assumptions":[],"missing_info":[],"constraints":[]},
+              "plan":{"steps":[{
+                "id":1,
+                "action_type":"final_answer",
+                "tool_name":"",
+                "input":{
+                  "answer":"artifact body",
+                  "artifact_contract":{
+                    "artifact_type":"DDL",
+                    "delivery_mode":"DRAFT",
+                    "execution_status":"NOT_EXECUTED",
+                    "authorization_status":"NOT_APPLICABLE_TO_DRAFT",
+                    "human_review_required":true,
+                    "assumptions":[],
+                    "disclosure":"> review required"
+                  }
+                },
+                "depends_on":[]
+              }]},
+              "execution_policy":{"max_steps":1,"allow_parallel":false,"allow_tool":[],"deny_tool":[]},
+              "review":{"self_check":{"completeness_score":1.0,"hallucination_risk":0.0,"tool_sufficiency":true,"missing_steps":[]},"fallback_plan":[]}
+            }
+            """;
+        ChatModel model = new ChatModel() {
+            @Override
+            public String chat(String message) {
+                return response;
+            }
+        };
+
+        PlannerExecutionResult result = planner.decideNextAction(
+            model, "opaque request", "", List.of(), List.of(), List.of(), List.of(),
+            List.of(), false, false, null, null, Map.of("plannerMaxRepairAttempts", 1));
+
+        assertThat(result.plan().valid()).isTrue();
+        assertThat(result.decision().executionPlan())
+            .containsKey("artifactContract");
+        assertThat((Map<String, Object>) result.decision().executionPlan().get("artifactContract"))
+            .containsEntry("artifact_type", "DDL")
+            .containsEntry("delivery_mode", "DRAFT")
+            .containsEntry("execution_status", "NOT_EXECUTED");
+    }
+
+    @Test
     void parsesPlanningAndCandidateAnswerAsIndependentProducts() {
         AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
         String envelope = """

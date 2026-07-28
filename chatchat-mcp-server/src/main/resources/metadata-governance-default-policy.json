@@ -1,0 +1,70 @@
+{
+  "version": "metadata_governance_policy_v1",
+  "metadataContract": {
+    "fieldType": "metadata_field",
+    "termType": "metadata_term",
+    "dictionaryType": "metadata_dictionary",
+    "requiredBundle": [
+      "metadata_field",
+      "metadata_term",
+      "metadata_dictionary"
+    ],
+    "typeAliases": {
+      "field": "metadata_field",
+      "standard_field": "metadata_field",
+      "term": "metadata_term",
+      "root": "metadata_term",
+      "root_word": "metadata_term",
+      "dictionary": "metadata_dictionary",
+      "code_dictionary": "metadata_dictionary"
+    },
+    "dataTypeAttribute": "dataType",
+    "lengthAttribute": "length",
+    "precisionAttribute": "precision",
+    "nullableAttribute": "nullable",
+    "valueRangeAttribute": "valueRange",
+    "englishNameAttribute": "englishName",
+    "abbreviationAttribute": "abbreviation",
+    "dictionaryEnglishNameAttribute": "dictionaryEnglishName",
+    "dictionaryIdAttribute": "dictionaryId"
+  },
+  "search": {
+    "exactWeight": 1.0,
+    "containsWeight": 0.75,
+    "tokenWeight": 0.25,
+    "preferredStatusWeight": 0.10,
+    "preferredStatuses": ["active", "标准"],
+    "termExpansionLimit": 30,
+    "confidenceBase": 0.55,
+    "confidenceSlope": 0.15,
+    "confidenceMaximum": 0.99
+  },
+  "comparison": {
+    "minimumFieldScore": 0.55,
+    "exactNameScore": 1.0,
+    "exactCommentScore": 0.9,
+    "partialCommentScore": 0.75,
+    "dictionaryContextScore": 0.8,
+    "unmatchedTokenPenalty": 0.05,
+    "maximumUnmatchedPenalty": 0.25,
+    "maximumDictionaryMatches": 10,
+    "nullableTrueValues": ["y", "yes", "true", "1", "nullable", "是", "可空"],
+    "nullableFalseValues": ["n", "no", "false", "0", "notnull", "否", "非空"],
+    "differenceSeverities": {
+      "STANDARD_FIELD_MISSING": "ERROR",
+      "TECHNICAL_NAME_MISMATCH": "WARNING",
+      "DATA_TYPE_MISMATCH": "ERROR",
+      "NULLABILITY_MISMATCH": "ERROR",
+      "TERM_NOT_STANDARD": "WARNING",
+      "DICTIONARY_MAPPING_MISSING": "WARNING"
+    },
+    "differenceMessages": {
+      "STANDARD_FIELD_MISSING": "字段未匹配到维护的标准字段",
+      "TECHNICAL_NAME_MISMATCH": "物理字段名与匹配到的标准技术名称不一致",
+      "DATA_TYPE_MISMATCH": "物理数据类型与标准字段定义不一致",
+      "NULLABILITY_MISMATCH": "物理可空约束与标准字段定义不一致",
+      "TERM_NOT_STANDARD": "物理字段名词段未匹配到维护的标准词根",
+      "DICTIONARY_MAPPING_MISSING": "标准字段声明了值域，但未关联到维护的标准字典"
+    }
+  }
+}

@@ -4,6 +4,7 @@ import com.chatchat.agents.protocol.ModelProtocolJson;
 
 import com.chatchat.mcpserver.api.ApiInvokeResult;
 import com.chatchat.mcpserver.api.ApiServiceConfig;
+import com.chatchat.mcpserver.mcp.McpInvocationContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,17 +21,60 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ApiResponseCacheService {
 
-    private static final String KEY_PREFIX = "cache:";
+    private static final String KEY_PREFIX = "cache:v2:";
+    private static final String KEY_SCHEMA_VERSION = "api-response-key.v2";
 
     private final McpCacheProperties properties;
     private final McpRocksDbStore rocksDbStore;
     private final ObjectMapper objectMapper;
+    private final Map<String, CompletableFuture<Void>> inFlightLoads = new ConcurrentHashMap<>();
+
+    public ApiInvokeResult getOrLoad(ApiServiceConfig config,
+                                     Map<String, Object> arguments,
+                                     Supplier<ApiInvokeResult> loader) {
+        if (loader == null) {
+            throw new IllegalArgumentException("API response cache loader is required");
+        }
+        Optional<ApiInvokeResult> cached = get(config, arguments);
+        if (cached.isPresent()) {
+            return cached.get();
+        }
+        if (!isUsable(config)) {
+            return loader.get();
+        }
+        String key = key(config, arguments);
+        CompletableFuture<Void> ownLoad = new CompletableFuture<>();
+        CompletableFuture<Void> activeLoad = inFlightLoads.putIfAbsent(key, ownLoad);
+        if (activeLoad != null) {
+            try {
+                activeLoad.join();
+            } catch (CompletionException ignored) {
+                // A failed leader did not publish a cache entry; this request may retry.
+            }
+            return get(config, arguments).orElseGet(loader);
+        }
+        try {
+            ApiInvokeResult loaded = loader.get();
+            put(config, arguments, loaded);
+            ownLoad.complete(null);
+            return loaded;
+        } catch (RuntimeException ex) {
+            ownLoad.completeExceptionally(ex);
+            throw ex;
+        } finally {
+            inFlightLoads.remove(key, ownLoad);
+        }
+    }
 
     /**
      * Returns the get.
@@ -137,16 +181,33 @@ public class ApiResponseCacheService {
      * @param arguments the arguments value
      * @return the operation result
      */
-    private String key(ApiServiceConfig config, Map<String, Object> arguments) {
+    String key(ApiServiceConfig config, Map<String, Object> arguments) {
         try {
-            Object canonical = normalize(arguments == null ? Map.of() : arguments);
+            Map<String, Object> identity = new TreeMap<>();
+            identity.put("schemaVersion", KEY_SCHEMA_VERSION);
+            identity.put("apiServiceId", config == null ? null : config.getId());
+            identity.put("apiServiceRevision",
+                config == null || config.getUpdatedAt() == null ? null : config.getUpdatedAt().toEpochMilli());
+            identity.put("toolName", config == null ? null : config.getToolName());
+            identity.put("tenantId", invocationTenant());
+            identity.put("arguments", normalize(arguments == null ? Map.of() : arguments));
+            Object canonical = normalize(identity);
             String canonicalJson = ModelProtocolJson.compact(canonical);
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(canonicalJson.getBytes(StandardCharsets.UTF_8));
-            return KEY_PREFIX + sanitize(config.getToolName()) + ":" + HexFormat.of().formatHex(hash);
+            return KEY_PREFIX + sanitize(config == null ? null : config.getId()) + ":"
+                + HexFormat.of().formatHex(hash);
         } catch (Exception ex) {
             throw new IllegalStateException("Failed to build MCP cache key", ex);
         }
+    }
+
+    private String invocationTenant() {
+        McpInvocationContext.Context context = McpInvocationContext.current();
+        if (context == null || context.tenantId() == null || context.tenantId().isBlank()) {
+            return "tenant-unspecified";
+        }
+        return context.tenantId().trim();
     }
 
     /**

@@ -131,4 +131,45 @@ class AgentAnswerFinalizerTaskAssessmentTest {
             .containsEntry("taskResultDeliveryDecision", "PARTIAL_ARTIFACT")
             .containsEntry("answerAssemblyMode", "PARTIAL");
     }
+
+    @Test
+    void finalizerEnforcesNonExecutedDisclosureForRequestedDdlDraft() {
+        AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
+            new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok");
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            reviewer,
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("artifactContract", Map.of(
+            "artifactType", "DDL",
+            "deliveryMode", "DRAFT",
+            "executionStatus", "NOT_EXECUTED",
+            "authorizationStatus", "NOT_APPLICABLE_TO_DRAFT",
+            "humanReviewRequired", true,
+            "assumptions", List.of("字段设计需要人工复核"),
+            "disclosure", "> 制品状态：以下内容是未执行的 DDL 草稿，仅供人工审核。"
+        ));
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishReviewedAnswer(
+            null,
+            "请根据标准字段设计一份建表 DDL 草稿",
+            null,
+            List.of(),
+            metadata,
+            List.of(),
+            "```sql\nCREATE TABLE customer (id BIGINT);\n```",
+            () -> false,
+            "final_answer"
+        );
+
+        assertThat(result.answer())
+            .contains("> 制品状态：以下内容是未执行的 DDL 草稿")
+            .contains("CREATE TABLE customer");
+        assertThat(result.metadata())
+            .containsEntry("artifactType", "DDL")
+            .containsEntry("artifactExecutionStatus", "NOT_EXECUTED")
+            .containsEntry("artifactAuthorizationStatus", "NOT_APPLICABLE_TO_DRAFT")
+            .containsEntry("artifactHumanReviewRequired", true);
+    }
 }

@@ -98,7 +98,9 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
         return switch (type) {
             case RUN_SUBMITTED -> "PENDING";
             case CONFIRMATION_REQUIRED -> "WAIT_CONFIRMATION";
-            case RUN_COMPLETED -> "SUCCESS";
+            // Runtime completion precedes task result adaptation and publication.
+            // Keep the task active until AgentTaskService publishes the final ANSWER/RESULT.
+            case RUN_COMPLETED -> "RUNNING";
             case RUN_CANCELLED -> "CANCELLED";
             case RUN_FAILED -> "FAILED";
             default -> "RUNNING";
@@ -133,6 +135,13 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
         Map<String, Object> runtimePayload = event.payload() == null
             ? Map.of()
             : new LinkedHashMap<>(event.payload());
+        if (event.type() == AgentRunEventType.RUN_COMPLETED) {
+            // The task layer still has to compile its final result contract. Do not expose
+            // a Runtime draft as user-facing content before ANSWER/RESULT is published.
+            runtimePayload.remove("answer");
+            runtimePayload.remove("uiResponse");
+            runtimePayload.remove("executionResult");
+        }
         String status = taskStatus(event.type());
         String answer = terminalAnswer(event, runtimePayload);
         Map<String, Object> uiResponse = terminalUiResponse(status, answer, runtimePayload);

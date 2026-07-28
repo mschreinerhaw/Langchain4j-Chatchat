@@ -517,6 +517,10 @@ public class AgentOrchestrator {
             metadata.put("taskType", plannerResult.taskContract().taskType());
             metadata.put("evidenceRequirement",
                 plannerResult.taskContract().evidenceRequirement().name());
+            if (decision.executionPlan() != null
+                && decision.executionPlan().get("artifactContract") instanceof Map<?, ?> artifactContract) {
+                metadata.put("artifactContract", new LinkedHashMap<>(artifactContract));
+            }
             RuntimeAnswerCandidate plannerCandidate = plannerResult.candidateAnswer();
             if (plannerCandidate != null) {
                 plannerCandidate = plannerCandidate.transition(

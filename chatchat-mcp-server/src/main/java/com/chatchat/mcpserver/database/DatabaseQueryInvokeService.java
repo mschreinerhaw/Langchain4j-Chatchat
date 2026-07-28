@@ -93,22 +93,22 @@ public class DatabaseQueryInvokeService {
             } else {
                 Map<String, Object> parameters = toParameters(config, auditArgs);
                 if (administrationPreview) parameters.put("administration_preview", true);
-                var cached = cacheService.get(config, parameters);
-                if (cached.isPresent()) {
-                    output = cached.get();
+                output = cacheService.getOrLoad(config, parameters, () -> {
+                    ToolOutput loaded = hasSqlSteps(config)
+                        ? invokeConfiguredSqlSteps(config, parameters, startedAt)
+                        : invoke(parameters);
+                    if (loaded.getMetadata() != null) {
+                        loaded.getMetadata().putIfAbsent("cacheHit", false);
+                    }
+                    return loaded;
+                });
+                if (output.getMetadata() != null
+                    && Boolean.TRUE.equals(output.getMetadata().get("cacheHit"))) {
                     output.setExecutionTimeMs(Math.max(0L, System.currentTimeMillis() - startedAt));
                     log.info("Database query invoke cache hit databaseQueryId={} tool={} durationMs={}",
                         config.getId(),
                         config.getToolName(),
                         Math.max(0L, System.currentTimeMillis() - startedAt));
-                } else {
-                    output = hasSqlSteps(config)
-                        ? invokeConfiguredSqlSteps(config, parameters, startedAt)
-                        : invoke(parameters);
-                    if (output.getMetadata() != null) {
-                        output.getMetadata().putIfAbsent("cacheHit", false);
-                    }
-                    cacheService.put(config, parameters, output);
                 }
             }
         } catch (Exception ex) {

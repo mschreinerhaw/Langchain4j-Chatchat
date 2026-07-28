@@ -86,13 +86,14 @@ public class AgentChatModeHandler implements InteractionModeHandler {
     @Override
     public InteractionResponse handle(InteractionRequest request, InteractionContext context) {
         SkillDefinition skill = skillCatalogService.resolve(request.getSkillId());
+        String resolvedSkillId = resolvedSkillId(request, skill);
         AgentToolPolicyResolver.ToolPolicy toolPolicy = toolPolicyResolver.resolve(request, skill);
         Map<String, Object> executionContext = mcpExecutionContext(request, skill);
         AgentLearningService.RuntimeExperienceContext runtimeExperience = learningService == null
             ? AgentLearningService.RuntimeExperienceContext.empty()
             : learningService.resolveRuntimeExperience(
                 request.getTenantId(),
-                skill == null ? request.getSkillId() : skill.id(),
+                resolvedSkillId,
                 request.getQuery(),
                 toolPolicy.availableTools()
             );
@@ -122,6 +123,7 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             request,
             context,
             skill,
+            resolvedSkillId,
             toolPolicy,
             systemPrompt,
             modelName,
@@ -137,7 +139,7 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         metadata.put("selectedCandidateTools", toolPolicy.selectedCandidateTools());
         metadata.put("skippedToolReasons", toolPolicy.skippedToolReasons());
         metadata.put("workflowAutoAddedTools", toolPolicy.workflowAutoAddedTools());
-        metadata.put("skillId", request.getSkillId() == null ? "general" : request.getSkillId());
+        metadata.put("skillId", resolvedSkillId);
         metadata.put("modelName", modelName);
         metadata.put("agent", result.metadata());
         metadata.put("handler", "AgentChatModeHandler");
@@ -162,6 +164,7 @@ public class AgentChatModeHandler implements InteractionModeHandler {
     private AgentRunResult executeThroughRuntime(InteractionRequest request,
                                                  InteractionContext context,
                                                  SkillDefinition skill,
+                                                 String resolvedSkillId,
                                                  AgentToolPolicyResolver.ToolPolicy toolPolicy,
                                                  String systemPrompt,
                                                  String modelName,
@@ -176,7 +179,7 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             .modelName(modelName)
             .boundDocumentIds(skill == null ? List.of() : skill.boundDocumentIds())
             .boundDocumentTags(skill == null ? List.of() : skill.boundDocumentTags())
-            .skillId(request.getSkillId())
+            .skillId(resolvedSkillId)
             .requestId(context.requestId())
             .conversationId(context.conversationId())
             .userId(request.getUserId())
@@ -228,6 +231,13 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             .toolTraces(legacyResult.toolTraces())
             .metadata(legacyResult.metadata())
             .build();
+    }
+
+    private String resolvedSkillId(InteractionRequest request, SkillDefinition skill) {
+        if (skill != null && skill.id() != null && !skill.id().isBlank()) {
+            return skill.id();
+        }
+        return request.getSkillId();
     }
 
     /**

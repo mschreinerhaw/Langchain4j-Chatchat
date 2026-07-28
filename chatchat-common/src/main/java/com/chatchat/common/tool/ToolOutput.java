@@ -1,5 +1,6 @@
 package com.chatchat.common.tool;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -131,6 +132,7 @@ public class ToolOutput implements Serializable {
     /**
      * Get data as string
      */
+    @JsonIgnore
     public String getDataAsString() {
         return data != null ? data.toString() : null;
     }

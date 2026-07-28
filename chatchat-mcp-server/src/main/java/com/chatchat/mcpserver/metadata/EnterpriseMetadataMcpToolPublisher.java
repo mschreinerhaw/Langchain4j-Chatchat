@@ -26,6 +26,7 @@ public class EnterpriseMetadataMcpToolPublisher {
     private final McpSyncServer mcpSyncServer;
     private final EnterpriseMetadataSearchService searchService;
     private final EnterpriseMetadataProperties properties;
+    private final MetadataGovernancePolicyService policyService;
 
     @Order(Ordered.LOWEST_PRECEDENCE)
     @EventListener(ApplicationReadyEvent.class)
@@ -60,7 +61,7 @@ public class EnterpriseMetadataMcpToolPublisher {
             .callHandler((exchange, request) -> {
                 try {
                     Map<String, Object> arguments = request.arguments() == null ? Map.of() : request.arguments();
-                    Map<String, Object> result = searchService.search(new EnterpriseMetadataSearchService.SearchRequest(
+                    Map<String, Object> result = searchService.searchRequiredBundle(new EnterpriseMetadataSearchService.SearchRequest(
                         text(arguments.get("query")),
                         strings(arguments.get("types")),
                         strings(arguments.get("statuses")),
@@ -74,7 +75,7 @@ public class EnterpriseMetadataMcpToolPublisher {
                         .build();
                 } catch (Exception ex) {
                     Map<String, Object> error = Map.of(
-                        "schemaVersion", EnterpriseMetadataSearchService.RESULT_SCHEMA_VERSION,
+                        "schemaVersion", EnterpriseMetadataSearchService.REQUIRED_BUNDLE_SCHEMA_VERSION,
                         "success", false,
                         "error", ex.getMessage()
                     );
@@ -97,7 +98,7 @@ public class EnterpriseMetadataMcpToolPublisher {
             "types", Map.of(
                 "type", "array",
                 "items", Map.of("type", "string", "enum",
-                    List.of("metadata_field", "metadata_term", "metadata_dictionary")),
+                    policyService.current().getMetadataContract().getRequiredBundle()),
                 "description", "Optional type hints. The tool still performs the required standard-field, term-root and dictionary retrieval internally."
             ),
             "statuses", Map.of(
@@ -114,14 +115,14 @@ public class EnterpriseMetadataMcpToolPublisher {
                 "type", "integer",
                 "minimum", 1,
                 "maximum", properties.getMaxResults(),
-                "description", "Maximum results"
+                "description", "Maximum total returned results across standard fields, term roots and dictionaries"
             )
         ), List.of("query"), false, null, null);
     }
 
     private Map<String, Object> meta() {
         return mapOf(
-            "schemaVersion", EnterpriseMetadataSearchService.RESULT_SCHEMA_VERSION,
+            "schemaVersion", EnterpriseMetadataSearchService.REQUIRED_BUNDLE_SCHEMA_VERSION,
             "kind", "enterprise_metadata_capability",
             "capabilityType", "metadata",
             "provider", "configured_catalog",
@@ -154,9 +155,12 @@ public class EnterpriseMetadataMcpToolPublisher {
             "physicalIndex", properties.getIndexName(),
             "evidenceContract", mapOf(
                 "resultPath", "evidenceObjects[]",
-                "types", List.of("metadata_field", "metadata_term", "metadata_dictionary"),
+                "types", policyService.current().getMetadataContract().getRequiredBundle(),
                 "factBoundary", "returned_records_only",
-                "requiredRetrieval", "metadata_field+metadata_term+metadata_dictionary"
+                "requiredRetrieval", String.join("+",
+                    policyService.current().getMetadataContract().getRequiredBundle()),
+                "allTypesAttemptedPath", "requiredRetrieval.allTypesAttempted",
+                "evidenceCompletePath", "requiredRetrieval.evidenceComplete"
             )
         );
     }

@@ -81,19 +81,44 @@ public class ApiInvokeService {
             transport.urlTemplate(),
             ToolLogSummarizer.summarize(auditArgs));
 
-        var cached = cacheService.get(config, auditArgs);
-        if (cached.isPresent()) {
-            result = cached.get();
-            auditService.recordApiCall(config, auditArgs, result, System.currentTimeMillis() - startedAt);
+        result = cacheService.getOrLoad(
+            config,
+            auditArgs,
+            () -> invokeRemote(config, auditArgs, transport)
+        );
+        long durationMs = Math.max(0L, System.currentTimeMillis() - startedAt);
+        auditService.recordApiCall(config, auditArgs, result, durationMs);
+        if (result.cacheHit()) {
             log.info("External API invoke cache hit apiServiceId={} tool={} success={} statusCode={} durationMs={}",
                 config.getId(),
                 config.getToolName(),
                 result.success(),
                 result.statusCode(),
-                Math.max(0L, System.currentTimeMillis() - startedAt));
-            return result;
+                durationMs);
+        } else if (result.success()) {
+            log.info("External API invoke succeeded apiServiceId={} tool={} statusCode={} durationMs={} result={}",
+                config.getId(),
+                config.getToolName(),
+                result.statusCode(),
+                durationMs,
+                ToolLogSummarizer.summarize(result.body()));
+        } else {
+            log.warn("External API invoke failed apiServiceId={} tool={} statusCode={} durationMs={} error={} result={}",
+                config.getId(),
+                config.getToolName(),
+                result.statusCode(),
+                durationMs,
+                result.errorMessage(),
+                ToolLogSummarizer.summarize(result.body()));
         }
+        return result;
+    }
 
+    private ApiInvokeResult invokeRemote(ApiServiceConfig config,
+                                         Map<String, Object> auditArgs,
+                                         ApiHttpTransport transport) {
+        long remoteStartedAt = System.currentTimeMillis();
+        ApiInvokeResult result;
         try {
             HttpClient client = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofMillis(Math.max(1000, transport.timeoutMs())))
@@ -137,28 +162,9 @@ public class ApiInvokeService {
             log.warn("External API invoke threw apiServiceId={} tool={} durationMs={} error={}",
                 config.getId(),
                 config.getToolName(),
-                Math.max(0L, System.currentTimeMillis() - startedAt),
+                Math.max(0L, System.currentTimeMillis() - remoteStartedAt),
                 ex.getMessage(),
                 ex);
-        }
-        cacheService.put(config, auditArgs, result);
-        long durationMs = Math.max(0L, System.currentTimeMillis() - startedAt);
-        auditService.recordApiCall(config, auditArgs, result, durationMs);
-        if (result.success()) {
-            log.info("External API invoke succeeded apiServiceId={} tool={} statusCode={} durationMs={} result={}",
-                config.getId(),
-                config.getToolName(),
-                result.statusCode(),
-                durationMs,
-                ToolLogSummarizer.summarize(result.body()));
-        } else {
-            log.warn("External API invoke failed apiServiceId={} tool={} statusCode={} durationMs={} error={} result={}",
-                config.getId(),
-                config.getToolName(),
-                result.statusCode(),
-                durationMs,
-                result.errorMessage(),
-                ToolLogSummarizer.summarize(result.body()));
         }
         return result;
     }

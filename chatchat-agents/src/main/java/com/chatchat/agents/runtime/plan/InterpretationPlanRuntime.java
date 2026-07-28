@@ -734,6 +734,16 @@ public class InterpretationPlanRuntime {
             return false;
         }
         return switch (expectedType) {
+            case "object", "map" -> output instanceof Map<?, ?>;
+            case "array", "list" -> output instanceof Iterable<?> || output.getClass().isArray();
+            case "string" -> output instanceof CharSequence || output instanceof Character;
+            case "number" -> output instanceof Number;
+            case "integer" -> output instanceof Byte
+                || output instanceof Short
+                || output instanceof Integer
+                || output instanceof Long
+                || output instanceof java.math.BigInteger;
+            case "boolean" -> output instanceof Boolean;
             case "json" -> output instanceof Map<?, ?> || output instanceof List<?>;
             // Structured tool results are rendered as JSON text when they are supplied to
             // the model. Keep the original value for evidence/citation extraction, but

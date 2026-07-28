@@ -339,6 +339,7 @@ class AgentPlanner {
         prompt.append("- Use integer step ids starting at 1. Keep depends_on as explicit arrays of prior step ids.\n");
         prompt.append("- Include exactly one final_answer step. Put the user-facing answer in final_answer.input.answer only when observations are sufficient.\n");
         prompt.append("- final_answer.input.answer MUST be a polished Chinese Markdown document string, not a single plain paragraph. Do not wrap it in code fences.\n");
+        prompt.append("- When the requested deliverable is a non-executed draft artifact, final_answer.input MUST include artifact_contract={artifact_type,delivery_mode:\"DRAFT\",execution_status:\"NOT_EXECUTED\",authorization_status,human_review_required,assumptions,disclosure}. Runtime consumes this structured contract and never infers artifact intent from query or answer keywords. Omit artifact_contract for normal answers and actual execution requests.\n");
         prompt.append("- For mcp_tool steps, tool_name MUST be one of the available tools and input MUST be the exact tool payload.\n");
         prompt.append("- If the user specifies an official source or website, preserve that source constraint in the relevant tool input.\n");
         prompt.append("- Use execution_policy.allow_tool only for tools intentionally approved by policy context; use deny_tool for tools that must never run.\n");
@@ -945,6 +946,13 @@ class AgentPlanner {
         executionPlan.put("intent", interpretationPlan.intent() == null ? null : interpretationPlan.intent().goal());
         executionPlan.put("risk_level", interpretationPlan.intent() == null ? null : interpretationPlan.intent().riskLevel());
         executionPlan.put("tool", nextStep.toolName());
+        if (nextStep.finalAnswerAction() && nextStep.input() != null) {
+            Object artifactContract = firstObject(
+                nextStep.input(), "artifact_contract", "artifactContract");
+            if (artifactContract instanceof Map<?, ?>) {
+                executionPlan.put("artifactContract", artifactContract);
+            }
+        }
 
         if (nextStep.mcpToolAction()) {
             return new AgentDecision(

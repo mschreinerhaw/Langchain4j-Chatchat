@@ -9,9 +9,15 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -131,6 +137,69 @@ class AgentRuntimeTaskEventPublisherTest {
             .containsEntry("answer", "必需工具 sql_query_execute 未执行完成，无法生成最终分析。")
             .containsEntry("status", "FAILED");
         verify(eventBus).publishResult(failedEvent);
+    }
+
+    @Test
+    void concurrentRuntimeCompletionRemainsNonTerminalUntilFinalTaskAnswerIsPublished() throws Exception {
+        AgentTaskLatestRepository latestRepository = mock(AgentTaskLatestRepository.class);
+        InMemoryAgentEventStore eventStore = new InMemoryAgentEventStore();
+        AgentEventBus eventBus = mock(AgentEventBus.class);
+        AgentRuntimeTaskEventPublisher publisher = new AgentRuntimeTaskEventPublisher(
+            latestRepository,
+            eventStore,
+            eventBus,
+            objectMapper
+        );
+        int requestCount = 12;
+        Map<String, AgentTaskLatestEntity> tasks = new java.util.LinkedHashMap<>();
+        for (int index = 0; index < requestCount; index++) {
+            AgentTaskLatestEntity task = task("task-runtime-concurrent-" + index);
+            task.setTenantId("tenant-runtime-" + (index % 3));
+            task.setSessionId("shared-session-" + (index % 2));
+            tasks.put(task.getTaskId(), task);
+        }
+        when(latestRepository.findById(org.mockito.ArgumentMatchers.anyString()))
+            .thenAnswer(invocation -> Optional.ofNullable(tasks.get(invocation.getArgument(0))));
+
+        ExecutorService executor = Executors.newFixedThreadPool(requestCount);
+        CountDownLatch ready = new CountDownLatch(requestCount);
+        CountDownLatch start = new CountDownLatch(1);
+        try {
+            List<Future<Object>> futures = tasks.keySet().stream()
+                .map(taskId -> executor.submit(() -> {
+                    ready.countDown();
+                    start.await();
+                    publisher.publish(AgentRunEvent.of(
+                        taskId,
+                        AgentRunEventType.RUN_COMPLETED,
+                        "Agent Runtime completed",
+                        Map.of("answer", "final summary")
+                    ));
+                    return null;
+                }))
+                .toList();
+            assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            for (Future<Object> future : futures) {
+                future.get(5, TimeUnit.SECONDS);
+            }
+        } finally {
+            executor.shutdownNow();
+        }
+
+        tasks.values().forEach(task -> {
+            List<AgentEvent> events = eventStore.listByTask(
+                task.getTenantId(), task.getSessionId(), task.getTaskId(), 10);
+            assertThat(events).singleElement().satisfies(event -> {
+                assertThat(event.getType()).isEqualTo("RUNTIME_COMPLETED");
+                assertThat(event.getStatus()).isEqualTo("RUNNING");
+                assertThat(event.getTenantId()).isEqualTo(task.getTenantId());
+                assertThat(event.getSessionId()).isEqualTo(task.getSessionId());
+                assertThat(event.getTaskId()).isEqualTo(task.getTaskId());
+                assertThat(event.getPayload()).doesNotContain("\"answer\":\"final summary\"");
+            });
+        });
+        verify(eventBus, times(requestCount)).publishResult(org.mockito.ArgumentMatchers.any(AgentEvent.class));
     }
 
     private AgentTaskLatestEntity task(String taskId) {

@@ -18,11 +18,12 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.util.Map;
-import java.util.Optional;
 import java.util.List;
+import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -47,8 +48,12 @@ class DatabaseQueryInvokeServiceTest {
 
     @BeforeEach
     void setUpCache() {
-        when(cacheService.get(org.mockito.ArgumentMatchers.any(DatabaseQueryConfig.class), anyMap()))
-            .thenReturn(Optional.empty());
+        when(cacheService.getOrLoad(any(DatabaseQueryConfig.class), anyMap(), any()))
+            .thenAnswer(invocation -> {
+                @SuppressWarnings("unchecked")
+                Supplier<ToolOutput> loader = invocation.getArgument(2);
+                return loader.get();
+            });
     }
 
     @Test

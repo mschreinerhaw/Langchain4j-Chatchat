@@ -14,9 +14,9 @@ import org.springframework.beans.factory.ObjectProvider;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -43,7 +43,7 @@ class ApiInvokeServiceTest {
         try {
             ObjectMapper objectMapper = new ObjectMapper();
             ApiResponseCacheService cacheService = mock(ApiResponseCacheService.class);
-            when(cacheService.get(any(), anyMap())).thenReturn(Optional.empty());
+            useDirectCacheLoader(cacheService);
             HttpEndpointConfigService gatewayConfigService = mock(HttpEndpointConfigService.class);
             HttpEndpointConfig gateway = new HttpEndpointConfig();
             gateway.setId("gateway-1");
@@ -103,7 +103,7 @@ class ApiInvokeServiceTest {
         try {
             ObjectMapper objectMapper = new ObjectMapper();
             ApiResponseCacheService cacheService = mock(ApiResponseCacheService.class);
-            when(cacheService.get(any(), anyMap())).thenReturn(Optional.empty());
+            useDirectCacheLoader(cacheService);
             HttpEndpointConfigService gatewayConfigService = mock(HttpEndpointConfigService.class);
             HttpEndpointConfig gateway = new HttpEndpointConfig();
             gateway.setId("gateway-1");
@@ -164,7 +164,7 @@ class ApiInvokeServiceTest {
         try {
             ObjectMapper objectMapper = new ObjectMapper();
             ApiResponseCacheService cacheService = mock(ApiResponseCacheService.class);
-            when(cacheService.get(any(), anyMap())).thenReturn(Optional.empty());
+            useDirectCacheLoader(cacheService);
             HttpEndpointConfigService gatewayConfigService = mock(HttpEndpointConfigService.class);
             HttpEndpointConfig gateway = new HttpEndpointConfig();
             gateway.setId("gateway-1");
@@ -210,5 +210,13 @@ class ApiInvokeServiceTest {
         ObjectProvider<LivedataSessionService> provider = mock(ObjectProvider.class);
         when(provider.getIfAvailable()).thenReturn(null);
         return provider;
+    }
+
+    private void useDirectCacheLoader(ApiResponseCacheService cacheService) {
+        when(cacheService.getOrLoad(any(), anyMap(), any())).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            Supplier<ApiInvokeResult> loader = invocation.getArgument(2);
+            return loader.get();
+        });
     }
 }

@@ -369,11 +369,11 @@ public class CommandTemplateDiscoveryService {
         );
         List<ScoredTemplate<DatabaseQueryConfig>> candidates = templates.stream()
             .filter(template -> databaseQueryDatasourceId(template) != null)
-            .filter(template -> luceneHits.containsKey(databaseQueryDatasourceId(template)))
+            .filter(template -> luceneHits.containsKey(databaseQueryTemplateId(template)))
             .map(template -> new ScoredTemplate<>(template,
                 marketplaceDecision(
-                    luceneAdjusted(relevance(template, databaseQueryRetrievalFilters), luceneHits.get(databaseQueryDatasourceId(template))),
-                    luceneHits.get(databaseQueryDatasourceId(template)),
+                    luceneAdjusted(relevance(template, databaseQueryRetrievalFilters), luceneHits.get(databaseQueryTemplateId(template))),
+                    luceneHits.get(databaseQueryTemplateId(template)),
                     intent,
                     databaseQueryRetrievalFilters,
                     template)))
@@ -598,7 +598,7 @@ public class CommandTemplateDiscoveryService {
         if (signal.hitCount() <= 0) {
             return "dedicated_template_index_no_hit";
         }
-        return "dedicated_template_index_hit_then_authorized_filter_rank";
+        return "registry_universe_with_lucene_score_then_authorized_feature_rank";
     }
 
     private String filtersSchemaVersion(Map<String, Object> filters) {
@@ -710,26 +710,18 @@ public class CommandTemplateDiscoveryService {
     }
 
     private List<LuceneMcpSearchService.TemplateDoc> databaseQueryAssetDocs(List<DatabaseQueryConfig> templates) {
-        Map<String, DatabaseQueryAssetTemplates> grouped = new LinkedHashMap<>();
-        for (DatabaseQueryConfig config : templates == null ? List.<DatabaseQueryConfig>of() : templates) {
-            databaseQueryDatasource(config).ifPresent(datasource -> {
-                String key = firstText(datasource.getId(), datasource.getName());
-                if (key == null) {
-                    return;
-                }
-                grouped.computeIfAbsent(key, ignored -> new DatabaseQueryAssetTemplates(datasource, new ArrayList<>()))
-                    .templates()
-                    .add(config);
-            });
-        }
-        return grouped.values().stream()
-            .map(this::databaseQueryAssetDoc)
+        return (templates == null ? List.<DatabaseQueryConfig>of() : templates).stream()
+            .map(config -> databaseQueryDatasource(config)
+                .map(datasource -> databaseQueryTemplateDoc(config, datasource))
+                .orElse(null))
+            .filter(java.util.Objects::nonNull)
             .toList();
     }
 
-    private LuceneMcpSearchService.TemplateDoc databaseQueryAssetDoc(DatabaseQueryAssetTemplates asset) {
-        SqlDatasourceConfig datasource = asset.datasource();
-        List<DatabaseQueryConfig> templates = asset.templates();
+    private LuceneMcpSearchService.TemplateDoc databaseQueryTemplateDoc(
+        DatabaseQueryConfig config,
+        SqlDatasourceConfig datasource
+    ) {
         List<String> signals = new ArrayList<>();
         addWords(signals, datasource.getName());
         addWords(signals, datasource.getTitle());
@@ -749,44 +741,46 @@ public class CommandTemplateDiscoveryService {
         addJsonLabels(assetSignals, datasource.getCapabilitiesJson());
         addGovernanceSignals(assetSignals, datasource.getGovernanceJson());
         signals.addAll(assetSignals);
-        for (DatabaseQueryConfig config : templates) {
-            signals.addAll(intentSignals(config));
-            addWords(signals, config.getSqlTemplate());
-        }
+        signals.addAll(intentSignals(config));
+        addWords(signals, config.getBusinessGroup());
+        addWords(signals, config.getBusinessGroupName());
+        addWords(signals, config.getBusinessGroupDescription());
         List<String> distinctSignals = signals.stream()
             .filter(value -> value != null && !value.isBlank())
             .distinct()
             .toList();
         return new LuceneMcpSearchService.TemplateDoc(
-            firstText(datasource.getId(), firstText(datasource.getName(), datasource.getToolName())),
+            databaseQueryTemplateId(config),
             "database_query",
-            firstText(datasource.getTitle(), firstText(datasource.getName(), datasource.getToolName())),
-            databaseQueryAssetDescription(datasource, templates),
+            firstText(config.getTitle(), databaseQueryTemplateId(config)),
+            databaseQueryTemplateSearchDescription(config, datasource),
             "sql_template_registry",
-            SqlDatasourceConfigService.normalizeDatabaseTypeToken(datasource.getDatabaseType()),
+            SqlDatasourceConfigService.normalizeDatabaseTypeToken(firstText(
+                config.getDatabaseType(), datasource.getDatabaseType())),
             String.join(" ", distinctSignals),
-            "read_only",
+            databaseQueryRiskLevel(config),
             distinctSignals,
-            "database_query_asset_registry"
+            "database_query_template_registry"
         );
     }
 
-    private String databaseQueryAssetDescription(SqlDatasourceConfig datasource, List<DatabaseQueryConfig> templates) {
+    private String databaseQueryTemplateSearchDescription(
+        DatabaseQueryConfig config,
+        SqlDatasourceConfig datasource
+    ) {
         List<String> values = new ArrayList<>();
+        addWords(values, config.getDescription());
+        addWords(values, config.getImplementationSteps());
+        addWords(values, config.getTemplateIntent());
+        addWords(values, config.getBusinessGroup());
+        addWords(values, config.getBusinessGroupName());
+        addWords(values, config.getBusinessGroupDescription());
         addWords(values, datasource.getDescription());
         addWords(values, datasource.getName());
         addWords(values, datasource.getTitle());
         addWords(values, datasource.getToolName());
         addWords(values, datasource.getEnvironment());
         addWords(values, datasource.getDatabaseType());
-        for (DatabaseQueryConfig config : templates) {
-            addWords(values, config.getTitle());
-            addWords(values, config.getDescription());
-            addWords(values, config.getTemplateIntent());
-            addWords(values, config.getBusinessGroup());
-            addWords(values, config.getBusinessGroupName());
-            addWords(values, config.getBusinessGroupDescription());
-        }
         return values.stream()
             .filter(value -> value != null && !value.isBlank())
             .distinct()
@@ -1230,6 +1224,10 @@ public class CommandTemplateDiscoveryService {
         return databaseQueryDatasource(config)
             .map(datasource -> firstText(datasource.getId(), datasource.getName()))
             .orElse(null);
+    }
+
+    private String databaseQueryTemplateId(DatabaseQueryConfig config) {
+        return config == null ? null : firstText(config.getToolName(), config.getId());
     }
 
     private Map<String, Object> businessGroupMetadata(DatabaseQueryConfig config) {
@@ -3176,9 +3174,6 @@ public class CommandTemplateDiscoveryService {
     }
 
     private record ScoredTemplate<T>(T template, Relevance relevance) {
-    }
-
-    private record DatabaseQueryAssetTemplates(SqlDatasourceConfig datasource, List<DatabaseQueryConfig> templates) {
     }
 
     private record Relevance(int score, List<String> reasons, double finalScore, Map<String, Object> features) {

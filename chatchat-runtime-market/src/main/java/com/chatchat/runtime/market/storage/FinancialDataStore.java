@@ -386,8 +386,7 @@ public class FinancialDataStore {
             tiers.add("weekly_snapshot");
         }
         if (readDaily) {
-            LocalDate hotStart = "auto".equals(mode) && startDate != null && startDate.isBefore(cutoff) ? cutoff : startDate;
-            combined.addAll(queryTable(table, code, allowed, filters, hotStart, endDate, limit, "daily_hot"));
+            combined.addAll(queryTable(table, code, allowed, filters, startDate, endDate, limit, "daily_hot"));
             tiers.add("daily_hot");
         }
         Map<String, Map<String, Object>> unique = new LinkedHashMap<>();

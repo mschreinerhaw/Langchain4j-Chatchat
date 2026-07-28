@@ -137,6 +137,20 @@
       <aside class="keyword-rule-side">
         <article class="keyword-rule-panel">
           <header>
+            <h2>关键词词频 <Info :size="13" stroke-width="2" /></h2>
+          </header>
+          <div class="signal-list">
+            <div v-for="item in topKeywordFrequencies" :key="item.key" class="signal-row" :title="item.types">
+              <span>{{ item.label }}</span>
+              <i><b :style="{ width: item.ratio + '%' }"></b></i>
+              <strong>{{ formatCount(item.value) }}</strong>
+            </div>
+            <p v-if="!topKeywordFrequencies.length" class="agent-runtime-empty">暂无已发布关键词。</p>
+          </div>
+        </article>
+
+        <article class="keyword-rule-panel">
+          <header>
             <h2>规则健康度 <Info :size="13" stroke-width="2" /></h2>
           </header>
           <div class="health-list">

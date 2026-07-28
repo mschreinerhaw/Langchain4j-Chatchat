@@ -243,6 +243,7 @@ public class RetrievalRuleController {
             ruleService.listSemanticLexiconEntries(),
             ruleService.listVersions(),
             ruleService.activeVersions(),
+            snapshot.keywordFrequencies(),
             snapshot.refreshedAt()
         );
     }
@@ -254,6 +255,7 @@ public class RetrievalRuleController {
         List<SemanticLexiconEntryEntity> semanticLexiconEntries,
         List<RuleVersionEntity> versions,
         RetrievalRuleService.ActiveRuleVersions activeVersions,
+        List<RetrievalRuleService.KeywordFrequency> keywordFrequencies,
         long refreshedAt
     ) {
     }

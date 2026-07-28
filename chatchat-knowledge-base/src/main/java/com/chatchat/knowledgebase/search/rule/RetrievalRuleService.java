@@ -10,9 +10,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -881,11 +883,243 @@ public class RetrievalRuleService {
         List<ChunkRule> chunkRules,
         List<ExpandRule> expandRules,
         List<SemanticLexiconEntry> semanticLexicon,
-        long refreshedAt
+        long refreshedAt,
+        KeywordRuleIndex keywordIndex
     ) {
+        public RuleSnapshot(
+            List<IntentRule> intentRules,
+            List<ChunkRule> chunkRules,
+            List<ExpandRule> expandRules,
+            List<SemanticLexiconEntry> semanticLexicon,
+            long refreshedAt
+        ) {
+            this(
+                List.copyOf(intentRules),
+                List.copyOf(chunkRules),
+                List.copyOf(expandRules),
+                List.copyOf(semanticLexicon),
+                refreshedAt,
+                KeywordRuleIndex.build(intentRules, chunkRules, expandRules, semanticLexicon)
+            );
+        }
+
+        public List<IntentRule> matchingIntentRules(String query, List<String> tokens) {
+            return keywordIndex.matchingIntentRules(query, tokens);
+        }
+
+        public List<ChunkRule> matchingChunkRules(String value) {
+            return keywordIndex.matchingChunkRules(value);
+        }
+
+        public List<KeywordFrequency> keywordFrequencies() {
+            return keywordIndex.frequencies();
+        }
+
         static RuleSnapshot empty() {
             return new RuleSnapshot(List.of(), List.of(), List.of(), List.of(), 0L);
         }
+    }
+
+    /**
+     * Immutable runtime index derived exclusively from the active, maintained rule snapshot.
+     * It avoids a rule-by-keyword full scan while keeping regex-only rules in the candidate set.
+     */
+    public static final class KeywordRuleIndex {
+
+        private final KeywordNode root;
+        private final List<IntentRule> intentRules;
+        private final List<ChunkRule> chunkRules;
+        private final Set<IntentRule> patternedIntentRules;
+        private final Set<ChunkRule> patternedChunkRules;
+        private final List<KeywordFrequency> frequencies;
+
+        private KeywordRuleIndex(KeywordNode root,
+                                 List<IntentRule> intentRules,
+                                 List<ChunkRule> chunkRules,
+                                 Set<IntentRule> patternedIntentRules,
+                                 Set<ChunkRule> patternedChunkRules,
+                                 List<KeywordFrequency> frequencies) {
+            this.root = root;
+            this.intentRules = List.copyOf(intentRules);
+            this.chunkRules = List.copyOf(chunkRules);
+            this.patternedIntentRules = Set.copyOf(patternedIntentRules);
+            this.patternedChunkRules = Set.copyOf(patternedChunkRules);
+            this.frequencies = List.copyOf(frequencies);
+        }
+
+        static KeywordRuleIndex build(List<IntentRule> intentRules,
+                                      List<ChunkRule> chunkRules,
+                                      List<ExpandRule> expandRules,
+                                      List<SemanticLexiconEntry> semanticLexicon) {
+            KeywordNode root = new KeywordNode();
+            Map<String, MutableKeywordFrequency> frequencies = new HashMap<>();
+            Set<IntentRule> patternedIntentRules = new LinkedHashSet<>();
+            Set<ChunkRule> patternedChunkRules = new LinkedHashSet<>();
+
+            for (IntentRule rule : intentRules) {
+                indexKeywords(root, rule.keywords(), TYPE_INTENT, rule, null, frequencies);
+                if (rule.pattern() != null) {
+                    patternedIntentRules.add(rule);
+                }
+            }
+            for (ChunkRule rule : chunkRules) {
+                indexKeywords(root, rule.keywords(), TYPE_CHUNK, null, rule, frequencies);
+                if (rule.pattern() != null) {
+                    patternedChunkRules.add(rule);
+                }
+            }
+            for (ExpandRule rule : expandRules) {
+                Set<String> words = new LinkedHashSet<>(rule.expandWords());
+                words.add(rule.sourceWord());
+                recordFrequencies(words, TYPE_EXPAND, frequencies);
+            }
+            for (SemanticLexiconEntry entry : semanticLexicon) {
+                Set<String> words = new LinkedHashSet<>(entry.aliases());
+                words.add(entry.term());
+                words.add(entry.mappedTerm());
+                recordFrequencies(words, TYPE_LEXICON, frequencies);
+            }
+
+            List<KeywordFrequency> orderedFrequencies = frequencies.values().stream()
+                .map(MutableKeywordFrequency::toImmutable)
+                .sorted(Comparator.comparingInt(KeywordFrequency::frequency).reversed()
+                    .thenComparing(KeywordFrequency::keyword))
+                .toList();
+            return new KeywordRuleIndex(
+                root,
+                intentRules,
+                chunkRules,
+                patternedIntentRules,
+                patternedChunkRules,
+                orderedFrequencies
+            );
+        }
+
+        public List<KeywordFrequency> frequencies() {
+            return frequencies;
+        }
+
+        public List<IntentRule> matchingIntentRules(String query, List<String> tokens) {
+            Set<IntentRule> matches = new LinkedHashSet<>(patternedIntentRules);
+            collectMatches(query, matches, null);
+            if (tokens != null) {
+                tokens.forEach(token -> collectMatches(token, matches, null));
+            }
+            return intentRules.stream().filter(matches::contains).toList();
+        }
+
+        public List<ChunkRule> matchingChunkRules(String value) {
+            Set<ChunkRule> matches = new LinkedHashSet<>(patternedChunkRules);
+            collectMatches(value, null, matches);
+            return chunkRules.stream().filter(matches::contains).toList();
+        }
+
+        private void collectMatches(String value,
+                                    Set<IntentRule> intentMatches,
+                                    Set<ChunkRule> chunkMatches) {
+            String normalized = normalizeKeyword(value);
+            for (int start = 0; start < normalized.length(); start++) {
+                KeywordNode node = root;
+                for (int cursor = start; cursor < normalized.length(); cursor++) {
+                    node = node.children.get(normalized.charAt(cursor));
+                    if (node == null) {
+                        break;
+                    }
+                    if (intentMatches != null) {
+                        intentMatches.addAll(node.intentRules);
+                    }
+                    if (chunkMatches != null) {
+                        chunkMatches.addAll(node.chunkRules);
+                    }
+                }
+            }
+        }
+
+        private static void indexKeywords(KeywordNode root,
+                                          List<String> words,
+                                          String type,
+                                          IntentRule intentRule,
+                                          ChunkRule chunkRule,
+                                          Map<String, MutableKeywordFrequency> frequencies) {
+            Set<String> normalizedWords = normalizeKeywords(words);
+            recordFrequencies(normalizedWords, type, frequencies);
+            for (String word : normalizedWords) {
+                KeywordNode node = root;
+                for (int index = 0; index < word.length(); index++) {
+                    node = node.children.computeIfAbsent(word.charAt(index), ignored -> new KeywordNode());
+                }
+                if (intentRule != null) {
+                    node.intentRules.add(intentRule);
+                }
+                if (chunkRule != null) {
+                    node.chunkRules.add(chunkRule);
+                }
+            }
+        }
+
+        private static void recordFrequencies(Iterable<String> words,
+                                              String type,
+                                              Map<String, MutableKeywordFrequency> frequencies) {
+            Set<String> normalizedWords = new LinkedHashSet<>();
+            words.forEach(word -> {
+                String normalized = normalizeKeyword(word);
+                if (!normalized.isBlank()) {
+                    normalizedWords.add(normalized);
+                }
+            });
+            normalizedWords.forEach(word -> frequencies
+                .computeIfAbsent(word, MutableKeywordFrequency::new)
+                .record(type));
+        }
+
+        private static Set<String> normalizeKeywords(List<String> words) {
+            Set<String> normalized = new LinkedHashSet<>();
+            if (words != null) {
+                words.forEach(word -> {
+                    String value = normalizeKeyword(word);
+                    if (!value.isBlank()) {
+                        normalized.add(value);
+                    }
+                });
+            }
+            return normalized;
+        }
+
+        private static String normalizeKeyword(String value) {
+            return value == null ? "" : value.toLowerCase(Locale.ROOT).replaceAll("\\s+", " ").trim();
+        }
+    }
+
+    private static final class KeywordNode {
+        private final Map<Character, KeywordNode> children = new HashMap<>();
+        private final Set<IntentRule> intentRules = new LinkedHashSet<>();
+        private final Set<ChunkRule> chunkRules = new LinkedHashSet<>();
+    }
+
+    private static final class MutableKeywordFrequency {
+        private final String keyword;
+        private int frequency;
+        private final Set<String> ruleTypes = new LinkedHashSet<>();
+
+        private MutableKeywordFrequency(String keyword) {
+            this.keyword = keyword;
+        }
+
+        private void record(String ruleType) {
+            frequency++;
+            ruleTypes.add(ruleType);
+        }
+
+        private KeywordFrequency toImmutable() {
+            return new KeywordFrequency(keyword, frequency, List.copyOf(ruleTypes));
+        }
+    }
+
+    public record KeywordFrequency(
+        String keyword,
+        int frequency,
+        List<String> ruleTypes
+    ) {
     }
 
     public record IntentRule(

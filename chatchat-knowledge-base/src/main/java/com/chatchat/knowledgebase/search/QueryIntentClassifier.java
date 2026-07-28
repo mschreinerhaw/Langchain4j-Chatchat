@@ -30,7 +30,7 @@ public class QueryIntentClassifier {
         String normalized = normalize(query);
         RetrievalRuleService.IntentRule bestRule = null;
         int bestScore = 0;
-        for (RetrievalRuleService.IntentRule rule : ruleService.snapshot().intentRules()) {
+        for (RetrievalRuleService.IntentRule rule : ruleService.snapshot().matchingIntentRules(normalized, tokens)) {
             int score = score(normalized, tokens, rule);
             if (score > bestScore || (score == bestScore && shouldPrefer(rule, bestRule))) {
                 bestRule = rule;
@@ -47,8 +47,9 @@ public class QueryIntentClassifier {
         int score = 0;
         for (String term : rule.keywords()) {
             String normalizedTerm = normalize(term);
-            if (!normalizedTerm.isBlank() && query.contains(normalizedTerm)) {
-                score += (normalizedTerm.length() > 3 ? 2 : 1) * rule.weight();
+            int frequency = termFrequency(query, normalizedTerm);
+            if (frequency > 0) {
+                score += frequency * (normalizedTerm.length() > 3 ? 2 : 1) * rule.weight();
             }
         }
         if (rule.pattern() != null && rule.pattern().matcher(query).find()) {
@@ -94,5 +95,18 @@ public class QueryIntentClassifier {
 
     private String normalize(String value) {
         return value == null ? "" : value.toLowerCase(Locale.ROOT).replaceAll("\\s+", " ").trim();
+    }
+
+    private int termFrequency(String value, String term) {
+        if (value == null || term == null || term.isBlank()) {
+            return 0;
+        }
+        int frequency = 0;
+        int cursor = 0;
+        while ((cursor = value.indexOf(term, cursor)) >= 0) {
+            frequency++;
+            cursor += term.length();
+        }
+        return frequency;
     }
 }

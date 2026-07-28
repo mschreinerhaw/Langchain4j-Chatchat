@@ -23,7 +23,7 @@ public class ChunkTypeClassifier {
 
         RetrievalRuleService.ChunkRule bestRule = null;
         int bestScore = 0;
-        for (RetrievalRuleService.ChunkRule rule : ruleService.snapshot().chunkRules()) {
+        for (RetrievalRuleService.ChunkRule rule : ruleService.snapshot().matchingChunkRules(combined)) {
             int score = score(combined, rule);
             if (score > bestScore || (score == bestScore && shouldPrefer(rule, bestRule))) {
                 bestRule = rule;
@@ -40,8 +40,9 @@ public class ChunkTypeClassifier {
         int score = 0;
         for (String keyword : rule.keywords()) {
             String normalizedKeyword = normalize(keyword);
-            if (!normalizedKeyword.isBlank() && value.contains(normalizedKeyword)) {
-                score += (normalizedKeyword.length() > 3 ? 2 : 1) * rule.weight();
+            int frequency = termFrequency(value, normalizedKeyword);
+            if (frequency > 0) {
+                score += frequency * (normalizedKeyword.length() > 3 ? 2 : 1) * rule.weight();
             }
         }
         if (rule.pattern() != null && rule.pattern().matcher(value).find()) {
@@ -70,5 +71,18 @@ public class ChunkTypeClassifier {
 
     private boolean isOcrText(String value) {
         return value != null && (value.startsWith("# ocr_text") || value.startsWith("ocr_text"));
+    }
+
+    private int termFrequency(String value, String term) {
+        if (value == null || term == null || term.isBlank()) {
+            return 0;
+        }
+        int frequency = 0;
+        int cursor = 0;
+        while ((cursor = value.indexOf(term, cursor)) >= 0) {
+            frequency++;
+            cursor += term.length();
+        }
+        return frequency;
     }
 }

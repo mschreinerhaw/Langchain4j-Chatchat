@@ -371,11 +371,10 @@ public class SearchService {
             context.tenantId(),
             context.userId()
         );
-        List<String> queryTokens = tokenizer.searchTokens(normalizedKeyword);
+        List<String> queryTokens = tokenizer.searchTokens(focusedKeyword);
         List<String> focusedQueryTokens = tokenizer.searchTokens(focusedKeyword);
-        QueryIntent queryIntent = queryExpander.classifyIntent(normalizedKeyword);
-        String queryIntentName = queryExpander.classifyIntentName(normalizedKeyword);
-        List<String> expandedQueryTokens = queryExpander.expandTokens(queryTokens, queryIntentName, normalizedKeyword);
+        String queryIntentName = queryExpander.classifyIntentName(focusedKeyword);
+        List<String> expandedQueryTokens = queryExpander.expandTokens(queryTokens, queryIntentName, focusedKeyword);
         List<String> scopedDocumentIds = parseList(docIds);
         if (hasKeyword(keyword)
             && expandedQueryTokens.isEmpty()
@@ -570,10 +569,10 @@ public class SearchService {
             context.tenantId(),
             context.userId()
         );
-        List<String> queryTokens = tokenizer.searchTokens(normalizedKeyword);
+        List<String> queryTokens = tokenizer.searchTokens(focusedKeyword);
         List<String> focusedQueryTokens = tokenizer.searchTokens(focusedKeyword);
-        String queryIntentName = queryExpander.classifyIntentName(normalizedKeyword);
-        List<String> expandedQueryTokens = queryExpander.expandTokens(queryTokens, queryIntentName, normalizedKeyword);
+        String queryIntentName = queryExpander.classifyIntentName(focusedKeyword);
+        List<String> expandedQueryTokens = queryExpander.expandTokens(queryTokens, queryIntentName, focusedKeyword);
         List<String> resultTokens = expandedQueryTokens.isEmpty() ? queryTokens : expandedQueryTokens;
         List<String> significantTerms = significantQueryTerms(focusedKeyword, focusedQueryTokens);
         QueryRecallMode recallMode = routeQueryRecall(focusedKeyword, significantTerms);
@@ -650,7 +649,7 @@ public class SearchService {
                 fallbackPage.total()
             );
             if (fallbackPage.total() > 0) {
-                return fallbackPage;
+                return withQueryTokens(fallbackPage, resultTokens);
             }
             allResults = quickCandidates.stream()
                 .filter(this::isFrontendQuickWeakRelevant)
@@ -694,7 +693,7 @@ public class SearchService {
         );
         return new SearchPage(
             keyword,
-            queryTokens,
+            resultTokens,
             results,
             allResults.size(),
             pageSize,
@@ -704,7 +703,7 @@ public class SearchService {
             pageNumber < totalPages,
             (System.nanoTime() - startedAt) / 1_000_000,
             documents.size(),
-            buildSearchMessage(allResults.size(), documents.size(), queryTokens)
+            buildSearchMessage(allResults.size(), documents.size(), resultTokens)
         );
     }
 
@@ -712,6 +711,23 @@ public class SearchService {
         if (Thread.currentThread().isInterrupted()) {
             throw new CancellationException("document search cancelled");
         }
+    }
+
+    private SearchPage withQueryTokens(SearchPage page, List<String> queryTokens) {
+        return new SearchPage(
+            page.keyword(),
+            queryTokens == null ? List.of() : List.copyOf(queryTokens),
+            page.results(),
+            page.total(),
+            page.limit(),
+            page.page(),
+            page.pageSize(),
+            page.totalPages(),
+            page.hasMore(),
+            page.tookMs(),
+            page.documentCount(),
+            page.message()
+        );
     }
 
     /**
@@ -1086,8 +1102,15 @@ public class SearchService {
                     titleMemoryCalibratedScores
                 ))
                 .toList();
+            boolean hasDirectCandidate = rankedCandidates.stream()
+                .map(SearchResult::scoreBreakdown)
+                .filter(Objects::nonNull)
+                .anyMatch(breakdown -> breakdown.coverageRatio() > 0.0D);
             List<SearchResult> allResults = rankedCandidates.stream()
                 .filter(result -> isRelevantResult(result, significantTerms))
+                .filter(result -> !hasDirectCandidate
+                    || result.scoreBreakdown().coverageRatio() > 0.0D
+                    || hasMemoryRecallSignal(result.scoreBreakdown()))
                 .sorted(resultComparator())
                 .toList();
             log.info(
@@ -2322,6 +2345,7 @@ public class SearchService {
         int sourceScore = 0;
         int phraseScore = 0;
         int coveredTerms = 0;
+        int fileNameCoveredTerms = 0;
         String bestTerm = "";
         double bm25 = frontendBm25Score(document, scoringTerms, corpus);
         int bm25Score = (int) Math.round(Math.min(220.0D, bm25 * 60.0D));
@@ -2361,6 +2385,7 @@ public class SearchService {
             }
             if (containsNormalizedCompact(document.getFileName(), normalizedTerm) || containsTitleAwareTerm(fileNameTerms, normalizedTerm)) {
                 fileNameScore += FILENAME_TERM_SCORE;
+                fileNameCoveredTerms++;
                 matched = true;
             }
             if (listContainsNormalized(document.getKeywords(), normalizedTerm)) {
@@ -2396,9 +2421,13 @@ public class SearchService {
             }
         }
 
-        double coverageRatio = scoringTerms == null || scoringTerms.isEmpty()
-            ? 1.0D
-            : (double) coveredTerms / scoringTerms.size();
+        if (phraseScore == 0 && scoringTerms != null && !scoringTerms.isEmpty()
+            && fileNameCoveredTerms == scoringTerms.size()) {
+            phraseScore += FILENAME_PHRASE_SCORE;
+            matchedTerms.add(phrase);
+            bestTerm = phrase;
+        }
+        double coverageRatio = coverageRatio(phrase, scoringTerms, coveredTerms, matchedTerms);
         int coverageScore = (int) Math.round(coverageRatio * COVERAGE_SCORE);
         int totalScore = titleScore
             + fileNameScore
@@ -3034,9 +3063,7 @@ public class SearchService {
             }
         }
 
-        double coverageRatio = scoringTerms == null || scoringTerms.isEmpty()
-            ? 1.0D
-            : (double) coveredTerms / scoringTerms.size();
+        double coverageRatio = coverageRatio(phrase, scoringTerms, coveredTerms, matchedTerms);
         int coverageScore = (int) Math.round(coverageRatio * COVERAGE_SCORE);
         int totalScore = baseTokenScore
             + titleScore
@@ -3167,6 +3194,42 @@ public class SearchService {
             .filter(token -> token != null && token.length() >= 2)
             .forEach(terms::add);
         return new ArrayList<>(terms);
+    }
+
+    private double coverageRatio(String phrase,
+                                 List<String> scoringTerms,
+                                 int coveredTerms,
+                                 Set<String> matchedTerms) {
+        if (scoringTerms == null || scoringTerms.isEmpty()) {
+            return 1.0D;
+        }
+        double termCoverage = (double) coveredTerms / scoringTerms.size();
+        String compactPhrase = normalizeSearchText(phrase).replace(" ", "");
+        if (!TitleAwareTerms.containsCjk(compactPhrase) || compactPhrase.isEmpty()
+            || matchedTerms == null || matchedTerms.isEmpty()) {
+            return termCoverage;
+        }
+        boolean[] coveredCharacters = new boolean[compactPhrase.length()];
+        for (String matchedTerm : matchedTerms) {
+            String compactTerm = normalizeSearchText(matchedTerm).replace(" ", "");
+            if (compactTerm.isEmpty()) {
+                continue;
+            }
+            int cursor = 0;
+            while ((cursor = compactPhrase.indexOf(compactTerm, cursor)) >= 0) {
+                for (int index = cursor; index < cursor + compactTerm.length(); index++) {
+                    coveredCharacters[index] = true;
+                }
+                cursor += compactTerm.length();
+            }
+        }
+        int coveredCount = 0;
+        for (boolean covered : coveredCharacters) {
+            if (covered) {
+                coveredCount++;
+            }
+        }
+        return Math.max(termCoverage, (double) coveredCount / compactPhrase.length());
     }
 
     private List<String> compactCjkSignificantTerms(String keyword) {

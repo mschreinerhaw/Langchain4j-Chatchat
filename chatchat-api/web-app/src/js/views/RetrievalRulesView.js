@@ -78,6 +78,7 @@ export default {
         semanticLexiconEntries: [],
         versions: [],
         activeVersions: {},
+        keywordFrequencies: [],
         refreshedAt: 0
       },
       ruleForms: {
@@ -288,6 +289,19 @@ export default {
     },
     needsReviewCount() {
       return this.allRules.filter((rule) => Number(rule.weight || 1) <= 0 || Number(rule.priority || 0) < 0).length;
+    },
+    topKeywordFrequencies() {
+      const rows = this.retrievalRules.keywordFrequencies
+        .filter((item) => item?.keyword && Number(item.frequency) > 0)
+        .slice(0, 8)
+        .map((item) => ({
+          key: `${item.keyword}-${(item.ruleTypes || []).join("-")}`,
+          label: item.keyword,
+          value: Number(item.frequency),
+          types: (item.ruleTypes || []).join(" / "),
+          ratio: 10
+        }));
+      return this.withRatios(rows);
     },
     topIntentSignals() {
       const rows = this.retrievalRules.intentRules
@@ -525,6 +539,7 @@ export default {
         semanticLexiconEntries: Array.isArray(rules?.semanticLexiconEntries) ? rules.semanticLexiconEntries : [],
         versions: Array.isArray(rules?.versions) ? rules.versions : [],
         activeVersions: rules?.activeVersions || {},
+        keywordFrequencies: Array.isArray(rules?.keywordFrequencies) ? rules.keywordFrequencies : [],
         refreshedAt: rules?.refreshedAt || 0
       };
     },

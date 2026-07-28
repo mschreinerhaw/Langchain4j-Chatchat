@@ -851,8 +851,8 @@ public class EnterpriseAdminService implements ApplicationRunner {
             case "user" -> {
                 SysUser user = userRepository.findById(id)
                     .orElseThrow(() -> new IllegalArgumentException("user not found"));
-                if ("admin".equalsIgnoreCase(user.getUsername())) {
-                    throw new IllegalArgumentException("admin user cannot be deleted");
+                if (isProtectedUser(user)) {
+                    throw new IllegalArgumentException("built-in user cannot be deleted");
                 }
                 userRoleRepository.deleteByUserId(id);
                 userRepository.deleteById(id);
@@ -903,7 +903,8 @@ public class EnterpriseAdminService implements ApplicationRunner {
             roleIds,
             permissionCodes,
             user.getCreatedAt(),
-            user.getUpdatedAt()
+            user.getUpdatedAt(),
+            isProtectedUser(user)
         );
     }
 
@@ -1064,6 +1065,19 @@ public class EnterpriseAdminService implements ApplicationRunner {
             .map(SysTenant::getTenantNo)
             .map(tenantNo -> tenantNo == PLATFORM_TENANT_NO)
             .orElse(false);
+    }
+
+    private boolean isProtectedUser(SysUser user) {
+        if (user == null) {
+            return false;
+        }
+        if ("admin".equalsIgnoreCase(user.getUsername())) {
+            return true;
+        }
+        String internalUsername = internalCredentialProperties.resolvedUsername();
+        return internalUsername != null
+            && !internalUsername.isBlank()
+            && internalUsername.equalsIgnoreCase(user.getUsername());
     }
 
     private String generateSecureToken() {
@@ -1707,7 +1721,25 @@ public class EnterpriseAdminService implements ApplicationRunner {
         List<String> roleIds,
         List<String> permissionCodes,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        boolean protectedAccount
     ) {
+        public UserView(String id,
+                        String tenantId,
+                        Long tenantNo,
+                        String orgId,
+                        String username,
+                        String displayName,
+                        String email,
+                        String phone,
+                        String status,
+                        Instant lastLoginAt,
+                        List<String> roleIds,
+                        List<String> permissionCodes,
+                        Instant createdAt,
+                        Instant updatedAt) {
+            this(id, tenantId, tenantNo, orgId, username, displayName, email, phone, status,
+                lastLoginAt, roleIds, permissionCodes, createdAt, updatedAt, false);
+        }
     }
 }

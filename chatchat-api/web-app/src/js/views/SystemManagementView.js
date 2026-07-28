@@ -745,8 +745,8 @@ export default {
       }
     },
     async removeUser(user) {
-      if (this.isAdminUser(user)) {
-        this.setNotice("admin 用户禁止删除", true);
+      if (this.isProtectedUser(user)) {
+        this.setNotice("内置账户禁止删除", true);
         return;
       }
       if (!user?.id || !window.confirm(`确认删除账户「${user.displayName || user.username}」？`)) {
@@ -1083,6 +1083,9 @@ export default {
     },
     isAdminUser(user) {
       return String(user?.username || "").toLowerCase() === "admin";
+    },
+    isProtectedUser(user) {
+      return user?.protectedAccount === true || this.isAdminUser(user);
     },
     embedTokenStatusLabel(token) {
       if (this.isEmbedTokenExpired(token)) {

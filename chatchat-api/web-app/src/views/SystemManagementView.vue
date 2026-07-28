@@ -111,10 +111,10 @@
                 <Pencil :size="15" />
               </button>
               <button
+                v-if="!isProtectedUser(user)"
                 type="button"
                 class="icon-button"
-                :disabled="isAdminUser(user)"
-                :title="isAdminUser(user) ? 'admin 用户禁止删除' : '删除账户'"
+                title="删除账户"
                 @click="removeUser(user)"
               >
                 <Trash2 :size="15" />

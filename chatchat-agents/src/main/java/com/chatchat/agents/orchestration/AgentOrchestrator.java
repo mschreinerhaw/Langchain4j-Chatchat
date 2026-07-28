@@ -1361,7 +1361,30 @@ public class AgentOrchestrator {
         }
         List<String> missingTools = metadataStringList(metadata, "interpretationPlanWorkflowMissingTools");
         List<String> missingStepIds = metadataStringList(metadata, "interpretationPlanWorkflowMissingPlanStepIds");
+        if (!missingTools.isEmpty()) {
+            Set<String> successfullyCompletedTools = traces == null
+                ? Set.of()
+                : traces.stream()
+                    .filter(Objects::nonNull)
+                    .filter(InteractionToolTrace::isSuccess)
+                    .map(InteractionToolTrace::getToolName)
+                    .filter(tool -> tool != null && !tool.isBlank())
+                    .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+            List<String> unresolvedTools = workflowTools.missingMandatoryTools(
+                missingTools,
+                successfullyCompletedTools
+            );
+            if (unresolvedTools.size() != missingTools.size()) {
+                metadata.put("interpretationPlanWorkflowMissingTools", unresolvedTools);
+                metadata.put("interpretationPlanWorkflowReconciledFromTerminalEvents", true);
+                observations.add("InterpretationPlan workflow guard reconciled later successful tool observations. Remaining tools: "
+                    + unresolvedTools + ".");
+                missingTools = unresolvedTools;
+            }
+        }
         if (missingTools.isEmpty() && missingStepIds.isEmpty()) {
+            metadata.put("interpretationPlanWorkflowBlocked", false);
+            metadata.put("interpretationPlanWorkflowResolvedAfterFallback", true);
             return null;
         }
         metadata.put("stopReason", stopReason);

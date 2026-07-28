@@ -236,6 +236,83 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void interpretationPlanWorkflowBlockIsReconciledAfterMissingToolSucceedsInFallback() throws Exception {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        Method method = AgentOrchestrator.class.getDeclaredMethod(
+            "finishInterpretationPlanWorkflowBlockedIfPending",
+            List.class,
+            Map.class,
+            List.class,
+            String.class,
+            String.class
+        );
+        method.setAccessible(true);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("interpretationPlanWorkflowBlocked", true);
+        metadata.put("interpretationPlanWorkflowMissingTools",
+            List.of("mcp_chatchat_mcp_server_document_search"));
+        metadata.put("interpretationPlanWorkflowMissingPlanStepIds", List.of());
+        List<String> observations = new ArrayList<>();
+        InteractionToolTrace successfulFallback = InteractionToolTrace.builder()
+            .toolName("document_search")
+            .success(true)
+            .build();
+
+        AgentOrchestrator.AgentExecutionResult result = (AgentOrchestrator.AgentExecutionResult) method.invoke(
+            orchestrator,
+            List.of(successfulFallback),
+            metadata,
+            observations,
+            "interpretation_plan_workflow_incomplete",
+            "InterpretationPlan workflow guard blocked final_answer before all required DAG steps completed."
+        );
+
+        assertThat(result).isNull();
+        assertThat(metadata)
+            .containsEntry("interpretationPlanWorkflowBlocked", false)
+            .containsEntry("interpretationPlanWorkflowMissingTools", List.of())
+            .containsEntry("interpretationPlanWorkflowResolvedAfterFallback", true)
+            .containsEntry("interpretationPlanWorkflowReconciledFromTerminalEvents", true);
+        assertThat(observations)
+            .anyMatch(value -> value.contains("reconciled later successful tool observations"));
+    }
+
+    @Test
+    void failedFallbackDoesNotClearInterpretationPlanWorkflowBlock() throws Exception {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        Method method = AgentOrchestrator.class.getDeclaredMethod(
+            "finishInterpretationPlanWorkflowBlockedIfPending",
+            List.class,
+            Map.class,
+            List.class,
+            String.class,
+            String.class
+        );
+        method.setAccessible(true);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("interpretationPlanWorkflowBlocked", true);
+        metadata.put("interpretationPlanWorkflowMissingTools", List.of("document_search"));
+        metadata.put("interpretationPlanWorkflowMissingPlanStepIds", List.of());
+
+        AgentOrchestrator.AgentExecutionResult result = (AgentOrchestrator.AgentExecutionResult) method.invoke(
+            orchestrator,
+            List.of(InteractionToolTrace.builder()
+                .toolName("mcp_chatchat_mcp_server_document_search")
+                .success(false)
+                .errorMessage("backend unavailable")
+                .build()),
+            metadata,
+            new ArrayList<>(),
+            "interpretation_plan_workflow_incomplete",
+            "InterpretationPlan workflow guard blocked final_answer before all required DAG steps completed."
+        );
+
+        assertThat(result).isNotNull();
+        assertThat(result.answer()).contains("Missing tools: [document_search]");
+        assertThat(metadata).containsEntry("interpretationPlanWorkflowBlocked", true);
+    }
+
+    @Test
     void finalSynthesisPromptIncludesRuntimeDiagnosticCoverageContract() {
         DiagnosticRun diagnosticRun = new DiagnosticRun(
             "environment_health_check",

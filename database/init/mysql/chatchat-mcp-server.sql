@@ -204,7 +204,7 @@
         updated_at datetime(6) not null,
         id varchar(64) not null,
         code varchar(128) not null,
-        policy_json tinytext not null,
+        policy_json longtext not null,
         primary key (id)
     ) engine=InnoDB;
 

@@ -205,7 +205,7 @@
         updated_at timestamp(6) with time zone not null,
         id varchar(64) not null,
         code varchar(128) not null unique,
-        policy_json clob not null,
+        policy_json longtext not null,
         primary key (id)
     );
 

@@ -3,7 +3,6 @@ package com.chatchat.mcpserver.metadata;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -29,8 +28,7 @@ public class MetadataGovernancePolicyEntity {
     @Column(nullable = false)
     private long revision;
 
-    @Lob
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "longtext")
     private String policyJson;
 
     @Column(nullable = false)

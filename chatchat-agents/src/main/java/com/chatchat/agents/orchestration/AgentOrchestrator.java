@@ -1310,6 +1310,9 @@ public class AgentOrchestrator {
             return planWorkflowBlockedResult;
         }
         if (!planAttemptResults.isEmpty()) {
+            String synthesisStage = Boolean.TRUE.equals(metadata.get("mandatoryWorkflowRecoveredAfterPlan"))
+                ? "mandatory_workflow_completed"
+                : "attempts_exhausted";
             String synthesizedAnswer = synthesizeInterpretationPlanAnswer(
                 activeChatModel,
                 query,
@@ -1320,7 +1323,7 @@ public class AgentOrchestrator {
                 observations,
                 metadata,
                 cancellationCheck,
-                "attempts_exhausted"
+                synthesisStage
             );
             return finishSynthesizedInterpretationPlanAnswer(
                 activeChatModel,
@@ -1715,8 +1718,7 @@ public class AgentOrchestrator {
         prompt.append("- When the selected template declares parameters, extract only values supported by the current User query and return them in parameter_protocols using template_parameter_protocol_v1. Use the exact declared parameter names and exact discovered template_id.\n");
         prompt.append("- Every model-extracted argument must be {value, source: user_query, evidence}. Never copy parameterSchema, requiredParameters, defaults, routing fields, or an entire template object into arguments. Runtime applies defaults and compiles the concrete MCP request.\n");
         prompt.append("- Put parameters that cannot be obtained from the User query in unresolved_parameters. When a required parameter is unresolved and no completed dependency supplies it, request rewrite_plan instead of executing with an invented or empty value.\n");
-        prompt.append("- Batch child output snapshots are structure-aware and authoritative. sampleRows are bounded previews of real returned rows; returnedRowCount larger than sampleRows means preview truncation, not missing tool data.\n");
-        prompt.append("- Never claim that a tool failed to transmit row data when a child snapshot has dataPresent=true. Use the sample values for the next decision and leave full rendering to the finalizer.\n");
+        prompt.append("- Executed tool outputs below are complete Runtime inputs. Runtime must not sample, shorten, or truncate them; result-size control belongs to each tool contract.\n");
         prompt.append("- Do not call tools directly; Java will only execute the step ids you choose after safety validation.\n\n");
         prompt.append("User query:\n").append(query == null ? "" : query).append("\n\n");
         prompt.append("decision_count: ").append(request.decisionCount()).append("\n");
@@ -1738,11 +1740,11 @@ public class AgentOrchestrator {
                     .append(", error=").append(firstNonBlank(execution.errorMessage(), ""))
                     .append("\n");
                 prompt.append("  output: ")
-                    .append(shortObservationText(stringify(dagDecisionOutputSnapshot(execution.output())), 12000))
+                    .append(stringify(execution.output()))
                     .append("\n");
                 if (execution.metadata() != null && !execution.metadata().isEmpty()) {
                     prompt.append("  metadata: ")
-                        .append(shortObservationText(stringify(execution.metadata()), 1200))
+                        .append(stringify(execution.metadata()))
                         .append("\n");
                 }
             }
@@ -1752,71 +1754,7 @@ public class AgentOrchestrator {
     }
 
     Map<String, Object> dagDecisionOutputSnapshot(Object output) {
-        Map<String, Object> source = objectMap(output);
-        Object rawResults = source.get("results");
-        if (!(rawResults instanceof List<?> results) || results.isEmpty()) {
-            return source;
-        }
-        Map<String, Object> snapshot = compactMap(
-            source, "contractVersion", "batchId", "executionMode", "status", "batchStatus",
-            "executionStatus", "assessmentStatus", "evidenceCoverage", "evidenceQuality",
-            "cardinality", "summary");
-        List<Map<String, Object>> childSnapshots = new ArrayList<>();
-        for (Object item : results) {
-            Map<String, Object> child = objectMap(item);
-            if (child.isEmpty()) {
-                continue;
-            }
-            Map<String, Object> childSnapshot = compactMap(
-                child, "callId", "checkId", "templateId", "templateCode", "toolName",
-                "status", "invoked", "durationMs", "evidenceId", "evidenceQuality", "error");
-            Object finding = firstObject(child, "finding", "output");
-            Map<String, Object> table = tabularEvidenceSnapshot(finding, 0);
-            if (!table.isEmpty()) {
-                childSnapshot.put("finding", table);
-                childSnapshot.put("output", table);
-            } else {
-                Object compactFinding = compactStructuredOutput(finding);
-                childSnapshot.put("finding", compactFinding);
-                childSnapshot.put("output", compactFinding);
-            }
-            childSnapshots.add(childSnapshot);
-        }
-        snapshot.put("results", childSnapshots);
-        snapshot.put("resultCount", childSnapshots.size());
-        return snapshot;
-    }
-
-    private Map<String, Object> tabularEvidenceSnapshot(Object value, int depth) {
-        if (value == null || depth > 6) {
-            return Map.of();
-        }
-        Map<String, Object> map = objectMap(value);
-        if (map.isEmpty()) {
-            return Map.of();
-        }
-        Object rawRows = firstObject(map, "rows", "records", "items");
-        Object rawColumns = firstObject(map, "columns", "fields");
-        if (rawRows instanceof List<?> rows) {
-            Map<String, Object> table = new LinkedHashMap<>();
-            table.put("dataPresent", !rows.isEmpty());
-            table.put("rowCount", firstIntValue(
-                firstObject(map, "rowCount", "total", "count"), rows.size()));
-            table.put("returnedRowCount", rows.size());
-            table.put("columns", rawColumns == null ? inferredColumns(rows) : rawColumns);
-            table.put("sampleRows", rows.stream().limit(3).toList());
-            table.put("previewTruncated", rows.size() > 3);
-            return table;
-        }
-        for (String envelope : List.of(
-            "data", "result", "payload", "dataset", "structuredContent", "structured_content", "operation"
-        )) {
-            Map<String, Object> nested = tabularEvidenceSnapshot(map.get(envelope), depth + 1);
-            if (!nested.isEmpty()) {
-                return nested;
-            }
-        }
-        return Map.of();
+        return objectMap(output);
     }
 
     private Map<String, Object> objectMap(Object value) {
@@ -1834,37 +1772,6 @@ public class AgentOrchestrator {
         } catch (IllegalArgumentException ignored) {
             return Map.of();
         }
-    }
-
-    private Object compactStructuredOutput(Object value) {
-        Map<String, Object> map = objectMap(value);
-        return map.isEmpty()
-            ? value == null ? Map.of() : shortObservationText(String.valueOf(value), 1000)
-            : compactMap(map, "success", "schemaVersion", "rowCount", "columns", "message", "error");
-    }
-
-    private List<String> inferredColumns(List<?> rows) {
-        LinkedHashSet<String> columns = new LinkedHashSet<>();
-        for (Object row : rows.stream().limit(3).toList()) {
-            if (row instanceof Map<?, ?> map) {
-                map.keySet().stream().filter(Objects::nonNull).map(String::valueOf).forEach(columns::add);
-            }
-        }
-        return new ArrayList<>(columns);
-    }
-
-    private int firstIntValue(Object value, int fallback) {
-        if (value instanceof Number number) {
-            return number.intValue();
-        }
-        if (value != null) {
-            try {
-                return Integer.parseInt(String.valueOf(value));
-            } catch (NumberFormatException ignored) {
-                // Use the observed row count.
-            }
-        }
-        return fallback;
     }
 
     private String planGenerationLifecycleContent(AgentDecision decision) {
@@ -2133,12 +2040,14 @@ public class AgentOrchestrator {
         prompt.append("- If the user explicitly asks to generate a SQL/DDL/command draft, provide a clearly labeled non-executed draft for human review instead of refusing solely because execution is not authorized. Separate observed facts from assumptions, and state that Runtime did not execute or approve the statement.\n");
         prompt.append("- Describe the number of plan attempts only from the Executed plan attempts count below. Distinguish BLOCKED before invocation from an actual remote tool execution; do not call a blocked step a completed diagnostic execution.\n");
         prompt.append("- Preserve canonical asset fields exactly: assets[].asset.displayName/name is the asset label, assets[].asset.id/assetId is the asset identifier, and assets[].asset.toolName is the bound tool. Never present toolName as displayName.\n");
-        prompt.append("- A shortened output preview in this prompt is not evidence that the tool output itself was truncated. Claim truncation only when output facts contain explicitTruncation=true or the output has an explicit _truncated/[truncated] marker.\n");
-        prompt.append("- For batch child evidence, dataPresent=true and sampleRows contain real runtime-returned values. previewTruncated=true means only this prompt preview was bounded; it does not mean the tool result lost its rows.\n");
+        prompt.append("- Runtime does not shorten tool results in this prompt. Any limit, pagination, or truncation marker must originate from the tool response contract.\n");
         prompt.append("- Do not invent facts that are not present in the step outputs or observations.\n");
         prompt.append("- For SQL metadata discovery, cite every recommended table by the exact physical identifier returned by the tool (database/schema/tableName when available). Keep any Chinese business description separate; never use it as a substitute for the physical table name.\n");
         prompt.append("- When returned metadata includes columns, list the exact physical column names under their corresponding physical table and preserve returned type/key/comment details. Never translate, rename, or invent identifiers.\n");
         prompt.append("- If column metadata was not returned for a matched table, say so explicitly instead of presenting illustrative fields as facts.\n\n");
+        prompt.append("- For enterprise_metadata_model_context.v1, coverage.inputFieldCount, processedFieldCount, allFieldsProcessed, and fieldsWithCandidates are authoritative. Do not infer that unshown or unprocessed fields were matched. A field may be processed with zero candidates; only returned candidates may support its annotation.\n");
+        prompt.append("- Review notes and shortened previews are not factual evidence. When they conflict with authoritativeToolResultEvidence, use authoritativeToolResultEvidence and omit the conflicting review claim.\n\n");
+        prompt.append("- Mandatory workflow observations are executed after the listed plan attempts. A successful local contract review in those observations is newer authoritative evidence and resolves earlier missing_evidence claims for the same tool result.\n");
         prompt.append("- Database layering labels (for example ADS/DWS/DWD/DIM), table names, schemas, databases, and fields are evidence facts only when the current tool output explicitly returned them. Never infer a layer from a naming convention. Never output 'possible table examples', 'common tables', or supplemental table recommendations that were not retrieved.\n");
         prompt.append(AgentRuntimeFactGroundingContract.promptSection());
         if (authoritativeSqlMetadata != null && !authoritativeSqlMetadata.isBlank()) {
@@ -2210,8 +2119,8 @@ public class AgentOrchestrator {
                 }
                 Map<String, Object> rawOutputMap = objectMap(step.output());
                 if (rawOutputMap.get("results") instanceof List<?>) {
-                    prompt.append("  batchChildEvidenceSnapshot (bounded per child; sampleRows are real values):\n")
-                        .append(shortObservationText(stringify(dagDecisionOutputSnapshot(step.output())), 12000))
+                    prompt.append("  batchChildEvidence (complete tool-returned structure):\n")
+                        .append(stringify(step.output()))
                         .append("\n");
                 }
                 String executionEvidence = step.success()
@@ -2223,11 +2132,8 @@ public class AgentOrchestrator {
                         .append("\n  promptPreviewTruncated=false\n");
                 } else {
                     String serializedOutput = stringify(redactExecutionStatementText(step.output()));
-                    boolean promptPreviewTruncated = serializedOutput != null && serializedOutput.replaceAll("\\s+", " ").trim().length() > 4000;
-                    prompt.append("  outputPreview: ")
-                        .append(shortObservationText(serializedOutput, 4000))
-                        .append("\n  promptPreviewTruncated=")
-                        .append(promptPreviewTruncated)
+                    prompt.append("  toolResult (complete Runtime input): ")
+                        .append(serializedOutput)
                         .append("\n");
                 }
             }
@@ -2240,21 +2146,18 @@ public class AgentOrchestrator {
             for (AgentObservation observation : storedObservations) {
                 prompt.append("- type=").append(observation.type())
                     .append(", source=").append(observation.source())
-                    .append(", content=").append(shortObservationText(observation.content(), 1000))
+                    .append(", content=").append(observation.content())
                     .append("\n");
                 if (observation.metadata() != null && !observation.metadata().isEmpty()) {
                     prompt.append("  metadata: ")
-                        .append(shortObservationText(stringify(observation.metadata()), 1600))
+                        .append(stringify(observation.metadata()))
                         .append("\n");
                 }
             }
         }
         if (observations != null && !observations.isEmpty()) {
             prompt.append("\nIn-memory observations:\n");
-            observations.stream()
-                .filter(observation -> observation == null
-                    || !observation.contains("enterprise_metadata_model_context.v1"))
-                .forEach(observation -> prompt.append("- ").append(observation).append("\n"));
+            observations.forEach(observation -> prompt.append("- ").append(observation).append("\n"));
         }
         prompt.append("\nReturn only the final user-facing Markdown answer, no JSON.");
         return prompt.toString();
@@ -2446,7 +2349,8 @@ public class AgentOrchestrator {
         prompt.append("- If assetDiscoveryReturnedCount > 0, do not claim the asset query returned zero/no assets.\n");
         prompt.append("- If templateDiscoveryReturnedCount > 0, do not claim the template query returned zero/no templates.\n");
         prompt.append("- If sqlMetadataColumnCount > 0, do not claim the SQL metadata step returned no columns/metadata.\n");
-        prompt.append("- A shortened Tool output preview is not evidence that the MCP tool returned truncated data. Claim truncation only when Structured output facts contain explicitTruncation=true or the output has an explicit _truncated/[truncated] marker.\n");
+        prompt.append("- Runtime must pass the complete tool-returned result. Any limit, pagination, or truncation marker must originate from the tool contract, never from Runtime prompt construction.\n");
+        prompt.append("- For enterprise metadata matching, use the formatted authoritative evidence projection when present. Its coverage object distinguishes processed fields from fields with candidates; never treat success=true or explicitTruncation=false as proof that every input field matched a standard.\n");
         prompt.append("Attempt: ").append(request.attempt()).append('/').append(request.maxAttempts()).append("\n");
         prompt.append("Current-turn user query:\n").append(query == null ? "" : query).append("\n\n");
         InterpretationPlan plan = request.plan();
@@ -2468,8 +2372,18 @@ public class AgentOrchestrator {
                 .append(shortObservationText(stringify(outputFacts), 2500))
                 .append("\n\n");
         }
-        prompt.append("Tool output preview, shortened only for reviewer context when necessary:\n")
-            .append(shortObservationText(stringify(redactExecutionStatementText(request.execution().output())), 9000));
+        String authoritativeEvidence = toolObservationBuilder.buildAuthoritativeExecutionEvidence(
+            request.execution().toolName(), request.execution().output());
+        if (authoritativeEvidence != null && !authoritativeEvidence.isBlank()) {
+            prompt.append("Authoritative tool result evidence (formatted for model review; all returned candidates preserved):\n")
+                .append(authoritativeEvidence)
+                .append("\nPrompt preview truncated: false");
+        } else {
+            String serializedOutput = stringify(redactExecutionStatementText(request.execution().output()));
+            prompt.append("Complete tool result:\n")
+                .append(serializedOutput)
+                .append("\nRuntime truncation applied: false");
+        }
         return prompt.toString();
     }
 
@@ -2536,6 +2450,10 @@ public class AgentOrchestrator {
         if (root.isEmpty()) {
             return Map.of();
         }
+        Map<String, Object> enterpriseRoot = enterpriseMetadataResultRoot(root, 0);
+        if (!enterpriseRoot.isEmpty()) {
+            root = enterpriseRoot;
+        }
         Map<String, Object> facts = new LinkedHashMap<>();
         putIfPresent(facts, "schemaVersion", root.get("schemaVersion"));
         putIfPresent(facts, "category", root.get("category"));
@@ -2543,6 +2461,27 @@ public class AgentOrchestrator {
         putIfPresent(facts, "success", root.get("success"));
         putIfPresent(facts, "status", root.get("status"));
         putIfPresent(facts, "errorMessage", root.get("errorMessage"));
+
+        if (isEnterpriseMetadataResult(root)) {
+            Map<String, Object> sourceSchema = asMap(root.get("sourceSchema"));
+            Map<String, Object> coverage = asMap(root.get("coverage"));
+            int sourceFieldCount = intValue(sourceSchema.get("fieldCount"), collectionSize(sourceSchema.get("fields")));
+            int returnedFieldMatchCount = collectionSize(root.get("fieldMatches"));
+            facts.put("sourceFieldCount", sourceFieldCount);
+            facts.put("returnedFieldMatchCount", returnedFieldMatchCount);
+            facts.put("coverage", compactMap(
+                coverage,
+                "inputFieldCount",
+                "processedFieldCount",
+                "allFieldsProcessed",
+                "requiredMetadataTypes",
+                "perFieldTypeRetrieval"
+            ));
+            facts.put("explicitTruncation", hasExplicitTruncationMarker(output, 0, new Counter()));
+            facts.put("completenessSemantics",
+                "allFieldsProcessed proves processing coverage only; per-field candidates prove metadata matches");
+            return facts;
+        }
 
         if (isSqlMetadataSearchResult(root)) {
             putIfPresent(facts, "totalMatched", root.get("totalMatched"));
@@ -2621,6 +2560,42 @@ public class AgentOrchestrator {
     private boolean isSqlMetadataSearchResult(Map<String, Object> root) {
         String schemaVersion = stringValue(root == null ? null : root.get("schemaVersion"));
         return schemaVersion != null && schemaVersion.toLowerCase().contains("sql_metadata_search_result");
+    }
+
+    private boolean isEnterpriseMetadataResult(Map<String, Object> root) {
+        String schemaVersion = stringValue(root == null ? null : root.get("schemaVersion"));
+        return "enterprise_metadata_field_discovery.v1".equals(schemaVersion);
+    }
+
+    private Map<String, Object> enterpriseMetadataResultRoot(Object value, int depth) {
+        if (depth > 5) {
+            return Map.of();
+        }
+        Map<String, Object> candidate = asMap(value);
+        if (candidate.isEmpty()) {
+            return Map.of();
+        }
+        if (isEnterpriseMetadataResult(candidate)) {
+            return candidate;
+        }
+        for (String key : List.of("data", "result", "payload", "structuredContent", "structured_content")) {
+            Map<String, Object> nested = enterpriseMetadataResultRoot(candidate.get(key), depth + 1);
+            if (!nested.isEmpty()) {
+                return nested;
+            }
+        }
+        return Map.of();
+    }
+
+    private int intValue(Object value, int fallback) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        try {
+            return value == null ? fallback : Integer.parseInt(String.valueOf(value));
+        } catch (NumberFormatException ignored) {
+            return fallback;
+        }
     }
 
     private Object firstNonNull(Object first, Object second) {
@@ -3301,7 +3276,6 @@ public class AgentOrchestrator {
             }
             item.put("output", step.output());
             item.put("outputFacts", structuredOutputFacts(step.output()));
-            item.put("outputPreview", shortObservationText(stringify(step.output()), 6000));
             Map<String, Object> evidenceMetadata = new LinkedHashMap<>();
             evidenceMetadata.put("timestamp", System.currentTimeMillis());
             evidenceMetadata.put("source", evidenceSource(step));
@@ -4703,7 +4677,7 @@ public class AgentOrchestrator {
             ? toolObservationBuilder.buildSuccessObservation(toolName, output, outputText)
             : toolObservationBuilder.buildFailureObservation(toolName, output);
         recordStructuredToolObservation(runtimeAttributes, toolName, output, execution, observation);
-        return new ToolCallExecution(trace, observation);
+        return new ToolCallExecution(trace, observation, output);
     }
 
     private Map<String, Object> attributesWithWorkflowStep(Map<String, Object> runtimeAttributes,
@@ -4884,11 +4858,89 @@ public class AgentOrchestrator {
                 metadata.put("mandatoryWorkflowStoppedOnFailure", fallbackTool);
                 return;
             }
+            Map<String, Object> resultReview = mandatoryWorkflowResultReview(fallbackTool, execution.output());
+            observations.add("Mandatory workflow local result review: " + stringify(resultReview));
+            appendMandatoryWorkflowReview(metadata, resultReview);
+            if (!Boolean.TRUE.equals(resultReview.get("satisfied"))) {
+                metadata.put("mandatoryWorkflowStoppedOnFailure", fallbackTool);
+                return;
+            }
             runtimeAttributes = workflowStateTracker.attributesWithCompletedTools(
                 runtimeAttributes,
                 completedWorkflowToolsFromEvents(runtimeAttributes, workflowStateTracker.completedToolsFromTraces(traces))
             );
         }
+        completedTools = completedWorkflowToolsFromEvents(
+            runtimeAttributes,
+            workflowStateTracker.completedToolsFromTraces(traces)
+        );
+        List<String> remainingMandatoryTools = workflowTools.missingMandatoryTools(mandatoryTools, completedTools);
+        if (remainingMandatoryTools.isEmpty()) {
+            metadata.put("mandatoryWorkflowRecoveredAfterPlan", true);
+        } else {
+            metadata.put("mandatoryWorkflowStillMissingAfterFallback", remainingMandatoryTools);
+        }
+    }
+
+    private Map<String, Object> mandatoryWorkflowResultReview(String toolName, ToolOutput output) {
+        Map<String, Object> review = new LinkedHashMap<>();
+        review.put("schemaVersion", "mandatory_workflow_result_review.v1");
+        review.put("toolName", toolName);
+        review.put("reviewType", "LOCAL_CONTRACT_REVIEW");
+        if (output == null || !output.isSuccess()) {
+            review.put("satisfied", false);
+            review.put("reason", "Mandatory workflow tool did not return a successful ToolOutput.");
+            return review;
+        }
+        Map<String, Object> root = enterpriseMetadataResultRoot(output.getData(), 0);
+        if (isEnterpriseMetadataResult(root)) {
+            Map<String, Object> coverage = asMap(root.get("coverage"));
+            Map<String, Object> sourceSchema = asMap(root.get("sourceSchema"));
+            int sourceFieldCount = intValue(
+                firstNonNull(root.get("sourceFieldCount"), sourceSchema.get("fieldCount")),
+                collectionSize(sourceSchema.get("fields")));
+            int matchedFieldCount = intValue(
+                root.get("matchedFieldCount"),
+                collectionSize(root.get("fieldMatches")));
+            int processedFieldCount = intValue(
+                coverage.get("processedFieldCount"),
+                matchedFieldCount);
+            boolean allFieldsProcessed = booleanValue(coverage.get("allFieldsProcessed"))
+                || (sourceFieldCount > 0 && processedFieldCount == sourceFieldCount);
+            boolean satisfied = sourceFieldCount > 0
+                && matchedFieldCount == sourceFieldCount
+                && allFieldsProcessed;
+            review.put("satisfied", satisfied);
+            review.put("reason", satisfied
+                ? "Enterprise metadata contract returned and processed every source field."
+                : "Enterprise metadata contract did not cover every source field.");
+            review.put("sourceFieldCount", sourceFieldCount);
+            review.put("matchedFieldCount", matchedFieldCount);
+            review.put("processedFieldCount", processedFieldCount);
+            review.put("allFieldsProcessed", allFieldsProcessed);
+            String authoritativeEvidence =
+                toolObservationBuilder.buildAuthoritativeExecutionEvidence(toolName, output);
+            if (authoritativeEvidence != null && !authoritativeEvidence.isBlank()) {
+                review.put("authoritativeEvidence", authoritativeEvidence);
+            }
+            return review;
+        }
+        review.put("satisfied", true);
+        review.put("reason", "Mandatory workflow tool completed successfully and returned a terminal observation.");
+        return review;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void appendMandatoryWorkflowReview(Map<String, Object> metadata,
+                                               Map<String, Object> review) {
+        if (metadata == null || review == null || review.isEmpty()) {
+            return;
+        }
+        List<Map<String, Object>> reviews = metadata.get("mandatoryWorkflowResultReviews") instanceof List<?> existing
+            ? new ArrayList<>((List<Map<String, Object>>) existing)
+            : new ArrayList<>();
+        reviews.add(Map.copyOf(review));
+        metadata.put("mandatoryWorkflowResultReviews", List.copyOf(reviews));
     }
 
     private String failedMandatoryWorkflowTool(List<String> mandatoryTools, List<InteractionToolTrace> traces) {
@@ -5397,7 +5449,8 @@ public class AgentOrchestrator {
 
     record ToolCallExecution(
         InteractionToolTrace trace,
-        String observation
+        String observation,
+        ToolOutput output
     ) {
     }
 

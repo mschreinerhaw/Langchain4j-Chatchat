@@ -18,7 +18,7 @@ class AgentOrchestratorDagEvidenceTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void preservesBoundedRowsForEveryBatchChildInDagDecisionSnapshot() {
+    void preservesEveryReturnedRowForEveryBatchChildInDagDecisionInput() {
         AgentOrchestrator orchestrator = new AgentOrchestrator(
             null,
             mock(ToolRegistry.class),
@@ -70,19 +70,20 @@ class AgentOrchestratorDagEvidenceTest {
         assertThat(results).hasSize(2);
         Map<String, Object> instanceOutput = (Map<String, Object>) results.get(0).get("output");
         assertThat(instanceOutput)
-            .containsEntry("dataPresent", true)
-            .containsEntry("returnedRowCount", 1)
-            .containsEntry("previewTruncated", false);
+            .containsEntry("rowCount", 1);
         List<Map<String, Object>> instanceRows =
-            (List<Map<String, Object>>) instanceOutput.get("sampleRows");
+            (List<Map<String, Object>>) instanceOutput.get("rows");
         assertThat(instanceRows).hasSize(1);
         assertThat(instanceRows.get(0)).containsEntry("STATUS", "OPEN");
 
         Map<String, Object> sessionOutput = (Map<String, Object>) results.get(1).get("output");
-        assertThat(sessionOutput)
-            .containsEntry("dataPresent", true)
-            .containsEntry("returnedRowCount", 4)
-            .containsEntry("previewTruncated", true);
-        assertThat((List<?>) sessionOutput.get("sampleRows")).hasSize(3);
+        Map<String, Object> sessionData = (Map<String, Object>) sessionOutput.get("data");
+        assertThat(sessionData).containsEntry("rowCount", 4);
+        List<Map<String, Object>> sessionRows =
+            (List<Map<String, Object>>) sessionData.get("rows");
+        assertThat(sessionRows).hasSize(4);
+        assertThat(sessionRows.get(3)).containsEntry("TOTAL_SESSIONS", 21);
+        assertThat(snapshot.toString())
+            .doesNotContain("sampleRows", "previewTruncated");
     }
 }

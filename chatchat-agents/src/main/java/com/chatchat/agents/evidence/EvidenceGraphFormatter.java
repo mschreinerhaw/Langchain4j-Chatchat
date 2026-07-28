@@ -5,8 +5,6 @@ import java.util.Map;
 
 public class EvidenceGraphFormatter {
 
-    private static final int CONTENT_PREVIEW_LIMIT = 260;
-
     public String format(EvidenceGraph graph) {
         if (graph == null || graph.nodes().isEmpty()) {
             return "";
@@ -40,7 +38,7 @@ public class EvidenceGraphFormatter {
             builder.append("confidence: ").append(node.confidence()).append('\n');
             builder.append("validated: ").append(node.validated()).append('\n');
             appendMetadata(builder, node.metadata());
-            appendLine(builder, "contentPreview", preview(node.normalizedContent()));
+            appendLine(builder, "content", node.normalizedContent());
         }
     }
 
@@ -102,16 +100,6 @@ public class EvidenceGraphFormatter {
             return String.join(", ", list.stream().map(String::valueOf).toList());
         }
         return null;
-    }
-
-    private String preview(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        String normalized = value.replaceAll("\\s+", " ").trim();
-        return normalized.length() <= CONTENT_PREVIEW_LIMIT
-            ? normalized
-            : normalized.substring(0, CONTENT_PREVIEW_LIMIT);
     }
 
     private String stringValue(Object value) {

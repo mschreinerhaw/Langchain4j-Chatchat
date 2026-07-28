@@ -636,6 +636,61 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void factChecksCompleteEnterpriseMetadataFieldCoverage() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "localToolResultReview",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.StepExecution.class
+        );
+        method.setAccessible(true);
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            3,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_enterprise_metadata_search",
+            Map.of("tableName", "ads_ids_clr_acc_liab_d_i"),
+            List.of(2),
+            null,
+            null
+        );
+        InterpretationPlanRuntime.StepExecution execution = new InterpretationPlanRuntime.StepExecution(
+            3,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_enterprise_metadata_search",
+            true,
+            Map.of(
+                "schemaVersion", "enterprise_metadata_field_discovery.v1",
+                "sourceFieldCount", 12,
+                "matchedFieldCount", 12,
+                "coverage", Map.of(
+                    "inputFieldCount", 12,
+                    "processedFieldCount", 12,
+                    "allFieldsProcessed", true
+                )
+            ),
+            null,
+            null,
+            null,
+            8
+        );
+
+        InterpretationPlanRuntime.StepReview review =
+            (InterpretationPlanRuntime.StepReview) method.invoke(runtime, step, execution);
+
+        assertThat(review).isNotNull();
+        assertThat(review.satisfied()).isTrue();
+        assertThat(review.metadata())
+            .containsEntry("localFactCheckEvidenceType", "enterprise_metadata_fields")
+            .containsEntry("enterpriseMetadataSourceFieldCount", 12)
+            .containsEntry("enterpriseMetadataProcessedFieldCount", 12)
+            .containsEntry("enterpriseMetadataAllFieldsProcessed", true);
+    }
+
+    @Test
     void factChecksAssetDiscoveryWhenMcpResultIsTextEnvelope() throws Exception {
         String assetQueryResult = """
             {
@@ -1204,6 +1259,212 @@ class InterpretationPlanRuntimeTest {
             .containsEntry("toolName", "mcp_chatchat_mcp_server_sql_metadata_search");
         assertThat(String.valueOf(sourceEvidence.get(0).get("output")))
             .contains("topTables", "columns", "ads_ids_clr_acc_liab_d_i");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void promotesNestedExactTableFiltersBeforeCompilingSqlMetadataSearchArguments() throws Exception {
+        String toolName = "mcp_chatchat_mcp_server_sql_metadata_search";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName)
+            .metadata(Map.of(
+                "inputSchema", Map.of(
+                    "type", "object",
+                    "properties", Map.of(
+                        "tableName", Map.of("type", "string"),
+                        "assetName", Map.of("type", "string"),
+                        "includeColumns", Map.of("type", "boolean"),
+                        "limit", Map.of("type", "integer"),
+                        "executionContext", Map.of("type", "object", "additionalProperties", true)
+                    ),
+                    "additionalProperties", false
+                )
+            ))
+            .build());
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            1,
+            "mcp_tool",
+            toolName,
+            Map.of(
+                "filters", Map.of(
+                    "assetname", "TDH数据仓库",
+                    "table_name", "ads_ids_clr_acc_liab_d_i",
+                    "include_columns", true
+                ),
+                "limit", 1
+            ),
+            List.of(),
+            null,
+            null
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedStepInput",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class,
+            Map.class
+        );
+        method.setAccessible(true);
+
+        Map<String, Object> resolved = (Map<String, Object>) method.invoke(
+            runtime,
+            step,
+            new InterpretationPlanRuntime.ExecutionRequest(
+                minimalPlan(step),
+                toolRegistry,
+                List.of(toolName),
+                "tenant-1",
+                "req-exact-table",
+                "conv-exact-table",
+                "user-1",
+                Map.of()
+            ),
+            Map.of()
+        );
+
+        assertThat(resolved)
+            .containsEntry("tableName", "ads_ids_clr_acc_liab_d_i")
+            .containsEntry("assetName", "TDH数据仓库")
+            .containsEntry("includeColumns", true)
+            .containsEntry("limit", 1)
+            .doesNotContainKey("filters");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void promotesGenericArgumentEnvelopeUsingEachToolsPublishedSchema() throws Exception {
+        String toolName = "mcp_example_record_lookup";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName)
+            .metadata(Map.of(
+                "inputSchema", Map.of(
+                    "type", "object",
+                    "properties", Map.of(
+                        "recordId", Map.of("type", "string"),
+                        "includeDetails", Map.of("type", "boolean")
+                    ),
+                    "required", List.of("recordId"),
+                    "additionalProperties", false
+                )
+            ))
+            .build());
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            1,
+            "mcp_tool",
+            toolName,
+            Map.of(
+                "includeDetails", false,
+                "modelPayload", Map.of(
+                    "record_id", "record-42",
+                    "include_details", true,
+                    "unknown_model_field", "discard-me"
+                )
+            ),
+            List.of(),
+            null,
+            null
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedStepInput",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class,
+            Map.class
+        );
+        method.setAccessible(true);
+
+        Map<String, Object> resolved = (Map<String, Object>) method.invoke(
+            runtime,
+            step,
+            new InterpretationPlanRuntime.ExecutionRequest(
+                minimalPlan(step),
+                toolRegistry,
+                List.of(toolName),
+                "tenant-1",
+                "req-generic-envelope",
+                "conv-generic-envelope",
+                "user-1",
+                Map.of()
+            ),
+            Map.of()
+        );
+
+        assertThat(resolved)
+            .containsEntry("recordId", "record-42")
+            .containsEntry("includeDetails", false)
+            .doesNotContainKeys("modelPayload", "unknown_model_field");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void preservesEnvelopeWhenToolPublishesItAsPartOfItsContract() throws Exception {
+        String toolName = "mcp_example_routed_lookup";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName)
+            .metadata(Map.of(
+                "inputSchema", Map.of(
+                    "type", "object",
+                    "properties", Map.of(
+                        "filters", Map.of("type", "object", "additionalProperties", true)
+                    ),
+                    "required", List.of("filters"),
+                    "additionalProperties", false
+                )
+            ))
+            .build());
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            1,
+            "mcp_tool",
+            toolName,
+            Map.of("filters", Map.of("tenant", "tenant-a", "keyword", "customer")),
+            List.of(),
+            null,
+            null
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedStepInput",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class,
+            Map.class
+        );
+        method.setAccessible(true);
+
+        Map<String, Object> resolved = (Map<String, Object>) method.invoke(
+            runtime,
+            step,
+            new InterpretationPlanRuntime.ExecutionRequest(
+                minimalPlan(step),
+                toolRegistry,
+                List.of(toolName),
+                "tenant-1",
+                "req-preserve-envelope",
+                "conv-preserve-envelope",
+                "user-1",
+                Map.of()
+            ),
+            Map.of()
+        );
+
+        assertThat(resolved).containsKey("filters");
+        assertThat((Map<String, Object>) resolved.get("filters"))
+            .containsEntry("tenant", "tenant-a")
+            .containsEntry("keyword", "customer");
     }
 
     @Test

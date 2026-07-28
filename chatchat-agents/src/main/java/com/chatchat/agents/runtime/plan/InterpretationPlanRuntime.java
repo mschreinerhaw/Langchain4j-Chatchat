@@ -865,7 +865,6 @@ public class InterpretationPlanRuntime {
         metadata.putAll(step.metadata() == null ? Map.of() : step.metadata());
         if (step.output() != null) {
             metadata.put("stepOutput", step.output());
-            metadata.put("stepOutputPreview", shortText(String.valueOf(step.output()), 4000));
         }
         if (output != null && output.getExecutionTimeMs() != null) {
             metadata.put("toolExecutionTimeMs", output.getExecutionTimeMs());
@@ -1422,6 +1421,41 @@ public class InterpretationPlanRuntime {
                 )
             );
         }
+        if (isEnterpriseMetadataSearchTool(execution.toolName())) {
+            Map<String, Object> result = enterpriseMetadataResult(execution.output(), 0);
+            if (!result.isEmpty()) {
+                Map<?, ?> sourceSchema = result.get("sourceSchema") instanceof Map<?, ?> rawSourceSchema
+                    ? rawSourceSchema
+                    : Map.of();
+                Map<String, Object> coverage = result.get("coverage") instanceof Map<?, ?> rawCoverage
+                    ? new LinkedHashMap<>((Map<String, Object>) rawCoverage)
+                    : Map.of();
+                int sourceFieldCount = firstPositiveInteger(
+                    result.get("sourceFieldCount"),
+                    firstMapValue(sourceSchema, "fieldCount"),
+                    collectionSize(firstMapValue(sourceSchema, "fields")));
+                int processedFieldCount = firstPositiveInteger(
+                    coverage.get("processedFieldCount"),
+                    result.get("matchedFieldCount"),
+                    collectionSize(result.get("fieldMatches")));
+                boolean allFieldsProcessed = Boolean.TRUE.equals(booleanValue(coverage.get("allFieldsProcessed")))
+                    || (sourceFieldCount > 0 && processedFieldCount == sourceFieldCount);
+                if (sourceFieldCount > 0 && processedFieldCount > 0) {
+                    return StepReview.accepted(
+                        "Enterprise metadata search processed " + processedFieldCount + " of "
+                            + sourceFieldCount + " source field(s); preserve the field evidence for review.",
+                        mapOf(
+                            "localFactCheckHasEvidence", true,
+                            "localFactCheckEvidenceType", "enterprise_metadata_fields",
+                            "enterpriseMetadataSourceFieldCount", sourceFieldCount,
+                            "enterpriseMetadataProcessedFieldCount", processedFieldCount,
+                            "enterpriseMetadataAllFieldsProcessed", allFieldsProcessed,
+                            "enterpriseMetadataStepId", step == null ? null : step.id()
+                        )
+                    );
+                }
+            }
+        }
         if (isSqlMetadataSearchTool(execution.toolName())) {
             int columnCount = sqlColumnMetadataCount(execution.output());
             if (columnCount <= 0) {
@@ -1475,6 +1509,11 @@ public class InterpretationPlanRuntime {
         if (templateCount != null && templateCount > 0 && mentionsNoTemplateEvidence(reason)) {
             return true;
         }
+        Integer enterpriseFieldCount = integerValue(metadata.get("enterpriseMetadataProcessedFieldCount"));
+        if (enterpriseFieldCount != null && enterpriseFieldCount > 0
+            && mentionsNoEnterpriseMetadataEvidence(reason)) {
+            return true;
+        }
         Integer columnCount = integerValue(metadata.get("sqlMetadataColumnCount"));
         return columnCount != null && columnCount > 0 && mentionsNoSqlMetadataEvidence(reason);
     }
@@ -1503,6 +1542,63 @@ public class InterpretationPlanRuntime {
             "\u672a\u8fd4\u56de\u5b57\u6bb5", "\u6ca1\u6709\u5b57\u6bb5",
             "\u6ca1\u6709\u4efb\u4f55\u5173\u4e8e\u8be5\u8868", "\u672a\u8fd4\u56de\u4efb\u4f55\u5173\u4e8e\u8be5\u8868"
         );
+    }
+
+    private boolean mentionsNoEnterpriseMetadataEvidence(String reason) {
+        return mentionsNoSqlMetadataEvidence(reason) || containsAny(reason,
+            "no standard field", "no enterprise metadata", "standard fields were not returned",
+            "\u6ca1\u6709\u6807\u51c6\u5b57\u6bb5", "\u672a\u8fd4\u56de\u6807\u51c6\u5b57\u6bb5",
+            "\u65e0\u4f01\u4e1a\u5143\u6570\u636e", "\u4f01\u4e1a\u5143\u6570\u636e\u672a\u8fd4\u56de"
+        );
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> enterpriseMetadataResult(Object output, int depth) {
+        if (output == null || depth > 8) {
+            return Map.of();
+        }
+        Object normalized = normalizeToolProtocolPayload(output);
+        if (normalized != output) {
+            return enterpriseMetadataResult(normalized, depth + 1);
+        }
+        if (!(output instanceof Map<?, ?> raw)) {
+            return Map.of();
+        }
+        Map<String, Object> map = new LinkedHashMap<>((Map<String, Object>) raw);
+        String schemaVersion = stringValue(map.get("schemaVersion"));
+        if ("enterprise_metadata_field_discovery.v1".equals(schemaVersion)) {
+            return map;
+        }
+        for (String key : List.of("structuredContent", "structured_content", "data", "result", "payload", "body", "output")) {
+            Map<String, Object> nested = enterpriseMetadataResult(map.get(key), depth + 1);
+            if (!nested.isEmpty()) {
+                return nested;
+            }
+        }
+        return Map.of();
+    }
+
+    private int firstPositiveInteger(Object... values) {
+        if (values == null) {
+            return 0;
+        }
+        for (Object value : values) {
+            Integer parsed = integerValue(value);
+            if (parsed != null && parsed > 0) {
+                return parsed;
+            }
+        }
+        return 0;
+    }
+
+    private int collectionSize(Object value) {
+        if (value instanceof java.util.Collection<?> collection) {
+            return collection.size();
+        }
+        if (value instanceof Map<?, ?> map) {
+            return map.size();
+        }
+        return 0;
     }
 
     private boolean containsAny(String text, String... tokens) {
@@ -2250,16 +2346,69 @@ public class InterpretationPlanRuntime {
         }
         Map<String, Object> semantic = new LinkedHashMap<>(input);
         semantic.remove("purpose");
+        List<String> promotedEnvelopes = promotePublishedSchemaArguments(semantic, schema);
         ToolArgumentCompiler.CompilationResult compilation = TOOL_ARGUMENT_COMPILER.compile(semantic, schema);
         if (!compilation.valid()) {
             throw new IllegalStateException(compilation.structuredError(step.toolName(), stringValue(input.get("action"))));
         }
         input.clear();
         input.putAll(compilation.parameters());
-        if (!compilation.repairs().isEmpty()) {
-            log.info("InterpretationPlan compiled direct tool semantic arguments stepId={} tool={} repairs={} compiledKeys={}",
-                step.id(), step.toolName(), compilation.repairs(), input.keySet());
+        if (!compilation.repairs().isEmpty() || !promotedEnvelopes.isEmpty()) {
+            log.info("InterpretationPlan compiled direct tool semantic arguments stepId={} tool={} promotedEnvelopes={} repairs={} compiledKeys={}",
+                step.id(), step.toolName(), promotedEnvelopes, compilation.repairs(), input.keySet());
         }
+    }
+
+    /**
+     * Repairs a common model envelope mismatch without knowing any business tool names.
+     * When a direct tool does not publish a model-created object wrapper itself, nested
+     * values matching that tool's published JSON Schema are promoted. Top-level values
+     * always win and unknown nested values are still discarded by
+     * {@link ToolArgumentCompiler}.
+     */
+    private List<String> promotePublishedSchemaArguments(Map<String, Object> semantic,
+                                                         Map<String, Object> schema) {
+        if (semantic == null || semantic.isEmpty() || schema == null
+            || !(schema.get("properties") instanceof Map<?, ?> rawProperties)) {
+            return List.of();
+        }
+        Set<String> publishedFields = rawProperties.keySet().stream()
+            .filter(Objects::nonNull)
+            .map(String::valueOf)
+            .map(this::canonicalParameterKey)
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        List<String> promoted = new ArrayList<>();
+        for (Map.Entry<String, Object> candidate : new ArrayList<>(semantic.entrySet())) {
+            String wrapper = candidate.getKey();
+            if (publishedFields.contains(canonicalParameterKey(wrapper))
+                || !(candidate.getValue() instanceof Map<?, ?> nested)) {
+                continue;
+            }
+            Set<String> topLevelFields = semantic.keySet().stream()
+                .filter(key -> !Objects.equals(key, wrapper))
+                .map(this::canonicalParameterKey)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+            boolean schemaFieldFound = false;
+            for (Map.Entry<?, ?> nestedEntry : nested.entrySet()) {
+                if (nestedEntry.getKey() == null || nestedEntry.getValue() == null) {
+                    continue;
+                }
+                String nestedKey = String.valueOf(nestedEntry.getKey());
+                String canonicalNestedKey = canonicalParameterKey(nestedKey);
+                if (!publishedFields.contains(canonicalNestedKey)) {
+                    continue;
+                }
+                schemaFieldFound = true;
+                if (topLevelFields.add(canonicalNestedKey)) {
+                    semantic.put(nestedKey, nestedEntry.getValue());
+                }
+            }
+            if (schemaFieldFound) {
+                semantic.remove(wrapper);
+                promoted.add(wrapper);
+            }
+        }
+        return List.copyOf(promoted);
     }
 
     private Map<String, Object> publishedInputSchema(ToolMetadata metadata) {
@@ -4966,6 +5115,12 @@ public class InterpretationPlanRuntime {
     private boolean isSqlMetadataSearchTool(String toolName) {
         String semantic = toolSemanticKey(toolName);
         return "sql_metadata_search".equals(semantic) || semantic.endsWith("_sql_metadata_search");
+    }
+
+    private boolean isEnterpriseMetadataSearchTool(String toolName) {
+        String semantic = toolSemanticKey(toolName);
+        return "enterprise_metadata_search".equals(semantic)
+            || semantic.endsWith("_enterprise_metadata_search");
     }
 
     private boolean isRoutingDiscoveryTool(String toolName) {

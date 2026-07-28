@@ -93,7 +93,12 @@ class ToolObservationBuilderEvidenceTest {
             .contains("\"comment\":\"标准注释5\"")
             .contains("\"field\":\"账户\"", "\"englishName\":\"ACCOUNT\"", "\"comment\":\"账户业务词根\"")
             .contains("\"field\":\"账户类别\"", "\"englishName\":\"ACCOUNT_CLASS\"", "\"comment\":\"账户类别代码字典\"")
-            .contains("\"allRetrievalLimitedCandidatesIncluded\":true")
+            .contains("\"sourceFields\":[")
+            .contains("\"inputFieldCount\":1")
+            .contains("\"processedFieldCount\":1")
+            .contains("\"allFieldsProcessed\":true")
+            .contains("\"fieldsWithCandidates\":1")
+            .contains("\"allReturnedCandidatesIncluded\":true")
             .doesNotContain("searchPlan", "\"score\"", "matchLevel", "providerExchange",
                 "evidenceObjects", "largeInternalPayload", "internal reason", "unused raw output");
         assertThat(observation.length()).isLessThan(10_000);

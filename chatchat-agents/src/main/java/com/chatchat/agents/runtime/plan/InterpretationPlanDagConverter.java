@@ -135,7 +135,7 @@ public class InterpretationPlanDagConverter {
             executionNode.put("success", execution.success());
             executionNode.put("durationMs", execution.durationMs());
             executionNode.put("errorMessage", execution.errorMessage());
-            executionNode.put("outputPreview", preview(execution.output(), 260));
+            executionNode.put("output", execution.output());
             nodes.add(executionNode);
             addEdge(edges, edgeIds, previousExecutionNode, executionNodeId, "next", "next", null, null);
             addEdge(edges, edgeIds, "step-" + execution.stepId(), executionNodeId, "executes", "executes", null, null);
@@ -243,14 +243,6 @@ public class InterpretationPlanDagConverter {
         edge.put("type", type);
         edge.put("required", required);
         edges.add(edge);
-    }
-
-    private String preview(Object value, int maxLength) {
-        if (value == null) {
-            return null;
-        }
-        String text = String.valueOf(value).replaceAll("\\s+", " ").trim();
-        return text.length() <= maxLength ? text : text.substring(0, maxLength);
     }
 
     private Map<String, Object> summary(InterpretationPlan plan, int nodeCount, int edgeCount) {

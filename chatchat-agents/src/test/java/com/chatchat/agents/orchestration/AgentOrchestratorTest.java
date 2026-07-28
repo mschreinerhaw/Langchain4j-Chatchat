@@ -98,6 +98,104 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void finalSynthesisKeepsLateEnterpriseMetadataObservation() {
+        InterpretationPlanRuntime.ExecutionResult failedAttempt = attemptResult(
+            "result_unsatisfied", false, "earlier SQL metadata was incomplete", "missing columns");
+        String lateEvidence = "Mandatory workflow execution "
+            + "{\"schemaVersion\":\"enterprise_metadata_model_context.v1\","
+            + "\"coverage\":{\"inputFieldCount\":12,\"processedFieldCount\":12,"
+            + "\"allFieldsProcessed\":true}}";
+
+        String prompt = newOrchestrator(mock(ChatModel.class)).buildInterpretationPlanSummaryPrompt(
+            "补全目标表字段注释",
+            null,
+            failedAttempt,
+            List.of(failedAttempt),
+            List.of(lateEvidence),
+            List.of(),
+            null
+        );
+
+        assertThat(prompt)
+            .contains(lateEvidence)
+            .contains("Mandatory workflow observations are executed after the listed plan attempts")
+            .contains("resolves earlier missing_evidence claims");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void mandatoryWorkflowLocallyReviewsCompleteEnterpriseMetadataResult() throws Exception {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        Method method = AgentOrchestrator.class.getDeclaredMethod(
+            "mandatoryWorkflowResultReview",
+            String.class,
+            ToolOutput.class
+        );
+        method.setAccessible(true);
+        ToolOutput output = ToolOutput.success(Map.of(
+            "schemaVersion", "enterprise_metadata_field_discovery.v1",
+            "success", true,
+            "sourceFieldCount", 12,
+            "matchedFieldCount", 12,
+            "coverage", Map.of(
+                "inputFieldCount", 12,
+                "processedFieldCount", 12,
+                "allFieldsProcessed", true
+            )
+        ));
+
+        Map<String, Object> review = (Map<String, Object>) method.invoke(
+            orchestrator,
+            "mcp_chatchat_mcp_server_enterprise_metadata_search",
+            output
+        );
+
+        assertThat(review)
+            .containsEntry("satisfied", true)
+            .containsEntry("reviewType", "LOCAL_CONTRACT_REVIEW")
+            .containsEntry("sourceFieldCount", 12)
+            .containsEntry("matchedFieldCount", 12)
+            .containsEntry("processedFieldCount", 12)
+            .containsEntry("allFieldsProcessed", true);
+
+        Map<String, Object> partialReview = (Map<String, Object>) method.invoke(
+            orchestrator,
+            "mcp_chatchat_mcp_server_enterprise_metadata_search",
+            ToolOutput.success(Map.of(
+                "schemaVersion", "enterprise_metadata_field_discovery.v1",
+                "success", true,
+                "sourceFieldCount", 12,
+                "matchedFieldCount", 11,
+                "coverage", Map.of(
+                    "inputFieldCount", 12,
+                    "processedFieldCount", 11,
+                    "allFieldsProcessed", false
+                )
+            ))
+        );
+        assertThat(partialReview)
+            .containsEntry("satisfied", false)
+            .containsEntry("sourceFieldCount", 12)
+            .containsEntry("processedFieldCount", 11);
+
+        Map<String, Object> genericSuccessReview = (Map<String, Object>) method.invoke(
+            orchestrator,
+            "mcp_example_read_tool",
+            ToolOutput.success(Map.of("schemaVersion", "example_result.v1", "count", 1))
+        );
+        assertThat(genericSuccessReview)
+            .containsEntry("satisfied", true)
+            .containsEntry("reviewType", "LOCAL_CONTRACT_REVIEW");
+
+        Map<String, Object> failureReview = (Map<String, Object>) method.invoke(
+            orchestrator,
+            "mcp_example_read_tool",
+            ToolOutput.failure("backend unavailable")
+        );
+        assertThat(failureReview).containsEntry("satisfied", false);
+    }
+
+    @Test
     void interpretationPlanWorkflowBlockStopsBeforeAttemptsExhaustedSynthesis() throws Exception {
         AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
         Method method = AgentOrchestrator.class.getDeclaredMethod(
@@ -441,6 +539,130 @@ class AgentOrchestratorTest {
             .contains("TRANSACTIONS", "FILE I/O", "BUFFER POOL AND MEMORY")
             .contains("promptPreviewTruncated=false")
             .doesNotContain("SHOW ENGINE INNODB STATUS");
+    }
+
+    @Test
+    void enterpriseMetadataReviewerUsesFormattedEvidenceForEveryFieldInsteadOfRawPreview() throws Exception {
+        List<Map<String, Object>> sourceFields = new ArrayList<>();
+        List<Map<String, Object>> fieldMatches = new ArrayList<>();
+        for (int index = 1; index <= 12; index++) {
+            Map<String, Object> source = Map.of(
+                "fieldName", "field_" + index,
+                "fieldCnName", "字段" + index,
+                "description", "字段注释" + index
+            );
+            sourceFields.add(source);
+            fieldMatches.add(Map.of(
+                "fieldRef", "field-" + index,
+                "input", source,
+                "standardFields", List.of(Map.of(
+                    "name", "标准字段" + index,
+                    "technicalName", "STD_FIELD_" + index,
+                    "metadata", Map.of(
+                        "description", "标准注释" + index,
+                        "rawInternalPayload", "x".repeat(2_000)
+                    )
+                )),
+                "termRoots", List.of(),
+                "dictionaries", List.of()
+            ));
+        }
+        Map<String, Object> output = new LinkedHashMap<>();
+        output.put("schemaVersion", "enterprise_metadata_field_discovery.v1");
+        output.put("success", true);
+        output.put("sourceSchema", Map.of(
+            "table", "gdp_ads.target_table",
+            "fieldCount", 12,
+            "fields", sourceFields
+        ));
+        output.put("fieldMatches", fieldMatches);
+        output.put("coverage", Map.of(
+            "inputFieldCount", 12,
+            "processedFieldCount", 12,
+            "allFieldsProcessed", true
+        ));
+        output.put("providerExchange", Map.of("raw", "z".repeat(30_000)));
+        InterpretationPlanRuntime.StepExecution execution =
+            new InterpretationPlanRuntime.StepExecution(
+                1,
+                "mcp_tool",
+                "mcp_chatchat_mcp_server_enterprise_metadata_search",
+                true,
+                output,
+                null,
+                null,
+                null,
+                10L
+            );
+        InterpretationPlanRuntime.StepReviewRequest request =
+            new InterpretationPlanRuntime.StepReviewRequest(
+                null, null, execution, Map.of(), 1, 1);
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        Method method = AgentOrchestrator.class.getDeclaredMethod(
+            "buildToolResultReviewPrompt",
+            String.class,
+            String.class,
+            InterpretationPlanRuntime.StepReviewRequest.class
+        );
+        method.setAccessible(true);
+
+        String prompt = (String) method.invoke(orchestrator, "补全字段注释", null, request);
+
+        assertThat(prompt)
+            .contains("Authoritative tool result evidence")
+            .contains("\"englishName\":\"field_1\"")
+            .contains("\"englishName\":\"field_12\"")
+            .contains("\"englishName\":\"STD_FIELD_12\"")
+            .contains("\"inputFieldCount\":12")
+            .contains("\"processedFieldCount\":12")
+            .contains("Prompt preview truncated: false")
+            .doesNotContain("Tool output preview, shortened only")
+            .doesNotContain("rawInternalPayload")
+            .doesNotContain("z".repeat(100));
+    }
+
+    @Test
+    void genericToolResultTailReachesReviewerAndFinalSynthesisWithoutRuntimeTruncation() throws Exception {
+        String longResult = "result-head\n" + "x".repeat(20_000) + "\ncritical-tail-evidence";
+        Map<String, Object> output = Map.of(
+            "success", true,
+            "records", List.of(Map.of("payload", longResult))
+        );
+        InterpretationPlanRuntime.StepExecution execution =
+            new InterpretationPlanRuntime.StepExecution(
+                1, "mcp_tool", "future_dynamic_tool", true,
+                output, null, null, null, 10L
+            );
+        InterpretationPlanRuntime.StepReviewRequest reviewRequest =
+            new InterpretationPlanRuntime.StepReviewRequest(
+                null, null, execution, Map.of(), 1, 1);
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        Method reviewMethod = AgentOrchestrator.class.getDeclaredMethod(
+            "buildToolResultReviewPrompt",
+            String.class,
+            String.class,
+            InterpretationPlanRuntime.StepReviewRequest.class
+        );
+        reviewMethod.setAccessible(true);
+
+        String reviewPrompt = (String) reviewMethod.invoke(
+            orchestrator, "分析完整结果", null, reviewRequest);
+        InterpretationPlanRuntime.ExecutionResult result =
+            new InterpretationPlanRuntime.ExecutionResult(
+                "success", true, false, null, null,
+                List.of(execution), Map.of(), 10L
+            );
+        String summaryPrompt = orchestrator.buildInterpretationPlanSummaryPrompt(
+            "分析完整结果", null, result, List.of(), List.of(), null
+        );
+
+        assertThat(reviewPrompt)
+            .contains("result-head", "x".repeat(20_000), "critical-tail-evidence")
+            .contains("Runtime truncation applied: false")
+            .doesNotContain("shortened only for reviewer context");
+        assertThat(summaryPrompt)
+            .contains("result-head", "x".repeat(20_000), "critical-tail-evidence")
+            .contains("toolResult (complete Runtime input)");
     }
 
     @Test

@@ -284,6 +284,19 @@ class SqlMetadataSearchServiceTest {
         assertThat((Map<String, Object>) exactResult.get("diagnostics"))
             .containsEntry("tableNameFilterApplied", true)
             .containsEntry("tableNameFilterMode", "exact_table_match");
+
+        Map<String, Object> missingExactResult = service.search(Map.of(
+            "tableName", "ads_ids_table_that_does_not_exist",
+            "includeColumns", true,
+            "executionContext", Map.of("assetName", "TDH大数据集群", "env", "DEV", "databaseType", "inceptor")
+        ));
+
+        assertThat((List<Map<String, Object>>) missingExactResult.get("results")).isEmpty();
+        assertThat((List<Map<String, Object>>) missingExactResult.get("tableCatalog")).isEmpty();
+        assertThat(missingExactResult).containsEntry("totalMatched", 0);
+        assertThat((Map<String, Object>) missingExactResult.get("diagnostics"))
+            .containsEntry("tableNameFilterApplied", false)
+            .containsEntry("tableNameFilterMode", "exact_table_not_found");
     }
 
     @Test

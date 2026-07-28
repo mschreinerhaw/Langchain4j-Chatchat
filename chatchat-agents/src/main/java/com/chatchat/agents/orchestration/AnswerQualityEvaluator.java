@@ -24,10 +24,6 @@ class AnswerQualityEvaluator {
     static final String DETERMINISTIC_EVIDENCE = "deterministic_evidence";
     static final String DOCUMENT_EVIDENCE = "document_evidence";
 
-    private static final int OBSERVATION_LIMIT = 12;
-    private static final int OBSERVATION_PREVIEW_CHARS = 3000;
-    private static final int ANSWER_PREVIEW_CHARS = 5000;
-
     private final ObjectMapper objectMapper;
 
     AnswerQualityEvaluator(ObjectMapper objectMapper) {
@@ -96,14 +92,13 @@ class AnswerQualityEvaluator {
         } else {
             observations.stream()
                 .filter(value -> value != null && !value.isBlank())
-                .limit(OBSERVATION_LIMIT)
-                .forEach(value -> prompt.append("- ").append(preview(value, OBSERVATION_PREVIEW_CHARS)).append("\n"));
+                .forEach(value -> prompt.append("- ").append(value).append("\n"));
         }
         prompt.append("\nAnswer candidates:\n");
         for (AnswerCandidate candidate : candidates) {
             prompt.append("[Candidate ").append(candidate.id()).append("]\n");
             prompt.append("source: ").append(candidate.source()).append("\n");
-            prompt.append("answer:\n").append(preview(candidate.answer(), ANSWER_PREVIEW_CHARS)).append("\n\n");
+            prompt.append("answer:\n").append(candidate.answer()).append("\n\n");
         }
         prompt.append("Scoring rubric, each score from 0.0 to 1.0:\n");
         prompt.append("- accuracy: factual consistency with observations and no unsupported claims.\n");

@@ -32,7 +32,6 @@ import java.util.Set;
  */
 class ToolObservationBuilder {
 
-    private static final int WEB_SEARCH_REFERENCE_LIMIT = 10;
     private static final String DOCUMENT_SEARCH_TOOL = "document_search";
     private static final String WEB_SEARCH_TOOL = "web_search";
     private static final String SEARCH_AND_EXTRACT_TOOL = "search_and_extract";
@@ -131,7 +130,7 @@ class ToolObservationBuilder {
         }
         List<WebCitation> citations = trustedWebCitations(data, observation);
         if (citations.isEmpty()) {
-            String summary = shortObservationText(outputText, 600);
+            String summary = observationText(outputText);
             if (summary != null && !summary.isBlank()) {
                 observation.append(" Output summary: ").append(summary);
             }
@@ -309,19 +308,34 @@ class ToolObservationBuilder {
         Map<String, Object> sourceSchema = asMap(payload.get("sourceSchema"));
         List<Map<String, Object>> fields = mapList(sourceSchema.get("fields"));
         List<Map<String, Object>> fieldMatches = mapList(payload.get("fieldMatches"));
+        Map<String, Object> protocolCoverage = asMap(payload.get("coverage"));
         List<Map<String, Object>> formattedFields = new ArrayList<>();
+        int fieldsWithCandidates = 0;
         for (Map<String, Object> fieldMatch : fieldMatches) {
             Map<String, Object> formattedField = new LinkedHashMap<>();
             putIfPresent(formattedField, "fieldRef", fieldMatch.get("fieldRef"));
             formattedField.put("source", sourceFieldProjection(asMap(fieldMatch.get("input"))));
-            formattedField.put("standardFields",
-                metadataCandidateProjections(mapList(fieldMatch.get("standardFields"))));
-            formattedField.put("termRoots",
-                metadataCandidateProjections(mapList(fieldMatch.get("termRoots"))));
-            formattedField.put("dictionaries",
-                metadataCandidateProjections(mapList(fieldMatch.get("dictionaries"))));
+            List<Map<String, Object>> standardFields =
+                metadataCandidateProjections(mapList(fieldMatch.get("standardFields")));
+            List<Map<String, Object>> termRoots =
+                metadataCandidateProjections(mapList(fieldMatch.get("termRoots")));
+            List<Map<String, Object>> dictionaries =
+                metadataCandidateProjections(mapList(fieldMatch.get("dictionaries")));
+            formattedField.put("standardFields", standardFields);
+            formattedField.put("termRoots", termRoots);
+            formattedField.put("dictionaries", dictionaries);
+            if (!standardFields.isEmpty() || !termRoots.isEmpty() || !dictionaries.isEmpty()) {
+                fieldsWithCandidates++;
+            }
             formattedFields.add(formattedField);
         }
+        int inputFieldCount = intValue(
+            protocolCoverage.get("inputFieldCount"),
+            intValue(sourceSchema.get("fieldCount"), fields.size()));
+        int processedFieldCount = intValue(
+            protocolCoverage.get("processedFieldCount"), fieldMatches.size());
+        boolean allFieldsProcessed = booleanValue(protocolCoverage.get("allFieldsProcessed"))
+            || (inputFieldCount > 0 && processedFieldCount == inputFieldCount);
         Map<String, Object> context = new LinkedHashMap<>();
         context.put("schemaVersion", "enterprise_metadata_model_context.v1");
         context.put("sourceSchemaVersion",
@@ -331,13 +345,17 @@ class ToolObservationBuilder {
         context.put("success", booleanValue(payload.get("success")));
         context.put("target", asMap(payload.get("targetObject")));
         context.put("sourceTable", firstNonBlank(stringValue(sourceSchema.get("table")), "unknown"));
-        context.put("sourceFieldCount", firstNonBlank(stringValue(sourceSchema.get("fieldCount")),
-            String.valueOf(fields.size())));
-        context.put("matchedFieldCount", fieldMatches.size());
+        context.put("sourceFields", fields.stream().map(this::sourceFieldProjection).toList());
+        context.put("coverage", Map.of(
+            "inputFieldCount", inputFieldCount,
+            "processedFieldCount", processedFieldCount,
+            "allFieldsProcessed", allFieldsProcessed,
+            "fieldsWithCandidates", fieldsWithCandidates
+        ));
         context.put("fields", List.copyOf(formattedFields));
         context.put("projection", Map.of(
             "includedCandidateProperties", List.of("field", "englishName", "comment"),
-            "allRetrievalLimitedCandidatesIncluded", true,
+            "allReturnedCandidatesIncluded", true,
             "fullProtocolEvidenceLocation", "toolTrace"
         ));
         if (payload.get("errorCode") != null) {
@@ -347,6 +365,17 @@ class ToolObservationBuilder {
             ));
         }
         return ModelProtocolJson.compact(context);
+    }
+
+    private int intValue(Object value, int fallback) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        try {
+            return value == null ? fallback : Integer.parseInt(String.valueOf(value));
+        } catch (NumberFormatException ignored) {
+            return fallback;
+        }
     }
 
     private List<Map<String, Object>> metadataCandidateProjections(List<Map<String, Object>> candidates) {
@@ -664,7 +693,7 @@ class ToolObservationBuilder {
 
         List<DocumentEvidence> evidence = extractDocumentEvidence(data);
         if (evidence.isEmpty()) {
-            String summary = shortObservationText(outputText, 600);
+            String summary = observationText(outputText);
             if (summary != null && !summary.isBlank()) {
                 observation.append(" Output summary: ").append(summary);
             }
@@ -694,7 +723,7 @@ class ToolObservationBuilder {
         DocumentSelectionContext selectionContext = isDocumentSearchToolName(toolName)
             ? DocumentSelectionContext.fromToolData(evidenceData)
             : DocumentSelectionContext.unrestricted();
-        List<EvidenceChunk> normalizedChunks = evidenceNormalizer.normalize(toolName, evidenceData, WEB_SEARCH_REFERENCE_LIMIT);
+        List<EvidenceChunk> normalizedChunks = evidenceNormalizer.normalize(toolName, evidenceData, Integer.MAX_VALUE);
         List<EvidenceChunk> evaluatedChunks = applyEvidenceEvaluationSelection(normalizedChunks, reviewMetadata);
         appendEvidenceEvaluationSelection(observation, normalizedChunks, evaluatedChunks, reviewMetadata);
         normalizedChunks = applyLockPropagation(evaluatedChunks, reviewMetadata);
@@ -1017,7 +1046,7 @@ class ToolObservationBuilder {
                     stringValue(item.get("title")),
                     firstNonBlank(stringValue(item.get("name")), stringValue(item.get("source")))
                 ),
-                shortText(firstNonBlank(
+                firstNonBlank(
                     stringValue(item.get("snippet")),
                     firstNonBlank(
                         stringValue(item.get("excerpt")),
@@ -1029,19 +1058,16 @@ class ToolObservationBuilder {
                             )
                         )
                     )
-                ))
+                )
             ));
         }
 
         Object referenceUrlsValue = root.get("reference_urls");
         if (!(referenceUrlsValue instanceof List<?> referenceUrls) || referenceUrls.isEmpty()) {
-            return byUrl.values().stream().limit(WEB_SEARCH_REFERENCE_LIMIT).toList();
+            return List.copyOf(byUrl.values());
         }
         List<WebCitation> citations = new ArrayList<>();
         for (Object value : referenceUrls) {
-            if (citations.size() >= WEB_SEARCH_REFERENCE_LIMIT) {
-                break;
-            }
             String url = stringValue(value);
             if (url == null || url.isBlank()) {
                 continue;
@@ -1068,9 +1094,6 @@ class ToolObservationBuilder {
         List<DocumentEvidence> evidence = new ArrayList<>();
         Set<String> seen = new LinkedHashSet<>();
         for (Map<String, Object> item : candidates) {
-            if (evidence.size() >= WEB_SEARCH_REFERENCE_LIMIT) {
-                break;
-            }
             String docId = firstNonBlank(
                 firstNonBlank(stringValue(item.get("docId")), stringValue(item.get("documentId"))),
                 firstNonBlank(stringValue(item.get("id")), stringValue(item.get("fileId")))
@@ -1079,13 +1102,13 @@ class ToolObservationBuilder {
                 firstNonBlank(stringValue(item.get("title")), stringValue(item.get("name"))),
                 firstNonBlank(stringValue(item.get("filename")), stringValue(item.get("source")))
             );
-            String snippet = shortText(firstNonBlank(
+            String snippet = firstNonBlank(
                 stringValue(item.get("excerpt")),
                 firstNonBlank(
                     stringValue(item.get("contentExcerpt")),
                     firstNonBlank(stringValue(item.get("snippet")), stringValue(item.get("summary")))
                 )
-            ));
+            );
             if ((title == null || title.isBlank()) && (snippet == null || snippet.isBlank())) {
                 continue;
             }

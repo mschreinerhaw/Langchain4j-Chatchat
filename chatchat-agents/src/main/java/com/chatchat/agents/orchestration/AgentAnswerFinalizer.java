@@ -54,9 +54,6 @@ class AgentAnswerFinalizer {
     private static final String ANSWER_EVIDENCE_INSUFFICIENT = "EVIDENCE_INSUFFICIENT";
     private static final String ANSWER_EVIDENCE_BLOCKED = "EXECUTION_BLOCKED";
     private static final String INSUFFICIENT_EVIDENCE_ANSWER = "根据当前文档证据不足，无法确认。";
-    private static final int TOOL_DATA_MARKDOWN_ROW_LIMIT = 20;
-    private static final int TOOL_DATA_VISUALIZATION_ROW_LIMIT = 200;
-    private static final int TOOL_EVIDENCE_PREVIEW_LIMIT = 1600;
     private static final int TOOL_DATA_INLINE_CELL_LIMIT = 240;
     private static final Pattern DOCUMENT_REF_PATTERN =
         Pattern.compile("doc://([^\\s\"',;\\]\\)}]+)#chunk=([^\\s\"',;\\]\\)}]+)");
@@ -840,9 +837,9 @@ class AgentAnswerFinalizer {
                                                        InteractionToolTrace trace) {
         Map<String, Object> dataset = new LinkedHashMap<>();
         dataset.put("columns", columns);
-        dataset.put("rows", rows.stream().limit(TOOL_DATA_VISUALIZATION_ROW_LIMIT).toList());
+        dataset.put("rows", rows);
         dataset.put("rowCount", rowCount);
-        dataset.put("displayedRowCount", Math.min(rows.size(), TOOL_DATA_VISUALIZATION_ROW_LIMIT));
+        dataset.put("displayedRowCount", rows.size());
 
         Map<String, Object> spec = new LinkedHashMap<>();
         spec.put("version", "v1");
@@ -901,7 +898,7 @@ class AgentAnswerFinalizer {
                 timeKey == null ? "comparison" : "trend",
                 xKey,
                 numericColumns.stream().map(column -> Map.of("name", column, "yKey", column)).toList(),
-                rows.stream().limit(TOOL_DATA_VISUALIZATION_ROW_LIMIT).toList()
+                rows
             );
         }
 
@@ -968,7 +965,6 @@ class AgentAnswerFinalizer {
             counts.merge(key, 1, Integer::sum);
         }
         return counts.entrySet().stream()
-            .limit(TOOL_DATA_VISUALIZATION_ROW_LIMIT)
             .map(entry -> {
                 Map<String, Object> row = new LinkedHashMap<>();
                 row.put(categoryKey, entry.getKey());
@@ -1066,7 +1062,7 @@ class AgentAnswerFinalizer {
             item.put("columns", columns);
             item.put("rowCount", firstInt(table.get("rowCount"), table.get("total"), table.get("count"), rows.size()));
             item.put("returnedRowCount", rows.size());
-            item.put("sampleRows", rows.stream().limit(5).toList());
+            item.put("sampleRows", rows);
             return item;
         }
 
@@ -1322,7 +1318,7 @@ class AgentAnswerFinalizer {
             return base;
         }
         int rowCount = firstInt(dataset.get("rowCount"), rows.size());
-        int displayCount = Math.min(rows.size(), TOOL_DATA_MARKDOWN_ROW_LIMIT);
+        int displayCount = rows.size();
         StringBuilder table = new StringBuilder();
         List<LongTextCell> longTextCells = new ArrayList<>();
         table.append("## 查询结果明细\n\n");
@@ -1338,7 +1334,7 @@ class AgentAnswerFinalizer {
         }
         table.append("\n");
         int displayedRowIndex = 0;
-        for (Map<String, Object> row : rows.stream().limit(TOOL_DATA_MARKDOWN_ROW_LIMIT).toList()) {
+        for (Map<String, Object> row : rows) {
             displayedRowIndex++;
             table.append("| ");
             for (String column : columns) {
@@ -1520,8 +1516,7 @@ class AgentAnswerFinalizer {
         if (value == null || value.isBlank()) {
             return "";
         }
-        String text = value.replaceAll("\\s+", " ").trim();
-        return text.length() <= TOOL_EVIDENCE_PREVIEW_LIMIT ? text : text.substring(0, TOOL_EVIDENCE_PREVIEW_LIMIT);
+        return value.replaceAll("\\s+", " ").trim();
     }
 
     private String previewStructured(Object value) {

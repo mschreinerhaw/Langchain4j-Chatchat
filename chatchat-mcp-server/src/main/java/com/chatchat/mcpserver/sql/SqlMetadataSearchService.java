@@ -167,7 +167,13 @@ public class SqlMetadataSearchService {
         stageTimings.put("dedupeAndFilterMs", elapsedMs(stageStartedAt));
         List<Candidate> tableFilteredCandidates = exactTableMatches(uniqueCandidates, exactTableFilter);
         boolean tableNameFilterApplied = !tableFilteredCandidates.isEmpty();
-        List<Candidate> selectedCandidates = tableNameFilterApplied ? tableFilteredCandidates : uniqueCandidates;
+        boolean exactTableRequested = exactTableFilter != null && !exactTableFilter.isBlank();
+        List<Candidate> selectedCandidates = tableNameFilterApplied
+            ? tableFilteredCandidates
+            : exactTableRequested ? List.of() : uniqueCandidates;
+        String tableNameFilterMode = tableNameFilterApplied
+            ? "exact_table_match"
+            : exactTableRequested ? "exact_table_not_found" : "no_exact_match_returning_semantic_candidates";
 
         stageStartedAt = System.nanoTime();
         List<Map<String, Object>> tableCatalog = applyLimit(selectedCandidates, catalogLimit).stream()
@@ -254,7 +260,7 @@ public class SqlMetadataSearchService {
                 "possiblyTruncated", selectedCandidates.size() > detailLimit,
                 "legacyLimitIgnoredForDetail", legacyLimit,
                 "tableNameFilterApplied", tableNameFilterApplied,
-                "tableNameFilterMode", tableNameFilterApplied ? "exact_table_match" : "no_exact_match_returning_semantic_candidates",
+                "tableNameFilterMode", tableNameFilterMode,
                 "lazyIndexInitializationAttempted", !lazyIndexInitialization.attemptedDatasourceIds().isEmpty(),
                 "lazyIndexInitializationDatasourceIds", lazyIndexInitialization.attemptedDatasourceIds(),
                 "lazyIndexInitializationSucceededDatasourceIds", lazyIndexInitialization.succeededDatasourceIds(),

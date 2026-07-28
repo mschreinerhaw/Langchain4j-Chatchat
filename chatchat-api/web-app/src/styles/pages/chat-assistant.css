@@ -1779,37 +1779,62 @@
 
 .metadata-catalog-section {
   overflow: hidden;
-  margin: 12px 0;
+  margin: 8px 0;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fff;
+  background: #f8fafc;
 }
 
 .metadata-catalog-section header {
-  padding: 10px 12px;
+  padding: 0;
+  background: #f8fafc;
+}
+
+.metadata-catalog-section.expanded header {
   border-bottom: 1px solid var(--line);
-  background: #f8fafd;
 }
 
-.metadata-catalog-section header div {
-  display: grid;
-  gap: 3px;
+.metadata-catalog-toggle-header button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 10px;
+  border: 0;
+  background: transparent;
+  color: #667085;
+  cursor: pointer;
+  text-align: left;
 }
 
-.metadata-catalog-section header strong {
-  color: var(--text);
-  font-size: 13px;
+.metadata-catalog-toggle-header button:hover {
+  background: #f1f5f9;
 }
 
-.metadata-catalog-section header small {
+.metadata-catalog-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.metadata-catalog-heading strong {
   color: #667085;
   font-size: 12px;
+  font-weight: 650;
+}
+
+.metadata-catalog-toggle-header small {
+  color: #98a2b3;
+  font-size: 11px;
   line-height: 1.45;
 }
 
 .metadata-catalog-table-scroll {
   max-height: 360px;
   overflow: auto;
+  background: #fff;
 }
 
 .metadata-catalog-table {

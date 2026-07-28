@@ -113,17 +113,26 @@
         <section
           v-if="message.role === 'assistant' && !message.streaming && metadataTableCatalog(message).rows.length"
           class="metadata-catalog-section"
+          :class="{ expanded: metadataCatalogExpanded(message) }"
         >
-          <header>
-            <div>
-              <strong>工具命中的物理表</strong>
+          <header class="metadata-catalog-toggle-header">
+            <button
+              type="button"
+              :aria-expanded="metadataCatalogExpanded(message).toString()"
+              @click="toggleMetadataCatalog(message)"
+            >
+              <span class="metadata-catalog-heading">
+                <ChevronDown v-if="metadataCatalogExpanded(message)" :size="14" />
+                <ChevronRight v-else :size="14" />
+                <strong>工具命中的物理表</strong>
+              </span>
               <small>
                 共命中 {{ metadataTableCatalog(message).totalMatched }} 张，当前展示 {{ metadataTableCatalog(message).rows.length }} 张
                 <template v-if="metadataTableCatalog(message).catalogTruncated">，结果已截断</template>
               </small>
-            </div>
+            </button>
           </header>
-          <div class="metadata-catalog-table-scroll">
+          <div v-show="metadataCatalogExpanded(message)" class="metadata-catalog-table-scroll">
             <table class="metadata-catalog-table">
               <thead>
                 <tr>

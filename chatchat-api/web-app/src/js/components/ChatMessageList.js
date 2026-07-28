@@ -1,5 +1,5 @@
 import MarkdownIt from "markdown-it";
-import { Check, CircleCheck, CircleX, Copy } from "@lucide/vue";
+import { Check, ChevronDown, ChevronRight, CircleCheck, CircleX, Copy } from "@lucide/vue";
 import ResponseReferences from "../../components/ResponseReferences.vue";
 import chartAnalysisMixin from "./ChatMessageListChartAnalysis.js";
 import {
@@ -98,6 +98,8 @@ export default {
   mixins: [chartAnalysisMixin],
   components: {
     Check,
+    ChevronDown,
+    ChevronRight,
     CircleCheck,
     CircleX,
     Copy,
@@ -129,6 +131,7 @@ export default {
       codeCopyResetTimers: new Set(),
       collapsedToolCallMessageIds: new Set(),
       expandedCompletedToolCallMessageIds: new Set(),
+      expandedMetadataCatalogMessageIds: new Set(),
       reasoningModal: null,
       feedbackOptions: [
         { value: "useful", label: "\u6709\u7528" },
@@ -186,6 +189,21 @@ export default {
         if (this.runtimeToolStatusClass(message) !== "running") {
           this.expandedCompletedToolCallMessageIds.add(key);
         }
+      }
+    },
+    metadataCatalogExpanded(message = {}) {
+      const key = this.toolCallMessageKey(message);
+      return !!key && this.expandedMetadataCatalogMessageIds.has(key);
+    },
+    toggleMetadataCatalog(message = {}) {
+      const key = this.toolCallMessageKey(message);
+      if (!key) {
+        return;
+      }
+      if (this.expandedMetadataCatalogMessageIds.has(key)) {
+        this.expandedMetadataCatalogMessageIds.delete(key);
+      } else {
+        this.expandedMetadataCatalogMessageIds.add(key);
       }
     },
     shouldShowSteps(message = {}) {

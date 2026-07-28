@@ -3,6 +3,7 @@ package com.chatchat.chat.task;
 import com.chatchat.agents.runtime.AgentRunEvent;
 import com.chatchat.agents.runtime.AgentRunEventPublisher;
 import com.chatchat.agents.runtime.AgentRunEventType;
+import com.chatchat.common.tool.ToolLogSummarizer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,8 @@ import java.util.Optional;
 @Component
 @RequiredArgsConstructor
 public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
+
+    private static final int MAX_PERSISTED_RUNTIME_PAYLOAD_CHARS = 64_000;
 
     private final AgentTaskLatestRepository latestRepository;
     private final AgentEventStore eventStore;
@@ -142,6 +145,7 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
             runtimePayload.remove("uiResponse");
             runtimePayload.remove("executionResult");
         }
+        runtimePayload = compactRuntimePayload(event, runtimePayload);
         String status = taskStatus(event.type());
         String answer = terminalAnswer(event, runtimePayload);
         Map<String, Object> uiResponse = terminalUiResponse(status, answer, runtimePayload);
@@ -164,6 +168,34 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Failed to serialize agent runtime task event payload", ex);
         }
+    }
+
+    private Map<String, Object> compactRuntimePayload(AgentRunEvent event,
+                                                       Map<String, Object> runtimePayload) {
+        if (runtimePayload.isEmpty()
+            || (event.type() != AgentRunEventType.STEP_RECORDED
+                && event.type() != AgentRunEventType.OBSERVATION_RECORDED
+                && event.type() != AgentRunEventType.RUN_COMPLETED)) {
+            return runtimePayload;
+        }
+        Object summarized = ToolLogSummarizer.summarize(
+            runtimePayload,
+            MAX_PERSISTED_RUNTIME_PAYLOAD_CHARS
+        );
+        if (!(summarized instanceof Map<?, ?> summarizedMap)) {
+            return Map.of(
+                "contentPreview", String.valueOf(summarized),
+                "eventPayloadCompacted", true
+            );
+        }
+        Map<String, Object> compacted = new LinkedHashMap<>();
+        summarizedMap.forEach((key, value) -> {
+            if (key != null) {
+                compacted.put(String.valueOf(key), value);
+            }
+        });
+        compacted.put("eventPayloadCompacted", true);
+        return compacted;
     }
 
     private String displayMessage(AgentRunEvent event, String answer) {

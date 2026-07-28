@@ -18,6 +18,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Component
@@ -26,6 +28,7 @@ public class RocksDbAgentEventStore implements AgentEventStore {
 
     private final AgentTaskProperties properties;
     private final ObjectMapper objectMapper;
+    private final Set<String> unreadableEventWarnings = ConcurrentHashMap.newKeySet();
     private Options options;
     private RocksDB db;
 
@@ -123,14 +126,20 @@ public class RocksDbAgentEventStore implements AgentEventStore {
         List<AgentEvent> events = new ArrayList<>();
         try (RocksIterator iterator = db.newIterator()) {
             for (iterator.seek(prefixBytes); iterator.isValid() && startsWith(iterator.key(), prefixBytes); iterator.next()) {
-                AgentEvent event = objectMapper.readValue(iterator.value(), AgentEvent.class);
-                if (taskId == null || taskId.equals(event.getTaskId())) {
-                    events.add(event);
+                try {
+                    AgentEvent event = objectMapper.readValue(iterator.value(), AgentEvent.class);
+                    if (taskId == null || taskId.equals(event.getTaskId())) {
+                        events.add(event);
+                    }
+                } catch (IOException ex) {
+                    String key = new String(iterator.key(), StandardCharsets.UTF_8);
+                    if (unreadableEventWarnings.add(key)) {
+                        log.warn("Skipping unreadable agent event. key={} valueBytes={} error={}",
+                            key, iterator.value().length, ex.getMessage());
+                    }
                 }
             }
             return events;
-        } catch (IOException ex) {
-            throw new IllegalStateException("Failed to read agent events", ex);
         }
     }
 

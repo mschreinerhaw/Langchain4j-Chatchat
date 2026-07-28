@@ -202,6 +202,43 @@ class AgentRuntimeTaskEventPublisherTest {
         verify(eventBus, times(requestCount)).publishResult(org.mockito.ArgumentMatchers.any(AgentEvent.class));
     }
 
+    @Test
+    void compactsLargeRuntimeObservationBeforePersistingTaskEvent() throws Exception {
+        AgentTaskLatestRepository latestRepository = mock(AgentTaskLatestRepository.class);
+        InMemoryAgentEventStore eventStore = new InMemoryAgentEventStore();
+        AgentRuntimeTaskEventPublisher publisher = new AgentRuntimeTaskEventPublisher(
+            latestRepository,
+            eventStore,
+            mock(AgentEventBus.class),
+            objectMapper
+        );
+        AgentTaskLatestEntity task = task("task-runtime-large-observation");
+        when(latestRepository.findById(task.getTaskId())).thenReturn(Optional.of(task));
+
+        publisher.publish(AgentRunEvent.of(
+            task.getTaskId(),
+            AgentRunEventType.OBSERVATION_RECORDED,
+            "Agent observation recorded",
+            Map.of(
+                "type", "tool",
+                "source", "enterprise_metadata_search",
+                "contentPreview", "68 fields matched",
+                "metadata", Map.of("evidence", "x".repeat(300_000))
+            )
+        ));
+
+        AgentEvent event = eventStore.listByTask(
+            task.getTenantId(), task.getSessionId(), task.getTaskId(), 10
+        ).get(0);
+        Map<String, Object> envelope = objectMapper.readValue(event.getPayload(), Map.class);
+        assertThat(event.getPayload().length()).isLessThan(70_000);
+        assertThat(envelope.get("payload"))
+            .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
+            .containsEntry("source", "enterprise_metadata_search")
+            .containsEntry("contentPreview", "68 fields matched")
+            .containsEntry("eventPayloadCompacted", true);
+    }
+
     private AgentTaskLatestEntity task(String taskId) {
         AgentTaskLatestEntity task = new AgentTaskLatestEntity();
         task.setTaskId(taskId);

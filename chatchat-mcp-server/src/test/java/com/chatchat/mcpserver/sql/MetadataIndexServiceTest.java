@@ -4,6 +4,8 @@ import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -93,6 +95,23 @@ class MetadataIndexServiceTest {
     }
 
     @Test
+    void ensureIndexInitializesMissingSnapshotOnceUnderConcurrentExactLookups() {
+        LazyMetadataIndexService service = new LazyMetadataIndexService();
+        SqlDatasourceConfig datasource = datasource("manual", false);
+
+        List<CompletableFuture<MetadataIndex>> lookups = java.util.stream.IntStream.range(0, 8)
+            .mapToObj(index -> CompletableFuture.supplyAsync(() -> service.ensureIndex(datasource)))
+            .toList();
+
+        List<MetadataIndex> results = lookups.stream().map(CompletableFuture::join).toList();
+        assertThat(results).allSatisfy(index -> {
+            assertThat(index.error()).isNull();
+            assertThat(index.tables()).hasSize(1);
+        });
+        assertThat(service.refreshCount.get()).isEqualTo(1);
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void metadataSqlWithoutDatabaseParametersUsesNullableSinglePassMarker() throws Exception {
         MetadataIndexService service = new MetadataIndexService();
@@ -131,6 +150,48 @@ class MetadataIndexServiceTest {
         public MetadataRefreshResult refreshDatasource(SqlDatasourceConfig datasource) {
             refreshCount++;
             refreshedDatasourceId = datasource.getId();
+            return null;
+        }
+    }
+
+    private static class LazyMetadataIndexService extends MetadataIndexService {
+        private final AtomicInteger refreshCount = new AtomicInteger();
+        private volatile boolean initialized;
+
+        @Override
+        public MetadataIndex indexFor(SqlDatasourceConfig datasource) {
+            if (!initialized) {
+                return MetadataIndex.failed(datasource.getId(), "mysql", "metadata_index_not_refreshed");
+            }
+            TableLocation table = new TableLocation(
+                datasource.getId(),
+                "gdp_ads",
+                "gdp_ads",
+                "ads_ids_clr_acc_liab_d_i",
+                "TABLE",
+                null,
+                null,
+                null,
+                1.0
+            );
+            return new MetadataIndex(
+                datasource.getId(),
+                "mysql",
+                List.of(table),
+                java.util.Map.of("ads_ids_clr_acc_liab_d_i", List.of(table)),
+                java.util.Map.of("gdp_ads", List.of(table.table())),
+                java.util.Map.of(),
+                List.of("gdp_ads"),
+                System.currentTimeMillis(),
+                true,
+                null
+            );
+        }
+
+        @Override
+        public MetadataRefreshResult refreshDatasource(SqlDatasourceConfig datasource) {
+            refreshCount.incrementAndGet();
+            initialized = true;
             return null;
         }
     }

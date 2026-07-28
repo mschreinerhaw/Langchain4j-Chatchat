@@ -1913,6 +1913,7 @@ public class InterpretationPlanRuntime {
         normalizeModelInvocationEnvelope(step, input);
         normalizeWebSearchInput(step, request, input);
         normalizeNewsSearchInput(step, request, input);
+        applyPublishedInputAdapterContract(step, request, completed, input);
         compileDirectToolArguments(step, request, input);
         hydrateExecutionContextFromCompletedAssets(step, completed, input);
         normalizeSqlExecutionContext(step, input);
@@ -1946,6 +1947,55 @@ public class InterpretationPlanRuntime {
         }
         Object rawCalls = firstPresent(input, "calls", "toolCalls", "tool_calls");
         return rawCalls instanceof List<?> calls && !calls.isEmpty();
+    }
+
+    /**
+     * Applies a tool-published, declarative dependency-evidence adapter contract.
+     * Runtime only transports successful declared dependency outputs; it does not
+     * inspect tool names, result schemas, fields, or business semantics.
+     */
+    private void applyPublishedInputAdapterContract(InterpretationPlan.Step step,
+                                                    ExecutionRequest request,
+                                                    Map<Integer, StepExecution> completed,
+                                                    Map<String, Object> input) {
+        if (step == null || request == null || request.toolRegistry() == null
+            || completed == null || completed.isEmpty() || input == null) {
+            return;
+        }
+        ToolMetadata metadata = request.toolRegistry().getToolMetadata(step.toolName());
+        if (metadata == null || metadata.getMetadata() == null) {
+            return;
+        }
+        Map<String, Object> mcpMeta = asStringMap(metadata.getMetadata().get("mcpToolMeta"));
+        Map<String, Object> contract = asStringMap(mcpMeta.get("inputAdapterContract"));
+        if (!"runtime_dependency_evidence.v1".equals(stringValue(contract.get("contractVersion")))) {
+            return;
+        }
+        String parameter = stringValue(contract.get("dependencyEvidenceParameter"));
+        if (parameter == null || parameter.isBlank() || input.containsKey(parameter)) {
+            return;
+        }
+        List<Map<String, Object>> evidence = new ArrayList<>();
+        for (Integer dependencyId : safeIntegerList(step.dependsOn())) {
+            StepExecution execution = completed.get(dependencyId);
+            if (execution == null || !execution.success() || execution.output() == null) {
+                continue;
+            }
+            Map<String, Object> envelope = new LinkedHashMap<>();
+            envelope.put("stepId", execution.stepId());
+            envelope.put("actionType", execution.actionType());
+            if (execution.toolName() != null && !execution.toolName().isBlank()) {
+                envelope.put("toolName", execution.toolName());
+            }
+            envelope.put("output", execution.output());
+            evidence.add(Map.copyOf(envelope));
+        }
+        if (evidence.isEmpty()) {
+            return;
+        }
+        input.put(parameter, List.copyOf(evidence));
+        log.info("InterpretationPlan applied published input adapter contract stepId={} tool={} contractVersion={} dependencyEvidenceCount={}",
+            step.id(), step.toolName(), contract.get("contractVersion"), evidence.size());
     }
 
     private void normalizeWebSearchInput(InterpretationPlan.Step step,

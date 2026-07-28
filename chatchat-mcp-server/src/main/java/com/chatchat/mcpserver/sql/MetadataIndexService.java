@@ -139,6 +139,32 @@ public class MetadataIndexService {
         return MetadataIndex.failed(datasource.getId(), datasourceType, "metadata_index_not_refreshed");
     }
 
+    /**
+     * Lazily creates a missing metadata snapshot for an explicit metadata lookup.
+     *
+     * <p>This is intentionally different from scheduled auto refresh. A datasource
+     * configured for manual refresh may still need its first read-only snapshot
+     * after a process restart or local cache loss. Synchronization prevents
+     * concurrent exact lookups from starting duplicate full refreshes.</p>
+     */
+    public synchronized MetadataIndex ensureIndex(SqlDatasourceConfig datasource) {
+        MetadataIndex current = indexFor(datasource);
+        if (current == null || !"metadata_index_not_refreshed".equals(current.error())) {
+            return current;
+        }
+        MetadataRefreshResult refreshResult = refreshDatasource(datasource);
+        MetadataIndex refreshed = indexFor(datasource);
+        if (refreshed != null && (refreshed.error() == null || refreshed.error().isBlank())) {
+            return refreshed;
+        }
+        String error = refreshResult == null ? current.error() : refreshResult.error();
+        return MetadataIndex.failed(
+            datasource == null ? null : datasource.getId(),
+            datasource == null ? "generic" : resolvedDatabaseType(datasource),
+            error == null || error.isBlank() ? current.error() : error
+        );
+    }
+
     public void refreshEnabledDatasources(List<SqlDatasourceConfig> datasources) {
         if (datasources == null || datasources.isEmpty()) {
             return;
@@ -374,7 +400,9 @@ public class MetadataIndexService {
         }
     }
 
-    private List<MetadataColumn> queryAllColumns(SqlDatasourceConfig datasource, String datasourceType, List<ScopeValue> scopeValues) {
+    private List<MetadataColumn> queryAllColumns(SqlDatasourceConfig datasource,
+                                                  String datasourceType,
+                                                  List<ScopeValue> scopeValues) throws Exception {
         SystemMetadataQueryProvider.MetadataSql sql = metadataQueryProvider.columnIndexSql(datasourceType);
         try (Connection connection = openConnection(datasource)) {
             List<MetadataColumn> columns = new ArrayList<>();
@@ -416,7 +444,7 @@ public class MetadataIndexService {
 
     private List<TableLocation> queryTableLocationsFromJdbcMetadata(SqlDatasourceConfig datasource,
                                                                      String datasourceType,
-                                                                     List<ScopeValue> scopeValues) {
+                                                                     List<ScopeValue> scopeValues) throws Exception {
         try (Connection connection = openConnection(datasource)) {
             DatabaseMetaData metadata = connection.getMetaData();
             Map<String, TableLocation> candidates = new LinkedHashMap<>();
@@ -452,13 +480,13 @@ public class MetadataIndexService {
             return new ArrayList<>(candidates.values());
         } catch (Exception ex) {
             log.warn("JDBC metadata table fallback failed: datasourceId={}, error={}", datasource.getId(), ex.getMessage());
-            return List.of();
+            throw ex;
         }
     }
 
     private List<MetadataColumn> queryColumnsFromJdbcMetadata(SqlDatasourceConfig datasource,
                                                                String datasourceType,
-                                                               List<ScopeValue> scopeValues) {
+                                                               List<ScopeValue> scopeValues) throws Exception {
         try (Connection connection = openConnection(datasource)) {
             DatabaseMetaData metadata = connection.getMetaData();
             Map<String, MetadataColumn> columns = new LinkedHashMap<>();
@@ -498,7 +526,7 @@ public class MetadataIndexService {
             return new ArrayList<>(columns.values());
         } catch (Exception ex) {
             log.warn("JDBC metadata column fallback failed: datasourceId={}, error={}", datasource.getId(), ex.getMessage());
-            return List.of();
+            throw ex;
         }
     }
 

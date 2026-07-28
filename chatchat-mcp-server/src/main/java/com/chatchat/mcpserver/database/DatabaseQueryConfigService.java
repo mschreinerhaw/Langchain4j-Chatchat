@@ -35,7 +35,8 @@ public class DatabaseQueryConfigService {
     private static final Set<String> RESERVED_TOOL_NAMES = Set.of(
         "database_query",
         "database_query_execute",
-        "enterprise_metadata_search"
+        "enterprise_metadata_search",
+        "enterprise_metadata_match"
     );
     private static final Set<String> PARAMETER_SOURCE_TYPES = Set.of("USER_INPUT", "SYSTEM_CONTEXT", "UPSTREAM_RESULT", "STATIC");
     private static final SqlWorkflowEngine SQL_WORKFLOW_ENGINE = new SqlWorkflowEngine();

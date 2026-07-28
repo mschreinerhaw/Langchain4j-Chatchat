@@ -1091,6 +1091,204 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void transportsDeclaredDependencyEvidenceWithoutInspectingToolSpecificOutput() throws Exception {
+        String toolName = "mcp_test_capability";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName)
+            .metadata(Map.of(
+                "inputSchema", Map.of(
+                    "type", "object",
+                    "properties", Map.of(
+                        "query", Map.of("type", "string"),
+                        "sourceEvidence", Map.of(
+                            "type", "array",
+                            "items", Map.of("type", "object", "additionalProperties", true)
+                        )
+                    ),
+                    "additionalProperties", false
+                ),
+                "mcpToolMeta", Map.of(
+                    "inputAdapterContract", Map.of(
+                        "contractVersion", "runtime_dependency_evidence.v1",
+                        "dependencyEvidenceParameter", "sourceEvidence"
+                    )
+                )
+            ))
+            .build());
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            2,
+            "mcp_tool",
+            toolName,
+            Map.of("query", "review prior evidence"),
+            List.of(1),
+            null,
+            null
+        );
+        Map<Integer, InterpretationPlanRuntime.StepExecution> completed = Map.of(
+            1,
+            new InterpretationPlanRuntime.StepExecution(
+                1,
+                "mcp_tool",
+                "mcp_chatchat_mcp_server_sql_metadata_search",
+                true,
+                Map.of(
+                    "schemaVersion", "sql_metadata_search_result.v1",
+                    "topTables", List.of(Map.of(
+                        "asset", Map.of("name", "TDH数据仓库"),
+                        "location", Map.of(
+                            "database", "gdp_ads",
+                            "schema", "gdp_ads",
+                            "table", "ads_ids_clr_acc_liab_d_i"
+                        ),
+                        "columns", List.of(
+                            Map.of(
+                                "name", "client_id",
+                                "columnType", "varchar(64)",
+                                "comment", "客户编号",
+                                "nullable", false
+                            ),
+                            Map.of(
+                                "name", "liability_amount",
+                                "columnType", "decimal(18,2)",
+                                "comment", "负债金额",
+                                "nullable", true
+                            )
+                        )
+                    ))
+                ),
+                null,
+                null,
+                null,
+                12
+            )
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedStepInput",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class,
+            Map.class
+        );
+        method.setAccessible(true);
+
+        Map<String, Object> resolved = (Map<String, Object>) method.invoke(
+            runtime,
+            step,
+            new InterpretationPlanRuntime.ExecutionRequest(
+                minimalPlan(step),
+                toolRegistry,
+                List.of(toolName),
+                "tenant-1",
+                "req-unified-enterprise-metadata",
+                "conv-unified-enterprise-metadata",
+                "user-1",
+                Map.of()
+            ),
+            completed
+        );
+
+        assertThat(resolved).containsEntry("query", "review prior evidence")
+            .doesNotContainKeys("fields", "purpose", "targetObject");
+        List<Map<String, Object>> sourceEvidence =
+            (List<Map<String, Object>>) resolved.get("sourceEvidence");
+        assertThat(sourceEvidence).hasSize(1);
+        assertThat(sourceEvidence.get(0))
+            .containsEntry("stepId", 1)
+            .containsEntry("actionType", "mcp_tool")
+            .containsEntry("toolName", "mcp_chatchat_mcp_server_sql_metadata_search");
+        assertThat(String.valueOf(sourceEvidence.get(0).get("output")))
+            .contains("topTables", "columns", "ads_ids_clr_acc_liab_d_i");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void doesNotApplyToolSpecificMetadataRulesWithoutPublishedContract() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            1,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_enterprise_metadata_search",
+            Map.of(
+                "tableName", "customer_profile",
+                "types", List.of("STANDARD_FIELD"),
+                "fields", List.of(
+                    Map.of(
+                        "name", "customer_name",
+                        "cnName", "客户姓名",
+                        "type", "varchar(100)",
+                        "isNullable", false,
+                        "comment", "客户姓名"
+                    ),
+                    Map.of(
+                        "columnName", "customer_status",
+                        "chineseName", "客户状态",
+                        "columnType", "varchar(8)",
+                        "nullable", true,
+                        "businessDomain", "客户"
+                    )
+                )
+            ),
+            List.of(),
+            null,
+            null
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedStepInput",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class,
+            Map.class
+        );
+        method.setAccessible(true);
+
+        Map<String, Object> resolved = (Map<String, Object>) method.invoke(
+            runtime,
+            step,
+            new InterpretationPlanRuntime.ExecutionRequest(
+                minimalPlan(step),
+                mock(ToolRegistry.class),
+                List.of("mcp_chatchat_mcp_server_enterprise_metadata_search"),
+                "tenant-1",
+                "req-create-table-metadata",
+                "conv-create-table-metadata",
+                "user-1",
+                Map.of()
+            ),
+            Map.of()
+        );
+
+        assertThat(resolved)
+            .containsEntry("tableName", "customer_profile")
+            .containsEntry("types", List.of("STANDARD_FIELD"))
+            .doesNotContainKeys("query", "purpose", "matchMode", "targetObject", "sourceEvidence");
+        List<Map<String, Object>> fields = (List<Map<String, Object>>) resolved.get("fields");
+        assertThat(fields).hasSize(2);
+        assertThat(fields.get(0))
+            .containsEntry("name", "customer_name")
+            .containsEntry("cnName", "客户姓名")
+            .containsEntry("type", "varchar(100)")
+            .containsEntry("isNullable", false)
+            .containsEntry("comment", "客户姓名")
+            .doesNotContainKeys("fieldName", "fieldCnName", "dataType");
+        assertThat(fields.get(1))
+            .containsEntry("columnName", "customer_status")
+            .containsEntry("chineseName", "客户状态")
+            .containsEntry("columnType", "varchar(8)")
+            .containsEntry("nullable", true)
+            .containsEntry("businessDomain", "客户")
+            .doesNotContainKeys("fieldName", "fieldCnName", "dataType", "domain");
+    }
+
+    @Test
     void passesBusinessQueryTemplateNameToSqlQueryExecutor() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool(any())).thenReturn(true);

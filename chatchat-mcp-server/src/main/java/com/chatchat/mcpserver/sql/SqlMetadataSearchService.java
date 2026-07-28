@@ -136,6 +136,13 @@ public class SqlMetadataSearchService {
             searchRequestId, query, retrievalQuery, assetId, assetName, env, databaseType, lookupNamespace, tableName, includeColumns, detailLimit, catalogLimit, legacyLimit,
             compactMap(defaultDataAsset));
 
+        LazyIndexInitialization lazyIndexInitialization = ensureMissingIndexesForExactLookup(
+            requestedTableName,
+            assetId,
+            assetName,
+            env,
+            databaseType
+        );
         List<Candidate> candidates = new ArrayList<>();
         long stageStartedAt = System.nanoTime();
         candidates.addAll(luceneCandidates(searchRequestId, retrievalQuery, tableLabelFilter, lookupNamespace, assetId, assetName, env, databaseType, null));
@@ -248,6 +255,10 @@ public class SqlMetadataSearchService {
                 "legacyLimitIgnoredForDetail", legacyLimit,
                 "tableNameFilterApplied", tableNameFilterApplied,
                 "tableNameFilterMode", tableNameFilterApplied ? "exact_table_match" : "no_exact_match_returning_semantic_candidates",
+                "lazyIndexInitializationAttempted", !lazyIndexInitialization.attemptedDatasourceIds().isEmpty(),
+                "lazyIndexInitializationDatasourceIds", lazyIndexInitialization.attemptedDatasourceIds(),
+                "lazyIndexInitializationSucceededDatasourceIds", lazyIndexInitialization.succeededDatasourceIds(),
+                "lazyIndexInitializationErrors", lazyIndexInitialization.errors(),
                 "assetFilterApplied", assetId != null || assetName != null || env != null || databaseType != null,
                 "defaultDataAssetApplied", !defaultDataAsset.isEmpty() && (assetId != null || assetName != null),
                 "inputEncodingRepaired", inputEncodingRepaired(input),
@@ -255,6 +266,37 @@ public class SqlMetadataSearchService {
                 "durationMs", durationMs
             )
         );
+    }
+
+    private LazyIndexInitialization ensureMissingIndexesForExactLookup(String requestedTableName,
+                                                                        String assetId,
+                                                                        String assetName,
+                                                                        String env,
+                                                                        String databaseType) {
+        if (!looksLikeTableIdentifier(requestedTableName)) {
+            return LazyIndexInitialization.empty();
+        }
+        List<String> attempted = new ArrayList<>();
+        List<String> succeeded = new ArrayList<>();
+        Map<String, String> errors = new LinkedHashMap<>();
+        for (SqlDatasourceConfig datasource : matchingDatasources(assetId, assetName, env, databaseType)) {
+            MetadataIndex current = metadataIndexService.indexFor(datasource);
+            if (current == null || !"metadata_index_not_refreshed".equals(current.error())) {
+                continue;
+            }
+            String datasourceId = firstText(datasource.getId(), datasource.getName(), datasource.getToolName());
+            attempted.add(datasourceId);
+            MetadataIndex initialized = metadataIndexService.ensureIndex(datasource);
+            if (initialized != null && (initialized.error() == null || initialized.error().isBlank())) {
+                succeeded.add(datasourceId);
+            } else {
+                errors.put(
+                    datasourceId,
+                    initialized == null ? "metadata_index_initialization_failed" : initialized.error()
+                );
+            }
+        }
+        return new LazyIndexInitialization(List.copyOf(attempted), List.copyOf(succeeded), Map.copyOf(errors));
     }
 
     private List<Candidate> luceneCandidates(String searchRequestId,
@@ -834,5 +876,13 @@ public class SqlMetadataSearchService {
                              double score,
                              String source,
                              LuceneMcpSearchService.SearchHit hit) {
+    }
+
+    private record LazyIndexInitialization(List<String> attemptedDatasourceIds,
+                                           List<String> succeededDatasourceIds,
+                                           Map<String, String> errors) {
+        private static LazyIndexInitialization empty() {
+            return new LazyIndexInitialization(List.of(), List.of(), Map.of());
+        }
     }
 }

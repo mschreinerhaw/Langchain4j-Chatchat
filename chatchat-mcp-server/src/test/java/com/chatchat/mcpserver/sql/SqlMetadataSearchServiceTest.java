@@ -10,9 +10,11 @@ import java.sql.DriverManager;
 import java.sql.Statement;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SqlMetadataSearchServiceTest {
@@ -282,5 +284,90 @@ class SqlMetadataSearchServiceTest {
         assertThat((Map<String, Object>) exactResult.get("diagnostics"))
             .containsEntry("tableNameFilterApplied", true)
             .containsEntry("tableNameFilterMode", "exact_table_match");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void exactTableLookupLazilyInitializesMissingIndexAndReturnsEveryColumn() {
+        SqlDatasourceConfig datasource = new SqlDatasourceConfig();
+        datasource.setId("ds-tdh");
+        datasource.setName("TDH Warehouse");
+        datasource.setEnvironment("DEV");
+        datasource.setDatabaseType("inceptor");
+
+        TableLocation target = new TableLocation(
+            "ds-tdh",
+            "gdp_ads",
+            "gdp_ads",
+            "ads_ids_clr_acc_liab_d_i",
+            "TABLE",
+            null,
+            "Clearing account liability",
+            "ADS",
+            1.0
+        );
+        List<MetadataColumn> columns = List.of(
+            new MetadataColumn("ds-tdh", "gdp_ads", "gdp_ads", target.table(),
+                "account_id", "varchar", "varchar(64)", "", "Account ID", false, 1),
+            new MetadataColumn("ds-tdh", "gdp_ads", "gdp_ads", target.table(),
+                "liability_amount", "decimal", "decimal(18,2)", "", "Liability amount", true, 2)
+        );
+        AtomicBoolean initialized = new AtomicBoolean();
+
+        SqlDatasourceConfigService datasourceConfigService = mock(SqlDatasourceConfigService.class);
+        when(datasourceConfigService.listEnabled()).thenReturn(List.of(datasource));
+        MetadataIndexService metadataIndexService = mock(MetadataIndexService.class);
+        when(metadataIndexService.indexFor(datasource)).thenAnswer(invocation -> initialized.get()
+            ? new MetadataIndex(
+                datasource.getId(),
+                "inceptor",
+                List.of(target),
+                Map.of(target.table(), List.of(target)),
+                Map.of(target.database(), List.of(target.table())),
+                Map.of(),
+                List.of(target.database()),
+                System.currentTimeMillis(),
+                true,
+                null
+            )
+            : MetadataIndex.failed(datasource.getId(), "inceptor", "metadata_index_not_refreshed"));
+        when(metadataIndexService.ensureIndex(datasource)).thenAnswer(invocation -> {
+            initialized.set(true);
+            return metadataIndexService.indexFor(datasource);
+        });
+        when(metadataIndexService.allTables(datasource)).thenAnswer(invocation ->
+            initialized.get() ? List.of(target) : List.of());
+        when(metadataIndexService.findTables(datasource, target.table())).thenAnswer(invocation ->
+            initialized.get() ? List.of(target) : List.of());
+        when(metadataIndexService.columns(datasource, target)).thenReturn(columns);
+        LuceneMcpSearchService luceneSearchService = mock(LuceneMcpSearchService.class);
+        when(luceneSearchService.enabled()).thenReturn(false);
+
+        SqlMetadataSearchService service = new SqlMetadataSearchService(
+            luceneSearchService,
+            datasourceConfigService,
+            metadataIndexService
+        );
+
+        Map<String, Object> result = service.search(Map.of(
+            "database", "gdp_ads",
+            "tableName", target.table(),
+            "includeColumns", true,
+            "detailLimit", 5
+        ));
+
+        List<Map<String, Object>> results = (List<Map<String, Object>>) result.get("results");
+        assertThat(results).hasSize(1);
+        assertThat((Map<String, Object>) results.get(0).get("location"))
+            .containsEntry("tableName", target.table());
+        assertThat((List<Map<String, Object>>) results.get(0).get("columns"))
+            .extracting(column -> column.get("name"))
+            .containsExactly("account_id", "liability_amount");
+        assertThat((Map<String, Object>) result.get("diagnostics"))
+            .containsEntry("tableNameFilterApplied", true)
+            .containsEntry("lazyIndexInitializationAttempted", true)
+            .containsEntry("lazyIndexInitializationDatasourceIds", List.of("ds-tdh"))
+            .containsEntry("lazyIndexInitializationSucceededDatasourceIds", List.of("ds-tdh"));
+        verify(metadataIndexService).ensureIndex(datasource);
     }
 }

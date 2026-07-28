@@ -397,6 +397,7 @@ public class EnterpriseMetadataSearchService {
         content.remove("relevanceScore");
         content.remove("physicalIndex");
         return Map.of(
+            "contractVersion", "evidence_object_v1",
             "evidenceId", "EM-" + digest(metadataType + ":" + id),
             "type", metadataType,
             "source", String.valueOf(result.getOrDefault("logicalIndex", properties.getIndexName())),

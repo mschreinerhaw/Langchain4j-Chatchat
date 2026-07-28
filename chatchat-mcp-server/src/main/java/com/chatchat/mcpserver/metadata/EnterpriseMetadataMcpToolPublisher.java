@@ -22,9 +22,11 @@ import java.util.Map;
 public class EnterpriseMetadataMcpToolPublisher {
 
     public static final String TOOL_NAME = "enterprise_metadata_search";
+    public static final String MATCH_TOOL_NAME = "enterprise_metadata_match";
 
     private final McpSyncServer mcpSyncServer;
-    private final EnterpriseMetadataSearchService searchService;
+    private final EnterpriseMetadataMatchingService matchingService;
+    private final EnterpriseMetadataRequestAdapter requestAdapter;
     private final EnterpriseMetadataProperties properties;
     private final MetadataGovernancePolicyService policyService;
 
@@ -37,18 +39,27 @@ public class EnterpriseMetadataMcpToolPublisher {
     }
 
     public synchronized void refresh() {
-        remove();
-        mcpSyncServer.addTool(specification());
+        remove(TOOL_NAME);
+        remove(MATCH_TOOL_NAME);
+        mcpSyncServer.addTool(searchSpecification());
+        mcpSyncServer.addTool(matchSpecification());
         mcpSyncServer.notifyToolsListChanged();
-        log.info("Enterprise metadata MCP capability registered tool={}", TOOL_NAME);
+        log.info("Enterprise metadata MCP capabilities registered tools={},{}",
+            TOOL_NAME, MATCH_TOOL_NAME);
     }
 
-    private McpServerFeatures.SyncToolSpecification specification() {
+    private McpServerFeatures.SyncToolSpecification searchSpecification() {
         McpSchema.Tool tool = McpSchema.Tool.builder()
             .name(TOOL_NAME)
             .title("Enterprise metadata search")
             .description("Search configured enterprise standard fields, business roots and code dictionaries. "
                 + "Every invocation performs the required standard-field, term-root and dictionary retrieval internally; "
+                + "When fields are supplied, one invocation processes the complete field list and returns field-scoped "
+                + "standard-field, term-root and dictionary evidence. Do not split those metadata types into separate tool calls. "
+                + "For an existing physical table, supply tableName/targetObject or include its exact identifier in query; "
+                + "the capability resolves the complete indexed table schema internally when dependency evidence is unavailable. "
+                + "For CREATE TABLE requests, place the complete model-proposed schema in fields and the proposed table name "
+                + "in targetObject; a downstream reasoning/script step must review the returned evidence before producing DDL. "
                 + "Use this read-only capability when a task needs enterprise field meaning, technical names, "
                 + "data types, standard definitions or business-term mapping. It does not create tables, "
                 + "generate SQL or execute a workflow. Treat results and evidenceObjects as the factual boundary; "
@@ -61,17 +72,11 @@ public class EnterpriseMetadataMcpToolPublisher {
             .callHandler((exchange, request) -> {
                 try {
                     Map<String, Object> arguments = request.arguments() == null ? Map.of() : request.arguments();
-                    Map<String, Object> result = searchService.searchRequiredBundle(new EnterpriseMetadataSearchService.SearchRequest(
-                        text(arguments.get("query")),
-                        strings(arguments.get("types")),
-                        strings(arguments.get("statuses")),
-                        strings(arguments.get("scenarios")),
-                        integer(arguments.get("limit"))
-                    ));
+                    Map<String, Object> result = executeSearch(arguments);
                     return McpSchema.CallToolResult.builder()
-                        .addTextContent(summary(result))
+                        .addTextContent(matchSummary(result))
                         .structuredContent(result)
-                        .isError(false)
+                        .isError(Boolean.FALSE.equals(result.get("success")))
                         .build();
                 } catch (Exception ex) {
                     Map<String, Object> error = Map.of(
@@ -89,11 +94,184 @@ public class EnterpriseMetadataMcpToolPublisher {
             .build();
     }
 
+    Map<String, Object> executeSearch(Map<String, Object> arguments) {
+        Map<String, Object> request = requestAdapter.adapt(arguments);
+        List<Map<String, Object>> fields = maps(request.get("fields"));
+        log.info("enterprise_metadata_search unified request requestId={} purpose={} targetObject={} schemaEvidence={} fieldCount={} fields={}",
+            text(request.get("requestId")), text(request.get("purpose")),
+            request.get("targetObject"), request.get("schemaEvidence"),
+            fields.size(), fields);
+        if (fields.isEmpty()) {
+            Map<String, Object> missingEvidence = missingFieldEvidence(request);
+            log.warn("enterprise_metadata_search unified request rejected requestId={} errorCode={} query={}",
+                missingEvidence.get("requestId"), missingEvidence.get("errorCode"),
+                text(request.get("query")));
+            return missingEvidence;
+        }
+        Map<String, Object> result = new LinkedHashMap<>(matchingService.match(request));
+        result.put("invokedCapability", TOOL_NAME);
+        result.put("retrievalMode", "UNIFIED_FIELD_EVIDENCE_BUNDLE");
+        log.info("enterprise_metadata_search unified response requestId={} success={} targetObject={} sourceSchema={} coverage={} fieldMatches={}",
+            result.get("requestId"), result.get("success"), result.get("targetObject"),
+            result.get("sourceSchema"), result.get("coverage"), result.get("fieldMatches"));
+        return result;
+    }
+
+    private Map<String, Object> missingFieldEvidence(Map<String, Object> request) {
+        String requestId = text(request.get("requestId"));
+        return mapOf(
+            "schemaVersion", EnterpriseMetadataMatchingService.SCHEMA_VERSION,
+            "success", false,
+            "requestId", requestId,
+            "invokedCapability", TOOL_NAME,
+            "retrievalMode", "UNIFIED_FIELD_EVIDENCE_BUNDLE",
+            "errorCode", "FIELD_SCHEMA_REQUIRED",
+            "error", "No complete field schema could be resolved for metadata matching",
+            "targetObject", request.get("targetObject"),
+            "sourceSchema", mapOf(
+                "mode", "UNRESOLVED",
+                "fieldCount", 0,
+                "fields", List.of(),
+                "sourceEvidence", request.get("schemaEvidence")
+            ),
+            "fieldMatches", List.of(),
+            "evidenceObjects", List.of(),
+            "coverage", mapOf(
+                "inputFieldCount", 0,
+                "processedFieldCount", 0,
+                "allFieldsProcessed", false,
+                "requiredMetadataTypes", List.of(),
+                "perFieldTypeRetrieval", true
+            ),
+            "reviewContract", mapOf(
+                "reviewRequired", false,
+                "decisionScope", "PER_FIELD",
+                "factBoundary", "no_field_evidence_available",
+                "instruction", "Provide a complete fields array or an exact indexed table identifier."
+            )
+        );
+    }
+
+    private McpServerFeatures.SyncToolSpecification matchSpecification() {
+        McpSchema.Tool tool = McpSchema.Tool.builder()
+            .name(MATCH_TOOL_NAME)
+            .title("Enterprise metadata field discovery and matching")
+            .description("Compatibility endpoint for direct field-matching clients. Agent Runtime should prefer "
+                + "enterprise_metadata_search with a complete fields array so prior evidence remains in one unified call. "
+                + "Resolve a complete CREATE TABLE draft, registered physical table, or explicit field list. "
+                + "The tool extracts every field, searches maintained standard fields, term roots and dictionaries "
+                + "for each field independently, and returns field-scoped evidence_object_v1 records plus a review "
+                + "decision protocol. Use this tool before deciding whether fields can reuse enterprise standards.")
+            .inputSchema(matchInputSchema())
+            .meta(matchMeta())
+            .build();
+        return McpServerFeatures.SyncToolSpecification.builder()
+            .tool(tool)
+            .callHandler((exchange, request) -> {
+                try {
+                    Map<String, Object> arguments =
+                        request.arguments() == null ? Map.of() : request.arguments();
+                    Map<String, Object> result = matchingService.match(arguments);
+                    return McpSchema.CallToolResult.builder()
+                        .addTextContent(matchSummary(result))
+                        .structuredContent(result)
+                        .isError(false)
+                        .build();
+                } catch (Exception ex) {
+                    return McpSchema.CallToolResult.builder()
+                        .addTextContent(ex.getMessage())
+                        .structuredContent(Map.of(
+                            "schemaVersion", EnterpriseMetadataMatchingService.SCHEMA_VERSION,
+                            "success", false,
+                            "error", ex.getMessage()
+                        ))
+                        .isError(true)
+                        .build();
+                }
+            })
+            .build();
+    }
+
     private McpSchema.JsonSchema inputSchema() {
+        Map<String, Object> fieldSchema = mapOf(
+            "type", "object",
+            "properties", mapOf(
+                "fieldName", Map.of("type", "string"),
+                "name", Map.of("type", "string"),
+                "columnName", Map.of("type", "string"),
+                "physicalName", Map.of("type", "string"),
+                "enName", Map.of("type", "string"),
+                "englishName", Map.of("type", "string"),
+                "fieldCnName", Map.of("type", "string"),
+                "cnName", Map.of("type", "string"),
+                "chineseName", Map.of("type", "string"),
+                "businessName", Map.of("type", "string"),
+                "label", Map.of("type", "string"),
+                "dataType", Map.of("type", "string"),
+                "columnType", Map.of("type", "string"),
+                "type", Map.of("type", "string"),
+                "description", Map.of("type", "string"),
+                "comment", Map.of("type", "string"),
+                "remark", Map.of("type", "string"),
+                "nullable", Map.of("type", "boolean"),
+                "isNullable", Map.of("type", List.of("boolean", "string")),
+                "defaultValue", Map.of("type", "string"),
+                "default", Map.of("type", "string"),
+                "businessDomain", Map.of("type", "string"),
+                "domain", Map.of("type", "string")
+            ),
+            "additionalProperties", false
+        );
         return new McpSchema.JsonSchema("object", mapOf(
             "query", Map.of(
                 "type", "string",
-                "description", "Business phrase, Chinese field name, English field name, abbreviation or dictionary meaning"
+                "description", "Unified retrieval expression assembled from the user request and prior structured evidence"
+            ),
+            "purpose", Map.of(
+                "type", "string",
+                "description", "Optional review purpose for a structured field bundle"
+            ),
+            "requestId", Map.of(
+                "type", "string",
+                "description", "Optional caller correlation id"
+            ),
+            "matchMode", Map.of(
+                "type", "string",
+                "description", "Field matching mode such as FIELD_MAPPING"
+            ),
+            "matchStrategy", mapOf(
+                "type", "array",
+                "items", Map.of("type", "string"),
+                "description", "Optional field matching strategies"
+            ),
+            "targetObject", mapOf(
+                "type", "object",
+                "properties", mapOf(
+                    "type", Map.of("type", "string"),
+                    "name", Map.of("type", "string"),
+                    "domain", Map.of("type", "string"),
+                    "assetName", Map.of("type", "string"),
+                    "database", Map.of("type", "string"),
+                    "tableName", Map.of("type", "string")
+                ),
+                "additionalProperties", false
+            ),
+            "fields", mapOf(
+                "type", "array",
+                "items", fieldSchema,
+                "description", "Optional complete field list extracted from prior SQL metadata evidence. "
+                    + "All fields are processed in this single tool invocation."
+            ),
+            "tableName", Map.of(
+                "type", "string",
+                "description", "Proposed table name; converted to targetObject context when fields are supplied"
+            ),
+            "table", Map.of("type", "string"),
+            "sourceEvidence", mapOf(
+                "type", "array",
+                "items", mapOf("type", "object", "additionalProperties", true),
+                "description", "Runtime-transported outputs from declared dependency steps. "
+                    + "Interpreted only by this capability's request adapter."
             ),
             "types", Map.of(
                 "type", "array",
@@ -116,8 +294,76 @@ public class EnterpriseMetadataMcpToolPublisher {
                 "minimum", 1,
                 "maximum", properties.getMaxResults(),
                 "description", "Maximum total returned results across standard fields, term roots and dictionaries"
+            ),
+            "candidateLimitPerType", mapOf(
+                "type", "integer",
+                "minimum", 1,
+                "maximum", properties.getMaxResults(),
+                "description", "Maximum candidates per metadata type and field for a structured field bundle"
             )
-        ), List.of("query"), false, null, null);
+        ), List.of(), false, null, null);
+    }
+
+    private McpSchema.JsonSchema matchInputSchema() {
+        Map<String, Object> fieldSchema = mapOf(
+            "type", "object",
+            "properties", mapOf(
+                "fieldName", Map.of("type", "string",
+                    "description", "English or physical field name"),
+                "fieldCnName", Map.of("type", "string",
+                    "description", "Chinese business field name"),
+                "dataType", Map.of("type", "string"),
+                "description", Map.of("type", "string"),
+                "nullable", Map.of("type", "boolean"),
+                "domain", Map.of("type", "string",
+                    "description", "Optional business domain")
+            ),
+            "additionalProperties", false
+        );
+        return new McpSchema.JsonSchema("object", mapOf(
+            "requestId", Map.of("type", "string",
+                "description", "Optional caller correlation id"),
+            "purpose", Map.of("type", "string",
+                "description", "Review purpose such as CREATE_TABLE_FIELD_MAPPING"),
+            "matchMode", Map.of("type", "string",
+                "description", "Provider matching mode such as FIELD_MAPPING"),
+            "targetObject", mapOf(
+                "type", "object",
+                "properties", mapOf(
+                    "type", Map.of("type", "string"),
+                    "name", Map.of("type", "string"),
+                    "domain", Map.of("type", "string")
+                ),
+                "additionalProperties", false
+            ),
+            "ddl", Map.of("type", "string",
+                "description", "One CREATE TABLE statement; parsed but never executed"),
+            "tableName", Map.of("type", "string",
+                "description", "Registered physical table whose complete columns should be resolved"),
+            "database", Map.of("type", "string"),
+            "assetId", Map.of("type", "string"),
+            "assetName", Map.of("type", "string"),
+            "env", Map.of("type", "string"),
+            "fields", mapOf(
+                "type", "array",
+                "items", fieldSchema,
+                "description", "Explicit draft fields; use when no ddl or tableName is supplied"
+            ),
+            "matchStrategy", mapOf(
+                "type", "array",
+                "items", Map.of(
+                    "type", "string",
+                    "enum", List.of("ENGLISH_NAME", "CHINESE_NAME", "ALIAS", "SEMANTIC")
+                )
+            ),
+            "statuses", Map.of("type", "array", "items", Map.of("type", "string")),
+            "scenarios", Map.of("type", "array", "items", Map.of("type", "string")),
+            "candidateLimitPerType", mapOf(
+                "type", "integer",
+                "minimum", 1,
+                "maximum", properties.getMaxResults()
+            )
+        ), List.of(), false, null, null);
     }
 
     private Map<String, Object> meta() {
@@ -161,45 +407,89 @@ public class EnterpriseMetadataMcpToolPublisher {
                     policyService.current().getMetadataContract().getRequiredBundle()),
                 "allTypesAttemptedPath", "requiredRetrieval.allTypesAttempted",
                 "evidenceCompletePath", "requiredRetrieval.evidenceComplete"
+            ),
+            "inputAdapterContract", mapOf(
+                "contractVersion", "runtime_dependency_evidence.v1",
+                "dependencyEvidenceParameter", "sourceEvidence",
+                "dependencyScope", "declared_dependencies",
+                "successOnly", true
+            )
+        );
+    }
+
+    private Map<String, Object> matchMeta() {
+        return mapOf(
+            "schemaVersion", EnterpriseMetadataMatchingService.SCHEMA_VERSION,
+            "kind", "enterprise_metadata_capability",
+            "capabilityType", "metadata",
+            "provider", "configured_catalog",
+            "runtime_action", "read_only",
+            "runtimeAction", "read_only",
+            "readOnly", true,
+            "riskLevel", "low",
+            "confirmation", mapOf("default", "auto_execute", "allow_user_override", false),
+            McpToolApplicability.META_KEY, McpToolApplicability.of(
+                "enterprise_metadata:match",
+                "Field-level enterprise metadata discovery and matching",
+                List.of("enterprise_metadata", "data_model", "sql_datasource"),
+                "Extract every target field and return standard-field, term-root and dictionary evidence for review.",
+                List.of(
+                    "Review a CREATE TABLE draft field by field",
+                    "Compare every column of a registered table",
+                    "Resolve Chinese and English draft field names"
+                ),
+                List.of(
+                    "Executing DDL",
+                    "Automatically approving ambiguous matches",
+                    "Inventing standards absent from returned evidence"
+                )
+            ),
+            "evidenceContract", mapOf(
+                "contractVersion", "evidence_object_v1",
+                "resultPath", "fieldMatches[]",
+                "evidencePath", "evidenceObjects[]",
+                "reviewPath", "fieldMatches[].analysis",
+                "coveragePath", "coverage",
+                "factBoundary", "returned_field_scoped_enterprise_metadata_evidence_only"
             )
         );
     }
 
     @SuppressWarnings("unchecked")
-    private List<String> strings(Object value) {
-        if (value instanceof List<?> list) {
-            return list.stream().map(String::valueOf).filter(item -> !item.isBlank()).toList();
+    private List<Map<String, Object>> maps(Object value) {
+        if (!(value instanceof Iterable<?> iterable)) {
+            return List.of();
         }
-        if (value instanceof String text && !text.isBlank()) {
-            return List.of(text);
+        List<Map<String, Object>> result = new java.util.ArrayList<>();
+        for (Object item : iterable) {
+            if (item instanceof Map<?, ?> map) {
+                result.add((Map<String, Object>) map);
+            }
         }
-        return List.of();
+        return List.copyOf(result);
     }
 
-    private Integer integer(Object value) {
-        if (value instanceof Number number) return number.intValue();
-        try {
-            return value == null ? null : Integer.valueOf(String.valueOf(value));
-        } catch (Exception ignored) {
-            return null;
-        }
-    }
-
-    private String summary(Map<String, Object> result) {
-        return "Enterprise metadata search completed: count=" + result.getOrDefault("count", 0)
-            + ", backend=" + result.getOrDefault("backend", "unknown")
-            + ". Use structured results and evidenceObjects as the factual boundary.";
+    private String matchSummary(Map<String, Object> result) {
+        Map<String, Object> coverage = result.get("coverage") instanceof Map<?, ?> map
+            ? map.entrySet().stream().collect(java.util.stream.Collectors.toMap(
+                entry -> String.valueOf(entry.getKey()), Map.Entry::getValue))
+            : Map.of();
+        return "Enterprise metadata field discovery completed: fields="
+            + coverage.getOrDefault("processedFieldCount", 0)
+            + ", allFieldsProcessed=" + coverage.getOrDefault("allFieldsProcessed", false)
+            + ". Review fieldMatches and linked evidenceObjects before reuse.";
     }
 
     private String text(Object value) {
         return value == null || String.valueOf(value).isBlank() ? null : String.valueOf(value).trim();
     }
 
-    private void remove() {
+    private void remove(String toolName) {
         try {
-            mcpSyncServer.removeTool(TOOL_NAME);
+            mcpSyncServer.removeTool(toolName);
         } catch (Exception ex) {
-            log.debug("Enterprise metadata MCP tool was not registered: {}", ex.getMessage());
+            log.debug("Enterprise metadata MCP tool {} was not registered: {}",
+                toolName, ex.getMessage());
         }
     }
 

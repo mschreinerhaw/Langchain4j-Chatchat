@@ -51,6 +51,39 @@ public final class ToolLogSummarizer {
     }
 
     /**
+     * Summarizes a tool result for operational logs. Enterprise metadata matching
+     * results are represented by counts only because their field-level evidence is
+     * intentionally consumed by Runtime rather than emitted repeatedly by each layer.
+     */
+    public static Object summarizeResult(String toolName, Object value) {
+        Map<String, Object> enterpriseMetadata = enterpriseMetadataPayload(toolName, value, 0);
+        if (enterpriseMetadata.isEmpty()) {
+            return summarize(value);
+        }
+        Map<String, Object> sourceSchema = mapValue(enterpriseMetadata.get("sourceSchema"));
+        List<Map<String, Object>> fieldMatches = mapValues(enterpriseMetadata.get("fieldMatches"));
+        Map<String, Integer> candidateCounts = new LinkedHashMap<>();
+        candidateCounts.put("standardFields", candidateCount(fieldMatches, "standardFields"));
+        candidateCounts.put("termRoots", candidateCount(fieldMatches, "termRoots"));
+        candidateCounts.put("dictionaries", candidateCount(fieldMatches, "dictionaries"));
+        Map<String, Object> summary = new LinkedHashMap<>();
+        copyIfPresent(summary, enterpriseMetadata, "schemaVersion");
+        copyIfPresent(summary, enterpriseMetadata, "success");
+        copyIfPresent(summary, enterpriseMetadata, "requestId");
+        copyIfPresent(summary, enterpriseMetadata, "purpose");
+        copyIfPresent(summary, enterpriseMetadata, "retrievalMode");
+        copyIfPresent(summary, enterpriseMetadata, "errorCode");
+        summary.put("targetObject", summarizeValue(enterpriseMetadata.get("targetObject"), "targetObject", 0));
+        summary.put("sourceFieldCount", firstNonNull(
+            sourceSchema.get("fieldCount"), collectionSize(sourceSchema.get("fields"))));
+        summary.put("matchedFieldCount", fieldMatches.size());
+        summary.put("candidateCounts", candidateCounts);
+        summary.put("evidenceObjectCount", collectionSize(enterpriseMetadata.get("evidenceObjects")));
+        summary.put("detailsLogged", false);
+        return summary;
+    }
+
+    /**
      * Performs the summarize value operation.
      *
      * @param value the value value
@@ -112,6 +145,101 @@ public final class ToolLogSummarizer {
             return summarized;
         }
         return limitString(String.valueOf(value));
+    }
+
+    private static Map<String, Object> enterpriseMetadataPayload(String toolName, Object value, int depth) {
+        if (depth > 5) {
+            return Map.of();
+        }
+        Map<String, Object> map = mapValue(value);
+        if (map.isEmpty()) {
+            return Map.of();
+        }
+        String schemaVersion = stringValue(map.get("schemaVersion"));
+        if ("enterprise_metadata_field_discovery.v1".equals(schemaVersion)) {
+            return map;
+        }
+        for (String key : List.of("data", "result", "payload", "structuredContent", "structured_content")) {
+            Map<String, Object> nested = enterpriseMetadataPayload(toolName, map.get(key), depth + 1);
+            if (!nested.isEmpty()) {
+                return nested;
+            }
+        }
+        return depth == 0 && isEnterpriseMetadataTool(toolName) ? map : Map.of();
+    }
+
+    private static boolean isEnterpriseMetadataTool(String toolName) {
+        if (toolName == null || toolName.isBlank()) {
+            return false;
+        }
+        return toolName.trim().toLowerCase(Locale.ROOT)
+            .replace('-', '_')
+            .endsWith("enterprise_metadata_search");
+    }
+
+    private static int candidateCount(List<Map<String, Object>> fieldMatches, String key) {
+        int count = 0;
+        for (Map<String, Object> fieldMatch : fieldMatches) {
+            count += collectionSize(fieldMatch.get(key));
+        }
+        return count;
+    }
+
+    private static int collectionSize(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            return map.size();
+        }
+        if (value instanceof java.util.Collection<?> collection) {
+            return collection.size();
+        }
+        if (value != null && value.getClass().isArray()) {
+            return Array.getLength(value);
+        }
+        return 0;
+    }
+
+    private static Object firstNonNull(Object first, Object second) {
+        return first == null ? second : first;
+    }
+
+    private static void copyIfPresent(Map<String, Object> target,
+                                      Map<String, Object> source,
+                                      String key) {
+        Object value = source.get(key);
+        if (value != null) {
+            target.put(key, value);
+        }
+    }
+
+    private static String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private static Map<String, Object> mapValue(Object value) {
+        if (!(value instanceof Map<?, ?> map)) {
+            return Map.of();
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        map.forEach((key, item) -> {
+            if (key != null) {
+                result.put(String.valueOf(key), item);
+            }
+        });
+        return result;
+    }
+
+    private static List<Map<String, Object>> mapValues(Object value) {
+        if (!(value instanceof Iterable<?> iterable)) {
+            return List.of();
+        }
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Object item : iterable) {
+            Map<String, Object> map = mapValue(item);
+            if (!map.isEmpty()) {
+                result.add(map);
+            }
+        }
+        return result;
     }
 
     /**

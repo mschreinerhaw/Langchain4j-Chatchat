@@ -422,7 +422,7 @@ public class McpToolRegistryBridge {
                     result.retryable(),
                     result.errorMessage(),
                     result.executionState(),
-                    ToolLogSummarizer.summarize(result.data()));
+                    ToolLogSummarizer.summarizeResult(remoteToolName, result.data()));
                 return failureOutput(result);
             }
             log.info("MCP bridge tool call succeeded localTool={} serviceId={} remoteTool={} requestId={} durationMs={} message={} result={}",
@@ -432,7 +432,7 @@ public class McpToolRegistryBridge {
                 input.getRequestId(),
                 Math.max(0L, System.currentTimeMillis() - startedAt),
                 result.message(),
-                ToolLogSummarizer.summarize(result.data()));
+                ToolLogSummarizer.summarizeResult(remoteToolName, result.data()));
             ToolOutput output = ToolOutput.success(result.data(), result.message() == null ? "MCP call success" : result.message());
             if (output.getMetadata() == null) {
                 output.setMetadata(new LinkedHashMap<>());

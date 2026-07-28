@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.metadata;
 
+import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.mcpserver.mcp.McpToolApplicability;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
@@ -97,10 +98,9 @@ public class EnterpriseMetadataMcpToolPublisher {
     Map<String, Object> executeSearch(Map<String, Object> arguments) {
         Map<String, Object> request = requestAdapter.adapt(arguments);
         List<Map<String, Object>> fields = maps(request.get("fields"));
-        log.info("enterprise_metadata_search unified request requestId={} purpose={} targetObject={} schemaEvidence={} fieldCount={} fields={}",
+        log.info("enterprise_metadata_search unified input requestId={} purpose={} fieldCount={} input={}",
             text(request.get("requestId")), text(request.get("purpose")),
-            request.get("targetObject"), request.get("schemaEvidence"),
-            fields.size(), fields);
+            fields.size(), inputAudit(arguments, request, fields));
         if (fields.isEmpty()) {
             Map<String, Object> missingEvidence = missingFieldEvidence(request);
             log.warn("enterprise_metadata_search unified request rejected requestId={} errorCode={} query={}",
@@ -111,10 +111,53 @@ public class EnterpriseMetadataMcpToolPublisher {
         Map<String, Object> result = new LinkedHashMap<>(matchingService.match(request));
         result.put("invokedCapability", TOOL_NAME);
         result.put("retrievalMode", "UNIFIED_FIELD_EVIDENCE_BUNDLE");
-        log.info("enterprise_metadata_search unified response requestId={} success={} targetObject={} sourceSchema={} coverage={} fieldMatches={}",
-            result.get("requestId"), result.get("success"), result.get("targetObject"),
-            result.get("sourceSchema"), result.get("coverage"), result.get("fieldMatches"));
+        log.info("enterprise_metadata_search unified output requestId={} resultSummary={}",
+            result.get("requestId"), ToolLogSummarizer.summarizeResult(TOOL_NAME, result));
         return result;
+    }
+
+    private Map<String, Object> inputAudit(Map<String, Object> arguments,
+                                           Map<String, Object> request,
+                                           List<Map<String, Object>> fields) {
+        Map<String, Object> input = new LinkedHashMap<>();
+        input.put("providedArgumentKeys", arguments == null ? List.of() : List.copyOf(arguments.keySet()));
+        copy(input, request, "query");
+        copy(input, request, "requestId");
+        copy(input, request, "purpose");
+        copy(input, request, "matchMode");
+        copy(input, request, "targetObject");
+        copy(input, request, "schemaEvidence");
+        copy(input, request, "matchStrategy");
+        copy(input, request, "metadataTypes");
+        copy(input, request, "statuses");
+        copy(input, request, "scenarios");
+        copy(input, request, "candidateLimit");
+        input.put("fields", fields.stream().map(this::fieldInputAudit).toList());
+        if (arguments != null) {
+            copy(input, arguments, "tenantId");
+            copy(input, arguments, "userId");
+            copy(input, arguments, "defaultDataAsset");
+            copy(input, arguments, "assetSelectionPolicy");
+            copy(input, arguments, "mcpExecutionContext");
+        }
+        return Map.copyOf(input);
+    }
+
+    private Map<String, Object> fieldInputAudit(Map<String, Object> field) {
+        Map<String, Object> input = new LinkedHashMap<>();
+        copy(input, field, "fieldName");
+        copy(input, field, "fieldCnName");
+        copy(input, field, "description");
+        copy(input, field, "dataType");
+        copy(input, field, "nullable");
+        copy(input, field, "domain");
+        return Map.copyOf(input);
+    }
+
+    private void copy(Map<String, Object> target, Map<String, Object> source, String key) {
+        if (source != null && source.get(key) != null) {
+            target.put(key, source.get(key));
+        }
     }
 
     private Map<String, Object> missingFieldEvidence(Map<String, Object> request) {

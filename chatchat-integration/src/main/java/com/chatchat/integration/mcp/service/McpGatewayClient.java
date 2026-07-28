@@ -198,7 +198,7 @@ public class McpGatewayClient {
                     config.getName(),
                     toolName,
                     Math.max(0L, System.currentTimeMillis() - startedAt),
-                    ToolLogSummarizer.summarize(result.data()));
+                    ToolLogSummarizer.summarizeResult(toolName, result.data()));
             } else {
                 log.warn("MCP SDK invoke returned error serviceId={} service={} remoteTool={} durationMs={} error={} result={}",
                     config.getId(),
@@ -206,7 +206,7 @@ public class McpGatewayClient {
                     toolName,
                     Math.max(0L, System.currentTimeMillis() - startedAt),
                     result.errorMessage(),
-                    ToolLogSummarizer.summarize(result.data()));
+                    ToolLogSummarizer.summarizeResult(toolName, result.data()));
             }
             return result;
         } catch (Exception ex) {
@@ -221,7 +221,7 @@ public class McpGatewayClient {
                         config.getName(),
                         toolName,
                         Math.max(0L, System.currentTimeMillis() - retryStartedAt),
-                        ToolLogSummarizer.summarize(result.data()));
+                        ToolLogSummarizer.summarizeResult(toolName, result.data()));
                     return result;
                 } catch (Exception retryEx) {
                     log.warn("MCP SDK invoke retry after session reset failed serviceId={} service={} remoteTool={} timeoutMs={} error={}",
@@ -524,7 +524,7 @@ public class McpGatewayClient {
                     result.retryable(),
                     result.errorMessage(),
                     result.executionState(),
-                    ToolLogSummarizer.summarize(result.data()));
+                    ToolLogSummarizer.summarizeResult(toolName, result.data()));
                 return result;
             } finally {
                 closeDirectStreamableHttpSession(session);
@@ -1367,7 +1367,7 @@ public class McpGatewayClient {
                 toolName,
                 result.success(),
                 Math.max(0L, System.currentTimeMillis() - startedAt),
-                ToolLogSummarizer.summarize(result.data()));
+                ToolLogSummarizer.summarizeResult(toolName, result.data()));
             return withExecutionState(result, config, toolName, requestTimeoutMs, 0, arguments);
         } catch (Exception ex) {
             log.warn("Failed to invoke MCP tool {} on {}: {}", toolName, url, ex.getMessage());

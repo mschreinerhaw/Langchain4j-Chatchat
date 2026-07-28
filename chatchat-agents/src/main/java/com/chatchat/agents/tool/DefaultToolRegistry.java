@@ -172,14 +172,14 @@ public class DefaultToolRegistry implements ToolRegistry {
                     toolName,
                     toolInput == null ? null : toolInput.getRequestId(),
                     executionTime,
-                    ToolLogSummarizer.summarize(output.getData()));
+                    ToolLogSummarizer.summarizeResult(toolName, output.getData()));
             } else {
                 log.warn("Tool execution failed tool={} requestId={} durationMs={} error={} result={}",
                     toolName,
                     toolInput == null ? null : toolInput.getRequestId(),
                     executionTime,
                     output.getErrorMessage(),
-                    ToolLogSummarizer.summarize(output.getData()));
+                    ToolLogSummarizer.summarizeResult(toolName, output.getData()));
             }
             return output;
         } catch (Exception e) {

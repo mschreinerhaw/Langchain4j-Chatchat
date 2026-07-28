@@ -16,6 +16,7 @@ import com.chatchat.agents.runtime.toolcall.ToolArgumentCompiler;
 import com.chatchat.agents.orchestration.McpToolRouter;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolInput;
+import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolParameter;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -567,7 +568,8 @@ public class InterpretationPlanRuntime {
                     success,
                     elapsed(startedAt),
                     execution == null || execution.output() == null ? null : execution.output().getErrorMessage(),
-                    summarize(execution == null || execution.output() == null ? null : execution.output().getData()));
+                    ToolLogSummarizer.summarizeResult(executionToolName,
+                        execution == null || execution.output() == null ? null : execution.output().getData()));
                 Object rawOutput = execution == null || execution.output() == null
                     ? null
                     : execution.output().getData();

@@ -15,6 +15,60 @@ import static org.mockito.Mockito.when;
 class InterpretationPlanRewriterTest {
 
     @Test
+    void rewritePromptCompactsOversizedRuntimeObservations() throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        CapturingChatModel chatModel = new CapturingChatModel(
+            objectMapper.writeValueAsString(originalPlan()));
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("document_search")).thenReturn(true);
+        String largeObservation = "enterprise metadata success=true payload="
+            + "raw-provider-payload-".repeat(100_000);
+        InterpretationPlanRewriter rewriter = new InterpretationPlanRewriter(
+            chatModel, objectMapper, new InterpretationPlanValidator());
+
+        rewriter.rewrite(new InterpretationPlanRewriter.RewriteRequest(
+            originalPlan(),
+            originalPlan().steps().get(0),
+            "evidence refinement requested",
+            java.util.Collections.nCopies(11, largeObservation),
+            List.of("document_search"),
+            toolRegistry
+        ));
+
+        assertThat(chatModel.lastPrompt())
+            .contains("compact scheduling evidence")
+            .contains("originalChars=")
+            .contains("full evidence remains in Runtime")
+            .hasSizeLessThan(200_000);
+    }
+
+    @Test
+    void rewriteModelFailureReturnsControlledResult() {
+        ChatModel failingModel = new ChatModel() {
+            @Override
+            public String chat(String message) {
+                throw new IllegalStateException();
+            }
+        };
+        InterpretationPlanRewriter rewriter = new InterpretationPlanRewriter(
+            failingModel, new ObjectMapper(), new InterpretationPlanValidator());
+
+        InterpretationPlanRewriter.RewriteResult result = rewriter.rewrite(
+            new InterpretationPlanRewriter.RewriteRequest(
+                originalPlan(),
+                originalPlan().steps().get(0),
+                "evidence refinement requested",
+                List.of("document_search succeeded"),
+                List.of("document_search"),
+                mock(ToolRegistry.class)
+            ));
+
+        assertThat(result.valid()).isFalse();
+        assertThat(result.errorMessage()).isEqualTo(
+            "Plan rewrite model failed: IllegalStateException");
+    }
+
+    @Test
     void rewrittenPlanCannotExceedAgentConfiguredBudgetCeilings() {
         CapturingChatModel chatModel = new CapturingChatModel("""
             {

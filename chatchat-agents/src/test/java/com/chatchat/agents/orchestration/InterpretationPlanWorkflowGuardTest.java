@@ -142,6 +142,40 @@ class InterpretationPlanWorkflowGuardTest {
         assertThat(evaluated.code()).isEqualTo("mcp_workflow_complete");
     }
 
+    @Test
+    void usesRuntimeOptimizedStepIdsWhenOptimizerPrunedAndRenumberedThePlan() {
+        InterpretationPlanRuntime.ExecutionResult result = result(
+            List.of(
+                execution(1, "mcp_tool", "database_asset_search", true),
+                execution(2, "mcp_tool", "sql_metadata_search", true),
+                execution(3, "final_answer", "", true)
+            ),
+            Map.of(
+                "requiredPlanStepIds", List.of(1, 2, 3),
+                "completedPlanStepIds", List.of(1, 2, 3)
+            )
+        );
+        InterpretationPlan originalPlan = planWithSteps(List.of(
+            new InterpretationPlan.Step(1, "mcp_tool", "database_asset_search", Map.of(), List.of(), null, null),
+            new InterpretationPlan.Step(2, "reasoning", "", Map.of(), List.of(1), null, null),
+            new InterpretationPlan.Step(3, "mcp_tool", "sql_metadata_search", Map.of(), List.of(2), null, null),
+            new InterpretationPlan.Step(4, "final_answer", "", Map.of("answer", "done"), List.of(3), null, null)
+        ));
+
+        InterpretationPlanWorkflowGuard.GuardResult evaluated = guard.evaluate(
+            originalPlan,
+            result,
+            List.of("database_asset_search", "sql_metadata_search"),
+            List.of()
+        );
+
+        assertThat(evaluated.allowed()).isTrue();
+        assertThat(evaluated.missingPlanStepIds()).isEmpty();
+        assertThat(evaluated.metadata())
+            .containsEntry("requiredPlanStepIds", List.of(1, 2, 3))
+            .containsEntry("completedPlanStepIds", List.of(1, 2, 3));
+    }
+
     private InterpretationPlan plan() {
         return new InterpretationPlan(
             "1.0",

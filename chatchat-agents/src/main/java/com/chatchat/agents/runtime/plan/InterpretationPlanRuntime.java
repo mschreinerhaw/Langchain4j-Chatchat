@@ -419,6 +419,7 @@ public class InterpretationPlanRuntime {
                 "protocolVersion", InterpretationExecutionProtocol.VERSION,
                 "executionTraceId", executionTraceId,
                 "stepCount", executions.size(),
+                "requiredPlanStepIds", new ArrayList<>(stepsById.keySet()),
                 "completedPlanStepIds", new ArrayList<>(completed.keySet()),
                 "remainingPlanStepIds", new ArrayList<>(remaining),
                 "parallel", allowParallel(executablePlan),
@@ -2097,6 +2098,12 @@ public class InterpretationPlanRuntime {
                                               String storedToolName) {
         if (plannedStep == null || storedActionType == null
             || !storedActionType.equals(plannedStep.actionType())) {
+            return false;
+        }
+        // A final answer belongs to the current plan revision. Reusing a terminal event from
+        // an earlier revision can make Runtime report success without executing the current
+        // final step, which is then correctly rejected by the workflow completion guard.
+        if (plannedStep.finalAnswerAction()) {
             return false;
         }
         if (!"mcp_tool".equals(plannedStep.actionType())) {

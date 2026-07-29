@@ -25,7 +25,7 @@ class InterpretationPlanWorkflowGuard {
         List<String> requiredTools = normalizeList(mandatoryTools);
         List<String> completedTools = mergeCompletedTools(completedTools(result), externallyCompletedTools);
         List<String> executedActions = executedActions(result);
-        List<Integer> requiredStepIds = requiredStepIds(plan);
+        List<Integer> requiredStepIds = requiredStepIds(plan, result);
         List<Integer> completedStepIds = completedStepIds(result);
         Map<String, Object> metadata = metadata(requiredTools, completedTools, executedActions, requiredStepIds, completedStepIds);
 
@@ -74,7 +74,16 @@ class InterpretationPlanWorkflowGuard {
         return GuardResult.allowed("mcp_workflow_complete", metadata);
     }
 
-    private List<Integer> requiredStepIds(InterpretationPlan plan) {
+    private List<Integer> requiredStepIds(InterpretationPlan plan,
+                                          InterpretationPlanRuntime.ExecutionResult result) {
+        List<Integer> runtimeStepIds = integerList(
+            result == null || result.metadata() == null
+                ? null
+                : result.metadata().get("requiredPlanStepIds")
+        );
+        if (!runtimeStepIds.isEmpty()) {
+            return runtimeStepIds;
+        }
         if (plan == null || plan.steps() == null || plan.steps().isEmpty()) {
             return List.of();
         }
@@ -83,6 +92,20 @@ class InterpretationPlanWorkflowGuard {
             .map(InterpretationPlan.Step::id)
             .distinct()
             .toList();
+    }
+
+    private List<Integer> integerList(Object value) {
+        if (!(value instanceof Iterable<?> iterable)) {
+            return List.of();
+        }
+        Set<Integer> values = new LinkedHashSet<>();
+        for (Object item : iterable) {
+            Integer parsed = integerValue(item);
+            if (parsed != null) {
+                values.add(parsed);
+            }
+        }
+        return List.copyOf(values);
     }
 
     private List<Integer> completedStepIds(InterpretationPlanRuntime.ExecutionResult result) {

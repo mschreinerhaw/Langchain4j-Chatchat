@@ -4795,6 +4795,75 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void alwaysExecutesCurrentFinalAnswerStepInsteadOfHydratingAnEarlierRevision() {
+        InMemoryAgentRunStore runStore = new InMemoryAgentRunStore();
+        String runId = "rewrite-stale-final-answer-run";
+        runStore.recordObservation(runId, AgentObservation.builder()
+            .type("tool")
+            .source("final_answer")
+            .content("old plan final answer completed")
+            .metadata(Map.of(
+                "interpretationPlanStepId", 1,
+                "interpretationPlanActionType", "final_answer",
+                "toolName", "final_answer",
+                "success", true,
+                "stepOutput", Map.of("answer", "stale answer")
+            ))
+            .build());
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("evidence_synthesis", "Synthesize current evidence", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(
+                    1,
+                    "final_answer",
+                    "final_answer",
+                    Map.of("answer", "current answer"),
+                    List.of(),
+                    null,
+                    null
+                )
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                1,
+                false,
+                List.of(),
+                List.of(),
+                30000
+            ),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            runStore,
+            scriptedController(List.of(List.of(1)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan,
+                mock(ToolRegistry.class),
+                List.of(),
+                "tenant-1",
+                "req-current-final-answer",
+                "conv-current-final-answer",
+                "user-1",
+                Map.of("__agentRunId", runId)
+            )
+        );
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.finalAnswer()).isEqualTo("current answer");
+        assertThat(result.steps())
+            .extracting(InterpretationPlanRuntime.StepExecution::stepId)
+            .containsExactly(1);
+        assertThat(result.metadata().get("requiredPlanStepIds")).isEqualTo(List.of(1));
+        assertThat(result.metadata().get("completedPlanStepIds")).isEqualTo(List.of(1));
+    }
+
+    @Test
     void failsWhenEdgeContractRequiredFieldIsMissing() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("document_search")).thenReturn(true);

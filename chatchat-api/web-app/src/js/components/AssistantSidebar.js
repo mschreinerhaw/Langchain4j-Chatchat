@@ -232,7 +232,7 @@ export default {
       this.$emit("select-conversation", conversation);
     },
     favoriteConversation(conversation) {
-      if (this.isFavoriteSaving(conversation) || this.isConversationFavorited(conversation)) {
+      if (this.isFavoriteSaving(conversation)) {
         return;
       }
       this.$emit("favorite-conversation", conversation);

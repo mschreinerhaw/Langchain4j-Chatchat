@@ -88,8 +88,8 @@
             :class="{ active: isConversationFavorited(conversation), saving: isFavoriteSaving(conversation) }"
             role="button"
             tabindex="0"
-            :title="isConversationFavorited(conversation) ? '已收藏' : '收藏会话'"
-            :aria-label="isConversationFavorited(conversation) ? '已收藏会话' : '收藏会话'"
+            :title="isConversationFavorited(conversation) ? '取消收藏' : '收藏会话'"
+            :aria-label="isConversationFavorited(conversation) ? '取消收藏会话' : '收藏会话'"
             @click.stop="favoriteConversation(conversation)"
             @keydown.enter.stop.prevent="favoriteConversation(conversation)"
           >

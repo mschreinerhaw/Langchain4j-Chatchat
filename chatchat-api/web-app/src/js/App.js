@@ -30,6 +30,7 @@ import {
   getStoredAuthSession,
   killRuntimeTask,
   loginEnterpriseWithEmbedToken,
+  removeUserFavorite,
   storeAuthSession,
   updateConversationHistoryStatus
 } from "../services/api";
@@ -124,6 +125,7 @@ export default {
       historyError: "",
       conversationHistory: [],
       favoriteConversationIds: [],
+      favoriteConversationRecordIds: {},
       favoriteSavingIds: {},
       todoLoading: false,
       todoError: "",
@@ -322,6 +324,7 @@ export default {
       this.tenantId = USER_ID;
       this.conversationHistory = [];
       this.favoriteConversationIds = [];
+      this.favoriteConversationRecordIds = {};
       this.favoriteSavingIds = {};
       this.runtimeTodos = [];
       this.todoActionLoadingIds = {};
@@ -654,6 +657,11 @@ export default {
         this.favoriteConversationIds = favorites
           .map((favorite) => favorite?.targetId)
           .filter(Boolean);
+        this.favoriteConversationRecordIds = Object.fromEntries(
+          favorites
+            .filter((favorite) => favorite?.targetId && favorite?.id)
+            .map((favorite) => [favorite.targetId, favorite.id])
+        );
       } catch (error) {
         // Favorite badges are best-effort; history loading should stay quiet.
       }
@@ -848,26 +856,49 @@ export default {
     },
     async favoriteConversation(conversation) {
       const targetId = conversation?.conversationId || conversation?.id || "";
-      if (!targetId || this.favoriteSavingIds[targetId] || this.favoriteConversationIds.includes(targetId)) {
+      if (!targetId || this.favoriteSavingIds[targetId]) {
         return;
       }
+      const favorited = this.favoriteConversationIds.includes(targetId);
       this.favoriteSavingIds = {
         ...this.favoriteSavingIds,
         [targetId]: true
       };
       this.historyError = "";
       try {
-        await addUserFavorite({
-          tenantId: this.tenantId,
-          userId: this.userId,
-          targetType: "SESSION",
-          targetId,
-          title: conversation.question || "会话",
-          category: "会话"
-        });
-        this.favoriteConversationIds = [...this.favoriteConversationIds, targetId];
+        if (favorited) {
+          let favoriteId = this.favoriteConversationRecordIds[targetId];
+          if (!favoriteId) {
+            await this.loadFavoriteConversationIds();
+            favoriteId = this.favoriteConversationRecordIds[targetId];
+          }
+          if (!favoriteId) {
+            throw new Error("未找到收藏记录，请刷新后重试");
+          }
+          await removeUserFavorite(favoriteId);
+          this.favoriteConversationIds = this.favoriteConversationIds.filter((id) => id !== targetId);
+          const nextRecordIds = { ...this.favoriteConversationRecordIds };
+          delete nextRecordIds[targetId];
+          this.favoriteConversationRecordIds = nextRecordIds;
+        } else {
+          const favorite = await addUserFavorite({
+            tenantId: this.tenantId,
+            userId: this.userId,
+            targetType: "SESSION",
+            targetId,
+            title: conversation.question || "会话",
+            category: "会话"
+          });
+          this.favoriteConversationIds = [...this.favoriteConversationIds, targetId];
+          if (favorite?.id) {
+            this.favoriteConversationRecordIds = {
+              ...this.favoriteConversationRecordIds,
+              [targetId]: favorite.id
+            };
+          }
+        }
       } catch (error) {
-        this.historyError = error.message || "收藏会话失败";
+        this.historyError = error.message || (favorited ? "取消收藏失败" : "收藏会话失败");
       } finally {
         const next = { ...this.favoriteSavingIds };
         delete next[targetId];

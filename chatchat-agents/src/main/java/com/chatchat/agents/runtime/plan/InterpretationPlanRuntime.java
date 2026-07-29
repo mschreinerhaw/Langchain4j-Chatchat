@@ -48,6 +48,7 @@ public class InterpretationPlanRuntime {
     private static final String AGENT_RUN_ID_ATTRIBUTE = "__agentRunId";
     private static final String ORIGINAL_USER_QUERY_ATTRIBUTE = "originalUserQuery";
     private static final String AGENT_RUNTIME_ENVIRONMENT_ATTRIBUTE = "agentRuntimeEnvironment";
+    private static final String MODEL_RETRIEVAL_GATE_KEY = "__modelRetrievalQualityGate";
     private static final Pattern EXPLICIT_ENV_ASSIGNMENT_PATTERN = Pattern.compile(
         "(?iu)(?:\\benv(?:ironment)?\\b|\\u73af\\u5883)\\s*(?:[:=]|\\u4e3a|\\u662f)\\s*"
             + "(DEV|TEST|UAT|PROD|\\u5f00\\u53d1|\\u6d4b\\u8bd5|\\u9884\\u53d1|\\u751f\\u4ea7)"
@@ -532,6 +533,9 @@ public class InterpretationPlanRuntime {
         if (step.mcpToolAction()) {
             try {
                 Map<String, Object> resolvedInput = resolvedStepInput(step, request, completed);
+                Map<String, Object> retrievalGate = new LinkedHashMap<>(
+                    asStringMap(resolvedInput.remove(MODEL_RETRIEVAL_GATE_KEY))
+                );
                 McpToolRouter.RoutingDecision routingDecision = mcpToolRouter.route(
                     step.toolName(),
                     resolvedInput,
@@ -560,6 +564,7 @@ public class InterpretationPlanRuntime {
                 if (templateInvocation != null) {
                     executionToolName = templateInvocation.toolName();
                     resolvedInput = templateInvocation.arguments();
+                    retrievalGate = Map.of();
                 }
                 assertNoUnresolvedBindingPlaceholders(resolvedInput);
                 log.info("InterpretationPlan step resolved input: traceId={}, stepId={}, tool={}, input={}",
@@ -583,6 +588,48 @@ public class InterpretationPlanRuntime {
                         .build())
                     .attributes(attributesForStep(request, step, completed, resolvedInput, routingDecision))
                     .build());
+                RetrievalQualityGate.Evaluation enhancedQuality = retrievalGate.isEmpty()
+                    ? null
+                    : RetrievalQualityGate.evaluate(
+                        execution == null ? null : execution.output(),
+                        retrievalGate
+                    );
+                RetrievalQualityGate.Evaluation originalQuality = null;
+                boolean originalSelected = false;
+                if (enhancedQuality != null && !enhancedQuality.sufficient()) {
+                    Map<String, Object> originalInput = restoreOriginalRetrievalArguments(
+                        resolvedInput, retrievalGate
+                    );
+                    ToolRuntimeExecution originalExecution = toolRuntimeService.execute(ToolRuntimeRequest.builder()
+                        .toolName(executionToolName)
+                        .runtimeMode("interpretation_plan_retrieval_gate_fallback")
+                        .requestId(request.requestId())
+                        .conversationId(request.conversationId())
+                        .tenantId(request.tenantId())
+                        .userId(request.userId())
+                        .allowedTools(allowedTools)
+                        .toolInput(ToolInput.builder()
+                            .requestId(request.requestId())
+                            .conversationId(request.conversationId())
+                            .userId(request.userId())
+                            .parameters(originalInput)
+                            .build())
+                        .attributes(attributesForStep(request, step, completed, originalInput, routingDecision))
+                        .build());
+                    originalQuality = RetrievalQualityGate.evaluate(
+                        originalExecution == null ? null : originalExecution.output(),
+                        retrievalGate
+                    );
+                    originalSelected = RetrievalQualityGate.preferFallback(enhancedQuality, originalQuality);
+                    if (originalSelected) {
+                        execution = originalExecution;
+                        resolvedInput = originalInput;
+                    }
+                    log.info("Retrieval quality gate evaluated traceId={} stepId={} tool={} enhancedCount={} originalCount={} selected={}",
+                        executionTraceId(request), step.id(), executionToolName,
+                        enhancedQuality.resultCount(), originalQuality.resultCount(),
+                        originalSelected ? "original" : "enhanced");
+                }
                 boolean success = execution != null && execution.output() != null && execution.output().isSuccess();
                 log.info("InterpretationPlan step tool completed: traceId={}, stepId={}, tool={}, success={}, durationMs={}, error={}, output={}",
                     executionTraceId(request),
@@ -599,6 +646,11 @@ public class InterpretationPlanRuntime {
                 Object normalizedOutput = DIAGNOSTIC_EVIDENCE_NORMALIZER.normalize(rawOutput);
                 Map<String, Object> stepMetadata = new LinkedHashMap<>();
                 stepMetadata.put("resolvedInput", new LinkedHashMap<>(resolvedInput));
+                if (enhancedQuality != null) {
+                    stepMetadata.put("retrievalQualityGate", RetrievalQualityGate.report(
+                        enhancedQuality, originalQuality, originalSelected
+                    ));
+                }
                 if (normalizedOutput != rawOutput) {
                     stepMetadata.put("diagnosticEvidenceNormalized", true);
                     stepMetadata.put("diagnosticEvidenceContractVersion",
@@ -2035,7 +2087,7 @@ public class InterpretationPlanRuntime {
         normalizeWebSearchInput(step, request, input);
         normalizeNewsSearchInput(step, request, input);
         applyPublishedInputAdapterContract(step, request, completed, input);
-        applyStepInputEnricher(step, request, completed, input);
+        Map<String, Object> retrievalGate = applyStepInputEnricher(step, request, completed, input);
         compileDirectToolArguments(step, request, input);
         hydrateExecutionContextFromCompletedAssets(step, completed, input);
         normalizeSqlExecutionContext(step, input);
@@ -2052,6 +2104,9 @@ public class InterpretationPlanRuntime {
         validateRequiredExecutionTemplate(step, input);
         normalizeDiscoveryRoutingInput(step, request, completed, input);
         input.remove("runtimeParameterProtocolApplied");
+        if (!retrievalGate.isEmpty()) {
+            input.put(MODEL_RETRIEVAL_GATE_KEY, retrievalGate);
+        }
         if (!isCrawlerTool(step.toolName())) {
             return input;
         }
@@ -2063,12 +2118,12 @@ public class InterpretationPlanRuntime {
         return input;
     }
 
-    private void applyStepInputEnricher(InterpretationPlan.Step step,
-                                        ExecutionRequest request,
-                                        Map<Integer, StepExecution> completed,
-                                        Map<String, Object> input) {
+    private Map<String, Object> applyStepInputEnricher(InterpretationPlan.Step step,
+                                                       ExecutionRequest request,
+                                                       Map<Integer, StepExecution> completed,
+                                                       Map<String, Object> input) {
         if (stepInputEnricher == null || step == null || input == null) {
-            return;
+            return Map.of();
         }
         Map<String, Object> enriched = stepInputEnricher.enrich(new StepInputEnrichmentRequest(
             step,
@@ -2077,10 +2132,73 @@ public class InterpretationPlanRuntime {
             request
         ));
         if (enriched == null) {
-            return;
+            return Map.of();
         }
+        Map<String, Object> gate = new LinkedHashMap<>(
+            asStringMap(enriched.remove(MODEL_RETRIEVAL_GATE_KEY))
+        );
         input.clear();
         input.putAll(enriched);
+        return gate;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> restoreOriginalRetrievalArguments(Map<String, Object> enhanced,
+                                                                  Map<String, Object> gate) {
+        Map<String, Object> restored = deepMutableMap(enhanced);
+        Map<String, Object> originalValues = asStringMap(gate.get("originalValues"));
+        for (Map.Entry<String, Object> entry : originalValues.entrySet()) {
+            putNestedValue(restored, entry.getKey(), entry.getValue());
+        }
+        for (String path : stringValues(gate.get("originallyAbsentPaths"))) {
+            removeNestedValue(restored, path);
+        }
+        return restored;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> deepMutableMap(Map<String, Object> source) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        if (source == null) {
+            return result;
+        }
+        for (Map.Entry<String, Object> entry : source.entrySet()) {
+            Object value = entry.getValue();
+            if (value instanceof Map<?, ?> map) {
+                value = deepMutableMap((Map<String, Object>) map);
+            }
+            result.put(entry.getKey(), value);
+        }
+        return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void putNestedValue(Map<String, Object> root, String path, Object value) {
+        String[] segments = path.split("\\.");
+        Map<String, Object> current = root;
+        for (int index = 0; index < segments.length - 1; index++) {
+            Object nested = current.get(segments[index]);
+            Map<String, Object> next = nested instanceof Map<?, ?>
+                ? deepMutableMap((Map<String, Object>) nested)
+                : new LinkedHashMap<>();
+            current.put(segments[index], next);
+            current = next;
+        }
+        current.put(segments[segments.length - 1], value);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void removeNestedValue(Map<String, Object> root, String path) {
+        String[] segments = path.split("\\.");
+        Map<String, Object> current = root;
+        for (int index = 0; index < segments.length - 1; index++) {
+            Object nested = current.get(segments[index]);
+            if (!(nested instanceof Map<?, ?> map)) {
+                return;
+            }
+            current = (Map<String, Object>) map;
+        }
+        current.remove(segments[segments.length - 1]);
     }
 
     private boolean batchToolInput(Map<String, Object> input) {

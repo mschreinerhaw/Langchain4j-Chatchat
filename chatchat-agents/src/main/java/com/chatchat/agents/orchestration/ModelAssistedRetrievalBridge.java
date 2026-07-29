@@ -27,6 +27,7 @@ class ModelAssistedRetrievalBridge {
 
     static final String CONTRACT_VERSION = "model_assisted_retrieval.v1";
     static final String META_KEY = "modelInputBridgeContract";
+    static final String RUNTIME_GATE_KEY = "__modelRetrievalQualityGate";
     private static final int MAX_CONTEXT_CHARS = 16_000;
 
     private final ToolRegistry toolRegistry;
@@ -42,20 +43,27 @@ class ModelAssistedRetrievalBridge {
     Map<String, Object> enrich(ChatModel chatModel,
                                String toolName,
                                Map<String, Object> arguments) {
+        return enrichWithGate(chatModel, toolName, arguments).arguments();
+    }
+
+    EnrichmentResult enrichWithGate(ChatModel chatModel,
+                                    String toolName,
+                                    Map<String, Object> arguments) {
         Map<String, Object> original = deepMutableMap(arguments);
         Map<String, Object> contract = contract(toolName);
         if (chatModel == null || contract.isEmpty()
             || !CONTRACT_VERSION.equals(text(contract.get("contractVersion")))) {
-            return original;
+            return new EnrichmentResult(original, Map.of(), false);
         }
         String mode = text(contract.get("mode"));
         if ("ENTERPRISE_METADATA_PROFILE".equalsIgnoreCase(mode)) {
-            return enterpriseMetadataBridge.enrich(chatModel, toolName, original);
+            Map<String, Object> enriched = enterpriseMetadataBridge.enrich(chatModel, toolName, original);
+            return resultWithGate(original, enriched, contract);
         }
         List<String> contextPaths = strings(contract.get("contextPaths"));
         List<String> allowedPaths = strings(contract.get("allowedArgumentPaths"));
         if (contextPaths.isEmpty() || allowedPaths.isEmpty()) {
-            return original;
+            return new EnrichmentResult(original, Map.of(), false);
         }
         Map<String, Object> context = new LinkedHashMap<>();
         for (String path : contextPaths) {
@@ -65,15 +73,16 @@ class ModelAssistedRetrievalBridge {
             }
         }
         if (context.isEmpty()) {
-            return original;
+            return new EnrichmentResult(original, Map.of(), false);
         }
         try {
             String prompt = buildPrompt(toolName, contract, context, allowedPaths);
             Map<String, Object> response = parseObject(chatModel.chat(prompt));
             Map<String, Object> patch = map(response.get("arguments"));
             if (patch.isEmpty()) {
-                return original;
+                return new EnrichmentResult(original, Map.of(), false);
             }
+            Map<String, Object> enriched = deepMutableMap(original);
             Map<String, Object> mergeModes = map(contract.get("mergeModes"));
             int changed = 0;
             for (String path : allowedPaths) {
@@ -85,7 +94,7 @@ class ModelAssistedRetrievalBridge {
                 String mergeMode = text(mergeModes.get(path));
                 Object merged = mergeValue(current, proposed, mergeMode);
                 if (meaningful(merged) && !String.valueOf(merged).equals(String.valueOf(current))) {
-                    putAtPath(original, path, merged);
+                    putAtPath(enriched, path, merged);
                     changed++;
                 }
             }
@@ -93,12 +102,47 @@ class ModelAssistedRetrievalBridge {
                 log.info("Model-assisted retrieval bridge enriched tool={} mode={} changedPaths={} allowedPaths={}",
                     toolName, mode, changed, allowedPaths);
             }
-            return original;
+            return resultWithGate(original, enriched, contract);
         } catch (Exception ex) {
             log.warn("Model-assisted retrieval bridge fell back to original input tool={} mode={} reason={}",
                 toolName, mode, ex.getMessage());
-            return original;
+            return new EnrichmentResult(original, Map.of(), false);
         }
+    }
+
+    private EnrichmentResult resultWithGate(Map<String, Object> original,
+                                            Map<String, Object> enriched,
+                                            Map<String, Object> contract) {
+        List<String> allowedPaths = strings(contract.get("allowedArgumentPaths"));
+        if (allowedPaths.isEmpty()) {
+            allowedPaths = List.of("query", "queryTerms", "fieldProfiles", "fields");
+        }
+        List<String> changedPaths = allowedPaths.stream()
+            .filter(path -> !java.util.Objects.equals(valueAtPath(original, path), valueAtPath(enriched, path)))
+            .toList();
+        if (changedPaths.isEmpty()) {
+            return new EnrichmentResult(enriched, Map.of(), false);
+        }
+        Map<String, Object> qualityGate = map(contract.get("qualityGate"));
+        if (!Boolean.TRUE.equals(qualityGate.get("enabled"))) {
+            return new EnrichmentResult(enriched, Map.of(), true);
+        }
+        Map<String, Object> originalValues = new LinkedHashMap<>();
+        List<String> originallyAbsent = new ArrayList<>();
+        for (String path : changedPaths) {
+            Object value = valueAtPath(original, path);
+            if (value == null) {
+                originallyAbsent.add(path);
+            } else {
+                originalValues.put(path, value);
+            }
+        }
+        Map<String, Object> gate = new LinkedHashMap<>(qualityGate);
+        gate.put("contractVersion", CONTRACT_VERSION);
+        gate.put("changedPaths", changedPaths);
+        gate.put("originalValues", originalValues);
+        gate.put("originallyAbsentPaths", originallyAbsent);
+        return new EnrichmentResult(enriched, Map.copyOf(gate), true);
     }
 
     private Map<String, Object> contract(String toolName) {
@@ -292,5 +336,19 @@ class ModelAssistedRetrievalBridge {
         Map<String, Object> result = new LinkedHashMap<>();
         source.forEach((key, item) -> result.put(String.valueOf(key), item));
         return result;
+    }
+
+    record EnrichmentResult(
+        Map<String, Object> arguments,
+        Map<String, Object> qualityGate,
+        boolean changed
+    ) {
+        Map<String, Object> argumentsWithGateMarker() {
+            Map<String, Object> result = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
+            if (qualityGate != null && !qualityGate.isEmpty()) {
+                result.put(RUNTIME_GATE_KEY, qualityGate);
+            }
+            return result;
+        }
     }
 }

@@ -113,6 +113,44 @@ class ModelAssistedRetrievalBridgeTest {
         verifyNoInteractions(model);
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void qualityGateKeepsOriginalValuesForOneFallbackExecution() {
+        Map<String, Object> bridgeContract = new java.util.LinkedHashMap<>(contract(
+            "QUERY_EXPANSION",
+            List.of("query"),
+            List.of("query"),
+            Map.of("query", "append_text")
+        ));
+        bridgeContract.put("qualityGate", Map.of(
+            "enabled", true,
+            "minimumResultCount", 1,
+            "countPaths", List.of("results")
+        ));
+        ToolRegistry registry = registry("document_search", bridgeContract);
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(anyString())).thenReturn("""
+            {"arguments":{"query":"internal policy expanded"}}
+            """);
+        ModelAssistedRetrievalBridge bridge =
+            new ModelAssistedRetrievalBridge(registry, new ObjectMapper());
+
+        ModelAssistedRetrievalBridge.EnrichmentResult result = bridge.enrichWithGate(
+            model,
+            "document_search",
+            Map.of("query", "internal", "tenantId", "tenant-1")
+        );
+
+        assertThat(result.changed()).isTrue();
+        assertThat(result.arguments())
+            .containsEntry("query", "internal policy expanded")
+            .containsEntry("tenantId", "tenant-1");
+        assertThat((Map<String, Object>) result.qualityGate().get("originalValues"))
+            .containsEntry("query", "internal");
+        assertThat(result.argumentsWithGateMarker())
+            .containsKey(ModelAssistedRetrievalBridge.RUNTIME_GATE_KEY);
+    }
+
     private ToolRegistry registry(String toolName, Map<String, Object> contract) {
         ToolRegistry registry = mock(ToolRegistry.class);
         when(registry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()

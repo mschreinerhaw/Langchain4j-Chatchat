@@ -636,6 +636,76 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void retriesOriginalRetrievalInputOnceWhenEnhancedResultIsBelowGate() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("document_search")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("document_search")).thenReturn(
+            ToolMetadata.builder().id("document_search").riskLevel("low").build()
+        );
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        AtomicInteger calls = new AtomicInteger();
+        when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest toolRequest = invocation.getArgument(0);
+            boolean original = "internal".equals(
+                toolRequest.getToolInput().getParameters().get("query")
+            );
+            calls.incrementAndGet();
+            return new ToolRuntimeExecution(
+                ToolOutput.success(Map.of("results", original
+                    ? List.of(Map.of("id", "doc-1"))
+                    : List.of())),
+                ToolMetadata.builder().id("document_search").build(),
+                null,
+                "success",
+                Map.of()
+            );
+        });
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            null,
+            null,
+            scriptedController(List.of(List.of(1), List.of(2))),
+            request -> {
+                Map<String, Object> enriched = new java.util.LinkedHashMap<>(request.input());
+                enriched.put("query", "internal policy expanded");
+                enriched.put("__modelRetrievalQualityGate", Map.of(
+                    "enabled", true,
+                    "minimumResultCount", 1,
+                    "countPaths", List.of("results"),
+                    "changedPaths", List.of("query"),
+                    "originalValues", Map.of("query", "internal"),
+                    "originallyAbsentPaths", List.of()
+                ));
+                return enriched;
+            }
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                serialPlan(),
+                toolRegistry,
+                List.of("document_search"),
+                "tenant-1",
+                "req-quality-gate",
+                "conv-quality-gate",
+                "user-1",
+                Map.of()
+            )
+        );
+
+        assertThat(result.success()).isTrue();
+        assertThat(calls).hasValue(2);
+        assertThat(result.steps().get(0).metadata().get("resolvedInput"))
+            .isEqualTo(Map.of("query", "internal"));
+        assertThat((Map<String, Object>) result.steps().get(0).metadata()
+            .get("retrievalQualityGate"))
+            .containsEntry("fallbackExecuted", true)
+            .containsEntry("selected", "original");
+    }
+
+    @Test
     void factChecksCompleteEnterpriseMetadataFieldCoverage() throws Exception {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             mock(ToolRuntimeService.class),

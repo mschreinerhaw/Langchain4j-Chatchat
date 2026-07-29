@@ -353,6 +353,11 @@ public class TemplateDiscoveryMcpToolPublisher {
                 "contextPaths", List.of("filters.intent", "filters.category", "bilingualIntent", "intentZh", "intentEn"),
                 "allowedArgumentPaths", List.of("bilingualIntent", "intentZh", "intentEn"),
                 "mergeModes", Map.of("bilingualIntent", "merge_array"),
+                "qualityGate", mapOf(
+                    "enabled", true,
+                    "minimumResultCount", 1,
+                    "countPaths", List.of("count", "templates", "results")
+                ),
                 "guidance", "Generate concise Chinese and English operation-intent phrases for registered template retrieval. "
                     + "Do not generate template ids, execution parameters, commands, SQL or routing targets."
             ),
@@ -455,6 +460,11 @@ public class TemplateDiscoveryMcpToolPublisher {
                 "contextPaths", List.of("filters.intent", "filters.category", "bilingualIntent", "intentZh", "intentEn"),
                 "allowedArgumentPaths", List.of("bilingualIntent", "intentZh", "intentEn"),
                 "mergeModes", Map.of("bilingualIntent", "merge_array"),
+                "qualityGate", mapOf(
+                    "enabled", true,
+                    "minimumResultCount", 1,
+                    "countPaths", List.of("count", "templates", "results")
+                ),
                 "guidance", "Generate concise Chinese and English operation-intent phrases for registered template retrieval. "
                     + "Do not generate template ids, execution parameters, commands, SQL or routing targets."
             ),

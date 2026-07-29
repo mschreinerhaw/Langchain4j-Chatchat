@@ -835,6 +835,11 @@ public class SqlMcpToolPublisher {
             ),
             "allowedArgumentPaths", List.of("query"),
             "mergeModes", Map.of("query", "append_text"),
+            "qualityGate", mutableMap(
+                "enabled", true,
+                "minimumResultCount", 1,
+                "countPaths", List.of("totalMatched", "count", "tableCatalog", "topTables", "results")
+            ),
             "guidance", "Expand table and column business meanings into concise bilingual metadata-search terms. "
                 + "Never invent or replace physical table, database, schema or datasource identifiers."
         ));

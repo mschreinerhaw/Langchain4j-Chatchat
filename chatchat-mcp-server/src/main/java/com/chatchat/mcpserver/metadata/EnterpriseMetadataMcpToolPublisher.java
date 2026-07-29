@@ -543,6 +543,17 @@ public class EnterpriseMetadataMcpToolPublisher {
             "modelInputBridgeContract", mapOf(
                 "contractVersion", "model_assisted_retrieval.v1",
                 "mode", "ENTERPRISE_METADATA_PROFILE",
+                "allowedArgumentPaths", List.of(
+                    "query", "queryTerms", "fields", "purpose", "schemaEvidence", "modelSearchProfile"
+                ),
+                "qualityGate", mapOf(
+                    "enabled", true,
+                    "minimumResultCount", 1,
+                    "countPaths", List.of(
+                        "count", "matchedFieldCount", "coverage.processedFieldCount",
+                        "fieldMatches", "matches", "results"
+                    )
+                ),
                 "guidance", "Combine query/queryTerms with declared SQL metadata evidence into a field-scoped verification profile."
             )
         );

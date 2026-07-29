@@ -29,6 +29,7 @@ import com.chatchat.agents.runtime.plan.InterpretationPlanRecord;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
 import com.chatchat.agents.runtime.plan.InterpretationPlanStore;
 import com.chatchat.agents.runtime.plan.InterpretationPlanValidator;
+import com.chatchat.agents.runtime.plan.RetrievalQualityGate;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.tool.ToolInput;
@@ -917,10 +918,10 @@ public class AgentOrchestrator {
             runStore,
             request -> reviewInterpretationPlanToolResult(activeChatModel, query, systemPrompt, cancellationCheck, request),
             request -> decideInterpretationPlanDagStep(activeChatModel, query, systemPrompt, cancellationCheck, request),
-            request -> modelAssistedRetrievalBridge.enrich(
+            request -> modelAssistedRetrievalBridge.enrichWithGate(
                 activeChatModel,
                 request.step() == null ? null : request.step().toolName(),
-                request.input())
+                request.input()).argumentsWithGateMarker()
         );
         List<InterpretationPlanRuntime.ExecutionResult> planAttemptResults = new ArrayList<>();
         List<Map<String, Object>> evidenceHistory = new ArrayList<>();
@@ -5072,11 +5073,14 @@ public class AgentOrchestrator {
                 fallbackArguments,
                 mandatoryPredecessorTraces(mandatoryTools, fallbackTool, traces)
             );
-            fallbackArguments = modelAssistedRetrievalBridge.enrich(
+            Map<String, Object> originalArguments = new LinkedHashMap<>(fallbackArguments);
+            ModelAssistedRetrievalBridge.EnrichmentResult enrichment =
+                modelAssistedRetrievalBridge.enrichWithGate(
                 activeChatModel,
                 fallbackTool,
                 fallbackArguments
             );
+            fallbackArguments = enrichment.arguments();
             ToolCallExecution execution = executeToolCall(
                 fallbackTool,
                 fallbackArguments,
@@ -5089,6 +5093,42 @@ public class AgentOrchestrator {
                 traces,
                 workflowStateTracker.attributesWithCompletedTools(runtimeAttributes, completedTools)
             );
+            RetrievalQualityGate.Evaluation enhancedQuality = enrichment.qualityGate().isEmpty()
+                ? null
+                : RetrievalQualityGate.evaluate(execution.output(), enrichment.qualityGate());
+            RetrievalQualityGate.Evaluation originalQuality = null;
+            boolean originalSelected = false;
+            if (enhancedQuality != null && !enhancedQuality.sufficient()) {
+                ToolCallExecution originalExecution = executeToolCall(
+                    fallbackTool,
+                    originalArguments,
+                    conversationId,
+                    requestId,
+                    userId,
+                    tenantId,
+                    tools,
+                    Map.of(),
+                    traces,
+                    workflowStateTracker.attributesWithCompletedTools(runtimeAttributes, completedTools)
+                );
+                originalQuality = RetrievalQualityGate.evaluate(
+                    originalExecution.output(), enrichment.qualityGate()
+                );
+                originalSelected = RetrievalQualityGate.preferFallback(enhancedQuality, originalQuality);
+                ToolCallExecution nonSelected = originalSelected ? execution : originalExecution;
+                if (nonSelected.trace() != null) {
+                    traces.add(nonSelected.trace());
+                }
+                observations.add("Retrieval quality gate candidate " + nonSelected.observation());
+                if (originalSelected) {
+                    execution = originalExecution;
+                }
+                metadata.put("mandatoryRetrievalQualityGate:" + fallbackTool,
+                    RetrievalQualityGate.report(enhancedQuality, originalQuality, originalSelected));
+            } else if (enhancedQuality != null) {
+                metadata.put("mandatoryRetrievalQualityGate:" + fallbackTool,
+                    RetrievalQualityGate.report(enhancedQuality, null, false));
+            }
             traces.add(execution.trace());
             observations.add("Mandatory workflow execution " + execution.observation());
             if (workflowStateTracker.isConfirmationRequired(execution)) {

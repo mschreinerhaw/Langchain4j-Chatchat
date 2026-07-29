@@ -446,6 +446,11 @@ public class ToolRegistryMcpAdapter {
                 "contextPaths", List.of("query"),
                 "allowedArgumentPaths", List.of("query"),
                 "mergeModes", Map.of("query", "append_text"),
+                "qualityGate", Map.of(
+                    "enabled", true,
+                    "minimumResultCount", 1,
+                    "countPaths", List.of("count", "total", "results", "chunks", "evidence")
+                ),
                 "guidance", "Create a concise retrieval query with exact titles, entities, codes, versions, dates and bilingual domain synonyms. "
                     + "Do not alter document ids, permission filters, tenant, user or roles."
             ));

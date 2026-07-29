@@ -78,8 +78,7 @@ class AgentOrchestratorTest {
             third,
             List.of(first, second, third),
             List.of(),
-            List.of(),
-            null
+            List.of()
         );
 
         assertThat(prompt)
@@ -115,8 +114,7 @@ class AgentOrchestratorTest {
             failedAttempt,
             List.of(failedAttempt),
             List.of(lateEvidence),
-            List.of(),
-            null
+            List.of()
         );
 
         assertThat(prompt)
@@ -177,8 +175,7 @@ class AgentOrchestratorTest {
             result,
             List.of(result),
             List.of(),
-            List.of(storedObservation),
-            null
+            List.of(storedObservation)
         );
 
         assertThat(prompt)
@@ -460,7 +457,7 @@ class AgentOrchestratorTest {
         );
 
         String prompt = newOrchestrator(mock(ChatModel.class)).buildInterpretationPlanSummaryPrompt(
-            "analyze environment health", null, result, List.of(), List.of(), null
+            "analyze environment health", null, result, List.of(), List.of()
         );
 
         assertThat(prompt)
@@ -716,7 +713,7 @@ class AgentOrchestratorTest {
         );
 
         String prompt = newOrchestrator(mock(ChatModel.class)).buildInterpretationPlanSummaryPrompt(
-            "分析数据库状态", null, result, List.of(), List.of(), null
+            "分析数据库状态", null, result, List.of(), List.of()
         );
 
         assertThat(prompt)
@@ -839,7 +836,7 @@ class AgentOrchestratorTest {
                 List.of(execution), Map.of(), 10L
             );
         String summaryPrompt = orchestrator.buildInterpretationPlanSummaryPrompt(
-            "分析完整结果", null, result, List.of(), List.of(), null
+            "分析完整结果", null, result, List.of(), List.of()
         );
 
         assertThat(reviewPrompt)

@@ -106,9 +106,6 @@ public class AgentOrchestrator implements AgentRunExecutor {
     private final AgentAnswerFinalizer answerFinalizer;
     private final InterpretationPlanStore interpretationPlanStore;
     private final InterpretationPlanDagConverter interpretationPlanDagConverter = new InterpretationPlanDagConverter();
-    private final SqlMetadataAnswerRenderer sqlMetadataAnswerRenderer = new SqlMetadataAnswerRenderer();
-    private final SqlMetadataGroundingGuard sqlMetadataGroundingGuard = new SqlMetadataGroundingGuard();
-    private final ExecutionGraphSemanticValidator executionGraphSemanticValidator = new ExecutionGraphSemanticValidator();
     private final InterpretationPlanWorkflowGuard interpretationPlanWorkflowGuard = new InterpretationPlanWorkflowGuard();
     private final EvidenceAugmentationPolicy evidenceAugmentationPolicy = new EvidenceAugmentationPolicy();
     private final AgentContextBudget contextBudget;
@@ -1975,16 +1972,13 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 "storedObservationCount", storedObservations.size()
             )
         );
-        SqlMetadataAnswerRenderer.RenderedSqlMetadata renderedSqlMetadata = sqlMetadataAnswerRenderer.renderEvidence(result);
-        String structuredSqlMetadata = renderedSqlMetadata.markdown();
         String prompt = buildInterpretationPlanSummaryPrompt(
             query,
             systemPrompt,
             result,
             attemptResults,
             observations,
-            storedObservations,
-            structuredSqlMetadata
+            storedObservations
         );
         String runId = stringValue(runtimeAttributes == null ? null : runtimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE));
         long startedAt = System.currentTimeMillis();
@@ -2025,47 +2019,6 @@ public class AgentOrchestrator implements AgentRunExecutor {
             metadata.put("interpretationPlanAttemptCount", attemptResults == null ? 0 : attemptResults.size());
             metadata.put("interpretationPlanStoredObservationCount", storedObservations.size());
         }
-        if (!structuredSqlMetadata.isBlank()) {
-            if (metadata != null) {
-                metadata.put("structuredSqlMetadataRendered", true);
-                metadata.put("structuredSqlMetadataMarkdown", structuredSqlMetadata);
-                metadata.put("structuredSqlMetadataPreview", preview(structuredSqlMetadata));
-                metadata.put("sqlMetadataFact", renderedSqlMetadata.metadata());
-                metadata.put("sqlMetadataSemanticGatePassed", renderedSqlMetadata.metadata().get("semanticGatePassed"));
-                metadata.put("sqlMetadataSemanticGateReason", renderedSqlMetadata.metadata().get("semanticGateReason"));
-                Map<String, Object> graphSemanticState = executionGraphSemanticValidator.validate(query, result, renderedSqlMetadata.metadata());
-                metadata.put("executionGraphSemanticState", graphSemanticState);
-                metadata.put("executionGraphSemanticPassed", graphSemanticState.get("passed"));
-                metadata.put("executionGraphSemanticReason", graphSemanticState.get("reason"));
-            }
-            if ("mcp_sql_metadata_search_catalog".equals(renderedSqlMetadata.metadata().get("source"))) {
-                String preGroundingRewrite = answer;
-                answer = rewriteUngroundedSqlMetadataSummary(
-                    activeChatModel,
-                    query,
-                    structuredSqlMetadata,
-                    renderedSqlMetadata.metadata(),
-                    answer,
-                    metadata
-                );
-                if (!Objects.equals(preGroundingRewrite, answer)) {
-                    answerCandidateCollector.register(
-                        metadata,
-                        AnswerCandidateCollector.FACT_GROUNDING_REWRITE,
-                        answer
-                    );
-                }
-                if (metadata != null) {
-                    metadata.put("sqlMetadataGroundingValidated", true);
-                }
-            }
-            answer = mergeStructuredSqlMetadataAnswer(structuredSqlMetadata, answer);
-            answerCandidateCollector.register(
-                metadata,
-                AnswerCandidateCollector.STRUCTURED_EVIDENCE_MERGE,
-                answer
-            );
-        }
         runResultAdapter.recordRuntimeObservation(
             runtimeAttributes,
             AGENT_RUN_ID_ATTRIBUTE,
@@ -2093,64 +2046,18 @@ public class AgentOrchestrator implements AgentRunExecutor {
                     && Boolean.TRUE.equals(step.toolExecution().audit().get("batchExecution")));
     }
 
-    private String mergeStructuredSqlMetadataAnswer(String structuredSqlMetadata, String modelAnswer) {
-        if (structuredSqlMetadata == null || structuredSqlMetadata.isBlank()) {
-            return modelAnswer == null ? "" : modelAnswer;
-        }
-        String answer = modelAnswer == null ? "" : modelAnswer.trim();
-        if (answer.contains(structuredSqlMetadata.trim())) {
-            return answer;
-        }
-        if (answer.isBlank()) {
-            return structuredSqlMetadata;
-        }
-        return structuredSqlMetadata.trim() + "\n\n## 分析结论\n\n" + answer;
-    }
-
-    private String rewriteUngroundedSqlMetadataSummary(ChatModel activeChatModel,
-                                                       String query,
-                                                       String structuredEvidence,
-                                                       Map<String, Object> factMetadata,
-                                                       String draft,
-                                                       Map<String, Object> runtimeMetadata) {
-        String summary = draft == null ? "" : draft.trim();
-        List<String> violations = sqlMetadataGroundingGuard.violations(summary, factMetadata);
-        int rewriteCount = 0;
-        while (!violations.isEmpty() && rewriteCount < 2 && activeChatModel != null) {
-            rewriteCount++;
-            summary = activeChatModel.chat(sqlMetadataGroundingGuard.rewritePrompt(
-                query,
-                structuredEvidence,
-                summary,
-                violations
-            ));
-            summary = summary == null ? "" : summary.trim();
-            violations = sqlMetadataGroundingGuard.violations(summary, factMetadata);
-        }
-        if (runtimeMetadata != null) {
-            runtimeMetadata.put("sqlMetadataGroundingRewriteCount", rewriteCount);
-            runtimeMetadata.put("sqlMetadataGroundingViolations", violations);
-        }
-        if (!violations.isEmpty()) {
-            return sqlMetadataGroundingGuard.safeSummary();
-        }
-        return summary;
-    }
-
     String buildInterpretationPlanSummaryPrompt(String query,
                                                 String systemPrompt,
                                                 InterpretationPlanRuntime.ExecutionResult result,
                                                 List<String> observations,
-                                                List<AgentObservation> storedObservations,
-                                                String authoritativeSqlMetadata) {
+                                                List<AgentObservation> storedObservations) {
         return buildInterpretationPlanSummaryPrompt(
             query,
             systemPrompt,
             result,
             result == null ? List.of() : List.of(result),
             observations,
-            storedObservations,
-            authoritativeSqlMetadata
+            storedObservations
         );
     }
 
@@ -2159,8 +2066,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
                                                 InterpretationPlanRuntime.ExecutionResult result,
                                                 List<InterpretationPlanRuntime.ExecutionResult> attemptResults,
                                                 List<String> observations,
-                                                List<AgentObservation> storedObservations,
-                                                String authoritativeSqlMetadata) {
+                                                List<AgentObservation> storedObservations) {
         StringBuilder prompt = new StringBuilder();
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             prompt.append("System instruction:\n").append(systemPrompt).append("\n\n");
@@ -2219,12 +2125,6 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("- Mandatory workflow observations are executed after the listed plan attempts. A successful local contract review in those observations is newer authoritative evidence and resolves earlier missing_evidence claims for the same tool result.\n");
         prompt.append("- Database layering labels (for example ADS/DWS/DWD/DIM), table names, schemas, databases, and fields are evidence facts only when the current tool output explicitly returned them. Never infer a layer from a naming convention. Never output 'possible table examples', 'common tables', or supplemental table recommendations that were not retrieved.\n");
         prompt.append(AgentRuntimeFactGroundingContract.promptSection());
-        if (authoritativeSqlMetadata != null && !authoritativeSqlMetadata.isBlank()) {
-            prompt.append("\nAuthoritative SQL metadata fact block (non-overridable):\n")
-                .append(authoritativeSqlMetadata)
-                .append("\n\n")
-                .append("Summarize and explain this fact block for the user's goal. Do not alter its identifiers, counts, completeness state, table/field descriptions, or introduce additional database objects.\n");
-        }
         prompt.append("User query:\n").append(query == null ? "" : query).append("\n\n");
         if (result != null && result.finalAnswer() != null && !result.finalAnswer().isBlank()) {
             prompt.append("Plan final answer hint, not authoritative evidence:\n")

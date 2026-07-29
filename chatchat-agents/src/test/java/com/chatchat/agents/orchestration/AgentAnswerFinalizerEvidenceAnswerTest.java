@@ -21,7 +21,7 @@ import static org.mockito.Mockito.when;
 class AgentAnswerFinalizerEvidenceAnswerTest {
 
     @Test
-    void labelsMixedSuccessfulAndFailedToolsAsPartialEvidence() {
+    void keepsMixedToolEvidenceInMetadataWithoutPrependingEvidenceStatus() {
         AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
             (chatModel, query, systemPrompt, observations, answer) ->
                 new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok"),
@@ -45,10 +45,14 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
             List.of()
         );
 
-        assertThat(result.answer()).contains("\u8bc1\u636e\u72b6\u6001\uff1a\u90e8\u5206\u4e8b\u5b9e\u4f9d\u636e");
+        assertThat(result.answer())
+            .startsWith("仅基于已返回元数据形成阶段性结果。")
+            .doesNotContain("\u8bc1\u636e\u72b6\u6001\uff1a")
+            .doesNotContain("\u8bed\u4e49\u95e8\u7981");
         assertThat(result.metadata())
-            .containsEntry("answerEvidenceStatus", "PARTIAL_ANALYSIS")
-            .containsEntry("answerEvidenceLabel", "\u90e8\u5206\u4e8b\u5b9e\u4f9d\u636e");
+            .containsEntry("mcpAvailableResultCount", 1)
+            .doesNotContainKeys("answerEvidenceStatus", "answerEvidenceLabel",
+                "answerEvidenceDisclosure");
     }
 
     @Test
@@ -244,12 +248,13 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
 
         assertThat(result.answer())
             .contains("## 查询结果明细")
-            .contains("\u8bc1\u636e\u72b6\u6001\uff1a\u6709\u4e8b\u5b9e\u4f9d\u636e\u7684\u5206\u6790")
             .contains("pd_code")
-            .contains("示例标的A");
+            .contains("示例标的A")
+            .doesNotContain("\u8bc1\u636e\u72b6\u6001\uff1a")
+            .doesNotContain("\u8bed\u4e49\u95e8\u7981");
         assertThat(result.metadata())
-            .containsEntry("answerEvidenceStatus", "GROUNDED_ANALYSIS")
-            .containsEntry("answerEvidenceLabel", "\u6709\u4e8b\u5b9e\u4f9d\u636e\u7684\u5206\u6790");
+            .doesNotContainKeys("answerEvidenceStatus", "answerEvidenceLabel",
+                "answerEvidenceDisclosure");
         Map<String, Object> visualizationSpec = (Map<String, Object>) result.metadata().get("visualizationSpec");
         assertThat(visualizationSpec)
             .containsEntry("type", "panel")
@@ -427,9 +432,8 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
             .isEqualTo("\u53ef\u80fd\u662f\u6570\u636e\u5e93\u6162\u67e5\u8be2\u5bfc\u81f4\u54cd\u5e94\u5ef6\u8fdf\u3002")
             .doesNotContain("\u8bc1\u636e\u72b6\u6001\uff1a");
         assertThat(result.metadata())
-            .containsEntry("answerRequiresEvidenceDisclosure", false)
-            .containsEntry("answerEvidenceDisclosureRendered", false)
-            .doesNotContainKeys("answerEvidenceStatus", "answerEvidenceLabel");
+            .doesNotContainKeys("answerRequiresEvidenceDisclosure",
+                "answerEvidenceDisclosureRendered", "answerEvidenceStatus", "answerEvidenceLabel");
     }
 
     @Test
@@ -565,7 +569,7 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
     }
 
     @Test
-    void labelsFailedToolAnswerAsExecutionBlocked() {
+    void keepsFailedToolDetailsWithoutPrependingExecutionBlockedStatus() {
         AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
             new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok");
         AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
@@ -586,13 +590,13 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
         );
 
         assertThat(result.answer())
-            .contains("\u8bc1\u636e\u72b6\u6001\uff1a\u6267\u884c\u963b\u65ad/\u8bc1\u636e\u4e0d\u8db3")
             .contains("permission denied")
-            .contains("\u6392\u67e5\u53c2\u8003")
-            .contains("\u4e0d\u80fd\u4f5c\u4e3a\u786e\u5b9a\u6027\u4e1a\u52a1\u7ed3\u8bba");
+            .doesNotContain("\u8bc1\u636e\u72b6\u6001\uff1a")
+            .doesNotContain("\u8bed\u4e49\u95e8\u7981");
         assertThat(result.metadata())
-            .containsEntry("answerEvidenceStatus", "EXECUTION_BLOCKED")
-            .containsEntry("answerEvidenceLabel", "\u6267\u884c\u963b\u65ad/\u8bc1\u636e\u4e0d\u8db3");
+            .containsEntry("mcpSuccessfulToolCount", 0)
+            .doesNotContainKeys("answerEvidenceStatus", "answerEvidenceLabel",
+                "answerEvidenceDisclosure");
     }
 
     @Test
@@ -1205,7 +1209,7 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
     }
 
     @Test
-    void structuredSqlMetadataAnswerSkipsReviewerRewrite() {
+    void structuredSqlMetadataAnswerUsesNormalDiagnosticReviewerPath() {
         AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
             new AgentAnswerReview(
                 AgentAnswerReview.REVISED,
@@ -1217,9 +1221,6 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
             new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
         );
         Map<String, Object> metadata = new java.util.LinkedHashMap<>();
-        metadata.put("structuredSqlMetadataRendered", true);
-        metadata.put("sqlMetadataSemanticGatePassed", true);
-        metadata.put("executionGraphSemanticPassed", true);
 
         String structuredAnswer = """
             ## 元数据依据
@@ -1252,17 +1253,17 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
             .contains("`DICT_ENTR_CODE`")
             .doesNotContain("观察中未返回任何关于该表的实际数据");
         assertThat(result.metadata())
-            .containsEntry("answerReviewSkipped", true)
-            .containsEntry("answerReviewSkippedReason", "sql_metadata_and_execution_graph_semantic_gates_passed")
-            .containsEntry("answerReviewStatus", AgentAnswerReview.ACCEPTED)
+            .doesNotContainKeys("answerReviewSkipped", "answerReviewSkippedReason")
+            .containsEntry("answerReviewStatus", AgentAnswerReview.REVISED)
             .containsEntry("answerDecision", AnswerDecisionEngine.NO_REWRITE)
             .containsEntry("answerRewriteSource", "none")
-            .doesNotContainKey("answerReviewRewriteSuggested")
+            .containsEntry("answerReviewRewriteSuggested", true)
+            .containsEntry("answerReviewRewriteApplied", false)
             .doesNotContainKey("answerQualityAvailable");
     }
 
     @Test
-    void finalizerMergesStructuredSqlMetadataMarkdownWhenSummaryOmitsColumnDetails() {
+    void finalizerDoesNotReplaceModelAnalysisWithStructuredSqlMetadata() {
         AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
             new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok");
         AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
@@ -1270,9 +1271,6 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
             new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
         );
         Map<String, Object> metadata = new java.util.LinkedHashMap<>();
-        metadata.put("structuredSqlMetadataRendered", true);
-        metadata.put("sqlMetadataSemanticGatePassed", true);
-        metadata.put("executionGraphSemanticPassed", true);
         metadata.put("structuredSqlMetadataMarkdown", """
             ## \u5143\u6570\u636e\u4f9d\u636e
 
@@ -1296,32 +1294,27 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
         );
 
         assertThat(result.answer())
-            .contains("## \u5143\u6570\u636e\u4f9d\u636e")
-            .contains("## \u5b57\u6bb5\u7ed3\u6784")
-            .contains("`ID`")
-            .contains("`ENTRY_ID`")
-            .contains("\u6d41\u7a0b\u5173\u8054\u5b57\u6bb5");
+            .isEqualTo("\u4ec5\u6210\u529f\u83b7\u53d612\u4e2a\u5217\uff0c\u4f46\u672a\u80fd\u5c55\u5f00\u5217\u4fe1\u606f\u3002")
+            .doesNotContain("## \u5143\u6570\u636e\u4f9d\u636e")
+            .doesNotContain("\u8bed\u4e49\u95e8\u7981");
         assertThat(result.metadata())
-            .containsEntry("structuredSqlMetadataMergedInFinalizer", true)
-            .containsEntry("structuredSqlMetadataMergeReason", "semantic_gate_passed_preserve_column_metadata");
+            .doesNotContainKeys("structuredSqlMetadataMergedInFinalizer",
+                "structuredSqlMetadataMergeReason");
     }
 
     @Test
-    void structuredSqlMetadataAnswerStillUsesReviewerWhenSemanticGateFails() {
+    void structuredSqlMetadataAnswerUsesNormalReviewerPath() {
         AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
             new AgentAnswerReview(
                 AgentAnswerReview.REVISED,
                 "Reviewer diagnostic rewrite.",
-                "Semantic gate failed, reviewer still ran."
+                "Reviewer still ran."
             );
         AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
             reviewer,
             new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
         );
         Map<String, Object> metadata = new java.util.LinkedHashMap<>();
-        metadata.put("structuredSqlMetadataRendered", true);
-        metadata.put("sqlMetadataSemanticGatePassed", true);
-        metadata.put("executionGraphSemanticPassed", false);
 
         AgentOrchestrator.AgentExecutionResult result = finalizer.finishReviewedAnswer(
             null,

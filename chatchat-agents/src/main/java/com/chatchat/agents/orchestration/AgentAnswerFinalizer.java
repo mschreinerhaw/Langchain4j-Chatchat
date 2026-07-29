@@ -50,11 +50,6 @@ class AgentAnswerFinalizer {
     private static final String UNIFIED_EVIDENCE_CONTRACT = "evidence_v1";
     private static final String EVIDENCE_ANSWER_CONTRACT = "evidence_answer_v1";
     private static final String EXECUTION_CONTRACT = "evidence_execution_contract_v2_2";
-    private static final String ANSWER_EVIDENCE_DISCLOSURE_CONTRACT = "answer_evidence_disclosure_v1";
-    private static final String ANSWER_EVIDENCE_GROUNDED = "GROUNDED_ANALYSIS";
-    private static final String ANSWER_EVIDENCE_PARTIAL = "PARTIAL_ANALYSIS";
-    private static final String ANSWER_EVIDENCE_INSUFFICIENT = "EVIDENCE_INSUFFICIENT";
-    private static final String ANSWER_EVIDENCE_BLOCKED = "EXECUTION_BLOCKED";
     private static final String INSUFFICIENT_EVIDENCE_ANSWER = "根据当前文档证据不足，无法确认。";
     private static final int TOOL_DATA_INLINE_CELL_LIMIT = 240;
     private static final Pattern DOCUMENT_REF_PATTERN =
@@ -126,17 +121,8 @@ class AgentAnswerFinalizer {
         );
         values.putAll(decision.metadata());
         recordSelectedAnswerCandidate(values, decision);
-        String answerBeforeSqlMetadataMerge = decision.finalAnswer();
-        String mergedAnswer = mergeStructuredSqlMetadataAnswer(
-            structuredSqlMetadataMarkdown(values),
-            answerBeforeSqlMetadataMerge
-        );
-        if (!mergedAnswer.equals(answerBeforeSqlMetadataMerge == null ? "" : answerBeforeSqlMetadataMerge)) {
-            values.put("structuredSqlMetadataMergedInFinalizer", true);
-            values.put("structuredSqlMetadataMergeReason", "semantic_gate_passed_preserve_column_metadata");
-            values.put("finalAnswerPreview", shortText(mergedAnswer, 1000));
-        }
-        String finalAnswer = sanitizeFinalMarkdown(mergedAnswer);
+        String selectedAnswer = decision.finalAnswer();
+        String finalAnswer = sanitizeFinalMarkdown(selectedAnswer);
         if (finalAnswer.isBlank()) {
             String metadataReport = deterministicEnterpriseMetadataReport(traces);
             if (!metadataReport.isBlank()) {
@@ -183,15 +169,12 @@ class AgentAnswerFinalizer {
                 values.put("finalAnswerPreview", shortText(finalAnswer, 1000));
             }
         }
-        if (!finalAnswer.equals(mergedAnswer)) {
+        if (!finalAnswer.equals(selectedAnswer == null ? "" : selectedAnswer)) {
             values.put("finalAnswerSanitized", true);
             values.put("finalAnswerPreview", shortText(finalAnswer, 1000));
         }
-        AnswerEvidenceDisclosure disclosure = answerEvidenceDisclosure(values, observations, toolEvidence, traces);
-        String answerWithEvidenceDisclosure = prependAnswerEvidenceDisclosure(finalAnswer, disclosure);
-        recordAnswerEvidenceDisclosure(values, disclosure, !answerWithEvidenceDisclosure.equals(finalAnswer));
         DraftArtifactRuntimePolicy.Result draftArtifact = draftArtifactRuntimePolicy.enforce(
-            answerWithEvidenceDisclosure, values);
+            finalAnswer, values);
         finalAnswer = draftArtifact.answer();
         values.put("finalAnswerPreview", shortText(finalAnswer, 1000));
         logAnswerDecision(decision, values);
@@ -698,12 +681,6 @@ class AgentAnswerFinalizer {
         prompt.append("If observations include web citation labels, append the matching label immediately after every sentence that relies on that web source.\n");
         prompt.append("Do not invent citations or cite URLs that are not listed in the observations.\n");
         prompt.append("If an Evidence trust policy asks for more evidence, avoid strong claims and say that trusted evidence is insufficient.\n");
-        String structuredSqlMetadata = structuredSqlMetadataMarkdown(metadata);
-        if (!structuredSqlMetadata.isBlank()) {
-            prompt.append("Authoritative SQL metadata evidence is available below. Preserve the field list/types/comments in the answer and do not claim table columns or structure are missing.\n")
-                .append(structuredSqlMetadata)
-                .append("\n\n");
-        }
         if (containsEvidence(observations == null ? List.of() : observations)
             || mcpResultAvailable(metadata)) {
             AnswerAssemblyPolicy assemblyPolicy = answerAssemblyEngine.plan(
@@ -1681,21 +1658,6 @@ class AgentAnswerFinalizer {
                                            String finalAnswer,
                                            Map<String, Object> metadata) {
         String runId = stringValue(metadata == null ? null : metadata.get("agentRunId"));
-        if (structuredSqlMetadataSemanticGatePassed(metadata)) {
-            if (metadata != null) {
-                metadata.put("answerReviewSkipped", true);
-                metadata.put("answerReviewSkippedReason", "sql_metadata_and_execution_graph_semantic_gates_passed");
-            }
-            log.info("agentModelSkipped phase=review runId={} reason=sql_metadata_and_execution_graph_semantic_gates_passed answerChars={} observationCount={}",
-                firstNonBlank(runId, ""),
-                finalAnswer == null ? 0 : finalAnswer.length(),
-                observations == null ? 0 : observations.size());
-            return new AgentAnswerReview(
-                AgentAnswerReview.ACCEPTED,
-                finalAnswer == null ? "" : finalAnswer,
-                "SQL metadata and execution graph semantic gates passed; reviewer rewrite skipped."
-            );
-        }
         if (finalAnswer == null || finalAnswer.isBlank() || activeChatModel == null) {
             log.info("agentModelSkipped phase=review runId={} reason={} answerChars={} observationCount={}",
                 firstNonBlank(runId, ""),
@@ -1834,46 +1796,6 @@ class AgentAnswerFinalizer {
         return timeout >= 1000 ? timeout : TimeUnit.SECONDS.toMillis(timeout);
     }
 
-    private boolean structuredSqlMetadataSemanticGatePassed(Map<String, Object> metadata) {
-        return Boolean.TRUE.equals(metadata == null ? null : metadata.get("sqlMetadataSemanticGatePassed"))
-            && Boolean.TRUE.equals(metadata == null ? null : metadata.get("executionGraphSemanticPassed"));
-    }
-
-    private String structuredSqlMetadataMarkdown(Map<String, Object> metadata) {
-        if (metadata == null || !structuredSqlMetadataSemanticGatePassed(metadata)) {
-            return "";
-        }
-        Object value = metadata.get("structuredSqlMetadataMarkdown");
-        if (value == null) {
-            return "";
-        }
-        String markdown = String.valueOf(value).trim();
-        return markdown.isBlank() ? "" : markdown;
-    }
-
-    private String mergeStructuredSqlMetadataAnswer(String structuredSqlMetadata, String modelAnswer) {
-        String answer = modelAnswer == null ? "" : modelAnswer.trim();
-        if (structuredSqlMetadata == null || structuredSqlMetadata.isBlank()) {
-            return answer;
-        }
-        if (containsStructuredSqlMetadataAnswer(answer)) {
-            return answer;
-        }
-        if (answer.isBlank()) {
-            return structuredSqlMetadata.trim();
-        }
-        return structuredSqlMetadata.trim() + "\n\n## \u5206\u6790\u7ed3\u8bba\n\n" + answer;
-    }
-
-    private boolean containsStructuredSqlMetadataAnswer(String answer) {
-        if (answer == null || answer.isBlank()) {
-            return false;
-        }
-        return answer.contains("## \u5143\u6570\u636e\u4f9d\u636e")
-            && answer.contains("## \u5b57\u6bb5\u7ed3\u6784")
-            || (answer.contains("| # |") && answer.contains("|---:|") && answer.contains("`"));
-    }
-
     private void recordAnswerReview(Map<String, Object> metadata, AgentAnswerReview review) {
         if (metadata == null || review == null) {
             return;
@@ -1901,112 +1823,6 @@ class AgentAnswerFinalizer {
             metadata == null ? null : metadata.get("finalAnswerPreview"));
     }
 
-    private AnswerEvidenceDisclosure answerEvidenceDisclosure(Map<String, Object> metadata,
-                                                              List<String> observations,
-                                                              List<Map<String, Object>> toolEvidence,
-                                                              List<InteractionToolTrace> traces) {
-        List<String> reasons = new ArrayList<>();
-        boolean successfulToolEvidence = toolEvidence != null && toolEvidence.stream()
-            .anyMatch(item -> Boolean.TRUE.equals(item.get("success")) && nonBlankString(item.get("evidenceType")));
-        if (successfulToolEvidence) {
-            reasons.add("\u5df2\u5b8c\u6210\u5de5\u5177\u8fd4\u56de\u7684\u7ed3\u6784\u5316\u7ed3\u679c");
-        }
-        boolean structuredSqlMetadata = Boolean.TRUE.equals(metadata == null ? null : metadata.get("structuredSqlMetadataRendered"))
-            && Boolean.TRUE.equals(metadata == null ? null : metadata.get("sqlMetadataSemanticGatePassed"));
-        if (structuredSqlMetadata) {
-            reasons.add("\u5df2\u901a\u8fc7\u8bed\u4e49\u95e8\u7981\u7684\u7ed3\u6784\u5316 SQL \u5143\u6570\u636e");
-        }
-        if (containsEvidence(observations == null ? List.of() : observations)) {
-            reasons.add("\u5e26\u6765\u6e90\u6807\u8bc6\u7684\u6587\u6863/\u77e5\u8bc6\u5e93/\u6267\u884c\u8bc1\u636e");
-        }
-        boolean failedTerminalTool = toolEvidence != null && toolEvidence.stream()
-            .anyMatch(item -> !Boolean.TRUE.equals(item.get("success"))
-                && (nonBlankString(item.get("errorMessage")) || nonBlankString(item.get("evidenceType"))));
-        boolean failedTrace = traces != null && traces.stream().anyMatch(trace -> trace != null && !trace.isSuccess());
-        boolean blockedByRuntime = Boolean.TRUE.equals(metadata == null ? null : metadata.get("fatalExecutionBlocked"))
-            || Boolean.TRUE.equals(metadata == null ? null : metadata.get("mandatoryWorkflowBlocked"))
-            || observationContains(observations, "PLAN_INVALID_REQUIRED_TOOL_NOT_EXECUTED")
-            || observationContains(observations, "mandatory workflow tools are still incomplete")
-            || observationContains(observations, "failed after rewrite budget");
-        if (!reasons.isEmpty()) {
-            if (failedTerminalTool || failedTrace || blockedByRuntime) {
-                List<String> partialReasons = new ArrayList<>(reasons);
-                partialReasons.add("\u90e8\u5206\u5de5\u5177\u6267\u884c\u5931\u8d25\u6216\u5f3a\u5236\u6d41\u7a0b\u672a\u5b8c\u6210");
-                return new AnswerEvidenceDisclosure(
-                    ANSWER_EVIDENCE_PARTIAL,
-                    "\u90e8\u5206\u4e8b\u5b9e\u4f9d\u636e",
-                    "\u8bc1\u636e\u72b6\u6001\uff1a\u90e8\u5206\u4e8b\u5b9e\u4f9d\u636e\u3002\u5df2\u6709\u90e8\u5206\u5de5\u5177\u8fd4\u56de\u53ef\u7528\u7ed3\u679c\uff0c\u4f46\u4ecd\u5b58\u5728\u5de5\u5177\u5931\u8d25\u6216\u5f3a\u5236\u6d41\u7a0b\u672a\u5b8c\u6210\uff1b\u53ea\u80fd\u5bf9\u5df2\u8fd4\u56de\u4e8b\u5b9e\u4f5c\u9636\u6bb5\u6027\u5206\u6790\u3002\u4f9d\u636e\uff1a"
-                        + String.join("\uff1b", partialReasons) + "\u3002",
-                    partialReasons
-                );
-            }
-            return new AnswerEvidenceDisclosure(
-                ANSWER_EVIDENCE_GROUNDED,
-                "\u6709\u4e8b\u5b9e\u4f9d\u636e\u7684\u5206\u6790",
-                "\u8bc1\u636e\u72b6\u6001\uff1a\u6709\u4e8b\u5b9e\u4f9d\u636e\u7684\u5206\u6790\u3002\u4f9d\u636e\uff1a" + String.join("\uff1b", reasons) + "\u3002",
-                reasons
-            );
-        }
-
-        if (failedTerminalTool || failedTrace || blockedByRuntime) {
-            List<String> blockedReasons = new ArrayList<>();
-            if (failedTerminalTool || failedTrace) {
-                blockedReasons.add("\u5de5\u5177\u6267\u884c\u5df2\u5f62\u6210\u5931\u8d25\u6216\u6743\u9650\u89c2\u5bdf");
-            }
-            if (blockedByRuntime) {
-                blockedReasons.add("Runtime \u963b\u65ad\u4e86\u672a\u5b8c\u6210\u7684\u5f3a\u5236\u5de5\u5177\u6d41\u7a0b");
-            }
-            if (blockedReasons.isEmpty()) {
-                blockedReasons.add("\u672a\u5f62\u6210\u53ef\u7528\u7684\u4e1a\u52a1\u6570\u636e\u8bc1\u636e");
-            }
-            return new AnswerEvidenceDisclosure(
-                ANSWER_EVIDENCE_BLOCKED,
-                "\u6267\u884c\u963b\u65ad/\u8bc1\u636e\u4e0d\u8db3",
-                "\u8bc1\u636e\u72b6\u6001\uff1a\u6267\u884c\u963b\u65ad/\u8bc1\u636e\u4e0d\u8db3\u3002\u4ee5\u4e0b\u53ef\u4f5c\u4e3a\u5931\u8d25\u4e8b\u5b9e\u3001\u6d41\u7a0b\u72b6\u6001\u548c\u6392\u67e5\u53c2\u8003\uff0c\u4e0d\u80fd\u4f5c\u4e3a\u786e\u5b9a\u6027\u4e1a\u52a1\u7ed3\u8bba\u3002\u4f9d\u636e\uff1a"
-                    + String.join("\uff1b", blockedReasons) + "\u3002",
-                blockedReasons
-            );
-        }
-
-        return null;
-    }
-
-    private String prependAnswerEvidenceDisclosure(String answer, AnswerEvidenceDisclosure disclosure) {
-        String safeAnswer = answer == null ? "" : answer.trim();
-        if (disclosure == null || safeAnswer.contains("\u8bc1\u636e\u72b6\u6001\uff1a")) {
-            return safeAnswer;
-        }
-        return "> " + disclosure.message() + (safeAnswer.isBlank() ? "" : "\n\n" + safeAnswer);
-    }
-
-    private void recordAnswerEvidenceDisclosure(Map<String, Object> metadata,
-                                                AnswerEvidenceDisclosure disclosure,
-                                                boolean rendered) {
-        metadata.put("answerEvidenceDisclosureVersion", ANSWER_EVIDENCE_DISCLOSURE_CONTRACT);
-        metadata.put("answerRequiresEvidenceDisclosure", disclosure != null);
-        metadata.put("answerEvidenceDisclosureRendered", rendered);
-        if (disclosure == null) {
-            return;
-        }
-        metadata.put("answerEvidenceStatus", disclosure.status());
-        metadata.put("answerEvidenceLabel", disclosure.label());
-        metadata.put("answerEvidenceReasons", disclosure.reasons());
-        metadata.put("answerEvidenceDisclosure", disclosure.message());
-    }
-
-    private boolean observationContains(List<String> observations, String needle) {
-        if (observations == null || observations.isEmpty() || needle == null || needle.isBlank()) {
-            return false;
-        }
-        return observations.stream()
-            .filter(value -> value != null)
-            .anyMatch(value -> value.contains(needle));
-    }
-
-    private boolean nonBlankString(Object value) {
-        return value != null && !stringValue(value).isBlank();
-    }
-
     private void attachEvidenceAnswerContract(String answer,
                                               Map<String, Object> metadata,
                                               List<String> observations) {
@@ -2019,6 +1835,10 @@ class AgentAnswerFinalizer {
         metadata.put("evidenceAnswer", result.evidenceAnswer().toMap());
         metadata.put("availableEvidenceCitations", result.availableCitations());
         metadata.put("groundingStatus", result.groundingStatus());
+    }
+
+    private boolean nonBlankString(Object value) {
+        return value != null && !stringValue(value).isBlank();
     }
 
     private void attachAnswerAssemblyPolicy(Map<String, Object> metadata, List<String> observations) {
@@ -2197,12 +2017,6 @@ class AgentAnswerFinalizer {
                 || value.contains(EXECUTION_CONTRACT)
                 || value.contains("doc://")
                 || value.contains("web://"));
-    }
-
-    private record AnswerEvidenceDisclosure(String status,
-                                            String label,
-                                            String message,
-                                            List<String> reasons) {
     }
 
     private AnswerDecisionEngine.EvidenceSignal evidenceSignal(String answer,

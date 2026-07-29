@@ -33,19 +33,36 @@
 
 ```json
 {
-  "protocol_version": "template_parameter_protocol_v1",
+  "protocol_version": "template_parameter_protocol_v2",
   "step_id": 3,
   "template_id": "QUERY_BY_TRADE_DATE",
   "arguments": {
     "trade_date": {
       "value": "20260716",
       "source": "user_query",
-      "evidence": "查询 20260716 交易日数据"
+      "evidence": {
+        "quote": "查询 20260716 交易日数据"
+      }
     }
   },
   "unresolved_parameters": []
 }
 ```
+
+参数也可以来自已经成功完成的工具步骤，但必须给出可由 Runtime 回查的精确位置：
+
+```json
+{
+  "value": "C-2002",
+  "source": "tool_result",
+  "evidence": {
+    "step_id": 2,
+    "output_path": "$.customers[0].id"
+  }
+}
+```
+
+模型负责分析、整理参数画像，不拥有执行权。Runtime 在最终模板调用前核对用户原文或成功步骤输出，拒绝不存在的步骤、错误路径和值不一致的参数，然后由模板桥接层应用 Schema、默认值和类型转换。
 
 - `template_id` 必须是模板发现返回的标量 ID。
 - `arguments` 只允许包含从本轮用户问题提取的业务值；每个值必须携带 `source=user_query` 和简短证据。

@@ -136,6 +136,32 @@ public class ConversationControllerTest {
     }
 
     @Test
+    public void lightweightSummaryEndpointExcludesConversationMessages() throws Exception {
+        String userId = "lightweight-history-user";
+        String createResponse = mockMvc.perform(post("/api/v1/conversations")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(
+                    new ConversationController.CreateConversationRequest(userId, "Lightweight title")
+                )))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+        String conversationId = objectMapper.readTree(createResponse).path("data").path("id").asText();
+        conversationService.appendMessage(conversationId, "user", "must only be loaded by detail endpoint");
+
+        mockMvc.perform(get("/api/v1/conversations/user/" + userId + "/summaries").param("limit", "30"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].id").value(conversationId))
+            .andExpect(jsonPath("$.data[0].title").value("Lightweight title"))
+            .andExpect(jsonPath("$.data[0].messages").doesNotExist());
+
+        mockMvc.perform(get("/api/v1/conversations/" + conversationId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.messages[0].content").value("must only be loaded by detail endpoint"));
+    }
+
+    @Test
     public void testListUserConversations() throws Exception {
         // Create conversations
         String userId = "user-002";

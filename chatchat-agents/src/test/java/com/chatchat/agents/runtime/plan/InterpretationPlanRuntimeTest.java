@@ -3864,15 +3864,18 @@ class InterpretationPlanRuntimeTest {
             ToolRuntimeRequest request = invocation.getArgument(0);
             if (request.getToolName().contains("template_query")) {
                 return new ToolRuntimeExecution(
-                    ToolOutput.success(Map.of("templates", List.of(Map.of(
-                        "templateId", "QUERY_BY_TRADE_DATE",
-                        "parameterSchema", Map.of(
-                            "type", "object",
-                            "properties", Map.of("tradeDate", Map.of("type", "string", "format", "date")),
-                            "required", List.of("tradeDate")
-                        ),
-                        "executionTool", "mcp_chatchat_mcp_server_sql_query_execute"
-                    )))),
+                    ToolOutput.success(Map.of(
+                        "resolvedTradeDate", "20260716",
+                        "templates", List.of(Map.of(
+                            "templateId", "QUERY_BY_TRADE_DATE",
+                            "parameterSchema", Map.of(
+                                "type", "object",
+                                "properties", Map.of("tradeDate", Map.of("type", "string", "format", "date")),
+                                "required", List.of("tradeDate")
+                            ),
+                            "executionTool", "mcp_chatchat_mcp_server_sql_query_execute"
+                        ))
+                    )),
                     ToolMetadata.builder().id(request.getToolName()).build(), null, "success", Map.of());
             }
             return new ToolRuntimeExecution(
@@ -3908,8 +3911,8 @@ class InterpretationPlanRuntimeTest {
                     "template_id", "MODEL_SELECTED_DATASOURCE_ASSET",
                     "arguments", Map.of("trade_date", Map.of(
                         "value", "20260716",
-                        "source", "user_query",
-                        "evidence", "查询 20260716 交易日数据"
+                        "source", "tool_result",
+                        "evidence", Map.of("step_id", 1, "output_path", "$.resolvedTradeDate")
                     )),
                     "unresolved_parameters", List.of()
                 );
@@ -3943,7 +3946,7 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
-    void acceptsTheSameModelParameterProtocolForSqlHttpSshAndApiTemplateExecutors() throws Exception {
+    void defersTheSameModelParameterProtocolForAllTemplateExecutorsUntilFinalRuntimeReview() throws Exception {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             mock(ToolRuntimeService.class), new InterpretationPlanValidator(), scriptedController(List.of()));
         Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
@@ -3974,8 +3977,8 @@ class InterpretationPlanRuntimeTest {
             method.invoke(runtime, step, input);
 
             assertThat(input.get("templateId")).isEqualTo("GENERIC_PARAMETERIZED_TEMPLATE");
-            assertThat(input.get("parameters")).isEqualTo(Map.of("target", "runtime-target"));
-            assertThat(input.get("runtimeParameterProtocolApplied")).isEqualTo(true);
+            assertThat(input.get("parameterProtocol")).isNotNull();
+            assertThat(input).doesNotContainKey("runtimeParameterProtocolApplied");
         }
     }
 
@@ -4016,7 +4019,7 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
-    void rejectsModelParameterProtocolThatChangesRuntimeBoundTemplateId() throws Exception {
+    void defersModelTemplateIdAuditUntilRuntimeHasAuthoritativeTemplateMetadata() throws Exception {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             mock(ToolRuntimeService.class), new InterpretationPlanValidator(), scriptedController(List.of()));
         Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
@@ -4034,10 +4037,10 @@ class InterpretationPlanRuntimeTest {
         InterpretationPlan.Step step = new InterpretationPlan.Step(
             7, "mcp_tool", "mcp_chatchat_mcp_server_sql_query_execute", Map.of(), List.of(), null, null);
 
-        assertThatThrownBy(() -> method.invoke(runtime, step, input))
-            .hasRootCauseInstanceOf(IllegalStateException.class)
-            .rootCause()
-            .hasMessageContaining("does not match the Runtime-bound template");
+        method.invoke(runtime, step, input);
+
+        assertThat(input.get("parameterProtocol")).isNotNull();
+        assertThat(input).doesNotContainKey("runtimeParameterProtocolApplied");
     }
 
     @Test
@@ -4078,7 +4081,8 @@ class InterpretationPlanRuntimeTest {
         assertThat(input.get("templateId")).isEqualTo("RUNTIME_DISCOVERED_TEMPLATE");
         assertThat(input.get("template")).isEqualTo("RUNTIME_DISCOVERED_TEMPLATE");
         assertThat(input.get("parameters")).isEqualTo(Map.of("trade_date", "20260721"));
-        assertThat(input.get("runtimeParameterProtocolApplied")).isEqualTo(true);
+        assertThat(input.get("parameterProtocol")).isNotNull();
+        assertThat(input).doesNotContainKey("runtimeParameterProtocolApplied");
     }
 
     @Test

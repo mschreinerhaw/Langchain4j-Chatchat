@@ -83,7 +83,7 @@ MCP 根据 `templateId` 读取真实 API 配置，检查模板是否启用，并
 - `refine`：提供缺失能力、细化意图和已拒绝模板 ID。
 - `reject`：停止该候选的执行，不得用原条件重复调用。
 
-参数化模板继续使用 `template_parameter_protocol_v1`。Runtime 会校验步骤 ID、模板 ID、字段声明、必填参数和类型，并编译成执行请求。
+参数化模板统一使用 `template_parameter_protocol_v2`。模型输出基于用户原文或成功工具结果的参数画像；Runtime 会回查证据，校验步骤 ID、输出路径、模板 ID、字段声明、必填参数和类型，再由模板桥接层编译成执行请求。
 
 ## 4. API 模板元数据
 

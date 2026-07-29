@@ -398,7 +398,7 @@ class AgentPlannerTest {
             .contains("confirmation=required_for_write")
             .contains("NEVER create a binding from templates[i].parameterSchema")
             .contains("keep input.parameters={}")
-            .contains("DAG controller emits template_parameter_protocol_v1")
+            .contains("DAG controller emits template_parameter_protocol_v2")
             .contains("MUST use exactly $.assets[0].asset.name")
             .contains("never use $.assets[0].assetName");
     }

@@ -64,6 +64,28 @@ public class ConversationController {
     }
 
     /**
+     * Lists lightweight conversation headers for the history sidebar.
+     * Message bodies are deliberately absent and are hydrated by {@link #getConversation}
+     * only after a user opens one conversation.
+     */
+    @GetMapping("/user/{userId}/summaries")
+    @Operation(summary = "List lightweight user conversation summaries")
+    public ApiResponse<List<ConversationListItem>> listUserConversationSummaries(
+        @PathVariable("userId") String userId,
+        @RequestParam(value = "tenantId", required = false) String tenantId,
+        @RequestParam(value = "limit", defaultValue = "30") Integer limit,
+        HttpServletRequest servletRequest
+    ) {
+        int normalizedLimit = limit == null ? 30 : Math.max(1, Math.min(limit, 100));
+        List<ConversationListItem> summaries = conversationService
+            .listUserConversationSummaries(resolveTenantId(servletRequest, tenantId), userId, normalizedLimit)
+            .stream()
+            .map(ConversationListItem::from)
+            .toList();
+        return ApiResponse.success(summaries);
+    }
+
+    /**
      * Delete conversation
      */
     @DeleteMapping("/{conversationId}")
@@ -98,6 +120,38 @@ public class ConversationController {
     ) {
         public CreateConversationRequest(String userId, String title) {
             this(null, userId, title);
+        }
+    }
+
+    public record ConversationListItem(
+        String id,
+        String title,
+        String status,
+        String skillId,
+        String modelName,
+        String mode,
+        String agentName,
+        Long createdAt,
+        Long updatedAt
+    ) {
+        private static ConversationListItem from(Conversation conversation) {
+            return new ConversationListItem(
+                conversation.getId(),
+                conversation.getTitle(),
+                conversation.getStatus(),
+                conversation.getSkillId(),
+                conversation.getModelName(),
+                conversation.getMode(),
+                conversation.getAgentName(),
+                toEpochMillis(conversation.getCreatedAt()),
+                toEpochMillis(conversation.getUpdatedAt())
+            );
+        }
+
+        private static Long toEpochMillis(java.time.LocalDateTime value) {
+            return value == null
+                ? null
+                : value.atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
         }
     }
 }

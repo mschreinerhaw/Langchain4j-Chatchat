@@ -35,11 +35,16 @@ public final class InterpretationExecutionProtocol {
               "template_id": "exact template id from template discovery",
               "arguments": {
                 "declaredParameterName": {
-                  "value": "semantic value extracted from the current user query",
-                  "source": "user_query",
-                  "evidence": "short supporting text from the current user query"
+                  "value": "semantic value organized by the model",
+                  "source": "user_query | tool_result",
+                  "evidence": {
+                    "quote": "required when source=user_query; exact supporting text from the current query",
+                    "step_id": 1,
+                    "output_path": "$.data.id"
+                  }
                 }
               },
+              "analysis_summary": "How the evidence supports this parameter profile.",
               "unresolved_parameters": []
             }
           ],

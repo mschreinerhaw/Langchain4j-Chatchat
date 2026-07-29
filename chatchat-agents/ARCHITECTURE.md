@@ -78,7 +78,7 @@ Runtime 拥有模板绑定并负责最终审核；桥接层负责把语义参数
 | 协议 | 所有者 | 调用方向 |
 |---|---|---|
 | `interpretation_execution_protocol_v1` | `runtime.plan` | model → orchestration → runtime |
-| `template_parameter_protocol_v1` | `runtime.toolcall` | model → template bridge → runtime |
+| `template_parameter_protocol_v2` | `runtime.toolcall` | model evidence profile → template bridge audit → runtime execution |
 | `runtime_template_binding.v1` | `runtime.plan` | template discovery → runtime |
 | `runtime_dependency_evidence.v1` | `runtime` | completed tools → executor adapter |
 | `target_filters.v1` | `routing` | orchestration → discovery tool |

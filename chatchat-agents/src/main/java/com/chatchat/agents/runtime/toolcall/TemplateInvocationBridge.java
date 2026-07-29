@@ -4,8 +4,12 @@ import com.chatchat.agents.protocol.AgentProtocolCatalog;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 /**
  * Canonical bridge between model-produced template arguments and Runtime-owned execution.
@@ -18,7 +22,13 @@ import java.util.Map;
 public final class TemplateInvocationBridge {
 
     public static final String PROTOCOL_VERSION = AgentProtocolCatalog.TEMPLATE_PARAMETER;
+    public static final String LEGACY_PROTOCOL_VERSION = "template_parameter_protocol_v1";
     public static final String APPLIED_MARKER = "runtimeParameterProtocolApplied";
+    public static final String USER_QUERY_SOURCE = "user_query";
+    public static final String TOOL_RESULT_SOURCE = "tool_result";
+    private static final Set<String> TOOL_RESULT_SOURCE_ALIASES = Set.of(
+        TOOL_RESULT_SOURCE, "completed_step", "dependency_output"
+    );
 
     private final ToolArgumentCompiler argumentCompiler;
 
@@ -63,12 +73,15 @@ public final class TemplateInvocationBridge {
 
         Map<String, Object> parameters = objectMap(input.get("parameters"));
         boolean protocolApplied = Boolean.TRUE.equals(input.get(APPLIED_MARKER));
+        ParameterAudit parameterAudit = ParameterAudit.empty();
         if (request.parameterProtocol() != null) {
-            parameters.putAll(auditModelProtocol(
+            parameterAudit = auditModelProtocol(
                 request.parameterProtocol(),
                 request.stepId(),
                 runtimeTemplateId,
-                request.runtimeTemplateAuthoritative()));
+                request.runtimeTemplateAuthoritative(),
+                request.evidenceContext());
+            parameters.putAll(parameterAudit.parameters());
             protocolApplied = true;
         }
 
@@ -113,29 +126,36 @@ public final class TemplateInvocationBridge {
         if (protocolApplied) {
             input.put(APPLIED_MARKER, true);
         }
+        Map<String, Object> protocolTrace = new LinkedHashMap<>(AgentProtocolCatalog.trace(
+            request.stepId() == null ? "legacy_agent_template_bridge" : "interpretation_plan_template_bridge",
+            runtimeTemplateId,
+            request.executorTool(),
+            protocolApplied
+        ));
+        protocolTrace.put("reviewedParameterCount", parameterAudit.evidence().size());
+        protocolTrace.put("parameterEvidenceSources", parameterAudit.evidence().values().stream()
+            .map(ParameterEvidence::source)
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new)));
         return new BridgeResult(
             new LinkedHashMap<>(input),
             runtimeTemplateId,
             Map.copyOf(compilation.parameters()),
             protocolApplied,
             compilation.repairs(),
-            AgentProtocolCatalog.trace(
-                request.stepId() == null ? "legacy_agent_template_bridge" : "interpretation_plan_template_bridge",
-                runtimeTemplateId,
-                request.executorTool(),
-                protocolApplied
-            )
+            Map.copyOf(parameterAudit.evidence()),
+            Map.copyOf(protocolTrace)
         );
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, Object> auditModelProtocol(Map<String, Object> rawProtocol,
-                                                   Integer expectedStepId,
-                                                   String runtimeTemplateId,
-                                                   boolean runtimeTemplateAuthoritative) {
+    private ParameterAudit auditModelProtocol(Map<String, Object> rawProtocol,
+                                              Integer expectedStepId,
+                                              String runtimeTemplateId,
+                                              boolean runtimeTemplateAuthoritative,
+                                              EvidenceContext evidenceContext) {
         Map<String, Object> protocol = new LinkedHashMap<>(rawProtocol);
         String version = text(firstPresent(protocol, "protocol_version", "protocolVersion"));
-        if (!PROTOCOL_VERSION.equals(version)) {
+        if (!PROTOCOL_VERSION.equals(version) && !LEGACY_PROTOCOL_VERSION.equals(version)) {
             throw failure("TEMPLATE_PARAMETER_PROTOCOL_INVALID",
                 "unsupported protocol version " + version);
         }
@@ -166,6 +186,7 @@ public final class TemplateInvocationBridge {
             throw failure("TEMPLATE_PARAMETER_PROTOCOL_INVALID", "arguments must be an object");
         }
         Map<String, Object> parameters = new LinkedHashMap<>();
+        Map<String, ParameterEvidence> evidenceByParameter = new LinkedHashMap<>();
         for (Map.Entry<?, ?> entry : rawArguments.entrySet()) {
             String name = String.valueOf(entry.getKey());
             if (!(entry.getValue() instanceof Map<?, ?> rawArgument)) {
@@ -174,16 +195,132 @@ public final class TemplateInvocationBridge {
             }
             Map<String, Object> argument = new LinkedHashMap<>((Map<String, Object>) rawArgument);
             Object value = argument.get("value");
-            String source = text(argument.get("source"));
-            String evidence = text(argument.get("evidence"));
-            if (!"user_query".equals(source) || !hasValue(value) || evidence == null) {
+            String source = normalizeSource(argument.get("source"));
+            Object evidence = argument.get("evidence");
+            if (!hasValue(value) || source == null || evidence == null) {
                 throw failure("TEMPLATE_PARAMETER_PROTOCOL_INVALID",
                     "argument " + name
-                        + " must have a non-empty value, source=user_query and evidence");
+                        + " must have a non-empty value, a supported source and evidence");
             }
+            ParameterEvidence verifiedEvidence = verifyEvidence(name, value, source, evidence, evidenceContext);
             parameters.put(name, value);
+            evidenceByParameter.put(name, verifiedEvidence);
         }
-        return parameters;
+        return new ParameterAudit(Map.copyOf(parameters), Map.copyOf(evidenceByParameter));
+    }
+
+    private ParameterEvidence verifyEvidence(String parameter,
+                                             Object proposedValue,
+                                             String source,
+                                             Object rawEvidence,
+                                             EvidenceContext context) {
+        EvidenceContext evidenceContext = context == null ? EvidenceContext.empty() : context;
+        if (USER_QUERY_SOURCE.equals(source)) {
+            String quote = rawEvidence instanceof Map<?, ?> map
+                ? text(firstPresent(objectMap(map), "quote", "text", "excerpt"))
+                : text(rawEvidence);
+            if (quote == null) {
+                throw failure("TEMPLATE_PARAMETER_EVIDENCE_INVALID",
+                    "argument " + parameter + " requires a user-query evidence quote");
+            }
+            if (hasText(evidenceContext.userQuery())
+                && !compact(evidenceContext.userQuery()).contains(compact(quote))) {
+                throw failure("TEMPLATE_PARAMETER_EVIDENCE_MISMATCH",
+                    "argument " + parameter + " evidence quote is absent from the Runtime user query");
+            }
+            return new ParameterEvidence(USER_QUERY_SOURCE, Map.of("quote", quote), proposedValue);
+        }
+        if (TOOL_RESULT_SOURCE.equals(source)) {
+            if (!(rawEvidence instanceof Map<?, ?> rawMap)) {
+                throw failure("TEMPLATE_PARAMETER_EVIDENCE_INVALID",
+                    "argument " + parameter + " tool-result evidence must contain step_id and output_path");
+            }
+            Map<String, Object> evidence = objectMap(rawMap);
+            Integer stepId = integer(firstPresent(evidence, "step_id", "stepId"));
+            String outputPath = text(firstPresent(evidence, "output_path", "outputPath", "path"));
+            if (stepId == null || outputPath == null) {
+                throw failure("TEMPLATE_PARAMETER_EVIDENCE_INVALID",
+                    "argument " + parameter + " tool-result evidence must contain step_id and output_path");
+            }
+            if (!evidenceContext.completedStepOutputs().containsKey(stepId)) {
+                throw failure("TEMPLATE_PARAMETER_EVIDENCE_UNAVAILABLE",
+                    "argument " + parameter + " references unavailable completed step " + stepId);
+            }
+            Object verifiedValue = valueAtPath(evidenceContext.completedStepOutputs().get(stepId), outputPath);
+            if (verifiedValue == null || !equivalent(proposedValue, verifiedValue)) {
+                throw failure("TEMPLATE_PARAMETER_EVIDENCE_MISMATCH",
+                    "argument " + parameter + " does not match completed step " + stepId
+                        + " at " + outputPath);
+            }
+            return new ParameterEvidence(TOOL_RESULT_SOURCE, Map.of(
+                "step_id", stepId,
+                "output_path", outputPath
+            ), verifiedValue);
+        }
+        throw failure("TEMPLATE_PARAMETER_SOURCE_DENIED",
+            "argument " + parameter + " uses unsupported source " + source);
+    }
+
+    private Object valueAtPath(Object root, String rawPath) {
+        if (root == null || rawPath == null || rawPath.isBlank()
+            || "$".equals(rawPath.trim())) {
+            return root;
+        }
+        String path = rawPath.trim();
+        if (path.startsWith("$.")) {
+            path = path.substring(2);
+        } else if (path.startsWith("$")) {
+            path = path.substring(1);
+        }
+        Object current = root;
+        for (String token : path.replace("[", ".").replace("]", "").split("\\.")) {
+            if (token.isBlank()) {
+                continue;
+            }
+            if (current instanceof Map<?, ?> map) {
+                current = map.get(token);
+            } else if (current instanceof List<?> list) {
+                try {
+                    int index = Integer.parseInt(token);
+                    current = index >= 0 && index < list.size() ? list.get(index) : null;
+                } catch (NumberFormatException ignored) {
+                    return null;
+                }
+            } else {
+                return null;
+            }
+            if (current == null) {
+                return null;
+            }
+        }
+        return current;
+    }
+
+    private boolean equivalent(Object proposed, Object verified) {
+        if (Objects.equals(proposed, verified)) {
+            return true;
+        }
+        if (proposed == null || verified == null) {
+            return false;
+        }
+        return compact(String.valueOf(proposed)).equals(compact(String.valueOf(verified)));
+    }
+
+    private String normalizeSource(Object value) {
+        String source = text(value);
+        if (source == null) {
+            return null;
+        }
+        String normalized = source.toLowerCase(Locale.ROOT);
+        return TOOL_RESULT_SOURCE_ALIASES.contains(normalized) ? TOOL_RESULT_SOURCE : normalized;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private String compact(String value) {
+        return value == null ? "" : value.replaceAll("\\s+", "").trim();
     }
 
     private List<String> requiredParameters(Map<String, Object> template, Map<String, Object> schema) {
@@ -285,8 +422,20 @@ public final class TemplateInvocationBridge {
         Map<String, Object> input,
         Map<String, Object> parameterProtocol,
         boolean requireModelProtocol,
-        boolean runtimeTemplateAuthoritative
+        boolean runtimeTemplateAuthoritative,
+        EvidenceContext evidenceContext
     ) {
+        public BridgeRequest(String executorTool,
+                             Integer stepId,
+                             String runtimeTemplateId,
+                             Map<String, Object> templateMetadata,
+                             Map<String, Object> input,
+                             Map<String, Object> parameterProtocol,
+                             boolean requireModelProtocol,
+                             boolean runtimeTemplateAuthoritative) {
+            this(executorTool, stepId, runtimeTemplateId, templateMetadata, input, parameterProtocol,
+                requireModelProtocol, runtimeTemplateAuthoritative, EvidenceContext.empty());
+        }
     }
 
     public record BridgeResult(
@@ -295,8 +444,39 @@ public final class TemplateInvocationBridge {
         Map<String, Object> parameters,
         boolean modelProtocolApplied,
         List<ToolArgumentCompiler.Repair> repairs,
+        Map<String, ParameterEvidence> parameterEvidence,
         Map<String, Object> protocolTrace
     ) {
+    }
+
+    public record EvidenceContext(
+        String userQuery,
+        Map<Integer, Object> completedStepOutputs
+    ) {
+        public EvidenceContext {
+            completedStepOutputs = completedStepOutputs == null
+                ? Map.of() : Map.copyOf(completedStepOutputs);
+        }
+
+        public static EvidenceContext empty() {
+            return new EvidenceContext(null, Map.of());
+        }
+    }
+
+    public record ParameterEvidence(
+        String source,
+        Map<String, Object> reference,
+        Object verifiedValue
+    ) {
+    }
+
+    private record ParameterAudit(
+        Map<String, Object> parameters,
+        Map<String, ParameterEvidence> evidence
+    ) {
+        private static ParameterAudit empty() {
+            return new ParameterAudit(Map.of(), Map.of());
+        }
     }
 
     public static final class TemplateBridgeException extends IllegalStateException {

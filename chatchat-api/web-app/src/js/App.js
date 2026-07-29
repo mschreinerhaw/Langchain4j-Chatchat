@@ -22,7 +22,6 @@ import {
   AUTH_REQUIRED_EVENT,
   clearAuthSession,
   deleteConversationHistory,
-  fetchAgentRuntimeSummary,
   fetchAgentTodos,
   fetchConversationDetail,
   fetchConversationHistory,
@@ -33,7 +32,6 @@ import {
   loginEnterpriseWithEmbedToken,
   removeUserFavorite,
   storeAuthSession,
-  updateConversationHistoryStatus
 } from "../services/api";
 import { notifyAgentTaskCancelled, onAgentTaskCancelled } from "./utils/agentTaskEvents";
 import { clearChatRuntimeState, mergeChatRuntimeState } from "./utils/chatRuntimeState";
@@ -46,7 +44,6 @@ const IDLE_LOGOUT_MS = 30 * 60 * 1000;
 const ACTIVITY_THROTTLE_MS = 1000;
 const TODO_REFRESH_MS = 30000;
 const ACTIVITY_EVENTS = ["click", "keydown", "mousemove", "mousedown", "scroll", "touchstart", "wheel"];
-const ACTIVE_AGENT_TASK_STATUSES = new Set(["PENDING", "RUNNING", "WAIT_TOOL", "WAIT_MODEL", "WAIT_CONFIRMATION", "WAITING_CONFIRM", "CONFIRMED"]);
 const DEFAULT_VIEW = "chat";
 const LOGIN_ROUTE = "login";
 const REDIRECT_VIEW_KEY = "chatchat.auth.redirectView";
@@ -508,10 +505,10 @@ export default {
           limit: 30,
           ...historyFilters
         });
-        const nextHistory = Array.isArray(history) ? history : [];
-        const verifiedHistory = await this.verifyRuntimeHistory(nextHistory);
-        this.conversationHistory = verifiedHistory;
-        this.resetActiveConversationWhenRemoved(previousHistory, verifiedHistory);
+        const nextHistory = (Array.isArray(history) ? history : [])
+          .map((conversation) => mergeChatRuntimeState(conversation));
+        this.conversationHistory = nextHistory;
+        this.resetActiveConversationWhenRemoved(previousHistory, nextHistory);
       } catch (error) {
         this.conversationHistory = [];
         if (suppressError) {
@@ -521,127 +518,6 @@ export default {
       } finally {
         this.historyLoading = false;
       }
-    },
-    async verifyRuntimeHistory(history = []) {
-      const mergedHistory = history.map((conversation) => mergeChatRuntimeState(conversation));
-      try {
-        const summary = await fetchAgentRuntimeSummary({
-          tenantId: this.tenantId,
-          latestLimit: 50
-        });
-        const tasks = Array.isArray(summary?.latestTasks) ? summary.latestTasks : [];
-        const verified = mergedHistory.map((conversation) => this.applyRuntimeTaskSnapshot(conversation, tasks));
-        this.persistVerifiedHistoryStatus(verified);
-        return verified.map(({ __runtimeStatusChanged, ...conversation }) => conversation);
-      } catch (error) {
-        return mergedHistory;
-      }
-    },
-    applyRuntimeTaskSnapshot(conversation = {}, tasks = []) {
-      const messages = Array.isArray(conversation.messages) ? conversation.messages : [];
-      const conversationIds = new Set([conversation.id, conversation.conversationId].filter(Boolean));
-      const taskIds = new Set(messages.map((message) => message?.taskId).filter(Boolean));
-      const task = tasks.find((item) =>
-        item?.taskId
-        && (
-          taskIds.has(item.taskId)
-          || (item.sessionId && conversationIds.has(item.sessionId))
-        )
-      );
-      if (!task) {
-        return conversation;
-      }
-      const status = this.conversationStatusFromRuntimeTask(task);
-      const active = ACTIVE_AGENT_TASK_STATUSES.has(String(task.status || "").toUpperCase());
-      if (!active) {
-        clearChatRuntimeState({
-          conversationId: task.sessionId || conversation.conversationId || conversation.id || "",
-          taskId: task.taskId
-        });
-      }
-      const nextMessages = this.mergeRuntimeTaskIntoMessages(messages, task, status, active, conversation);
-      const changed = String(conversation.status || "").toLowerCase() !== status;
-      return {
-        ...conversation,
-        status,
-        conversationId: conversation.conversationId || task.sessionId || "",
-        messages: nextMessages,
-        __runtimeStatusChanged: changed && !active
-      };
-    },
-    conversationStatusFromRuntimeTask(task = {}) {
-      const status = String(task.status || "").toUpperCase();
-      if (ACTIVE_AGENT_TASK_STATUSES.has(status)) {
-        return status === "WAIT_CONFIRMATION" || status === "WAITING_CONFIRM" ? "pending" : "running";
-      }
-      if (status === "SUCCESS") {
-        return "completed";
-      }
-      if (status === "PARTIAL" || status === "PARTIAL_SUCCESS") {
-        return "partial";
-      }
-      if (status === "EMPTY" || status === "NO_PRESENTABLE_RESULT") {
-        return "empty";
-      }
-      if (["CANCELLED", "KILLED", "REJECTED", "TIMEOUT_CANCELLED"].includes(status)) {
-        return "cancelled";
-      }
-      if (["FAILED", "TIME_BUDGET_EXHAUSTED", "MODEL_BUDGET_EXHAUSTED"].includes(status)) {
-        return "failed";
-      }
-      return "completed";
-    },
-    mergeRuntimeTaskIntoMessages(messages = [], task = {}, status = "running", active = false, conversation = {}) {
-      const index = [...messages].reverse().findIndex((message) =>
-        message?.role === "assistant"
-        && (message.taskId === task.taskId || message.streaming || ["running", "streaming", "pending", "waiting"].includes(String(message.status || "").toLowerCase()))
-      );
-      const realIndex = index < 0 ? -1 : messages.length - 1 - index;
-      if (realIndex >= 0) {
-        return messages.map((message, messageIndex) => messageIndex === realIndex
-          ? {
-              ...message,
-              taskId: message.taskId || task.taskId || "",
-              agentName: message.agentName || conversation.agentName || "",
-              modelName: message.modelName || conversation.modelName || "",
-              streaming: active,
-              status: active ? (status === "pending" ? "waiting" : "running") : status,
-              content: message.content || (!active ? (task.answerSummary || task.errorMessage || "") : "")
-            }
-          : message);
-      }
-      if (!active) {
-        return messages;
-      }
-      return [
-        ...messages,
-        {
-          id: `${task.taskId}-runtime`,
-          role: "assistant",
-          content: "",
-          timestamp: task.updateTime ? new Date(task.updateTime).getTime() : Date.now(),
-          sources: [],
-          traces: [],
-          steps: [],
-          streaming: true,
-          status: status === "pending" ? "waiting" : "running",
-          taskId: task.taskId || "",
-          agentName: conversation.agentName || "",
-          modelName: conversation.modelName || ""
-        }
-      ];
-    },
-    persistVerifiedHistoryStatus(verifiedHistory = []) {
-      verifiedHistory
-        .filter((conversation) => conversation.__runtimeStatusChanged && conversation.id)
-        .forEach((conversation) => {
-          updateConversationHistoryStatus(this.userId, conversation.id, {
-            tenantId: this.tenantId,
-            conversationId: conversation.conversationId || conversation.id,
-            status: conversation.status,
-            messages: conversation.messages || []
-          }).catch(() => {});
-        });
     },
     async loadFavoriteConversationIds() {
       if (!this.authSession || !this.userId) {

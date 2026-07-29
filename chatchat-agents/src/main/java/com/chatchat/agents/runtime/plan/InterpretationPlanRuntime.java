@@ -2437,7 +2437,12 @@ public class InterpretationPlanRuntime {
         if (step == null || input == null) {
             return;
         }
-        bridgeModelParameterProtocol(step, input);
+        Object parameterProtocol = firstMapValue(input, "parameterProtocol", "parameter_protocol");
+        if (parameterProtocol != null
+            && (!isTemplateExecutionTool(step.toolName()) || !(parameterProtocol instanceof Map<?, ?>))) {
+            throw new IllegalStateException("TEMPLATE_PARAMETER_PROTOCOL_INVALID: parameter protocol must be an "
+                + "object attached to a template execution step");
+        }
         Object toolCallValue = firstMapValue(input, "toolCall", "tool_call");
         if (toolCallValue instanceof Map<?, ?> rawToolCall) {
             Map<String, Object> toolCall = new LinkedHashMap<>((Map<String, Object>) rawToolCall);
@@ -2508,36 +2513,6 @@ public class InterpretationPlanRuntime {
     }
 
     @SuppressWarnings("unchecked")
-    private void bridgeModelParameterProtocol(InterpretationPlan.Step step, Map<String, Object> input) {
-        Object rawProtocol = firstMapValue(input, "parameterProtocol", "parameter_protocol");
-        if (rawProtocol == null) {
-            return;
-        }
-        if (!isTemplateExecutionTool(step.toolName()) || !(rawProtocol instanceof Map<?, ?> map)) {
-            throw new IllegalStateException("TEMPLATE_PARAMETER_PROTOCOL_INVALID: parameter protocol must be an "
-                + "object attached to a template execution step");
-        }
-        String lockedTemplateId = runtimeOwnedTemplateId(input);
-        String templateId = lockedTemplateId == null
-            ? canonicalTemplateId(firstValueAtAnyPath(input, "$.templateId", "$.template", "$.template_id"))
-            : lockedTemplateId;
-        TemplateInvocationBridge.BridgeResult bridged = TEMPLATE_INVOCATION_BRIDGE.prepare(
-            new TemplateInvocationBridge.BridgeRequest(
-                step.toolName(),
-                step.id(),
-                templateId,
-                Map.of(),
-                input,
-                new LinkedHashMap<>((Map<String, Object>) map),
-                false,
-                lockedTemplateId != null
-            )
-        );
-        input.clear();
-        input.putAll(bridged.executorInput());
-    }
-
-    @SuppressWarnings("unchecked")
     private void bridgeTemplateInvocation(InterpretationPlan.Step step,
                                           ExecutionRequest request,
                                           Map<Integer, StepExecution> completed,
@@ -2569,20 +2544,40 @@ public class InterpretationPlanRuntime {
                 input,
                 protocol,
                 requiresTemplateParameterProtocol(request),
-                runtimeTemplateAuthoritative
+                runtimeTemplateAuthoritative,
+                templateParameterEvidenceContext(request, completed)
             )
         );
         input.clear();
         input.putAll(bridged.executorInput());
         log.info("InterpretationPlan template bridge approved invocation stepId={} tool={} templateId={} "
-                + "parameterKeys={} modelProtocolApplied={} protocolTrace={} repairs={}",
+                + "parameterKeys={} modelProtocolApplied={} parameterEvidence={} protocolTrace={} repairs={}",
             step.id(),
             step.toolName(),
             bridged.templateId(),
             bridged.parameters().keySet(),
             bridged.modelProtocolApplied(),
+            bridged.parameterEvidence(),
             bridged.protocolTrace(),
             bridged.repairs());
+    }
+
+    private TemplateInvocationBridge.EvidenceContext templateParameterEvidenceContext(
+        ExecutionRequest request,
+        Map<Integer, StepExecution> completed
+    ) {
+        Map<Integer, Object> completedOutputs = new LinkedHashMap<>();
+        if (completed != null) {
+            completed.forEach((stepId, execution) -> {
+                if (stepId != null && execution != null && execution.success() && execution.output() != null) {
+                    completedOutputs.put(stepId, execution.output());
+                }
+            });
+        }
+        return new TemplateInvocationBridge.EvidenceContext(
+            originalUserQuery(request),
+            completedOutputs
+        );
     }
 
     private void compileDirectToolArguments(InterpretationPlan.Step step,

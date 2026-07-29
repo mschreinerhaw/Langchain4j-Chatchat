@@ -575,22 +575,27 @@ export function deleteSemanticLexiconEntry(id) {
   });
 }
 
-export function fetchConversationHistory(userId, filters = {}) {
+export async function fetchConversationHistory(userId, filters = {}) {
   const params = new URLSearchParams();
   if (filters.tenantId) {
     params.set("tenantId", filters.tenantId);
-  }
-  if (filters.keyword) {
-    params.set("keyword", filters.keyword);
-  }
-  if (filters.status) {
-    params.set("status", filters.status);
   }
   if (filters.limit) {
     params.set("limit", String(filters.limit));
   }
   const query = params.toString();
-  return apiRequest(`/data/history/${encodeURIComponent(userId)}${query ? `?${query}` : ""}`);
+  const summaries = await apiRequest(
+    `/conversations/user/${encodeURIComponent(userId)}/summaries${query ? `?${query}` : ""}`
+  );
+  return (Array.isArray(summaries) ? summaries : []).map((summary) => ({
+    ...summary,
+    question: summary.title || "未命名会话",
+    conversationId: summary.id || "",
+    timestamp: summary.updatedAt,
+    messages: [],
+    analysisTree: {},
+    detailsLoaded: false
+  }));
 }
 
 export function fetchConversationDetail(conversationId, tenantId = "") {

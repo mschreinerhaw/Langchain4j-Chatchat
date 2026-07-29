@@ -139,6 +139,22 @@ public class ConversationService {
     }
 
     /**
+     * Lists only the newest conversation index rows. This path never reads message
+     * indexes, RocksDB references, or OpenSearch message documents.
+     */
+    @Transactional(readOnly = true)
+    public List<Conversation> listUserConversationSummaries(String tenantId, String userId, int limit) {
+        int normalizedLimit = Math.max(1, Math.min(limit, 100));
+        return sessionRepository.findByTenantIdAndUserIdOrderByUpdatedAtDesc(
+                normalizeTenantId(tenantId),
+                normalize(userId, DEFAULT_USER_ID),
+                PageRequest.of(0, normalizedLimit)
+            ).stream()
+            .map(session -> toConversation(session, List.of()))
+            .toList();
+    }
+
+    /**
      * Updates the conversation summary.
      *
      * @param conversationId the conversation id value

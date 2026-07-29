@@ -73,6 +73,7 @@ public class AgentOrchestrator {
     private static final String AGENT_TIMEOUT_MS_ATTRIBUTE = "__agentTimeoutMs";
     private static final String AGENT_DEADLINE_AT_ATTRIBUTE = "__agentDeadlineAt";
     private static final String AGENT_RUN_ID_ATTRIBUTE = "__agentRunId";
+    private static final String SUMMARY_REVIEW_CANDIDATES_ATTRIBUTE = "__summaryReviewCandidates";
     private static final String FINAL = "final";
     private static final String TOOL = "tool";
     private static final String WORKFLOW_PROBLEM_SOLVING = "agent_problem_solving";
@@ -2007,6 +2008,7 @@ public class AgentOrchestrator {
             firstNonBlank(runId, ""),
             stage,
             ModelProtocolJson.prettyJsonForLog(answer));
+        registerSummaryReviewCandidate(metadata, "interpretation_plan_summary", answer);
         if (metadata != null) {
             metadata.put("interpretationPlanSummaryGenerated", true);
             metadata.put("interpretationPlanSummaryStage", stage);
@@ -2027,6 +2029,7 @@ public class AgentOrchestrator {
                 metadata.put("executionGraphSemanticReason", graphSemanticState.get("reason"));
             }
             if ("mcp_sql_metadata_search_catalog".equals(renderedSqlMetadata.metadata().get("source"))) {
+                String preGroundingRewrite = answer;
                 answer = rewriteUngroundedSqlMetadataSummary(
                     activeChatModel,
                     query,
@@ -2035,11 +2038,15 @@ public class AgentOrchestrator {
                     answer,
                     metadata
                 );
+                if (!Objects.equals(preGroundingRewrite, answer)) {
+                    registerSummaryReviewCandidate(metadata, "sql_metadata_grounding_rewrite", answer);
+                }
                 if (metadata != null) {
                     metadata.put("sqlMetadataGroundingValidated", true);
                 }
             }
             answer = mergeStructuredSqlMetadataAnswer(structuredSqlMetadata, answer);
+            registerSummaryReviewCandidate(metadata, "structured_sql_metadata_merge", answer);
         }
         runResultAdapter.recordRuntimeObservation(
             runtimeAttributes,
@@ -2056,6 +2063,31 @@ public class AgentOrchestrator {
         return answer == null || answer.isBlank()
             ? (result == null ? "" : firstNonBlank(result.finalAnswer(), ""))
             : answer;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void registerSummaryReviewCandidate(Map<String, Object> metadata,
+                                                String source,
+                                                String answer) {
+        if (metadata == null || answer == null || answer.isBlank()) {
+            return;
+        }
+        List<Map<String, Object>> candidates =
+            metadata.get(SUMMARY_REVIEW_CANDIDATES_ATTRIBUTE) instanceof List<?> existing
+                ? new ArrayList<>((List<Map<String, Object>>) existing)
+                : new ArrayList<>();
+        String normalized = answer.replaceAll("\\s+", " ").trim();
+        boolean duplicate = candidates.stream().anyMatch(candidate ->
+            normalized.equals(String.valueOf(candidate.getOrDefault("answer", ""))
+                .replaceAll("\\s+", " ").trim()));
+        if (!duplicate) {
+            candidates.add(Map.of(
+                "id", source + "_" + (candidates.size() + 1),
+                "source", source,
+                "answer", answer
+            ));
+            metadata.put(SUMMARY_REVIEW_CANDIDATES_ATTRIBUTE, List.copyOf(candidates));
+        }
     }
 
     private boolean hasBatchExecutionResult(InterpretationPlanRuntime.ExecutionResult result) {

@@ -319,6 +319,14 @@ class AnswerDecisionEngine {
         if (evidenceRequired && score.citation() < 0.35D) {
             reasons.add("low_citation_for_required_evidence");
         }
+        if (AnswerQualityEvaluator.QUALITY_SYNTHESIS.equals(candidate.source())
+            && score.grounding() < 0.75D) {
+            reasons.add("quality_synthesis_low_grounding");
+        }
+        if (AnswerQualityEvaluator.QUALITY_SYNTHESIS.equals(candidate.source())
+            && score.accuracy() < 0.75D) {
+            reasons.add("quality_synthesis_low_accuracy");
+        }
         return List.copyOf(reasons);
     }
 
@@ -347,8 +355,15 @@ class AnswerDecisionEngine {
         if (AnswerQualityEvaluator.DOCUMENT_EVIDENCE.equals(source)) {
             return 30;
         }
+        if (AnswerQualityEvaluator.QUALITY_SYNTHESIS.equals(source)) {
+            return 25;
+        }
         if (AnswerQualityEvaluator.CANDIDATE.equals(source)) {
             return 20;
+        }
+        if (AnswerQualityEvaluator.SUMMARY_STAGE.equals(source)
+            || (source != null && source.contains("summary"))) {
+            return 15;
         }
         if (AnswerQualityEvaluator.REVIEWER_SUGGESTION.equals(source)) {
             return 10;

@@ -23,6 +23,8 @@ class AnswerQualityEvaluator {
     static final String REVIEWER_SUGGESTION = "reviewer_suggestion";
     static final String DETERMINISTIC_EVIDENCE = "deterministic_evidence";
     static final String DOCUMENT_EVIDENCE = "document_evidence";
+    static final String SUMMARY_STAGE = "summary_stage";
+    static final String QUALITY_SYNTHESIS = "quality_synthesis";
 
     private final ObjectMapper objectMapper;
 
@@ -57,12 +59,28 @@ class AnswerQualityEvaluator {
                 stringValue(firstObject(payload, "reason", "rationale", "selectionReason", "selection_reason")),
                 "Model scored answer candidates."
             );
-            List<CandidateScore> scores = parseScores(firstObject(payload, "candidates", "scores", "candidateScores"), candidates);
+            List<AnswerCandidate> evaluatedCandidates = new ArrayList<>(candidates);
+            String synthesizedAnswer = stringValue(firstObject(
+                payload, "synthesizedAnswer", "synthesized_answer", "recommendedAnswer", "recommended_answer"
+            ));
+            if (synthesizedAnswer != null && !synthesizedAnswer.isBlank()
+                && evaluatedCandidates.stream().noneMatch(candidate ->
+                normalize(candidate.answer()).equals(normalize(synthesizedAnswer)))) {
+                evaluatedCandidates.add(new AnswerCandidate(
+                    QUALITY_SYNTHESIS,
+                    QUALITY_SYNTHESIS,
+                    synthesizedAnswer.trim()
+                ));
+            }
+            List<CandidateScore> scores = parseScores(
+                firstObject(payload, "candidates", "scores", "candidateScores"),
+                evaluatedCandidates
+            );
             return new QualityReport(
                 true,
                 CONTRACT_VERSION,
                 llmSelectedId,
-                candidates,
+                List.copyOf(evaluatedCandidates),
                 scores,
                 reason,
                 preview(raw, 1200)
@@ -80,6 +98,9 @@ class AnswerQualityEvaluator {
         prompt.append("Do not decide the final answer. Java code will apply hard filters and deterministic weighted aggregation.\n");
         prompt.append("Score every candidate independently. Prefer answers that are correct, directly useful, complete, grounded in observations, and cite evidence when evidence citations are available.\n");
         prompt.append("Do not reward unsupported extra facts. Flag answers that contradict observations, omit required citations, use failed-tool evidence, violate the response schema, or are unsafe.\n");
+        prompt.append("When candidates have complementary strengths, produce synthesizedAnswer as the best user-facing Markdown answer. "
+            + "It must retain the strongest supported analysis, correct contradictions, incorporate useful reviewer feedback, and use no fact absent from observations. "
+            + "If synthesis cannot improve the candidates safely, return an empty synthesizedAnswer.\n");
         prompt.append("Return strict JSON only, no Markdown.\n\n");
         if (request != null && request.systemPrompt() != null && !request.systemPrompt().isBlank()) {
             prompt.append("System instruction:\n").append(request.systemPrompt()).append("\n\n");
@@ -100,6 +121,11 @@ class AnswerQualityEvaluator {
             prompt.append("source: ").append(candidate.source()).append("\n");
             prompt.append("answer:\n").append(candidate.answer()).append("\n\n");
         }
+        if (request != null && request.reviewFeedback() != null && !request.reviewFeedback().isBlank()) {
+            prompt.append("Reviewer feedback on the current candidate (diagnostic, not evidence):\n")
+                .append(request.reviewFeedback())
+                .append("\n\n");
+        }
         prompt.append("Scoring rubric, each score from 0.0 to 1.0:\n");
         prompt.append("- accuracy: factual consistency with observations and no unsupported claims.\n");
         prompt.append("- grounding: uses only available evidence when evidence is required.\n");
@@ -113,8 +139,18 @@ class AnswerQualityEvaluator {
         prompt.append("- schemaViolation: candidate violates explicit output/schema requirements.\n");
         prompt.append("- unsafe: candidate is unsafe or policy-inappropriate.\n\n");
         prompt.append("JSON schema:\n");
-        prompt.append("{\"preferredId\":\"optional-audit-only-id\",\"reason\":\"brief scoring rationale\",\"candidates\":[{\"id\":\"candidate-id\",\"score\":0.0,\"accuracy\":0.0,\"grounding\":0.0,\"completeness\":0.0,\"citation\":0.0,\"usefulness\":0.0,\"contradictsObservation\":false,\"usesFailedToolEvidence\":false,\"missingRequiredCitation\":false,\"schemaViolation\":false,\"unsafe\":false,\"issues\":[\"brief issue\"]}]}\n");
+        prompt.append("{\"preferredId\":\"optional-audit-only-id\",\"reason\":\"brief scoring rationale\","
+            + "\"synthesizedAnswer\":\"best evidence-grounded Markdown answer or empty string\","
+            + "\"candidates\":[{\"id\":\"candidate-id or quality_synthesis\",\"score\":0.0,\"accuracy\":0.0,"
+            + "\"grounding\":0.0,\"completeness\":0.0,\"citation\":0.0,\"usefulness\":0.0,"
+            + "\"contradictsObservation\":false,\"usesFailedToolEvidence\":false,"
+            + "\"missingRequiredCitation\":false,\"schemaViolation\":false,\"unsafe\":false,"
+            + "\"issues\":[\"brief issue\"]}]}\n");
         return prompt.toString();
+    }
+
+    private String normalize(String value) {
+        return value == null ? "" : value.replaceAll("\\s+", " ").trim();
     }
 
     private List<AnswerCandidate> uniqueCandidates(List<AnswerCandidate> candidates) {
@@ -278,6 +314,7 @@ class AnswerQualityEvaluator {
         String query,
         String systemPrompt,
         List<String> observations,
+        String reviewFeedback,
         List<AnswerCandidate> candidates
     ) {
     }

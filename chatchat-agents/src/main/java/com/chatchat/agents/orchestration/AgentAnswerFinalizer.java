@@ -54,6 +54,7 @@ class AgentAnswerFinalizer {
     private static final String ANSWER_EVIDENCE_PARTIAL = "PARTIAL_ANALYSIS";
     private static final String ANSWER_EVIDENCE_INSUFFICIENT = "EVIDENCE_INSUFFICIENT";
     private static final String ANSWER_EVIDENCE_BLOCKED = "EXECUTION_BLOCKED";
+    private static final String SUMMARY_REVIEW_CANDIDATES_ATTRIBUTE = "__summaryReviewCandidates";
     private static final String INSUFFICIENT_EVIDENCE_ANSWER = "根据当前文档证据不足，无法确认。";
     private static final int TOOL_DATA_INLINE_CELL_LIMIT = 240;
     private static final Pattern DOCUMENT_REF_PATTERN =
@@ -456,7 +457,8 @@ class AgentAnswerFinalizer {
             observations,
             finalAnswer,
             review,
-            signal
+            signal,
+            metadata
         );
         return finishWithDecision(query, finalAnswer, review, signal, quality, traces, metadata, observations);
     }
@@ -485,7 +487,8 @@ class AgentAnswerFinalizer {
             observations,
             finalAnswer,
             review,
-            signal
+            signal,
+            metadata
         );
         return finishWithDecision(query, finalAnswer, review, signal, quality, traces, metadata, observations);
     }
@@ -514,7 +517,8 @@ class AgentAnswerFinalizer {
             observations,
             finalAnswer,
             review,
-            signal
+            signal,
+            metadata
         );
         return finishWithDecision(query, finalAnswer, review, signal, quality, traces, metadata, observations);
     }
@@ -552,8 +556,10 @@ class AgentAnswerFinalizer {
                                                                        List<String> observations,
                                                                        String candidateAnswer,
                                                                        AgentAnswerReview review,
-                                                                       AnswerDecisionEngine.EvidenceSignal signal) {
-        List<AnswerQualityEvaluator.AnswerCandidate> candidates = answerCandidates(candidateAnswer, review, signal);
+                                                                       AnswerDecisionEngine.EvidenceSignal signal,
+                                                                       Map<String, Object> metadata) {
+        List<AnswerQualityEvaluator.AnswerCandidate> candidates =
+            answerCandidates(candidateAnswer, review, signal, metadata);
         if (candidates.size() <= 1) {
             return null;
         }
@@ -569,6 +575,7 @@ class AgentAnswerFinalizer {
                         query,
                         systemPrompt,
                         observations == null ? List.of() : List.copyOf(observations),
+                        review == null ? null : review.feedback(),
                         candidates
                     )
                 )
@@ -588,7 +595,8 @@ class AgentAnswerFinalizer {
 
     private List<AnswerQualityEvaluator.AnswerCandidate> answerCandidates(String candidateAnswer,
                                                                           AgentAnswerReview review,
-                                                                          AnswerDecisionEngine.EvidenceSignal signal) {
+                                                                          AnswerDecisionEngine.EvidenceSignal signal,
+                                                                          Map<String, Object> metadata) {
         List<AnswerQualityEvaluator.AnswerCandidate> candidates = new ArrayList<>();
         if (candidateAnswer != null && !candidateAnswer.isBlank()) {
             candidates.add(new AnswerQualityEvaluator.AnswerCandidate(
@@ -606,7 +614,34 @@ class AgentAnswerFinalizer {
                 ));
             }
         }
+        addSummaryReviewCandidates(candidates, metadata);
         return List.copyOf(candidates);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void addSummaryReviewCandidates(List<AnswerQualityEvaluator.AnswerCandidate> candidates,
+                                            Map<String, Object> metadata) {
+        if (metadata == null) {
+            return;
+        }
+        Object raw = metadata.remove(SUMMARY_REVIEW_CANDIDATES_ATTRIBUTE);
+        if (!(raw instanceof List<?> values)) {
+            return;
+        }
+        for (Object value : values) {
+            if (!(value instanceof Map<?, ?> map)) {
+                continue;
+            }
+            String answer = stringValue(map.get("answer"));
+            if (answer == null || answer.isBlank()) {
+                continue;
+            }
+            candidates.add(new AnswerQualityEvaluator.AnswerCandidate(
+                firstNonBlank(stringValue(map.get("id")), "summary_stage_" + (candidates.size() + 1)),
+                firstNonBlank(stringValue(map.get("source")), AnswerQualityEvaluator.SUMMARY_STAGE),
+                answer
+            ));
+        }
     }
 
     private String safeAnswer(ChatModel activeChatModel,

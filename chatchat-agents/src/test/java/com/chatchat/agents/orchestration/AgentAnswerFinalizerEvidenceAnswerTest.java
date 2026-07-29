@@ -13,6 +13,9 @@ import java.util.Map;
 import java.util.concurrent.CancellationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class AgentAnswerFinalizerEvidenceAnswerTest {
 
@@ -1136,6 +1139,62 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
             .containsEntry("answerReviewRewriteApplied", false)
             .containsEntry("answerReviewRewriteSkippedReason", "reviewer_diagnostic_only")
             .containsEntry("answerReviewAuthority", "diagnostic_only");
+    }
+
+    @Test
+    void summaryReviewSynthesizesBestGroundedPartsAcrossStageCandidates() {
+        AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
+            new AgentAnswerReview(
+                AgentAnswerReview.REJECTED,
+                answer,
+                "Current answer preserves the table but omits the field deviation analysis."
+            );
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            reviewer,
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        ChatModel qualityModel = mock(ChatModel.class);
+        when(qualityModel.chat(anyString())).thenReturn("""
+            {
+              "preferredId":"quality_synthesis",
+              "reason":"The synthesis keeps exact metadata and restores the supported deviation analysis.",
+              "synthesizedAnswer":"## 结论\\n\\n字段结构已核对；其中 17 个名称可直接对应候选标准，日期字段类型仍需人工确认。",
+              "candidates":[
+                {"id":"candidate","accuracy":0.95,"grounding":0.95,"completeness":0.30,"citation":1.0,"usefulness":0.40,
+                 "contradictsObservation":false,"usesFailedToolEvidence":false,"missingRequiredCitation":false,"schemaViolation":false,"unsafe":false},
+                {"id":"initial_summary_1","accuracy":0.70,"grounding":0.75,"completeness":0.95,"citation":1.0,"usefulness":0.90,
+                 "contradictsObservation":true,"usesFailedToolEvidence":false,"missingRequiredCitation":false,"schemaViolation":false,"unsafe":false},
+                {"id":"quality_synthesis","accuracy":0.98,"grounding":0.98,"completeness":0.96,"citation":1.0,"usefulness":0.95,
+                 "contradictsObservation":false,"usesFailedToolEvidence":false,"missingRequiredCitation":false,"schemaViolation":false,"unsafe":false}
+              ]
+            }
+            """);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("__summaryReviewCandidates", List.of(Map.of(
+            "id", "initial_summary_1",
+            "source", "interpretation_plan_summary",
+            "answer", "完整偏离分析，但错误地写成只有 8 个字段。"
+        )));
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishReviewedAnswer(
+            qualityModel,
+            "分析字段定义是否与标准偏离",
+            null,
+            List.of(),
+            metadata,
+            List.of("SQL metadata returned 18 fields and enterprise metadata returned candidate standards."),
+            "## 字段结构\n\n已检索到 18 个字段。",
+            () -> false,
+            "interpretation_plan_completed"
+        );
+
+        assertThat(result.answer())
+            .contains("字段结构已核对")
+            .contains("日期字段类型仍需人工确认");
+        assertThat(result.metadata())
+            .containsEntry("answerDecision", AnswerDecisionEngine.QUALITY_SELECTED_ANSWER)
+            .containsEntry("answerQualitySelectedSource", AnswerQualityEvaluator.QUALITY_SYNTHESIS)
+            .doesNotContainKey("__summaryReviewCandidates");
     }
 
     @Test

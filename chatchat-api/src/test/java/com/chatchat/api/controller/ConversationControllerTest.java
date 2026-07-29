@@ -109,6 +109,33 @@ public class ConversationControllerTest {
     }
 
     @Test
+    public void historyListReturnsSummariesWithoutHydratingMessageDetails() throws Exception {
+        String userId = "history-summary-user";
+        String createResponse = mockMvc.perform(post("/api/v1/conversations")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(
+                    new ConversationController.CreateConversationRequest(userId, "History summary title")
+                )))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+        String conversationId = objectMapper.readTree(createResponse).path("data").path("id").asText();
+        conversationService.appendMessage(conversationId, "user", "large legacy message placeholder");
+
+        mockMvc.perform(get("/api/v1/data/history/" + userId).param("limit", "30"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200))
+            .andExpect(jsonPath("$.data[0].id").value(conversationId))
+            .andExpect(jsonPath("$.data[0].question").value("History summary title"))
+            .andExpect(jsonPath("$.data[0].messages").isEmpty());
+
+        mockMvc.perform(get("/api/v1/conversations/" + conversationId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.messages[0].content").value("large legacy message placeholder"));
+    }
+
+    @Test
     public void testListUserConversations() throws Exception {
         // Create conversations
         String userId = "user-002";

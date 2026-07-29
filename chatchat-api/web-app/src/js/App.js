@@ -24,6 +24,7 @@ import {
   deleteConversationHistory,
   fetchAgentRuntimeSummary,
   fetchAgentTodos,
+  fetchConversationDetail,
   fetchConversationHistory,
   fetchCurrentEnterpriseUser,
   fetchWorkbenchShortcuts,
@@ -825,16 +826,63 @@ export default {
       };
       this.navigateToView("chat");
     },
-    selectConversation(conversation) {
+    async selectConversation(conversation) {
       if (!conversation) {
         return;
       }
       this.navigateToView("chat");
-      this.activeHistoryId = conversation.id || "";
+      const conversationId = conversation.id || conversation.conversationId || "";
+      this.activeHistoryId = conversationId;
       this.selectedConversation = {
         ...conversation,
         selectedAt: Date.now()
       };
+      if (!conversationId
+        || conversation.detailsLoaded
+        || (Array.isArray(conversation.messages) && conversation.messages.length > 0)) {
+        return;
+      }
+      try {
+        const detail = await fetchConversationDetail(conversationId, this.tenantId);
+        if (!detail || this.activeHistoryId !== conversationId) {
+          return;
+        }
+        const toTimestamp = (value, fallback = Date.now()) => {
+          if (typeof value === "number" && Number.isFinite(value)) {
+            return value;
+          }
+          const parsed = Date.parse(value || "");
+          return Number.isNaN(parsed) ? fallback : parsed;
+        };
+        const hydrated = {
+          ...conversation,
+          ...detail,
+          id: detail.id || conversationId,
+          conversationId: detail.id || conversationId,
+          question: conversation.question || detail.title || "未命名会话",
+          timestamp: toTimestamp(detail.updatedAt, conversation.timestamp || Date.now()),
+          createdAt: toTimestamp(detail.createdAt, conversation.createdAt || Date.now()),
+          analysisTree: detail.analysisTree || conversation.analysisTree || {},
+          messages: Array.isArray(detail.messages)
+            ? detail.messages.map((message) => ({
+                ...message,
+                timestamp: toTimestamp(message?.timestamp)
+              }))
+            : [],
+          detailsLoaded: true,
+          selectedAt: Date.now()
+        };
+        this.selectedConversation = hydrated;
+        this.conversationHistory = this.conversationHistory.map((item) =>
+          item.id === conversationId || item.conversationId === conversationId
+            ? hydrated
+            : item
+        );
+      } catch (error) {
+        if (this.activeHistoryId === conversationId) {
+          this.historyError = error.message || "会话详情加载失败";
+        }
+      }
     },
     async deleteConversation(conversation) {
       if (!conversation?.id) {

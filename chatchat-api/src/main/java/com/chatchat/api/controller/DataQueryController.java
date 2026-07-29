@@ -589,8 +589,7 @@ public class DataQueryController {
      */
     private List<HistoryItem> loadPersistentHistory(String tenantId, String userId, String keyword, String status, Integer limit) {
         List<HistoryItem> items = conversationService.listUserConversations(tenantId, userId).stream()
-            .map(conversation -> conversationService.getConversation(tenantId, conversation.getId()).orElse(conversation))
-            .map(this::toHistoryItem)
+            .map(this::toHistorySummaryItem)
             .toList();
         return filterHistory(items, keyword, status, limit);
     }
@@ -634,6 +633,31 @@ public class DataQueryController {
             messages,
             conversation.getStatus() == null || conversation.getStatus().isBlank()
                 ? resolveHistoryStatus(null, messages)
+                : conversation.getStatus(),
+            toEpochMillis(conversation.getCreatedAt())
+        );
+    }
+
+    /**
+     * Converts a conversation index row into a lightweight history entry.
+     * Message details are loaded only when the user opens one conversation.
+     */
+    private HistoryItem toHistorySummaryItem(Conversation conversation) {
+        String conversationId = conversation.getId();
+        String title = firstNonBlank(conversation.getTitle(), "未命名会话");
+        return new HistoryItem(
+            conversationId,
+            title,
+            toEpochMillis(conversation.getUpdatedAt()),
+            conversationId,
+            conversation.getSkillId(),
+            conversation.getModelName(),
+            conversation.getMode() == null || conversation.getMode().isBlank() ? "llm_chat" : conversation.getMode(),
+            conversation.getAgentName(),
+            safeMap(conversation.getAnalysisTree()),
+            List.of(),
+            conversation.getStatus() == null || conversation.getStatus().isBlank()
+                ? "completed"
                 : conversation.getStatus(),
             toEpochMillis(conversation.getCreatedAt())
         );

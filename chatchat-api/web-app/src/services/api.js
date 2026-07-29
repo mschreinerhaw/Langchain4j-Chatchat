@@ -593,6 +593,15 @@ export function fetchConversationHistory(userId, filters = {}) {
   return apiRequest(`/data/history/${encodeURIComponent(userId)}${query ? `?${query}` : ""}`);
 }
 
+export function fetchConversationDetail(conversationId, tenantId = "") {
+  const params = new URLSearchParams();
+  if (tenantId) {
+    params.set("tenantId", tenantId);
+  }
+  const query = params.toString();
+  return apiRequest(`/conversations/${encodeURIComponent(conversationId)}${query ? `?${query}` : ""}`);
+}
+
 export function saveConversationHistory(payload) {
   return apiRequest("/data/history", {
     method: "POST",

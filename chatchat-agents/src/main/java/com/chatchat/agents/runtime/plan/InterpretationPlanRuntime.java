@@ -253,15 +253,16 @@ public class InterpretationPlanRuntime {
 
         while (!remaining.isEmpty()) {
             InterpretationPlanEventState eventState = eventState(runId, completed.keySet());
-            Set<Integer> completedStepIds = new LinkedHashSet<>(completed.keySet());
-            completedStepIds.addAll(eventState.completedStepIds());
+            Set<Integer> storedCompletedStepIds = new LinkedHashSet<>(completed.keySet());
+            storedCompletedStepIds.addAll(eventState.completedStepIds());
             List<StepExecution> hydratedExecutions =
-                hydrateCompletedExecutionsFromEvents(runId, completedStepIds, completed);
+                hydrateCompletedExecutionsFromEvents(runId, storedCompletedStepIds, completed, stepsById);
             for (StepExecution hydrated : hydratedExecutions) {
                 if (hydrated.finalAnswer() != null && !hydrated.finalAnswer().isBlank()) {
                     finalAnswer = hydrated.finalAnswer();
                 }
             }
+            Set<Integer> completedStepIds = new LinkedHashSet<>(completed.keySet());
             remaining.removeAll(completedStepIds);
             if (remaining.isEmpty()) {
                 break;
@@ -2027,9 +2028,11 @@ public class InterpretationPlanRuntime {
 
     private List<StepExecution> hydrateCompletedExecutionsFromEvents(String runId,
                                                                      Set<Integer> completedStepIds,
-                                                                     Map<Integer, StepExecution> completed) {
+                                                                     Map<Integer, StepExecution> completed,
+                                                                     Map<Integer, InterpretationPlan.Step> plannedSteps) {
         if (runStore == null || runId == null || runId.isBlank()
-            || completedStepIds == null || completedStepIds.isEmpty() || completed == null) {
+            || completedStepIds == null || completedStepIds.isEmpty() || completed == null
+            || plannedSteps == null || plannedSteps.isEmpty()) {
             return List.of();
         }
         Map<Integer, AgentObservation> rawObservations = rawObservationsByStep(runId);
@@ -2052,14 +2055,26 @@ public class InterpretationPlanRuntime {
             if (!Boolean.TRUE.equals(booleanValue(firstPresent(metadata, "success", "toolSuccess")))) {
                 continue;
             }
-            Object output = outputFromObservationMetadata(metadata);
             String actionType = stringValue(firstPresent(
                 metadata, "interpretationPlanActionType", "actionType"));
+            String toolName = stringValue(firstPresent(metadata, "toolName", "source"));
+            InterpretationPlan.Step plannedStep = plannedSteps.get(stepId);
+            if (!matchesStoredStepIdentity(plannedStep, actionType, toolName)) {
+                log.info("Ignored stale completed plan step after rewrite stepId={} storedAction={} "
+                        + "storedTool={} plannedAction={} plannedTool={}",
+                    stepId,
+                    actionType,
+                    toolName,
+                    plannedStep == null ? null : plannedStep.actionType(),
+                    plannedStep == null ? null : plannedStep.toolName());
+                continue;
+            }
+            Object output = outputFromObservationMetadata(metadata);
             String finalAnswer = finalAnswerFromHydratedObservation(actionType, output, metadata);
             StepExecution execution = new StepExecution(
                 stepId,
                 actionType,
-                stringValue(firstPresent(metadata, "toolName", "source")),
+                toolName,
                 true,
                 output,
                 null,
@@ -2075,6 +2090,20 @@ public class InterpretationPlanRuntime {
             hydrated.add(execution);
         }
         return List.copyOf(hydrated);
+    }
+
+    private boolean matchesStoredStepIdentity(InterpretationPlan.Step plannedStep,
+                                              String storedActionType,
+                                              String storedToolName) {
+        if (plannedStep == null || storedActionType == null
+            || !storedActionType.equals(plannedStep.actionType())) {
+            return false;
+        }
+        if (!"mcp_tool".equals(plannedStep.actionType())) {
+            return true;
+        }
+        return !toolSemanticKey(storedToolName).isBlank()
+            && toolSemanticKey(storedToolName).equals(toolSemanticKey(plannedStep.toolName()));
     }
 
     private Object outputFromObservationMetadata(Map<String, Object> metadata) {

@@ -4703,6 +4703,98 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void doesNotReuseCompletedStepIdWhenRewriteChangesTheToolIdentity() {
+        String rewrittenTool = "mcp_chatchat_mcp_server_sql_metadata_search";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(rewrittenTool)).thenReturn(true);
+        when(toolRegistry.getToolMetadata(rewrittenTool))
+            .thenReturn(ToolMetadata.builder().id(rewrittenTool).riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of("tableCatalog", List.of(Map.of("tableName", "dwd_var_scr_code_info_d")))),
+            ToolMetadata.builder().id(rewrittenTool).build(),
+            null,
+            "success",
+            Map.of()
+        ));
+        InMemoryAgentRunStore runStore = new InMemoryAgentRunStore();
+        String runId = "rewrite-step-identity-run";
+        runStore.recordObservation(runId, AgentObservation.builder()
+            .type("tool")
+            .source("mcp_chatchat_mcp_server_database_asset_search")
+            .content("old step 1 completed")
+            .metadata(Map.of(
+                "interpretationPlanStepId", 1,
+                "interpretationPlanActionType", "mcp_tool",
+                "toolName", "mcp_chatchat_mcp_server_database_asset_search",
+                "success", true,
+                "stepOutput", Map.of("assets", List.of(Map.of("name", "TDH数据仓库")))
+            ))
+            .build());
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("metadata_search", "Find rewritten table metadata", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(
+                    1,
+                    "mcp_tool",
+                    rewrittenTool,
+                    Map.of("schema", "gdp_dwd", "limit", 50, "includeColumns", false),
+                    List.of(),
+                    null,
+                    null
+                ),
+                new InterpretationPlan.Step(
+                    2,
+                    "final_answer",
+                    "",
+                    Map.of("answer", "done"),
+                    List.of(1),
+                    null,
+                    null
+                )
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                2,
+                false,
+                List.of(rewrittenTool),
+                List.of(),
+                30000
+            ),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            runStore,
+            scriptedController(List.of(List.of(2)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan,
+                toolRegistry,
+                List.of(rewrittenTool),
+                "tenant-1",
+                "req-rewrite-step-identity",
+                "conv-rewrite-step-identity",
+                "user-1",
+                Map.of("__agentRunId", runId)
+            )
+        );
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.steps())
+            .extracting(InterpretationPlanRuntime.StepExecution::stepId)
+            .containsExactly(1, 2);
+        assertThat(result.metadata().get("completedPlanStepIds")).isEqualTo(List.of(1, 2));
+        ArgumentCaptor<ToolRuntimeRequest> requestCaptor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
+        verify(toolRuntimeService, times(1)).execute(requestCaptor.capture());
+        assertThat(requestCaptor.getValue().getToolName()).isEqualTo(rewrittenTool);
+    }
+
+    @Test
     void failsWhenEdgeContractRequiredFieldIsMissing() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("document_search")).thenReturn(true);

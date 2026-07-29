@@ -154,6 +154,8 @@ public class EnterpriseMetadataMcpToolPublisher {
         addText(terms, normalized.get("query"));
         addTexts(terms, normalized.get("queryTerms"));
         addTexts(terms, normalized.get("searchTerms"));
+        addTexts(terms, normalized.get("keywords"));
+        addText(terms, normalized.get("keyword"));
         addTexts(terms, normalized.get("queries"));
         if (!terms.isEmpty()) {
             normalized.put("query", String.join(" ", terms));
@@ -336,6 +338,8 @@ public class EnterpriseMetadataMcpToolPublisher {
             "queryTerms", mapOf(
                 "type", "array",
                 "items", Map.of("type", "string"),
+                "aliases", List.of("keywords", "keyword", "queries"),
+                "acceptedSources", List.of("keywords", "keyword", "queries"),
                 "description", "Model-extracted business concepts and candidate field meanings for new-table metadata discovery"
             ),
             "searchTerms", mapOf(

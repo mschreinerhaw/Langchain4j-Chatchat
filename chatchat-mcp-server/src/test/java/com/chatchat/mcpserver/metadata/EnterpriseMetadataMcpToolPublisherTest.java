@@ -136,6 +136,34 @@ class EnterpriseMetadataMcpToolPublisherTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void legacyKeywordsRemainSearchEvidenceDuringProtocolMigration() {
+        EnterpriseMetadataMatchingService matchingService = mock(EnterpriseMetadataMatchingService.class);
+        EnterpriseMetadataSearchService searchService = mock(EnterpriseMetadataSearchService.class);
+        EnterpriseMetadataMcpToolPublisher publisher = publisher(matchingService, searchService);
+        when(searchService.searchRequiredBundle(any())).thenReturn(Map.of(
+            "schemaVersion", EnterpriseMetadataSearchService.REQUIRED_BUNDLE_SCHEMA_VERSION,
+            "success", true,
+            "count", 1,
+            "results", List.of(),
+            "evidenceObjects", List.of()
+        ));
+
+        Map<String, Object> result = publisher.executeSearch(Map.of(
+            "keywords", List.of("var_scr_code_info", "变量评分代码信息", "评分代码"),
+            "requestId", "legacy-keywords-1"
+        ));
+
+        assertThat(result)
+            .containsEntry("success", true)
+            .containsEntry("operationMode", "ENTERPRISE_METADATA_DISCOVERY");
+        assertThat((List<String>) result.get("inputTerms"))
+            .containsExactly("var_scr_code_info", "变量评分代码信息", "评分代码");
+        verify(searchService).searchRequiredBundle(any());
+        verifyNoInteractions(matchingService);
+    }
+
+    @Test
     void nonexistentTargetTableFallsBackFromSchemaLookupToTermDiscovery() {
         EnterpriseMetadataMatchingService matchingService = mock(EnterpriseMetadataMatchingService.class);
         EnterpriseMetadataSearchService searchService = mock(EnterpriseMetadataSearchService.class);

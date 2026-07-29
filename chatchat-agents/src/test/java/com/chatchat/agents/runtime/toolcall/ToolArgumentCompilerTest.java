@@ -67,4 +67,31 @@ class ToolArgumentCompilerTest {
         assertThat(result.structuredError("database_query", "query_customer_asset"))
             .contains("validationErrors", "customerId", "startDate");
     }
+
+    @Test
+    void normalizesLegacyEnterpriseSearchKeywordsToCanonicalQueryTerms() {
+        Map<String, Object> schema = Map.of(
+            "type", "object",
+            "additionalProperties", false,
+            "properties", Map.of(
+                "queryTerms", Map.of(
+                    "type", "array",
+                    "items", Map.of("type", "string"),
+                    "aliases", List.of("keywords", "keyword", "queries")
+                ),
+                "limit", Map.of("type", "integer")
+            )
+        );
+
+        ToolArgumentCompiler.CompilationResult result = compiler.compile(Map.of(
+            "keywords", List.of("var_scr_code_info", "变量评分代码信息", "评分代码"),
+            "limit", 50
+        ), schema);
+
+        assertThat(result.valid()).isTrue();
+        assertThat(result.parameters())
+            .containsEntry("queryTerms", List.of("var_scr_code_info", "变量评分代码信息", "评分代码"))
+            .containsEntry("limit", 50)
+            .doesNotContainKey("keywords");
+    }
 }

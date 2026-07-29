@@ -17,6 +17,37 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AgentAnswerFinalizerEvidenceAnswerTest {
 
     @Test
+    void labelsMixedSuccessfulAndFailedToolsAsPartialEvidence() {
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            (chatModel, query, systemPrompt, observations, answer) ->
+                new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok"),
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        InteractionToolTrace successful = InteractionToolTrace.builder()
+            .toolName("mcp_chatchat_mcp_server_sql_metadata_search")
+            .success(true)
+            .output("{\"success\":true,\"results\":[{\"table\":\"customer_info\"}]}")
+            .build();
+        InteractionToolTrace failed = InteractionToolTrace.builder()
+            .toolName("mcp_chatchat_mcp_server_enterprise_metadata_search")
+            .success(false)
+            .errorMessage("No complete field schema could be resolved for metadata matching")
+            .build();
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishExecution(
+            "仅基于已返回元数据形成阶段性结果。",
+            List.of(successful, failed),
+            new LinkedHashMap<>(),
+            List.of()
+        );
+
+        assertThat(result.answer()).contains("\u8bc1\u636e\u72b6\u6001\uff1a\u90e8\u5206\u4e8b\u5b9e\u4f9d\u636e");
+        assertThat(result.metadata())
+            .containsEntry("answerEvidenceStatus", "PARTIAL_ANALYSIS")
+            .containsEntry("answerEvidenceLabel", "\u90e8\u5206\u4e8b\u5b9e\u4f9d\u636e");
+    }
+
+    @Test
     void summaryFailureFallsBackToPersistedEnterpriseMetadataFieldsInsteadOfEmptyResult() {
         AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
             (chatModel, query, systemPrompt, observations, answer) ->

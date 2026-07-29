@@ -136,7 +136,7 @@ public class ApiInvokeService {
                 request.headers().map().keySet(),
                 ToolLogSummarizer.summarize(renderArgs));
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            if (isAuthFailure(response) && isLivedataTransport(transport)) {
+            if (shouldRefreshLivedataSession(response, transport)) {
                 ApiHttpTransport retryTransport = withLivedataSessionPlaceholder(transport);
                 renderArgs = enrichArguments(retryTransport, auditArgs, true);
                 request = buildRequest(retryTransport, renderArgs);
@@ -348,6 +348,17 @@ public class ApiInvokeService {
         return false;
     }
 
+    private boolean shouldRefreshLivedataSession(HttpResponse<String> response, ApiHttpTransport transport) {
+        if (!isLivedataTransport(transport)) {
+            return false;
+        }
+        // Some LiveData deployments hide an expired session behind the generic
+        // HTTP-200 payload {"retu_code":-1,"memo":"调用服务失败！"}.
+        // Refresh once for that response as well, so gateways imported with an
+        // old fixed sessionId repair themselves without re-registration.
+        return isAuthFailure(response) || livedataBusinessFailure(response.body()) != null;
+    }
+
     /**
      * Converts the value to result.
      *
@@ -358,15 +369,52 @@ public class ApiInvokeService {
         Object parsedBody = parseBody(response.body());
         boolean httpSuccess = response.statusCode() >= 200 && response.statusCode() < 300;
         boolean authFailure = isAuthFailure(response);
-        boolean success = httpSuccess && !authFailure;
+        String businessFailure = livedataBusinessFailure(response.body());
+        boolean success = httpSuccess && !authFailure && businessFailure == null;
         String errorMessage = null;
         if (!httpSuccess) {
             errorMessage = "API returned HTTP " + response.statusCode();
         } else if (authFailure) {
             errorMessage = "API authentication failed";
+        } else if (businessFailure != null) {
+            errorMessage = businessFailure;
         }
         return new ApiInvokeResult(success, response.statusCode(), response.headers().map(), parsedBody,
             response.body(), errorMessage);
+    }
+
+    private String livedataBusinessFailure(String responseBody) {
+        if (responseBody == null || responseBody.isBlank()) {
+            return null;
+        }
+        try {
+            Object parsed = objectMapper.readValue(responseBody, Object.class);
+            if (!(parsed instanceof Map<?, ?> map)) {
+                return null;
+            }
+            Object code = firstMapValue(map, "retu_code", "retuCode", "returnCode");
+            if (code == null || "0".equals(String.valueOf(code).trim())) {
+                return null;
+            }
+            Object memo = firstMapValue(map, "memo", "message", "msg", "note");
+            String detail = memo == null ? "" : String.valueOf(memo).trim();
+            return detail.isBlank()
+                ? "LiveData service returned business code " + code
+                : detail + " (retu_code=" + code + ")";
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private Object firstMapValue(Map<?, ?> map, String... names) {
+        for (String name : names) {
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                if (entry.getKey() != null && name.equalsIgnoreCase(String.valueOf(entry.getKey()))) {
+                    return entry.getValue();
+                }
+            }
+        }
+        return null;
     }
 
     /**

@@ -212,6 +212,172 @@ class ApiInvokeServiceTest {
         return provider;
     }
 
+    @Test
+    void invokeUsesDeclaredSchemaDefaultWhenOptionalArgumentIsMissing() throws Exception {
+        AtomicReference<String> requestedBody = new AtomicReference<>();
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/livedata", exchange -> {
+            requestedBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            byte[] body = "{\"retu_code\":0,\"records\":[]}".getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.start();
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            ApiResponseCacheService cacheService = mock(ApiResponseCacheService.class);
+            useDirectCacheLoader(cacheService);
+            HttpEndpointConfigService gatewayConfigService = mock(HttpEndpointConfigService.class);
+            HttpEndpointConfig gateway = new HttpEndpointConfig();
+            gateway.setId("gateway-1");
+            gateway.setEnabled(true);
+            gateway.setMethod("POST");
+            gateway.setUrlTemplate("http://localhost:" + server.getAddress().getPort() + "/livedata");
+            gateway.setBodyTemplate("{\"data\":{\"tab_name\":\"{{tab_name}}\"}}");
+            gateway.setTimeoutMs(5000);
+            when(gatewayConfigService.getById("gateway-1")).thenReturn(gateway);
+            ApiInvokeService service = new ApiInvokeService(
+                objectMapper,
+                mock(InvocationAuditService.class),
+                cacheService,
+                mockObjectProvider(),
+                new TemplateParameterValidator(objectMapper),
+                gatewayConfigService
+            );
+            ApiServiceConfig config = new ApiServiceConfig();
+            config.setId("api-1");
+            config.setToolName("livedata_test");
+            config.setGatewayId("gateway-1");
+            config.setInputSchemaJson("""
+                {
+                  "type":"object",
+                  "properties":{
+                    "tab_name":{"type":"string","default":"TJGMXLS"}
+                  }
+                }
+                """);
+
+            ApiInvokeResult result = service.invoke(config, Map.of());
+
+            assertThat(result.success()).isTrue();
+            assertThat(requestedBody.get()).contains("\"tab_name\":\"TJGMXLS\"");
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void registeredLivedataGatewayRefreshesFixedSessionAfterGenericBusinessFailure() throws Exception {
+        AtomicInteger calls = new AtomicInteger();
+        AtomicReference<String> retriedBody = new AtomicReference<>();
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/livedata", exchange -> {
+            String requestBody = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            String responseBody;
+            if (calls.incrementAndGet() == 1) {
+                responseBody = "{\"retu_code\":-1,\"memo\":\"调用服务失败！\",\"records\":[]}";
+            } else {
+                retriedBody.set(requestBody);
+                responseBody = "{\"retu_code\":0,\"memo\":\"成功\",\"records\":[{\"id\":\"1\"}]}";
+            }
+            byte[] body = responseBody.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json;charset=UTF-8");
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.start();
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            ApiResponseCacheService cacheService = mock(ApiResponseCacheService.class);
+            useDirectCacheLoader(cacheService);
+            HttpEndpointConfigService gatewayConfigService = mock(HttpEndpointConfigService.class);
+            HttpEndpointConfig gateway = new HttpEndpointConfig();
+            gateway.setId("gateway-1");
+            gateway.setEnabled(true);
+            gateway.setMethod("POST");
+            gateway.setUrlTemplate("http://localhost:" + server.getAddress().getPort() + "/livedata");
+            gateway.setHeadersJson("{\"sessionId\":\"expired-session\",\"x-ams-token\":\"token\"}");
+            gateway.setBodyTemplate("{\"sessionId\":\"expired-session\",\"namespace\":\"livedata\",\"head\":{\"x-ams-token\":\"token\"},\"data\":{}}");
+            gateway.setTimeoutMs(5000);
+            when(gatewayConfigService.getById("gateway-1")).thenReturn(gateway);
+            LivedataSessionService sessionService = mock(LivedataSessionService.class);
+            when(sessionService.refreshSessionId()).thenReturn("refreshed-session");
+            ObjectProvider<LivedataSessionService> provider = mock(ObjectProvider.class);
+            when(provider.getIfAvailable()).thenReturn(sessionService);
+            ApiInvokeService service = new ApiInvokeService(
+                objectMapper,
+                mock(InvocationAuditService.class),
+                cacheService,
+                provider,
+                new TemplateParameterValidator(objectMapper),
+                gatewayConfigService
+            );
+            ApiServiceConfig config = new ApiServiceConfig();
+            config.setId("api-1");
+            config.setToolName("livedata_test");
+            config.setGatewayId("gateway-1");
+            config.setInputSchemaJson("{\"type\":\"object\",\"properties\":{}}");
+
+            ApiInvokeResult result = service.invoke(config, Map.of());
+
+            assertThat(result.success()).isTrue();
+            assertThat(calls.get()).isEqualTo(2);
+            assertThat(retriedBody.get()).contains("\"sessionId\":\"refreshed-session\"");
+            verify(sessionService).refreshSessionId();
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void http200LivedataBusinessFailureIsReportedAsFailure() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/livedata", exchange -> {
+            byte[] body = "{\"retu_code\":-1,\"memo\":\"调用服务失败！\",\"records\":[]}"
+                .getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.start();
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            ApiResponseCacheService cacheService = mock(ApiResponseCacheService.class);
+            useDirectCacheLoader(cacheService);
+            HttpEndpointConfigService gatewayConfigService = mock(HttpEndpointConfigService.class);
+            HttpEndpointConfig gateway = new HttpEndpointConfig();
+            gateway.setId("gateway-1");
+            gateway.setEnabled(true);
+            gateway.setMethod("POST");
+            gateway.setUrlTemplate("http://localhost:" + server.getAddress().getPort() + "/livedata");
+            gateway.setBodyTemplate("{}");
+            gateway.setTimeoutMs(5000);
+            when(gatewayConfigService.getById("gateway-1")).thenReturn(gateway);
+            ApiInvokeService service = new ApiInvokeService(
+                objectMapper,
+                mock(InvocationAuditService.class),
+                cacheService,
+                mockObjectProvider(),
+                new TemplateParameterValidator(objectMapper),
+                gatewayConfigService
+            );
+            ApiServiceConfig config = new ApiServiceConfig();
+            config.setId("api-1");
+            config.setToolName("livedata_test");
+            config.setGatewayId("gateway-1");
+            config.setInputSchemaJson("{\"type\":\"object\",\"properties\":{}}");
+
+            ApiInvokeResult result = service.invoke(config, Map.of());
+
+            assertThat(result.success()).isFalse();
+            assertThat(result.errorMessage()).isEqualTo("调用服务失败！ (retu_code=-1)");
+        } finally {
+            server.stop(0);
+        }
+    }
+
     private void useDirectCacheLoader(ApiResponseCacheService cacheService) {
         when(cacheService.getOrLoad(any(), anyMap(), any())).thenAnswer(invocation -> {
             @SuppressWarnings("unchecked")

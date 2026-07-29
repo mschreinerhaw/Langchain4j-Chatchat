@@ -22,6 +22,9 @@ mkdir -p "$APP_HOME/logs" "$APP_HOME/run" "$APP_HOME/data" "$EXT_LIB_DIR" "$DRIV
 
 . "$APP_HOME/bin/load-env.sh"
 
+# Keep all relative storage and heap-dump paths anchored to the release directory.
+cd "$APP_HOME"
+
 REMAINING_ARGS=""
 while [ "$#" -gt 0 ]; do
   REMAINING_ARGS="${REMAINING_ARGS}${REMAINING_ARGS:+ }$1"

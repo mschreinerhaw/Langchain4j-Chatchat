@@ -17,6 +17,46 @@ class AgentToolArgumentResolverTest {
     private final AgentToolArgumentResolver resolver = new AgentToolArgumentResolver(new AgentToolNameResolver(), 5);
 
     @Test
+    void mandatoryFallbackTransportsPublishedDependencyEvidence() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        ToolMetadata metadata = ToolMetadata.builder()
+            .metadata(Map.of(
+                "mcpToolMeta", Map.of(
+                    "inputAdapterContract", Map.of(
+                        "contractVersion", "runtime_dependency_evidence.v1",
+                        "dependencyEvidenceParameter", "sourceEvidence"
+                    )
+                )
+            ))
+            .build();
+        when(registry.getToolMetadata("mcp_chatchat_mcp_server_enterprise_metadata_search"))
+            .thenReturn(metadata);
+        AgentToolArgumentResolver resolverWithRegistry =
+            new AgentToolArgumentResolver(new AgentToolNameResolver(), 5, registry);
+        InteractionToolTrace sqlMetadata = InteractionToolTrace.builder()
+            .toolName("mcp_chatchat_mcp_server_sql_metadata_search")
+            .success(true)
+            .output("""
+                {"success":true,"results":[{"location":{"tableName":"customer_info"},"columns":[{"name":"cust_id"}]}]}
+                """)
+            .build();
+
+        Map<String, Object> result = resolverWithRegistry.applyPublishedDependencyEvidenceContract(
+            "mcp_chatchat_mcp_server_enterprise_metadata_search",
+            Map.of("query", "设计客户信息表"),
+            List.of(sqlMetadata)
+        );
+
+        assertThat(result).containsKey("sourceEvidence");
+        assertThat(result.get("sourceEvidence"))
+            .isInstanceOfSatisfying(List.class, evidence -> {
+                assertThat(evidence).hasSize(1);
+                assertThat(((Map<?, ?>) evidence.get(0)).get("output"))
+                    .isInstanceOf(Map.class);
+            });
+    }
+
+    @Test
     void documentSearchUsesOpenRecallByDefaultAndPreservesOriginalQuery() {
         Map<String, Object> arguments = Map.of(
             "query", "跨交易日 任务依赖 执行判断 调度方案",

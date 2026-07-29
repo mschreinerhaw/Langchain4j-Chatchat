@@ -35,5 +35,16 @@ public interface AgentRunStore {
 
     List<AgentObservation> observations(String runId, int offset, int limit);
 
+    default Optional<Object> evidence(String documentId) {
+        return Optional.empty();
+    }
+
+    /**
+     * Removes terminal runs whose retention window has expired.
+     *
+     * @return number of removed runs
+     */
+    int cleanupExpiredRuns();
+
     AgentRuntimeSnapshot snapshot();
 }

@@ -1,8 +1,9 @@
 package com.chatchat.mcpserver.metadata;
 
-import io.modelcontextprotocol.server.McpSyncServer;
 import com.chatchat.mcpserver.sql.SqlMetadataSearchService;
+import io.modelcontextprotocol.server.McpSyncServer;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.util.List;
 import java.util.Map;
@@ -17,17 +18,13 @@ import static org.mockito.Mockito.when;
 class EnterpriseMetadataMcpToolPublisherTest {
 
     @Test
+    @SuppressWarnings("unchecked")
     void routesCompleteFieldBundleThroughSingleEnterpriseMetadataSearchCapability() {
         EnterpriseMetadataMatchingService matchingService = mock(EnterpriseMetadataMatchingService.class);
-        EnterpriseMetadataMcpToolPublisher publisher = new EnterpriseMetadataMcpToolPublisher(
-            mock(McpSyncServer.class),
-            matchingService,
-            new EnterpriseMetadataRequestAdapter(mock(SqlMetadataSearchService.class)),
-            mock(EnterpriseMetadataProperties.class),
-            mock(MetadataGovernancePolicyService.class)
-        );
+        EnterpriseMetadataSearchService searchService = mock(EnterpriseMetadataSearchService.class);
+        EnterpriseMetadataMcpToolPublisher publisher = publisher(matchingService, searchService);
         Map<String, Object> request = Map.of(
-            "query", "client_id 客户编号 liability_amount 负债金额",
+            "query", "client_id customer identifier liability_amount",
             "purpose", "EXISTING_TABLE_METADATA_ALIGNMENT",
             "targetObject", Map.of(
                 "type", "TABLE",
@@ -67,36 +64,142 @@ class EnterpriseMetadataMcpToolPublisherTest {
             .containsEntry("processedFieldCount", 2)
             .containsEntry("allFieldsProcessed", true);
         verify(matchingService).match(any());
+        verifyNoInteractions(searchService);
     }
 
     @Test
-    void neverFallsBackToCatalogSearchWhenFieldSchemaCannotBeResolved() {
-        EnterpriseMetadataMatchingService matchingService =
-            mock(EnterpriseMetadataMatchingService.class);
-        EnterpriseMetadataMcpToolPublisher publisher = new EnterpriseMetadataMcpToolPublisher(
-            mock(McpSyncServer.class),
-            matchingService,
-            new EnterpriseMetadataRequestAdapter(mock(SqlMetadataSearchService.class)),
-            mock(EnterpriseMetadataProperties.class),
-            mock(MetadataGovernancePolicyService.class)
-        );
+    @SuppressWarnings("unchecked")
+    void queryTermsDiscoverEnterpriseMetadataForNewTableWithoutDraftFields() {
+        EnterpriseMetadataMatchingService matchingService = mock(EnterpriseMetadataMatchingService.class);
+        EnterpriseMetadataSearchService searchService = mock(EnterpriseMetadataSearchService.class);
+        EnterpriseMetadataMcpToolPublisher publisher = publisher(matchingService, searchService);
+        when(searchService.searchRequiredBundle(any())).thenReturn(Map.of(
+            "schemaVersion", EnterpriseMetadataSearchService.REQUIRED_BUNDLE_SCHEMA_VERSION,
+            "success", true,
+            "count", 3,
+            "backend", "opensearch",
+            "results", List.of(
+                Map.of("metadataType", "standard_field", "name", "客户号"),
+                Map.of("metadataType", "enterprise_term", "name", "客户"),
+                Map.of("metadataType", "code_dictionary", "name", "客户状态")
+            ),
+            "evidenceObjects", List.of()
+        ));
 
         Map<String, Object> result = publisher.executeSearch(Map.of(
-            "query", "无法解析为字段或物理表的普通查询",
-            "requestId", "missing-fields-1"
+            "queryTerms", List.of(
+                "客户", "客户信息", "customer", "客户号", "客户名称", "证件", "地址", "手机", "状态"
+            ),
+            "requestId", "new-table-1"
         ));
 
         assertThat(result)
-            .containsEntry("success", false)
-            .containsEntry("errorCode", "FIELD_SCHEMA_REQUIRED")
+            .containsEntry("success", true)
             .containsEntry("invokedCapability", "enterprise_metadata_search")
-            .containsEntry("retrievalMode", "UNIFIED_FIELD_EVIDENCE_BUNDLE");
-        assertThat((Map<String, Object>) result.get("coverage"))
-            .containsEntry("inputFieldCount", 0)
-            .containsEntry("processedFieldCount", 0)
-            .containsEntry("allFieldsProcessed", false);
-        assertThat((List<Map<String, Object>>) result.get("fieldMatches")).isEmpty();
-        assertThat((List<Map<String, Object>>) result.get("evidenceObjects")).isEmpty();
+            .containsEntry("operationMode", "ENTERPRISE_METADATA_DISCOVERY")
+            .containsEntry("count", 3);
+        assertThat((List<String>) result.get("inputTerms"))
+            .contains("客户", "客户号", "客户名称", "手机", "状态");
+        ArgumentCaptor<EnterpriseMetadataSearchService.SearchRequest> request =
+            ArgumentCaptor.forClass(EnterpriseMetadataSearchService.SearchRequest.class);
+        verify(searchService).searchRequiredBundle(request.capture());
+        assertThat(request.getValue().query())
+            .contains("客户", "客户信息", "customer", "客户号", "客户名称", "证件", "地址", "手机", "状态");
         verifyNoInteractions(matchingService);
+    }
+
+    @Test
+    void queryOnlyAlsoUsesDiscoveryInsteadOfDemandingFieldSchema() {
+        EnterpriseMetadataMatchingService matchingService = mock(EnterpriseMetadataMatchingService.class);
+        EnterpriseMetadataSearchService searchService = mock(EnterpriseMetadataSearchService.class);
+        EnterpriseMetadataMcpToolPublisher publisher = publisher(matchingService, searchService);
+        when(searchService.searchRequiredBundle(any())).thenReturn(Map.of(
+            "schemaVersion", EnterpriseMetadataSearchService.REQUIRED_BUNDLE_SCHEMA_VERSION,
+            "success", true,
+            "count", 0,
+            "backend", "opensearch",
+            "results", List.of(),
+            "evidenceObjects", List.of()
+        ));
+
+        Map<String, Object> result = publisher.executeSearch(Map.of(
+            "query", "设计客户信息表",
+            "requestId", "new-table-query-1"
+        ));
+
+        assertThat(result)
+            .containsEntry("success", true)
+            .containsEntry("operationMode", "ENTERPRISE_METADATA_DISCOVERY")
+            .containsEntry("count", 0);
+        verify(searchService).searchRequiredBundle(any());
+        verifyNoInteractions(matchingService);
+    }
+
+    @Test
+    void nonexistentTargetTableFallsBackFromSchemaLookupToTermDiscovery() {
+        EnterpriseMetadataMatchingService matchingService = mock(EnterpriseMetadataMatchingService.class);
+        EnterpriseMetadataSearchService searchService = mock(EnterpriseMetadataSearchService.class);
+        SqlMetadataSearchService sqlSearchService = mock(SqlMetadataSearchService.class);
+        EnterpriseMetadataMcpToolPublisher publisher =
+            publisher(matchingService, searchService, sqlSearchService);
+        when(sqlSearchService.search(any())).thenReturn(Map.of());
+        when(searchService.searchRequiredBundle(any())).thenReturn(Map.of(
+            "schemaVersion", EnterpriseMetadataSearchService.REQUIRED_BUNDLE_SCHEMA_VERSION,
+            "success", true,
+            "count", 2,
+            "backend", "opensearch",
+            "results", List.of(),
+            "evidenceObjects", List.of()
+        ));
+
+        Map<String, Object> result = publisher.executeSearch(Map.of(
+            "targetObject", Map.of("type", "TABLE", "name", "customer_profile_new"),
+            "queryTerms", List.of("customer", "customer name", "mobile", "status"),
+            "requestId", "new-table-target-1"
+        ));
+
+        assertThat(result)
+            .containsEntry("success", true)
+            .containsEntry("operationMode", "ENTERPRISE_METADATA_DISCOVERY")
+            .containsEntry("count", 2);
+        verify(sqlSearchService).search(any());
+        verify(searchService).searchRequiredBundle(any());
+        verifyNoInteractions(matchingService);
+    }
+
+    @Test
+    void rejectsOnlyWhenNeitherFieldsNorSearchTermsCanBeResolved() {
+        EnterpriseMetadataMatchingService matchingService = mock(EnterpriseMetadataMatchingService.class);
+        EnterpriseMetadataSearchService searchService = mock(EnterpriseMetadataSearchService.class);
+        EnterpriseMetadataMcpToolPublisher publisher = publisher(matchingService, searchService);
+
+        Map<String, Object> result = publisher.executeSearch(Map.of("requestId", "missing-input-1"));
+
+        assertThat(result)
+            .containsEntry("success", false)
+            .containsEntry("errorCode", "ENTERPRISE_METADATA_INPUT_REQUIRED");
+        verifyNoInteractions(searchService, matchingService);
+    }
+
+    private EnterpriseMetadataMcpToolPublisher publisher(
+        EnterpriseMetadataMatchingService matchingService,
+        EnterpriseMetadataSearchService searchService
+    ) {
+        return publisher(matchingService, searchService, mock(SqlMetadataSearchService.class));
+    }
+
+    private EnterpriseMetadataMcpToolPublisher publisher(
+        EnterpriseMetadataMatchingService matchingService,
+        EnterpriseMetadataSearchService searchService,
+        SqlMetadataSearchService sqlSearchService
+    ) {
+        return new EnterpriseMetadataMcpToolPublisher(
+            mock(McpSyncServer.class),
+            matchingService,
+            searchService,
+            new EnterpriseMetadataRequestAdapter(sqlSearchService),
+            mock(EnterpriseMetadataProperties.class),
+            mock(MetadataGovernancePolicyService.class)
+        );
     }
 }

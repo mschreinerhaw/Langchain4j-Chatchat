@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -89,6 +90,7 @@ class RocksDbChatMessageDetailStoreTest {
 
             assertThat(textStore.values).hasSize(1);
             assertThat(store.get(key)).contains(detail);
+            assertThat(textStore.putCount).hasValue(1);
             store.delete(key);
             assertThat(textStore.values).isEmpty();
         } finally {
@@ -96,10 +98,55 @@ class RocksDbChatMessageDetailStoreTest {
         }
     }
 
+    @Test
+    void migratesLegacyDetailOnlyOnceAcrossStoreRestart() {
+        ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
+        ChatDetailStoreProperties properties = new ChatDetailStoreProperties();
+        properties.setPath(tempDir.resolve("legacy-chat-details").toString());
+        TestTextStore disabledTextStore = new TestTextStore(false);
+        RocksDbChatMessageDetailStore legacyStore = new RocksDbChatMessageDetailStore(
+            properties, mapper, disabledTextStore
+        );
+        legacyStore.open();
+        ChatMessageDetail detail = ChatMessageDetail.builder()
+            .messageId("legacy-message")
+            .sessionId("legacy-session")
+            .tenantId("tenant-1")
+            .userId("user-1")
+            .role("assistant")
+            .content("legacy content")
+            .createdAt(Instant.parse("2026-07-29T00:00:02Z"))
+            .build();
+        String key = legacyStore.put(detail);
+        legacyStore.close();
+
+        properties.getExternalText().setEnabled(true);
+        TestTextStore textStore = new TestTextStore(true);
+        RocksDbChatMessageDetailStore migrationStore = new RocksDbChatMessageDetailStore(
+            properties, mapper, textStore
+        );
+        migrationStore.open();
+        assertThat(migrationStore.get(key)).contains(detail);
+        assertThat(textStore.putCount).hasValue(1);
+        migrationStore.close();
+
+        RocksDbChatMessageDetailStore reopenedStore = new RocksDbChatMessageDetailStore(
+            properties, mapper, textStore
+        );
+        reopenedStore.open();
+        try {
+            assertThat(reopenedStore.get(key)).contains(detail);
+            assertThat(textStore.putCount).hasValue(1);
+        } finally {
+            reopenedStore.close();
+        }
+    }
+
     private static class TestTextStore implements ChatMessageTextStore {
 
         private final boolean enabled;
         private final Map<String, ChatMessageDetail> values = new ConcurrentHashMap<>();
+        private final AtomicInteger putCount = new AtomicInteger();
 
         private TestTextStore(boolean enabled) {
             this.enabled = enabled;
@@ -112,6 +159,7 @@ class RocksDbChatMessageDetailStoreTest {
 
         @Override
         public void put(String documentId, ChatMessageDetail detail) {
+            putCount.incrementAndGet();
             values.put(documentId, detail);
         }
 

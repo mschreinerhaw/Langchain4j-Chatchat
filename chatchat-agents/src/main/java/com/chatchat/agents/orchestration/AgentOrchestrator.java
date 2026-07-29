@@ -5058,6 +5058,11 @@ public class AgentOrchestrator {
                 query,
                 webSearchResultLimit
             );
+            fallbackArguments = toolArguments.applyPublishedDependencyEvidenceContract(
+                fallbackTool,
+                fallbackArguments,
+                mandatoryPredecessorTraces(mandatoryTools, fallbackTool, traces)
+            );
             ToolCallExecution execution = executeToolCall(
                 fallbackTool,
                 fallbackArguments,
@@ -5103,6 +5108,33 @@ public class AgentOrchestrator {
         } else {
             metadata.put("mandatoryWorkflowStillMissingAfterFallback", remainingMandatoryTools);
         }
+    }
+
+    private List<InteractionToolTrace> mandatoryPredecessorTraces(List<String> mandatoryTools,
+                                                                  String fallbackTool,
+                                                                  List<InteractionToolTrace> traces) {
+        if (mandatoryTools == null || mandatoryTools.isEmpty()
+            || fallbackTool == null || traces == null || traces.isEmpty()) {
+            return List.of();
+        }
+        int fallbackIndex = -1;
+        for (int index = 0; index < mandatoryTools.size(); index++) {
+            if (toolNames.sameToolName(fallbackTool, mandatoryTools.get(index))) {
+                fallbackIndex = index;
+                break;
+            }
+        }
+        if (fallbackIndex <= 0) {
+            return List.of();
+        }
+        List<String> predecessors = mandatoryTools.subList(0, fallbackIndex);
+        return traces.stream()
+            .filter(Objects::nonNull)
+            .filter(InteractionToolTrace::isSuccess)
+            .filter(trace -> trace.getOutput() != null && !trace.getOutput().isBlank())
+            .filter(trace -> predecessors.stream()
+                .anyMatch(tool -> toolNames.sameToolName(tool, trace.getToolName())))
+            .toList();
     }
 
     private Map<String, Object> mandatoryWorkflowResultReview(String toolName, ToolOutput output) {

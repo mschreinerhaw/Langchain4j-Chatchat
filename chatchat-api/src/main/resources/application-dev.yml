@@ -50,7 +50,7 @@ chatchat:
   chat:
     detail-store:
       type: rocksdb
-      path: ./data/chat-rocksdb
+      path: ${CHAT_DETAIL_STORE_PATH:./data/chat-rocksdb}
       create-if-missing: true
       max-string-length: 100000000
       external-text:

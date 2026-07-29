@@ -11,18 +11,24 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "chatchat.agent-runtime")
 public class AgentRuntimeProperties {
 
+    private static final long DEFAULT_RETENTION_MS = 7L * 24 * 60 * 60 * 1000;
+
     private int corePoolSize = 4;
     private int maxPoolSize = 16;
     private int queueCapacity = 100;
     private int keepAliveSeconds = 60;
     private String threadNamePrefix = "agent-runtime-";
     private int maxStoredRuns = 10_000;
-    private long terminalRunTtlMs = 0;
+    private long terminalRunTtlMs = DEFAULT_RETENTION_MS;
+    private boolean cleanupEnabled = true;
+    private long cleanupIntervalMs = 60L * 60 * 1000;
     private String storeType = "rocksdb";
     private String rocksDbPath = "./data/agent-runtime-rocksdb";
     private boolean rocksDbCreateIfMissing = true;
     private boolean failInterruptedRunsOnStartup = true;
     private int maxJsonStringLength = 100_000_000;
+    private boolean evidenceExternalizationEnabled = true;
+    private int evidenceExternalizationThresholdBytes = 262_144;
 
     public int corePoolSize() {
         return Math.max(1, corePoolSize);
@@ -54,6 +60,10 @@ public class AgentRuntimeProperties {
         return Math.max(0, terminalRunTtlMs);
     }
 
+    public long cleanupIntervalMs() {
+        return Math.max(60_000L, cleanupIntervalMs);
+    }
+
     public String storeType() {
         return storeType == null || storeType.isBlank() ? "rocksdb" : storeType.trim();
     }
@@ -62,5 +72,9 @@ public class AgentRuntimeProperties {
         return rocksDbPath == null || rocksDbPath.isBlank()
             ? "./data/agent-runtime-rocksdb"
             : rocksDbPath.trim();
+    }
+
+    public int evidenceExternalizationThresholdBytes() {
+        return Math.max(16_384, evidenceExternalizationThresholdBytes);
     }
 }

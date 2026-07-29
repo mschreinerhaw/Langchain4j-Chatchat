@@ -51,6 +51,7 @@ class AgentAnswerFinalizer {
     private static final String EXECUTION_CONTRACT = "evidence_execution_contract_v2_2";
     private static final String ANSWER_EVIDENCE_DISCLOSURE_CONTRACT = "answer_evidence_disclosure_v1";
     private static final String ANSWER_EVIDENCE_GROUNDED = "GROUNDED_ANALYSIS";
+    private static final String ANSWER_EVIDENCE_PARTIAL = "PARTIAL_ANALYSIS";
     private static final String ANSWER_EVIDENCE_INSUFFICIENT = "EVIDENCE_INSUFFICIENT";
     private static final String ANSWER_EVIDENCE_BLOCKED = "EXECUTION_BLOCKED";
     private static final String INSUFFICIENT_EVIDENCE_ANSWER = "根据当前文档证据不足，无法确认。";
@@ -1884,15 +1885,6 @@ class AgentAnswerFinalizer {
         if (containsEvidence(observations == null ? List.of() : observations)) {
             reasons.add("\u5e26\u6765\u6e90\u6807\u8bc6\u7684\u6587\u6863/\u77e5\u8bc6\u5e93/\u6267\u884c\u8bc1\u636e");
         }
-        if (!reasons.isEmpty()) {
-            return new AnswerEvidenceDisclosure(
-                ANSWER_EVIDENCE_GROUNDED,
-                "\u6709\u4e8b\u5b9e\u4f9d\u636e\u7684\u5206\u6790",
-                "\u8bc1\u636e\u72b6\u6001\uff1a\u6709\u4e8b\u5b9e\u4f9d\u636e\u7684\u5206\u6790\u3002\u4f9d\u636e\uff1a" + String.join("\uff1b", reasons) + "\u3002",
-                reasons
-            );
-        }
-
         boolean failedTerminalTool = toolEvidence != null && toolEvidence.stream()
             .anyMatch(item -> !Boolean.TRUE.equals(item.get("success"))
                 && (nonBlankString(item.get("errorMessage")) || nonBlankString(item.get("evidenceType"))));
@@ -1902,6 +1894,26 @@ class AgentAnswerFinalizer {
             || observationContains(observations, "PLAN_INVALID_REQUIRED_TOOL_NOT_EXECUTED")
             || observationContains(observations, "mandatory workflow tools are still incomplete")
             || observationContains(observations, "failed after rewrite budget");
+        if (!reasons.isEmpty()) {
+            if (failedTerminalTool || failedTrace || blockedByRuntime) {
+                List<String> partialReasons = new ArrayList<>(reasons);
+                partialReasons.add("\u90e8\u5206\u5de5\u5177\u6267\u884c\u5931\u8d25\u6216\u5f3a\u5236\u6d41\u7a0b\u672a\u5b8c\u6210");
+                return new AnswerEvidenceDisclosure(
+                    ANSWER_EVIDENCE_PARTIAL,
+                    "\u90e8\u5206\u4e8b\u5b9e\u4f9d\u636e",
+                    "\u8bc1\u636e\u72b6\u6001\uff1a\u90e8\u5206\u4e8b\u5b9e\u4f9d\u636e\u3002\u5df2\u6709\u90e8\u5206\u5de5\u5177\u8fd4\u56de\u53ef\u7528\u7ed3\u679c\uff0c\u4f46\u4ecd\u5b58\u5728\u5de5\u5177\u5931\u8d25\u6216\u5f3a\u5236\u6d41\u7a0b\u672a\u5b8c\u6210\uff1b\u53ea\u80fd\u5bf9\u5df2\u8fd4\u56de\u4e8b\u5b9e\u4f5c\u9636\u6bb5\u6027\u5206\u6790\u3002\u4f9d\u636e\uff1a"
+                        + String.join("\uff1b", partialReasons) + "\u3002",
+                    partialReasons
+                );
+            }
+            return new AnswerEvidenceDisclosure(
+                ANSWER_EVIDENCE_GROUNDED,
+                "\u6709\u4e8b\u5b9e\u4f9d\u636e\u7684\u5206\u6790",
+                "\u8bc1\u636e\u72b6\u6001\uff1a\u6709\u4e8b\u5b9e\u4f9d\u636e\u7684\u5206\u6790\u3002\u4f9d\u636e\uff1a" + String.join("\uff1b", reasons) + "\u3002",
+                reasons
+            );
+        }
+
         if (failedTerminalTool || failedTrace || blockedByRuntime) {
             List<String> blockedReasons = new ArrayList<>();
             if (failedTerminalTool || failedTrace) {

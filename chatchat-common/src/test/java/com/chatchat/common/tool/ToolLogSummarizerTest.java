@@ -10,6 +10,40 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ToolLogSummarizerTest {
 
     @Test
+    void enterpriseMetadataDiscoveryLogsReturnedTypeCountsWithoutRecords() {
+        Map<String, Object> result = Map.of(
+            "schemaVersion", "enterprise_metadata_search_result.v3",
+            "success", true,
+            "operationMode", "ENTERPRISE_METADATA_DISCOVERY",
+            "backend", "opensearch",
+            "count", 3,
+            "countsByType", Map.of(
+                "metadata_field", 1,
+                "metadata_term", 1,
+                "metadata_dictionary", 1
+            ),
+            "results", List.of(
+                Map.of("name", "客户号", "description", "sensitive standard definition")
+            ),
+            "evidenceObjects", List.of(Map.of("content", "large evidence"))
+        );
+
+        Object summarized = ToolLogSummarizer.summarizeResult(
+            "mcp_chatchat_mcp_server_enterprise_metadata_search", result);
+
+        assertThat(summarized).isInstanceOfSatisfying(Map.class, summary -> {
+            assertThat(summary)
+                .containsEntry("operationMode", "ENTERPRISE_METADATA_DISCOVERY")
+                .containsEntry("backend", "opensearch")
+                .containsEntry("count", 3)
+                .containsEntry("evidenceObjectCount", 1)
+                .doesNotContainKeys("results");
+        });
+        assertThat(String.valueOf(summarized))
+            .doesNotContain("客户号", "sensitive standard definition", "large evidence");
+    }
+
+    @Test
     void enterpriseMetadataResultLogsCountsWithoutFieldLevelResults() {
         Map<String, Object> result = Map.of(
             "schemaVersion", "enterprise_metadata_field_discovery.v1",

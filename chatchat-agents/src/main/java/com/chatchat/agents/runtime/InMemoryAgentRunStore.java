@@ -4,6 +4,7 @@ import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.agents.runtime.plan.InterpretationPlanDagConverter;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRecord;
 import com.chatchat.agents.runtime.plan.InterpretationPlanStore;
+import com.chatchat.common.tool.ToolLogSummarizer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -218,6 +219,7 @@ public class InMemoryAgentRunStore implements AgentRunStore, InterpretationPlanS
             payload.put("observations", result.observations().stream()
                 .map(AgentObservation::content)
                 .filter(content -> content != null && !content.isBlank())
+                .map(content -> preview(content, 500))
                 .toList());
         }
         if (result != null && result.toolTraces() != null && !result.toolTraces().isEmpty()) {
@@ -607,6 +609,11 @@ public class InMemoryAgentRunStore implements AgentRunStore, InterpretationPlanS
         return removedRunIds;
     }
 
+    @Override
+    public int cleanupExpiredRuns() {
+        return pruneRuns().size();
+    }
+
     private boolean matches(AgentRunQuery query, AgentRun run) {
         if (run == null) {
             return false;
@@ -678,7 +685,10 @@ public class InMemoryAgentRunStore implements AgentRunStore, InterpretationPlanS
             payload.put("contentPreview", preview);
         }
         if (observation.metadata() != null && !observation.metadata().isEmpty()) {
-            payload.put("metadata", observation.metadata());
+            Object summarized = ToolLogSummarizer.summarize(observation.metadata(), 16_000);
+            payload.put("metadata", summarized);
+            payload.put("eventMetadataCompacted", true);
+            payload.put("rawObservationLocation", "agent_run_observation_index");
         }
         return payload;
     }

@@ -89,6 +89,8 @@ public class LivedataApiConfigMapper {
         config.setMethod("POST");
         config.setUrlTemplate(toUrlTemplate(definition, serviceName, namespace));
         Map<String, Object> headers = new LinkedHashMap<>(sourceHeaders);
+        removeHeader(headers, "sessionId");
+        removeHeader(headers, "namespace");
         putHeaderIfAbsent(headers, "Content-Type", "application/json;charset=UTF-8");
         config.setHeadersJson(writeJson(headers));
         config.setBodyTemplate(toBodyTemplate(params, namespace, sourceHeaders));
@@ -184,7 +186,10 @@ public class LivedataApiConfigMapper {
     private String toBodyTemplate(List<ParamDefinition> params, String namespace, Map<String, Object> gatewayHeaders) {
         var properties = settingsProvider.current();
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("sessionId", firstNonBlank(literalHeader(gatewayHeaders, "sessionId"), sessionIdTemplate()));
+        // A LiveData session is short lived. Never copy a concrete sessionId from
+        // the source gateway into a registered API, otherwise an imported API
+        // starts failing as soon as that captured session expires.
+        body.put("sessionId", sessionIdTemplate());
         body.put("namespace", firstNonBlank(namespace, properties.getDefaultNamespace()));
         Map<String, Object> head = new LinkedHashMap<>();
         String amsToken = firstNonBlank(
@@ -246,6 +251,10 @@ public class LivedataApiConfigMapper {
         }
     }
 
+    private void removeHeader(Map<String, Object> headers, String name) {
+        headers.keySet().removeIf(key -> key != null && key.equalsIgnoreCase(name));
+    }
+
     /**
      * Performs the session id template operation.
      *
@@ -277,6 +286,9 @@ public class LivedataApiConfigMapper {
             field.put("type", param.jsonType());
             if (param.description() != null && !param.description().isBlank()) {
                 field.put("description", param.description());
+            }
+            if (param.defaultValue() != null) {
+                field.put("default", param.defaultValue());
             }
             propertiesNode.put(param.name(), field);
             if (param.required()) {
@@ -374,15 +386,20 @@ public class LivedataApiConfigMapper {
         if (!node.isObject()) {
             return null;
         }
-        String name = readText(node, "name", "paramName", "param_name", "field", "fieldName", "field_name", "key", "code", "id");
+        // LiveData uses "key" for the machine-readable parameter name and
+        // "name" for its localized display label (for example 表名). Prefer
+        // key, otherwise the localized label normalizes to an empty Java/MCP
+        // identifier and the parameter silently disappears.
+        String name = readText(node, "key", "paramName", "param_name", "field", "fieldName", "field_name", "code", "id", "name");
         name = normalizeParamName(name);
         if (name == null) {
             return null;
         }
         String type = normalizeJsonType(readText(node, "type", "dataType", "data_type", "javaType", "fieldType", "paramType"));
-        String description = readText(node, "description", "desc", "comment", "label", "title", "nameCn", "paramNameCn");
+        String description = readText(node, "description", "desc", "comment", "label", "title", "name", "nameCn", "paramNameCn");
         boolean required = readRequired(node);
-        return new ParamDefinition(name, type, description, required);
+        Object defaultValue = readDefaultValue(node);
+        return new ParamDefinition(name, type, description, required, defaultValue);
     }
 
     /**
@@ -435,7 +452,7 @@ public class LivedataApiConfigMapper {
      * @return whether the condition is satisfied
      */
     private boolean readRequired(JsonNode node) {
-        for (String field : List.of("required", "isRequired", "is_required", "must")) {
+        for (String field : List.of("required", "isRequired", "is_required", "isRequire", "is_require", "must")) {
             JsonNode value = node.get(field);
             if (value != null) {
                 return value.asBoolean(false) || "1".equals(value.asText());
@@ -443,6 +460,17 @@ public class LivedataApiConfigMapper {
         }
         JsonNode nullable = node.get("nullable");
         return nullable != null && !nullable.asBoolean(true);
+    }
+
+    private Object readDefaultValue(JsonNode node) {
+        for (String field : List.of("default", "defaultValue", "default_value", "value")) {
+            JsonNode value = node.get(field);
+            if (value == null || value.isNull()) {
+                continue;
+            }
+            return objectMapper.convertValue(value, Object.class);
+        }
+        return null;
     }
 
     /**
@@ -541,6 +569,6 @@ public class LivedataApiConfigMapper {
         return null;
     }
 
-    private record ParamDefinition(String name, String jsonType, String description, boolean required) {
+    private record ParamDefinition(String name, String jsonType, String description, boolean required, Object defaultValue) {
     }
 }

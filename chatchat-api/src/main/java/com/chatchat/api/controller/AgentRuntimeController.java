@@ -198,6 +198,35 @@ public class AgentRuntimeController {
         }
     }
 
+    @GetMapping("/runs/{runId}/evidence/{documentId}")
+    @Operation(summary = "Read one externally stored Agent evidence payload")
+    public ApiResponse<Object> evidence(@PathVariable("runId") String runId,
+                                        @PathVariable("documentId") String documentId,
+                                        HttpServletRequest request) {
+        try {
+            Optional<AgentRun> run = findAuthorized(runId, request);
+            if (run.isEmpty()) {
+                return ApiResponse.notFound("Agent run not found: " + runId);
+            }
+            boolean referencedByRun = agentRuntime.observations(runId).stream()
+                .map(AgentObservation::metadata)
+                .map(metadata -> metadata.get("stepOutputDocumentId"))
+                .filter(value -> value != null)
+                .map(String::valueOf)
+                .anyMatch(documentId::equals);
+            if (!referencedByRun) {
+                return ApiResponse.notFound("Agent evidence not found: " + documentId);
+            }
+            return agentRuntime.evidence(documentId)
+                .map(ApiResponse::success)
+                .orElseGet(() -> ApiResponse.notFound("Agent evidence not found: " + documentId));
+        } catch (AccessDeniedException ex) {
+            return ApiResponse.error(403, ex.getMessage());
+        } catch (RuntimeException ex) {
+            return runtimeUnavailable(ex);
+        }
+    }
+
     @GetMapping("/runs/{runId}/timeline")
     @Operation(summary = "Read one Agent runtime timeline")
     public ApiResponse<AgentRunTimeline> timeline(@PathVariable("runId") String runId,

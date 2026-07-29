@@ -142,8 +142,14 @@ chatchat:
     rocks-db-path: ./data/agent-runtime-rocksdb
     rocks-db-create-if-missing: true
     fail-interrupted-runs-on-startup: true
+    evidence-externalization-enabled: ${CHATCHAT_AGENT_EVIDENCE_EXTERNALIZATION_ENABLED:true}
+    evidence-externalization-threshold-bytes: ${CHATCHAT_AGENT_EVIDENCE_THRESHOLD_BYTES:262144}
     max-stored-runs: 10000
-    terminal-run-ttl-ms: 0
+    # Terminal runs and their OpenSearch evidence are retained for 7 days.
+    terminal-run-ttl-ms: ${CHATCHAT_AGENT_RUN_TTL_MS:604800000}
+    cleanup-enabled: ${CHATCHAT_AGENT_RUN_CLEANUP_ENABLED:true}
+    cleanup-interval-ms: ${CHATCHAT_AGENT_RUN_CLEANUP_INTERVAL_MS:3600000}
+    cleanup-initial-delay-ms: ${CHATCHAT_AGENT_RUN_CLEANUP_INITIAL_DELAY_MS:60000}
   api:
     limits:
       # Frontend search result chunk count. -1 means unlimited.
@@ -306,7 +312,7 @@ chatchat:
       summary-enabled: true
     detail-store:
       type: rocksdb
-      path: ./data/chat-rocksdb
+      path: ${CHAT_DETAIL_STORE_PATH:./data/chat-rocksdb}
       create-if-missing: true
       max-string-length: 100000000
       external-text:

@@ -52,12 +52,45 @@ class LivedataApiConfigMapperTest {
         HttpEndpointConfig mapped = mapper.toGatewayConfig(definition, selectedGateway);
 
         var body = new ObjectMapper().readTree(mapped.getBodyTemplate());
-        assertThat(body.path("sessionId").asText()).isEqualTo("session-from-gateway");
+        assertThat(body.path("sessionId").asText()).isEqualTo("{{__livedata_session_id}}");
         assertThat(body.path("namespace").asText()).isEqualTo("livedata");
         assertThat(body.path("head").path("x-ams-token").asText()).isEqualTo("token-from-gateway");
         var headers = new ObjectMapper().readTree(mapped.getHeadersJson());
-        assertThat(headers.path("sessionId").asText()).isEqualTo("session-from-gateway");
+        assertThat(headers.has("sessionId")).isFalse();
+        assertThat(headers.has("namespace")).isFalse();
         assertThat(headers.path("x-ams-token").asText()).isEqualTo("token-from-gateway");
         assertThat(headers.path("Content-Type").asText()).isEqualTo("application/json;charset=UTF-8");
+    }
+
+    @Test
+    void mapsLivedataKeyAsParameterNameAndPreservesLabelAndDefault() throws Exception {
+        LivedataAutoRegistrationProperties properties = new LivedataAutoRegistrationProperties();
+        properties.setServiceBaseUrl("http://localhost:5006");
+        LivedataApiConfigMapper mapper = new LivedataApiConfigMapper(new ObjectMapper(), () -> properties);
+        LivedataApiDefinition definition = new LivedataApiDefinition(
+            "736941719500824576",
+            "cx_ds_by_tab",
+            "cx_ds_by_tab",
+            """
+                [{"key":"tab_name","name":"表名","type":"string","value":"TJGMXLS","isRequire":0,"description":""}]
+                """,
+            null,
+            "livedata",
+            "com.apex.livedata.cx_ds_by_tab",
+            "call",
+            0,
+            "1",
+            "1"
+        );
+
+        HttpEndpointConfig gateway = mapper.toGatewayConfig(definition);
+        ApiServiceConfig service = mapper.toApiServiceConfig(definition);
+
+        var body = new ObjectMapper().readTree(gateway.getBodyTemplate());
+        assertThat(body.path("data").path("tab_name").asText()).isEqualTo("{{tab_name}}");
+        var schema = new ObjectMapper().readTree(service.getInputSchemaJson());
+        assertThat(schema.path("properties").path("tab_name").path("description").asText()).isEqualTo("表名");
+        assertThat(schema.path("properties").path("tab_name").path("default").asText()).isEqualTo("TJGMXLS");
+        assertThat(schema.path("required").isEmpty()).isTrue();
     }
 }

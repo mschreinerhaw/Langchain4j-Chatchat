@@ -14,7 +14,9 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @Slf4j
@@ -27,6 +29,7 @@ public class EnterpriseMetadataMcpToolPublisher {
 
     private final McpSyncServer mcpSyncServer;
     private final EnterpriseMetadataMatchingService matchingService;
+    private final EnterpriseMetadataSearchService searchService;
     private final EnterpriseMetadataRequestAdapter requestAdapter;
     private final EnterpriseMetadataProperties properties;
     private final MetadataGovernancePolicyService policyService;
@@ -55,12 +58,15 @@ public class EnterpriseMetadataMcpToolPublisher {
             .title("Enterprise metadata search")
             .description("Search configured enterprise standard fields, business roots and code dictionaries. "
                 + "Every invocation performs the required standard-field, term-root and dictionary retrieval internally; "
+                + "For a new table whose fields do not exist yet, supply queryTerms (or query) containing model-extracted "
+                + "business concepts and candidate field meanings; the tool returns relevant enterprise metadata records. "
                 + "When fields are supplied, one invocation processes the complete field list and returns field-scoped "
                 + "standard-field, term-root and dictionary evidence. Do not split those metadata types into separate tool calls. "
                 + "For an existing physical table, supply tableName/targetObject or include its exact identifier in query; "
                 + "the capability resolves the complete indexed table schema internally when dependency evidence is unavailable. "
-                + "For CREATE TABLE requests, place the complete model-proposed schema in fields and the proposed table name "
-                + "in targetObject; a downstream reasoning/script step must review the returned evidence before producing DDL. "
+                + "For CREATE TABLE requests, use queryTerms for discovery when the draft schema is not yet known; when a "
+                + "complete model-proposed schema exists, place it in fields and the proposed table name in targetObject. "
+                + "A downstream reasoning/script step must review the returned evidence before producing DDL. "
                 + "Use this read-only capability when a task needs enterprise field meaning, technical names, "
                 + "data types, standard definitions or business-term mapping. It does not create tables, "
                 + "generate SQL or execute a workflow. Treat results and evidenceObjects as the factual boundary; "
@@ -96,12 +102,19 @@ public class EnterpriseMetadataMcpToolPublisher {
     }
 
     Map<String, Object> executeSearch(Map<String, Object> arguments) {
-        Map<String, Object> request = requestAdapter.adapt(arguments);
+        Map<String, Object> normalizedArguments = normalizeSearchArguments(arguments);
+        if (discoveryRequest(normalizedArguments)) {
+            return executeDiscovery(normalizedArguments);
+        }
+        Map<String, Object> request = requestAdapter.adapt(normalizedArguments);
         List<Map<String, Object>> fields = maps(request.get("fields"));
         log.info("enterprise_metadata_search unified input requestId={} purpose={} fieldCount={} input={}",
             text(request.get("requestId")), text(request.get("purpose")),
             fields.size(), inputAudit(arguments, request, fields));
         if (fields.isEmpty()) {
+            if (text(normalizedArguments.get("query")) != null) {
+                return executeDiscovery(normalizedArguments);
+            }
             Map<String, Object> missingEvidence = missingFieldEvidence(request);
             log.warn("enterprise_metadata_search unified request rejected requestId={} errorCode={} query={}",
                 missingEvidence.get("requestId"), missingEvidence.get("errorCode"),
@@ -114,6 +127,55 @@ public class EnterpriseMetadataMcpToolPublisher {
         log.info("enterprise_metadata_search unified output requestId={} resultSummary={}",
             result.get("requestId"), ToolLogSummarizer.summarizeResult(TOOL_NAME, result));
         return result;
+    }
+
+    private Map<String, Object> executeDiscovery(Map<String, Object> arguments) {
+        Map<String, Object> result = new LinkedHashMap<>(searchService.searchRequiredBundle(
+            new EnterpriseMetadataSearchService.SearchRequest(
+                text(arguments.get("query")),
+                strings(firstPresent(arguments, "types", "metadataTypes")),
+                strings(arguments.get("statuses")),
+                strings(arguments.get("scenarios")),
+                integerValue(firstPresent(arguments, "limit", "candidateLimit"))
+            )
+        ));
+        result.put("invokedCapability", TOOL_NAME);
+        result.put("operationMode", "ENTERPRISE_METADATA_DISCOVERY");
+        result.put("inputTerms", strings(arguments.get("queryTerms")));
+        log.info("enterprise_metadata_search discovery output requestId={} resultSummary={}",
+            text(arguments.get("requestId")),
+            ToolLogSummarizer.summarizeResult(TOOL_NAME, result));
+        return Map.copyOf(result);
+    }
+
+    private Map<String, Object> normalizeSearchArguments(Map<String, Object> arguments) {
+        Map<String, Object> normalized = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
+        LinkedHashSet<String> terms = new LinkedHashSet<>();
+        addText(terms, normalized.get("query"));
+        addTexts(terms, normalized.get("queryTerms"));
+        addTexts(terms, normalized.get("searchTerms"));
+        addTexts(terms, normalized.get("queries"));
+        if (!terms.isEmpty()) {
+            normalized.put("query", String.join(" ", terms));
+            normalized.put("queryTerms", List.copyOf(terms));
+        }
+        return normalized;
+    }
+
+    private boolean discoveryRequest(Map<String, Object> arguments) {
+        if (arguments == null || text(arguments.get("query")) == null
+            || !maps(arguments.get("fields")).isEmpty()) {
+            return false;
+        }
+        String purpose = text(arguments.get("purpose"));
+        if (purpose != null && purpose.toUpperCase(Locale.ROOT).contains("ALIGNMENT")) {
+            return false;
+        }
+        if (text(firstPresent(arguments, "tableName", "table")) != null) {
+            return false;
+        }
+        Map<String, Object> target = stringMap(arguments.get("targetObject"));
+        return text(firstPresent(target, "tableName", "name", "database")) == null;
     }
 
     private Map<String, Object> inputAudit(Map<String, Object> arguments,
@@ -168,8 +230,8 @@ public class EnterpriseMetadataMcpToolPublisher {
             "requestId", requestId,
             "invokedCapability", TOOL_NAME,
             "retrievalMode", "UNIFIED_FIELD_EVIDENCE_BUNDLE",
-            "errorCode", "FIELD_SCHEMA_REQUIRED",
-            "error", "No complete field schema could be resolved for metadata matching",
+            "errorCode", "ENTERPRISE_METADATA_INPUT_REQUIRED",
+            "error", "Provide queryTerms/query for discovery, fields for matching, or an exact table identifier",
             "targetObject", request.get("targetObject"),
             "sourceSchema", mapOf(
                 "mode", "UNRESOLVED",
@@ -190,7 +252,7 @@ public class EnterpriseMetadataMcpToolPublisher {
                 "reviewRequired", false,
                 "decisionScope", "PER_FIELD",
                 "factBoundary", "no_field_evidence_available",
-                "instruction", "Provide a complete fields array or an exact indexed table identifier."
+                "instruction", "Provide queryTerms/query, a complete fields array, or an exact indexed table identifier."
             )
         );
     }
@@ -269,6 +331,16 @@ public class EnterpriseMetadataMcpToolPublisher {
             "query", Map.of(
                 "type", "string",
                 "description", "Unified retrieval expression assembled from the user request and prior structured evidence"
+            ),
+            "queryTerms", mapOf(
+                "type", "array",
+                "items", Map.of("type", "string"),
+                "description", "Model-extracted business concepts and candidate field meanings for new-table metadata discovery"
+            ),
+            "searchTerms", mapOf(
+                "type", "array",
+                "items", Map.of("type", "string"),
+                "description", "Compatibility alias for queryTerms"
             ),
             "purpose", Map.of(
                 "type", "string",
@@ -513,6 +585,12 @@ public class EnterpriseMetadataMcpToolPublisher {
     }
 
     private String matchSummary(Map<String, Object> result) {
+        if ("ENTERPRISE_METADATA_DISCOVERY".equals(result.get("operationMode"))) {
+            return "Enterprise metadata discovery completed: records="
+                + result.getOrDefault("count", 0)
+                + ", backend=" + result.getOrDefault("backend", "unknown")
+                + ". Review results, requiredRetrieval and evidenceObjects before designing fields.";
+        }
         Map<String, Object> coverage = result.get("coverage") instanceof Map<?, ?> map
             ? map.entrySet().stream().collect(java.util.stream.Collectors.toMap(
                 entry -> String.valueOf(entry.getKey()), Map.Entry::getValue))
@@ -521,6 +599,63 @@ public class EnterpriseMetadataMcpToolPublisher {
             + coverage.getOrDefault("processedFieldCount", 0)
             + ", allFieldsProcessed=" + coverage.getOrDefault("allFieldsProcessed", false)
             + ". Review fieldMatches and linked evidenceObjects before reuse.";
+    }
+
+    private Object firstPresent(Map<String, Object> source, String... keys) {
+        if (source == null) {
+            return null;
+        }
+        for (String key : keys) {
+            if (source.containsKey(key) && source.get(key) != null) {
+                return source.get(key);
+            }
+        }
+        return null;
+    }
+
+    private List<String> strings(Object value) {
+        if (!(value instanceof Iterable<?> iterable)) {
+            String single = text(value);
+            return single == null ? List.of() : List.of(single);
+        }
+        LinkedHashSet<String> result = new LinkedHashSet<>();
+        iterable.forEach(item -> addText(result, item));
+        return List.copyOf(result);
+    }
+
+    private void addTexts(java.util.Collection<String> target, Object value) {
+        if (value instanceof Iterable<?> iterable) {
+            iterable.forEach(item -> addText(target, item));
+        } else {
+            addText(target, value);
+        }
+    }
+
+    private void addText(java.util.Collection<String> target, Object value) {
+        String candidate = text(value);
+        if (candidate != null) {
+            target.add(candidate);
+        }
+    }
+
+    private Integer integerValue(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        try {
+            return value == null ? null : Integer.valueOf(String.valueOf(value));
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    private Map<String, Object> stringMap(Object value) {
+        if (!(value instanceof Map<?, ?> map)) {
+            return Map.of();
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        map.forEach((key, item) -> result.put(String.valueOf(key), item));
+        return result;
     }
 
     private String text(Object value) {

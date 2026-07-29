@@ -188,6 +188,58 @@ class AgentToolArgumentResolver {
         return values;
     }
 
+    /**
+     * Applies a tool-published dependency-evidence adapter contract outside the
+     * InterpretationPlan DAG path. Mandatory workflow recovery still has ordered
+     * predecessor traces, so it must transport those successful structured outputs
+     * instead of falling back to a query-only invocation.
+     */
+    Map<String, Object> applyPublishedDependencyEvidenceContract(
+        String toolName,
+        Map<String, Object> arguments,
+        List<InteractionToolTrace> dependencyTraces
+    ) {
+        Map<String, Object> values = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
+        if (toolRegistry == null || toolName == null || dependencyTraces == null || dependencyTraces.isEmpty()) {
+            return values;
+        }
+        ToolMetadata metadata = toolRegistry.getToolMetadata(toolName);
+        if (metadata == null || metadata.getMetadata() == null) {
+            return values;
+        }
+        Map<String, Object> mcpMeta = mutableMap(metadata.getMetadata().get("mcpToolMeta"));
+        Map<String, Object> contract = mutableMap(mcpMeta.get("inputAdapterContract"));
+        if (!"runtime_dependency_evidence.v1".equals(scalarText(contract.get("contractVersion")))) {
+            return values;
+        }
+        String parameter = scalarText(contract.get("dependencyEvidenceParameter"));
+        if (parameter == null || values.containsKey(parameter)) {
+            return values;
+        }
+        List<Map<String, Object>> evidence = new ArrayList<>();
+        for (InteractionToolTrace trace : dependencyTraces) {
+            if (trace == null || !trace.isSuccess() || trace.getOutput() == null || trace.getOutput().isBlank()) {
+                continue;
+            }
+            Object output = parseJson(trace.getOutput());
+            if (output == null) {
+                continue;
+            }
+            Map<String, Object> envelope = new LinkedHashMap<>();
+            if (trace.getToolName() != null && !trace.getToolName().isBlank()) {
+                envelope.put("toolName", trace.getToolName());
+            }
+            envelope.put("output", output);
+            evidence.add(Map.copyOf(envelope));
+        }
+        if (!evidence.isEmpty()) {
+            values.put(parameter, List.copyOf(evidence));
+            log.info("Agent fallback applied published dependency evidence contract: tool={}, parameter={}, evidenceCount={}",
+                toolName, parameter, evidence.size());
+        }
+        return values;
+    }
+
     private boolean hasExecutableReference(Map<String, Object> values) {
         return scalarText(firstPresent(values, "sql", "template", "templateId", "template_id")) != null;
     }

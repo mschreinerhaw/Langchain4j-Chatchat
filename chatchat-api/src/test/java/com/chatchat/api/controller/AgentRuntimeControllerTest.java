@@ -138,6 +138,30 @@ class AgentRuntimeControllerTest {
     }
 
     @Test
+    void readsOnlyEvidenceReferencedByAuthorizedRun() throws Exception {
+        AgentRuntime runtime = mock(AgentRuntime.class);
+        String runId = "runtime-run-evidence";
+        String documentId = "agent-evidence-doc-1";
+        AgentRun run = run(runId, AgentRunStatus.COMPLETED, "tenant-a");
+        AgentObservation observation = AgentObservation.builder()
+            .type("tool")
+            .source("enterprise_metadata_search")
+            .content("external evidence")
+            .metadata(Map.of("stepOutputDocumentId", documentId, "stepOutputExternal", true))
+            .build();
+        when(runtime.find(runId)).thenReturn(Optional.of(run));
+        when(runtime.observations(runId)).thenReturn(List.of(observation));
+        when(runtime.evidence(documentId)).thenReturn(Optional.of(Map.of("rows", 1720)));
+        MockMvc mockMvc = mockMvc(runtime);
+
+        mockMvc.perform(get("/api/v1/agent/runtime/runs/{runId}/evidence/{documentId}", runId, documentId)
+                .requestAttr(ApiAuthenticationFilter.CURRENT_TENANT_ID, "tenant-a"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200))
+            .andExpect(jsonPath("$.data.rows").value(1720));
+    }
+
+    @Test
     void cancelsRun() throws Exception {
         AgentRuntime runtime = mock(AgentRuntime.class);
         when(runtime.cancel("runtime-run-3")).thenReturn(run("runtime-run-3", AgentRunStatus.CANCELLED));

@@ -64,7 +64,15 @@ public class McpAuthorizationService {
             snapshotRef.set(snapshot);
             synchronizeRoles(snapshot);
         } catch (Exception ex) {
-            log.warn("Failed to refresh MCP authorization snapshot: {}", ex.getMessage());
+            if (ex instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+            String detail = ex.getMessage() == null || ex.getMessage().isBlank()
+                ? ex.getClass().getSimpleName()
+                : ex.getMessage();
+            log.warn("Failed to refresh MCP authorization snapshot: type={} detail={}",
+                ex.getClass().getSimpleName(), detail);
+            log.debug("MCP authorization snapshot refresh stack trace", ex);
         }
     }
 

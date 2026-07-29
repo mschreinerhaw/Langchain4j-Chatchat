@@ -60,10 +60,11 @@ public class RocksDbChatMessageDetailStore implements ChatMessageDetailStore {
     public void open() {
         try {
             RocksDB.loadLibrary();
-            Files.createDirectories(Path.of(properties.getPath()).toAbsolutePath());
+            Path storePath = Path.of(properties.getPath()).toAbsolutePath().normalize();
+            Files.createDirectories(storePath);
             this.options = new Options().setCreateIfMissing(properties.isCreateIfMissing());
-            this.db = RocksDB.open(options, properties.getPath());
-            log.info("RocksDB chat detail store opened at {}", properties.getPath());
+            this.db = RocksDB.open(options, storePath.toString());
+            log.info("RocksDB chat detail store opened at absolutePath={}", storePath);
         } catch (IOException | RocksDBException ex) {
             throw new IllegalStateException("Failed to open RocksDB chat detail store", ex);
         }

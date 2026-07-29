@@ -74,6 +74,11 @@ public class TemplateParameterValidator {
                 value = explicitParameters.get(name);
             } else if (source != null && source.containsKey(name)) {
                 value = source.get(name);
+            } else {
+                Map<String, Object> property = objectMap(properties.get(name));
+                if (property.containsKey("default")) {
+                    value = property.get("default");
+                }
             }
             if (value != null) {
                 collected.put(name, value);

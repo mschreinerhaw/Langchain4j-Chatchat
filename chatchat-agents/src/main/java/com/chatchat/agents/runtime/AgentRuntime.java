@@ -27,5 +27,7 @@ public interface AgentRuntime {
 
     List<AgentObservation> observations(String runId, int offset, int limit);
 
+    Optional<Object> evidence(String documentId);
+
     AgentRuntimeSnapshot snapshot();
 }

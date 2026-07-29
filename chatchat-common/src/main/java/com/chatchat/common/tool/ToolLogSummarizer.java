@@ -60,6 +60,25 @@ public final class ToolLogSummarizer {
         if (enterpriseMetadata.isEmpty()) {
             return summarize(value);
         }
+        String schemaVersion = stringValue(enterpriseMetadata.get("schemaVersion"));
+        if ("ENTERPRISE_METADATA_DISCOVERY".equals(enterpriseMetadata.get("operationMode"))
+            || (schemaVersion != null && schemaVersion.startsWith("enterprise_metadata_search_result."))) {
+            Map<String, Object> summary = new LinkedHashMap<>();
+            copyIfPresent(summary, enterpriseMetadata, "schemaVersion");
+            copyIfPresent(summary, enterpriseMetadata, "success");
+            copyIfPresent(summary, enterpriseMetadata, "requestId");
+            copyIfPresent(summary, enterpriseMetadata, "operationMode");
+            copyIfPresent(summary, enterpriseMetadata, "backend");
+            copyIfPresent(summary, enterpriseMetadata, "retrievalMode");
+            copyIfPresent(summary, enterpriseMetadata, "count");
+            summary.put("countsByType", summarizeValue(
+                enterpriseMetadata.get("countsByType"), "countsByType", 0));
+            summary.put("requiredRetrieval", summarizeValue(
+                enterpriseMetadata.get("requiredRetrieval"), "requiredRetrieval", 0));
+            summary.put("evidenceObjectCount", collectionSize(enterpriseMetadata.get("evidenceObjects")));
+            summary.put("detailsLogged", false);
+            return summary;
+        }
         Map<String, Object> sourceSchema = mapValue(enterpriseMetadata.get("sourceSchema"));
         List<Map<String, Object>> fieldMatches = mapValues(enterpriseMetadata.get("fieldMatches"));
         Map<String, Integer> candidateCounts = new LinkedHashMap<>();

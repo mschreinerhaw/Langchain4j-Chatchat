@@ -1,12 +1,15 @@
 package com.chatchat.agents.runtime;
 
+import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.BooleanSupplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -65,8 +68,10 @@ class RocksDbAgentRunStoreTest {
         assertThat(restored.request().getAttributes())
             .containsEntry("serializable", "yes")
             .doesNotContainKey("__agentCancellation");
-        assertThat(restored.steps()).hasSize(1);
-        assertThat(restored.observations())
+        assertThat(restored.steps()).isEmpty();
+        assertThat(restored.observations()).isEmpty();
+        assertThat(reopened.steps("rocks-run-1")).hasSize(1);
+        assertThat(reopened.observations("rocks-run-1"))
             .extracting(AgentObservation::content)
             .containsExactly("stored observation");
         assertThat(reopened.events("rocks-run-1"))
@@ -291,6 +296,257 @@ class RocksDbAgentRunStoreTest {
             .extracting(event -> event.type().name())
             .containsExactly("RUN_STARTED", "STEP_RECORDED", "OBSERVATION_RECORDED", "RUN_FAILED");
         reopened.close();
+    }
+
+    @Test
+    void externalizesLargeRawObservationAndKeepsOnlyRocksDbReference() {
+        AgentRuntimeProperties properties = properties(tempDir);
+        properties.setEvidenceExternalizationThresholdBytes(16_384);
+        ObjectMapper objectMapper = new ObjectMapper();
+        TestEvidenceStore evidenceStore = new TestEvidenceStore();
+        RocksDbAgentRunStore store = new RocksDbAgentRunStore(
+            new NoopAgentRunEventPublisher(),
+            properties,
+            objectMapper
+        );
+        store.setEvidenceStore(evidenceStore);
+        String runId = "rocks-large-observation-1";
+        String rawEvidence = "evidence-row-".repeat(150_000);
+        AgentObservation observation = AgentObservation.builder()
+            .type("tool")
+            .source("enterprise_metadata_search")
+            .content("Enterprise metadata evidence")
+            .metadata(Map.of("stepOutput", rawEvidence, "rowCount", 150_000))
+            .build();
+        store.open();
+
+        store.start(AgentRunRequest.builder().runId(runId).requestId("req-" + runId).build());
+        store.recordObservation(runId, observation);
+        store.complete(runId, AgentRunResult.builder()
+            .runId(runId)
+            .status(AgentRunStatus.COMPLETED)
+            .answer("done")
+            .observations(List.of(observation))
+            .build());
+
+        AgentRunEvent event = store.events(runId).stream()
+            .filter(item -> item.type() == AgentRunEventType.OBSERVATION_RECORDED)
+            .findFirst()
+            .orElseThrow();
+        assertThat(objectMapper.valueToTree(event).toString().length()).isLessThan(20_000);
+        assertThat(event.payload())
+            .containsEntry("eventMetadataCompacted", true)
+            .containsEntry("rawObservationLocation", "agent_run_observation_index");
+        AgentObservation stored = store.observations(runId).get(0);
+        assertThat(stored.metadata())
+            .doesNotContainKey("stepOutput")
+            .containsEntry("stepOutputExternal", true);
+        assertThat(store.find(runId).orElseThrow().result().observations().get(0).metadata())
+            .doesNotContainKey("stepOutput");
+        assertThat(evidenceStore.values).hasSize(1);
+        String documentId = String.valueOf(stored.metadata().get("stepOutputDocumentId"));
+        assertThat(store.evidence(documentId)).contains(rawEvidence);
+        store.close();
+
+        RocksDbAgentRunStore reopened = new RocksDbAgentRunStore(
+            new NoopAgentRunEventPublisher(),
+            properties,
+            objectMapper
+        );
+        reopened.setEvidenceStore(evidenceStore);
+        reopened.open();
+
+        AgentObservation restored = reopened.observations(runId).get(0);
+        assertThat(restored.metadata()).doesNotContainKey("stepOutput");
+        assertThat(reopened.evidence(documentId)).contains(rawEvidence);
+        AgentRunEvent restoredEvent = reopened.events(runId).stream()
+            .filter(item -> item.type() == AgentRunEventType.OBSERVATION_RECORDED)
+            .findFirst()
+            .orElseThrow();
+        assertThat(objectMapper.valueToTree(restoredEvent).toString().length()).isLessThan(20_000);
+        reopened.close();
+    }
+
+    @Test
+    void migratesLegacyInlineEvidenceToExternalStoreOnReopen() {
+        AgentRuntimeProperties properties = properties(tempDir);
+        properties.setEvidenceExternalizationThresholdBytes(16_384);
+        ObjectMapper objectMapper = new ObjectMapper();
+        String runId = "rocks-legacy-evidence-1";
+        String rawEvidence = "legacy-evidence-".repeat(20_000);
+        RocksDbAgentRunStore legacyStore = new RocksDbAgentRunStore(
+            new NoopAgentRunEventPublisher(),
+            properties,
+            objectMapper
+        );
+        legacyStore.open();
+        legacyStore.start(AgentRunRequest.builder().runId(runId).requestId("req-" + runId).build());
+        legacyStore.recordObservation(runId, AgentObservation.builder()
+            .type("tool")
+            .source("enterprise_metadata_search")
+            .content("legacy evidence")
+            .metadata(Map.of("evidenceId", "legacy-ev-1", "stepOutput", rawEvidence))
+            .build());
+        legacyStore.close();
+
+        TestEvidenceStore evidenceStore = new TestEvidenceStore();
+        RocksDbAgentRunStore migratedStore = new RocksDbAgentRunStore(
+            new NoopAgentRunEventPublisher(),
+            properties,
+            objectMapper
+        );
+        migratedStore.setEvidenceStore(evidenceStore);
+        migratedStore.open();
+
+        assertThat(evidenceStore.values).isEmpty();
+        AgentObservation migrated = migratedStore.observations(runId).get(0);
+        assertThat(migrated.metadata())
+            .doesNotContainKey("stepOutput")
+            .containsEntry("stepOutputExternal", true);
+        String documentId = String.valueOf(migrated.metadata().get("stepOutputDocumentId"));
+        assertThat(migratedStore.evidence(documentId)).contains(rawEvidence);
+        migratedStore.close();
+    }
+
+    @Test
+    void dagSnapshotStoresEvidenceReferenceInsteadOfLargeInlineOutput() throws Exception {
+        AgentRuntimeProperties properties = properties(tempDir);
+        properties.setEvidenceExternalizationThresholdBytes(16_384);
+        ObjectMapper objectMapper = new ObjectMapper();
+        TestEvidenceStore evidenceStore = new TestEvidenceStore();
+        RocksDbAgentRunStore store = new RocksDbAgentRunStore(
+            new NoopAgentRunEventPublisher(),
+            properties,
+            objectMapper
+        );
+        store.setEvidenceStore(evidenceStore);
+        String runId = "rocks-dag-evidence-1";
+        String rawEvidence = "dag-evidence-".repeat(30_000);
+        store.open();
+        store.start(AgentRunRequest.builder()
+            .runId(runId)
+            .requestId("req-" + runId)
+            .tenantId("tenant-dag")
+            .build());
+        store.recordObservation(runId, AgentObservation.builder()
+            .type("tool")
+            .source("enterprise_metadata_search")
+            .content("DAG evidence")
+            .metadata(Map.of(
+                "evidenceId", "dag-ev-1",
+                "interpretationPlanStepId", 1,
+                "stepOutput", rawEvidence
+            ))
+            .build());
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            null,
+            null,
+            new InterpretationPlan.Plan(List.of(new InterpretationPlan.Step(
+                1, "mcp_tool", "enterprise_metadata_search", Map.of(), List.of(), null, null
+            ))),
+            null,
+            null
+        );
+        store.savePlan(
+            "tenant-dag",
+            runId,
+            "plan-dag-evidence",
+            plan,
+            "COMPLETED",
+            Map.of("nodes", List.of(Map.of("stepId", 1, "output", rawEvidence)), "edges", List.of())
+        );
+
+        var dag = objectMapper.readTree(store.getDagJson("tenant-dag", runId).orElseThrow());
+        var node = dag.path("nodes").get(0);
+        assertThat(node.has("output")).isFalse();
+        assertThat(node.path("outputExternal").asBoolean()).isTrue();
+        assertThat(node.path("outputDocumentId").asText()).startsWith("agent-evidence-");
+        assertThat(store.evidence(node.path("outputDocumentId").asText())).contains(rawEvidence);
+        store.close();
+    }
+
+    @Test
+    void retentionCleanupDeletesRocksDbIndexesAndExternalEvidence() throws Exception {
+        AgentRuntimeProperties properties = properties(tempDir);
+        properties.setEvidenceExternalizationThresholdBytes(16_384);
+        TestEvidenceStore evidenceStore = new TestEvidenceStore();
+        RocksDbAgentRunStore store = new RocksDbAgentRunStore(
+            new NoopAgentRunEventPublisher(),
+            properties,
+            new ObjectMapper()
+        );
+        store.setEvidenceStore(evidenceStore);
+        String runId = "rocks-expired-evidence";
+        store.open();
+        store.start(AgentRunRequest.builder()
+            .runId(runId)
+            .requestId("req-" + runId)
+            .build());
+        store.recordObservation(runId, AgentObservation.builder()
+            .type("tool")
+            .source("large_tool")
+            .content("large evidence")
+            .metadata(Map.of(
+                "evidenceId", "expired-evidence",
+                "stepOutput", "evidence-".repeat(40_000)
+            ))
+            .build());
+        store.complete(runId, AgentRunResult.builder()
+            .runId(runId)
+            .status(AgentRunStatus.COMPLETED)
+            .answer("done")
+            .build());
+        assertThat(evidenceStore.values).hasSize(1);
+
+        properties.setTerminalRunTtlMs(1);
+        Thread.sleep(5);
+
+        assertThat(store.cleanupExpiredRuns()).isEqualTo(1);
+        assertThat(store.find(runId)).isEmpty();
+        assertThat(store.events(runId)).isEmpty();
+        assertThat(store.observations(runId)).isEmpty();
+        assertThat(evidenceStore.values).isEmpty();
+        store.close();
+
+        RocksDbAgentRunStore reopened = new RocksDbAgentRunStore(
+            new NoopAgentRunEventPublisher(),
+            properties,
+            new ObjectMapper()
+        );
+        reopened.setEvidenceStore(evidenceStore);
+        reopened.open();
+        assertThat(reopened.find(runId)).isEmpty();
+        reopened.close();
+    }
+
+    private static class TestEvidenceStore implements AgentEvidenceStore {
+
+        private final Map<String, String> values = new LinkedHashMap<>();
+
+        @Override
+        public boolean isEnabled() {
+            return true;
+        }
+
+        @Override
+        public void put(String documentId,
+                        String tenantId,
+                        String runId,
+                        String evidenceId,
+                        String json) {
+            values.put(documentId, json);
+        }
+
+        @Override
+        public Optional<String> get(String documentId) {
+            return Optional.ofNullable(values.get(documentId));
+        }
+
+        @Override
+        public void delete(String documentId) {
+            values.remove(documentId);
+        }
     }
 
     private void completeRun(RocksDbAgentRunStore store, String runId) {

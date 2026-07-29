@@ -129,6 +129,11 @@ public class DefaultAgentRuntime implements AgentRuntime {
     }
 
     @Override
+    public Optional<Object> evidence(String documentId) {
+        return runStore.evidence(documentId);
+    }
+
+    @Override
     public AgentRuntimeSnapshot snapshot() {
         return runStore.snapshot().withActiveCancellationSignals(cancellationSignals.size());
     }

@@ -330,6 +330,24 @@ class InMemoryAgentRunStoreTest {
         assertThat(store.snapshot().runningRuns()).isEqualTo(1);
     }
 
+    @Test
+    void scheduledCleanupRemovesOnlyExpiredTerminalRuns() throws InterruptedException {
+        AgentRuntimeProperties properties = new AgentRuntimeProperties();
+        InMemoryAgentRunStore store = new InMemoryAgentRunStore(new NoopAgentRunEventPublisher(), properties);
+        completeRun(store, "expired-terminal");
+        store.start(AgentRunRequest.builder()
+            .runId("active-run")
+            .requestId("req-active-run")
+            .build());
+
+        properties.setTerminalRunTtlMs(1);
+        Thread.sleep(5);
+
+        assertThat(store.cleanupExpiredRuns()).isEqualTo(1);
+        assertThat(store.find("expired-terminal")).isEmpty();
+        assertThat(store.find("active-run")).isPresent();
+    }
+
     private void completeRun(InMemoryAgentRunStore store, String runId) {
         AgentRunRequest request = AgentRunRequest.builder()
             .runId(runId)

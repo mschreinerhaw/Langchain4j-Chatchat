@@ -11,6 +11,7 @@ import com.chatchat.agents.evidence.EvidenceAnswerGroundingGuard;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.AgentAnswerReview;
 import com.chatchat.agents.runtime.AgentAnswerReviewer;
+import com.chatchat.agents.runtime.AnswerCandidateCollector;
 import com.chatchat.agents.runtime.DraftArtifactRuntimePolicy;
 import com.chatchat.agents.runtime.plan.DiagnosticRunStateMachine;
 import com.chatchat.common.interaction.InteractionToolTrace;
@@ -54,7 +55,6 @@ class AgentAnswerFinalizer {
     private static final String ANSWER_EVIDENCE_PARTIAL = "PARTIAL_ANALYSIS";
     private static final String ANSWER_EVIDENCE_INSUFFICIENT = "EVIDENCE_INSUFFICIENT";
     private static final String ANSWER_EVIDENCE_BLOCKED = "EXECUTION_BLOCKED";
-    private static final String SUMMARY_REVIEW_CANDIDATES_ATTRIBUTE = "__summaryReviewCandidates";
     private static final String INSUFFICIENT_EVIDENCE_ANSWER = "根据当前文档证据不足，无法确认。";
     private static final int TOOL_DATA_INLINE_CELL_LIMIT = 240;
     private static final Pattern DOCUMENT_REF_PATTERN =
@@ -76,6 +76,7 @@ class AgentAnswerFinalizer {
         new DraftArtifactRuntimePolicy();
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final AnswerQualityEvaluator answerQualityEvaluator = new AnswerQualityEvaluator(objectMapper);
+    private final AnswerCandidateCollector answerCandidateCollector = new AnswerCandidateCollector();
 
     AgentAnswerFinalizer(AgentAnswerReviewer answerReviewer, AgentRuntimeGuard runtimeGuard) {
         this(answerReviewer, runtimeGuard, null);
@@ -614,31 +615,29 @@ class AgentAnswerFinalizer {
                 ));
             }
         }
-        addSummaryReviewCandidates(candidates, metadata);
+        addRuntimeAnswerCandidates(candidates, metadata);
         return List.copyOf(candidates);
     }
 
-    @SuppressWarnings("unchecked")
-    private void addSummaryReviewCandidates(List<AnswerQualityEvaluator.AnswerCandidate> candidates,
+    private void addRuntimeAnswerCandidates(List<AnswerQualityEvaluator.AnswerCandidate> candidates,
                                             Map<String, Object> metadata) {
-        if (metadata == null) {
-            return;
+        List<AnswerCandidateCollector.Candidate> collected = answerCandidateCollector.drain(metadata);
+        if (metadata != null && !collected.isEmpty()) {
+            metadata.put("answerCandidateCollectorContractVersion", AnswerCandidateCollector.CONTRACT_VERSION);
+            metadata.put("answerCandidateCollectedCount", collected.size());
+            metadata.put("answerCandidateCollectedStages", collected.stream()
+                .map(AnswerCandidateCollector.Candidate::stage)
+                .distinct()
+                .toList());
         }
-        Object raw = metadata.remove(SUMMARY_REVIEW_CANDIDATES_ATTRIBUTE);
-        if (!(raw instanceof List<?> values)) {
-            return;
-        }
-        for (Object value : values) {
-            if (!(value instanceof Map<?, ?> map)) {
-                continue;
-            }
-            String answer = stringValue(map.get("answer"));
+        for (AnswerCandidateCollector.Candidate value : collected) {
+            String answer = value.answer();
             if (answer == null || answer.isBlank()) {
                 continue;
             }
             candidates.add(new AnswerQualityEvaluator.AnswerCandidate(
-                firstNonBlank(stringValue(map.get("id")), "summary_stage_" + (candidates.size() + 1)),
-                firstNonBlank(stringValue(map.get("source")), AnswerQualityEvaluator.SUMMARY_STAGE),
+                firstNonBlank(value.id(), "runtime_stage_" + (candidates.size() + 1)),
+                AnswerQualityEvaluator.SUMMARY_STAGE,
                 answer
             ));
         }

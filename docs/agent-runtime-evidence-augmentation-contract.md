@@ -1,5 +1,9 @@
 # Agent Runtime Evidence Augmentation Contract v1
 
+最终答案进入用户输出前，还必须遵守
+[`Agent Runtime 最终答案质量评审契约`](agent-runtime-answer-quality-review-contract.md)。
+证据增强契约决定是否继续探索和允许回答的范围；答案质量评审契约负责在不改变原始证据的前提下比较、融合和选择最终表达。
+
 ## 契约身份
 
 - 契约名称：Agent Runtime Evidence Augmentation Contract

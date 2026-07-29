@@ -328,7 +328,9 @@ class AnswerQualityEvaluator {
             Map<String, Object> values = new LinkedHashMap<>();
             values.put("id", id);
             values.put("source", source);
-            values.put("answerPreview", answer == null ? "" : answer.replaceAll("\\s+", " ").trim());
+            String normalized = answer == null ? "" : answer.replaceAll("\\s+", " ").trim();
+            values.put("answerPreview",
+                normalized.length() <= 1000 ? normalized : normalized.substring(0, 1000));
             return values;
         }
     }

@@ -8,6 +8,11 @@ The framework is hybrid by design:
 - LLM semantic evaluation is optional and advisory.
 - LLM scores must never be the only source of pass/fail truth.
 
+Final-answer candidate comparison and synthesis must also follow
+[`Agent Runtime Answer Quality Review Contract`](agent-runtime-answer-quality-review-contract.md).
+Regression coverage must verify deterministic aggregation, hard-filter fallback,
+review-feedback consumption, and removal of transient summary candidates.
+
 ## Case DSL
 
 YAML cases live under:

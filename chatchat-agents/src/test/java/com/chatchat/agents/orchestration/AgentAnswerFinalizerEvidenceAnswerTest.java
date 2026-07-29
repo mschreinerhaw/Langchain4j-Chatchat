@@ -2,6 +2,7 @@ package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.runtime.AgentAnswerReview;
 import com.chatchat.agents.runtime.AgentAnswerReviewer;
+import com.chatchat.agents.runtime.AnswerCandidateCollector;
 import com.chatchat.common.config.ModelsConfig;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import dev.langchain4j.model.chat.ChatModel;
@@ -1162,7 +1163,7 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
               "candidates":[
                 {"id":"candidate","accuracy":0.95,"grounding":0.95,"completeness":0.30,"citation":1.0,"usefulness":0.40,
                  "contradictsObservation":false,"usesFailedToolEvidence":false,"missingRequiredCitation":false,"schemaViolation":false,"unsafe":false},
-                {"id":"initial_summary_1","accuracy":0.70,"grounding":0.75,"completeness":0.95,"citation":1.0,"usefulness":0.90,
+                {"id":"final_synthesis_1","accuracy":0.70,"grounding":0.75,"completeness":0.95,"citation":1.0,"usefulness":0.90,
                  "contradictsObservation":true,"usesFailedToolEvidence":false,"missingRequiredCitation":false,"schemaViolation":false,"unsafe":false},
                 {"id":"quality_synthesis","accuracy":0.98,"grounding":0.98,"completeness":0.96,"citation":1.0,"usefulness":0.95,
                  "contradictsObservation":false,"usesFailedToolEvidence":false,"missingRequiredCitation":false,"schemaViolation":false,"unsafe":false}
@@ -1170,11 +1171,11 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
             }
             """);
         Map<String, Object> metadata = new LinkedHashMap<>();
-        metadata.put("__summaryReviewCandidates", List.of(Map.of(
-            "id", "initial_summary_1",
-            "source", "interpretation_plan_summary",
-            "answer", "完整偏离分析，但错误地写成只有 8 个字段。"
-        )));
+        new AnswerCandidateCollector().register(
+            metadata,
+            AnswerCandidateCollector.FINAL_SYNTHESIS,
+            "完整偏离分析，但错误地写成只有 8 个字段。"
+        );
 
         AgentOrchestrator.AgentExecutionResult result = finalizer.finishReviewedAnswer(
             qualityModel,
@@ -1194,7 +1195,13 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
         assertThat(result.metadata())
             .containsEntry("answerDecision", AnswerDecisionEngine.QUALITY_SELECTED_ANSWER)
             .containsEntry("answerQualitySelectedSource", AnswerQualityEvaluator.QUALITY_SYNTHESIS)
-            .doesNotContainKey("__summaryReviewCandidates");
+            .containsEntry("answerCandidateCollectorContractVersion", AnswerCandidateCollector.CONTRACT_VERSION)
+            .containsEntry("answerCandidateCollectedCount", 1)
+            .containsEntry(
+                "answerCandidateCollectedStages",
+                List.of(AnswerCandidateCollector.FINAL_SYNTHESIS)
+            );
+        assertThat(new AnswerCandidateCollector().hasCandidates(result.metadata())).isFalse();
     }
 
     @Test

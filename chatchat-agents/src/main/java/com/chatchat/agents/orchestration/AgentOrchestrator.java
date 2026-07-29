@@ -5,6 +5,7 @@ import com.chatchat.agents.assessment.RuntimeAnswerCandidate;
 import com.chatchat.agents.assessment.TaskContract;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.AgentAnswerReviewer;
+import com.chatchat.agents.runtime.AnswerCandidateCollector;
 import com.chatchat.agents.runtime.AgentObservation;
 import com.chatchat.agents.runtime.AgentObservationPipeline;
 import com.chatchat.agents.runtime.AgentRun;
@@ -73,7 +74,6 @@ public class AgentOrchestrator {
     private static final String AGENT_TIMEOUT_MS_ATTRIBUTE = "__agentTimeoutMs";
     private static final String AGENT_DEADLINE_AT_ATTRIBUTE = "__agentDeadlineAt";
     private static final String AGENT_RUN_ID_ATTRIBUTE = "__agentRunId";
-    private static final String SUMMARY_REVIEW_CANDIDATES_ATTRIBUTE = "__summaryReviewCandidates";
     private static final String FINAL = "final";
     private static final String TOOL = "tool";
     private static final String WORKFLOW_PROBLEM_SOLVING = "agent_problem_solving";
@@ -100,6 +100,7 @@ public class AgentOrchestrator {
     private final AgentToolArgumentResolver toolArguments;
     private final AgentWorkflowToolResolver workflowTools;
     private final ModelAssistedRetrievalBridge modelAssistedRetrievalBridge;
+    private final AnswerCandidateCollector answerCandidateCollector = new AnswerCandidateCollector();
     private final AgentWorkflowStateTracker workflowStateTracker = new AgentWorkflowStateTracker();
     private final AgentAnswerFinalizer answerFinalizer;
     private final InterpretationPlanStore interpretationPlanStore;
@@ -2008,7 +2009,11 @@ public class AgentOrchestrator {
             firstNonBlank(runId, ""),
             stage,
             ModelProtocolJson.prettyJsonForLog(answer));
-        registerSummaryReviewCandidate(metadata, "interpretation_plan_summary", answer);
+        answerCandidateCollector.register(
+            metadata,
+            AnswerCandidateCollector.FINAL_SYNTHESIS,
+            answer
+        );
         if (metadata != null) {
             metadata.put("interpretationPlanSummaryGenerated", true);
             metadata.put("interpretationPlanSummaryStage", stage);
@@ -2039,14 +2044,22 @@ public class AgentOrchestrator {
                     metadata
                 );
                 if (!Objects.equals(preGroundingRewrite, answer)) {
-                    registerSummaryReviewCandidate(metadata, "sql_metadata_grounding_rewrite", answer);
+                    answerCandidateCollector.register(
+                        metadata,
+                        AnswerCandidateCollector.FACT_GROUNDING_REWRITE,
+                        answer
+                    );
                 }
                 if (metadata != null) {
                     metadata.put("sqlMetadataGroundingValidated", true);
                 }
             }
             answer = mergeStructuredSqlMetadataAnswer(structuredSqlMetadata, answer);
-            registerSummaryReviewCandidate(metadata, "structured_sql_metadata_merge", answer);
+            answerCandidateCollector.register(
+                metadata,
+                AnswerCandidateCollector.STRUCTURED_EVIDENCE_MERGE,
+                answer
+            );
         }
         runResultAdapter.recordRuntimeObservation(
             runtimeAttributes,
@@ -2063,31 +2076,6 @@ public class AgentOrchestrator {
         return answer == null || answer.isBlank()
             ? (result == null ? "" : firstNonBlank(result.finalAnswer(), ""))
             : answer;
-    }
-
-    @SuppressWarnings("unchecked")
-    private void registerSummaryReviewCandidate(Map<String, Object> metadata,
-                                                String source,
-                                                String answer) {
-        if (metadata == null || answer == null || answer.isBlank()) {
-            return;
-        }
-        List<Map<String, Object>> candidates =
-            metadata.get(SUMMARY_REVIEW_CANDIDATES_ATTRIBUTE) instanceof List<?> existing
-                ? new ArrayList<>((List<Map<String, Object>>) existing)
-                : new ArrayList<>();
-        String normalized = answer.replaceAll("\\s+", " ").trim();
-        boolean duplicate = candidates.stream().anyMatch(candidate ->
-            normalized.equals(String.valueOf(candidate.getOrDefault("answer", ""))
-                .replaceAll("\\s+", " ").trim()));
-        if (!duplicate) {
-            candidates.add(Map.of(
-                "id", source + "_" + (candidates.size() + 1),
-                "source", source,
-                "answer", answer
-            ));
-            metadata.put(SUMMARY_REVIEW_CANDIDATES_ATTRIBUTE, List.copyOf(candidates));
-        }
     }
 
     private boolean hasBatchExecutionResult(InterpretationPlanRuntime.ExecutionResult result) {

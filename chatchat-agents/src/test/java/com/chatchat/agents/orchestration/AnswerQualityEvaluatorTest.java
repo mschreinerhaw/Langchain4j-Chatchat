@@ -92,6 +92,21 @@ class AnswerQualityEvaluatorTest {
             .contains("quality_synthesis_low_grounding", "quality_synthesis_low_accuracy");
     }
 
+    @Test
+    void persistedCandidateAuditContainsOnlyBoundedPreview() {
+        String longAnswer = "x".repeat(5000);
+        AnswerQualityEvaluator.QualityReport report =
+            AnswerQualityEvaluator.QualityReport.unavailable(
+                "test",
+                List.of(new AnswerQualityEvaluator.AnswerCandidate(
+                    "stage", AnswerQualityEvaluator.SUMMARY_STAGE, longAnswer
+                ))
+            );
+
+        assertThat(String.valueOf(report.candidateMaps().get(0).get("answerPreview")))
+            .hasSize(1000);
+    }
+
     private AnswerQualityEvaluator.CandidateScore score(String id,
                                                         double accuracy,
                                                         double grounding,

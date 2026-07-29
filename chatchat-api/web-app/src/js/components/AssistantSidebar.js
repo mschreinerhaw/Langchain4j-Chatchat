@@ -166,6 +166,29 @@ export default {
     conversationTitle(conversation) {
       return conversation.question || "未命名会话";
     },
+    conversationCreatedAt(conversation) {
+      const value = conversation?.createdAt ?? conversation?.timestamp;
+      if (value === null || value === undefined || value === "") {
+        return null;
+      }
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date;
+    },
+    formatConversationCreatedAt(conversation) {
+      const date = this.conversationCreatedAt(conversation);
+      if (!date) {
+        return "时间未知";
+      }
+      const pad = (value) => String(value).padStart(2, "0");
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    },
+    conversationCreatedAtIso(conversation) {
+      return this.conversationCreatedAt(conversation)?.toISOString() || "";
+    },
+    conversationCreatedAtTitle(conversation) {
+      const date = this.conversationCreatedAt(conversation);
+      return date ? `创建时间：${date.toLocaleString("zh-CN", { hour12: false })}` : "创建时间未知";
+    },
     isConversationActive(conversation) {
       return conversation.id && conversation.id === this.activeConversationId;
     },

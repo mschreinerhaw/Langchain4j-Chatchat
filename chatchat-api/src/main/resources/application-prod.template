@@ -107,6 +107,10 @@ chatchat:
   models:
     defaultProvider: openai
     defaultChatModel: qwen3.6-plus
+    context-window-max-tokens: ${CHATCHAT_MODEL_CONTEXT_WINDOW_MAX_TOKENS:200000}
+    context-reserved-system-tokens: ${CHATCHAT_MODEL_CONTEXT_RESERVED_SYSTEM_TOKENS:20000}
+    context-reserved-history-tokens: ${CHATCHAT_MODEL_CONTEXT_RESERVED_HISTORY_TOKENS:30000}
+    context-reserved-output-tokens: ${CHATCHAT_MODEL_CONTEXT_RESERVED_OUTPUT_TOKENS:30000}
     availableChatModels:
       - qwen3.6-plus
       - deepseek-v4-pro
@@ -298,6 +302,11 @@ chatchat:
       type: rocksdb
       path: ./data/chat-rocksdb
       create-if-missing: true
+      max-string-length: 100000000
+      external-text:
+        enabled: true
+        index-name: chatchat_chat_details
+        migrate-legacy-on-read: true
 
 mcp-policy:
   enabled: true

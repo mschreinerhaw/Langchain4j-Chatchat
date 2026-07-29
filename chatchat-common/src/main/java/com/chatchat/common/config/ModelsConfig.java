@@ -30,6 +30,11 @@ public class ModelsConfig {
      */
     private List<String> availableChatModels = new ArrayList<>(List.of("deepseek-v4-pro"));
 
+    private int contextWindowMaxTokens = 200_000;
+    private int contextReservedSystemTokens = 20_000;
+    private int contextReservedHistoryTokens = 30_000;
+    private int contextReservedOutputTokens = 30_000;
+
     /**
      * OpenAI API configuration
      */

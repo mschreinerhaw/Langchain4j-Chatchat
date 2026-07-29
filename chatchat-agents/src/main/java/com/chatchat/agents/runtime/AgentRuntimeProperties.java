@@ -22,6 +22,7 @@ public class AgentRuntimeProperties {
     private String rocksDbPath = "./data/agent-runtime-rocksdb";
     private boolean rocksDbCreateIfMissing = true;
     private boolean failInterruptedRunsOnStartup = true;
+    private int maxJsonStringLength = 100_000_000;
 
     public int corePoolSize() {
         return Math.max(1, corePoolSize);

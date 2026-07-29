@@ -72,6 +72,13 @@
           @click="selectConversation(conversation)"
         >
           <span class="recent-title">{{ conversationTitle(conversation) }}</span>
+          <time
+            class="recent-created-at"
+            :datetime="conversationCreatedAtIso(conversation)"
+            :title="conversationCreatedAtTitle(conversation)"
+          >
+            创建 {{ formatConversationCreatedAt(conversation) }}
+          </time>
           <span v-if="statusLabel(conversation)" class="recent-status">
             <span v-if="resolveStatus(conversation) === 'running'" class="recent-spinner"></span>
             {{ statusLabel(conversation) }}

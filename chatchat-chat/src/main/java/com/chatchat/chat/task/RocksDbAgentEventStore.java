@@ -1,5 +1,7 @@
 package com.chatchat.chat.task;
 
+import com.chatchat.chat.conversation.ChatDetailStoreProperties;
+import com.chatchat.chat.conversation.ChatMessageTextStore;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -15,7 +17,10 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
@@ -29,6 +34,8 @@ public class RocksDbAgentEventStore implements AgentEventStore {
     private final AgentTaskProperties properties;
     private final ObjectMapper objectMapper;
     private final Set<String> unreadableEventWarnings = ConcurrentHashMap.newKeySet();
+    private final ChatDetailStoreProperties detailStoreProperties;
+    private final ChatMessageTextStore textStore;
     private Options options;
     private RocksDB db;
 
@@ -38,9 +45,22 @@ public class RocksDbAgentEventStore implements AgentEventStore {
      * @param properties the properties value
      * @param objectMapper the object mapper value
      */
-    public RocksDbAgentEventStore(AgentTaskProperties properties, ObjectMapper objectMapper) {
+    public RocksDbAgentEventStore(AgentTaskProperties properties,
+                                  ObjectMapper objectMapper,
+                                  ChatDetailStoreProperties detailStoreProperties,
+                                  ChatMessageTextStore textStore) {
         this.properties = properties;
-        this.objectMapper = objectMapper;
+        this.detailStoreProperties = detailStoreProperties;
+        this.textStore = textStore;
+        this.objectMapper = objectMapper.copy();
+        this.objectMapper.getFactory().setStreamReadConstraints(
+            this.objectMapper.getFactory().streamReadConstraints().rebuild()
+                .maxStringLength(detailStoreProperties.getMaxStringLength())
+                .build()
+        );
+        if (externalTextEnabled() && !textStore.isEnabled()) {
+            throw new IllegalStateException("OpenSearch agent event payload store is enabled but unavailable");
+        }
     }
 
     /**
@@ -73,7 +93,28 @@ public class RocksDbAgentEventStore implements AgentEventStore {
         }
         String key = AgentEventKeyBuilder.build(event);
         try {
-            db.put(bytes(key), objectMapper.writeValueAsBytes(event));
+            if (!externalTextEnabled() || event.getPayload() == null) {
+                db.put(bytes(key), objectMapper.writeValueAsBytes(event));
+                return key;
+            }
+            String documentId = documentId(key);
+            textStore.putText(
+                documentId,
+                "agent_event_payload",
+                event.getTenantId(),
+                event.getSessionId(),
+                event.getEventId(),
+                event.getPayload()
+            );
+            AgentEvent storedEvent = event.toBuilder().payload(null).build();
+            try {
+                db.put(bytes(key), objectMapper.writeValueAsBytes(
+                    new EventRecord(2, documentId, storedEvent)
+                ));
+            } catch (IOException | RocksDBException ex) {
+                deleteExternalQuietly(documentId);
+                throw ex;
+            }
             return key;
         } catch (IOException | RocksDBException ex) {
             throw new IllegalStateException("Failed to write agent event", ex);
@@ -127,7 +168,7 @@ public class RocksDbAgentEventStore implements AgentEventStore {
         try (RocksIterator iterator = db.newIterator()) {
             for (iterator.seek(prefixBytes); iterator.isValid() && startsWith(iterator.key(), prefixBytes); iterator.next()) {
                 try {
-                    AgentEvent event = objectMapper.readValue(iterator.value(), AgentEvent.class);
+                    AgentEvent event = readEvent(iterator.key(), iterator.value());
                     if (taskId == null || taskId.equals(event.getTaskId())) {
                         events.add(event);
                     }
@@ -208,5 +249,77 @@ public class RocksDbAgentEventStore implements AgentEventStore {
      */
     private byte[] bytes(String value) {
         return value.getBytes(StandardCharsets.UTF_8);
+    }
+
+    private AgentEvent readEvent(byte[] keyBytes, byte[] value) throws IOException {
+        var root = objectMapper.readTree(value);
+        if (root.path("formatVersion").asInt() == 2 && root.has("event")) {
+            AgentEvent event = objectMapper.treeToValue(root.path("event"), AgentEvent.class);
+            String documentId = root.path("payloadDocumentId").asText("");
+            if (!documentId.isBlank()) {
+                String payload = textStore.getText(documentId)
+                    .orElseThrow(() -> new IllegalStateException(
+                        "OpenSearch agent event payload is missing documentId=" + documentId
+                    ));
+                event.setPayload(payload);
+            }
+            return event;
+        }
+        AgentEvent event = objectMapper.treeToValue(root, AgentEvent.class);
+        migrateLegacyEvent(new String(keyBytes, StandardCharsets.UTF_8), event);
+        return event;
+    }
+
+    private void migrateLegacyEvent(String key, AgentEvent event) {
+        if (!externalTextEnabled() || event.getPayload() == null) {
+            return;
+        }
+        String documentId = documentId(key);
+        try {
+            textStore.putText(
+                documentId,
+                "agent_event_payload",
+                event.getTenantId(),
+                event.getSessionId(),
+                event.getEventId(),
+                event.getPayload()
+            );
+            AgentEvent storedEvent = event.toBuilder().payload(null).build();
+            db.put(bytes(key), objectMapper.writeValueAsBytes(
+                new EventRecord(2, documentId, storedEvent)
+            ));
+            log.info("Migrated legacy RocksDB agent event payload to OpenSearch key={} documentId={}",
+                key, documentId);
+        } catch (IOException | RocksDBException | RuntimeException ex) {
+            deleteExternalQuietly(documentId);
+            log.warn("Failed to migrate legacy RocksDB agent event key={} documentId={} error={}",
+                key, documentId, ex.getMessage());
+        }
+    }
+
+    private boolean externalTextEnabled() {
+        return detailStoreProperties.getExternalText() != null
+            && detailStoreProperties.getExternalText().isEnabled();
+    }
+
+    private String documentId(String key) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(bytes(key));
+            return "event-" + Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SHA-256 is unavailable", ex);
+        }
+    }
+
+    private void deleteExternalQuietly(String documentId) {
+        try {
+            textStore.delete(documentId);
+        } catch (RuntimeException ex) {
+            log.warn("Failed to delete OpenSearch agent event payload documentId={} error={}",
+                documentId, ex.getMessage());
+        }
+    }
+
+    private record EventRecord(int formatVersion, String payloadDocumentId, AgentEvent event) {
     }
 }

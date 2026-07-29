@@ -1,6 +1,8 @@
 package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.runtime.ToolRuntimeService;
+import com.chatchat.agents.runtime.plan.InterpretationPlan;
+import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
 import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
 import com.chatchat.agents.runtime.batch.ToolCallResult;
 import com.chatchat.agents.tool.ToolRegistry;
@@ -9,12 +11,43 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 class AgentOrchestratorDagEvidenceTest {
+
+    @Test
+    void keepsCompleteDagEvidenceWhenContextIsBelowCompressionThreshold() {
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            null,
+            mock(ToolRegistry.class),
+            mock(ToolRuntimeService.class),
+            new ObjectMapper(),
+            new ModelsConfig()
+        );
+        Map<String, Object> output = Map.of(
+            "rows", List.of(Map.of("customerId", "C001", "customerName", "张三")),
+            "complete", true
+        );
+        InterpretationPlanRuntime.StepExecution execution =
+            new InterpretationPlanRuntime.StepExecution(
+                1, "mcp_tool", "customer_search", true, output,
+                null, null, null, 10L, Map.of("review", "accepted")
+            );
+        InterpretationPlanRuntime.DagDecisionRequest request = dagRequest(execution);
+
+        String prompt = orchestrator.buildInterpretationPlanDagDecisionPrompt("查询客户", "", request);
+
+        assertThat(prompt)
+            .contains("enabled=false")
+            .contains("\"customerId\":\"C001\"")
+            .contains("\"customerName\":\"张三\"")
+            .doesNotContain("dag_decision_tool_result_projection_v1");
+    }
 
     @Test
     @SuppressWarnings("unchecked")
@@ -85,5 +118,105 @@ class AgentOrchestratorDagEvidenceTest {
         assertThat(sessionRows.get(3)).containsEntry("TOTAL_SESSIONS", 21);
         assertThat(snapshot.toString())
             .doesNotContain("sampleRows", "previewTruncated");
+    }
+
+    @Test
+    void boundsEnterpriseMetadataInDagControllerPromptWhileRetainingRuntimeResult() {
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            null,
+            mock(ToolRegistry.class),
+            mock(ToolRuntimeService.class),
+            new ObjectMapper(),
+            new ModelsConfig()
+        );
+        List<Map<String, Object>> candidates = java.util.stream.IntStream.range(0, 2_000)
+            .mapToObj(index -> Map.<String, Object>of(
+                "name", "candidate-" + index,
+                "metadata", Map.of("description", "large-evidence-marker-" + index + "-" + "x".repeat(300))
+            ))
+            .toList();
+        Map<String, Object> output = new LinkedHashMap<>();
+        output.put("schemaVersion", "enterprise_metadata_field_discovery.v1");
+        output.put("success", true);
+        output.put("targetObject", Map.of("type", "TABLE", "name", "gdp_ads.customer"));
+        output.put("sourceSchema", Map.of(
+            "fieldCount", 1,
+            "fields", List.of(Map.of("fieldName", "cust_num"))
+        ));
+        output.put("fieldMatches", List.of(Map.of(
+            "fieldRef", "cust_num",
+            "input", Map.of("fieldName", "cust_num"),
+            "standardFields", candidates,
+            "termRoots", candidates,
+            "dictionaries", candidates
+        )));
+        output.put("evidenceObjects", candidates);
+
+        InterpretationPlanRuntime.StepExecution execution =
+            new InterpretationPlanRuntime.StepExecution(
+                1,
+                "mcp_tool",
+                "mcp_chatchat_mcp_server_enterprise_metadata_search",
+                true,
+                output,
+                null,
+                null,
+                null,
+                10L,
+                Map.of("resolvedInput", output)
+            );
+        InterpretationPlanRuntime.DagDecisionRequest request = dagRequest(execution);
+
+        String prompt = orchestrator.buildInterpretationPlanDagDecisionPrompt(
+            "设计客户信息表",
+            "",
+            request
+        );
+
+        assertThat(output.toString()).contains("large-evidence-marker-1999");
+        assertThat(prompt)
+            .contains("enabled=true")
+            .contains("context_compression_envelope.v1")
+            .contains("CONTEXT_TOKEN_BUDGET")
+            .contains("rawEvidenceUnchanged")
+            .contains("runtime_step_record_and_tool_trace")
+            .doesNotContain("large-evidence-marker-1999");
+        assertThat(prompt.length()).isLessThan(100_000);
+
+        Map<String, Object> envelope = orchestrator.dagDecisionModelOutputSnapshot(execution);
+        Map<String, Object> compression = (Map<String, Object>) envelope.get("compression");
+        assertThat(compression)
+            .containsEntry("trigger", "CONTEXT_TOKEN_BUDGET")
+            .containsEntry("rawEvidenceUnchanged", true);
+        assertThat(((Number) compression.get("beforeTokens")).longValue())
+            .isGreaterThan(((Number) compression.get("afterTokens")).longValue());
+        assertThat(execution.output()).isSameAs(output);
+    }
+
+    private InterpretationPlanRuntime.DagDecisionRequest dagRequest(
+        InterpretationPlanRuntime.StepExecution execution
+    ) {
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            null,
+            null,
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", execution.toolName(), Map.of(), List.of(), null, null),
+                new InterpretationPlan.Step(2, "final_answer", null, Map.of(), List.of(1), null, null)
+            )),
+            null,
+            null
+        );
+        return new InterpretationPlanRuntime.DagDecisionRequest(
+            plan,
+            new LinkedHashSet<>(List.of(2)),
+            Map.of(1, execution),
+            List.of(execution),
+            new LinkedHashSet<>(List.of(1)),
+            2,
+            "interpretation_execution_v1",
+            "trace-1",
+            null
+        );
     }
 }

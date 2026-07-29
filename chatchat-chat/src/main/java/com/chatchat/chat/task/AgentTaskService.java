@@ -8,6 +8,7 @@ import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.chat.interaction.model.InteractionResponse;
 import com.chatchat.chat.interaction.service.InteractionOrchestrationService;
 import com.chatchat.common.interaction.InteractionToolTrace;
+import com.chatchat.common.tool.ToolLogSummarizer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -1968,7 +1969,7 @@ public class AgentTaskService {
             event.getStatus(),
             event.getToolName(),
             event.getLatencyMs(),
-            event.getPayload() == null ? "" : event.getPayload());
+            ToolLogSummarizer.summarize(event.getPayload()));
     }
 
     /**

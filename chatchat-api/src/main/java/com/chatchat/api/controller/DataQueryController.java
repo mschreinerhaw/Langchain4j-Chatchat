@@ -37,6 +37,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Frontend data API without demo seed data.
@@ -322,10 +323,11 @@ public class DataQueryController {
         );
         conversationService.replaceMessages(tenantId, conversationId, userId, toConversationMessages(messages));
         List<HistoryItem> history = loadPersistentHistory(tenantId, userId, null, null, 30);
+        long now = System.currentTimeMillis();
         replaceCurrentHistorySnapshot(history, new HistoryItem(
             conversationId,
             request.getQuestion(),
-            System.currentTimeMillis(),
+            now,
             conversationId,
             request.getSkillId(),
             request.getModelName(),
@@ -333,7 +335,8 @@ public class DataQueryController {
             request.getAgentName(),
             safeMap(request.getAnalysisTree()),
             messages,
-            status
+            status,
+            historyCreatedAt(history, conversationId, now)
         ));
         return ApiResponse.success(history, "History updated");
     }
@@ -380,7 +383,8 @@ public class DataQueryController {
                 conversation.getAgentName(),
                 Map.of(),
                 request.getMessages(),
-                status
+                status,
+                toEpochMillis(conversation.getCreatedAt())
             ));
         }
         return ApiResponse.success(history, "History status updated");
@@ -528,6 +532,7 @@ public class DataQueryController {
         private Map<String, Object> analysisTree;
         private List<ConversationMessage> messages;
         private String status;
+        private Long createdAt;
     }
 
     @Data
@@ -629,8 +634,21 @@ public class DataQueryController {
             messages,
             conversation.getStatus() == null || conversation.getStatus().isBlank()
                 ? resolveHistoryStatus(null, messages)
-                : conversation.getStatus()
+                : conversation.getStatus(),
+            toEpochMillis(conversation.getCreatedAt())
         );
+    }
+
+    private Long historyCreatedAt(List<HistoryItem> history, String conversationId, Long fallback) {
+        if (history == null || conversationId == null) {
+            return fallback;
+        }
+        return history.stream()
+            .filter(item -> item != null && conversationId.equals(item.getConversationId()))
+            .map(HistoryItem::getCreatedAt)
+            .filter(Objects::nonNull)
+            .findFirst()
+            .orElse(fallback);
     }
 
     /**

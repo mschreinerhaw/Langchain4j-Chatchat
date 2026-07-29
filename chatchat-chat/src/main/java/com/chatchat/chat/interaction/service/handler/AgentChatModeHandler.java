@@ -16,6 +16,7 @@ import com.chatchat.chat.skills.SkillDefinition;
 import com.chatchat.chat.skills.SkillToolConfig;
 import com.chatchat.chat.task.AgentLearningService;
 import com.chatchat.common.interaction.InteractionToolTrace;
+import com.chatchat.common.tool.ToolLogSummarizer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -662,8 +663,8 @@ public class AgentChatModeHandler implements InteractionModeHandler {
                 trace.getToolName(),
                 trace.isSuccess(),
                 trace.getDurationMs(),
-                trace.getInput(),
-                trace.getOutput(),
+                ToolLogSummarizer.summarize(trace.getInput()),
+                ToolLogSummarizer.summarizeResult(trace.getToolName(), trace.getOutput()),
                 trace.getErrorMessage());
         }
         log.info("agentFinalOutput requestId={} conversationId={} runId={} modelName={} status={} stopReason={} answerChars={} answer=\n{}",

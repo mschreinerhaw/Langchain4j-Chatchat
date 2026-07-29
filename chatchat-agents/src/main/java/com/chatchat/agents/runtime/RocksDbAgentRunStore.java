@@ -51,7 +51,12 @@ public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
                                 ObjectMapper objectMapper) {
         super(eventPublisher, properties);
         this.properties = properties == null ? new AgentRuntimeProperties() : properties;
-        this.objectMapper = objectMapper == null ? new ObjectMapper() : objectMapper;
+        this.objectMapper = objectMapper == null ? new ObjectMapper() : objectMapper.copy();
+        this.objectMapper.getFactory().setStreamReadConstraints(
+            this.objectMapper.getFactory().streamReadConstraints().rebuild()
+                .maxStringLength(this.properties.getMaxJsonStringLength())
+                .build()
+        );
     }
 
     @PostConstruct

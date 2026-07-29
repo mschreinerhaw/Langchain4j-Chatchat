@@ -106,6 +106,9 @@ public class AgentOrchestrator {
     private final ExecutionGraphSemanticValidator executionGraphSemanticValidator = new ExecutionGraphSemanticValidator();
     private final InterpretationPlanWorkflowGuard interpretationPlanWorkflowGuard = new InterpretationPlanWorkflowGuard();
     private final EvidenceAugmentationPolicy evidenceAugmentationPolicy = new EvidenceAugmentationPolicy();
+    private final AgentContextBudget contextBudget;
+    private final ContextTokenEstimator contextTokenEstimator = new ContextTokenEstimator();
+    private final ContextEvidenceAggregator contextEvidenceAggregator = new ContextEvidenceAggregator();
 
     public AgentOrchestrator(ChatModel chatModel,
                              ToolRegistry toolRegistry,
@@ -191,6 +194,13 @@ public class AgentOrchestrator {
         this.toolArguments = new AgentToolArgumentResolver(this.toolNames, WEB_SEARCH_REFERENCE_LIMIT, this.toolRegistry);
         this.workflowTools = new AgentWorkflowToolResolver(this.toolNames);
         this.answerFinalizer = new AgentAnswerFinalizer(resolvedAnswerReviewer, this.runtimeGuard, modelsConfig);
+        ModelsConfig resolvedModelsConfig = modelsConfig == null ? new ModelsConfig() : modelsConfig;
+        this.contextBudget = new AgentContextBudget(
+            Math.max(32_000, resolvedModelsConfig.getContextWindowMaxTokens()),
+            Math.max(0, resolvedModelsConfig.getContextReservedSystemTokens()),
+            Math.max(0, resolvedModelsConfig.getContextReservedHistoryTokens()),
+            Math.max(0, resolvedModelsConfig.getContextReservedOutputTokens())
+        );
         this.interpretationPlanStore = interpretationPlanStore == null && this.runStore instanceof InterpretationPlanStore store
             ? store
             : interpretationPlanStore;
@@ -1724,9 +1734,38 @@ public class AgentOrchestrator {
         return new InterpretationPlanRuntime.DagDecision(protocolVersion, action, stepIds, reason, null, metadata);
     }
 
-    private String buildInterpretationPlanDagDecisionPrompt(String query,
-                                                            String systemPrompt,
-                                                            InterpretationPlanRuntime.DagDecisionRequest request) {
+    String buildInterpretationPlanDagDecisionPrompt(String query,
+                                                    String systemPrompt,
+                                                    InterpretationPlanRuntime.DagDecisionRequest request) {
+        ContextTokenEstimator.Size evidenceSize = estimateDagDecisionEvidenceSize(request);
+        boolean compressionEnabled = evidenceSize.tokens() > contextBudget.availableEvidenceTokens();
+        String prompt = renderInterpretationPlanDagDecisionPrompt(
+            query,
+            systemPrompt,
+            request,
+            compressionEnabled,
+            evidenceSize
+        );
+        if (compressionEnabled) {
+            ContextTokenEstimator.Size compressedSize = contextTokenEstimator.estimate(prompt);
+            log.warn("agentContextCompression phase=interpretation_plan_dag_decision enabled=true evidenceBudgetTokens={} originalEvidenceTokens={} originalEvidenceChars={} compressedContextTokens={} compressedContextChars={} executionCount={}",
+                contextBudget.availableEvidenceTokens(),
+                evidenceSize.tokens(),
+                evidenceSize.chars(),
+                compressedSize.tokens(),
+                prompt.length(),
+                request == null || request.executions() == null ? 0 : request.executions().size());
+        }
+        return prompt;
+    }
+
+    private String renderInterpretationPlanDagDecisionPrompt(
+        String query,
+        String systemPrompt,
+        InterpretationPlanRuntime.DagDecisionRequest request,
+        boolean compressionEnabled,
+        ContextTokenEstimator.Size evidenceSize
+    ) {
         StringBuilder prompt = new StringBuilder();
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             prompt.append("System instruction:\n").append(systemPrompt).append("\n\n");
@@ -1754,12 +1793,30 @@ public class AgentOrchestrator {
         prompt.append("- When the selected template declares parameters, extract only values supported by the current User query and return them in parameter_protocols using template_parameter_protocol_v1. Use the exact declared parameter names and exact discovered template_id.\n");
         prompt.append("- Every model-extracted argument must be {value, source: user_query, evidence}. Never copy parameterSchema, requiredParameters, defaults, routing fields, or an entire template object into arguments. Runtime applies defaults and compiles the concrete MCP request.\n");
         prompt.append("- Put parameters that cannot be obtained from the User query in unresolved_parameters. When a required parameter is unresolved and no completed dependency supplies it, request rewrite_plan instead of executing with an invented or empty value.\n");
-        prompt.append("- Executed step output summaries below are scheduling projections. Full tool results remain Runtime-owned for bindings, review, and final synthesis; do not infer missing evidence from an omitted raw field.\n");
+        if (compressionEnabled) {
+            prompt.append("- Context compression is active because the complete DAG evidence exceeded its token budget.\n");
+            prompt.append("- Compressed tool outputs below are semantic scheduling projections. Full results remain authoritative in Runtime step records and tool traces.\n");
+            prompt.append("- Use outputFacts, review metadata, counts, status, and completeness markers to schedule the next node. Never infer that omitted compressed details were absent from the tool result.\n");
+        } else {
+            prompt.append("- Context compression is inactive. Executed tool outputs below are complete Runtime inputs.\n");
+        }
         prompt.append("- Do not call tools directly; Java will only execute the step ids you choose after safety validation.\n\n");
         prompt.append("User query:\n").append(query == null ? "" : query).append("\n\n");
         prompt.append("decision_count: ").append(request.decisionCount()).append("\n");
         prompt.append("remaining_step_ids: ").append(request.remainingStepIds() == null ? List.of() : request.remainingStepIds()).append("\n");
         prompt.append("completed_step_ids: ").append(request.completedStepIds() == null ? List.of() : request.completedStepIds()).append("\n");
+        prompt.append("context_compression: ")
+            .append(Map.of(
+                "enabled", compressionEnabled,
+                "maxTokens", contextBudget.maxTokens(),
+                "reservedSystemTokens", contextBudget.reservedSystemTokens(),
+                "reservedHistoryTokens", contextBudget.reservedHistoryTokens(),
+                "reservedOutputTokens", contextBudget.reservedOutputTokens(),
+                "availableEvidenceTokens", contextBudget.availableEvidenceTokens(),
+                "evidenceTokens", evidenceSize.tokens(),
+                "evidenceChars", evidenceSize.chars()
+            ))
+            .append("\n");
         prompt.append("current_review_answer_hint: ").append(firstNonBlank(request.finalAnswer(), "")).append("\n\n");
         prompt.append("Full InterpretationPlan:\n")
             .append(stringify(request.plan()))
@@ -1776,10 +1833,16 @@ public class AgentOrchestrator {
                     .append(", error=").append(firstNonBlank(execution.errorMessage(), ""))
                     .append("\n");
                 prompt.append("  output: ")
-                    .append(stringify(dagDecisionPromptOutputSnapshot(
-                        execution.toolName(), execution.output())))
+                    .append(stringify(compressionEnabled
+                        ? dagDecisionModelOutputSnapshot(
+                            execution,
+                            Math.max(1, request.executions().size())
+                        )
+                        : execution.output()))
                     .append("\n");
-                if (execution.metadata() != null && !execution.metadata().isEmpty()) {
+                if (!compressionEnabled
+                    && execution.metadata() != null
+                    && !execution.metadata().isEmpty()) {
                     prompt.append("  metadata: ")
                         .append(stringify(ToolLogSummarizer.summarize(
                             execution.metadata(), DAG_DECISION_OUTPUT_SUMMARY_CHARS)))
@@ -2246,6 +2309,81 @@ public class AgentOrchestrator {
             auditMetadata,
             SUMMARY_OBSERVATION_METADATA_CHARS
         );
+    }
+
+    private ContextTokenEstimator.Size estimateDagDecisionEvidenceSize(
+        InterpretationPlanRuntime.DagDecisionRequest request
+    ) {
+        ContextTokenEstimator.Size size = new ContextTokenEstimator.Size(0, 0);
+        if (request == null || request.executions() == null) {
+            return size;
+        }
+        for (InterpretationPlanRuntime.StepExecution execution : request.executions()) {
+            if (execution == null) {
+                continue;
+            }
+            size = size.plus(contextTokenEstimator.estimate(execution.output()))
+                .plus(contextTokenEstimator.estimate(execution.metadata()));
+        }
+        return size;
+    }
+
+    Map<String, Object> dagDecisionModelOutputSnapshot(InterpretationPlanRuntime.StepExecution execution) {
+        return dagDecisionModelOutputSnapshot(execution, 1);
+    }
+
+    private Map<String, Object> dagDecisionModelOutputSnapshot(
+        InterpretationPlanRuntime.StepExecution execution,
+        int executionCount
+    ) {
+        if (execution == null) {
+            return Map.of();
+        }
+        int perEvidenceBudget = Math.max(1_000,
+            contextBudget.availableEvidenceTokens() / Math.max(1, executionCount));
+        ContextTokenEstimator.Size before = contextTokenEstimator.estimate(execution.output())
+            .plus(contextTokenEstimator.estimate(execution.metadata()));
+        Map<String, Object> content = new LinkedHashMap<>();
+        Map<String, Object> outputFacts = structuredOutputFacts(execution.output());
+        if (!outputFacts.isEmpty()) {
+            content.put("outputFacts", outputFacts);
+        }
+        String authoritativeEvidence = execution.success()
+            ? toolObservationBuilder.buildAuthoritativeExecutionEvidence(
+                execution.toolName(),
+                execution.output()
+            )
+            : null;
+        String strategy;
+        String lossLevel;
+        if (authoritativeEvidence != null
+            && !authoritativeEvidence.isBlank()
+            && contextTokenEstimator.estimate(authoritativeEvidence).tokens() <= perEvidenceBudget) {
+            content.put("semanticEvidence", authoritativeEvidence);
+            content.put("metadata", contextEvidenceAggregator.aggregate(execution.metadata()));
+            strategy = "TOOL_SEMANTIC_PROJECTION";
+            lossLevel = "LOW";
+        } else {
+            Object structuredEvidence = contextEvidenceAggregator.aggregate(execution.output());
+            content.put("structuredEvidence", structuredEvidence == null
+                ? Map.of("valuePresent", false)
+                : structuredEvidence);
+            content.put("metadata", contextEvidenceAggregator.aggregate(execution.metadata()));
+            strategy = "STRUCTURED_AGGREGATION";
+            lossLevel = "MEDIUM";
+        }
+        ContextTokenEstimator.Size after = contextTokenEstimator.estimate(content);
+        String evidenceId = "step:" + execution.stepId() + ":tool:"
+            + firstNonBlank(execution.toolName(), execution.actionType());
+        return new ContextCompressionEnvelope(
+            evidenceId,
+            Map.copyOf(content),
+            strategy,
+            lossLevel,
+            before,
+            after,
+            perEvidenceBudget
+        ).asMap();
     }
 
     private List<AgentObservation> storedInterpretationPlanObservations(Map<String, Object> runtimeAttributes) {

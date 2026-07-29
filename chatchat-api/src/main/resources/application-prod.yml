@@ -50,6 +50,16 @@ server:
     include-message: never
 
 chatchat:
+  chat:
+    detail-store:
+      type: rocksdb
+      path: ./data/chat-rocksdb
+      create-if-missing: true
+      max-string-length: 100000000
+      external-text:
+        enabled: true
+        index-name: chatchat_chat_details
+        migrate-legacy-on-read: true
   internal-credential:
     enabled: true
     username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
@@ -84,6 +94,10 @@ chatchat:
   models:
     defaultProvider: openai
     defaultChatModel: ${CHATCHAT_DEFAULT_CHAT_MODEL:deepseek-v4-pro}
+    context-window-max-tokens: ${CHATCHAT_MODEL_CONTEXT_WINDOW_MAX_TOKENS:200000}
+    context-reserved-system-tokens: ${CHATCHAT_MODEL_CONTEXT_RESERVED_SYSTEM_TOKENS:20000}
+    context-reserved-history-tokens: ${CHATCHAT_MODEL_CONTEXT_RESERVED_HISTORY_TOKENS:30000}
+    context-reserved-output-tokens: ${CHATCHAT_MODEL_CONTEXT_RESERVED_OUTPUT_TOKENS:30000}
     availableChatModels:
       - ${CHATCHAT_DEFAULT_CHAT_MODEL:deepseek-v4-pro}
     openai:

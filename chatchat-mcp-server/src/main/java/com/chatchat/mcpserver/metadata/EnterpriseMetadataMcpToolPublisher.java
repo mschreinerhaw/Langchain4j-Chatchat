@@ -189,6 +189,7 @@ public class EnterpriseMetadataMcpToolPublisher {
         copy(input, request, "matchMode");
         copy(input, request, "targetObject");
         copy(input, request, "schemaEvidence");
+        copy(input, request, "modelSearchProfile");
         copy(input, request, "matchStrategy");
         copy(input, request, "metadataTypes");
         copy(input, request, "statuses");
@@ -388,6 +389,16 @@ public class EnterpriseMetadataMcpToolPublisher {
                 "description", "Runtime-transported outputs from declared dependency steps. "
                     + "Interpreted only by this capability's request adapter."
             ),
+            "schemaEvidence", mapOf(
+                "type", "object",
+                "additionalProperties", true,
+                "description", "Provenance for a model-assisted or deterministic field search projection"
+            ),
+            "modelSearchProfile", mapOf(
+                "type", "object",
+                "additionalProperties", true,
+                "description", "Bounded audit metadata for the temporary model-assisted search profile"
+            ),
             "types", Map.of(
                 "type", "array",
                 "items", Map.of("type", "string", "enum",
@@ -528,6 +539,11 @@ public class EnterpriseMetadataMcpToolPublisher {
                 "dependencyEvidenceParameter", "sourceEvidence",
                 "dependencyScope", "declared_dependencies",
                 "successOnly", true
+            ),
+            "modelInputBridgeContract", mapOf(
+                "contractVersion", "model_assisted_retrieval.v1",
+                "mode", "ENTERPRISE_METADATA_PROFILE",
+                "guidance", "Combine query/queryTerms with declared SQL metadata evidence into a field-scoped verification profile."
             )
         );
     }

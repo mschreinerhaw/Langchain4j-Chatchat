@@ -112,6 +112,7 @@ public class InterpretationPlanRuntime {
     private final AgentRunStore runStore;
     private final StepResultReviewer stepResultReviewer;
     private final DagExecutionController dagExecutionController;
+    private final StepInputEnricher stepInputEnricher;
     private final McpToolRouter mcpToolRouter = new McpToolRouter();
 
     public InterpretationPlanRuntime(ToolRuntimeService toolRuntimeService,
@@ -137,6 +138,16 @@ public class InterpretationPlanRuntime {
 
     public InterpretationPlanRuntime(ToolRuntimeService toolRuntimeService,
                                      InterpretationPlanValidator validator,
+                                     AgentRunStore runStore,
+                                     StepResultReviewer stepResultReviewer,
+                                     DagExecutionController dagExecutionController,
+                                     StepInputEnricher stepInputEnricher) {
+        this(toolRuntimeService, validator, new InterpretationPlanOptimizer(), runStore,
+            stepResultReviewer, dagExecutionController, stepInputEnricher);
+    }
+
+    public InterpretationPlanRuntime(ToolRuntimeService toolRuntimeService,
+                                     InterpretationPlanValidator validator,
                                      InterpretationPlanOptimizer optimizer,
                                      DagExecutionController dagExecutionController) {
         this(toolRuntimeService, validator, optimizer, null, null, dagExecutionController);
@@ -148,12 +159,24 @@ public class InterpretationPlanRuntime {
                                      AgentRunStore runStore,
                                      StepResultReviewer stepResultReviewer,
                                      DagExecutionController dagExecutionController) {
+        this(toolRuntimeService, validator, optimizer, runStore, stepResultReviewer,
+            dagExecutionController, null);
+    }
+
+    public InterpretationPlanRuntime(ToolRuntimeService toolRuntimeService,
+                                     InterpretationPlanValidator validator,
+                                     InterpretationPlanOptimizer optimizer,
+                                     AgentRunStore runStore,
+                                     StepResultReviewer stepResultReviewer,
+                                     DagExecutionController dagExecutionController,
+                                     StepInputEnricher stepInputEnricher) {
         this.toolRuntimeService = toolRuntimeService;
         this.validator = validator == null ? new InterpretationPlanValidator() : validator;
         this.optimizer = optimizer == null ? new InterpretationPlanOptimizer() : optimizer;
         this.runStore = runStore;
         this.stepResultReviewer = stepResultReviewer;
         this.dagExecutionController = dagExecutionController;
+        this.stepInputEnricher = stepInputEnricher;
     }
 
     /**
@@ -2012,6 +2035,7 @@ public class InterpretationPlanRuntime {
         normalizeWebSearchInput(step, request, input);
         normalizeNewsSearchInput(step, request, input);
         applyPublishedInputAdapterContract(step, request, completed, input);
+        applyStepInputEnricher(step, request, completed, input);
         compileDirectToolArguments(step, request, input);
         hydrateExecutionContextFromCompletedAssets(step, completed, input);
         normalizeSqlExecutionContext(step, input);
@@ -2037,6 +2061,26 @@ public class InterpretationPlanRuntime {
         }
         input.put("url", selectedUrls.get(0));
         return input;
+    }
+
+    private void applyStepInputEnricher(InterpretationPlan.Step step,
+                                        ExecutionRequest request,
+                                        Map<Integer, StepExecution> completed,
+                                        Map<String, Object> input) {
+        if (stepInputEnricher == null || step == null || input == null) {
+            return;
+        }
+        Map<String, Object> enriched = stepInputEnricher.enrich(new StepInputEnrichmentRequest(
+            step,
+            Map.copyOf(input),
+            completed == null ? Map.of() : Map.copyOf(completed),
+            request
+        ));
+        if (enriched == null) {
+            return;
+        }
+        input.clear();
+        input.putAll(enriched);
     }
 
     private boolean batchToolInput(Map<String, Object> input) {
@@ -5981,6 +6025,18 @@ public class InterpretationPlanRuntime {
 
     public interface DagExecutionController {
         DagDecision decide(DagDecisionRequest request);
+    }
+
+    public interface StepInputEnricher {
+        Map<String, Object> enrich(StepInputEnrichmentRequest request);
+    }
+
+    public record StepInputEnrichmentRequest(
+        InterpretationPlan.Step step,
+        Map<String, Object> input,
+        Map<Integer, StepExecution> completed,
+        ExecutionRequest executionRequest
+    ) {
     }
 
     public record DagDecisionRequest(

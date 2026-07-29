@@ -826,6 +826,18 @@ public class SqlMcpToolPublisher {
             "executionContextPath", "topTables[].sqlExecutionBinding.executionContext",
             "templateParameterPath", "topTables[].sqlExecutionBinding.parameters"
         ));
+        meta.put("modelInputBridgeContract", mutableMap(
+            "contractVersion", "model_assisted_retrieval.v1",
+            "mode", "QUERY_EXPANSION",
+            "contextPaths", List.of(
+                "query", "searchTerm", "keyword", "keywords", "searchText",
+                "tableName", "database", "schema"
+            ),
+            "allowedArgumentPaths", List.of("query"),
+            "mergeModes", Map.of("query", "append_text"),
+            "guidance", "Expand table and column business meanings into concise bilingual metadata-search terms. "
+                + "Never invent or replace physical table, database, schema or datasource identifiers."
+        ));
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta("sql_metadata_search", "sql"));
         return meta;
     }

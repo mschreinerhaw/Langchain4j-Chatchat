@@ -97,6 +97,7 @@ public class AgentOrchestrator {
     private final AgentToolNameResolver toolNames;
     private final AgentToolArgumentResolver toolArguments;
     private final AgentWorkflowToolResolver workflowTools;
+    private final ModelAssistedRetrievalBridge modelAssistedRetrievalBridge;
     private final AgentWorkflowStateTracker workflowStateTracker = new AgentWorkflowStateTracker();
     private final AgentAnswerFinalizer answerFinalizer;
     private final InterpretationPlanStore interpretationPlanStore;
@@ -193,6 +194,7 @@ public class AgentOrchestrator {
         this.toolNames = new AgentToolNameResolver();
         this.toolArguments = new AgentToolArgumentResolver(this.toolNames, WEB_SEARCH_REFERENCE_LIMIT, this.toolRegistry);
         this.workflowTools = new AgentWorkflowToolResolver(this.toolNames);
+        this.modelAssistedRetrievalBridge = new ModelAssistedRetrievalBridge(this.toolRegistry, objectMapper);
         this.answerFinalizer = new AgentAnswerFinalizer(resolvedAnswerReviewer, this.runtimeGuard, modelsConfig);
         ModelsConfig resolvedModelsConfig = modelsConfig == null ? new ModelsConfig() : modelsConfig;
         this.contextBudget = new AgentContextBudget(
@@ -797,6 +799,7 @@ public class AgentOrchestrator {
         if (requireToolBeforeFinal) {
             runtimeGuard.checkCancelled(cancellationCheck);
             runMissingMandatoryWorkflowTools(
+                activeChatModel,
                 traces,
                 observations,
                 query,
@@ -913,7 +916,11 @@ public class AgentOrchestrator {
             validator,
             runStore,
             request -> reviewInterpretationPlanToolResult(activeChatModel, query, systemPrompt, cancellationCheck, request),
-            request -> decideInterpretationPlanDagStep(activeChatModel, query, systemPrompt, cancellationCheck, request)
+            request -> decideInterpretationPlanDagStep(activeChatModel, query, systemPrompt, cancellationCheck, request),
+            request -> modelAssistedRetrievalBridge.enrich(
+                activeChatModel,
+                request.step() == null ? null : request.step().toolName(),
+                request.input())
         );
         List<InterpretationPlanRuntime.ExecutionResult> planAttemptResults = new ArrayList<>();
         List<Map<String, Object>> evidenceHistory = new ArrayList<>();
@@ -1275,6 +1282,7 @@ public class AgentOrchestrator {
             ? "InterpretationPlan stopped before a duplicate tool call; final answer will use the persisted evidence chain."
             : "InterpretationPlan completed its evidence revision budget; final answer will reconcile all persisted evidence and unresolved gaps.");
         runMissingMandatoryWorkflowTools(
+            activeChatModel,
             traces,
             observations,
             query,
@@ -4999,7 +5007,8 @@ public class AgentOrchestrator {
         return plan;
     }
 
-    private void runMissingMandatoryWorkflowTools(List<InteractionToolTrace> traces,
+    private void runMissingMandatoryWorkflowTools(ChatModel activeChatModel,
+                                                  List<InteractionToolTrace> traces,
                                                   List<String> observations,
                                                   String query,
                                                   String conversationId,
@@ -5062,6 +5071,11 @@ public class AgentOrchestrator {
                 fallbackTool,
                 fallbackArguments,
                 mandatoryPredecessorTraces(mandatoryTools, fallbackTool, traces)
+            );
+            fallbackArguments = modelAssistedRetrievalBridge.enrich(
+                activeChatModel,
+                fallbackTool,
+                fallbackArguments
             );
             ToolCallExecution execution = executeToolCall(
                 fallbackTool,

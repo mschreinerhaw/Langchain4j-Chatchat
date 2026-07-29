@@ -347,6 +347,15 @@ public class TemplateDiscoveryMcpToolPublisher {
                 "queryLanguageHints", List.of("language", "queryLanguage", "filters.language", "filters.queryLanguage"),
                 "intentExpansion", "Model-generated Chinese and English template intent terms are normalized into shared synonym sets before ranking"
             ),
+            "modelInputBridgeContract", mapOf(
+                "contractVersion", "model_assisted_retrieval.v1",
+                "mode", "BILINGUAL_TEMPLATE_PROFILE",
+                "contextPaths", List.of("filters.intent", "filters.category", "bilingualIntent", "intentZh", "intentEn"),
+                "allowedArgumentPaths", List.of("bilingualIntent", "intentZh", "intentEn"),
+                "mergeModes", Map.of("bilingualIntent", "merge_array"),
+                "guidance", "Generate concise Chinese and English operation-intent phrases for registered template retrieval. "
+                    + "Do not generate template ids, execution parameters, commands, SQL or routing targets."
+            ),
             "routingProtocol", mapOf(
                 "requiredMarker", "finalDecision",
                 "legacyMarker", "targetKind",
@@ -439,6 +448,15 @@ public class TemplateDiscoveryMcpToolPublisher {
                 "languages", List.of("zh", "en"),
                 "modelMustGenerateBilingualRetrieval", true,
                 "bilingualQueryFields", List.of("bilingualIntent", "bilingualQuery", "intentZh", "intentEn", "filters.bilingualIntent", "filters.intentZh", "filters.intentEn")
+            ),
+            "modelInputBridgeContract", mapOf(
+                "contractVersion", "model_assisted_retrieval.v1",
+                "mode", "BILINGUAL_TEMPLATE_PROFILE",
+                "contextPaths", List.of("filters.intent", "filters.category", "bilingualIntent", "intentZh", "intentEn"),
+                "allowedArgumentPaths", List.of("bilingualIntent", "intentZh", "intentEn"),
+                "mergeModes", Map.of("bilingualIntent", "merge_array"),
+                "guidance", "Generate concise Chinese and English operation-intent phrases for registered template retrieval. "
+                    + "Do not generate template ids, execution parameters, commands, SQL or routing targets."
             ),
             "routingProtocol", mapOf(
                 "forcedTargetKind", targetKind,

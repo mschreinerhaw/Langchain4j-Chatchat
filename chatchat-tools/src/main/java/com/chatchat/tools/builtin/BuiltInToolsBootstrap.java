@@ -268,7 +268,16 @@ public class BuiltInToolsBootstrap {
                 "readOnly", true,
                 "resultContract", "document_evidence_chunks",
                 "contractVersion", "document_evidence_v1",
-                "retrievalGuidance", DOCUMENT_SEARCH_EVIDENCE_GUIDANCE
+                "retrievalGuidance", DOCUMENT_SEARCH_EVIDENCE_GUIDANCE,
+                "modelInputBridgeContract", Map.of(
+                    "contractVersion", "model_assisted_retrieval.v1",
+                    "mode", "QUERY_EXPANSION",
+                    "contextPaths", List.of("query"),
+                    "allowedArgumentPaths", List.of("query"),
+                    "mergeModes", Map.of("query", "append_text"),
+                    "guidance", "Create a concise retrieval query with exact titles, entities, codes, versions, dates and bilingual domain synonyms. "
+                        + "Do not alter document ids, permission filters, tenant, user or roles."
+                )
             ))
             .build();
 

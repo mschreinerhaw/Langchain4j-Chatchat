@@ -1,5 +1,6 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.protocol.AgentProtocolCatalog;
 import com.chatchat.common.tool.ToolMetadata;
 
 import java.util.ArrayList;
@@ -124,7 +125,7 @@ class McpParamBindingResolver {
         "remoteTool",
         "remote_tool"
     );
-    private static final String FILTERS_SCHEMA_VERSION = "target_filters.v1";
+    private static final String FILTERS_SCHEMA_VERSION = AgentProtocolCatalog.TARGET_FILTERS;
     private static final double TARGET_KIND_CONFIDENCE_THRESHOLD = 0.60;
     private static final double INTENT_RETRIEVAL_THRESHOLD = 0.75;
 
@@ -263,7 +264,7 @@ class McpParamBindingResolver {
                 values.putIfAbsent("finalDecision", targetKind);
                 values.putIfAbsent("confidence", 0.9);
                 values.putIfAbsent("trace", Map.of(
-                    "schemaVersion", "routing_trace.v1",
+                    "schemaVersion", AgentProtocolCatalog.ROUTING_TRACE,
                     "source", "agent_tool_argument_resolver",
                     "toolName", toolName == null ? "" : toolName
                 ));

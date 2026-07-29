@@ -1,6 +1,5 @@
 package com.chatchat.agents.runtime;
 
-import com.chatchat.agents.orchestration.AgentOrchestrator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -20,28 +19,28 @@ import java.util.function.BooleanSupplier;
 @Service
 public class DefaultAgentRuntime implements AgentRuntime {
 
-    private final AgentOrchestrator orchestrator;
+    private final AgentRunExecutor runExecutor;
     private final AgentRunStore runStore;
     private final Executor executor;
     private final Map<String, AtomicBoolean> cancellationSignals = new ConcurrentHashMap<>();
     private final Map<String, Thread> runningThreads = new ConcurrentHashMap<>();
 
-    public DefaultAgentRuntime(AgentOrchestrator orchestrator, AgentRunStore runStore) {
-        this(orchestrator, runStore, ForkJoinPool.commonPool());
+    public DefaultAgentRuntime(AgentRunExecutor runExecutor, AgentRunStore runStore) {
+        this(runExecutor, runStore, ForkJoinPool.commonPool());
     }
 
     @Autowired
-    public DefaultAgentRuntime(AgentOrchestrator orchestrator,
+    public DefaultAgentRuntime(AgentRunExecutor runExecutor,
                                AgentRunStore runStore,
                                @Qualifier(AgentRuntimeExecutorConfig.AGENT_RUNTIME_EXECUTOR) Executor executor) {
-        this.orchestrator = orchestrator;
+        this.runExecutor = runExecutor;
         this.runStore = runStore;
         this.executor = executor == null ? ForkJoinPool.commonPool() : executor;
     }
 
     @Override
     public AgentRunResult run(AgentRunRequest request) {
-        return orchestrator.execute(request);
+        return runExecutor.execute(request);
     }
 
     @Override
@@ -56,7 +55,7 @@ public class DefaultAgentRuntime implements AgentRuntime {
                         if (cancellationSignal.get()) {
                             return cancelledRunResult(runStore.cancel(submitted.runId(), "Agent run cancellation requested"));
                         }
-                        return orchestrator.execute(request);
+                        return runExecutor.execute(request);
                     } finally {
                         runningThreads.remove(submitted.runId());
                         cancellationSignals.remove(submitted.runId());

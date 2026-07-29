@@ -1,5 +1,7 @@
 package com.chatchat.agents.runtime;
 
+import com.chatchat.agents.protocol.AgentProtocolCatalog;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -17,7 +19,7 @@ import java.util.Set;
  */
 public final class AnswerCandidateCollector {
 
-    public static final String CONTRACT_VERSION = "runtime_answer_candidate_v1";
+    public static final String CONTRACT_VERSION = AgentProtocolCatalog.RUNTIME_ANSWER_CANDIDATE;
     public static final String FINAL_SYNTHESIS = "final_synthesis";
     public static final String FACT_GROUNDING_REWRITE = "fact_grounding_rewrite";
     public static final String STRUCTURED_EVIDENCE_MERGE = "structured_evidence_merge";

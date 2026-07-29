@@ -1,6 +1,6 @@
 package com.chatchat.agents.runtime.batch;
 
-import com.chatchat.agents.evidence.DiagnosticEvidenceQuality;
+import com.chatchat.agents.runtime.evidence.DiagnosticEvidenceQuality;
 
 import java.util.Map;
 

@@ -1,7 +1,8 @@
 package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.tool.ToolRegistry;
-import com.chatchat.agents.runtime.toolcall.ToolArgumentCompiler;
+import com.chatchat.agents.protocol.AgentProtocolCatalog;
+import com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.tool.ToolMetadata;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,7 +23,8 @@ import java.util.Objects;
 class AgentToolArgumentResolver {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private static final ToolArgumentCompiler TOOL_ARGUMENT_COMPILER = new ToolArgumentCompiler();
+    private static final TemplateInvocationBridge TEMPLATE_INVOCATION_BRIDGE =
+        new TemplateInvocationBridge();
 
     private final AgentToolNameResolver toolNames;
     private final int webSearchReferenceLimit;
@@ -155,17 +157,35 @@ class AgentToolArgumentResolver {
                 } else {
                     values.put("template", templateId);
                 }
-                Object existingParameters = values.get("parameters");
-                Map<String, Object> semanticParameters = mutableMap(existingParameters);
-                Map<String, Object> parameterSchema = mutableMap(firstPresent(template, "parameterSchema", "parameter_schema"));
-                ToolArgumentCompiler.CompilationResult compilation =
-                    TOOL_ARGUMENT_COMPILER.compile(semanticParameters, parameterSchema);
-                values.put("parameters", compilation.parameters());
-                if (!compilation.valid()) {
+                boolean valid = true;
+                List<?> repairs = List.of();
+                Map<String, Object> protocolTrace = Map.of();
+                try {
+                    TemplateInvocationBridge.BridgeResult bridged = TEMPLATE_INVOCATION_BRIDGE.prepare(
+                        new TemplateInvocationBridge.BridgeRequest(
+                            toolName,
+                            null,
+                            templateId,
+                            template,
+                            values,
+                            null,
+                            false,
+                            true
+                        )
+                    );
+                    values = new LinkedHashMap<>(bridged.executorInput());
+                    repairs = bridged.repairs();
+                    protocolTrace = bridged.protocolTrace();
+                } catch (TemplateInvocationBridge.TemplateBridgeException ex) {
+                    valid = false;
                     values.put(McpParamBindingResolver.STATUS_KEY, "DENIED");
                     values.put(McpParamBindingResolver.CODE_KEY, "INVALID_TOOL_ARGUMENTS");
-                    values.put(McpParamBindingResolver.ERROR_KEY,
-                        compilation.structuredError(toolName, templateId));
+                    values.put(McpParamBindingResolver.ERROR_KEY, ex.getMessage());
+                }
+                if (apiTemplateExecutor(toolName)) {
+                    values.remove("template");
+                } else {
+                    values.remove("templateId");
                 }
                 Map<String, Object> context = mutableMap(values.get("executionContext"));
                 Map<String, Object> selectedAsset = selectedAsset(output);
@@ -175,13 +195,15 @@ class AgentToolArgumentResolver {
                     values.put("executionContext", context);
                 }
                 log.info("Agent tool arguments compiled from observed template contract: tool={}, templateId={}, "
-                        + "sourceTool={}, parameterKeys={}, contextKeys={}, valid={}",
+                        + "sourceTool={}, parameterKeys={}, contextKeys={}, protocolTrace={}, repairs={}, valid={}",
                     toolName,
                     templateId,
                     trace.getToolName(),
-                    compilation.parameters().keySet(),
+                    mutableMap(values.get("parameters")).keySet(),
                     context.keySet(),
-                    compilation.valid());
+                    protocolTrace,
+                    repairs,
+                    valid);
                 return values;
             }
         }
@@ -209,7 +231,8 @@ class AgentToolArgumentResolver {
         }
         Map<String, Object> mcpMeta = mutableMap(metadata.getMetadata().get("mcpToolMeta"));
         Map<String, Object> contract = mutableMap(mcpMeta.get("inputAdapterContract"));
-        if (!"runtime_dependency_evidence.v1".equals(scalarText(contract.get("contractVersion")))) {
+        if (!AgentProtocolCatalog.RUNTIME_DEPENDENCY_EVIDENCE.equals(
+            scalarText(contract.get("contractVersion")))) {
             return values;
         }
         String parameter = scalarText(contract.get("dependencyEvidenceParameter"));

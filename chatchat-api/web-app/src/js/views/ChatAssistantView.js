@@ -1422,6 +1422,12 @@ export default {
     };
   },
   computed: {
+    historyDetailsLoading() {
+      return this.selectedConversation?.detailsLoading === true;
+    },
+    historyDetailError() {
+      return this.selectedConversation?.detailLoadError || "";
+    },
     hasConversation() {
       return this.messages.length > 0 || this.loading;
     },

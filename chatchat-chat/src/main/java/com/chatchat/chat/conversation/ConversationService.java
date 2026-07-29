@@ -487,16 +487,24 @@ public class ConversationService {
      * @return the message details list
      */
     private List<Conversation.Message> listMessageDetails(String conversationId) {
-        return messageIndexRepository.findBySessionIdOrderByCreatedAtAsc(conversationId).stream()
-            .map(index -> detailStore.get(index.getRocksKey()).orElse(null))
+        List<ChatMessageIndexEntity> indexes =
+            messageIndexRepository.findBySessionIdOrderByCreatedAtAsc(conversationId);
+        Map<String, ChatMessageDetail> details = detailStore.getAll(
+            indexes.stream().map(ChatMessageIndexEntity::getRocksKey).toList());
+        return indexes.stream()
+            .map(index -> details.get(index.getRocksKey()))
             .filter(detail -> detail != null)
             .map(this::toMessage)
             .toList();
     }
 
     private List<Conversation.Message> listMessageDetails(String tenantId, String conversationId) {
-        return messageIndexRepository.findByTenantIdAndSessionIdOrderByCreatedAtAsc(tenantId, conversationId).stream()
-            .map(index -> detailStore.get(index.getRocksKey()).orElse(null))
+        List<ChatMessageIndexEntity> indexes =
+            messageIndexRepository.findByTenantIdAndSessionIdOrderByCreatedAtAsc(tenantId, conversationId);
+        Map<String, ChatMessageDetail> details = detailStore.getAll(
+            indexes.stream().map(ChatMessageIndexEntity::getRocksKey).toList());
+        return indexes.stream()
+            .map(index -> details.get(index.getRocksKey()))
             .filter(detail -> detail != null)
             .map(this::toMessage)
             .toList();

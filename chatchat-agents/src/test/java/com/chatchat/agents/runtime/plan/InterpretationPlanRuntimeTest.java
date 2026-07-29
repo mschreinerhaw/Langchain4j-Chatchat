@@ -4683,6 +4683,12 @@ class InterpretationPlanRuntimeTest {
         assertThat(result.success())
             .as(result.status() + ": " + result.errorMessage() + " steps=" + result.steps())
             .isTrue();
+        assertThat(result.steps())
+            .extracting(InterpretationPlanRuntime.StepExecution::stepId)
+            .containsExactly(3, 4);
+        assertThat(result.metadata().get("completedPlanStepIds"))
+            .isEqualTo(List.of(1, 2, 3, 4));
+        assertThat(result.finalAnswer()).isEqualTo("done");
         ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
         verify(toolRuntimeService, times(1)).execute(captor.capture());
         Map<?, ?> parameters = captor.getValue().getToolInput().getParameters();

@@ -87,11 +87,26 @@ class RocksDbChatMessageDetailStoreTest {
                 .build();
 
             String key = store.put(detail);
+            ChatMessageDetail secondDetail = ChatMessageDetail.builder()
+                .messageId("message-3")
+                .sessionId("session-2")
+                .tenantId("tenant-2")
+                .userId("user-2")
+                .role("user")
+                .content("second")
+                .createdAt(Instant.parse("2026-07-29T00:00:02Z"))
+                .build();
+            String secondKey = store.put(secondDetail);
 
-            assertThat(textStore.values).hasSize(1);
+            assertThat(textStore.values).hasSize(2);
             assertThat(store.get(key)).contains(detail);
-            assertThat(textStore.putCount).hasValue(1);
+            assertThat(store.getAll(List.of(key, secondKey)))
+                .containsEntry(key, detail)
+                .containsEntry(secondKey, secondDetail);
+            assertThat(textStore.batchGetCount).hasValue(1);
+            assertThat(textStore.putCount).hasValue(2);
             store.delete(key);
+            store.delete(secondKey);
             assertThat(textStore.values).isEmpty();
         } finally {
             store.close();
@@ -147,6 +162,7 @@ class RocksDbChatMessageDetailStoreTest {
         private final boolean enabled;
         private final Map<String, ChatMessageDetail> values = new ConcurrentHashMap<>();
         private final AtomicInteger putCount = new AtomicInteger();
+        private final AtomicInteger batchGetCount = new AtomicInteger();
 
         private TestTextStore(boolean enabled) {
             this.enabled = enabled;
@@ -166,6 +182,19 @@ class RocksDbChatMessageDetailStoreTest {
         @Override
         public Optional<ChatMessageDetail> get(String documentId) {
             return Optional.ofNullable(values.get(documentId));
+        }
+
+        @Override
+        public Map<String, ChatMessageDetail> getAll(List<String> documentIds) {
+            batchGetCount.incrementAndGet();
+            Map<String, ChatMessageDetail> details = new ConcurrentHashMap<>();
+            documentIds.forEach(documentId -> {
+                ChatMessageDetail detail = values.get(documentId);
+                if (detail != null) {
+                    details.put(documentId, detail);
+                }
+            });
+            return details;
         }
 
         @Override

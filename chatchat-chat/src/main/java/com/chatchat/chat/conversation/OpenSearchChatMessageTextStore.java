@@ -30,6 +30,9 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -126,6 +129,49 @@ public class OpenSearchChatMessageTextStore implements ChatMessageTextStore {
         } catch (IOException ex) {
             throw new IllegalStateException("Failed to deserialize OpenSearch chat detail documentId=" + documentId, ex);
         }
+    }
+
+    @Override
+    public Map<String, ChatMessageDetail> getAll(List<String> documentIds) {
+        requireAvailable();
+        List<String> ids = documentIds == null
+            ? List.of()
+            : documentIds.stream()
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .toList();
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        JsonNode response = request(
+            "POST",
+            "/" + indexName() + "/_mget",
+            Map.of("ids", ids),
+            false
+        );
+        Map<String, ChatMessageDetail> details = new LinkedHashMap<>();
+        JsonNode documents = response == null ? null : response.path("docs");
+        if (documents == null || !documents.isArray()) {
+            return details;
+        }
+        List<String> invalidIds = new ArrayList<>();
+        for (JsonNode document : documents) {
+            String documentId = document.path("_id").asText("");
+            JsonNode detail = document.path("_source").path("detail");
+            if (documentId.isBlank() || !document.path("found").asBoolean(false) || detail.isMissingNode()) {
+                continue;
+            }
+            try {
+                details.put(documentId, objectMapper.treeToValue(detail, ChatMessageDetail.class));
+            } catch (IOException | RuntimeException ex) {
+                invalidIds.add(documentId);
+            }
+        }
+        if (!invalidIds.isEmpty()) {
+            log.warn("Skipped invalid OpenSearch chat detail documents count={} ids={}",
+                invalidIds.size(), invalidIds);
+        }
+        return details;
     }
 
     @Override

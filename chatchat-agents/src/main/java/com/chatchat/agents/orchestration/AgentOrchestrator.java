@@ -11,6 +11,7 @@ import com.chatchat.agents.runtime.AgentObservationPipeline;
 import com.chatchat.agents.runtime.AgentRun;
 import com.chatchat.agents.runtime.AgentRunRequest;
 import com.chatchat.agents.runtime.AgentRunResult;
+import com.chatchat.agents.runtime.AgentRunExecutor;
 import com.chatchat.agents.runtime.AgentRunStatus;
 import com.chatchat.agents.runtime.AgentRunStore;
 import com.chatchat.agents.runtime.AgentRuntimeFactGroundingContract;
@@ -61,7 +62,7 @@ import java.util.function.BooleanSupplier;
  */
 @Slf4j
 @Service
-public class AgentOrchestrator {
+public class AgentOrchestrator implements AgentRunExecutor {
 
     private static final int DEFAULT_MAX_STEPS = 3;
     private static final int MAX_INTERPRETATION_PLAN_ATTEMPTS = 3;
@@ -217,6 +218,7 @@ public class AgentOrchestrator {
      * @param request the agent run request
      * @return the agent run result
      */
+    @Override
     public AgentRunResult execute(AgentRunRequest request) {
         if (request == null) {
             throw new IllegalArgumentException("Agent run request is required");
@@ -1801,7 +1803,9 @@ public class AgentOrchestrator {
         prompt.append("- Do not emit final_answer in your JSON. If you need to leave a diagnostic, write review_answer; Java will produce final_answer only from the final plan step.\n");
         prompt.append("- If a required dependency failed, request rewrite_plan or abort instead of forcing a dependent step.\n");
         prompt.append("- After template discovery, inspect the selected template's parameterSchema/requiredParameters before selecting its execution step.\n");
-        prompt.append("- When the selected template declares parameters, extract only values supported by the current User query and return them in parameter_protocols using template_parameter_protocol_v1. Use the exact declared parameter names and exact discovered template_id.\n");
+        prompt.append("- When the selected template declares parameters, extract only values supported by the current User query and return them in parameter_protocols using ")
+            .append(InterpretationExecutionProtocol.TEMPLATE_PARAMETER_PROTOCOL_VERSION)
+            .append(". Use the exact declared parameter names and exact discovered template_id.\n");
         prompt.append("- Every model-extracted argument must be {value, source: user_query, evidence}. Never copy parameterSchema, requiredParameters, defaults, routing fields, or an entire template object into arguments. Runtime applies defaults and compiles the concrete MCP request.\n");
         prompt.append("- Put parameters that cannot be obtained from the User query in unresolved_parameters. When a required parameter is unresolved and no completed dependency supplies it, request rewrite_plan instead of executing with an invented or empty value.\n");
         if (compressionEnabled) {

@@ -1,6 +1,17 @@
 ﻿<template>
   <div class="chat-view">
-    <section v-if="!hasConversation" class="hero-panel">
+    <section v-if="historyDetailsLoading" class="history-detail-state" aria-live="polite">
+      <span class="history-detail-spinner" aria-hidden="true"></span>
+      <strong>正在加载历史会话</strong>
+      <p>正在读取会话消息，请稍候。</p>
+    </section>
+
+    <section v-else-if="historyDetailError" class="history-detail-state history-detail-error" role="alert">
+      <strong>历史会话加载失败</strong>
+      <p>{{ historyDetailError }}。可以再次点击左侧会话重试。</p>
+    </section>
+
+    <section v-else-if="!hasConversation" class="hero-panel">
       <div class="hero-orb">
         <span>AI</span>
       </div>
@@ -15,7 +26,7 @@
     </section>
 
     <ChatMessageList
-      v-if="hasConversation"
+      v-if="!historyDetailsLoading && !historyDetailError && hasConversation"
       ref="messageList"
       :messages="messages"
       :loading="loading"

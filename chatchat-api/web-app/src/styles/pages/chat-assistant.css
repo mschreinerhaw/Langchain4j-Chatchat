@@ -8,6 +8,46 @@
   overflow: hidden;
 }
 
+.history-detail-state {
+  align-items: center;
+  color: #52627a;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  justify-content: center;
+  min-height: 320px;
+  text-align: center;
+}
+
+.history-detail-state strong {
+  color: #18243a;
+  font-size: 18px;
+}
+
+.history-detail-state p {
+  margin: 0;
+}
+
+.history-detail-spinner {
+  animation: history-detail-spin 0.8s linear infinite;
+  border: 3px solid #dbe7ff;
+  border-radius: 50%;
+  border-top-color: #4d83ff;
+  height: 28px;
+  width: 28px;
+}
+
+.history-detail-error strong {
+  color: #b42318;
+}
+
+@keyframes history-detail-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .hero-panel {
   position: relative;
   flex: 1 1 auto;

@@ -6,6 +6,7 @@ import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.AgentRuntimeFactGroundingContract;
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
+import com.chatchat.agents.runtime.plan.InterpretationExecutionProtocol;
 import com.chatchat.agents.runtime.plan.InterpretationPlanJsonSchema;
 import com.chatchat.agents.runtime.plan.InterpretationPlanValidator;
 import com.chatchat.agents.tool.ToolRegistry;
@@ -382,7 +383,9 @@ class AgentPlanner {
         prompt.append("- Model output is an untrusted candidate plan. Runtime owns argument compilation and rejects values that do not satisfy this contract before any MCP call.\n");
         prompt.append("- Use the fixed semantic ToolCall DSL: input.toolCall={toolName,action,parameters,context}. You select the workflow tool/action and state business values; Runtime resolves MCP metadata and compiles the concrete executor request.\n");
         prompt.append("- toolCall.parameters contains semantic business values only. toolCall.context contains purpose/step/dependency context and an optional logical target. Do not construct MCP transport fields, template parameter containers, HTTP, JSON-RPC, SQL binding positions, retries, or authorization fields.\n");
-        prompt.append("- When a template must be discovered at runtime, plan template discovery before execution and do not guess undeclared parameter names. After discovery, the DAG controller emits template_parameter_protocol_v1 from the current user query; Runtime compiles it against the returned parameterSchema.\n");
+        prompt.append("- When a template must be discovered at runtime, plan template discovery before execution and do not guess undeclared parameter names. After discovery, the DAG controller emits ")
+            .append(InterpretationExecutionProtocol.TEMPLATE_PARAMETER_PROTOCOL_VERSION)
+            .append(" from the current user query; Runtime compiles it against the returned parameterSchema.\n");
         prompt.append("- template/templateId MUST be one scalar string copied from templates[i].templateId. A binding to templateId MUST select the leaf path templates[i].templateId; never bind templates[i], selectedTemplate, parameterSchema, parameterContract, or invocationExample as the template value.\n");
         prompt.append("- input.parameters contains execution VALUES only. parameterSchema, requiredParameters, parameterContract, and invocationExample are read-only metadata used to construct/validate those values and MUST NOT be copied into input.parameters.\n");
         prompt.append("- NEVER create a binding from templates[i].parameterSchema, requiredParameters, parameterContract, or invocationExample to parameters. If no required business parameter exists, keep input.parameters={} and omit that binding.\n");

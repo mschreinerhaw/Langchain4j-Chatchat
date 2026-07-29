@@ -832,14 +832,17 @@ export default {
       }
       this.navigateToView("chat");
       const conversationId = conversation.id || conversation.conversationId || "";
+      const needsDetail = !!conversationId
+        && !conversation.detailsLoaded
+        && !(Array.isArray(conversation.messages) && conversation.messages.length > 0);
       this.activeHistoryId = conversationId;
       this.selectedConversation = {
         ...conversation,
+        detailsLoading: needsDetail,
+        detailLoadError: "",
         selectedAt: Date.now()
       };
-      if (!conversationId
-        || conversation.detailsLoaded
-        || (Array.isArray(conversation.messages) && conversation.messages.length > 0)) {
+      if (!needsDetail) {
         return;
       }
       try {
@@ -869,6 +872,8 @@ export default {
                 timestamp: toTimestamp(message?.timestamp)
               }))
             : [],
+          detailsLoading: false,
+          detailLoadError: "",
           detailsLoaded: true,
           selectedAt: Date.now()
         };
@@ -880,7 +885,14 @@ export default {
         );
       } catch (error) {
         if (this.activeHistoryId === conversationId) {
-          this.historyError = error.message || "会话详情加载失败";
+          const message = error.message || "会话详情加载失败";
+          this.historyError = message;
+          this.selectedConversation = {
+            ...conversation,
+            detailsLoading: false,
+            detailLoadError: message,
+            selectedAt: Date.now()
+          };
         }
       }
     },

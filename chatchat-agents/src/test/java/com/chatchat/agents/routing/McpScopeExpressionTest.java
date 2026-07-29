@@ -1,4 +1,4 @@
-package com.chatchat.agents.orchestration;
+package com.chatchat.agents.routing;
 
 import org.junit.jupiter.api.Test;
 

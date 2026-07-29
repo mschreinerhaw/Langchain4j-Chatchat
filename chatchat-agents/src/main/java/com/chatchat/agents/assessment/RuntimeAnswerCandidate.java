@@ -1,5 +1,7 @@
 package com.chatchat.agents.assessment;
 
+import com.chatchat.agents.protocol.AgentProtocolCatalog;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -15,7 +17,7 @@ public record RuntimeAnswerCandidate(
     Status status,
     Map<String, Object> validation
 ) {
-    public static final String CONTRACT_VERSION = "runtime_answer_candidate_v1";
+    public static final String CONTRACT_VERSION = AgentProtocolCatalog.RUNTIME_ANSWER_CANDIDATE;
 
     public RuntimeAnswerCandidate {
         contractVersion = CONTRACT_VERSION;

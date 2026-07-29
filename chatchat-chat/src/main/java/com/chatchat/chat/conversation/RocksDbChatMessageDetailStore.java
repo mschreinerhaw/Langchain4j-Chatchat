@@ -18,6 +18,9 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Slf4j
@@ -130,6 +133,54 @@ public class RocksDbChatMessageDetailStore implements ChatMessageDetailStore {
         } catch (IOException | RocksDBException ex) {
             throw new IllegalStateException("Failed to read chat message detail", ex);
         }
+    }
+
+    @Override
+    public Map<String, ChatMessageDetail> getAll(List<String> keys) {
+        ensureOpen();
+        if (keys == null || keys.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, ChatMessageDetail> details = new LinkedHashMap<>();
+        Map<String, String> externalDocumentKeys = new LinkedHashMap<>();
+        for (String key : keys.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .distinct()
+            .toList()) {
+            try {
+                byte[] value = db.get(bytes(key));
+                if (value == null) {
+                    continue;
+                }
+                String documentId = referenceDocumentId(value);
+                if (documentId != null) {
+                    externalDocumentKeys.put(documentId, key);
+                    continue;
+                }
+                ChatMessageDetail detail = objectMapper.readValue(value, ChatMessageDetail.class);
+                details.put(key, detail);
+                migrateLegacyDetail(key, detail);
+            } catch (IOException | RocksDBException | RuntimeException ex) {
+                log.warn("Skipped unreadable RocksDB chat detail key={} error={}", key, ex.getMessage());
+            }
+        }
+        if (externalDocumentKeys.isEmpty()) {
+            return details;
+        }
+        try {
+            Map<String, ChatMessageDetail> externalDetails =
+                textStore.getAll(List.copyOf(externalDocumentKeys.keySet()));
+            externalDetails.forEach((documentId, detail) -> {
+                String key = externalDocumentKeys.get(documentId);
+                if (key != null && detail != null) {
+                    details.put(key, detail);
+                }
+            });
+        } catch (RuntimeException ex) {
+            log.warn("Failed to batch read external chat details count={} error={}",
+                externalDocumentKeys.size(), ex.getMessage());
+        }
+        return details;
     }
 
     /**

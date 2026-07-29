@@ -11,6 +11,9 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -67,6 +70,78 @@ class OpenSearchChatMessageTextStoreTest {
             assertThat(store.getText("payload-http")).contains("q".repeat(256));
             store.delete("payload-http");
             assertThat(storedSource.get()).isNull();
+        } finally {
+            store.close();
+        }
+    }
+
+    @Test
+    void batchLoadsConversationDetailsWithOneOpenSearchRequestAndSkipsInvalidLegacyDocument() throws IOException {
+        AtomicInteger multiGetRequests = new AtomicInteger();
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/", exchange -> {
+            String method = exchange.getRequestMethod();
+            String path = exchange.getRequestURI().getPath();
+            if ("HEAD".equals(method) && "/chat_details_test".equals(path)) {
+                respond(exchange, 200, "");
+                return;
+            }
+            if ("POST".equals(method) && "/chat_details_test/_mget".equals(path)) {
+                multiGetRequests.incrementAndGet();
+                respond(exchange, 200, """
+                    {
+                      "docs": [
+                        {
+                          "_id": "document-valid",
+                          "found": true,
+                          "_source": {
+                            "detail": {
+                              "messageId": "message-valid",
+                              "sessionId": "session-batch",
+                              "tenantId": "tenant-batch",
+                              "role": "assistant",
+                              "content": "restored",
+                              "createdAt": "2026-07-29T00:00:02Z"
+                            }
+                          }
+                        },
+                        {
+                          "_id": "document-invalid",
+                          "found": true,
+                          "_source": {
+                            "detail": {
+                              "messageId": "message-invalid",
+                              "createdAt": "not-an-instant"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                    """);
+                return;
+            }
+            respond(exchange, 500, "{\"error\":\"unexpected request\"}");
+        });
+        server.start();
+
+        ChatDetailStoreProperties detailProperties = new ChatDetailStoreProperties();
+        detailProperties.getExternalText().setEnabled(true);
+        detailProperties.getExternalText().setIndexName("chat_details_test");
+        SearchProperties searchProperties = new SearchProperties();
+        searchProperties.getOpenSearch().setUrl("http://127.0.0.1:" + server.getAddress().getPort());
+        OpenSearchChatMessageTextStore store = new OpenSearchChatMessageTextStore(
+            detailProperties,
+            searchProperties,
+            new ObjectMapper().findAndRegisterModules()
+        );
+        store.open();
+        try {
+            Map<String, ChatMessageDetail> details =
+                store.getAll(List.of("document-valid", "document-invalid"));
+
+            assertThat(multiGetRequests).hasValue(1);
+            assertThat(details).containsOnlyKeys("document-valid");
+            assertThat(details.get("document-valid").getContent()).isEqualTo("restored");
         } finally {
             store.close();
         }

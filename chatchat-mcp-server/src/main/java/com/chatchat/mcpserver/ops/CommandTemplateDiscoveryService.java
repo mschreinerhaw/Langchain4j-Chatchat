@@ -48,6 +48,10 @@ public class CommandTemplateDiscoveryService {
     public static final String TEMPLATE_SCHEMA_VERSION = "command_template.v1";
     public static final int DEFAULT_LIMIT = 10;
     public static final int MAX_LIMIT = 20;
+    // One generic intent-token hit (for example "data" -> "market_data") scores 28.
+    // Registry fallback requires more than that so a broad category word cannot
+    // promote an unrelated template when the search accelerator is unavailable.
+    private static final int REGISTRY_FALLBACK_MIN_RELEVANCE = 30;
     private static final String RUNTIME_MANAGED_TEMPLATE_ENVIRONMENT = "DEV";
     private static final double INTENT_WEIGHT = 0.40;
     private static final double LEXICAL_WEIGHT = 0.30;
@@ -379,12 +383,11 @@ public class CommandTemplateDiscoveryService {
         List<DatabaseQueryConfig> scopedDatabaseQueries = assetScoped
             ? scopedDatabaseQueryTemplates(templates, filters)
             : templates;
-        Map<String, Object> databaseQueryRetrievalFilters = assetScoped
-            ? filtersWithDatabaseQueryAssetSignals(retrievalFilters, scopedDatabaseQueries)
-            : retrievalFilters;
-        Map<String, Object> resultFilters = assetScoped
-            ? filtersWithDatabaseQueryAssetSignals(filters, scopedDatabaseQueries)
-            : filters;
+        // Candidate template text belongs in indexed documents, never in the query.
+        // Feeding every scoped template's title/description back into intent makes
+        // unrelated templates self-match and can explode OpenSearch query clauses.
+        Map<String, Object> databaseQueryRetrievalFilters = retrievalFilters;
+        Map<String, Object> resultFilters = filters;
         if (scopedDatabaseQueries.isEmpty()) {
             Map<String, Object> empty = result(assetType, resultFilters, intent, List.of(), limit,
                 List.of(), false, false);
@@ -418,7 +421,9 @@ public class CommandTemplateDiscoveryService {
                     finalRetrievalFilters,
                     template,
                     categoryResolution.category())))
-            .filter(scored -> !registryFallback || matchesIntent(scored))
+            .filter(scored -> !registryFallback
+                || scored.relevance().reasons().contains("no_intent_filter")
+                || scored.relevance().score() >= REGISTRY_FALLBACK_MIN_RELEVANCE)
             .toList();
         List<ScoredTemplate<DatabaseQueryConfig>> matched = candidates.stream()
             .sorted(scoredComparator(scored -> scored.template().getToolName()))

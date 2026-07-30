@@ -51,7 +51,6 @@ public class CommandTemplateDiscoveryService {
     // One generic intent-token hit (for example "data" -> "market_data") scores 28.
     // Registry fallback requires more than that so a broad category word cannot
     // promote an unrelated template when the search accelerator is unavailable.
-    private static final int REGISTRY_FALLBACK_MIN_RELEVANCE = 30;
     private static final String RUNTIME_MANAGED_TEMPLATE_ENVIRONMENT = "DEV";
     private static final double INTENT_WEIGHT = 0.40;
     private static final double LEXICAL_WEIGHT = 0.30;
@@ -237,12 +236,15 @@ public class CommandTemplateDiscoveryService {
         );
         List<ScoredTemplate<CommandTemplateConfig>> candidates = templates.stream()
             .filter(template -> !assetScoped || allowedByAsset.contains(normalize(template.getCode())))
+            .filter(template -> !excludedTemplateIds(filters).contains(normalize(template.getCode())))
             .map(template -> new ScoredTemplate<>(template,
                 decision(luceneAdjusted(relevance(template, sshRetrievalFilters), luceneHits.get(template.getCode())),
                     intent, "ssh_host", null, riskLevel(template))))
             .toList();
-        List<ScoredTemplate<CommandTemplateConfig>> matched = rankAndFallback(candidates, intent, scored -> scored.template().getCode());
-        boolean fallbackUsed = fallbackUsed(candidates, matched, intent);
+        List<ScoredTemplate<CommandTemplateConfig>> matched = candidates.stream()
+            .sorted(scoredComparator(scored -> scored.template().getCode()))
+            .toList();
+        boolean fallbackUsed = luceneHits.isEmpty() && !matched.isEmpty();
         log.info("template_query ssh search assetType={} filters={} normalizedIntent={} registryTemplates={} candidates={} luceneHits={} returned={} fallbackUsed={}",
             assetType, compactFilters(filters), intent.type(), templates.size(), candidates.size(), luceneHits.size(),
             Math.min(matched.size(), limit), fallbackUsed);
@@ -284,9 +286,9 @@ public class CommandTemplateDiscoveryService {
             Math.max(limit, MAX_LIMIT)
         );
         List<ScoredTemplate<SqlTemplateConfig>> candidates = templates.stream()
-            .filter(template -> templateSearchHit(luceneHits, template.getCode()) != null)
             .filter(template -> sqlTemplateCompatibleWithRequestedType(template, filters, datasources, assetScoped))
             .filter(template -> sqlTemplateAuthorizedByDatasource(template, datasources, assetScoped))
+            .filter(template -> !excludedTemplateIds(filters).contains(normalize(template.getCode())))
             .map(template -> new ScoredTemplate<>(template,
                 decision(luceneAdjusted(relevance(template, sqlRetrievalFilters), templateSearchHit(luceneHits, template.getCode())),
                     intent, template.getDatabaseType(),
@@ -295,7 +297,7 @@ public class CommandTemplateDiscoveryService {
         List<ScoredTemplate<SqlTemplateConfig>> matched = candidates.stream()
             .sorted(sqlScoredComparator(intent, filters))
             .toList();
-        boolean fallbackUsed = false;
+        boolean fallbackUsed = luceneHits.isEmpty() && !matched.isEmpty();
         log.info("template_query sql search assetType={} dbType={} filters={} normalizedIntent={} datasources={} registryTemplates={} candidates={} luceneHits={} returned={} fallbackUsed={} hitIds={}",
             assetType, dbType, compactFilters(filters), intent.type(), datasources.size(), templates.size(), candidates.size(),
             luceneHits.size(), Math.min(matched.size(), limit), fallbackUsed, luceneHits.keySet().stream().limit(limit).toList());
@@ -356,12 +358,11 @@ public class CommandTemplateDiscoveryService {
                     luceneHits.get(firstText(endpoint.getToolName(), endpoint.getName()))),
                     intent, "http_endpoint", null, httpRiskLevel(endpoint))))
             .toList();
-        List<ScoredTemplate<HttpEndpointConfig>> matched = rankAndFallback(
-            candidates,
-            intent,
-            scored -> firstText(scored.template().getToolName(), scored.template().getName())
-        );
-        boolean fallbackUsed = fallbackUsed(candidates, matched, intent);
+        List<ScoredTemplate<HttpEndpointConfig>> matched = candidates.stream()
+            .sorted(scoredComparator(
+                scored -> firstText(scored.template().getToolName(), scored.template().getName())))
+            .toList();
+        boolean fallbackUsed = luceneHits.isEmpty() && !matched.isEmpty();
         log.info("template_query http search assetType={} filters={} normalizedIntent={} endpoints={} candidates={} luceneHits={} returned={} fallbackUsed={}",
             assetType, compactFilters(filters), intent.type(), endpoints.size(), candidates.size(), luceneHits.size(),
             Math.min(matched.size(), limit), fallbackUsed);
@@ -411,8 +412,8 @@ public class CommandTemplateDiscoveryService {
         boolean registryFallback = luceneHits.isEmpty() && !modelReviewRequired;
         List<ScoredTemplate<DatabaseQueryConfig>> candidates = scopedDatabaseQueries.stream()
             .filter(this::hasExecutableDatabaseQueryBinding)
-            .filter(template -> !modelReviewRequired
-                && (registryFallback || luceneHits.containsKey(databaseQueryTemplateId(template))))
+            .filter(template -> !excludedTemplateIds(filters).contains(normalize(databaseQueryTemplateId(template))))
+            .filter(template -> !modelReviewRequired)
             .map(template -> new ScoredTemplate<>(template,
                 marketplaceDecision(
                     luceneAdjusted(relevance(template, finalRetrievalFilters), luceneHits.get(databaseQueryTemplateId(template))),
@@ -421,9 +422,6 @@ public class CommandTemplateDiscoveryService {
                     finalRetrievalFilters,
                     template,
                     categoryResolution.category())))
-            .filter(scored -> !registryFallback
-                || scored.relevance().reasons().contains("no_intent_filter")
-                || scored.relevance().score() >= REGISTRY_FALLBACK_MIN_RELEVANCE)
             .toList();
         List<ScoredTemplate<DatabaseQueryConfig>> matched = candidates.stream()
             .sorted(scoredComparator(scored -> scored.template().getToolName()))
@@ -581,12 +579,14 @@ public class CommandTemplateDiscoveryService {
                 "templateIdSource", "templates[].templateId",
                 "mustUseReturnedTemplateId", true,
                 "doNotInventTemplateNames", true,
-                "engine", "mcp_template_lucene_decision_v2_no_vector",
-                "orderedBy", "templates[] is recalled by Lucene BM25, then ranked by decisionScore desc from intentMatch, lexicalScore, typeMatch, popularity, safetyScore",
+                "engine", "mcp_high_recall_candidates_runtime_semantic_review_v1",
+                "orderedBy", "templates[] contains all authorized and executable candidates within hard asset/type constraints, ranked by decisionScore with Lucene and registry scores as weak priors",
+                "runtimeSemanticReviewRequiredWhenMultiple", true,
+                "mcpRelevanceIsAdmissionFilter", false,
                 "intentSynonymSource", "built-in zh/en intent synonyms plus chatchat.mcp.template-discovery.intent-synonyms and template intentSignals",
                 "languageSupport", "Models should generate bilingual Chinese and English retrieval terms in bilingualIntent, bilingualQuery, intentZh, or intentEn; the engine expands them into shared bilingual signals before retrieval and ranking.",
-                "selectionHint", "Generate and use bilingual Chinese and English retrieval terms, then choose the returned template whose name, description, intentSignals, relevanceScore, and matchReasons best match the user intent; do not use asset allowed template order as semantic ranking.",
-                "fallback", "If authorized candidates exist but intent ranking returns no match, the engine broadens intent and marks resolutionTrace[].fallbackUsed=true.",
+                "selectionHint", "Runtime must semantically compare all returned candidates with the user request and project selected_template_ids before dependent execution. MCP scores are ranking hints, not acceptance decisions.",
+                "fallback", "When Lucene has no hit, MCP still returns authorized executable registry candidates and marks fallbackUsed=true for Runtime semantic review.",
                 "selectionFields", List.of("templateId", "name", "description", "capabilitySpec", "outputSchema", "dependencySpec", "templateConfig", "intentSignals", "parameterSchema", "requiredParameters", "parameterContract", "invocationExample"),
                 "sqlDisclosure", "Template discovery never returns raw SQL text or stored query bodies. Business database capabilities are exposed as dedicated MCP tools.",
                 "onEmptyResult", "No existing authorized template matched the request after asset, type and authorization filters. Do not suggest a new template name unless the user asks to administer templates."

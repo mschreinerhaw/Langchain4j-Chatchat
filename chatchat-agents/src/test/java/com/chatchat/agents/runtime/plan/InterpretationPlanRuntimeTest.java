@@ -544,7 +544,7 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
-    void skipsModelReviewForNonEmptyTemplateDiscoveryResult() {
+    void modelReviewProjectsSelectedTemplatesBeforeDependencyBinding() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_ssh_template_query")).thenReturn(true);
         when(toolRegistry.getToolMetadata(any())).thenReturn(ToolMetadata.builder().riskLevel("low").build());
@@ -621,7 +621,207 @@ class InterpretationPlanRuntimeTest {
         assertThat(result.steps().get(0).metadata())
             .containsEntry("templateDiscoveryReturnedCount", 2)
             .containsEntry("toolResultReviewSatisfied", true)
+            .containsEntry("runtimeTemplateSelectionApplied", true)
+            .containsEntry("runtimeTemplateCandidateCount", 2)
+            .containsEntry("runtimeTemplateSelectedCount", 1)
             .doesNotContainKey("toolResultReviewSkipped");
+        Map<?, ?> projectedOutput = (Map<?, ?>) result.steps().get(0).output();
+        assertThat(projectedOutput.get("returnedCount")).isEqualTo(1);
+        List<?> projectedTemplates = (List<?>) projectedOutput.get("templates");
+        assertThat(projectedTemplates).hasSize(1);
+        assertThat(((Map<?, ?>) projectedTemplates.get(0)).get("templateId"))
+            .isEqualTo("CHECK_PROCESS");
+        assertThat(projectedOutput.get("runtimeTemplateSelection").toString())
+            .contains("selectionAuthority=runtime_evidence_model_review", "candidateCount=2");
+    }
+
+    @Test
+    void dependentExecutionBindsRuntimeSelectedTemplateInsteadOfMcpFirstCandidate() {
+        String discoveryTool = "mcp_chatchat_mcp_server_database_query_template_query";
+        String executionTool = "mcp_chatchat_mcp_server_sql_query_execute";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(any())).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenAnswer(invocation ->
+            ToolMetadata.builder().id(invocation.getArgument(0)).riskLevel("low").build());
+        java.util.concurrent.atomic.AtomicReference<Map<String, Object>> executionInput =
+            new java.util.concurrent.atomic.AtomicReference<>();
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest request = invocation.getArgument(0);
+            Object data;
+            if (discoveryTool.equals(request.getToolName())) {
+                data = Map.of(
+                    "schemaVersion", "template_query_result.v1",
+                    "returnedCount", 2,
+                    "templates", List.of(
+                        Map.of(
+                            "templateId", "UNRELATED_FIRST",
+                            "mcpToolName", executionTool,
+                            "parameterSchema", Map.of("type", "object")
+                        ),
+                        Map.of(
+                            "templateId", "MARGIN_BALANCE_SELECTED",
+                            "mcpToolName", executionTool,
+                            "parameterSchema", Map.of("type", "object")
+                        )
+                    )
+                );
+            } else {
+                executionInput.set(request.getToolInput().getParameters());
+                data = Map.of("rows", List.of(Map.of("marginBalance", 100)));
+            }
+            return new ToolRuntimeExecution(
+                ToolOutput.success(data),
+                ToolMetadata.builder().id(request.getToolName()).riskLevel("low").build(),
+                null,
+                "success",
+                Map.of()
+            );
+        });
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", "融资融券余额", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(
+                        1, "mcp_tool", discoveryTool,
+                        Map.of("filters", Map.of("intent", "融资融券余额")),
+                        List.of(), null, null
+                    ),
+                    new InterpretationPlan.Step(
+                        2, "mcp_tool", executionTool,
+                        Map.of("parameters", Map.of()),
+                        List.of(1), null, null
+                    ),
+                    new InterpretationPlan.Step(
+                        3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null
+                    )
+                ),
+                List.of(),
+                List.of(new InterpretationPlan.Binding(
+                    1, "$.templates[0].templateId", 2, "templateId", "jsonpath", true
+                )),
+                null
+            ),
+            new InterpretationPlan.ExecutionPolicy(
+                4, false, List.of(discoveryTool, executionTool), List.of(), 30_000
+            ),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            null,
+            request -> discoveryTool.equals(request.execution().toolName())
+                ? InterpretationPlanRuntime.StepReview.accepted(
+                    "margin balance template is the semantic match",
+                    Map.of(
+                        "selectedTemplateIds", List.of("MARGIN_BALANCE_SELECTED"),
+                        "rejectedTemplateIds", List.of("UNRELATED_FIRST")
+                    )
+                )
+                : InterpretationPlanRuntime.StepReview.accepted("execution evidence accepted", Map.of()),
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan,
+                toolRegistry,
+                List.of(discoveryTool, executionTool),
+                "tenant-1",
+                "req-runtime-template-selection",
+                "conv-runtime-template-selection",
+                "user-1",
+                Map.of()
+            )
+        );
+
+        assertThat(result.success()).isTrue();
+        assertThat(executionInput.get())
+            .containsEntry("templateId", "MARGIN_BALANCE_SELECTED")
+            .containsEntry("template", "MARGIN_BALANCE_SELECTED");
+        assertThat(executionInput.get().toString()).doesNotContain("UNRELATED_FIRST");
+    }
+
+    @Test
+    void rejectedTemplateExecutionPublishesOneRepairContractWithMissingParameters() {
+        String executionTool = "mcp_chatchat_mcp_server_api_template_execute";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(executionTool)).thenReturn(true);
+        when(toolRegistry.getToolMetadata(executionTool)).thenReturn(
+            ToolMetadata.builder().id(executionTool).riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of("code", "MISSING_ARGUMENT", "message", "customerId is required")),
+            ToolMetadata.builder().id(executionTool).riskLevel("low").build(),
+            null,
+            "success",
+            Map.of()
+        ));
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("api_query", "query customer", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(
+                    1,
+                    "mcp_tool",
+                    executionTool,
+                    Map.of("templateId", "CUSTOMER_QUERY", "parameters", Map.of()),
+                    List.of(),
+                    null,
+                    null
+                ),
+                new InterpretationPlan.Step(
+                    2, "final_answer", "", Map.of("answer", "done"), List.of(1), null, null
+                )
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                3, false, List.of(executionTool), List.of(), 30_000
+            ),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            null,
+            request -> InterpretationPlanRuntime.StepReview.rejected(
+                "customerId is required before this template can satisfy the request",
+                Map.of(
+                    "missingParameters", List.of("customerId"),
+                    "retryInputChanges", Map.of(),
+                    "templateReselectionRequired", true,
+                    "templateExecutionSatisfied", false
+                )
+            ),
+            scriptedController(List.of(List.of(1)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan,
+                toolRegistry,
+                List.of(executionTool),
+                "tenant-1",
+                "req-template-execution-review",
+                "conv-template-execution-review",
+                "user-1",
+                Map.of("toolResultReviewMaxAttempts", 1)
+            )
+        );
+
+        assertThat(result.success()).isFalse();
+        Map<String, Object> metadata = result.steps().get(0).metadata();
+        assertThat(metadata)
+            .containsEntry("templateExecutionRetryRequested", true)
+            .containsEntry("templateExecutionRetryLimit", 1)
+            .containsEntry("templateExecutionMissingParameters", List.of("customerId"))
+            .containsEntry("templateReselectionRequired", true);
+        assertThat(metadata.get("templateExecutionReview").toString())
+            .contains("template_execution_satisfaction.v1", "ONE_REPAIRED_PLAN_EXECUTION",
+                "unchangedRetryForbidden=true");
     }
 
     @Test

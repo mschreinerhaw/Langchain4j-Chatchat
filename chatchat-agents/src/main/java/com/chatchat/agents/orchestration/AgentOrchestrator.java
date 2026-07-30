@@ -1021,6 +1021,14 @@ public class AgentOrchestrator implements AgentRunExecutor {
         int maxRewriteTimes = augmentationOverrideAvailable && latestAugmentationDecision.continueLoop()
             ? 1
             : configuredMaxRewriteTimes;
+        boolean templateExecutionRetryRequested = templateExecutionRetryRequested(firstResult);
+        if (templateExecutionRetryRequested && tools != null && !tools.isEmpty()) {
+            maxRewriteTimes = 1;
+            metadata.put("templateExecutionRetryBounded", true);
+            metadata.put("templateExecutionRetryLimit", 1);
+            metadata.put("templateExecutionRetryStrategy",
+                "EVIDENCE_BASED_PARAMETER_REPAIR_OR_TEMPLATE_RESELECTION");
+        }
         boolean duplicateToolPlanSuppressed = false;
         boolean usablePartialAnalysis = latestAugmentationDecision.decision()
             == EvidenceAugmentationPolicy.Decision.ANALYZE_WITH_LIMITATIONS
@@ -2414,6 +2422,30 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (!rejectedTemplateIds.isEmpty()) {
             metadata.put("rejectedTemplateIds", rejectedTemplateIds);
         }
+        Object templateEvaluations = firstObject(payload, "template_evaluations", "templateEvaluations");
+        if (templateEvaluations instanceof Iterable<?>) {
+            metadata.put("templateEvaluations", templateEvaluations);
+        }
+        List<String> missingParameters = stringList(firstObject(payload,
+            "missing_parameters", "missingParameters", "required_parameters_missing", "requiredParametersMissing"));
+        if (!missingParameters.isEmpty()) {
+            metadata.put("missingParameters", missingParameters);
+        }
+        Map<String, Object> retryInputChanges = asMap(firstObject(payload,
+            "retry_input_changes", "retryInputChanges", "parameter_changes", "parameterChanges"));
+        if (!retryInputChanges.isEmpty()) {
+            metadata.put("retryInputChanges", retryInputChanges);
+        }
+        Object reselectTemplate = firstObject(payload,
+            "reselect_template", "reselectTemplate", "template_reselection_required", "templateReselectionRequired");
+        if (reselectTemplate != null) {
+            metadata.put("templateReselectionRequired", booleanValue(reselectTemplate));
+        }
+        Object executionSatisfied = firstObject(payload,
+            "template_execution_satisfied", "templateExecutionSatisfied", "execution_satisfied", "executionSatisfied");
+        if (executionSatisfied != null) {
+            metadata.put("templateExecutionSatisfied", booleanValue(executionSatisfied));
+        }
         String refinedIntent = stringValue(firstObject(payload, "refined_intent", "refinedIntent"));
         if (refinedIntent != null && !refinedIntent.isBlank()) {
             metadata.put("refinedIntent", refinedIntent);
@@ -2477,7 +2509,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         }
         prompt.append("You are the runtime reviewer for one completed MCP tool call.\n");
         prompt.append("Return strict JSON only with this shape:\n");
-        prompt.append("{\"satisfied\":true|false,\"iteration_sufficient\":true|false,\"reason\":\"short reason\",\"review_answer\":\"optional audit note, not user-facing final answer\",\"evidence_used\":[{\"basis\":\"returned fact\"}],\"missing_evidence\":[\"material gap\"],\"conflicts\":[\"conflict\"],\"hypotheses\":[{\"hypothesis_id\":\"H1\",\"parent_hypothesis_id\":null,\"statement\":\"testable explanation\",\"support_evidence_ids\":[],\"contradict_evidence_ids\":[],\"confidence\":0.0,\"status\":\"SUPPORTED|CONTRADICTED|UNRESOLVED\"}],\"next_actions\":[{\"tool\":\"available_tool_name\",\"intent\":\"evidence gap to close or hypothesis to test\",\"input_changes\":{\"parameter\":\"revised value\"},\"reason\":\"why this action is needed\",\"based_on\":[\"evidenceId\",\"hypothesisId\"]}],\"selected_urls\":[\"https://...\"],\"useful_refs\":[\"doc://...#chunk=0\"],\"rejected_refs\":[\"doc://...#chunk=1\"],\"selected_template_ids\":[\"template-id\"],\"rejected_template_ids\":[\"template-id\"],\"refined_intent\":\"optional refined retrieval intent\",\"relevance\":0.0,\"answerability\":0.0,\"supportsQuestionAspect\":[\"process\"],\"missingAspects\":[\"constraints\"],\"usefulness\":\"HIGH|MEDIUM|LOW\",\"shouldExpandQuery\":true|false,\"confidence\":0.0}\n");
+        prompt.append("{\"satisfied\":true|false,\"iteration_sufficient\":true|false,\"reason\":\"short reason\",\"review_answer\":\"optional audit note, not user-facing final answer\",\"evidence_used\":[{\"basis\":\"returned fact\"}],\"missing_evidence\":[\"material gap\"],\"conflicts\":[\"conflict\"],\"hypotheses\":[{\"hypothesis_id\":\"H1\",\"parent_hypothesis_id\":null,\"statement\":\"testable explanation\",\"support_evidence_ids\":[],\"contradict_evidence_ids\":[],\"confidence\":0.0,\"status\":\"SUPPORTED|CONTRADICTED|UNRESOLVED\"}],\"next_actions\":[{\"tool\":\"available_tool_name\",\"intent\":\"evidence gap to close or hypothesis to test\",\"input_changes\":{\"parameter\":\"revised value\"},\"reason\":\"why this action is needed\",\"based_on\":[\"evidenceId\",\"hypothesisId\"]}],\"selected_urls\":[\"https://...\"],\"useful_refs\":[\"doc://...#chunk=0\"],\"rejected_refs\":[\"doc://...#chunk=1\"],\"selected_template_ids\":[\"template-id\"],\"rejected_template_ids\":[\"template-id\"],\"template_evaluations\":[{\"template_id\":\"template-id\",\"relevance\":0.0,\"evidence_fit\":0.0,\"parameter_readiness\":0.0,\"total_score\":0.0,\"decision\":\"accept|reject\",\"reasons\":[\"evidence-based reason\"],\"missing_parameters\":[]}],\"template_execution_satisfied\":true|false,\"missing_parameters\":[\"parameter\"],\"retry_input_changes\":{\"parameters\":{\"parameter\":\"value proven by user/tool evidence\"}},\"reselect_template\":true|false,\"refined_intent\":\"optional refined retrieval intent\",\"relevance\":0.0,\"answerability\":0.0,\"supportsQuestionAspect\":[\"process\"],\"missingAspects\":[\"constraints\"],\"usefulness\":\"HIGH|MEDIUM|LOW\",\"shouldExpandQuery\":true|false,\"confidence\":0.0}\n");
         prompt.append("Rules:\n");
         prompt.append(AgentRuntimeFactGroundingContract.promptSection());
         prompt.append("- Decide whether this tool output is sufficient for the current plan step and user request.\n");
@@ -2497,6 +2529,12 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("- For document_search, evaluate each returned document/chunk against the current user request. Put useful doc:// refs in useful_refs and unrelated or misleading refs in rejected_refs. Do not infer usefulness from retrieval rank alone.\n");
         prompt.append("- Treat retrieval score as a weak prior only. Your semantic evidence evaluation must state relevance, answerability, supported aspects, missing aspects, usefulness, and whether another query expansion is needed.\n");
         prompt.append("- For template discovery and API/HTTP requirement analysis, compare title, description, capabilitySpec, outputSchema, dependencySpec and required parameters with the current requirement. Return only ids present in the tool output under selected_template_ids/rejected_template_ids. If candidates do not cover the requirement, set satisfied=false and provide refined_intent.\n");
+        prompt.append("- Template retrieval scores and ordering are weak recall priors, never acceptance decisions. Semantically review every returned template candidate.\n");
+        prompt.append("- When multiple templates are returned, selected_template_ids is required when satisfied=true. Order selected_template_ids from highest to lowest semantic fit; Runtime will project that order before binding templates[0].\n");
+        prompt.append("- Put unrelated or materially weaker candidates in rejected_template_ids. Do not select a template merely because Lucene ranked it first or its score ties another candidate.\n");
+        prompt.append("- For each returned template candidate, emit template_evaluations with evidence-based relevance, evidence_fit, parameter_readiness, total_score, decision, reasons, and missing_parameters. Scores are 0..1 and must be justified by returned metadata and the current user request.\n");
+        prompt.append("- For a template execution tool, set template_execution_satisfied explicitly. If false, list missing_parameters and provide retry_input_changes only for values proven by the user query or completed tool evidence; otherwise leave retry_input_changes empty and set reselect_template=true.\n");
+        prompt.append("- A failed template execution gets at most one repaired plan execution. The repair must materially add/bind parameters or reselect a different authorized candidate; never request an unchanged retry.\n");
         prompt.append("- If the user required an official source, reject results that do not satisfy that source constraint.\n");
         prompt.append("- Do not answer the user here; only review the tool result.\n\n");
         prompt.append("- Never write final_answer/finalAnswer in this reviewer JSON. If you need to propose wording for audit, write review_answer; it will not become the user-facing answer.\n");
@@ -3428,6 +3466,14 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 : step.metadata().getOrDefault("nextActions", List.of()));
             item.put("hypotheses", step.metadata() == null ? List.of()
                 : step.metadata().getOrDefault("hypotheses", List.of()));
+            item.put("templateExecutionReview", step.metadata() == null ? Map.of()
+                : step.metadata().getOrDefault("templateExecutionReview", Map.of()));
+            item.put("missingParameters", step.metadata() == null ? List.of()
+                : step.metadata().getOrDefault("templateExecutionMissingParameters", List.of()));
+            item.put("retryInputChanges", step.metadata() == null ? Map.of()
+                : step.metadata().getOrDefault("templateExecutionRetryInputChanges", Map.of()));
+            item.put("templateReselectionRequired", step.metadata() != null
+                && Boolean.TRUE.equals(step.metadata().get("templateReselectionRequired")));
             if (step.errorMessage() != null && !step.errorMessage().isBlank()) {
                 item.put("error", step.errorMessage());
             }
@@ -5185,6 +5231,14 @@ public class AgentOrchestrator implements AgentRunExecutor {
         review.put("satisfied", true);
         review.put("reason", "Mandatory workflow tool completed successfully and returned a terminal observation.");
         return review;
+    }
+
+    private boolean templateExecutionRetryRequested(InterpretationPlanRuntime.ExecutionResult result) {
+        return result != null && result.steps() != null && result.steps().stream()
+            .filter(Objects::nonNull)
+            .map(InterpretationPlanRuntime.StepExecution::metadata)
+            .filter(Objects::nonNull)
+            .anyMatch(metadata -> Boolean.TRUE.equals(metadata.get("templateExecutionRetryRequested")));
     }
 
     private Map<String, Object> mandatoryWorkflowPredecessorReview(

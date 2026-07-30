@@ -51,6 +51,8 @@ public class InterpretationPlanRuntime {
     private static final String ORIGINAL_USER_QUERY_ATTRIBUTE = "originalUserQuery";
     private static final String AGENT_RUNTIME_ENVIRONMENT_ATTRIBUTE = "agentRuntimeEnvironment";
     private static final String MODEL_RETRIEVAL_GATE_KEY = "__modelRetrievalQualityGate";
+    private static final EvidenceBasedTemplateCandidateEvaluator TEMPLATE_CANDIDATE_EVALUATOR =
+        new EvidenceBasedTemplateCandidateEvaluator();
     private static final Pattern EXPLICIT_ENV_ASSIGNMENT_PATTERN = Pattern.compile(
         "(?iu)(?:\\benv(?:ironment)?\\b|\\u73af\\u5883)\\s*(?:[:=]|\\u4e3a|\\u662f)\\s*"
             + "(DEV|TEST|UAT|PROD|\\u5f00\\u53d1|\\u6d4b\\u8bd5|\\u9884\\u53d1|\\u751f\\u4ea7)"
@@ -1234,7 +1236,9 @@ public class InterpretationPlanRuntime {
                 metadata.put("toolResultReviewReason", lastReview.reason());
                 metadata.put("toolResultReviewAttempts", attempt);
                 metadata.putAll(lastReview.metadata() == null ? Map.of() : lastReview.metadata());
+                appendTemplateExecutionReviewContract(execution, lastReview, metadata);
                 if (lastReview.satisfied()) {
+                    execution = applyRuntimeTemplateSelection(execution, lastReview, metadata, startedAt);
                     Map<String, Object> lock = executionLock(step, lastReview);
                     if (!lock.isEmpty()) {
                         metadata.put("executionLock", lock);
@@ -1275,6 +1279,66 @@ public class InterpretationPlanRuntime {
             metadata
         );
     }
+
+    private void appendTemplateExecutionReviewContract(StepExecution execution,
+                                                       StepReview review,
+                                                       Map<String, Object> metadata) {
+        if (execution == null || review == null || metadata == null
+            || !isTemplateExecutionTool(execution.toolName())) {
+            return;
+        }
+        List<String> missingParameters = stringValues(review.metadata().get("missingParameters"));
+        Map<String, Object> retryInputChanges = asStringMap(review.metadata().get("retryInputChanges"));
+        boolean reselectTemplate = Boolean.TRUE.equals(
+            booleanValue(review.metadata().get("templateReselectionRequired")));
+        metadata.put("templateExecutionReview", Map.of(
+            "schemaVersion", "template_execution_satisfaction.v1",
+            "satisfied", review.satisfied(),
+            "missingParameters", missingParameters,
+            "retryInputChanges", retryInputChanges,
+            "templateReselectionRequired", reselectTemplate,
+            "retryPolicy", "ONE_REPAIRED_PLAN_EXECUTION",
+            "unchangedRetryForbidden", true
+        ));
+        metadata.put("templateExecutionRetryRequested", !review.satisfied());
+        metadata.put("templateExecutionRetryLimit", 1);
+        metadata.put("templateExecutionMissingParameters", missingParameters);
+        metadata.put("templateExecutionRetryInputChanges", retryInputChanges);
+        metadata.put("templateReselectionRequired", reselectTemplate);
+    }
+
+    private StepExecution applyRuntimeTemplateSelection(StepExecution execution,
+                                                        StepReview review,
+                                                        Map<String, Object> metadata,
+                                                        long startedAt) {
+        if (execution == null || review == null || !isTemplateDiscoveryTool(execution.toolName())) {
+            return execution;
+        }
+        EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
+            TEMPLATE_CANDIDATE_EVALUATOR.evaluate(execution.output(), review.metadata());
+        metadata.put("runtimeTemplateSelectionApplied", evaluation.applied());
+        metadata.put("runtimeTemplateCandidateCount", evaluation.candidateCount());
+        metadata.put("runtimeTemplateSelectedCount", evaluation.selectedCount());
+        metadata.put("runtimeSelectedTemplateIds", evaluation.selectedIds());
+        metadata.put("runtimeTemplateCandidateEvaluations", evaluation.candidateEvaluations());
+        metadata.put("runtimeTemplateSelectionReason", evaluation.reason());
+        if (!evaluation.applied()) {
+            return execution;
+        }
+        return new StepExecution(
+            execution.stepId(),
+            execution.actionType(),
+            execution.toolName(),
+            execution.success(),
+            evaluation.output(),
+            execution.errorMessage(),
+            execution.toolExecution(),
+            execution.finalAnswer(),
+            elapsed(startedAt),
+            metadata
+        );
+    }
+
 
     private boolean requiresModelTemplateParameterProtocol(InterpretationPlan.Step step,
                                                             Map<Integer, StepExecution> completed) {
@@ -6258,4 +6322,5 @@ public class InterpretationPlanRuntime {
         String message
     ) {
     }
+
 }

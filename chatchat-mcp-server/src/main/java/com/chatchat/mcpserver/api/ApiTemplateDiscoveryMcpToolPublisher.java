@@ -120,10 +120,25 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
                 (first, ignored) -> first,
                 LinkedHashMap::new
             ));
-        List<ScoredApiTemplate> matched = hits.stream()
+        Map<String, Double> hitScores = hits.stream()
             .map(hit -> apiTemplateHit(configsByToolName, hit, categoryResolution.category()))
             .filter(item -> item != null)
-            .filter(item -> !excludedTemplateIds.contains(item.config().getToolName()))
+            .collect(Collectors.toMap(
+                item -> item.config().getToolName(),
+                ScoredApiTemplate::score,
+                Math::max,
+                LinkedHashMap::new
+            ));
+        List<ScoredApiTemplate> matched = scopedConfigs.stream()
+            .filter(config -> !text(config.getToolName()).isBlank())
+            .filter(config -> !excludedTemplateIds.contains(config.getToolName()))
+            .map(config -> new ScoredApiTemplate(
+                config,
+                hitScores.getOrDefault(config.getToolName(),
+                    categoryResolution.category() != null && belongsTo(config, categoryResolution.category())
+                        ? 1.0
+                        : 0.0)
+            ))
             .sorted(java.util.Comparator.comparingDouble(ScoredApiTemplate::score).reversed()
                 .thenComparing(item -> item.config().getToolName()))
             .toList();
@@ -157,6 +172,8 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
                 "templateIdSource", "templates[].templateId",
                 "mustUseReturnedTemplateId", true,
                 "doNotInventTemplateNames", true,
+                "runtimeSemanticReviewRequiredWhenMultiple", true,
+                "mcpRelevanceIsAdmissionFilter", false,
                 "rawExecutionSpecReturned", false,
                 "selectionFields", List.of("templateId", "toolName", "title", "description", "businessGroup", "capabilitySpec", "outputSchema", "dependencySpec", "parameterSchema", "requiredParameters", "parameterContract", "invocationExample"),
                 "onEmptyResult", "No existing API template matched the request. Do not invent an API tool name."
@@ -170,8 +187,10 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             ),
             "diagnostics", mapOf(
                 "source", "lucene_api_service_template_index",
-                "hitCount", matched.size(),
-                "hitIds", matched.stream().map(item -> item.config().getToolName()).limit(limit).toList(),
+                "hitCount", hitScores.size(),
+                "hitIds", hitScores.keySet().stream().limit(limit).toList(),
+                "candidateCount", matched.size(),
+                "candidatePolicy", "authorized_high_recall_runtime_semantic_review",
                 "categoryScoped", false,
                 "categoryRequired", false,
                 "categoryAmbiguous", categoryResolution.categoryRequired(),

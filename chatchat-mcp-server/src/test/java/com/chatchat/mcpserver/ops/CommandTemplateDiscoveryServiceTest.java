@@ -443,7 +443,7 @@ class CommandTemplateDiscoveryServiceTest {
         Map<?, ?> irAsset = (Map<?, ?>) queryIr.get("asset");
         Map<?, ?> irIntent = (Map<?, ?>) queryIr.get("intent");
         Map<?, ?> selectedAsset = (Map<?, ?>) irAsset.get("selected");
-        assertThat(result).containsEntry("returnedCount", 1);
+        assertThat(result).containsEntry("returnedCount", 2);
         assertThat(selectedTemplate.get("templateId")).isEqualTo("MYSQL_SHOW_STATUS");
         assertThat(selectedTemplate.get("matchReasons").toString()).contains("status");
         assertThat(selectedTemplate.get("mcpDecision").toString())
@@ -595,7 +595,7 @@ class CommandTemplateDiscoveryServiceTest {
     }
 
     @Test
-    void returnsNoSqlTemplatesWhenTemplateIndexIsUnavailable() {
+    void returnsAuthorizedSqlCandidatesWhenTemplateIndexIsUnavailable() {
         SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
         CommandTemplateDiscoveryService service = service(
@@ -630,13 +630,13 @@ class CommandTemplateDiscoveryServiceTest {
             "limit", 10
         ));
 
-        assertThat((List<?>) result.get("templates")).isEmpty();
-        assertThat(result).containsEntry("returnedCount", 0);
-        assertThat(result.get("resolutionTrace").toString()).contains("fallbackUsed=false");
+        assertThat((List<?>) result.get("templates")).hasSize(1);
+        assertThat(result).containsEntry("returnedCount", 1);
+        assertThat(result.get("resolutionTrace").toString()).contains("fallbackUsed=true");
     }
 
     @Test
-    void returnsNoRegisteredSqlTemplatesWhenLuceneReturnsNoHits() {
+    void returnsAuthorizedSqlCandidatesWhenLuceneReturnsNoHits() {
         SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
         LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
@@ -689,10 +689,12 @@ class CommandTemplateDiscoveryServiceTest {
             "limit", 5
         ));
 
-        assertThat((List<?>) result.get("templates")).isEmpty();
-        assertThat(result).containsEntry("returnedCount", 0);
+        assertThat((List<?>) result.get("templates")).hasSize(2);
+        assertThat(result).containsEntry("returnedCount", 2);
         assertThat(result.get("resolutionTrace").toString())
-            .contains("template_retrieval", "returnedCount=0", "fallbackUsed=false", "hitCount=0");
+            .contains("template_retrieval", "returnedCount=2", "fallbackUsed=true", "hitCount=0");
+        assertThat(result.get("templateSelectionPolicy").toString())
+            .contains("runtimeSemanticReviewRequiredWhenMultiple=true", "mcpRelevanceIsAdmissionFilter=false");
     }
 
     @Test
@@ -747,7 +749,7 @@ class CommandTemplateDiscoveryServiceTest {
     }
 
     @Test
-    void lucenePartialHitReturnsOnlyHitSqlTemplates() {
+    void lucenePartialHitRanksButDoesNotFilterAuthorizedSqlTemplates() {
         SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
         LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
@@ -806,9 +808,9 @@ class CommandTemplateDiscoveryServiceTest {
         List<String> templateIds = templates.stream()
             .map(item -> String.valueOf(((Map<?, ?>) item).get("templateId")))
             .toList();
-        assertThat(templateIds).containsExactly("MYSQL_SHOW_STATUS");
+        assertThat(templateIds).containsExactly("MYSQL_INNODB_STATUS", "MYSQL_SHOW_STATUS");
         Map<?, ?> first = (Map<?, ?>) templates.get(0);
-        assertThat(first.get("templateId")).isEqualTo("MYSQL_SHOW_STATUS");
+        assertThat(first.get("templateId")).isEqualTo("MYSQL_INNODB_STATUS");
         assertThat(first.get("rankingFeatures").toString())
             .contains("featureList", "intentMatch", "lexicalScore", "weightedScore");
         assertThat(result.get("resolutionTrace").toString())
@@ -1362,8 +1364,8 @@ class CommandTemplateDiscoveryServiceTest {
         assertThat(result.get("queryIr").toString()).contains("retrievalSignals", "reporting_db", "Reporting warehouse datasource");
         verify(lucene).searchDatabaseQueryTemplates(anyList(), argThat(request -> request != null
             && request.intentText() != null
-            && request.intentText().contains("reporting_db")
-            && request.intentText().contains("reporting warehouse datasource")));
+            && request.intentText().contains("health")
+            && !request.intentText().contains("reporting warehouse datasource")));
     }
 
     private CommandTemplateDiscoveryService service(CommandTemplateService templateService,

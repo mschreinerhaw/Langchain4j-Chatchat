@@ -480,10 +480,10 @@ class CommandTemplateDiscoveryDatabaseQueryTest {
             "limit", 10
         ));
 
-        assertThat(result).containsEntry("returnedCount", 1);
+        assertThat(result).containsEntry("returnedCount", 2);
         assertThat(result.get("templates").toString())
             .contains("query_margin_trade_latest")
-            .doesNotContain("query_bond_settlement");
+            .contains("query_bond_settlement");
         assertThat(result.get("resolutionTrace").toString()).contains("fallbackUsed=true");
     }
 

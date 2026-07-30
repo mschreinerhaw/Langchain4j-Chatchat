@@ -129,9 +129,9 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
             "filters", Map.of("groupDescription", "fulfillment lifecycle")
         ));
 
-        assertThat(result.get("returnedCount")).isEqualTo(1);
-        assertThat(result.toString()).contains("order_status_api", "order_services", "fulfillment lifecycle APIs");
-        assertThat(result.get("templates").toString()).doesNotContain("invoice_status_api");
+        assertThat(result.get("returnedCount")).isEqualTo(2);
+        assertThat(result.toString())
+            .contains("order_status_api", "invoice_status_api", "order_services", "fulfillment lifecycle APIs");
         Map<?, ?> first = (Map<?, ?>) ((List<?>) result.get("templates")).get(0);
         assertThat(first.get("templateId")).isEqualTo("order_status_api");
     }
@@ -183,7 +183,7 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
     }
 
     @Test
-    void queryDoesNotFallbackToRegistryWhenApiTemplateIndexHasNoHit() {
+    void queryReturnsAuthorizedRegistryCandidatesWhenApiIndexHasNoHit() {
         ApiServiceConfig config = new ApiServiceConfig();
         config.setToolName("order_status_api");
         config.setTitle("Order status API");
@@ -204,9 +204,12 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
             )
         ));
 
-        assertThat(result).containsEntry("returnedCount", 0);
-        assertThat((List<?>) result.get("templates")).isEmpty();
-        assertThat(result.get("diagnostics").toString()).contains("fallbackUsed=false", "lucene_api_service_template_index");
+        assertThat(result).containsEntry("returnedCount", 1);
+        assertThat(result.get("templates").toString()).contains("order_status_api");
+        assertThat(result.get("diagnostics").toString())
+            .contains("hitCount=0", "candidateCount=1", "authorized_high_recall_runtime_semantic_review");
+        assertThat(result.get("templateSelectionPolicy").toString())
+            .contains("runtimeSemanticReviewRequiredWhenMultiple=true", "mcpRelevanceIsAdmissionFilter=false");
         verify(lucene).searchApiServiceTemplates(argThat(request -> request != null
             && request.intentText() != null
             && request.intentText().contains("\u67e5\u8be2\u8ba2\u5355\u72b6\u6001")

@@ -8,7 +8,7 @@ import '../../styles/views/database-mcp.css';
 const inputSchema = { type: 'object', properties: {}, required: [], additionalProperties: false };
 const internalFinancialDatasource = {
   value: 'builtin_financial_market',
-  label: 'builtin_financial_market / 内置金融采集库 / financial_market'
+  label: 'builtin_financial_market / 内置金融采集库 / DEV / financial_market'
 };
 
 export default {

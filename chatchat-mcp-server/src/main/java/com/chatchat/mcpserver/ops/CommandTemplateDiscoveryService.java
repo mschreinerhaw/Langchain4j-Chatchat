@@ -48,6 +48,7 @@ public class CommandTemplateDiscoveryService {
     public static final String TEMPLATE_SCHEMA_VERSION = "command_template.v1";
     public static final int DEFAULT_LIMIT = 10;
     public static final int MAX_LIMIT = 20;
+    private static final String RUNTIME_MANAGED_TEMPLATE_ENVIRONMENT = "DEV";
     private static final double INTENT_WEIGHT = 0.40;
     private static final double LEXICAL_WEIGHT = 0.30;
     private static final double TYPE_WEIGHT = 0.20;
@@ -960,7 +961,7 @@ public class CommandTemplateDiscoveryService {
                         datasource.getName(),
                         datasource.getTitle(),
                         datasource.getToolName(),
-                        datasource.getEnvironment(),
+                        databaseQueryEnvironment(item.template(), datasource),
                         datasourceLabels(datasource),
                         Map.of()
                     ));
@@ -1225,7 +1226,7 @@ public class CommandTemplateDiscoveryService {
                 "name", datasource.getName(),
                 "title", datasource.getTitle(),
                 "toolName", datasource.getToolName(),
-                "environment", datasource.getEnvironment(),
+                "environment", databaseQueryEnvironment(config, datasource),
                 "databaseType", SqlDatasourceConfigService.normalizeDatabaseTypeToken(datasource.getDatabaseType())
             ))
             .orElse(Map.of());
@@ -1313,12 +1314,18 @@ public class CommandTemplateDiscoveryService {
         return databaseQueryDatasource(config)
             .<Map<String, Object>>map(datasource -> mapOf(
                 "assetName", firstText(datasource.getName(), firstText(datasource.getTitle(), datasource.getToolName())),
-                "env", datasource.getEnvironment(),
-                "environment", datasource.getEnvironment(),
+                "env", databaseQueryEnvironment(config, datasource),
+                "environment", databaseQueryEnvironment(config, datasource),
                 "databaseType", SqlDatasourceConfigService.normalizeDatabaseTypeToken(datasource.getDatabaseType()),
                 "dbType", SqlDatasourceConfigService.normalizeDatabaseTypeToken(datasource.getDatabaseType())
             ))
             .orElse(Map.of());
+    }
+
+    private String databaseQueryEnvironment(DatabaseQueryConfig config, SqlDatasourceConfig datasource) {
+        return isRuntimeManagedDatabaseQuery(config)
+            ? RUNTIME_MANAGED_TEMPLATE_ENVIRONMENT
+            : datasource == null ? null : datasource.getEnvironment();
     }
 
     private java.util.Optional<SqlDatasourceConfig> databaseQueryDatasource(DatabaseQueryConfig config) {

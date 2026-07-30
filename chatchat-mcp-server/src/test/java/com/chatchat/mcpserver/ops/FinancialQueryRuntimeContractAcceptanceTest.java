@@ -126,6 +126,11 @@ class FinancialQueryRuntimeContractAcceptanceTest {
         Map<?, ?> selected = (Map<?, ?>) templates.get(0);
         assertThat(selected.get("templateId")).isEqualTo("sample_market_latest_movers");
         assertThat(selected.get("requiredParameters")).isEqualTo(List.of());
+        Map<?, ?> selectedExecutionContext = (Map<?, ?>) selected.get("executionContext");
+        assertThat(selectedExecutionContext.get("env")).isEqualTo("DEV");
+        assertThat(selectedExecutionContext.get("environment")).isEqualTo("DEV");
+        Map<?, ?> selectedDatasourceAsset = (Map<?, ?>) selected.get("datasourceAsset");
+        assertThat(selectedDatasourceAsset.get("environment")).isEqualTo("DEV");
         assertThat(selected.toString())
             .doesNotContain("SELECT observation_date", "FROM market_quote_daily");
 
@@ -133,6 +138,9 @@ class FinancialQueryRuntimeContractAcceptanceTest {
         assertThat(boundInput)
             .containsEntry("templateId", selected.get("templateId"))
             .containsEntry("template", selected.get("templateId"));
+        Map<?, ?> boundExecutionContext = (Map<?, ?>) boundInput.get("executionContext");
+        assertThat(boundExecutionContext.get("env")).isEqualTo("DEV");
+        assertThat(boundExecutionContext.get("environment")).isEqualTo("DEV");
         assertThat(boundInput.toString()).doesNotContain("SELECT", "market_quote_daily");
 
         InterpretationPlanRuntime.StepExecution queryStep = result.steps().stream()

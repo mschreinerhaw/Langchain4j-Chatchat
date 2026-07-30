@@ -2,6 +2,9 @@
 
 Agent 配置可以在 `workflowConfig.mcpWorkflow` 中声明 MCP 工具编排契约。Planner 把它作为执行计划的工具图，Runtime 按同一契约硬拦截越序、缺依赖、缺租户上下文、缺授权和缺确认的工具调用。
 
+模板检索、候选投影、执行满意度复核和一次修复/重选遵循
+[`Agent Runtime 模板候选评定与执行满意度契约`](agent-runtime-template-evaluation-contract.md)。
+
 新的约定是：Agent 面向稳定的 Router step，不直接依赖已经拆分掉的泛化 `asset_query` / `template_query`，也不让模型发明具体工具名。Tool Router 根据 `assetType`、`routerCapability`、`tenantId` 和角色授权映射到类型化 MCP 工具。
 
 请求级 `availableTools` 是硬边界：planner、rewriter、workflow guard 和 runtime validator 都必须只规划本次可见工具。工具即使已在全局 registry 注册，只要不在本次 `availableTools` 中，也不能被补造进 InterpretationPlan。

@@ -1,5 +1,8 @@
 # Agent Runtime 模板参数传递契约
 
+模板候选的高召回、证据评定、执行满意度复核及一次修复重做遵循
+[`Agent Runtime 模板候选评定与执行满意度契约`](agent-runtime-template-evaluation-contract.md)。
+
 ## 目标
 
 模型生成的是候选执行意图，不是工具请求。模型负责选择工作流允许的工具，并在固定 JSON 中表达模板线索、业务参数和逻辑目标；Agent Runtime 负责查询或读取 MCP 契约，将其编译为确定性的工具参数，并在发起执行调用前完成校验。该契约适用于 SQL、SQL DAG、HTTP/API 和 SSH 模板执行，不区分 MySQL、Oracle、PostgreSQL、SQL Server 或 Linux 命令类型。

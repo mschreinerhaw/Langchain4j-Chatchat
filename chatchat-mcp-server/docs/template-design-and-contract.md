@@ -2,6 +2,10 @@
 
 本文档定义 `chatchat-mcp-server` 模块的模板设计、MCP 工具契约、数据库查询模板契约和通知工具契约。
 
+模板检索采用高召回、Runtime 语义评定的跨层规则，详见
+[`Agent Runtime 模板候选评定与执行满意度契约`](../../docs/agent-runtime-template-evaluation-contract.md)。
+MCP Server 只执行授权和可执行性等硬约束，不以相关度分数替代 Runtime 的最终候选判断。
+
 ## 模块职责
 
 `chatchat-mcp-server` 发布 MCP 工具，维护资产与模板注册，执行模板检索，暴露数据库查询模板、通知告警工具和治理元数据。

@@ -2,6 +2,9 @@
 
 本文档定义 `chatchat-mcp-server` 对模板、资产和执行工具的发布契约。
 
+MCP 模板高召回、Runtime 候选评定、执行满意度复核和一次修复/重选的跨层边界遵循
+[`Agent Runtime 模板候选评定与执行满意度契约`](../../docs/agent-runtime-template-evaluation-contract.md)。
+
 ## 基本链路
 
 MCP Server 必须支持两条交互链路：

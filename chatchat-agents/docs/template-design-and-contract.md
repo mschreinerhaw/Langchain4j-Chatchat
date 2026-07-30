@@ -4,6 +4,10 @@
 
 模型总结与工具事实之间的边界由 [`Agent Runtime 事实落地契约`](../../docs/agent-runtime-fact-grounding-contract.md) 统一定义。
 
+模板候选必须遵循
+[`Agent Runtime 模板候选评定与执行满意度契约`](../../docs/agent-runtime-template-evaluation-contract.md)：
+MCP 相关度只作为弱排序先验，Runtime 基于证据选择候选，并在执行后最多进行一次参数修复或模板重选。
+
 ## 模块职责
 
 `chatchat-agents` 是 Agent Runtime、planner、InterpretationPlan、工具编排、结果 review 和最终总结的核心模块。

@@ -4,6 +4,9 @@
 
 模型使用工具事实进行总结时，还必须遵守 [`Agent Runtime 事实落地契约`](../../docs/agent-runtime-fact-grounding-contract.md) 和 [`Agent Runtime 证据增强契约`](../../docs/agent-runtime-evidence-augmentation-contract.md)，对应版本分别为 `agent_runtime_fact_grounding_v1` 和 `evidence_augmentation_decision_v1`。
 
+模板发现的高召回策略、Runtime 证据评分、执行满意度复核和一次修复/重选遵循
+[`Agent Runtime 模板候选评定与执行满意度契约`](../../docs/agent-runtime-template-evaluation-contract.md)。
+
 ## 基本原则
 
 MCP 交互必须走“发现对象 -> 判断对象 -> 交给执行者 -> 基于结果总结”的链路。

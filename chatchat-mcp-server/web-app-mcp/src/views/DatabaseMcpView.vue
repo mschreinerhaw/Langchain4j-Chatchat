@@ -1,19 +1,12 @@
 <template>
   <div class="view-stack">
-    <section v-if="activeTab === 'queries'" class="capability-category-grid capability-summary-grid" aria-label="数据能力汇总">
-      <button
-        v-for="category in categoryCards"
-        :key="category.id || 'all'"
-        type="button"
-        class="capability-category-card"
-        :class="{ active: selectedCategory === (category.id || category.code || '') }"
-        @click="selectCategory(category)"
-      >
-        <span class="capability-category-title">{{ category.name }}</span>
-        <strong>{{ category.count }}</strong>
-        <small>{{ category.description }}</small>
-      </button>
-    </section>
+    <CategoryCardPager
+      v-if="activeTab === 'queries'"
+      :cards="categoryCards"
+      :selected-key="selectedCategory"
+      aria-label="数据能力分类"
+      @select="selectCategory"
+    />
 
     <el-card class="workspace-panel el-workspace-card" shadow="never">
       <template #header>

@@ -3,11 +3,14 @@ package com.chatchat.mcpserver.ops;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 
 import com.chatchat.mcpserver.audit.InvocationAuditService;
+import com.chatchat.mcpserver.http.ApiBusinessResponseEvaluator;
 import com.chatchat.mcpserver.template.TemplateParameterValidator;
+import com.chatchat.tools.livedata.LivedataSessionService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
@@ -40,51 +43,24 @@ public class HttpRequestToolService {
     private final ObjectMapper objectMapper;
     private final InvocationAuditService auditService;
     private final TemplateParameterValidator parameterValidator;
+    private final ObjectProvider<LivedataSessionService> livedataSessionServiceProvider;
 
     public HttpRequestToolResult execute(Map<String, Object> arguments) {
+        return executeRequest(new LinkedHashMap<>(arguments == null ? Map.of() : arguments), false);
+    }
+
+    private HttpRequestToolResult executeRequest(Map<String, Object> request, boolean livedataRequest) {
         long startedAt = System.currentTimeMillis();
-        Map<String, Object> request = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
         HttpRequestToolResult result;
         try {
-            String method = normalizeMethod(text(request, "method"));
-            String url = requireText(text(request, "url"), "url is required");
-            int timeoutMs = normalizeTimeout(request.get("timeoutMs"));
-            Map<String, String> headers = readHeaders(request.get("headers"));
-            Object body = request.get("body");
-            log.info("MCP execution detail: executionType=HTTP_REQUEST, tool={}, endpointId={}, method={}, url={}, timeoutMs={}, sourceTaskId={}, headers={}, body={}",
-                text(request, "toolName"), text(request, "endpointId"), method, redactUrl(url), timeoutMs,
-                text(request, "sourceTaskId"), redact(headers), truncate(toLogText(redact(body))));
-            HttpRequest.Builder builder = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .timeout(Duration.ofMillis(timeoutMs));
-            headers.forEach(builder::header);
-            if ("GET".equals(method)) {
-                builder.GET();
-            } else {
-                String bodyText = bodyText(body);
-                builder.method(method, HttpRequest.BodyPublishers.ofString(bodyText, StandardCharsets.UTF_8));
-                if (headers.keySet().stream().noneMatch("content-type"::equalsIgnoreCase)) {
-                    builder.header("Content-Type", "application/json");
+            result = send(request, startedAt, livedataRequest, "HTTP_REQUEST");
+            if (livedataRequest && isLivedataAuthenticationFailure(result.body())) {
+                LivedataSessionService sessionService = livedataSessionServiceProvider.getIfAvailable();
+                if (sessionService != null) {
+                    applyLivedataSession(request, sessionService.refreshSessionId());
+                    result = send(request, startedAt, true, "HTTP_REQUEST_RETRY");
                 }
             }
-            HttpResponse<String> response = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofMillis(timeoutMs))
-                .followRedirects(HttpClient.Redirect.NORMAL)
-                .build()
-                .send(builder.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
-            result = new HttpRequestToolResult(
-                response.statusCode() >= 200 && response.statusCode() < 300,
-                method,
-                url,
-                response.statusCode(),
-                parseBody(response.body()),
-                response.body(),
-                Map.copyOf(response.headers().map()),
-                durationMs,
-                response.statusCode() >= 200 && response.statusCode() < 300 ? null : "HTTP " + response.statusCode(),
-                httpSourceMetadata(request, method, url)
-            );
         } catch (Exception ex) {
             long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
             result = new HttpRequestToolResult(
@@ -105,10 +81,71 @@ public class HttpRequestToolService {
         return result;
     }
 
+    private HttpRequestToolResult send(Map<String, Object> request,
+                                       long startedAt,
+                                       boolean livedataRequest,
+                                       String executionType) throws Exception {
+        String method = normalizeMethod(text(request, "method"));
+        String url = requireText(text(request, "url"), "url is required");
+        int timeoutMs = normalizeTimeout(request.get("timeoutMs"));
+        Map<String, String> headers = readHeaders(request.get("headers"));
+        Object body = request.get("body");
+        log.info("MCP execution detail: executionType={}, tool={}, endpointId={}, method={}, url={}, timeoutMs={}, sourceTaskId={}, headers={}, body={}",
+            executionType, text(request, "toolName"), text(request, "endpointId"), method, redactUrl(url), timeoutMs,
+            text(request, "sourceTaskId"), redact(headers), truncate(toLogText(redact(body))));
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
+            .uri(URI.create(url))
+            .timeout(Duration.ofMillis(timeoutMs));
+        headers.forEach(builder::header);
+        if ("GET".equals(method)) {
+            builder.GET();
+        } else {
+            String bodyText = bodyText(body);
+            builder.method(method, HttpRequest.BodyPublishers.ofString(bodyText, StandardCharsets.UTF_8));
+            if (headers.keySet().stream().noneMatch("content-type"::equalsIgnoreCase)) {
+                builder.header("Content-Type", "application/json");
+            }
+        }
+        HttpResponse<String> response = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofMillis(timeoutMs))
+            .followRedirects(HttpClient.Redirect.NORMAL)
+            .build()
+            .send(builder.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        Object parsedBody = parseBody(response.body());
+        boolean httpSuccess = response.statusCode() >= 200 && response.statusCode() < 300;
+        String businessFailure = ApiBusinessResponseEvaluator.failure(parsedBody);
+        boolean success = httpSuccess && businessFailure == null;
+        String errorMessage = !httpSuccess
+            ? "HTTP " + response.statusCode()
+            : businessFailure;
+        return new HttpRequestToolResult(
+            success,
+            method,
+            url,
+            response.statusCode(),
+            parsedBody,
+            response.body(),
+            Map.copyOf(response.headers().map()),
+            Math.max(0, System.currentTimeMillis() - startedAt),
+            errorMessage,
+            httpSourceMetadata(request, method, url)
+        );
+    }
+
     public HttpRequestToolResult execute(HttpEndpointConfig config, Map<String, Object> arguments) {
         assertExecutionCapability(config);
         Map<String, Object> safeArguments = validatedTemplateArguments(config, arguments == null ? Map.of() : arguments);
+        boolean livedataRequest = isLivedataEndpoint(config);
+        if (livedataRequest) {
+            LivedataSessionService sessionService = livedataSessionServiceProvider.getIfAvailable();
+            if (sessionService != null) {
+                safeArguments.put(LivedataSessionService.SESSION_ARGUMENT, sessionService.currentSessionId());
+            }
+        }
         Map<String, Object> request = toRequest(config, safeArguments);
+        if (livedataRequest && safeArguments.containsKey(LivedataSessionService.SESSION_ARGUMENT)) {
+            applyLivedataSession(request, String.valueOf(safeArguments.get(LivedataSessionService.SESSION_ARGUMENT)));
+        }
         request.put("toolName", config.getToolName());
         request.put("endpointId", config.getId());
         request.put("endpointName", config.getName());
@@ -116,7 +153,7 @@ public class HttpRequestToolService {
         request.put("endpointDescription", config.getDescription());
         request.put("endpointCategory", config.getCategory());
         request.put("environment", config.getEnvironment());
-        return execute(request);
+        return executeRequest(request, livedataRequest);
     }
 
     private Map<String, Object> httpSourceMetadata(Map<String, Object> request, String method, String url) {
@@ -364,6 +401,95 @@ public class HttpRequestToolService {
         }
     }
 
+    private boolean isLivedataEndpoint(HttpEndpointConfig config) {
+        String placeholder = "{{" + LivedataSessionService.SESSION_ARGUMENT + "}}";
+        if ((config.getBodyTemplate() != null && config.getBodyTemplate().contains(placeholder))
+            || (config.getHeadersJson() != null && config.getHeadersJson().contains(placeholder))) {
+            return true;
+        }
+        try {
+            Object parsed = parseBody(config.getBodyTemplate());
+            if (parsed instanceof Map<?, ?> body && mapValue(body, "sessionId") != null) {
+                Object namespace = mapValue(body, "namespace");
+                Object headValue = mapValue(body, "head");
+                boolean tokenHeader = headValue instanceof Map<?, ?> head
+                    && head.keySet().stream().anyMatch(key ->
+                        "x-ams-token".equalsIgnoreCase(String.valueOf(key)));
+                return tokenHeader || (namespace != null
+                    && "livedata".equalsIgnoreCase(String.valueOf(namespace)));
+            }
+        } catch (Exception ignored) {
+        }
+        return false;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void applyLivedataSession(Map<String, Object> request, String sessionId) {
+        if (request == null || sessionId == null || sessionId.isBlank()) {
+            return;
+        }
+        Object bodyValue = request.get("body");
+        if (bodyValue instanceof String bodyText) {
+            Object parsed = parseBody(bodyText);
+            if (parsed instanceof Map<?, ?> map) {
+                Map<String, Object> body = new LinkedHashMap<>((Map<String, Object>) map);
+                putCaseInsensitive(body, "sessionId", sessionId);
+                request.put("body", ModelProtocolJson.compact(body));
+            }
+        } else if (bodyValue instanceof Map<?, ?> map) {
+            Map<String, Object> body = new LinkedHashMap<>((Map<String, Object>) map);
+            putCaseInsensitive(body, "sessionId", sessionId);
+            request.put("body", body);
+        }
+        Object headersValue = request.get("headers");
+        if (headersValue instanceof Map<?, ?> map) {
+            Map<String, Object> headers = new LinkedHashMap<>((Map<String, Object>) map);
+            String sessionHeader = headers.keySet().stream()
+                .filter(key -> "sessionId".equalsIgnoreCase(key))
+                .findFirst()
+                .orElse(null);
+            if (sessionHeader != null) {
+                headers.put(sessionHeader, sessionId);
+                request.put("headers", headers);
+            }
+        }
+    }
+
+    private void putCaseInsensitive(Map<String, Object> map, String name, Object value) {
+        String existing = map.keySet().stream()
+            .filter(key -> name.equalsIgnoreCase(key))
+            .findFirst()
+            .orElse(name);
+        map.put(existing, value);
+    }
+
+    private boolean isLivedataAuthenticationFailure(Object body) {
+        if (!(body instanceof Map<?, ?> map)) {
+            return false;
+        }
+        String code = String.valueOf(mapValue(map, "code", "retu_code", "retuCode")).trim();
+        String note = String.valueOf(mapValue(map, "note", "memo", "message", "msg"))
+            .toUpperCase(Locale.ROOT);
+        return "-10002".equals(code)
+            || "-10014".equals(code)
+            || "401".equals(code)
+            || "403".equals(code)
+            || note.contains("UNAUTHENTICATED")
+            || (note.contains("SESSIONID")
+                && (note.contains("无效") || note.contains("INVALID") || note.contains("EXPIRED")));
+    }
+
+    private Object mapValue(Map<?, ?> map, String... names) {
+        for (String name : names) {
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                if (entry.getKey() != null && name.equalsIgnoreCase(String.valueOf(entry.getKey()))) {
+                    return entry.getValue();
+                }
+            }
+        }
+        return null;
+    }
+
     private void logHttpResult(Map<String, Object> request, HttpRequestToolResult result) {
         String message = "MCP HTTP request execution result: success={}, tool={}, endpointId={}, endpointName={}, env={}, method={}, url={}, statusCode={}, durationMs={}, responseHeaders={}, rawBody={}, error={}";
         if (result.success()) {
@@ -380,6 +506,16 @@ public class HttpRequestToolService {
     }
 
     private Object redact(Object value) {
+        if (value instanceof String text) {
+            String trimmed = text.trim();
+            if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+                Object parsed = parseBody(trimmed);
+                if (!(parsed instanceof String)) {
+                    return redact(parsed);
+                }
+            }
+            return value;
+        }
         if (value instanceof Map<?, ?> map) {
             Map<String, Object> redacted = new LinkedHashMap<>();
             map.forEach((key, item) -> {
@@ -404,7 +540,9 @@ public class HttpRequestToolService {
             || normalized.contains("secret")
             || normalized.contains("apikey")
             || normalized.contains("api_key")
-            || normalized.contains("cookie");
+            || normalized.contains("cookie")
+            || normalized.contains("sessionid")
+            || normalized.contains("session_id");
     }
 
     private String redactUrl(String url) {

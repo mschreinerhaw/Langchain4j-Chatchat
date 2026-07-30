@@ -4,6 +4,7 @@ import com.chatchat.agents.protocol.ModelProtocolJson;
 
 import com.chatchat.mcpserver.audit.InvocationAuditService;
 import com.chatchat.mcpserver.cache.ApiResponseCacheService;
+import com.chatchat.mcpserver.http.ApiBusinessResponseEvaluator;
 import com.chatchat.mcpserver.ops.HttpEndpointConfig;
 import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
 import com.chatchat.mcpserver.template.TemplateParameterValidator;
@@ -370,14 +371,17 @@ public class ApiInvokeService {
         boolean httpSuccess = response.statusCode() >= 200 && response.statusCode() < 300;
         boolean authFailure = isAuthFailure(response);
         String businessFailure = livedataBusinessFailure(response.body());
-        boolean success = httpSuccess && !authFailure && businessFailure == null;
+        String responseFailure = businessFailure != null
+            ? businessFailure
+            : ApiBusinessResponseEvaluator.failure(parsedBody);
+        boolean success = httpSuccess && !authFailure && responseFailure == null;
         String errorMessage = null;
         if (!httpSuccess) {
             errorMessage = "API returned HTTP " + response.statusCode();
         } else if (authFailure) {
             errorMessage = "API authentication failed";
-        } else if (businessFailure != null) {
-            errorMessage = businessFailure;
+        } else if (responseFailure != null) {
+            errorMessage = responseFailure;
         }
         return new ApiInvokeResult(success, response.statusCode(), response.headers().map(), parsedBody,
             response.body(), errorMessage);

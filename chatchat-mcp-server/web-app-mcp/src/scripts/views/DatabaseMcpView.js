@@ -1,5 +1,6 @@
 ﻿import CrudCatalog from '../../components/CrudCatalog.vue';
 import { assetsApi, databaseApi as api } from '../../services/api';
+import CategoryCardPager from '../../components/CategoryCardPager.vue';
 import { prettyJson } from '../../utils/json';
 import { buildTestNotification } from '../../utils/test-result';
 import '../../styles/views/database-mcp.css';
@@ -12,7 +13,7 @@ const internalFinancialDatasource = {
 
 export default {
   name: 'DatabaseMcpView',
-  components: { CrudCatalog },
+  components: { CrudCatalog, CategoryCardPager },
   emits: ['notify', 'error', 'result'],
   data() {
     return {

@@ -5,6 +5,13 @@ const PALETTE = ["#2f7cf6", "#20b26b", "#f4a629", "#ef4f5f", "#7c3aed", "#0891b2
 const CHART_TYPES = new Set(["line", "bar", "pie", "scatter"]);
 const PANEL_LAYOUTS = new Set(["grid", "stack"]);
 const MAX_PANEL_BLOCKS = 6;
+const AXIS_LABEL_FONT = "12px Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+const AXIS_LABEL_MARGIN = 10;
+const AXIS_TITLE_CLEARANCE = 20;
+const X_AXIS_LABEL_LIMIT = 18;
+const LEGEND_LABEL_LIMIT = 24;
+
+let axisMeasureCanvas;
 
 function compact(value) {
   if (value === null || value === undefined) {
@@ -37,6 +44,91 @@ function numeric(value) {
   }
   const parsed = Number(String(value ?? "").replace(/,/g, ""));
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function formatAxisTick(value) {
+  const number = numeric(value);
+  if (number === null) {
+    return compact(value);
+  }
+  const absolute = Math.abs(number);
+  if (absolute >= 1e15 || (absolute > 0 && absolute < 1e-4)) {
+    return number.toExponential(2);
+  }
+  return new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 4
+  }).format(number);
+}
+
+function measureAxisLabelWidth(value) {
+  const text = formatAxisTick(value);
+  return measureTextWidth(text);
+}
+
+function measureTextWidth(value) {
+  const text = compact(value);
+  if (typeof document !== "undefined") {
+    axisMeasureCanvas ||= document.createElement("canvas");
+    const context = axisMeasureCanvas.getContext("2d");
+    if (context) {
+      context.font = AXIS_LABEL_FONT;
+      return context.measureText(text).width;
+    }
+  }
+  return Array.from(text).reduce((width, character) => width + (/[\u2e80-\uffff]/.test(character) ? 12 : 7), 0);
+}
+
+function truncateDisplayLabel(value, limit, maxWidth = Number.POSITIVE_INFINITY) {
+  const characters = Array.from(compact(value));
+  let visible = characters.slice(0, limit);
+  while (visible.length > 1 && measureTextWidth(`${visible.join("")}…`) > maxWidth) {
+    visible = visible.slice(0, -1);
+  }
+  const truncated = visible.length < characters.length;
+  return `${visible.join("")}${truncated ? "…" : ""}`;
+}
+
+function resolveXAxisLayout(values = [], viewportWidth = 520, numericAxis = false, hasDataZoom = false) {
+  const labels = values.map((value) => numericAxis ? formatAxisTick(value) : truncateDisplayLabel(value, X_AXIS_LABEL_LIMIT, 120));
+  const maxLabelWidth = Math.max(12, ...labels.map(measureTextWidth));
+  const estimatedPlotWidth = Math.max(240, viewportWidth - 150);
+  const visibleLabelCount = Math.max(1, Math.min(labels.length, 12));
+  const availableWidth = estimatedPlotWidth / visibleLabelCount;
+  const rotate = maxLabelWidth <= availableWidth
+    ? 0
+    : (maxLabelWidth <= availableWidth * 1.8 ? 30 : 45);
+  const radians = rotate * Math.PI / 180;
+  const labelHeight = Math.sin(radians) * maxLabelWidth + Math.cos(radians) * 12;
+  return {
+    axisLabel: {
+      color: "#667085",
+      hideOverlap: true,
+      margin: AXIS_LABEL_MARGIN,
+      rotate,
+      formatter: numericAxis
+        ? formatAxisTick
+        : (value) => truncateDisplayLabel(value, X_AXIS_LABEL_LIMIT, 120)
+    },
+    nameGap: Math.max(28, Math.ceil(labelHeight + AXIS_LABEL_MARGIN + 14)),
+    gridBottom: hasDataZoom ? 84 : 54
+  };
+}
+
+function resolveYAxisLayout(values = []) {
+  const numericValues = values.map(numeric).filter((value) => value !== null);
+  const minimum = Math.min(0, ...(numericValues.length ? numericValues : [0]));
+  const maximumValue = Math.max(...(numericValues.length ? numericValues : [0]));
+  const maximum = maximumValue === minimum ? maximumValue + 1 : maximumValue;
+  const samples = Array.from({ length: 7 }, (_, index) => minimum + ((maximum - minimum) * index / 6));
+  const labelWidth = Math.ceil(Math.max(...samples.map(measureAxisLabelWidth)));
+  return {
+    axisLabel: {
+      color: "#667085",
+      margin: AXIS_LABEL_MARGIN,
+      formatter: formatAxisTick
+    },
+    nameGap: Math.max(48, labelWidth + AXIS_LABEL_MARGIN + AXIS_TITLE_CLEARANCE)
+  };
 }
 
 function normalizeRows(spec = {}) {
@@ -199,7 +291,8 @@ export default {
     return {
       activeView: "graph",
       chartInstance: null,
-      resizeObserver: null
+      resizeObserver: null,
+      chartViewportWidth: 520
     };
   },
   computed: {
@@ -316,6 +409,20 @@ export default {
       }
       return this.seriesMeta.length ? "指标值" : "";
     },
+    yAxisLayout() {
+      return resolveYAxisLayout(this.numericValues);
+    },
+    xAxisLayout() {
+      const values = this.chartType === "scatter"
+        ? this.xNumericValues
+        : this.rows.map((row, index) => compact(row[this.xKey] ?? `Row ${index + 1}`));
+      return resolveXAxisLayout(
+        values,
+        this.chartViewportWidth,
+        this.chartType === "scatter",
+        this.rows.length > 20
+      );
+    },
     chartSemanticSummary() {
       if (!this.chartOption || this.chartType === "pie") {
         if (this.chartType === "pie" && this.seriesMeta.length) {
@@ -347,7 +454,10 @@ export default {
         legend: {
           type: "scroll",
           top: 4,
+          left: 12,
           right: 8,
+          tooltip: { show: true },
+          formatter: (name) => truncateDisplayLabel(name, LEGEND_LABEL_LIMIT, 220),
           textStyle: { color: "#667085", fontWeight: 700 }
         }
       };
@@ -375,15 +485,21 @@ export default {
       if (this.chartType === "scatter") {
         return {
           ...common,
-          grid: { left: 68, right: 18, top: 54, bottom: 46, containLabel: true },
-          xAxis: { type: "value", name: this.xAxisLabel, nameGap: 22, axisLabel: { color: "#667085" } },
+          grid: { left: 68, right: 18, top: 54, bottom: this.xAxisLayout.gridBottom, containLabel: true },
+          xAxis: {
+            type: "value",
+            name: this.xAxisLabel,
+            nameLocation: "middle",
+            nameGap: this.xAxisLayout.nameGap,
+            axisLabel: this.xAxisLayout.axisLabel
+          },
           yAxis: {
             type: "value",
             name: this.yAxisLabel,
             nameLocation: "middle",
-            nameGap: 48,
+            nameGap: this.yAxisLayout.nameGap,
             nameRotate: 90,
-            axisLabel: { color: "#667085" }
+            axisLabel: this.yAxisLayout.axisLabel
           },
           series: this.yKeys.map((key) => ({
             name: seriesNameByKey[key] || key,
@@ -401,21 +517,22 @@ export default {
       }
       return {
         ...common,
-        grid: { left: 68, right: 18, top: 54, bottom: 46, containLabel: true },
+        grid: { left: 68, right: 18, top: 54, bottom: this.xAxisLayout.gridBottom, containLabel: true },
         xAxis: {
           type: "category",
           name: this.xAxisLabel,
-          nameGap: 28,
+          nameLocation: "middle",
+          nameGap: this.xAxisLayout.nameGap,
           data: this.rows.map((row, index) => compact(row[this.xKey] ?? `Row ${index + 1}`)),
-          axisLabel: { color: "#667085", hideOverlap: true }
+          axisLabel: this.xAxisLayout.axisLabel
         },
         yAxis: {
           type: "value",
           name: this.yAxisLabel,
           nameLocation: "middle",
-          nameGap: 48,
+          nameGap: this.yAxisLayout.nameGap,
           nameRotate: 90,
-          axisLabel: { color: "#667085" }
+          axisLabel: this.yAxisLayout.axisLabel
         },
         dataZoom: this.rows.length > 20 ? [{ type: "inside" }, { type: "slider", height: 18, bottom: 8 }] : [],
         series: this.yKeys.map((key) => ({
@@ -635,11 +752,15 @@ export default {
           this.disposeEchart();
           return;
         }
+        this.syncChartViewportWidth(element.clientWidth);
         if (!this.chartInstance) {
           this.chartInstance = markRaw(echarts.init(element, null, { renderer: "canvas" }));
           this.chartInstance.on("click", this.handleChartClick);
           if (typeof ResizeObserver !== "undefined") {
-            this.resizeObserver = new ResizeObserver(() => this.chartInstance?.resize());
+            this.resizeObserver = new ResizeObserver((entries) => {
+              this.syncChartViewportWidth(entries[0]?.contentRect?.width);
+              this.chartInstance?.resize();
+            });
             this.resizeObserver.observe(element);
           } else if (typeof window !== "undefined") {
             window.addEventListener("resize", this.resizeEchart);
@@ -649,7 +770,14 @@ export default {
         this.chartInstance.resize();
       });
     },
+    syncChartViewportWidth(width) {
+      const normalizedWidth = Math.round(Number(width) || 0);
+      if (normalizedWidth > 0 && Math.abs(normalizedWidth - this.chartViewportWidth) > 2) {
+        this.chartViewportWidth = normalizedWidth;
+      }
+    },
     resizeEchart() {
+      this.syncChartViewportWidth(this.$refs.chartCanvas?.clientWidth);
       this.chartInstance?.resize();
     },
     downloadBlob(content, filename, type = "text/plain;charset=utf-8") {

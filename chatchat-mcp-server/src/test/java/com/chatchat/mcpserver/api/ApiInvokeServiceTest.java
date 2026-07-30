@@ -378,6 +378,54 @@ class ApiInvokeServiceTest {
         }
     }
 
+    @Test
+    void http200GenericBusinessFailureIsReportedAsFailure() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/business-api", exchange -> {
+            byte[] body = "{\"success\":false,\"code\":500,\"message\":\"参数校验失败\"}"
+                .getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.start();
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            ApiResponseCacheService cacheService = mock(ApiResponseCacheService.class);
+            useDirectCacheLoader(cacheService);
+            HttpEndpointConfigService gatewayConfigService = mock(HttpEndpointConfigService.class);
+            HttpEndpointConfig gateway = new HttpEndpointConfig();
+            gateway.setId("gateway-1");
+            gateway.setEnabled(true);
+            gateway.setMethod("POST");
+            gateway.setUrlTemplate("http://localhost:" + server.getAddress().getPort() + "/business-api");
+            gateway.setBodyTemplate("{}");
+            gateway.setTimeoutMs(5000);
+            when(gatewayConfigService.getById("gateway-1")).thenReturn(gateway);
+            ApiInvokeService service = new ApiInvokeService(
+                objectMapper,
+                mock(InvocationAuditService.class),
+                cacheService,
+                mockObjectProvider(),
+                new TemplateParameterValidator(objectMapper),
+                gatewayConfigService
+            );
+            ApiServiceConfig config = new ApiServiceConfig();
+            config.setId("api-1");
+            config.setToolName("generic_business_api");
+            config.setGatewayId("gateway-1");
+            config.setInputSchemaJson("{\"type\":\"object\",\"properties\":{}}");
+
+            ApiInvokeResult result = service.invoke(config, Map.of());
+
+            assertThat(result.success()).isFalse();
+            assertThat(result.statusCode()).isEqualTo(200);
+            assertThat(result.errorMessage()).isEqualTo("参数校验失败");
+        } finally {
+            server.stop(0);
+        }
+    }
+
     private void useDirectCacheLoader(ApiResponseCacheService cacheService) {
         when(cacheService.getOrLoad(any(), anyMap(), any())).thenAnswer(invocation -> {
             @SuppressWarnings("unchecked")

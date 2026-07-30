@@ -1,5 +1,6 @@
 ﻿import CrudCatalog from '../../components/CrudCatalog.vue';
 import ApiTestParameterDialog from '../../components/ApiTestParameterDialog.vue';
+import CategoryCardPager from '../../components/CategoryCardPager.vue';
 import { apiServicesApi as api, assetsApi } from '../../services/api';
 import { buildTestNotification } from '../../utils/test-result';
 import '../../styles/views/database-mcp.css';
@@ -13,7 +14,7 @@ const objectSchema = {
 
 export default {
   name: 'ApiServicesView',
-  components: { CrudCatalog, ApiTestParameterDialog },
+  components: { CrudCatalog, ApiTestParameterDialog, CategoryCardPager },
   emits: ['notify', 'error', 'result'],
   data() {
     return {

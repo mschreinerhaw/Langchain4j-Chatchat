@@ -1,18 +1,11 @@
 <template>
-  <section v-if="activeTab === 'services'" class="capability-category-grid capability-summary-grid" aria-label="API 业务分类">
-    <button
-      v-for="category in categoryCards"
-      :key="category.id || 'all'"
-      type="button"
-      class="capability-category-card"
-      :class="{ active: selectedCategory === (category.id || category.code || '') }"
-      @click="selectCategory(category)"
-    >
-      <span class="capability-category-title">{{ category.name }}</span>
-      <strong>{{ category.count }}</strong>
-      <small>{{ category.description }}</small>
-    </button>
-  </section>
+  <CategoryCardPager
+    v-if="activeTab === 'services'"
+    :cards="categoryCards"
+    :selected-key="selectedCategory"
+    aria-label="API 业务分类"
+    @select="selectCategory"
+  />
   <el-tabs v-model="activeTab" class="workspace-tabs">
     <el-tab-pane label="API 服务维护" name="services">
       <CrudCatalog

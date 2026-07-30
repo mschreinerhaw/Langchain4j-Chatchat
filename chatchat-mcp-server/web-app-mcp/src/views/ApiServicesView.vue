@@ -1,4 +1,18 @@
 <template>
+  <section v-if="activeTab === 'services'" class="capability-category-grid capability-summary-grid" aria-label="API 业务分类">
+    <button
+      v-for="category in categoryCards"
+      :key="category.id || 'all'"
+      type="button"
+      class="capability-category-card"
+      :class="{ active: selectedCategory === (category.id || category.code || '') }"
+      @click="selectCategory(category)"
+    >
+      <span class="capability-category-title">{{ category.name }}</span>
+      <strong>{{ category.count }}</strong>
+      <small>{{ category.description }}</small>
+    </button>
+  </section>
   <el-tabs v-model="activeTab" class="workspace-tabs">
     <el-tab-pane label="API 服务维护" name="services">
       <CrudCatalog
@@ -10,7 +24,7 @@
         :form-fields="formFields"
         :defaults="defaults"
         :searchable-fields="searchableFields"
-        :list-action="api.list"
+        :list-action="listServices"
         :save-action="api.save"
         :remove-action="api.remove"
         :batch-remove="api.batchRemove"
@@ -33,6 +47,9 @@
             <p>从 LiveData API 列表批量注册 MCP API 服务。</p>
           </div>
           <div class="panel-actions">
+            <el-button plain :disabled="busy" :loading="busy" @click="syncLivedataParameters">
+              同步已注册参数
+            </el-button>
             <el-button plain :disabled="busy" :loading="busy" @click="loadLivedata">加载 API</el-button>
             <el-button type="primary" :disabled="busy || !selectedLivedata.size" :loading="busy" @click="registerSelected">
               注册选中
@@ -177,6 +194,7 @@
       </el-dialog>
     </el-tab-pane>
   </el-tabs>
+  <ApiTestParameterDialog ref="apiTestParameterDialog" />
 </template>
 
 <script src="../scripts/views/ApiServicesView.js"></script>

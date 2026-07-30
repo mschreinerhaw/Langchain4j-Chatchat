@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.database;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpSyncServer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -9,6 +11,7 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -17,10 +20,14 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 public class DatabaseQueryMcpToolPublisher {
 
+    static final String UNIFIED_EXECUTION_MODE = "template_via_execution_gateway";
+    static final String MARKET_DATA_CATEGORY = "market_data";
+
     private final McpSyncServer mcpSyncServer;
     private final DatabaseQueryConfigService configService;
     private final DatabaseQueryToolSpecFactory toolSpecFactory;
     private final DatabaseQueryMcpNamingPolicy namingPolicy;
+    private final ObjectMapper objectMapper;
     private final Set<String> managedToolNames = ConcurrentHashMap.newKeySet();
 
     @Order(Ordered.LOWEST_PRECEDENCE)
@@ -34,7 +41,12 @@ public class DatabaseQueryMcpToolPublisher {
         managedToolNames.clear();
 
         int published = 0;
+        int indexedOnly = 0;
         for (DatabaseQueryConfig config : configService.listEnabled()) {
+            if (!publishAsDedicatedTool(config)) {
+                indexedOnly++;
+                continue;
+            }
             try {
                 mcpSyncServer.addTool(toolSpecFactory.toToolSpecification(config));
                 managedToolNames.add(namingPolicy.toolName(config));
@@ -45,8 +57,45 @@ public class DatabaseQueryMcpToolPublisher {
             }
         }
         mcpSyncServer.notifyToolsListChanged();
-        log.info("Database query specialized MCP tools refreshed published={} tools={}",
-            published, managedToolNames.stream().sorted().toList());
+        log.info("Database query MCP publication refreshed published={} templateIndexOnly={} tools={}",
+            published, indexedOnly, managedToolNames.stream().sorted().toList());
+    }
+
+    boolean publishAsDedicatedTool(DatabaseQueryConfig config) {
+        if (config == null) {
+            return false;
+        }
+        String configuredMode = configuredPublicationMode(config.getGovernanceJson());
+        if (UNIFIED_EXECUTION_MODE.equals(configuredMode)) {
+            return false;
+        }
+        if (configuredMode != null) {
+            return true;
+        }
+        return !MARKET_DATA_CATEGORY.equals(normalize(config.getCapabilityCategory()));
+    }
+
+    private String configuredPublicationMode(String governanceJson) {
+        if (governanceJson == null || governanceJson.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode governance = objectMapper.readTree(governanceJson);
+            for (String field : new String[]{"publicationMode", "publishMode"}) {
+                JsonNode value = governance == null ? null : governance.get(field);
+                if (value != null && value.isTextual() && !value.asText().isBlank()) {
+                    return normalize(value.asText());
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("Database query governance publication mode is invalid; keeping dedicated publication for compatibility: {}",
+                ex.getMessage());
+        }
+        return null;
+    }
+
+    private String normalize(String value) {
+        return value == null || value.isBlank() ? null : value.trim().toLowerCase(Locale.ROOT);
     }
 
     private void remove(String toolName) {

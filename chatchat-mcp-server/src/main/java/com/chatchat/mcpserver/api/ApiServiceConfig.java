@@ -38,6 +38,9 @@ public class ApiServiceConfig {
     private String businessGroupDescription;
 
     @Column(length = 64)
+    private String categoryId;
+
+    @Column(length = 64)
     private String gatewayId;
 
     @Column(length = 16)
@@ -207,6 +210,14 @@ public class ApiServiceConfig {
 
     public void setBusinessGroupDescription(String businessGroupDescription) {
         this.businessGroupDescription = businessGroupDescription;
+    }
+
+    public String getCategoryId() {
+        return categoryId;
+    }
+
+    public void setCategoryId(String categoryId) {
+        this.categoryId = categoryId;
     }
 
     public String getGatewayId() {

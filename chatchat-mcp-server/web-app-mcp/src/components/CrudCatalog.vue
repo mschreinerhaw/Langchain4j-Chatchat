@@ -548,6 +548,7 @@
                     <el-select v-model="entry.type" class="w-100">
                       <el-option v-for="option in schemaTypeOptions" :key="option.value" :label="option.label" :value="option.value" />
                     </el-select>
+                    <el-input v-model="entry.defaultValue" placeholder="默认值（选填）" />
                     <el-checkbox v-model="entry.required">必填</el-checkbox>
                     <el-input v-model="entry.description" :placeholder="field.descriptionPlaceholder || '说明'" />
                     <el-button plain type="danger" @click="removeSchemaEntry(field.key, index)">删除</el-button>
@@ -786,6 +787,7 @@
         <el-button type="primary" @click="confirmTemplatePicker">确定</el-button>
       </template>
     </ModalPanel>
+    <ApiTestParameterDialog ref="apiTestParameterDialog" />
   </el-card>
 </template>
 

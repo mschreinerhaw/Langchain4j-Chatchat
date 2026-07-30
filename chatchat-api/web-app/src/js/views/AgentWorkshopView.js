@@ -532,6 +532,7 @@ export default {
         ssh_host: "SSH 主机",
         http_endpoint: "HTTP 端点",
         api_service: "API 服务",
+        template_discovery: "模板检索",
         web: "Web 服务",
         data: "数据服务"
       };

@@ -39,6 +39,9 @@ public class SqlDatasourceConfig {
     @Column(length = 1200)
     private String description;
 
+    @Column(length = 64)
+    private String categoryId;
+
     @Column(nullable = false, length = 2000)
     private String jdbcUrl;
 

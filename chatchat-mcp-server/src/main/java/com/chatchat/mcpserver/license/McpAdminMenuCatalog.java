@@ -44,8 +44,17 @@ public class McpAdminMenuCatalog {
         if (status == null || !status.valid() || status.license() == null || status.license().modules() == null) {
             return false;
         }
-        return status.license().modules().stream().map(McpAdminMenuCatalog::normalize)
-            .anyMatch(module -> module.equals("mcp") || module.equals(normalize(menuKey)));
+        var licensedModules = status.license().modules().stream()
+            .map(McpAdminMenuCatalog::normalize)
+            .collect(java.util.stream.Collectors.toSet());
+        if (licensedModules.contains("mcp") || licensedModules.contains(normalize(menuKey))) {
+            return true;
+        }
+        return menus.stream()
+            .filter(menu -> normalize(menu.key()).equals(normalize(menuKey)))
+            .flatMap(menu -> menu.impliedBy() == null ? java.util.stream.Stream.empty() : menu.impliedBy().stream())
+            .map(McpAdminMenuCatalog::normalize)
+            .anyMatch(licensedModules::contains);
     }
 
     public List<MenuAccess> access(LicenseStatus status) {
@@ -58,7 +67,8 @@ public class McpAdminMenuCatalog {
         return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
     }
 
-    public record MenuDefinition(String key, String label, String icon, List<String> apiPrefixes) { }
+    public record MenuDefinition(String key, String label, String icon, List<String> apiPrefixes,
+                                 List<String> impliedBy) { }
     public record MenuAccess(String key, String label, String icon, boolean authorized) { }
     private record PathMatch(MenuDefinition menu, int prefixLength) { }
 }

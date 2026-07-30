@@ -12,4 +12,6 @@ public interface HttpEndpointConfigRepository extends JpaRepository<HttpEndpoint
     Optional<HttpEndpointConfig> findByNameIgnoreCase(String name);
 
     Optional<HttpEndpointConfig> findByToolNameIgnoreCase(String toolName);
+
+    long countByCategoryId(String categoryId);
 }

@@ -7,6 +7,7 @@
         created_at datetime(6) not null,
         updated_at datetime(6) not null,
         method varchar(16),
+        category_id varchar(64),
         gateway_id varchar(64),
         id varchar(64) not null,
         business_group varchar(128),
@@ -40,6 +41,20 @@
         primary key (id)
     ) engine=InnoDB;
 
+    create table mcp_business_category (
+        enabled bit not null,
+        sort_order integer not null,
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        id varchar(64) not null,
+        code varchar(128) not null,
+        domain varchar(128) not null,
+        name varchar(200) not null,
+        description varchar(1000),
+        keywords_json longtext,
+        primary key (id)
+    ) engine=InnoDB;
+
     create table mcp_capability (
         enabled bit not null,
         created_at datetime(6) not null,
@@ -51,20 +66,6 @@
         capability_name varchar(128) not null,
         provider_module varchar(128),
         description varchar(1000),
-        primary key (id)
-    ) engine=InnoDB;
-
-    create table mcp_data_query_category (
-        enabled bit not null,
-        sort_order integer not null,
-        created_at datetime(6) not null,
-        updated_at datetime(6) not null,
-        id varchar(64) not null,
-        code varchar(128) not null,
-        domain varchar(128) not null,
-        name varchar(200) not null,
-        description varchar(1000),
-        keywords_json longtext,
         primary key (id)
     ) engine=InnoDB;
 
@@ -359,6 +360,7 @@
         method varchar(16) not null,
         environment varchar(32) not null,
         runtime_action varchar(32) not null,
+        category_id varchar(64),
         id varchar(64) not null,
         category varchar(80),
         tool_name varchar(128),
@@ -389,6 +391,7 @@
         auth_type varchar(32) not null,
         environment varchar(32) not null,
         runtime_action varchar(32) not null,
+        category_id varchar(64),
         id varchar(64) not null,
         tool_name varchar(128),
         name varchar(200),
@@ -508,6 +511,7 @@
         environment varchar(32) not null,
         metadata_scope_type varchar(32) default 'JDBC_DATABASE' not null,
         runtime_action varchar(32) not null,
+        category_id varchar(64),
         database_type varchar(64),
         id varchar(64) not null,
         tool_name varchar(128),
@@ -576,11 +580,11 @@
     alter table mcp_api_service_config 
        add constraint UK58wcfp0uh0eg4md6y5lt2xbai unique (tool_name);
 
+    alter table mcp_business_category
+       add constraint UKd2sqgqf5pbvip12ynibni64cl unique (code);
+
     alter table mcp_capability 
        add constraint uk_mcp_capability_code unique (capability_code);
-
-    alter table mcp_data_query_category 
-       add constraint UKo0octivd1pxdl7wjecnewp0ld unique (code);
 
     alter table mcp_database_query_config 
        add constraint UK2mm9rpbyp87c1vybxptacvvfh unique (tool_name);

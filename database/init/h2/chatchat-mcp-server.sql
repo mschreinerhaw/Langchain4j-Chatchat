@@ -7,6 +7,7 @@
         created_at timestamp(6) with time zone not null,
         updated_at timestamp(6) with time zone not null,
         method varchar(16),
+        category_id varchar(64),
         gateway_id varchar(64),
         id varchar(64) not null,
         business_group varchar(128),
@@ -40,6 +41,20 @@
         primary key (id)
     );
 
+    create table mcp_business_category (
+        enabled boolean not null,
+        sort_order integer not null,
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        id varchar(64) not null,
+        code varchar(128) not null unique,
+        domain varchar(128) not null,
+        name varchar(200) not null,
+        description varchar(1000),
+        keywords_json longtext,
+        primary key (id)
+    );
+
     create table mcp_capability (
         enabled boolean not null,
         created_at timestamp(6) with time zone not null,
@@ -53,20 +68,6 @@
         description varchar(1000),
         primary key (id),
         constraint uk_mcp_capability_code unique (capability_code)
-    );
-
-    create table mcp_data_query_category (
-        enabled boolean not null,
-        sort_order integer not null,
-        created_at timestamp(6) with time zone not null,
-        updated_at timestamp(6) with time zone not null,
-        id varchar(64) not null,
-        code varchar(128) not null unique,
-        domain varchar(128) not null,
-        name varchar(200) not null,
-        description varchar(1000),
-        keywords_json longtext,
-        primary key (id)
     );
 
     create table mcp_database_query_cache_config (
@@ -362,6 +363,7 @@
         method varchar(16) not null,
         environment varchar(32) not null,
         runtime_action varchar(32) not null,
+        category_id varchar(64),
         id varchar(64) not null,
         category varchar(80),
         tool_name varchar(128) unique,
@@ -392,6 +394,7 @@
         auth_type varchar(32) not null,
         environment varchar(32) not null,
         runtime_action varchar(32) not null,
+        category_id varchar(64),
         id varchar(64) not null,
         tool_name varchar(128) unique,
         name varchar(200),
@@ -511,6 +514,7 @@
         environment varchar(32) not null,
         metadata_scope_type varchar(32) default 'JDBC_DATABASE' not null,
         runtime_action varchar(32) not null,
+        category_id varchar(64),
         database_type varchar(64),
         id varchar(64) not null,
         tool_name varchar(128) unique,

@@ -12,4 +12,6 @@ public interface SshHostConfigRepository extends JpaRepository<SshHostConfig, St
     Optional<SshHostConfig> findByNameIgnoreCase(String name);
 
     Optional<SshHostConfig> findByToolNameIgnoreCase(String toolName);
+
+    long countByCategoryId(String categoryId);
 }

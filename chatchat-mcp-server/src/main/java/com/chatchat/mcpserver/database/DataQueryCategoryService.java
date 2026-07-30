@@ -1,6 +1,9 @@
 package com.chatchat.mcpserver.database;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
+import com.chatchat.mcpserver.category.BusinessCategory;
+import com.chatchat.mcpserver.category.BusinessCategoryRepository;
+import com.chatchat.mcpserver.category.BusinessCategoryService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -20,11 +23,11 @@ import java.util.Set;
 @Service
 public class DataQueryCategoryService {
 
-    private final DataQueryCategoryRepository repository;
+    private final BusinessCategoryRepository repository;
     private final DatabaseQueryConfigRepository queryRepository;
     private final ObjectMapper objectMapper;
 
-    public DataQueryCategoryService(DataQueryCategoryRepository repository,
+    public DataQueryCategoryService(BusinessCategoryRepository repository,
                                     DatabaseQueryConfigRepository queryRepository,
                                     ObjectMapper objectMapper) {
         this.repository = repository;
@@ -36,22 +39,21 @@ public class DataQueryCategoryService {
     @EventListener(ApplicationReadyEvent.class)
     @Transactional
     public void initialize() {
-        seedDefaults();
         classifyUnassignedQueries();
     }
 
     @Transactional(readOnly = true)
-    public List<DataQueryCategory> listAll() {
+    public List<BusinessCategory> listAll() {
         return repository.findAllByOrderBySortOrderAscNameAsc();
     }
 
     @Transactional(readOnly = true)
-    public List<DataQueryCategory> listEnabled() {
+    public List<BusinessCategory> listEnabled() {
         return repository.findByEnabledTrueOrderBySortOrderAscNameAsc();
     }
 
     @Transactional(readOnly = true)
-    public DataQueryCategory require(String idOrCode) {
+    public BusinessCategory require(String idOrCode) {
         if (idOrCode == null || idOrCode.isBlank()) {
             throw new IllegalArgumentException("category is required");
         }
@@ -61,7 +63,7 @@ public class DataQueryCategoryService {
     }
 
     @Transactional
-    public DataQueryCategory save(DataQueryCategory draft) {
+    public BusinessCategory save(BusinessCategory draft) {
         if (draft == null) throw new IllegalArgumentException("category is required");
         String code = normalizeCode(draft.getCode());
         String name = required(draft.getName(), "name");
@@ -70,8 +72,8 @@ public class DataQueryCategoryService {
             .ifPresent(existing -> {
                 throw new IllegalArgumentException("category code already exists: " + code);
             });
-        DataQueryCategory target = draft.getId() == null || draft.getId().isBlank()
-            ? new DataQueryCategory()
+        BusinessCategory target = draft.getId() == null || draft.getId().isBlank()
+            ? new BusinessCategory()
             : repository.findById(draft.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Data query category not found: " + draft.getId()));
         target.setCode(code);
@@ -81,7 +83,15 @@ public class DataQueryCategoryService {
         target.setKeywordsJson(writeKeywords(readKeywords(draft.getKeywordsJson())));
         target.setSortOrder(draft.getSortOrder());
         target.setEnabled(draft.isEnabled());
-        return repository.save(target);
+        BusinessCategory saved = repository.save(target);
+        List<DatabaseQueryConfig> referenced = queryRepository.findByCategoryId(saved.getId());
+        if (referenced != null) {
+            referenced.forEach(config -> {
+                apply(config, saved);
+                queryRepository.save(config);
+            });
+        }
+        return saved;
     }
 
     @Transactional
@@ -94,15 +104,14 @@ public class DataQueryCategoryService {
 
     @Transactional
     public int classifyUnassignedQueries() {
-        List<DataQueryCategory> categories = listEnabled();
+        BusinessCategory defaultCategory = ensureDefaultCategory();
         int changed = 0;
         for (DatabaseQueryConfig query : queryRepository.findAll()) {
             if (query.getCategoryId() != null && !query.getCategoryId().isBlank()
                 && query.getCapabilityCategory() != null && !query.getCapabilityCategory().isBlank()) {
                 continue;
             }
-            DataQueryCategory category = classify(query, categories);
-            apply(query, category);
+            apply(query, defaultCategory);
             queryRepository.save(query);
             changed++;
         }
@@ -114,10 +123,69 @@ public class DataQueryCategoryService {
     }
 
     public void assignBest(DatabaseQueryConfig config) {
-        apply(config, classify(config, listEnabled()));
+        apply(config, ensureDefaultCategory());
     }
 
-    public void apply(DatabaseQueryConfig config, DataQueryCategory category) {
+    private BusinessCategory ensureDefaultCategory() {
+        return repository.findByCodeIgnoreCase(BusinessCategoryService.DEFAULT_CODE).orElseGet(() -> {
+            BusinessCategory category = new BusinessCategory();
+            category.setCode(BusinessCategoryService.DEFAULT_CODE);
+            category.setName(BusinessCategoryService.DEFAULT_NAME);
+            category.setDescription("用户未指定业务分类时自动归入此分类");
+            category.setDomain(BusinessCategoryService.DEFAULT_CODE);
+            category.setKeywordsJson(writeKeywords(List.of(BusinessCategoryService.DEFAULT_CODE, "默认", "未分类")));
+            category.setSortOrder(10_000);
+            category.setEnabled(true);
+            return repository.save(category);
+        });
+    }
+
+    public CategoryResolution resolve(MapLike filters, List<DatabaseQueryConfig> configs) {
+        List<DatabaseQueryConfig> available = configs == null ? List.of() : configs;
+        List<BusinessCategory> enabled = listEnabled();
+        List<BusinessCategory> active = enabled.stream()
+            .filter(category -> available.stream().anyMatch(config -> belongsTo(config, category)))
+            .toList();
+        String explicit = filters.first("categoryId", "category_id", "capabilityCategory",
+            "capability_category", "businessGroup", "business_group", "group", "groupName",
+            "group_name", "category");
+        if (!explicit.isBlank()) {
+            return active.stream()
+                .filter(category -> matches(category, explicit))
+                .findFirst()
+                .map(category -> new CategoryResolution(category, false, active))
+                .orElseGet(() -> fallbackResolution(active, enabled));
+        }
+        String corpus = filters.joinedText().toLowerCase(Locale.ROOT);
+        List<CategoryScore> scores = active.stream()
+            .map(category -> new CategoryScore(category, resolutionScore(category, corpus)))
+            .filter(item -> item.score() > 0)
+            .sorted(Comparator.comparingInt(CategoryScore::score).reversed()
+                .thenComparingInt(item -> item.category().getSortOrder()))
+            .toList();
+        if (!scores.isEmpty() && (scores.size() == 1 || scores.get(0).score() > scores.get(1).score())) {
+            return new CategoryResolution(scores.get(0).category(), false, active);
+        }
+        if (active.size() == 1) {
+            return new CategoryResolution(active.get(0), false, active);
+        }
+        return fallbackResolution(active, enabled);
+    }
+
+    private CategoryResolution fallbackResolution(List<BusinessCategory> active,
+                                                  List<BusinessCategory> enabled) {
+        return enabled.stream()
+            .filter(category -> BusinessCategoryService.DEFAULT_CODE.equalsIgnoreCase(category.getCode()))
+            .findFirst()
+            .map(category -> new CategoryResolution(category, false, active, true))
+            .orElse(new CategoryResolution(null, true, active));
+    }
+
+    public List<String> keywords(BusinessCategory category) {
+        return category == null ? List.of() : readKeywords(category.getKeywordsJson());
+    }
+
+    public void apply(DatabaseQueryConfig config, BusinessCategory category) {
         config.setCategoryId(category.getId());
         config.setCapabilityCategory(category.getCode());
         config.setDomain(category.getDomain());
@@ -132,7 +200,35 @@ public class DataQueryCategoryService {
         config.setIndexTagsJson(writeKeywords(new ArrayList<>(indexTags)));
     }
 
-    private DataQueryCategory classify(DatabaseQueryConfig query, List<DataQueryCategory> categories) {
+    private boolean belongsTo(DatabaseQueryConfig config, BusinessCategory category) {
+        return category.getId().equals(config.getCategoryId())
+            || category.getCode().equalsIgnoreCase(text(config.getCapabilityCategory()))
+            || category.getCode().equalsIgnoreCase(text(config.getBusinessGroup()));
+    }
+
+    private boolean matches(BusinessCategory category, String value) {
+        String normalized = value.toLowerCase(Locale.ROOT);
+        return category.getId().equals(value)
+            || category.getCode().equalsIgnoreCase(value)
+            || text(category.getName()).toLowerCase(Locale.ROOT).equals(normalized);
+    }
+
+    private int resolutionScore(BusinessCategory category, String corpus) {
+        if (corpus.isBlank()) return 0;
+        int score = contains(corpus, category.getCode()) ? 8 : 0;
+        score += contains(corpus, category.getName()) ? 8 : 0;
+        score += contains(corpus, category.getDescription()) ? 3 : 0;
+        score += readKeywords(category.getKeywordsJson()).stream()
+            .mapToInt(keyword -> contains(corpus, keyword) ? 5 : 0)
+            .sum();
+        return score;
+    }
+
+    private boolean contains(String corpus, String value) {
+        return value != null && !value.isBlank() && corpus.contains(value.toLowerCase(Locale.ROOT));
+    }
+
+    private BusinessCategory classify(DatabaseQueryConfig query, List<BusinessCategory> categories) {
         String primaryCorpus = String.join(" ", List.of(
             text(query.getTitle()), text(query.getDescription()), text(query.getImplementationSteps()),
             text(query.getTemplateIntent()), text(query.getTagsJson())
@@ -157,49 +253,13 @@ public class DataQueryCategoryService {
                 .orElse(categories.get(0)));
     }
 
-    private List<String> matchedKeywords(DatabaseQueryConfig query, DataQueryCategory category) {
+    private List<String> matchedKeywords(DatabaseQueryConfig query, BusinessCategory category) {
         String corpus = (text(query.getToolName()) + " " + text(query.getTitle()) + " "
             + text(query.getDescription()) + " " + text(query.getImplementationSteps()) + " "
             + text(query.getSqlStepsJson())).toLowerCase(Locale.ROOT);
         return readKeywords(category.getKeywordsJson()).stream()
             .filter(keyword -> corpus.contains(keyword.toLowerCase(Locale.ROOT)))
             .toList();
-    }
-
-    private void seedDefaults() {
-        for (Seed seed : seeds()) {
-            if (repository.findByCodeIgnoreCase(seed.code()).isPresent()) continue;
-            DataQueryCategory category = new DataQueryCategory();
-            category.setCode(seed.code());
-            category.setName(seed.name());
-            category.setDescription(seed.description());
-            category.setDomain("finance");
-            category.setKeywordsJson(ModelProtocolJson.compact(seed.keywords()));
-            category.setSortOrder(seed.order());
-            category.setEnabled(true);
-            repository.save(category);
-        }
-    }
-
-    private List<Seed> seeds() {
-        return List.of(
-            new Seed("market_data", "市场行情", "股票、债券、基金、指数、ETF及宏观市场行情查询。", 10,
-                List.of("行情", "债券", "收益率", "结算统计", "股票", "基金", "指数", "etf", "宏观", "market", "bond")),
-            new Seed("product_analysis", "产品分析", "金融产品要素、表现、估值、组合及收益分析。", 20,
-                List.of("产品", "估值", "净值", "组合", "基金产品", "理财", "收益分析")),
-            new Seed("customer_analysis", "客户分析", "客户画像、客户资产、行为、风险等级和生命周期分析。", 30,
-                List.of("客户", "画像", "客户资产", "生命周期", "适当性", "customer")),
-            new Seed("trading_analysis", "交易分析", "委托、成交、交易流水、买卖行为和交易结构分析。", 40,
-                List.of("交易", "委托", "成交", "买入", "卖出", "流水", "trade", "buy", "sell")),
-            new Seed("risk_management", "风险管理", "风险指标、集中度、敞口、预警和异常交易分析。", 50,
-                List.of("风险", "集中度", "敞口", "预警", "异常交易", "限额", "risk")),
-            new Seed("data_validation", "数据核验", "一致性、完整性、准确性、同步延迟和指标异常专项核验。", 60,
-                List.of("核验", "校验", "一致性", "完整性", "准确性", "差异", "数据质量", "同步延迟", "新鲜度", "覆盖", "validation", "check")),
-            new Seed("regulatory_reporting", "监管报送", "监管指标、报表口径、报送数据和合规统计查询。", 70,
-                List.of("监管", "报送", "报表", "合规", "监管指标", "report")),
-            new Seed("data_asset_exploration", "数据资产探索", "元数据、字段分布、数据概览和资产探索查询。", 80,
-                List.of("数据资产", "元数据", "字段", "表结构", "概览", "探索", "metadata", "schema"))
-        );
     }
 
     private List<String> readKeywords(String json) {
@@ -236,6 +296,18 @@ public class DataQueryCategoryService {
         return value == null ? "" : value;
     }
 
-    private record Match(DataQueryCategory category, int score) {}
-    private record Seed(String code, String name, String description, int order, List<String> keywords) {}
+    public interface MapLike {
+        String first(String... keys);
+        String joinedText();
+    }
+
+    public record CategoryResolution(BusinessCategory category, boolean categoryRequired,
+                                     List<BusinessCategory> candidates, boolean fallbackUsed) {
+        public CategoryResolution(BusinessCategory category, boolean categoryRequired,
+                                  List<BusinessCategory> candidates) {
+            this(category, categoryRequired, candidates, false);
+        }
+    }
+    private record Match(BusinessCategory category, int score) {}
+    private record CategoryScore(BusinessCategory category, int score) {}
 }

@@ -2,6 +2,7 @@
 import ApiServicesView from '../views/ApiServicesView.vue';
 import McpServicesView from '../views/McpServicesView.vue';
 import AssetCenterView from '../views/AssetCenterView.vue';
+import BusinessCategoriesView from '../views/BusinessCategoriesView.vue';
 import DatabaseMcpView from '../views/DatabaseMcpView.vue';
 import CacheSettingsView from '../views/CacheSettingsView.vue';
 import NotificationChannelsView from '../views/NotificationChannelsView.vue';
@@ -24,6 +25,7 @@ const menuComponents = {
   mcpServices: McpServicesView,
   newsCollection: NewsCollectionView,
   assetCenter: AssetCenterView,
+  businessCategories: BusinessCategoriesView,
   databaseMcp: DatabaseMcpView,
   cacheSettings: CacheSettingsView,
   notificationChannels: NotificationChannelsView,

@@ -6,6 +6,7 @@ import zhCn from 'element-plus/es/locale/lang/zh-cn';
 import {
   Bell,
   Coin,
+  CollectionTag,
   Connection,
   Cpu,
   DataLine,
@@ -30,6 +31,7 @@ app.use(ElementPlus, { locale: zhCn });
 Object.entries({
   Bell,
   Coin,
+  CollectionTag,
   Connection,
   Cpu,
   DataLine,

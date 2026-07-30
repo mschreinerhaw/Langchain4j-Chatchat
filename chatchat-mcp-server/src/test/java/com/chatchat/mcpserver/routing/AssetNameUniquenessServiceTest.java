@@ -1,5 +1,8 @@
 package com.chatchat.mcpserver.routing;
 
+import com.chatchat.mcpserver.category.BusinessCategoryService;
+import com.chatchat.mcpserver.category.BusinessCategory;
+import com.chatchat.mcpserver.api.ApiServiceConfigRepository;
 import com.chatchat.mcpserver.ops.HttpEndpointConfig;
 import com.chatchat.mcpserver.ops.HttpEndpointConfigRepository;
 import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
@@ -23,11 +26,13 @@ class AssetNameUniquenessServiceTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ExecutionTargetService executionTargetService = mock(ExecutionTargetService.class);
+    private final BusinessCategoryService categoryService = mock(BusinessCategoryService.class);
 
     @Test
     void rejectsDuplicateSshHostNameOnCreate() {
+        stubDefaultCategory();
         SshHostConfigRepository repository = mock(SshHostConfigRepository.class);
-        SshHostConfigService service = new SshHostConfigService(repository, objectMapper, executionTargetService);
+        SshHostConfigService service = new SshHostConfigService(repository, objectMapper, executionTargetService, categoryService);
         when(repository.findByNameIgnoreCase("AppServer")).thenReturn(Optional.of(sshHost("host-1", "AppServer")));
 
         assertThatThrownBy(() -> service.create(sshHost("host-2", "AppServer")))
@@ -37,12 +42,14 @@ class AssetNameUniquenessServiceTest {
 
     @Test
     void rejectsDuplicateSqlDatasourceNameOnCreate() {
+        stubDefaultCategory();
         SqlDatasourceConfigRepository repository = mock(SqlDatasourceConfigRepository.class);
         SqlDatasourceConfigService service = new SqlDatasourceConfigService(
             repository,
             objectMapper,
             executionTargetService,
-            mock(SqlMetadataAssetRegistryService.class)
+            mock(SqlMetadataAssetRegistryService.class),
+            categoryService
         );
         when(repository.findByNameIgnoreCase("MySQL248")).thenReturn(Optional.of(datasource("ds-1", "MySQL248")));
 
@@ -53,8 +60,10 @@ class AssetNameUniquenessServiceTest {
 
     @Test
     void rejectsDuplicateHttpEndpointNameOnCreate() {
+        stubDefaultCategory();
         HttpEndpointConfigRepository repository = mock(HttpEndpointConfigRepository.class);
-        HttpEndpointConfigService service = new HttpEndpointConfigService(repository, objectMapper);
+        HttpEndpointConfigService service = new HttpEndpointConfigService(
+            repository, objectMapper, categoryService, mock(ApiServiceConfigRepository.class));
         when(repository.findByNameIgnoreCase("OrderApi")).thenReturn(Optional.of(endpoint("http-1", "OrderApi")));
 
         assertThatThrownBy(() -> service.create(endpoint("http-2", "OrderApi")))
@@ -90,5 +99,13 @@ class AssetNameUniquenessServiceTest {
         endpoint.setUrlTemplate("https://example.com/" + name);
         endpoint.setMethod("GET");
         return endpoint;
+    }
+
+    private void stubDefaultCategory() {
+        BusinessCategory category = new BusinessCategory();
+        category.setId("default-id");
+        category.setCode("default");
+        category.setName("默认分类");
+        when(categoryService.resolveOrDefault(null)).thenReturn(category);
     }
 }

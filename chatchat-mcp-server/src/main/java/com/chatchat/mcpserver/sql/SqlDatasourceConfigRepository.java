@@ -12,4 +12,6 @@ public interface SqlDatasourceConfigRepository extends JpaRepository<SqlDatasour
     Optional<SqlDatasourceConfig> findByNameIgnoreCase(String name);
 
     Optional<SqlDatasourceConfig> findByToolNameIgnoreCase(String toolName);
+
+    long countByCategoryId(String categoryId);
 }

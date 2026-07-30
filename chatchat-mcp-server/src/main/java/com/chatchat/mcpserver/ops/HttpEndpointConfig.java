@@ -38,6 +38,9 @@ public class HttpEndpointConfig {
     @Column(length = 1200)
     private String description;
 
+    @Column(length = 64)
+    private String categoryId;
+
     @Column(nullable = false, length = 16)
     private String method = "GET";
 

@@ -29,4 +29,8 @@ public interface ApiServiceConfigRepository extends JpaRepository<ApiServiceConf
      * @return whether the condition is satisfied
      */
     boolean existsByToolNameIgnoreCase(String toolName);
+
+    long countByCategoryId(String categoryId);
+    List<ApiServiceConfig> findByCategoryId(String categoryId);
+    List<ApiServiceConfig> findByGatewayId(String gatewayId);
 }

@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.api;
 
+import com.chatchat.mcpserver.category.BusinessCategory;
 import com.chatchat.mcpserver.search.LuceneMcpSearchService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
@@ -16,6 +17,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -23,12 +25,8 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
 
     @Test
     void apiTemplateToolIsBusinessNamedReadOnlyDiscoveryTool() throws Exception {
-        ApiTemplateDiscoveryMcpToolPublisher publisher = new ApiTemplateDiscoveryMcpToolPublisher(
-            mock(McpSyncServer.class),
-            mock(ApiServiceConfigService.class),
-            mock(LuceneMcpSearchService.class),
-            new ObjectMapper()
-        );
+        ApiTemplateDiscoveryMcpToolPublisher publisher = publisher(
+            mock(ApiServiceConfigService.class), mock(LuceneMcpSearchService.class));
         Method apiTemplateQueryTool = ApiTemplateDiscoveryMcpToolPublisher.class.getDeclaredMethod("apiTemplateQueryTool");
         apiTemplateQueryTool.setAccessible(true);
 
@@ -74,12 +72,7 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
         when(lucene.searchApiServiceTemplates(any())).thenReturn(List.of(
             new LuceneMcpSearchService.SearchHit("order_status_api", "template", 8.0f, List.of("lucene"))
         ));
-        ApiTemplateDiscoveryMcpToolPublisher publisher = new ApiTemplateDiscoveryMcpToolPublisher(
-            mock(McpSyncServer.class),
-            configService,
-            lucene,
-            new ObjectMapper()
-        );
+        ApiTemplateDiscoveryMcpToolPublisher publisher = publisher(configService, lucene);
 
         Map<String, Object> result = publisher.query(Map.of(
             "filters", Map.of("businessGroup", "Order services")
@@ -131,12 +124,7 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
         when(lucene.searchApiServiceTemplates(any())).thenReturn(List.of(
             new LuceneMcpSearchService.SearchHit("order_status_api", "template", 9.0f, List.of("lucene"))
         ));
-        ApiTemplateDiscoveryMcpToolPublisher publisher = new ApiTemplateDiscoveryMcpToolPublisher(
-            mock(McpSyncServer.class),
-            configService,
-            lucene,
-            new ObjectMapper()
-        );
+        ApiTemplateDiscoveryMcpToolPublisher publisher = publisher(configService, lucene);
 
         Map<String, Object> result = publisher.query(Map.of(
             "filters", Map.of("groupDescription", "fulfillment lifecycle")
@@ -170,12 +158,7 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
         when(lucene.searchApiServiceTemplates(any())).thenReturn(List.of(
             new LuceneMcpSearchService.SearchHit("payment_status_api", "template", 8.0f, List.of("lucene"))
         ));
-        ApiTemplateDiscoveryMcpToolPublisher publisher = new ApiTemplateDiscoveryMcpToolPublisher(
-            mock(McpSyncServer.class),
-            configService,
-            lucene,
-            new ObjectMapper()
-        );
+        ApiTemplateDiscoveryMcpToolPublisher publisher = publisher(configService, lucene);
 
         Map<String, Object> result = publisher.query(Map.of(
             "filters", Map.of("toolName", "payment_status_api", "intent", "status")
@@ -192,12 +175,8 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
 
     @Test
     void queryRejectsRawApiExecutionFields() {
-        ApiTemplateDiscoveryMcpToolPublisher publisher = new ApiTemplateDiscoveryMcpToolPublisher(
-            mock(McpSyncServer.class),
-            mock(ApiServiceConfigService.class),
-            mock(LuceneMcpSearchService.class),
-            new ObjectMapper()
-        );
+        ApiTemplateDiscoveryMcpToolPublisher publisher = publisher(
+            mock(ApiServiceConfigService.class), mock(LuceneMcpSearchService.class));
 
         assertThatThrownBy(() -> publisher.query(Map.of("filters", Map.of("urlTemplate", "https://example.com"))))
             .isInstanceOf(IllegalArgumentException.class)
@@ -217,12 +196,7 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
         LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
         when(lucene.enabled()).thenReturn(true);
         when(lucene.searchApiServiceTemplates(any())).thenReturn(List.of());
-        ApiTemplateDiscoveryMcpToolPublisher publisher = new ApiTemplateDiscoveryMcpToolPublisher(
-            mock(McpSyncServer.class),
-            configService,
-            lucene,
-            new ObjectMapper()
-        );
+        ApiTemplateDiscoveryMcpToolPublisher publisher = publisher(configService, lucene);
 
         Map<String, Object> result = publisher.query(Map.of(
             "filters", Map.of(
@@ -238,5 +212,130 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
             && request.intentText() != null
             && request.intentText().contains("\u67e5\u8be2\u8ba2\u5355\u72b6\u6001")
             && request.intentText().contains("query order status")));
+    }
+
+    @Test
+    void queryMapsLuceneHitsOnlyInsideResolvedBusinessCategory() {
+        BusinessCategory orderCategory = category("category-order", "order_services", "订单服务");
+        ApiServiceConfig orderApi = api("api-order", "order_status_api", orderCategory);
+        BusinessCategory billingCategory = category("category-billing", "billing_services", "账单服务");
+        ApiServiceConfig billingApi = api("api-billing", "invoice_status_api", billingCategory);
+
+        ApiServiceConfigService configService = mock(ApiServiceConfigService.class);
+        when(configService.listEnabled()).thenReturn(List.of(orderApi, billingApi));
+        ApiServiceCategoryService categoryService = mock(ApiServiceCategoryService.class);
+        when(categoryService.resolve(any(), any())).thenReturn(
+            new ApiServiceCategoryService.CategoryResolution(orderCategory, false,
+                List.of(orderCategory, billingCategory)));
+        when(categoryService.keywords(any())).thenReturn(List.of("订单", "order"));
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        when(lucene.enabled()).thenReturn(true);
+        when(lucene.searchApiServiceTemplates(any())).thenReturn(List.of(
+            new LuceneMcpSearchService.SearchHit("invoice_status_api", "template", 10.0f, List.of("lucene")),
+            new LuceneMcpSearchService.SearchHit("order_status_api", "template", 8.0f, List.of("lucene"))
+        ));
+        ApiTemplateDiscoveryMcpToolPublisher publisher = new ApiTemplateDiscoveryMcpToolPublisher(
+            mock(McpSyncServer.class), configService, categoryService, lucene, new ObjectMapper());
+
+        Map<String, Object> result = publisher.query(Map.of(
+            "filters", Map.of("category", "订单服务", "intent", "查询状态")));
+
+        assertThat(result).containsEntry("categoryRequired", false);
+        assertThat(result.get("selectedCategory").toString()).contains("order_services", "订单服务");
+        assertThat(result.get("retrievalFlow").toString())
+            .contains("business_category_resolution", "api_template_execution", "evidence_analysis",
+                "crossCategoryResultsAllowed=false");
+        assertThat(result.toString()).contains("order_status_api").doesNotContain("invoice_status_api");
+    }
+
+    @Test
+    void queryRequiresCategoryWhenBusinessIntentCannotResolveOne() {
+        ApiServiceConfigService configService = mock(ApiServiceConfigService.class);
+        when(configService.listEnabled()).thenReturn(List.of(new ApiServiceConfig(), new ApiServiceConfig()));
+        ApiServiceCategoryService categoryService = mock(ApiServiceCategoryService.class);
+        when(categoryService.resolve(any(), any())).thenReturn(
+            new ApiServiceCategoryService.CategoryResolution(null, true, List.of(
+                category("category-order", "order_services", "订单服务"),
+                category("category-billing", "billing_services", "账单服务"))));
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        when(lucene.enabled()).thenReturn(true);
+        ApiTemplateDiscoveryMcpToolPublisher publisher = new ApiTemplateDiscoveryMcpToolPublisher(
+            mock(McpSyncServer.class), configService, categoryService, lucene, new ObjectMapper());
+
+        Map<String, Object> result = publisher.query(Map.of("filters", Map.of("intent", "查询状态")));
+
+        assertThat(result).containsEntry("categoryRequired", true).containsEntry("returnedCount", 0);
+        assertThat(result.get("categoryCandidates").toString()).contains("order_services", "billing_services");
+        verify(lucene, never()).searchApiServiceTemplates(any());
+    }
+
+    @Test
+    void queryFallsBackToDefaultCategoryWithoutCrossCategoryLeakage() {
+        BusinessCategory fallback = category("category-default", "default", "默认分类");
+        BusinessCategory orders = category("category-order", "order_services", "订单服务");
+        ApiServiceConfig fallbackApi = api("api-default", "generic_lookup_api", fallback);
+        ApiServiceConfig orderApi = api("api-order", "order_status_api", orders);
+        ApiServiceConfigService configService = mock(ApiServiceConfigService.class);
+        when(configService.listEnabled()).thenReturn(List.of(fallbackApi, orderApi));
+        ApiServiceCategoryService categoryService = mock(ApiServiceCategoryService.class);
+        when(categoryService.resolve(any(), any())).thenReturn(
+            new ApiServiceCategoryService.CategoryResolution(
+                fallback, false, List.of(orders, fallback), true));
+        when(categoryService.keywords(fallback)).thenReturn(List.of("默认", "未分类"));
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        when(lucene.enabled()).thenReturn(true);
+        when(lucene.searchApiServiceTemplates(any())).thenReturn(List.of(
+            new LuceneMcpSearchService.SearchHit("order_status_api", "template", 20.0f, List.of("cross-category")),
+            new LuceneMcpSearchService.SearchHit("generic_lookup_api", "template", 8.0f, List.of("default"))
+        ));
+        ApiTemplateDiscoveryMcpToolPublisher publisher = new ApiTemplateDiscoveryMcpToolPublisher(
+            mock(McpSyncServer.class), configService, categoryService, lucene, new ObjectMapper());
+
+        Map<String, Object> result = publisher.query(Map.of(
+            "filters", Map.of("category", "missing-category", "intent", "查询业务状态")));
+
+        assertThat(result).containsEntry("categoryRequired", false).containsEntry("returnedCount", 1);
+        assertThat(result.get("selectedCategory").toString()).contains("default");
+        assertThat(result.get("diagnostics").toString())
+            .contains("fallbackUsed=true", "fallbackCategory=default");
+        assertThat(result.get("templates").toString())
+            .contains("generic_lookup_api")
+            .doesNotContain("order_status_api", "order_services");
+    }
+
+    private BusinessCategory category(String id, String code, String name) {
+        BusinessCategory category = new BusinessCategory();
+        category.setId(id);
+        category.setCode(code);
+        category.setName(name);
+        category.setDescription(name + " API");
+        category.setKeywordsJson("[]");
+        category.setEnabled(true);
+        return category;
+    }
+
+    private ApiServiceConfig api(String id, String toolName, BusinessCategory category) {
+        ApiServiceConfig config = new ApiServiceConfig();
+        config.setId(id);
+        config.setToolName(toolName);
+        config.setTitle(toolName);
+        config.setDescription("Query status");
+        config.setCategoryId(category.getId());
+        config.setBusinessGroup(category.getCode());
+        config.setBusinessGroupName(category.getName());
+        config.setBusinessGroupDescription(category.getDescription());
+        config.setInputSchemaJson("{\"type\":\"object\",\"properties\":{}}");
+        config.setEnabled(true);
+        return config;
+    }
+
+    private ApiTemplateDiscoveryMcpToolPublisher publisher(ApiServiceConfigService configService,
+                                                           LuceneMcpSearchService lucene) {
+        ApiServiceCategoryService categoryService = mock(ApiServiceCategoryService.class);
+        when(categoryService.resolve(any(), any())).thenReturn(
+            new ApiServiceCategoryService.CategoryResolution(null, false, List.of()));
+        when(categoryService.keywords(any())).thenReturn(List.of());
+        return new ApiTemplateDiscoveryMcpToolPublisher(
+            mock(McpSyncServer.class), configService, categoryService, lucene, new ObjectMapper());
     }
 }

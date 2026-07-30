@@ -1,6 +1,9 @@
 package com.chatchat.mcpserver.ops;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
+import com.chatchat.mcpserver.api.ApiServiceConfigRepository;
+import com.chatchat.mcpserver.category.BusinessCategory;
+import com.chatchat.mcpserver.category.BusinessCategoryService;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -27,6 +30,8 @@ public class HttpEndpointConfigService {
 
     private final HttpEndpointConfigRepository repository;
     private final ObjectMapper objectMapper;
+    private final BusinessCategoryService categoryService;
+    private final ApiServiceConfigRepository apiServiceRepository;
 
     public List<HttpEndpointConfig> listAll() {
         return repository.findAll().stream()
@@ -48,7 +53,9 @@ public class HttpEndpointConfigService {
     @Transactional
     public HttpEndpointConfig create(HttpEndpointConfig config) {
         normalize(config, null);
-        return repository.save(config);
+        HttpEndpointConfig saved = repository.save(config);
+        synchronizeLinkedApiServiceCategories(saved);
+        return saved;
     }
 
     @Transactional
@@ -65,6 +72,7 @@ public class HttpEndpointConfigService {
         config.setToolName(firstText(request.getToolName(), config.getToolName()));
         config.setTitle(firstText(request.getTitle(), config.getTitle()));
         config.setDescription(blankToNull(request.getDescription()));
+        config.setCategoryId(blankToNull(request.getCategoryId()));
         config.setMethod(firstText(request.getMethod(), config.getMethod()));
         config.setUrlTemplate(firstText(request.getUrlTemplate(), config.getUrlTemplate()));
         config.setHeadersJson(normalizeJsonObject(request.getHeadersJson(), "headers"));
@@ -85,12 +93,36 @@ public class HttpEndpointConfigService {
         config.setRuntimeAction("readonly");
         config.setTimeoutMs(request.getTimeoutMs());
         normalize(config, id);
-        return repository.save(config);
+        HttpEndpointConfig saved = repository.save(config);
+        synchronizeLinkedApiServiceCategories(saved);
+        return saved;
     }
 
     public HttpEndpointConfig getById(String id) {
         return repository.findById(requireText(id, "HTTP endpoint ID cannot be empty"))
             .orElseThrow(() -> new IllegalArgumentException("HTTP endpoint not found: " + id));
+    }
+
+    /**
+     * Updates the generated request parameter contract without overwriting
+     * gateway credentials, routing labels or other administrator settings.
+     */
+    @Transactional
+    public HttpEndpointConfig updateParameterContract(String id, String inputSchemaJson, String bodyTemplate) {
+        HttpEndpointConfig current = getById(id);
+        current.setInputSchemaJson(normalizeJsonObject(inputSchemaJson, "inputSchema"));
+        current.setBodyTemplate(blankToNull(bodyTemplate));
+        return repository.save(current);
+    }
+
+    @Transactional
+    public HttpEndpointConfig updateBusinessCategory(String id, String categoryIdOrCode) {
+        HttpEndpointConfig current = getById(id);
+        BusinessCategory category = categoryService.resolveOrDefault(categoryIdOrCode);
+        current.setCategoryId(category.getId());
+        HttpEndpointConfig saved = repository.save(current);
+        synchronizeLinkedApiServiceCategories(saved);
+        return saved;
     }
 
     @Transactional
@@ -100,6 +132,7 @@ public class HttpEndpointConfigService {
     }
 
     private void normalize(HttpEndpointConfig config, String currentId) {
+        config.setCategoryId(categoryService.resolveOrDefault(config.getCategoryId()).getId());
         config.setName(firstText(config.getName(), config.getToolName()));
         assertUniqueName(config.getName(), currentId);
         config.setToolName(normalizeToolName(firstText(config.getToolName(), defaultToolName(config))));
@@ -136,6 +169,20 @@ public class HttpEndpointConfigService {
         config.setTags(mergeTags(config.getTags(), config.getRoutingLabelsJson(), config.getCapabilitiesJson()));
         config.setRuntimeAction("readonly");
         config.setTimeoutMs(Math.max(1000, Math.min(config.getTimeoutMs(), 60000)));
+    }
+
+    private void synchronizeLinkedApiServiceCategories(HttpEndpointConfig gateway) {
+        if (gateway == null || gateway.getId() == null || gateway.getId().isBlank()) {
+            return;
+        }
+        BusinessCategory category = categoryService.resolveOrDefault(gateway.getCategoryId());
+        apiServiceRepository.findByGatewayId(gateway.getId()).forEach(service -> {
+            service.setCategoryId(category.getId());
+            service.setBusinessGroup(category.getCode());
+            service.setBusinessGroupName(category.getName());
+            service.setBusinessGroupDescription(category.getDescription());
+            apiServiceRepository.save(service);
+        });
     }
 
     private String appendDefaultCapability(String capabilitiesJson) {

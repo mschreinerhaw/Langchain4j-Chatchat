@@ -1,4 +1,4 @@
-package com.chatchat.mcpserver.database;
+package com.chatchat.mcpserver.category;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -12,8 +12,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "mcp_data_query_category")
-public class DataQueryCategory {
+@Table(name = "mcp_business_category")
+public class BusinessCategory {
 
     @Id
     @Column(length = 64)

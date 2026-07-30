@@ -1,8 +1,8 @@
 ﻿import CrudCatalog from '../../components/CrudCatalog.vue';
-import { ElMessageBox } from 'element-plus';
+import ApiTestParameterDialog from '../../components/ApiTestParameterDialog.vue';
 import { apiServicesApi as api, assetsApi } from '../../services/api';
-import { parseJsonObject } from '../../utils/json';
 import { buildTestNotification } from '../../utils/test-result';
+import '../../styles/views/database-mcp.css';
 
 const objectSchema = {
   type: 'object',
@@ -13,13 +13,16 @@ const objectSchema = {
 
 export default {
   name: 'ApiServicesView',
-  components: { CrudCatalog },
+  components: { CrudCatalog, ApiTestParameterDialog },
   emits: ['notify', 'error', 'result'],
   data() {
     return {
       api,
       busy: false,
       activeTab: 'services',
+      categories: [],
+      allServices: [],
+      selectedCategory: '',
       gatewayAssets: [],
       livedataApis: [],
       livedataKeyword: '',
@@ -40,13 +43,14 @@ export default {
         outputSchema: objectSchema,
         capabilitySpec: {},
         dependencySpec: {},
-        governance: {}
+        governance: {},
+        categoryId: ''
       },
       searchableFields: ['toolName', 'title', 'description', 'businessGroup', 'businessGroupName', 'urlTemplate'],
       columns: [
         { key: 'toolName', label: '工具名称', type: 'code' },
         { key: 'title', label: '显示名称' },
-        { key: 'businessGroupName', label: '分组' },
+        { key: 'businessGroupName', label: '业务分类' },
         { key: 'gatewayId', label: '网关资产', formatter: value => value || '-' },
         { key: 'enabled', label: '状态', type: 'badge', formatter: value => value === false ? '停用' : '启用' }
       ]
@@ -108,13 +112,16 @@ export default {
           sectionSubtitle: '维护模型需要传入的业务参数，保存时自动生成 JSON Schema。'
         },
         {
-          key: 'businessGroup',
-          label: '业务分组编码',
-          placeholder: '如 customer、order、risk',
-          help: '用于工具检索和授权分类，建议使用稳定的英文编码。',
+          key: 'categoryId',
+          label: '业务分类',
+          type: 'select',
+          required: true,
+          options: () => this.categoryOptions,
+          placeholder: '选择 API 业务分类',
+          help: '模板检索会先按该分类缩小候选集，再在分类内进行语义排序。',
           section: 'group',
           sectionTitle: '业务分类',
-          sectionSubtitle: '配置业务域信息，帮助检索和角色授权分类。'
+          sectionSubtitle: '分类是模板检索的强边界，可避免不同业务接口相互干扰。'
         },
         {
           key: 'outputSchema',
@@ -151,21 +158,6 @@ export default {
           emptyText: '无前置依赖时可以留空。',
           help: '描述前置 API、调用条件和参数来源，用于生成多 API 执行 DAG。',
           section: 'capability'
-        },
-        {
-          key: 'businessGroupName',
-          label: '业务分组名称',
-          placeholder: '如 客户中心、订单分析',
-          help: '面向管理员展示的业务分组名称。',
-          section: 'group'
-        },
-        {
-          key: 'businessGroupDescription',
-          label: '业务分组描述',
-          type: 'textarea',
-          span: 'col-12',
-          placeholder: '描述该业务域包含的接口能力，以及模型应在什么场景下选择。',
-          section: 'group'
         },
         {
           key: 'enabled',
@@ -209,6 +201,21 @@ export default {
         });
       });
       return options;
+    },
+    categoryOptions() {
+      return this.categories
+        .filter(item => item.enabled !== false)
+        .map(item => ({ value: item.id, label: `${item.name} / ${item.code}` }));
+    },
+    categoryCards() {
+      return [
+        { id: '', code: '', name: '全部服务', description: '查看全部 API 服务', count: this.allServices.length },
+        ...this.categories.filter(item => item.enabled !== false).map(item => ({
+          ...item,
+          count: this.allServices.filter(service =>
+            service.categoryId === item.id || service.businessGroup === item.code).length
+        }))
+      ];
     },
     filteredLivedata() {
       const keyword = this.livedataKeyword.toLowerCase();
@@ -265,8 +272,31 @@ export default {
   },
   mounted() {
     this.loadGatewayAssets();
+    this.loadCategories();
   },
   methods: {
+    async loadCategories() {
+      try {
+        const [categories, services] = await Promise.all([api.listCategories(), api.list()]);
+        this.categories = categories || [];
+        this.allServices = services || [];
+      } catch (error) {
+        this.$emit('error', error);
+      }
+    },
+    async listServices() {
+      const services = await api.list() || [];
+      this.allServices = services;
+      if (!this.selectedCategory) return services;
+      return services.filter(service => service.categoryId === this.selectedCategory
+        || service.businessGroup === this.selectedCategory);
+    },
+    async selectCategory(category) {
+      this.selectedCategory = category.id || category.code || '';
+      this.activeTab = 'services';
+      await this.$nextTick();
+      await this.$refs.catalog?.load?.();
+    },
     async loadGatewayAssets() {
       try {
         this.gatewayAssets = await assetsApi.listHttp() || [];
@@ -376,16 +406,33 @@ export default {
         this.busy = false;
       }
     },
+    async syncLivedataParameters() {
+      this.busy = true;
+      try {
+        const result = await api.syncLivedataParameters();
+        await this.loadCategories();
+        await this.$refs.catalog?.load?.();
+        this.$emit('notify', {
+          title: 'API 参数同步完成',
+          message: `匹配 ${result?.matched || 0} 个，更新 ${result?.updated || 0} 个，未变化 ${result?.unchanged || 0} 个`
+        });
+        if (result?.errors?.length) {
+          this.$emit('result', { title: '部分 API 参数同步失败', value: result });
+        }
+      } catch (error) {
+        this.$emit('error', error);
+      } finally {
+        this.busy = false;
+      }
+    },
     async testLivedata(row) {
       try {
-        const { value: raw } = await ElMessageBox.prompt('请输入请求参数 JSON', '请求测试', {
-          inputType: 'textarea',
-          inputValue: '{}',
-          confirmButtonText: '发送请求',
-          cancelButtonText: '取消'
+        const args = await this.$refs.apiTestParameterDialog.open({
+          title: `${row.apiName || row.title || row.toolName || 'LiveData API'} 请求测试`,
+          schema: row.inputSchemaJson
         });
         this.busy = true;
-        const result = await api.testLivedata(row.id, parseJsonObject(raw, {}));
+        const result = await api.testLivedata(row.id, args);
         this.$emit('notify', buildTestNotification(result));
         this.$emit('result', {
           title: `${row.apiName || row.title || row.toolName || 'LiveData API'} 请求测试结果`,

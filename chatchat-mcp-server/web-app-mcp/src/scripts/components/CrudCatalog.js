@@ -1,12 +1,13 @@
 import { ElMessageBox } from 'element-plus';
 import ModalPanel from '../../components/ModalPanel.vue';
+import ApiTestParameterDialog from '../../components/ApiTestParameterDialog.vue';
 import { parseJsonObject, prettyJson } from '../../utils/json';
 import { buildTestNotification, isTestFailure } from '../../utils/test-result';
 import '../../styles/components/crud-catalog.css';
 
 export default {
   name: 'CrudCatalog',
-  components: { ModalPanel },
+  components: { ModalPanel, ApiTestParameterDialog },
   props: {
     title: { type: String, required: true },
     subtitle: { type: String, default: '' },
@@ -460,9 +461,16 @@ export default {
       if (!this.formTestAction) return;
       if (!this.validateFormBeforeSubmit()) return;
       if (!this.validateDatabaseParameterCompleteness(true)) return;
-      this.busy = true;
       try {
-        const result = await this.formTestAction(this.formPayload());
+        const payload = this.formPayload();
+        const args = payload.inputSchemaJson
+          ? await this.$refs.apiTestParameterDialog.open({
+            title: `${payload.title || payload.toolName || payload.name || 'API'} 请求测试`,
+            schema: payload.inputSchemaJson
+          })
+          : undefined;
+        this.busy = true;
+        const result = await this.formTestAction(payload, args);
         this.formTestResult = result;
         this.databasePreviewActiveTab = this.databasePreviewResultSets[0]?.previewKey || '';
         this.formFields.filter(field => field.type === 'databaseSqlSteps').forEach(field => {
@@ -502,15 +510,25 @@ export default {
     async testItem(item) {
       if (!this.validateFieldsBeforeSubmit(item, false)) return;
       try {
-        const { value: raw } = await ElMessageBox.prompt('请输入测试参数 JSON', '测试调用', {
-          inputType: 'textarea',
-          inputValue: '{}',
-          confirmButtonText: '执行',
-          cancelButtonText: '取消'
-        });
+        const schema = item.inputSchema || item.inputSchemaJson;
+        let args;
+        if (schema) {
+          args = await this.$refs.apiTestParameterDialog.open({
+            title: `${item.title || item.toolName || item.name || 'API'} 请求测试`,
+            schema
+          });
+        } else {
+          const { value: raw } = await ElMessageBox.prompt('请输入测试参数 JSON', '测试调用', {
+            inputType: 'textarea',
+            inputValue: '{}',
+            confirmButtonText: '执行',
+            cancelButtonText: '取消'
+          });
+          args = parseJsonObject(raw, {});
+        }
         if (this.busy || this.rowOperation) return;
         this.rowOperation = { type: 'test', rowId: item.id };
-        const result = await this.testAction(item, parseJsonObject(raw, {}));
+        const result = await this.testAction(item, args);
         this.$emit('notify', buildTestNotification(result));
         this.$emit('result', {
           title: `${item.title || item.toolName || item.name || '资源'} 测试结果`,
@@ -1520,6 +1538,7 @@ export default {
         name: '',
         type: 'string',
         required: false,
+        defaultValue: '',
         description: ''
       }];
     },
@@ -1637,6 +1656,9 @@ function schemaToRows(schema) {
     name,
     type: definition?.type || 'string',
     required: required.includes(name),
+    defaultValue: Object.prototype.hasOwnProperty.call(definition || {}, 'default')
+      ? schemaDefaultValue(definition.default)
+      : '',
     description: definition?.description || ''
   }));
 }
@@ -1653,6 +1675,9 @@ function rowsToSchema(rows) {
     if (row.description) {
       properties[name].description = row.description;
     }
+    if (row.defaultValue !== undefined && row.defaultValue !== null && String(row.defaultValue) !== '') {
+      properties[name].default = coerceParamValue(row.defaultValue, row.type || 'string');
+    }
     if (row.required) {
       required.push(name);
     }
@@ -1663,6 +1688,13 @@ function rowsToSchema(rows) {
     required,
     additionalProperties: false
   };
+}
+
+function schemaDefaultValue(value) {
+  if (value !== null && typeof value === 'object') {
+    return JSON.stringify(value);
+  }
+  return value === undefined || value === null ? '' : String(value);
 }
 
 function databaseSchemaToRows(schema, testParams = {}) {

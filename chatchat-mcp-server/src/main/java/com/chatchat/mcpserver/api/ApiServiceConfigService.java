@@ -3,6 +3,7 @@ package com.chatchat.mcpserver.api;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.mcpserver.ops.HttpEndpointConfig;
 import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -30,6 +31,7 @@ public class ApiServiceConfigService {
     private final ToolRegistry toolRegistry;
     private final ObjectMapper objectMapper;
     private final HttpEndpointConfigService gatewayConfigService;
+    private final ApiServiceCategoryService categoryService;
 
     /**
      * Lists the all.
@@ -39,6 +41,7 @@ public class ApiServiceConfigService {
     @Transactional(readOnly = true)
     public List<ApiServiceConfig> listAll() {
         return repository.findAll().stream()
+            .peek(this::inheritGatewayParameterContract)
             .sorted((a, b) -> a.getToolName().compareToIgnoreCase(b.getToolName()))
             .toList();
     }
@@ -50,7 +53,9 @@ public class ApiServiceConfigService {
      */
     @Transactional(readOnly = true)
     public List<ApiServiceConfig> listEnabled() {
-        return repository.findByEnabledTrueOrderByToolNameAsc();
+        return repository.findByEnabledTrueOrderByToolNameAsc().stream()
+            .peek(this::inheritGatewayParameterContract)
+            .toList();
     }
 
     /**
@@ -61,8 +66,10 @@ public class ApiServiceConfigService {
      */
     @Transactional(readOnly = true)
     public ApiServiceConfig getById(String id) {
-        return repository.findById(id)
+        ApiServiceConfig config = repository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("API service config not found: " + id));
+        inheritGatewayParameterContract(config);
+        return config;
     }
 
     /**
@@ -88,7 +95,9 @@ public class ApiServiceConfigService {
     @Transactional
     public ApiServiceConfig create(ApiServiceConfig draft) {
         validate(draft, null);
-        return repository.save(draft);
+        ApiServiceConfig saved = repository.save(draft);
+        synchronizeGatewayCategory(saved);
+        return saved;
     }
 
     /**
@@ -134,6 +143,7 @@ public class ApiServiceConfigService {
         current.setBusinessGroup(draft.getBusinessGroup());
         current.setBusinessGroupName(draft.getBusinessGroupName());
         current.setBusinessGroupDescription(draft.getBusinessGroupDescription());
+        current.setCategoryId(draft.getCategoryId());
         current.setGatewayId(draft.getGatewayId());
         current.setMethod(draft.getMethod());
         current.setUrlTemplate(draft.getUrlTemplate());
@@ -149,7 +159,9 @@ public class ApiServiceConfigService {
         current.setCacheEnabled(draft.isCacheEnabled());
         current.setCacheTtlSeconds(draft.getCacheTtlSeconds());
         validate(current, id);
-        return repository.save(current);
+        ApiServiceConfig saved = repository.save(current);
+        synchronizeGatewayCategory(saved);
+        return saved;
     }
 
     /**
@@ -163,6 +175,17 @@ public class ApiServiceConfigService {
     public ApiServiceConfig setEnabled(String id, boolean enabled) {
         ApiServiceConfig current = getById(id);
         current.setEnabled(enabled);
+        return repository.save(current);
+    }
+
+    /**
+     * Updates only the declared API parameter contract while preserving the
+     * service identity, category, transport and runtime policy.
+     */
+    @Transactional
+    public ApiServiceConfig updateParameterContract(String id, String inputSchemaJson) {
+        ApiServiceConfig current = getById(id);
+        current.setInputSchemaJson(normalizeJsonObject(inputSchemaJson, "inputSchema"));
         return repository.save(current);
     }
 
@@ -232,9 +255,7 @@ public class ApiServiceConfigService {
 
         config.setGatewayId(blankToNull(config.getGatewayId()));
         boolean usesGateway = config.getGatewayId() != null;
-        if (usesGateway) {
-            gatewayConfigService.getById(config.getGatewayId());
-        }
+        HttpEndpointConfig gateway = usesGateway ? gatewayConfigService.getById(config.getGatewayId()) : null;
 
         if (usesGateway) {
             config.setMethod(null);
@@ -260,6 +281,15 @@ public class ApiServiceConfigService {
         config.setBusinessGroup(normalizeBusinessGroup(config.getBusinessGroup()));
         config.setBusinessGroupName(firstText(blankToNull(config.getBusinessGroupName()), config.getBusinessGroup()));
         config.setBusinessGroupDescription(blankToNull(config.getBusinessGroupDescription()));
+        if ((config.getCategoryId() == null || config.getCategoryId().isBlank())
+            && gateway != null && gateway.getCategoryId() != null && !gateway.getCategoryId().isBlank()) {
+            config.setCategoryId(gateway.getCategoryId());
+        }
+        categoryService.assign(config);
+        if (!hasDeclaredParameters(config.getInputSchemaJson()) && gateway != null
+            && hasDeclaredParameters(gateway.getInputSchemaJson())) {
+            config.setInputSchemaJson(gateway.getInputSchemaJson());
+        }
         config.setInputSchemaJson(normalizeJsonObject(config.getInputSchemaJson(), "inputSchema"));
         config.setGovernanceJson(normalizeJsonObject(config.getGovernanceJson(), "governance"));
         if (config.getTimeoutMs() <= 0) {
@@ -305,6 +335,45 @@ public class ApiServiceConfigService {
             return ModelProtocolJson.compact(map);
         } catch (JsonProcessingException ex) {
             throw new IllegalArgumentException(fieldName + " must be a valid JSON object");
+        }
+    }
+
+    private void inheritGatewayParameterContract(ApiServiceConfig config) {
+        if (config == null || config.getGatewayId() == null || config.getGatewayId().isBlank()) {
+            return;
+        }
+        try {
+            HttpEndpointConfig gateway = gatewayConfigService.getById(config.getGatewayId());
+            if (!hasDeclaredParameters(config.getInputSchemaJson())
+                && hasDeclaredParameters(gateway.getInputSchemaJson())) {
+                config.setInputSchemaJson(gateway.getInputSchemaJson());
+            }
+            if ((config.getCategoryId() == null || config.getCategoryId().isBlank()
+                || "default".equalsIgnoreCase(config.getBusinessGroup()))
+                && gateway.getCategoryId() != null && !gateway.getCategoryId().isBlank()) {
+                categoryService.applyExplicit(config, gateway.getCategoryId());
+            }
+        } catch (IllegalArgumentException ignored) {
+            // Preserve list/read behavior for a stale gateway reference; normal validation still rejects it on save.
+        }
+    }
+
+    private void synchronizeGatewayCategory(ApiServiceConfig config) {
+        if (config.getGatewayId() == null || config.getGatewayId().isBlank()) {
+            return;
+        }
+        gatewayConfigService.updateBusinessCategory(config.getGatewayId(), config.getCategoryId());
+    }
+
+    private boolean hasDeclaredParameters(String schemaJson) {
+        if (schemaJson == null || schemaJson.isBlank()) {
+            return false;
+        }
+        try {
+            Map<String, Object> schema = objectMapper.readValue(schemaJson, new TypeReference<>() {});
+            return schema.get("properties") instanceof Map<?, ?> properties && !properties.isEmpty();
+        } catch (JsonProcessingException ignored) {
+            return false;
         }
     }
 

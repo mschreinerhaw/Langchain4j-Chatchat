@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestController
@@ -98,6 +99,20 @@ public class OpsAdminController {
         return ApiResponse.success(httpRequestToolService.execute(request, Map.of("sourceTaskId", "asset-center")), "HTTP endpoint tested");
     }
 
+    @PostMapping("/http-endpoints/test-with-arguments")
+    public ApiResponse<HttpRequestToolResult> testHttpEndpointWithArguments(
+        @RequestBody HttpEndpointTestRequest request) {
+        if (request == null || request.asset() == null) {
+            throw new IllegalArgumentException("HTTP endpoint asset is required");
+        }
+        Map<String, Object> arguments = new LinkedHashMap<>();
+        if (request.arguments() != null) {
+            arguments.putAll(request.arguments());
+        }
+        arguments.put("sourceTaskId", "asset-center");
+        return ApiResponse.success(httpRequestToolService.execute(request.asset(), arguments), "HTTP endpoint tested");
+    }
+
     @GetMapping("/command-templates")
     public ApiResponse<List<CommandTemplateConfig>> listTemplates() {
         return ApiResponse.success(templateService.listAll());
@@ -125,5 +140,8 @@ public class OpsAdminController {
         publisher.refresh();
         Map<String, Object> indexSummary = assetLuceneIndexService.refreshAll();
         return ApiResponse.success(Map.of("refreshed", true, "assetIndex", indexSummary), "Ops MCP tools refreshed");
+    }
+
+    public record HttpEndpointTestRequest(HttpEndpointConfig asset, Map<String, Object> arguments) {
     }
 }

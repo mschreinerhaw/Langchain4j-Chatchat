@@ -30,7 +30,17 @@ class McpMenuLicenseFilterTest {
 
         assertThat(access).filteredOn(McpAdminMenuCatalog.MenuAccess::authorized)
             .extracting(McpAdminMenuCatalog.MenuAccess::key)
-            .containsExactly("databaseMcp", "cacheSettings");
+            .containsExactly("businessCategories", "databaseMcp", "cacheSettings");
+    }
+
+    @Test
+    void existingBusinessModuleLicenseAlsoExposesSharedCategoryMaintenance() {
+        var status = valid(List.of("apiServices"));
+
+        assertThat(catalog.authorized(status, "businessCategories")).isTrue();
+        assertThat(catalog.menuForPath("/api/v1/business-categories"))
+            .get().extracting(McpAdminMenuCatalog.MenuDefinition::key)
+            .isEqualTo("businessCategories");
     }
 
     @Test

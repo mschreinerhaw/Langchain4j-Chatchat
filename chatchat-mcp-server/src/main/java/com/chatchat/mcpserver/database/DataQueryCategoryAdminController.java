@@ -1,6 +1,8 @@
 package com.chatchat.mcpserver.database;
 
 import com.chatchat.common.response.ApiResponse;
+import com.chatchat.mcpserver.category.BusinessCategory;
+import com.chatchat.mcpserver.category.BusinessCategoryService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +22,7 @@ import java.util.List;
 @RequestMapping("/api/v1/database-query/categories")
 public class DataQueryCategoryAdminController {
 
-    private final DataQueryCategoryService service;
+    private final BusinessCategoryService service;
     private final ObjectMapper objectMapper;
 
     @GetMapping
@@ -44,8 +46,8 @@ public class DataQueryCategoryAdminController {
         return ApiResponse.success(null);
     }
 
-    private DataQueryCategory entity(String id, CategoryRequest request) {
-        DataQueryCategory category = new DataQueryCategory();
+    private BusinessCategory entity(String id, CategoryRequest request) {
+        BusinessCategory category = new BusinessCategory();
         category.setId(id);
         category.setCode(request.code());
         category.setName(request.name());
@@ -58,7 +60,7 @@ public class DataQueryCategoryAdminController {
         return category;
     }
 
-    private CategoryView view(DataQueryCategory category) {
+    private CategoryView view(BusinessCategory category) {
         List<String> keywords;
         try {
             keywords = objectMapper.readValue(category.getKeywordsJson(), new TypeReference<>() {});

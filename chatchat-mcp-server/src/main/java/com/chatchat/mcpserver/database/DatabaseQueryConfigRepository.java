@@ -30,4 +30,5 @@ public interface DatabaseQueryConfigRepository extends JpaRepository<DatabaseQue
     Optional<DatabaseQueryConfig> findByToolNameIgnoreCase(String toolName);
 
     long countByCategoryId(String categoryId);
+    List<DatabaseQueryConfig> findByCategoryId(String categoryId);
 }

@@ -55,13 +55,52 @@ class TemplateDiscoveryMcpToolPublisherTest {
     }
 
     @Test
-    void refreshPublishesOnlyInfrastructureTemplateDiscoveryTools() {
+    void databaseQueryTemplateToolIsTypedCategoryDiscoveryTool() throws Exception {
+        TemplateDiscoveryMcpToolPublisher publisher = publisher(mock(McpSyncServer.class));
+        Method method = TemplateDiscoveryMcpToolPublisher.class.getDeclaredMethod(
+            "domainTemplateQueryTool", String.class, String.class, String.class,
+            String.class, String.class, String.class);
+        method.setAccessible(true);
+
+        McpServerFeatures.SyncToolSpecification spec =
+            (McpServerFeatures.SyncToolSpecification) method.invoke(
+                publisher,
+                TemplateDiscoveryMcpToolPublisher.DATABASE_QUERY_TEMPLATE_TOOL_NAME,
+                "分类数据模板检索",
+                "按数据能力分类检索模板。",
+                "database_query",
+                "business_database_query",
+                "分类数据查询模板"
+            );
+        McpSchema.Tool tool = spec.tool();
+        Map<?, ?> meta = tool.meta();
+        Map<?, ?> applicability = (Map<?, ?>) meta.get("applicability");
+        Map<?, ?> boundary = (Map<?, ?>) meta.get("toolBoundary");
+        Map<?, ?> routingProtocol = (Map<?, ?>) meta.get("routingProtocol");
+
+        assertThat(tool.name())
+            .isEqualTo(TemplateDiscoveryMcpToolPublisher.DATABASE_QUERY_TEMPLATE_TOOL_NAME);
+        assertThat(tool.title()).isEqualTo("分类数据模板检索");
+        assertThat(meta.get("assetType")).isEqualTo("database_query");
+        assertThat(meta.get("targetKind")).isEqualTo("business_database_query");
+        assertThat(applicability.get("backendServiceTypes"))
+            .isEqualTo(List.of("database_query", "template_discovery"));
+        assertThat(boundary.get("rejectCrossTypeRouting")).isEqualTo(true);
+        assertThat(routingProtocol.get("forcedTargetKind")).isEqualTo("business_database_query");
+        assertThat(routingProtocol.get("categoryFirst")).isEqualTo(true);
+        assertThat(routingProtocol.get("crossCategoryResultsAllowed")).isEqualTo(false);
+        assertThat(meta.get("executionFlow").toString())
+            .contains("business_category_resolution", "sql_template_execution", "evidence_analysis");
+    }
+
+    @Test
+    void refreshPublishesAllTypedTemplateDiscoveryTools() {
         McpSyncServer server = mock(McpSyncServer.class);
         TemplateDiscoveryMcpToolPublisher publisher = publisher(server);
 
         publisher.refresh();
 
-        verify(server, times(3)).addTool(any(McpServerFeatures.SyncToolSpecification.class));
+        verify(server, times(4)).addTool(any(McpServerFeatures.SyncToolSpecification.class));
         verify(server).notifyToolsListChanged();
     }
 

@@ -11,6 +11,9 @@ import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.mcpserver.database.DatabaseQueryConfig;
 import com.chatchat.mcpserver.database.DatabaseQueryConfigService;
+import com.chatchat.mcpserver.category.BusinessCategory;
+import com.chatchat.mcpserver.database.DataQueryCategoryService;
+import com.chatchat.mcpserver.routing.TargetKindRegistry;
 import com.chatchat.mcpserver.search.LuceneMcpSearchService;
 import com.chatchat.mcpserver.search.LuceneSearchProperties;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
@@ -41,7 +44,7 @@ class FinancialQueryRuntimeContractAcceptanceTest {
 
     private static final String QUESTION = "帮我分析最新交易日证券与指数涨跌";
     private static final String DISCOVERY_TOOL =
-        "mcp_chatchat_mcp_server_business_query_template_search";
+        "mcp_chatchat_mcp_server_database_query_template_query";
     private static final String EXECUTION_TOOL =
         "mcp_chatchat_mcp_server_sql_query_execute";
 
@@ -112,7 +115,13 @@ class FinancialQueryRuntimeContractAcceptanceTest {
         assertThat(discoveryResult.get())
             .containsEntry("schemaVersion", CommandTemplateDiscoveryService.RESULT_SCHEMA_VERSION)
             .containsEntry("targetKind", "business_database_query")
+            .containsEntry("categoryRequired", false)
             .containsEntry("returnedCount", 8);
+        assertThat(discoveryResult.get().get("selectedCategory").toString())
+            .contains("market_data", "\u5e02\u573a\u884c\u60c5");
+        assertThat(discoveryResult.get().get("retrievalFlow").toString())
+            .contains("business_category_resolution", "category_scoped_template_search",
+                "sql_template_execution", "evidence_analysis");
         List<?> templates = (List<?>) discoveryResult.get().get("templates");
         Map<?, ?> selected = (Map<?, ?>) templates.get(0);
         assertThat(selected.get("templateId")).isEqualTo("sample_market_latest_movers");
@@ -159,7 +168,7 @@ class FinancialQueryRuntimeContractAcceptanceTest {
                                 "targetKind", "business_database_query",
                                 "confidence", 0.95
                             )),
-                            "filters", Map.of("intent", QUESTION),
+                            "filters", Map.of("category", "market_data", "intent", QUESTION),
                             "limit", 20
                         ),
                         List.of(),
@@ -275,6 +284,19 @@ class FinancialQueryRuntimeContractAcceptanceTest {
     ) {
         LuceneSearchProperties searchProperties = new LuceneSearchProperties();
         searchProperties.setIndexDir(tempDir.toString());
+        BusinessCategory market = new BusinessCategory();
+        market.setId("market-category");
+        market.setCode("market_data");
+        market.setName("\u5e02\u573a\u884c\u60c5");
+        market.setDescription("\u8bc1\u5238\u3001\u6307\u6570\u4e0e\u878d\u8d44\u878d\u5238\u6570\u636e\u5206\u6790");
+        market.setDomain("finance");
+        market.setKeywordsJson("[\"\u8bc1\u5238\",\"\u6307\u6570\",\"\u878d\u8d44\u878d\u5238\"]");
+        market.setEnabled(true);
+        DataQueryCategoryService categoryService = mock(DataQueryCategoryService.class);
+        when(categoryService.resolve(any(), any())).thenReturn(
+            new DataQueryCategoryService.CategoryResolution(market, false, List.of(market)));
+        when(categoryService.keywords(market))
+            .thenReturn(List.of("\u8bc1\u5238", "\u6307\u6570", "\u878d\u8d44\u878d\u5238"));
         return new CommandTemplateDiscoveryService(
             mock(CommandTemplateService.class),
             mock(SshHostConfigService.class),
@@ -282,9 +304,11 @@ class FinancialQueryRuntimeContractAcceptanceTest {
             datasourceService,
             mock(HttpEndpointConfigService.class),
             queryConfigService,
+            categoryService,
             objectMapper,
             new TemplateDiscoveryProperties(),
-            new LuceneMcpSearchService(searchProperties)
+            new LuceneMcpSearchService(searchProperties),
+            new TargetKindRegistry()
         );
     }
 
@@ -303,9 +327,11 @@ class FinancialQueryRuntimeContractAcceptanceTest {
         config.setInputSchemaJson(json(objectMapper, sample.inputSchema()));
         config.setTagsJson(json(objectMapper, sample.tags()));
         config.setTemplateIntent(sample.intent());
-        config.setBusinessGroup(FinancialAnalysisQuerySamples.BUSINESS_GROUP);
-        config.setBusinessGroupName(FinancialAnalysisQuerySamples.BUSINESS_GROUP_NAME);
-        config.setBusinessGroupDescription(FinancialAnalysisQuerySamples.BUSINESS_GROUP_DESCRIPTION);
+        config.setCategoryId("market-category");
+        config.setCapabilityCategory("market_data");
+        config.setBusinessGroup("market_data");
+        config.setBusinessGroupName("\u5e02\u573a\u884c\u60c5");
+        config.setBusinessGroupDescription("\u8bc1\u5238\u3001\u6307\u6570\u4e0e\u878d\u8d44\u878d\u5238\u6570\u636e\u5206\u6790");
         config.setDatabaseType("h2");
         config.setRiskLevel("read_only");
         config.setOwner("data-capability-center");

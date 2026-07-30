@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.api;
 
+import com.chatchat.mcpserver.category.BusinessCategory;
+import com.chatchat.mcpserver.category.BusinessCategoryService;
 import com.chatchat.mcpserver.ops.CommandTemplateDiscoveryService;
 import com.chatchat.mcpserver.routing.TargetKindRegistry;
 import com.chatchat.mcpserver.search.LuceneMcpSearchService;
@@ -35,6 +37,7 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
 
     private final McpSyncServer mcpSyncServer;
     private final ApiServiceConfigService configService;
+    private final ApiServiceCategoryService categoryService;
     private final LuceneMcpSearchService luceneSearchService;
     private final ObjectMapper objectMapper;
 
@@ -56,7 +59,8 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             .name(TOOL_NAME)
             .title("API template discovery")
             .description("Read-only MCP tool for retrieving API service templates. "
-                + "Use it to discover authorized API business capabilities by toolName, title, description, intent, category, or bilingual Chinese and English retrieval terms. "
+                + "Resolve one API business category first, then retrieve and rank templates only inside that category. "
+                + "Use it to discover authorized API business capabilities by categoryId, businessGroup, title, description, intent, or bilingual Chinese and English retrieval terms. "
                 + "It returns API template metadata and parameter schema, but never returns raw URL templates, headers, or body templates.")
             .inputSchema(inputSchema())
             .meta(meta())
@@ -87,21 +91,37 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
         int limit = limit(arguments);
         List<String> excludedTemplateIds = excludedTemplateIds(arguments);
         List<ApiServiceConfig> enabledConfigs = configService.listEnabled();
-        List<ApiServiceConfig> scopedConfigs = scopedApiServices(enabledConfigs, filters);
+        ApiServiceCategoryService.CategoryResolution categoryResolution = categoryService.resolve(
+            categoryFilters(filters), enabledConfigs);
+        List<ApiServiceConfig> categoryConfigs = categoryResolution.category() == null
+            ? (categoryResolution.categoryRequired() ? List.of() : enabledConfigs)
+            : enabledConfigs.stream().filter(config -> belongsTo(config, categoryResolution.category())).toList();
+        List<ApiServiceConfig> scopedConfigs = hasAssetScope(filters)
+            ? scopedApiServices(categoryConfigs, filters)
+            : categoryConfigs;
         List<String> assetSignals = apiServiceSignals(scopedConfigs);
+        if (categoryResolution.category() != null) {
+            assetSignals = new ArrayList<>(assetSignals);
+            addTerm(assetSignals, categoryResolution.category().getCode());
+            addTerm(assetSignals, categoryResolution.category().getName());
+            addTerm(assetSignals, categoryResolution.category().getDescription());
+            addTerm(assetSignals, categoryService.keywords(categoryResolution.category()));
+            assetSignals = assetSignals.stream().distinct().toList();
+        }
         Map<String, Object> retrievalFilters = assetSignals.isEmpty()
             ? filters
             : filtersWithApiAssetSignals(filters, assetSignals);
         List<String> terms = terms(retrievalFilters);
-        List<LuceneMcpSearchService.SearchHit> hits = luceneSearchService == null || !luceneSearchService.enabled()
+        List<LuceneMcpSearchService.SearchHit> hits = categoryResolution.categoryRequired()
+            || luceneSearchService == null || !luceneSearchService.enabled()
             ? List.of()
             : luceneSearchService.searchApiServiceTemplates(new LuceneMcpSearchService.TemplateSearchRequest(
                 "api_service",
                 null,
                 terms.isEmpty() ? null : String.join(" ", terms),
-                Math.max(limit, DEFAULT_LIMIT)
+                Math.max(Math.max(limit, DEFAULT_LIMIT), Math.min(200, enabledConfigs.size() * 4))
         ));
-        Map<String, ApiServiceConfig> configsByToolName = enabledConfigs.stream()
+        Map<String, ApiServiceConfig> configsByToolName = scopedConfigs.stream()
             .filter(config -> !text(config.getToolName()).isBlank())
             .collect(Collectors.toMap(
                 config -> text(config.getToolName()),
@@ -128,13 +148,16 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             "filters", filters,
             "limit", limit,
             "returnedCount", templates.size(),
+            "categoryRequired", categoryResolution.categoryRequired(),
+            "selectedCategory", categoryMetadata(categoryResolution.category()),
+            "categoryCandidates", categoryResolution.candidates().stream().map(this::categoryMetadata).toList(),
             "possiblyTruncated", matched.size() > limit,
             "excludedTemplateIds", excludedTemplateIds,
             "selectionProtocol", mapOf(
                 "schemaVersion", "template_selection_protocol.v1",
                 "allowedDecisions", List.of("accept", "refine", "reject"),
                 "selectedTemplateIdSource", "templates[].templateId",
-                "refineWith", List.of("filters.intent", "filters.goal", "filters.keywords", "excludeTemplateIds"),
+                "refineWith", List.of("filters.categoryId", "filters.businessGroup", "filters.intent", "filters.goal", "filters.keywords", "excludeTemplateIds"),
                 "mustNotRepeatIdenticalQuery", true
             ),
             "templateSelectionPolicy", mapOf(
@@ -143,7 +166,9 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
                 "doNotInventTemplateNames", true,
                 "rawExecutionSpecReturned", false,
                 "selectionFields", List.of("templateId", "toolName", "title", "description", "businessGroup", "capabilitySpec", "outputSchema", "dependencySpec", "parameterSchema", "requiredParameters", "parameterContract", "invocationExample"),
-                "onEmptyResult", "No existing API template matched the request. Do not invent an API tool name."
+                "onEmptyResult", categoryResolution.categoryRequired()
+                    ? "Select exactly one returned business category, then retry within that category."
+                    : "No existing API template matched the request. Do not invent an API tool name."
             ),
             "queryIr", mapOf(
                 "schemaVersion", "api_template_query_ir.v1",
@@ -154,12 +179,22 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             ),
             "diagnostics", mapOf(
                 "source", "lucene_api_service_template_index",
-                "hitCount", hits.size(),
-                "hitIds", hits.stream().map(LuceneMcpSearchService.SearchHit::id).limit(limit).toList(),
-                "assetScoped", !scopedConfigs.isEmpty(),
+                "hitCount", matched.size(),
+                "hitIds", matched.stream().map(item -> item.config().getToolName()).limit(limit).toList(),
+                "categoryScoped", categoryResolution.category() != null,
+                "categoryRequired", categoryResolution.categoryRequired(),
+                "assetScoped", categoryResolution.category() != null || hasAssetScope(filters),
                 "scopedAssetCount", scopedConfigs.size(),
                 "retrievalSignals", assetSignals,
-                "fallbackUsed", false
+                "fallbackUsed", categoryResolution.fallbackUsed(),
+                "fallbackCategory", categoryResolution.fallbackUsed()
+                    ? BusinessCategoryService.DEFAULT_CODE : ""
+            ),
+            "retrievalFlow", mapOf(
+                "schemaVersion", "classified_template_execution.v1",
+                "steps", List.of("business_category_resolution", "category_scoped_template_search",
+                    "api_template_execution", "evidence_analysis"),
+                "crossCategoryResultsAllowed", false
             ),
             "templates", templates
         );
@@ -233,7 +268,17 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             "routingProtocol", mapOf(
                 "forcedTargetKind", "api_service",
                 "forcedAssetType", "api_service",
-                "filtersSchemaVersion", TargetKindRegistry.FILTERS_SCHEMA_VERSION
+                "filtersSchemaVersion", TargetKindRegistry.FILTERS_SCHEMA_VERSION,
+                "categoryFirst", true,
+                "crossCategoryResultsAllowed", false,
+                "categoryRetryFields", List.of("filters.categoryId", "filters.businessGroup")
+            ),
+            "executionFlow", mapOf(
+                "schemaVersion", "classified_template_execution.v1",
+                "steps", List.of("business_category_resolution", "category_scoped_template_search",
+                    "api_template_execution", "evidence_analysis"),
+                "executionTool", ApiMcpToolPublisher.EXECUTE_TOOL_NAME,
+                "crossCategoryResultsAllowed", false
             ),
             "indexPolicy", mapOf(
                 "logicalIndex", "template:api_service",
@@ -383,7 +428,7 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
 
     private boolean hasAssetScope(Map<String, Object> filters) {
         return firstValue(filters, "toolName", "name", "businessGroup", "business_group", "group", "groupName",
-            "group_name", "service", "target", "labels", "category") != null;
+            "group_name", "groupDescription", "group_description", "service", "target", "labels", "category") != null;
     }
 
     private boolean matchesApiServiceScope(ApiServiceConfig config, Map<String, Object> filters) {
@@ -401,6 +446,11 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             && !logicalNameMatches(group, config.getBusinessGroupName())) {
             return false;
         }
+        String groupDescription = text(firstValue(filters, "groupDescription", "group_description"));
+        if (!groupDescription.isBlank()
+            && !logicalNameMatches(groupDescription, config.getBusinessGroupDescription())) {
+            return false;
+        }
         Object labels = filters.get("labels");
         if (labels != null) {
             List<String> requestedLabels = new ArrayList<>();
@@ -413,6 +463,36 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             }
         }
         return true;
+    }
+
+    private ApiServiceCategoryService.MapLike categoryFilters(Map<String, Object> filters) {
+        return new ApiServiceCategoryService.MapLike() {
+            @Override
+            public String first(String... keys) {
+                return text(firstValue(filters, keys));
+            }
+
+            @Override
+            public String joinedText() {
+                return terms(filters).stream().collect(Collectors.joining(" "));
+            }
+        };
+    }
+
+    private boolean belongsTo(ApiServiceConfig config, BusinessCategory category) {
+        return category.getId().equals(config.getCategoryId())
+            || category.getCode().equalsIgnoreCase(text(config.getBusinessGroup()));
+    }
+
+    private Map<String, Object> categoryMetadata(BusinessCategory category) {
+        if (category == null) return Map.of();
+        return mapOf(
+            "id", category.getId(),
+            "code", category.getCode(),
+            "name", category.getName(),
+            "description", text(category.getDescription()),
+            "keywords", categoryService.keywords(category)
+        );
     }
 
     private List<String> apiServiceSignals(List<ApiServiceConfig> configs) {

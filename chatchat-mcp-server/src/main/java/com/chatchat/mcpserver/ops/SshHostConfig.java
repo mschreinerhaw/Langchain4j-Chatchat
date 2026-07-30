@@ -39,6 +39,9 @@ public class SshHostConfig {
     @Column(length = 1200)
     private String description;
 
+    @Column(length = 64)
+    private String categoryId;
+
     @Column(nullable = false, length = 300)
     private String hostname;
 

@@ -47,6 +47,12 @@ public class LivedataApiController {
         return ApiResponse.success(result, "LiveData API manual registration completed");
     }
 
+    @PostMapping("/sync-parameters")
+    public ApiResponse<LivedataApiRegistrationService.LivedataParameterSyncResult> synchronizeParameters() {
+        return ApiResponse.success(registrationService.synchronizeRegisteredParameterContracts(),
+            "LiveData API parameters synchronized");
+    }
+
     @PostMapping("/{id}/test")
     public ApiResponse<ApiInvokeResult> test(@PathVariable("id") String id,
                                              @RequestBody(required = false) Map<String, Object> arguments) {

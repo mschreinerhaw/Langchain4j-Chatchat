@@ -376,7 +376,8 @@ public class FinancialDataStore {
         String mode = normalizeHistoryMode(requestedHistoryMode);
         log.info("Financial data query started dataset={} table={} filters={} startDate={} endDate={} historyMode={} limit={}",
             code, table, filters == null ? Map.of() : filters, startDate, endDate, mode, limit);
-        LocalDate cutoff = LocalDate.now(SHANGHAI).minusDays(hotDays());
+        LocalDate queryReferenceDate = endDate == null ? LocalDate.now(SHANGHAI) : endDate;
+        LocalDate cutoff = queryReferenceDate.minusDays(hotDays());
         boolean readWeekly = "weekly".equals(mode) || ("auto".equals(mode) && startDate != null && startDate.isBefore(cutoff));
         boolean readDaily = "daily".equals(mode) || ("auto".equals(mode) && (endDate == null || !endDate.isBefore(cutoff)));
         List<Map<String, Object>> combined = new ArrayList<>();

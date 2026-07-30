@@ -26,6 +26,7 @@ public class TemplateDiscoveryMcpToolPublisher {
     public static final String SQL_DATASOURCE_TEMPLATE_TOOL_NAME = "database_ops_template_search";
     public static final String LEGACY_SQL_DATASOURCE_TEMPLATE_TOOL_NAME = "sql_datasource_template_query";
     public static final String HTTP_ENDPOINT_TEMPLATE_TOOL_NAME = "http_endpoint_template_query";
+    public static final String DATABASE_QUERY_TEMPLATE_TOOL_NAME = "database_query_template_query";
 
     private final McpSyncServer mcpSyncServer;
     private final CommandTemplateDiscoveryService templateDiscoveryService;
@@ -42,6 +43,7 @@ public class TemplateDiscoveryMcpToolPublisher {
         remove(SQL_DATASOURCE_TEMPLATE_TOOL_NAME);
         remove(LEGACY_SQL_DATASOURCE_TEMPLATE_TOOL_NAME);
         remove(HTTP_ENDPOINT_TEMPLATE_TOOL_NAME);
+        remove(DATABASE_QUERY_TEMPLATE_TOOL_NAME);
         mcpSyncServer.addTool(domainTemplateQueryTool(
             SSH_TEMPLATE_TOOL_NAME,
             "SSH command template discovery",
@@ -66,10 +68,19 @@ public class TemplateDiscoveryMcpToolPublisher {
             "http",
             "HTTP endpoint templates"
         ));
+        mcpSyncServer.addTool(domainTemplateQueryTool(
+            DATABASE_QUERY_TEMPLATE_TOOL_NAME,
+            "分类数据模板检索",
+            "按数据能力分类、业务意图和查询条件检索已发布的数据查询模板；"
+                + "返回模板标识、参数契约和执行工具，不执行查询。",
+            "database_query",
+            "business_database_query",
+            "分类数据查询模板"
+        ));
         mcpSyncServer.notifyToolsListChanged();
-        log.info("Template discovery MCP tools refreshed: {}, {}, {}",
+        log.info("Template discovery MCP tools refreshed: {}, {}, {}, {}",
             SSH_TEMPLATE_TOOL_NAME, SQL_DATASOURCE_TEMPLATE_TOOL_NAME,
-            HTTP_ENDPOINT_TEMPLATE_TOOL_NAME);
+            HTTP_ENDPOINT_TEMPLATE_TOOL_NAME, DATABASE_QUERY_TEMPLATE_TOOL_NAME);
     }
 
     private McpServerFeatures.SyncToolSpecification domainTemplateQueryTool(String toolName,
@@ -425,7 +436,7 @@ public class TemplateDiscoveryMcpToolPublisher {
             McpToolApplicability.META_KEY, McpToolApplicability.of(
                 assetType + ":template_discovery",
                 domainLabel + " template discovery",
-                List.of(assetType),
+                List.of(assetType, "template_discovery"),
                 "Search governed operation templates in the " + domainLabel + " domain.",
                 List.of("Resolve a registered template id and parameter contract before a bound execution tool is invoked."),
                 List.of("Executing the template", "Returning raw execution specifications", "Selecting or replacing Agent-bound tools")
@@ -468,14 +479,34 @@ public class TemplateDiscoveryMcpToolPublisher {
                 "guidance", "Generate concise Chinese and English operation-intent phrases for registered template retrieval. "
                     + "Do not generate template ids, execution parameters, commands, SQL or routing targets."
             ),
-            "routingProtocol", mapOf(
-                "forcedTargetKind", targetKind,
-                "forcedAssetType", assetType,
-                "filtersSchemaVersion", TargetKindRegistry.FILTERS_SCHEMA_VERSION,
-                "allowedFilterFields", List.copyOf(targetKindRegistry.allowedFilterFieldsForTargetKind(targetKind))
-            ),
+            "routingProtocol", domainRoutingProtocol(assetType, targetKind),
+            "executionFlow", "database_query".equals(assetType)
+                ? mapOf(
+                    "schemaVersion", "classified_template_execution.v1",
+                    "steps", List.of("business_category_resolution", "category_scoped_template_search",
+                        "sql_template_execution", "evidence_analysis"),
+                    "executionToolSource", "templates[].execution.executorTool",
+                    "crossCategoryResultsAllowed", false
+                )
+                : Map.of(),
             "rawExecutionSpecReturned", false
         );
+    }
+
+    private Map<String, Object> domainRoutingProtocol(String assetType, String targetKind) {
+        Map<String, Object> protocol = new LinkedHashMap<>(mapOf(
+            "forcedTargetKind", targetKind,
+            "forcedAssetType", assetType,
+            "filtersSchemaVersion", TargetKindRegistry.FILTERS_SCHEMA_VERSION,
+            "allowedFilterFields", List.copyOf(targetKindRegistry.allowedFilterFieldsForTargetKind(targetKind))
+        ));
+        if ("database_query".equals(assetType)) {
+            protocol.put("categoryFirst", true);
+            protocol.put("crossCategoryResultsAllowed", false);
+            protocol.put("categoryRetryFields", List.of(
+                "filters.categoryId", "filters.capabilityCategory", "filters.businessGroup"));
+        }
+        return protocol;
     }
 
     private Map<String, Object> errorResult(String message) {

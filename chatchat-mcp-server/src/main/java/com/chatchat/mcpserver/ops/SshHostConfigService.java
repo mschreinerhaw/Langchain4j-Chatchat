@@ -1,6 +1,7 @@
 package com.chatchat.mcpserver.ops;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
+import com.chatchat.mcpserver.category.BusinessCategoryService;
 
 import com.chatchat.mcpserver.routing.AssetExecutionTargetBinding;
 import com.chatchat.mcpserver.routing.ExecutionTargetService;
@@ -26,6 +27,7 @@ public class SshHostConfigService {
     private final SshHostConfigRepository repository;
     private final ObjectMapper objectMapper;
     private final ExecutionTargetService executionTargetService;
+    private final BusinessCategoryService categoryService;
 
     public List<SshHostConfig> listAll() {
         return repository.findAll().stream()
@@ -52,6 +54,7 @@ public class SshHostConfigService {
         config.setToolName(firstText(request.getToolName(), config.getToolName()));
         config.setTitle(firstText(request.getTitle(), config.getTitle()));
         config.setDescription(blankToNull(request.getDescription()));
+        config.setCategoryId(blankToNull(request.getCategoryId()));
         config.setHostname(firstText(request.getHostname(), config.getHostname()));
         config.setPort(request.getPort());
         config.setUsername(firstText(request.getUsername(), config.getUsername()));
@@ -98,6 +101,7 @@ public class SshHostConfigService {
     }
 
     private void normalize(SshHostConfig config, String currentId) {
+        config.setCategoryId(categoryService.resolveOrDefault(config.getCategoryId()).getId());
         config.setName(firstText(config.getName(), config.getHostname()));
         assertUniqueName(config.getName(), currentId);
         config.setToolName(normalizeToolName(firstText(config.getToolName(), defaultToolName(config))));

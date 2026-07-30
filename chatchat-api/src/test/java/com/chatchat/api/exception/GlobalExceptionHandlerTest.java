@@ -3,6 +3,7 @@ package com.chatchat.api.exception;
 import com.chatchat.common.response.ApiResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
@@ -11,8 +12,25 @@ import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.Mockito.mock;
 
 class GlobalExceptionHandlerTest {
+
+    @Test
+    void malformedJsonReturnsBadRequestInsteadOfInternalServerError() {
+        GlobalExceptionHandler handler = new GlobalExceptionHandler();
+
+        ResponseEntity<ApiResponse<Void>> response = handler.handleHttpMessageNotReadableException(
+            mock(HttpMessageNotReadableException.class),
+            new ServletWebRequest(new MockHttpServletRequest())
+        );
+
+        assertEquals(400, response.getStatusCode().value());
+        assertEquals(
+            "Request body is not valid JSON. Use double-quoted field names and do not escape the outer object.",
+            response.getBody().getMessage()
+        );
+    }
 
     @Test
     void asyncRequestNotUsableReturnsClientClosedRequest() {

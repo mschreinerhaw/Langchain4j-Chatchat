@@ -1,6 +1,7 @@
 package com.chatchat.mcpserver.sql;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
+import com.chatchat.mcpserver.category.BusinessCategoryService;
 
 import com.chatchat.mcpserver.routing.AssetExecutionTargetBinding;
 import com.chatchat.mcpserver.routing.ExecutionTargetService;
@@ -30,6 +31,7 @@ public class SqlDatasourceConfigService {
     private final ObjectMapper objectMapper;
     private final ExecutionTargetService executionTargetService;
     private final SqlMetadataAssetRegistryService metadataAssetRegistryService;
+    private final BusinessCategoryService categoryService;
 
     @Value("${spring.datasource.url:}")
     private String applicationJdbcUrl;
@@ -62,6 +64,7 @@ public class SqlDatasourceConfigService {
         config.setToolName(firstText(request.getToolName(), config.getToolName()));
         config.setTitle(firstText(request.getTitle(), config.getTitle()));
         config.setDescription(blankToNull(request.getDescription()));
+        config.setCategoryId(blankToNull(request.getCategoryId()));
         config.setJdbcUrl(firstText(request.getJdbcUrl(), config.getJdbcUrl()));
         config.setDriverClass(blankToNull(request.getDriverClass()));
         config.setDatabaseType(firstText(request.getDatabaseType(), config.getDatabaseType()));
@@ -116,6 +119,7 @@ public class SqlDatasourceConfigService {
     }
 
     private void normalize(SqlDatasourceConfig config, String currentId) {
+        config.setCategoryId(categoryService.resolveOrDefault(config.getCategoryId()).getId());
         config.setName(firstText(config.getName(), config.getJdbcUrl()));
         assertUniqueName(config.getName(), currentId);
         config.setToolName(normalizeToolName(firstText(config.getToolName(), defaultToolName(config))));

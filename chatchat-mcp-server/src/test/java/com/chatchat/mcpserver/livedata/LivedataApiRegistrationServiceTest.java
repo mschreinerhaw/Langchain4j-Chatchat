@@ -7,6 +7,8 @@ import com.chatchat.mcpserver.api.ApiServiceConfig;
 import com.chatchat.mcpserver.api.ApiServiceConfigService;
 import com.chatchat.mcpserver.ops.HttpEndpointConfig;
 import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
+import com.chatchat.mcpserver.search.McpAssetLuceneIndexService;
+import com.chatchat.mcpserver.search.McpTemplateLuceneIndexService;
 import com.chatchat.tools.livedata.LivedataApiDefinition;
 import com.chatchat.tools.livedata.LivedataAutoRegistrationProperties;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +21,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class LivedataApiRegistrationServiceTest {
@@ -29,10 +32,13 @@ class LivedataApiRegistrationServiceTest {
     private final ApiInvokeService apiInvokeService = mock(ApiInvokeService.class);
     private final HttpEndpointConfigService gatewayConfigService = mock(HttpEndpointConfigService.class);
     private final ApiMcpToolPublisher publisher = mock(ApiMcpToolPublisher.class);
+    private final McpTemplateLuceneIndexService templateIndexService = mock(McpTemplateLuceneIndexService.class);
+    private final McpAssetLuceneIndexService assetIndexService = mock(McpAssetLuceneIndexService.class);
     private final LivedataApiDefinition definition = new LivedataApiDefinition(
         "source-1", "orders", "订单查询", "{}", "查询订单", "demo", "OrderService", "query", 0, "1", "1");
     private final LivedataApiRegistrationService service = new LivedataApiRegistrationService(
-        configService, mapper, apiServiceConfigService, apiInvokeService, gatewayConfigService, publisher);
+        configService, mapper, apiServiceConfigService, apiInvokeService, gatewayConfigService, publisher,
+        templateIndexService, assetIndexService);
 
     @BeforeEach
     void enableLivedata() {
@@ -54,6 +60,21 @@ class LivedataApiRegistrationServiceTest {
 
         assertThat(service.test("source-1", arguments)).isSameAs(expected);
         verify(apiInvokeService).invoke(registered, arguments);
+    }
+
+    @Test
+    void exposesRegisteredParameterSchemaForCandidateTestForm() {
+        ApiServiceConfig mapped = apiService(null, "livedata_orders", null);
+        mapped.setInputSchemaJson("""
+            {"type":"object","properties":{"orderId":{"type":"string","default":"A001"}},"required":[]}
+            """);
+        when(mapper.toApiServiceConfig(definition)).thenReturn(mapped);
+        when(apiServiceConfigService.findByToolName("livedata_orders")).thenReturn(Optional.empty());
+
+        LivedataApiRegistrationService.LivedataApiCandidate candidate =
+            service.listCandidates().get(0);
+
+        assertThat(candidate.inputSchemaJson()).contains("\"orderId\"", "\"default\":\"A001\"");
     }
 
     @Test
@@ -122,12 +143,81 @@ class LivedataApiRegistrationServiceTest {
         verify(gatewayConfigService).delete("gateway-1");
     }
 
+    @Test
+    void synchronizesSourceParamsIntoRegisteredServiceAndGeneratedGateway() {
+        LivedataConfig livedataConfig = new LivedataConfig();
+        livedataConfig.setGatewayId("source-gateway");
+        HttpEndpointConfig sourceGateway = gateway("source-gateway", "http_livedata_source");
+        sourceGateway.setEnabled(true);
+        ApiServiceConfig mapped = apiService(null, "livedata_orders", null);
+        mapped.setInputSchemaJson("""
+            {"type":"object","properties":{"orderId":{"type":"string","default":"A001"}},"required":[]}
+            """);
+        ApiServiceConfig registered = apiService("service-1", "livedata_orders", "gateway-1");
+        registered.setInputSchemaJson("{\"type\":\"object\",\"properties\":{}}");
+        HttpEndpointConfig registeredGateway = gateway("gateway-1", "http_livedata_orders");
+        registeredGateway.setTags("livedata,api_gateway");
+        registeredGateway.setInputSchemaJson("{\"type\":\"object\",\"properties\":{}}");
+        registeredGateway.setBodyTemplate("{\"data\":{}}");
+        HttpEndpointConfig mappedGateway = gateway(null, "http_livedata_orders");
+        mappedGateway.setInputSchemaJson(mapped.getInputSchemaJson());
+        mappedGateway.setBodyTemplate("{\"data\":{\"orderId\":\"{{orderId}}\"}}");
+        when(configService.getConfig()).thenReturn(livedataConfig);
+        when(gatewayConfigService.getById("source-gateway")).thenReturn(sourceGateway);
+        when(mapper.toApiServiceConfig(definition, null, properties())).thenReturn(mapped);
+        when(apiServiceConfigService.findByToolName("livedata_orders")).thenReturn(Optional.of(registered));
+        when(gatewayConfigService.getById("gateway-1")).thenReturn(registeredGateway);
+        when(mapper.toGatewayConfig(definition, sourceGateway, properties())).thenReturn(mappedGateway);
+        when(apiServiceConfigService.updateParameterContract("service-1", mapped.getInputSchemaJson()))
+            .thenReturn(registered);
+
+        LivedataApiRegistrationService.LivedataParameterSyncResult result =
+            service.synchronizeRegisteredParameterContracts();
+
+        assertThat(result).extracting(
+            LivedataApiRegistrationService.LivedataParameterSyncResult::inspected,
+            LivedataApiRegistrationService.LivedataParameterSyncResult::matched,
+            LivedataApiRegistrationService.LivedataParameterSyncResult::updated,
+            LivedataApiRegistrationService.LivedataParameterSyncResult::skipped
+        ).containsExactly(1, 1, 1, 0);
+        verify(gatewayConfigService).updateParameterContract(
+            "gateway-1", mapped.getInputSchemaJson(), mappedGateway.getBodyTemplate());
+        verify(apiServiceConfigService).updateParameterContract("service-1", mapped.getInputSchemaJson());
+        verify(publisher).refresh();
+        verify(templateIndexService).upsertApiServiceTemplates(List.of(registered));
+        verify(assetIndexService).refresh("api_service");
+    }
+
+    @Test
+    void parameterSynchronizationDoesNotCreateUnregisteredApis() {
+        LivedataConfig livedataConfig = new LivedataConfig();
+        livedataConfig.setGatewayId("source-gateway");
+        HttpEndpointConfig sourceGateway = gateway("source-gateway", "http_livedata_source");
+        sourceGateway.setEnabled(true);
+        ApiServiceConfig mapped = apiService(null, "livedata_orders", null);
+        when(configService.getConfig()).thenReturn(livedataConfig);
+        when(gatewayConfigService.getById("source-gateway")).thenReturn(sourceGateway);
+        when(mapper.toApiServiceConfig(definition, null, properties())).thenReturn(mapped);
+        when(apiServiceConfigService.findByToolName("livedata_orders")).thenReturn(Optional.empty());
+
+        LivedataApiRegistrationService.LivedataParameterSyncResult result =
+            service.synchronizeRegisteredParameterContracts();
+
+        assertThat(result.matched()).isZero();
+        assertThat(result.updated()).isZero();
+        verifyNoInteractions(templateIndexService, assetIndexService);
+    }
+
     private ApiServiceConfig apiService(String id, String toolName, String gatewayId) {
         ApiServiceConfig config = new ApiServiceConfig();
         config.setId(id);
         config.setToolName(toolName);
         config.setGatewayId(gatewayId);
         return config;
+    }
+
+    private LivedataAutoRegistrationProperties properties() {
+        return configService.current();
     }
 
     private HttpEndpointConfig gateway(String id, String toolName) {

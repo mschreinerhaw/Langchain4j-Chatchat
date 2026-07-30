@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.MultipartException;
 import org.springframework.validation.FieldError;
@@ -54,6 +55,24 @@ public class GlobalExceptionHandler {
             .build();
 
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * Handle malformed JSON and other unreadable request bodies as client errors.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleHttpMessageNotReadableException(
+            HttpMessageNotReadableException ex,
+            WebRequest request) {
+
+        log.warn("Request body is not valid JSON: {}", rootCauseMessage(ex));
+
+        return new ResponseEntity<>(
+            ApiResponse.badRequest(
+                "Request body is not valid JSON. Use double-quoted field names and do not escape the outer object."
+            ),
+            HttpStatus.BAD_REQUEST
+        );
     }
 
     /**
@@ -229,6 +248,14 @@ public class GlobalExceptionHandler {
             current = current.getCause();
         }
         return builder.toString();
+    }
+
+    private String rootCauseMessage(Throwable ex) {
+        Throwable current = ex;
+        while (current.getCause() != null) {
+            current = current.getCause();
+        }
+        return current.getMessage() == null ? current.getClass().getSimpleName() : current.getMessage();
     }
 
     /**

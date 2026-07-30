@@ -101,7 +101,7 @@ public class SqlMcpToolPublisher {
             .description("Execute a read-only SQL query or SQL template on a routed logical datasource target. "
                 + "User SQL may contain comments; they are stripped before execution. If the sql field contains multiple read-only statements separated by semicolons, this gateway automatically executes it as a read-only SQL script and returns multiple result sets. "
                 + "When using datasource maintenance template, the value must be an existing templateId returned by database_ops_template_search for the same logical datasource. "
-                + "Business database capabilities are published as dedicated MCP tools and should be invoked directly; this gateway is for datasource templates or explicitly requested read-only SQL. "
+                + "Business data templates selected by database_query_template_query are executed through this unified gateway. "
                 + "For table metadata analysis, locate the table schema with metadata discovery templates such as MYSQL_SCHEMA_TABLE_OVERVIEW or MYSQL_TABLE_LOCATION before reading columns. "
                 + "Do not invent template names and do not pass datasourceId, JDBC URL, or any concrete database endpoint.")
             .inputSchema(gatewayInputSchema())
@@ -122,7 +122,7 @@ public class SqlMcpToolPublisher {
             .name("sql_script_execute")
             .title("SQL read-only script execution gateway")
             .description("Execute a semicolon-separated read-only SQL analysis script and return organized result sets. "
-                + "Registered multi-SQL/DAG business capabilities are published as dedicated MCP tools and preserve their configured dependency graph without routing through this gateway. "
+                + "Registered multi-SQL/DAG business templates selected by database_query_template_query execute through this unified gateway while preserving their configured dependency graph. "
                 + "Every statement must be SELECT, SHOW, DESCRIBE/DESC, or EXPLAIN. Writes, DDL, permissions, comments, stored procedures, SET/USE, and database admin operations are forbidden. "
                 + "Use this when one SQL statement is not enough for business analysis and several independent result sets are needed. "
                 + "Do not pass datasourceId, JDBC URL, or any concrete database endpoint.")
@@ -618,7 +618,7 @@ public class SqlMcpToolPublisher {
     private McpSchema.JsonSchema scriptGatewayInputSchema() {
         return new McpSchema.JsonSchema("object", Map.of(
             "script", Map.of("type", "string", "description", "Semicolon-separated read-only SQL analysis script. Each statement must be SELECT, SHOW, DESCRIBE/DESC, or EXPLAIN. Comments and writes are forbidden."),
-            "template", Map.of("type", "string", "description", "Optional registered template name for internal compatibility. Models should invoke published business capability MCP tools directly."),
+            "template", Map.of("type", "string", "description", "Registered template id returned by database_query_template_query or another authorized template discovery tool. Do not invent names."),
             "templateId", Map.of("type", "string", "description", "Alias of template for internal compatibility."),
             "parameters", Map.of(
                 "type", "object",

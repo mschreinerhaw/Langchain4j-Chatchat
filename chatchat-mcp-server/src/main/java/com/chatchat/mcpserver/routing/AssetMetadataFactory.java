@@ -37,6 +37,8 @@ public class AssetMetadataFactory {
         "dialect",
         "databaseRole",
         "service",
+        "categoryId",
+        "businessGroup",
         "labels"
     );
 
@@ -51,6 +53,7 @@ public class AssetMetadataFactory {
             host.getTitle(),
             host.getToolName(),
             host.getEnvironment(),
+            host.getCategoryId(),
             host.isEnabled(),
             labels(host.getRoutingLabelsJson(), host.getCapabilitiesJson(), host.getTags(), host.getGovernanceJson(),
                 host.getName(), host.getToolName(), host.getTitle(), host.getEnvironment()),
@@ -78,6 +81,7 @@ public class AssetMetadataFactory {
             datasource.getTitle(),
             datasource.getToolName(),
             datasource.getEnvironment(),
+            datasource.getCategoryId(),
             datasource.isEnabled(),
             labels(datasource.getRoutingLabelsJson(), datasource.getCapabilitiesJson(), null, datasource.getGovernanceJson(),
                 datasource.getName(), datasource.getToolName(), datasource.getTitle(), datasource.getEnvironment(), databaseType(datasource)),
@@ -109,6 +113,7 @@ public class AssetMetadataFactory {
             endpoint.getTitle(),
             endpoint.getToolName(),
             endpoint.getEnvironment(),
+            endpoint.getCategoryId(),
             endpoint.isEnabled(),
             labels(endpoint.getRoutingLabelsJson(), endpoint.getCapabilitiesJson(), endpoint.getTags(), endpoint.getGovernanceJson(),
                 endpoint.getName(), endpoint.getToolName(), endpoint.getTitle(), endpoint.getEnvironment(), endpoint.getCategory()),
@@ -161,6 +166,7 @@ public class AssetMetadataFactory {
                                               String title,
                                               String toolName,
                                               String environment,
+                                              String categoryId,
                                               boolean enabled,
                                               List<String> labels,
                                               Map<String, Object> capabilities,
@@ -176,13 +182,15 @@ public class AssetMetadataFactory {
             "displayName", firstText(title, name),
             "toolName", toolName,
             "environment", environment,
+            "categoryId", categoryId,
             "enabled", enabled
         ));
         metadata.put("routingHints", mapOf(
             "labels", labels,
             "executionContext", mapOf(
                 "assetName", name,
-                "env", environment
+                "env", environment,
+                "categoryId", categoryId
             ),
             "contextKeys", CONTEXT_KEYS,
             "selectionScoreHints", selectionScoreHints(environment, labels)

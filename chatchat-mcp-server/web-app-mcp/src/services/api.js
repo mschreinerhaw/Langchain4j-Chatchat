@@ -22,6 +22,12 @@ export const authApi = {
   })
 };
 
+export const businessCategoriesApi = {
+  list: () => apiFetch(`${API_BASE}/business-categories`),
+  save: category => saveEntity(`${API_BASE}/business-categories`, category),
+  remove: id => apiFetch(`${API_BASE}/business-categories/${encodeURIComponent(id)}`, { method: 'DELETE' })
+};
+
 export const apiServicesApi = {
   list: () => apiFetch(`${API_BASE}/api-services`),
   save: service => saveEntity(`${API_BASE}/api-services`, service, toApiServicePayload),
@@ -31,6 +37,7 @@ export const apiServicesApi = {
   test: (id, args) => apiFetch(`${API_BASE}/api-services/${encodeURIComponent(id)}/test`, { method: 'POST', body: JSON.stringify(args || {}) }),
   refresh: () => apiFetch(`${API_BASE}/api-services/refresh`, { method: 'POST' }),
   rebuildIndex: () => apiFetch(`${SEARCH_INDEX_URL}/api-services/rebuild`, { method: 'POST' }),
+  listCategories: () => apiFetch(`${API_BASE}/business-categories`),
   listLivedata: () => apiFetch(`${API_BASE}/livedata-apis`),
   getLivedataConfig: () => apiFetch(`${API_BASE}/livedata-apis/config`),
   saveLivedataConfig: config => apiFetch(`${API_BASE}/livedata-apis/config`, { method: 'PUT', body: JSON.stringify(config || {}) }),
@@ -38,6 +45,7 @@ export const apiServicesApi = {
     method: 'POST',
     body: JSON.stringify({ ids, overwriteExisting })
   }),
+  syncLivedataParameters: () => apiFetch(`${API_BASE}/livedata-apis/sync-parameters`, { method: 'POST' }),
   testLivedata: (id, args) => apiFetch(`${API_BASE}/livedata-apis/${encodeURIComponent(id)}/test`, {
     method: 'POST',
     body: JSON.stringify(args || {})
@@ -79,6 +87,7 @@ export const newsApi = {
 };
 
 export const assetsApi = {
+  listCategories: () => apiFetch(`${API_BASE}/business-categories`),
   listSsh: () => apiFetch(`${API_BASE}/ops/ssh-hosts`),
   saveSsh: asset => saveEntity(`${API_BASE}/ops/ssh-hosts`, asset),
   deleteSsh: id => apiFetch(`${API_BASE}/ops/ssh-hosts/${encodeURIComponent(id)}`, { method: 'DELETE' }),
@@ -86,7 +95,10 @@ export const assetsApi = {
   listHttp: () => apiFetch(`${API_BASE}/ops/http-endpoints`),
   saveHttp: asset => saveEntity(`${API_BASE}/ops/http-endpoints`, asset),
   deleteHttp: id => apiFetch(`${API_BASE}/ops/http-endpoints/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-  testHttp: asset => apiFetch(`${API_BASE}/ops/http-endpoints/test`, { method: 'POST', body: JSON.stringify(asset) }),
+  testHttp: (asset, requestArguments = {}) => apiFetch(`${API_BASE}/ops/http-endpoints/test-with-arguments`, {
+    method: 'POST',
+    body: JSON.stringify({ asset, arguments: requestArguments })
+  }),
   refreshOps: () => apiFetch(`${API_BASE}/ops/refresh-tools`, { method: 'POST' }),
   listSql: () => apiFetch(`${API_BASE}/sql/datasources`),
   saveSql: asset => saveEntity(`${API_BASE}/sql/datasources`, asset),
@@ -112,9 +124,7 @@ export const assetsApi = {
 
 export const databaseApi = {
   list: () => apiFetch(`${API_BASE}/database-query`),
-  listCategories: () => apiFetch(`${API_BASE}/database-query/categories`),
-  saveCategory: category => saveEntity(`${API_BASE}/database-query/categories`, category),
-  removeCategory: id => apiFetch(`${API_BASE}/database-query/categories/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  listCategories: () => apiFetch(`${API_BASE}/business-categories`),
   save: query => saveEntity(`${API_BASE}/database-query`, query),
   remove: id => apiFetch(`${API_BASE}/database-query/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   batchRemove: ids => apiFetch(`${API_BASE}/database-query/batch-delete`, { method: 'POST', body: JSON.stringify({ ids }) }),
@@ -220,6 +230,7 @@ function toApiServicePayload(service) {
     businessGroup: service.businessGroup,
     businessGroupName: service.businessGroupName,
     businessGroupDescription: service.businessGroupDescription,
+    categoryId: service.categoryId,
     gatewayId: service.gatewayId,
     method: null,
     urlTemplate: null,

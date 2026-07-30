@@ -3,6 +3,9 @@ package com.chatchat.mcpserver.ops;
 import com.chatchat.mcpserver.database.DatabaseQueryConfig;
 import com.chatchat.mcpserver.database.DatabaseQueryConfigService;
 import com.chatchat.mcpserver.database.DatabaseQuerySqlStep;
+import com.chatchat.mcpserver.category.BusinessCategory;
+import com.chatchat.mcpserver.category.BusinessCategoryService;
+import com.chatchat.mcpserver.database.DataQueryCategoryService;
 import com.chatchat.mcpserver.routing.TargetKindRegistry;
 import com.chatchat.mcpserver.search.LuceneMcpSearchService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
@@ -81,6 +84,7 @@ public class CommandTemplateDiscoveryService {
     private final SqlDatasourceConfigService datasourceConfigService;
     private final HttpEndpointConfigService httpEndpointConfigService;
     private final DatabaseQueryConfigService databaseQueryConfigService;
+    private final DataQueryCategoryService dataQueryCategoryService;
     private final ObjectMapper objectMapper;
     private final TemplateDiscoveryProperties properties;
     private final LuceneMcpSearchService luceneSearchService;
@@ -94,7 +98,7 @@ public class CommandTemplateDiscoveryService {
                                            ObjectMapper objectMapper,
                                            TemplateDiscoveryProperties properties) {
         this(templateService, hostConfigService, sqlTemplateService, datasourceConfigService,
-            httpEndpointConfigService, null, objectMapper, properties, null, new TargetKindRegistry());
+            httpEndpointConfigService, null, null, objectMapper, properties, null, new TargetKindRegistry());
     }
 
     public CommandTemplateDiscoveryService(CommandTemplateService templateService,
@@ -106,7 +110,7 @@ public class CommandTemplateDiscoveryService {
                                            TemplateDiscoveryProperties properties,
                                            LuceneMcpSearchService luceneSearchService) {
         this(templateService, hostConfigService, sqlTemplateService, datasourceConfigService,
-            httpEndpointConfigService, null, objectMapper, properties, luceneSearchService, new TargetKindRegistry());
+            httpEndpointConfigService, null, null, objectMapper, properties, luceneSearchService, new TargetKindRegistry());
     }
 
     public CommandTemplateDiscoveryService(CommandTemplateService templateService,
@@ -119,11 +123,10 @@ public class CommandTemplateDiscoveryService {
                                            TemplateDiscoveryProperties properties,
                                            LuceneMcpSearchService luceneSearchService) {
         this(templateService, hostConfigService, sqlTemplateService, datasourceConfigService,
-            httpEndpointConfigService, databaseQueryConfigService, objectMapper, properties,
+            httpEndpointConfigService, databaseQueryConfigService, null, objectMapper, properties,
             luceneSearchService, new TargetKindRegistry());
     }
 
-    @Autowired
     public CommandTemplateDiscoveryService(CommandTemplateService templateService,
                                            SshHostConfigService hostConfigService,
                                            SqlTemplateService sqlTemplateService,
@@ -134,12 +137,30 @@ public class CommandTemplateDiscoveryService {
                                            TemplateDiscoveryProperties properties,
                                            LuceneMcpSearchService luceneSearchService,
                                            TargetKindRegistry targetKindRegistry) {
+        this(templateService, hostConfigService, sqlTemplateService, datasourceConfigService,
+            httpEndpointConfigService, databaseQueryConfigService, null, objectMapper, properties,
+            luceneSearchService, targetKindRegistry);
+    }
+
+    @Autowired
+    public CommandTemplateDiscoveryService(CommandTemplateService templateService,
+                                           SshHostConfigService hostConfigService,
+                                           SqlTemplateService sqlTemplateService,
+                                           SqlDatasourceConfigService datasourceConfigService,
+                                           HttpEndpointConfigService httpEndpointConfigService,
+                                           DatabaseQueryConfigService databaseQueryConfigService,
+                                           DataQueryCategoryService dataQueryCategoryService,
+                                           ObjectMapper objectMapper,
+                                           TemplateDiscoveryProperties properties,
+                                           LuceneMcpSearchService luceneSearchService,
+                                           TargetKindRegistry targetKindRegistry) {
         this.templateService = templateService;
         this.hostConfigService = hostConfigService;
         this.sqlTemplateService = sqlTemplateService;
         this.datasourceConfigService = datasourceConfigService;
         this.httpEndpointConfigService = httpEndpointConfigService;
         this.databaseQueryConfigService = databaseQueryConfigService;
+        this.dataQueryCategoryService = dataQueryCategoryService;
         this.objectMapper = objectMapper;
         this.properties = properties;
         this.luceneSearchService = luceneSearchService;
@@ -350,43 +371,133 @@ public class CommandTemplateDiscoveryService {
         List<DatabaseQueryConfig> templates = databaseQueryConfigService == null
             ? List.of()
             : databaseQueryConfigService.listEnabled();
-        List<DatabaseQueryConfig> scopedDatabaseQueries = hasAssetScope(filters)
-            ? scopedDatabaseQueryTemplates(templates, filters)
-            : List.of();
-        Map<String, Object> databaseQueryRetrievalFilters = hasAssetScope(filters)
+        DataQueryCategoryService.CategoryResolution categoryResolution =
+            resolveDatabaseQueryCategory(filters, templates);
+        List<DatabaseQueryConfig> categoryTemplates = categoryResolution.category() == null
+            ? (categoryResolution.categoryRequired() ? List.of() : templates)
+            : templates.stream()
+                .filter(template -> belongsToCategory(template, categoryResolution.category()))
+                .toList();
+        boolean assetScoped = hasAssetScope(filters);
+        List<DatabaseQueryConfig> scopedDatabaseQueries = assetScoped
+            ? scopedDatabaseQueryTemplates(categoryTemplates, filters)
+            : categoryTemplates;
+        Map<String, Object> databaseQueryRetrievalFilters = assetScoped
             ? filtersWithDatabaseQueryAssetSignals(retrievalFilters, scopedDatabaseQueries)
             : retrievalFilters;
-        Map<String, Object> resultFilters = hasAssetScope(filters)
+        Map<String, Object> resultFilters = assetScoped
             ? filtersWithDatabaseQueryAssetSignals(filters, scopedDatabaseQueries)
             : filters;
+        if (categoryResolution.categoryRequired() || scopedDatabaseQueries.isEmpty()) {
+            Map<String, Object> empty = result(assetType, resultFilters, intent, List.of(), limit,
+                List.of(), false, false);
+            addDatabaseCategoryResult(empty, categoryResolution, scopedDatabaseQueries.size(), List.of());
+            return empty;
+        }
+        Map<String, Object> finalRetrievalFilters = databaseQueryRetrievalFilters;
         Map<String, LuceneMcpSearchService.SearchHit> luceneHits = luceneTemplateHits(
-            databaseQueryAssetDocs(templates),
+            databaseQueryAssetDocs(scopedDatabaseQueries),
             assetType,
             requestedDatabaseType(filters),
-            databaseQueryRetrievalFilters,
+            finalRetrievalFilters,
             intent,
             Math.max(limit, MAX_LIMIT)
         );
-        List<ScoredTemplate<DatabaseQueryConfig>> candidates = templates.stream()
+        List<ScoredTemplate<DatabaseQueryConfig>> candidates = scopedDatabaseQueries.stream()
             .filter(template -> databaseQueryDatasourceId(template) != null)
             .filter(template -> luceneHits.containsKey(databaseQueryTemplateId(template)))
             .map(template -> new ScoredTemplate<>(template,
                 marketplaceDecision(
-                    luceneAdjusted(relevance(template, databaseQueryRetrievalFilters), luceneHits.get(databaseQueryTemplateId(template))),
+                    luceneAdjusted(relevance(template, finalRetrievalFilters), luceneHits.get(databaseQueryTemplateId(template))),
                     luceneHits.get(databaseQueryTemplateId(template)),
                     intent,
-                    databaseQueryRetrievalFilters,
+                    finalRetrievalFilters,
                     template)))
             .toList();
         List<ScoredTemplate<DatabaseQueryConfig>> matched = candidates.stream()
             .sorted(scoredComparator(scored -> scored.template().getToolName()))
             .toList();
         boolean fallbackUsed = false;
-        log.info("template_query database-query search assetType={} dbType={} filters={} normalizedIntent={} registryTemplates={} candidates={} luceneHits={} returned={} fallbackUsed={} hitIds={}",
-            assetType, requestedDatabaseType(filters), compactFilters(filters), intent.type(), templates.size(), candidates.size(),
-            luceneHits.size(), Math.min(matched.size(), limit), fallbackUsed, luceneHits.keySet().stream().limit(limit).toList());
-        return result(assetType, resultFilters, intent, databaseQueryAssetMetadata(matched), limit,
+        log.info("template_query database-query search assetType={} category={} dbType={} filters={} normalizedIntent={} registryTemplates={} scopedTemplates={} candidates={} luceneHits={} returned={} fallbackUsed={} hitIds={}",
+            assetType, categoryResolution.category() == null ? null : categoryResolution.category().getCode(),
+            requestedDatabaseType(filters), compactFilters(filters), intent.type(), templates.size(),
+            scopedDatabaseQueries.size(), candidates.size(), luceneHits.size(), Math.min(matched.size(), limit),
+            fallbackUsed, luceneHits.keySet().stream().limit(limit).toList());
+        Map<String, Object> response = result(assetType, resultFilters, intent, databaseQueryAssetMetadata(matched), limit,
             databaseQueryTemplateMetadata(matched, assetType, limit), matched.size() > limit, fallbackUsed, templateSignal(luceneHits));
+        addDatabaseCategoryResult(response, categoryResolution, scopedDatabaseQueries.size(),
+            matched.stream().map(item -> databaseQueryTemplateId(item.template())).limit(limit).toList());
+        return response;
+    }
+
+    private DataQueryCategoryService.CategoryResolution resolveDatabaseQueryCategory(
+        Map<String, Object> filters,
+        List<DatabaseQueryConfig> templates
+    ) {
+        if (dataQueryCategoryService == null) {
+            return new DataQueryCategoryService.CategoryResolution(null, false, List.of());
+        }
+        return dataQueryCategoryService.resolve(new DataQueryCategoryService.MapLike() {
+            @Override
+            public String first(String... keys) {
+                return text(firstValue(filters, keys));
+            }
+
+            @Override
+            public String joinedText() {
+                List<String> signals = new ArrayList<>(intentTokens(filters));
+                signals.addAll(bilingualIntentTokens(filters));
+                return String.join(" ", signals);
+            }
+        }, templates);
+    }
+
+    private boolean belongsToCategory(DatabaseQueryConfig template, BusinessCategory category) {
+        return category.getId().equals(template.getCategoryId())
+            || category.getCode().equalsIgnoreCase(firstText(template.getCapabilityCategory(), ""))
+            || category.getCode().equalsIgnoreCase(firstText(template.getBusinessGroup(), ""));
+    }
+
+    private void addDatabaseCategoryResult(
+        Map<String, Object> result,
+        DataQueryCategoryService.CategoryResolution resolution,
+        int scopedTemplateCount,
+        List<String> hitIds
+    ) {
+        result.put("categoryRequired", resolution.categoryRequired());
+        result.put("selectedCategory", dataCategoryMetadata(resolution.category()));
+        result.put("categoryCandidates", resolution.candidates().stream()
+            .map(this::dataCategoryMetadata)
+            .toList());
+        result.put("retrievalFlow", mapOf(
+            "schemaVersion", "classified_template_execution.v1",
+            "steps", List.of("business_category_resolution", "category_scoped_template_search",
+                "sql_template_execution", "evidence_analysis"),
+            "crossCategoryResultsAllowed", false
+        ));
+        result.put("categoryDiagnostics", mapOf(
+            "categoryScoped", resolution.category() != null,
+            "categoryRequired", resolution.categoryRequired(),
+            "fallbackUsed", resolution.fallbackUsed(),
+            "fallbackCategory", resolution.fallbackUsed()
+                ? BusinessCategoryService.DEFAULT_CODE : "",
+            "scopedTemplateCount", scopedTemplateCount,
+            "hitIds", hitIds
+        ));
+    }
+
+    private Map<String, Object> dataCategoryMetadata(BusinessCategory category) {
+        if (category == null) {
+            return Map.of();
+        }
+        return mapOf(
+            "id", category.getId(),
+            "code", category.getCode(),
+            "name", category.getName(),
+            "description", firstText(category.getDescription(), ""),
+            "domain", firstText(category.getDomain(), ""),
+            "keywords", dataQueryCategoryService.keywords(category)
+        );
     }
 
     private Map<String, Object> result(String assetType,

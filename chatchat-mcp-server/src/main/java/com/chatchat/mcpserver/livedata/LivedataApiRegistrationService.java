@@ -7,9 +7,16 @@ import com.chatchat.mcpserver.api.ApiServiceConfig;
 import com.chatchat.mcpserver.api.ApiServiceConfigService;
 import com.chatchat.mcpserver.ops.HttpEndpointConfig;
 import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
+import com.chatchat.mcpserver.search.McpAssetLuceneIndexService;
+import com.chatchat.mcpserver.search.McpTemplateLuceneIndexService;
 import com.chatchat.tools.livedata.LivedataApiDefinition;
+import com.chatchat.tools.livedata.LivedataAutoRegistrationProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -29,6 +36,19 @@ public class LivedataApiRegistrationService {
     private final ApiInvokeService apiInvokeService;
     private final HttpEndpointConfigService gatewayConfigService;
     private final ApiMcpToolPublisher publisher;
+    private final McpTemplateLuceneIndexService templateIndexService;
+    private final McpAssetLuceneIndexService assetIndexService;
+
+    @Order(Ordered.HIGHEST_PRECEDENCE + 300)
+    @EventListener(ApplicationReadyEvent.class)
+    public void synchronizeParameterContractsOnStartup() {
+        try {
+            LivedataParameterSyncResult result = synchronizeRegisteredParameterContracts();
+            log.info("LiveData API parameter contracts synchronized on startup: {}", result);
+        } catch (Exception ex) {
+            log.warn("LiveData API parameter contract synchronization deferred: {}", ex.getMessage(), ex);
+        }
+    }
 
     /**
      * Lists the candidates.
@@ -97,6 +117,79 @@ public class LivedataApiRegistrationService {
             publisher.refresh();
         }
         return new LivedataRegistrationResult(ids.size(), registered, skipped, missing, errors);
+    }
+
+    /**
+     * Synchronizes ld_dataservice_api.params into already registered API
+     * services and their generated gateways. It never creates new API
+     * registrations and preserves manually maintained transport/category data.
+     */
+    public LivedataParameterSyncResult synchronizeRegisteredParameterContracts() {
+        ensureEnabled();
+        List<LivedataApiDefinition> definitions = configService.findApis();
+        LivedataAutoRegistrationProperties settings = configService.current();
+        HttpEndpointConfig sourceGateway = configuredGateway();
+        int matched = 0;
+        int updated = 0;
+        int unchanged = 0;
+        int skipped = 0;
+        List<String> errors = new ArrayList<>();
+        List<ApiServiceConfig> updatedServices = new ArrayList<>();
+
+        for (LivedataApiDefinition definition : definitions) {
+            try {
+                ApiServiceConfig mapped = mapper.toApiServiceConfig(definition, null, settings);
+                Optional<ApiServiceConfig> registered =
+                    apiServiceConfigService.findByToolName(mapped.getToolName());
+                if (registered.isEmpty()) {
+                    continue;
+                }
+                matched++;
+                ApiServiceConfig existing = registered.get();
+                if (existing.getGatewayId() == null || existing.getGatewayId().isBlank()) {
+                    skipped++;
+                    continue;
+                }
+                HttpEndpointConfig gateway = gatewayConfigService.getById(existing.getGatewayId());
+                HttpEndpointConfig mappedGateway = mapper.toGatewayConfig(definition, sourceGateway, settings);
+                if (!isLivedataGateway(gateway)
+                    || gateway.getToolName() == null
+                    || mappedGateway.getToolName() == null
+                    || !gateway.getToolName().equalsIgnoreCase(mappedGateway.getToolName())) {
+                    skipped++;
+                    continue;
+                }
+                boolean serviceChanged = !same(existing.getInputSchemaJson(), mapped.getInputSchemaJson());
+                boolean gatewayChanged = !same(gateway.getInputSchemaJson(), mappedGateway.getInputSchemaJson())
+                    || !same(gateway.getBodyTemplate(), mappedGateway.getBodyTemplate());
+                if (!serviceChanged && !gatewayChanged) {
+                    unchanged++;
+                    continue;
+                }
+                if (gatewayChanged) {
+                    gatewayConfigService.updateParameterContract(gateway.getId(),
+                        mappedGateway.getInputSchemaJson(), mappedGateway.getBodyTemplate());
+                }
+                ApiServiceConfig saved = serviceChanged
+                    ? apiServiceConfigService.updateParameterContract(existing.getId(), mapped.getInputSchemaJson())
+                    : existing;
+                updatedServices.add(saved);
+                updated++;
+            } catch (Exception ex) {
+                skipped++;
+                errors.add(displayName(definition) + ": " + exceptionMessage(ex));
+                log.warn("LiveData API parameter synchronization skipped sourceId={} apiId={} error={}",
+                    sourceId(definition), definition.apiId(), exceptionMessage(ex));
+            }
+        }
+
+        if (!updatedServices.isEmpty()) {
+            publisher.refresh();
+            templateIndexService.upsertApiServiceTemplates(updatedServices);
+            assetIndexService.refresh("api_service");
+        }
+        return new LivedataParameterSyncResult(
+            definitions.size(), matched, updated, unchanged, skipped, List.copyOf(errors));
     }
 
     public ApiInvokeResult test(String id, Map<String, Object> arguments) {
@@ -207,6 +300,7 @@ public class LivedataApiRegistrationService {
                 config.getToolName(),
                 config.getTitle(),
                 config.getDescription(),
+                config.getInputSchemaJson(),
                 config.getUrlTemplate(),
                 config.isEnabled(),
                 existing != null,
@@ -231,6 +325,7 @@ public class LivedataApiRegistrationService {
                 null,
                 firstNonBlank(definition.apiName(), definition.apiId(), definition.serviceName(), definition.id()),
                 definition.description(),
+                null,
                 null,
                 false,
                 false,
@@ -312,6 +407,7 @@ public class LivedataApiRegistrationService {
         String toolName,
         String title,
         String description,
+        String inputSchemaJson,
         String urlTemplate,
         boolean enabled,
         boolean registered,
@@ -356,11 +452,28 @@ public class LivedataApiRegistrationService {
         return ex.getClass().getSimpleName();
     }
 
+    private boolean same(String first, String second) {
+        return java.util.Objects.equals(
+            first == null ? null : first.trim(),
+            second == null ? null : second.trim()
+        );
+    }
+
     public record LivedataDeletionResult(
         String sourceId,
         String serviceId,
         String gatewayId,
         boolean gatewayDeleted
+    ) {
+    }
+
+    public record LivedataParameterSyncResult(
+        int inspected,
+        int matched,
+        int updated,
+        int unchanged,
+        int skipped,
+        List<String> errors
     ) {
     }
 }

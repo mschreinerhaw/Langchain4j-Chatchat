@@ -1,6 +1,6 @@
 <template>
   <div class="view-stack">
-    <section class="capability-category-grid capability-summary-grid" aria-label="数据能力汇总">
+    <section v-if="activeTab === 'queries'" class="capability-category-grid capability-summary-grid" aria-label="数据能力汇总">
       <button
         v-for="category in categoryCards"
         :key="category.id || 'all'"

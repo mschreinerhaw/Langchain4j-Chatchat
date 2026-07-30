@@ -27,6 +27,7 @@ export default {
       busyAction: '',
       sshCommandTemplates: [],
       sqlOpsTemplates: [],
+      businessCategories: [],
       enterpriseScenarioOptions: [],
       searchBusy: false,
       searchResult: '',
@@ -90,6 +91,7 @@ export default {
       ],
       sshDefaults: {
         enabled: false,
+        categoryId: '',
         port: 22,
         environment: 'DEV',
         authType: 'PASSWORD',
@@ -103,6 +105,7 @@ export default {
       },
       sqlDefaults: {
         enabled: false,
+        categoryId: '',
         environment: 'DEV',
         databaseType: 'generic',
         metadataScopeType: 'JDBC_DATABASE',
@@ -122,6 +125,7 @@ export default {
       httpDefaults: {
         method: 'GET',
         enabled: false,
+        categoryId: '',
         environment: 'DEV',
         category: 'business_api',
         runtimeAction: 'readonly',
@@ -155,6 +159,7 @@ export default {
       },
       sshColumns: [
         { key: 'name', label: '资产名称' },
+        { key: 'categoryId', label: '业务分类', formatter: value => this.categoryLabel(value) },
         { key: 'toolName', label: '工具名称', type: 'code' },
         { key: 'hostname', label: 'Host' },
         { key: 'environment', label: '环境' },
@@ -162,6 +167,7 @@ export default {
       ],
       sqlColumns: [
         { key: 'name', label: '资产名称' },
+        { key: 'categoryId', label: '业务分类', formatter: value => this.categoryLabel(value) },
         { key: 'toolName', label: '工具名称', type: 'code' },
         { key: 'databaseType', label: '数据库类型' },
         { key: 'environment', label: '环境' },
@@ -169,6 +175,7 @@ export default {
       ],
       httpColumns: [
         { key: 'name', label: '资产名称' },
+        { key: 'categoryId', label: '业务分类', formatter: value => this.categoryLabel(value) },
         { key: 'toolName', label: '工具名称', type: 'code' },
         { key: 'method', label: '方法' },
         { key: 'urlTemplate', label: 'URL' },
@@ -194,11 +201,17 @@ export default {
     };
   },
   computed: {
+    businessCategoryOptions() {
+      return this.businessCategories
+        .filter(category => category.enabled !== false)
+        .map(category => ({ value: category.id, label: `${category.name} / ${category.code}` }));
+    },
     sshFields() {
       return [
         { key: 'name', label: '资产名称', required: true, placeholder: '如 生产订单服务器', help: '资产名称使用业务可读名称，可用中文；工具名称才使用系统规范编码。' },
         { key: 'toolName', label: '工具名称', placeholder: '如 ssh_hive01', help: '服务器资产工具名按 ssh_ 前缀命名，例如 ssh_hive01、ssh_order_prod；只使用小写字母、数字和下划线，保存后会用于工具发布。' },
         { key: 'title', label: '显示名称', placeholder: '如 生产订单服务器 SSH', help: '展示给用户和模型看的名称，可用中文；未填写时通常按资产名称展示。' },
+        { key: 'categoryId', label: '业务分类', type: 'select', required: true, options: () => this.businessCategoryOptions, placeholder: '选择统一业务分类', help: '服务器、数据库、API 资产和模板共用同一分类主数据。' },
         { key: 'enabled', label: '状态', type: 'select', options: boolOptions() },
         { key: 'description', label: '工具描述', type: 'textarea', span: 'col-12', placeholder: '说明这台主机可用于哪些运维场景', help: '描述越清晰，模型越容易在合适场景选择该资产。' },
         { key: 'hostname', label: 'Host', required: true, placeholder: '如 10.10.1.23 或 server.example.com', help: '填写 MCP server 所在网络可访问的 IP 或域名，不要带 ssh://。' },
@@ -235,6 +248,7 @@ export default {
         { key: 'name', label: '资产名称', required: true, placeholder: '如 生产交易库', help: '资产名称使用业务可读名称，可用中文；工具名称才使用系统规范编码。' },
         { key: 'toolName', label: '工具名称', placeholder: '如 db_query_mysql_metadata_prod', help: '数据库资产工具名按 db_query_ 前缀命名，建议格式 db_query_<数据库类型>_<用途>_<环境>，例如 db_query_mysql_metadata_prod；只使用小写字母、数字和下划线。' },
         { key: 'title', label: '显示名称', placeholder: '如 生产交易数据库', help: '展示给用户和模型看的名称，可用中文；未填写时通常按资产名称展示。' },
+        { key: 'categoryId', label: '业务分类', type: 'select', required: true, options: () => this.businessCategoryOptions, placeholder: '选择统一业务分类', help: '用于资产发现、模板分类检索和执行目标约束。' },
         { key: 'enabled', label: '状态', type: 'select', options: boolOptions() },
         { key: 'description', label: '工具描述', type: 'textarea', span: 'col-12', placeholder: '说明该数据源包含哪些业务数据，以及允许查询的范围', help: '建议写清楚库用途、数据敏感性和适用查询场景。' },
         { key: 'jdbcUrl', label: 'JDBC URL', required: true, span: 'col-12', placeholder: '如 jdbc:mysql://10.10.1.20:3306/orders?useSSL=false', help: '填写完整 JDBC URL，必须能从 MCP server 连接到数据库。' },
@@ -292,6 +306,7 @@ export default {
         { key: 'name', label: '资产名称', required: true, placeholder: '如 订单中心网关接口', help: '资产名称使用业务可读名称，可用中文；工具名称才使用系统规范编码。' },
         { key: 'toolName', label: '工具名称', placeholder: '如 http_query_monitor_status', help: 'API 网关资产工具名按 http_ 前缀命名，查询类接口建议使用 http_query_<业务能力>，例如 http_query_monitor_status；只使用小写字母、数字和下划线。' },
         { key: 'title', label: '显示名称', placeholder: '如 订单中心 API 网关', help: '展示给用户和模型看的名称，可用中文；未填写时通常按资产名称展示。' },
+        { key: 'categoryId', label: '业务分类', type: 'select', required: true, options: () => this.businessCategoryOptions, placeholder: '选择统一业务分类', help: 'API 网关资产与 API 服务模板共用同一分类。' },
         { key: 'enabled', label: '状态', type: 'select', options: boolOptions() },
         { key: 'description', label: '工具描述', type: 'textarea', span: 'col-12', placeholder: '说明该 API 可查询或执行的业务能力', help: '建议写清楚接口用途、输入参数含义和返回结果范围。' },
         { key: 'method', label: '方法', type: 'select', required: true, options: methodOptions(), placeholder: '选择 HTTP 方法' },
@@ -417,11 +432,24 @@ export default {
     }
   },
   mounted() {
+    this.loadBusinessCategories();
     this.loadSshCommandTemplates();
     this.loadSqlOpsTemplates();
     this.loadEnterpriseMetadataStatus();
   },
   methods: {
+    async loadBusinessCategories() {
+      try {
+        this.businessCategories = await api.listCategories() || [];
+      } catch (error) {
+        this.$emit('error', error);
+      }
+    },
+    categoryLabel(id) {
+      if (!id) return '-';
+      const category = this.businessCategories.find(item => item.id === id);
+      return category ? category.name : id;
+    },
     async loadEnterpriseMetadataStatus() {
       try {
         const status = await api.enterpriseMetadataStatus();
@@ -444,8 +472,8 @@ export default {
         this.$emit('error', error);
       }
     },
-    testHttp(item) {
-      return api.testHttp(item);
+    testHttp(item, args) {
+      return api.testHttp(item, args);
     },
     testSql(item) {
       return api.testSql(item);

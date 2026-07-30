@@ -2,6 +2,9 @@ package com.chatchat.mcpserver.ops;
 
 import com.chatchat.mcpserver.database.DatabaseQueryConfig;
 import com.chatchat.mcpserver.database.DatabaseQueryConfigService;
+import com.chatchat.mcpserver.category.BusinessCategory;
+import com.chatchat.mcpserver.database.DataQueryCategoryService;
+import com.chatchat.mcpserver.routing.TargetKindRegistry;
 import com.chatchat.mcpserver.search.LuceneMcpSearchService;
 import com.chatchat.mcpserver.search.LuceneSearchProperties;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
@@ -17,6 +20,8 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class CommandTemplateDiscoveryDatabaseQueryTest {
@@ -131,10 +136,224 @@ class CommandTemplateDiscoveryDatabaseQueryTest {
                 "jdbc:mysql://ops-host:3306/ops", "ops_user", "com.mysql.cj.jdbc.Driver");
     }
 
+    @Test
+    void businessCategoryHardScopesDatabaseTemplateSearchBeforeSqlExecution() {
+        BusinessCategory market = category(
+            "market-category", "market_data", "\u5e02\u573a\u884c\u60c5");
+        BusinessCategory customer = category(
+            "customer-category", "customer_analysis", "\u5ba2\u6237\u5206\u6790");
+        DatabaseQueryConfig marginQuery = query(
+            "margin-query", "query_margin_trade_latest", "ds-market", market,
+            "\u6700\u65b0\u878d\u8d44\u878d\u5238\u4f59\u989d\u53ca\u53d8\u5316\u5206\u6790");
+        DatabaseQueryConfig customerQuery = query(
+            "customer-query", "query_customer_assets", "ds-customer", customer,
+            "\u5ba2\u6237\u8d44\u4ea7\u4e0e\u753b\u50cf\u5206\u6790");
+        DatabaseQueryConfigService databaseQueryService = mock(DatabaseQueryConfigService.class);
+        when(databaseQueryService.listEnabled()).thenReturn(List.of(customerQuery, marginQuery));
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        when(datasourceService.getEnabled("ds-market")).thenReturn(datasource("ds-market", "market-db"));
+        when(datasourceService.getEnabled("ds-customer")).thenReturn(datasource("ds-customer", "customer-db"));
+        DataQueryCategoryService categoryService = mock(DataQueryCategoryService.class);
+        when(categoryService.resolve(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+            .thenReturn(new DataQueryCategoryService.CategoryResolution(
+                market, false, List.of(market, customer)));
+        when(categoryService.keywords(market))
+            .thenReturn(List.of("\u878d\u8d44\u878d\u5238", "\u4f59\u989d", "margin trade"));
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        when(lucene.enabled()).thenReturn(true);
+        when(lucene.searchDatabaseQueryTemplates(org.mockito.ArgumentMatchers.anyList(),
+            org.mockito.ArgumentMatchers.any())).thenReturn(List.of(
+            new LuceneMcpSearchService.SearchHit(
+                "query_customer_assets", "database_query", 20.0f, List.of("cross-category")),
+            new LuceneMcpSearchService.SearchHit(
+                "query_margin_trade_latest", "database_query", 8.0f, List.of("market"))
+        ));
+        CommandTemplateDiscoveryService service = new CommandTemplateDiscoveryService(
+            mock(CommandTemplateService.class),
+            mock(SshHostConfigService.class),
+            mock(SqlTemplateService.class),
+            datasourceService,
+            mock(HttpEndpointConfigService.class),
+            databaseQueryService,
+            categoryService,
+            new ObjectMapper(),
+            new TemplateDiscoveryProperties(),
+            lucene,
+            new TargetKindRegistry()
+        );
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "business_database_query",
+            "confidence", 0.95,
+            "filters", Map.of(
+                "category", "\u5e02\u573a\u884c\u60c5",
+                "intent", "\u5206\u6790\u6700\u65b0\u878d\u8d44\u878d\u5238\u4f59\u989d\u53d8\u5316"),
+            "trace", trace(),
+            "limit", 10
+        ));
+
+        assertThat(result).containsEntry("categoryRequired", false).containsEntry("returnedCount", 1);
+        assertThat(result.get("selectedCategory").toString()).contains("market_data", "\u5e02\u573a\u884c\u60c5");
+        assertThat(result.get("retrievalFlow").toString())
+            .contains("business_category_resolution", "sql_template_execution", "evidence_analysis",
+                "crossCategoryResultsAllowed=false");
+        assertThat(result.get("templates").toString())
+            .contains("query_margin_trade_latest", "sql_query_execute")
+            .doesNotContain("query_customer_assets", "customer_analysis");
+    }
+
+    @Test
+    void ambiguousBusinessRequestRequiresCategoryInsteadOfReturningUnrelatedTemplates() {
+        BusinessCategory market = category(
+            "market-category", "market_data", "\u5e02\u573a\u884c\u60c5");
+        BusinessCategory customer = category(
+            "customer-category", "customer_analysis", "\u5ba2\u6237\u5206\u6790");
+        DatabaseQueryConfig marginQuery = query(
+            "margin-query", "query_margin_trade_latest", "ds-market", market,
+            "\u878d\u8d44\u878d\u5238\u6570\u636e");
+        DatabaseQueryConfig customerQuery = query(
+            "customer-query", "query_customer_assets", "ds-customer", customer,
+            "\u5ba2\u6237\u8d44\u4ea7\u6570\u636e");
+        DatabaseQueryConfigService databaseQueryService = mock(DatabaseQueryConfigService.class);
+        when(databaseQueryService.listEnabled()).thenReturn(List.of(marginQuery, customerQuery));
+        DataQueryCategoryService categoryService = mock(DataQueryCategoryService.class);
+        when(categoryService.resolve(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+            .thenReturn(new DataQueryCategoryService.CategoryResolution(
+                null, true, List.of(market, customer)));
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        when(lucene.enabled()).thenReturn(true);
+        CommandTemplateDiscoveryService service = new CommandTemplateDiscoveryService(
+            mock(CommandTemplateService.class),
+            mock(SshHostConfigService.class),
+            mock(SqlTemplateService.class),
+            mock(SqlDatasourceConfigService.class),
+            mock(HttpEndpointConfigService.class),
+            databaseQueryService,
+            categoryService,
+            new ObjectMapper(),
+            new TemplateDiscoveryProperties(),
+            lucene,
+            new TargetKindRegistry()
+        );
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "business_database_query",
+            "confidence", 0.95,
+            "filters", Map.of("intent", "\u5e2e\u6211\u5206\u6790\u6700\u65b0\u6570\u636e"),
+            "trace", trace()
+        ));
+
+        assertThat(result).containsEntry("categoryRequired", true).containsEntry("returnedCount", 0);
+        assertThat(result.get("categoryCandidates").toString()).contains("market_data", "customer_analysis");
+        assertThat((List<?>) result.get("templates")).isEmpty();
+        verify(lucene, never()).searchDatabaseQueryTemplates(
+            org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void missingBusinessCategoryFallsBackToDefaultBeforeDatabaseTemplateSearch() {
+        BusinessCategory fallback = category("default-category", "default", "默认分类");
+        BusinessCategory market = category("market-category", "market_data", "市场行情");
+        DatabaseQueryConfig fallbackQuery = query(
+            "default-query", "query_generic_business_data", "ds-default", fallback, "通用业务数据查询");
+        DatabaseQueryConfig marketQuery = query(
+            "market-query", "query_margin_trade_latest", "ds-market", market, "融资融券数据");
+        DatabaseQueryConfigService databaseQueryService = mock(DatabaseQueryConfigService.class);
+        when(databaseQueryService.listEnabled()).thenReturn(List.of(fallbackQuery, marketQuery));
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        when(datasourceService.getEnabled("ds-default")).thenReturn(datasource("ds-default", "default-db"));
+        DataQueryCategoryService categoryService = mock(DataQueryCategoryService.class);
+        when(categoryService.resolve(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+            .thenReturn(new DataQueryCategoryService.CategoryResolution(
+                fallback, false, List.of(market, fallback), true));
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        when(lucene.enabled()).thenReturn(true);
+        when(lucene.searchDatabaseQueryTemplates(org.mockito.ArgumentMatchers.anyList(),
+            org.mockito.ArgumentMatchers.any())).thenReturn(List.of(
+            new LuceneMcpSearchService.SearchHit(
+                "query_margin_trade_latest", "database_query", 20.0f, List.of("cross-category")),
+            new LuceneMcpSearchService.SearchHit(
+                "query_generic_business_data", "database_query", 8.0f, List.of("default"))
+        ));
+        CommandTemplateDiscoveryService service = new CommandTemplateDiscoveryService(
+            mock(CommandTemplateService.class),
+            mock(SshHostConfigService.class),
+            mock(SqlTemplateService.class),
+            datasourceService,
+            mock(HttpEndpointConfigService.class),
+            databaseQueryService,
+            categoryService,
+            new ObjectMapper(),
+            new TemplateDiscoveryProperties(),
+            lucene,
+            new TargetKindRegistry()
+        );
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "business_database_query",
+            "confidence", 0.95,
+            "filters", Map.of("category", "missing-category", "intent", "查询业务数据"),
+            "trace", trace()
+        ));
+
+        assertThat(result).containsEntry("categoryRequired", false).containsEntry("returnedCount", 1);
+        assertThat(result.get("selectedCategory").toString()).contains("default");
+        assertThat(result.get("categoryDiagnostics").toString())
+            .contains("fallbackUsed=true", "fallbackCategory=default");
+        assertThat(result.get("templates").toString())
+            .contains("query_generic_business_data", "sql_query_execute")
+            .doesNotContain("query_margin_trade_latest", "market_data");
+    }
+
     private LuceneMcpSearchService lucene() {
         LuceneSearchProperties properties = new LuceneSearchProperties();
         properties.setIndexDir(tempDir.toString());
         return new LuceneMcpSearchService(properties);
+    }
+
+    private BusinessCategory category(String id, String code, String name) {
+        BusinessCategory category = new BusinessCategory();
+        category.setId(id);
+        category.setCode(code);
+        category.setName(name);
+        category.setDescription(name);
+        category.setDomain("finance");
+        category.setKeywordsJson("[]");
+        category.setEnabled(true);
+        return category;
+    }
+
+    private DatabaseQueryConfig query(String id, String toolName, String datasourceId,
+                                      BusinessCategory category, String description) {
+        DatabaseQueryConfig query = new DatabaseQueryConfig();
+        query.setId(id);
+        query.setToolName(toolName);
+        query.setTitle(description);
+        query.setDescription(description);
+        query.setDatasourceId(datasourceId);
+        query.setCategoryId(category.getId());
+        query.setCapabilityCategory(category.getCode());
+        query.setBusinessGroup(category.getCode());
+        query.setBusinessGroupName(category.getName());
+        query.setDatabaseType("mysql");
+        query.setSqlTemplate("select 1");
+        query.setInputSchemaJson("{\"type\":\"object\",\"properties\":{}}");
+        query.setTemplateIntent(category.getCode());
+        query.setRiskLevel("read_only");
+        query.setEnabled(true);
+        return query;
+    }
+
+    private SqlDatasourceConfig datasource(String id, String name) {
+        SqlDatasourceConfig datasource = new SqlDatasourceConfig();
+        datasource.setId(id);
+        datasource.setName(name);
+        datasource.setTitle(name);
+        datasource.setToolName("db_" + name);
+        datasource.setEnvironment("TEST");
+        datasource.setDatabaseType("mysql");
+        datasource.setEnabled(true);
+        return datasource;
     }
 
     private Map<String, Object> trace() {

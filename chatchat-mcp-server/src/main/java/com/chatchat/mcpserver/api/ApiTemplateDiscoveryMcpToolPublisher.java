@@ -59,7 +59,8 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             .name(TOOL_NAME)
             .title("API template discovery")
             .description("Read-only MCP tool for retrieving API service templates. "
-                + "Resolve one API business category first, then retrieve and rank templates only inside that category. "
+                + "Search all authorized API templates using the original business request. "
+                + "Business categories are ranking signals and model-selection metadata, never hard candidate filters. "
                 + "Use it to discover authorized API business capabilities by categoryId, businessGroup, title, description, intent, or bilingual Chinese and English retrieval terms. "
                 + "It returns API template metadata and parameter schema, but never returns raw URL templates, headers, or body templates.")
             .inputSchema(inputSchema())
@@ -93,27 +94,17 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
         List<ApiServiceConfig> enabledConfigs = configService.listEnabled();
         ApiServiceCategoryService.CategoryResolution categoryResolution = categoryService.resolve(
             categoryFilters(filters), enabledConfigs);
-        List<ApiServiceConfig> categoryConfigs = categoryResolution.category() == null
-            ? (categoryResolution.categoryRequired() ? List.of() : enabledConfigs)
-            : enabledConfigs.stream().filter(config -> belongsTo(config, categoryResolution.category())).toList();
         List<ApiServiceConfig> scopedConfigs = hasAssetScope(filters)
-            ? scopedApiServices(categoryConfigs, filters)
-            : categoryConfigs;
-        List<String> assetSignals = apiServiceSignals(scopedConfigs);
-        if (categoryResolution.category() != null) {
-            assetSignals = new ArrayList<>(assetSignals);
-            addTerm(assetSignals, categoryResolution.category().getCode());
-            addTerm(assetSignals, categoryResolution.category().getName());
-            addTerm(assetSignals, categoryResolution.category().getDescription());
-            addTerm(assetSignals, categoryService.keywords(categoryResolution.category()));
-            assetSignals = assetSignals.stream().distinct().toList();
-        }
+            ? scopedApiServices(enabledConfigs, filters)
+            : enabledConfigs;
+        List<String> assetSignals = hasAssetScope(filters)
+            ? apiServiceSignals(scopedConfigs)
+            : List.of();
         Map<String, Object> retrievalFilters = assetSignals.isEmpty()
             ? filters
             : filtersWithApiAssetSignals(filters, assetSignals);
         List<String> terms = terms(retrievalFilters);
-        List<LuceneMcpSearchService.SearchHit> hits = categoryResolution.categoryRequired()
-            || luceneSearchService == null || !luceneSearchService.enabled()
+        List<LuceneMcpSearchService.SearchHit> hits = luceneSearchService == null || !luceneSearchService.enabled()
             ? List.of()
             : luceneSearchService.searchApiServiceTemplates(new LuceneMcpSearchService.TemplateSearchRequest(
                 "api_service",
@@ -130,9 +121,11 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
                 LinkedHashMap::new
             ));
         List<ScoredApiTemplate> matched = hits.stream()
-            .map(hit -> apiTemplateHit(configsByToolName, hit))
+            .map(hit -> apiTemplateHit(configsByToolName, hit, categoryResolution.category()))
             .filter(item -> item != null)
             .filter(item -> !excludedTemplateIds.contains(item.config().getToolName()))
+            .sorted(java.util.Comparator.comparingDouble(ScoredApiTemplate::score).reversed()
+                .thenComparing(item -> item.config().getToolName()))
             .toList();
         List<Map<String, Object>> templates = matched.stream()
             .limit(limit)
@@ -148,7 +141,7 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             "filters", filters,
             "limit", limit,
             "returnedCount", templates.size(),
-            "categoryRequired", categoryResolution.categoryRequired(),
+            "categoryRequired", false,
             "selectedCategory", categoryMetadata(categoryResolution.category()),
             "categoryCandidates", categoryResolution.candidates().stream().map(this::categoryMetadata).toList(),
             "possiblyTruncated", matched.size() > limit,
@@ -166,9 +159,7 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
                 "doNotInventTemplateNames", true,
                 "rawExecutionSpecReturned", false,
                 "selectionFields", List.of("templateId", "toolName", "title", "description", "businessGroup", "capabilitySpec", "outputSchema", "dependencySpec", "parameterSchema", "requiredParameters", "parameterContract", "invocationExample"),
-                "onEmptyResult", categoryResolution.categoryRequired()
-                    ? "Select exactly one returned business category, then retry within that category."
-                    : "No existing API template matched the request. Do not invent an API tool name."
+                "onEmptyResult", "No existing API template matched the request. Do not invent an API tool name."
             ),
             "queryIr", mapOf(
                 "schemaVersion", "api_template_query_ir.v1",
@@ -181,9 +172,11 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
                 "source", "lucene_api_service_template_index",
                 "hitCount", matched.size(),
                 "hitIds", matched.stream().map(item -> item.config().getToolName()).limit(limit).toList(),
-                "categoryScoped", categoryResolution.category() != null,
-                "categoryRequired", categoryResolution.categoryRequired(),
-                "assetScoped", categoryResolution.category() != null || hasAssetScope(filters),
+                "categoryScoped", false,
+                "categoryRequired", false,
+                "categoryAmbiguous", categoryResolution.categoryRequired(),
+                "categoryUsage", "ranking_signal_and_model_selection_metadata",
+                "assetScoped", hasAssetScope(filters),
                 "scopedAssetCount", scopedConfigs.size(),
                 "retrievalSignals", assetSignals,
                 "fallbackUsed", categoryResolution.fallbackUsed(),
@@ -192,9 +185,9 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             ),
             "retrievalFlow", mapOf(
                 "schemaVersion", "classified_template_execution.v1",
-                "steps", List.of("business_category_resolution", "category_scoped_template_search",
+                "steps", List.of("business_category_resolution", "global_template_search_with_category_ranking",
                     "api_template_execution", "evidence_analysis"),
-                "crossCategoryResultsAllowed", false
+                "crossCategoryResultsAllowed", true
             ),
             "templates", templates
         );
@@ -269,16 +262,16 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
                 "forcedTargetKind", "api_service",
                 "forcedAssetType", "api_service",
                 "filtersSchemaVersion", TargetKindRegistry.FILTERS_SCHEMA_VERSION,
-                "categoryFirst", true,
-                "crossCategoryResultsAllowed", false,
-                "categoryRetryFields", List.of("filters.categoryId", "filters.businessGroup")
+                "categoryFirst", false,
+                "categoryUsage", "ranking_signal_and_model_selection_metadata",
+                "crossCategoryResultsAllowed", true
             ),
             "executionFlow", mapOf(
                 "schemaVersion", "classified_template_execution.v1",
-                "steps", List.of("business_category_resolution", "category_scoped_template_search",
+                "steps", List.of("business_category_resolution", "global_template_search_with_category_ranking",
                     "api_template_execution", "evidence_analysis"),
                 "executionTool", ApiMcpToolPublisher.EXECUTE_TOOL_NAME,
-                "crossCategoryResultsAllowed", false
+                "crossCategoryResultsAllowed", true
             ),
             "indexPolicy", mapOf(
                 "logicalIndex", "template:api_service",
@@ -377,7 +370,8 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
     }
 
     private ScoredApiTemplate apiTemplateHit(Map<String, ApiServiceConfig> configsByToolName,
-                                             LuceneMcpSearchService.SearchHit hit) {
+                                             LuceneMcpSearchService.SearchHit hit,
+                                             BusinessCategory preferredCategory) {
         if (hit == null) {
             return null;
         }
@@ -385,7 +379,11 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
         if (config == null) {
             config = configsByToolName.get(text(hit.documentId()));
         }
-        return config == null ? null : new ScoredApiTemplate(config, hit.score());
+        if (config == null) {
+            return null;
+        }
+        double categoryBoost = preferredCategory != null && belongsTo(config, preferredCategory) ? 1.0 : 0.0;
+        return new ScoredApiTemplate(config, hit.score() + categoryBoost);
     }
 
     private Map<String, Object> filtersWithApiAssetSignals(Map<String, Object> filters, List<String> signals) {
@@ -427,8 +425,7 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
     }
 
     private boolean hasAssetScope(Map<String, Object> filters) {
-        return firstValue(filters, "toolName", "name", "businessGroup", "business_group", "group", "groupName",
-            "group_name", "groupDescription", "group_description", "service", "target", "labels", "category") != null;
+        return firstValue(filters, "toolName", "templateId", "template_id") != null;
     }
 
     private boolean matchesApiServiceScope(ApiServiceConfig config, Map<String, Object> filters) {

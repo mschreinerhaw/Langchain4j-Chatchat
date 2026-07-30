@@ -484,10 +484,10 @@ public class TemplateDiscoveryMcpToolPublisher {
             "executionFlow", "database_query".equals(assetType)
                 ? mapOf(
                     "schemaVersion", "classified_template_execution.v1",
-                    "steps", List.of("business_category_resolution", "category_scoped_template_search",
+                    "steps", List.of("business_category_resolution", "global_template_search_with_category_ranking",
                         "sql_template_execution", "evidence_analysis"),
                     "executionToolSource", "templates[].execution.executorTool",
-                    "crossCategoryResultsAllowed", false
+                    "crossCategoryResultsAllowed", true
                 )
                 : Map.of(),
             "rawExecutionSpecReturned", false
@@ -502,10 +502,9 @@ public class TemplateDiscoveryMcpToolPublisher {
             "allowedFilterFields", List.copyOf(targetKindRegistry.allowedFilterFieldsForTargetKind(targetKind))
         ));
         if ("database_query".equals(assetType)) {
-            protocol.put("categoryFirst", true);
-            protocol.put("crossCategoryResultsAllowed", false);
-            protocol.put("categoryRetryFields", List.of(
-                "filters.categoryId", "filters.capabilityCategory", "filters.businessGroup"));
+            protocol.put("categoryFirst", false);
+            protocol.put("categoryUsage", "ranking_signal_and_model_selection_metadata");
+            protocol.put("crossCategoryResultsAllowed", true);
         }
         return protocol;
     }

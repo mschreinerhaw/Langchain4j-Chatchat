@@ -88,8 +88,10 @@ class TemplateDiscoveryMcpToolPublisherTest {
             .isEqualTo(List.of("database_query", "template_discovery"));
         assertThat(boundary.get("rejectCrossTypeRouting")).isEqualTo(true);
         assertThat(routingProtocol.get("forcedTargetKind")).isEqualTo("business_database_query");
-        assertThat(routingProtocol.get("categoryFirst")).isEqualTo(true);
-        assertThat(routingProtocol.get("crossCategoryResultsAllowed")).isEqualTo(false);
+        assertThat(routingProtocol.get("categoryFirst")).isEqualTo(false);
+        assertThat(routingProtocol.get("categoryUsage"))
+            .isEqualTo("ranking_signal_and_model_selection_metadata");
+        assertThat(routingProtocol.get("crossCategoryResultsAllowed")).isEqualTo(true);
         assertThat(meta.get("executionFlow").toString())
             .contains("business_category_resolution", "sql_template_execution", "evidence_analysis");
     }

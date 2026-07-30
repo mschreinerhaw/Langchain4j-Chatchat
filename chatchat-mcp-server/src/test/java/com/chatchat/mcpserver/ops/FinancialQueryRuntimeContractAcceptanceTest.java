@@ -120,7 +120,7 @@ class FinancialQueryRuntimeContractAcceptanceTest {
         assertThat(discoveryResult.get().get("selectedCategory").toString())
             .contains("market_data", "\u5e02\u573a\u884c\u60c5");
         assertThat(discoveryResult.get().get("retrievalFlow").toString())
-            .contains("business_category_resolution", "category_scoped_template_search",
+            .contains("business_category_resolution", "global_template_search_with_category_ranking",
                 "sql_template_execution", "evidence_analysis");
         List<?> templates = (List<?>) discoveryResult.get().get("templates");
         Map<?, ?> selected = (Map<?, ?>) templates.get(0);

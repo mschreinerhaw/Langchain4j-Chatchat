@@ -22,7 +22,6 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -139,7 +138,7 @@ class CommandTemplateDiscoveryDatabaseQueryTest {
     }
 
     @Test
-    void businessCategoryHardScopesDatabaseTemplateSearchBeforeSqlExecution() {
+    void businessCategoryRanksDatabaseTemplatesWithoutSuppressingCrossCategoryCandidates() {
         BusinessCategory market = category(
             "market-category", "market_data", "\u5e02\u573a\u884c\u60c5");
         market.setKeywordsJson("[\"融资融券\",\"margin trading\",\"securities lending\",\"信用交易\"]");
@@ -210,18 +209,18 @@ class CommandTemplateDiscoveryDatabaseQueryTest {
             "limit", 10
         ));
 
-        assertThat(result).containsEntry("categoryRequired", false).containsEntry("returnedCount", 1);
+        assertThat(result).containsEntry("categoryRequired", false).containsEntry("returnedCount", 2);
         assertThat(result.get("selectedCategory").toString()).contains("market_data", "\u5e02\u573a\u884c\u60c5");
         assertThat(result.get("retrievalFlow").toString())
-            .contains("business_category_resolution", "sql_template_execution", "evidence_analysis",
-                "crossCategoryResultsAllowed=false");
+            .contains("business_category_resolution", "global_template_search_with_category_ranking",
+                "sql_template_execution", "evidence_analysis", "crossCategoryResultsAllowed=true");
         assertThat(result.get("templates").toString())
-            .contains("query_margin_trade_latest", "sql_query_execute")
-            .doesNotContain("query_customer_assets", "customer_analysis");
+            .contains("query_margin_trade_latest", "query_customer_assets", "sql_query_execute",
+                "market_data", "customer_analysis");
     }
 
     @Test
-    void ambiguousBusinessRequestRequiresCategoryInsteadOfReturningUnrelatedTemplates() {
+    void ambiguousBusinessCategoryDoesNotBlockTemplateSearch() {
         BusinessCategory market = category(
             "market-category", "market_data", "\u5e02\u573a\u884c\u60c5");
         BusinessCategory customer = category(
@@ -261,15 +260,17 @@ class CommandTemplateDiscoveryDatabaseQueryTest {
             "trace", trace()
         ));
 
-        assertThat(result).containsEntry("categoryRequired", true).containsEntry("returnedCount", 0);
+        assertThat(result).containsEntry("categoryRequired", false).containsEntry("returnedCount", 0);
         assertThat(result.get("categoryCandidates").toString()).contains("market_data", "customer_analysis");
         assertThat((List<?>) result.get("templates")).isEmpty();
-        verify(lucene, never()).searchDatabaseQueryTemplates(
+        assertThat(result.get("categoryDiagnostics").toString())
+            .contains("categoryAmbiguous=true", "categoryUsage=ranking_signal_and_model_selection_metadata");
+        verify(lucene).searchDatabaseQueryTemplates(
             org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.any());
     }
 
     @Test
-    void missingBusinessCategoryFallsBackToDefaultBeforeDatabaseTemplateSearch() {
+    void missingBusinessCategoryUsesDefaultAsSignalWithoutSuppressingOtherHits() {
         BusinessCategory fallback = category("default-category", "default", "默认分类");
         BusinessCategory market = category("market-category", "market_data", "市场行情");
         DatabaseQueryConfig fallbackQuery = query(
@@ -280,6 +281,7 @@ class CommandTemplateDiscoveryDatabaseQueryTest {
         when(databaseQueryService.listEnabled()).thenReturn(List.of(fallbackQuery, marketQuery));
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
         when(datasourceService.getEnabled("ds-default")).thenReturn(datasource("ds-default", "default-db"));
+        when(datasourceService.getEnabled("ds-market")).thenReturn(datasource("ds-market", "market-db"));
         DataQueryCategoryService categoryService = mock(DataQueryCategoryService.class);
         when(categoryService.resolve(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
             .thenReturn(new DataQueryCategoryService.CategoryResolution(
@@ -314,13 +316,61 @@ class CommandTemplateDiscoveryDatabaseQueryTest {
             "trace", trace()
         ));
 
-        assertThat(result).containsEntry("categoryRequired", false).containsEntry("returnedCount", 1);
+        assertThat(result).containsEntry("categoryRequired", false).containsEntry("returnedCount", 2);
         assertThat(result.get("selectedCategory").toString()).contains("default");
         assertThat(result.get("categoryDiagnostics").toString())
             .contains("fallbackUsed=true", "fallbackCategory=default");
         assertThat(result.get("templates").toString())
-            .contains("query_generic_business_data", "sql_query_execute")
-            .doesNotContain("query_margin_trade_latest", "market_data");
+            .contains("query_generic_business_data", "query_margin_trade_latest", "sql_query_execute", "market_data");
+    }
+
+    @Test
+    void originalBusinessQuestionRecallsMaintainedTemplateOutsideSuggestedCategory() {
+        BusinessCategory market = category("market-category", "market_data", "市场行情");
+        BusinessCategory fallback = category("default-category", "default", "默认分类");
+        DatabaseQueryConfig genericMarketQuery = query(
+            "market-query", "query_market_overview", "ds-market", market, "股票指数市场行情概览");
+        DatabaseQueryConfig maintainedMarginQuery = query(
+            "maintained-margin-query", "query_latest_margin_observation", "ds-user", fallback,
+            "最新融资融券数据观察，返回融资余额、融资买入额和融券余量");
+
+        DatabaseQueryConfigService databaseQueryService = mock(DatabaseQueryConfigService.class);
+        when(databaseQueryService.listEnabled()).thenReturn(List.of(genericMarketQuery, maintainedMarginQuery));
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        when(datasourceService.getEnabled("ds-market")).thenReturn(datasource("ds-market", "market-db"));
+        when(datasourceService.getEnabled("ds-user")).thenReturn(datasource("ds-user", "user-maintained-db"));
+        DataQueryCategoryService categoryService = mock(DataQueryCategoryService.class);
+        when(categoryService.resolve(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+            .thenReturn(new DataQueryCategoryService.CategoryResolution(
+                market, false, List.of(market, fallback)));
+        CommandTemplateDiscoveryService service = new CommandTemplateDiscoveryService(
+            mock(CommandTemplateService.class),
+            mock(SshHostConfigService.class),
+            mock(SqlTemplateService.class),
+            datasourceService,
+            mock(HttpEndpointConfigService.class),
+            databaseQueryService,
+            categoryService,
+            new ObjectMapper(),
+            new TemplateDiscoveryProperties(),
+            lucene(),
+            new TargetKindRegistry()
+        );
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "business_database_query",
+            "confidence", 0.95,
+            "filters", Map.of("intent", "获取最新融资融券数据并进行分析"),
+            "trace", trace(),
+            "limit", 10
+        ));
+
+        assertThat(result).containsEntry("categoryRequired", false);
+        assertThat(result.get("selectedCategory").toString()).contains("market_data");
+        assertThat(result.get("templates").toString())
+            .contains("query_latest_margin_observation", "default");
+        assertThat(result.get("categoryDiagnostics").toString())
+            .contains("ranking_signal_and_model_selection_metadata");
     }
 
     private LuceneMcpSearchService lucene() {

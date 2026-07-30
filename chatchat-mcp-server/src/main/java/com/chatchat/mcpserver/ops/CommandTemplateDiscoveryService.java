@@ -375,22 +375,17 @@ public class CommandTemplateDiscoveryService {
             : databaseQueryConfigService.listEnabled();
         DataQueryCategoryService.CategoryResolution categoryResolution =
             resolveDatabaseQueryCategory(filters, templates);
-        List<DatabaseQueryConfig> categoryTemplates = categoryResolution.category() == null
-            ? (categoryResolution.categoryRequired() ? List.of() : templates)
-            : templates.stream()
-                .filter(template -> belongsToCategory(template, categoryResolution.category()))
-                .toList();
         boolean assetScoped = hasAssetScope(filters);
         List<DatabaseQueryConfig> scopedDatabaseQueries = assetScoped
-            ? scopedDatabaseQueryTemplates(categoryTemplates, filters)
-            : categoryTemplates;
+            ? scopedDatabaseQueryTemplates(templates, filters)
+            : templates;
         Map<String, Object> databaseQueryRetrievalFilters = assetScoped
             ? filtersWithDatabaseQueryAssetSignals(retrievalFilters, scopedDatabaseQueries)
             : retrievalFilters;
         Map<String, Object> resultFilters = assetScoped
             ? filtersWithDatabaseQueryAssetSignals(filters, scopedDatabaseQueries)
             : filters;
-        if (categoryResolution.categoryRequired() || scopedDatabaseQueries.isEmpty()) {
+        if (scopedDatabaseQueries.isEmpty()) {
             Map<String, Object> empty = result(assetType, resultFilters, intent, List.of(), limit,
                 List.of(), false, false);
             addDatabaseCategoryResult(empty, categoryResolution, scopedDatabaseQueries.size(), List.of());
@@ -414,7 +409,8 @@ public class CommandTemplateDiscoveryService {
                     luceneHits.get(databaseQueryTemplateId(template)),
                     intent,
                     finalRetrievalFilters,
-                    template)))
+                    template,
+                    categoryResolution.category())))
             .toList();
         List<ScoredTemplate<DatabaseQueryConfig>> matched = candidates.stream()
             .sorted(scoredComparator(scored -> scored.template().getToolName()))
@@ -455,6 +451,9 @@ public class CommandTemplateDiscoveryService {
     }
 
     private boolean belongsToCategory(DatabaseQueryConfig template, BusinessCategory category) {
+        if (template == null || category == null) {
+            return false;
+        }
         return category.getId().equals(template.getCategoryId())
             || category.getCode().equalsIgnoreCase(firstText(template.getCapabilityCategory(), ""))
             || category.getCode().equalsIgnoreCase(firstText(template.getBusinessGroup(), ""));
@@ -466,20 +465,22 @@ public class CommandTemplateDiscoveryService {
         int scopedTemplateCount,
         List<String> hitIds
     ) {
-        result.put("categoryRequired", resolution.categoryRequired());
+        result.put("categoryRequired", false);
         result.put("selectedCategory", dataCategoryMetadata(resolution.category()));
         result.put("categoryCandidates", resolution.candidates().stream()
             .map(this::dataCategoryMetadata)
             .toList());
         result.put("retrievalFlow", mapOf(
             "schemaVersion", "classified_template_execution.v1",
-            "steps", List.of("business_category_resolution", "category_scoped_template_search",
+            "steps", List.of("business_category_resolution", "global_template_search_with_category_ranking",
                 "sql_template_execution", "evidence_analysis"),
-            "crossCategoryResultsAllowed", false
+            "crossCategoryResultsAllowed", true
         ));
         result.put("categoryDiagnostics", mapOf(
-            "categoryScoped", resolution.category() != null,
-            "categoryRequired", resolution.categoryRequired(),
+            "categoryScoped", false,
+            "categoryRequired", false,
+            "categoryAmbiguous", resolution.categoryRequired(),
+            "categoryUsage", "ranking_signal_and_model_selection_metadata",
             "fallbackUsed", resolution.fallbackUsed(),
             "fallbackCategory", resolution.fallbackUsed()
                 ? BusinessCategoryService.DEFAULT_CODE : "",
@@ -1802,15 +1803,20 @@ public class CommandTemplateDiscoveryService {
                                           LuceneMcpSearchService.SearchHit hit,
                                           NormalizedIntent intent,
                                           Map<String, Object> filters,
-                                          DatabaseQueryConfig config) {
+                                          DatabaseQueryConfig config,
+                                          BusinessCategory preferredCategory) {
         double intentMatch = intentMatchScore(relevance, intent);
+        double categoryMatch = preferredCategory == null
+            ? 0.5
+            : (belongsToCategory(config, preferredCategory) ? 1.0 : 0.0);
         double dbTypeMatch = databaseTypeMatch(config.getDatabaseType(), requestedDatabaseType(filters));
         double luceneScore = hit == null ? lexicalScore(relevance) : Math.min(1.0, Math.max(0.0, hit.score() / 10.0));
         double riskScore = databaseQueryRiskScore(config.getRiskLevel());
         double usageScore = databaseQueryUsageScore(config);
         List<TemplateScoringFeature> scoringFeatures = List.of(
-            scoringFeature("intentMatch", intentMatch, 0.40, "normalized intent-token match against business SQL template signals"),
-            scoringFeature("dbTypeMatch", dbTypeMatch, 0.25, "requested database type compatibility"),
+            scoringFeature("intentMatch", intentMatch, 0.35, "normalized intent-token match against business SQL template signals"),
+            scoringFeature("categoryMatch", categoryMatch, 0.15, "business category is a ranking signal, never a candidate exclusion rule"),
+            scoringFeature("dbTypeMatch", dbTypeMatch, 0.15, "requested database type compatibility"),
             scoringFeature("luceneScore", luceneScore, 0.20, "Lucene BM25 retrieval score normalized to ranking feature"),
             scoringFeature("riskScore", riskScore, 0.10, "governance risk preference"),
             scoringFeature("usageScore", usageScore, 0.05, "historical usage/success placeholder")
@@ -1820,6 +1826,7 @@ public class CommandTemplateDiscoveryService {
         List<String> reasons = new ArrayList<>(relevance.reasons());
         reasons.add("marketplace decision score=" + round(finalScore)
             + " from intent=" + round(intentMatch)
+            + ", category=" + round(categoryMatch)
             + ", dbType=" + round(dbTypeMatch)
             + ", lucene=" + round(luceneScore)
             + ", risk=" + round(riskScore)
@@ -1831,7 +1838,7 @@ public class CommandTemplateDiscoveryService {
         return mapOf(
             "engine", "mcp_template_ranking_v2_no_vector",
             "formula", relevance.features().containsKey("dbTypeMatch")
-                ? "SQL Template Marketplace: final score = 0.40*intentMatch + 0.25*dbTypeMatch + 0.20*luceneScore + 0.10*riskScore + 0.05*usageScore"
+                ? "SQL Template Marketplace: final score = 0.35*intentMatch + 0.15*categoryMatch + 0.15*dbTypeMatch + 0.20*luceneScore + 0.10*riskScore + 0.05*usageScore"
                 : "Lucene BM25 recall contributes to lexicalScore; final score = 0.40*intentMatch + 0.30*lexicalScore + 0.20*typeMatch + 0.05*popularity + 0.05*safetyScore",
             "score", relevance.finalScore(),
             "features", relevance.features()
@@ -2446,14 +2453,14 @@ public class CommandTemplateDiscoveryService {
 
     private boolean hasAssetScope(Map<String, Object> filters) {
         return firstValue(filters, "assetName", "asset_name", "name", "env", "environment", "cluster", "service", "target",
-            "database", "databaseType", "dbType", "dialect", "databaseRole", "database_role", "businessGroup",
-            "business_group", "group", "groupName", "group_name", "template", "templateId", "template_id", "labels") != null;
+            "database", "databaseType", "dbType", "dialect", "databaseRole", "database_role",
+            "template", "templateId", "template_id", "labels") != null;
     }
 
     private List<String> contextTokens(Map<String, Object> filters) {
         List<String> tokens = new ArrayList<>();
         for (String key : List.of("cluster", "service", "target", "targetType", "target_type", "database", "databaseRole",
-            "database_role", "businessGroup", "business_group", "group", "groupName", "group_name", "labels")) {
+            "database_role", "labels")) {
             Object value = filters.get(key);
             if (value instanceof List<?> list) {
                 list.forEach(item -> addToken(tokens, item));

@@ -17,7 +17,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -132,7 +131,7 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
 
         assertThat(result.get("returnedCount")).isEqualTo(1);
         assertThat(result.toString()).contains("order_status_api", "order_services", "fulfillment lifecycle APIs");
-        assertThat(result.toString()).doesNotContain("invoice_status_api", "billing_services");
+        assertThat(result.get("templates").toString()).doesNotContain("invoice_status_api");
         Map<?, ?> first = (Map<?, ?>) ((List<?>) result.get("templates")).get(0);
         assertThat(first.get("templateId")).isEqualTo("order_status_api");
     }
@@ -215,7 +214,7 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
     }
 
     @Test
-    void queryMapsLuceneHitsOnlyInsideResolvedBusinessCategory() {
+    void queryReturnsCrossCategoryHitsAndUsesResolvedCategoryAsRankingSignal() {
         BusinessCategory orderCategory = category("category-order", "order_services", "订单服务");
         ApiServiceConfig orderApi = api("api-order", "order_status_api", orderCategory);
         BusinessCategory billingCategory = category("category-billing", "billing_services", "账单服务");
@@ -244,12 +243,13 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
         assertThat(result.get("selectedCategory").toString()).contains("order_services", "订单服务");
         assertThat(result.get("retrievalFlow").toString())
             .contains("business_category_resolution", "api_template_execution", "evidence_analysis",
-                "crossCategoryResultsAllowed=false");
-        assertThat(result.toString()).contains("order_status_api").doesNotContain("invoice_status_api");
+                "crossCategoryResultsAllowed=true");
+        assertThat(result.get("templates").toString())
+            .contains("order_status_api", "invoice_status_api", "order_services", "billing_services");
     }
 
     @Test
-    void queryRequiresCategoryWhenBusinessIntentCannotResolveOne() {
+    void queryKeepsSearchingWhenBusinessCategoryIsAmbiguous() {
         ApiServiceConfigService configService = mock(ApiServiceConfigService.class);
         when(configService.listEnabled()).thenReturn(List.of(new ApiServiceConfig(), new ApiServiceConfig()));
         ApiServiceCategoryService categoryService = mock(ApiServiceCategoryService.class);
@@ -264,13 +264,15 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
 
         Map<String, Object> result = publisher.query(Map.of("filters", Map.of("intent", "查询状态")));
 
-        assertThat(result).containsEntry("categoryRequired", true).containsEntry("returnedCount", 0);
+        assertThat(result).containsEntry("categoryRequired", false).containsEntry("returnedCount", 0);
         assertThat(result.get("categoryCandidates").toString()).contains("order_services", "billing_services");
-        verify(lucene, never()).searchApiServiceTemplates(any());
+        assertThat(result.get("diagnostics").toString())
+            .contains("categoryAmbiguous=true", "categoryUsage=ranking_signal_and_model_selection_metadata");
+        verify(lucene).searchApiServiceTemplates(any());
     }
 
     @Test
-    void queryFallsBackToDefaultCategoryWithoutCrossCategoryLeakage() {
+    void queryUsesDefaultCategoryAsSignalWithoutSuppressingCrossCategoryHits() {
         BusinessCategory fallback = category("category-default", "default", "默认分类");
         BusinessCategory orders = category("category-order", "order_services", "订单服务");
         ApiServiceConfig fallbackApi = api("api-default", "generic_lookup_api", fallback);
@@ -294,13 +296,12 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
         Map<String, Object> result = publisher.query(Map.of(
             "filters", Map.of("category", "missing-category", "intent", "查询业务状态")));
 
-        assertThat(result).containsEntry("categoryRequired", false).containsEntry("returnedCount", 1);
+        assertThat(result).containsEntry("categoryRequired", false).containsEntry("returnedCount", 2);
         assertThat(result.get("selectedCategory").toString()).contains("default");
         assertThat(result.get("diagnostics").toString())
             .contains("fallbackUsed=true", "fallbackCategory=default");
         assertThat(result.get("templates").toString())
-            .contains("generic_lookup_api")
-            .doesNotContain("order_status_api", "order_services");
+            .contains("generic_lookup_api", "order_status_api", "order_services");
     }
 
     private BusinessCategory category(String id, String code, String name) {

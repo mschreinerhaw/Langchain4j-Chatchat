@@ -3,7 +3,9 @@ package com.chatchat.mcpserver.ops;
 import com.chatchat.mcpserver.database.DatabaseQueryConfig;
 import com.chatchat.mcpserver.database.DatabaseQueryConfigService;
 import com.chatchat.mcpserver.category.BusinessCategory;
+import com.chatchat.mcpserver.category.BusinessCategoryRepository;
 import com.chatchat.mcpserver.database.DataQueryCategoryService;
+import com.chatchat.mcpserver.database.DatabaseQueryConfigRepository;
 import com.chatchat.mcpserver.routing.TargetKindRegistry;
 import com.chatchat.mcpserver.search.LuceneMcpSearchService;
 import com.chatchat.mcpserver.search.LuceneSearchProperties;
@@ -140,6 +142,7 @@ class CommandTemplateDiscoveryDatabaseQueryTest {
     void businessCategoryHardScopesDatabaseTemplateSearchBeforeSqlExecution() {
         BusinessCategory market = category(
             "market-category", "market_data", "\u5e02\u573a\u884c\u60c5");
+        market.setKeywordsJson("[\"融资融券\",\"margin trading\",\"securities lending\",\"信用交易\"]");
         BusinessCategory customer = category(
             "customer-category", "customer_analysis", "\u5ba2\u6237\u5206\u6790");
         DatabaseQueryConfig marginQuery = query(
@@ -151,14 +154,20 @@ class CommandTemplateDiscoveryDatabaseQueryTest {
         DatabaseQueryConfigService databaseQueryService = mock(DatabaseQueryConfigService.class);
         when(databaseQueryService.listEnabled()).thenReturn(List.of(customerQuery, marginQuery));
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
-        when(datasourceService.getEnabled("ds-market")).thenReturn(datasource("ds-market", "market-db"));
-        when(datasourceService.getEnabled("ds-customer")).thenReturn(datasource("ds-customer", "customer-db"));
-        DataQueryCategoryService categoryService = mock(DataQueryCategoryService.class);
-        when(categoryService.resolve(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
-            .thenReturn(new DataQueryCategoryService.CategoryResolution(
-                market, false, List.of(market, customer)));
-        when(categoryService.keywords(market))
-            .thenReturn(List.of("\u878d\u8d44\u878d\u5238", "\u4f59\u989d", "margin trade"));
+        SqlDatasourceConfig marketDatasource = datasource("ds-market", "market-db");
+        marketDatasource.setEnvironment("DEV");
+        SqlDatasourceConfig customerDatasource = datasource("ds-customer", "customer-db");
+        customerDatasource.setEnvironment("DEV");
+        when(datasourceService.getEnabled("ds-market")).thenReturn(marketDatasource);
+        when(datasourceService.getEnabled("ds-customer")).thenReturn(customerDatasource);
+        BusinessCategoryRepository categoryRepository = mock(BusinessCategoryRepository.class);
+        when(categoryRepository.findByEnabledTrueOrderBySortOrderAscNameAsc())
+            .thenReturn(List.of(market, customer));
+        DataQueryCategoryService categoryService = new DataQueryCategoryService(
+            categoryRepository,
+            mock(DatabaseQueryConfigRepository.class),
+            new ObjectMapper()
+        );
         LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
         when(lucene.enabled()).thenReturn(true);
         when(lucene.searchDatabaseQueryTemplates(org.mockito.ArgumentMatchers.anyList(),
@@ -185,9 +194,18 @@ class CommandTemplateDiscoveryDatabaseQueryTest {
         Map<String, Object> result = service.query(Map.of(
             "targetKind", "business_database_query",
             "confidence", 0.95,
-            "filters", Map.of(
-                "category", "\u5e02\u573a\u884c\u60c5",
-                "intent", "\u5206\u6790\u6700\u65b0\u878d\u8d44\u878d\u5238\u4f59\u989d\u53d8\u5316"),
+            "filters", Map.ofEntries(
+                Map.entry("intent", "查询融资融券最新数据以进行观察分析"),
+                Map.entry("bilingualIntent", List.of("margin trading", "融资融券数据")),
+                Map.entry("intentZh", "融资融券数据观察分析"),
+                Map.entry("intentEn", "margin trading and securities lending data observation"),
+                Map.entry("intentAliases", List.of(
+                    "融资融券", "margin financing", "securities lending", "信用交易")),
+                Map.entry("keywords", List.of(
+                    "融资融券", "margin trading", "securities lending", "观察", "分析")),
+                Map.entry("env", "DEV"),
+                Map.entry("retrievalSignals", List.of("explicit:false", "false"))
+            ),
             "trace", trace(),
             "limit", 10
         ));

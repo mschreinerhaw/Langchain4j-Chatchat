@@ -99,6 +99,36 @@ class DataQueryCategoryServiceTest {
     }
 
     @Test
+    void resolvesMarginTradingRequestWhenNoExplicitCategoryFilterIsPresent() {
+        BusinessCategoryRepository categories = mock(BusinessCategoryRepository.class);
+        DatabaseQueryConfigRepository queries = mock(DatabaseQueryConfigRepository.class);
+        BusinessCategory market = category(
+            "market-id", "market_data", "市场行情",
+            "[\"融资融券\",\"margin trading\",\"securities lending\"]", 10);
+        when(categories.findByEnabledTrueOrderBySortOrderAscNameAsc()).thenReturn(List.of(market));
+        DataQueryCategoryService service = new DataQueryCategoryService(
+            categories, queries, new ObjectMapper());
+
+        DataQueryCategoryService.CategoryResolution resolution = service.resolve(
+            new DataQueryCategoryService.MapLike() {
+                @Override
+                public String first(String... keys) {
+                    return null;
+                }
+
+                @Override
+                public String joinedText() {
+                    return "查询融资融券最新数据以进行观察分析 margin trading securities lending "
+                        + "retrievalSignals=[explicit:false, false]";
+                }
+            },
+            List.of(categorizedQuery("margin-id", "query_margin_trade_latest", market)));
+
+        assertThat(resolution.category()).isSameAs(market);
+        assertThat(resolution.categoryRequired()).isFalse();
+    }
+
+    @Test
     void assignsDefaultCategoryWhenUserDoesNotChooseOne() {
         BusinessCategoryRepository categories = mock(BusinessCategoryRepository.class);
         DatabaseQueryConfigRepository queries = mock(DatabaseQueryConfigRepository.class);

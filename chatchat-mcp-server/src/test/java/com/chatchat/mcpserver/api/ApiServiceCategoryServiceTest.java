@@ -93,6 +93,37 @@ class ApiServiceCategoryServiceTest {
         assertThat(resolution.fallbackUsed()).isTrue();
     }
 
+    @Test
+    void resolvesImplicitCategoryWithoutNullPointerWhenNoCategoryFilterExists() {
+        BusinessCategoryRepository categories = mock(BusinessCategoryRepository.class);
+        ApiServiceConfigRepository services = mock(ApiServiceConfigRepository.class);
+        BusinessCategory market = category(
+            "market-id", "market_data", "市场行情", "行情接口", "[\"融资融券\"]");
+        when(categories.findByEnabledTrueOrderBySortOrderAscNameAsc()).thenReturn(List.of(market));
+        ApiServiceConfig api = new ApiServiceConfig();
+        api.setCategoryId(market.getId());
+        api.setBusinessGroup(market.getCode());
+        ApiServiceCategoryService service = new ApiServiceCategoryService(
+            categories, services, new ObjectMapper());
+
+        ApiServiceCategoryService.CategoryResolution resolution = service.resolve(
+            new ApiServiceCategoryService.MapLike() {
+                @Override
+                public String first(String... keys) {
+                    return null;
+                }
+
+                @Override
+                public String joinedText() {
+                    return "融资融券数据观察分析";
+                }
+            },
+            List.of(api));
+
+        assertThat(resolution.category()).isSameAs(market);
+        assertThat(resolution.categoryRequired()).isFalse();
+    }
+
     private BusinessCategory category(String id,
                                         String code,
                                         String name,

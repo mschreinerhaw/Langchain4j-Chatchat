@@ -146,9 +146,9 @@ public class DataQueryCategoryService {
         List<BusinessCategory> active = enabled.stream()
             .filter(category -> available.stream().anyMatch(config -> belongsTo(config, category)))
             .toList();
-        String explicit = filters.first("categoryId", "category_id", "capabilityCategory",
+        String explicit = text(filters.first("categoryId", "category_id", "capabilityCategory",
             "capability_category", "businessGroup", "business_group", "group", "groupName",
-            "group_name", "category");
+            "group_name", "category")).trim();
         if (!explicit.isBlank()) {
             return active.stream()
                 .filter(category -> matches(category, explicit))

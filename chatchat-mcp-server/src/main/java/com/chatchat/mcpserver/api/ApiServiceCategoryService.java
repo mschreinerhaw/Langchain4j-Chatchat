@@ -138,8 +138,8 @@ public class ApiServiceCategoryService {
             .filter(category -> configs.stream().anyMatch(config -> category.getId().equals(config.getCategoryId())
                 || category.getCode().equalsIgnoreCase(text(config.getBusinessGroup()))))
             .toList();
-        String explicit = filters.first("categoryId", "category_id", "businessGroup",
-            "business_group", "group", "groupName", "group_name", "category");
+        String explicit = text(filters.first("categoryId", "category_id", "businessGroup",
+            "business_group", "group", "groupName", "group_name", "category")).trim();
         if (!explicit.isBlank()) {
             return active.stream()
                 .filter(category -> matches(category, explicit))

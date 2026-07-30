@@ -455,6 +455,52 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void clauseLimitTemplateFailureRequestsModelKeywordRewriteBeforeExecution() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "localToolResultReview",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.StepExecution.class
+        );
+        method.setAccessible(true);
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            1, "mcp_tool", "mcp_chatchat_mcp_server_database_query_template_query",
+            Map.of("filters", Map.of("intent", "融资融券数据观察")),
+            List.of(), null, null
+        );
+        InterpretationPlanRuntime.StepExecution execution = new InterpretationPlanRuntime.StepExecution(
+            1, "mcp_tool", step.toolName(), true,
+            Map.of(
+                "success", true,
+                "status", "MODEL_REVIEW_REQUIRED",
+                "resultCode", "QUERY_CLAUSE_LIMIT_EXCEEDED",
+                "returnedCount", 0,
+                "templates", List.of(),
+                "retrievalReview", Map.of(
+                    "nextAction", "REWRITE_TEMPLATE_SEARCH_KEYWORDS_AND_RETRY"
+                )
+            ),
+            null, null, null, 5
+        );
+
+        InterpretationPlanRuntime.StepReview review =
+            (InterpretationPlanRuntime.StepReview) method.invoke(runtime, step, execution);
+
+        assertThat(review).isNotNull();
+        assertThat(review.satisfied()).isFalse();
+        assertThat(review.reason()).contains("QUERY_CLAUSE_LIMIT_EXCEEDED", "compact");
+        assertThat(review.metadata())
+            .containsEntry("resultCode", "QUERY_CLAUSE_LIMIT_EXCEEDED")
+            .containsEntry("retryable", true)
+            .containsEntry("nextAction", "REWRITE_TEMPLATE_SEARCH_KEYWORDS_AND_RETRY")
+            .containsEntry("templateDiscoveryReturnedCount", 0);
+    }
+
+    @Test
     void factChecksUnifiedWebSearchWhenItContainsActualFinancialRows() throws Exception {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             mock(ToolRuntimeService.class),

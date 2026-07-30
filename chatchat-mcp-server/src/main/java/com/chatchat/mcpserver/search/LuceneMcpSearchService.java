@@ -79,6 +79,7 @@ public class LuceneMcpSearchService {
     private final OpenSearchMcpSearchService openSearchSearchService;
 
     private final Analyzer analyzer = new NgramAnalyzer();
+    private final ThreadLocal<SearchDiagnostic> lastSearchDiagnostic = new ThreadLocal<>();
 
     @Autowired
     public LuceneMcpSearchService(LuceneSearchProperties properties,
@@ -183,6 +184,7 @@ public class LuceneMcpSearchService {
         if (!enabled()) {
             return List.of();
         }
+        lastSearchDiagnostic.remove();
         try {
             upsertDatabaseQueryTemplates(docs);
             return searchDatabaseQueryTemplates(request);
@@ -386,10 +388,28 @@ public class LuceneMcpSearchService {
         try {
             return searchTemplateIndex(indexName, request);
         } catch (Exception ex) {
+            lastSearchDiagnostic.set(searchDiagnostic(ex));
             log.warn("MCP Lucene {} search failed assetType={} dbType={} intentText={} limit={}: {}",
                 label, request.assetType(), request.dbType(), request.intentText(), request.limit(), ex.getMessage());
             return List.of();
         }
+    }
+
+    public SearchDiagnostic lastSearchDiagnostic() {
+        return lastSearchDiagnostic.get();
+    }
+
+    private SearchDiagnostic searchDiagnostic(Exception exception) {
+        String message = exception == null || exception.getMessage() == null
+            ? "Template search failed"
+            : exception.getMessage();
+        String normalized = message.toLowerCase(Locale.ROOT);
+        if (normalized.contains("too_many_nested_clauses")
+            || normalized.contains("maxclausecount")
+            || normalized.contains("too many nested clauses")) {
+            return new SearchDiagnostic("QUERY_CLAUSE_LIMIT_EXCEEDED", message, true);
+        }
+        return new SearchDiagnostic("TEMPLATE_SEARCH_FAILED", message, true);
     }
 
     private void rebuildTemplateIndex(String indexName, List<TemplateDoc> docs) throws IOException {
@@ -939,6 +959,13 @@ public class LuceneMcpSearchService {
             this(id, kind, score, reasons, id, null, null, null, null, null, null, null,
                 null, null, null, null, null, null);
         }
+    }
+
+    public record SearchDiagnostic(
+        String code,
+        String message,
+        boolean retryable
+    ) {
     }
 
     private static class NgramAnalyzer extends Analyzer {

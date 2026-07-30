@@ -81,6 +81,7 @@ public class OpenSearchMcpSearchService {
     private static final String MCP_PINYIN_ANALYZER = "chatchat_mcp_pinyin";
     private static final String CAPABILITY_VECTOR = "capabilityVector";
     private static final int BULK_BATCH_SIZE = 10;
+    private static final int MAX_TEMPLATE_QUERY_CHARS = 512;
 
     private final LuceneSearchProperties properties;
     private final McpEmbeddingClient embeddingClient;
@@ -666,31 +667,52 @@ public class OpenSearchMcpSearchService {
             )));
         }
         addExactFilter(must, FIELD_CATEGORY, request.category());
-        String queryText = normalizeText(request.intentText());
+        String queryText = boundedTemplateQueryText(request.intentText());
         if (queryText != null) {
+            List<String> fields = new ArrayList<>(List.of(
+                "toolName^5.0",
+                FIELD_NAME + "^5.0",
+                "toolDescription^4.5",
+                "implementationSteps^4.0",
+                "businessScope^3.5",
+                "stepNames^4.0",
+                "stepDescriptions^4.0",
+                "indexTags^4.5",
+                "domain^2.5",
+                FIELD_INTENT_TEXT + "^2.4",
+                FIELD_INTENT_TEXT + ".ngram^1.5",
+                FIELD_TEXT,
+                FIELD_TEXT + ".ngram^1.1"
+            ));
+            // The pinyin analyzer expands Chinese text aggressively. Applying it to a long,
+            // mixed-language planner intent can exceed OpenSearch's maxClauseCount. Pinyin
+            // fields are useful only when the user actually supplied a compact pinyin query.
+            if (isCompactPinyinQuery(queryText)) {
+                fields.add(FIELD_INTENT_TEXT + ".pinyin^1.6");
+                fields.add(FIELD_TEXT + ".pinyin^1.2");
+            }
             must.add(Map.of("multi_match", Map.of(
                 "query", queryText,
-                "fields", List.of(
-                    "toolName^5.0",
-                    FIELD_NAME + "^5.0",
-                    "toolDescription^4.5",
-                    "implementationSteps^4.0",
-                    "businessScope^3.5",
-                    "stepNames^4.0",
-                    "stepDescriptions^4.0",
-                    "indexTags^4.5",
-                    "domain^2.5",
-                    FIELD_INTENT_TEXT + "^2.4",
-                    FIELD_INTENT_TEXT + ".ngram^1.5",
-                    FIELD_INTENT_TEXT + ".pinyin^1.6",
-                    FIELD_TEXT,
-                    FIELD_TEXT + ".ngram^1.1",
-                    FIELD_TEXT + ".pinyin^1.2"
-                ),
+                "fields", fields,
                 "operator", "or"
             )));
         }
         return must.isEmpty() ? Map.of("match_all", Map.of()) : Map.of("bool", Map.of("must", must));
+    }
+
+    private String boundedTemplateQueryText(String value) {
+        String normalized = normalizeText(value);
+        if (normalized == null || normalized.length() <= MAX_TEMPLATE_QUERY_CHARS) {
+            return normalized;
+        }
+        int boundary = normalized.lastIndexOf(' ', MAX_TEMPLATE_QUERY_CHARS);
+        return normalized.substring(0, boundary > 0 ? boundary : MAX_TEMPLATE_QUERY_CHARS).trim();
+    }
+
+    private boolean isCompactPinyinQuery(String value) {
+        return value != null
+            && value.length() <= 96
+            && value.matches("[A-Za-z0-9_\\-\\s]+");
     }
 
     private Map<String, Object> templateFilterBody(LuceneMcpSearchService.TemplateSearchRequest request) {

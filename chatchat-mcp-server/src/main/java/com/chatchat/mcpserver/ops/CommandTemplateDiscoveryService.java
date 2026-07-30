@@ -400,9 +400,16 @@ public class CommandTemplateDiscoveryService {
             intent,
             Math.max(limit, MAX_LIMIT)
         );
+        LuceneMcpSearchService.SearchDiagnostic searchDiagnostic = luceneSearchService == null
+            ? null
+            : luceneSearchService.lastSearchDiagnostic();
+        boolean modelReviewRequired = searchDiagnostic != null
+            && "QUERY_CLAUSE_LIMIT_EXCEEDED".equals(searchDiagnostic.code());
+        boolean registryFallback = luceneHits.isEmpty() && !modelReviewRequired;
         List<ScoredTemplate<DatabaseQueryConfig>> candidates = scopedDatabaseQueries.stream()
             .filter(template -> databaseQueryDatasourceId(template) != null)
-            .filter(template -> luceneHits.containsKey(databaseQueryTemplateId(template)))
+            .filter(template -> !modelReviewRequired
+                && (registryFallback || luceneHits.containsKey(databaseQueryTemplateId(template))))
             .map(template -> new ScoredTemplate<>(template,
                 marketplaceDecision(
                     luceneAdjusted(relevance(template, finalRetrievalFilters), luceneHits.get(databaseQueryTemplateId(template))),
@@ -411,11 +418,12 @@ public class CommandTemplateDiscoveryService {
                     finalRetrievalFilters,
                     template,
                     categoryResolution.category())))
+            .filter(scored -> !registryFallback || matchesIntent(scored))
             .toList();
         List<ScoredTemplate<DatabaseQueryConfig>> matched = candidates.stream()
             .sorted(scoredComparator(scored -> scored.template().getToolName()))
             .toList();
-        boolean fallbackUsed = false;
+        boolean fallbackUsed = registryFallback && !matched.isEmpty();
         log.info("template_query database-query search assetType={} category={} dbType={} filters={} normalizedIntent={} registryTemplates={} scopedTemplates={} candidates={} luceneHits={} returned={} fallbackUsed={} hitIds={}",
             assetType, categoryResolution.category() == null ? null : categoryResolution.category().getCode(),
             requestedDatabaseType(filters), compactFilters(filters), intent.type(), templates.size(),
@@ -423,9 +431,35 @@ public class CommandTemplateDiscoveryService {
             fallbackUsed, luceneHits.keySet().stream().limit(limit).toList());
         Map<String, Object> response = result(assetType, resultFilters, intent, databaseQueryAssetMetadata(matched), limit,
             databaseQueryTemplateMetadata(matched, assetType, limit), matched.size() > limit, fallbackUsed, templateSignal(luceneHits));
+        if (modelReviewRequired) {
+            addTemplateSearchReview(response, searchDiagnostic, filters);
+        }
         addDatabaseCategoryResult(response, categoryResolution, scopedDatabaseQueries.size(),
             matched.stream().map(item -> databaseQueryTemplateId(item.template())).limit(limit).toList());
         return response;
+    }
+
+    private void addTemplateSearchReview(Map<String, Object> response,
+                                         LuceneMcpSearchService.SearchDiagnostic diagnostic,
+                                         Map<String, Object> originalFilters) {
+        response.put("status", "MODEL_REVIEW_REQUIRED");
+        response.put("resultCode", diagnostic.code());
+        response.put("retryable", diagnostic.retryable());
+        response.put("retrievalReview", mapOf(
+            "decision", "MODEL_REVIEW_REQUIRED",
+            "reason", diagnostic.code(),
+            "message", "Template query exceeded the search clause limit. The model must review the original intent and retry with a compact keyword set.",
+            "originalIntent", firstValue(originalFilters, "intent", "goal", "intentZh", "intentEn"),
+            "rewritePolicy", mapOf(
+                "maxKeywords", 8,
+                "maxAliases", 4,
+                "preserveOriginalIntent", true,
+                "removeTemplateRegistryMetadata", true,
+                "requiredFields", List.of("intent", "keywords"),
+                "recommendedFields", List.of("intentZh", "intentEn", "intentAliases")
+            ),
+            "nextAction", "REWRITE_TEMPLATE_SEARCH_KEYWORDS_AND_RETRY"
+        ));
     }
 
     private DataQueryCategoryService.CategoryResolution resolveDatabaseQueryCategory(

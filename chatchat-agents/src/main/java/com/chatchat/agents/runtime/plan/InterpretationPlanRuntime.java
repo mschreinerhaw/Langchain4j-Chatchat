@@ -1480,6 +1480,26 @@ public class InterpretationPlanRuntime {
             );
         }
         if (isTemplateDiscoveryTool(execution.toolName())) {
+            String resultCode = discoveryResultCode(execution.output(), 0);
+            if ("QUERY_CLAUSE_LIMIT_EXCEEDED".equalsIgnoreCase(resultCode)) {
+                return StepReview.rejected(
+                    "QUERY_CLAUSE_LIMIT_EXCEEDED: template retrieval exceeded the search clause limit; "
+                        + "model review must rewrite a compact, intent-focused keyword set and retry template discovery.",
+                    mapOf(
+                        "localFactCheckHasEvidence", true,
+                        "localFactCheckEvidenceType", "template_discovery_retrieval_limit",
+                        "localFactCheckReason", "template search returned a retryable clause-limit diagnostic",
+                        "transportSuccess", true,
+                        "operationSuccess", false,
+                        "businessSatisfied", false,
+                        "resultCode", "QUERY_CLAUSE_LIMIT_EXCEEDED",
+                        "retryable", true,
+                        "nextAction", "REWRITE_TEMPLATE_SEARCH_KEYWORDS_AND_RETRY",
+                        "templateDiscoveryReturnedCount", 0,
+                        "templateDiscoveryStepId", step == null ? null : step.id()
+                    )
+                );
+            }
             int returnedCount = discoveredAssetCount(execution.output(), "templates");
             if (returnedCount <= 0) {
                 return StepReview.rejected(
@@ -1576,6 +1596,33 @@ public class InterpretationPlanRuntime {
                     "sqlMetadataStepId", step == null ? null : step.id()
                 )
             );
+        }
+        return null;
+    }
+
+    private String discoveryResultCode(Object output, int depth) {
+        if (output == null || depth > 6) {
+            return null;
+        }
+        Object normalized = normalizeToolProtocolPayload(output);
+        if (normalized != output) {
+            return discoveryResultCode(normalized, depth + 1);
+        }
+        if (!(output instanceof Map<?, ?> map)) {
+            return null;
+        }
+        Object direct = firstMapValue(map, "resultCode", "result_code", "code");
+        if (direct != null && !String.valueOf(direct).isBlank()) {
+            return String.valueOf(direct).trim();
+        }
+        for (String key : List.of(
+            "retrievalReview", "retrieval_review", "structuredContent", "structured_content",
+            "data", "result", "payload", "body", "output"
+        )) {
+            String nested = discoveryResultCode(firstMapValue(map, key), depth + 1);
+            if (nested != null) {
+                return nested;
+            }
         }
         return null;
     }

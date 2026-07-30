@@ -66,6 +66,56 @@ class SqlMcpToolPublisherTest {
     }
 
     @Test
+    void sqlGatewayRejectsMissingExecutionSourceBeforeDatasourceRouting() throws Exception {
+        SqlMcpToolPublisher publisher = new SqlMcpToolPublisher(
+            mcpSyncServer, datasourceConfigService, sqlTemplateService, null, scriptExecuteService,
+            metadataSearchService, databaseQueryConfigService, databaseQueryInvokeService,
+            executionTargetRouter, assetMetadataFactory, governanceFactory, concurrencyManager,
+            new StandardToolExecutionResultFactory(new DatabaseToolProperties()),
+            new ChatChatMcpServerProperties(), new ObjectMapper()
+        );
+        Method method = SqlMcpToolPublisher.class.getDeclaredMethod("executeSqlGateway", Map.class);
+        method.setAccessible(true);
+
+        assertThatThrownBy(() -> method.invoke(publisher, Map.of(
+            "purpose", "分析融资融券数据",
+            "executionContext", Map.of("env", "DEV")
+        )))
+            .hasRootCauseInstanceOf(IllegalArgumentException.class)
+            .hasRootCauseMessage(
+                "SQL_EXECUTION_SOURCE_REQUIRED: provide a template/templateId returned by template discovery or an explicit read-only sql/script");
+
+        verify(databaseQueryConfigService, never()).listEnabled();
+        verify(executionTargetRouter, never()).routeSqlQuery(org.mockito.ArgumentMatchers.anyMap());
+    }
+
+    @Test
+    void sqlGatewayRejectsConflictingTemplateAndRawSqlBeforeRouting() throws Exception {
+        SqlMcpToolPublisher publisher = new SqlMcpToolPublisher(
+            mcpSyncServer, datasourceConfigService, sqlTemplateService, null, scriptExecuteService,
+            metadataSearchService, databaseQueryConfigService, databaseQueryInvokeService,
+            executionTargetRouter, assetMetadataFactory, governanceFactory, concurrencyManager,
+            new StandardToolExecutionResultFactory(new DatabaseToolProperties()),
+            new ChatChatMcpServerProperties(), new ObjectMapper()
+        );
+        Method method = SqlMcpToolPublisher.class.getDeclaredMethod("executeSqlGateway", Map.class);
+        method.setAccessible(true);
+
+        assertThatThrownBy(() -> method.invoke(publisher, Map.of(
+            "templateId", "query_margin_trade_latest",
+            "sql", "select 1",
+            "parameters", Map.of(),
+            "executionContext", Map.of("assetName", "market-db", "env", "DEV")
+        )))
+            .hasRootCauseInstanceOf(IllegalArgumentException.class)
+            .hasRootCauseMessage(
+                "SQL_EXECUTION_SOURCE_CONFLICT: use either template/templateId or sql/script, not both");
+
+        verify(databaseQueryConfigService, never()).listEnabled();
+        verify(executionTargetRouter, never()).routeSqlQuery(org.mockito.ArgumentMatchers.anyMap());
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void sqlGatewayDelegatesBusinessQueryTemplateToDatabaseQueryExecutor() throws Exception {
         DatabaseQueryConfig config = new DatabaseQueryConfig();

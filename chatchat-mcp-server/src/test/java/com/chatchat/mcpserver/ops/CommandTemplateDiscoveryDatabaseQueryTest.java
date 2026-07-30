@@ -373,6 +373,125 @@ class CommandTemplateDiscoveryDatabaseQueryTest {
             .contains("ranking_signal_and_model_selection_metadata");
     }
 
+    @Test
+    void databaseQuerySearchFallsBackToRelevantRegistryEntriesWhenSearchIndexReturnsNoHits() {
+        BusinessCategory market = category("market-category", "market_data", "市场行情");
+        DatabaseQueryConfig marginQuery = query(
+            "margin-query", "query_margin_trade_latest", "ds-market", market,
+            "最新融资融券余额、融资买入额和融券余量");
+        DatabaseQueryConfig unrelatedQuery = query(
+            "bond-query", "query_bond_settlement", "ds-market", market,
+            "债券结算规模和交易笔数");
+        DatabaseQueryConfigService databaseQueryService = mock(DatabaseQueryConfigService.class);
+        when(databaseQueryService.listEnabled()).thenReturn(List.of(unrelatedQuery, marginQuery));
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        SqlDatasourceConfig datasource = datasource("ds-market", "market-db");
+        datasource.setEnvironment("DEV");
+        when(datasourceService.getEnabled("ds-market")).thenReturn(datasource);
+        DataQueryCategoryService categoryService = mock(DataQueryCategoryService.class);
+        when(categoryService.resolve(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+            .thenReturn(new DataQueryCategoryService.CategoryResolution(market, false, List.of(market)));
+        LuceneMcpSearchService search = mock(LuceneMcpSearchService.class);
+        when(search.enabled()).thenReturn(true);
+        when(search.searchDatabaseQueryTemplates(
+            org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.any()))
+            .thenReturn(List.of());
+
+        CommandTemplateDiscoveryService service = new CommandTemplateDiscoveryService(
+            mock(CommandTemplateService.class),
+            mock(SshHostConfigService.class),
+            mock(SqlTemplateService.class),
+            datasourceService,
+            mock(HttpEndpointConfigService.class),
+            databaseQueryService,
+            categoryService,
+            new ObjectMapper(),
+            new TemplateDiscoveryProperties(),
+            search,
+            new TargetKindRegistry()
+        );
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "business_database_query",
+            "confidence", 0.95,
+            "filters", Map.of(
+                "intent", "分析最新融资融券数据",
+                "intentEn", "latest margin trading data",
+                "env", "DEV"
+            ),
+            "trace", trace(),
+            "limit", 10
+        ));
+
+        assertThat(result).containsEntry("returnedCount", 1);
+        assertThat(result.get("templates").toString())
+            .contains("query_margin_trade_latest")
+            .doesNotContain("query_bond_settlement");
+        assertThat(result.get("resolutionTrace").toString()).contains("fallbackUsed=true");
+    }
+
+    @Test
+    void clauseLimitFailureRequestsModelKeywordReviewInsteadOfReturningRegistryFallback() {
+        BusinessCategory market = category("market-category", "market_data", "市场行情");
+        DatabaseQueryConfig marginQuery = query(
+            "margin-query", "query_margin_trade_latest", "ds-market", market,
+            "最新融资融券余额、融资买入额和融券余量");
+        DatabaseQueryConfigService databaseQueryService = mock(DatabaseQueryConfigService.class);
+        when(databaseQueryService.listEnabled()).thenReturn(List.of(marginQuery));
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        SqlDatasourceConfig datasource = datasource("ds-market", "market-db");
+        datasource.setEnvironment("DEV");
+        when(datasourceService.getEnabled("ds-market")).thenReturn(datasource);
+        DataQueryCategoryService categoryService = mock(DataQueryCategoryService.class);
+        when(categoryService.resolve(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+            .thenReturn(new DataQueryCategoryService.CategoryResolution(market, false, List.of(market)));
+        LuceneMcpSearchService search = mock(LuceneMcpSearchService.class);
+        when(search.enabled()).thenReturn(true);
+        when(search.searchDatabaseQueryTemplates(
+            org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.any()))
+            .thenReturn(List.of());
+        when(search.lastSearchDiagnostic()).thenReturn(new LuceneMcpSearchService.SearchDiagnostic(
+            "QUERY_CLAUSE_LIMIT_EXCEEDED",
+            "too_many_nested_clauses; maxClauseCount is set to 1024",
+            true
+        ));
+
+        CommandTemplateDiscoveryService service = new CommandTemplateDiscoveryService(
+            mock(CommandTemplateService.class),
+            mock(SshHostConfigService.class),
+            mock(SqlTemplateService.class),
+            datasourceService,
+            mock(HttpEndpointConfigService.class),
+            databaseQueryService,
+            categoryService,
+            new ObjectMapper(),
+            new TemplateDiscoveryProperties(),
+            search,
+            new TargetKindRegistry()
+        );
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "business_database_query",
+            "confidence", 0.95,
+            "filters", Map.of(
+                "intent", "分析最新融资融券数据",
+                "keywords", List.of("融资融券", "margin trading", "融资余额"),
+                "env", "DEV"
+            ),
+            "trace", trace(),
+            "limit", 10
+        ));
+
+        assertThat(result)
+            .containsEntry("status", "MODEL_REVIEW_REQUIRED")
+            .containsEntry("resultCode", "QUERY_CLAUSE_LIMIT_EXCEEDED")
+            .containsEntry("retryable", true)
+            .containsEntry("returnedCount", 0);
+        assertThat(result.get("retrievalReview").toString())
+            .contains("REWRITE_TEMPLATE_SEARCH_KEYWORDS_AND_RETRY", "maxKeywords=8");
+        assertThat((List<?>) result.get("templates")).isEmpty();
+    }
+
     private LuceneMcpSearchService lucene() {
         LuceneSearchProperties properties = new LuceneSearchProperties();
         properties.setIndexDir(tempDir.toString());

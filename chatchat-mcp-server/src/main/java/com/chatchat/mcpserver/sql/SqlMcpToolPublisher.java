@@ -141,6 +141,7 @@ public class SqlMcpToolPublisher {
 
     private McpSchema.CallToolResult executeSqlScriptGateway(Map<String, Object> arguments) {
         validateTemplateArgumentContract(arguments);
+        validateExecutableSelector(arguments);
         DatabaseQueryConfig databaseQuery = businessDatabaseQueryTemplate(arguments);
         if (databaseQuery != null) {
             Map<String, Object> queryArguments = databaseQueryArguments(arguments);
@@ -168,6 +169,7 @@ public class SqlMcpToolPublisher {
 
     private McpSchema.CallToolResult executeSqlGateway(Map<String, Object> arguments) {
         validateTemplateArgumentContract(arguments);
+        validateExecutableSelector(arguments);
         DatabaseQueryConfig databaseQuery = businessDatabaseQueryTemplate(arguments);
         if (databaseQuery != null) {
             Map<String, Object> queryArguments = databaseQueryArguments(arguments);
@@ -290,6 +292,23 @@ public class SqlMcpToolPublisher {
                 throw new IllegalArgumentException("TEMPLATE_ARGUMENT_CONTRACT_FAILED: " + contextKey
                     + " must be an object");
             }
+        }
+    }
+
+    private void validateExecutableSelector(Map<String, Object> arguments) {
+        String template = firstText(
+            text(arguments, "template"),
+            firstText(text(arguments, "templateId"), text(arguments, "template_id"))
+        );
+        String sql = firstText(text(arguments, "sql"), text(arguments, "script"));
+        if (template == null && sql == null) {
+            throw new IllegalArgumentException(
+                "SQL_EXECUTION_SOURCE_REQUIRED: provide a template/templateId returned by template discovery "
+                    + "or an explicit read-only sql/script");
+        }
+        if (template != null && sql != null) {
+            throw new IllegalArgumentException(
+                "SQL_EXECUTION_SOURCE_CONFLICT: use either template/templateId or sql/script, not both");
         }
     }
 
@@ -599,6 +618,7 @@ public class SqlMcpToolPublisher {
             "sql", Map.of("type", "string", "description", "Read-only SQL. Comments are allowed and stripped. Multiple read-only statements are accepted and automatically executed as a SQL script with multiple result sets. Writes, DDL, and permission changes are forbidden."),
             "script", Map.of("type", "string", "description", "Optional read-only SQL script alias. Prefer sql unless explicitly invoking multi-statement analysis."),
             "template", Map.of("type", "string", "description", "Existing SQL templateId from database_ops_template_search.templates[].templateId for the selected datasource. Do not invent names."),
+            "templateId", Map.of("type", "string", "description", "Alias of template. Copy the scalar templates[].templateId returned by template discovery."),
             "parameters", Map.of(
                 "type", "object",
                 "description", "Template parameters object. Use exactly the fields required by database_ops_template_search.templates[].parameterSchema; do not put template parameters at the top level.",

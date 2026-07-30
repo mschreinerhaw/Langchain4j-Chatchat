@@ -4985,6 +4985,18 @@ public class AgentOrchestrator implements AgentRunExecutor {
             if (answerFinalizer.markToolBudgetExceeded(fallbackTool, maxToolCalls, traces, metadata, observations)) {
                 return;
             }
+            List<InteractionToolTrace> predecessorTraces =
+                mandatoryPredecessorTraces(mandatoryTools, fallbackTool, traces);
+            Map<String, Object> predecessorReview =
+                mandatoryWorkflowPredecessorReview(fallbackTool, predecessorTraces);
+            if (!Boolean.TRUE.equals(predecessorReview.get("satisfied"))) {
+                appendMandatoryWorkflowReview(metadata, predecessorReview);
+                metadata.put("mandatoryWorkflowStoppedOnFailure",
+                    predecessorReview.getOrDefault("predecessorToolName", fallbackTool));
+                observations.add("Mandatory workflow fallback stopped by predecessor result review: "
+                    + stringify(predecessorReview));
+                return;
+            }
             Map<String, Object> fallbackArguments = toolArguments.applyToolDefaults(
                 fallbackTool,
                 toolArguments.defaultToolArguments(fallbackTool, query, webSearchResultLimit),
@@ -4996,7 +5008,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
             fallbackArguments = toolArguments.applyPublishedDependencyEvidenceContract(
                 fallbackTool,
                 fallbackArguments,
-                mandatoryPredecessorTraces(mandatoryTools, fallbackTool, traces)
+                predecessorTraces
             );
             Map<String, Object> originalArguments = new LinkedHashMap<>(fallbackArguments);
             ModelAssistedRetrievalBridge.EnrichmentResult enrichment =
@@ -5126,6 +5138,17 @@ public class AgentOrchestrator implements AgentRunExecutor {
             review.put("reason", "Mandatory workflow tool did not return a successful ToolOutput.");
             return review;
         }
+        Integer templateCount = templateDiscoveryResultCount(toolName, output.getData());
+        if (templateCount != null) {
+            boolean satisfied = templateCount > 0;
+            review.put("satisfied", satisfied);
+            review.put("resultCode", satisfied ? "TEMPLATE_MATCHED" : "NO_MATCHING_TEMPLATE");
+            review.put("returnedCount", templateCount);
+            review.put("reason", satisfied
+                ? "Template discovery returned at least one executable template."
+                : "Template discovery completed but returned no executable template; dependent execution is blocked.");
+            return review;
+        }
         Map<String, Object> root = enterpriseMetadataResultRoot(output.getData(), 0);
         if (isEnterpriseMetadataResult(root)) {
             Map<String, Object> coverage = asMap(root.get("coverage"));
@@ -5162,6 +5185,67 @@ public class AgentOrchestrator implements AgentRunExecutor {
         review.put("satisfied", true);
         review.put("reason", "Mandatory workflow tool completed successfully and returned a terminal observation.");
         return review;
+    }
+
+    private Map<String, Object> mandatoryWorkflowPredecessorReview(
+        String fallbackTool,
+        List<InteractionToolTrace> predecessorTraces
+    ) {
+        if (predecessorTraces == null || predecessorTraces.isEmpty()) {
+            return Map.of("satisfied", true);
+        }
+        for (InteractionToolTrace trace : predecessorTraces) {
+            if (trace == null) {
+                continue;
+            }
+            ToolOutput predecessorOutput = trace.isSuccess()
+                ? ToolOutput.success(asMap(trace.getOutput()))
+                : ToolOutput.failure(firstNonBlank(trace.getErrorMessage(), "predecessor failed"));
+            Map<String, Object> review = mandatoryWorkflowResultReview(trace.getToolName(), predecessorOutput);
+            if (!Boolean.TRUE.equals(review.get("satisfied"))) {
+                Map<String, Object> blocked = new LinkedHashMap<>(review);
+                blocked.put("predecessorToolName", trace.getToolName());
+                blocked.put("blockedDependentToolName", fallbackTool);
+                return blocked;
+            }
+        }
+        return Map.of("satisfied", true);
+    }
+
+    private Integer templateDiscoveryResultCount(String toolName, Object data) {
+        String normalized = toolName == null ? "" : toolName.toLowerCase(java.util.Locale.ROOT);
+        if (!(normalized.contains("template_query") || normalized.contains("template_search"))) {
+            return null;
+        }
+        return templateDiscoveryResultCount(data, 0);
+    }
+
+    private Integer templateDiscoveryResultCount(Object value, int depth) {
+        if (value == null || depth > 5) {
+            return null;
+        }
+        if (value instanceof String text) {
+            Map<String, Object> parsed = asMap(text);
+            return parsed.isEmpty() ? null : templateDiscoveryResultCount(parsed, depth + 1);
+        }
+        if (!(value instanceof Map<?, ?> raw)) {
+            return null;
+        }
+        Map<String, Object> map = asMap(raw);
+        Integer explicit = integerValue(map.get("returnedCount"));
+        if (explicit != null) {
+            return explicit;
+        }
+        if (map.get("templates") instanceof java.util.Collection<?> templates) {
+            return templates.size();
+        }
+        for (String key : List.of("structuredContent", "data", "result", "payload", "body", "output")) {
+            Integer nested = templateDiscoveryResultCount(map.get(key), depth + 1);
+            if (nested != null) {
+                return nested;
+            }
+        }
+        return null;
     }
 
     @SuppressWarnings("unchecked")

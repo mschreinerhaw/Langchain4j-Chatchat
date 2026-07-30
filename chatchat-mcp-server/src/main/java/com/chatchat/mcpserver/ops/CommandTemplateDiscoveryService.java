@@ -410,7 +410,7 @@ public class CommandTemplateDiscoveryService {
             && "QUERY_CLAUSE_LIMIT_EXCEEDED".equals(searchDiagnostic.code());
         boolean registryFallback = luceneHits.isEmpty() && !modelReviewRequired;
         List<ScoredTemplate<DatabaseQueryConfig>> candidates = scopedDatabaseQueries.stream()
-            .filter(template -> databaseQueryDatasourceId(template) != null)
+            .filter(this::hasExecutableDatabaseQueryBinding)
             .filter(template -> !modelReviewRequired
                 && (registryFallback || luceneHits.containsKey(databaseQueryTemplateId(template))))
             .map(template -> new ScoredTemplate<>(template,
@@ -864,7 +864,7 @@ public class CommandTemplateDiscoveryService {
 
     private List<LuceneMcpSearchService.TemplateDoc> databaseQueryAssetDocs(List<DatabaseQueryConfig> templates) {
         return (templates == null ? List.<DatabaseQueryConfig>of() : templates).stream()
-            .map(config -> databaseQueryDatasource(config)
+            .map(config -> databaseQuerySearchDatasource(config)
                 .map(datasource -> databaseQueryTemplateDoc(config, datasource))
                 .orElse(null))
             .filter(java.util.Objects::nonNull)
@@ -992,7 +992,7 @@ public class CommandTemplateDiscoveryService {
         }
         Map<String, Map<String, Object>> assets = new LinkedHashMap<>();
         for (ScoredTemplate<DatabaseQueryConfig> item : scored) {
-            databaseQueryDatasource(item.template()).ifPresent(datasource -> {
+            databaseQuerySearchDatasource(item.template()).ifPresent(datasource -> {
                 String key = firstText(datasource.getId(), firstText(datasource.getName(), datasource.getToolName()));
                 if (key != null && !assets.containsKey(key)) {
                     assets.put(key, assetMetadata(
@@ -1259,7 +1259,7 @@ public class CommandTemplateDiscoveryService {
         Map<String, Object> parameterSchema = parameterSchema(config.getInputSchemaJson());
         List<String> requiredParameters = requiredParameters(parameterSchema);
         Map<String, Object> executionContext = databaseQueryExecutionContext(config);
-        Map<String, Object> datasourceAsset = databaseQueryDatasource(config)
+        Map<String, Object> datasourceAsset = databaseQuerySearchDatasource(config)
             .<Map<String, Object>>map(datasource -> mapOf(
                 "type", "sql_datasource",
                 "id", datasource.getId(),
@@ -1351,7 +1351,7 @@ public class CommandTemplateDiscoveryService {
     }
 
     private Map<String, Object> databaseQueryExecutionContext(DatabaseQueryConfig config) {
-        return databaseQueryDatasource(config)
+        return databaseQuerySearchDatasource(config)
             .<Map<String, Object>>map(datasource -> mapOf(
                 "assetName", firstText(datasource.getName(), firstText(datasource.getTitle(), datasource.getToolName())),
                 "env", databaseQueryEnvironment(config, datasource),
@@ -1377,6 +1377,26 @@ public class CommandTemplateDiscoveryService {
         } catch (Exception ignored) {
             return java.util.Optional.empty();
         }
+    }
+
+    private java.util.Optional<SqlDatasourceConfig> databaseQuerySearchDatasource(DatabaseQueryConfig config) {
+        java.util.Optional<SqlDatasourceConfig> configured = databaseQueryDatasource(config);
+        if (configured.isPresent() || !isRuntimeManagedDatabaseQuery(config)) {
+            return configured;
+        }
+        SqlDatasourceConfig runtime = new SqlDatasourceConfig();
+        runtime.setId(FinancialAnalysisQuerySamples.INTERNAL_DATASOURCE_ID);
+        runtime.setName("financial-market-runtime");
+        runtime.setTitle("Financial Market Runtime");
+        runtime.setToolName("financial_market_data");
+        runtime.setEnvironment(RUNTIME_MANAGED_TEMPLATE_ENVIRONMENT);
+        runtime.setDatabaseType(SqlDatasourceConfigService.normalizeDatabaseTypeToken(config.getDatabaseType()));
+        runtime.setEnabled(true);
+        return java.util.Optional.of(runtime);
+    }
+
+    private boolean hasExecutableDatabaseQueryBinding(DatabaseQueryConfig config) {
+        return isRuntimeManagedDatabaseQuery(config) || databaseQueryDatasourceId(config) != null;
     }
 
     private String databaseQueryDatasourceId(DatabaseQueryConfig config) {

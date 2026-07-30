@@ -12,6 +12,7 @@ import com.chatchat.mcpserver.search.LuceneSearchProperties;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import com.chatchat.mcpserver.sql.SqlTemplateService;
+import com.chatchat.runtime.market.analysis.FinancialAnalysisQuerySamples;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -29,6 +30,62 @@ class CommandTemplateDiscoveryDatabaseQueryTest {
 
     @TempDir
     Path tempDir;
+
+    @Test
+    void returnsRuntimeManagedFinancialTemplateWithoutExternalDatasourceRegistration() {
+        DatabaseQueryConfig marginQuery = query(
+            "margin-query",
+            "builtin-market-margin-trade",
+            FinancialAnalysisQuerySamples.INTERNAL_DATASOURCE_ID,
+            category("market-category", "market_data", "市场行情"),
+            "最新融资融券余额 margin trading balance"
+        );
+        marginQuery.setDatabaseType("h2");
+        DatabaseQueryConfigService databaseQueryService = mock(DatabaseQueryConfigService.class);
+        when(databaseQueryService.listEnabled()).thenReturn(List.of(marginQuery));
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        when(datasourceService.getEnabled(FinancialAnalysisQuerySamples.INTERNAL_DATASOURCE_ID))
+            .thenReturn(null);
+        DataQueryCategoryService categoryService = mock(DataQueryCategoryService.class);
+        BusinessCategory market = category("market-category", "market_data", "市场行情");
+        when(categoryService.resolve(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+            .thenReturn(new DataQueryCategoryService.CategoryResolution(market, false, List.of(market)));
+
+        CommandTemplateDiscoveryService service = new CommandTemplateDiscoveryService(
+            mock(CommandTemplateService.class),
+            mock(SshHostConfigService.class),
+            mock(SqlTemplateService.class),
+            datasourceService,
+            mock(HttpEndpointConfigService.class),
+            databaseQueryService,
+            categoryService,
+            new ObjectMapper(),
+            new TemplateDiscoveryProperties(),
+            lucene(),
+            new TargetKindRegistry()
+        );
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "business_database_query",
+            "confidence", 0.95,
+            "filters", Map.of(
+                "intent", "融资融券余额",
+                "intentEn", "margin trading balance",
+                "category", "market_data",
+                "env", "DEV"
+            ),
+            "trace", trace(),
+            "limit", 10
+        ));
+
+        assertThat(result).containsEntry("returnedCount", 1);
+        Map<?, ?> template = (Map<?, ?>) ((List<?>) result.get("templates")).get(0);
+        assertThat(template.get("templateId")).isEqualTo("builtin-market-margin-trade");
+        assertThat(template.get("mcpToolName")).isEqualTo("sql_query_execute");
+        Map<?, ?> executionContext = (Map<?, ?>) template.get("executionContext");
+        assertThat(executionContext.get("assetName")).isEqualTo("financial-market-runtime");
+        assertThat(executionContext.get("env")).isEqualTo("DEV");
+    }
 
     @Test
     void returnsSqlScriptExecutorForRegisteredBusinessDatabaseQueryDag() {

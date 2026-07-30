@@ -752,6 +752,44 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void recognizesEquivalentTemplateRetrievalScopeAndSkipsDuplicateFallback() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "equivalentTemplateRetrievalRequest",
+            String.class,
+            Map.class,
+            Map.class
+        );
+        method.setAccessible(true);
+        Map<String, Object> filters = Map.of(
+            "intent", "融资融券余额",
+            "category", "market_data",
+            "env", "DEV"
+        );
+        Map<String, Object> enhanced = new java.util.LinkedHashMap<>(Map.of(
+            "filters", filters,
+            "limit", 10,
+            "intentEn", "margin trading balance"
+        ));
+        Map<String, Object> original = new java.util.LinkedHashMap<>(Map.of(
+            "filters", filters,
+            "limit", 10
+        ));
+
+        assertThat(method.invoke(
+            runtime,
+            "mcp_chatchat_mcp_server_database_query_template_query",
+            enhanced,
+            original
+        )).isEqualTo(true);
+        assertThat(method.invoke(runtime, "document_search", enhanced, original)).isEqualTo(false);
+    }
+
+    @Test
     void factChecksCompleteEnterpriseMetadataFieldCoverage() throws Exception {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             mock(ToolRuntimeService.class),

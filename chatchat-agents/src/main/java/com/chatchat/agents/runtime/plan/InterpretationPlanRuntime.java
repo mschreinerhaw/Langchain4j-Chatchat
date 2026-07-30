@@ -612,30 +612,36 @@ public class InterpretationPlanRuntime {
                     Map<String, Object> originalInput = restoreOriginalRetrievalArguments(
                         resolvedInput, retrievalGate
                     );
-                    ToolRuntimeExecution originalExecution = toolRuntimeService.execute(ToolRuntimeRequest.builder()
-                        .toolName(executionToolName)
-                        .runtimeMode("interpretation_plan_retrieval_gate_fallback")
-                        .requestId(request.requestId())
-                        .conversationId(request.conversationId())
-                        .tenantId(request.tenantId())
-                        .userId(request.userId())
-                        .allowedTools(allowedTools)
-                        .toolInput(ToolInput.builder()
+                    if (equivalentTemplateRetrievalRequest(executionToolName, resolvedInput, originalInput)) {
+                        originalQuality = enhancedQuality;
+                        log.info("Retrieval quality gate skipped duplicate fallback traceId={} stepId={} tool={}",
+                            executionTraceId(request), step.id(), executionToolName);
+                    } else {
+                        ToolRuntimeExecution originalExecution = toolRuntimeService.execute(ToolRuntimeRequest.builder()
+                            .toolName(executionToolName)
+                            .runtimeMode("interpretation_plan_retrieval_gate_fallback")
                             .requestId(request.requestId())
                             .conversationId(request.conversationId())
+                            .tenantId(request.tenantId())
                             .userId(request.userId())
-                            .parameters(originalInput)
-                            .build())
-                        .attributes(attributesForStep(request, step, completed, originalInput, routingDecision))
-                        .build());
-                    originalQuality = RetrievalQualityGate.evaluate(
-                        originalExecution == null ? null : originalExecution.output(),
-                        retrievalGate
-                    );
-                    originalSelected = RetrievalQualityGate.preferFallback(enhancedQuality, originalQuality);
-                    if (originalSelected) {
-                        execution = originalExecution;
-                        resolvedInput = originalInput;
+                            .allowedTools(allowedTools)
+                            .toolInput(ToolInput.builder()
+                                .requestId(request.requestId())
+                                .conversationId(request.conversationId())
+                                .userId(request.userId())
+                                .parameters(originalInput)
+                                .build())
+                            .attributes(attributesForStep(request, step, completed, originalInput, routingDecision))
+                            .build());
+                        originalQuality = RetrievalQualityGate.evaluate(
+                            originalExecution == null ? null : originalExecution.output(),
+                            retrievalGate
+                        );
+                        originalSelected = RetrievalQualityGate.preferFallback(enhancedQuality, originalQuality);
+                        if (originalSelected) {
+                            execution = originalExecution;
+                            resolvedInput = originalInput;
+                        }
                     }
                     log.info("Retrieval quality gate evaluated traceId={} stepId={} tool={} enhancedCount={} originalCount={} selected={}",
                         executionTraceId(request), step.id(), executionToolName,
@@ -2301,6 +2307,24 @@ public class InterpretationPlanRuntime {
             removeNestedValue(restored, path);
         }
         return restored;
+    }
+
+    private boolean equivalentTemplateRetrievalRequest(String toolName,
+                                                       Map<String, Object> enhanced,
+                                                       Map<String, Object> original) {
+        String normalizedTool = toolName == null ? "" : toolName.toLowerCase(java.util.Locale.ROOT);
+        if (!(normalizedTool.contains("template_query") || normalizedTool.contains("template_search"))
+            || enhanced == null || original == null
+            || !(enhanced.get("filters") instanceof Map<?, ?>)
+            || !(original.get("filters") instanceof Map<?, ?>)) {
+            return false;
+        }
+        for (String key : List.of("filters", "limit", "targetKind", "assetType", "finalDecision")) {
+            if (!Objects.equals(enhanced.get(key), original.get(key))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @SuppressWarnings("unchecked")

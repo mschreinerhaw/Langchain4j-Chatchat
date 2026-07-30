@@ -293,12 +293,66 @@ class AgentOrchestratorTest {
             .containsEntry("satisfied", true)
             .containsEntry("reviewType", "LOCAL_CONTRACT_REVIEW");
 
+        for (String discoveryTool : List.of(
+            "mcp_chatchat_mcp_server_database_query_template_query",
+            "mcp_chatchat_mcp_server_api_template_query"
+        )) {
+            Map<String, Object> emptyTemplateReview = (Map<String, Object>) method.invoke(
+                orchestrator,
+                discoveryTool,
+                ToolOutput.success(Map.of(
+                    "success", true,
+                    "returnedCount", 0,
+                    "templates", List.of()
+                ))
+            );
+            assertThat(emptyTemplateReview)
+                .containsEntry("satisfied", false)
+                .containsEntry("resultCode", "NO_MATCHING_TEMPLATE")
+                .containsEntry("returnedCount", 0);
+        }
+
         Map<String, Object> failureReview = (Map<String, Object>) method.invoke(
             orchestrator,
             "mcp_example_read_tool",
             ToolOutput.failure("backend unavailable")
         );
         assertThat(failureReview).containsEntry("satisfied", false);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void mandatoryWorkflowBlocksSqlAndApiExecutionAfterEmptyTemplateDiscovery() throws Exception {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        Method method = AgentOrchestrator.class.getDeclaredMethod(
+            "mandatoryWorkflowPredecessorReview",
+            String.class,
+            List.class
+        );
+        method.setAccessible(true);
+
+        for (Map.Entry<String, String> scenario : Map.of(
+            "mcp_chatchat_mcp_server_sql_query_execute",
+            "mcp_chatchat_mcp_server_database_query_template_query",
+            "mcp_chatchat_mcp_server_http_request_execute",
+            "mcp_chatchat_mcp_server_api_template_query"
+        ).entrySet()) {
+            InteractionToolTrace discovery = InteractionToolTrace.builder()
+                .toolName(scenario.getValue())
+                .success(true)
+                .output("{\"success\":true,\"returnedCount\":0,\"templates\":[]}")
+                .build();
+            Map<String, Object> review = (Map<String, Object>) method.invoke(
+                orchestrator,
+                scenario.getKey(),
+                List.of(discovery)
+            );
+            assertThat(review)
+                .containsEntry("satisfied", false)
+                .containsEntry("resultCode", "NO_MATCHING_TEMPLATE")
+                .containsEntry("predecessorToolName", scenario.getValue())
+                .containsEntry("blockedDependentToolName", scenario.getKey());
+        }
     }
 
     @Test

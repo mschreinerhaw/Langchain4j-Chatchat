@@ -61,7 +61,9 @@ public class BusinessCategoryService {
     public void migrateLegacyCategories() {
         migrateLegacyTable("mcp_data_query_category", true, false);
         migrateLegacyTable("mcp_api_service_category", false, true);
-        backfillUncategorizedAssets(ensureDefaultCategory());
+        BusinessCategory defaultCategory = ensureDefaultCategory();
+        backfillUncategorizedAssets(defaultCategory);
+        reconcileApiGatewayCategories(defaultCategory);
     }
 
     @Transactional(readOnly = true)
@@ -199,6 +201,80 @@ public class BusinessCategoryService {
                 asset.setCategoryId(defaultCategory.getId());
                 httpRepository.save(asset);
             });
+    }
+
+    private void reconcileApiGatewayCategories(BusinessCategory defaultCategory) {
+        int[] synchronizedCount = {0};
+        httpRepository.findAll().forEach(gateway -> {
+            if (gateway.getId() == null || gateway.getId().isBlank()) {
+                return;
+            }
+            List<ApiServiceConfig> linkedServices = apiRepository.findByGatewayId(gateway.getId());
+            if (linkedServices == null || linkedServices.isEmpty()) {
+                return;
+            }
+            BusinessCategory selected = linkedServices.stream()
+                .map(this::resolveApiServiceCategory)
+                .filter(java.util.Objects::nonNull)
+                .filter(category -> !DEFAULT_CODE.equalsIgnoreCase(category.getCode()))
+                .findFirst()
+                .orElseGet(() -> resolveExistingCategory(gateway.getCategoryId(), null)
+                    .orElse(defaultCategory));
+
+            boolean gatewayChanged = !selected.getId().equals(gateway.getCategoryId());
+            if (gatewayChanged) {
+                gateway.setCategoryId(selected.getId());
+                httpRepository.save(gateway);
+            }
+            boolean serviceChanged = false;
+            for (ApiServiceConfig service : linkedServices) {
+                if (!selected.getId().equals(service.getCategoryId())
+                    || !selected.getCode().equals(service.getBusinessGroup())
+                    || !selected.getName().equals(service.getBusinessGroupName())) {
+                    applyApiCategory(service, selected);
+                    apiRepository.save(service);
+                    serviceChanged = true;
+                }
+            }
+            if (gatewayChanged || serviceChanged) {
+                synchronizedCount[0]++;
+            }
+        });
+        if (synchronizedCount[0] > 0) {
+            log.info("Reconciled API gateway and service business categories count={}", synchronizedCount[0]);
+        }
+    }
+
+    private BusinessCategory resolveApiServiceCategory(ApiServiceConfig service) {
+        java.util.Optional<BusinessCategory> byId = resolveExistingCategory(service.getCategoryId(), null);
+        if (byId.isPresent() && !DEFAULT_CODE.equalsIgnoreCase(byId.get().getCode())) {
+            return byId.get();
+        }
+        java.util.Optional<BusinessCategory> byCode = resolveExistingCategory(null, service.getBusinessGroup());
+        if (byCode.isPresent() && !DEFAULT_CODE.equalsIgnoreCase(byCode.get().getCode())) {
+            return byCode.get();
+        }
+        return byId.or(() -> byCode).orElse(null);
+    }
+
+    private java.util.Optional<BusinessCategory> resolveExistingCategory(String id, String code) {
+        if (id != null && !id.isBlank()) {
+            java.util.Optional<BusinessCategory> byId = repository.findById(id);
+            if (byId.isPresent()) {
+                return byId;
+            }
+        }
+        if (code != null && !code.isBlank()) {
+            return repository.findByCodeIgnoreCase(code);
+        }
+        return java.util.Optional.empty();
+    }
+
+    private void applyApiCategory(ApiServiceConfig config, BusinessCategory category) {
+        config.setCategoryId(category.getId());
+        config.setBusinessGroup(category.getCode());
+        config.setBusinessGroupName(category.getName());
+        config.setBusinessGroupDescription(category.getDescription());
     }
 
     private void migrateLegacyTable(String table, boolean hasDomain, boolean apiCategory) {

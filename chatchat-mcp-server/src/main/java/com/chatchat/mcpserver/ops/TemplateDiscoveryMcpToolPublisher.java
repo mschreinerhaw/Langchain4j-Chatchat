@@ -70,12 +70,13 @@ public class TemplateDiscoveryMcpToolPublisher {
         ));
         mcpSyncServer.addTool(domainTemplateQueryTool(
             DATABASE_QUERY_TEMPLATE_TOOL_NAME,
-            "分类数据模板检索",
-            "按数据能力分类、业务意图和查询条件检索已发布的数据查询模板；"
-                + "返回模板标识、参数契约和执行工具，不执行查询。",
+            "Categorized database query template discovery",
+            "Searches published database query templates by data capability category, business intent, "
+                + "and query constraints. Returns template identifiers, parameter contracts, and the "
+                + "authorized execution tool without executing a query.",
             "database_query",
             "business_database_query",
-            "分类数据查询模板"
+            "categorized database query template"
         ));
         mcpSyncServer.notifyToolsListChanged();
         log.info("Template discovery MCP tools refreshed: {}, {}, {}, {}",

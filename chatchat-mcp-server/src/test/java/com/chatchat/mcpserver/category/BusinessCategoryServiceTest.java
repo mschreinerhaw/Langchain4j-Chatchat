@@ -120,6 +120,36 @@ class BusinessCategoryServiceTest {
         verify(apiAssets).save(endpoint);
     }
 
+    @Test
+    void startupReconcilesDefaultGatewayWithLinkedBusinessApiCategory() {
+        BusinessCategory fallback = category("default-id", "default", "榛樿鍒嗙被");
+        BusinessCategory customer = category("customer-id", "customer_analysis", "瀹㈡埛鍒嗘瀽");
+        HttpEndpointConfig gateway = new HttpEndpointConfig();
+        gateway.setId("gateway-1");
+        gateway.setCategoryId(fallback.getId());
+        ApiServiceConfig api = new ApiServiceConfig();
+        api.setGatewayId(gateway.getId());
+        api.setCategoryId(fallback.getId());
+        api.setBusinessGroup(customer.getCode());
+        api.setBusinessGroupName(customer.getName());
+        when(jdbcTemplate.queryForList(anyString())).thenReturn(List.of());
+        when(categories.findByCodeIgnoreCase("default")).thenReturn(Optional.of(fallback));
+        when(categories.findById(fallback.getId())).thenReturn(Optional.of(fallback));
+        when(categories.findById(customer.getId())).thenReturn(Optional.of(customer));
+        when(categories.findByCodeIgnoreCase(customer.getCode())).thenReturn(Optional.of(customer));
+        when(sshAssets.findAll()).thenReturn(List.of());
+        when(databaseAssets.findAll()).thenReturn(List.of());
+        when(apiAssets.findAll()).thenReturn(List.of(gateway));
+        when(apiTemplates.findByGatewayId(gateway.getId())).thenReturn(List.of(api));
+
+        service.migrateLegacyCategories();
+
+        assertThat(gateway.getCategoryId()).isEqualTo(customer.getId());
+        assertThat(api.getCategoryId()).isEqualTo(customer.getId());
+        assertThat(api.getBusinessGroup()).isEqualTo(customer.getCode());
+        verify(apiAssets).save(gateway);
+    }
+
     private BusinessCategory category(String id, String code, String name) {
         BusinessCategory category = new BusinessCategory();
         category.setId(id);

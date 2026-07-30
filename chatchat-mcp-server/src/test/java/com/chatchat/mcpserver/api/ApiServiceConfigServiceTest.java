@@ -9,8 +9,10 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ApiServiceConfigServiceTest {
@@ -52,5 +54,33 @@ class ApiServiceConfigServiceTest {
         assertThat(listed.getInputSchemaJson()).contains("\"orderId\"", "\"default\":\"A001\"");
         assertThat(listed.getCategoryId()).isEqualTo("market-id");
         assertThat(listed.getBusinessGroup()).isEqualTo("market_data");
+    }
+
+    @Test
+    void synchronizesApiServiceCategoryBackToLinkedGateway() {
+        ApiServiceConfigRepository repository = mock(ApiServiceConfigRepository.class);
+        HttpEndpointConfigService gateways = mock(HttpEndpointConfigService.class);
+        HttpEndpointConfig gateway = new HttpEndpointConfig();
+        gateway.setId("gateway-1");
+        gateway.setCategoryId("default-id");
+        when(gateways.getById(gateway.getId())).thenReturn(gateway);
+        when(repository.save(any(ApiServiceConfig.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        ApiServiceConfig draft = new ApiServiceConfig();
+        draft.setToolName("customer_lookup");
+        draft.setTitle("Customer lookup");
+        draft.setGatewayId(gateway.getId());
+        draft.setCategoryId("customer-id");
+        draft.setBusinessGroup("customer_analysis");
+        ApiServiceConfigService service = new ApiServiceConfigService(
+            repository,
+            mock(ToolRegistry.class),
+            new ObjectMapper(),
+            gateways,
+            mock(ApiServiceCategoryService.class)
+        );
+
+        service.create(draft);
+
+        verify(gateways).updateBusinessCategory(gateway.getId(), "customer-id");
     }
 }

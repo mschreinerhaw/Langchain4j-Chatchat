@@ -5,13 +5,13 @@ import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -66,11 +66,11 @@ class TemplateDiscoveryMcpToolPublisherTest {
             (McpServerFeatures.SyncToolSpecification) method.invoke(
                 publisher,
                 TemplateDiscoveryMcpToolPublisher.DATABASE_QUERY_TEMPLATE_TOOL_NAME,
-                "分类数据模板检索",
-                "按数据能力分类检索模板。",
+                "Categorized database query template discovery",
+                "Searches published database query templates by data capability category.",
                 "database_query",
                 "business_database_query",
-                "分类数据查询模板"
+                "categorized database query template"
             );
         McpSchema.Tool tool = spec.tool();
         Map<?, ?> meta = tool.meta();
@@ -80,7 +80,8 @@ class TemplateDiscoveryMcpToolPublisherTest {
 
         assertThat(tool.name())
             .isEqualTo(TemplateDiscoveryMcpToolPublisher.DATABASE_QUERY_TEMPLATE_TOOL_NAME);
-        assertThat(tool.title()).isEqualTo("分类数据模板检索");
+        assertThat(tool.title()).isEqualTo("Categorized database query template discovery");
+        assertThat(tool.description().codePoints().allMatch(character -> character < 128)).isTrue();
         assertThat(meta.get("assetType")).isEqualTo("database_query");
         assertThat(meta.get("targetKind")).isEqualTo("business_database_query");
         assertThat(applicability.get("backendServiceTypes"))
@@ -100,7 +101,20 @@ class TemplateDiscoveryMcpToolPublisherTest {
 
         publisher.refresh();
 
-        verify(server, times(4)).addTool(any(McpServerFeatures.SyncToolSpecification.class));
+        ArgumentCaptor<McpServerFeatures.SyncToolSpecification> tools =
+            ArgumentCaptor.forClass(McpServerFeatures.SyncToolSpecification.class);
+        verify(server, times(4)).addTool(tools.capture());
+        McpSchema.Tool databaseQueryTool = tools.getAllValues().stream()
+            .map(McpServerFeatures.SyncToolSpecification::tool)
+            .filter(tool -> TemplateDiscoveryMcpToolPublisher.DATABASE_QUERY_TEMPLATE_TOOL_NAME.equals(tool.name()))
+            .findFirst()
+            .orElseThrow();
+        assertThat(databaseQueryTool.title())
+            .isEqualTo("Categorized database query template discovery");
+        assertThat(databaseQueryTool.description())
+            .contains("Searches published database query templates by data capability category")
+            .contains("without executing a query");
+        assertThat(databaseQueryTool.description().codePoints().allMatch(character -> character < 128)).isTrue();
         verify(server).notifyToolsListChanged();
     }
 

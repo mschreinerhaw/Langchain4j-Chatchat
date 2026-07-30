@@ -13,6 +13,7 @@ import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import com.chatchat.mcpserver.sql.SqlTemplateConfig;
 import com.chatchat.mcpserver.sql.SqlTemplateService;
 import com.chatchat.mcpserver.template.AgentRuntimeTemplateDsl;
+import com.chatchat.runtime.market.analysis.FinancialAnalysisQuerySamples;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -2348,7 +2349,9 @@ public class CommandTemplateDiscoveryService {
             && datasource.filter(value -> datasourceNameMatches(value, assetName)).isEmpty()) {
             return false;
         }
-        if (env != null && datasource.filter(value -> equalsNormalized(env, value.getEnvironment())).isEmpty()) {
+        if (env != null
+            && !isRuntimeManagedDatabaseQuery(template)
+            && datasource.filter(value -> equalsNormalized(env, value.getEnvironment())).isEmpty()) {
             return false;
         }
         String requestedType = requestedDatabaseType(filters);
@@ -2369,6 +2372,11 @@ public class CommandTemplateDiscoveryService {
             }
         }
         return true;
+    }
+
+    private boolean isRuntimeManagedDatabaseQuery(DatabaseQueryConfig template) {
+        return template != null
+            && FinancialAnalysisQuerySamples.INTERNAL_DATASOURCE_ID.equals(template.getDatasourceId());
     }
 
     private Set<String> databaseQueryTemplateLabels(DatabaseQueryConfig template, SqlDatasourceConfig datasource) {

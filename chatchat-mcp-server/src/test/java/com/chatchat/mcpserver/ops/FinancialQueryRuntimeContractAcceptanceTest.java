@@ -168,7 +168,10 @@ class FinancialQueryRuntimeContractAcceptanceTest {
                                 "targetKind", "business_database_query",
                                 "confidence", 0.95
                             )),
-                            "filters", Map.of("category", "market_data", "intent", QUESTION),
+                            "filters", Map.of(
+                                "category", "market_data",
+                                "intent", QUESTION,
+                                "env", "DEV"),
                             "limit", 20
                         ),
                         List.of(),

@@ -2201,7 +2201,7 @@ public class InterpretationPlanRuntime {
         hydrateSqlMetadataParametersFromMetadataSearch(step, contractContext, input);
         repairTableScopedSqlTemplate(step, contractContext, input);
         enforceAgentRuntimeEnvironment(step, request, input);
-        validateRequiredExecutionTemplate(step, input);
+        validateRequiredExecutionTemplate(step, input, completed);
         normalizeDiscoveryRoutingInput(step, request, completed, input);
         input.remove("runtimeParameterProtocolApplied");
         if (!retrievalGate.isEmpty()) {
@@ -4136,8 +4136,12 @@ public class InterpretationPlanRuntime {
             && Boolean.TRUE.equals(request.attributes().get("requireTemplateParameterProtocol"));
     }
 
-    private void validateRequiredExecutionTemplate(InterpretationPlan.Step step, Map<String, Object> input) {
-        if (step == null || input == null || !requiresTemplateId(step.toolName())) {
+    private void validateRequiredExecutionTemplate(InterpretationPlan.Step step,
+                                                   Map<String, Object> input,
+                                                   Map<Integer, StepExecution> completed) {
+        if (step == null || input == null
+            || (!requiresTemplateId(step.toolName())
+                && !sqlExecutionDependsOnTemplateDiscovery(step, completed))) {
             return;
         }
         Object templateId = firstValueAtAnyPath(input,
@@ -4150,6 +4154,18 @@ public class InterpretationPlanRuntime {
         throw new IllegalStateException("TEMPLATE_REQUIRED: " + step.toolName()
             + " must be called with template/templateId returned by the matching template_query step. "
             + "Do not retry template execution with an empty template.");
+    }
+
+    private boolean sqlExecutionDependsOnTemplateDiscovery(InterpretationPlan.Step step,
+                                                           Map<Integer, StepExecution> completed) {
+        if (step == null || !isSqlQueryExecuteTool(step.toolName())
+            || completed == null || completed.isEmpty()) {
+            return false;
+        }
+        return safeIntegerList(step.dependsOn()).stream()
+            .map(completed::get)
+            .filter(java.util.Objects::nonNull)
+            .anyMatch(execution -> isTemplateDiscoveryTool(execution.toolName()));
     }
 
     private Map<String, Object> completedTemplateMetadata(Map<Integer, StepExecution> completed, String templateId) {

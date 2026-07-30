@@ -1690,6 +1690,93 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void blocksSqlExecutionWhenTemplateDiscoveryReturnsNoTemplateMetadata() {
+        String discoveryTool = "mcp_chatchat_mcp_server_database_query_template_query";
+        String executionTool = "mcp_chatchat_mcp_server_sql_query_execute";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(any())).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenAnswer(invocation ->
+            ToolMetadata.builder().id(invocation.getArgument(0)).riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of(
+                "success", true,
+                "returnedCount", 1,
+                "templates", List.of()
+            )),
+            ToolMetadata.builder().id(discoveryTool).build(),
+            null,
+            "success",
+            Map.of()
+        ));
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("sql_query", "查询融资融券最新数据", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(
+                    1,
+                    "mcp_tool",
+                    discoveryTool,
+                    Map.of("filters", Map.of("intent", "查询融资融券最新数据", "env", "DEV")),
+                    List.of(),
+                    null,
+                    null
+                ),
+                new InterpretationPlan.Step(
+                    2,
+                    "mcp_tool",
+                    executionTool,
+                    Map.of("executionContext", Map.of("env", "DEV"), "parameters", Map.of()),
+                    List.of(1),
+                    null,
+                    null
+                ),
+                new InterpretationPlan.Step(
+                    3,
+                    "final_answer",
+                    "",
+                    Map.of("answer", "done"),
+                    List.of(2),
+                    null,
+                    null
+                )
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                3, false, List.of(discoveryTool, executionTool), List.of(), 30000),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan,
+                toolRegistry,
+                List.of(discoveryTool, executionTool),
+                "tenant-1",
+                "req-empty-template-binding",
+                "conv-empty-template-binding",
+                "user-1",
+                Map.of()
+            )
+        );
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorMessage())
+            .contains("TEMPLATE_CONTRACT_RESOLUTION_FAILED", executionTool);
+        ArgumentCaptor<ToolRuntimeRequest> requests = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
+        verify(toolRuntimeService, times(2)).execute(requests.capture());
+        assertThat(requests.getAllValues())
+            .extracting(ToolRuntimeRequest::getToolName)
+            .containsOnly(discoveryTool)
+            .doesNotContain(executionTool);
+    }
+
+    @Test
     void hydratesSqlExecutionContextFromBusinessTemplateMetadata() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool(any())).thenReturn(true);

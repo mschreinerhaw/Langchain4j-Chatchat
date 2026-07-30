@@ -23,15 +23,15 @@ class DatabaseQueryMcpNamingPolicyTest {
     @Test
     void doesNotRepeatAnExistingCategoryPrefix() {
         DatabaseQueryConfig config = new DatabaseQueryConfig();
-        config.setToolName("data_validation_financial_dataset_freshness");
-        config.setTitle("【数据核验】金融数据资产覆盖与新鲜度");
+        config.setToolName("data_validation_dataset_consistency");
+        config.setTitle("【数据核验】数据集一致性检查");
         config.setCapabilityCategory("data_validation");
         config.setBusinessGroupName("数据核验");
 
         assertThat(policy.toolName(config))
-            .isEqualTo("data_validation_financial_dataset_freshness");
+            .isEqualTo("data_validation_dataset_consistency");
         assertThat(policy.title(config))
-            .isEqualTo("【数据核验】金融数据资产覆盖与新鲜度");
+            .isEqualTo("【数据核验】数据集一致性检查");
     }
 
     @Test

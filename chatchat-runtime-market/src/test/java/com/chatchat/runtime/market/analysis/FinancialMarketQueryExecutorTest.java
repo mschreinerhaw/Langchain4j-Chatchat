@@ -114,7 +114,7 @@ class FinancialMarketQueryExecutorTest {
 
     @Test
     void exposesEightCompleteDisabledSampleDefinitions() {
-        assertThat(FinancialAnalysisQuerySamples.all()).hasSize(8);
+        assertThat(FinancialAnalysisQuerySamples.all()).hasSize(7);
         assertThat(FinancialAnalysisQuerySamples.all()).allSatisfy(sample -> {
             assertThat(sample.id()).isNotBlank();
             assertThat(sample.toolName()).startsWith("sample_");

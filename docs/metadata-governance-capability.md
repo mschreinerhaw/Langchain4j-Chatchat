@@ -1,8 +1,8 @@
 # Enterprise metadata governance capabilities
 
-The MCP server exposes two read-only metadata-governance tools. Both use the
-maintained enterprise metadata catalog as their factual boundary and never
-execute DDL.
+The MCP server exposes one read-only metadata-governance tool. It uses the
+maintained enterprise metadata catalog as its factual boundary and never
+executes DDL.
 
 ## `enterprise_metadata_annotate_ddl`
 
@@ -18,28 +18,6 @@ The result parses every physical column and returns:
 
 The output schema is `metadata_ddl_annotation.v1` and always declares
 `executionStatus=NOT_EXECUTED`.
-
-## `enterprise_metadata_compare`
-
-The tool accepts exactly one analysis source:
-
-- `ddl`: compare a draft `CREATE TABLE` statement; or
-- `tableName`: retrieve columns from the registered SQL metadata catalog and
-  compare the existing physical table. `database`, `assetId`, `assetName`, and
-  `env` can narrow the physical-table lookup.
-
-The output schema is `metadata_standard_comparison.v1`. Differences use stable
-codes including:
-
-- `STANDARD_FIELD_MISSING`
-- `TECHNICAL_NAME_MISMATCH`
-- `DATA_TYPE_MISMATCH`
-- `NULLABILITY_MISMATCH`
-- `TERM_NOT_STANDARD`
-- `DICTIONARY_MAPPING_MISSING`
-
-Every result includes physical-column evidence, matched enterprise records,
-source evidence, severity counts, and a deterministic `conforms` flag.
 
 ## Runtime governance boundary
 

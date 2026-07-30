@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -30,6 +31,11 @@ import java.util.Optional;
 public class FinancialAnalysisQuerySampleSeeder {
 
     private static final String STATE_TABLE = "market_analysis_sample_seed_state";
+    private static final String RETIRED_FRESHNESS_SAMPLE_ID = "builtin-market-dataset-freshness";
+    private static final List<String> RETIRED_FRESHNESS_TOOL_NAMES = List.of(
+        "sample_financial_dataset_freshness",
+        "data_validation_financial_dataset_freshness"
+    );
 
     private final DatabaseQueryConfigRepository repository;
     private final JdbcTemplate jdbcTemplate;
@@ -40,6 +46,7 @@ public class FinancialAnalysisQuerySampleSeeder {
     @Transactional
     public void seedOnce() {
         ensureStateTable();
+        retireRemovedSamples();
         int created = 0;
         int upgraded = 0;
         for (Sample sample : FinancialAnalysisQuerySamples.all()) {
@@ -63,6 +70,19 @@ public class FinancialAnalysisQuerySampleSeeder {
         }
         log.info("Financial database analysis samples initialized created={} upgraded={} total={} enabled=false",
             created, upgraded, FinancialAnalysisQuerySamples.all().size());
+    }
+
+    private void retireRemovedSamples() {
+        Map<String, DatabaseQueryConfig> retired = new LinkedHashMap<>();
+        repository.findById(RETIRED_FRESHNESS_SAMPLE_ID)
+            .ifPresent(config -> retired.put(config.getId(), config));
+        RETIRED_FRESHNESS_TOOL_NAMES.forEach(toolName ->
+            repository.findByToolNameIgnoreCase(toolName)
+                .ifPresent(config -> retired.put(config.getId(), config)));
+        retired.values().forEach(repository::delete);
+        if (!retired.isEmpty()) {
+            log.info("Retired obsolete financial database query samples ids={}", retired.keySet());
+        }
     }
 
     private boolean requiresStableObservationUpgrade(DatabaseQueryConfig existing, Sample sample) {

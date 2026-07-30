@@ -34,7 +34,7 @@ class FinancialAnalysisQuerySampleSeederTest {
         seeder.seedOnce();
 
         ArgumentCaptor<DatabaseQueryConfig> captor = ArgumentCaptor.forClass(DatabaseQueryConfig.class);
-        verify(repository, times(8)).save(captor.capture());
+        verify(repository, times(7)).save(captor.capture());
         assertThat(captor.getAllValues()).allSatisfy(config -> {
             assertThat(config.isEnabled()).isFalse();
             assertThat(config.getDatasourceId()).isEqualTo(FinancialAnalysisQuerySamples.INTERNAL_DATASOURCE_ID);
@@ -46,7 +46,7 @@ class FinancialAnalysisQuerySampleSeederTest {
             assertThat(config.getRiskLevel()).isEqualTo("read_only");
             assertThat(config.getOwner()).isEqualTo("system");
         });
-        verify(jdbc, times(8)).update(
+        verify(jdbc, times(7)).update(
             org.mockito.ArgumentMatchers.contains("insert into market_analysis_sample_seed_state"),
             anyString(), any(java.sql.Timestamp.class));
     }
@@ -91,5 +91,26 @@ class FinancialAnalysisQuerySampleSeederTest {
         assertThat(captor.getValue().getSqlTemplate()).contains("observation_rank", "ROW_NUMBER()");
         assertThat(captor.getValue().getSqlStepsJson()).contains("observation_rank");
         verify(jdbc, times(0)).update(anyString(), any(), any());
+    }
+
+    @Test
+    void deletesRetiredFreshnessSampleFromExistingRegistries() {
+        DatabaseQueryConfigRepository repository = mock(DatabaseQueryConfigRepository.class);
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        DatabaseQueryConfig retired = new DatabaseQueryConfig();
+        retired.setId("builtin-market-dataset-freshness");
+        retired.setToolName("sample_financial_dataset_freshness");
+        when(jdbc.queryForObject(anyString(), eq(Integer.class), anyString())).thenReturn(1);
+        when(repository.findById(anyString())).thenReturn(Optional.empty());
+        when(repository.findById(retired.getId())).thenReturn(Optional.of(retired));
+        when(repository.findByToolNameIgnoreCase(anyString())).thenReturn(Optional.empty());
+        when(repository.findByToolNameIgnoreCase(retired.getToolName())).thenReturn(Optional.of(retired));
+        FinancialAnalysisQuerySampleSeeder seeder =
+            new FinancialAnalysisQuerySampleSeeder(repository, jdbc, new ObjectMapper());
+
+        seeder.seedOnce();
+
+        verify(repository).delete(retired);
+        verify(repository, times(0)).save(any(DatabaseQueryConfig.class));
     }
 }

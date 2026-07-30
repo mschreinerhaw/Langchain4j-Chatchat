@@ -25,7 +25,7 @@ import java.util.Map;
 public class EnterpriseMetadataMcpToolPublisher {
 
     public static final String TOOL_NAME = "enterprise_metadata_search";
-    public static final String MATCH_TOOL_NAME = "enterprise_metadata_match";
+    public static final String RETIRED_MATCH_TOOL_NAME = "enterprise_metadata_match";
 
     private final McpSyncServer mcpSyncServer;
     private final EnterpriseMetadataMatchingService matchingService;
@@ -44,12 +44,11 @@ public class EnterpriseMetadataMcpToolPublisher {
 
     public synchronized void refresh() {
         remove(TOOL_NAME);
-        remove(MATCH_TOOL_NAME);
+        remove(RETIRED_MATCH_TOOL_NAME);
         mcpSyncServer.addTool(searchSpecification());
-        mcpSyncServer.addTool(matchSpecification());
         mcpSyncServer.notifyToolsListChanged();
-        log.info("Enterprise metadata MCP capabilities registered tools={},{}",
-            TOOL_NAME, MATCH_TOOL_NAME);
+        log.info("Enterprise metadata MCP capabilities registered tools={}; retiredToolRemoved={}",
+            TOOL_NAME, RETIRED_MATCH_TOOL_NAME);
     }
 
     private McpServerFeatures.SyncToolSpecification searchSpecification() {
@@ -260,46 +259,6 @@ public class EnterpriseMetadataMcpToolPublisher {
         );
     }
 
-    private McpServerFeatures.SyncToolSpecification matchSpecification() {
-        McpSchema.Tool tool = McpSchema.Tool.builder()
-            .name(MATCH_TOOL_NAME)
-            .title("Enterprise metadata field discovery and matching")
-            .description("Compatibility endpoint for direct field-matching clients. Agent Runtime should prefer "
-                + "enterprise_metadata_search with a complete fields array so prior evidence remains in one unified call. "
-                + "Resolve a complete CREATE TABLE draft, registered physical table, or explicit field list. "
-                + "The tool extracts every field, searches maintained standard fields, term roots and dictionaries "
-                + "for each field independently, and returns field-scoped evidence_object_v1 records plus a review "
-                + "decision protocol. Use this tool before deciding whether fields can reuse enterprise standards.")
-            .inputSchema(matchInputSchema())
-            .meta(matchMeta())
-            .build();
-        return McpServerFeatures.SyncToolSpecification.builder()
-            .tool(tool)
-            .callHandler((exchange, request) -> {
-                try {
-                    Map<String, Object> arguments =
-                        request.arguments() == null ? Map.of() : request.arguments();
-                    Map<String, Object> result = matchingService.match(arguments);
-                    return McpSchema.CallToolResult.builder()
-                        .addTextContent(matchSummary(result))
-                        .structuredContent(result)
-                        .isError(false)
-                        .build();
-                } catch (Exception ex) {
-                    return McpSchema.CallToolResult.builder()
-                        .addTextContent(ex.getMessage())
-                        .structuredContent(Map.of(
-                            "schemaVersion", EnterpriseMetadataMatchingService.SCHEMA_VERSION,
-                            "success", false,
-                            "error", ex.getMessage()
-                        ))
-                        .isError(true)
-                        .build();
-                }
-            })
-            .build();
-    }
-
     private McpSchema.JsonSchema inputSchema() {
         Map<String, Object> fieldSchema = mapOf(
             "type", "object",
@@ -434,68 +393,6 @@ public class EnterpriseMetadataMcpToolPublisher {
         ), List.of(), false, null, null);
     }
 
-    private McpSchema.JsonSchema matchInputSchema() {
-        Map<String, Object> fieldSchema = mapOf(
-            "type", "object",
-            "properties", mapOf(
-                "fieldName", Map.of("type", "string",
-                    "description", "English or physical field name"),
-                "fieldCnName", Map.of("type", "string",
-                    "description", "Chinese business field name"),
-                "dataType", Map.of("type", "string"),
-                "description", Map.of("type", "string"),
-                "nullable", Map.of("type", "boolean"),
-                "domain", Map.of("type", "string",
-                    "description", "Optional business domain")
-            ),
-            "additionalProperties", false
-        );
-        return new McpSchema.JsonSchema("object", mapOf(
-            "requestId", Map.of("type", "string",
-                "description", "Optional caller correlation id"),
-            "purpose", Map.of("type", "string",
-                "description", "Review purpose such as CREATE_TABLE_FIELD_MAPPING"),
-            "matchMode", Map.of("type", "string",
-                "description", "Provider matching mode such as FIELD_MAPPING"),
-            "targetObject", mapOf(
-                "type", "object",
-                "properties", mapOf(
-                    "type", Map.of("type", "string"),
-                    "name", Map.of("type", "string"),
-                    "domain", Map.of("type", "string")
-                ),
-                "additionalProperties", false
-            ),
-            "ddl", Map.of("type", "string",
-                "description", "One CREATE TABLE statement; parsed but never executed"),
-            "tableName", Map.of("type", "string",
-                "description", "Registered physical table whose complete columns should be resolved"),
-            "database", Map.of("type", "string"),
-            "assetId", Map.of("type", "string"),
-            "assetName", Map.of("type", "string"),
-            "env", Map.of("type", "string"),
-            "fields", mapOf(
-                "type", "array",
-                "items", fieldSchema,
-                "description", "Explicit draft fields; use when no ddl or tableName is supplied"
-            ),
-            "matchStrategy", mapOf(
-                "type", "array",
-                "items", Map.of(
-                    "type", "string",
-                    "enum", List.of("ENGLISH_NAME", "CHINESE_NAME", "ALIAS", "SEMANTIC")
-                )
-            ),
-            "statuses", Map.of("type", "array", "items", Map.of("type", "string")),
-            "scenarios", Map.of("type", "array", "items", Map.of("type", "string")),
-            "candidateLimitPerType", mapOf(
-                "type", "integer",
-                "minimum", 1,
-                "maximum", properties.getMaxResults()
-            )
-        ), List.of(), false, null, null);
-    }
-
     private Map<String, Object> meta() {
         return mapOf(
             "schemaVersion", EnterpriseMetadataSearchService.REQUIRED_BUNDLE_SCHEMA_VERSION,
@@ -559,44 +456,6 @@ public class EnterpriseMetadataMcpToolPublisher {
                     )
                 ),
                 "guidance", "Combine query/queryTerms with declared SQL metadata evidence into a field-scoped verification profile."
-            )
-        );
-    }
-
-    private Map<String, Object> matchMeta() {
-        return mapOf(
-            "schemaVersion", EnterpriseMetadataMatchingService.SCHEMA_VERSION,
-            "kind", "enterprise_metadata_capability",
-            "capabilityType", "metadata",
-            "provider", "configured_catalog",
-            "runtime_action", "read_only",
-            "runtimeAction", "read_only",
-            "readOnly", true,
-            "riskLevel", "low",
-            "confirmation", mapOf("default", "auto_execute", "allow_user_override", false),
-            McpToolApplicability.META_KEY, McpToolApplicability.of(
-                "enterprise_metadata:match",
-                "Field-level enterprise metadata discovery and matching",
-                List.of("enterprise_metadata", "data_model", "sql_datasource"),
-                "Extract every target field and return standard-field, term-root and dictionary evidence for review.",
-                List.of(
-                    "Review a CREATE TABLE draft field by field",
-                    "Compare every column of a registered table",
-                    "Resolve Chinese and English draft field names"
-                ),
-                List.of(
-                    "Executing DDL",
-                    "Automatically approving ambiguous matches",
-                    "Inventing standards absent from returned evidence"
-                )
-            ),
-            "evidenceContract", mapOf(
-                "contractVersion", "evidence_object_v1",
-                "resultPath", "fieldMatches[]",
-                "evidencePath", "evidenceObjects[]",
-                "reviewPath", "fieldMatches[].analysis",
-                "coveragePath", "coverage",
-                "factBoundary", "returned_field_scoped_enterprise_metadata_evidence_only"
             )
         );
     }

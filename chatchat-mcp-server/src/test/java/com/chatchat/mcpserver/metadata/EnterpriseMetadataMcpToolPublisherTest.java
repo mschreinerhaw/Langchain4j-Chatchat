@@ -209,6 +209,31 @@ class EnterpriseMetadataMcpToolPublisherTest {
         verifyNoInteractions(searchService, matchingService);
     }
 
+    @Test
+    void refreshPublishesSearchOnlyAndRemovesRetiredMatchTool() {
+        McpSyncServer server = mock(McpSyncServer.class);
+        EnterpriseMetadataMcpToolPublisher publisher = new EnterpriseMetadataMcpToolPublisher(
+            server,
+            mock(EnterpriseMetadataMatchingService.class),
+            mock(EnterpriseMetadataSearchService.class),
+            new EnterpriseMetadataRequestAdapter(mock(SqlMetadataSearchService.class)),
+            new EnterpriseMetadataProperties(),
+            EnterpriseMetadataTestProperties.policyService()
+        );
+
+        publisher.refresh();
+
+        ArgumentCaptor<io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification> tool =
+            ArgumentCaptor.forClass(
+                io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification.class);
+        verify(server).removeTool(EnterpriseMetadataMcpToolPublisher.TOOL_NAME);
+        verify(server).removeTool(EnterpriseMetadataMcpToolPublisher.RETIRED_MATCH_TOOL_NAME);
+        verify(server).addTool(tool.capture());
+        assertThat(tool.getValue().tool().name())
+            .isEqualTo(EnterpriseMetadataMcpToolPublisher.TOOL_NAME);
+        verify(server).notifyToolsListChanged();
+    }
+
     private EnterpriseMetadataMcpToolPublisher publisher(
         EnterpriseMetadataMatchingService matchingService,
         EnterpriseMetadataSearchService searchService

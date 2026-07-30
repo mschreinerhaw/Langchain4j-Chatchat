@@ -24,31 +24,6 @@ public final class FinancialAnalysisQuerySamples {
     public static List<Sample> all() {
         return List.of(
             sample(
-                "builtin-market-dataset-freshness",
-                "sample_financial_dataset_freshness",
-                "金融数据资产覆盖与新鲜度",
-                "查看各金融数据集的业务名称、更新频率、最近观测日期、最近采集时间、冷热分层保留策略和数据来源。"
-                    + "适用于采集完整性检查、数据延迟排查，以及在正式分析前确认可用证据范围。",
-                """
-                1. 从金融资产目录读取所有已登记数据集。
-                2. 按最近观测日期倒序排列，识别长期未更新或尚无观测的数据集。
-                3. 结合更新频率、来源和保留策略判断数据是否适合当前分析。
-                4. 本查询只反映数据可用性，不直接推断市场方向。
-                """,
-                """
-                SELECT dataset_code, asset_name, business_description, update_frequency,
-                       last_observation_date, last_collected_at, history_granularity,
-                       hot_retention_days, archive_retention_days, source_names_json
-                FROM market_asset_catalog
-                ORDER BY last_observation_date DESC, dataset_code
-                """,
-                emptySchema(),
-                List.of("金融数据", "数据质量", "采集状态", "新鲜度", "资产目录"),
-                "financial_data_quality",
-                100,
-                "每行代表一个金融数据集；last_observation_date 是最新业务日期，last_collected_at 是系统最近入库时间。"
-            ),
-            sample(
                 "builtin-market-latest-movers",
                 "sample_market_latest_movers",
                 "最新交易日证券与指数涨跌榜",

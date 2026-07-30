@@ -215,10 +215,14 @@ export default {
     },
     isExecutionRunning(message = {}) {
       const status = String(message.status || "").toLowerCase();
-      const runningStatus = ["running", "streaming", "processing", "executing"].includes(status);
+      const runningStatus = ["running", "streaming", "processing", "executing", "finalizing"].includes(status);
       return message.role === "assistant"
         && (!!message.streaming || (this.loading && runningStatus) || (runningStatus && !message.content))
         && !["failed", "cancelled", "empty", "partial", "completed", "waiting"].includes(status);
+    },
+    isResultFinalizing(message = {}) {
+      return message.role === "assistant"
+        && String(message.status || "").toLowerCase() === "finalizing";
     },
     visibleExecutionSteps(message = {}) {
       const steps = Array.isArray(message.steps) ? message.steps : [];
@@ -378,6 +382,9 @@ export default {
       return active?.title || (this.isExecutionRunning(message) ? "Runtime Working" : this.executionTitle(message));
     },
     runtimeProgress(message = {}) {
+      if (this.isResultFinalizing(message)) {
+        return 98;
+      }
       if (!this.isExecutionRunning(message) && !message.streaming && !["failed", "cancelled"].includes(message.status)) {
         return 100;
       }
@@ -399,6 +406,9 @@ export default {
       return Math.max(5, Math.min(98, Math.round(progress * 100)));
     },
     runtimeStatusLabel(message = {}) {
+      if (this.isResultFinalizing(message)) {
+        return "整理结果";
+      }
       if (message.status === "waiting") {
         return "等待确认";
       }

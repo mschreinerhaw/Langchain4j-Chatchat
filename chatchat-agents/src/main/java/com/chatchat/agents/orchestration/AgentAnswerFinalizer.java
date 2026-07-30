@@ -50,6 +50,7 @@ class AgentAnswerFinalizer {
     private static final String UNIFIED_EVIDENCE_CONTRACT = "evidence_v1";
     private static final String EVIDENCE_ANSWER_CONTRACT = "evidence_answer_v1";
     private static final String EXECUTION_CONTRACT = "evidence_execution_contract_v2_2";
+    private static final String ANSWER_EVIDENCE_AUDIT_CONTRACT = "answer_evidence_audit_v1";
     private static final String INSUFFICIENT_EVIDENCE_ANSWER = "根据当前文档证据不足，无法确认。";
     private static final int TOOL_DATA_INLINE_CELL_LIMIT = 240;
     private static final Pattern DOCUMENT_REF_PATTERN =
@@ -173,6 +174,7 @@ class AgentAnswerFinalizer {
             values.put("finalAnswerSanitized", true);
             values.put("finalAnswerPreview", shortText(finalAnswer, 1000));
         }
+        recordAnswerEvidenceAudit(values, observations, toolEvidence, traces);
         DraftArtifactRuntimePolicy.Result draftArtifact = draftArtifactRuntimePolicy.enforce(
             finalAnswer, values);
         finalAnswer = draftArtifact.answer();
@@ -1839,6 +1841,58 @@ class AgentAnswerFinalizer {
 
     private boolean nonBlankString(Object value) {
         return value != null && !stringValue(value).isBlank();
+    }
+
+    /**
+     * Records evidence posture for diagnostics without changing the model-selected answer.
+     */
+    private void recordAnswerEvidenceAudit(Map<String, Object> metadata,
+                                           List<String> observations,
+                                           List<Map<String, Object>> toolEvidence,
+                                           List<InteractionToolTrace> traces) {
+        if (metadata == null) {
+            return;
+        }
+        List<String> evidence = new ArrayList<>();
+        List<String> limitations = new ArrayList<>();
+
+        boolean successfulToolEvidence = toolEvidence != null && toolEvidence.stream()
+            .anyMatch(item -> Boolean.TRUE.equals(item.get("success"))
+                && nonBlankString(item.get("evidenceType")));
+        if (successfulToolEvidence) {
+            evidence.add("SUCCESSFUL_TOOL_EVIDENCE");
+        }
+        if (containsEvidence(observations == null ? List.of() : observations)) {
+            evidence.add("CITED_OBSERVATION");
+        }
+
+        boolean failedToolEvidence = toolEvidence != null && toolEvidence.stream()
+            .anyMatch(item -> !Boolean.TRUE.equals(item.get("success")));
+        boolean failedTrace = traces != null && traces.stream()
+            .anyMatch(trace -> trace != null && !trace.isSuccess());
+        if (failedToolEvidence || failedTrace) {
+            limitations.add("TOOL_EXECUTION_FAILURE");
+        }
+        if (Boolean.TRUE.equals(metadata.get("fatalExecutionBlocked"))
+            || Boolean.TRUE.equals(metadata.get("mandatoryWorkflowBlocked"))) {
+            limitations.add("RUNTIME_EXECUTION_BLOCKED");
+        }
+
+        String status;
+        if (!evidence.isEmpty() && limitations.isEmpty()) {
+            status = "GROUNDED";
+        } else if (!evidence.isEmpty()) {
+            status = "PARTIAL";
+        } else if (!limitations.isEmpty()) {
+            status = "BLOCKED";
+        } else {
+            status = "INSUFFICIENT";
+        }
+        metadata.put("answerEvidenceAuditVersion", ANSWER_EVIDENCE_AUDIT_CONTRACT);
+        metadata.put("answerEvidenceStatus", status);
+        metadata.put("answerEvidenceSignals", List.copyOf(evidence));
+        metadata.put("answerEvidenceLimitations", List.copyOf(limitations));
+        metadata.put("answerEvidenceUserVisible", false);
     }
 
     private void attachAnswerAssemblyPolicy(Map<String, Object> metadata, List<String> observations) {

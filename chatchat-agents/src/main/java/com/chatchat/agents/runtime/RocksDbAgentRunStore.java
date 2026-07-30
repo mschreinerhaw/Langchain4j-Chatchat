@@ -9,9 +9,11 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.rocksdb.Options;
+import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.RocksIterator;
+import org.rocksdb.Slice;
 import org.rocksdb.WriteBatch;
 import org.rocksdb.WriteOptions;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -267,8 +269,8 @@ public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
         String normalizedTenant = firstText(tenantId, "default");
         String prefix = planVersionPrefix(normalizedTenant, taskId);
         List<InterpretationPlanRecord> versions = new ArrayList<>();
-        try (RocksIterator iterator = db.newIterator()) {
-            seekToPrefix(iterator, prefix);
+        try (PrefixIterator prefixIterator = prefixIterator(prefix)) {
+            RocksIterator iterator = prefixIterator.iterator();
             while (iterator.isValid() && startsWith(iterator.key(), prefix)) {
                 versions.add(objectMapper.readValue(iterator.value(), InterpretationPlanRecord.class));
                 iterator.next();
@@ -329,8 +331,8 @@ public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
 
     private void loadRuns() {
         ensureOpen();
-        try (RocksIterator iterator = db.newIterator()) {
-            seekToPrefix(iterator, RUN_KEY_PREFIX);
+        try (PrefixIterator prefixIterator = prefixIterator(RUN_KEY_PREFIX)) {
+            RocksIterator iterator = prefixIterator.iterator();
             while (iterator.isValid() && startsWith(iterator.key(), RUN_KEY_PREFIX)) {
                 try {
                     AgentRun persistedRun = objectMapper.readValue(iterator.value(), AgentRun.class);
@@ -375,8 +377,8 @@ public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
 
     private int countPrefixKeys(String prefix) {
         int count = 0;
-        try (RocksIterator iterator = db.newIterator()) {
-            seekToPrefix(iterator, prefix);
+        try (PrefixIterator prefixIterator = prefixIterator(prefix)) {
+            RocksIterator iterator = prefixIterator.iterator();
             while (iterator.isValid() && startsWith(iterator.key(), prefix)) {
                 count++;
                 iterator.next();
@@ -588,8 +590,8 @@ public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
     }
 
     private void collectPrefixKeys(String prefix, List<byte[]> keys) {
-        try (RocksIterator iterator = db.newIterator()) {
-            seekToPrefix(iterator, prefix);
+        try (PrefixIterator prefixIterator = prefixIterator(prefix)) {
+            RocksIterator iterator = prefixIterator.iterator();
             while (iterator.isValid() && startsWith(iterator.key(), prefix)) {
                 keys.add(iterator.key().clone());
                 iterator.next();
@@ -603,8 +605,8 @@ public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
         }
         String prefix = eventPrefix(runId);
         List<AgentRunEvent> events = new ArrayList<>();
-        try (RocksIterator iterator = db.newIterator()) {
-            seekToPrefix(iterator, prefix);
+        try (PrefixIterator prefixIterator = prefixIterator(prefix)) {
+            RocksIterator iterator = prefixIterator.iterator();
             while (iterator.isValid() && startsWith(iterator.key(), prefix) && events.size() < limit) {
                 AgentRunEvent event = objectMapper.readValue(iterator.value(), AgentRunEvent.class);
                 if (event.createdAt() > afterCreatedAt) {
@@ -624,8 +626,8 @@ public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
         }
         String prefix = stepPrefix(runId);
         List<AgentRunStep> steps = new ArrayList<>();
-        try (RocksIterator iterator = db.newIterator()) {
-            seekToPrefix(iterator, prefix);
+        try (PrefixIterator prefixIterator = prefixIterator(prefix)) {
+            RocksIterator iterator = prefixIterator.iterator();
             while (iterator.isValid() && startsWith(iterator.key(), prefix) && steps.size() < limit) {
                 AgentRunStep step = objectMapper.readValue(iterator.value(), AgentRunStep.class);
                 if (step.step() > afterStep) {
@@ -647,8 +649,8 @@ public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
         String prefix = observationPrefix(runId);
         List<AgentObservation> observations = new ArrayList<>();
         int skipped = 0;
-        try (RocksIterator iterator = db.newIterator()) {
-            seekToPrefix(iterator, prefix);
+        try (PrefixIterator prefixIterator = prefixIterator(prefix)) {
+            RocksIterator iterator = prefixIterator.iterator();
             while (iterator.isValid() && startsWith(iterator.key(), prefix) && observations.size() < limit) {
                 AgentObservation original = objectMapper.readValue(iterator.value(), AgentObservation.class);
                 AgentObservation observation = externalizeObservation(runId, original);
@@ -866,8 +868,8 @@ public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
             return;
         }
         String prefix = observationPrefix(runId);
-        try (RocksIterator iterator = db.newIterator()) {
-            seekToPrefix(iterator, prefix);
+        try (PrefixIterator prefixIterator = prefixIterator(prefix)) {
+            RocksIterator iterator = prefixIterator.iterator();
             while (iterator.isValid() && startsWith(iterator.key(), prefix)) {
                 try {
                     AgentObservation observation = objectMapper.readValue(iterator.value(), AgentObservation.class);
@@ -1036,39 +1038,33 @@ public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
     }
 
     /**
-     * Positions an iterator without RocksIterator.seek(byte[]).
-     *
-     * <p>Recent Windows rocksdbjni builds execute an AVX2-only native lower-bound
-     * path from seek on pre-Haswell CPUs and terminate the JVM with
-     * EXCEPTION_ILLEGAL_INSTRUCTION. Sequential positioning keeps the same ordered
-     * prefix semantics and remains compatible with the supported x86_64 baseline.</p>
+     * Opens an iterator constrained by RocksDB's native lower bound. Calling
+     * seekToFirst then starts at the prefix boundary instead of scanning every
+     * preceding key, while avoiding the incompatible seek(byte[]) path.
      */
-    private void seekToPrefix(RocksIterator iterator, String prefix) {
+    private PrefixIterator prefixIterator(String prefix) {
+        Slice lowerBound = new Slice(bytes(prefix));
+        ReadOptions readOptions = new ReadOptions().setIterateLowerBound(lowerBound);
+        RocksIterator iterator = db.newIterator(readOptions);
         iterator.seekToFirst();
-        byte[] expected = bytes(prefix);
-        while (iterator.isValid()) {
-            byte[] key = iterator.key();
-            int comparison = compareUnsigned(key, expected);
-            if (comparison >= 0 || startsWith(key, prefix)) {
-                return;
-            }
-            iterator.next();
-        }
-    }
-
-    private int compareUnsigned(byte[] left, byte[] right) {
-        int length = Math.min(left.length, right.length);
-        for (int index = 0; index < length; index++) {
-            int comparison = Integer.compare(Byte.toUnsignedInt(left[index]), Byte.toUnsignedInt(right[index]));
-            if (comparison != 0) {
-                return comparison;
-            }
-        }
-        return Integer.compare(left.length, right.length);
+        return new PrefixIterator(lowerBound, readOptions, iterator);
     }
 
     private boolean startsWith(byte[] key, String prefix) {
         return new String(key, StandardCharsets.UTF_8).startsWith(prefix);
+    }
+
+    private record PrefixIterator(
+        Slice lowerBound,
+        ReadOptions readOptions,
+        RocksIterator iterator
+    ) implements AutoCloseable {
+        @Override
+        public void close() {
+            iterator.close();
+            readOptions.close();
+            lowerBound.close();
+        }
     }
 
     private String runKey(String runId) {

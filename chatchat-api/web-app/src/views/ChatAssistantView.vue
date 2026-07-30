@@ -12,11 +12,74 @@
     </section>
 
     <section v-else-if="!hasConversation" class="hero-panel">
-      <div class="hero-orb">
-        <span>AI</span>
+      <div
+        class="hero-demo"
+        role="img"
+        :aria-label="`${heroTitle}能力协同演示：从业务请求到可信结果`"
+      >
+        <div class="hero-demo-glow" aria-hidden="true"></div>
+        <div class="hero-demo-stage">
+          <article class="hero-demo-card hero-request-card">
+            <div class="hero-demo-card-label">
+              <i></i>
+              <span>业务请求</span>
+            </div>
+            <strong>{{ heroDemoPrompt }}</strong>
+            <div class="hero-request-lines" aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </article>
+
+          <div class="hero-flow hero-flow-in" aria-hidden="true">
+            <i></i><i></i><i></i>
+          </div>
+
+          <div class="hero-assistant-core">
+            <span class="hero-core-ring hero-core-ring-outer" aria-hidden="true"></span>
+            <span class="hero-core-ring hero-core-ring-inner" aria-hidden="true"></span>
+            <div class="hero-core-mark" :title="heroTitle">
+              <span>{{ heroCoreName }}</span>
+            </div>
+            <small>正在为你处理</small>
+          </div>
+
+          <div class="hero-flow hero-flow-out" aria-hidden="true">
+            <i></i><i></i><i></i>
+          </div>
+
+          <article class="hero-demo-card hero-result-card">
+            <div class="hero-demo-card-label">
+              <i></i>
+              <span>可信结果</span>
+              <em>LIVE</em>
+            </div>
+            <div class="hero-result-steps">
+              <div
+                v-for="(step, index) in heroDemoSteps"
+                :key="`${step}-${index}`"
+                class="hero-result-step"
+                :style="{ '--step-index': index }"
+              >
+                <span>{{ index + 1 }}</span>
+                <strong>{{ step }}</strong>
+                <i aria-hidden="true">✓</i>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <div class="hero-capability-track">
+          <span
+            v-for="(capability, index) in heroDemoCapabilities"
+            :key="`${capability}-${index}`"
+            :style="{ '--capability-index': index }"
+          >
+            <i></i>{{ capability }}
+          </span>
+        </div>
       </div>
-      <div class="spark spark-one"></div>
-      <div class="spark spark-two"></div>
       <h1>{{ heroTitle }}</h1>
       <p>{{ heroIntro }}</p>
       <div v-if="displayAgentResponsibilities.length" class="hero-agent-scope">

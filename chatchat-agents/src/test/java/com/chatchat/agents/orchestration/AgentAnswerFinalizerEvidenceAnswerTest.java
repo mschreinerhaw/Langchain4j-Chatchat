@@ -51,8 +51,10 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
             .doesNotContain("\u8bed\u4e49\u95e8\u7981");
         assertThat(result.metadata())
             .containsEntry("mcpAvailableResultCount", 1)
-            .doesNotContainKeys("answerEvidenceStatus", "answerEvidenceLabel",
-                "answerEvidenceDisclosure");
+            .containsEntry("answerEvidenceStatus", "PARTIAL")
+            .containsEntry("answerEvidenceUserVisible", false)
+            .containsEntry("answerEvidenceLimitations", List.of("TOOL_EXECUTION_FAILURE"))
+            .doesNotContainKeys("answerEvidenceLabel", "answerEvidenceDisclosure");
     }
 
     @Test
@@ -253,8 +255,9 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
             .doesNotContain("\u8bc1\u636e\u72b6\u6001\uff1a")
             .doesNotContain("\u8bed\u4e49\u95e8\u7981");
         assertThat(result.metadata())
-            .doesNotContainKeys("answerEvidenceStatus", "answerEvidenceLabel",
-                "answerEvidenceDisclosure");
+            .containsEntry("answerEvidenceStatus", "GROUNDED")
+            .containsEntry("answerEvidenceUserVisible", false)
+            .doesNotContainKeys("answerEvidenceLabel", "answerEvidenceDisclosure");
         Map<String, Object> visualizationSpec = (Map<String, Object>) result.metadata().get("visualizationSpec");
         assertThat(visualizationSpec)
             .containsEntry("type", "panel")
@@ -432,8 +435,10 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
             .isEqualTo("\u53ef\u80fd\u662f\u6570\u636e\u5e93\u6162\u67e5\u8be2\u5bfc\u81f4\u54cd\u5e94\u5ef6\u8fdf\u3002")
             .doesNotContain("\u8bc1\u636e\u72b6\u6001\uff1a");
         assertThat(result.metadata())
+            .containsEntry("answerEvidenceStatus", "INSUFFICIENT")
+            .containsEntry("answerEvidenceUserVisible", false)
             .doesNotContainKeys("answerRequiresEvidenceDisclosure",
-                "answerEvidenceDisclosureRendered", "answerEvidenceStatus", "answerEvidenceLabel");
+                "answerEvidenceDisclosureRendered", "answerEvidenceLabel");
     }
 
     @Test
@@ -595,8 +600,9 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
             .doesNotContain("\u8bed\u4e49\u95e8\u7981");
         assertThat(result.metadata())
             .containsEntry("mcpSuccessfulToolCount", 0)
-            .doesNotContainKeys("answerEvidenceStatus", "answerEvidenceLabel",
-                "answerEvidenceDisclosure");
+            .containsEntry("answerEvidenceStatus", "BLOCKED")
+            .containsEntry("answerEvidenceUserVisible", false)
+            .doesNotContainKeys("answerEvidenceLabel", "answerEvidenceDisclosure");
     }
 
     @Test

@@ -22,7 +22,6 @@ import java.util.Set;
 public final class TemplateInvocationBridge {
 
     public static final String PROTOCOL_VERSION = AgentProtocolCatalog.TEMPLATE_PARAMETER;
-    public static final String LEGACY_PROTOCOL_VERSION = "template_parameter_protocol_v1";
     public static final String APPLIED_MARKER = "runtimeParameterProtocolApplied";
     public static final String USER_QUERY_SOURCE = "user_query";
     public static final String TOOL_RESULT_SOURCE = "tool_result";
@@ -155,7 +154,7 @@ public final class TemplateInvocationBridge {
                                               EvidenceContext evidenceContext) {
         Map<String, Object> protocol = new LinkedHashMap<>(rawProtocol);
         String version = text(firstPresent(protocol, "protocol_version", "protocolVersion"));
-        if (!PROTOCOL_VERSION.equals(version) && !LEGACY_PROTOCOL_VERSION.equals(version)) {
+        if (!AgentProtocolCatalog.ACCEPTED_TEMPLATE_PARAMETER_PROTOCOLS.contains(version)) {
             throw failure("TEMPLATE_PARAMETER_PROTOCOL_INVALID",
                 "unsupported protocol version " + version);
         }
@@ -223,10 +222,17 @@ public final class TemplateInvocationBridge {
                 throw failure("TEMPLATE_PARAMETER_EVIDENCE_INVALID",
                     "argument " + parameter + " requires a user-query evidence quote");
             }
-            if (hasText(evidenceContext.userQuery())
-                && !compact(evidenceContext.userQuery()).contains(compact(quote))) {
+            if (!hasText(evidenceContext.userQuery())) {
+                throw failure("TEMPLATE_PARAMETER_EVIDENCE_UNAVAILABLE",
+                    "argument " + parameter + " cannot be verified without the Runtime user query");
+            }
+            if (!compact(evidenceContext.userQuery()).contains(compact(quote))) {
                 throw failure("TEMPLATE_PARAMETER_EVIDENCE_MISMATCH",
                     "argument " + parameter + " evidence quote is absent from the Runtime user query");
+            }
+            if (!compact(quote).contains(compact(String.valueOf(proposedValue)))) {
+                throw failure("TEMPLATE_PARAMETER_EVIDENCE_MISMATCH",
+                    "argument " + parameter + " value is not present in its user-query evidence quote");
             }
             return new ParameterEvidence(USER_QUERY_SOURCE, Map.of("quote", quote), proposedValue);
         }
@@ -320,7 +326,7 @@ public final class TemplateInvocationBridge {
     }
 
     private String compact(String value) {
-        return value == null ? "" : value.replaceAll("\\s+", "").trim();
+        return value == null ? "" : value.replaceAll("\\s+", "").trim().toLowerCase(Locale.ROOT);
     }
 
     private List<String> requiredParameters(Map<String, Object> template, Map<String, Object> schema) {

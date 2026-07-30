@@ -46,7 +46,11 @@ class TemplateInvocationBridgeTest {
                 Map.of("parameterProtocol", protocol),
                 protocol,
                 true,
-                true
+                true,
+                new TemplateInvocationBridge.EvidenceContext(
+                    "查询客户 C-1001 的订单",
+                    Map.of()
+                )
             )
         );
 
@@ -241,6 +245,70 @@ class TemplateInvocationBridgeTest {
         )))
             .isInstanceOf(TemplateInvocationBridge.TemplateBridgeException.class)
             .hasMessageContaining("TEMPLATE_PARAMETER_EVIDENCE_MISMATCH");
+    }
+
+    @Test
+    void rejectsInventedValueBackedByUnrelatedRealUserQuote() {
+        Map<String, Object> protocol = Map.of(
+            "protocol_version", TemplateInvocationBridge.PROTOCOL_VERSION,
+            "step_id", 5,
+            "template_id", "CUSTOMER_QUERY",
+            "arguments", Map.of(
+                "customerId", Map.of(
+                    "value", "C-9999",
+                    "source", "user_query",
+                    "evidence", Map.of("quote", "查询客户 C-2002 的订单")
+                )
+            ),
+            "unresolved_parameters", List.of()
+        );
+
+        assertThatThrownBy(() -> bridge.prepare(new TemplateInvocationBridge.BridgeRequest(
+            "api_template_execute",
+            5,
+            "CUSTOMER_QUERY",
+            template("CUSTOMER_QUERY", Map.of("customerId", Map.of("type", "string")),
+                new String[]{"customerId"}),
+            Map.of(),
+            protocol,
+            true,
+            true,
+            new TemplateInvocationBridge.EvidenceContext("查询客户 C-2002 的订单", Map.of())
+        )))
+            .isInstanceOf(TemplateInvocationBridge.TemplateBridgeException.class)
+            .hasMessageContaining("TEMPLATE_PARAMETER_EVIDENCE_MISMATCH")
+            .hasMessageContaining("value is not present");
+    }
+
+    @Test
+    void rejectsUserQueryEvidenceWhenRuntimeQueryIsUnavailable() {
+        Map<String, Object> protocol = Map.of(
+            "protocol_version", TemplateInvocationBridge.PROTOCOL_VERSION,
+            "step_id", 5,
+            "template_id", "CUSTOMER_QUERY",
+            "arguments", Map.of(
+                "customerId", Map.of(
+                    "value", "C-2002",
+                    "source", "user_query",
+                    "evidence", "客户 C-2002"
+                )
+            ),
+            "unresolved_parameters", List.of()
+        );
+
+        assertThatThrownBy(() -> bridge.prepare(new TemplateInvocationBridge.BridgeRequest(
+            "api_template_execute",
+            5,
+            "CUSTOMER_QUERY",
+            template("CUSTOMER_QUERY", Map.of("customerId", Map.of("type", "string")),
+                new String[]{"customerId"}),
+            Map.of(),
+            protocol,
+            true,
+            true
+        )))
+            .isInstanceOf(TemplateInvocationBridge.TemplateBridgeException.class)
+            .hasMessageContaining("TEMPLATE_PARAMETER_EVIDENCE_UNAVAILABLE");
     }
 
     private Map<String, Object> template(String id,

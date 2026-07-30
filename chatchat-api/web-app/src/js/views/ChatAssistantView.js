@@ -44,6 +44,8 @@ const MESSAGE_FEEDBACK_PAYLOADS = {
 const AGENT_TASK_POLL_TIMEOUT_MS = 5000;
 const AGENT_TASK_EVENT_LIMIT = 80;
 const AGENT_TASK_POLLING_STOPPED_CODE = "AGENT_TASK_POLLING_STOPPED";
+const RESULT_PRESENTATION_BUFFER_MS = 900;
+const REDUCED_MOTION_BUFFER_MS = 250;
 const RESTORE_RUNNING_WINDOW_MS = 10 * 60 * 1000;
 const MAX_VISUALIZATION_BLOCKS = 6;
 const MAX_UPLOAD_SIZE = 5 * 1024 * 1024;
@@ -1480,6 +1482,37 @@ export default {
       }
       return compactText(this.heroDescription, 108);
     },
+    heroDemoPrompt() {
+      const quickQuestion = this.heroQuickQuestions[0];
+      const scenario = Array.isArray(this.selectedAgent?.usageScenarios)
+        ? this.selectedAgent.usageScenarios.find(Boolean)
+        : "";
+      return compactText(
+        quickQuestion || scenario || `请${this.heroTitle}协助分析当前业务问题`,
+        38
+      );
+    },
+    heroCoreName() {
+      return compactText(this.selectedAgent?.name || "业务助手", 8);
+    },
+    heroDemoCapabilities() {
+      const configured = this.agentResponsibilities
+        .filter(Boolean)
+        .map((item) => compactText(item, 12));
+      const fallbacks = ["理解业务目标", "调用授权能力", "校验证据链路", "交付可用结果"];
+      return [...configured, ...fallbacks]
+        .filter((item, index, values) => values.indexOf(item) === index)
+        .slice(0, 4);
+    },
+    heroDemoSteps() {
+      const capabilities = this.heroDemoCapabilities;
+      return [
+        "识别目标与约束",
+        capabilities[0] || "组织业务上下文",
+        capabilities[1] || "执行授权能力",
+        "校验并生成结论"
+      ];
+    },
     displayAgentResponsibilities() {
       return this.agentResponsibilities
         .filter(Boolean)
@@ -1495,8 +1528,16 @@ export default {
     activeRunContext() {
       return this.runningContexts[this.historyId] || null;
     },
+    resultPresentationActive() {
+      const currentMessages = this.activeRunContext?.messages || this.messages;
+      const latestAssistantMessage = [...(currentMessages || [])]
+        .reverse()
+        .find((message) => message?.role === "assistant");
+      return String(latestAssistantMessage?.status || "").toLowerCase() === "finalizing";
+    },
     canKillActiveRun() {
-      return this.loading || !!this.activeRunContext?.taskId || !!this.pendingMcpTaskId;
+      return !this.resultPresentationActive
+        && (this.loading || !!this.activeRunContext?.taskId || !!this.pendingMcpTaskId);
     },
     pendingMcpRemainingMs() {
       if (!this.pendingMcpExpiredAt) {
@@ -2022,10 +2063,10 @@ export default {
         const response = eventPayload || {};
         const normalizedResponse = normalizeResponsePayload(response);
         const resultStatus = eventStatus === "EMPTY" ? "empty" : "partial";
-        this.applyResponseMetadata(response, runContext);
-        assistantMessage.content = normalizedResponse.answer || (resultStatus === "empty"
+        const finalContent = normalizedResponse.answer || (resultStatus === "empty"
           ? "\u672c\u6b21\u6267\u884c\u5df2\u7ed3\u675f\uff0c\u4f46\u6ca1\u6709\u4ea7\u751f\u53ef\u5c55\u793a\u7684\u56de\u7b54\u6216\u7ed3\u679c\u4ea7\u7269\u3002"
           : "\u672c\u6b21\u6267\u884c\u5df2\u5b8c\u6210\uff0c\u5e76\u83b7\u53d6\u5230\u90e8\u5206\u5de5\u5177\u7ed3\u679c\u6216\u4e2d\u95f4\u4ea7\u7269\uff0c\u4f46\u6ca1\u6709\u751f\u6210\u6700\u7ec8\u56de\u7b54\u3002");
+        this.applyResponseMetadata(response, runContext);
         assistantMessage.timestamp = response.timestamp || event?.createTime || Date.now();
         assistantMessage.latencyMs = response.latencyMs || event?.latencyMs;
         assistantMessage.sources = runContext.lastResponse.sources;
@@ -2034,6 +2075,8 @@ export default {
         assistantMessage.uiResponse = runContext.lastResponse.uiResponse;
         assistantMessage.evidencePremises = runContext.lastResponse.evidencePremises;
         await refreshSteps();
+        await this.bufferResultPresentation(assistantMessage, runContext);
+        assistantMessage.content = finalContent;
         assistantMessage.streaming = false;
         assistantMessage.status = resultStatus;
         if (this.isActiveRun(runContext)) {
@@ -2046,9 +2089,9 @@ export default {
 
       const response = eventPayload || {};
       const normalizedResponse = normalizeResponsePayload(response);
+      const finalContent = normalizedResponse.answer || "\u540e\u7aef\u6ca1\u6709\u8fd4\u56de\u6709\u6548\u56de\u7b54\uff0c\u8bf7\u68c0\u67e5\u6a21\u578b\u670d\u52a1\u6216 Agent \u914d\u7f6e\u540e\u91cd\u8bd5\u3002";
       this.applyResponseMetadata(response, runContext);
       this.captureMcpConfirmation(response, query, requestPayload, runContext.taskId);
-      assistantMessage.content = normalizedResponse.answer || "\u540e\u7aef\u6ca1\u6709\u8fd4\u56de\u6709\u6548\u56de\u7b54\uff0c\u8bf7\u68c0\u67e5\u6a21\u578b\u670d\u52a1\u6216 Agent \u914d\u7f6e\u540e\u91cd\u8bd5\u3002";
       assistantMessage.timestamp = response.timestamp || event?.createTime || Date.now();
       assistantMessage.latencyMs = response.latencyMs;
       assistantMessage.sources = runContext.lastResponse.sources;
@@ -2057,6 +2100,8 @@ export default {
       assistantMessage.uiResponse = runContext.lastResponse.uiResponse;
       assistantMessage.evidencePremises = runContext.lastResponse.evidencePremises;
       await refreshSteps();
+      await this.bufferResultPresentation(assistantMessage, runContext);
+      assistantMessage.content = finalContent;
       assistantMessage.streaming = false;
       assistantMessage.status = "completed";
       if (this.isActiveRun(runContext)) {
@@ -2064,6 +2109,22 @@ export default {
         this.scrollMessages();
       }
       this.emitActiveConversationSnapshot(query, "completed", runContext);
+    },
+    async bufferResultPresentation(assistantMessage, runContext) {
+      if (!assistantMessage) {
+        return;
+      }
+      assistantMessage.content = "";
+      assistantMessage.streaming = true;
+      assistantMessage.status = "finalizing";
+      assistantMessage.finalizingStartedAt = Date.now();
+      if (this.isActiveRun(runContext)) {
+        this.messages = [...runContext.messages];
+        this.scrollMessages();
+      }
+      const reducedMotion = typeof window !== "undefined"
+        && window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+      await sleep(reducedMotion ? REDUCED_MOTION_BUFFER_MS : RESULT_PRESENTATION_BUFFER_MS);
     },
     async waitForAgentTaskResult(taskId, tenantId = "", onProgress = null, shouldContinue = null) {
       if (!taskId) {
@@ -3126,34 +3187,38 @@ export default {
       const response = eventPayload || {};
       const normalizedResponse = normalizeResponsePayload(response);
       let finalStatus = "completed";
+      let finalContent = "";
+      let bufferPresentation = false;
 
       if (eventType === "NEEDS_CONFIRMATION" || eventStatus === "WAIT_CONFIRMATION") {
         this.applyResponseMetadata(response, runContext);
         this.captureMcpConfirmation(response, query, null, runContext.taskId || "");
-        assistantMessage.content = "已完成执行计划，等待权限确认后继续。";
+        finalContent = "已完成执行计划，等待权限确认后继续。";
         assistantMessage.status = "waiting";
         finalStatus = "pending";
       } else if (eventStatus === "CANCELLED") {
-        assistantMessage.content = response.message || "Agent task cancelled";
+        finalContent = response.message || "Agent task cancelled";
         assistantMessage.status = "cancelled";
         finalStatus = "cancelled";
       } else if (eventType === "ERROR" || eventStatus === "FAILED") {
         this.applyResponseMetadata(response, runContext);
-        assistantMessage.content = normalizedResponse.answer || response.answer || response.message || "Agent task failed";
+        finalContent = normalizedResponse.answer || response.answer || response.message || "Agent task failed";
         assistantMessage.status = normalizedResponse.answer ? "partial" : "failed";
         finalStatus = normalizedResponse.answer ? "partial" : "failed";
       } else if (eventType === "RESULT" || eventStatus === "PARTIAL" || eventStatus === "EMPTY") {
         const resultStatus = eventStatus === "EMPTY" ? "empty" : "partial";
         this.applyResponseMetadata(response, runContext);
-        assistantMessage.content = normalizedResponse.answer || (resultStatus === "empty"
+        finalContent = normalizedResponse.answer || (resultStatus === "empty"
           ? "本次执行已结束，但没有产生可展示的回答或结果产物。"
           : "本次执行已完成，并获取到部分工具结果或中间产物，但没有生成最终回答。");
         assistantMessage.status = resultStatus;
         finalStatus = resultStatus;
+        bufferPresentation = true;
       } else {
         this.applyResponseMetadata(response, runContext);
-        assistantMessage.content = normalizedResponse.answer || response.answer || response.message || "后端没有返回有效回答，请检查模型服务或 Agent 配置后重试。";
+        finalContent = normalizedResponse.answer || response.answer || response.message || "后端没有返回有效回答，请检查模型服务或 Agent 配置后重试。";
         assistantMessage.status = "completed";
+        bufferPresentation = true;
       }
 
       assistantMessage.timestamp = response.timestamp || event?.createTime || Date.now();
@@ -3163,6 +3228,11 @@ export default {
       assistantMessage.visualizationSpec = runContext.lastResponse.visualizationSpec;
       assistantMessage.uiResponse = runContext.lastResponse.uiResponse;
       assistantMessage.evidencePremises = runContext.lastResponse.evidencePremises;
+      if (bufferPresentation) {
+        await this.bufferResultPresentation(assistantMessage, runContext);
+        assistantMessage.status = finalStatus;
+      }
+      assistantMessage.content = finalContent;
       assistantMessage.streaming = false;
       if (this.isActiveRun(runContext)) {
         this.conversationStatus = finalStatus;

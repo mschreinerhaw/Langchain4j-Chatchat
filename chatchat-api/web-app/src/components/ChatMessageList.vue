@@ -58,6 +58,21 @@
           <div class="runtime-progress-track" aria-hidden="true">
             <span :style="{ width: `${runtimeProgress(message)}%` }"></span>
           </div>
+          <div
+            v-if="isResultFinalizing(message)"
+            class="result-finalizing"
+            role="status"
+            aria-live="polite"
+          >
+            <div class="result-finalizing-mark" aria-hidden="true">
+              <i></i><i></i><i></i>
+            </div>
+            <div>
+              <strong>任务已完成，正在整理结果</strong>
+              <small>校验结果结构 · 提炼业务重点 · 准备清晰呈现</small>
+            </div>
+            <span class="result-finalizing-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          </div>
         </section>
         <section
           v-if="message.role === 'assistant' && runtimeToolCalls(message).length"

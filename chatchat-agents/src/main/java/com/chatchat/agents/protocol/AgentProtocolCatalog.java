@@ -2,6 +2,7 @@ package com.chatchat.agents.protocol;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Single version entry point for protocols that cross Agent module layers.
@@ -16,6 +17,10 @@ public final class AgentProtocolCatalog {
 
     public static final String INTERPRETATION_EXECUTION = "interpretation_execution_protocol_v1";
     public static final String TEMPLATE_PARAMETER = "template_parameter_protocol_v2";
+    public static final Set<String> ACCEPTED_TEMPLATE_PARAMETER_PROTOCOLS = Set.of(
+        TEMPLATE_PARAMETER,
+        "template_parameter_protocol_v1"
+    );
     public static final String RUNTIME_TEMPLATE_BINDING = "runtime_template_binding.v1";
     public static final String RUNTIME_DEPENDENCY_EVIDENCE = "runtime_dependency_evidence.v1";
     public static final String TARGET_FILTERS = "target_filters.v1";

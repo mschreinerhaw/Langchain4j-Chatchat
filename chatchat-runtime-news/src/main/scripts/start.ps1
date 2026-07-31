@@ -31,7 +31,6 @@ $Arguments.Add("-jar")
 $Arguments.Add($AppJar)
 $Arguments.Add("--spring.config.additional-location=optional:file:$ConfigDir/")
 $Arguments.Add("--logging.config=file:$($LogConfig.Replace('\', '/'))")
-if ($env:APP_ARGS) { foreach ($Value in ($env:APP_ARGS -split '\s+')) { if ($Value) { $Arguments.Add($Value) } } }
 foreach ($Value in $StartArgs) { $Arguments.Add($Value) }
 Set-Content -Path $StartupLog -Value "" -Encoding UTF8
 Set-Content -Path $StartupErrorLog -Value "" -Encoding UTF8

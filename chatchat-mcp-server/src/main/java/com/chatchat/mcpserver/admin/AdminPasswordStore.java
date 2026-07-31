@@ -3,115 +3,117 @@ package com.chatchat.mcpserver.admin;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
-import java.time.Instant;
 import java.util.Base64;
-import java.util.Properties;
+import java.util.Optional;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AdminPasswordStore {
 
-    private static final String ALGORITHM = "PBKDF2WithHmacSHA256";
-    private static final int ITERATIONS = 120_000;
+    static final String DEFAULT_USERNAME = "admin";
+    static final String DEFAULT_PASSWORD = "admin123";
+    static final String ALGORITHM = "PBKDF2WithHmacSHA256";
+    static final int ITERATIONS = 120_000;
     private static final int KEY_LENGTH_BITS = 256;
 
-    private final AdminAuthProperties properties;
+    private final AdminUserRepository repository;
     private final SecureRandom secureRandom = new SecureRandom();
-    private volatile PasswordHash passwordHash;
 
     @PostConstruct
-    public void load() {
-        Path path = storePath();
-        if (!Files.isRegularFile(path)) {
+    public void initializeDefaultUser() {
+        if (repository.findByUsernameIgnoreCase(DEFAULT_USERNAME).isPresent()) {
             return;
         }
-        try (InputStream input = Files.newInputStream(path)) {
-            Properties file = new Properties();
-            file.load(input);
-            passwordHash = new PasswordHash(
-                Integer.parseInt(file.getProperty("iterations", String.valueOf(ITERATIONS))),
-                decode(file.getProperty("salt", "")),
-                decode(file.getProperty("hash", ""))
-            );
-            log.info("MCP admin password override loaded from {}", path);
-        } catch (Exception ex) {
-            log.warn("Failed to load MCP admin password override from {}", path, ex);
+        try {
+            repository.saveAndFlush(newUser(DEFAULT_USERNAME, DEFAULT_PASSWORD));
+            log.info("Initialized MCP default administrator '{}' in mcp_admin_user", DEFAULT_USERNAME);
+        } catch (DataIntegrityViolationException ex) {
+            if (repository.findByUsernameIgnoreCase(DEFAULT_USERNAME).isEmpty()) {
+                throw ex;
+            }
+            log.debug("MCP default administrator was initialized concurrently");
         }
     }
 
-    public boolean hasOverride() {
-        return passwordHash != null;
+    /**
+     * Authenticates an enabled database account.
+     *
+     * @return the canonical database username, or an empty value when authentication fails
+     */
+    public Optional<String> authenticate(String username, String rawPassword) {
+        if (username == null || username.isBlank() || rawPassword == null) {
+            return Optional.empty();
+        }
+        return repository.findByUsernameIgnoreCase(username.trim())
+            .filter(AdminUser::isEnabled)
+            .filter(user -> matches(user, rawPassword))
+            .map(AdminUser::getUsername);
     }
 
-    public boolean matches(String rawPassword, String fallbackPlainPassword) {
-        if (rawPassword == null) {
-            return false;
-        }
-        PasswordHash current = passwordHash;
-        if (current != null && current.valid()) {
-            return constantTimeEquals(current.hash(), hash(rawPassword, current.salt(), current.iterations()));
-        }
-        return constantTimeEquals(fallbackPlainPassword, rawPassword);
+    public boolean matches(String username, String rawPassword) {
+        return authenticate(username, rawPassword).isPresent();
     }
 
-    public synchronized void save(String newPassword) {
+    public void save(String username, String newPassword) {
+        AdminUser user = repository.findByUsernameIgnoreCase(username)
+            .orElseThrow(() -> new IllegalStateException("MCP administrator does not exist"));
+        applyPassword(user, newPassword);
+        repository.saveAndFlush(user);
+    }
+
+    private AdminUser newUser(String username, String rawPassword) {
+        AdminUser user = new AdminUser();
+        user.setUsername(username);
+        user.setEnabled(true);
+        applyPassword(user, rawPassword);
+        return user;
+    }
+
+    private void applyPassword(AdminUser user, String rawPassword) {
         byte[] salt = new byte[16];
         secureRandom.nextBytes(salt);
-        byte[] hash = hash(newPassword, salt, ITERATIONS);
-        PasswordHash next = new PasswordHash(ITERATIONS, salt, hash);
-        Path path = storePath();
+        user.setPasswordAlgorithm(ALGORITHM);
+        user.setPasswordIterations(ITERATIONS);
+        user.setPasswordSalt(encode(salt));
+        user.setPasswordHash(encode(hash(rawPassword, salt, ITERATIONS, ALGORITHM)));
+    }
+
+    private boolean matches(AdminUser user, String rawPassword) {
         try {
-            Files.createDirectories(path.getParent());
-            Properties file = new Properties();
-            file.setProperty("version", "1");
-            file.setProperty("algorithm", ALGORITHM);
-            file.setProperty("iterations", String.valueOf(ITERATIONS));
-            file.setProperty("salt", encode(salt));
-            file.setProperty("hash", encode(hash));
-            file.setProperty("updatedAt", Instant.now().toString());
-            try (OutputStream output = Files.newOutputStream(path)) {
-                file.store(output, "ChatChat MCP admin password override");
-            }
-            passwordHash = next;
-            log.info("MCP admin password override saved to {}", path);
-        } catch (IOException ex) {
-            throw new IllegalStateException("保存管理员密码失败：" + ex.getMessage(), ex);
-        }
-    }
-
-    private Path storePath() {
-        return Path.of(text(properties.getPasswordStorePath(), "./data/admin-password.properties"))
-            .toAbsolutePath()
-            .normalize();
-    }
-
-    private byte[] hash(String password, byte[] salt, int iterations) {
-        try {
-            PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), salt, iterations, KEY_LENGTH_BITS);
-            return SecretKeyFactory.getInstance(ALGORITHM).generateSecret(spec).getEncoded();
-        } catch (GeneralSecurityException ex) {
-            throw new IllegalStateException("管理员密码哈希计算失败：" + ex.getMessage(), ex);
-        }
-    }
-
-    private boolean constantTimeEquals(String expected, String actual) {
-        if (expected == null || actual == null) {
+            byte[] salt = decode(user.getPasswordSalt());
+            byte[] expected = decode(user.getPasswordHash());
+            byte[] actual = hash(rawPassword, salt, user.getPasswordIterations(), user.getPasswordAlgorithm());
+            return constantTimeEquals(expected, actual);
+        } catch (RuntimeException ex) {
+            log.warn("Invalid password hash data for MCP administrator '{}'", user.getUsername());
             return false;
         }
-        return constantTimeEquals(expected.getBytes(StandardCharsets.UTF_8), actual.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private byte[] hash(String password, byte[] salt, int iterations, String algorithm) {
+        if (password == null || salt == null || salt.length == 0 || iterations <= 0
+            || algorithm == null || algorithm.isBlank()) {
+            throw new IllegalArgumentException("Invalid password hash parameters");
+        }
+        try {
+            PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), salt, iterations, KEY_LENGTH_BITS);
+            try {
+                return SecretKeyFactory.getInstance(algorithm).generateSecret(spec).getEncoded();
+            } finally {
+                spec.clearPassword();
+            }
+        } catch (GeneralSecurityException ex) {
+            throw new IllegalStateException("Failed to calculate administrator password hash", ex);
+        }
     }
 
     private boolean constantTimeEquals(byte[] expected, byte[] actual) {
@@ -121,9 +123,9 @@ public class AdminPasswordStore {
         int diff = expected.length ^ actual.length;
         int max = Math.max(expected.length, actual.length);
         for (int i = 0; i < max; i++) {
-            byte a = i < expected.length ? expected[i] : 0;
-            byte b = i < actual.length ? actual[i] : 0;
-            diff |= a ^ b;
+            byte left = i < expected.length ? expected[i] : 0;
+            byte right = i < actual.length ? actual[i] : 0;
+            diff |= left ^ right;
         }
         return diff == 0;
     }
@@ -133,16 +135,6 @@ public class AdminPasswordStore {
     }
 
     private byte[] decode(String value) {
-        return Base64.getDecoder().decode(text(value, ""));
-    }
-
-    private String text(String value, String fallback) {
-        return value == null || value.isBlank() ? fallback : value.trim();
-    }
-
-    private record PasswordHash(int iterations, byte[] salt, byte[] hash) {
-        private boolean valid() {
-            return iterations > 0 && salt != null && salt.length > 0 && hash != null && hash.length > 0;
-        }
+        return Base64.getDecoder().decode(value.getBytes(StandardCharsets.US_ASCII));
     }
 }

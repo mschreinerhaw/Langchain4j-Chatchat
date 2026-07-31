@@ -46,9 +46,6 @@ chatchat:
         tools:
           web_search: { enabled: true, agent-callable: true, timeout: 30s }
     admin:
-      username: admin
-      password:
-      encrypted-password:
       token-ttl-minutes: 480
     security:
       require-mcp-token: true

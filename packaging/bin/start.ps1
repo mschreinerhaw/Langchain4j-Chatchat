@@ -31,11 +31,6 @@ for ($Index = 0; $Index -lt $StartArgs.Count; $Index++) {
 
 $DefaultJavaOptions = "-Xms2g -Xmx4g -XX:+UseG1GC -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=./logs -XX:+ExitOnOutOfMemoryError -Dfile.encoding=UTF-8"
 $JavaOptions = if ([string]::IsNullOrWhiteSpace($env:JAVA_OPTS)) { $DefaultJavaOptions } else { $env:JAVA_OPTS }
-if ($env:CHATCHAT_OPENSEARCH_INSECURE_SSL -match '^(?i:true|1|yes)$' -and
-    $JavaOptions -notmatch 'jdk\.internal\.httpclient\.disableHostnameVerification') {
-    $JavaOptions = (($JavaOptions, "-Djdk.internal.httpclient.disableHostnameVerification=true") |
-        Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join " "
-}
 
 if (Test-Path $PidFile) {
     $OldPid = Get-Content $PidFile -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -66,7 +61,7 @@ $ForwardArgLine = ($ForwardArgs | ForEach-Object {
         $_
     }
 }) -join " "
-$ArgumentLine = (($JavaOptions, "-Dloader.path=`"$LoaderPath`"", "-cp", "`"$AppJar`"", $LauncherClass, "--debug=false", "--spring.config.additional-location=optional:file:$ConfigDir/", $env:APP_ARGS, $ForwardArgLine) |
+$ArgumentLine = (($JavaOptions, "-Dloader.path=`"$LoaderPath`"", "-cp", "`"$AppJar`"", $LauncherClass, "--debug=false", "--spring.config.additional-location=optional:file:$ConfigDir/", $ForwardArgLine) |
     Where-Object { $_ }) -join " "
 
 $Process = Start-Process `

@@ -1,4 +1,16 @@
 
+    create table mcp_admin_user (
+        enabled boolean not null,
+        password_iterations integer not null,
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        password_algorithm varchar(64) not null,
+        username varchar(128) not null,
+        password_salt varchar(256) not null,
+        password_hash varchar(512) not null,
+        primary key (username)
+    );
+
     create table mcp_api_service_config (
         cache_enabled boolean not null,
         cache_ttl_seconds integer not null,

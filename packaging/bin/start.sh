@@ -33,14 +33,6 @@ done
 
 DEFAULT_JAVA_OPTS="-Xms2g -Xmx4g -XX:+UseG1GC -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=./logs -XX:+ExitOnOutOfMemoryError -Dfile.encoding=UTF-8"
 JAVA_OPTIONS="${JAVA_OPTS:-$DEFAULT_JAVA_OPTS}"
-case "${CHATCHAT_OPENSEARCH_INSECURE_SSL:-false}" in
-  true|TRUE|True|1|yes|YES|Yes)
-    case " $JAVA_OPTIONS " in
-      *" -Djdk.internal.httpclient.disableHostnameVerification=true "*) ;;
-      *) JAVA_OPTIONS="${JAVA_OPTIONS}${JAVA_OPTIONS:+ }-Djdk.internal.httpclient.disableHostnameVerification=true" ;;
-    esac
-    ;;
-esac
 
 if [ -f "$PID_FILE" ]; then
   PID="$(cat "$PID_FILE")"
@@ -66,7 +58,7 @@ done
 nohup "$JAVA_CMD" ${JAVA_OPTIONS:-} "-Dloader.path=$LOADER_PATH" -cp "$APP_JAR" "$LAUNCHER_CLASS" \
   --debug=false \
   --spring.config.additional-location="optional:file:$CONFIG_DIR" \
-  ${APP_ARGS:-} ${REMAINING_ARGS:-} >> "$STDOUT_LOG" 2>&1 &
+  ${REMAINING_ARGS:-} >> "$STDOUT_LOG" 2>&1 &
 
 PID="$!"
 echo "$PID" > "$PID_FILE"

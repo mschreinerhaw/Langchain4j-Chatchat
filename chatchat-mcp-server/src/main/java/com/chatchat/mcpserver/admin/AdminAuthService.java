@@ -36,20 +36,14 @@ public class AdminAuthService {
             sessions.put(token, new TokenSession(internalUsername, expiresAt));
             return new LoginResult(token, internalUsername, expiresAt.toEpochMilli());
         }
-        if (properties.getUsername() == null || properties.getUsername().isBlank()
-            || (!passwordStore.hasOverride() && resolvedAdminPassword().isBlank())) {
-            throw new IllegalStateException("MCP admin username/password is not configured");
-        }
-        if (!constantTimeEquals(properties.getUsername(), username)
-            || !passwordStore.matches(password, resolvedAdminPassword())) {
-            throw new IllegalArgumentException("Invalid username or password");
-        }
+        String authenticatedUsername = passwordStore.authenticate(username, password)
+            .orElseThrow(() -> new IllegalArgumentException("Invalid username or password"));
 
         String token = newToken();
         long ttlMinutes = Math.max(1, properties.getTokenTtlMinutes());
         Instant expiresAt = Instant.now().plusSeconds(ttlMinutes * 60);
-        sessions.put(token, new TokenSession(properties.getUsername(), expiresAt));
-        return new LoginResult(token, properties.getUsername(), expiresAt.toEpochMilli());
+        sessions.put(token, new TokenSession(authenticatedUsername, expiresAt));
+        return new LoginResult(token, authenticatedUsername, expiresAt.toEpochMilli());
     }
 
     /**
@@ -100,7 +94,7 @@ public class AdminAuthService {
             throw new SecurityException("只有 admin 用户可以修改管理员密码");
         }
         if (currentPassword == null || currentPassword.isBlank()
-            || !passwordStore.matches(currentPassword, resolvedAdminPassword())) {
+            || !passwordStore.matches(username, currentPassword)) {
             throw new IllegalArgumentException("当前密码不正确");
         }
         if (newPassword == null || newPassword.length() < 8 || newPassword.length() > 128) {
@@ -109,7 +103,7 @@ public class AdminAuthService {
         if (constantTimeEquals(currentPassword, newPassword)) {
             throw new IllegalArgumentException("新密码不能与当前密码相同");
         }
-        passwordStore.save(newPassword);
+        passwordStore.save(username, newPassword);
         sessions.clear();
     }
 
@@ -143,13 +137,6 @@ public class AdminAuthService {
         return !internalSecret.isBlank()
             && constantTimeEquals(internalCredentialProperties.resolvedUsername(), username)
             && constantTimeEquals(internalSecret, password);
-    }
-
-    private String resolvedAdminPassword() {
-        if (internalCredentialProperties == null) {
-            return properties.getPassword() == null ? "" : properties.getPassword().trim();
-        }
-        return internalCredentialProperties.resolveSecret(properties.getEncryptedPassword(), properties.getPassword());
     }
 
     /**

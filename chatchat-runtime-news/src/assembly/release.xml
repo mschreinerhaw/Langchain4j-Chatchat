@@ -39,6 +39,10 @@
             <directory>${project.basedir}/src/main/distribution/config</directory>
             <outputDirectory>/config</outputDirectory>
             <includes><include>**/*</include></includes>
+            <excludes>
+                <exclude>env.local</exclude>
+                <exclude>env.local.*</exclude>
+            </excludes>
         </fileSet>
         <fileSet>
             <directory>${project.basedir}/doc</directory>

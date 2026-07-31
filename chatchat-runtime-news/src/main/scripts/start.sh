@@ -28,7 +28,7 @@ fi
 nohup "$JAVA_CMD" ${JAVA_OPTS:-} -DLOG_DIR="$APP_HOME/logs" -jar "$APP_JAR" \
   --spring.config.additional-location="optional:file:$CONFIG_DIR" \
   --logging.config="file:$LOG_CONFIG" \
-  ${APP_ARGS:-} "$@" > "$STARTUP_LOG" 2>&1 &
+  "$@" > "$STARTUP_LOG" 2>&1 &
 PID=$!
 echo "$PID" > "$PID_FILE"
 sleep 2

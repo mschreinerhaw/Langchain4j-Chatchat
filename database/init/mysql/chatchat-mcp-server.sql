@@ -1,4 +1,16 @@
 
+    create table mcp_admin_user (
+        enabled bit not null,
+        password_iterations integer not null,
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        password_algorithm varchar(64) not null,
+        username varchar(128) not null,
+        password_salt varchar(256) not null,
+        password_hash varchar(512) not null,
+        primary key (username)
+    ) engine=InnoDB;
+
     create table mcp_api_service_config (
         cache_enabled bit not null,
         cache_ttl_seconds integer not null,

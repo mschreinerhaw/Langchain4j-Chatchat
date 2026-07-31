@@ -2,6 +2,8 @@ package com.chatchat.tools.builtin;
 
 import com.chatchat.agents.tool.DefaultToolRegistry;
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.common.security.InternalCredentialProperties;
+import com.chatchat.common.security.InternalSecretCipher;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
@@ -52,7 +54,8 @@ class BuiltInToolsBootstrapTest {
             new DatabaseToolProperties(),
             mock(DynamicJdbcDriverLoader.class),
             new MockEnvironment(),
-            new ObjectMapper()
+            new ObjectMapper(),
+            new InternalCredentialProperties()
         );
 
         bootstrap.initializeBuiltInTools();
@@ -169,10 +172,13 @@ class BuiltInToolsBootstrapTest {
     void documentSearchEnrichesResultsWithDocumentContentExcerpts() throws Exception {
         startDocumentApi();
         DefaultToolRegistry registry = new DefaultToolRegistry();
+        InternalCredentialProperties credentials = new InternalCredentialProperties();
+        credentials.setCryptoKey("test-crypto-key");
         MockEnvironment environment = new MockEnvironment()
             .withProperty("chatchat.tools.document-search.api-base-url", "http://localhost:" + server.getAddress().getPort())
             .withProperty("chatchat.tools.document-search.auth.username", "test-user")
-            .withProperty("chatchat.tools.document-search.auth.password", "test-password")
+            .withProperty("chatchat.tools.document-search.auth.encrypted-password",
+                InternalSecretCipher.encrypt("test-password", "test-crypto-key"))
             .withProperty("chatchat.tools.document-search.default-excerpt-chars", "120")
             .withProperty("chatchat.tools.document-search.max-excerpt-chars", "200");
 
@@ -181,7 +187,8 @@ class BuiltInToolsBootstrapTest {
             new DatabaseToolProperties(),
             mock(DynamicJdbcDriverLoader.class),
             environment,
-            new ObjectMapper()
+            new ObjectMapper(),
+            credentials
         );
         bootstrap.initializeBuiltInTools();
 

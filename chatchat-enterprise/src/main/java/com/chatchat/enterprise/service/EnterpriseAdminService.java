@@ -1,6 +1,7 @@
 package com.chatchat.enterprise.service;
 
 import com.chatchat.common.security.InternalCredentialProperties;
+import com.chatchat.common.security.PasswordHashCodec;
 import com.chatchat.enterprise.entity.DataSourceConfig;
 import com.chatchat.enterprise.entity.EmbedLoginToken;
 import com.chatchat.enterprise.entity.ExternalOrg;
@@ -98,6 +99,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
     @Transactional
     public void run(ApplicationArguments args) {
         initializeDemoData();
+        migrateLegacyPlaintextPasswords();
     }
 
     /**
@@ -135,8 +137,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
         if (!"enabled".equalsIgnoreCase(user.getStatus())) {
             throw new IllegalArgumentException("user is disabled");
         }
-        String expected = user.getPasswordHash() == null ? "" : user.getPasswordHash();
-        if (!expected.equals(password == null ? "" : password)) {
+        if (!matchesAndUpgradePassword(user, password)) {
             throw new IllegalArgumentException("invalid username or password");
         }
         user.setLastLoginAt(Instant.now());
@@ -431,7 +432,12 @@ public class EnterpriseAdminService implements ApplicationRunner {
         entity.setOrgId(trimToNull(input.getOrgId()));
         entity.setUsername(requireText(input.getUsername(), "username"));
         entity.setDisplayName(requireText(input.getDisplayName(), "displayName"));
-        entity.setPasswordHash(defaultText(input.getPasswordHash(), entity.getPasswordHash() == null ? "123456" : entity.getPasswordHash()));
+        String suppliedPassword = trimToNull(input.getPasswordHash());
+        if (entity.getId() == null) {
+            entity.setPasswordHash(PasswordHashCodec.encode(defaultText(suppliedPassword, DEFAULT_ADMIN_PASSWORD)));
+        } else if (suppliedPassword != null && !suppliedPassword.equals(entity.getPasswordHash())) {
+            entity.setPasswordHash(PasswordHashCodec.encode(suppliedPassword));
+        }
         entity.setEmail(trimToNull(input.getEmail()));
         entity.setPhone(trimToNull(input.getPhone()));
         entity.setStatus(defaultText(input.getStatus(), "enabled"));
@@ -466,8 +472,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
                                         String newPassword,
                                         String confirmPassword) {
         SysUser admin = requireAdminOperator(operatorUsername);
-        String expected = admin.getPasswordHash() == null ? "" : admin.getPasswordHash();
-        if (!expected.equals(currentPassword == null ? "" : currentPassword)) {
+        if (!matchesAndUpgradePassword(admin, currentPassword)) {
             throw new IllegalArgumentException("current password is incorrect");
         }
         String nextPassword = requireText(newPassword, "newPassword");
@@ -477,7 +482,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
         if (!nextPassword.equals(confirmPassword == null ? "" : confirmPassword)) {
             throw new IllegalArgumentException("password confirmation does not match");
         }
-        admin.setPasswordHash(nextPassword);
+        admin.setPasswordHash(PasswordHashCodec.encode(nextPassword));
         SysUser saved = userRepository.save(admin);
         invalidateUserPasswordSessions(saved.getId());
         audit(saved.getTenantId(), saved.getId(), saved.getDisplayName(), "auth", "password-change",
@@ -774,7 +779,9 @@ public class EnterpriseAdminService implements ApplicationRunner {
             user.setOrgId(orgCode == null ? null : sysOrgIdByCode.get(orgCode));
             user.setUsername(username);
             user.setDisplayName(firstText(external.getName(), username));
-            user.setPasswordHash(defaultText(user.getPasswordHash(), firstText(external.getPassword(), "123456")));
+            if (isNew) {
+                user.setPasswordHash(PasswordHashCodec.encode(firstText(external.getPassword(), DEFAULT_ADMIN_PASSWORD)));
+            }
             user.setEmail(trimToNull(firstText(external.getEmail(), external.getOaEmail())));
             user.setPhone(trimToNull(firstText(external.getOaTelephone(), external.getHrTelephone())));
             user.setStatus(activeStatus(external.getStatus()));
@@ -1225,7 +1232,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
             seed.setOrgId(it.getId());
             seed.setUsername("admin");
             seed.setDisplayName("系统管理员");
-            seed.setPasswordHash(DEFAULT_ADMIN_PASSWORD);
+            seed.setPasswordHash(PasswordHashCodec.encode(DEFAULT_ADMIN_PASSWORD));
             seed.setEmail("admin@example.com");
             return userRepository.save(seed);
         });
@@ -1233,7 +1240,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
         admin.setOrgId(it.getId());
         admin.setDisplayName("系统管理员");
         if (admin.getPasswordHash() == null || admin.getPasswordHash().isBlank() || "admin".equals(admin.getPasswordHash())) {
-            admin.setPasswordHash(DEFAULT_ADMIN_PASSWORD);
+            admin.setPasswordHash(PasswordHashCodec.encode(DEFAULT_ADMIN_PASSWORD));
         }
         admin.setEmail(defaultText(admin.getEmail(), "admin@example.com"));
         admin.setStatus(defaultText(admin.getStatus(), "enabled"));
@@ -1278,7 +1285,9 @@ public class EnterpriseAdminService implements ApplicationRunner {
         internal.setOrgId(org.getId());
         internal.setUsername(username);
         internal.setDisplayName("ChatChat Internal Service Account");
-        internal.setPasswordHash(secret);
+        if (!PasswordHashCodec.matches(secret, internal.getPasswordHash())) {
+            internal.setPasswordHash(PasswordHashCodec.encode(secret));
+        }
         internal.setEmail(defaultText(internal.getEmail(), username + "@internal.chatchat"));
         internal.setStatus("enabled");
         SysUser saved = userRepository.save(internal);
@@ -1328,6 +1337,30 @@ public class EnterpriseAdminService implements ApplicationRunner {
         tenant.setDescription("企业级智能问答助手平台默认租户");
         tenant.setStatus(defaultText(tenant.getStatus(), "enabled"));
         return tenantRepository.save(tenant);
+    }
+
+    private void migrateLegacyPlaintextPasswords() {
+        List<SysUser> changed = userRepository.findAll().stream()
+            .filter(user -> user.getPasswordHash() != null && !user.getPasswordHash().isBlank())
+            .filter(user -> !PasswordHashCodec.isEncoded(user.getPasswordHash()))
+            .peek(user -> user.setPasswordHash(PasswordHashCodec.encode(user.getPasswordHash())))
+            .toList();
+        if (!changed.isEmpty()) {
+            userRepository.saveAll(changed);
+        }
+    }
+
+    private boolean matchesAndUpgradePassword(SysUser user, String rawPassword) {
+        String storedPassword = user == null ? null : user.getPasswordHash();
+        if (PasswordHashCodec.isEncoded(storedPassword)) {
+            return PasswordHashCodec.matches(rawPassword, storedPassword);
+        }
+        if (storedPassword == null || rawPassword == null || !storedPassword.equals(rawPassword)) {
+            return false;
+        }
+        user.setPasswordHash(PasswordHashCodec.encode(rawPassword));
+        userRepository.save(user);
+        return true;
     }
 
     private void initializeTenantNumbers(SysTenant platformTenant) {

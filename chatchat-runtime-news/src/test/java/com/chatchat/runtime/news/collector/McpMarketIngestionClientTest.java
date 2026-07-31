@@ -1,6 +1,7 @@
 package com.chatchat.runtime.news.collector;
 
 import com.chatchat.common.security.InternalCredentialProperties;
+import com.chatchat.common.security.InternalSecretCipher;
 import com.chatchat.runtime.news.model.NewsSource;
 import com.chatchat.runtime.news.model.NewsSourceType;
 import com.chatchat.runtime.news.model.RawNewsItem;
@@ -37,7 +38,8 @@ class McpMarketIngestionClientTest {
         });
         server.start();
         InternalCredentialProperties credentials = new InternalCredentialProperties();
-        credentials.setSecret("test-secret");
+        credentials.setCryptoKey("test-crypto-key");
+        credentials.setEncryptedSecret(InternalSecretCipher.encrypt("test-secret", "test-crypto-key"));
         var client = new McpMarketIngestionClient(new ObjectMapper().findAndRegisterModules(), credentials,
             "http://localhost:" + server.getAddress().getPort());
 

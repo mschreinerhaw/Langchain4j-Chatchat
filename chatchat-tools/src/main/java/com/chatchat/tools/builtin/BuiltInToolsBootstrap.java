@@ -1,6 +1,7 @@
 package com.chatchat.tools.builtin;
 
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.common.security.InternalCredentialProperties;
 import com.chatchat.common.security.InternalSecretCipher;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolMetadata;
@@ -76,6 +77,7 @@ public class BuiltInToolsBootstrap {
     private final DynamicJdbcDriverLoader dynamicJdbcDriverLoader;
     private final Environment environment;
     private final ObjectMapper objectMapper;
+    private final InternalCredentialProperties internalCredentialProperties;
 
     /**
      * Initialize all built-in tools during application startup
@@ -286,7 +288,11 @@ public class BuiltInToolsBootstrap {
             ))
             .build();
 
-        DocumentSearchTool documentSearchTool = new DocumentSearchTool(environment, objectMapper);
+        DocumentSearchTool documentSearchTool = new DocumentSearchTool(
+            environment,
+            objectMapper,
+            internalCredentialProperties
+        );
         toolRegistry.registerTool("document_search", metadata, documentSearchTool);
         log.info("Knowledge Document Search tool registered, target={}{}", apiBaseUrl, searchPath);
     }
@@ -597,6 +603,7 @@ public class BuiltInToolsBootstrap {
 
         private final Environment environment;
         private final ObjectMapper objectMapper;
+        private final InternalCredentialProperties internalCredentialProperties;
         private final HttpClient httpClient;
         private volatile String documentSearchToken;
 
@@ -606,9 +613,12 @@ public class BuiltInToolsBootstrap {
          * @param environment the environment value
          * @param objectMapper the object mapper value
          */
-        private DocumentSearchTool(Environment environment, ObjectMapper objectMapper) {
+        private DocumentSearchTool(Environment environment,
+                                   ObjectMapper objectMapper,
+                                   InternalCredentialProperties internalCredentialProperties) {
             this.environment = environment;
             this.objectMapper = objectMapper;
+            this.internalCredentialProperties = internalCredentialProperties;
             int timeoutMs = environment.getProperty("chatchat.tools.document-search.timeout-ms", Integer.class, 300000);
             this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofMillis(Math.max(1000, timeoutMs)))
@@ -1002,19 +1012,22 @@ public class BuiltInToolsBootstrap {
         }
 
         private String documentSearchAuthPassword() {
-            String cryptoKey = environment.getProperty("chatchat.internal-credential.crypto-key", "");
-            String encrypted = firstNonBlank(
-                environment.getProperty("chatchat.tools.document-search.auth.encrypted-password", ""),
-                environment.getProperty("chatchat.internal-credential.encrypted-secret", "")
+            String encrypted = environment.getProperty(
+                "chatchat.tools.document-search.auth.encrypted-password",
+                ""
             );
             if (encrypted != null && !encrypted.isBlank()) {
-                return InternalSecretCipher.decryptIfNecessary(encrypted, cryptoKey);
+                return InternalSecretCipher.isEncrypted(encrypted)
+                    ? internalCredentialProperties.resolveSecret(encrypted, null)
+                    : encrypted.trim();
             }
-            String password = firstNonBlank(
-                environment.getProperty("chatchat.tools.document-search.auth.password", ""),
-                environment.getProperty("chatchat.internal-credential.secret", "")
-            );
-            return InternalSecretCipher.decryptIfNecessary(password, cryptoKey);
+            String plaintext = environment.getProperty("chatchat.tools.document-search.auth.password", "");
+            if (plaintext != null && !plaintext.isBlank()) {
+                throw new IllegalStateException(
+                    "chatchat.tools.document-search.auth.password is no longer allowed; use encrypted-password"
+                );
+            }
+            return internalCredentialProperties.resolvedSecret();
         }
 
         /**

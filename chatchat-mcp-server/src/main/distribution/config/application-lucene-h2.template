@@ -18,10 +18,8 @@ chatchat:
   internal-credential:
     enabled: true
     username: chatchat_mcp_internal
-    encrypted-secret:
-    secret: chatchat_internal_default_secret
-    crypto-key:
-    crypto-key-file:
+    encrypted-secret: "ENC(RJGDk0FA9Xht7fHK:VBpgvsk5UR2XGCoSxNL7eqlS0Lu4r2UG1U6vvQ6NM7KBEwQ6/5j09M/A+mdijO9H)"
+    crypto-key-file: ./config/internal-credential.key
   mcp:
     news-runtime:
       base-url: http://localhost:8091
@@ -36,14 +34,12 @@ chatchat:
     security:
       require-mcp-token: true
       encrypted-invocation-token:
-      invocation-token: chatchat_internal_default_secret
     authorization:
       enabled: false
       api-base-url: http://localhost:8080
       auth:
         username: chatchat_mcp_internal
         encrypted-password:
-        password: chatchat_internal_default_secret
         bearer-token:
     command-templates:
       seed-defaults-enabled: true
@@ -60,7 +56,6 @@ chatchat:
         auth:
           username: chatchat_mcp_internal
           encrypted-password:
-          password: chatchat_internal_default_secret
           bearer-token:
   tools:
     document-search:
@@ -69,7 +64,6 @@ chatchat:
       auth:
         username: chatchat_mcp_internal
         encrypted-password:
-        password: chatchat_internal_default_secret
         bearer-token:
 logging:
   file:

@@ -2,6 +2,7 @@ package com.chatchat.mcpserver.news;
 
 import com.chatchat.common.security.InternalCredentialProperties;
 import com.chatchat.common.security.InternalRequestSigner;
+import com.chatchat.common.security.InternalSecretCipher;
 import com.chatchat.common.tool.ToolInput;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
@@ -36,7 +37,8 @@ class NewsRuntimeClientTest {
         });
         server.start();
         InternalCredentialProperties credentials = new InternalCredentialProperties();
-        credentials.setUsername("internal-news"); credentials.setSecret("secret-value");
+        credentials.setUsername("internal-news");
+        setEncryptedSecret(credentials, "secret-value");
         NewsRuntimeClient client = new NewsRuntimeClient(new ObjectMapper(), credentials,
             java.net.http.HttpClient.newHttpClient(), "http://localhost:" + server.getAddress().getPort(), Duration.ofSeconds(5));
 
@@ -49,7 +51,7 @@ class NewsRuntimeClientTest {
         server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
         InternalCredentialProperties credentials = new InternalCredentialProperties();
         credentials.setUsername("internal-user");
-        credentials.setSecret("test-secret");
+        setEncryptedSecret(credentials, "test-secret");
         server.createContext("/internal/v1/news/tools/get_financial_data", exchange -> {
             String timestamp = exchange.getRequestHeaders().getFirst(InternalRequestSigner.TIMESTAMP_HEADER);
             String nonce = exchange.getRequestHeaders().getFirst(InternalRequestSigner.NONCE_HEADER);
@@ -69,5 +71,10 @@ class NewsRuntimeClientTest {
         var output = client.invoke("get_financial_data", ToolInput.builder()
             .parameters(Map.of("dataset", "etf_scale_daily")).build());
         assertThat(output.isSuccess()).isTrue();
+    }
+
+    private void setEncryptedSecret(InternalCredentialProperties credentials, String secret) {
+        credentials.setCryptoKey("test-crypto-key");
+        credentials.setEncryptedSecret(InternalSecretCipher.encrypt(secret, "test-crypto-key"));
     }
 }

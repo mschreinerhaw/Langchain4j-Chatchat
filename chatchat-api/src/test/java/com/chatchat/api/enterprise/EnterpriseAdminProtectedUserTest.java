@@ -1,6 +1,7 @@
 package com.chatchat.api.enterprise;
 
 import com.chatchat.common.security.InternalCredentialProperties;
+import com.chatchat.common.security.PasswordHashCodec;
 import com.chatchat.enterprise.entity.SysUser;
 import com.chatchat.enterprise.repository.DataSourceConfigRepository;
 import com.chatchat.enterprise.repository.EmbedLoginTokenRepository;
@@ -99,6 +100,18 @@ class EnterpriseAdminProtectedUserTest {
             .hasMessage("built-in user cannot be deleted");
         verify(userRoleRepository, never()).deleteByUserId("internal-id");
         verify(userRepository, never()).deleteById("internal-id");
+    }
+
+    @Test
+    void upgradesLegacyPlaintextPasswordAfterSuccessfulLogin() {
+        SysUser legacy = user("legacy-id", "legacy-user");
+        legacy.setPasswordHash("legacy-password");
+        when(userRepository.findByUsername("legacy-user")).thenReturn(Optional.of(legacy));
+
+        service.login("legacy-user", "legacy-password");
+
+        assertThat(legacy.getPasswordHash()).isNotEqualTo("legacy-password");
+        assertThat(PasswordHashCodec.matches("legacy-password", legacy.getPasswordHash())).isTrue();
     }
 
     private SysUser user(String id, String username) {

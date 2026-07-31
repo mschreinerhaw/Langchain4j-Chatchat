@@ -8,7 +8,10 @@ import org.springframework.core.env.EnumerablePropertySource;
 import org.springframework.core.env.MutablePropertySources;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.PropertySource;
+import org.springframework.core.io.ClassPathResource;
 
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -93,8 +96,18 @@ public class EncryptedPropertyEnvironmentPostProcessor implements EnvironmentPos
         }
         try {
             return Files.readString(Path.of(path.trim())).trim();
-        } catch (Exception ex) {
-            throw new IllegalStateException("Failed to read internal credential crypto key file: " + path, ex);
+        } catch (Exception filesystemFailure) {
+            String fileName = Path.of(path.trim()).getFileName().toString();
+            ClassPathResource resource = new ClassPathResource(fileName);
+            try (InputStream inputStream = resource.getInputStream()) {
+                return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8).trim();
+            } catch (Exception classpathFailure) {
+                classpathFailure.addSuppressed(filesystemFailure);
+                throw new IllegalStateException(
+                    "Failed to read internal credential crypto key file: " + path,
+                    classpathFailure
+                );
+            }
         }
     }
 

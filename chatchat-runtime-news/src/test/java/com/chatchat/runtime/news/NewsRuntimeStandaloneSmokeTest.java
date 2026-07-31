@@ -13,7 +13,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
     "spring.datasource.url=jdbc:h2:mem:news-smoke;MODE=MySQL",
-    "chatchat.internal-credential.secret=test-secret",
+    "chatchat.internal-credential.encrypted-secret=ENC(gAK4V5sAr0XF8acw:WOGPEc0csxXcir3D54WGSe7ANpBYVrEbE+H+)",
+    "chatchat.internal-credential.crypto-key=test-crypto-key",
     "chatchat.runtime.news.open-search.enabled=false"
 })
 class NewsRuntimeStandaloneSmokeTest {

@@ -16,8 +16,7 @@ param(
 
     [string]$ApiArgs = "",
     [string]$McpArgs = "",
-    [string]$NewsArgs = "",
-    [string]$NewsInternalSecret = "chatchat_internal_default_secret"
+    [string]$NewsArgs = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -321,9 +320,6 @@ function Show-LogTail {
 
 function Get-NewsExtraArgs {
     $Arguments = @("--chatchat.runtime.news.mcp-server.base-url=http://localhost:$McpPort")
-    if (-not [string]::IsNullOrWhiteSpace($NewsInternalSecret)) {
-        $Arguments += "--chatchat.internal-credential.secret=`"$NewsInternalSecret`""
-    }
     if (-not [string]::IsNullOrWhiteSpace($NewsArgs)) {
         $Arguments += $NewsArgs
     }

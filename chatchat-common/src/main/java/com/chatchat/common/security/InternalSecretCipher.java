@@ -34,7 +34,9 @@ public final class InternalSecretCipher {
             return text;
         }
         if (keyMaterial == null || keyMaterial.isBlank()) {
-            throw new IllegalStateException("Encrypted internal credential requires chatchat.internal-credential.crypto-key");
+            throw new IllegalStateException(
+                "Encrypted internal credential requires chatchat.internal-credential.crypto-key-file"
+            );
         }
         String payload = text.substring(WRAPPER_PREFIX.length(), text.length() - WRAPPER_SUFFIX.length());
         String[] parts = payload.split(":");

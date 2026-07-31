@@ -5,6 +5,7 @@ import com.chatchat.agents.runtime.ToolRuntimeRequest;
 import com.chatchat.api.runtime.EnterpriseToolRuntimePolicyProvider;
 import com.chatchat.chat.skills.SkillConfigEntity;
 import com.chatchat.chat.skills.SkillConfigRepository;
+import com.chatchat.common.security.PasswordHashCodec;
 import com.chatchat.enterprise.entity.McpToolAsset;
 import com.chatchat.enterprise.entity.McpToolPermission;
 import com.chatchat.enterprise.entity.SysPermission;
@@ -14,6 +15,7 @@ import com.chatchat.enterprise.entity.SysUser;
 import com.chatchat.enterprise.repository.McpToolAssetRepository;
 import com.chatchat.enterprise.repository.McpToolPermissionRepository;
 import com.chatchat.enterprise.repository.SysPermissionRepository;
+import com.chatchat.enterprise.repository.SysUserRepository;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -62,6 +64,9 @@ class ApiUserRoleScheduleMcpAuthorizationIntegrationTest {
     private SysPermissionRepository permissionRepository;
 
     @Autowired
+    private SysUserRepository userRepository;
+
+    @Autowired
     private SkillConfigRepository skillConfigRepository;
 
     @Autowired
@@ -93,6 +98,9 @@ class ApiUserRoleScheduleMcpAuthorizationIntegrationTest {
         EnterpriseAdminService.UserView viewer = adminService.saveUser(
             user(tenantB.getId(), "viewer-" + suffix), List.of(viewerRole.getId())
         );
+        String storedPassword = userRepository.findById(scheduler.id()).orElseThrow().getPasswordHash();
+        assertThat(storedPassword).isNotEqualTo("joint-password");
+        assertThat(PasswordHashCodec.matches("joint-password", storedPassword)).isTrue();
         String agentId = "joint-agent-" + suffix;
         adminService.saveRoleAuthorization(schedulerRole.getId(),
             new EnterpriseAdminService.RoleAuthorizationRequest(

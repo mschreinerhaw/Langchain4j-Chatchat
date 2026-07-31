@@ -11,10 +11,8 @@ chatchat:
   internal-credential:
     enabled: true
     username: chatchat_mcp_internal
-    encrypted-secret: ""
-    secret: chatchat_internal_default_secret
-    crypto-key: ""
-    crypto-key-file: ""
+    encrypted-secret: "ENC(RJGDk0FA9Xht7fHK:VBpgvsk5UR2XGCoSxNL7eqlS0Lu4r2UG1U6vvQ6NM7KBEwQ6/5j09M/A+mdijO9H)"
+    crypto-key-file: ./config/internal-credential.key
   runtime:
     news:
       enabled: true

@@ -4,7 +4,10 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
+import org.springframework.core.io.ClassPathResource;
 
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -34,19 +37,16 @@ public class InternalCredentialProperties {
         if (!enabled) {
             return "";
         }
-        String encrypted = text(encryptedSecret);
-        if (!encrypted.isBlank()) {
-            return InternalSecretCipher.decryptIfNecessary(encrypted, resolvedCryptoKey());
-        }
-        return InternalSecretCipher.decryptIfNecessary(text(secret), resolvedCryptoKey());
+        rejectPlaintext(secret, "chatchat.internal-credential.secret");
+        return decryptRequired(encryptedSecret, "chatchat.internal-credential.encrypted-secret");
     }
 
     public String resolveSecret(String encryptedValue, String plainValue) {
-        String encrypted = text(encryptedValue);
-        if (!encrypted.isBlank()) {
-            return InternalSecretCipher.decryptIfNecessary(encrypted, resolvedCryptoKey());
+        rejectPlaintext(plainValue, "plaintext internal credential");
+        if (text(encryptedValue).isBlank()) {
+            return "";
         }
-        return InternalSecretCipher.decryptIfNecessary(text(plainValue), resolvedCryptoKey());
+        return decryptRequired(encryptedValue, "encrypted internal credential");
     }
 
     private String resolvedCryptoKey() {
@@ -61,7 +61,35 @@ public class InternalCredentialProperties {
         try {
             return Files.readString(Path.of(path)).trim();
         } catch (Exception ex) {
+            String fileName = Path.of(path).getFileName().toString();
+            try {
+                ClassPathResource resource = new ClassPathResource(fileName);
+                if (resource.exists()) {
+                    try (InputStream inputStream = resource.getInputStream()) {
+                        return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8).trim();
+                    }
+                }
+            } catch (Exception classpathEx) {
+                ex.addSuppressed(classpathEx);
+            }
             throw new IllegalStateException("Failed to read internal credential crypto key file: " + path, ex);
+        }
+    }
+
+    private String decryptRequired(String encryptedValue, String propertyName) {
+        String encrypted = text(encryptedValue);
+        if (encrypted.isBlank()) {
+            return "";
+        }
+        if (!InternalSecretCipher.isEncrypted(encrypted)) {
+            throw new IllegalStateException(propertyName + " must use ENC(...) format");
+        }
+        return InternalSecretCipher.decryptIfNecessary(encrypted, resolvedCryptoKey());
+    }
+
+    private void rejectPlaintext(String value, String propertyName) {
+        if (!text(value).isBlank()) {
+            throw new IllegalStateException(propertyName + " is no longer allowed; use encrypted-secret");
         }
     }
 

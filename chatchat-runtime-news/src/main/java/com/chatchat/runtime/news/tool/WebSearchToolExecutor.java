@@ -97,6 +97,12 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
             );
         } else if (externalEnabled) {
             try {
+                log.info(
+                    "准备调用联网检索API provider=tencent-wsa query=\"{}\" requested={} "
+                        + "cacheResult={} forceExternal={} requestId={}",
+                    auditQuery(query), size, cacheEnabled ? "miss" : "disabled", forceExternal,
+                    auditIdentifier(input.getRequestId())
+                );
                 externalResponse = externalSearch.search(query, size);
                 externalResponse.pages().forEach(page -> external.add(externalItem(page, "tencent_wsa")));
                 externalSucceeded = true;
@@ -156,6 +162,12 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
             .replace('\t', ' ')
             .trim();
         return normalized.length() <= 200 ? normalized : normalized.substring(0, 200) + "...";
+    }
+
+    private String auditIdentifier(String value) {
+        if (value == null || value.isBlank()) return "unavailable";
+        String normalized = value.replace('\r', '_').replace('\n', '_').replace('\t', '_').trim();
+        return normalized.length() <= 100 ? normalized : normalized.substring(0, 100) + "...";
     }
 
     private Map<String, Object> localItem(NewsDocument document) {

@@ -70,6 +70,14 @@ class FinalSummaryWebSearchEnhancer {
         if (!decision.needed() || decision.keywords().isEmpty()) {
             return Enhancement.skipped(observations, traces);
         }
+        log.info(
+            "准备联网检索 stage={} runId={} tool={} keywords={} reason={}",
+            CANDIDATE_STAGE,
+            safe(text(metadata, "agentRunId", "__agentRunId")),
+            toolName,
+            decision.keywords(),
+            safe(decision.reason())
+        );
 
         List<InteractionToolTrace> augmentedTraces = new ArrayList<>(traces == null ? List.of() : traces);
         List<SearchEvidence> evidence = new ArrayList<>();

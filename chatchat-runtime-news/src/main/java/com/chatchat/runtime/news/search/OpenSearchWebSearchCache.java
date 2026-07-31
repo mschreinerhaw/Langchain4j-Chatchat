@@ -15,6 +15,7 @@ import org.opensearch.client.Request;
 import org.opensearch.client.Response;
 import org.opensearch.client.ResponseException;
 import org.opensearch.client.RestClient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -47,6 +48,7 @@ public class OpenSearchWebSearchCache implements WebSearchCache {
     private final Clock clock;
     private final Set<String> readyIndices = ConcurrentHashMap.newKeySet();
 
+    @Autowired
     public OpenSearchWebSearchCache(NewsRuntimeProperties runtimeProperties, ObjectMapper objectMapper) {
         this(runtimeProperties, objectMapper,
             Clock.system(ZoneId.of(runtimeProperties.getWebSearch().getCache().getZoneId())));

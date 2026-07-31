@@ -127,7 +127,9 @@ public class EncryptedPropertyEnvironmentPostProcessor implements EnvironmentPos
         @Override
         public Object getProperty(String name) {
             Object value = getRawProperty(name);
-            if (value instanceof String text && InternalSecretCipher.isEncrypted(text)) {
+            if (!isCredentialCipherProperty(name)
+                && value instanceof String text
+                && InternalSecretCipher.isEncrypted(text)) {
                 return InternalSecretCipher.decryptIfNecessary(text, cryptoKey.get());
             }
             return value;
@@ -143,6 +145,16 @@ public class EncryptedPropertyEnvironmentPostProcessor implements EnvironmentPos
 
         private Object getRawProperty(String name) {
             return source.getProperty(name);
+        }
+
+        private boolean isCredentialCipherProperty(String name) {
+            if (name == null || name.isBlank()) {
+                return false;
+            }
+            return name.endsWith(".encrypted-secret")
+                || name.endsWith(".encrypted-password")
+                || name.endsWith(".encrypted-admin-password")
+                || name.endsWith(".encrypted-invocation-token");
         }
     }
 }

@@ -4,6 +4,8 @@ import com.chatchat.runtime.news.config.NewsRuntimeProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -31,6 +33,7 @@ import java.util.Set;
  */
 @Component
 public class TencentWebSearchClient {
+    private static final Logger log = LoggerFactory.getLogger(TencentWebSearchClient.class);
     private static final String SERVICE = "wsa";
     private static final String ACTION = "SearchPro";
     private static final String VERSION = "2025-05-08";
@@ -91,11 +94,47 @@ public class TencentWebSearchClient {
             .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
         if (!blank(config.getRegion())) request.header("X-TC-Region", config.getRegion().trim());
 
-        HttpResponse<byte[]> response = client.send(request.build(), HttpResponse.BodyHandlers.ofByteArray());
-        JsonNode root = mapper.readTree(response.body()).path("Response");
+        String auditQuery = auditQuery(query);
+        long startedAt = System.nanoTime();
+        log.info(
+            "tencentWsaHttpCallStart endpoint={} action={} version={} query=\"{}\" requested={} count={} mode={} "
+                + "hotspotWindow={} timeoutMs={}",
+            endpoint, ACTION, VERSION, auditQuery, requested, count, config.getMode(),
+            payload.has("FromTime"), Math.max(1_000, config.getTimeoutMillis())
+        );
+
+        HttpResponse<byte[]> response;
+        try {
+            response = client.send(request.build(), HttpResponse.BodyHandlers.ofByteArray());
+        } catch (Exception ex) {
+            log.warn(
+                "tencentWsaHttpCallFailed endpoint={} action={} query=\"{}\" stage=transport elapsedMs={} error={}",
+                endpoint, ACTION, auditQuery, elapsedMillis(startedAt), safeMessage(ex)
+            );
+            throw ex;
+        }
+
+        JsonNode root;
+        try {
+            root = mapper.readTree(response.body()).path("Response");
+        } catch (Exception ex) {
+            log.warn(
+                "tencentWsaHttpCallFailed endpoint={} action={} query=\"{}\" stage=response_parse "
+                    + "httpStatus={} responseBytes={} elapsedMs={} error={}",
+                endpoint, ACTION, auditQuery, response.statusCode(), response.body().length,
+                elapsedMillis(startedAt), safeMessage(ex)
+            );
+            throw ex;
+        }
         JsonNode error = root.path("Error");
         if (response.statusCode() < 200 || response.statusCode() >= 300 || !error.isMissingNode()) {
             String message = error.path("Message").asText("HTTP " + response.statusCode());
+            log.warn(
+                "tencentWsaHttpCallFailed endpoint={} action={} query=\"{}\" stage=provider_response "
+                    + "httpStatus={} errorCode={} requestId={} elapsedMs={} error={}",
+                endpoint, ACTION, auditQuery, response.statusCode(), error.path("Code").asText(""),
+                root.path("RequestId").asText(""), elapsedMillis(startedAt), auditText(message, 300)
+            );
             throw new IllegalStateException("Tencent WSA SearchPro failed: " + message);
         }
         List<SearchPage> pages = new ArrayList<>();
@@ -115,8 +154,15 @@ public class TencentWebSearchClient {
                 // SearchPro encodes every page independently; one malformed page must not discard the batch.
             }
         }
-        return new SearchResponse(List.copyOf(pages), root.path("RequestId").asText(""),
-            root.path("Version").asText(""));
+        String requestId = root.path("RequestId").asText("");
+        String responseVersion = root.path("Version").asText("");
+        log.info(
+            "tencentWsaHttpCallCompleted endpoint={} action={} query=\"{}\" httpStatus={} requestId={} "
+                + "responseVersion={} resultCount={} responseBytes={} elapsedMs={}",
+            endpoint, ACTION, auditQuery, response.statusCode(), requestId, responseVersion,
+            pages.size(), response.body().length, elapsedMillis(startedAt)
+        );
+        return new SearchResponse(List.copyOf(pages), requestId, responseVersion);
     }
 
     private String authorization(String host, String body, Instant now,
@@ -165,6 +211,30 @@ public class TencentWebSearchClient {
 
     private boolean blank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private String auditQuery(String query) {
+        return auditText(query, 200);
+    }
+
+    private String auditText(String value, int maxLength) {
+        String normalized = value == null ? "" : value
+            .replace('\r', ' ')
+            .replace('\n', ' ')
+            .replace('\t', ' ')
+            .trim();
+        if (normalized.length() <= maxLength) return normalized;
+        return normalized.substring(0, maxLength) + "...";
+    }
+
+    private long elapsedMillis(long startedAt) {
+        return Math.max(0L, (System.nanoTime() - startedAt) / 1_000_000L);
+    }
+
+    private String safeMessage(Exception ex) {
+        if (ex == null) return "unknown";
+        String message = ex.getMessage();
+        return auditText(message == null || message.isBlank() ? ex.getClass().getSimpleName() : message, 300);
     }
 
     public record SearchPage(String title, String url, String date, String snippet,

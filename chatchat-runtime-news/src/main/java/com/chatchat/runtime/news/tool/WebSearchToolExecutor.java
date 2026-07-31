@@ -8,6 +8,8 @@ import com.chatchat.runtime.news.model.NewsSearchQuery;
 import com.chatchat.runtime.news.search.TencentWebSearchClient;
 import com.chatchat.runtime.news.search.WebSearchCache;
 import com.chatchat.runtime.news.store.NewsDocumentStore;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -20,6 +22,7 @@ import java.util.Map;
 
 @Component
 public class WebSearchToolExecutor implements NewsToolExecutor {
+    private static final Logger log = LoggerFactory.getLogger(WebSearchToolExecutor.class);
     private final NewsDocumentStore store;
     private final NewsRuntimeProperties properties;
     private final TencentWebSearchClient externalSearch;
@@ -69,17 +72,29 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
             }
         }
         boolean forceExternal = properties.getWebSearch().getCache().isForceExternal();
+        log.info(
+            "webSearchRetrievalRoute query=\"{}\" requested={} localEnabled={} tencentWsaEnabled={} "
+                + "cacheEnabled={} forceExternal={}",
+            auditQuery(query), size, localEnabled, externalEnabled, cacheEnabled, forceExternal
+        );
         if (cacheEnabled && !forceExternal) {
             try {
                 cachedSearch = cache.findHighlyRelated(query).orElse(null);
             } catch (Exception ex) {
                 warnings.add("web_search_cache_read: " + safe(ex));
+                log.warn("webSearchCacheReadFailed query=\"{}\" error={}", auditQuery(query), safe(ex));
             }
         }
         if (cachedSearch != null) {
             externalResponse = cachedSearch.response();
             externalResponse.pages().forEach(page -> external.add(externalItem(page, "tencent_wsa_cache")));
             externalSucceeded = true;
+            log.info(
+                "tencentWsaHttpCallSkipped query=\"{}\" reason=cache_hit cachedQuery=\"{}\" similarity={} "
+                    + "resultCount={}",
+                auditQuery(query), auditQuery(cachedSearch.originalQuery()), cachedSearch.similarity(),
+                externalResponse.pages().size()
+            );
         } else if (externalEnabled) {
             try {
                 externalResponse = externalSearch.search(query, size);
@@ -90,11 +105,18 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
                         cache.put(query, externalResponse);
                     } catch (Exception ex) {
                         warnings.add("web_search_cache_write: " + safe(ex));
+                        log.warn("webSearchCacheWriteFailed query=\"{}\" error={}", auditQuery(query), safe(ex));
                     }
                 }
             } catch (Exception ex) {
                 warnings.add("tencent_wsa: " + safe(ex));
+                log.warn("tencentWsaRetrievalFailed query=\"{}\" error={}", auditQuery(query), safe(ex));
             }
+        } else {
+            log.info(
+                "tencentWsaHttpCallSkipped query=\"{}\" reason=provider_disabled_or_credentials_missing",
+                auditQuery(query)
+            );
         }
         if (!localSucceeded && !externalSucceeded) {
             return ToolOutput.failure("Web retrieval unavailable: " + String.join("; ", warnings));
@@ -125,6 +147,15 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
         }
         if (!warnings.isEmpty()) data.put("warnings", warnings);
         return ToolOutput.success(data, "Internal news and external web retrieval completed");
+    }
+
+    private String auditQuery(String query) {
+        String normalized = query == null ? "" : query
+            .replace('\r', ' ')
+            .replace('\n', ' ')
+            .replace('\t', ' ')
+            .trim();
+        return normalized.length() <= 200 ? normalized : normalized.substring(0, 200) + "...";
     }
 
     private Map<String, Object> localItem(NewsDocument document) {

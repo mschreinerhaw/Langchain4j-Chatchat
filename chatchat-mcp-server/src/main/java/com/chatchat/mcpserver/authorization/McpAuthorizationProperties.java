@@ -81,8 +81,8 @@ public class McpAuthorizationProperties {
     public static class Auth {
         private boolean enabled = true;
         private String loginPath = "/api/v1/enterprise/auth/login";
-        private String username = "admin";
-        private String password = "123456";
+        private String username = "";
+        private String password = "";
         private String encryptedPassword = "";
         private String bearerToken = "";
 

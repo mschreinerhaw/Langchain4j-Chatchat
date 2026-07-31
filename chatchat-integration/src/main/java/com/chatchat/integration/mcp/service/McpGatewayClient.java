@@ -485,6 +485,7 @@ public class McpGatewayClient {
     private List<McpToolDefinition> discoverToolsViaDirectStreamableHttp(McpServiceConfig config,
                                                                           int requestTimeoutMs,
                                                                           Exception sdkFailure) {
+        String endpoint = resolveStreamableEndpoint(config);
         try {
             DirectMcpSession session = openDirectStreamableHttpSession(config, requestTimeoutMs);
             try {
@@ -494,11 +495,12 @@ public class McpGatewayClient {
                 closeDirectStreamableHttpSession(session);
             }
         } catch (Exception ex) {
-            log.warn("Direct MCP streamable HTTP tool discovery fallback failed serviceId={} service={} sdkError={} error={}",
+            log.warn("Direct MCP streamable HTTP tool discovery fallback failed serviceId={} service={} endpoint={} sdkError={} error={}",
                 config.getId(),
                 config.getName(),
-                sdkFailure == null ? "" : sdkFailure.getMessage(),
-                ex.getMessage(),
+                endpoint,
+                sdkFailure == null ? "none" : firstText(sdkFailure.getMessage(), sdkFailure.getClass().getSimpleName()),
+                firstText(ex.getMessage(), ex.getClass().getSimpleName()),
                 ex);
             return List.of();
         }

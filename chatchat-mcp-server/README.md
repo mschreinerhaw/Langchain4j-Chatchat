@@ -1,5 +1,20 @@
 # ChatChat MCP Server
 
+## Database selection
+
+Application settings and datasource settings are separated. Select the database
+used by the development profile in `config/application-dev.yml`:
+
+```yaml
+spring:
+  config:
+    import: datasource-mysql.yml
+```
+
+Change the import to `datasource-h2.yml` to use H2. Connection URLs, usernames,
+passwords, pool settings, and JPA dialects belong only in the selected
+`datasource-*.yml` file.
+
 ## H2 database password
 
 The MCP server uses a password-protected H2 file database by default.

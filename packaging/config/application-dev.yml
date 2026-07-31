@@ -1,4 +1,7 @@
 spring:
+  config:
+    # Database type selector: datasource-mysql.yml or datasource-h2.yml.
+    import: datasource-mysql.yml
   application:
     name: chatchat
     version: 1.0.0-SNAPSHOT
@@ -6,33 +9,6 @@ spring:
     multipart:
       max-file-size: 5MB
       max-request-size: 32MB
-  datasource:
-    url: jdbc:h2:file:./data/h2/chatchat;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
-    hikari:
-      maximum-pool-size: 20
-      minimum-idle: 2
-      connection-timeout: 30000
-      idle-timeout: 300000
-      max-lifetime: 1200000
-      auto-commit: true
-      transaction-isolation: TRANSACTION_READ_COMMITTED
-  h2:
-    console:
-      enabled: false
-      path: /h2-console
-      settings:
-        web-allow-others: false
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: false
-    database-platform: org.hibernate.dialect.H2Dialect
-    properties:
-      hibernate:
-        format_sql: false
   web:
     resources:
       static-locations: classpath:/static/

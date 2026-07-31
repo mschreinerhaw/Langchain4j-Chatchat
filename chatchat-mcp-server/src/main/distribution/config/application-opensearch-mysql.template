@@ -3,22 +3,10 @@
 # Example: application-prod.yml for production-like deployment.
 
 spring:
+  config:
+    import: datasource-mysql.yml
   application:
     name: chatchat-mcp-server
-  datasource:
-    type: com.zaxxer.hikari.HikariDataSource
-    url: "jdbc:mysql://localhost:3306/chatchat_mcp?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true"
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    username: chatchat
-    password:
-  h2:
-    console:
-      enabled: false
-  jpa:
-    hibernate:
-      ddl-auto: update
-    database-platform: org.hibernate.dialect.MySQLDialect
-    show-sql: false
 
 server:
   port: 8090

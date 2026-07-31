@@ -26,6 +26,7 @@ import java.util.Set;
 class ModelAssistedRetrievalBridge {
 
     static final String CONTRACT_VERSION = "model_assisted_retrieval.v1";
+    static final String TEMPLATE_KEYWORD_EVIDENCE_VERSION = "template_retrieval_keyword_evidence.v1";
     static final String META_KEY = "modelInputBridgeContract";
     static final String RUNTIME_GATE_KEY = "__modelRetrievalQualityGate";
     private static final int MAX_CONTEXT_CHARS = 16_000;
@@ -49,6 +50,13 @@ class ModelAssistedRetrievalBridge {
     EnrichmentResult enrichWithGate(ChatModel chatModel,
                                     String toolName,
                                     Map<String, Object> arguments) {
+        return enrichWithGate(chatModel, toolName, arguments, RetrievalEvidenceContext.empty());
+    }
+
+    EnrichmentResult enrichWithGate(ChatModel chatModel,
+                                    String toolName,
+                                    Map<String, Object> arguments,
+                                    RetrievalEvidenceContext evidenceContext) {
         Map<String, Object> original = deepMutableMap(arguments);
         Map<String, Object> contract = contract(toolName);
         if (chatModel == null || contract.isEmpty()
@@ -72,6 +80,9 @@ class ModelAssistedRetrievalBridge {
                 context.put(path, value);
             }
         }
+        if ("BILINGUAL_TEMPLATE_PROFILE".equalsIgnoreCase(mode)) {
+            addTrustedTemplateEvidenceContext(context, evidenceContext);
+        }
         if (context.isEmpty()) {
             return new EnrichmentResult(original, Map.of(), false);
         }
@@ -80,6 +91,16 @@ class ModelAssistedRetrievalBridge {
             Map<String, Object> response = parseObject(chatModel.chat(prompt));
             Map<String, Object> patch = map(response.get("arguments"));
             if (patch.isEmpty()) {
+                return new EnrichmentResult(original, Map.of(), false);
+            }
+            KeywordEvidenceReview keywordReview = "BILINGUAL_TEMPLATE_PROFILE".equalsIgnoreCase(mode)
+                ? reviewTemplateKeywordEvidence(patch, response.get("argumentEvidence"), context, allowedPaths)
+                : KeywordEvidenceReview.notRequired(patch);
+            patch = keywordReview.patch();
+            if (patch.isEmpty()) {
+                log.warn("Model-assisted template retrieval discarded every proposed keyword because no "
+                        + "verifiable source-path evidence was supplied tool={}",
+                    toolName);
                 return new EnrichmentResult(original, Map.of(), false);
             }
             Map<String, Object> enriched = deepMutableMap(original);
@@ -99,10 +120,12 @@ class ModelAssistedRetrievalBridge {
                 }
             }
             if (changed > 0) {
-                log.info("Model-assisted retrieval bridge enriched tool={} mode={} changedPaths={} allowedPaths={}",
-                    toolName, mode, changed, allowedPaths);
+                log.info("Model-assisted retrieval bridge enriched tool={} mode={} changedPaths={} "
+                        + "allowedPaths={} verifiedKeywordCount={} rejectedKeywordCount={}",
+                    toolName, mode, changed, allowedPaths, keywordReview.evidence().size(),
+                    keywordReview.rejectedCount());
             }
-            return resultWithGate(original, enriched, contract);
+            return resultWithGate(original, enriched, contract, keywordReview.evidence());
         } catch (Exception ex) {
             log.warn("Model-assisted retrieval bridge fell back to original input tool={} mode={} reason={}",
                 toolName, mode, ex.getMessage());
@@ -110,9 +133,30 @@ class ModelAssistedRetrievalBridge {
         }
     }
 
+    private void addTrustedTemplateEvidenceContext(Map<String, Object> context,
+                                                   RetrievalEvidenceContext evidenceContext) {
+        RetrievalEvidenceContext trusted = evidenceContext == null
+            ? RetrievalEvidenceContext.empty() : evidenceContext;
+        if (text(trusted.userQuery()) != null) {
+            context.put("runtime.userQuery", trusted.userQuery());
+        }
+        trusted.completedStepOutputs().forEach((stepId, output) -> {
+            if (stepId != null && meaningful(output)) {
+                context.put("completedStep." + stepId + ".output", output);
+            }
+        });
+    }
+
     private EnrichmentResult resultWithGate(Map<String, Object> original,
                                             Map<String, Object> enriched,
                                             Map<String, Object> contract) {
+        return resultWithGate(original, enriched, contract, List.of());
+    }
+
+    private EnrichmentResult resultWithGate(Map<String, Object> original,
+                                            Map<String, Object> enriched,
+                                            Map<String, Object> contract,
+                                            List<Map<String, Object>> keywordEvidence) {
         List<String> allowedPaths = strings(contract.get("allowedArgumentPaths"));
         if (allowedPaths.isEmpty()) {
             allowedPaths = List.of("query", "queryTerms", "fieldProfiles", "fields");
@@ -142,7 +186,109 @@ class ModelAssistedRetrievalBridge {
         gate.put("changedPaths", changedPaths);
         gate.put("originalValues", originalValues);
         gate.put("originallyAbsentPaths", originallyAbsent);
+        if (keywordEvidence != null && !keywordEvidence.isEmpty()) {
+            gate.put("keywordEvidenceVersion", TEMPLATE_KEYWORD_EVIDENCE_VERSION);
+            gate.put("keywordEvidence", List.copyOf(keywordEvidence));
+        }
         return new EnrichmentResult(enriched, Map.copyOf(gate), true);
+    }
+
+    private KeywordEvidenceReview reviewTemplateKeywordEvidence(Map<String, Object> patch,
+                                                                Object rawEvidence,
+                                                                Map<String, Object> context,
+                                                                List<String> allowedPaths) {
+        Map<String, Object> evidenceByPath = map(rawEvidence);
+        Map<String, Object> verifiedPatch = new LinkedHashMap<>();
+        List<Map<String, Object>> verifiedEvidence = new ArrayList<>();
+        int proposedCount = 0;
+        for (String path : allowedPaths) {
+            Object proposed = valueAtPath(patch, path);
+            List<String> values = strings(proposed);
+            if (values.isEmpty()) {
+                continue;
+            }
+            proposedCount += values.size();
+            List<Map<String, Object>> candidates = evidenceItems(evidenceByPath.get(path));
+            List<String> accepted = new ArrayList<>();
+            for (String value : values) {
+                Map<String, Object> evidence = candidates.stream()
+                    .filter(item -> verifiedKeywordEvidence(value, item, context))
+                    .findFirst()
+                    .orElse(null);
+                if (evidence == null) {
+                    continue;
+                }
+                accepted.add(value);
+                verifiedEvidence.add(Map.of(
+                    "argumentPath", path,
+                    "value", value,
+                    "sourcePath", firstText(evidence, "sourcePath", "source_path", "path"),
+                    "quote", firstText(evidence, "quote", "text", "excerpt")
+                ));
+            }
+            if (accepted.isEmpty()) {
+                continue;
+            }
+            putAtPath(verifiedPatch, path,
+                proposed instanceof Iterable<?> ? List.copyOf(accepted) : accepted.get(0));
+        }
+        return new KeywordEvidenceReview(
+            verifiedPatch,
+            List.copyOf(verifiedEvidence),
+            Math.max(0, proposedCount - verifiedEvidence.size())
+        );
+    }
+
+    private List<Map<String, Object>> evidenceItems(Object value) {
+        if (value instanceof Iterable<?> iterable) {
+            List<Map<String, Object>> result = new ArrayList<>();
+            for (Object item : iterable) {
+                Map<String, Object> evidence = map(item);
+                if (!evidence.isEmpty()) {
+                    result.add(evidence);
+                }
+            }
+            return List.copyOf(result);
+        }
+        Map<String, Object> evidence = map(value);
+        return evidence.isEmpty() ? List.of() : List.of(evidence);
+    }
+
+    private boolean verifiedKeywordEvidence(String proposed,
+                                            Map<String, Object> evidence,
+                                            Map<String, Object> context) {
+        String evidenceValue = firstText(evidence, "value", "keyword", "term");
+        String sourcePath = firstText(evidence, "sourcePath", "source_path", "path");
+        String quote = firstText(evidence, "quote", "text", "excerpt");
+        if (evidenceValue == null || sourcePath == null || quote == null
+            || !compact(proposed).equals(compact(evidenceValue))
+            || !compact(quote).contains(compact(proposed))
+            || !trustedTemplateEvidencePath(sourcePath)
+            || !context.containsKey(sourcePath)) {
+            return false;
+        }
+        return containsEvidenceQuote(context.get(sourcePath), quote);
+    }
+
+    private boolean trustedTemplateEvidencePath(String sourcePath) {
+        return "runtime.userQuery".equals(sourcePath)
+            || (sourcePath.startsWith("completedStep.") && sourcePath.endsWith(".output"));
+    }
+
+    private boolean containsEvidenceQuote(Object source, String quote) {
+        if (source instanceof Map<?, ?> map) {
+            return map.values().stream().anyMatch(value -> containsEvidenceQuote(value, quote));
+        }
+        if (source instanceof Iterable<?> iterable) {
+            for (Object item : iterable) {
+                if (containsEvidenceQuote(item, quote)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        String sourceText = text(source);
+        return sourceText != null && compact(sourceText).contains(compact(quote));
     }
 
     private Map<String, Object> contract(String toolName) {
@@ -170,10 +316,26 @@ class ModelAssistedRetrievalBridge {
         if (serializedContext.length() > MAX_CONTEXT_CHARS) {
             serializedContext = serializedContext.substring(0, MAX_CONTEXT_CHARS);
         }
+        String evidenceRules = "BILINGUAL_TEMPLATE_PROFILE".equalsIgnoreCase(text(contract.get("mode")))
+            ? """
+
+            Template keyword evidence protocol:
+            - Every value under arguments must have a matching entry under argumentEvidence.
+            - Shape:
+              "argumentEvidence":{
+                "argumentPath":[{"value":"exact proposed value","sourcePath":"one Context path","quote":"exact source excerpt"}]
+              }
+            - sourcePath must be runtime.userQuery or completedStep.<id>.output.
+            - quote must occur verbatim in that Context value, and value must occur in quote.
+            - Do not translate, add synonyms, generalize or infer a keyword unless that exact value occurs
+              in the cited Context excerpt. Omit unsupported keywords.
+            """
+            : "";
         return """
             Build a precise retrieval profile for the declared tool. Return JSON only:
             {"profile":{"intent":"short retrieval intent","terms":["search terms"]},
-             "arguments":{...only the allowed argument paths...}}
+             "arguments":{...only the allowed argument paths...},
+             "argumentEvidence":{...evidence required by the mode...}}
 
             Tool: %s
             Mode: %s
@@ -187,6 +349,7 @@ class ModelAssistedRetrievalBridge {
                physical table, template id or execution fields.
             4. Output only allowed argument paths. Omit a path when no safe improvement is available.
             5. Added terms are retrieval hints, not facts or evidence.
+            %s
 
             Context:
             %s
@@ -195,6 +358,7 @@ class ModelAssistedRetrievalBridge {
                 text(contract.get("mode")),
                 objectMapper.writeValueAsString(allowedPaths),
                 text(contract.get("guidance")),
+                evidenceRules,
                 serializedContext
             );
     }
@@ -313,6 +477,20 @@ class ModelAssistedRetrievalBridge {
         return result.isBlank() ? null : result;
     }
 
+    private String firstText(Map<String, Object> value, String... keys) {
+        for (String key : keys) {
+            String result = text(value.get(key));
+            if (result != null) {
+                return result;
+            }
+        }
+        return null;
+    }
+
+    private String compact(String value) {
+        return value == null ? "" : value.replaceAll("\\s+", "").trim().toLowerCase(Locale.ROOT);
+    }
+
     @SuppressWarnings("unchecked")
     private Map<String, Object> deepMutableMap(Map<String, Object> source) {
         Map<String, Object> result = new LinkedHashMap<>();
@@ -349,6 +527,30 @@ class ModelAssistedRetrievalBridge {
                 result.put(RUNTIME_GATE_KEY, qualityGate);
             }
             return result;
+        }
+    }
+
+    record RetrievalEvidenceContext(
+        String userQuery,
+        Map<Integer, Object> completedStepOutputs
+    ) {
+        RetrievalEvidenceContext {
+            completedStepOutputs = completedStepOutputs == null
+                ? Map.of() : Map.copyOf(completedStepOutputs);
+        }
+
+        private static RetrievalEvidenceContext empty() {
+            return new RetrievalEvidenceContext(null, Map.of());
+        }
+    }
+
+    private record KeywordEvidenceReview(
+        Map<String, Object> patch,
+        List<Map<String, Object>> evidence,
+        int rejectedCount
+    ) {
+        private static KeywordEvidenceReview notRequired(Map<String, Object> patch) {
+            return new KeywordEvidenceReview(patch, List.of(), 0);
         }
     }
 }

@@ -354,10 +354,11 @@ public class TemplateDiscoveryMcpToolPublisher {
             "languageSupport", mapOf(
                 "mode", "bilingual",
                 "languages", List.of("zh", "en"),
-                "modelMustGenerateBilingualRetrieval", true,
+                "modelMustGenerateBilingualRetrieval", false,
+                "modelKeywordsRequireEvidence", true,
                 "bilingualQueryFields", List.of("bilingualIntent", "bilingualQuery", "intentZh", "intentEn", "filters.bilingualIntent", "filters.intentZh", "filters.intentEn"),
                 "queryLanguageHints", List.of("language", "queryLanguage", "filters.language", "filters.queryLanguage"),
-                "intentExpansion", "Model-generated Chinese and English template intent terms are normalized into shared synonym sets before ranking"
+                "intentExpansion", "Only model terms carrying Runtime-verifiable source-path quotes are admitted before ranking"
             ),
             "modelInputBridgeContract", mapOf(
                 "contractVersion", "model_assisted_retrieval.v1",
@@ -370,8 +371,8 @@ public class TemplateDiscoveryMcpToolPublisher {
                     "minimumResultCount", 1,
                     "countPaths", List.of("count", "templates", "results")
                 ),
-                "guidance", "Generate concise Chinese and English operation-intent phrases for registered template retrieval. "
-                    + "Do not generate template ids, execution parameters, commands, SQL or routing targets."
+                "guidance", "Extract concise operation-intent phrases only when each exact phrase occurs in a cited input excerpt. "
+                    + "Do not translate, infer synonyms, or generate template ids, execution parameters, commands, SQL or routing targets."
             ),
             "routingProtocol", mapOf(
                 "requiredMarker", "finalDecision",
@@ -463,7 +464,8 @@ public class TemplateDiscoveryMcpToolPublisher {
             "languageSupport", mapOf(
                 "mode", "bilingual",
                 "languages", List.of("zh", "en"),
-                "modelMustGenerateBilingualRetrieval", true,
+                "modelMustGenerateBilingualRetrieval", false,
+                "modelKeywordsRequireEvidence", true,
                 "bilingualQueryFields", List.of("bilingualIntent", "bilingualQuery", "intentZh", "intentEn", "filters.bilingualIntent", "filters.intentZh", "filters.intentEn")
             ),
             "modelInputBridgeContract", mapOf(
@@ -477,8 +479,8 @@ public class TemplateDiscoveryMcpToolPublisher {
                     "minimumResultCount", 1,
                     "countPaths", List.of("count", "templates", "results")
                 ),
-                "guidance", "Generate concise Chinese and English operation-intent phrases for registered template retrieval. "
-                    + "Do not generate template ids, execution parameters, commands, SQL or routing targets."
+                "guidance", "Extract concise operation-intent phrases only when each exact phrase occurs in a cited input excerpt. "
+                    + "Do not translate, infer synonyms, or generate template ids, execution parameters, commands, SQL or routing targets."
             ),
             "routingProtocol", domainRoutingProtocol(assetType, targetKind),
             "executionFlow", "database_query".equals(assetType)

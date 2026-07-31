@@ -947,7 +947,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
             request -> modelAssistedRetrievalBridge.enrichWithGate(
                 activeChatModel,
                 request.step() == null ? null : request.step().toolName(),
-                request.input()).argumentsWithGateMarker()
+                request.input(),
+                templateRetrievalEvidenceContext(query, request.completed())
+            ).argumentsWithGateMarker()
         );
         List<InterpretationPlanRuntime.ExecutionResult> planAttemptResults = new ArrayList<>();
         List<Map<String, Object>> evidenceHistory = new ArrayList<>();
@@ -1593,6 +1595,21 @@ public class AgentOrchestrator implements AgentRunExecutor {
             + " 未执行到终态，本次执行被工作流依赖校验阻断。"
             + " 已完成的工具证据和失败原因均已保留，可在补齐依赖后继续诊断。";
         return answerFinalizer.finishExecution(deterministicFailure, traces, metadata, observations);
+    }
+
+    private ModelAssistedRetrievalBridge.RetrievalEvidenceContext templateRetrievalEvidenceContext(
+        String userQuery,
+        Map<Integer, InterpretationPlanRuntime.StepExecution> completed
+    ) {
+        Map<Integer, Object> outputs = new LinkedHashMap<>();
+        if (completed != null) {
+            completed.forEach((stepId, execution) -> {
+                if (stepId != null && execution != null && execution.success() && execution.output() != null) {
+                    outputs.put(stepId, execution.output());
+                }
+            });
+        }
+        return new ModelAssistedRetrievalBridge.RetrievalEvidenceContext(userQuery, outputs);
     }
 
     private InterpretationPlanRuntime.ExecutionRequest planExecutionRequest(InterpretationPlan plan,
@@ -5086,7 +5103,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 modelAssistedRetrievalBridge.enrichWithGate(
                 activeChatModel,
                 fallbackTool,
-                fallbackArguments
+                fallbackArguments,
+                new ModelAssistedRetrievalBridge.RetrievalEvidenceContext(query, Map.of())
             );
             fallbackArguments = enrichment.arguments();
             ToolCallExecution execution = executeToolCall(

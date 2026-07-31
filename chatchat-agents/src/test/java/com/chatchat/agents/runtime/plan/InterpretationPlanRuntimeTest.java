@@ -2740,6 +2740,94 @@ class InterpretationPlanRuntimeTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void correctsTemplateDiscoveryAssetFromEvidenceBackedReviewSelection() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            2,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_ssh_template_query",
+            Map.of(),
+            List.of(1),
+            null,
+            null
+        );
+        String selectedAssetId = "asset-cdh";
+        InterpretationPlanRuntime.StepExecution assetDiscovery =
+            new InterpretationPlanRuntime.StepExecution(
+                1,
+                "mcp_tool",
+                "mcp_chatchat_mcp_server_ssh_asset_query",
+                true,
+                Map.of("assets", List.of(
+                    Map.of("asset", Map.of(
+                        "id", "asset-docker",
+                        "name", "Docker database host",
+                        "environment", "DEV"
+                    )),
+                    Map.of("asset", Map.of(
+                        "id", selectedAssetId,
+                        "name", "LiveData scheduler CDH",
+                        "displayName", "LiveData scheduler CDH SSH",
+                        "toolName", "ssh_cdh",
+                        "environment", "DEV"
+                    ))
+                )),
+                null,
+                null,
+                null,
+                10,
+                Map.of("nextActions", List.of(Map.of(
+                    "tool", "ssh_command_execute",
+                    "input_changes", Map.of(
+                        "assetId", selectedAssetId,
+                        "templateId", "CHECK_IO_STATUS"
+                    )
+                )))
+            );
+        Map<String, Object> input = new LinkedHashMap<>();
+        input.put("filters", new LinkedHashMap<>(Map.of(
+            "intent", "disk IO",
+            "assetName", "Docker database host",
+            "env", "DEV"
+        )));
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "normalizeDiscoveryRoutingInput",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class,
+            Map.class,
+            Map.class
+        );
+        method.setAccessible(true);
+
+        method.invoke(
+            runtime,
+            step,
+            new InterpretationPlanRuntime.ExecutionRequest(
+                minimalPlan(step),
+                mock(ToolRegistry.class),
+                List.of(step.toolName()),
+                "tenant-1",
+                "req-asset-drift",
+                "conv-asset-drift",
+                "user-1",
+                Map.of("originalUserQuery", "analyze disk IO")
+            ),
+            Map.of(1, assetDiscovery),
+            input
+        );
+
+        Map<String, Object> filters = (Map<String, Object>) input.get("filters");
+        assertThat(filters)
+            .containsEntry("assetName", "LiveData scheduler CDH")
+            .containsEntry("env", "DEV");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void injectsRoutingTraceForDiscoveryToolWhenPlannerOmittedIt() throws Exception {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             mock(ToolRuntimeService.class),

@@ -2685,16 +2685,33 @@ public class InterpretationPlanRuntime {
         );
         input.clear();
         input.putAll(bridged.executorInput());
-        log.info("InterpretationPlan template bridge approved invocation stepId={} tool={} templateId={} "
-                + "parameterKeys={} modelProtocolApplied={} parameterEvidence={} protocolTrace={} repairs={}",
+        boolean diagnosticBatchPending = diagnosticBatchPending(step, request == null ? null : request.plan());
+        log.info("InterpretationPlan template bridge validated scalar input stepId={} tool={} templateId={} "
+                + "diagnosticBatchPending={} parameterKeys={} modelProtocolApplied={} "
+                + "parameterEvidence={} protocolTrace={} repairs={}",
             step.id(),
             step.toolName(),
             bridged.templateId(),
+            diagnosticBatchPending,
             bridged.parameters().keySet(),
             bridged.modelProtocolApplied(),
             bridged.parameterEvidence(),
             bridged.protocolTrace(),
             bridged.repairs());
+    }
+
+    private boolean diagnosticBatchPending(InterpretationPlan.Step step, InterpretationPlan plan) {
+        if (step == null || step.id() == null || plan == null || plan.plan() == null
+            || plan.plan().diagnosticProfile() == null
+            || plan.plan().diagnosticProfile().checks() == null) {
+            return false;
+        }
+        return plan.plan().diagnosticProfile().checks().stream()
+            .filter(Objects::nonNull)
+            .filter(check -> !Boolean.FALSE.equals(check.required()))
+            .filter(check -> check.stepIds() != null && check.stepIds().contains(step.id()))
+            .limit(2)
+            .count() >= 2;
     }
 
     private TemplateInvocationBridge.EvidenceContext templateParameterEvidenceContext(
@@ -3330,9 +3347,14 @@ public class InterpretationPlanRuntime {
             .map(InterpretationPlan.DiagnosticCheck::checkId)
             .filter(checkId -> checkId != null && !compiledCheckIds.contains(checkId))
             .toList();
-        log.info("InterpretationPlan compiled diagnostic batch: stepId={}, declaredChecks={}, compiledCalls={}, callIds={}, missingCheckIds={}",
-            step.id(), checks.size(), calls.size(),
-            calls.stream().map(call -> call.get("callId")).toList(), missingCheckIds);
+        log.info("InterpretationPlan compiled final diagnostic batch: stepId={}, assetId={}, "
+                + "declaredChecks={}, compiledCalls={}, callIds={}, templateIds={}, missingCheckIds={}",
+            step.id(), targetAssetId, checks.size(), calls.size(),
+            calls.stream().map(call -> call.get("callId")).toList(),
+            calls.stream()
+                .map(call -> firstValueAtAnyPath(call, "$.arguments.templateId"))
+                .toList(),
+            missingCheckIds);
         return new TemplateExecutorInvocation(outerTool, batch);
     }
 
@@ -4435,6 +4457,10 @@ public class InterpretationPlanRuntime {
         if (completed == null || completed.isEmpty()) {
             return Map.of();
         }
+        Map<String, Object> reviewed = reviewSelectedAssetExecutionContext(completed);
+        if (!reviewed.isEmpty()) {
+            return reviewed;
+        }
         for (StepExecution execution : completed.values()) {
             if (execution == null || !execution.success() || !isAssetDiscoveryTool(execution.toolName())) {
                 continue;
@@ -4443,6 +4469,72 @@ public class InterpretationPlanRuntime {
             if (!context.isEmpty()) {
                 return context;
             }
+        }
+        return Map.of();
+    }
+
+    private Map<String, Object> reviewSelectedAssetExecutionContext(
+        Map<Integer, StepExecution> completed
+    ) {
+        if (completed == null || completed.isEmpty()) {
+            return Map.of();
+        }
+        for (StepExecution execution : completed.values()) {
+            if (execution == null || !execution.success() || !isAssetDiscoveryTool(execution.toolName())
+                || execution.metadata() == null) {
+                continue;
+            }
+            Object nextActions = execution.metadata().get("nextActions");
+            if (!(nextActions instanceof Iterable<?> actions)) {
+                continue;
+            }
+            for (Object item : actions) {
+                if (!(item instanceof Map<?, ?> action)) {
+                    continue;
+                }
+                Object rawChanges = firstPresent(asStringMap(action), "input_changes", "inputChanges");
+                Map<String, Object> changes = asStringMap(rawChanges);
+                String assetId = stringValue(firstPresent(
+                    changes, "assetId", "asset_id", "hostId", "host_id"));
+                if (assetId == null) {
+                    continue;
+                }
+                Map<String, Object> verified = assetExecutionContextForId(execution.output(), assetId);
+                if (!verified.isEmpty()) {
+                    return verified;
+                }
+                log.warn("InterpretationPlan ignored unverified reviewed asset selection: "
+                        + "sourceStepId={}, requestedAssetId={}",
+                    execution.stepId(), assetId);
+            }
+        }
+        return Map.of();
+    }
+
+    private Map<String, Object> assetExecutionContextForId(Object output, String expectedAssetId) {
+        Object assetsValue = firstValueAtAnyPath(output, "$.assets");
+        if (!(assetsValue instanceof Iterable<?> assets) || expectedAssetId == null) {
+            return Map.of();
+        }
+        for (Object item : assets) {
+            String assetId = stringValue(firstValueAtAnyPath(item,
+                "$.asset.id", "$.asset.assetId", "$.assetId", "$.id"));
+            if (!expectedAssetId.equals(assetId)) {
+                continue;
+            }
+            Map<String, Object> context = new LinkedHashMap<>();
+            putIfPresent(context, "assetId", assetId);
+            putIfPresent(context, "assetName", firstValueAtAnyPath(item,
+                "$.asset.name", "$.asset.displayName", "$.name", "$.displayName"));
+            putIfPresent(context, "assetDisplayName", firstValueAtAnyPath(item,
+                "$.asset.displayName", "$.displayName", "$.asset.name", "$.name"));
+            putIfPresent(context, "assetToolName", firstValueAtAnyPath(item,
+                "$.asset.toolName", "$.toolName"));
+            putIfPresent(context, "env", firstValueAtAnyPath(item,
+                "$.asset.environment", "$.asset.env", "$.environment", "$.env"));
+            putIfPresent(context, "databaseRole", firstValueAtAnyPath(item,
+                "$.asset.databaseRole", "$.asset.database_role", "$.databaseRole"));
+            return Map.copyOf(context);
         }
         return Map.of();
     }
@@ -4516,6 +4608,7 @@ public class InterpretationPlanRuntime {
             input.put("filters", new LinkedHashMap<>());
             filters = input.get("filters");
         }
+        applyReviewedAssetSelectionToTemplateDiscovery(step, completed, input);
         sanitizeDiscoveryFilters(step, request, input);
         sanitizeDiscoveryEnvironment(step, request, completed, input);
         filters = firstMapValue(input, "filters", "executionContext", "mcpExecutionContext");
@@ -4542,6 +4635,41 @@ public class InterpretationPlanRuntime {
             return;
         }
         input.put("trace", routingTraceForStep(step, request));
+    }
+
+    @SuppressWarnings("unchecked")
+    private void applyReviewedAssetSelectionToTemplateDiscovery(InterpretationPlan.Step step,
+                                                                 Map<Integer, StepExecution> completed,
+                                                                 Map<String, Object> input) {
+        if (step == null || input == null || !isTemplateDiscoveryTool(step.toolName())) {
+            return;
+        }
+        Map<String, Object> selected = reviewSelectedAssetExecutionContext(completed);
+        if (selected.isEmpty()) {
+            return;
+        }
+        Object filtersValue = firstMapValue(input, "filters", "executionContext", "mcpExecutionContext");
+        Map<String, Object> filters = filtersValue instanceof Map<?, ?> map
+            ? new LinkedHashMap<>((Map<String, Object>) map)
+            : new LinkedHashMap<>();
+        String previousAsset = stringValue(firstNonBlankObject(
+            filters.get("assetName"), filters.get("asset_name"), filters.get("name")));
+        String selectedAsset = stringValue(selected.get("assetName"));
+        filters.remove("asset_name");
+        filters.remove("name");
+        if (selectedAsset != null) {
+            filters.put("assetName", selectedAsset);
+        }
+        if (selected.get("env") != null) {
+            filters.remove("environment");
+            filters.put("env", selected.get("env"));
+        }
+        input.put("filters", filters);
+        if (!Objects.equals(previousAsset, selectedAsset)) {
+            log.info("InterpretationPlan corrected template-discovery asset drift from reviewed "
+                    + "asset evidence: stepId={}, tool={}, plannedAsset={}, selectedAsset={}, assetId={}",
+                step.id(), step.toolName(), previousAsset, selectedAsset, selected.get("assetId"));
+        }
     }
 
     @SuppressWarnings("unchecked")

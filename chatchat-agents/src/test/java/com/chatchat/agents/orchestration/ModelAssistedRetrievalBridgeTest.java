@@ -68,32 +68,91 @@ class ModelAssistedRetrievalBridgeTest {
         ChatModel model = mock(ChatModel.class);
         when(model.chat(anyString())).thenReturn("""
             {
-              "profile":{"intent":"database health inspection","terms":["数据库健康检查"]},
+              "profile":{"intent":"database health inspection","terms":["database health inspection"]},
               "arguments":{
-                "bilingualIntent":["数据库健康检查","database health inspection"],
-                "intentZh":"数据库健康检查",
+                "bilingualIntent":["database health inspection","invented lock diagnosis"],
                 "intentEn":"database health inspection",
                 "finalDecision":"host"
+              },
+              "argumentEvidence":{
+                "bilingualIntent":[
+                  {
+                    "value":"database health inspection",
+                    "sourcePath":"runtime.userQuery",
+                    "quote":"database health inspection"
+                  },
+                  {
+                    "value":"invented lock diagnosis",
+                    "sourcePath":"runtime.userQuery",
+                    "quote":"database health inspection"
+                  }
+                ],
+                "intentEn":{
+                  "value":"database health inspection",
+                  "sourcePath":"runtime.userQuery",
+                  "quote":"database health inspection"
+                }
               }
             }
             """);
         ModelAssistedRetrievalBridge bridge =
             new ModelAssistedRetrievalBridge(registry, new ObjectMapper());
-        Map<String, Object> result = bridge.enrich(model, "database_ops_template_search", Map.of(
-            "filters", Map.of("intent", "检查数据库健康状态", "env", "PROD"),
-            "finalDecision", "database",
-            "trace", Map.of("source", "runtime")
-        ));
+        Map<String, Object> result = bridge.enrichWithGate(
+            model,
+            "database_ops_template_search",
+            Map.of(
+                "filters", Map.of("intent", "planner-generated health wording", "env", "PROD"),
+                "finalDecision", "database",
+                "trace", Map.of("source", "runtime")
+            ),
+            new ModelAssistedRetrievalBridge.RetrievalEvidenceContext(
+                "database health inspection", Map.of())
+        ).arguments();
 
         assertThat((List<String>) result.get("bilingualIntent"))
-            .containsExactly("数据库健康检查", "database health inspection");
+            .containsExactly("database health inspection")
+            .doesNotContain("invented lock diagnosis");
         assertThat(result)
-            .containsEntry("intentZh", "数据库健康检查")
             .containsEntry("intentEn", "database health inspection")
             .containsEntry("finalDecision", "database");
         assertThat((Map<String, Object>) result.get("filters"))
             .containsEntry("env", "PROD")
-            .containsEntry("intent", "检查数据库健康状态");
+            .containsEntry("intent", "planner-generated health wording");
+    }
+
+    @Test
+    void templateProfileWithoutKeywordEvidenceFallsBackToOriginalInput() {
+        ToolRegistry registry = registry("database_ops_template_search", contract(
+            "BILINGUAL_TEMPLATE_PROFILE",
+            List.of("filters.intent"),
+            List.of("bilingualIntent", "intentZh", "intentEn"),
+            Map.of("bilingualIntent", "merge_array")
+        ));
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(anyString())).thenReturn("""
+            {
+              "arguments":{
+                "bilingualIntent":["unrelated lock diagnosis"],
+                "intentEn":"unrelated lock diagnosis"
+              },
+              "argumentEvidence":{
+                "bilingualIntent":[{
+                  "value":"unrelated lock diagnosis",
+                  "sourcePath":"filters.intent",
+                  "quote":"database health inspection"
+                }]
+              }
+            }
+            """);
+        ModelAssistedRetrievalBridge bridge =
+            new ModelAssistedRetrievalBridge(registry, new ObjectMapper());
+        Map<String, Object> input = Map.of(
+            "filters", Map.of("intent", "database health inspection", "env", "PROD"),
+            "finalDecision", "database"
+        );
+
+        assertThat(bridge.enrich(model, "database_ops_template_search", input))
+            .containsExactlyInAnyOrderEntriesOf(input);
     }
 
     @Test

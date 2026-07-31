@@ -38,6 +38,21 @@ public class NewsRuntimeProperties {
         private int timeoutMillis = 10_000;
         private int hotspotLookbackDays = 7;
         private int maxSnippetChars = 1_200;
+        private Cache cache = new Cache();
+    }
+
+    @Data
+    public static class Cache {
+        /** Reuses highly related Tencent WSA result sets before issuing another paid request. */
+        private boolean enabled = true;
+        /** Bypasses cache reads and always calls Tencent WSA. Successful responses are still cached. */
+        private boolean forceExternal = false;
+        private String indexName = "runtime-web-search-cache";
+        private int retentionDays = 7;
+        private double minimumSimilarity = 0.72D;
+        private int maxCandidates = 10;
+        private String cleanupCron = "0 45 0 * * *";
+        private String zoneId = "Asia/Shanghai";
     }
 
     @Data

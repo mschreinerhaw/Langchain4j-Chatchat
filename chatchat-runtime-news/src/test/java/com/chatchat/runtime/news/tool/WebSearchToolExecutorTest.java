@@ -3,6 +3,7 @@ package com.chatchat.runtime.news.tool;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.runtime.news.config.NewsRuntimeProperties;
 import com.chatchat.runtime.news.search.TencentWebSearchClient;
+import com.chatchat.runtime.news.search.WebSearchCache;
 import com.chatchat.runtime.news.store.NewsDocumentStore;
 import org.junit.jupiter.api.Test;
 
@@ -12,6 +13,8 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class WebSearchToolExecutorTest {
@@ -61,5 +64,81 @@ class WebSearchToolExecutorTest {
         Map<String, Object> data = (Map<String, Object>) output.getData();
         assertThat((List<String>) data.get("warnings")).singleElement()
             .asString().contains("tencent_wsa", "rate limited");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void reusesHighlyRelatedCachedResponseWithoutCallingPaidApi() throws Exception {
+        NewsRuntimeProperties properties = new NewsRuntimeProperties();
+        properties.getOpenSearch().setEnabled(true);
+        NewsDocumentStore store = mock(NewsDocumentStore.class);
+        when(store.search(any())).thenReturn(List.of());
+        TencentWebSearchClient external = mock(TencentWebSearchClient.class);
+        when(external.enabled()).thenReturn(true);
+        TencentWebSearchClient.SearchResponse response = response("cached-request");
+        WebSearchCache cache = mock(WebSearchCache.class);
+        when(cache.enabled()).thenReturn(true);
+        when(cache.findHighlyRelated("Hangzhou West Lake hotspots"))
+            .thenReturn(java.util.Optional.of(new WebSearchCache.CachedSearch(
+                "Hangzhou West Lake current hotspots", 0.92D, response)));
+
+        var output = new WebSearchToolExecutor(store, properties, external, cache).execute(
+            ToolInput.builder().parameters(Map.of("query", "Hangzhou West Lake hotspots")).build());
+
+        assertThat(output.isSuccess()).isTrue();
+        Map<String, Object> data = (Map<String, Object>) output.getData();
+        assertThat(data).containsEntry("webSearchCacheHit", true)
+            .containsEntry("externalProvider", "tencent-wsa-cache")
+            .containsEntry("cachedQuery", "Hangzhou West Lake current hotspots");
+        List<Map<String, Object>> results = (List<Map<String, Object>>) data.get("results");
+        assertThat(results.get(0)).containsEntry("retrievalSource", "tencent_wsa_cache");
+        verify(external, never()).search(any(), any(Integer.class));
+    }
+
+    @Test
+    void forceExternalBypassesCacheReadAndRefreshesCache() throws Exception {
+        NewsRuntimeProperties properties = new NewsRuntimeProperties();
+        properties.getOpenSearch().setEnabled(false);
+        properties.getWebSearch().getCache().setForceExternal(true);
+        TencentWebSearchClient external = mock(TencentWebSearchClient.class);
+        when(external.enabled()).thenReturn(true);
+        when(external.search("fresh query", 10)).thenReturn(response("fresh-request"));
+        WebSearchCache cache = mock(WebSearchCache.class);
+        when(cache.enabled()).thenReturn(true);
+
+        var output = new WebSearchToolExecutor(mock(NewsDocumentStore.class), properties, external, cache)
+            .execute(ToolInput.builder().parameters(Map.of("query", "fresh query")).build());
+
+        assertThat(output.isSuccess()).isTrue();
+        verify(cache, never()).findHighlyRelated(any());
+        verify(external).search("fresh query", 10);
+        verify(cache).put("fresh query", response("fresh-request"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void cachedResultRemainsUsableWhenExternalProviderIsTemporarilyDisabled() throws Exception {
+        NewsRuntimeProperties properties = new NewsRuntimeProperties();
+        properties.getOpenSearch().setEnabled(false);
+        TencentWebSearchClient external = mock(TencentWebSearchClient.class);
+        when(external.enabled()).thenReturn(false);
+        WebSearchCache cache = mock(WebSearchCache.class);
+        when(cache.enabled()).thenReturn(true);
+        when(cache.findHighlyRelated("cached only")).thenReturn(java.util.Optional.of(
+            new WebSearchCache.CachedSearch("cached only", 1D, response("cached-request"))));
+
+        var output = new WebSearchToolExecutor(mock(NewsDocumentStore.class), properties, external, cache)
+            .execute(ToolInput.builder().parameters(Map.of("query", "cached only")).build());
+
+        assertThat(output.isSuccess()).isTrue();
+        assertThat((Map<String, Object>) output.getData()).containsEntry("webSearchCacheHit", true);
+        verify(external, never()).search(any(), any(Integer.class));
+    }
+
+    private TencentWebSearchClient.SearchResponse response(String requestId) {
+        return new TencentWebSearchClient.SearchResponse(List.of(
+            new TencentWebSearchClient.SearchPage("Title", "https://example.com/page",
+                "2026-07-31", "Current information", "Example", 0.95D)
+        ), requestId, "standard");
     }
 }

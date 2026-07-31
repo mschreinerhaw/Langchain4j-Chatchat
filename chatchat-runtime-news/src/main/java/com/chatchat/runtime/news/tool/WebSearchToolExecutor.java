@@ -6,7 +6,9 @@ import com.chatchat.runtime.news.config.NewsRuntimeProperties;
 import com.chatchat.runtime.news.model.NewsDocument;
 import com.chatchat.runtime.news.model.NewsSearchQuery;
 import com.chatchat.runtime.news.search.TencentWebSearchClient;
+import com.chatchat.runtime.news.search.WebSearchCache;
 import com.chatchat.runtime.news.store.NewsDocumentStore;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -21,12 +23,20 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
     private final NewsDocumentStore store;
     private final NewsRuntimeProperties properties;
     private final TencentWebSearchClient externalSearch;
+    private final WebSearchCache cache;
 
+    @Autowired
     public WebSearchToolExecutor(NewsDocumentStore store, NewsRuntimeProperties properties,
-                                 TencentWebSearchClient externalSearch) {
+                                 TencentWebSearchClient externalSearch, WebSearchCache cache) {
         this.store = store;
         this.properties = properties;
         this.externalSearch = externalSearch;
+        this.cache = cache;
+    }
+
+    public WebSearchToolExecutor(NewsDocumentStore store, NewsRuntimeProperties properties,
+                                 TencentWebSearchClient externalSearch) {
+        this(store, properties, externalSearch, new com.chatchat.runtime.news.search.DisabledWebSearchCache());
     }
 
     @Override
@@ -35,13 +45,17 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
         if (query.isBlank()) return ToolOutput.failure("query parameter is required");
         boolean localEnabled = properties.getOpenSearch().isEnabled();
         boolean externalEnabled = externalSearch.enabled();
-        if (!localEnabled && !externalEnabled) return NewsToolSupport.unavailable(NewsToolNames.WEB_SEARCH);
+        boolean cacheEnabled = cache.enabled();
+        if (!localEnabled && !externalEnabled && !cacheEnabled) {
+            return NewsToolSupport.unavailable(NewsToolNames.WEB_SEARCH);
+        }
 
         int size = NewsToolSupport.boundedInt(input.getParameterAsNumber("num_results"), 10, 1, 50);
         List<Map<String, Object>> local = new ArrayList<>();
         List<Map<String, Object>> external = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
         TencentWebSearchClient.SearchResponse externalResponse = null;
+        WebSearchCache.CachedSearch cachedSearch = null;
         boolean localSucceeded = false;
         boolean externalSucceeded = false;
         if (localEnabled) {
@@ -54,11 +68,30 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
                 warnings.add("news_index: " + safe(ex));
             }
         }
-        if (externalEnabled) {
+        boolean forceExternal = properties.getWebSearch().getCache().isForceExternal();
+        if (cacheEnabled && !forceExternal) {
+            try {
+                cachedSearch = cache.findHighlyRelated(query).orElse(null);
+            } catch (Exception ex) {
+                warnings.add("web_search_cache_read: " + safe(ex));
+            }
+        }
+        if (cachedSearch != null) {
+            externalResponse = cachedSearch.response();
+            externalResponse.pages().forEach(page -> external.add(externalItem(page, "tencent_wsa_cache")));
+            externalSucceeded = true;
+        } else if (externalEnabled) {
             try {
                 externalResponse = externalSearch.search(query, size);
-                externalResponse.pages().forEach(page -> external.add(externalItem(page)));
+                externalResponse.pages().forEach(page -> external.add(externalItem(page, "tencent_wsa")));
                 externalSucceeded = true;
+                if (cacheEnabled) {
+                    try {
+                        cache.put(query, externalResponse);
+                    } catch (Exception ex) {
+                        warnings.add("web_search_cache_write: " + safe(ex));
+                    }
+                }
             } catch (Exception ex) {
                 warnings.add("tencent_wsa: " + safe(ex));
             }
@@ -71,15 +104,22 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("query", query);
         data.put("provider", "chatchat-runtime-news");
-        data.put("mode", localEnabled && externalEnabled ? "hybrid_news_and_web" :
-            (externalEnabled ? "external_web_search" : "news_index"));
+        data.put("mode", localSucceeded && externalSucceeded ? "hybrid_news_and_web" :
+            (externalSucceeded ? (cachedSearch == null ? "external_web_search" : "cached_web_search") : "news_index"));
         data.put("count", results.size());
         data.put("newsIndexCount", local.size());
         data.put("externalWebCount", external.size());
+        data.put("webSearchCacheEnabled", cacheEnabled);
+        data.put("webSearchCacheHit", cachedSearch != null);
+        data.put("forcedExternalSearch", properties.getWebSearch().getCache().isForceExternal());
+        if (cachedSearch != null) {
+            data.put("cachedQuery", cachedSearch.originalQuery());
+            data.put("cacheSimilarity", cachedSearch.similarity());
+        }
         data.put("results", results);
         data.put("reference_urls", NewsToolSupport.evidenceUrls(results));
         if (externalResponse != null) {
-            data.put("externalProvider", "tencent-wsa");
+            data.put("externalProvider", cachedSearch == null ? "tencent-wsa" : "tencent-wsa-cache");
             data.put("externalRequestId", externalResponse.requestId());
             data.put("externalVersion", externalResponse.version());
         }
@@ -96,11 +136,11 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
         return item;
     }
 
-    private Map<String, Object> externalItem(TencentWebSearchClient.SearchPage page) {
+    private Map<String, Object> externalItem(TencentWebSearchClient.SearchPage page, String retrievalSource) {
         Map<String, Object> item = new LinkedHashMap<>();
         item.put("resultType", "web");
         item.put("documentKind", "external_web_page");
-        item.put("retrievalSource", "tencent_wsa");
+        item.put("retrievalSource", retrievalSource);
         item.put("title", page.title());
         item.put("url", page.url());
         item.put("sourceUrl", page.url());

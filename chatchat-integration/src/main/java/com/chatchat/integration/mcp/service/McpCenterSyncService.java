@@ -39,9 +39,19 @@ public class McpCenterSyncService {
      * @return the operation result
      */
     public SyncResult syncFromCenter() {
+        return syncFromCenter(0);
+    }
+
+    /**
+     * Synchronizes from the center with an optional timeout used by automatic recovery.
+     */
+    public SyncResult syncFromCenter(int timeoutOverrideMs) {
         if (!properties.isEnabled()) {
             throw new IllegalStateException("MCP center integration is disabled");
         }
+        int requestTimeoutMs = timeoutOverrideMs > 0
+            ? timeoutOverrideMs
+            : properties.getTimeoutMs();
 
         List<ImportedService> imported = new ArrayList<>();
         List<String> errors = new ArrayList<>();
@@ -56,8 +66,8 @@ public class McpCenterSyncService {
         }
 
         try {
-            String adminToken = loginAdmin();
-            List<CenterService> centerServices = listCenterServices(adminToken);
+            String adminToken = loginAdmin(requestTimeoutMs);
+            List<CenterService> centerServices = listCenterServices(adminToken, requestTimeoutMs);
             for (CenterService centerService : centerServices) {
                 try {
                     imported.add(importCenterService(centerService));
@@ -71,7 +81,7 @@ public class McpCenterSyncService {
             log.warn("Failed to read MCP center service list: {}", ex.getMessage());
         }
 
-        registryBridge.refreshRegistry();
+        registryBridge.refreshRegistry(requestTimeoutMs);
         return new SyncResult(imported.size(), imported, errors);
     }
 
@@ -143,7 +153,7 @@ public class McpCenterSyncService {
      *
      * @return the operation result
      */
-    private String loginAdmin() {
+    private String loginAdmin(int requestTimeoutMs) {
         Map<String, String> payload = Map.of(
             "username", properties.resolvedAdminUsername(internalCredentialProperties),
             "password", properties.resolvedAdminPassword(internalCredentialProperties)
@@ -153,7 +163,7 @@ public class McpCenterSyncService {
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue(payload)
             .retrieve()
-            .bodyToMono(Object.class), properties.getTimeoutMs());
+            .bodyToMono(Object.class), requestTimeoutMs);
 
         Object data = unwrapData(raw);
         if (!(data instanceof Map<?, ?> map) || map.get("token") == null) {
@@ -168,12 +178,12 @@ public class McpCenterSyncService {
      * @param adminToken the admin token value
      * @return the center services list
      */
-    private List<CenterService> listCenterServices(String adminToken) {
+    private List<CenterService> listCenterServices(String adminToken, int requestTimeoutMs) {
         Object raw = blockWithOptionalTimeout(webClient.get()
             .uri(buildUrl(properties.getBaseUrl(), properties.getServiceListPath()))
             .headers(headers -> headers.set(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken))
             .retrieve()
-            .bodyToMono(Object.class), properties.getTimeoutMs());
+            .bodyToMono(Object.class), requestTimeoutMs);
 
         Object data = unwrapData(raw);
         if (!(data instanceof List<?> list)) {

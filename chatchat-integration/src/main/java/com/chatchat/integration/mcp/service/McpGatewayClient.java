@@ -95,31 +95,40 @@ public class McpGatewayClient {
      * @return the operation result
      */
     public List<McpToolDefinition> discoverTools(McpServiceConfig config) {
+        return discoverTools(config, 0);
+    }
+
+    /**
+     * Discovers tools with an optional request timeout override.
+     */
+    public List<McpToolDefinition> discoverTools(McpServiceConfig config, int requestTimeoutMs) {
+        int normalizedTimeoutMs = Math.max(0, requestTimeoutMs);
         if (isStdioProxyProtocol(config)) {
             return discoverToolsViaStdioProxy(config);
         }
 
         TransportKind kind = resolveTransportKind(config);
         if (kind == TransportKind.LEGACY_HTTP) {
-            return discoverToolsViaLegacyHttp(config);
+            return discoverToolsViaLegacyHttp(config, normalizedTimeoutMs);
         }
         if (useDirectStreamableHttp(config, kind)) {
-            return discoverToolsViaDirectStreamableHttp(config, null);
+            return discoverToolsViaDirectStreamableHttp(config, normalizedTimeoutMs, null);
         }
         log.info("Using MCP SDK transport {} for service {} (protocol={})",
             kind, config.getName(), config.getProtocol());
 
-        Object sessionLock = sdkSessionLock(config, 0, TOOL_DISCOVERY_SCOPE);
+        Object sessionLock = sdkSessionLock(config, normalizedTimeoutMs, TOOL_DISCOVERY_SCOPE);
         synchronized (sessionLock) {
         try {
-            McpSyncClient client = getOrCreateSdkClient(config, kind, 0, TOOL_DISCOVERY_SCOPE);
+            McpSyncClient client = getOrCreateSdkClient(
+                config, kind, normalizedTimeoutMs, TOOL_DISCOVERY_SCOPE);
             Object raw = client.listTools();
             Map<String, Object> mapped = objectMapper.convertValue(raw, new TypeReference<>() {});
             return normalizeTools(mapped);
         } catch (Exception ex) {
             log.warn("Failed to discover MCP tools via SDK for {}: {}", config.getName(), ex.getMessage());
             if (kind == TransportKind.STREAMABLE_HTTP) {
-                return discoverToolsViaDirectStreamableHttp(config, ex);
+                return discoverToolsViaDirectStreamableHttp(config, normalizedTimeoutMs, ex);
             }
             return List.of();
         }
@@ -473,11 +482,13 @@ public class McpGatewayClient {
         return normalizeInvokeResult(mapped);
     }
 
-    private List<McpToolDefinition> discoverToolsViaDirectStreamableHttp(McpServiceConfig config, Exception sdkFailure) {
+    private List<McpToolDefinition> discoverToolsViaDirectStreamableHttp(McpServiceConfig config,
+                                                                          int requestTimeoutMs,
+                                                                          Exception sdkFailure) {
         try {
-            DirectMcpSession session = openDirectStreamableHttpSession(config, 0);
+            DirectMcpSession session = openDirectStreamableHttpSession(config, requestTimeoutMs);
             try {
-                Object raw = directJsonRpcRequest(session, "tools/list", Map.of(), 0);
+                Object raw = directJsonRpcRequest(session, "tools/list", Map.of(), requestTimeoutMs);
                 return normalizeTools(raw);
             } finally {
                 closeDirectStreamableHttpSession(session);
@@ -1307,7 +1318,8 @@ public class McpGatewayClient {
      * @param config the config value
      * @return the operation result
      */
-    private List<McpToolDefinition> discoverToolsViaLegacyHttp(McpServiceConfig config) {
+    private List<McpToolDefinition> discoverToolsViaLegacyHttp(McpServiceConfig config,
+                                                                int requestTimeoutMs) {
         WebClient webClient = webClientFor(config);
         String url = buildUrl(config.getBaseUrl(), config.getToolDiscoveryPath());
         try {
@@ -1316,7 +1328,8 @@ public class McpGatewayClient {
                 .headers(headers -> applyHeaders(headers, config))
                 .retrieve()
                 .bodyToMono(Object.class);
-            Object raw = blockWithOptionalTimeout(response, config.getTimeoutMs());
+            int effectiveTimeoutMs = requestTimeoutMs > 0 ? requestTimeoutMs : config.getTimeoutMs();
+            Object raw = blockWithOptionalTimeout(response, effectiveTimeoutMs);
             return normalizeTools(raw);
         } catch (Exception ex) {
             log.warn("Failed to discover MCP tools from {}: {}", url, ex.getMessage());

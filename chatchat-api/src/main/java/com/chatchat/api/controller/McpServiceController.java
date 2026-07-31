@@ -5,6 +5,7 @@ import com.chatchat.integration.mcp.entity.McpServiceConfig;
 import com.chatchat.integration.mcp.model.McpToolDefinition;
 import com.chatchat.integration.mcp.model.McpToolInvokeResult;
 import com.chatchat.integration.mcp.service.McpCenterSyncService;
+import com.chatchat.integration.mcp.service.McpCenterRecoveryService;
 import com.chatchat.integration.mcp.service.McpServiceConfigService;
 import com.chatchat.integration.mcp.service.McpStdioProxyService;
 import com.chatchat.integration.mcp.service.McpToolRegistryBridge;
@@ -48,6 +49,7 @@ public class McpServiceController {
     private final McpStdioProxyService stdioProxyService;
     private final McpToolRegistryBridge registryBridge;
     private final McpCenterSyncService centerSyncService;
+    private final McpCenterRecoveryService centerRecoveryService;
     private final ToolRegistry toolRegistry;
     private final ObjectMapper objectMapper;
 
@@ -289,6 +291,12 @@ public class McpServiceController {
         return ApiResponse.success(centerSyncService.status());
     }
 
+    @GetMapping("/center/recovery/status")
+    @Operation(summary = "Get MCP center heartbeat and automatic recovery status")
+    public ApiResponse<McpCenterRecoveryService.RecoveryStatus> centerRecoveryStatus() {
+        return ApiResponse.success(centerRecoveryService.status());
+    }
+
     /**
      * Synchronizes the center.
      *
@@ -297,7 +305,7 @@ public class McpServiceController {
     @PostMapping("/center/sync")
     @Operation(summary = "Sync services from external ChatChat MCP center")
     public ApiResponse<McpCenterSyncService.SyncResult> syncCenter() {
-        return ApiResponse.success(centerSyncService.syncFromCenter(), "MCP center synced");
+        return ApiResponse.success(centerRecoveryService.syncManually(), "MCP center synced");
     }
 
     /**

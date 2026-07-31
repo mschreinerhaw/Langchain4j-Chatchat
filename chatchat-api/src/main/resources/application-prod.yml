@@ -83,6 +83,11 @@ chatchat:
       invocation-token: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
       timeout-ms: ${CHATCHAT_MCP_TIMEOUT_MS:1800000}
       import-standalone-server: true
+      auto-recovery-enabled: ${CHATCHAT_MCP_AUTO_RECOVERY_ENABLED:true}
+      heartbeat-initial-delay-ms: ${CHATCHAT_MCP_HEARTBEAT_INITIAL_DELAY_MS:10000}
+      heartbeat-interval-ms: ${CHATCHAT_MCP_HEARTBEAT_INTERVAL_MS:15000}
+      heartbeat-timeout-ms: ${CHATCHAT_MCP_HEARTBEAT_TIMEOUT_MS:5000}
+      max-auto-sync-attempts: ${CHATCHAT_MCP_MAX_AUTO_SYNC_ATTEMPTS:5}
     stdio-proxy:
       enabled: true
       command-allow-list:

@@ -80,6 +80,11 @@ chatchat:
       invocation-token: chatchat_internal_default_secret
       timeout-ms: 1800000
       import-standalone-server: true
+      auto-recovery-enabled: true
+      heartbeat-initial-delay-ms: 10000
+      heartbeat-interval-ms: 15000
+      heartbeat-timeout-ms: 5000
+      max-auto-sync-attempts: 5
     stdio-proxy:
       enabled: true
       command-allow-list:

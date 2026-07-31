@@ -59,6 +59,13 @@ public class McpToolRegistryBridge {
      * Performs the refresh registry operation.
      */
     public synchronized void refreshRegistry() {
+        refreshRegistry(0);
+    }
+
+    /**
+     * Refreshes the registry with an optional discovery timeout override.
+     */
+    public synchronized void refreshRegistry(int discoveryTimeoutMs) {
         managedToolNames.forEach(toolRegistry::unregisterTool);
         managedToolNames.clear();
         registeredTools.clear();
@@ -71,7 +78,8 @@ public class McpToolRegistryBridge {
 
         for (McpServiceConfig service : services) {
             try {
-                List<McpToolDefinition> tools = gatewayClient.discoverTools(service);
+                List<McpToolDefinition> tools = gatewayClient.discoverTools(
+                    service, Math.max(0, discoveryTimeoutMs));
                 if (tools.isEmpty()) {
                     log.info("No MCP tools discovered for service {}", service.getName());
                     continue;

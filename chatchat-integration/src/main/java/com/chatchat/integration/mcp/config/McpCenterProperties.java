@@ -40,6 +40,16 @@ public class McpCenterProperties {
 
     private boolean importStandaloneServer = true;
 
+    private boolean autoRecoveryEnabled = true;
+
+    private long heartbeatInitialDelayMs = 10000;
+
+    private long heartbeatIntervalMs = 15000;
+
+    private int heartbeatTimeoutMs = 5000;
+
+    private int maxAutoSyncAttempts = 5;
+
     public String resolvedAdminUsername(InternalCredentialProperties internalCredentialProperties) {
         String configured = text(adminUsername);
         if (!configured.isBlank()) {

@@ -95,10 +95,10 @@ chatchat:
   models:
     defaultProvider: openai
     defaultChatModel: qwen3.6-plus
-    context-window-max-tokens: ${CHATCHAT_MODEL_CONTEXT_WINDOW_MAX_TOKENS:200000}
-    context-reserved-system-tokens: ${CHATCHAT_MODEL_CONTEXT_RESERVED_SYSTEM_TOKENS:20000}
-    context-reserved-history-tokens: ${CHATCHAT_MODEL_CONTEXT_RESERVED_HISTORY_TOKENS:30000}
-    context-reserved-output-tokens: ${CHATCHAT_MODEL_CONTEXT_RESERVED_OUTPUT_TOKENS:30000}
+    context-window-max-tokens: 200000
+    context-reserved-system-tokens: 20000
+    context-reserved-history-tokens: 30000
+    context-reserved-output-tokens: 30000
     timeout: 1800000
     openai:
       # OpenAI-compatible API key. For DashScope compatible mode, set DASHSCOPE_API_KEY or OPENAI_API_KEY.
@@ -118,19 +118,19 @@ chatchat:
     rocks-db-path: ./data/agent-runtime-rocksdb
     rocks-db-create-if-missing: true
     fail-interrupted-runs-on-startup: true
-    evidence-externalization-enabled: ${CHATCHAT_AGENT_EVIDENCE_EXTERNALIZATION_ENABLED:true}
-    evidence-externalization-threshold-bytes: ${CHATCHAT_AGENT_EVIDENCE_THRESHOLD_BYTES:262144}
+    evidence-externalization-enabled: true
+    evidence-externalization-threshold-bytes: 262144
     max-stored-runs: 10000
     # Terminal runs and their OpenSearch evidence are retained for 7 days.
-    terminal-run-ttl-ms: ${CHATCHAT_AGENT_RUN_TTL_MS:604800000}
-    cleanup-enabled: ${CHATCHAT_AGENT_RUN_CLEANUP_ENABLED:true}
-    cleanup-interval-ms: ${CHATCHAT_AGENT_RUN_CLEANUP_INTERVAL_MS:3600000}
-    cleanup-initial-delay-ms: ${CHATCHAT_AGENT_RUN_CLEANUP_INITIAL_DELAY_MS:60000}
-    final-summary-web-search-enabled: ${CHATCHAT_FINAL_SUMMARY_WEB_SEARCH_ENABLED:true}
-    final-summary-web-search-max-keywords: ${CHATCHAT_FINAL_SUMMARY_WEB_SEARCH_MAX_KEYWORDS:2}
-    final-summary-web-search-result-limit: ${CHATCHAT_FINAL_SUMMARY_WEB_SEARCH_RESULT_LIMIT:6}
-    final-summary-web-search-evidence-max-chars: ${CHATCHAT_FINAL_SUMMARY_WEB_SEARCH_EVIDENCE_MAX_CHARS:16000}
-    final-summary-web-search-timeout-ms: ${CHATCHAT_FINAL_SUMMARY_WEB_SEARCH_TIMEOUT_MS:120000}
+    terminal-run-ttl-ms: 604800000
+    cleanup-enabled: true
+    cleanup-interval-ms: 3600000
+    cleanup-initial-delay-ms: 60000
+    final-summary-web-search-enabled: true
+    final-summary-web-search-max-keywords: 2
+    final-summary-web-search-result-limit: 6
+    final-summary-web-search-evidence-max-chars: 16000
+    final-summary-web-search-timeout-ms: 120000
   agent:
     task:
       queue-capacity: 1000
@@ -244,7 +244,7 @@ chatchat:
       summary-enabled: true
     detail-store:
       type: rocksdb
-      path: ${CHAT_DETAIL_STORE_PATH:./data/chat-rocksdb}
+      path: ./data/chat-rocksdb
       create-if-missing: true
       max-string-length: 100000000
       external-text:

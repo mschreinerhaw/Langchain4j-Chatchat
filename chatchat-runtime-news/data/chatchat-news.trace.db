@@ -857,3 +857,57 @@ update news_source set allowed_domain=?,capability_id=?,configuration_json=?,cre
 2026-07-22 08:33:32 jdbc[3]: exception
 org.h2.jdbc.JdbcSQLSyntaxErrorException: Table "news_record" not found; SQL statement:
 select s.source_code,s.source_name,s.enabled,count(r.id) record_count,max(r.collected_at) last_collected from news_source s left join news_record r on r.source_id=s.id where s.allowed_domain in ('sse.com.cn','szse.cn','hkex.com.hk','csindex.com.cn') or s.source_type in ('EXCHANGE_HOME','SZSE_HOME','HKEX_HOME','CSINDEX_HOME','EXCHANGE_MARKET_DATA','SZSE_DISCLOSURE','SSE_ANNOUNCEMENTS') group by s.id,s.source_code,s.source_name,s.enabled order by record_count desc,s.id [42102-220]
+2026-07-31 11:01:34.902503+08:00 jdbc[5]: exception
+org.h2.jdbc.JdbcSQLNonTransientException: General error: "java.lang.NoClassDefFoundError: org/h2/table/TableType"; SQL statement:
+COMMIT [50000-232]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:566)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:489)
+	at org.h2.message.DbException.get(DbException.java:212)
+	at org.h2.message.DbException.convert(DbException.java:403)
+	at org.h2.command.Command.executeUpdate(Command.java:316)
+	at org.h2.command.Command.executeUpdate(Command.java:248)
+	at org.h2.jdbc.JdbcConnection.commit(JdbcConnection.java:490)
+	at com.zaxxer.hikari.pool.ProxyConnection.commit(ProxyConnection.java:378)
+	at com.zaxxer.hikari.pool.HikariProxyConnection.commit(HikariProxyConnection.java)
+	at org.hibernate.resource.jdbc.internal.AbstractLogicalConnectionImplementor.commit(AbstractLogicalConnectionImplementor.java:87)
+	at org.hibernate.resource.transaction.backend.jdbc.internal.JdbcResourceLocalTransactionCoordinatorImpl$TransactionDriverControlImpl.commit(JdbcResourceLocalTransactionCoordinatorImpl.java:268)
+	at org.hibernate.engine.transaction.internal.TransactionImpl.commit(TransactionImpl.java:101)
+	at org.springframework.orm.jpa.JpaTransactionManager.doCommit(JpaTransactionManager.java:562)
+	at org.springframework.transaction.support.AbstractPlatformTransactionManager.processCommit(AbstractPlatformTransactionManager.java:795)
+	at org.springframework.transaction.support.AbstractPlatformTransactionManager.commit(AbstractPlatformTransactionManager.java:758)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.commitTransactionAfterReturning(TransactionAspectSupport.java:698)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:416)
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+	at org.springframework.dao.support.PersistenceExceptionTranslationInterceptor.invoke(PersistenceExceptionTranslationInterceptor.java:138)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+	at org.springframework.data.jpa.repository.support.CrudMethodMetadataPostProcessor$CrudMethodMetadataPopulatingMethodInterceptor.invoke(CrudMethodMetadataPostProcessor.java:165)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+	at org.springframework.aop.framework.JdkDynamicAopProxy.invoke(JdkDynamicAopProxy.java:223)
+	at jdk.proxy2/jdk.proxy2.$Proxy136.save(Unknown Source)
+	at com.chatchat.runtime.news.collector.NewsIngestionService.accept(NewsIngestionService.java:51)
+	at com.chatchat.runtime.news.collector.ChinaBondHomeNewsCollector.accept(ChinaBondHomeNewsCollector.java:434)
+	at com.chatchat.runtime.news.collector.ChinaBondHomeNewsCollector.collectResearch(ChinaBondHomeNewsCollector.java:406)
+	at com.chatchat.runtime.news.collector.ChinaBondHomeNewsCollector.collect(ChinaBondHomeNewsCollector.java:127)
+	at com.chatchat.runtime.news.collector.NewsCollectionService.collect(NewsCollectionService.java:64)
+	at com.chatchat.runtime.news.collector.NewsCollectionService.lambda$collectAsync$0(NewsCollectionService.java:40)
+	at java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1768)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+Caused by: java.lang.NoClassDefFoundError: org/h2/table/TableType
+	at org.h2.mvstore.db.MVTable.getTableType(MVTable.java:892)
+	at org.h2.command.ddl.Analyze.analyzeTable(Analyze.java:173)
+	at org.h2.engine.SessionLocal.analyzeTables(SessionLocal.java:730)
+	at org.h2.engine.SessionLocal.commit(SessionLocal.java:704)
+	at org.h2.command.dml.TransactionCommand.update(TransactionCommand.java:46)
+	at org.h2.command.CommandContainer.update(CommandContainer.java:139)
+	at org.h2.command.Command.executeUpdate(Command.java:304)
+	... 30 more
+Caused by: java.lang.ClassNotFoundException: org.h2.table.TableType
+	at java.base/java.net.URLClassLoader.findClass(URLClassLoader.java:445)
+	at java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:592)
+	at org.springframework.boot.loader.net.protocol.jar.JarUrlClassLoader.loadClass(JarUrlClassLoader.java:107)
+	at org.springframework.boot.loader.launch.LaunchedClassLoader.loadClass(LaunchedClassLoader.java:91)
+	at java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:525)
+	... 37 more

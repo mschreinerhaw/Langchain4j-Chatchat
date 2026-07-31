@@ -15,7 +15,7 @@ spring:
     url: jdbc:h2:file:./data/h2/chatchat;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
     username: sa
-    password: 
+    password:
     hikari:
       maximum-pool-size: 20
       minimum-idle: 2
@@ -139,7 +139,7 @@ chatchat:
       maxRetries: 3
       proxy:
         enabled: false
-        host: 
+        host:
         port: 0
         type: http
   agent-runtime:
@@ -273,7 +273,7 @@ chatchat:
         login-path: /api/v1/enterprise/auth/login
         username: chatchat_mcp_internal
         password:
-        bearer-token: 
+        bearer-token:
       risk-level: medium
       confirmation:
         default: ask_before_execute

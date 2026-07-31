@@ -15,7 +15,7 @@ spring:
     url: jdbc:h2:file:./data/h2/chatchat;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
     username: sa
-    password: 
+    password:
     hikari:
       maximum-pool-size: 20
       minimum-idle: 2
@@ -68,8 +68,8 @@ chatchat:
     # Use com.chatchat.common.security.InternalSecretTool to generate ENC(...).
     encrypted-secret:
     secret: chatchat_internal_default_secret
-    crypto-key: 
-    crypto-key-file: 
+    crypto-key:
+    crypto-key-file:
   mcp:
     capabilities:
       news:
@@ -125,7 +125,7 @@ chatchat:
       - qwen3.6-max-preview
 #    timeout: 300
     openai:
-      apiKey: 
+      apiKey:
       baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
 #      baseUrl: https://api.deepseek.com/v1
       timeout: 300
@@ -134,7 +134,7 @@ chatchat:
       maxRetries: 3
       proxy:
         enabled: false
-        host: 
+        host:
         port: 0
         type: http
   agent-runtime:
@@ -191,7 +191,7 @@ chatchat:
       enabled: true
       url: https://localhost:9200
       username: admin
-      password: 
+      password:
       index-name: chatchat_documents
       insecure-ssl: true
       connect-timeout-ms: 5000
@@ -205,7 +205,7 @@ chatchat:
         request-timeout-ms: 300000
         enabled: true
         endpoint: https://your-dashscope-endpoint/compatible-mode/v1/embeddings
-        api-key: 
+        api-key:
         model: text-embedding-v4
         dimension: 1024
         vector-field: contentVector
@@ -267,8 +267,8 @@ chatchat:
         enabled: true
         login-path: /api/v1/enterprise/auth/login
         username: chatchat_mcp_internal
-        password: 
-        bearer-token: 
+        password:
+        bearer-token:
       risk-level: medium
       confirmation:
         default: ask_before_execute

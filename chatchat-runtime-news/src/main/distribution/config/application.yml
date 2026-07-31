@@ -64,17 +64,28 @@ chatchat:
         zone-id: Asia/Shanghai
       # 腾讯云 WSA 仅增强既有 web_search 的内部召回，不发布独立 MCP 工具。
       web-search:
-        enabled: ${CHATCHAT_WEB_SEARCH_ENHANCER_ENABLED:false}
-        endpoint: ${TENCENT_WSA_ENDPOINT:https://wsa.tencentcloudapi.com}
-        secret-id: ${TENCENT_CLOUD_SECRET_ID:}
-        secret-key: ${TENCENT_CLOUD_SECRET_KEY:}
-        region: ${TENCENT_WSA_REGION:}
-        mode: ${TENCENT_WSA_MODE:2}
-        request-count-enabled: ${TENCENT_WSA_REQUEST_COUNT_ENABLED:false}
-        max-results: ${TENCENT_WSA_MAX_RESULTS:20}
-        timeout-millis: ${TENCENT_WSA_TIMEOUT_MILLIS:10000}
-        hotspot-lookback-days: ${TENCENT_WSA_HOTSPOT_LOOKBACK_DAYS:7}
-        max-snippet-chars: ${TENCENT_WSA_MAX_SNIPPET_CHARS:1200}
+        enabled: false
+        endpoint: https://wsa.tencentcloudapi.com
+        secret-id: ""
+        secret-key: ""
+        region: ""
+        mode: 2
+        request-count-enabled: false
+        max-results: 20
+        timeout-millis: 10000
+        hotspot-lookback-days: 7
+        max-snippet-chars: 1200
+        # Dedicated OpenSearch cache for paid web-search responses.
+        cache:
+          enabled: true
+          # true: bypass cached results and call Tencent WSA for every request.
+          force-external: false
+          index-name: runtime-web-search-cache
+          retention-days: 7
+          minimum-similarity: 0.72
+          max-candidates: 10
+          cleanup-cron: "0 45 0 * * *"
+          zone-id: Asia/Shanghai
       open-search:
         enabled: true
         endpoint: http://127.0.0.1:9200

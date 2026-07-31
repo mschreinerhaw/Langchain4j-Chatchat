@@ -50,18 +50,18 @@ chatchat:
   internal-credential:
     enabled: true
     username: chatchat_mcp_internal
-    encrypted-secret: 
+    encrypted-secret:
     secret: chatchat_internal_default_secret
-    crypto-key: 
-    crypto-key-file: 
+    crypto-key:
+    crypto-key-file:
   mcp:
     center:
       enabled: true
       base-url: http://localhost:8090
       admin-username: chatchat_mcp_internal
-      encrypted-admin-password: 
+      encrypted-admin-password:
       admin-password: chatchat_internal_default_secret
-      encrypted-invocation-token: 
+      encrypted-invocation-token:
       invocation-token: chatchat_internal_default_secret
       timeout-ms: 0
       import-standalone-server: true
@@ -79,7 +79,7 @@ chatchat:
     availableChatModels:
       - deepseek-v4-pro
     openai:
-      apiKey: 
+      apiKey:
       baseUrl: https://api.deepseek.com
       timeout: 300000
       maxTokens: -1
@@ -95,9 +95,9 @@ chatchat:
       api-base-url: http://localhost:8080
       auth:
         username: chatchat_mcp_internal
-        encrypted-password: 
+        encrypted-password:
         password: chatchat_internal_default_secret
-        bearer-token: 
+        bearer-token:
 
 springdoc:
   api-docs:

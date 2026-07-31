@@ -62,7 +62,7 @@ chatchat:
   mcp:
     capabilities:
       news:
-        enabled: ${CHATCHAT_NEWS_CAPABILITY_ENABLED:true}
+        enabled: true
         tools:
           web_search: { enabled: true, agent-callable: true, timeout: 30s }
     center:
@@ -94,13 +94,13 @@ chatchat:
   models:
     defaultProvider: openai
     defaultChatModel: qwen3.6-plus
-    context-window-max-tokens: ${CHATCHAT_MODEL_CONTEXT_WINDOW_MAX_TOKENS:200000}
-    context-reserved-system-tokens: ${CHATCHAT_MODEL_CONTEXT_RESERVED_SYSTEM_TOKENS:20000}
-    context-reserved-history-tokens: ${CHATCHAT_MODEL_CONTEXT_RESERVED_HISTORY_TOKENS:30000}
-    context-reserved-output-tokens: ${CHATCHAT_MODEL_CONTEXT_RESERVED_OUTPUT_TOKENS:30000}
+    context-window-max-tokens: 200000
+    context-reserved-system-tokens: 20000
+    context-reserved-history-tokens: 30000
+    context-reserved-output-tokens: 30000
     timeout: 1800000
     openai:
-      apiKey: 
+      apiKey:
       baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
       timeout: 1800000
       # Maximum model completion tokens. -1 means do not set a model-side token limit.
@@ -116,19 +116,19 @@ chatchat:
     rocks-db-path: ./data/agent-runtime-rocksdb
     rocks-db-create-if-missing: true
     fail-interrupted-runs-on-startup: true
-    evidence-externalization-enabled: ${CHATCHAT_AGENT_EVIDENCE_EXTERNALIZATION_ENABLED:true}
-    evidence-externalization-threshold-bytes: ${CHATCHAT_AGENT_EVIDENCE_THRESHOLD_BYTES:262144}
+    evidence-externalization-enabled: true
+    evidence-externalization-threshold-bytes: 262144
     max-stored-runs: 10000
     # Terminal runs and their OpenSearch evidence are retained for 7 days.
-    terminal-run-ttl-ms: ${CHATCHAT_AGENT_RUN_TTL_MS:604800000}
-    cleanup-enabled: ${CHATCHAT_AGENT_RUN_CLEANUP_ENABLED:true}
-    cleanup-interval-ms: ${CHATCHAT_AGENT_RUN_CLEANUP_INTERVAL_MS:3600000}
-    cleanup-initial-delay-ms: ${CHATCHAT_AGENT_RUN_CLEANUP_INITIAL_DELAY_MS:60000}
-    final-summary-web-search-enabled: ${CHATCHAT_FINAL_SUMMARY_WEB_SEARCH_ENABLED:true}
-    final-summary-web-search-max-keywords: ${CHATCHAT_FINAL_SUMMARY_WEB_SEARCH_MAX_KEYWORDS:2}
-    final-summary-web-search-result-limit: ${CHATCHAT_FINAL_SUMMARY_WEB_SEARCH_RESULT_LIMIT:6}
-    final-summary-web-search-evidence-max-chars: ${CHATCHAT_FINAL_SUMMARY_WEB_SEARCH_EVIDENCE_MAX_CHARS:16000}
-    final-summary-web-search-timeout-ms: ${CHATCHAT_FINAL_SUMMARY_WEB_SEARCH_TIMEOUT_MS:120000}
+    terminal-run-ttl-ms: 604800000
+    cleanup-enabled: true
+    cleanup-interval-ms: 3600000
+    cleanup-initial-delay-ms: 60000
+    final-summary-web-search-enabled: true
+    final-summary-web-search-max-keywords: 2
+    final-summary-web-search-result-limit: 6
+    final-summary-web-search-evidence-max-chars: 16000
+    final-summary-web-search-timeout-ms: 120000
   agent:
     task:
       queue-capacity: 1000
@@ -174,10 +174,10 @@ chatchat:
       request-timeout-ms: 30000
       # 重建索引时每批写入的文档分片数量。
       bulk-batch-size: 200
-      max-query-terms: ${CHATCHAT_OPENSEARCH_MAX_QUERY_TERMS:20}
-      max-query-chars: ${CHATCHAT_OPENSEARCH_MAX_QUERY_CHARS:500}
-      max-permission-roles: ${CHATCHAT_OPENSEARCH_MAX_PERMISSION_ROLES:64}
-      log-query-dsl: ${CHATCHAT_OPENSEARCH_LOG_QUERY_DSL:false}
+      max-query-terms: 20
+      max-query-chars: 500
+      max-permission-roles: 64
+      log-query-dsl: false
       embedding:
         request-timeout-ms: 300000
         # 向量增强检索开关。开启后写入 contentVector，并在查询时做 BM25 + KNN 融合。
@@ -242,7 +242,7 @@ chatchat:
       summary-enabled: true
     detail-store:
       type: rocksdb
-      path: ${CHAT_DETAIL_STORE_PATH:./data/chat-rocksdb}
+      path: ./data/chat-rocksdb
       create-if-missing: true
       # Allows existing tool traces containing large results to remain readable.
       max-string-length: 100000000
@@ -279,8 +279,8 @@ chatchat:
       auth:
         enabled: true
         login-path: /api/v1/enterprise/auth/login
-        username: 
-        password: 
+        username:
+        password:
         bearer-token: ""
       risk-level: medium
       confirmation:

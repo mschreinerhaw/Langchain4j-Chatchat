@@ -1,7 +1,8 @@
 function Import-EnvFile {
     param([Parameter(Mandatory = $true)][string]$Path)
     if (-not (Test-Path $Path)) { return }
-    foreach ($RawLine in Get-Content $Path) {
+    # Windows PowerShell 5 defaults to the system ANSI code page; the template is UTF-8.
+    foreach ($RawLine in Get-Content -LiteralPath $Path -Encoding UTF8) {
         $Line = $RawLine.Trim()
         if (-not $Line -or $Line.StartsWith("#")) { continue }
         if ($Line.StartsWith("export ")) { $Line = $Line.Substring(7).Trim() }

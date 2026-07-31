@@ -11,7 +11,7 @@ spring:
     url: "jdbc:mysql://localhost:3306/chatchat_api?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true"
     driver-class-name: com.mysql.cj.jdbc.Driver
     username: chatchat
-    password: 
+    password:
   h2:
     console:
       enabled: false
@@ -53,18 +53,18 @@ chatchat:
   internal-credential:
     enabled: true
     username: chatchat_mcp_internal
-    encrypted-secret: 
+    encrypted-secret:
     secret: chatchat_internal_default_secret
-    crypto-key: 
-    crypto-key-file: 
+    crypto-key:
+    crypto-key-file:
   mcp:
     center:
       enabled: true
       base-url: http://localhost:8090
       admin-username: chatchat_mcp_internal
-      encrypted-admin-password: 
+      encrypted-admin-password:
       admin-password: chatchat_internal_default_secret
-      encrypted-invocation-token: 
+      encrypted-invocation-token:
       invocation-token: chatchat_internal_default_secret
       timeout-ms: 300000
       import-standalone-server: true
@@ -82,7 +82,7 @@ chatchat:
     availableChatModels:
       - deepseek-v4-pro
     openai:
-      apiKey: 
+      apiKey:
       baseUrl: https://api.openai.com/v1
       timeout: 300000
       maxTokens: -1
@@ -96,7 +96,7 @@ chatchat:
       enabled: true
       url: https://localhost:9200
       username: admin
-      password: 
+      password:
       index-name: chatchat_documents
       insecure-ssl: true
       connect-timeout-ms: 5000
@@ -109,8 +109,8 @@ chatchat:
       embedding:
         request-timeout-ms: 300000
         enabled: false
-        endpoint: 
-        api-key: 
+        endpoint:
+        api-key:
         model: text-embedding-v4
         dimension: 1024
         vector-field: contentVector
@@ -121,9 +121,9 @@ chatchat:
       api-base-url: http://localhost:8080
       auth:
         username: chatchat_mcp_internal
-        encrypted-password: 
+        encrypted-password:
         password: chatchat_internal_default_secret
-        bearer-token: 
+        bearer-token:
 
 springdoc:
   api-docs:

@@ -68,12 +68,12 @@ chatchat:
     # Use com.chatchat.common.security.InternalSecretTool to generate ENC(...).
     encrypted-secret:
     secret: chatchat_internal_default_secret
-    crypto-key: ${CHATCHAT_INTERNAL_CRYPTO_KEY:}
-    crypto-key-file: ${CHATCHAT_INTERNAL_CRYPTO_KEY_FILE:}
+    crypto-key: 
+    crypto-key-file: 
   mcp:
     capabilities:
       news:
-        enabled: ${CHATCHAT_NEWS_CAPABILITY_ENABLED:true}
+        enabled: true
         tools:
           web_search: { enabled: true, agent-callable: true, timeout: 30s }
     center:
@@ -112,10 +112,10 @@ chatchat:
   models:
     defaultProvider: openai
     defaultChatModel: qwen3.6-plus
-    context-window-max-tokens: ${CHATCHAT_MODEL_CONTEXT_WINDOW_MAX_TOKENS:200000}
-    context-reserved-system-tokens: ${CHATCHAT_MODEL_CONTEXT_RESERVED_SYSTEM_TOKENS:20000}
-    context-reserved-history-tokens: ${CHATCHAT_MODEL_CONTEXT_RESERVED_HISTORY_TOKENS:30000}
-    context-reserved-output-tokens: ${CHATCHAT_MODEL_CONTEXT_RESERVED_OUTPUT_TOKENS:30000}
+    context-window-max-tokens: 200000
+    context-reserved-system-tokens: 20000
+    context-reserved-history-tokens: 30000
+    context-reserved-output-tokens: 30000
     availableChatModels:
       - qwen3.6-plus
       - deepseek-v4-pro
@@ -142,19 +142,19 @@ chatchat:
     rocks-db-path: ./data/agent-runtime-rocksdb
     rocks-db-create-if-missing: true
     fail-interrupted-runs-on-startup: true
-    evidence-externalization-enabled: ${CHATCHAT_AGENT_EVIDENCE_EXTERNALIZATION_ENABLED:true}
-    evidence-externalization-threshold-bytes: ${CHATCHAT_AGENT_EVIDENCE_THRESHOLD_BYTES:262144}
+    evidence-externalization-enabled: true
+    evidence-externalization-threshold-bytes: 262144
     max-stored-runs: 10000
     # Terminal runs and their OpenSearch evidence are retained for 7 days.
-    terminal-run-ttl-ms: ${CHATCHAT_AGENT_RUN_TTL_MS:604800000}
-    cleanup-enabled: ${CHATCHAT_AGENT_RUN_CLEANUP_ENABLED:true}
-    cleanup-interval-ms: ${CHATCHAT_AGENT_RUN_CLEANUP_INTERVAL_MS:3600000}
-    cleanup-initial-delay-ms: ${CHATCHAT_AGENT_RUN_CLEANUP_INITIAL_DELAY_MS:60000}
-    final-summary-web-search-enabled: ${CHATCHAT_FINAL_SUMMARY_WEB_SEARCH_ENABLED:true}
-    final-summary-web-search-max-keywords: ${CHATCHAT_FINAL_SUMMARY_WEB_SEARCH_MAX_KEYWORDS:2}
-    final-summary-web-search-result-limit: ${CHATCHAT_FINAL_SUMMARY_WEB_SEARCH_RESULT_LIMIT:6}
-    final-summary-web-search-evidence-max-chars: ${CHATCHAT_FINAL_SUMMARY_WEB_SEARCH_EVIDENCE_MAX_CHARS:16000}
-    final-summary-web-search-timeout-ms: ${CHATCHAT_FINAL_SUMMARY_WEB_SEARCH_TIMEOUT_MS:120000}
+    terminal-run-ttl-ms: 604800000
+    cleanup-enabled: true
+    cleanup-interval-ms: 3600000
+    cleanup-initial-delay-ms: 60000
+    final-summary-web-search-enabled: true
+    final-summary-web-search-max-keywords: 2
+    final-summary-web-search-result-limit: 6
+    final-summary-web-search-evidence-max-chars: 16000
+    final-summary-web-search-timeout-ms: 120000
   api:
     limits:
       # Frontend search result chunk count. -1 means unlimited.
@@ -191,21 +191,21 @@ chatchat:
       enabled: true
       url: https://localhost:9200
       username: admin
-      password: ${CHATCHAT_OPENSEARCH_ENCRYPTED_PASSWORD:${CHATCHAT_OPENSEARCH_PASSWORD:}}
+      password: 
       index-name: chatchat_documents
       insecure-ssl: true
       connect-timeout-ms: 5000
       request-timeout-ms: 30000
       bulk-batch-size: 200
-      max-query-terms: ${CHATCHAT_OPENSEARCH_MAX_QUERY_TERMS:20}
-      max-query-chars: ${CHATCHAT_OPENSEARCH_MAX_QUERY_CHARS:500}
-      max-permission-roles: ${CHATCHAT_OPENSEARCH_MAX_PERMISSION_ROLES:64}
-      log-query-dsl: ${CHATCHAT_OPENSEARCH_LOG_QUERY_DSL:false}
+      max-query-terms: 20
+      max-query-chars: 500
+      max-permission-roles: 64
+      log-query-dsl: false
       embedding:
         request-timeout-ms: 300000
         enabled: true
         endpoint: https://your-dashscope-endpoint/compatible-mode/v1/embeddings
-        api-key: ${CHATCHAT_EMBEDDING_ENCRYPTED_API_KEY:${CHATCHAT_EMBEDDING_API_KEY:}}
+        api-key: 
         model: text-embedding-v4
         dimension: 1024
         vector-field: contentVector
@@ -316,7 +316,7 @@ chatchat:
       summary-enabled: true
     detail-store:
       type: rocksdb
-      path: ${CHAT_DETAIL_STORE_PATH:./data/chat-rocksdb}
+      path: ./data/chat-rocksdb
       create-if-missing: true
       max-string-length: 100000000
       external-text:

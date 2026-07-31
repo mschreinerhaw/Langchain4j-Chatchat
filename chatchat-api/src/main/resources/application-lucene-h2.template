@@ -1,4 +1,4 @@
-﻿# ChatChat API preset: Lucene + H2.
+# ChatChat API preset: Lucene + H2.
 # Rename or copy this file to an application-*.yml file that Spring Boot loads.
 # Example: application-dev.yml for local development.
 
@@ -34,7 +34,7 @@ spring:
       max-request-size: 32MB
 
 server:
-  port: ${CHATCHAT_API_PORT:8080}
+  port: 8080
   servlet:
     context-path: /
     encoding:
@@ -49,20 +49,20 @@ server:
 chatchat:
   internal-credential:
     enabled: true
-    username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
-    encrypted-secret: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
-    secret: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
-    crypto-key: ${CHATCHAT_INTERNAL_CRYPTO_KEY:}
-    crypto-key-file: ${CHATCHAT_INTERNAL_CRYPTO_KEY_FILE:}
+    username: chatchat_mcp_internal
+    encrypted-secret: 
+    secret: chatchat_internal_default_secret
+    crypto-key: 
+    crypto-key-file: 
   mcp:
     center:
       enabled: true
-      base-url: ${CHATCHAT_MCP_CENTER_BASE_URL:http://localhost:8090}
-      admin-username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
-      encrypted-admin-password: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
-      admin-password: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
-      encrypted-invocation-token: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
-      invocation-token: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
+      base-url: http://localhost:8090
+      admin-username: chatchat_mcp_internal
+      encrypted-admin-password: 
+      admin-password: chatchat_internal_default_secret
+      encrypted-invocation-token: 
+      invocation-token: chatchat_internal_default_secret
       timeout-ms: 0
       import-standalone-server: true
     stdio-proxy:
@@ -75,15 +75,15 @@ chatchat:
         - python3
   models:
     defaultProvider: openai
-    defaultChatModel: ${CHATCHAT_DEFAULT_CHAT_MODEL:deepseek-v4-pro}
+    defaultChatModel: deepseek-v4-pro
     availableChatModels:
-      - ${CHATCHAT_DEFAULT_CHAT_MODEL:deepseek-v4-pro}
+      - deepseek-v4-pro
     openai:
-      apiKey: ${OPENAI_API_KEY:${DASHSCOPE_API_KEY:}}
-      baseUrl: ${OPENAI_BASE_URL:https://api.deepseek.com}
-      timeout: ${OPENAI_TIMEOUT_MS:300000}
-      maxTokens: ${OPENAI_MAX_TOKENS:-1}
-      maxRetries: ${OPENAI_MAX_RETRIES:3}
+      apiKey: 
+      baseUrl: https://api.deepseek.com
+      timeout: 300000
+      maxTokens: -1
+      maxRetries: 3
   search:
     engine: lucene
     store-path: ./data/search-rocksdb
@@ -92,12 +92,12 @@ chatchat:
     rebuild-on-startup: false
   tools:
     document-search:
-      api-base-url: ${CHATCHAT_API_BASE_URL:http://localhost:8080}
+      api-base-url: http://localhost:8080
       auth:
-        username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
-        encrypted-password: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
-        password: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
-        bearer-token: ${CHATCHAT_API_AUTH_BEARER_TOKEN:}
+        username: chatchat_mcp_internal
+        encrypted-password: 
+        password: chatchat_internal_default_secret
+        bearer-token: 
 
 springdoc:
   api-docs:

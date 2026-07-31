@@ -23,7 +23,7 @@ spring:
     static-path-pattern: /**
     throw-exception-if-no-handler-found: true
     async:
-      request-timeout: ${SPRING_MVC_ASYNC_TIMEOUT_MS:1800000}
+      request-timeout: 1800000
   resources:
     add-mappings: false
   servlet:
@@ -32,7 +32,7 @@ spring:
       max-request-size: 32MB
 
 server:
-  port: ${CHATCHAT_API_PORT:8080}
+  port: 8080
   servlet:
     context-path: /
     encoding:
@@ -41,8 +41,8 @@ server:
       force: true
   shutdown: graceful
   tomcat:
-    connection-timeout: ${SERVER_CONNECTION_TIMEOUT:30m}
-    keep-alive-timeout: ${SERVER_KEEP_ALIVE_TIMEOUT:30m}
+    connection-timeout: 30m
+    keep-alive-timeout: 30m
     max-http-form-post-size: 33554432
     max-swallow-size: -1
   error:
@@ -53,7 +53,7 @@ chatchat:
   chat:
     detail-store:
       type: rocksdb
-      path: ${CHAT_DETAIL_STORE_PATH:./data/chat-rocksdb}
+      path: ./data/chat-rocksdb
       create-if-missing: true
       max-string-length: 100000000
       external-text:
@@ -62,32 +62,32 @@ chatchat:
         migrate-legacy-on-read: true
   internal-credential:
     enabled: true
-    username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
-    encrypted-secret: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
-    secret: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
-    crypto-key: ${CHATCHAT_INTERNAL_CRYPTO_KEY:}
-    crypto-key-file: ${CHATCHAT_INTERNAL_CRYPTO_KEY_FILE:}
+    username: chatchat_mcp_internal
+    encrypted-secret: 
+    secret: chatchat_internal_default_secret
+    crypto-key: 
+    crypto-key-file: 
   mcp:
     capabilities:
       news:
-        enabled: ${CHATCHAT_NEWS_CAPABILITY_ENABLED:true}
+        enabled: true
         tools:
           web_search: { enabled: true, agent-callable: true, timeout: 30s }
     center:
       enabled: true
-      base-url: ${CHATCHAT_MCP_CENTER_BASE_URL:http://localhost:8090}
-      admin-username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
-      encrypted-admin-password: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
-      admin-password: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
-      encrypted-invocation-token: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
-      invocation-token: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
-      timeout-ms: ${CHATCHAT_MCP_TIMEOUT_MS:1800000}
+      base-url: http://localhost:8090
+      admin-username: chatchat_mcp_internal
+      encrypted-admin-password: 
+      admin-password: chatchat_internal_default_secret
+      encrypted-invocation-token: 
+      invocation-token: chatchat_internal_default_secret
+      timeout-ms: 1800000
       import-standalone-server: true
-      auto-recovery-enabled: ${CHATCHAT_MCP_AUTO_RECOVERY_ENABLED:true}
-      heartbeat-initial-delay-ms: ${CHATCHAT_MCP_HEARTBEAT_INITIAL_DELAY_MS:10000}
-      heartbeat-interval-ms: ${CHATCHAT_MCP_HEARTBEAT_INTERVAL_MS:15000}
-      heartbeat-timeout-ms: ${CHATCHAT_MCP_HEARTBEAT_TIMEOUT_MS:5000}
-      max-auto-sync-attempts: ${CHATCHAT_MCP_MAX_AUTO_SYNC_ATTEMPTS:5}
+      auto-recovery-enabled: true
+      heartbeat-initial-delay-ms: 10000
+      heartbeat-interval-ms: 15000
+      heartbeat-timeout-ms: 5000
+      max-auto-sync-attempts: 5
     stdio-proxy:
       enabled: true
       command-allow-list:
@@ -98,44 +98,44 @@ chatchat:
         - python3
   models:
     defaultProvider: openai
-    defaultChatModel: ${CHATCHAT_DEFAULT_CHAT_MODEL:deepseek-v4-pro}
-    context-window-max-tokens: ${CHATCHAT_MODEL_CONTEXT_WINDOW_MAX_TOKENS:200000}
-    context-reserved-system-tokens: ${CHATCHAT_MODEL_CONTEXT_RESERVED_SYSTEM_TOKENS:20000}
-    context-reserved-history-tokens: ${CHATCHAT_MODEL_CONTEXT_RESERVED_HISTORY_TOKENS:30000}
-    context-reserved-output-tokens: ${CHATCHAT_MODEL_CONTEXT_RESERVED_OUTPUT_TOKENS:30000}
+    defaultChatModel: deepseek-v4-pro
+    context-window-max-tokens: 200000
+    context-reserved-system-tokens: 20000
+    context-reserved-history-tokens: 30000
+    context-reserved-output-tokens: 30000
     availableChatModels:
-      - ${CHATCHAT_DEFAULT_CHAT_MODEL:deepseek-v4-pro}
+      - deepseek-v4-pro
     openai:
-      apiKey: ${OPENAI_API_KEY:${DASHSCOPE_API_KEY:}}
-      baseUrl: ${OPENAI_BASE_URL:https://api.openai.com/v1}
-      timeout: ${OPENAI_TIMEOUT_MS:1800000}
-      maxTokens: ${OPENAI_MAX_TOKENS:-1}
-      maxRetries: ${OPENAI_MAX_RETRIES:3}
+      apiKey: 
+      baseUrl: https://api.openai.com/v1
+      timeout: 1800000
+      maxTokens: -1
+      maxRetries: 3
   agent:
     task:
-      queue-capacity: ${CHATCHAT_AGENT_TASK_QUEUE_CAPACITY:1000}
-      core-pool-size: ${CHATCHAT_AGENT_TASK_CORE_POOL_SIZE:16}
-      max-pool-size: ${CHATCHAT_AGENT_TASK_MAX_POOL_SIZE:16}
-      max-concurrent-tasks-per-tenant: ${CHATCHAT_AGENT_TASK_TENANT_CONCURRENCY:4}
-      execution-timeout-ms: ${CHATCHAT_AGENT_TASK_TIMEOUT_MS:3600000}
+      queue-capacity: 1000
+      core-pool-size: 16
+      max-pool-size: 16
+      max-concurrent-tasks-per-tenant: 4
+      execution-timeout-ms: 3600000
   tool-runtime:
-    default-tool-timeout-ms: ${CHATCHAT_TOOL_TIMEOUT_MS:1800000}
-    max-batch-calls: ${CHATCHAT_MAX_BATCH_CALLS:32}
-    max-batch-payload-bytes: ${CHATCHAT_MAX_BATCH_PAYLOAD_BYTES:262144}
+    default-tool-timeout-ms: 1800000
+    max-batch-calls: 32
+    max-batch-payload-bytes: 262144
   agent-runtime:
-    final-summary-web-search-enabled: ${CHATCHAT_FINAL_SUMMARY_WEB_SEARCH_ENABLED:true}
-    final-summary-web-search-max-keywords: ${CHATCHAT_FINAL_SUMMARY_WEB_SEARCH_MAX_KEYWORDS:2}
-    final-summary-web-search-result-limit: ${CHATCHAT_FINAL_SUMMARY_WEB_SEARCH_RESULT_LIMIT:6}
-    final-summary-web-search-evidence-max-chars: ${CHATCHAT_FINAL_SUMMARY_WEB_SEARCH_EVIDENCE_MAX_CHARS:16000}
-    final-summary-web-search-timeout-ms: ${CHATCHAT_FINAL_SUMMARY_WEB_SEARCH_TIMEOUT_MS:120000}
+    final-summary-web-search-enabled: true
+    final-summary-web-search-max-keywords: 2
+    final-summary-web-search-result-limit: 6
+    final-summary-web-search-evidence-max-chars: 16000
+    final-summary-web-search-timeout-ms: 120000
   search:
     engine: lucene
   tools:
     document-search:
-      api-base-url: ${CHATCHAT_API_BASE_URL:http://localhost:8080}
+      api-base-url: http://localhost:8080
       auth:
-        username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
-        password: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
+        username: chatchat_mcp_internal
+        password: chatchat_internal_default_secret
 
 springdoc:
   api-docs:

@@ -106,7 +106,8 @@ public class LangChain4jConfig {
 
     private static final class MissingApiKeyChatModel implements ChatModel {
 
-        private static final String MESSAGE = "OpenAI API key is not configured. Set chatchat.models.openai.apiKey or OPENAI_API_KEY before using chat.";
+        private static final String MESSAGE = "OpenAI API key is not configured. Set chatchat.models.openai.apiKey "
+            + "or CHATCHAT_MODELS_OPENAI_API_KEY before using chat.";
 
         @Override
         public String chat(String userMessage) {

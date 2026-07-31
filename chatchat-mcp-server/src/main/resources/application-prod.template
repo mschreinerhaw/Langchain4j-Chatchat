@@ -6,7 +6,7 @@ spring:
     url: jdbc:h2:file:./data/h2/chatchat-mcp-server;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
     username: sa
-    password: 
+    password:
     hikari:
       pool-name: ChatChatMcpHikariPool
       maximum-pool-size: 20
@@ -48,15 +48,15 @@ chatchat:
     # Use com.chatchat.common.security.InternalSecretTool to generate ENC(...).
     encrypted-secret:
     secret: chatchat_internal_default_secret
-    crypto-key: ${CHATCHAT_INTERNAL_CRYPTO_KEY:}
-    crypto-key-file: ${CHATCHAT_INTERNAL_CRYPTO_KEY_FILE:}
+    crypto-key:
+    crypto-key-file:
   mcp:
     news-runtime:
-      base-url: ${CHATCHAT_NEWS_RUNTIME_URL:http://localhost:8091}
-      timeout-millis: ${CHATCHAT_NEWS_RUNTIME_TIMEOUT_MILLIS:30000}
+      base-url: http://localhost:8091
+      timeout-millis: 30000
     capabilities:
       news:
-        enabled: ${CHATCHAT_NEWS_CAPABILITY_ENABLED:true}
+        enabled: true
         tools:
           web_search: { enabled: true, agent-callable: true, timeout: 30s }
     admin:
@@ -82,7 +82,7 @@ chatchat:
         username: chatchat_mcp_internal
         encrypted-password:
         password:
-        bearer-token: 
+        bearer-token:
     command-templates:
       # Agent OS default: do not seed scenario-specific execution templates.
       seed-defaults-enabled: false
@@ -107,33 +107,33 @@ chatchat:
         # OpenSearch HTTPS endpoint.
         url: https://localhost:9200
         username: admin
-        password: ${CHATCHAT_OPENSEARCH_ENCRYPTED_PASSWORD:${CHATCHAT_OPENSEARCH_PASSWORD:}}
+        password:
         # Use true for self-signed test clusters, equivalent to curl -k.
         insecure-ssl: true
         # MCP index prefix, for example chatchat_mcp_assets-sql-datasource.
         index-prefix: chatchat_mcp_
         request-timeout-ms: 30000
         search-concurrency:
-          enabled: ${CHATCHAT_MCP_SEARCH_CONCURRENCY_ENABLED:true}
-          request-timeout-ms: ${CHATCHAT_MCP_SEARCH_REQUEST_TIMEOUT_MS:8000}
-          retry-429-attempts: ${CHATCHAT_MCP_SEARCH_RETRY_429_ATTEMPTS:1}
+          enabled: true
+          request-timeout-ms: 8000
+          retry-429-attempts: 1
           retry-backoff-min-ms: 100
           retry-backoff-max-ms: 300
           lexical:
-            max-running: ${CHATCHAT_MCP_SEARCH_LEXICAL_MAX_RUNNING:12}
+            max-running: 12
             queue-capacity: 30
             queue-timeout-ms: 1500
           vector:
-            max-running: ${CHATCHAT_MCP_SEARCH_VECTOR_MAX_RUNNING:4}
+            max-running: 4
             queue-capacity: 10
             queue-timeout-ms: 500
         embedding:
-          request-timeout-ms: ${CHATCHAT_EMBEDDING_REQUEST_TIMEOUT_MS:300000}
+          request-timeout-ms: 300000
           # Optional semantic retrieval for MCP assets/templates. Effective only when engine=opensearch.
           # Existing MCP indexes must be deleted and rebuilt once after enabling KNN vectors.
           enabled: true
           endpoint: https://llm-7upawl16up8649rh.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/embeddings
-          api-key: ${CHATCHAT_EMBEDDING_ENCRYPTED_API_KEY:${CHATCHAT_EMBEDDING_API_KEY:}}
+          api-key:
           model: text-embedding-v4
           dimension: 1024
           vector-field: mcpContentVector
@@ -168,8 +168,8 @@ chatchat:
           login-path: /api/v1/enterprise/auth/login
           username: chatchat_mcp_internal
           encrypted-password:
-          password: 
-          bearer-token: 
+          password:
+          bearer-token:
       concurrency:
         # Enables global/tool/user/agent concurrency guards for MCP tool calls.
         enabled: true
@@ -249,20 +249,20 @@ chatchat:
     livedata:
       # Enables the admin page to list and manually register LiveData APIs. Startup auto-sync is disabled.
       enabled: false
-      jdbc-url: 
-      username: 
-      password: 
+      jdbc-url:
+      username:
+      password:
       driver-class: com.mysql.cj.jdbc.Driver
       table-name: ld_dataservice_api
-      service-base-url: 
+      service-base-url:
       service-path-template: /service/{serviceName}/call
       login-enabled: true
       login-path: /login
-      login-id: 
-      login-pwd: 
+      login-id:
+      login-pwd:
       login-timeout-ms: 10000
       session-ttl-seconds: 1800
-      ams-token: 
+      ams-token:
       default-namespace: livedata
       tool-name-prefix: livedata_
       published-state: 0
@@ -298,7 +298,7 @@ chatchat:
         login-path: /api/v1/enterprise/auth/login
         username: chatchat_mcp_internal
         encrypted-password:
-        password: 
+        password:
         bearer-token: ""
       risk-level: medium
       confirmation:
@@ -319,7 +319,7 @@ chatchat:
       default-max-rows: 50
       max-rows: 500
       workflow:
-        max-parallelism: ${CHATCHAT_DATABASE_QUERY_WORKFLOW_MAX_PARALLELISM:4}
+        max-parallelism: 4
       # Statement timeout for database calls.
       query-timeout-seconds: 15
       # Extra JDBC drivers can be placed here in release packages.

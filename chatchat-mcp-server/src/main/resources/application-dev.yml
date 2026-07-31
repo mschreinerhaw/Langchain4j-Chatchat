@@ -39,7 +39,7 @@ chatchat:
     status-check-interval-ms: 60000
     license-file: ./data/license/license.dat
     server-id-file: ./data/license/server.id
-    public-key-path: ${CHATCHAT_LICENSE_PUBLIC_KEY_PATH:./data/license/license-public.pem}
+    public-key-path: ./data/license/license-public.pem
   mcp:
     market:
       retention:
@@ -49,7 +49,7 @@ chatchat:
         cron: "0 30 2 * * SUN"
         zone-id: Asia/Shanghai
     news-runtime:
-      base-url: ${CHATCHAT_NEWS_RUNTIME_URL:http://localhost:8091}
+      base-url: http://localhost:8091
       timeout-millis: 30000
     capabilities:
       news:
@@ -140,7 +140,7 @@ chatchat:
         bearer-token:
     livedata:
       # Runtime values are maintained on the admin page. Database access is bound through a database asset.
-      enabled: true    
+      enabled: true
 
 logging:
   charset:

@@ -17,7 +17,7 @@ spring:
     show-sql: false
 
 server:
-  port: ${CHATCHAT_MCP_PORT:8090}
+  port: 8090
   servlet:
     context-path: /
   shutdown: graceful
@@ -25,45 +25,45 @@ server:
 chatchat:
   internal-credential:
     enabled: true
-    username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
-    encrypted-secret: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
-    secret: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
-    crypto-key: ${CHATCHAT_INTERNAL_CRYPTO_KEY:}
-    crypto-key-file: ${CHATCHAT_INTERNAL_CRYPTO_KEY_FILE:}
+    username: chatchat_mcp_internal
+    encrypted-secret:
+    secret: chatchat_internal_default_secret
+    crypto-key:
+    crypto-key-file:
   license:
-    fail-startup-on-invalid: ${CHATCHAT_LICENSE_FAIL_STARTUP_ON_INVALID:false}
-    status-check-interval-ms: ${CHATCHAT_LICENSE_STATUS_CHECK_INTERVAL_MS:60000}
-    license-file: ${CHATCHAT_LICENSE_FILE:./data/license/license.dat}
-    server-id-file: ${CHATCHAT_LICENSE_SERVER_ID_FILE:./data/license/server.id}
-    public-key-path: ${CHATCHAT_LICENSE_PUBLIC_KEY_PATH:./data/license/license-public.pem}
+    fail-startup-on-invalid: false
+    status-check-interval-ms: 60000
+    license-file: ./data/license/license.dat
+    server-id-file: ./data/license/server.id
+    public-key-path: ./data/license/license-public.pem
   mcp:
     news-runtime:
-      base-url: ${CHATCHAT_NEWS_RUNTIME_URL:http://localhost:8091}
-      timeout-millis: ${CHATCHAT_NEWS_RUNTIME_TIMEOUT_MILLIS:30000}
+      base-url: http://localhost:8091
+      timeout-millis: 30000
     capabilities:
       news:
-        enabled: ${CHATCHAT_NEWS_CAPABILITY_ENABLED:true}
+        enabled: true
         tools:
           web_search: { enabled: true, agent-callable: true, timeout: 30s }
     admin:
-      username: ${CHATCHAT_MCP_ADMIN_USERNAME:admin}
-      password: ${CHATCHAT_MCP_ADMIN_PASSWORD:}
-      encrypted-password: ${CHATCHAT_MCP_ADMIN_ENCRYPTED_PASSWORD:}
-      token-ttl-minutes: ${CHATCHAT_MCP_ADMIN_TOKEN_TTL_MINUTES:480}
+      username: admin
+      password:
+      encrypted-password:
+      token-ttl-minutes: 480
     security:
       require-mcp-token: true
-      encrypted-invocation-token: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
-      invocation-token: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
+      encrypted-invocation-token:
+      invocation-token: chatchat_internal_default_secret
     authorization:
-      enabled: ${CHATCHAT_MCP_AUTHORIZATION_ENABLED:true}
-      fail-open: ${CHATCHAT_MCP_AUTHORIZATION_FAIL_OPEN:false}
-      require-tenant-context: ${CHATCHAT_MCP_AUTHORIZATION_REQUIRE_TENANT_CONTEXT:true}
-      api-base-url: ${CHATCHAT_API_BASE_URL:http://localhost:8080}
+      enabled: true
+      fail-open: false
+      require-tenant-context: true
+      api-base-url: http://localhost:8080
       auth:
-        username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
-        encrypted-password: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
-        password: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
-        bearer-token: ${CHATCHAT_API_AUTH_BEARER_TOKEN:}
+        username: chatchat_mcp_internal
+        encrypted-password:
+        password: chatchat_internal_default_secret
+        bearer-token:
     command-templates:
       seed-defaults-enabled: false
     sql-templates:
@@ -75,21 +75,21 @@ chatchat:
     server:
       endpoint: /mcp
       document-search:
-        api-base-url: ${CHATCHAT_API_BASE_URL:http://localhost:8080}
+        api-base-url: http://localhost:8080
         auth:
-          username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
-          encrypted-password: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
-          password: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
-          bearer-token: ${CHATCHAT_API_AUTH_BEARER_TOKEN:}
+          username: chatchat_mcp_internal
+          encrypted-password:
+          password: chatchat_internal_default_secret
+          bearer-token:
   tools:
     document-search:
       enabled: true
-      api-base-url: ${CHATCHAT_API_BASE_URL:http://localhost:8080}
+      api-base-url: http://localhost:8080
       auth:
-        username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
-        encrypted-password: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
-        password: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
-        bearer-token: ${CHATCHAT_API_AUTH_BEARER_TOKEN:}
+        username: chatchat_mcp_internal
+        encrypted-password:
+        password: chatchat_internal_default_secret
+        bearer-token:
 logging:
   config: file:./config/logback-spring.xml
   file:

@@ -8,7 +8,7 @@ function Import-EnvFile {
         return
     }
 
-    foreach ($RawLine in Get-Content $Path) {
+    foreach ($RawLine in Get-Content -LiteralPath $Path -Encoding UTF8) {
         $Line = $RawLine.Trim()
         if (-not $Line -or $Line.StartsWith("#")) {
             continue

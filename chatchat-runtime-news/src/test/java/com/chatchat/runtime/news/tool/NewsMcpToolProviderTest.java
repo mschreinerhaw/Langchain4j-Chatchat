@@ -5,6 +5,7 @@ import com.chatchat.runtime.news.config.NewsRuntimeProperties;
 import com.chatchat.runtime.news.model.NewsAnalysisStatus;
 import com.chatchat.runtime.news.model.NewsDocument;
 import com.chatchat.runtime.news.model.NewsSourceType;
+import com.chatchat.runtime.news.search.TencentWebSearchClient;
 import com.chatchat.runtime.news.source.NewsCollectRecordRepository;
 import com.chatchat.runtime.news.source.NewsSourceRepository;
 import com.chatchat.runtime.news.store.NewsDocumentStore;
@@ -63,7 +64,9 @@ class NewsMcpToolProviderTest {
     }
 
     private NewsMcpToolProvider provider(NewsDocumentStore store, NewsRuntimeProperties properties) {
-        return new NewsMcpToolProvider(new WebSearchToolExecutor(store, properties),
+        TencentWebSearchClient externalSearch = mock(TencentWebSearchClient.class);
+        when(externalSearch.enabled()).thenReturn(false);
+        return new NewsMcpToolProvider(new WebSearchToolExecutor(store, properties, externalSearch),
             new NewsSearchToolExecutor(store, properties), new NewsLatestToolExecutor(store, properties),
             new NewsSourceStatusToolExecutor(mock(NewsSourceRepository.class), mock(NewsCollectRecordRepository.class)));
     }

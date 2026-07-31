@@ -459,7 +459,9 @@ class AgentPlanner {
                 .append(" to fetch cleaned full page content from the selected URL before analysis.\n");
             prompt.append("4. The final_answer step MUST depend on the crawler/content step, not only on web discovery.\n");
             prompt.append("5. If an official website or exchange site is required, keep that source constraint in the web discovery query/input.\n\n");
-            prompt.append("web_search queries standardized, pre-collected news from chatchat-runtime-news; it does not browse the public web on demand.\n\n");
+            prompt.append("web_search retrieves standardized local news and, when the internal Tencent WSA enhancer is configured, "
+                + "can supplement current hotspots, place names, and knowledge beyond the local corpus from the public web. "
+                + "The external provider remains an internal implementation detail, not a separate tool.\n\n");
             prompt.append("Crawler input contract:\n");
             prompt.append("- Never use ").append(crawlerTool).append(" as a search tool. It cannot accept a free-text query.\n");
             prompt.append("- ").append(crawlerTool).append(" may only be called with an HTTP/HTTPS url selected from prior web discovery results, for example {\"url\":\"https://example.com/page\"}.\n");

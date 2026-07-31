@@ -21,6 +21,24 @@ public class NewsRuntimeProperties {
     private Analysis analysis = new Analysis();
     private CollectLog collectLog = new CollectLog();
     private OpenSearch openSearch = new OpenSearch();
+    private WebSearch webSearch = new WebSearch();
+
+    @Data
+    public static class WebSearch {
+        /** Enables Tencent WSA as an internal retrieval enhancer behind web_search. */
+        private boolean enabled = false;
+        private String endpoint = "https://wsa.tencentcloudapi.com";
+        private String secretId;
+        private String secretKey;
+        private String region;
+        private int mode = 2;
+        /** Cnt is a paid-edition parameter in WSA; leave it disabled for compatible defaults. */
+        private boolean requestCountEnabled = false;
+        private int maxResults = 20;
+        private int timeoutMillis = 10_000;
+        private int hotspotLookbackDays = 7;
+        private int maxSnippetChars = 1_200;
+    }
 
     @Data
     public static class CollectLog {

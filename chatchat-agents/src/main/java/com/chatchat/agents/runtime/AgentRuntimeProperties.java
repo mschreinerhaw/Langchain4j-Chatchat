@@ -29,6 +29,12 @@ public class AgentRuntimeProperties {
     private int maxJsonStringLength = 100_000_000;
     private boolean evidenceExternalizationEnabled = true;
     private int evidenceExternalizationThresholdBytes = 262_144;
+    /** Allows the final summary model to request one bounded internal web-retrieval enhancement round. */
+    private boolean finalSummaryWebSearchEnabled = true;
+    private int finalSummaryWebSearchMaxKeywords = 2;
+    private int finalSummaryWebSearchResultLimit = 6;
+    private int finalSummaryWebSearchEvidenceMaxChars = 16_000;
+    private long finalSummaryWebSearchTimeoutMs = 120_000;
 
     public int corePoolSize() {
         return Math.max(1, corePoolSize);
@@ -76,5 +82,21 @@ public class AgentRuntimeProperties {
 
     public int evidenceExternalizationThresholdBytes() {
         return Math.max(16_384, evidenceExternalizationThresholdBytes);
+    }
+
+    public int finalSummaryWebSearchMaxKeywords() {
+        return Math.max(1, Math.min(3, finalSummaryWebSearchMaxKeywords));
+    }
+
+    public int finalSummaryWebSearchResultLimit() {
+        return Math.max(1, Math.min(20, finalSummaryWebSearchResultLimit));
+    }
+
+    public int finalSummaryWebSearchEvidenceMaxChars() {
+        return Math.max(2_000, Math.min(64_000, finalSummaryWebSearchEvidenceMaxChars));
+    }
+
+    public long finalSummaryWebSearchTimeoutMs() {
+        return Math.max(5_000L, finalSummaryWebSearchTimeoutMs);
     }
 }

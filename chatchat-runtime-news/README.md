@@ -88,7 +88,11 @@ CHATCHAT_NEWS_EMBEDDING_DIMENSION=1024
 来源名称和发布时间；附件分片还包含附件文件名与附件 URL。工具响应顶层同时返回去重后的 `reference_urls`，模型生成总结时
 应保留这些地址作为可核验引用。
 
-本模块内部的 `web_search(query=...)` 只检索新闻索引。公开 MCP Server 的同名工具会进程内聚合 Market 能力的 `financial-data-asset` 目录；传入 `dataset` 时由 MCP 内部 Market 能力读取结构化观测数据。
+本模块内部的 `web_search(query=...)` 以新闻索引为基础，并可通过腾讯云 WSA SearchPro
+补充当前热点、位置名称和知识库之外的公开网络知识；两路结果按 URL/标题去重并融合排序。
+WSA 仅是该调用链中的内部召回增强器，不注册或发布独立 MCP 工具。公开 MCP Server 的同名工具
+继续进程内聚合 Market 能力的 `financial-data-asset` 目录；传入 `dataset` 时由 MCP 内部 Market
+能力读取结构化观测数据。
 
 
 

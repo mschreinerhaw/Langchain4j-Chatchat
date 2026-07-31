@@ -39,7 +39,9 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         this.marketCatalog = marketCatalog;
         this.marketStore = marketStore;
         McpToolDefinition webSearch = definition("web_search", "Unified Web Search",
-            "Unified one-call search for news and governed financial data. The tool searches the compatible "
+            "Unified one-call retrieval for current hotspots, place names, knowledge beyond the local corpus, "
+                + "news, and governed financial data. External search is an internal recall enhancer and is not "
+                + "a separate user-facing tool. The tool searches the compatible "
                 + "financial-data-asset index, directly reads observations from the highest-ranked matched datasets, "
                 + "and returns authoritative rows together with news. The optional dataset parameter remains available "
                 + "for callers that already know the exact dataset code.",

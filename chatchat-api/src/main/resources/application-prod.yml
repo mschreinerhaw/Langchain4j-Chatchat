@@ -122,6 +122,12 @@ chatchat:
     default-tool-timeout-ms: ${CHATCHAT_TOOL_TIMEOUT_MS:1800000}
     max-batch-calls: ${CHATCHAT_MAX_BATCH_CALLS:32}
     max-batch-payload-bytes: ${CHATCHAT_MAX_BATCH_PAYLOAD_BYTES:262144}
+  agent-runtime:
+    final-summary-web-search-enabled: ${CHATCHAT_FINAL_SUMMARY_WEB_SEARCH_ENABLED:true}
+    final-summary-web-search-max-keywords: ${CHATCHAT_FINAL_SUMMARY_WEB_SEARCH_MAX_KEYWORDS:2}
+    final-summary-web-search-result-limit: ${CHATCHAT_FINAL_SUMMARY_WEB_SEARCH_RESULT_LIMIT:6}
+    final-summary-web-search-evidence-max-chars: ${CHATCHAT_FINAL_SUMMARY_WEB_SEARCH_EVIDENCE_MAX_CHARS:16000}
+    final-summary-web-search-timeout-ms: ${CHATCHAT_FINAL_SUMMARY_WEB_SEARCH_TIMEOUT_MS:120000}
   search:
     engine: lucene
   tools:

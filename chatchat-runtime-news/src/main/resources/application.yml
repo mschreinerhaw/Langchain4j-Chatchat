@@ -49,6 +49,20 @@ chatchat:
         poll-delay-millis: 5000
         summary-max-chars: 300
         max-tags: 8
+      # Tencent WSA is an internal recall enhancer behind the existing web_search.
+      # It is not registered or published as an independent MCP tool.
+      web-search:
+        enabled: ${CHATCHAT_WEB_SEARCH_ENHANCER_ENABLED:false}
+        endpoint: ${TENCENT_WSA_ENDPOINT:https://wsa.tencentcloudapi.com}
+        secret-id: ${TENCENT_CLOUD_SECRET_ID:}
+        secret-key: ${TENCENT_CLOUD_SECRET_KEY:}
+        region: ${TENCENT_WSA_REGION:}
+        mode: ${TENCENT_WSA_MODE:2}
+        request-count-enabled: ${TENCENT_WSA_REQUEST_COUNT_ENABLED:false}
+        max-results: ${TENCENT_WSA_MAX_RESULTS:20}
+        timeout-millis: ${TENCENT_WSA_TIMEOUT_MILLIS:10000}
+        hotspot-lookback-days: ${TENCENT_WSA_HOTSPOT_LOOKBACK_DAYS:7}
+        max-snippet-chars: ${TENCENT_WSA_MAX_SNIPPET_CHARS:1200}
       open-search:
         enabled: true
         endpoint: https://192.168.195.221:9200

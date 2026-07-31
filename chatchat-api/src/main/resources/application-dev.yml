@@ -119,6 +119,12 @@ chatchat:
     default-tool-timeout-ms: 1800000
     max-batch-calls: 32
     max-batch-payload-bytes: 262144
+  agent-runtime:
+    final-summary-web-search-enabled: true
+    final-summary-web-search-max-keywords: 2
+    final-summary-web-search-result-limit: 6
+    final-summary-web-search-evidence-max-chars: 16000
+    final-summary-web-search-timeout-ms: 120000
   search:
     engine: opensearch
     store-path: ./data/search-rocksdb

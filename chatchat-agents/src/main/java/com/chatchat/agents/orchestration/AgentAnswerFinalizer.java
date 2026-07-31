@@ -11,9 +11,12 @@ import com.chatchat.agents.evidence.EvidenceAnswerGroundingGuard;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.AgentAnswerReview;
 import com.chatchat.agents.runtime.AgentAnswerReviewer;
+import com.chatchat.agents.runtime.AgentRuntimeProperties;
 import com.chatchat.agents.runtime.AnswerCandidateCollector;
 import com.chatchat.agents.runtime.DraftArtifactRuntimePolicy;
+import com.chatchat.agents.runtime.ToolRuntimeService;
 import com.chatchat.agents.runtime.plan.DiagnosticRunStateMachine;
+import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.config.ModelsConfig;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -73,6 +76,8 @@ class AgentAnswerFinalizer {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final AnswerQualityEvaluator answerQualityEvaluator = new AnswerQualityEvaluator(objectMapper);
     private final AnswerCandidateCollector answerCandidateCollector = new AnswerCandidateCollector();
+    private final FinalSummaryWebSearchEnhancer finalSummaryWebSearchEnhancer;
+    private final AgentRuntimeProperties agentRuntimeProperties;
 
     AgentAnswerFinalizer(AgentAnswerReviewer answerReviewer, AgentRuntimeGuard runtimeGuard) {
         this(answerReviewer, runtimeGuard, null);
@@ -81,9 +86,23 @@ class AgentAnswerFinalizer {
     AgentAnswerFinalizer(AgentAnswerReviewer answerReviewer,
                          AgentRuntimeGuard runtimeGuard,
                          ModelsConfig modelsConfig) {
+        this(answerReviewer, runtimeGuard, modelsConfig, null, null, null, null);
+    }
+
+    AgentAnswerFinalizer(AgentAnswerReviewer answerReviewer,
+                         AgentRuntimeGuard runtimeGuard,
+                         ModelsConfig modelsConfig,
+                         ToolRegistry toolRegistry,
+                         ToolRuntimeService toolRuntimeService,
+                         ObjectMapper objectMapper,
+                         AgentRuntimeProperties agentRuntimeProperties) {
         this.answerReviewer = answerReviewer;
         this.runtimeGuard = runtimeGuard;
         this.modelRequestTimeoutMs = modelRequestTimeoutMs(modelsConfig);
+        this.agentRuntimeProperties = agentRuntimeProperties == null
+            ? new AgentRuntimeProperties() : agentRuntimeProperties;
+        this.finalSummaryWebSearchEnhancer = new FinalSummaryWebSearchEnhancer(
+            toolRegistry, toolRuntimeService, objectMapper, this.agentRuntimeProperties);
     }
 
     AgentOrchestrator.AgentExecutionResult finishExecution(String answer,
@@ -436,23 +455,29 @@ class AgentAnswerFinalizer {
         runtimeGuard.checkCancelled(cancellationCheck);
         recordMcpResultEvidencePolicy(metadata, traces);
         String finalAnswer = summarizeWithObservations(activeChatModel, query, systemPrompt, observations, metadata);
+        FinalSummaryWebSearchEnhancer.Enhancement enhancement = enhanceFinalSummary(
+            activeChatModel, query, systemPrompt, finalAnswer, observations, traces, metadata);
+        List<String> effectiveObservations = enhancement.observations();
+        List<InteractionToolTrace> effectiveTraces = enhancement.traces();
         recordCancellationAfterAnswer(cancellationCheck, metadata, "after_summary");
-        AgentAnswerReview review = reviewAnswer(activeChatModel, query, systemPrompt, observations, finalAnswer, metadata);
+        AgentAnswerReview review = reviewAnswer(activeChatModel, query, systemPrompt,
+            effectiveObservations, finalAnswer, metadata);
         recordCancellationAfterAnswer(cancellationCheck, metadata, "after_review");
         recordAnswerReview(metadata, review);
         metadata.put("stopReason", "tool_budget_exceeded");
-        AnswerDecisionEngine.EvidenceSignal signal = evidenceSignal(finalAnswer, observations, metadata);
+        AnswerDecisionEngine.EvidenceSignal signal = evidenceSignal(finalAnswer, effectiveObservations, metadata);
         AnswerQualityEvaluator.QualityReport quality = evaluateAnswerQuality(
             activeChatModel,
             query,
             systemPrompt,
-            observations,
+            effectiveObservations,
             finalAnswer,
             review,
             signal,
             metadata
         );
-        return finishWithDecision(query, finalAnswer, review, signal, quality, traces, metadata, observations);
+        return finishWithDecision(query, finalAnswer, review, signal, quality,
+            effectiveTraces, metadata, effectiveObservations);
     }
 
     AgentOrchestrator.AgentExecutionResult finishReviewedSummary(ChatModel activeChatModel,
@@ -466,23 +491,29 @@ class AgentAnswerFinalizer {
         runtimeGuard.checkCancelled(cancellationCheck);
         recordMcpResultEvidencePolicy(metadata, traces);
         String finalAnswer = summarizeWithObservations(activeChatModel, query, systemPrompt, observations, metadata);
+        FinalSummaryWebSearchEnhancer.Enhancement enhancement = enhanceFinalSummary(
+            activeChatModel, query, systemPrompt, finalAnswer, observations, traces, metadata);
+        List<String> effectiveObservations = enhancement.observations();
+        List<InteractionToolTrace> effectiveTraces = enhancement.traces();
         recordCancellationAfterAnswer(cancellationCheck, metadata, "after_summary");
-        AgentAnswerReview review = reviewAnswer(activeChatModel, query, systemPrompt, observations, finalAnswer, metadata);
+        AgentAnswerReview review = reviewAnswer(activeChatModel, query, systemPrompt,
+            effectiveObservations, finalAnswer, metadata);
         recordCancellationAfterAnswer(cancellationCheck, metadata, "after_review");
         recordAnswerReview(metadata, review);
         metadata.put("stopReason", stopReason);
-        AnswerDecisionEngine.EvidenceSignal signal = evidenceSignal(finalAnswer, observations, metadata);
+        AnswerDecisionEngine.EvidenceSignal signal = evidenceSignal(finalAnswer, effectiveObservations, metadata);
         AnswerQualityEvaluator.QualityReport quality = evaluateAnswerQuality(
             activeChatModel,
             query,
             systemPrompt,
-            observations,
+            effectiveObservations,
             finalAnswer,
             review,
             signal,
             metadata
         );
-        return finishWithDecision(query, finalAnswer, review, signal, quality, traces, metadata, observations);
+        return finishWithDecision(query, finalAnswer, review, signal, quality,
+            effectiveTraces, metadata, effectiveObservations);
     }
 
     AgentOrchestrator.AgentExecutionResult finishReviewedAnswer(ChatModel activeChatModel,
@@ -496,23 +527,83 @@ class AgentAnswerFinalizer {
                                                                 String stopReason) {
         recordMcpResultEvidencePolicy(metadata, traces);
         String finalAnswer = safeAnswer(activeChatModel, answer, query, observations, systemPrompt, metadata);
+        FinalSummaryWebSearchEnhancer.Enhancement enhancement = enhanceFinalSummary(
+            activeChatModel, query, systemPrompt, finalAnswer, observations, traces, metadata);
+        List<String> effectiveObservations = enhancement.observations();
+        List<InteractionToolTrace> effectiveTraces = enhancement.traces();
         recordCancellationAfterAnswer(cancellationCheck, metadata, "after_answer");
-        AgentAnswerReview review = reviewAnswer(activeChatModel, query, systemPrompt, observations, finalAnswer, metadata);
+        AgentAnswerReview review = reviewAnswer(activeChatModel, query, systemPrompt,
+            effectiveObservations, finalAnswer, metadata);
         recordCancellationAfterAnswer(cancellationCheck, metadata, "after_review");
         recordAnswerReview(metadata, review);
         metadata.put("stopReason", stopReason);
-        AnswerDecisionEngine.EvidenceSignal signal = evidenceSignal(finalAnswer, observations, metadata);
+        AnswerDecisionEngine.EvidenceSignal signal = evidenceSignal(finalAnswer, effectiveObservations, metadata);
         AnswerQualityEvaluator.QualityReport quality = evaluateAnswerQuality(
             activeChatModel,
             query,
             systemPrompt,
-            observations,
+            effectiveObservations,
             finalAnswer,
             review,
             signal,
             metadata
         );
-        return finishWithDecision(query, finalAnswer, review, signal, quality, traces, metadata, observations);
+        return finishWithDecision(query, finalAnswer, review, signal, quality,
+            effectiveTraces, metadata, effectiveObservations);
+    }
+
+    private FinalSummaryWebSearchEnhancer.Enhancement enhanceFinalSummary(
+        ChatModel activeChatModel,
+        String query,
+        String systemPrompt,
+        String candidateAnswer,
+        List<String> observations,
+        List<InteractionToolTrace> traces,
+        Map<String, Object> metadata
+    ) {
+        String runId = stringValue(metadata == null ? null : metadata.get("agentRunId"));
+        try {
+            FinalSummaryWebSearchEnhancer.Enhancement enhancement = runWithTimeout(
+                "final-summary-web-search",
+                firstNonBlank(runId, ""),
+                agentRuntimeProperties.finalSummaryWebSearchTimeoutMs(),
+                () -> finalSummaryWebSearchEnhancer.enhance(
+                    activeChatModel, query, systemPrompt, candidateAnswer, observations, traces, metadata)
+            );
+            if (enhancement.used() && enhancement.enhancedAnswer() != null
+                && !enhancement.enhancedAnswer().isBlank()) {
+                answerCandidateCollector.register(
+                    metadata,
+                    FinalSummaryWebSearchEnhancer.CANDIDATE_STAGE,
+                    enhancement.enhancedAnswer(),
+                    List.of(),
+                    Map.of("source", "tencent_wsa", "internalEnhancement", true)
+                );
+            }
+            return enhancement;
+        } catch (TimeoutException ex) {
+            if (metadata != null) {
+                metadata.put("finalSummaryWebSearchTimedOut", true);
+                metadata.put("finalSummaryWebSearchUsed", false);
+            }
+            log.warn("agentModelTimeout phase=final_summary_web_search runId={} timeoutMs={}",
+                firstNonBlank(runId, ""), agentRuntimeProperties.finalSummaryWebSearchTimeoutMs());
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            if (metadata != null) {
+                metadata.put("finalSummaryWebSearchInterrupted", true);
+                metadata.put("finalSummaryWebSearchUsed", false);
+            }
+        } catch (Exception ex) {
+            if (metadata != null) {
+                metadata.put("finalSummaryWebSearchFailed", true);
+                metadata.put("finalSummaryWebSearchFailure", firstNonBlank(ex.getMessage(), ex.getClass().getSimpleName()));
+                metadata.put("finalSummaryWebSearchUsed", false);
+            }
+            log.warn("agentModelFailed phase=final_summary_web_search runId={} error={}",
+                firstNonBlank(runId, ""), ex.getMessage());
+        }
+        return FinalSummaryWebSearchEnhancer.Enhancement.skipped(observations, traces);
     }
 
     private void recordCancellationAfterAnswer(BooleanSupplier cancellationCheck,

@@ -15,6 +15,7 @@ import com.chatchat.agents.runtime.AgentRunExecutor;
 import com.chatchat.agents.runtime.AgentRunStatus;
 import com.chatchat.agents.runtime.AgentRunStore;
 import com.chatchat.agents.runtime.AgentRuntimeFactGroundingContract;
+import com.chatchat.agents.runtime.AgentRuntimeProperties;
 import com.chatchat.agents.runtime.DefaultAgentAnswerReviewer;
 import com.chatchat.agents.runtime.DefaultAgentObservationPipeline;
 import com.chatchat.agents.runtime.InMemoryAgentRunStore;
@@ -170,7 +171,6 @@ public class AgentOrchestrator implements AgentRunExecutor {
             evidenceTrustEvaluator, runStore, observationPipeline, answerReviewer, null);
     }
 
-    @Autowired
     public AgentOrchestrator(ChatModel chatModel,
                              ToolRegistry toolRegistry,
                              ToolRuntimeService toolRuntimeService,
@@ -181,6 +181,23 @@ public class AgentOrchestrator implements AgentRunExecutor {
                              AgentObservationPipeline observationPipeline,
                              AgentAnswerReviewer answerReviewer,
                              InterpretationPlanStore interpretationPlanStore) {
+        this(chatModel, toolRegistry, toolRuntimeService, objectMapper, modelsConfig,
+            evidenceTrustEvaluator, runStore, observationPipeline, answerReviewer,
+            interpretationPlanStore, new AgentRuntimeProperties());
+    }
+
+    @Autowired
+    public AgentOrchestrator(ChatModel chatModel,
+                             ToolRegistry toolRegistry,
+                             ToolRuntimeService toolRuntimeService,
+                             ObjectMapper objectMapper,
+                             ModelsConfig modelsConfig,
+                             EvidenceTrustEvaluator evidenceTrustEvaluator,
+                             AgentRunStore runStore,
+                             AgentObservationPipeline observationPipeline,
+                             AgentAnswerReviewer answerReviewer,
+                             InterpretationPlanStore interpretationPlanStore,
+                             AgentRuntimeProperties agentRuntimeProperties) {
         this.toolRegistry = toolRegistry;
         this.toolRuntimeService = toolRuntimeService;
         this.objectMapper = objectMapper;
@@ -196,7 +213,15 @@ public class AgentOrchestrator implements AgentRunExecutor {
         this.toolArguments = new AgentToolArgumentResolver(this.toolNames, WEB_SEARCH_REFERENCE_LIMIT, this.toolRegistry);
         this.workflowTools = new AgentWorkflowToolResolver(this.toolNames);
         this.modelAssistedRetrievalBridge = new ModelAssistedRetrievalBridge(this.toolRegistry, objectMapper);
-        this.answerFinalizer = new AgentAnswerFinalizer(resolvedAnswerReviewer, this.runtimeGuard, modelsConfig);
+        this.answerFinalizer = new AgentAnswerFinalizer(
+            resolvedAnswerReviewer,
+            this.runtimeGuard,
+            modelsConfig,
+            toolRegistry,
+            toolRuntimeService,
+            objectMapper,
+            agentRuntimeProperties
+        );
         ModelsConfig resolvedModelsConfig = modelsConfig == null ? new ModelsConfig() : modelsConfig;
         this.contextBudget = new AgentContextBudget(
             Math.max(32_000, resolvedModelsConfig.getContextWindowMaxTokens()),

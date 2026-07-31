@@ -118,7 +118,7 @@ function normalizeMessages(messages, status = "") {
     return [];
   }
   const allowEmptyAssistant = status === "running" || status === "pending";
-  return collapseDuplicateRestoredTurns(dedupeAdjacentUserMessages(messages
+  return collapseDuplicateAssistantResults(collapseDuplicateRestoredTurns(dedupeAdjacentUserMessages(messages
     .filter((message) => {
       if (!message || !message.role) {
         return false;
@@ -159,7 +159,45 @@ function normalizeMessages(messages, status = "") {
         feedbackSubmitting: false,
         feedbackError: ""
       };
-    })));
+    }))));
+}
+
+function normalizedAnswerContent(message = {}) {
+  return String(message?.uiResponse?.answer || message?.content || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function assistantPresentationScore(message = {}) {
+  return (Array.isArray(message.steps) ? message.steps.length * 4 : 0)
+    + (Array.isArray(message.traces) ? message.traces.length * 3 : 0)
+    + (message.visualizationSpec ? 6 : 0)
+    + (message.uiResponse ? 2 : 0)
+    + (message.taskId ? 2 : 0);
+}
+
+function collapseDuplicateAssistantResults(messages = []) {
+  const collapsed = [];
+  for (const message of messages) {
+    const previous = collapsed[collapsed.length - 1];
+    const answer = normalizedAnswerContent(message);
+    const duplicateAssistant = previous?.role === "assistant"
+      && message?.role === "assistant"
+      && !!answer
+      && normalizedAnswerContent(previous) === answer;
+    if (!duplicateAssistant) {
+      collapsed.push(message);
+      continue;
+    }
+    if (assistantPresentationScore(message) > assistantPresentationScore(previous)) {
+      collapsed[collapsed.length - 1] = {
+        ...message,
+        id: previous.id || message.id,
+        timestamp: previous.timestamp || message.timestamp
+      };
+    }
+  }
+  return collapsed;
 }
 
 function dedupeAdjacentUserMessages(messages = []) {
@@ -2382,7 +2420,7 @@ export default {
       }
     },
     serializeMessages(messages = []) {
-      return messages.map((message) => ({
+      return collapseDuplicateAssistantResults(messages).map((message) => ({
         id: message.id,
         role: message.role,
         content: message.content,

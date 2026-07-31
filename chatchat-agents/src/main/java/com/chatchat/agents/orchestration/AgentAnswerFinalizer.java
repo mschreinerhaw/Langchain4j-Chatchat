@@ -152,11 +152,17 @@ class AgentAnswerFinalizer {
             values.putIfAbsent("dataVisualization", visualizationSpec);
             values.put("toolResultDataDisplayed", true);
             values.put("toolResultDataDisplaySource", visualizationSpec.get("sourceTool"));
-            String answerWithTable = appendToolResultTable(finalAnswer, visualizationSpec);
-            if (!answerWithTable.equals(finalAnswer)) {
-                finalAnswer = answerWithTable;
-                values.put("toolResultDataMarkdownAppended", true);
-                values.put("finalAnswerPreview", shortText(finalAnswer, 1000));
+            if (supportsStructuredResultPresentation(values)) {
+                values.put("toolResultPresentationMode", "structured_visualization");
+                values.put("toolResultDataMarkdownSuppressed", true);
+            } else {
+                String answerWithTable = appendToolResultTable(finalAnswer, visualizationSpec);
+                if (!answerWithTable.equals(finalAnswer)) {
+                    finalAnswer = answerWithTable;
+                    values.put("toolResultPresentationMode", "markdown_fallback");
+                    values.put("toolResultDataMarkdownAppended", true);
+                    values.put("finalAnswerPreview", shortText(finalAnswer, 1000));
+                }
             }
         }
         List<Map<String, Object>> toolEvidence = toolResultEvidence(traces);
@@ -844,6 +850,18 @@ class AgentAnswerFinalizer {
         return Map.of();
     }
 
+    private boolean supportsStructuredResultPresentation(Map<String, Object> metadata) {
+        if (metadata == null) {
+            return false;
+        }
+        Object rawContract = metadata.get("responseContract");
+        if (!(rawContract instanceof Map<?, ?> contract)) {
+            return false;
+        }
+        String version = stringValue(contract.get("version"));
+        return version != null && version.startsWith("response-contract-v");
+    }
+
     private Map<String, Object> tableVisualizationSpec(String title,
                                                        List<String> columns,
                                                        List<Map<String, Object>> rows,
@@ -921,7 +939,7 @@ class AgentAnswerFinalizer {
             return Map.of();
         }
         List<Map<String, Object>> countedRows = categoryCountRows(rows, categoryKey);
-        if (countedRows.size() < 2) {
+        if (!isReadableCategoryDistribution(rows, countedRows)) {
             return Map.of();
         }
         return chartVisualizationSpec(
@@ -988,6 +1006,19 @@ class AgentAnswerFinalizer {
             .toList();
     }
 
+    private boolean isReadableCategoryDistribution(List<Map<String, Object>> rows,
+                                                   List<Map<String, Object>> countedRows) {
+        if (rows == null || rows.size() < 2 || countedRows == null || countedRows.size() < 2) {
+            return false;
+        }
+        int categoryCount = countedRows.size();
+        if (categoryCount > 20) {
+            return false;
+        }
+        // One category per row is an identifier listing, not a useful distribution.
+        return categoryCount < rows.size();
+    }
+
     private boolean isTimeColumn(String column, List<Map<String, Object>> rows) {
         String normalized = column == null ? "" : column.toLowerCase();
         if (normalized.matches(".*(date|time|month|year|day|week|quarter).*")
@@ -1006,7 +1037,7 @@ class AgentAnswerFinalizer {
 
     private boolean isIdentifierColumn(String column) {
         String normalized = column == null ? "" : column.toLowerCase();
-        return normalized.matches(".*(id|code|no|uuid|serial).*")
+        return normalized.matches(".*(id|code|no|uuid|serial|key|hash|token).*")
             || normalized.contains("代码")
             || normalized.contains("编号")
             || normalized.contains("标识");

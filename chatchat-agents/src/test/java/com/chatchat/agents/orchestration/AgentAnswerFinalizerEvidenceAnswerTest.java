@@ -275,6 +275,50 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void structuredFrontendContractUsesOneReadableResultPresentation() {
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            (chatModel, query, systemPrompt, observations, answer) ->
+                new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok"),
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        InteractionToolTrace trace = InteractionToolTrace.builder()
+            .toolName("margin_trade_query")
+            .success(true)
+            .output("""
+                {
+                  "columns": ["observation_date", "record_key", "payload_json"],
+                  "rowCount": 3,
+                  "rows": [
+                    {"observation_date":"2026-07-29","record_key":"key-a","payload_json":"row-a"},
+                    {"observation_date":"2026-07-29","record_key":"key-b","payload_json":"row-b"},
+                    {"observation_date":"2026-07-29","record_key":"key-c","payload_json":"row-c"}
+                  ]
+                }
+                """)
+            .build();
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("responseContract", Map.of("version", "response-contract-v2"));
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishExecution(
+            "## 最新融资融券分析\n\n融资余额变化值得持续观察。",
+            List.of(trace),
+            metadata,
+            List.of("The margin query returned three rows.")
+        );
+
+        assertThat(result.answer())
+            .startsWith("## 最新融资融券分析\n\n融资余额变化值得持续观察。")
+            .doesNotContain("key-a", "key-b", "key-c");
+        assertThat(result.metadata())
+            .containsEntry("toolResultPresentationMode", "structured_visualization")
+            .containsEntry("toolResultDataMarkdownSuppressed", true)
+            .doesNotContainKey("toolResultDataMarkdownAppended");
+        Map<String, Object> visualization = (Map<String, Object>) result.metadata().get("visualizationSpec");
+        assertThat(visualization).containsEntry("type", "table");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void appendsRowsFromEverySuccessfulDiagnosticBatchChild() {
         AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
             (chatModel, query, systemPrompt, observations, answer) ->

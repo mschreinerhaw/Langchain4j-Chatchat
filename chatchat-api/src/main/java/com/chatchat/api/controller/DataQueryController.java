@@ -304,7 +304,7 @@ public class DataQueryController {
         }
         String tenantId = resolveTenantId(servletRequest, request.getTenantId());
         String userId = request.getUserId() == null || request.getUserId().isBlank() ? "default-user" : request.getUserId();
-        List<ConversationMessage> messages = request.getMessages() == null ? List.of() : request.getMessages();
+        List<ConversationMessage> messages = collapseDuplicateAssistantResults(request.getMessages());
         String status = resolveHistoryStatus(request.getStatus(), messages);
         String conversationId = firstNonBlank(request.getConversationId(), request.getHistoryId());
         if (conversationId == null) {
@@ -367,8 +367,11 @@ public class DataQueryController {
             return ApiResponse.success(loadPersistentHistory(resolvedTenantId, userId, null, null, 30), "History not found");
         }
         conversationService.updateConversationSummary(resolvedTenantId, conversationId, userId, conversation.getTitle(), status);
+        List<ConversationMessage> messages = request == null
+            ? List.of()
+            : collapseDuplicateAssistantResults(request.getMessages());
         if (request != null && request.getMessages() != null) {
-            conversationService.replaceMessages(resolvedTenantId, conversationId, userId, toConversationMessages(request.getMessages()));
+            conversationService.replaceMessages(resolvedTenantId, conversationId, userId, toConversationMessages(messages));
         }
         List<HistoryItem> history = loadPersistentHistory(resolvedTenantId, userId, null, null, 30);
         if (request != null && request.getMessages() != null) {
@@ -382,7 +385,7 @@ public class DataQueryController {
                 conversation.getMode(),
                 conversation.getAgentName(),
                 Map.of(),
-                request.getMessages(),
+                messages,
                 status,
                 toEpochMillis(conversation.getCreatedAt())
             ));
@@ -611,11 +614,11 @@ public class DataQueryController {
      * @return the converted history item
      */
     private HistoryItem toHistoryItem(Conversation conversation) {
-        List<ConversationMessage> messages = conversation.getMessages() == null
+        List<ConversationMessage> messages = collapseDuplicateAssistantResults(conversation.getMessages() == null
             ? List.of()
             : conversation.getMessages().stream()
                 .map(this::toConversationMessage)
-                .toList();
+                .toList());
         String question = firstUserMessage(messages);
         if (question == null) {
             question = conversation.getTitle();
@@ -739,6 +742,60 @@ public class DataQueryController {
                 .taskId(message.getTaskId())
                 .build())
             .toList();
+    }
+
+    private List<ConversationMessage> collapseDuplicateAssistantResults(List<ConversationMessage> messages) {
+        if (messages == null || messages.isEmpty()) {
+            return List.of();
+        }
+        List<ConversationMessage> collapsed = new ArrayList<>();
+        for (ConversationMessage message : messages) {
+            ConversationMessage previous = collapsed.isEmpty() ? null : collapsed.get(collapsed.size() - 1);
+            if (!isDuplicateAssistantResult(previous, message)) {
+                collapsed.add(message);
+                continue;
+            }
+            if (assistantPresentationScore(message) > assistantPresentationScore(previous)) {
+                collapsed.set(collapsed.size() - 1, message);
+            }
+        }
+        return List.copyOf(collapsed);
+    }
+
+    private boolean isDuplicateAssistantResult(ConversationMessage first, ConversationMessage second) {
+        if (first == null || second == null
+            || !"assistant".equalsIgnoreCase(first.getRole())
+            || !"assistant".equalsIgnoreCase(second.getRole())) {
+            return false;
+        }
+        String firstAnswer = normalizedAssistantAnswer(first);
+        String secondAnswer = normalizedAssistantAnswer(second);
+        return !firstAnswer.isBlank() && firstAnswer.equals(secondAnswer);
+    }
+
+    private String normalizedAssistantAnswer(ConversationMessage message) {
+        Object uiAnswer = message == null || message.getUiResponse() == null
+            ? null
+            : message.getUiResponse().get("answer");
+        String content = uiAnswer == null || String.valueOf(uiAnswer).isBlank()
+            ? message == null ? "" : message.getContent()
+            : String.valueOf(uiAnswer);
+        return content == null ? "" : content.replaceAll("\\s+", " ").trim();
+    }
+
+    private int assistantPresentationScore(ConversationMessage message) {
+        if (message == null) {
+            return 0;
+        }
+        int score = safeSize(message.getSteps()) * 4 + safeSize(message.getTraces()) * 3;
+        score += message.getVisualizationSpec() == null || message.getVisualizationSpec().isEmpty() ? 0 : 6;
+        score += message.getUiResponse() == null || message.getUiResponse().isEmpty() ? 0 : 2;
+        score += message.getTaskId() == null || message.getTaskId().isBlank() ? 0 : 2;
+        return score;
+    }
+
+    private int safeSize(List<?> values) {
+        return values == null ? 0 : values.size();
     }
 
     /**

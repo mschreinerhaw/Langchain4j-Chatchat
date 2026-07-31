@@ -280,7 +280,7 @@ public class ConversationService {
         summaryRepository.deleteBySessionId(normalizedConversationId);
 
         Instant lastCreatedAt = session.getUpdatedAt() == null ? Instant.now() : session.getUpdatedAt();
-        List<Conversation.Message> snapshot = messages == null ? List.of() : messages;
+        List<Conversation.Message> snapshot = collapseDuplicateAssistantResults(messages);
         for (int index = 0; index < snapshot.size(); index++) {
             Conversation.Message message = snapshot.get(index);
             if (message == null || message.getRole() == null || message.getRole().isBlank()) {
@@ -293,6 +293,62 @@ public class ConversationService {
 
         session.setUpdatedAt(lastCreatedAt);
         sessionRepository.save(session);
+    }
+
+    static List<Conversation.Message> collapseDuplicateAssistantResults(List<Conversation.Message> messages) {
+        if (messages == null || messages.isEmpty()) {
+            return List.of();
+        }
+        List<Conversation.Message> collapsed = new ArrayList<>();
+        for (Conversation.Message message : messages) {
+            Conversation.Message previous = collapsed.isEmpty() ? null : collapsed.get(collapsed.size() - 1);
+            if (!isDuplicateAssistantResult(previous, message)) {
+                collapsed.add(message);
+                continue;
+            }
+            if (presentationScore(message) > presentationScore(previous)) {
+                collapsed.set(collapsed.size() - 1, message);
+            }
+        }
+        return List.copyOf(collapsed);
+    }
+
+    private static boolean isDuplicateAssistantResult(Conversation.Message first,
+                                                      Conversation.Message second) {
+        if (first == null || second == null
+            || !"assistant".equalsIgnoreCase(first.getRole())
+            || !"assistant".equalsIgnoreCase(second.getRole())) {
+            return false;
+        }
+        String firstAnswer = normalizedAnswer(first);
+        String secondAnswer = normalizedAnswer(second);
+        return !firstAnswer.isBlank() && firstAnswer.equals(secondAnswer);
+    }
+
+    private static String normalizedAnswer(Conversation.Message message) {
+        if (message == null) {
+            return "";
+        }
+        Object uiAnswer = message.getUiResponse() == null ? null : message.getUiResponse().get("answer");
+        String content = uiAnswer == null || String.valueOf(uiAnswer).isBlank()
+            ? message.getContent()
+            : String.valueOf(uiAnswer);
+        return content == null ? "" : content.replaceAll("\\s+", " ").trim();
+    }
+
+    private static int presentationScore(Conversation.Message message) {
+        if (message == null) {
+            return 0;
+        }
+        int score = size(message.getSteps()) * 4 + size(message.getTraces()) * 3;
+        score += message.getVisualizationSpec() == null || message.getVisualizationSpec().isEmpty() ? 0 : 6;
+        score += message.getUiResponse() == null || message.getUiResponse().isEmpty() ? 0 : 2;
+        score += message.getTaskId() == null || message.getTaskId().isBlank() ? 0 : 2;
+        return score;
+    }
+
+    private static int size(List<?> values) {
+        return values == null ? 0 : values.size();
     }
 
     /**

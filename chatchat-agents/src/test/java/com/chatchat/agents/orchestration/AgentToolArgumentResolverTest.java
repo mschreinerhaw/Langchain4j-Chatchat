@@ -507,6 +507,83 @@ class AgentToolArgumentResolverTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void replacesInventedSshTemplateAndTargetWithObservedContract() {
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .toolName("mcp_chatchat_mcp_server_ssh_template_query")
+            .success(true)
+            .output("""
+                {
+                  "queryIr": {
+                    "asset": {
+                      "selected": {
+                        "name": "LiveData 调度器节点（CDH）",
+                        "environment": "DEV"
+                      }
+                    }
+                  },
+                  "templates": [{
+                    "templateId": "CHECK_JAVA_PROCESS",
+                    "parameterContract": {"executionTool": "linux_command_execute"},
+                    "parameterSchema": {
+                      "type": "object",
+                      "properties": {},
+                      "required": []
+                    }
+                  }]
+                }
+                """)
+            .build();
+
+        Map<String, Object> result = resolver.applyObservedTemplateContract(
+            "mcp_chatchat_mcp_server_linux_command_execute",
+            Map.of(
+                "template", "CHECK_IO_STATUS",
+                "parameters", Map.of(),
+                "executionContext", Map.of("assetName", "Docker 数据库模拟服务器", "env", "DEV")
+            ),
+            List.of(discovery)
+        );
+
+        assertThat(result).containsEntry("template", "CHECK_JAVA_PROCESS");
+        assertThat((Map<String, Object>) result.get("executionContext"))
+            .containsEntry("assetName", "LiveData 调度器节点（CDH）")
+            .containsEntry("env", "DEV");
+    }
+
+    @Test
+    void preservesTemplateWhenItExistsInObservedContract() {
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .toolName("mcp_chatchat_mcp_server_ssh_template_query")
+            .success(true)
+            .output("""
+                {
+                  "templates": [
+                    {
+                      "templateId": "CHECK_CPU",
+                      "parameterContract": {"executionTool": "linux_command_execute"},
+                      "parameterSchema": {"type": "object", "properties": {}, "required": []}
+                    },
+                    {
+                      "templateId": "CHECK_JAVA_PROCESS",
+                      "parameterContract": {"executionTool": "linux_command_execute"},
+                      "parameterSchema": {"type": "object", "properties": {}, "required": []}
+                    }
+                  ]
+                }
+                """)
+            .build();
+
+        Map<String, Object> result = resolver.applyObservedTemplateContract(
+            "mcp_chatchat_mcp_server_linux_command_execute",
+            Map.of("template", "CHECK_JAVA_PROCESS", "parameters", Map.of()),
+            List.of(discovery)
+        );
+
+        assertThat(result).containsEntry("template", "CHECK_JAVA_PROCESS");
+    }
+
+    @Test
     void doesNotUseDiscoveryTemplateDeclaredForAnotherExecutor() {
         InteractionToolTrace discovery = InteractionToolTrace.builder()
             .success(true)
@@ -552,7 +629,9 @@ class AgentToolArgumentResolverTest {
 
         assertThat(result)
             .containsEntry("templateId", "customer_profile_query")
-            .containsEntry("parameters", Map.of("customerId", "C-1001"))
+            .containsEntry("parameters", Map.of())
+            .containsEntry("__runtimeParamBindingStatus", "DENIED")
+            .containsEntry("__runtimeParamBindingCode", "INVALID_TOOL_ARGUMENTS")
             .doesNotContainKey("template");
     }
 
@@ -586,7 +665,7 @@ class AgentToolArgumentResolverTest {
             .containsEntry("__runtimeParamBindingStatus", "DENIED")
             .containsEntry("__runtimeParamBindingCode", "INVALID_TOOL_ARGUMENTS");
         assertThat(result.get("__runtimeParamBindingError").toString())
-            .contains("REQUIRED_PARAMETER_MISSING")
+            .contains("TEMPLATE_PARAMETER_PROTOCOL_REQUIRED")
             .contains("tableName");
     }
 

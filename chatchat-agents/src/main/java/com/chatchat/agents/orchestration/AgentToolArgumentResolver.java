@@ -134,9 +134,11 @@ class AgentToolArgumentResolver {
                                                       Map<String, Object> arguments,
                                                       List<InteractionToolTrace> traces) {
         Map<String, Object> values = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
-        if (hasExecutableReference(values) || traces == null || traces.isEmpty()) {
+        if (traces == null || traces.isEmpty()) {
             return values;
         }
+        String requestedTemplateId = scalarText(firstPresent(
+            values, "template", "templateId", "template_id", "commandTemplate", "command_template"));
         for (int index = traces.size() - 1; index >= 0; index--) {
             InteractionToolTrace trace = traces.get(index);
             if (trace == null || !trace.isSuccess() || trace.getOutput() == null || trace.getOutput().isBlank()) {
@@ -146,66 +148,79 @@ class AgentToolArgumentResolver {
             if (output == null) {
                 continue;
             }
-            for (Map<String, Object> template : discoveredTemplates(output)) {
-                String executor = discoveredExecutor(template);
-                String templateId = scalarText(firstPresent(template, "templateId", "template_id", "id", "code"));
-                if (templateId == null || executor == null || !sameExecutor(toolName, executor)) {
-                    continue;
-                }
-                if (apiTemplateExecutor(toolName)) {
-                    values.put("templateId", templateId);
-                } else {
-                    values.put("template", templateId);
-                }
-                boolean valid = true;
-                List<?> repairs = List.of();
-                Map<String, Object> protocolTrace = Map.of();
-                try {
-                    TemplateInvocationBridge.BridgeResult bridged = TEMPLATE_INVOCATION_BRIDGE.prepare(
-                        new TemplateInvocationBridge.BridgeRequest(
-                            toolName,
-                            null,
-                            templateId,
-                            template,
-                            values,
-                            null,
-                            false,
-                            true
-                        )
-                    );
-                    values = new LinkedHashMap<>(bridged.executorInput());
-                    repairs = bridged.repairs();
-                    protocolTrace = bridged.protocolTrace();
-                } catch (TemplateInvocationBridge.TemplateBridgeException ex) {
-                    valid = false;
-                    values.put(McpParamBindingResolver.STATUS_KEY, "DENIED");
-                    values.put(McpParamBindingResolver.CODE_KEY, "INVALID_TOOL_ARGUMENTS");
-                    values.put(McpParamBindingResolver.ERROR_KEY, ex.getMessage());
-                }
-                if (apiTemplateExecutor(toolName)) {
-                    values.remove("template");
-                } else {
-                    values.remove("templateId");
-                }
-                Map<String, Object> context = mutableMap(values.get("executionContext"));
-                Map<String, Object> selectedAsset = selectedAsset(output);
-                putIfText(context, "assetName", firstPresent(selectedAsset, "name", "assetName", "asset_name"));
-                putIfText(context, "env", firstPresent(selectedAsset, "environment", "env"));
-                if (!context.isEmpty()) {
-                    values.put("executionContext", context);
-                }
-                log.info("Agent tool arguments compiled from observed template contract: tool={}, templateId={}, "
-                        + "sourceTool={}, parameterKeys={}, contextKeys={}, protocolTrace={}, repairs={}, valid={}",
-                    toolName,
-                    templateId,
-                    trace.getToolName(),
-                    mutableMap(values.get("parameters")).keySet(),
-                    context.keySet(),
-                    protocolTrace,
-                    repairs,
-                    valid);
-                return values;
+            List<Map<String, Object>> candidates = discoveredTemplates(output).stream()
+                .filter(template -> sameExecutor(toolName, discoveredExecutor(template)))
+                .toList();
+            if (candidates.isEmpty()) {
+                continue;
             }
+            Map<String, Object> template = requestedTemplateId == null
+                ? candidates.get(0)
+                : candidates.stream()
+                    .filter(candidate -> requestedTemplateId.equalsIgnoreCase(
+                        scalarText(firstPresent(candidate, "templateId", "template_id", "id", "code"))))
+                    .findFirst()
+                    .orElse(candidates.get(0));
+            String templateId = scalarText(firstPresent(template, "templateId", "template_id", "id", "code"));
+            if (templateId == null) {
+                continue;
+            }
+            if (apiTemplateExecutor(toolName)) {
+                values.put("templateId", templateId);
+            } else {
+                values.put("template", templateId);
+            }
+            boolean valid = true;
+            List<?> repairs = List.of();
+            Map<String, Object> protocolTrace = Map.of();
+            try {
+                TemplateInvocationBridge.BridgeResult bridged = TEMPLATE_INVOCATION_BRIDGE.prepare(
+                    new TemplateInvocationBridge.BridgeRequest(
+                        toolName,
+                        null,
+                        templateId,
+                        template,
+                        values,
+                        null,
+                        false,
+                        true
+                    )
+                );
+                values = new LinkedHashMap<>(bridged.executorInput());
+                repairs = bridged.repairs();
+                protocolTrace = bridged.protocolTrace();
+            } catch (TemplateInvocationBridge.TemplateBridgeException ex) {
+                valid = false;
+                // A denied bridge result must never carry unreviewed model parameters farther.
+                values.put("parameters", Map.of());
+                values.put(McpParamBindingResolver.STATUS_KEY, "DENIED");
+                values.put(McpParamBindingResolver.CODE_KEY, "INVALID_TOOL_ARGUMENTS");
+                values.put(McpParamBindingResolver.ERROR_KEY, ex.getMessage());
+            }
+            if (apiTemplateExecutor(toolName)) {
+                values.remove("template");
+            } else {
+                values.remove("templateId");
+            }
+            Map<String, Object> context = mutableMap(values.get("executionContext"));
+            Map<String, Object> selectedAsset = selectedAsset(output);
+            putIfText(context, "assetName", firstPresent(selectedAsset, "name", "assetName", "asset_name"));
+            putIfText(context, "env", firstPresent(selectedAsset, "environment", "env"));
+            if (!context.isEmpty()) {
+                values.put("executionContext", context);
+            }
+            log.info("Agent tool arguments compiled from observed template contract: tool={}, requestedTemplateId={}, "
+                    + "templateId={}, sourceTool={}, parameterKeys={}, contextKeys={}, protocolTrace={}, repairs={}, valid={}",
+                toolName,
+                requestedTemplateId,
+                templateId,
+                trace.getToolName(),
+                mutableMap(values.get("parameters")).keySet(),
+                context.keySet(),
+                protocolTrace,
+                repairs,
+                valid);
+            return values;
         }
         return values;
     }
@@ -261,10 +276,6 @@ class AgentToolArgumentResolver {
                 toolName, parameter, evidence.size());
         }
         return values;
-    }
-
-    private boolean hasExecutableReference(Map<String, Object> values) {
-        return scalarText(firstPresent(values, "sql", "template", "templateId", "template_id")) != null;
     }
 
     private Object parseJson(String text) {

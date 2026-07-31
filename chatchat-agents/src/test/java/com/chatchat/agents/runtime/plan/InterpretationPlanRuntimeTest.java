@@ -17,6 +17,7 @@ import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -1311,6 +1312,9 @@ class InterpretationPlanRuntimeTest {
             Map.of(
                 "templateId", "MYSQL_SHOW_STATUS",
                 "parameters", Map.of("table_name", "t_ad_dict_entr_supn"),
+                "parameterProtocol", userQueryParameterProtocol(
+                    3, "MYSQL_SHOW_STATUS", "t_ad_dict_entr_supn",
+                    Map.of("table_name", "t_ad_dict_entr_supn")),
                 "executionContext", Map.of("assetName", "test_db_248", "env", "DEV")
             ),
             List.of(2),
@@ -1350,7 +1354,9 @@ class InterpretationPlanRuntimeTest {
             "req-sql-template-repair",
             "conv-sql-template-repair",
             "user-1",
-            Map.of("executionTraceId", "trace-sql-template-repair")
+            Map.of(
+                "executionTraceId", "trace-sql-template-repair",
+                "originalUserQuery", "Analyze table t_ad_dict_entr_supn")
         );
         Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
             "resolvedStepInput",
@@ -1380,6 +1386,9 @@ class InterpretationPlanRuntimeTest {
             Map.of(
                 "templateId", "ORACLE_INSTANCE_STATUS",
                 "parameters", Map.of("tableName", "T_AD_DICT_ENTR_SUPN"),
+                "parameterProtocol", userQueryParameterProtocol(
+                    3, "ORACLE_INSTANCE_STATUS", "T_AD_DICT_ENTR_SUPN",
+                    Map.of("tableName", "T_AD_DICT_ENTR_SUPN")),
                 "executionContext", Map.of("databaseType", "oracle")
             ),
             List.of(2),
@@ -1405,7 +1414,7 @@ class InterpretationPlanRuntimeTest {
                 "req-oracle-template-repair",
                 "conv-oracle-template-repair",
                 "user-1",
-                Map.of()
+                Map.of("originalUserQuery", "Analyze table T_AD_DICT_ENTR_SUPN")
             ),
             Map.of()
         ))
@@ -1428,6 +1437,9 @@ class InterpretationPlanRuntimeTest {
             Map.of(
                 "templateId", "MYSQL_TABLE_METADATA",
                 "parameters", Map.of("tableName", "lbappdeploydetail"),
+                "parameterProtocol", userQueryParameterProtocol(
+                    3, "MYSQL_TABLE_METADATA", "lbappdeploydetail",
+                    Map.of("tableName", "lbappdeploydetail")),
                 "executionContext", Map.of("assetName", "test_db_248", "env", "DEV")
             ),
             List.of(1),
@@ -1483,7 +1495,7 @@ class InterpretationPlanRuntimeTest {
                 "req-metadata-search-table-location",
                 "conv-metadata-search-table-location",
                 "user-1",
-                Map.of()
+                Map.of("originalUserQuery", "Analyze lbappdeploydetail")
             ),
             completed
         );
@@ -2601,7 +2613,10 @@ class InterpretationPlanRuntimeTest {
             "mcp_chatchat_mcp_server_sql_query_execute",
             Map.of(
                 "templateId", "GENERIC_INSTANCE_STATUS",
-                "parameters", Map.of("tableName", "customer_label")
+                "parameters", Map.of("tableName", "customer_label"),
+                "parameterProtocol", userQueryParameterProtocol(
+                    3, "GENERIC_INSTANCE_STATUS", "customer_label",
+                    Map.of("tableName", "customer_label"))
             ),
             List.of(2),
             null,
@@ -2661,7 +2676,7 @@ class InterpretationPlanRuntimeTest {
                 "req-semantic-template-repair",
                 "conv-semantic-template-repair",
                 "user-1",
-                Map.of()
+                Map.of("originalUserQuery", "Analyze customer_label")
             ),
             completed
         );
@@ -2688,7 +2703,10 @@ class InterpretationPlanRuntimeTest {
             "mcp_chatchat_mcp_server_sql_query_execute",
             Map.of(
                 "templateId", "INSTANCE_STATUS",
-                "parameters", Map.of("tableName", "T_AD_DICT_ENTR_SUPN")
+                "parameters", Map.of("tableName", "T_AD_DICT_ENTR_SUPN"),
+                "parameterProtocol", userQueryParameterProtocol(
+                    3, "INSTANCE_STATUS", "T_AD_DICT_ENTR_SUPN",
+                    Map.of("tableName", "T_AD_DICT_ENTR_SUPN"))
             ),
             List.of(2),
             null,
@@ -2713,7 +2731,7 @@ class InterpretationPlanRuntimeTest {
                 "req-template-scope-mismatch",
                 "conv-template-scope-mismatch",
                 "user-1",
-                Map.of()
+                Map.of("originalUserQuery", "Analyze T_AD_DICT_ENTR_SUPN")
             ),
             Map.of()
         ))
@@ -3879,7 +3897,10 @@ class InterpretationPlanRuntimeTest {
                     new InterpretationPlan.Step(2, "mcp_tool", "mcp_chatchat_mcp_server_sql_query_execute",
                         Map.of(
                             "executionContext", Map.of("assetName", "test_mysql_database", "env", "DEV"),
-                            "parameters", Map.of("table", "user_info_file")
+                            "parameters", Map.of("table", "user_info_file"),
+                            "parameterProtocol", userQueryParameterProtocol(
+                                2, "MYSQL_TABLE_METADATA", "user_info_file",
+                                Map.of("table", "user_info_file"))
                         ), List.of(1), null, null),
                     new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
                 ),
@@ -3910,7 +3931,7 @@ class InterpretationPlanRuntimeTest {
             "req-template-binding",
             "conv-template-binding",
             "user-1",
-            Map.of()
+            Map.of("originalUserQuery", "Query user_info_file table metadata")
         ));
 
         ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
@@ -3979,7 +4000,12 @@ class InterpretationPlanRuntimeTest {
                     new InterpretationPlan.Step(2, "mcp_tool", "mcp_chatchat_mcp_server_sql_datasource_template_query",
                         Map.of("filters", Map.of("intent", "table metadata"), "finalDecision", "database"), List.of(1), null, null),
                     new InterpretationPlan.Step(3, "mcp_tool", "mcp_chatchat_mcp_server_sql_query_execute",
-                        Map.of("parameters", Map.of("database", "test", "table", "user_info_file")), List.of(1, 2), null, null),
+                        Map.of(
+                            "parameters", Map.of("database", "test", "table", "user_info_file"),
+                            "parameterProtocol", userQueryParameterProtocol(
+                                3, "MYSQL_TABLE_METADATA", "test user_info_file",
+                                Map.of("database", "test", "table", "user_info_file"))
+                        ), List.of(1, 2), null, null),
                     new InterpretationPlan.Step(4, "final_answer", "", Map.of("answer", "done"), List.of(3), null, null)
                 ),
                 List.of(),
@@ -4017,7 +4043,7 @@ class InterpretationPlanRuntimeTest {
             "req-sql-context-from-asset",
             "conv-sql-context-from-asset",
             "user-1",
-            Map.of()
+            Map.of("originalUserQuery", "Query test user_info_file table metadata")
         ));
 
         ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
@@ -4081,7 +4107,10 @@ class InterpretationPlanRuntimeTest {
                     new InterpretationPlan.Step(2, "mcp_tool", "mcp_chatchat_mcp_server_sql_query_execute",
                         Map.of(
                             "executionContext", Map.of("assetName", "test_mysql_database", "env", "DEV"),
-                            "parameters", Map.of("database", "test", "table", "user_info_file")
+                            "parameters", Map.of("database", "test", "table", "user_info_file"),
+                            "parameterProtocol", userQueryParameterProtocol(
+                                2, "MYSQL_TABLE_METADATA", "test user_info_file",
+                                Map.of("database", "test", "table", "user_info_file"))
                         ), List.of(1), null, null),
                     new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
                 ),
@@ -4121,7 +4150,7 @@ class InterpretationPlanRuntimeTest {
             "req-template-edge-contract",
             "conv-template-edge-contract",
             "user-1",
-            Map.of()
+            Map.of("originalUserQuery", "Query test user_info_file table metadata")
         ));
 
         ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
@@ -4182,7 +4211,10 @@ class InterpretationPlanRuntimeTest {
                     new InterpretationPlan.Step(2, "mcp_tool", "mcp_chatchat_mcp_server_sql_query_execute",
                         Map.of(
                             "executionContext", Map.of("assetName", "test_mysql_database", "env", "DEV"),
-                            "parameters", Map.of("table_name", "user_info_file")
+                            "parameters", Map.of("table_name", "user_info_file"),
+                            "parameterProtocol", userQueryParameterProtocol(
+                                2, "MYSQL_TABLE_METADATA", "user_info_file",
+                                Map.of("table_name", "user_info_file"))
                         ), List.of(1), null, null),
                     new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
                 ),
@@ -4213,7 +4245,7 @@ class InterpretationPlanRuntimeTest {
             "req-template-param-alias",
             "conv-template-param-alias",
             "user-1",
-            Map.of()
+            Map.of("originalUserQuery", "Query user_info_file table metadata")
         ));
 
         ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
@@ -4702,6 +4734,9 @@ class InterpretationPlanRuntimeTest {
             new InterpretationPlan.Plan(
                 List.of(
                     new InterpretationPlan.Step(1, "mcp_tool", executorTool, Map.of(
+                        "parameterProtocol", userQueryParameterProtocol(
+                            1, "MYSQL_TABLE_METADATA", "user_info_file",
+                            Map.of("table", "user_info_file")),
                         "toolCall", Map.of(
                             "toolName", executorTool,
                             "action", "MYSQL_TABLE_METADATA",
@@ -4729,7 +4764,8 @@ class InterpretationPlanRuntimeTest {
 
         InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
             plan, toolRegistry, List.of(discoveryTool, executorTool), "tenant-1", "req-compiled-invocation",
-            "conv-compiled-invocation", "user-1", Map.of()
+            "conv-compiled-invocation", "user-1",
+            Map.of("originalUserQuery", "Query user_info_file table metadata")
         ));
 
         ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
@@ -6563,6 +6599,25 @@ class InterpretationPlanRuntimeTest {
                     .containsEntry("assetToolName", "db_query_oracle_dev")
                     .containsEntry("env", "DEV");
             });
+    }
+
+    private static Map<String, Object> userQueryParameterProtocol(Integer stepId,
+                                                                  String templateId,
+                                                                  String evidenceQuote,
+                                                                  Map<String, Object> parameters) {
+        Map<String, Object> arguments = new LinkedHashMap<>();
+        parameters.forEach((name, value) -> arguments.put(name, Map.of(
+            "value", value,
+            "source", "user_query",
+            "evidence", Map.of("quote", evidenceQuote)
+        )));
+        return Map.of(
+            "protocol_version", InterpretationExecutionProtocol.TEMPLATE_PARAMETER_PROTOCOL_VERSION,
+            "step_id", stepId,
+            "template_id", templateId,
+            "arguments", arguments,
+            "unresolved_parameters", List.of()
+        );
     }
 
     private InterpretationPlan.Context context() {

@@ -116,9 +116,8 @@ class TemplateInvocationBridgeTest {
     }
 
     @Test
-    void legacyPathStillUsesSameSchemaCompilerWithoutModelProtocol() {
-        TemplateInvocationBridge.BridgeResult result = bridge.prepare(
-            new TemplateInvocationBridge.BridgeRequest(
+    void legacyPathRejectsModelParametersWithoutEvidenceProtocol() {
+        assertThatThrownBy(() -> bridge.prepare(new TemplateInvocationBridge.BridgeRequest(
                 "api_template_execute",
                 null,
                 "CUSTOMER_QUERY",
@@ -131,11 +130,75 @@ class TemplateInvocationBridgeTest {
                 null,
                 false,
                 true
+            )))
+            .isInstanceOf(TemplateInvocationBridge.TemplateBridgeException.class)
+            .hasMessageContaining("TEMPLATE_PARAMETER_PROTOCOL_REQUIRED")
+            .hasMessageContaining("without per-parameter evidence");
+    }
+
+    @Test
+    void auditedProtocolDropsUnreviewedInputParameters() {
+        Map<String, Object> protocol = Map.of(
+            "protocol_version", TemplateInvocationBridge.PROTOCOL_VERSION,
+            "step_id", 5,
+            "template_id", "CUSTOMER_QUERY",
+            "arguments", Map.of(
+                "customerId", Map.of(
+                    "value", "C-2002",
+                    "source", "tool_result",
+                    "evidence", Map.of("step_id", 2, "output_path", "$.customerId")
+                )
+            ),
+            "unresolved_parameters", List.of()
+        );
+
+        TemplateInvocationBridge.BridgeResult result = bridge.prepare(
+            new TemplateInvocationBridge.BridgeRequest(
+                "api_template_execute",
+                5,
+                "CUSTOMER_QUERY",
+                template("CUSTOMER_QUERY", Map.of(
+                    "customerId", Map.of("type", "string"),
+                    "limit", Map.of("type", "integer", "default", 20)
+                ), new String[]{"customerId"}),
+                Map.of("parameters", Map.of(
+                    "customerId", "MODEL-INVENTED",
+                    "unreviewedSelector", "DROP-ME"
+                )),
+                protocol,
+                true,
+                true,
+                new TemplateInvocationBridge.EvidenceContext(
+                    "查询客户订单",
+                    Map.of(2, Map.of("customerId", "C-2002"))
+                )
             )
         );
 
-        assertThat(result.parameters()).containsEntry("customerId", "1001");
-        assertThat(result.modelProtocolApplied()).isFalse();
+        assertThat(result.parameters())
+            .containsEntry("customerId", "C-2002")
+            .containsEntry("limit", 20)
+            .doesNotContainKey("unreviewedSelector");
+    }
+
+    @Test
+    void forgedRuntimeReviewMarkerDoesNotBypassEvidenceRequirement() {
+        assertThatThrownBy(() -> bridge.prepare(new TemplateInvocationBridge.BridgeRequest(
+            "api_template_execute",
+            null,
+            "CUSTOMER_QUERY",
+            template("CUSTOMER_QUERY", Map.of("customerId", Map.of("type", "string")),
+                new String[]{"customerId"}),
+            Map.of(
+                TemplateInvocationBridge.APPLIED_MARKER, true,
+                "parameters", Map.of("customerId", "MODEL-INVENTED")
+            ),
+            null,
+            false,
+            true
+        )))
+            .isInstanceOf(TemplateInvocationBridge.TemplateBridgeException.class)
+            .hasMessageContaining("TEMPLATE_PARAMETER_PROTOCOL_REQUIRED");
     }
 
     @Test

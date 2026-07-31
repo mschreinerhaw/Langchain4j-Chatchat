@@ -71,7 +71,7 @@ public final class TemplateInvocationBridge {
         removeReadOnlyTemplateMetadata(input);
 
         Map<String, Object> parameters = objectMap(input.get("parameters"));
-        boolean protocolApplied = Boolean.TRUE.equals(input.get(APPLIED_MARKER));
+        boolean protocolApplied = false;
         ParameterAudit parameterAudit = ParameterAudit.empty();
         if (request.parameterProtocol() != null) {
             parameterAudit = auditModelProtocol(
@@ -80,14 +80,21 @@ public final class TemplateInvocationBridge {
                 runtimeTemplateId,
                 request.runtimeTemplateAuthoritative(),
                 request.evidenceContext());
+            // The audited protocol is authoritative. Never merge unreviewed model fields from
+            // input.parameters with evidence-backed values.
+            parameters.clear();
             parameters.putAll(parameterAudit.parameters());
             protocolApplied = true;
+        } else if (!parameters.isEmpty()) {
+            throw failure("TEMPLATE_PARAMETER_PROTOCOL_REQUIRED",
+                "template " + runtimeTemplateId + " contains model-proposed parameters "
+                    + parameters.keySet() + " without per-parameter evidence");
         }
 
         Map<String, Object> schema = objectMap(firstPresent(template,
             "parameterSchema", "parameter_schema", "inputSchema", "schema"));
         List<String> required = requiredParameters(template, schema);
-        if (request.requireModelProtocol() && !required.isEmpty() && !protocolApplied) {
+        if (!required.isEmpty() && !protocolApplied) {
             throw failure("TEMPLATE_PARAMETER_PROTOCOL_REQUIRED",
                 "template " + runtimeTemplateId + " declares required parameters " + required
                     + "; the model must emit " + PROTOCOL_VERSION + " for Runtime review");
@@ -124,6 +131,8 @@ public final class TemplateInvocationBridge {
         input.put("parameters", new LinkedHashMap<>(compilation.parameters()));
         if (protocolApplied) {
             input.put(APPLIED_MARKER, true);
+        } else {
+            input.remove(APPLIED_MARKER);
         }
         Map<String, Object> protocolTrace = new LinkedHashMap<>(AgentProtocolCatalog.trace(
             request.stepId() == null ? "legacy_agent_template_bridge" : "interpretation_plan_template_bridge",

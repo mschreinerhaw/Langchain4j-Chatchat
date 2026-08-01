@@ -71,9 +71,9 @@ chatchat:
       index-dir: ./data/lucene/mcp
       open-search:
         enabled: true
-        url: https://192.168.195.221:9200
-        username: admin
-        password: apexSoft12345
+        url: ${CHATCHAT_OPENSEARCH_URL:https://127.0.0.1:9200}
+        username: ${CHATCHAT_OPENSEARCH_USERNAME:admin}
+        password: ${CHATCHAT_OPENSEARCH_PASSWORD:}
         index-prefix: chatchat_mcp_dev_
         insecure-ssl: true
         request-timeout-ms: 30000
@@ -96,7 +96,7 @@ chatchat:
           request-timeout-ms: 300000
           enabled: true
           endpoint: https://tokenhub.tencentmaas.com/v1/embeddings
-          api-key: sk-e9xW4FEk6ONVAy50XyQunS7A6dmE1a9X1errk7LW7yShFcvL
+          api-key: ${CHATCHAT_EMBEDDING_API_KEY:}
           model: kinfra-text-embedding-4b
           dimension: 1024
           vector-field: mcpContentVector

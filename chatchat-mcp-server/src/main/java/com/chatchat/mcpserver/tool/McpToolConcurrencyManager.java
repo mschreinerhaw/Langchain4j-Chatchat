@@ -7,7 +7,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.annotation.PreDestroy;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -19,13 +18,15 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -33,7 +34,6 @@ import java.util.function.Supplier;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class McpToolConcurrencyManager {
 
     private static final String STATUS_BUSY = "BUSY";
@@ -44,7 +44,21 @@ public class McpToolConcurrencyManager {
     private final ObjectMapper objectMapper;
     private final Map<String, LimitState> states = new ConcurrentHashMap<>();
     private final Map<String, CircuitState> circuitStates = new ConcurrentHashMap<>();
-    private final ExecutorService executor = Executors.newCachedThreadPool(new ToolThreadFactory());
+    private final ExecutorService executor;
+
+    public McpToolConcurrencyManager(ChatChatMcpServerProperties properties, ObjectMapper objectMapper) {
+        this.properties = properties;
+        this.objectMapper = objectMapper;
+        LimitProperties global = properties.getConcurrency().getGlobal();
+        int workers = normalizePositive(global.getMaxConcurrency(), 1);
+        int queueCapacity = Math.max(1, global.getQueueSize());
+        ThreadPoolExecutor boundedExecutor = new ThreadPoolExecutor(
+            workers, workers, 60L, TimeUnit.SECONDS,
+            new ArrayBlockingQueue<>(queueCapacity), new ToolThreadFactory(),
+            new ThreadPoolExecutor.AbortPolicy());
+        boundedExecutor.allowCoreThreadTimeOut(true);
+        this.executor = boundedExecutor;
+    }
 
     /**
      * Executes a tool call behind global, tool, asset and caller-level gates.
@@ -104,11 +118,24 @@ public class McpToolConcurrencyManager {
         }
 
         McpInvocationContext.Context invocationContext = McpInvocationContext.current();
-        Future<McpSchema.CallToolResult> future = executor.submit(() -> {
-            try (McpInvocationContext.Scope ignored = McpInvocationContext.open(invocationContext)) {
-                return executeInsideWorker(toolName, normalizedLevel, supplier, toolLimit, circuit, permits);
-            }
-        });
+        AtomicInteger executionState = new AtomicInteger();
+        Future<McpSchema.CallToolResult> future;
+        try {
+            future = executor.submit(() -> {
+                if (!executionState.compareAndSet(0, 1)) {
+                    throw new CancellationException("MCP tool execution was cancelled before it started");
+                }
+                try (McpInvocationContext.Scope ignored = McpInvocationContext.open(invocationContext)) {
+                    return executeInsideWorker(toolName, normalizedLevel, supplier, toolLimit, circuit, permits);
+                } finally {
+                    executionState.set(2);
+                }
+            });
+        } catch (RejectedExecutionException ex) {
+            release(permits);
+            log.warn("MCP tool executor saturated tool={} runtimeLevel={}", toolName, normalizedLevel);
+            return limitResult(STATUS_BUSY, toolName, normalizedLevel, "MCP tool executor is saturated");
+        }
 
         try {
             long timeoutSeconds = toolLimit.getTimeoutSeconds();
@@ -117,6 +144,7 @@ public class McpToolConcurrencyManager {
                 : future.get(timeoutSeconds, TimeUnit.SECONDS);
         } catch (TimeoutException ex) {
             future.cancel(true);
+            releaseIfNotStarted(executionState, permits);
             circuit.recordFailure(toolLimit);
             log.warn("MCP tool execution timeout tool={} runtimeLevel={} durationMs={}",
                 toolName, normalizedLevel, Math.max(0L, System.currentTimeMillis() - startedAt));
@@ -125,14 +153,22 @@ public class McpToolConcurrencyManager {
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
             future.cancel(true);
+            releaseIfNotStarted(executionState, permits);
             return limitResult(STATUS_TIMEOUT, toolName, normalizedLevel, "MCP tool execution was interrupted");
         } catch (CancellationException ex) {
+            releaseIfNotStarted(executionState, permits);
             return limitResult(STATUS_TIMEOUT, toolName, normalizedLevel, "MCP tool execution was cancelled");
         } catch (ExecutionException ex) {
             circuit.recordFailure(toolLimit);
             Throwable cause = ex.getCause() == null ? ex : ex.getCause();
             return limitResult("FAILED", toolName, normalizedLevel,
                 cause.getClass().getSimpleName() + ": " + cause.getMessage());
+        }
+    }
+
+    private void releaseIfNotStarted(AtomicInteger executionState, List<Permit> permits) {
+        if (executionState.compareAndSet(0, 2)) {
+            release(permits);
         }
     }
 

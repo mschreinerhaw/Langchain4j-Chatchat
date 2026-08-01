@@ -1,10 +1,10 @@
 spring:
   datasource:
     type: com.zaxxer.hikari.HikariDataSource
-    url: jdbc:mysql://192.168.195.221:3306/live_runtime_api?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    url: ${CHATCHAT_API_MYSQL_URL:jdbc:mysql://127.0.0.1:3306/live_runtime_api?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
     driver-class-name: com.mysql.cj.jdbc.Driver
-    username: livebos
-    password: apexSoft123!
+    username: ${CHATCHAT_API_MYSQL_USERNAME:chatchat_api}
+    password: ${CHATCHAT_API_MYSQL_PASSWORD:}
     hikari:
       maximum-pool-size: 20
       minimum-idle: 5

@@ -81,7 +81,7 @@ chatchat:
           request-timeout-ms: 300000
           enabled: true
           endpoint: https://tokenhub.tencentmaas.com/v1/embeddings
-          api-key: sk-e9xW4FEk6ONVAy50XyQunS7A6dmE1a9X1errk7LW7yShFcvL
+          api-key: ${CHATCHAT_EMBEDDING_API_KEY:}
           model: kinfra-text-embedding-4b
           dimension: 1024
           vector-field: mcpContentVector

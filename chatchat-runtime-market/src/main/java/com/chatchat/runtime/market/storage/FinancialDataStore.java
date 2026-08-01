@@ -1,5 +1,6 @@
 package com.chatchat.runtime.market.storage;
 
+import com.chatchat.common.concurrent.CancellationSupport;
 import com.chatchat.runtime.market.config.MarketModuleProperties;
 import com.chatchat.runtime.market.model.MarketObservation;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -362,6 +363,7 @@ public class FinancialDataStore {
     public Map<String, Object> query(String datasetCode, Map<String, Object> filters,
                                      LocalDate startDate, LocalDate endDate, int requestedLimit,
                                      String requestedHistoryMode) {
+        CancellationSupport.throwIfCancelled("financial data query");
         long startedAt = System.currentTimeMillis();
         String code = FinancialDatasetDefinition.normalizeCode(datasetCode);
         Map<String, Object> asset = catalog(code);
@@ -383,10 +385,12 @@ public class FinancialDataStore {
         List<Map<String, Object>> combined = new ArrayList<>();
         List<String> tiers = new ArrayList<>();
         if (readWeekly && tableExists(archiveTable)) {
+            CancellationSupport.throwIfCancelled("financial weekly data query");
             combined.addAll(queryTable(archiveTable, code, allowed, filters, startDate, endDate, limit, "weekly_snapshot"));
             tiers.add("weekly_snapshot");
         }
         if (readDaily) {
+            CancellationSupport.throwIfCancelled("financial daily data query");
             combined.addAll(queryTable(table, code, allowed, filters, startDate, endDate, limit, "daily_hot"));
             tiers.add("daily_hot");
         }

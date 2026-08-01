@@ -28,9 +28,9 @@ public class LuceneSearchProperties {
     @Data
     public static class OpenSearch {
         private boolean enabled = true;
-        private String url = "http://192.168.195.221:9200";
+        private String url = "https://127.0.0.1:9200";
         private String username = "admin";
-        private String password = "apexSoft12345";
+        private String password = "";
         private String indexPrefix = "chatchat_mcp_";
         private boolean insecureSsl = false;
         private int requestTimeoutMs = 30000;

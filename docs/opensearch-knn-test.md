@@ -3,8 +3,8 @@
 当前测试集群使用 HTTPS 和自签名证书，命令需要带 `-k`：
 
 ```powershell
-$OS = "https://192.168.195.221:9200"
-$AUTH = "admin:apexSoft12345"
+$OS = $env:CHATCHAT_OPENSEARCH_URL
+$AUTH = "$($env:CHATCHAT_OPENSEARCH_USERNAME):$($env:CHATCHAT_OPENSEARCH_PASSWORD)"
 ```
 
 ## 1. 检查插件
@@ -130,9 +130,9 @@ mapping 中出现 `engine: faiss`、`name: hnsw` 即表示 HNSW 向量索引创�
 API 文档检索和 MCP OpenSearch 检索都支持 HTTPS 自签名证书：
 
 ```yaml
-url: https://192.168.195.221:9200
-username: admin
-password: apexSoft12345
+url: ${CHATCHAT_OPENSEARCH_URL:https://127.0.0.1:9200}
+username: ${CHATCHAT_OPENSEARCH_USERNAME:admin}
+password: ${CHATCHAT_OPENSEARCH_PASSWORD:}
 insecure-ssl: true
 ```
 

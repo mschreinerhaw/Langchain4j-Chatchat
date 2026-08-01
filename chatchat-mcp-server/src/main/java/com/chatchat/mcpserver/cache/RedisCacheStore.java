@@ -171,7 +171,7 @@ public class RedisCacheStore {
                     sentinel.setSentinelUsername(config.getSentinelUsername());
                 }
                 if (config.getSentinelPassword() != null && !config.getSentinelPassword().isBlank()) {
-                    sentinel.setSentinelPassword(RedisPassword.of(config.getSentinelPassword()));
+                    sentinel.setSentinelPassword(RedisPassword.of(RedisSecretResolver.resolve(config.getSentinelPassword())));
                 }
                 sentinel.setDatabase(config.getDatabaseIndex());
                 yield new LettuceConnectionFactory(sentinel, clientConfiguration);
@@ -202,7 +202,7 @@ public class RedisCacheStore {
             configuration.setUsername(config.getUsername());
         }
         if (config.getPassword() != null && !config.getPassword().isBlank()) {
-            configuration.setPassword(RedisPassword.of(config.getPassword()));
+            configuration.setPassword(RedisPassword.of(RedisSecretResolver.resolve(config.getPassword())));
         }
     }
 

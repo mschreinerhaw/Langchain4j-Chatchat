@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.news;
 
+import com.chatchat.common.concurrent.CancellationSupport;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolParameter;
@@ -64,6 +65,7 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
     }
 
     private ToolOutput execute(ToolInput input) {
+        CancellationSupport.throwIfCancelled("unified web_search");
         String dataset = input.getParameterAsString("dataset", "").trim();
         if (!dataset.isBlank()) {
             try {
@@ -96,6 +98,7 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
                 if (!discoveryId.isBlank()) result.getMetadata().put("financialDiscoveryId", discoveryId);
                 return result;
             } catch (Exception ex) {
+                CancellationSupport.rethrowIfCancelled(ex, "financial dataset query");
                 return ToolOutput.failure(ex);
             }
         }
@@ -114,15 +117,19 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
             if (output.isSuccess()) news = resultList(output.getData());
             else warnings.add("news: " + safe(output.getErrorMessage()));
         } catch (Exception ex) {
+            CancellationSupport.rethrowIfCancelled(ex, "news retrieval");
             warnings.add("news: " + safe(ex.getMessage()));
         }
+        CancellationSupport.throwIfCancelled("unified web_search");
         try {
             String chainId = discoveryId;
             assets = marketCatalog.search(financialAssetQuery, limit).stream()
                 .map(source -> assetResult(source, chainId)).toList();
         } catch (Exception ex) {
+            CancellationSupport.rethrowIfCancelled(ex, "financial asset search");
             warnings.add("market: " + safe(ex.getMessage()));
         }
+        CancellationSupport.throwIfCancelled("unified web_search");
         if (news.isEmpty() && assets.isEmpty() && warnings.size() == 2) {
             return ToolOutput.failure("Both news and market search are unavailable: " + String.join("; ", warnings));
         }
@@ -178,6 +185,7 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         int rowLimit = bounded(input.getParameterAsNumber("limit"), 20, 1, 50);
         List<Map<String, Object>> hydrated = new ArrayList<>();
         for (Map<String, Object> asset : assets.stream().limit(5).toList()) {
+            CancellationSupport.throwIfCancelled("financial index hydration");
             String dataset = String.valueOf(asset.getOrDefault("dataset", "")).trim();
             if (dataset.isBlank()) continue;
             try {
@@ -189,6 +197,7 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
                 } else {
                     int perEntityLimit = Math.max(1, rowLimit / filters.size());
                     for (Map<String, Object> filter : filters) {
+                        CancellationSupport.throwIfCancelled("financial index hydration");
                         foundRows.addAll(rows(marketStore.query(
                             dataset, filter, startDate, endDate, perEntityLimit, historyMode)));
                     }
@@ -210,6 +219,7 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
                 item.put("historyMode", historyMode);
                 hydrated.add(Map.copyOf(item));
             } catch (Exception ex) {
+                CancellationSupport.rethrowIfCancelled(ex, "financial index hydration");
                 warnings.add("dataset " + dataset + ": " + safe(ex.getMessage()));
             }
         }

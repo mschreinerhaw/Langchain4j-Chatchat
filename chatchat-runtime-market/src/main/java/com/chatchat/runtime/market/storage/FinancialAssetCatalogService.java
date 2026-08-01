@@ -1,5 +1,6 @@
 package com.chatchat.runtime.market.storage;
 
+import com.chatchat.common.concurrent.CancellationSupport;
 import com.chatchat.runtime.market.config.MarketModuleProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +38,7 @@ public class FinancialAssetCatalogService {
             index.ensureIndex(indexName);
             indexCatalog(definition.code());
         } catch (Exception ex) {
+            CancellationSupport.rethrowIfCancelled(ex, "financial asset catalog indexing");
             log.warn("financial_asset_catalog_index_failed dataset={} error={}", definition.code(), ex.getMessage());
         }
     }
@@ -57,6 +59,7 @@ public class FinancialAssetCatalogService {
             log.info("financial_asset_catalog_synchronized index={} documents={} definitionsRefreshed={}",
                 indexName, indexed, refreshed);
         } catch (Exception ex) {
+            CancellationSupport.rethrowIfCancelled(ex, "financial asset catalog synchronization");
             log.warn("financial_asset_catalog_synchronization_failed index={} indexed={} error={}",
                 indexName, indexed, ex.getMessage());
         }
@@ -64,6 +67,7 @@ public class FinancialAssetCatalogService {
     }
 
     public List<Map<String, Object>> search(String query, int limit) {
+        CancellationSupport.throwIfCancelled("financial asset catalog search");
         int bounded = Math.max(1, Math.min(limit, 50));
         if (index == null || !index.available() || query == null || query.isBlank()) {
             return store.searchCatalog(query, bounded);
@@ -71,6 +75,7 @@ public class FinancialAssetCatalogService {
         try {
             return index.search(indexName, query, bounded);
         } catch (Exception ex) {
+            CancellationSupport.rethrowIfCancelled(ex, "financial asset catalog search");
             log.warn("financial_asset_catalog_search_fallback query={} error={}", query, ex.getMessage());
             return store.searchCatalog(query, bounded);
         }

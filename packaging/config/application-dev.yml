@@ -146,9 +146,9 @@ chatchat:
       # false 表示即使 engine=opensearch 也不连接 OpenSearch，会回退到本地 Lucene。
       enabled: true
       # OpenSearch HTTPS 地址，支持带路径前缀但不要以 / 结尾。
-      url: https://192.168.195.221:9200
-      username: admin
-      password: apexSoft12345
+      url: ${CHATCHAT_OPENSEARCH_URL:https://127.0.0.1:9200}
+      username: ${CHATCHAT_OPENSEARCH_USERNAME:admin}
+      password: ${CHATCHAT_OPENSEARCH_PASSWORD:}
       # API 文档检索使用的索引名。
       index-name: chatchat_documents
       # 开发/测试集群如果使用自签名 HTTPS 证书，设为 true，等价于 curl -k。
@@ -169,7 +169,7 @@ chatchat:
         # 阿里云百炼/DashScope OpenAI compatible embeddings 地址，替换 {WorkspaceId} 后使用。
         endpoint: https://llm-7upawl16up8649rh.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/embeddings
         # 百炼 API Key。开发测试可直接填值；不要提交真实密钥。
-        api-key: "sk-720436c855ac470bb955388d0e8c9b89"
+        api-key: ${CHATCHAT_EMBEDDING_API_KEY:}
         model: text-embedding-v4
         # text-embedding-v4 默认按 1024 维建 knn_vector；如果模型输出维度变化，只需要改这里并重建索引。
         dimension: 1024

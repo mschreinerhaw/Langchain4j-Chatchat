@@ -76,9 +76,9 @@ chatchat:
           zone-id: Asia/Shanghai
       open-search:
         enabled: true
-        endpoint: https://192.168.195.221:9200
-        username: admin
-        password: apexSoft12345
+        endpoint: ${CHATCHAT_OPENSEARCH_URL:https://127.0.0.1:9200}
+        username: ${CHATCHAT_OPENSEARCH_USERNAME:admin}
+        password: ${CHATCHAT_OPENSEARCH_PASSWORD:}
         insecure-ssl: true
         index-name: runtime-news
         retention-days: 7
@@ -87,7 +87,7 @@ chatchat:
         embedding:
           enabled: false
           endpoint: https://tokenhub.tencentmaas.com/v1/embeddings
-          api-key: sk-e9xW4FEk6ONVAy50XyQunS7A6dmE1a9X1errk7LW7yShFcvL
+          api-key: ${CHATCHAT_EMBEDDING_API_KEY:}
           model: kinfra-text-embedding-4b
           dimension: 1024
           vector-field: embedding

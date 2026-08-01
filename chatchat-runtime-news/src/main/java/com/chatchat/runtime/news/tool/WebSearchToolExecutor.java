@@ -1,5 +1,6 @@
 package com.chatchat.runtime.news.tool;
 
+import com.chatchat.common.concurrent.CancellationSupport;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.runtime.news.config.NewsRuntimeProperties;
@@ -44,6 +45,7 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
 
     @Override
     public ToolOutput execute(ToolInput input) {
+        CancellationSupport.throwIfCancelled("web_search");
         String query = input.getParameterAsString("query", "").trim();
         if (query.isBlank()) return ToolOutput.failure("query parameter is required");
         boolean localEnabled = properties.getOpenSearch().isEnabled();
@@ -68,9 +70,11 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
                 documents.forEach(document -> local.add(localItem(document)));
                 localSucceeded = true;
             } catch (Exception ex) {
+                CancellationSupport.rethrowIfCancelled(ex, "web_search local retrieval");
                 warnings.add("news_index: " + safe(ex));
             }
         }
+        CancellationSupport.throwIfCancelled("web_search");
         boolean forceExternal = properties.getWebSearch().getCache().isForceExternal();
         log.info(
             "webSearchRetrievalRoute query=\"{}\" requested={} localEnabled={} tencentWsaEnabled={} "
@@ -81,6 +85,7 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
             try {
                 cachedSearch = cache.findHighlyRelated(query).orElse(null);
             } catch (Exception ex) {
+                CancellationSupport.rethrowIfCancelled(ex, "web_search cache read");
                 warnings.add("web_search_cache_read: " + safe(ex));
                 log.warn("webSearchCacheReadFailed query=\"{}\" error={}", auditQuery(query), safe(ex));
             }
@@ -97,6 +102,7 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
             );
         } else if (externalEnabled) {
             try {
+                CancellationSupport.throwIfCancelled("web_search external retrieval");
                 log.info(
                     "准备调用联网检索API provider=tencent-wsa query=\"{}\" requested={} "
                         + "cacheResult={} forceExternal={} requestId={}",
@@ -110,11 +116,13 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
                     try {
                         cache.put(query, externalResponse);
                     } catch (Exception ex) {
+                        CancellationSupport.rethrowIfCancelled(ex, "web_search cache write");
                         warnings.add("web_search_cache_write: " + safe(ex));
                         log.warn("webSearchCacheWriteFailed query=\"{}\" error={}", auditQuery(query), safe(ex));
                     }
                 }
             } catch (Exception ex) {
+                CancellationSupport.rethrowIfCancelled(ex, "web_search external retrieval");
                 warnings.add("tencent_wsa: " + safe(ex));
                 log.warn("tencentWsaRetrievalFailed query=\"{}\" error={}", auditQuery(query), safe(ex));
             }
@@ -124,6 +132,7 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
                 auditQuery(query)
             );
         }
+        CancellationSupport.throwIfCancelled("web_search");
         if (!localSucceeded && !externalSucceeded) {
             return ToolOutput.failure("Web retrieval unavailable: " + String.join("; ", warnings));
         }

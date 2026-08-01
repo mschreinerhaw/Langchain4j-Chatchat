@@ -1,0 +1,23 @@
+cluster.name: chatchat-search
+node.name: chatchat-opensearch-1
+network.host: 0.0.0.0
+discovery.type: single-node
+bootstrap.memory_lock: true
+
+plugins.security.ssl.transport.pemcert_filepath: certs/node.pem
+plugins.security.ssl.transport.pemkey_filepath: certs/node-key.pem
+plugins.security.ssl.transport.pemtrustedcas_filepath: certs/root-ca.pem
+plugins.security.ssl.transport.enforce_hostname_verification: true
+plugins.security.ssl.http.enabled: true
+plugins.security.ssl.http.pemcert_filepath: certs/node.pem
+plugins.security.ssl.http.pemkey_filepath: certs/node-key.pem
+plugins.security.ssl.http.pemtrustedcas_filepath: certs/root-ca.pem
+plugins.security.nodes_dn:
+  - CN=chatchat-opensearch
+plugins.security.authcz.admin_dn:
+  - CN=chatchat-opensearch-admin
+plugins.security.allow_unsafe_democertificates: false
+plugins.security.allow_default_init_securityindex: false
+
+action.auto_create_index: true
+indices.query.bool.max_clause_count: 2048

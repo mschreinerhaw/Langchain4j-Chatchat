@@ -13,6 +13,7 @@ target/
 *.log
 *.pid
 **/config/env.local
+/.env.production
 /chatchat-api/data/
 /chatchat-api/h2/
 /chatchat-api/src/resources/static/

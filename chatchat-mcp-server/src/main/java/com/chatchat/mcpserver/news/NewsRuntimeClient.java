@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.news;
 
+import com.chatchat.common.concurrent.CancellationSupport;
 import com.chatchat.common.security.InternalCredentialProperties;
 import com.chatchat.common.security.InternalRequestSigner;
 import com.chatchat.common.tool.ToolInput;
@@ -79,8 +80,10 @@ public class NewsRuntimeClient {
             }
             return envelope.path("data");
         } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt(); throw new IllegalStateException("News Runtime request interrupted", ex);
+            Thread.currentThread().interrupt();
+            throw CancellationSupport.cancelled("News Runtime request", ex);
         } catch (Exception ex) {
+            CancellationSupport.rethrowIfCancelled(ex, "News Runtime request");
             if (ex instanceof IllegalStateException state) throw state;
             throw new IllegalStateException("Cannot communicate with News Runtime at " + baseUrl, ex);
         }

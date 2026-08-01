@@ -64,6 +64,11 @@ class ProductionCoverageAuditE2E {
             "ProductionReleaseArtifactE2E",
             "ProductionExtremeReasoningAndTemplateResultE2E",
             "TemplateExtremeResultReleaseTest",
+            "RuntimeBoundaryReleaseTest",
+            "RuntimeConcurrencyReleaseTest",
+            "SecurityMasterPaginationReleaseTest",
+            "DynamicDateBoundaryReleaseTest",
+            "DatabasePoolExhaustionReleaseTest",
             "EnterpriseAdminServiceIntegrationTest",
             "AgentAuthorizationIsolationTest",
             "ApiUserRoleScheduleMcpAuthorizationIntegrationTest",
@@ -100,7 +105,24 @@ class ProductionCoverageAuditE2E {
     }
 
     private Path repositoryRoot() {
-        return Path.of(System.getProperty("chatchat.e2e.repository-root", "."))
+        String configured = System.getProperty("chatchat.e2e.repository-root");
+        Path current = Path.of(configured == null || configured.isBlank() ? "." : configured)
             .toAbsolutePath().normalize();
+        if (configured != null && !configured.isBlank()) {
+            return current;
+        }
+        while (current != null) {
+            Path pom = current.resolve("pom.xml");
+            try {
+                if (Files.isRegularFile(pom)
+                    && Files.readString(pom).contains("<module>chatchat-e2e-tests</module>")) {
+                    return current;
+                }
+            } catch (IOException ignored) {
+                // Continue toward the filesystem root and fail naturally if no aggregator exists.
+            }
+            current = current.getParent();
+        }
+        throw new IllegalStateException("Unable to locate repository aggregator pom.xml");
     }
 }

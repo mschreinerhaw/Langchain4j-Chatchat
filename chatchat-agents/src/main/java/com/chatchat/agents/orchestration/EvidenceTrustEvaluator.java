@@ -72,7 +72,8 @@ public class EvidenceTrustEvaluator {
             usable.add(trusted);
         }
 
-        boolean contradiction = contradictionDetected(usable);
+        ContradictionAssessment contradictionAssessment = contradictionAssessment(usable);
+        boolean contradiction = contradictionAssessment.detected();
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("version", "agent_evidence_trust_policy_v1");
         metadata.put("minScore", MIN_SCORE);
@@ -81,6 +82,7 @@ public class EvidenceTrustEvaluator {
         metadata.put("ignoredLowScoreCount", ignoredLowScore);
         metadata.put("downgradedDomainCount", downgradedDomain);
         metadata.put("contradictionDetected", contradiction);
+        metadata.put("conflictAttribution", contradictionAssessment.attribution());
         metadata.put("requestMoreEvidence", usable.isEmpty() || contradiction);
         metadata.put("reason", contradiction
             ? "Potential contradiction detected across evidence chunks"
@@ -88,9 +90,9 @@ public class EvidenceTrustEvaluator {
         return new TrustResult(usable, metadata);
     }
 
-    private boolean contradictionDetected(List<Map<String, Object>> chunks) {
-        boolean hasPositive = false;
-        boolean hasNegative = false;
+    private ContradictionAssessment contradictionAssessment(List<Map<String, Object>> chunks) {
+        List<Map<String, Object>> positive = new ArrayList<>();
+        List<Map<String, Object>> negative = new ArrayList<>();
         for (Map<String, Object> chunk : chunks) {
             String text = String.join(" ",
                 stringValue(chunk.get("content")),
@@ -99,17 +101,32 @@ public class EvidenceTrustEvaluator {
             ).toLowerCase(Locale.ROOT);
             if (containsAny(text, " is supported", " supports ", " enabled", " available", " compatible", " can ",
                 "支持", "可以", "兼容", "已启用")) {
-                hasPositive = true;
+                positive.add(sourceAttribution(chunk, "positive"));
             }
             if (containsAny(text, " not supported", " does not support", " unsupported", " disabled", " unavailable",
                 "不支持", "不能", "无法", "不兼容", "未启用")) {
-                hasNegative = true;
-            }
-            if (hasPositive && hasNegative) {
-                return true;
+                negative.add(sourceAttribution(chunk, "negative"));
             }
         }
-        return false;
+        if (positive.isEmpty() || negative.isEmpty()) {
+            return new ContradictionAssessment(false, List.of());
+        }
+        List<Map<String, Object>> attribution = new ArrayList<>(positive.size() + negative.size());
+        attribution.addAll(positive);
+        attribution.addAll(negative);
+        return new ContradictionAssessment(true, List.copyOf(attribution));
+    }
+
+    private Map<String, Object> sourceAttribution(Map<String, Object> chunk, String stance) {
+        Map<String, Object> source = new LinkedHashMap<>();
+        source.put("stance", stance);
+        source.put("sourceRef", firstNonBlank(
+            stringValue(chunk.get("source_ref")),
+            firstNonBlank(stringValue(chunk.get("source_url")), stringValue(chunk.get("url")))
+        ));
+        source.put("title", firstNonBlank(stringValue(chunk.get("title")), "unknown"));
+        source.put("score", numberValue(chunk.get("trust_score"), numberValue(chunk.get("score"), 0.0d)));
+        return Map.copyOf(source);
     }
 
     private boolean isTrustedDomain(String domain) {
@@ -167,5 +184,8 @@ public class EvidenceTrustEvaluator {
         List<Map<String, Object>> usableEvidence,
         Map<String, Object> metadata
     ) {
+    }
+
+    private record ContradictionAssessment(boolean detected, List<Map<String, Object>> attribution) {
     }
 }

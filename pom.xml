@@ -140,6 +140,13 @@
                     <execution>
                         <id>prepare-agent</id>
                         <goals><goal>prepare-agent</goal></goals>
+                        <configuration>
+                            <excludes>
+                                <!-- JSqlParser's generated token manager exceeds the JVM method-size
+                                     limit after instrumentation; it is third-party code, not project coverage. -->
+                                <exclude>net.sf.jsqlparser.parser.*</exclude>
+                            </excludes>
+                        </configuration>
                     </execution>
                     <execution>
                         <id>report</id>

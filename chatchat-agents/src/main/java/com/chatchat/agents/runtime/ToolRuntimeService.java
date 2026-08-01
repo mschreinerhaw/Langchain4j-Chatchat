@@ -595,6 +595,10 @@ public class ToolRuntimeService {
                 rememberWorkflowSuccess(toolName, request, executionPlan, workflowDecision);
             } else {
                 updateCircuitOnFailure(toolName, policy);
+                if (isCircuitOpen(toolName, policy)) {
+                    output.getMetadata().put("retryable", false);
+                    output.getMetadata().put("circuitOpened", true);
+                }
                 toolCounters.failedCalls.incrementAndGet();
                 rememberWorkflowFailure(toolName, request, executionPlan, workflowDecision);
             }

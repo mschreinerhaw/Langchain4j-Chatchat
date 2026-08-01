@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -48,11 +49,17 @@ class AgentPlanner {
 
     private final ToolRegistry toolRegistry;
     private final ObjectMapper objectMapper;
+    private final Clock clock;
     private final InterpretationPlanValidator interpretationPlanValidator = new InterpretationPlanValidator();
 
     AgentPlanner(ToolRegistry toolRegistry, ObjectMapper objectMapper) {
+        this(toolRegistry, objectMapper, Clock.systemDefaultZone());
+    }
+
+    AgentPlanner(ToolRegistry toolRegistry, ObjectMapper objectMapper, Clock clock) {
         this.toolRegistry = toolRegistry;
         this.objectMapper = objectMapper;
+        this.clock = clock == null ? Clock.systemDefaultZone() : clock;
     }
 
     PlannerExecutionResult decideNextAction(ChatModel activeChatModel,
@@ -323,7 +330,7 @@ class AgentPlanner {
         prompt.append("You are an agent planner.\n");
         prompt.append("Goal: produce a safe, executable InterpretationPlan for the MCP runtime.\n");
         ZoneId runtimeZone = runtimeZoneId(runtimeAttributes);
-        LocalDate runtimeDate = LocalDate.now(runtimeZone);
+        LocalDate runtimeDate = LocalDate.now(clock.withZone(runtimeZone));
         prompt.append("Authoritative Runtime temporal context:\n");
         prompt.append("- Current date is ").append(runtimeDate).append(" in timezone ")
             .append(runtimeZone.getId()).append(".\n");

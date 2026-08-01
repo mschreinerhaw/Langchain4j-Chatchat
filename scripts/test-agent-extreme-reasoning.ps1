@@ -18,6 +18,8 @@ $testClasses = @(
     "AgentAnswerFinalizerTaskAssessmentTest",
     "AgentToolArgumentResolverTest",
     "AgentRuntimeGuardTest",
+    "RuntimeBoundaryReleaseTest",
+    "RuntimeConcurrencyReleaseTest",
     "InterpretationPlanWorkflowGuardTest",
     "InterpretationPlanRewriterTest",
     "InterpretationPlanValidatorTest",
@@ -40,6 +42,9 @@ $testClasses = @(
     "LinuxCommandServiceTest",
     "SqlQueryExecuteServiceTest",
     "TemplateExtremeResultReleaseTest",
+    "SecurityMasterPaginationReleaseTest",
+    "DynamicDateBoundaryReleaseTest",
+    "DatabasePoolExhaustionReleaseTest",
     "ExecutionTargetRouterTest",
     "FinancialQueryRuntimeContractAcceptanceTest"
 )

@@ -14,14 +14,20 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.LocalDate;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 
 /** Imports the official SSE and SZSE stock/depositary-receipt directories. */
 @Service
 public class SecurityMasterImportService implements ApplicationRunner {
+    static final int MAX_REMOTE_PAGES = 200;
     private static final Logger log = LoggerFactory.getLogger(SecurityMasterImportService.class);
     private static final String SSE_PAGE = "https://www.sse.com.cn/assortment/stock/list/share/";
     private static final String SSE_API = "https://query.sse.com.cn/sseQuery/commonQuery.do";
@@ -103,15 +109,38 @@ public class SecurityMasterImportService implements ApplicationRunner {
         return List.copyOf(records.values());
     }
 
-    private void fetchSzseTab(String tab, String codeField, String nameField, String dateField,
-                              String securityType, Map<String, SecurityMasterRecord> target) throws Exception {
+    void fetchSzseTab(String tab, String codeField, String nameField, String dateField,
+                      String securityType, Map<String, SecurityMasterRecord> target) throws Exception {
         JsonNode first = getJson(szseUrl(tab, 1), SZSE_PAGE);
         JsonNode section = section(first, tab);
-        int pageCount = section.path("metadata").path("pagecount").asInt(0);
+        int declaredPageCount = section.path("metadata").path("pagecount").asInt(0);
+        int pageCount = Math.max(1, Math.min(MAX_REMOTE_PAGES, declaredPageCount));
         collectSzseRows(section.path("data"), codeField, nameField, dateField, securityType, target);
+        Set<String> pageFingerprints = new HashSet<>();
+        pageFingerprints.add(pageFingerprint(section.path("data")));
         for (int page = 2; page <= pageCount; page++) {
             JsonNode pageSection = section(getJson(szseUrl(tab, page), SZSE_PAGE), tab);
-            collectSzseRows(pageSection.path("data"), codeField, nameField, dateField, securityType, target);
+            JsonNode rows = pageSection.path("data");
+            String fingerprint = pageFingerprint(rows);
+            if (!pageFingerprints.add(fingerprint)) {
+                log.warn("Stopped SZSE pagination after repeated page payload tab={} page={} declaredPages={}",
+                    tab, page, declaredPageCount);
+                break;
+            }
+            collectSzseRows(rows, codeField, nameField, dateField, securityType, target);
+        }
+    }
+
+    private String pageFingerprint(JsonNode rows) {
+        if (rows == null || !rows.isArray() || rows.isEmpty()) {
+            return "empty";
+        }
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                .digest(rows.toString().getBytes(StandardCharsets.UTF_8));
+            return rows.size() + ":" + HexFormat.of().formatHex(digest);
+        } catch (Exception ex) {
+            throw new IllegalStateException("Unable to fingerprint pagination payload", ex);
         }
     }
 
@@ -141,7 +170,7 @@ public class SecurityMasterImportService implements ApplicationRunner {
         return SZSE_API + "?SHOWTYPE=JSON&CATALOGID=1110&TABKEY=" + tab + "&PAGENO=" + page;
     }
 
-    private JsonNode getJson(String url, String referer) throws Exception {
+    protected JsonNode getJson(String url, String referer) throws Exception {
         Exception lastFailure = null;
         for (int attempt = 1; attempt <= 4; attempt++) {
             HttpURLConnection connection = null;

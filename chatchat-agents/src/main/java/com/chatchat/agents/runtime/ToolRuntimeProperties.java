@@ -23,6 +23,9 @@ public class ToolRuntimeProperties {
     private long defaultToolTimeoutMs = 1_800_000;
     private int maxBatchCalls = 32;
     private int maxBatchPayloadBytes = 262_144;
+    /** Maximum serialized result retained inline across Agent/task/event boundaries. */
+    private int maxOutputBytes = 262_144;
+    private int maxOutputPreviewChars = 16_000;
     private int defaultRetryAttempts = 3;
     private int executionCorePoolSize = 4;
     private int executionMaxPoolSize = 32;
@@ -67,5 +70,13 @@ public class ToolRuntimeProperties {
 
     public int safeMaxBatchPayloadBytes() {
         return Math.max(1_024, Math.min(4_194_304, maxBatchPayloadBytes));
+    }
+
+    public int safeMaxOutputBytes() {
+        return Math.max(16_384, Math.min(4_194_304, maxOutputBytes));
+    }
+
+    public int safeMaxOutputPreviewChars() {
+        return Math.max(1_000, Math.min(64_000, maxOutputPreviewChars));
     }
 }

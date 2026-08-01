@@ -1,6 +1,10 @@
 package com.chatchat.runtime.market.analysis;
 
 import com.chatchat.runtime.market.storage.FinancialDatasetDefinition;
+import com.chatchat.runtime.market.storage.FinancialReadOperations;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -36,24 +40,46 @@ public class FinancialMarketQueryExecutor {
     private static final Set<String> CATALOG_TABLES = Set.of("market_asset_catalog", "data_schema_registry");
 
     private final DataSource dataSource;
+    private final FinancialReadOperations isolatedReads;
 
     public FinancialMarketQueryExecutor(DataSource dataSource) {
+        this(dataSource, (FinancialReadOperations) null);
+    }
+
+    @Autowired
+    public FinancialMarketQueryExecutor(DataSource dataSource,
+                                        @Qualifier("financialReadOperations")
+                                        ObjectProvider<FinancialReadOperations> isolatedReads) {
+        this(dataSource, isolatedReads.getIfAvailable());
+    }
+
+    FinancialMarketQueryExecutor(DataSource dataSource, FinancialReadOperations isolatedReads) {
         this.dataSource = dataSource;
+        this.isolatedReads = isolatedReads;
     }
 
     public QueryResult execute(String sql, Map<String, Object> parameters, int requestedMaxRows, int timeoutSeconds) {
         String safeSql = validate(sql);
         int maxRows = Math.max(1, Math.min(requestedMaxRows, 500));
-        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
-        jdbc.setMaxRows(maxRows);
-        jdbc.setQueryTimeout(Math.max(1, Math.min(timeoutSeconds, 60)));
-        List<Map<String, Object>> rows = new NamedParameterJdbcTemplate(jdbc)
-            .queryForList(safeSql, parameters == null ? Map.of() : parameters)
+        Map<String, Object> safeParameters = parameters == null ? Map.of() : parameters;
+        List<Map<String, Object>> rows = (isolatedReads != null
+            ? isolatedReads.queryForList(safeSql, safeParameters, maxRows, timeoutSeconds)
+            : queryPrimary(safeSql, safeParameters, maxRows, timeoutSeconds))
             .stream()
             .map(this::normalizeRow)
             .toList();
         List<String> columns = rows.isEmpty() ? List.of() : new ArrayList<>(rows.get(0).keySet());
         return new QueryResult(safeSql, columns, rows, rows.size(), maxRows, rows.size() >= maxRows);
+    }
+
+    private List<Map<String, Object>> queryPrimary(String sql,
+                                                   Map<String, Object> parameters,
+                                                   int maxRows,
+                                                   int timeoutSeconds) {
+        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        jdbc.setMaxRows(maxRows);
+        jdbc.setQueryTimeout(Math.max(1, Math.min(timeoutSeconds, 60)));
+        return new NamedParameterJdbcTemplate(jdbc).queryForList(sql, parameters);
     }
 
     String validate(String sql) {

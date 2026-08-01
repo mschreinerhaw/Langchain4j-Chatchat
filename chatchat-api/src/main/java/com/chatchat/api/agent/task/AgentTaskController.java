@@ -30,6 +30,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -557,7 +558,7 @@ public class AgentTaskController {
     @Operation(summary = "Record product discovery feedback for one completed Agent task")
     public ApiResponse<AgentTaskResponse> feedback(@RequestParam("tenantId") String tenantId,
                                                    @PathVariable("taskId") String taskId,
-                                                   @RequestBody AgentTaskFeedbackRequest request,
+                                                   @Valid @RequestBody AgentTaskFeedbackRequest request,
                                                    HttpServletRequest servletRequest) {
         try {
             return ApiResponse.success(feedbackQueueService.enqueueFeedback(

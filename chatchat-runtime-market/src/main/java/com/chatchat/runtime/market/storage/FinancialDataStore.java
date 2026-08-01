@@ -8,7 +8,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.SingleConnectionDataSource;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
@@ -33,6 +37,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -45,19 +51,36 @@ public class FinancialDataStore {
     private static final Set<String> RESERVED = Set.of("key", "value", "date", "year", "month", "order", "group", "rank");
     private static final Pattern SIX_DIGIT_CODE = Pattern.compile("(?<!\\d)([0-9]{6})(?!\\d)");
     private final JdbcTemplate jdbc;
+    private final FinancialReadOperations financialReads;
     private final DataSource dataSource;
     private final ObjectMapper mapper;
     private final MarketModuleProperties properties;
+    private final Semaphore queryPermits;
     /** Avoids executing metadata-locking DDL for every ingestion batch. */
     private final Map<String, Set<String>> ensuredTableColumns = new ConcurrentHashMap<>();
     private boolean mysql;
 
     public FinancialDataStore(JdbcTemplate jdbc, DataSource dataSource, ObjectMapper mapper,
                               MarketModuleProperties runtimeProperties) {
+        this(jdbc, dataSource, mapper, runtimeProperties, jdbc::queryForList);
+    }
+
+    @Autowired
+    public FinancialDataStore(JdbcTemplate jdbc, DataSource dataSource, ObjectMapper mapper,
+                              MarketModuleProperties runtimeProperties,
+                              @Qualifier("financialReadOperations") ObjectProvider<FinancialReadOperations> readProvider) {
+        this(jdbc, dataSource, mapper, runtimeProperties,
+            readProvider.getIfAvailable(() -> jdbc::queryForList));
+    }
+
+    FinancialDataStore(JdbcTemplate jdbc, DataSource dataSource, ObjectMapper mapper,
+                       MarketModuleProperties runtimeProperties, FinancialReadOperations financialReads) {
         this.jdbc = jdbc;
+        this.financialReads = financialReads;
         this.dataSource = dataSource;
         this.mapper = mapper;
         this.properties = runtimeProperties;
+        this.queryPermits = new Semaphore(Math.max(1, runtimeProperties.getMaxConcurrentQueries()), true);
         this.jdbc.setQueryTimeout(Math.max(1, runtimeProperties.getQueryTimeoutSeconds()));
     }
 
@@ -137,7 +160,7 @@ public class FinancialDataStore {
                 prepared.add(new PreparedObservation(item, observationDate, payload, columns, recordKey));
             }
             if (definition == null || prepared.isEmpty()) return List.of();
-            ensureTable(definition, pageColumns.values());
+            ensureTableIfRequired(definition, pageColumns.values());
             PreparedObservation latest = prepared.stream()
                 .max(Comparator.comparing(PreparedObservation::observationDate)).orElseThrow();
             upsertCatalog(definition, latest.item(), latest.observationDate());
@@ -368,6 +391,25 @@ public class FinancialDataStore {
     public Map<String, Object> query(String datasetCode, Map<String, Object> filters,
                                      LocalDate startDate, LocalDate endDate, int requestedLimit,
                                      String requestedHistoryMode) {
+        boolean acquired = false;
+        try {
+            acquired = queryPermits.tryAcquire(
+                Math.max(0L, properties.getQueryQueueTimeoutMs()), TimeUnit.MILLISECONDS);
+            if (!acquired) {
+                throw new FinancialQueryBusyException("Financial query capacity is saturated; retry later");
+            }
+            return queryInsideBulkhead(datasetCode, filters, startDate, endDate, requestedLimit, requestedHistoryMode);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new FinancialQueryBusyException("Financial query was interrupted while waiting for capacity");
+        } finally {
+            if (acquired) queryPermits.release();
+        }
+    }
+
+    private Map<String, Object> queryInsideBulkhead(String datasetCode, Map<String, Object> filters,
+                                                    LocalDate startDate, LocalDate endDate, int requestedLimit,
+                                                    String requestedHistoryMode) {
         CancellationSupport.throwIfCancelled("financial data query");
         long startedAt = System.currentTimeMillis();
         String code = FinancialDatasetDefinition.normalizeCode(datasetCode);
@@ -422,6 +464,14 @@ public class FinancialDataStore {
         log.info("Financial data query completed dataset={} table={} storageTiers={} returnedRows={} durationMs={}",
             code, table, tiers, rows.size(), System.currentTimeMillis() - startedAt);
         return result;
+    }
+
+    public static final class FinancialQueryBusyException extends RuntimeException {
+        public FinancialQueryBusyException(String message) { super(message); }
+    }
+
+    public static final class FinancialSchemaBusyException extends RuntimeException {
+        public FinancialSchemaBusyException(String message) { super(message); }
     }
 
     /** Archives one representative trading-day snapshot per completed week, then removes expired hot rows. */
@@ -488,11 +538,55 @@ public class FinancialDataStore {
         return result;
     }
 
-    private void ensureTable(FinancialDatasetDefinition definition, Collection<ColumnValue> columns) {
+    private void ensureTableIfRequired(FinancialDatasetDefinition definition, Collection<ColumnValue> columns) {
         String table = identifier(definition.tableName());
-        Set<String> requestedColumnSignatures = columns == null ? Set.of() : columns.stream()
+        Set<String> requested = columnSignatures(columns);
+        Set<String> known = ensuredTableColumns.get(table);
+        if (known != null && known.containsAll(requested)) return;
+        if (!mysql) {
+            ensureTable(definition, columns);
+            return;
+        }
+        String lockName = "chatchat_financial_schema_" + Integer.toUnsignedString(table.hashCode(), 36);
+        try (var connection = dataSource.getConnection();
+             var acquire = connection.prepareStatement("select get_lock(?, ?)");
+             var release = connection.prepareStatement("select release_lock(?)")) {
+            acquire.setString(1, lockName);
+            acquire.setInt(2, 2);
+            try (var result = acquire.executeQuery()) {
+                if (!result.next() || result.getInt(1) != 1) {
+                    throw new FinancialSchemaBusyException("Financial schema evolution is busy; retry ingestion later");
+                }
+            }
+            try {
+                JdbcTemplate schemaJdbc = new JdbcTemplate(new SingleConnectionDataSource(connection, true));
+                schemaJdbc.setQueryTimeout(Math.max(1, Math.min(5, properties.getQueryTimeoutSeconds())));
+                ensureTable(definition, columns, schemaJdbc);
+            } finally {
+                release.setString(1, lockName);
+                try (var ignored = release.executeQuery()) { }
+            }
+        } catch (FinancialSchemaBusyException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new FinancialSchemaBusyException("Financial schema evolution lock failed: " + ex.getMessage());
+        }
+    }
+
+    private Set<String> columnSignatures(Collection<ColumnValue> columns) {
+        return columns == null ? Set.of() : columns.stream()
             .map(column -> column.name() + ":" + column.type().name())
             .collect(Collectors.toUnmodifiableSet());
+    }
+
+    private void ensureTable(FinancialDatasetDefinition definition, Collection<ColumnValue> columns) {
+        ensureTable(definition, columns, jdbc);
+    }
+
+    private void ensureTable(FinancialDatasetDefinition definition, Collection<ColumnValue> columns,
+                             JdbcTemplate schemaJdbc) {
+        String table = identifier(definition.tableName());
+        Set<String> requestedColumnSignatures = columnSignatures(columns);
         Set<String> knownColumnSignatures = ensuredTableColumns.get(table);
         if (knownColumnSignatures != null && knownColumnSignatures.containsAll(requestedColumnSignatures)) return;
         String primary = mysql ? "primary key(id,collected_date), unique key uk_" + table + "_record(record_key,collected_date)"
@@ -505,28 +599,33 @@ public class FinancialDataStore {
         // CREATE TABLE IF NOT EXISTS still takes a MySQL metadata lock. A concurrent
         // analytical SELECT can therefore turn a harmless ingestion into a pool-wide
         // lock convoy. Only issue DDL when the table is genuinely absent.
-        if (!tableExists(table)) jdbc.execute(ddl);
-        ensureIndex(table, "idx_" + table + "_collected_date", "collected_date,observation_date");
-        ensureIndex(table, indexName("idx_" + table + "_observation_date"), "observation_date");
-        Map<String, String> existing = schemaFields(definition.code());
-        if (mysql) migrateLegacyStringColumns(table, existing);
-        int version = existing.isEmpty() ? 1 : jdbc.queryForObject(
+        if (!tableExists(table, schemaJdbc)) schemaJdbc.execute(ddl);
+        if (mysql) {
+            ensureIndex(table, "idx_" + table + "_collected_date", "collected_date,observation_date", schemaJdbc);
+            ensureIndex(table, indexName("idx_" + table + "_observation_date"), "observation_date", schemaJdbc);
+        } else {
+            ensureIndex(table, "idx_" + table + "_collected_date", "collected_date,observation_date");
+            ensureIndex(table, indexName("idx_" + table + "_observation_date"), "observation_date");
+        }
+        Map<String, String> existing = schemaFields(definition.code(), schemaJdbc);
+        if (mysql) migrateLegacyStringColumns(table, existing, schemaJdbc);
+        int version = existing.isEmpty() ? 1 : schemaJdbc.queryForObject(
             "select coalesce(max(schema_version),1) from data_schema_registry where dataset_code=?", Integer.class, definition.code());
         for (ColumnValue column : columns) {
             if (!existing.containsKey(column.name())) {
-                jdbc.execute("alter table `" + table + "` add column `" + column.name() + "` " + sqlType(column.type()));
+                schemaJdbc.execute("alter table `" + table + "` add column `" + column.name() + "` " + sqlType(column.type()));
                 version++;
-                registerField(definition, column, version);
+                registerField(definition, column, version, schemaJdbc);
             } else {
                 FieldType registeredType = FieldType.valueOf(existing.get(column.name()));
                 if (requiresTextWidening(registeredType, column.type())) {
-                    widenToText(table, column.name());
+                    widenToText(table, column.name(), schemaJdbc);
                     registeredType = FieldType.STRING;
                     existing.put(column.name(), registeredType.name());
                     version++;
                 }
                 registerField(definition, new ColumnValue(column.name(), column.sourceName(),
-                    registeredType, column.value()), version);
+                    registeredType, column.value()), version, schemaJdbc);
             }
         }
         Set<String> refreshed = new java.util.LinkedHashSet<>();
@@ -540,28 +639,38 @@ public class FinancialDataStore {
     }
 
     private void widenToText(String table, String column) {
+        widenToText(table, column, jdbc);
+    }
+
+    private void widenToText(String table, String column, JdbcTemplate schemaJdbc) {
         String ddl = mysql
             ? "alter table `" + table + "` modify column `" + column + "` longtext"
             : "alter table `" + table + "` alter column `" + column + "` clob";
-        jdbc.execute(ddl);
+        schemaJdbc.execute(ddl);
     }
 
-    private void migrateLegacyStringColumns(String table, Map<String, String> registeredFields) {
-        List<String> varcharColumns = jdbc.queryForList(
+    private void migrateLegacyStringColumns(String table, Map<String, String> registeredFields,
+                                            JdbcTemplate schemaJdbc) {
+        List<String> varcharColumns = schemaJdbc.queryForList(
             "select column_name from information_schema.columns where table_schema=database() "
                 + "and table_name=? and data_type in ('varchar','char')", String.class, table);
         for (String column : varcharColumns) {
             if (!FieldType.STRING.name().equals(registeredFields.get(column))) continue;
-            jdbc.execute("alter table `" + table + "` modify column `" + column + "` longtext");
+            schemaJdbc.execute("alter table `" + table + "` modify column `" + column + "` longtext");
         }
     }
 
     private void registerField(FinancialDatasetDefinition definition, ColumnValue field, int version) {
+        registerField(definition, field, version, jdbc);
+    }
+
+    private void registerField(FinancialDatasetDefinition definition, ColumnValue field, int version,
+                               JdbcTemplate schemaJdbc) {
         String description = definition.fieldDescriptions().getOrDefault(field.name(), humanize(field.sourceName()));
-        int updated = jdbc.update("update data_schema_registry set field_type=?,business_description=?,schema_version=?,updated_at=? "
+        int updated = schemaJdbc.update("update data_schema_registry set field_type=?,business_description=?,schema_version=?,updated_at=? "
                 + "where dataset_code=? and field_name=?", field.type().name(), description, version,
             java.sql.Timestamp.from(Instant.now()), definition.code(), field.name());
-        if (updated == 0) jdbc.update("insert into data_schema_registry(dataset_code,table_name,field_name,source_field,field_type,"
+        if (updated == 0) schemaJdbc.update("insert into data_schema_registry(dataset_code,table_name,field_name,source_field,field_type,"
                 + "business_description,schema_version,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)",
             definition.code(), definition.tableName(), field.name(), field.sourceName(), field.type().name(), description,
             version, java.sql.Timestamp.from(Instant.now()), java.sql.Timestamp.from(Instant.now()));
@@ -700,7 +809,7 @@ public class FinancialDataStore {
                 .append(") latest_rows order by observation_date desc,collected_at desc,id desc limit ?");
         }
         args.add(limit);
-        List<Map<String, Object>> rows = jdbc.queryForList(sql.toString(), args.toArray());
+        List<Map<String, Object>> rows = financialReads.queryForList(sql.toString(), args.toArray());
         return rows.stream().map(row -> {
             Map<String, Object> value = new LinkedHashMap<>(row);
             value.remove("_identity_rank");
@@ -758,6 +867,15 @@ public class FinancialDataStore {
         } catch (Exception ignored) { }
         try { jdbc.queryForObject("select count(*) from `" + identifier(table) + "` where 1=0", Integer.class); return true; }
         catch (Exception ignored) { return false; }
+    }
+
+    private boolean tableExists(String table, JdbcTemplate schemaJdbc) {
+        try {
+            schemaJdbc.queryForObject("select count(*) from `" + identifier(table) + "` where 1=0", Integer.class);
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     private String archiveTable(String table) { return identifier(table + "_weekly_snapshot"); }
@@ -849,7 +967,11 @@ public class FinancialDataStore {
     }
 
     private Map<String, String> schemaFields(String code) {
-        return jdbc.query("select field_name,field_type from data_schema_registry where dataset_code=?",
+        return schemaFields(code, jdbc);
+    }
+
+    private Map<String, String> schemaFields(String code, JdbcTemplate schemaJdbc) {
+        return schemaJdbc.query("select field_name,field_type from data_schema_registry where dataset_code=?",
             rs -> { Map<String, String> result = new LinkedHashMap<>(); while (rs.next()) result.put(rs.getString(1), rs.getString(2)); return result; }, code);
     }
 
@@ -866,6 +988,15 @@ public class FinancialDataStore {
             while (found.next()) if (index.equalsIgnoreCase(found.getString("INDEX_NAME"))) return;
         } catch (Exception ignored) { }
         jdbc.execute("create index " + index + " on `" + identifier(table) + "`(" + columns + ")");
+    }
+
+    private void ensureIndex(String table, String index, String columns, JdbcTemplate schemaJdbc) {
+        Integer count = schemaJdbc.queryForObject(
+            "select count(*) from information_schema.statistics where table_schema=database() and table_name=? and index_name=?",
+            Integer.class, table, index);
+        if (count == null || count == 0) {
+            schemaJdbc.execute("create index " + index + " on `" + identifier(table) + "`(" + columns + ")");
+        }
     }
 
     private String identity(String name) {

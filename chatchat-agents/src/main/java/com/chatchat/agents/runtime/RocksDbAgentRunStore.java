@@ -710,7 +710,6 @@ public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
     private AgentObservation externalizeObservation(String runId, AgentObservation observation) {
         if (observation == null
             || !properties.isEvidenceExternalizationEnabled()
-            || !evidenceStore.isEnabled()
             || observation.metadata() == null
             || !observation.metadata().containsKey("stepOutput")
             || observation.metadata().containsKey("stepOutputDocumentId")) {
@@ -730,6 +729,9 @@ public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
             int payloadBytes = json.getBytes(StandardCharsets.UTF_8).length;
             if (payloadBytes <= properties.evidenceExternalizationThresholdBytes()) {
                 return observation;
+            }
+            if (!evidenceStore.isEnabled()) {
+                return boundedObservation(observation, stepOutput, payloadBytes, "evidence_store_unavailable");
             }
             String evidenceId = firstText(configuredEvidenceId == null ? null : String.valueOf(configuredEvidenceId),
                 observation.source() + ":" + documentId(json));
@@ -760,10 +762,30 @@ public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
                 .metadata(metadata)
                 .build();
         } catch (RuntimeException | JsonProcessingException ex) {
-            log.warn("Failed to externalize agent evidence; keeping inline payload. runId={} source={} error={}",
+            log.warn("Failed to externalize agent evidence; retaining bounded preview only. runId={} source={} error={}",
                 runId, observation.source(), ex.getMessage());
-            return observation;
+            return boundedObservation(observation, observation.metadata().get("stepOutput"), -1,
+                "evidence_externalization_failed");
         }
+    }
+
+    private AgentObservation boundedObservation(AgentObservation observation,
+                                                Object stepOutput,
+                                                int payloadBytes,
+                                                String reason) {
+        Map<String, Object> metadata = new LinkedHashMap<>(observation.metadata());
+        metadata.remove("stepOutput");
+        metadata.put("stepOutputExternal", false);
+        metadata.put("stepOutputTruncated", true);
+        metadata.put("stepOutputUnavailableReason", reason);
+        if (payloadBytes >= 0) metadata.put("stepOutputBytes", payloadBytes);
+        metadata.put("stepOutputPreview", ToolLogSummarizer.summarize(stepOutput, 4_000));
+        return AgentObservation.builder()
+            .type(observation.type())
+            .source(observation.source())
+            .content(observation.content())
+            .metadata(metadata)
+            .build();
     }
 
     private AgentObservation existingExternalObservation(String runId, String evidenceId) {
@@ -786,7 +808,6 @@ public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
         if (dag == null
             || dag.isEmpty()
             || !properties.isEvidenceExternalizationEnabled()
-            || !evidenceStore.isEnabled()
             || !(dag.get("nodes") instanceof List<?> nodes)) {
             return dag;
         }
@@ -803,6 +824,16 @@ public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
                 String json = objectMapper.writeValueAsString(output);
                 int payloadBytes = json.getBytes(StandardCharsets.UTF_8).length;
                 if (payloadBytes <= properties.evidenceExternalizationThresholdBytes()) {
+                    projectedNodes.add(projectedNode);
+                    continue;
+                }
+                if (!evidenceStore.isEnabled()) {
+                    projectedNode.remove("output");
+                    projectedNode.put("outputExternal", false);
+                    projectedNode.put("outputTruncated", true);
+                    projectedNode.put("outputUnavailableReason", "evidence_store_unavailable");
+                    projectedNode.put("outputBytes", payloadBytes);
+                    projectedNode.put("outputPreview", ToolLogSummarizer.summarize(output, 4_000));
                     projectedNodes.add(projectedNode);
                     continue;
                 }
@@ -825,8 +856,13 @@ public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
                 projectedNode.put("outputPreview", ToolLogSummarizer.summarize(output, 4_000));
                 projectedNodes.add(projectedNode);
             } catch (RuntimeException | JsonProcessingException ex) {
-                log.warn("Failed to externalize DAG evidence; keeping inline output. runId={} stepId={} error={}",
+                log.warn("Failed to externalize DAG evidence; retaining bounded preview only. runId={} stepId={} error={}",
                     runId, projectedNode.get("stepId"), ex.getMessage());
+                projectedNode.remove("output");
+                projectedNode.put("outputExternal", false);
+                projectedNode.put("outputTruncated", true);
+                projectedNode.put("outputUnavailableReason", "evidence_externalization_failed");
+                projectedNode.put("outputPreview", ToolLogSummarizer.summarize(output, 4_000));
                 projectedNodes.add(projectedNode);
             }
         }

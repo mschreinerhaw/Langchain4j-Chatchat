@@ -138,6 +138,12 @@ public class AgentTaskFeedbackQueueService {
             && (request.getReasonCategory() == null || request.getReasonCategory().isBlank()))) {
             throw new IllegalArgumentException("Feedback cannot be empty");
         }
+        if (request.getComment() != null && request.getComment().length() > 4_000) {
+            throw new IllegalArgumentException("Feedback comment cannot exceed 4000 characters");
+        }
+        if (request.getReasonCategory() != null && request.getReasonCategory().length() > 64) {
+            throw new IllegalArgumentException("Feedback reason category cannot exceed 64 characters");
+        }
         AgentTaskFeedbackRequest copy = new AgentTaskFeedbackRequest();
         copy.setTenantId(request.getTenantId());
         copy.setUserId(request.getUserId());

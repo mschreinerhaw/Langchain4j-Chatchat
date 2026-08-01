@@ -12,6 +12,7 @@ import com.chatchat.agents.runtime.plan.DiagnosticRunStateMachine;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.tool.ToolInput;
+import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -65,11 +66,17 @@ public class ToolRuntimeService {
     private final ToolRuntimeUserPolicyStore userPolicyStore;
     private final ExecutorService toolExecutionExecutor;
     private final ExecutorService auditExecutor;
+    private volatile AgentEvidenceStore evidenceStore;
 
     private final Map<String, Deque<Long>> rateWindows = new ConcurrentHashMap<>();
     private final Map<String, CircuitState> circuitStates = new ConcurrentHashMap<>();
     private final Map<String, ToolCounters> counters = new ConcurrentHashMap<>();
     private final Map<String, WorkflowState> workflowStates = new ConcurrentHashMap<>();
+
+    @Autowired(required = false)
+    public void setEvidenceStore(AgentEvidenceStore evidenceStore) {
+        this.evidenceStore = evidenceStore;
+    }
 
     /**
      * Creates a new ToolRuntimeService instance.
@@ -595,7 +602,7 @@ public class ToolRuntimeService {
             if (output.getMetadata() == null) {
                 output.setMetadata(new LinkedHashMap<>());
             }
-            output.setData(processResultData(output.getData(), metadata));
+            output.setData(processResultData(output.getData(), metadata, request, output));
             long finishedAt = System.currentTimeMillis();
             long durationMs = output.getExecutionTimeMs() == null
                 ? Math.max(0L, finishedAt - startedAt)
@@ -1273,7 +1280,10 @@ public class ToolRuntimeService {
                                             long startedAt,
                                             long finishedAt,
                                             Map<String, Object> runtimeMetadata) {
-        String outputText = stringify(output == null ? null : output.getData());
+        // Traces cross HTTP, event-store and feedback boundaries. They are an
+        // operational preview, never the authoritative evidence payload.
+        String outputText = stringify(ToolLogSummarizer.summarizeResult(
+            toolName, output == null ? null : output.getData()));
         return InteractionToolTrace.builder()
             .toolName(toolName)
             .displayName(resolveDisplayName(toolName, metadata))
@@ -2714,7 +2724,8 @@ public class ToolRuntimeService {
      * @param metadata the metadata value
      * @return the operation result
      */
-    private Object processResultData(Object data, ToolMetadata metadata) {
+    private Object processResultData(Object data, ToolMetadata metadata,
+                                     ToolRuntimeRequest request, ToolOutput output) {
         Set<String> fields = new HashSet<>();
         if (isMcpGovernedTool(metadata == null ? null : metadata.getId(), metadata)) {
             fields.addAll(List.of("phone", "id_card", "account_no"));
@@ -2728,10 +2739,64 @@ public class ToolRuntimeService {
                 .map(value -> value.trim().toLowerCase(Locale.ROOT))
                 .forEach(fields::add);
         }
-        if (fields.isEmpty()) {
-            return data;
+        Object masked = fields.isEmpty() ? data : maskValue(data, fields);
+        return boundToolOutput(masked, request, output);
+    }
+
+    private Object boundToolOutput(Object data, ToolRuntimeRequest request, ToolOutput output) {
+        if (data == null) return null;
+        try {
+            byte[] serialized = objectMapper.writeValueAsBytes(data);
+            int payloadBytes = serialized.length;
+            if (payloadBytes <= properties.safeMaxOutputBytes()) return data;
+            Object preview = ToolLogSummarizer.summarize(data, properties.safeMaxOutputPreviewChars());
+            Map<String, Object> reference = new LinkedHashMap<>();
+            reference.put("outputTruncated", true);
+            reference.put("originalBytes", payloadBytes);
+            reference.put("preview", preview);
+            reference.put("reason", "TOOL_OUTPUT_LIMIT_EXCEEDED");
+            reference.put("maxInlineBytes", properties.safeMaxOutputBytes());
+            AgentEvidenceStore store = evidenceStore;
+            if (store != null && store.isEnabled()) {
+                String serializedJson = new String(serialized, StandardCharsets.UTF_8);
+                String hash = sha256(serializedJson);
+                String requestId = firstText(request == null ? null : request.getRequestId(), "unknown");
+                String tenantId = firstText(request == null ? null : request.getTenantId(), "default");
+                String runId = firstText(stringValue(request == null || request.getAttributes() == null
+                    ? null : firstPresent(request.getAttributes().get("runId"), request.getAttributes().get("agentRunId"))),
+                    firstText(request == null ? null : request.getConversationId(), requestId));
+                String evidenceId = "tool:" + firstText(request == null ? null : request.getToolName(), "unknown")
+                    + ":" + hash.substring(0, 24);
+                String documentId = "tool-output:" + tenantId + ":" + requestId + ":" + hash.substring(0, 24);
+                store.put(documentId, tenantId, runId, evidenceId, serializedJson);
+                reference.put("outputExternal", true);
+                reference.put("documentId", documentId);
+                reference.put("evidenceId", evidenceId);
+                if (output != null) {
+                    output.getMetadata().put("outputDocumentId", documentId);
+                    output.getMetadata().put("outputEvidenceId", evidenceId);
+                }
+            } else {
+                reference.put("outputExternal", false);
+                reference.put("externalizationUnavailable", true);
+            }
+            if (output != null) {
+                output.getMetadata().put("outputTruncated", true);
+                output.getMetadata().put("outputOriginalBytes", payloadBytes);
+                output.getMetadata().put("outputMaxInlineBytes", properties.safeMaxOutputBytes());
+            }
+            log.warn("Tool output exceeded inline budget tool={} requestId={} payloadBytes={} maxInlineBytes={}",
+                request == null ? null : request.getToolName(),
+                request == null ? null : request.getRequestId(), payloadBytes, properties.safeMaxOutputBytes());
+            return Map.copyOf(reference);
+        } catch (Exception ex) {
+            Map<String, Object> fallback = new LinkedHashMap<>();
+            fallback.put("outputTruncated", true);
+            fallback.put("preview", ToolLogSummarizer.summarize(data, properties.safeMaxOutputPreviewChars()));
+            fallback.put("reason", "TOOL_OUTPUT_SERIALIZATION_FAILED");
+            if (output != null) output.getMetadata().put("outputTruncated", true);
+            return Map.copyOf(fallback);
         }
-        return maskValue(data, fields);
     }
 
     /**

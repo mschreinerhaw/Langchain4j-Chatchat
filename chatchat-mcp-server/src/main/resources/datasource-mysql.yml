@@ -13,6 +13,7 @@ spring:
       idle-timeout: ${CHATCHAT_MCP_DB_IDLE_TIMEOUT_MS:300000}
       max-lifetime: ${CHATCHAT_MCP_DB_MAX_LIFETIME_MS:1200000}
       leak-detection-threshold: ${CHATCHAT_MCP_DB_LEAK_DETECTION_MS:60000}
+      connection-init-sql: "SET SESSION lock_wait_timeout=${CHATCHAT_MCP_DB_LOCK_WAIT_SECONDS:5}, SESSION innodb_lock_wait_timeout=${CHATCHAT_MCP_DB_ROW_LOCK_WAIT_SECONDS:5}"
   h2:
     console:
       enabled: false
@@ -21,3 +22,5 @@ spring:
       ddl-auto: update
     database-platform: org.hibernate.dialect.MySQLDialect
     show-sql: false
+    properties:
+      jakarta.persistence.query.timeout: 5000

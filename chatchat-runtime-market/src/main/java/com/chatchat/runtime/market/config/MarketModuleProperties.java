@@ -13,6 +13,10 @@ public class MarketModuleProperties {
     private int maxQueryLimit = 200;
     /** JDBC statement timeout; must remain below the outer MCP tool deadline. */
     private int queryTimeoutSeconds = 20;
+    /** Database bulkhead: analytical reads can never consume the entire application pool. */
+    private int maxConcurrentQueries = 4;
+    /** Fail fast rather than queue Agent requests while the financial read lane is saturated. */
+    private long queryQueueTimeoutMs = 100;
     private int partitionCount = 32;
     private Retention retention = new Retention();
 

@@ -35,6 +35,29 @@ class DatasourceConfigurationSeparationTest {
     }
 
     @Test
+    void runtimeAndReleasePackageEnableFinancialPoolAndBoundMysqlLockWaits() throws Exception {
+        for (Path profile : List.of(
+            Path.of("src/main/resources/application-dev.yml"),
+            Path.of("src/main/resources/application-prod.yml"),
+            Path.of("src/main/distribution/config/application-dev.yml"),
+            Path.of("src/main/distribution/config/application-prod.yml"))) {
+            List<PropertySource<?>> sources = load(profile);
+            assertThat(String.valueOf(value(sources,
+                "chatchat.mcp.market.query-pool.enabled"))).contains("true");
+            assertThat(value(sources, "chatchat.mcp.market.max-concurrent-queries")).isNotNull();
+        }
+        for (Path datasource : List.of(
+            Path.of("src/main/resources/datasource-mysql.yml"),
+            Path.of("src/main/distribution/config/datasource-mysql.yml"))) {
+            String initSql = String.valueOf(value(load(datasource),
+                "spring.datasource.hikari.connection-init-sql"));
+            assertThat(initSql).contains("lock_wait_timeout", "innodb_lock_wait_timeout");
+            assertThat(value(load(datasource), "spring.jpa.properties.jakarta.persistence.query.timeout"))
+                .isNotNull();
+        }
+    }
+
+    @Test
     void defaultDevelopmentProfileImportsSelectedDatasourceAtRuntime() {
         SpringApplication application = new SpringApplication(EmptyConfiguration.class);
         application.setWebApplicationType(WebApplicationType.NONE);
@@ -61,7 +84,7 @@ class DatasourceConfigurationSeparationTest {
 
     private void assertDatasource(Path path, String jdbcPrefix, String dialect) throws Exception {
         List<PropertySource<?>> sources = load(path);
-        assertThat(String.valueOf(value(sources, "spring.datasource.url"))).startsWith(jdbcPrefix);
+        assertThat(String.valueOf(value(sources, "spring.datasource.url"))).contains(jdbcPrefix);
         assertThat(value(sources, "spring.datasource.driver-class-name")).isNotNull();
         assertThat(value(sources, "spring.jpa.database-platform")).isEqualTo(dialect);
     }

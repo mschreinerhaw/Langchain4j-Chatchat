@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -25,6 +26,49 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ToolRuntimeServiceTest {
+
+    @Test
+    void oversizedToolOutputIsExternalizedAndOnlyBoundedReferenceCrossesRuntimeBoundary() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getToolMetadata("large_tool")).thenReturn(ToolMetadata.builder()
+            .id("large_tool").title("Large Tool").build());
+        when(registry.executeEnhancedTool(any(), any()))
+            .thenReturn(ToolOutput.success(Map.of("rows", "x".repeat(100_000))));
+        ToolRuntimeProperties runtimeProperties = properties();
+        runtimeProperties.setMaxOutputBytes(16_384);
+        runtimeProperties.setMaxOutputPreviewChars(2_000);
+        ToolRuntimeService service = new ToolRuntimeService(
+            registry, new ObjectMapper(), runtimeProperties, List.of(), List.of());
+        AtomicReference<String> stored = new AtomicReference<>();
+        service.setEvidenceStore(new AgentEvidenceStore() {
+            @Override public boolean isEnabled() { return true; }
+            @Override public void put(String documentId, String tenantId, String runId,
+                                      String evidenceId, String json) { stored.set(json); }
+            @Override public java.util.Optional<String> get(String documentId) {
+                return java.util.Optional.ofNullable(stored.get());
+            }
+            @Override public void delete(String documentId) { stored.set(null); }
+        });
+        try {
+            ToolRuntimeExecution execution = service.execute(ToolRuntimeRequest.builder()
+                .toolName("large_tool").runtimeMode("agent_chat").requestId("large-output-1")
+                .conversationId("conversation-1").tenantId("tenant-1").userId("user-1")
+                .allowedTools(List.of("large_tool"))
+                .toolInput(ToolInput.builder().userId("user-1").parameters(Map.of()).build()).build());
+
+            assertThat(stored.get()).hasSizeGreaterThan(90_000);
+            assertThat(execution.output().getData()).isInstanceOfSatisfying(Map.class, reference ->
+                assertThat(reference).containsEntry("outputExternal", true)
+                    .containsEntry("outputTruncated", true)
+                    .containsKeys("documentId", "evidenceId", "preview"));
+            assertThat(execution.trace().getOutput()).hasSizeLessThan(5_000);
+            assertThat(execution.output().getMetadata())
+                .containsEntry("outputTruncated", true)
+                .containsKeys("outputDocumentId", "outputEvidenceId", "outputOriginalBytes");
+        } finally {
+            service.shutdown();
+        }
+    }
 
     @Test
     void blockedAuditPersistenceCannotBlockToolResponse() throws Exception {

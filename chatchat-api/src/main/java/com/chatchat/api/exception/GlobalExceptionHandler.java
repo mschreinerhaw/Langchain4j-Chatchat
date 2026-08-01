@@ -1,5 +1,6 @@
 package com.chatchat.api.exception;
 
+import com.chatchat.api.config.JsonRequestSizeFilter;
 import com.chatchat.common.response.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -65,6 +66,14 @@ public class GlobalExceptionHandler {
             HttpMessageNotReadableException ex,
             WebRequest request) {
 
+        Throwable rootCause = rootCause(ex);
+        if (rootCause instanceof JsonRequestSizeFilter.RequestBodyTooLargeException) {
+            log.warn("JSON request rejected while streaming: {}", rootCause.getMessage());
+            return new ResponseEntity<>(
+                ApiResponse.error(HttpStatus.PAYLOAD_TOO_LARGE.value(), rootCause.getMessage()),
+                HttpStatus.PAYLOAD_TOO_LARGE
+            );
+        }
         log.warn("Request body is not valid JSON: {}", rootCauseMessage(ex));
 
         return new ResponseEntity<>(
@@ -251,11 +260,14 @@ public class GlobalExceptionHandler {
     }
 
     private String rootCauseMessage(Throwable ex) {
-        Throwable current = ex;
-        while (current.getCause() != null) {
-            current = current.getCause();
-        }
+        Throwable current = rootCause(ex);
         return current.getMessage() == null ? current.getClass().getSimpleName() : current.getMessage();
+    }
+
+    private Throwable rootCause(Throwable ex) {
+        Throwable current = ex;
+        while (current.getCause() != null) current = current.getCause();
+        return current;
     }
 
     /**

@@ -371,6 +371,7 @@ class RocksDbAgentRunStoreTest {
     void migratesLegacyInlineEvidenceToExternalStoreOnReopen() {
         AgentRuntimeProperties properties = properties(tempDir);
         properties.setEvidenceExternalizationThresholdBytes(16_384);
+        properties.setEvidenceExternalizationEnabled(false);
         ObjectMapper objectMapper = new ObjectMapper();
         String runId = "rocks-legacy-evidence-1";
         String rawEvidence = "legacy-evidence-".repeat(20_000);
@@ -388,6 +389,7 @@ class RocksDbAgentRunStoreTest {
             .metadata(Map.of("evidenceId", "legacy-ev-1", "stepOutput", rawEvidence))
             .build());
         legacyStore.close();
+        properties.setEvidenceExternalizationEnabled(true);
 
         TestEvidenceStore evidenceStore = new TestEvidenceStore();
         RocksDbAgentRunStore migratedStore = new RocksDbAgentRunStore(
@@ -463,6 +465,29 @@ class RocksDbAgentRunStoreTest {
         assertThat(node.path("outputExternal").asBoolean()).isTrue();
         assertThat(node.path("outputDocumentId").asText()).startsWith("agent-evidence-");
         assertThat(store.evidence(node.path("outputDocumentId").asText())).contains(rawEvidence);
+        store.close();
+    }
+
+    @Test
+    void unavailableEvidenceStoreNeverFallsBackToHugeInlineObservation() throws Exception {
+        AgentRuntimeProperties properties = properties(tempDir);
+        properties.setEvidenceExternalizationThresholdBytes(16_384);
+        RocksDbAgentRunStore store = new RocksDbAgentRunStore(
+            new NoopAgentRunEventPublisher(), properties, new ObjectMapper());
+        String runId = "rocks-bounded-fallback";
+        store.open();
+        store.start(AgentRunRequest.builder().runId(runId).requestId("req-bounded").build());
+        store.recordObservation(runId, AgentObservation.builder()
+            .type("tool").source("large_tool").content("bounded fallback")
+            .metadata(Map.of("evidenceId", "ev-bounded", "stepOutput", "x".repeat(100_000)))
+            .build());
+
+        AgentObservation stored = store.observations(runId).get(0);
+        assertThat(stored.metadata()).doesNotContainKey("stepOutput")
+            .containsEntry("stepOutputExternal", false)
+            .containsEntry("stepOutputTruncated", true)
+            .containsEntry("stepOutputUnavailableReason", "evidence_store_unavailable");
+        assertThat(String.valueOf(stored.metadata().get("stepOutputPreview"))).hasSizeLessThan(5_000);
         store.close();
     }
 

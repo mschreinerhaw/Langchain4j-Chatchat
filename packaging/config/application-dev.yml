@@ -35,6 +35,11 @@ server:
     include-message: never
 
 chatchat:
+  http:
+    json-request:
+      enabled: ${CHATCHAT_JSON_REQUEST_LIMIT_ENABLED:true}
+      max-bytes: ${CHATCHAT_JSON_REQUEST_MAX_BYTES:2097152}
+      warning-bytes: ${CHATCHAT_JSON_REQUEST_WARNING_BYTES:524288}
   internal-credential:
     enabled: true
     username: chatchat_mcp_internal
@@ -298,6 +303,8 @@ chatchat:
     execution-core-pool-size: 4
     execution-max-pool-size: 32
     execution-queue-capacity: 256
+    max-output-bytes: ${CHATCHAT_TOOL_MAX_OUTPUT_BYTES:262144}
+    max-output-preview-chars: ${CHATCHAT_TOOL_MAX_OUTPUT_PREVIEW_CHARS:16000}
 
 mcp-policy:
   enabled: true

@@ -26,6 +26,11 @@ import {
   mergeChatRuntimeState,
   upsertChatRuntimeState
 } from "../utils/chatRuntimeState";
+import {
+  boundMessagesForPersistence,
+  boundQuestionForPersistence,
+  compactAnalysisTreeForPersistence
+} from "../utils/conversationPersistenceBudget";
 
 const EMPTY_RESPONSE = {
   sources: [],
@@ -2420,34 +2425,7 @@ export default {
       }
     },
     serializeMessages(messages = []) {
-      return collapseDuplicateAssistantResults(messages).map((message) => ({
-        id: message.id,
-        role: message.role,
-        content: message.content,
-        timestamp: message.timestamp,
-        sources: message.sources || [],
-        traces: message.traces || [],
-        steps: message.steps || [],
-        visualizationSpec: message.visualizationSpec || null,
-        uiResponse: message.uiResponse || null,
-        evidencePremises: message.evidencePremises || [],
-        agentName: message.agentName || "",
-        modelName: message.modelName || "",
-        analysisNodeId: message.analysisNodeId || "",
-        analysisParentNodeId: message.analysisParentNodeId || "",
-        analysisSourceMessageId: message.analysisSourceMessageId || "",
-        analysisSelection: message.analysisSelection || null,
-        streaming: !!message.streaming,
-        status: message.status || (message.streaming ? "streaming" : "completed"),
-        taskId: message.taskId || "",
-        feedbackTime: message.feedbackTime || "",
-        feedbackAction: message.feedbackAction || "",
-        feedbackUseful: message.feedbackUseful,
-        feedbackAdopted: message.feedbackAdopted,
-        feedbackResolved: message.feedbackResolved,
-        feedbackComment: message.feedbackComment || "",
-        feedbackReasonCategory: message.feedbackReasonCategory || ""
-      }));
+      return boundMessagesForPersistence(collapseDuplicateAssistantResults(messages));
     },
     handleMessageFeedback({ message, action } = {}) {
       const targetMessage = this.messages.find((item) => item.id === message?.id);
@@ -2993,14 +2971,14 @@ export default {
           historyId: context.conversationId || context.historyId,
           tenantId: this.effectiveTenantId(),
           userId: this.userId,
-          question,
+          question: boundQuestionForPersistence(question),
           conversationId: context.conversationId,
           mode: context.mode,
           skillId: context.selectedAgentId || "",
           modelName: context.modelName || "",
           agentName: context.agentName || "",
           status,
-          analysisTree: this.analysisTree,
+          analysisTree: compactAnalysisTreeForPersistence(this.analysisTree),
           messages
         });
         this.$emit("history-saved", {

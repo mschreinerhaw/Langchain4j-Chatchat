@@ -36,6 +36,11 @@ server:
   shutdown: graceful
 
 chatchat:
+  http:
+    json-request:
+      enabled: ${CHATCHAT_JSON_REQUEST_LIMIT_ENABLED:true}
+      max-bytes: ${CHATCHAT_JSON_REQUEST_MAX_BYTES:2097152}
+      warning-bytes: ${CHATCHAT_JSON_REQUEST_WARNING_BYTES:524288}
   chat:
     detail-store:
       type: rocksdb
@@ -104,6 +109,8 @@ chatchat:
     default-tool-timeout-ms: 1800000
     max-batch-calls: 32
     max-batch-payload-bytes: 262144
+    max-output-bytes: ${CHATCHAT_TOOL_MAX_OUTPUT_BYTES:262144}
+    max-output-preview-chars: ${CHATCHAT_TOOL_MAX_OUTPUT_PREVIEW_CHARS:16000}
   agent-runtime:
     final-summary-web-search-enabled: true
     final-summary-web-search-max-keywords: 2

@@ -1,11 +1,14 @@
 package com.chatchat.runtime.market.analysis;
 
+import com.chatchat.runtime.market.storage.FinancialReadOperations;
 import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.Map;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -47,6 +50,35 @@ class FinancialMarketQueryExecutorTest {
             .containsEntry("asset_name", "证券行情")
             .containsEntry("last_observation_date", null);
         assertThat(result.possiblyTruncated()).isFalse();
+    }
+
+    @Test
+    void usesIsolatedReadLaneForFinancialAnalysisSql() {
+        AtomicBoolean isolatedLaneCalled = new AtomicBoolean();
+        FinancialReadOperations isolatedReads = new FinancialReadOperations() {
+            @Override
+            public List<Map<String, Object>> queryForList(String sql, Object... arguments) {
+                throw new AssertionError("positional read was not expected");
+            }
+
+            @Override
+            public List<Map<String, Object>> queryForList(String sql,
+                                                          Map<String, Object> parameters,
+                                                          int maxRows,
+                                                          int timeoutSeconds) {
+                isolatedLaneCalled.set(true);
+                return List.of(Map.of("dataset_code", "market_quote_daily"));
+            }
+        };
+        FinancialMarketQueryExecutor isolatedExecutor =
+            new FinancialMarketQueryExecutor(jdbc.getDataSource(), isolatedReads);
+
+        FinancialMarketQueryExecutor.QueryResult result = isolatedExecutor.execute(
+            "select dataset_code from market_asset_catalog", Map.of(), 20, 10);
+
+        assertThat(isolatedLaneCalled).isTrue();
+        assertThat(result.rows()).singleElement().satisfies(row ->
+            assertThat(row).containsEntry("dataset_code", "market_quote_daily"));
     }
 
     @Test

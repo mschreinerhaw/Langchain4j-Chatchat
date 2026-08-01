@@ -1,5 +1,6 @@
 package com.chatchat.api.exception;
 
+import com.chatchat.api.config.JsonRequestSizeFilter;
 import com.chatchat.common.response.ApiResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +16,23 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 
 class GlobalExceptionHandlerTest {
+
+    @Test
+    void streamedOversizedJsonReturnsPayloadTooLargeInHttpStatusAndBody() {
+        GlobalExceptionHandler handler = new GlobalExceptionHandler();
+        HttpMessageNotReadableException exception = new HttpMessageNotReadableException(
+            "failed to read",
+            new JsonRequestSizeFilter.RequestBodyTooLargeException(2_097_152)
+        );
+
+        ResponseEntity<ApiResponse<Void>> response = handler.handleHttpMessageNotReadableException(
+            exception,
+            new ServletWebRequest(new MockHttpServletRequest())
+        );
+
+        assertEquals(413, response.getStatusCode().value());
+        assertEquals(413, response.getBody().getCode());
+    }
 
     @Test
     void malformedJsonReturnsBadRequestInsteadOfInternalServerError() {

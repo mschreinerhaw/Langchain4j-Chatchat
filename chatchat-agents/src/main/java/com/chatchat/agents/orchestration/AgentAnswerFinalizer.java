@@ -2071,6 +2071,14 @@ class AgentAnswerFinalizer {
             }
             return emptyMcpResultAnswer();
         }
+        if (assessment.availability() == McpResultEvidencePolicy.Availability.UNAVAILABLE
+            && assessment.successfulToolCount() > 0) {
+            if (metadata != null) {
+                metadata.put("invalidResultGroundingApplied", true);
+                metadata.put("invalidResultGroundingReason", "mcp_output_unavailable_or_malformed");
+            }
+            return unavailableMcpResultAnswer();
+        }
         if (!assessment.resultAvailable()) {
             return candidateAnswer;
         }
@@ -2095,6 +2103,11 @@ class AgentAnswerFinalizer {
     private String emptyMcpResultAnswer() {
         return "查询已成功执行，但没有返回匹配记录。当前没有可用于事实判断或趋势分析的数据，"
             + "因此不能据此推断数值、趋势或建议。请调整查询条件、时间范围，或确认模板参数后重试。";
+    }
+
+    private String unavailableMcpResultAnswer() {
+        return "工具调用没有产生可解析、可信的结果，可能是超时、错误页或返回协议损坏。"
+            + "当前不能据此推断事实、数值、趋势或建议；请检查工具状态与返回协议后重试。";
     }
 
     private String mcpResultAnalysisFallback() {

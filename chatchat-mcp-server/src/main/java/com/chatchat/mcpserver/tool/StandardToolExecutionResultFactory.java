@@ -19,7 +19,9 @@ import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -28,16 +30,20 @@ public class StandardToolExecutionResultFactory {
     public static final String SCHEMA_VERSION = "tool_execution_result.v1";
     static final int LINUX_AGGREGATE_STREAM_LIMIT = 24_000;
     static final int LINUX_STEP_STREAM_TOTAL_BUDGET = 100_000;
+    static final int MODEL_SAFE_TEXT_LIMIT = 4_000;
+    static final int MODEL_SAFE_COLLECTION_LIMIT = 200;
 
     private final DatabaseToolProperties databaseToolProperties;
 
     public Map<String, Object> fromSql(SqlQueryResult result) {
         Map<String, Object> safeDiagnostics = modelSafeMap(result.diagnostics());
+        boolean effectiveSuccess = result.success()
+            && (result.errorMessage() == null || result.errorMessage().isBlank());
         Map<String, Object> payload = base(
             "sql_query",
             "sql_result.v1",
             "structured",
-            result.success(),
+            effectiveSuccess,
             result.durationMs(),
             result.errorMessage()
         );
@@ -60,23 +66,26 @@ public class StandardToolExecutionResultFactory {
         int rowLimit = sqlResultRowLimit();
         List<Map<String, Object>> rows = result.rows() == null
             ? List.of()
-            : result.rows().stream().limit(rowLimit).toList();
+            : result.rows().stream().limit(rowLimit)
+                .map(row -> modelSafeSqlRow(row, result.columnMetadata()))
+                .toList();
+        int effectiveRowCount = Math.max(rows.size(), Math.max(0, result.rowCount()));
         Map<String, Object> limits = mapOf(
             "maxRowsRequested", result.maxRows(),
             "maxRowsReturnedToModel", rowLimit,
             "truncationStrategy", sqlTruncationStrategy()
         );
         payload.put("limits", limits);
-        boolean possiblyTruncated = result.possiblyTruncated() || result.rowCount() > rows.size();
+        boolean possiblyTruncated = result.possiblyTruncated() || effectiveRowCount > rows.size();
         Map<String, Object> data = mapOf(
-            "rowCount", result.rowCount(),
+            "rowCount", effectiveRowCount,
             "returnedRowCount", rows.size(),
             "complete", !possiblyTruncated,
             "possiblyTruncated", possiblyTruncated,
             "truncationStrategy", sqlTruncationStrategy(),
             "columns", result.columns(),
             "columnMetadata", result.columnMetadata(),
-            "governance", sqlOutputGovernance(result, rows.size()),
+            "governance", sqlOutputGovernance(result, effectiveRowCount, rows.size()),
             "diagnostics", safeDiagnostics,
             "rows", rows
         );
@@ -97,21 +106,21 @@ public class StandardToolExecutionResultFactory {
                     "columns", result.columns(),
                     "columnMetadata", result.columnMetadata(),
                     "rows", rows,
-                    "rowCount", result.rowCount(),
+                    "rowCount", effectiveRowCount,
                     "returnedRowCount", rows.size(),
                     "possiblyTruncated", data.get("possiblyTruncated"),
                     "governance", data.get("governance"),
                     "meta", limits,
                     "diagnostics", safeDiagnostics
                 ),
-                result.success(),
+                effectiveSuccess,
                 result.durationMs(),
                 result.errorMessage(),
-                mapOf("rowCount", result.rowCount())
+                mapOf("rowCount", effectiveRowCount)
             ))
         ));
         payload.put("executionGraph", graph(
-            List.of(graphNode("sql_query", "sql.query", result.success(), result.durationMs())),
+            List.of(graphNode("sql_query", "sql.query", effectiveSuccess, result.durationMs())),
             List.of()
         ));
         return payload;
@@ -713,20 +722,72 @@ public class StandardToolExecutionResultFactory {
     private Object modelSafeValue(Object value) {
         if (value instanceof Map<?, ?> map) {
             Map<String, Object> safe = new LinkedHashMap<>();
-            map.forEach((key, item) -> {
+            int included = 0;
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                if (included >= MODEL_SAFE_COLLECTION_LIMIT) {
+                    safe.put("_truncatedEntries", map.size() - included);
+                    break;
+                }
+                Object key = entry.getKey();
+                Object item = entry.getValue();
                 String name = String.valueOf(key);
                 if (!isDatabaseConnectionUrlKey(name)) {
                     safe.put(name, modelSafeValue(item));
+                    included++;
                 }
-            });
+            }
             return safe;
         }
         if (value instanceof Iterable<?> iterable) {
             List<Object> safe = new java.util.ArrayList<>();
-            iterable.forEach(item -> safe.add(modelSafeValue(item)));
+            int included = 0;
+            for (Object item : iterable) {
+                if (included >= MODEL_SAFE_COLLECTION_LIMIT) {
+                    safe.add("...[collection truncated]...");
+                    break;
+                }
+                safe.add(modelSafeValue(item));
+                included++;
+            }
             return safe;
         }
+        if (value instanceof CharSequence text) {
+            return boundedText(text.toString(), MODEL_SAFE_TEXT_LIMIT).value();
+        }
         return value;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> modelSafeSqlRow(Map<String, Object> row,
+                                                List<Map<String, Object>> columnMetadata) {
+        if (row == null || row.isEmpty()) {
+            return Map.of();
+        }
+        Set<String> masked = maskedColumnNames(columnMetadata);
+        Map<String, Object> safe = new LinkedHashMap<>();
+        row.forEach((key, value) -> safe.put(
+            key,
+            masked.contains(normalizedColumnName(key)) ? "***" : modelSafeValue(value)
+        ));
+        return safe;
+    }
+
+    private Set<String> maskedColumnNames(List<Map<String, Object>> columnMetadata) {
+        if (columnMetadata == null) {
+            return Set.of();
+        }
+        return columnMetadata.stream()
+            .filter(column -> column != null && Boolean.TRUE.equals(column.get("masked")))
+            .flatMap(column -> java.util.stream.Stream.of(
+                column.get("name"), column.get("label"), column.get("technicalName")))
+            .filter(java.util.Objects::nonNull)
+            .map(String::valueOf)
+            .map(this::normalizedColumnName)
+            .collect(Collectors.toSet());
+    }
+
+    private String normalizedColumnName(String name) {
+        return name == null ? "" : name.trim().toLowerCase(java.util.Locale.ROOT);
     }
 
     @SuppressWarnings("unchecked")
@@ -946,13 +1007,15 @@ public class StandardToolExecutionResultFactory {
         );
     }
 
-    private Map<String, Object> sqlOutputGovernance(SqlQueryResult result, int returnedRowCount) {
+    private Map<String, Object> sqlOutputGovernance(SqlQueryResult result,
+                                                    int effectiveRowCount,
+                                                    int returnedRowCount) {
         return mapOf(
             "schemaVersion", "sql_output_governance.v1",
             "readOnly", true,
-            "rowCount", result.rowCount(),
+            "rowCount", effectiveRowCount,
             "returnedRowCount", returnedRowCount,
-            "possiblyTruncated", result.possiblyTruncated() || result.rowCount() > returnedRowCount,
+            "possiblyTruncated", result.possiblyTruncated() || effectiveRowCount > returnedRowCount,
             "truncationStrategy", sqlTruncationStrategy(),
             "maskedColumns", maskedColumns(result.columnMetadata()),
             "columnCommentsIncluded", hasColumnComments(result.columnMetadata())

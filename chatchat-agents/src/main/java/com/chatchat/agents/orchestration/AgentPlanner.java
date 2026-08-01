@@ -38,6 +38,7 @@ class AgentPlanner {
     private static final String TOOL = "tool";
     private static final int DEFAULT_PLAN_REPAIR_ATTEMPTS = 3;
     private static final int MAX_PLAN_REPAIR_ATTEMPTS = 3;
+    private static final int MAX_USER_QUERY_PROMPT_CHARS = 32_000;
     private static final Pattern FINAL_ANSWER_STEP_PATTERN = Pattern.compile(
         "(?s)\"action_type\"\\s*:\\s*\"final_answer\".*?\"answer\"\\s*:\\s*\"(.*?)\"\\s*}\\s*,\\s*\"depends_on\""
     );
@@ -510,7 +511,7 @@ class AgentPlanner {
             prompt.append("- Do not cite web facts without a matching citation label from the observations.\n");
             prompt.append("\n");
         }
-        prompt.append("User query:\n").append(query);
+        prompt.append("User query:\n").append(boundedUserQuery(query));
         return prompt.toString();
     }
 
@@ -1564,7 +1565,8 @@ class AgentPlanner {
 
     private boolean shouldRepairPlan(AgentDecision decision, PlannerValidationContext context) {
         return decision != null
-            && (plannerPlanInvalid(decision) || (requiresStrictInterpretationPlan(context)
+            && ("non_json_response".equals(decision.reason())
+            || plannerPlanInvalid(decision) || (requiresStrictInterpretationPlan(context)
             && "legacy_action_not_allowed".equals(decision.reason())));
     }
 
@@ -2376,6 +2378,18 @@ class AgentPlanner {
             }
         }
         return false;
+    }
+
+    private String boundedUserQuery(String query) {
+        if (query == null || query.length() <= MAX_USER_QUERY_PROMPT_CHARS) {
+            return query == null ? "" : query;
+        }
+        int tailLength = MAX_USER_QUERY_PROMPT_CHARS / 4;
+        int headLength = MAX_USER_QUERY_PROMPT_CHARS - tailLength;
+        int omitted = query.length() - headLength - tailLength;
+        return query.substring(0, headLength)
+            + "\n...[user query truncated " + omitted + " chars; preserving tail]...\n"
+            + query.substring(query.length() - tailLength);
     }
 
     private List<String> significantGoalTerms(String query) {

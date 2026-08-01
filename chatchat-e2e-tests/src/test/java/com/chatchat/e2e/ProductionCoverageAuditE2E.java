@@ -62,6 +62,8 @@ class ProductionCoverageAuditE2E {
         assertThat(tests).contains(
             "ProductionDeployedTopologyE2E",
             "ProductionReleaseArtifactE2E",
+            "ProductionExtremeReasoningAndTemplateResultE2E",
+            "TemplateExtremeResultReleaseTest",
             "EnterpriseAdminServiceIntegrationTest",
             "AgentAuthorizationIsolationTest",
             "ApiUserRoleScheduleMcpAuthorizationIntegrationTest",

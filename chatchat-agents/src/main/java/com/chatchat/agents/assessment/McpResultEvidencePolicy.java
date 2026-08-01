@@ -32,37 +32,93 @@ public final class McpResultEvidencePolicy {
         int successful = 0;
         int available = 0;
         int empty = 0;
+        int unavailable = 0;
         for (InteractionToolTrace trace : safeTraces) {
             if (trace == null || !trace.isSuccess()) {
                 continue;
             }
             successful++;
-            if (hasQueryResult(trace.getOutput())) {
-                available++;
-            } else {
-                empty++;
+            switch (classify(trace.getOutput())) {
+                case AVAILABLE -> available++;
+                case EMPTY -> empty++;
+                case UNAVAILABLE -> unavailable++;
             }
         }
         Availability availability = available > 0
             ? Availability.AVAILABLE
-            : successful > 0 ? Availability.EMPTY : Availability.UNAVAILABLE;
+            : empty > 0 ? Availability.EMPTY : Availability.UNAVAILABLE;
         return new Assessment(
             CONTRACT_VERSION, availability, successful, available, empty);
     }
 
     boolean hasQueryResult(String output) {
+        return classify(output) == Availability.AVAILABLE;
+    }
+
+    private Availability classify(String output) {
         if (output == null || output.isBlank()) {
-            return false;
+            return Availability.EMPTY;
         }
         String text = output.trim();
         if (isEmptyText(text)) {
-            return false;
+            return Availability.EMPTY;
+        }
+        if (isFailureText(text)) {
+            return Availability.UNAVAILABLE;
         }
         try {
-            return substantive(JSON.readTree(text), null);
+            JsonNode parsed = JSON.readTree(text);
+            if (explicitFailure(parsed)) {
+                return Availability.UNAVAILABLE;
+            }
+            return substantive(parsed, null) ? Availability.AVAILABLE : Availability.EMPTY;
         } catch (Exception ignored) {
-            return !isEmptyText(text);
+            return looksLikeStructuredPayload(text) ? Availability.UNAVAILABLE : Availability.AVAILABLE;
         }
+    }
+
+    private boolean explicitFailure(JsonNode node) {
+        if (node == null || !node.isObject()) {
+            return false;
+        }
+        JsonNode success = node.get("success");
+        if (success != null && success.isBoolean() && !success.asBoolean()) {
+            return true;
+        }
+        JsonNode status = node.get("status");
+        if (status != null && status.isTextual()) {
+            String value = status.asText().trim().toUpperCase(Locale.ROOT);
+            if ("FAILED".equals(value) || "FAILURE".equals(value) || "ERROR".equals(value)
+                || "TIMEOUT".equals(value) || "UNAVAILABLE".equals(value)) {
+                return true;
+            }
+        }
+        JsonNode error = findIgnoreCase(node, "error");
+        return error != null && !error.isNull()
+            && (!(error.isTextual()) || !error.asText().isBlank());
+    }
+
+    private boolean looksLikeStructuredPayload(String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        String text = value.stripLeading();
+        return text.startsWith("{") || text.startsWith("[") || text.startsWith("<");
+    }
+
+    private boolean isFailureText(String value) {
+        if (value == null) {
+            return false;
+        }
+        String normalized = value.trim().toLowerCase(Locale.ROOT);
+        return normalized.startsWith("error:")
+            || normalized.startsWith("exception:")
+            || normalized.startsWith("timeout")
+            || normalized.startsWith("failed")
+            || normalized.startsWith("service unavailable")
+            || normalized.startsWith("bad gateway")
+            || (normalized.startsWith("<html")
+                && (normalized.contains("error") || normalized.contains("502") || normalized.contains("503")));
     }
 
     private boolean substantive(JsonNode node, String fieldName) {

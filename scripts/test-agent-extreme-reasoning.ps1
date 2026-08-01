@@ -39,6 +39,7 @@ $testClasses = @(
     "CommandTemplateDiscoveryDatabaseQueryTest",
     "LinuxCommandServiceTest",
     "SqlQueryExecuteServiceTest",
+    "TemplateExtremeResultReleaseTest",
     "ExecutionTargetRouterTest",
     "FinancialQueryRuntimeContractAcceptanceTest"
 )

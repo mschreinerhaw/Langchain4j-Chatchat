@@ -63,6 +63,30 @@ class McpResultEvidencePolicyTest {
         assertThat(result.resultAvailable()).isTrue();
     }
 
+    @Test
+    void malformedStructuredPayloadNeverBecomesAvailableEvidence() {
+        McpResultEvidencePolicy.Assessment result = policy.assess(List.of(
+            trace(true, "{\"success\":true,\"rows\":[")
+        ));
+
+        assertThat(result.availability()).isEqualTo(McpResultEvidencePolicy.Availability.UNAVAILABLE);
+        assertThat(result.resultAvailable()).isFalse();
+    }
+
+    @Test
+    void transportErrorTextMislabelledAsSuccessNeverBecomesEvidence() {
+        for (String output : List.of(
+            "timeout while reading upstream response",
+            "Error: provider rejected request",
+            "<html><title>502 Bad Gateway</title><body>error</body></html>"
+        )) {
+            McpResultEvidencePolicy.Assessment result = policy.assess(List.of(trace(true, output)));
+            assertThat(result.availability()).as(output)
+                .isEqualTo(McpResultEvidencePolicy.Availability.UNAVAILABLE);
+            assertThat(result.resultAvailable()).as(output).isFalse();
+        }
+    }
+
     private InteractionToolTrace trace(boolean success, String output) {
         return InteractionToolTrace.builder()
             .toolName("mcp_query")

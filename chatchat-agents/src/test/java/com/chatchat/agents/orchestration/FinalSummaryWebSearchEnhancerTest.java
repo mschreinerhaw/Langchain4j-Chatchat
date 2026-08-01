@@ -3,6 +3,7 @@ package com.chatchat.agents.orchestration;
 import com.chatchat.agents.runtime.AgentRuntimeProperties;
 import com.chatchat.agents.runtime.AgentAnswerReview;
 import com.chatchat.agents.runtime.ToolRuntimeExecution;
+import com.chatchat.agents.runtime.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.ToolRuntimeService;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.interaction.InteractionToolTrace;
@@ -10,6 +11,7 @@ import com.chatchat.common.tool.ToolOutput;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -104,6 +106,40 @@ class FinalSummaryWebSearchEnhancerTest {
         assertThat(result.used()).isFalse();
         assertThat(result.enhancedAnswer()).isNull();
         verify(model).chat(any(String.class));
+    }
+
+    @Test
+    void propagatesCallerAuthorizationContextToInternalWebSearch() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        ToolRuntimeService runtime = mock(ToolRuntimeService.class);
+        ChatModel model = mock(ChatModel.class);
+        when(registry.getAllToolNames()).thenReturn(Set.of("mcp_vendor_web_search"));
+        when(model.chat(any(String.class))).thenReturn(
+            "{\"needed\":true,\"keywords\":[\"latest market\"],\"reason\":\"current data\"}");
+        when(runtime.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.failure("provider unavailable"), null, null, "failed", Map.of()));
+        Map<String, Object> metadata = new LinkedHashMap<>(Map.of(
+            "agentRunId", "run-ctx",
+            "requestId", "request-ctx",
+            "conversationId", "conversation-ctx",
+            "tenantId", "tenant-ctx",
+            "userId", "user-ctx"
+        ));
+
+        enhancer(registry, runtime).enhance(
+            model, "analyze latest market", "", "internal data is incomplete",
+            List.of(), List.of(), metadata);
+
+        ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
+        verify(runtime).execute(captor.capture());
+        ToolRuntimeRequest request = captor.getValue();
+        assertThat(request.getRequestId()).isEqualTo("request-ctx");
+        assertThat(request.getConversationId()).isEqualTo("conversation-ctx");
+        assertThat(request.getTenantId()).isEqualTo("tenant-ctx");
+        assertThat(request.getUserId()).isEqualTo("user-ctx");
+        assertThat(request.getToolInput().getContext())
+            .containsEntry("tenantId", "tenant-ctx")
+            .containsEntry("userId", "user-ctx");
     }
 
     @Test

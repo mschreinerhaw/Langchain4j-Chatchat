@@ -15,6 +15,10 @@
     <name>LiveRuntime API Module</name>
     <description>REST API, WebSocket support, and conversation engine</description>
 
+    <properties>
+        <frontend.skip>false</frontend.skip>
+    </properties>
+
     <dependencies>
         <!-- Internal -->
         <dependency>
@@ -164,6 +168,7 @@
                             <goal>exec</goal>
                         </goals>
                         <configuration>
+                            <skip>${frontend.skip}</skip>
                             <workingDirectory>${project.basedir}/web-app</workingDirectory>
                             <executable>npm.cmd</executable>
                             <arguments>
@@ -178,6 +183,7 @@
                             <goal>exec</goal>
                         </goals>
                         <configuration>
+                            <skip>${frontend.skip}</skip>
                             <workingDirectory>${project.basedir}/web-app</workingDirectory>
                             <executable>npm.cmd</executable>
                             <arguments>

@@ -67,6 +67,10 @@ public class TencentWebSearchClient {
     }
 
     public SearchResponse search(String query, int requested) throws Exception {
+        return search(query, requested, null);
+    }
+
+    private SearchResponse search(String query, int requested, Integer fallbackMode) throws Exception {
         if (!enabled()) return new SearchResponse(List.of(), "", "");
         NewsRuntimeProperties.WebSearch config = properties.getWebSearch();
         URI endpoint = URI.create(config.getEndpoint());
@@ -75,9 +79,13 @@ public class TencentWebSearchClient {
 
         int count = Math.max(1, Math.min(Math.min(config.getMaxResults(), 50), requested));
         Instant now = Instant.now();
-        ObjectNode payload = mapper.createObjectNode()
-            .put("Query", query)
-            .put("Mode", Math.max(0, Math.min(2, config.getMode())));
+        int mode = fallbackMode == null
+            ? Math.max(0, Math.min(2, config.getMode()))
+            : fallbackMode;
+        ObjectNode payload = mapper.createObjectNode().put("Query", query);
+        // WSA defines natural retrieval as the default. Some service editions reject even an
+        // explicit Mode=0, so only send the optional field for richer retrieval modes.
+        if (mode > 0) payload.put("Mode", mode);
         if (config.isRequestCountEnabled()) payload.put("Cnt", count);
         if (isHotspotQuery(query) && config.getHotspotLookbackDays() > 0) {
             payload.put("FromTime", now.minus(Duration.ofDays(config.getHotspotLookbackDays())).getEpochSecond());
@@ -99,7 +107,7 @@ public class TencentWebSearchClient {
         log.info(
             "tencentWsaHttpCallStart endpoint={} action={} version={} query=\"{}\" requested={} count={} mode={} "
                 + "hotspotWindow={} timeoutMs={}",
-            endpoint, ACTION, VERSION, auditQuery, requested, count, config.getMode(),
+            endpoint, ACTION, VERSION, auditQuery, requested, count, mode,
             payload.has("FromTime"), Math.max(1_000, config.getTimeoutMillis())
         );
 
@@ -129,12 +137,20 @@ public class TencentWebSearchClient {
         JsonNode error = root.path("Error");
         if (response.statusCode() < 200 || response.statusCode() >= 300 || !error.isMissingNode()) {
             String message = error.path("Message").asText("HTTP " + response.statusCode());
+            String errorCode = error.path("Code").asText("");
             log.warn(
                 "tencentWsaHttpCallFailed endpoint={} action={} query=\"{}\" stage=provider_response "
                     + "httpStatus={} errorCode={} requestId={} elapsedMs={} error={}",
-                endpoint, ACTION, auditQuery, response.statusCode(), error.path("Code").asText(""),
+                endpoint, ACTION, auditQuery, response.statusCode(), errorCode,
                 root.path("RequestId").asText(""), elapsedMillis(startedAt), auditText(message, 300)
             );
+            if (fallbackMode == null && mode != 0
+                && "InvalidParameter".equalsIgnoreCase(errorCode)
+                && message.toLowerCase(Locale.ROOT).contains("mode")) {
+                log.warn("tencentWsaModeFallback query=\"{}\" configuredMode={} fallbackMode=0",
+                    auditQuery, mode);
+                return search(query, requested, 0);
+            }
             throw new IllegalStateException("Tencent WSA SearchPro failed: " + message);
         }
         List<SearchPage> pages = new ArrayList<>();

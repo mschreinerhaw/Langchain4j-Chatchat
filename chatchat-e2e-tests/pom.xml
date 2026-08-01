@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.chatchat</groupId>
+        <artifactId>langchain4j-chatchat</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>chatchat-e2e-tests</artifactId>
+    <name>ChatChat Production E2E Test Module</name>
+    <description>Production release gate for cross-module Agent, API, MCP and data capability scenarios</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.chatchat</groupId>
+            <artifactId>chatchat-agents</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.chatchat</groupId>
+            <artifactId>chatchat-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.chatchat</groupId>
+            <artifactId>chatchat-mcp-server</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.chatchat</groupId>
+            <artifactId>chatchat-runtime-news</artifactId>
+            <version>${project.version}</version>
+            <classifier>plain</classifier>
+        </dependency>
+        <dependency>
+            <groupId>com.chatchat</groupId>
+            <artifactId>chatchat-runtime-market</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>3.2.5</version>
+                <configuration>
+                    <includes>
+                        <include>**/*E2E.java</include>
+                    </includes>
+                    <systemPropertyVariables>
+                        <chatchat.e2e.repository-root>${maven.multiModuleProjectDirectory}</chatchat.e2e.repository-root>
+                    </systemPropertyVariables>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

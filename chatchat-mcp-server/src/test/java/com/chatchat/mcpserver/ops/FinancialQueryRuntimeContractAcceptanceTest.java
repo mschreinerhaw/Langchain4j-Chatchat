@@ -43,10 +43,10 @@ import static org.mockito.Mockito.when;
 class FinancialQueryRuntimeContractAcceptanceTest {
 
     private static final String QUESTION = "帮我分析最新交易日证券与指数涨跌";
-    private static final String DISCOVERY_TOOL =
-        "mcp_chatchat_mcp_server_database_query_template_query";
-    private static final String EXECUTION_TOOL =
-        "mcp_chatchat_mcp_server_sql_query_execute";
+    private static final String RUNTIME_NAMESPACE =
+        "mcp_acceptance_" + Long.toUnsignedString(System.nanoTime()) + "_capability_gateway_";
+    private static final String DISCOVERY_TOOL = RUNTIME_NAMESPACE + "database_query_template_query";
+    private static final String EXECUTION_TOOL = RUNTIME_NAMESPACE + "sql_query_execute";
 
     @TempDir
     Path tempDir;

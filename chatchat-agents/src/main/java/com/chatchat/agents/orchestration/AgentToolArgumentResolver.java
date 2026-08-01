@@ -133,6 +133,14 @@ class AgentToolArgumentResolver {
     Map<String, Object> applyObservedTemplateContract(String toolName,
                                                       Map<String, Object> arguments,
                                                       List<InteractionToolTrace> traces) {
+        return applyObservedTemplateContract(toolName, arguments, traces,
+            scalarText(firstPresent(arguments, "purpose", "reason", "query")));
+    }
+
+    Map<String, Object> applyObservedTemplateContract(String toolName,
+                                                      Map<String, Object> arguments,
+                                                      List<InteractionToolTrace> traces,
+                                                      String userQuery) {
         Map<String, Object> values = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
         if (traces == null || traces.isEmpty()) {
             return values;
@@ -154,75 +162,189 @@ class AgentToolArgumentResolver {
             if (candidates.isEmpty()) {
                 continue;
             }
-            Map<String, Object> template = requestedTemplateId == null
-                ? candidates.get(0)
-                : candidates.stream()
-                    .filter(candidate -> requestedTemplateId.equalsIgnoreCase(
-                        scalarText(firstPresent(candidate, "templateId", "template_id", "id", "code"))))
-                    .findFirst()
-                    .orElse(candidates.get(0));
-            String templateId = scalarText(firstPresent(template, "templateId", "template_id", "id", "code"));
-            if (templateId == null) {
+            if (batchCalls(values) != null) {
+                return applyObservedBatchTemplateContracts(toolName, values, candidates, output, trace, userQuery);
+            }
+            List<Map<String, Object>> eligible = eligibleTemplates(candidates, requestedTemplateId);
+            TemplateInvocationBridge.TemplateBridgeException lastFailure = null;
+            Map<String, Object> failedInput = null;
+            String failedTemplateId = null;
+            for (Map<String, Object> template : eligible) {
+                String templateId = templateId(template);
+                if (templateId == null) {
+                    continue;
+                }
+                Map<String, Object> candidateInput = new LinkedHashMap<>(values);
+                if (apiTemplateExecutor(toolName)) {
+                    candidateInput.put("templateId", templateId);
+                } else {
+                    candidateInput.put("template", templateId);
+                }
+                try {
+                    TemplateInvocationBridge.BridgeResult bridged = TEMPLATE_INVOCATION_BRIDGE.prepare(
+                        new TemplateInvocationBridge.BridgeRequest(
+                            toolName,
+                            null,
+                            templateId,
+                            template,
+                            candidateInput,
+                            parameterProtocol(candidateInput),
+                            false,
+                            true,
+                            new TemplateInvocationBridge.EvidenceContext(userQuery, Map.of())
+                        )
+                    );
+                    values = new LinkedHashMap<>(bridged.executorInput());
+                    finishObservedTemplateInput(toolName, values, output);
+                    logObservedTemplateContract(toolName, requestedTemplateId, templateId, trace,
+                        values, bridged.protocolTrace(), bridged.repairs(), true);
+                    return values;
+                } catch (TemplateInvocationBridge.TemplateBridgeException ex) {
+                    lastFailure = ex;
+                    failedInput = candidateInput;
+                    failedTemplateId = templateId;
+                    // With no explicit template selection, keep walking the ranked discovery
+                    // result. A parameterized first candidate must not mask a later executable
+                    // candidate. Explicit selections remain authoritative and fail closed.
+                    if (requestedTemplateId != null) {
+                        break;
+                    }
+                }
+            }
+            if (lastFailure == null) {
                 continue;
             }
-            if (apiTemplateExecutor(toolName)) {
-                values.put("templateId", templateId);
-            } else {
-                values.put("template", templateId);
+            if (failedInput != null) {
+                values = new LinkedHashMap<>(failedInput);
             }
-            boolean valid = true;
-            List<?> repairs = List.of();
-            Map<String, Object> protocolTrace = Map.of();
-            try {
-                TemplateInvocationBridge.BridgeResult bridged = TEMPLATE_INVOCATION_BRIDGE.prepare(
-                    new TemplateInvocationBridge.BridgeRequest(
-                        toolName,
-                        null,
-                        templateId,
-                        template,
-                        values,
-                        null,
-                        false,
-                        true
-                    )
-                );
-                values = new LinkedHashMap<>(bridged.executorInput());
-                repairs = bridged.repairs();
-                protocolTrace = bridged.protocolTrace();
-            } catch (TemplateInvocationBridge.TemplateBridgeException ex) {
-                valid = false;
-                // A denied bridge result must never carry unreviewed model parameters farther.
-                values.put("parameters", Map.of());
-                values.put(McpParamBindingResolver.STATUS_KEY, "DENIED");
-                values.put(McpParamBindingResolver.CODE_KEY, "INVALID_TOOL_ARGUMENTS");
-                values.put(McpParamBindingResolver.ERROR_KEY, ex.getMessage());
-            }
-            if (apiTemplateExecutor(toolName)) {
-                values.remove("template");
-            } else {
-                values.remove("templateId");
-            }
-            Map<String, Object> context = mutableMap(values.get("executionContext"));
-            Map<String, Object> selectedAsset = selectedAsset(output);
-            putIfText(context, "assetName", firstPresent(selectedAsset, "name", "assetName", "asset_name"));
-            putIfText(context, "env", firstPresent(selectedAsset, "environment", "env"));
-            if (!context.isEmpty()) {
-                values.put("executionContext", context);
-            }
-            log.info("Agent tool arguments compiled from observed template contract: tool={}, requestedTemplateId={}, "
-                    + "templateId={}, sourceTool={}, parameterKeys={}, contextKeys={}, protocolTrace={}, repairs={}, valid={}",
-                toolName,
-                requestedTemplateId,
-                templateId,
-                trace.getToolName(),
-                mutableMap(values.get("parameters")).keySet(),
-                context.keySet(),
-                protocolTrace,
-                repairs,
-                valid);
+            values.put("parameters", Map.of());
+            values.put(McpParamBindingResolver.STATUS_KEY, "DENIED");
+            values.put(McpParamBindingResolver.CODE_KEY, "INVALID_TOOL_ARGUMENTS");
+            values.put(McpParamBindingResolver.ERROR_KEY, lastFailure.getMessage());
+            logObservedTemplateContract(toolName, requestedTemplateId, failedTemplateId, trace,
+                values, Map.of(), List.of(), false);
             return values;
         }
         return values;
+    }
+
+    private List<Map<String, Object>> eligibleTemplates(List<Map<String, Object>> candidates,
+                                                         String requestedTemplateId) {
+        if (requestedTemplateId == null) {
+            return candidates;
+        }
+        List<Map<String, Object>> exact = candidates.stream()
+            .filter(candidate -> requestedTemplateId.equalsIgnoreCase(templateId(candidate)))
+            .toList();
+        // Replacing an invented reference is safe only when discovery produced one unambiguous
+        // Runtime-owned candidate. Never turn a missing id into "pick the first" of many.
+        return exact.isEmpty() && candidates.size() == 1 ? candidates : exact;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> applyObservedBatchTemplateContracts(String toolName,
+                                                                     Map<String, Object> values,
+                                                                     List<Map<String, Object>> candidates,
+                                                                     Object output,
+                                                                     InteractionToolTrace trace,
+                                                                     String userQuery) {
+        List<?> rawCalls = batchCalls(values);
+        List<Map<String, Object>> compiledCalls = new ArrayList<>();
+        for (int index = 0; index < rawCalls.size(); index++) {
+            Object rawCall = rawCalls.get(index);
+            if (!(rawCall instanceof Map<?, ?> callMap)) {
+                return deniedBatch(values, "Batch call " + index + " must be an object");
+            }
+            Map<String, Object> call = new LinkedHashMap<>((Map<String, Object>) callMap);
+            Map<String, Object> childInput = mutableMap(firstPresent(call, "arguments", "input"));
+            String childTool = firstNonBlank(
+                scalarText(firstPresent(call, "toolName", "tool_name")), toolName);
+            String childTemplateId = scalarText(firstPresent(
+                childInput, "template", "templateId", "template_id", "commandTemplate", "command_template"));
+            Map<String, Object> template = candidates.stream()
+                .filter(candidate -> sameExecutor(childTool, discoveredExecutor(candidate)))
+                .filter(candidate -> childTemplateId != null && childTemplateId.equalsIgnoreCase(templateId(candidate)))
+                .findFirst()
+                .orElse(null);
+            if (template == null) {
+                return deniedBatch(values, "Batch call " + index + " template " + childTemplateId
+                    + " was not returned by the observed discovery contract");
+            }
+            try {
+                TemplateInvocationBridge.BridgeResult bridged = TEMPLATE_INVOCATION_BRIDGE.prepare(
+                    new TemplateInvocationBridge.BridgeRequest(
+                        childTool, null, childTemplateId, template, childInput,
+                        parameterProtocol(childInput), false, true,
+                        new TemplateInvocationBridge.EvidenceContext(userQuery, Map.of())
+                    )
+                );
+                call.put("arguments", bridged.executorInput());
+                call.remove("input");
+                compiledCalls.add(call);
+            } catch (TemplateInvocationBridge.TemplateBridgeException ex) {
+                return deniedBatch(values, "Batch call " + index + " rejected: " + ex.getMessage());
+            }
+        }
+        values.put("calls", compiledCalls);
+        values.remove("toolCalls");
+        values.remove("tool_calls");
+        finishObservedTemplateInput(toolName, values, output);
+        log.info("Agent batch arguments compiled from observed template contracts: tool={}, sourceTool={}, callCount={}",
+            toolName, trace.getToolName(), compiledCalls.size());
+        return values;
+    }
+
+    private Map<String, Object> deniedBatch(Map<String, Object> values, String error) {
+        Map<String, Object> denied = new LinkedHashMap<>(values);
+        denied.put(McpParamBindingResolver.STATUS_KEY, "DENIED");
+        denied.put(McpParamBindingResolver.CODE_KEY, "INVALID_TOOL_ARGUMENTS");
+        denied.put(McpParamBindingResolver.ERROR_KEY, error);
+        return denied;
+    }
+
+    private List<?> batchCalls(Map<String, Object> values) {
+        Object calls = firstPresent(values, "calls", "toolCalls", "tool_calls");
+        return calls instanceof List<?> list && !list.isEmpty() ? list : null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> parameterProtocol(Map<String, Object> input) {
+        Object protocol = firstPresent(input, "parameterProtocol", "parameter_protocol");
+        return protocol instanceof Map<?, ?> map ? new LinkedHashMap<>((Map<String, Object>) map) : null;
+    }
+
+    private String templateId(Map<String, Object> template) {
+        return scalarText(firstPresent(template, "templateId", "template_id", "id", "code"));
+    }
+
+    private void finishObservedTemplateInput(String toolName, Map<String, Object> values, Object output) {
+        if (apiTemplateExecutor(toolName)) {
+            values.remove("template");
+        } else {
+            values.remove("templateId");
+        }
+        Map<String, Object> context = mutableMap(values.get("executionContext"));
+        Map<String, Object> selectedAsset = selectedAsset(output);
+        putIfText(context, "assetName", firstPresent(selectedAsset, "name", "assetName", "asset_name"));
+        putIfText(context, "env", firstPresent(selectedAsset, "environment", "env"));
+        if (!context.isEmpty()) {
+            values.put("executionContext", context);
+        }
+    }
+
+    private void logObservedTemplateContract(String toolName,
+                                             String requestedTemplateId,
+                                             String templateId,
+                                             InteractionToolTrace trace,
+                                             Map<String, Object> values,
+                                             Map<String, Object> protocolTrace,
+                                             List<?> repairs,
+                                             boolean valid) {
+        log.info("Agent tool arguments compiled from observed template contract: tool={}, requestedTemplateId={}, "
+                + "templateId={}, sourceTool={}, parameterKeys={}, contextKeys={}, protocolTrace={}, repairs={}, valid={}",
+            toolName, requestedTemplateId, templateId, trace.getToolName(),
+            mutableMap(values.get("parameters")).keySet(),
+            mutableMap(values.get("executionContext")).keySet(), protocolTrace, repairs, valid);
     }
 
     /**

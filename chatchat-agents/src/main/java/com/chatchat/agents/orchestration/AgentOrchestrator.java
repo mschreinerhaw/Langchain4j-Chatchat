@@ -440,6 +440,10 @@ public class AgentOrchestrator implements AgentRunExecutor {
         Map<String, Object> metadata = new LinkedHashMap<>();
         List<Map<String, Object>> plannerSteps = new ArrayList<>();
         metadata.put("agentRunId", stringValue(requestRuntimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE)));
+        metadata.put("requestId", requestId);
+        metadata.put("conversationId", conversationId);
+        metadata.put("tenantId", tenantId);
+        metadata.put("userId", userId);
         metadata.put("skillId", skillId == null ? "general" : skillId);
         metadata.put("modelName", normalizeModelName(modelName));
         metadata.put("boundDocumentIds", documentIds);

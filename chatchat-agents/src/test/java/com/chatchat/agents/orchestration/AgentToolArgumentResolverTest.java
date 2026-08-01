@@ -1,10 +1,14 @@
 package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.tool.ToolMetadata;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -667,6 +671,152 @@ class AgentToolArgumentResolverTest {
         assertThat(result.get("__runtimeParamBindingError").toString())
             .contains("TEMPLATE_PARAMETER_PROTOCOL_REQUIRED")
             .contains("tableName");
+    }
+
+    @Test
+    void skipsIncompatibleFirstCandidateAndExecutesNewlyRegisteredNoParameterTemplate() {
+        String dynamicTemplateId = "tenant_market_snapshot_" + System.nanoTime();
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .toolName("mcp_vendor_business_template_query")
+            .success(true)
+            .output("""
+                {"templates":[
+                  {"templateId":"requires_security_code",
+                   "parameterContract":{"executionTool":"sql_query_execute"},
+                   "parameterSchema":{"type":"object","properties":{"security_code":{"type":"string"}},
+                                      "required":["security_code"]}},
+                  {"templateId":"%s",
+                   "parameterContract":{"executionTool":"sql_query_execute"},
+                   "parameterSchema":{"type":"object","properties":{},"required":[]}}
+                ]}
+                """.formatted(dynamicTemplateId))
+            .build();
+
+        Map<String, Object> result = resolver.applyObservedTemplateContract(
+            "mcp_vendor_sql_query_execute",
+            Map.of("purpose", "analyze latest tenant market snapshot"),
+            List.of(discovery)
+        );
+
+        assertThat(result)
+            .containsEntry("template", dynamicTemplateId)
+            .containsEntry("parameters", Map.of())
+            .doesNotContainKeys("__runtimeParamBindingStatus", "__runtimeParamBindingError");
+    }
+
+    @Test
+    void survivesLargePoisonedDiscoverySetAndSelectsOnlyExecutableNewTemplate() throws Exception {
+        List<Map<String, Object>> templates = new ArrayList<>();
+        for (int index = 0; index < 256; index++) {
+            String required = "unavailable_parameter_" + index;
+            templates.add(Map.of(
+                "templateId", "incompatible_candidate_" + index,
+                "parameterContract", Map.of("executionTool", "sql_query_execute"),
+                "parameterSchema", Map.of(
+                    "type", "object",
+                    "properties", Map.of(required, Map.of("type", "string")),
+                    "required", List.of(required)
+                )
+            ));
+        }
+        String dynamicTemplateId = "tenant_extreme_snapshot_" + System.nanoTime();
+        templates.add(Map.of(
+            "templateId", dynamicTemplateId,
+            "parameterContract", Map.of("executionTool", "sql_query_execute"),
+            "parameterSchema", Map.of("type", "object", "properties", Map.of(), "required", List.of())
+        ));
+        Map<String, Object> discoveryPayload = new LinkedHashMap<>();
+        discoveryPayload.put("returnedCount", templates.size());
+        discoveryPayload.put("templates", templates);
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .toolName("mcp_extreme_tenant_capability_query")
+            .success(true)
+            .output(new ObjectMapper().writeValueAsString(discoveryPayload))
+            .build();
+
+        Map<String, Object> result = resolver.applyObservedTemplateContract(
+            "mcp_extreme_tenant_sql_query_execute",
+            Map.of("purpose", "execute the only contract-compatible newly registered template"),
+            List.of(discovery)
+        );
+
+        assertThat(result)
+            .containsEntry("template", dynamicTemplateId)
+            .containsEntry("parameters", Map.of())
+            .doesNotContainKeys("__runtimeParamBindingStatus", "__runtimeParamBindingError");
+    }
+
+    @Test
+    void compilesEveryBatchChildFromObservedTemplatesWithoutTemplateNameKnowledge() {
+        String firstId = "tenant_created_snapshot_a_" + System.nanoTime();
+        String secondId = "tenant_created_snapshot_b_" + System.nanoTime();
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .toolName("mcp_vendor_business_template_query")
+            .success(true)
+            .output("""
+                {"templates":[
+                  {"templateId":"%s","parameterContract":{"executionTool":"sql_query_execute"},
+                   "parameterSchema":{"type":"object","properties":{},"required":[]}},
+                  {"templateId":"%s","parameterContract":{"executionTool":"sql_query_execute"},
+                   "parameterSchema":{"type":"object","properties":{},"required":[]}}
+                ]}
+                """.formatted(firstId, secondId))
+            .build();
+        Map<String, Object> batch = Map.of(
+            "purpose", "run newly registered tenant templates",
+            "calls", List.of(
+                Map.of("callId", "a", "toolName", "sql_query_execute",
+                    "arguments", Map.of("templateId", firstId, "parameters", Map.of())),
+                Map.of("callId", "b", "toolName", "sql_query_execute",
+                    "arguments", Map.of("templateId", secondId, "parameters", Map.of()))
+            )
+        );
+
+        Map<String, Object> result = resolver.applyObservedTemplateContract(
+            "mcp_vendor_sql_query_execute", batch, List.of(discovery));
+
+        assertThat(result).doesNotContainKeys("__runtimeParamBindingStatus", "__runtimeParamBindingError");
+        assertThat(result.get("calls")).isInstanceOfSatisfying(List.class, calls -> {
+            assertThat(calls).hasSize(2);
+            assertThat(calls.toString()).contains(firstId, secondId);
+        });
+    }
+
+    @Test
+    void acceptsEvidenceProtocolForNewRequiredParameterTemplate() {
+        String dynamicTemplateId = "tenant_security_history_" + System.nanoTime();
+        String query = "analyze security 600001 latest history";
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .toolName("mcp_vendor_business_template_query")
+            .success(true)
+            .output("""
+                {"templates":[{"templateId":"%s",
+                  "parameterContract":{"executionTool":"sql_query_execute"},
+                  "parameterSchema":{"type":"object","properties":{"security_code":{"type":"string"}},
+                                     "required":["security_code"]}}]}
+                """.formatted(dynamicTemplateId))
+            .build();
+        Map<String, Object> protocol = Map.of(
+            "protocol_version", TemplateInvocationBridge.PROTOCOL_VERSION,
+            "template_id", dynamicTemplateId,
+            "arguments", Map.of("security_code", Map.of(
+                "value", "600001", "source", "user_query", "evidence", "security 600001")),
+            "unresolved_parameters", List.of()
+        );
+
+        Map<String, Object> result = resolver.applyObservedTemplateContract(
+            "mcp_vendor_sql_query_execute",
+            Map.of("template", dynamicTemplateId, "purpose", query, "parameterProtocol", protocol),
+            List.of(discovery),
+            query
+        );
+
+        assertThat(result)
+            .containsEntry("template", dynamicTemplateId)
+            .doesNotContainKeys("__runtimeParamBindingStatus", "__runtimeParamBindingError");
+        assertThat(result.get("parameters"))
+            .isInstanceOfSatisfying(Map.class, parameters ->
+                assertThat(parameters).containsEntry("security_code", "600001"));
     }
 
     @Test

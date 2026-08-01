@@ -178,31 +178,15 @@ class InterpretationPlanWorkflowGuard {
         return !expectedKey.isBlank()
             && !actualKey.isBlank()
             && (expectedKey.equals(actualKey)
-            || actualKey.endsWith(expectedKey)
-            || expectedKey.endsWith(actualKey));
+            || actualKey.endsWith("_" + expectedKey)
+            || expectedKey.endsWith("_" + actualKey));
     }
 
     private String semanticKey(String toolName) {
         if (toolName == null || toolName.isBlank()) {
             return "";
         }
-        String normalized = toolName.trim().toLowerCase(Locale.ROOT);
-        String[] prefixes = {
-            "mcp_chatchat_mcp_server_",
-            "chatchat_mcp_server_",
-            "mcp_"
-        };
-        boolean changed = true;
-        while (changed) {
-            changed = false;
-            for (String prefix : prefixes) {
-                if (normalized.startsWith(prefix)) {
-                    normalized = normalized.substring(prefix.length());
-                    changed = true;
-                }
-            }
-        }
-        return normalized;
+        return toolName.trim().toLowerCase(Locale.ROOT);
     }
 
     private List<String> normalizeList(List<String> values) {

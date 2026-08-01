@@ -3195,27 +3195,7 @@ public class ToolRuntimeService {
      * @return the operation result
      */
     private String normalizeToolSemanticKey(String toolName) {
-        String normalized = normalizePolicyKey(toolName);
-        if (normalized.isBlank()) {
-            return "";
-        }
-        String[] prefixes = {
-            "mcp_chatchat_mcp_server_",
-            "chatchat_mcp_server_",
-            "mcp_server_",
-            "mcp_"
-        };
-        boolean changed = true;
-        while (changed) {
-            changed = false;
-            for (String prefix : prefixes) {
-                if (normalized.startsWith(prefix)) {
-                    normalized = normalized.substring(prefix.length());
-                    changed = true;
-                }
-            }
-        }
-        return normalized;
+        return normalizePolicyKey(toolName);
     }
 
     /**

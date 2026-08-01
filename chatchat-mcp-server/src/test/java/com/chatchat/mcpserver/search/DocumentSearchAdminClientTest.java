@@ -1,6 +1,7 @@
 package com.chatchat.mcpserver.search;
 
 import com.chatchat.common.security.InternalCredentialProperties;
+import com.chatchat.common.security.InternalSecretCipher;
 import com.chatchat.mcpserver.config.ChatChatMcpServerProperties;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -94,10 +95,18 @@ class DocumentSearchAdminClientTest {
 
         ChatChatMcpServerProperties.DocumentSearchProperties properties = new ChatChatMcpServerProperties.DocumentSearchProperties();
         properties.setApiBaseUrl("http://localhost:" + server.getAddress().getPort());
+        String cryptoKey = "document-search-e2e-test-key";
+        ChatChatMcpServerProperties.DocumentSearchProperties.AuthProperties auth =
+            new ChatChatMcpServerProperties.DocumentSearchProperties.AuthProperties();
+        auth.setUsername("admin");
+        auth.setEncryptedPassword(InternalSecretCipher.encrypt("123456", cryptoKey));
+        properties.setAuth(auth);
+        InternalCredentialProperties credentials = new InternalCredentialProperties();
+        credentials.setCryptoKey(cryptoKey);
         DocumentSearchAdminClient client = new DocumentSearchAdminClient(
             objectMapper,
             properties,
-            new InternalCredentialProperties(),
+            credentials,
             HttpClient.newHttpClient()
         );
 

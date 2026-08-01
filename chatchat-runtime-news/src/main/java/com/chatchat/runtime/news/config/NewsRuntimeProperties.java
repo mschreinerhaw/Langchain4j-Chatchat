@@ -31,7 +31,8 @@ public class NewsRuntimeProperties {
         private String secretId;
         private String secretKey;
         private String region;
-        private int mode = 2;
+        /** Natural search is supported by every WSA edition; richer modes may be edition-specific. */
+        private int mode = 0;
         /** Cnt is a paid-edition parameter in WSA; leave it disabled for compatible defaults. */
         private boolean requestCountEnabled = false;
         private int maxResults = 20;

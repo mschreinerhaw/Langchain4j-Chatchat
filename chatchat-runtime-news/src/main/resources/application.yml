@@ -50,12 +50,13 @@ chatchat:
       # Tencent WSA is an internal recall enhancer behind the existing web_search.
       # It is not registered or published as an independent MCP tool.
       web-search:
-        enabled: false
+        enabled: true
         endpoint: https://wsa.tencentcloudapi.com
-        secret-id: ""
-        secret-key: ""
+        secret-id: ${TENCENTCLOUD_SECRET_ID:}
+        secret-key: ${TENCENTCLOUD_SECRET_KEY:}
         region: ""
-        mode: 2
+        # 0 is the cross-edition natural-search mode. The client also downgrades an unsupported richer mode once.
+        mode: 0
         request-count-enabled: false
         max-results: 20
         timeout-millis: 10000

@@ -2300,6 +2300,7 @@ public class InterpretationPlanRuntime {
         InterpretationPlan plan = request == null ? null : request.plan();
         applyBindings(step, plan, completed, input);
         if (batchToolInput(input)) {
+            bridgeBatchTemplateInvocations(step, request, completed, input);
             return input;
         }
         establishRuntimeTemplateBinding(step, completed, input);
@@ -2442,6 +2443,86 @@ public class InterpretationPlanRuntime {
         }
         Object rawCalls = firstPresent(input, "calls", "toolCalls", "tool_calls");
         return rawCalls instanceof List<?> calls && !calls.isEmpty();
+    }
+
+    /**
+     * Applies the same Runtime-owned discovery and parameter-evidence contract to every child of
+     * a model-produced batch. A batch is only a transport optimization; it must not bypass the
+     * scalar template invocation bridge.
+     */
+    @SuppressWarnings("unchecked")
+    private void bridgeBatchTemplateInvocations(InterpretationPlan.Step step,
+                                                ExecutionRequest request,
+                                                Map<Integer, StepExecution> completed,
+                                                Map<String, Object> input) {
+        boolean governedDiscoveryAvailable = completed != null && completed.values().stream()
+            .anyMatch(execution -> execution != null && execution.success()
+                && isTemplateDiscoveryTool(execution.toolName()));
+        if (!governedDiscoveryAvailable) {
+            return;
+        }
+        Object rawCalls = firstPresent(input, "calls", "toolCalls", "tool_calls");
+        if (!(rawCalls instanceof List<?> calls)) {
+            return;
+        }
+        List<Map<String, Object>> bridgedCalls = new ArrayList<>();
+        for (int index = 0; index < calls.size(); index++) {
+            if (!(calls.get(index) instanceof Map<?, ?> rawCall)) {
+                throw new IllegalStateException("TEMPLATE_BATCH_CONTRACT_FAILED: call " + index
+                    + " must be an object");
+            }
+            Map<String, Object> call = new LinkedHashMap<>((Map<String, Object>) rawCall);
+            Object rawArguments = firstMapValue(call, "arguments", "input");
+            if (!(rawArguments instanceof Map<?, ?> argumentMap)) {
+                throw new IllegalStateException("TEMPLATE_BATCH_CONTRACT_FAILED: call " + index
+                    + " arguments must be an object");
+            }
+            Map<String, Object> arguments = new LinkedHashMap<>((Map<String, Object>) argumentMap);
+            String childTool = firstText(
+                stringValue(firstMapValue(call, "toolName", "tool_name")),
+                step == null ? null : step.toolName()
+            );
+            String templateId = canonicalTemplateId(firstValueAtAnyPath(arguments,
+                "$.templateId", "$.template", "$.template_id"));
+            if (templateId == null) {
+                throw new IllegalStateException("TEMPLATE_BATCH_CONTRACT_FAILED: call " + index
+                    + " has no Runtime-bound template id");
+            }
+            Map<String, Object> templateMetadata = completedTemplateMetadata(completed, templateId);
+            if (templateMetadata.isEmpty()) {
+                throw new IllegalStateException("TEMPLATE_BATCH_CONTRACT_FAILED: call " + index
+                    + " template " + templateId + " was not returned by completed discovery");
+            }
+            Object rawProtocol = firstMapValue(arguments, "parameterProtocol", "parameter_protocol");
+            Map<String, Object> protocol = rawProtocol instanceof Map<?, ?> map
+                ? new LinkedHashMap<>((Map<String, Object>) map)
+                : null;
+            TemplateInvocationBridge.BridgeResult bridged = TEMPLATE_INVOCATION_BRIDGE.prepare(
+                new TemplateInvocationBridge.BridgeRequest(
+                    childTool,
+                    step == null ? null : step.id(),
+                    templateId,
+                    templateMetadata,
+                    arguments,
+                    protocol,
+                    requiresTemplateParameterProtocol(request),
+                    true,
+                    templateParameterEvidenceContext(request, completed)
+                )
+            );
+            Map<String, Object> childInput = new LinkedHashMap<>(bridged.executorInput());
+            childInput.remove(TemplateInvocationBridge.APPLIED_MARKER);
+            call.put("arguments", childInput);
+            call.remove("input");
+            bridgedCalls.add(call);
+            log.info("InterpretationPlan template bridge validated batch child stepId={} callIndex={} "
+                    + "tool={} templateId={} parameterKeys={} modelProtocolApplied={} protocolTrace={}",
+                step == null ? null : step.id(), index, childTool, templateId,
+                bridged.parameters().keySet(), bridged.modelProtocolApplied(), bridged.protocolTrace());
+        }
+        input.put("calls", bridgedCalls);
+        input.remove("toolCalls");
+        input.remove("tool_calls");
     }
 
     /**
@@ -5093,7 +5174,8 @@ public class InterpretationPlanRuntime {
             }
             putInputValue(input, binding.inputField(), value);
             registerResolvedBinding(resolvedBindings, binding.inputField(), value);
-            if (isTemplateExecutionTool(step.toolName()) && bindingAssignsTemplateId(binding)) {
+            if (isTemplateExecutionTool(step.toolName()) && bindingAssignsTemplateId(binding)
+                && !bindingTargetsBatchChild(binding)) {
                 putRuntimeTemplateBinding(input, canonicalTemplateId(value), step.toolName(),
                     "plan_binding_from_template_discovery");
             }
@@ -5122,6 +5204,15 @@ public class InterpretationPlanRuntime {
         }
         String inputKey = contractFieldKey(binding.inputField());
         return "templateid".equals(inputKey) || "template".equals(inputKey);
+    }
+
+    private boolean bindingTargetsBatchChild(InterpretationPlan.Binding binding) {
+        if (binding == null || binding.inputField() == null) {
+            return false;
+        }
+        return pathTokens(binding.inputField()).stream()
+            .map(value -> value.toLowerCase(Locale.ROOT))
+            .anyMatch(value -> "calls".equals(value) || "toolcalls".equals(value) || "tool_calls".equals(value));
     }
 
     private void enforceRuntimeTemplateBinding(InterpretationPlan.Step step, Map<String, Object> input) {
@@ -5275,7 +5366,6 @@ public class InterpretationPlanRuntime {
             || "template".equals(inputKey);
     }
 
-    @SuppressWarnings("unchecked")
     private void putInputValue(Map<String, Object> input, String inputField, Object value) {
         if (input == null || inputField == null || inputField.isBlank()) {
             return;
@@ -5284,19 +5374,74 @@ public class InterpretationPlanRuntime {
         if (tokens.isEmpty()) {
             return;
         }
-        Map<String, Object> current = input;
-        for (int i = 0; i < tokens.size() - 1; i++) {
-            String token = tokens.get(i);
-            Object child = current.get(token);
-            if (child instanceof Map<?, ?> map) {
-                child = new LinkedHashMap<>(map);
-            } else {
-                child = new LinkedHashMap<String, Object>();
-            }
-            current.put(token, child);
-            current = (Map<String, Object>) child;
+        putPathValue(input, tokens, 0, value, inputField);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void putPathValue(Object container,
+                              List<String> tokens,
+                              int offset,
+                              Object value,
+                              String originalPath) {
+        if (offset >= tokens.size()) {
+            return;
         }
-        current.put(tokens.get(tokens.size() - 1), value);
+        String token = tokens.get(offset);
+        boolean leaf = offset == tokens.size() - 1;
+        if (container instanceof Map<?, ?> rawMap) {
+            Map<String, Object> map = (Map<String, Object>) rawMap;
+            if (leaf) {
+                map.put(token, value);
+                return;
+            }
+            String nextToken = tokens.get(offset + 1);
+            Object child = map.get(token);
+            Object mutable = mutablePathContainer(child, nextToken, originalPath);
+            map.put(token, mutable);
+            putPathValue(mutable, tokens, offset + 1, value, originalPath);
+            return;
+        }
+        if (container instanceof List<?> rawList) {
+            List<Object> list = (List<Object>) rawList;
+            int index;
+            try {
+                index = Integer.parseInt(token);
+            } catch (NumberFormatException ex) {
+                throw new IllegalStateException("BINDING_FAILED: list path requires numeric index at "
+                    + originalPath + " but found " + token);
+            }
+            if (index < 0 || index >= list.size()) {
+                throw new IllegalStateException("BINDING_FAILED: list index " + index
+                    + " is outside " + originalPath);
+            }
+            if (leaf) {
+                list.set(index, value);
+                return;
+            }
+            String nextToken = tokens.get(offset + 1);
+            Object mutable = mutablePathContainer(list.get(index), nextToken, originalPath);
+            list.set(index, mutable);
+            putPathValue(mutable, tokens, offset + 1, value, originalPath);
+            return;
+        }
+        throw new IllegalStateException("BINDING_FAILED: cannot traverse " + originalPath);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Object mutablePathContainer(Object existing, String nextToken, String originalPath) {
+        if (existing instanceof Map<?, ?> map) {
+            return new LinkedHashMap<>((Map<String, Object>) map);
+        }
+        if (existing instanceof List<?> list) {
+            return new ArrayList<>(list);
+        }
+        if (existing != null) {
+            throw new IllegalStateException("BINDING_FAILED: cannot replace scalar while traversing "
+                + originalPath);
+        }
+        return nextToken != null && nextToken.matches("\\d+")
+            ? new ArrayList<>()
+            : new LinkedHashMap<String, Object>();
     }
 
     private boolean hasNonBlank(Map<?, ?> input, String... keys) {

@@ -993,6 +993,33 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
+    void workflowDependenciesMatchAnUnseenRuntimeNamespaceWithoutServerSpecificRules() {
+        List<String> runtimeTools = List.of(
+            "database_asset_search",
+            "database_ops_template_search",
+            "sql_query_execute"
+        );
+        String namespace = "mcp_tenant_" + System.nanoTime() + "_capability_gateway_";
+        List<String> configuredTools = runtimeTools.stream().map(namespace::concat).toList();
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        runtimeTools.forEach(tool -> when(toolRegistry.getToolMetadata(tool)).thenReturn(ToolMetadata.builder()
+            .id(tool).title(tool).categories(List.of("mcp")).build()));
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.success("ok"));
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), properties(), new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of());
+        Map<String, Object> workflow = diagnosticWorkflow(configuredTools);
+
+        for (int index = 0; index < runtimeTools.size(); index++) {
+            ToolRuntimeExecution execution = service.execute(diagnosticAttemptRequest(
+                runtimeTools.get(index), workflow, runtimeTools, index, "asset-dynamic"));
+            assertThat(execution.output().isSuccess()).isTrue();
+        }
+
+        verify(toolRegistry, times(3)).executeEnhancedTool(any(), any());
+    }
+
+    @Test
     void completedWorkflowFactForOneAssetCannotSatisfyAnotherAsset() {
         List<String> tools = List.of("database_asset_search", "database_ops_template_search", "sql_query_execute");
         ToolRegistry toolRegistry = mock(ToolRegistry.class);

@@ -66,6 +66,36 @@ class InterpretationPlanWorkflowGuardTest {
     }
 
     @Test
+    void matchesSemanticToolsUnderAnUnseenRuntimeServerNamespace() {
+        String namespace = "mcp_tenant_" + System.nanoTime() + "_data_fabric_";
+        InterpretationPlanRuntime.ExecutionResult result = result(List.of(
+            execution(1, "mcp_tool", namespace + "api_template_query", true),
+            execution(2, "mcp_tool", namespace + "api_template_execute", true),
+            execution(3, "final_answer", "", true)
+        ));
+
+        InterpretationPlanWorkflowGuard.GuardResult evaluated = guard.evaluate(
+            plan(), result, List.of("api_template_query", "api_template_execute"), List.of());
+
+        assertThat(evaluated.allowed()).isTrue();
+        assertThat(evaluated.code()).isEqualTo("mcp_workflow_complete");
+    }
+
+    @Test
+    void doesNotAcceptANameThatOnlySharesAnUnboundedSuffix() {
+        InterpretationPlanRuntime.ExecutionResult result = result(List.of(
+            execution(1, "mcp_tool", "tenant_notweb_search", true),
+            execution(2, "final_answer", "", true)
+        ));
+
+        InterpretationPlanWorkflowGuard.GuardResult evaluated = guard.evaluate(
+            plan(), result, List.of("web_search"), List.of());
+
+        assertThat(evaluated.allowed()).isFalse();
+        assertThat(evaluated.missingRequiredTools()).containsExactly("web_search");
+    }
+
+    @Test
     void blocksWhenFinalAnswerIsNotLastExecutedStep() {
         InterpretationPlanRuntime.ExecutionResult result = result(List.of(
             execution(1, "mcp_tool", "document_search", true),

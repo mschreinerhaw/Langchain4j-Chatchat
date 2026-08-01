@@ -21,6 +21,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -6439,6 +6440,110 @@ class InterpretationPlanRuntimeTest {
             .containsEntry("toolResultReviewSkipped", true)
             .containsEntry("batchExecution", true)
             .containsEntry("diagnosticEvidenceNormalized", true);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void bindsAndValidatesEveryDiscoveredTemplateInDataCapabilityBatch() {
+        String discoveryTool = "tenant_business_template_query";
+        String executionTool = "sql_query_execute";
+        String firstTemplate = "tenant_snapshot_a_" + System.nanoTime();
+        String secondTemplate = "tenant_snapshot_b_" + System.nanoTime();
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(any())).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenAnswer(invocation ->
+            ToolMetadata.builder().id(invocation.getArgument(0)).riskLevel("low").build());
+        AtomicReference<Map<String, Object>> executionInput = new AtomicReference<>();
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest request = invocation.getArgument(0);
+            if (discoveryTool.equals(request.getToolName())) {
+                return new ToolRuntimeExecution(ToolOutput.success(Map.of(
+                    "schemaVersion", "template_query_result.v1",
+                    "returnedCount", 2,
+                    "templates", List.of(
+                        Map.of(
+                            "templateId", firstTemplate,
+                            "parameterContract", Map.of("executionTool", executionTool),
+                            "parameterSchema", Map.of("type", "object", "properties", Map.of(), "required", List.of())
+                        ),
+                        Map.of(
+                            "templateId", secondTemplate,
+                            "parameterContract", Map.of("executionTool", executionTool),
+                            "parameterSchema", Map.of("type", "object", "properties", Map.of(), "required", List.of())
+                        )
+                    )
+                )), ToolMetadata.builder().id(discoveryTool).build(), null, "success", Map.of());
+            }
+            executionInput.set(request.getToolInput().getParameters());
+            return new ToolRuntimeExecution(
+                ToolOutput.success(Map.of("results", List.of(
+                    Map.of("callId", "a", "status", "SUCCESS"),
+                    Map.of("callId", "b", "status", "SUCCESS")))),
+                ToolMetadata.builder().id(executionTool).build(), null, "success",
+                Map.of("batchExecution", true, "remoteToolInvocationCount", 2));
+        });
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", "run discovered tenant snapshots", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", discoveryTool,
+                        Map.of("filters", Map.of("intent", "tenant snapshots")), List.of(), null, null),
+                    new InterpretationPlan.Step(2, "mcp_tool", executionTool,
+                        Map.of(
+                            "executionMode", "SEQUENTIAL",
+                            "calls", List.of(
+                                Map.of("callId", "a", "toolName", executionTool,
+                                    "arguments", Map.of("templateId", "model-placeholder-a", "parameters", Map.of())),
+                                Map.of("callId", "b", "toolName", executionTool,
+                                    "arguments", Map.of("templateId", "model-placeholder-b", "parameters", Map.of()))
+                            )
+                        ), List.of(1), null, null),
+                    new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
+                ),
+                List.of(),
+                List.of(
+                    new InterpretationPlan.Binding(1, "$.templates[0].templateId", 2,
+                        "$.calls[0].arguments.templateId", "jsonpath", true),
+                    new InterpretationPlan.Binding(1, "$.templates[1].templateId", 2,
+                        "$.calls[1].arguments.templateId", "jsonpath", true)
+                ),
+                null
+            ),
+            new InterpretationPlan.ExecutionPolicy(3, false,
+                List.of(discoveryTool, executionTool), List.of(), 30_000),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            null,
+            request -> InterpretationPlanRuntime.StepReview.accepted(
+                "both discovered templates match", Map.of("selectedTemplateIds", List.of(firstTemplate, secondTemplate))),
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, toolRegistry, List.of(discoveryTool, executionTool), "tenant-new",
+                "request-new", "conversation-new", "user-new", Map.of("originalUserQuery", "run snapshots"))
+        );
+
+        assertThat(result.success())
+            .as("status=%s error=%s", result.status(), result.errorMessage())
+            .isTrue();
+        assertThat(executionInput.get()).doesNotContainKey("runtimeTemplateBinding");
+        assertThat(executionInput.get().get("calls")).isInstanceOfSatisfying(List.class, calls -> {
+            assertThat(calls).hasSize(2);
+            assertThat(calls.toString()).contains(firstTemplate, secondTemplate)
+                .doesNotContain("model-placeholder");
+        });
+        List<Map<String, Object>> calls = (List<Map<String, Object>>) executionInput.get().get("calls");
+        assertThat(calls).allSatisfy(call -> assertThat(call.get("arguments"))
+            .isInstanceOfSatisfying(Map.class, arguments ->
+                assertThat(arguments).containsEntry("parameters", Map.of())));
     }
 
     @Test

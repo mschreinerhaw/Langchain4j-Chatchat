@@ -171,25 +171,53 @@ class FinalSummaryWebSearchEnhancer {
 
     private ToolRuntimeExecution execute(String toolName, String keyword, Map<String, Object> metadata) {
         String runId = text(metadata, "agentRunId", "__agentRunId");
+        String requestId = firstNonBlank(text(metadata, "requestId"), runId);
+        String conversationId = text(metadata, "conversationId");
+        String tenantId = text(metadata, "tenantId");
+        String userId = text(metadata, "userId");
+        Map<String, Object> context = new LinkedHashMap<>();
+        context.put("internalPurpose", CANDIDATE_STAGE);
+        context.put("userFacingTool", false);
+        putIfText(context, "tenantId", tenantId);
+        putIfText(context, "userId", userId);
         ToolInput input = ToolInput.builder()
-            .requestId(runId)
+            .requestId(requestId)
+            .conversationId(conversationId)
+            .userId(userId)
             .parameters(Map.of(
                 "query", keyword,
                 "num_results", properties.finalSummaryWebSearchResultLimit()))
-            .context(Map.of(
-                "internalPurpose", CANDIDATE_STAGE,
-                "userFacingTool", false))
+            .context(context)
             .build();
+        Map<String, Object> attributes = new LinkedHashMap<>();
+        attributes.put("internalFinalSummaryEnhancement", true);
+        attributes.put("maxAutomaticCalls", properties.finalSummaryWebSearchMaxKeywords());
+        putIfText(attributes, "agentRunId", runId);
         return toolRuntimeService.execute(ToolRuntimeRequest.builder()
             .toolName(toolName)
             .runtimeMode("agent_chat")
-            .requestId(runId)
+            .requestId(requestId)
+            .conversationId(conversationId)
+            .tenantId(tenantId)
+            .userId(userId)
             .allowedTools(List.of(toolName))
             .toolInput(input)
-            .attributes(Map.of(
-                "internalFinalSummaryEnhancement", true,
-                "maxAutomaticCalls", properties.finalSummaryWebSearchMaxKeywords()))
+            .attributes(attributes)
             .build());
+    }
+
+    private void putIfText(Map<String, Object> target, String key, String value) {
+        if (target != null && value != null && !value.isBlank()) {
+            target.put(key, value);
+        }
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) return null;
+        for (String value : values) {
+            if (value != null && !value.isBlank()) return value;
+        }
+        return null;
     }
 
     private String synthesize(ChatModel model,

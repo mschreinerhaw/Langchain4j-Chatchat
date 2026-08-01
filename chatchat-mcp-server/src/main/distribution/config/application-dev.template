@@ -21,7 +21,7 @@ chatchat:
   mcp:
     news-runtime:
       base-url: http://localhost:8091
-      timeout-millis: 30000
+      timeout-millis: ${CHATCHAT_NEWS_RUNTIME_TIMEOUT_MILLIS:20000}
     capabilities:
       news:
         enabled: true

@@ -338,11 +338,16 @@ public class McpToolConcurrencyManager {
         RuntimeException lastException = null;
         McpSchema.CallToolResult lastResult = null;
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            if (Thread.currentThread().isInterrupted()) {
+                throw new CancellationException("MCP tool retry loop was cancelled");
+            }
             try {
                 lastResult = supplier.get();
                 if (!Boolean.TRUE.equals(lastResult == null ? null : lastResult.isError()) || attempt == maxAttempts) {
                     return lastResult;
                 }
+            } catch (CancellationException ex) {
+                throw ex;
             } catch (RuntimeException ex) {
                 lastException = ex;
                 if (attempt == maxAttempts) {

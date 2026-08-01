@@ -55,6 +55,7 @@ public class FinancialDataStore {
         this.dataSource = dataSource;
         this.mapper = mapper;
         this.properties = runtimeProperties;
+        this.jdbc.setQueryTimeout(Math.max(1, runtimeProperties.getQueryTimeoutSeconds()));
     }
 
     @PostConstruct
@@ -308,6 +309,7 @@ public class FinancialDataStore {
      * rather than the company name. The original question is still used for news and row filtering.
      */
     public String assetSearchQuery(String query, int requestedLimit) {
+        CancellationSupport.throwIfCancelled("financial asset query normalization");
         String original = query == null ? "" : query.trim();
         if (original.isBlank()) return original;
         int limit = Math.max(1, Math.min(requestedLimit, 20));

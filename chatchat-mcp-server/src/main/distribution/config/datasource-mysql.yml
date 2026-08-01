@@ -1,10 +1,18 @@
 spring:
   datasource:
     type: com.zaxxer.hikari.HikariDataSource
-    url: "jdbc:mysql://localhost:3306/chatchat_mcp?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true"
+    url: "${CHATCHAT_MCP_MYSQL_URL:jdbc:mysql://127.0.0.1:3306/live_runtime_mcp?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&connectTimeout=5000&socketTimeout=25000&tcpKeepAlive=true}"
     driver-class-name: com.mysql.cj.jdbc.Driver
-    username: chatchat
-    password:
+    username: ${CHATCHAT_MCP_MYSQL_USERNAME:chatchat_mcp}
+    password: ${CHATCHAT_MCP_MYSQL_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${CHATCHAT_MCP_DB_MAX_POOL_SIZE:20}
+      minimum-idle: ${CHATCHAT_MCP_DB_MIN_IDLE:2}
+      connection-timeout: ${CHATCHAT_MCP_DB_CONNECTION_TIMEOUT_MS:5000}
+      validation-timeout: ${CHATCHAT_MCP_DB_VALIDATION_TIMEOUT_MS:3000}
+      idle-timeout: ${CHATCHAT_MCP_DB_IDLE_TIMEOUT_MS:300000}
+      max-lifetime: ${CHATCHAT_MCP_DB_MAX_LIFETIME_MS:1200000}
+      leak-detection-threshold: ${CHATCHAT_MCP_DB_LEAK_DETECTION_MS:60000}
   h2:
     console:
       enabled: false

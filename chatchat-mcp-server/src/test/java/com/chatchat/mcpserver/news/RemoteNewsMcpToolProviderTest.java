@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -16,8 +17,27 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 class RemoteNewsMcpToolProviderTest {
+
+    @Test
+    void cancellationFromNewsRuntimeStopsBeforeAnyMarketOrDatabaseWork() {
+        NewsRuntimeClient news = mock(NewsRuntimeClient.class);
+        FinancialAssetCatalogService market = mock(FinancialAssetCatalogService.class);
+        FinancialDataStore store = mock(FinancialDataStore.class);
+        when(news.invoke(eq("web_search"), any()))
+            .thenThrow(new CancellationException("outer tool deadline reached"));
+        RemoteNewsMcpToolProvider provider = new RemoteNewsMcpToolProvider(news, market, store);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> provider.findExecutor("web_search")
+                .orElseThrow().execute(ToolInput.builder().parameters(Map.of("query", "latest announcements")).build()))
+            .isInstanceOf(CancellationException.class);
+
+        verify(market, never()).search(any(), any(Integer.class));
+        verify(store, never()).query(any(), any(), any(), any(), any(Integer.class), any());
+    }
 
     @Test
     @SuppressWarnings("unchecked")

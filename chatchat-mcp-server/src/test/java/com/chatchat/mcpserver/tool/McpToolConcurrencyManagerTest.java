@@ -11,10 +11,50 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class McpToolConcurrencyManagerTest {
+
+    @Test
+    void timeoutInterruptsWorkReleasesCapacityAndAllowsImmediateRecovery() throws Exception {
+        ChatChatMcpServerProperties properties = new ChatChatMcpServerProperties();
+        ChatChatMcpServerProperties.LimitProperties webSearchLimit =
+            new ChatChatMcpServerProperties.LimitProperties(1, 0, 1, 1, "http");
+        webSearchLimit.setFailureThreshold(10);
+        webSearchLimit.setRetryAttempts(3);
+        properties.getConcurrency().setTools(new LinkedHashMap<>(Map.of("web_search", webSearchLimit)));
+        manager = new McpToolConcurrencyManager(properties, new ObjectMapper());
+        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch stopped = new CountDownLatch(1);
+        AtomicBoolean interrupted = new AtomicBoolean();
+        java.util.concurrent.atomic.AtomicInteger invocations = new java.util.concurrent.atomic.AtomicInteger();
+
+        McpSchema.CallToolResult timedOut = manager.execute("web_search", "http", Map.of(), () -> {
+            invocations.incrementAndGet();
+            started.countDown();
+            try {
+                Thread.sleep(TimeUnit.MINUTES.toMillis(1));
+                return successResult("unexpected");
+            } catch (InterruptedException ex) {
+                interrupted.set(true);
+                Thread.currentThread().interrupt();
+                throw new java.util.concurrent.CancellationException("cancelled");
+            } finally {
+                stopped.countDown();
+            }
+        });
+
+        assertThat(started.getCount()).isZero();
+        assertThat(timedOut.isError()).isTrue();
+        assertThat(((Map<?, ?>) timedOut.structuredContent()).get("status")).isEqualTo("TIMEOUT");
+        assertThat(stopped.await(1, TimeUnit.SECONDS)).isTrue();
+        assertThat(interrupted).isTrue();
+        assertThat(invocations).hasValue(1);
+        assertThat(manager.execute("web_search", "http", Map.of(), () -> successResult("recovered")).isError())
+            .isFalse();
+    }
 
     private McpToolConcurrencyManager manager;
 

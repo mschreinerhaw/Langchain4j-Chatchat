@@ -31,15 +31,21 @@ public class NewsRuntimeClient {
     @Autowired
     public NewsRuntimeClient(ObjectMapper mapper, InternalCredentialProperties credentials,
                              @Value("${chatchat.mcp.news-runtime.base-url:http://localhost:8091}") String baseUrl,
-                             @Value("${chatchat.mcp.news-runtime.timeout-millis:30000}") long timeoutMillis) {
-        this(mapper, credentials, HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build(),
-            baseUrl, Duration.ofMillis(timeoutMillis));
+                             @Value("${chatchat.mcp.news-runtime.timeout-millis:20000}") long timeoutMillis) {
+        this(mapper, credentials, HttpClient.newBuilder()
+                .connectTimeout(Duration.ofMillis(Math.min(5_000L, normalizedTimeoutMillis(timeoutMillis))))
+                .followRedirects(HttpClient.Redirect.NORMAL).build(),
+            baseUrl, Duration.ofMillis(normalizedTimeoutMillis(timeoutMillis)));
     }
 
     NewsRuntimeClient(ObjectMapper mapper, InternalCredentialProperties credentials, HttpClient client,
                       String baseUrl, Duration timeout) {
         this.mapper = mapper; this.credentials = credentials; this.client = client;
         this.baseUrl = baseUrl.replaceAll("/+$", ""); this.timeout = timeout;
+    }
+
+    private static long normalizedTimeoutMillis(long timeoutMillis) {
+        return Math.max(1_000L, timeoutMillis);
     }
 
     public JsonNode get(String path) { return exchange("GET", path, null); }
@@ -53,7 +59,10 @@ public class NewsRuntimeClient {
 
     public boolean available() {
         try { return "UP".equals(get("/health").path("status").asText()); }
-        catch (Exception ignored) { return false; }
+        catch (Exception failure) {
+            CancellationSupport.rethrowIfCancelled(failure, "News Runtime health check");
+            return false;
+        }
     }
 
     private JsonNode exchange(String method, String path, Object body) {

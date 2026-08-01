@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -18,6 +19,27 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class WebSearchToolExecutorTest {
+
+    @Test
+    void cancellationDuringLocalRecallStopsExternalAndCacheWork() throws Exception {
+        NewsRuntimeProperties properties = new NewsRuntimeProperties();
+        properties.getOpenSearch().setEnabled(true);
+        NewsDocumentStore store = mock(NewsDocumentStore.class);
+        when(store.search(any())).thenThrow(new CancellationException("request cancelled"));
+        TencentWebSearchClient external = mock(TencentWebSearchClient.class);
+        when(external.enabled()).thenReturn(true);
+        WebSearchCache cache = mock(WebSearchCache.class);
+        when(cache.enabled()).thenReturn(true);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                new WebSearchToolExecutor(store, properties, external, cache).execute(
+                    ToolInput.builder().parameters(Map.of("query", "latest announcements")).build()))
+            .isInstanceOf(CancellationException.class);
+
+        verify(cache, never()).findHighlyRelated(any());
+        verify(external, never()).search(any(), any(Integer.class));
+        verify(cache, never()).put(any(), any());
+    }
 
     @Test
     @SuppressWarnings("unchecked")

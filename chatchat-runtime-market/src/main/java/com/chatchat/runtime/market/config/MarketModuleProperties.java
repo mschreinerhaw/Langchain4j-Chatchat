@@ -11,6 +11,8 @@ public class MarketModuleProperties {
     private String catalogIndexName = "financial-data-asset";
     private int defaultQueryLimit = 50;
     private int maxQueryLimit = 200;
+    /** JDBC statement timeout; must remain below the outer MCP tool deadline. */
+    private int queryTimeoutSeconds = 20;
     private int partitionCount = 32;
     private Retention retention = new Retention();
 

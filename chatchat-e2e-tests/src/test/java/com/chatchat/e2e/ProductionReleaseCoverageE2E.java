@@ -35,6 +35,10 @@ class ProductionReleaseCoverageE2E {
             .contains("chatchat-e2e-tests", "-am", "verify", "frontend.skip=true");
         assertThat(Files.readString(root.resolve("pom.xml")))
             .contains("<module>chatchat-e2e-tests</module>");
+        assertThat(Files.readString(root.resolve(
+            "chatchat-e2e-tests/src/test/java/com/chatchat/e2e/ProductionWebSearchTimeoutIsolationE2E.java")))
+            .contains("timeoutStormCancelsTheRuntimeChainAvoidsDatabaseWorkAndRecoversWithoutRestart",
+                "McpToolConcurrencyManager", "RemoteNewsMcpToolProvider", "never()).query");
     }
 
     @Test

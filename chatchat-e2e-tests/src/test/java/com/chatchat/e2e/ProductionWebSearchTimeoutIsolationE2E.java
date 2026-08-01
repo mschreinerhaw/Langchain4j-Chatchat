@@ -18,6 +18,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -71,12 +73,17 @@ class ProductionWebSearchTimeoutIsolationE2E {
 
         try (ManagerResource resource = new ManagerResource(
             new McpToolConcurrencyManager(properties, new ObjectMapper()))) {
+            ExecutorService callers = Executors.newFixedThreadPool(128);
             List<CompletableFuture<McpSchema.CallToolResult>> storm = new ArrayList<>();
-            for (int index = 0; index < 8; index++) {
-                storm.add(CompletableFuture.supplyAsync(() -> invoke(resource.manager(), provider)));
+            try {
+                for (int index = 0; index < 512; index++) {
+                    storm.add(CompletableFuture.supplyAsync(() -> invoke(resource.manager(), provider), callers));
+                }
+                List<McpSchema.CallToolResult> failures = storm.stream().map(CompletableFuture::join).toList();
+                assertThat(failures).allSatisfy(result -> assertThat(result.isError()).isTrue());
+            } finally {
+                callers.shutdownNow();
             }
-            List<McpSchema.CallToolResult> failures = storm.stream().map(CompletableFuture::join).toList();
-            assertThat(failures).allSatisfy(result -> assertThat(result.isError()).isTrue());
             awaitEqual(started, stopped, 2, TimeUnit.SECONDS);
 
             verify(market, never()).search(any(), anyInt());
@@ -85,6 +92,60 @@ class ProductionWebSearchTimeoutIsolationE2E {
             healthy.set(true);
             McpSchema.CallToolResult recovered = invoke(resource.manager(), provider);
             assertThat(recovered.isError()).isFalse();
+        }
+    }
+
+    @Test
+    void nonCooperativeZombieStormStaysBoundedAndRecoversAfterDownstreamFinallyReturns() throws Exception {
+        ChatChatMcpServerProperties properties = new ChatChatMcpServerProperties();
+        properties.getConcurrency().setGlobal(
+            new ChatChatMcpServerProperties.LimitProperties(4, 4, 1, 1, "global"));
+        ChatChatMcpServerProperties.LimitProperties limit =
+            new ChatChatMcpServerProperties.LimitProperties(4, 4, 1, 1, "http");
+        limit.setFailureThreshold(1_000);
+        properties.getConcurrency().setTools(new LinkedHashMap<>(Map.of("web_search", limit)));
+
+        CountDownLatch releaseZombies = new CountDownLatch(1);
+        AtomicInteger active = new AtomicInteger();
+        AtomicInteger maximumActive = new AtomicInteger();
+        AtomicInteger stopped = new AtomicInteger();
+        ExecutorService callers = Executors.newFixedThreadPool(128);
+        try (ManagerResource resource = new ManagerResource(
+            new McpToolConcurrencyManager(properties, new ObjectMapper()))) {
+            List<CompletableFuture<McpSchema.CallToolResult>> storm = new ArrayList<>();
+            for (int index = 0; index < 512; index++) {
+                storm.add(CompletableFuture.supplyAsync(() -> resource.manager().execute(
+                    "web_search", "http", Map.of(), () -> {
+                        int current = active.incrementAndGet();
+                        maximumActive.accumulateAndGet(current, Math::max);
+                        try {
+                            while (releaseZombies.getCount() > 0) {
+                                try {
+                                    releaseZombies.await();
+                                } catch (InterruptedException ignored) {
+                                    // Deliberately emulate a broken third-party driver that ignores cancellation.
+                                }
+                            }
+                            return successResult("zombie released");
+                        } finally {
+                            active.decrementAndGet();
+                            stopped.incrementAndGet();
+                        }
+                    }), callers));
+            }
+            List<McpSchema.CallToolResult> failures = storm.stream().map(CompletableFuture::join).toList();
+            assertThat(failures).allSatisfy(result -> assertThat(result.isError()).isTrue());
+            assertThat(maximumActive).hasValue(4);
+            assertThat(active).hasValue(4);
+
+            releaseZombies.countDown();
+            awaitValue(active, 0, 2, TimeUnit.SECONDS);
+            assertThat(stopped).hasValue(4);
+            assertThat(resource.manager().execute("web_search", "http", Map.of(),
+                () -> successResult("recovered")).isError()).isFalse();
+        } finally {
+            releaseZombies.countDown();
+            callers.shutdownNow();
         }
     }
 
@@ -108,6 +169,23 @@ class ProductionWebSearchTimeoutIsolationE2E {
             Thread.sleep(10L);
         }
         assertThat(actual.get()).isEqualTo(expected.get());
+    }
+
+    private void awaitValue(AtomicInteger actual, int expected, long timeout, TimeUnit unit)
+        throws InterruptedException {
+        long deadline = System.nanoTime() + unit.toNanos(timeout);
+        while (actual.get() != expected && System.nanoTime() < deadline) {
+            Thread.sleep(10L);
+        }
+        assertThat(actual).hasValue(expected);
+    }
+
+    private McpSchema.CallToolResult successResult(String text) {
+        return McpSchema.CallToolResult.builder()
+            .addTextContent(text)
+            .structuredContent(Map.of("success", true))
+            .isError(false)
+            .build();
     }
 
     private record ManagerResource(McpToolConcurrencyManager manager) implements AutoCloseable {

@@ -38,7 +38,13 @@ class ProductionReleaseCoverageE2E {
         assertThat(Files.readString(root.resolve(
             "chatchat-e2e-tests/src/test/java/com/chatchat/e2e/ProductionWebSearchTimeoutIsolationE2E.java")))
             .contains("timeoutStormCancelsTheRuntimeChainAvoidsDatabaseWorkAndRecoversWithoutRestart",
+                "nonCooperativeZombieStormStaysBoundedAndRecoversAfterDownstreamFinallyReturns",
                 "McpToolConcurrencyManager", "RemoteNewsMcpToolProvider", "never()).query");
+        assertThat(Files.readString(root.resolve(
+            "chatchat-e2e-tests/src/test/java/com/chatchat/e2e/ProductionUnpredictableUserRequestE2E.java")))
+            .contains("adversarialButValidQuestionsRemainStableAndReachOnlyTheSelectedHandler",
+                "invalidExtremeRequestsAreRejectedBeforeConversationPersistenceModelOrToolExecution",
+                "concurrentUnpredictableQuestionsRemainResponsiveAndRequestIsolated");
     }
 
     @Test

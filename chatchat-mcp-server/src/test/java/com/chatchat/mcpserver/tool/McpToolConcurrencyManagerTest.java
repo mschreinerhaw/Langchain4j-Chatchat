@@ -18,6 +18,45 @@ import static org.assertj.core.api.Assertions.assertThat;
 class McpToolConcurrencyManagerTest {
 
     @Test
+    void firstTimeoutOpensCircuitAndPreventsRetryStormUntilRecoveryWindow() throws Exception {
+        ChatChatMcpServerProperties properties = new ChatChatMcpServerProperties();
+        ChatChatMcpServerProperties.LimitProperties webSearchLimit =
+            new ChatChatMcpServerProperties.LimitProperties(2, 4, 1, 1, "http");
+        webSearchLimit.setFailureThreshold(1);
+        webSearchLimit.setCircuitOpenSeconds(1);
+        webSearchLimit.setRetryAttempts(5);
+        properties.getConcurrency().setTools(new LinkedHashMap<>(Map.of("web_search", webSearchLimit)));
+        manager = new McpToolConcurrencyManager(properties, new ObjectMapper());
+        java.util.concurrent.atomic.AtomicInteger invocations = new java.util.concurrent.atomic.AtomicInteger();
+
+        McpSchema.CallToolResult timeout = manager.execute("web_search", "http", Map.of(), () -> {
+            invocations.incrementAndGet();
+            try {
+                Thread.sleep(TimeUnit.MINUTES.toMillis(1));
+                return successResult("unexpected");
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                throw new java.util.concurrent.CancellationException("cancelled");
+            }
+        });
+        McpSchema.CallToolResult rejected = manager.execute("web_search", "http", Map.of(), () -> {
+            invocations.incrementAndGet();
+            return successResult("must not run while circuit is open");
+        });
+
+        assertThat(((Map<?, ?>) timeout.structuredContent()).get("status")).isEqualTo("TIMEOUT");
+        assertThat(((Map<?, ?>) rejected.structuredContent()).get("status")).isEqualTo("CIRCUIT_OPEN");
+        assertThat(invocations).hasValue(1);
+
+        Thread.sleep(1_100L);
+        assertThat(manager.execute("web_search", "http", Map.of(), () -> {
+            invocations.incrementAndGet();
+            return successResult("recovered");
+        }).isError()).isFalse();
+        assertThat(invocations).hasValue(2);
+    }
+
+    @Test
     void timeoutInterruptsWorkReleasesCapacityAndAllowsImmediateRecovery() throws Exception {
         ChatChatMcpServerProperties properties = new ChatChatMcpServerProperties();
         ChatChatMcpServerProperties.LimitProperties webSearchLimit =

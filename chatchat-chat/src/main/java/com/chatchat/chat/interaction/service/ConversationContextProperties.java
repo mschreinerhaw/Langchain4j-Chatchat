@@ -16,4 +16,14 @@ public class ConversationContextProperties {
     private int summaryKeepRecentMessages = 6;
     private int summaryMaxChars = 1600;
     private boolean summaryEnabled = true;
+    private int maxUserQueryChars = 64_000;
+    private int maxSystemPromptChars = 32_000;
+    private int maxIdentifierChars = 256;
+    private int maxAvailableTools = 256;
+    private int maxImageAnalysisIds = 64;
+    private int maxHistoryWindow = 100;
+    private int maxResults = 1_000;
+    private int maxToolInputDepth = 20;
+    private int maxToolInputNodes = 10_000;
+    private int maxToolInputTextChars = 256_000;
 }

@@ -75,12 +75,7 @@ public class InteractionOrchestrationService {
      * @return the operation result
      */
     public InteractionResponse chat(InteractionRequest request) {
-        if (request == null) {
-            throw new IllegalArgumentException("Request cannot be null");
-        }
-        if (request.getQuery() == null || request.getQuery().isBlank()) {
-            throw new IllegalArgumentException("Query cannot be empty");
-        }
+        InteractionRequestGuard.validate(request, contextProperties);
 
         InteractionMode mode = InteractionMode.from(request.getMode());
         InteractionModeHandler handler = handlers.get(mode);

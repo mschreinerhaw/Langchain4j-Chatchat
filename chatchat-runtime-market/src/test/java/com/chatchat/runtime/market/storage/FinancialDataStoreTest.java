@@ -17,6 +17,39 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class FinancialDataStoreTest {
     @Test
+    void repeatedIngestionWithStableSchemaDoesNotRepeatDdl() throws Exception {
+        var dataSource = new DriverManagerDataSource(
+            "jdbc:h2:mem:financial_no_repeated_ddl;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1", "sa", "");
+        var jdbc = new CountingJdbcTemplate(dataSource);
+        var store = new FinancialDataStore(jdbc, dataSource, new ObjectMapper(), new MarketModuleProperties());
+        store.initialize();
+        MarketSource source = new MarketSource(
+            8L, "exchange_quote", "Exchange quote", "https://example.test");
+
+        store.store(quote(source, "000001", "Example", "10.98"));
+        int afterFirstWrite = jdbc.ddlExecutions;
+        store.store(quote(source, "000002", "Example 2", "11.00"));
+
+        assertThat(afterFirstWrite).isGreaterThan(0);
+        assertThat(jdbc.ddlExecutions).isEqualTo(afterFirstWrite);
+    }
+
+    private static final class CountingJdbcTemplate extends JdbcTemplate {
+        private int ddlExecutions;
+
+        private CountingJdbcTemplate(javax.sql.DataSource dataSource) {
+            super(dataSource);
+        }
+
+        @Override
+        public void execute(String sql) {
+            String normalized = sql == null ? "" : sql.stripLeading().toLowerCase(java.util.Locale.ROOT);
+            if (normalized.startsWith("create ") || normalized.startsWith("alter ")) ddlExecutions++;
+            super.execute(sql);
+        }
+    }
+
+    @Test
     void resolvesOfficialSecurityNamesWithSqlLike() throws Exception {
         var dataSource = new DriverManagerDataSource(
             "jdbc:h2:mem:security_master;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1", "sa", "");

@@ -24,11 +24,13 @@
             <groupId>com.chatchat</groupId>
             <artifactId>chatchat-api</artifactId>
             <version>${project.version}</version>
+            <classifier>plain</classifier>
         </dependency>
         <dependency>
             <groupId>com.chatchat</groupId>
             <artifactId>chatchat-mcp-server</artifactId>
             <version>${project.version}</version>
+            <classifier>plain</classifier>
         </dependency>
         <dependency>
             <groupId>com.chatchat</groupId>

@@ -13,6 +13,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -23,6 +25,47 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ToolRuntimeServiceTest {
+
+    @Test
+    void blockedAuditPersistenceCannotBlockToolResponse() throws Exception {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata("fast_tool")).thenReturn(ToolMetadata.builder()
+            .id("fast_tool").title("Fast Tool").build());
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.success("ok"));
+        CountDownLatch auditStarted = new CountDownLatch(1);
+        CountDownLatch releaseAudit = new CountDownLatch(1);
+        ToolRuntimeProperties properties = properties();
+        properties.setAuditSinkTimeoutMs(100);
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), properties, new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of(), List.of(record -> {
+                auditStarted.countDown();
+                try {
+                    releaseAudit.await(30, TimeUnit.SECONDS);
+                } catch (InterruptedException ignored) {
+                    // Simulate a database driver that does not promptly honor cancellation.
+                    try {
+                        releaseAudit.await(30, TimeUnit.SECONDS);
+                    } catch (InterruptedException second) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+            }));
+        long started = System.nanoTime();
+        try {
+            ToolRuntimeExecution execution = service.execute(ToolRuntimeRequest.builder()
+                .toolName("fast_tool").runtimeMode("agent_chat").requestId("audit-timeout")
+                .userId("user-1").allowedTools(List.of("fast_tool"))
+                .toolInput(ToolInput.builder().userId("user-1").parameters(Map.of()).build()).build());
+
+            assertThat(execution.output().isSuccess()).isTrue();
+            assertThat(auditStarted.await(1, TimeUnit.SECONDS)).isTrue();
+            assertThat(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)).isLessThan(1_000);
+        } finally {
+            releaseAudit.countDown();
+            service.shutdown();
+        }
+    }
 
     @Test
     void diagnosticAndToolTimeoutDefaultsAreThirtyMinutes() {
@@ -286,6 +329,7 @@ class ToolRuntimeServiceTest {
             assertThat(execution.output().isSuccess()).isFalse();
             assertThat(execution.output().getExceptionType()).isEqualTo("TOOL_TIMEOUT");
             assertThat(execution.output().getErrorMessage()).contains("timed out");
+            assertThat(execution.output().getMetadata()).containsEntry("retryable", false);
             assertThat(execution.outcome()).isEqualTo("failed");
         } finally {
             service.shutdown();

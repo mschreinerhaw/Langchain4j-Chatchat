@@ -165,6 +165,10 @@ public class ToolRegistryMcpAdapter {
                 output = toolRegistry.executeEnhancedTool(toolName, ToolInput.builder()
                     .parameters(arguments)
                     .rawInput(rawInput(arguments))
+                    .requestId(textArgument(arguments, "requestId", "request_id", "traceId"))
+                    .conversationId(textArgument(arguments, "conversationId", "conversation_id"))
+                    .userId(textArgument(arguments, "userId", "user_id"))
+                    .context(runtimeContext(arguments))
                     .build());
             } else {
                 ToolRegistry.Tool simpleTool = toolRegistry.getTool(toolName);
@@ -198,6 +202,28 @@ public class ToolRegistryMcpAdapter {
                 ToolLogSummarizer.summarizeResult(toolName, output == null ? null : output.getData()));
         }
         return toCallToolResult(toolName, output);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> runtimeContext(Map<String, Object> arguments) {
+        if (arguments == null || !(arguments.get("mcpContext") instanceof Map<?, ?> source)) {
+            return Map.of();
+        }
+        Map<String, Object> context = new LinkedHashMap<>((Map<String, Object>) source);
+        Object purpose = source.get("internalPurpose");
+        if (purpose != null && !String.valueOf(purpose).isBlank()) {
+            context.put("internalPurpose", String.valueOf(purpose).trim());
+        }
+        return context;
+    }
+
+    private String textArgument(Map<String, Object> arguments, String... keys) {
+        if (arguments == null || keys == null) return null;
+        for (String key : keys) {
+            Object value = arguments.get(key);
+            if (value != null && !String.valueOf(value).isBlank()) return String.valueOf(value).trim();
+        }
+        return null;
     }
 
     private void injectProtocolContext(String toolName, Map<String, Object> arguments) {

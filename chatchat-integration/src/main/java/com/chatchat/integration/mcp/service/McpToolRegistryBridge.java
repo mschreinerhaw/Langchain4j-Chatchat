@@ -189,7 +189,7 @@ public class McpToolRegistryBridge {
             .inputPolicy(emptyToNull(definition.inputPolicy()))
             .outputPolicy(emptyToNull(definition.outputPolicy()))
             .outputType("json")
-            .timeoutMillis(null)
+            .timeoutMillis(definition.timeoutMillis())
             .agentCompatible(true)
             .parameters(List.of(
                 ToolParameter.builder()
@@ -414,7 +414,8 @@ public class McpToolRegistryBridge {
                 serviceId,
                 remoteToolName,
                 input.getRequestId(),
-                "unbounded",
+                metadata.getTimeoutMillis() == null || metadata.getTimeoutMillis() <= 0
+                    ? "unbounded" : metadata.getTimeoutMillis(),
                 ToolLogSummarizer.summarize(arguments));
             McpToolInvokeResult result = gatewayClient.invokeTool(
                 configService.getById(serviceId),
@@ -576,6 +577,13 @@ public class McpToolRegistryBridge {
         }
         if (conversationId != null) {
             mcpContext.putIfAbsent("conversationId", conversationId);
+        }
+        // Runtime intent is transport metadata, not a model/tool parameter. Preserve the
+        // small allow-listed value across the MCP boundary so the remote provider can
+        // select the safe execution path (for example, a recall-only final-summary pass).
+        String internalPurpose = firstText(stringValue(inputContext.get("internalPurpose")));
+        if (internalPurpose != null) {
+            mcpContext.putIfAbsent("internalPurpose", internalPurpose);
         }
         arguments.put("mcpContext", mcpContext);
     }

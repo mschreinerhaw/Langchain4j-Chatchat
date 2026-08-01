@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -47,6 +48,8 @@ public class FinancialDataStore {
     private final DataSource dataSource;
     private final ObjectMapper mapper;
     private final MarketModuleProperties properties;
+    /** Avoids executing metadata-locking DDL for every ingestion batch. */
+    private final Map<String, Set<String>> ensuredTableColumns = new ConcurrentHashMap<>();
     private boolean mysql;
 
     public FinancialDataStore(JdbcTemplate jdbc, DataSource dataSource, ObjectMapper mapper,
@@ -487,6 +490,11 @@ public class FinancialDataStore {
 
     private void ensureTable(FinancialDatasetDefinition definition, Collection<ColumnValue> columns) {
         String table = identifier(definition.tableName());
+        Set<String> requestedColumnSignatures = columns == null ? Set.of() : columns.stream()
+            .map(column -> column.name() + ":" + column.type().name())
+            .collect(Collectors.toUnmodifiableSet());
+        Set<String> knownColumnSignatures = ensuredTableColumns.get(table);
+        if (knownColumnSignatures != null && knownColumnSignatures.containsAll(requestedColumnSignatures)) return;
         String primary = mysql ? "primary key(id,collected_date), unique key uk_" + table + "_record(record_key,collected_date)"
             : "primary key(id), constraint uk_" + table + "_record unique(record_key)";
         String ddl = "create table if not exists `" + table + "` (" + identity("id")
@@ -494,7 +502,10 @@ public class FinancialDataStore {
             + "source_id bigint not null, source_code varchar(64) not null, source_url varchar(2000) not null, "
             + "record_key varchar(64) not null, payload_json " + textType() + " not null, " + primary + ")";
         if (mysql) ddl += " partition by hash(to_days(collected_date)) partitions " + Math.max(2, properties.getPartitionCount());
-        jdbc.execute(ddl);
+        // CREATE TABLE IF NOT EXISTS still takes a MySQL metadata lock. A concurrent
+        // analytical SELECT can therefore turn a harmless ingestion into a pool-wide
+        // lock convoy. Only issue DDL when the table is genuinely absent.
+        if (!tableExists(table)) jdbc.execute(ddl);
         ensureIndex(table, "idx_" + table + "_collected_date", "collected_date,observation_date");
         ensureIndex(table, indexName("idx_" + table + "_observation_date"), "observation_date");
         Map<String, String> existing = schemaFields(definition.code());
@@ -518,6 +529,10 @@ public class FinancialDataStore {
                     registeredType, column.value()), version);
             }
         }
+        Set<String> refreshed = new java.util.LinkedHashSet<>();
+        existing.forEach((name, type) -> refreshed.add(name + ":" + type));
+        refreshed.addAll(requestedColumnSignatures);
+        ensuredTableColumns.put(table, Set.copyOf(refreshed));
     }
 
     private boolean requiresTextWidening(FieldType registered, FieldType incoming) {

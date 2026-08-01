@@ -61,7 +61,9 @@ class ProductionWebSearchTimeoutIsolationE2E {
                 stopped.incrementAndGet();
             }
         });
-        RemoteNewsMcpToolProvider provider = new RemoteNewsMcpToolProvider(news, market, store);
+        RemoteNewsMcpToolProvider provider = new RemoteNewsMcpToolProvider(
+            new com.chatchat.mcpserver.news.NewsSearchService(news),
+            java.util.Optional.of(new com.chatchat.mcpserver.news.FinancialEnrichmentService(market, store)));
 
         ChatChatMcpServerProperties properties = new ChatChatMcpServerProperties();
         properties.getConcurrency().setGlobal(

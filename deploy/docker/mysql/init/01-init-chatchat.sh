@@ -32,9 +32,9 @@ CREATE USER IF NOT EXISTS 'chatchat_news'@'%' IDENTIFIED BY '${news_password}';
 ALTER USER 'chatchat_api'@'%' IDENTIFIED BY '${api_password}';
 ALTER USER 'chatchat_mcp'@'%' IDENTIFIED BY '${mcp_password}';
 ALTER USER 'chatchat_news'@'%' IDENTIFIED BY '${news_password}';
-GRANT SELECT, INSERT, UPDATE, DELETE ON live_runtime_api.* TO 'chatchat_api'@'%';
-GRANT SELECT, INSERT, UPDATE, DELETE ON live_runtime_mcp.* TO 'chatchat_mcp'@'%';
-GRANT SELECT, INSERT, UPDATE, DELETE ON chatchat_news.* TO 'chatchat_news'@'%';
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX ON live_runtime_api.* TO 'chatchat_api'@'%';
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX ON live_runtime_mcp.* TO 'chatchat_mcp'@'%';
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX ON chatchat_news.* TO 'chatchat_news'@'%';
 FLUSH PRIVILEGES;
 SQL
 

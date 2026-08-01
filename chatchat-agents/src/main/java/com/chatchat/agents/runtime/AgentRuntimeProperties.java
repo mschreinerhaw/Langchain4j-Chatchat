@@ -34,7 +34,7 @@ public class AgentRuntimeProperties {
     private int finalSummaryWebSearchMaxKeywords = 2;
     private int finalSummaryWebSearchResultLimit = 6;
     private int finalSummaryWebSearchEvidenceMaxChars = 16_000;
-    private long finalSummaryWebSearchTimeoutMs = 120_000;
+    private long finalSummaryWebSearchTimeoutMs = 45_000;
 
     public int corePoolSize() {
         return Math.max(1, corePoolSize);

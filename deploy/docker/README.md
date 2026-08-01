@@ -70,9 +70,13 @@ Use these service endpoints and inject passwords from the deployment secret mana
 | API/MCP/News search | `https://opensearch:9200` | `admin` |
 | MCP query cache | `redis:6379`, database 0 | `chatchat` |
 
-Set every production JPA instance to `spring.jpa.hibernate.ddl-auto=validate`. Application
-users intentionally have DML privileges only; run migrations with a separate, audited
-migration identity.
+Set every production JPA instance to `spring.jpa.hibernate.ddl-auto=validate`. The current
+Runtime market, skill, metadata-governance, and news compatibility components perform
+bounded `CREATE`/`ALTER`/`INDEX` operations for dynamically discovered schemas, so their
+schema-scoped application identities require those privileges in addition to DML. They
+do not receive global privileges, `DROP`, `GRANT OPTION`, user administration, or access
+to another application's schema. Move these operations to a separate audited migration
+identity before removing runtime schema privileges.
 
 The MCP container must mount `redis_password.txt` at `/run/secrets/redis_password`. The
 database stores only that file reference, not the Redis password. Existing admin-created

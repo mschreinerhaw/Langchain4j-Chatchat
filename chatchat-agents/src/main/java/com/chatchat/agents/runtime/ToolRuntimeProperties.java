@@ -27,6 +27,9 @@ public class ToolRuntimeProperties {
     private int executionCorePoolSize = 4;
     private int executionMaxPoolSize = 32;
     private int executionQueueCapacity = 256;
+    /** Audit persistence must never extend a user-facing tool call indefinitely. */
+    private long auditSinkTimeoutMs = 250;
+    private int auditQueueCapacity = 256;
     private String defaultRuntimeLevel = "readonly";
     private Map<String, String> levelPolicy = new LinkedHashMap<>();
 
@@ -44,6 +47,14 @@ public class ToolRuntimeProperties {
 
     public int safeExecutionQueueCapacity() {
         return Math.max(1, executionQueueCapacity);
+    }
+
+    public long safeAuditSinkTimeoutMs() {
+        return Math.max(10L, Math.min(5_000L, auditSinkTimeoutMs));
+    }
+
+    public int safeAuditQueueCapacity() {
+        return Math.max(1, Math.min(10_000, auditQueueCapacity));
     }
 
     public int safeDefaultRetryAttempts() {

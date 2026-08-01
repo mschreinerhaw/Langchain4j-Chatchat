@@ -41,6 +41,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -63,6 +64,7 @@ public class ToolRuntimeService {
     private final List<ToolRuntimeAuditSink> auditSinks;
     private final ToolRuntimeUserPolicyStore userPolicyStore;
     private final ExecutorService toolExecutionExecutor;
+    private final ExecutorService auditExecutor;
 
     private final Map<String, Deque<Long>> rateWindows = new ConcurrentHashMap<>();
     private final Map<String, CircuitState> circuitStates = new ConcurrentHashMap<>();
@@ -107,6 +109,19 @@ public class ToolRuntimeService {
             TimeUnit.SECONDS,
             new ArrayBlockingQueue<>(this.properties.safeExecutionQueueCapacity()),
             new ToolRuntimeThreadFactory(),
+            new ThreadPoolExecutor.AbortPolicy()
+        );
+        this.auditExecutor = new ThreadPoolExecutor(
+            1,
+            1,
+            0L,
+            TimeUnit.MILLISECONDS,
+            new ArrayBlockingQueue<>(this.properties.safeAuditQueueCapacity()),
+            runnable -> {
+                Thread thread = new Thread(runnable, "tool-runtime-audit");
+                thread.setDaemon(true);
+                return thread;
+            },
             new ThreadPoolExecutor.AbortPolicy()
         );
     }
@@ -767,6 +782,7 @@ public class ToolRuntimeService {
     @PreDestroy
     public void shutdown() {
         toolExecutionExecutor.shutdownNow();
+        auditExecutor.shutdownNow();
     }
 
     private ToolOutput executeToolWithTimeout(String toolName,
@@ -799,12 +815,14 @@ public class ToolRuntimeService {
             output.setExceptionType(diagnosticRemainingTimeMs(request) == 0L
                 ? DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue()
                 : "TOOL_TIMEOUT");
+            output.setMetadata(new LinkedHashMap<>(Map.of("retryable", false, "terminalReason", "deadline_exceeded")));
             return output;
         } catch (InterruptedException ex) {
             future.cancel(true);
             Thread.currentThread().interrupt();
             ToolOutput output = ToolOutput.failure("Tool execution interrupted: " + toolName);
             output.setExceptionType("TOOL_INTERRUPTED");
+            output.setMetadata(new LinkedHashMap<>(Map.of("retryable", false, "terminalReason", "interrupted")));
             return output;
         } catch (ExecutionException ex) {
             Throwable cause = ex.getCause() == null ? ex : ex.getCause();
@@ -4021,7 +4039,29 @@ public class ToolRuntimeService {
             if (sink == null) {
                 continue;
             }
-            sink.record(record);
+            Future<?> audit;
+            try {
+                audit = auditExecutor.submit(() -> sink.record(record));
+            } catch (RejectedExecutionException ex) {
+                log.warn("Tool runtime audit queue is full; dropping audit tool={} requestId={}",
+                    request == null ? null : request.getToolName(), request == null ? null : request.getRequestId());
+                continue;
+            }
+            try {
+                audit.get(properties.safeAuditSinkTimeoutMs(), TimeUnit.MILLISECONDS);
+            } catch (TimeoutException ex) {
+                audit.cancel(true);
+                log.warn("Tool runtime audit persistence timed out tool={} requestId={} timeoutMs={}",
+                    request == null ? null : request.getToolName(), request == null ? null : request.getRequestId(),
+                    properties.safeAuditSinkTimeoutMs());
+            } catch (InterruptedException ex) {
+                audit.cancel(true);
+                Thread.currentThread().interrupt();
+            } catch (ExecutionException ex) {
+                log.warn("Tool runtime audit persistence failed tool={} requestId={} error={}",
+                    request == null ? null : request.getToolName(), request == null ? null : request.getRequestId(),
+                    ex.getCause() == null ? ex.getMessage() : ex.getCause().getMessage());
+            }
         }
     }
 

@@ -1,6 +1,9 @@
 package com.chatchat.integration.mcp.service;
 
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.common.tool.ToolMetadata;
+import com.chatchat.integration.mcp.entity.McpServiceConfig;
+import com.chatchat.integration.mcp.model.McpToolDefinition;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -9,12 +12,17 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 
 import java.lang.reflect.Method;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import org.mockito.ArgumentCaptor;
 
 class McpToolRegistryBridgeLifecycleTest {
 
@@ -55,5 +63,48 @@ class McpToolRegistryBridgeLifecycleTest {
         bridge.initialize();
 
         org.mockito.Mockito.verify(configService).listEnabled();
+    }
+
+    @Test
+    void discoveredRemoteTimeoutIsPropagatedToRuntimeMetadata() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        McpServiceConfigService configService = mock(McpServiceConfigService.class);
+        McpGatewayClient gateway = mock(McpGatewayClient.class);
+        McpServiceConfig service = new McpServiceConfig();
+        service.setId("service-1");
+        service.setName("remote");
+        when(configService.listEnabled()).thenReturn(List.of(service));
+        when(gateway.discoverTools(service, 0)).thenReturn(List.of(new McpToolDefinition(
+            "web_search", "search", java.util.Map.of(), null, null, null, null, null,
+            java.util.Map.of(), java.util.Map.of(), java.util.Map.of(), java.util.Map.of(), 30_000L,
+            java.util.Map.of())));
+        McpToolRegistryBridge bridge = new McpToolRegistryBridge(registry, configService, gateway, new ObjectMapper());
+
+        bridge.refreshRegistry(0);
+
+        ArgumentCaptor<ToolMetadata> metadata = ArgumentCaptor.forClass(ToolMetadata.class);
+        org.mockito.Mockito.verify(registry).registerTool(anyString(), metadata.capture(), any());
+        assertThat(metadata.getValue().getTimeoutMillis()).isEqualTo(30_000L);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void finalSummaryPurposeIsPropagatedInsideMcpContext() throws Exception {
+        McpToolRegistryBridge bridge = new McpToolRegistryBridge(
+            mock(ToolRegistry.class), mock(McpServiceConfigService.class), mock(McpGatewayClient.class),
+            new ObjectMapper());
+        Method enrich = McpToolRegistryBridge.class.getDeclaredMethod(
+            "enrichInvocationContext", Map.class, com.chatchat.common.tool.ToolInput.class);
+        enrich.setAccessible(true);
+        Map<String, Object> arguments = new LinkedHashMap<>();
+        var input = com.chatchat.common.tool.ToolInput.builder()
+            .requestId("request-1")
+            .context(Map.of("internalPurpose", "final_summary_web_enhancement", "tenantId", "tenant-1"))
+            .build();
+
+        enrich.invoke(bridge, arguments, input);
+
+        assertThat((Map<String, Object>) arguments.get("mcpContext"))
+            .containsEntry("internalPurpose", "final_summary_web_enhancement");
     }
 }

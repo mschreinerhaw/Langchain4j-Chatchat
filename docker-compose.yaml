@@ -48,6 +48,7 @@ services:
     stop_grace_period: 60s
     networks:
       - backend
+      - host-access
     logging: *production-logging
     deploy:
       resources:
@@ -79,6 +80,7 @@ services:
     stop_grace_period: 30s
     networks:
       - backend
+      - host-access
     logging: *production-logging
     deploy:
       resources:
@@ -117,6 +119,7 @@ services:
     stop_grace_period: 90s
     networks:
       - backend
+      - host-access
     logging: *production-logging
     deploy:
       resources:
@@ -170,6 +173,8 @@ networks:
   backend:
     name: ${CHATCHAT_INFRA_NETWORK:-chatchat-backend}
     internal: true
+  host-access:
+    name: ${CHATCHAT_HOST_ACCESS_NETWORK:-chatchat-host-access}
 
 volumes:
   mysql-data:

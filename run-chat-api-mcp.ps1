@@ -5,6 +5,7 @@ param(
     [switch]$SkipBuild,
     [switch]$WithTests,
     [switch]$Clean,
+    [switch]$SkipInfrastructure,
 
     [string]$Profile = "dev",
     [ValidateSet("h2", "mysql")]
@@ -35,6 +36,8 @@ $McpErrLog = Join-Path $LogRoot "chatchat-mcp-server.err.log"
 $NewsOutLog = Join-Path $LogRoot "chatchat-runtime-news.out.log"
 $NewsErrLog = Join-Path $LogRoot "chatchat-runtime-news.err.log"
 $EffectiveProfile = $null
+$ComposeFile = Join-Path $ProjectRoot "docker-compose.yaml"
+$SecretsRoot = Join-Path $ProjectRoot "deploy\secrets"
 
 function Assert-ProjectRoot {
     if (-not (Test-Path $RootPom)) {
@@ -170,6 +173,102 @@ function Test-PortOpen {
     finally {
         $Client.Dispose()
     }
+}
+
+function New-LocalSecret {
+    $Bytes = New-Object byte[] 36
+    $Generator = [Security.Cryptography.RandomNumberGenerator]::Create()
+    try {
+        $Generator.GetBytes($Bytes)
+    }
+    finally {
+        $Generator.Dispose()
+    }
+    return [Convert]::ToBase64String($Bytes).TrimEnd("=").Replace("+", "-").Replace("/", "_")
+}
+
+function Get-OrCreateLocalSecret {
+    param([string]$Name)
+
+    New-Item -ItemType Directory -Force -Path $SecretsRoot | Out-Null
+    $Path = Join-Path $SecretsRoot "$Name.txt"
+    if (-not (Test-Path -LiteralPath $Path)) {
+        [IO.File]::WriteAllText($Path, (New-LocalSecret), [Text.UTF8Encoding]::new($false))
+        Write-Host "Created local Docker secret: deploy/secrets/$Name.txt"
+    }
+    $Value = [IO.File]::ReadAllText($Path).Trim()
+    if ($Value -notmatch '^[A-Za-z0-9._~!@#%+=-]{32,128}$') {
+        throw "Invalid local Docker secret $Path; expected 32-128 URL-safe characters."
+    }
+    return $Value
+}
+
+function Wait-ContainerHealthy {
+    param([string]$ContainerName, [int]$TimeoutSeconds = 180)
+
+    for ($Second = 1; $Second -le $TimeoutSeconds; $Second++) {
+        $Status = (& docker inspect $ContainerName --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' 2>$null)
+        if ($LASTEXITCODE -eq 0 -and $Status.Trim() -eq "healthy") {
+            return
+        }
+        Start-Sleep -Seconds 1
+    }
+    & docker logs $ContainerName --tail 80 2>&1 | ForEach-Object { Write-Host $_ }
+    throw "$ContainerName did not become healthy within $TimeoutSeconds seconds."
+}
+
+function Sync-LocalMySqlRuntimeGrants {
+    $GrantScript = @'
+MYSQL_PWD=$(cat /run/secrets/mysql_root_password) mysql --protocol=socket -uroot <<'SQL'
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX ON live_runtime_api.* TO 'chatchat_api'@'%';
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX ON live_runtime_mcp.* TO 'chatchat_mcp'@'%';
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX ON chatchat_news.* TO 'chatchat_news'@'%';
+FLUSH PRIVILEGES;
+SQL
+'@
+    $Encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($GrantScript))
+    & docker exec chatchat-mysql sh -ec "printf '%s' '$Encoded' | base64 -d | sh"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to synchronize local MySQL runtime schema privileges."
+    }
+}
+
+function Initialize-LocalMySqlInfrastructure {
+    if ($SkipInfrastructure) {
+        if (-not (Test-PortOpen -Port 3306)) {
+            throw "MySQL is not reachable on 127.0.0.1:3306. Start the external database or omit -SkipInfrastructure."
+        }
+        return
+    }
+
+    $Docker = Get-Command docker -ErrorAction SilentlyContinue
+    if (-not $Docker) {
+        throw "The dev profile requires MySQL, but Docker is unavailable and 127.0.0.1:3306 is closed."
+    }
+    & docker info --format '{{.ServerVersion}}' *> $null
+    if ($LASTEXITCODE -ne 0) {
+        throw "The dev profile requires MySQL, but the Docker engine is not running."
+    }
+
+    $env:CHATCHAT_API_MYSQL_PASSWORD = Get-OrCreateLocalSecret -Name "mysql_api_password"
+    $env:CHATCHAT_MCP_MYSQL_PASSWORD = Get-OrCreateLocalSecret -Name "mysql_mcp_password"
+    $env:CHATCHAT_NEWS_MYSQL_PASSWORD = Get-OrCreateLocalSecret -Name "mysql_news_password"
+    $null = Get-OrCreateLocalSecret -Name "mysql_root_password"
+
+    $ContainerStatus = ((& docker ps -a --filter "name=^/chatchat-mysql$" --format '{{.Status}}') -join "").Trim()
+    if (-not $ContainerStatus.StartsWith("Up", [StringComparison]::OrdinalIgnoreCase)) {
+        Write-Host "MySQL is unavailable; starting the Compose mysql service ..."
+    }
+    & docker compose -f $ComposeFile up -d mysql
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to reconcile the Compose mysql service."
+    }
+    Wait-ContainerHealthy -ContainerName "chatchat-mysql"
+    Sync-LocalMySqlRuntimeGrants
+    if (-not (Test-PortOpen -Port 3306)) {
+        throw "chatchat-mysql is healthy but host port 127.0.0.1:3306 is unavailable."
+    }
+    Write-Host "MySQL infrastructure is healthy on 127.0.0.1:3306."
 }
 
 function Get-EffectiveProfile {
@@ -452,6 +551,8 @@ switch ($Action) {
         Stop-ManagedApp -Name "chatchat-mcp-server" -PidFile $McpPidFile
         Stop-ManagedApp -Name "chatchat-runtime-news" -PidFile $NewsPidFile
 
+        Initialize-LocalMySqlInfrastructure
+
         if (-not $SkipBuild) {
             Invoke-Build
         }
@@ -476,6 +577,8 @@ switch ($Action) {
         break
     }
     "start" {
+        Initialize-LocalMySqlInfrastructure
+
         if (-not $SkipBuild) {
             if (@(Get-AppProcesses -Name "chatchat-api" -PidFile $ApiPidFile).Count -gt 0 -or
                 @(Get-AppProcesses -Name "chatchat-mcp-server" -PidFile $McpPidFile).Count -gt 0 -or

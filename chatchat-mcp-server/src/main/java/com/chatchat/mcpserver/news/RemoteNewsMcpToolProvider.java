@@ -8,8 +8,6 @@ import com.chatchat.runtime.mcp.registry.McpCapabilityCodes;
 import com.chatchat.runtime.mcp.registry.McpToolDefinition;
 import com.chatchat.runtime.mcp.registry.McpToolExecutor;
 import com.chatchat.runtime.mcp.registry.McpToolProvider;
-import com.chatchat.runtime.market.storage.FinancialAssetCatalogService;
-import com.chatchat.runtime.market.storage.FinancialDataStore;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -29,16 +27,14 @@ import java.util.regex.Pattern;
 public class RemoteNewsMcpToolProvider implements McpToolProvider {
     private static final Pattern QUERY_DATE = Pattern.compile(
         "(?<!\\d)(20\\d{2})[-/.年](\\d{1,2})[-/.月](\\d{1,2})(?:日)?");
-    private final NewsRuntimeClient newsClient;
-    private final FinancialAssetCatalogService marketCatalog;
-    private final FinancialDataStore marketStore;
+    private final NewsSearchService newsSearch;
+    private final Optional<FinancialEnrichmentService> financialEnrichment;
     private final Map<String, McpToolDefinition> definitions;
 
-    public RemoteNewsMcpToolProvider(NewsRuntimeClient newsClient, FinancialAssetCatalogService marketCatalog,
-                                     FinancialDataStore marketStore) {
-        this.newsClient = newsClient;
-        this.marketCatalog = marketCatalog;
-        this.marketStore = marketStore;
+    public RemoteNewsMcpToolProvider(NewsSearchService newsSearch,
+                                     Optional<FinancialEnrichmentService> financialEnrichment) {
+        this.newsSearch = newsSearch;
+        this.financialEnrichment = financialEnrichment == null ? Optional.empty() : financialEnrichment;
         McpToolDefinition webSearch = definition("web_search", "Unified Web Search",
             "Unified one-call retrieval for current hotspots, place names, knowledge beyond the local corpus, "
                 + "news, and governed financial data. External search is an internal recall enhancer and is not "
@@ -69,15 +65,10 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         String dataset = input.getParameterAsString("dataset", "").trim();
         if (!dataset.isBlank()) {
             try {
-                Map<String, Object> filters = input.getParameter("filters") instanceof Map<?, ?> values
-                    ? values.entrySet().stream().collect(java.util.stream.Collectors.toMap(
-                        entry -> String.valueOf(entry.getKey()), Map.Entry::getValue)) : Map.of();
-                java.time.LocalDate startDate = date(input.getParameterAsString("startDate", ""));
-                java.time.LocalDate endDate = date(input.getParameterAsString("endDate", ""));
-                String historyMode = input.getParameterAsString("historyMode", "auto");
                 int rowLimit = bounded(input.getParameterAsNumber("limit"), 50, 1, 200);
-                Map<String, Object> data = new LinkedHashMap<>(marketStore.query(dataset, filters,
-                    startDate, endDate, rowLimit, historyMode));
+                FinancialEnrichmentService enrichment = financialEnrichment.orElseThrow(() ->
+                    new IllegalStateException("Financial query capability is unavailable"));
+                Map<String, Object> data = new LinkedHashMap<>(enrichment.queryDataset(dataset, input));
                 List<Map<String, Object>> compactRows = compactRows(rows(data), rowLimit);
                 data.put("rows", compactRows);
                 data.put("count", compactRows.size());
@@ -105,37 +96,27 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
 
         String query = input.getParameterAsString("query", "").trim();
         if (query.isBlank()) return ToolOutput.failure("query parameter is required when dataset is absent");
-        String financialAssetQuery = marketStore.assetSearchQuery(query, 10);
-        if (financialAssetQuery == null || financialAssetQuery.isBlank()) financialAssetQuery = query;
         String discoveryId = UUID.randomUUID().toString();
         int limit = bounded(input.getParameterAsNumber("num_results"), 10, 1, 50);
-        List<Map<String, Object>> news = List.of();
-        List<Map<String, Object>> assets = List.of();
+        NewsSearchService.SearchResult newsResult = newsSearch.search(input);
+        List<Map<String, Object>> news = newsResult.results();
         List<String> warnings = new ArrayList<>();
-        try {
-            ToolOutput output = newsClient.invoke("web_search", input);
-            if (output.isSuccess()) news = resultList(output.getData());
-            else warnings.add("news: " + safe(output.getErrorMessage()));
-        } catch (Exception ex) {
-            CancellationSupport.rethrowIfCancelled(ex, "news retrieval");
-            warnings.add("news: " + safe(ex.getMessage()));
-        }
+        if (newsResult.warning() != null) warnings.add(newsResult.warning());
         CancellationSupport.throwIfCancelled("unified web_search");
-        try {
-            String chainId = discoveryId;
-            assets = marketCatalog.search(financialAssetQuery, limit).stream()
-                .map(source -> assetResult(source, chainId)).toList();
-        } catch (Exception ex) {
-            CancellationSupport.rethrowIfCancelled(ex, "financial asset search");
-            warnings.add("market: " + safe(ex.getMessage()));
-        }
+        FinancialEnrichmentService.EnrichmentResult enrichment = financialEnrichment
+            .map(service -> service.enrich(query, input, limit, queryDate(query)))
+            .orElseGet(() -> new FinancialEnrichmentService.EnrichmentResult(
+                query, List.of(), List.of(), List.of(), "capability_unavailable"));
+        warnings.addAll(enrichment.warnings());
+        String financialAssetQuery = enrichment.assetQuery();
+        List<Map<String, Object>> assets = enrichment.assets().stream()
+            .map(source -> assetResult(source, discoveryId)).toList();
+        List<Map<String, Object>> financialData = enrichment.financialData();
         CancellationSupport.throwIfCancelled("unified web_search");
         if (news.isEmpty() && assets.isEmpty() && warnings.size() == 2) {
             return ToolOutput.failure("Both news and market search are unavailable: " + String.join("; ", warnings));
         }
 
-        List<Map<String, Object>> financialData = hydrateCompatibleFinancialIndex(
-            query, assets, input, warnings);
         List<Map<String, Object>> marketResults = new ArrayList<>(financialData);
         marketResults.addAll(assets);
         List<Map<String, Object>> results = interleave(news, marketResults, limit);
@@ -160,6 +141,7 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         data.put("financialObservationCount", financialData.stream()
             .mapToInt(item -> ((Number) item.getOrDefault("count", 0)).intValue()).sum());
         data.put("financialData", financialData);
+        if (enrichment.skippedReason() != null) data.put("financialEnrichmentSkippedReason", enrichment.skippedReason());
         data.put("results", results);
         data.put("reference_urls", urls);
         if (!warnings.isEmpty()) data.put("warnings", warnings);
@@ -170,60 +152,6 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         result.getMetadata().put("financialQueriedDatasetCount", financialData.size());
         result.getMetadata().put("financialSecondQueryRequired", false);
         return result;
-    }
-
-    private List<Map<String, Object>> hydrateCompatibleFinancialIndex(
-        String query, List<Map<String, Object>> assets, ToolInput input, List<String> warnings
-    ) {
-        if (assets.isEmpty()) return List.of();
-        LocalDate explicitStart = date(input.getParameterAsString("startDate", ""));
-        LocalDate explicitEnd = date(input.getParameterAsString("endDate", ""));
-        LocalDate queryDate = queryDate(query);
-        LocalDate startDate = explicitStart == null ? queryDate : explicitStart;
-        LocalDate endDate = explicitEnd == null ? queryDate : explicitEnd;
-        String historyMode = input.getParameterAsString("historyMode", "auto");
-        int rowLimit = bounded(input.getParameterAsNumber("limit"), 20, 1, 50);
-        List<Map<String, Object>> hydrated = new ArrayList<>();
-        for (Map<String, Object> asset : assets.stream().limit(5).toList()) {
-            CancellationSupport.throwIfCancelled("financial index hydration");
-            String dataset = String.valueOf(asset.getOrDefault("dataset", "")).trim();
-            if (dataset.isBlank()) continue;
-            try {
-                List<Map<String, Object>> filters = marketStore.resolveEntityFilters(dataset, query, 5);
-                List<Map<String, Object>> foundRows = new ArrayList<>();
-                if (filters.isEmpty()) {
-                    foundRows.addAll(rows(marketStore.query(
-                        dataset, Map.of(), startDate, endDate, rowLimit, historyMode)));
-                } else {
-                    int perEntityLimit = Math.max(1, rowLimit / filters.size());
-                    for (Map<String, Object> filter : filters) {
-                        CancellationSupport.throwIfCancelled("financial index hydration");
-                        foundRows.addAll(rows(marketStore.query(
-                            dataset, filter, startDate, endDate, perEntityLimit, historyMode)));
-                    }
-                }
-                List<Map<String, Object>> compactRows = compactRows(foundRows, rowLimit);
-                if (compactRows.isEmpty()) continue;
-                Map<String, Object> item = new LinkedHashMap<>();
-                item.put("resultType", "financial_data");
-                item.put("documentKind", "market_observations");
-                item.put("dataset", dataset);
-                item.put("title", firstNonBlank(String.valueOf(asset.getOrDefault("title", "")), dataset)
-                    + "：实际观测数据");
-                item.put("snippet", "已直接从兼容金融索引命中的受治理数据集读取实际观测值。");
-                item.put("count", compactRows.size());
-                item.put("rows", compactRows);
-                if (!filters.isEmpty()) item.put("appliedFilters", filters);
-                if (startDate != null) item.put("startDate", startDate.toString());
-                if (endDate != null) item.put("endDate", endDate.toString());
-                item.put("historyMode", historyMode);
-                hydrated.add(Map.copyOf(item));
-            } catch (Exception ex) {
-                CancellationSupport.rethrowIfCancelled(ex, "financial index hydration");
-                warnings.add("dataset " + dataset + ": " + safe(ex.getMessage()));
-            }
-        }
-        return List.copyOf(hydrated);
     }
 
     private LocalDate queryDate(String query) {
@@ -273,12 +201,6 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
 
     private String firstNonBlank(String first, String fallback) {
         return first == null || first.isBlank() ? fallback : first;
-    }
-
-    @SuppressWarnings("unchecked")
-    private List<Map<String, Object>> resultList(Object data) {
-        if (!(data instanceof Map<?, ?> map) || !(map.get("results") instanceof List<?> values)) return List.of();
-        return values.stream().filter(Map.class::isInstance).map(value -> (Map<String, Object>) value).toList();
     }
 
     private Map<String, Object> assetResult(Map<String, Object> source, String discoveryId) {
@@ -408,12 +330,6 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
     private int bounded(Number value, int fallback, int min, int max) {
         return Math.max(min, Math.min(max, value == null ? fallback : value.intValue()));
     }
-
-    private java.time.LocalDate date(String value) {
-        return value == null || value.isBlank() ? null : java.time.LocalDate.parse(value.trim());
-    }
-
-    private String safe(String value) { return value == null || value.isBlank() ? "unavailable" : value; }
 
     private int numberValue(Map<String, Object> source, String snake, String camel, int fallback) {
         Object value = source.containsKey(snake) ? source.get(snake) : source.get(camel);

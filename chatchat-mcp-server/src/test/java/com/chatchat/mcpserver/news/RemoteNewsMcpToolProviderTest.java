@@ -23,13 +23,67 @@ import static org.mockito.Mockito.verify;
 class RemoteNewsMcpToolProviderTest {
 
     @Test
+    @SuppressWarnings("unchecked")
+    void newsSearchRemainsAvailableWhenFinancialEnrichmentIsNotInstalled() {
+        NewsRuntimeClient news = mock(NewsRuntimeClient.class);
+        when(news.invoke(eq("web_search"), any())).thenReturn(ToolOutput.success(Map.of(
+            "results", List.of(Map.of("resultType", "news", "title", "announcement")))));
+        RemoteNewsMcpToolProvider provider = new RemoteNewsMcpToolProvider(
+            new NewsSearchService(news), java.util.Optional.empty());
+
+        ToolOutput output = provider.findExecutor("web_search").orElseThrow().execute(ToolInput.builder()
+            .parameters(Map.of("query", "latest announcements")).build());
+
+        assertThat(output.isSuccess()).isTrue();
+        assertThat((Map<String, Object>) output.getData())
+            .containsEntry("newsCount", 1)
+            .containsEntry("financialAssetCount", 0)
+            .containsEntry("financialEnrichmentSkippedReason", "capability_unavailable");
+    }
+
+    @Test
+    void providerHasNoStorageLayerDependency() {
+        assertThat(java.util.Arrays.stream(RemoteNewsMcpToolProvider.class.getDeclaredFields())
+            .map(java.lang.reflect.Field::getType))
+            .doesNotContain(FinancialDataStore.class, FinancialAssetCatalogService.class, NewsRuntimeClient.class);
+        assertThat(java.util.Arrays.stream(RemoteNewsMcpToolProvider.class.getConstructors())
+            .flatMap(constructor -> java.util.Arrays.stream(constructor.getParameterTypes())))
+            .doesNotContain(FinancialDataStore.class, FinancialAssetCatalogService.class, NewsRuntimeClient.class);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void finalSummaryWebEnhancementNeverHydratesFinancialRows() throws Exception {
+        NewsRuntimeClient news = mock(NewsRuntimeClient.class);
+        FinancialAssetCatalogService market = mock(FinancialAssetCatalogService.class);
+        FinancialDataStore store = mock(FinancialDataStore.class);
+        when(news.invoke(eq("web_search"), any())).thenReturn(ToolOutput.success(Map.of(
+            "results", List.of(Map.of("resultType", "news", "title", "latest announcement")))));
+        when(market.search(any(), any(Integer.class))).thenReturn(List.of(
+            Map.of("dataset_code", "market_quote_daily", "asset_name", "daily quotes")));
+        RemoteNewsMcpToolProvider provider = provider(news, market, store);
+
+        ToolOutput output = provider.findExecutor("web_search").orElseThrow().execute(ToolInput.builder()
+            .parameters(Map.of("query", "latest company announcements"))
+            .context(Map.of("internalPurpose", "final_summary_web_enhancement"))
+            .build());
+
+        assertThat(output.isSuccess()).isTrue();
+        assertThat((Map<String, Object>) output.getData()).containsEntry("financialDatasetCount", 0);
+        verify(market, never()).search(any(), any(Integer.class));
+        verify(store, never()).assetSearchQuery(any(), any(Integer.class));
+        verify(store, never()).resolveEntityFilters(any(), any(), any(Integer.class));
+        verify(store, never()).query(any(), any(), any(), any(), any(Integer.class), any());
+    }
+
+    @Test
     void cancellationFromNewsRuntimeStopsBeforeAnyMarketOrDatabaseWork() {
         NewsRuntimeClient news = mock(NewsRuntimeClient.class);
         FinancialAssetCatalogService market = mock(FinancialAssetCatalogService.class);
         FinancialDataStore store = mock(FinancialDataStore.class);
         when(news.invoke(eq("web_search"), any()))
             .thenThrow(new CancellationException("outer tool deadline reached"));
-        RemoteNewsMcpToolProvider provider = new RemoteNewsMcpToolProvider(news, market, store);
+        RemoteNewsMcpToolProvider provider = provider(news, market, store);
 
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> provider.findExecutor("web_search")
                 .orElseThrow().execute(ToolInput.builder().parameters(Map.of("query", "latest announcements")).build()))
@@ -58,7 +112,7 @@ class RemoteNewsMcpToolProviderTest {
             any(), any(), any(Integer.class), eq("auto")))
             .thenReturn(Map.of("rows", List.of(Map.of(
                 "quote_code", "600029", "quote_name", "南方航空", "close", 6.31))));
-        RemoteNewsMcpToolProvider provider = new RemoteNewsMcpToolProvider(news, market, store);
+        RemoteNewsMcpToolProvider provider = provider(news, market, store);
 
         ToolOutput output = provider.findExecutor("web_search").orElseThrow().execute(ToolInput.builder()
             .parameters(Map.of("query", query)).build());
@@ -100,7 +154,7 @@ class RemoteNewsMcpToolProviderTest {
             any(), any(), any(Integer.class), eq("auto")))
             .thenReturn(Map.of("rows", List.of(Map.of(
                 "quote_code", "000001", "quote_name", "平安银行", "close", 10.98))));
-        RemoteNewsMcpToolProvider provider = new RemoteNewsMcpToolProvider(news, market, store);
+        RemoteNewsMcpToolProvider provider = provider(news, market, store);
 
         ToolOutput output = provider.findExecutor("web_search").orElseThrow().execute(ToolInput.builder()
             .parameters(Map.of("query", query)).build());
@@ -135,7 +189,7 @@ class RemoteNewsMcpToolProviderTest {
             .thenReturn(Map.of("rows", List.of(Map.of(
                 "quote_code", "600010", "quote_name", "包钢股份", "close", 2.18,
                 "change_pct", "1.40%", "volume", 123456L))));
-        RemoteNewsMcpToolProvider provider = new RemoteNewsMcpToolProvider(news, market, store);
+        RemoteNewsMcpToolProvider provider = provider(news, market, store);
 
         ToolOutput output = provider.findExecutor("web_search").orElseThrow().execute(ToolInput.builder()
             .parameters(Map.of("query", query)).build());
@@ -153,7 +207,7 @@ class RemoteNewsMcpToolProviderTest {
 
     @Test
     void exposesOnlyUnifiedWebSearch() {
-        RemoteNewsMcpToolProvider provider = new RemoteNewsMcpToolProvider(
+        RemoteNewsMcpToolProvider provider = provider(
             mock(NewsRuntimeClient.class), mock(FinancialAssetCatalogService.class), mock(FinancialDataStore.class));
 
         assertThat(provider.definitions())
@@ -185,7 +239,7 @@ class RemoteNewsMcpToolProviderTest {
                 "business_description", "基金代码")))));
         when(store.query(eq("etf_scale_daily"), any(), any(), any(), any(Integer.class), eq("auto")))
             .thenReturn(Map.of("rows", List.of(Map.of("fund_code", "510300", "scale10_k_units", 12345))));
-        RemoteNewsMcpToolProvider provider = new RemoteNewsMcpToolProvider(news, market, store);
+        RemoteNewsMcpToolProvider provider = provider(news, market, store);
 
         ToolOutput output = provider.findExecutor("web_search").orElseThrow().execute(ToolInput.builder()
             .parameters(Map.of("query", "ETF规模")).build());
@@ -247,7 +301,7 @@ class RemoteNewsMcpToolProviderTest {
         when(store.query(eq("market_statistics_daily"), any(), any(), any(), any(Integer.class), eq("auto")))
             .thenReturn(Map.of("rows", List.of(Map.of(
                 "record_key", "stats-1", "observation_date", "2026-07-22", "total_market_value", 644996.68))));
-        RemoteNewsMcpToolProvider provider = new RemoteNewsMcpToolProvider(news, market, store);
+        RemoteNewsMcpToolProvider provider = provider(news, market, store);
 
         ToolOutput output = provider.findExecutor("web_search").orElseThrow().execute(ToolInput.builder()
             .parameters(Map.of("query", "上证指数和沪深300走势")).build());
@@ -282,7 +336,7 @@ class RemoteNewsMcpToolProviderTest {
             eq(java.time.LocalDate.parse("2026-07-23")), eq(java.time.LocalDate.parse("2026-07-23")),
             any(Integer.class), eq("auto")))
             .thenReturn(Map.of("rows", List.of(Map.of("observation_date", "2026-07-23", "close", 3600))));
-        RemoteNewsMcpToolProvider provider = new RemoteNewsMcpToolProvider(news, market, store);
+        RemoteNewsMcpToolProvider provider = provider(news, market, store);
 
         ToolOutput output = provider.findExecutor("web_search").orElseThrow().execute(ToolInput.builder()
             .parameters(Map.of("query", query)).build());
@@ -300,7 +354,7 @@ class RemoteNewsMcpToolProviderTest {
         when(store.query(eq("index_valuation_daily"), any(), any(), any(), any(Integer.class), eq("auto")))
             .thenReturn(Map.of("rows", List.of(Map.of("record_key", "1", "close", 3864.37,
                 "payload_json", "{raw}", "pe_ttm_history", "[history]"))));
-        RemoteNewsMcpToolProvider provider = new RemoteNewsMcpToolProvider(
+        RemoteNewsMcpToolProvider provider = provider(
             mock(NewsRuntimeClient.class), mock(FinancialAssetCatalogService.class), store);
 
         ToolOutput output = provider.findExecutor("web_search").orElseThrow().execute(ToolInput.builder()
@@ -318,5 +372,12 @@ class RemoteNewsMcpToolProviderTest {
             assertThat(row).doesNotContainKeys("payload_json", "pe_ttm_history")
                 .containsEntry("close", 3864.37);
         });
+    }
+
+    private RemoteNewsMcpToolProvider provider(NewsRuntimeClient news,
+                                               FinancialAssetCatalogService market,
+                                               FinancialDataStore store) {
+        return new RemoteNewsMcpToolProvider(
+            new NewsSearchService(news), java.util.Optional.of(new FinancialEnrichmentService(market, store)));
     }
 }

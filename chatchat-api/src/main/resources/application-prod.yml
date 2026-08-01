@@ -112,7 +112,7 @@ chatchat:
     final-summary-web-search-max-keywords: 2
     final-summary-web-search-result-limit: 6
     final-summary-web-search-evidence-max-chars: 16000
-    final-summary-web-search-timeout-ms: 120000
+    final-summary-web-search-timeout-ms: 45000
   search:
     engine: lucene
   tools:

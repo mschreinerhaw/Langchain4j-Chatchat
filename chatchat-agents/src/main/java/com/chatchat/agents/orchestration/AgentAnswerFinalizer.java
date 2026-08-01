@@ -2060,7 +2060,18 @@ class AgentAnswerFinalizer {
         McpResultEvidencePolicy.Assessment assessment,
         Map<String, Object> metadata
     ) {
-        if (assessment == null || !assessment.resultAvailable()) {
+        if (assessment == null) {
+            return candidateAnswer;
+        }
+        if (assessment.availability() == McpResultEvidencePolicy.Availability.EMPTY
+            && assessment.successfulToolCount() > 0) {
+            if (metadata != null) {
+                metadata.put("emptyResultGroundingApplied", true);
+                metadata.put("emptyResultGroundingReason", "successful_mcp_query_returned_no_records");
+            }
+            return emptyMcpResultAnswer();
+        }
+        if (!assessment.resultAvailable()) {
             return candidateAnswer;
         }
         String answer = candidateAnswer == null ? "" : candidateAnswer.trim();
@@ -2079,6 +2090,11 @@ class AgentAnswerFinalizer {
             metadata.put("originalRefusalPreview", shortText(answer, 1000));
         }
         return mcpResultAnalysisFallback();
+    }
+
+    private String emptyMcpResultAnswer() {
+        return "查询已成功执行，但没有返回匹配记录。当前没有可用于事实判断或趋势分析的数据，"
+            + "因此不能据此推断数值、趋势或建议。请调整查询条件、时间范围，或确认模板参数后重试。";
     }
 
     private String mcpResultAnalysisFallback() {

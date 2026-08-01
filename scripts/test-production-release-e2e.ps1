@@ -7,16 +7,36 @@ param(
     [string]$ApiBaseUrl,
     [string]$McpBaseUrl,
     [string]$NewsBaseUrl,
+    [string]$InferenceQuery = "请根据最新公开行情数据进行分析并给出有来源的建议",
+    [string]$InferenceExpectedEvidence = "web_search",
+    [string]$ApiAuthHeader,
+    [string]$McpAuthHeader,
+    [string]$NewsAuthHeader,
     [switch]$SqlMetadataLive,
     [string]$SqlMetadataAssetName,
     [string]$SqlMetadataDatabase,
     [string]$SqlMetadataTable,
+    [string]$EnterpriseMetadataPath,
     [double]$MinimumLineCoverage = 0.70,
     [double]$MinimumBranchCoverage = 0.60
 )
 
 $ErrorActionPreference = "Stop"
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
+
+if (-not $AllowConditionalSkips) {
+    $missingReleaseInputs = @()
+    if (-not $TencentWsaLive) { $missingReleaseInputs += "-TencentWsaLive" }
+    if (-not $DeployedTopologyLive) { $missingReleaseInputs += "-DeployedTopologyLive" }
+    if (-not $SqlMetadataLive) { $missingReleaseInputs += "-SqlMetadataLive" }
+    if ([string]::IsNullOrWhiteSpace($EnterpriseMetadataPath)) { $missingReleaseInputs += "-EnterpriseMetadataPath" }
+    if ([string]::IsNullOrWhiteSpace($env:CHATCHAT_AGENT_COVERAGE_JDBC_URL)) {
+        $missingReleaseInputs += "CHATCHAT_AGENT_COVERAGE_JDBC_URL environment variable"
+    }
+    if ($missingReleaseInputs.Count -gt 0) {
+        throw "Strict production release requires every live gate. Missing: $($missingReleaseInputs -join ', ')."
+    }
+}
 
 Push-Location $repositoryRoot
 try {
@@ -35,6 +55,17 @@ try {
         $mavenArguments += "-Dchatchat.e2e.api-base-url=$ApiBaseUrl"
         $mavenArguments += "-Dchatchat.e2e.mcp-base-url=$McpBaseUrl"
         $mavenArguments += "-Dchatchat.e2e.news-base-url=$NewsBaseUrl"
+        $mavenArguments += "-Dchatchat.e2e.inference-query=$InferenceQuery"
+        $mavenArguments += "-Dchatchat.e2e.inference-expected-evidence=$InferenceExpectedEvidence"
+        if (-not [string]::IsNullOrWhiteSpace($ApiAuthHeader)) {
+            $mavenArguments += "-Dchatchat.e2e.api-auth-header=$ApiAuthHeader"
+        }
+        if (-not [string]::IsNullOrWhiteSpace($McpAuthHeader)) {
+            $mavenArguments += "-Dchatchat.e2e.mcp-auth-header=$McpAuthHeader"
+        }
+        if (-not [string]::IsNullOrWhiteSpace($NewsAuthHeader)) {
+            $mavenArguments += "-Dchatchat.e2e.news-auth-header=$NewsAuthHeader"
+        }
     }
     if ($TencentWsaLive) {
         if ([string]::IsNullOrWhiteSpace($env:TENCENTCLOUD_SECRET_ID) -or
@@ -54,6 +85,10 @@ try {
         $mavenArguments += "-Dchatchat.live.metadata.asset-name=$SqlMetadataAssetName"
         $mavenArguments += "-Dchatchat.live.metadata.database=$SqlMetadataDatabase"
         $mavenArguments += "-Dchatchat.live.metadata.table=$SqlMetadataTable"
+    }
+    if (-not [string]::IsNullOrWhiteSpace($EnterpriseMetadataPath)) {
+        $resolvedMetadataPath = (Resolve-Path -LiteralPath $EnterpriseMetadataPath).Path
+        $mavenArguments += "-Dchatchat.e2e.enterprise-metadata-path=$resolvedMetadataPath"
     }
     $mavenArguments += "verify"
     & mvn @mavenArguments
@@ -86,7 +121,7 @@ try {
     }
 
     $coverageReports = Get-ChildItem -Path $repositoryRoot -Recurse -File -Filter "jacoco.xml" |
-        Where-Object { $_.FullName -match "target.site.jacoco" }
+        Where-Object { $_.FullName -like "*\target\site\jacoco\jacoco.xml" }
     if ($coverageReports.Count -eq 0) {
         throw "Production release requires JaCoCo reports, but none were generated."
     }

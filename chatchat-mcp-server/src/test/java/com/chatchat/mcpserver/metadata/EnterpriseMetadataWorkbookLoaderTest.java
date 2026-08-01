@@ -57,14 +57,16 @@ class EnterpriseMetadataWorkbookLoaderTest {
 
     @Test
     void loadsProvidedEnterpriseCatalogWhenWorkspaceDatasetIsAvailable() {
-        Path source = List.of(
+        String configuredSource = System.getProperty("chatchat.e2e.enterprise-metadata-path", "");
+        Path source = configuredSource.isBlank() ? List.of(
                 Path.of("..", "标准字段词根"),
                 Path.of("..", "..", "标准字段词根")
             ).stream()
             .map(path -> path.toAbsolutePath().normalize())
             .filter(Files::isDirectory)
             .findFirst()
-            .orElse(Path.of("missing-enterprise-metadata"));
+            .orElse(Path.of("missing-enterprise-metadata"))
+            : Path.of(configuredSource).toAbsolutePath().normalize();
         Assumptions.assumeTrue(Files.isDirectory(source));
         EnterpriseMetadataWorkbookLoader loader = new EnterpriseMetadataWorkbookLoader(
             new PathMatchingResourcePatternResolver());

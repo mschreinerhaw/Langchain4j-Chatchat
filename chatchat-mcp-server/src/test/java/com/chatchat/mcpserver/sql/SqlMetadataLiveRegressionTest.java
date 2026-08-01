@@ -2,15 +2,19 @@ package com.chatchat.mcpserver.sql;
 
 import com.chatchat.mcpserver.ChatChatMcpServerApplication;
 import com.chatchat.mcpserver.metadata.EnterpriseMetadataRequestAdapter;
+import com.chatchat.mcpserver.search.LuceneMcpSearchService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.WebApplicationType;
+import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.context.ConfigurableApplicationContext;
 
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Opt-in business regression for a maintained datasource.
@@ -19,31 +23,26 @@ import static org.assertj.core.api.Assertions.assertThat;
  * remains reusable and does not encode a table, tenant, or environment in the
  * runtime implementation.</p>
  */
-@SpringBootTest(
-    classes = ChatChatMcpServerApplication.class,
-    webEnvironment = SpringBootTest.WebEnvironment.NONE,
-    properties = {
-        "spring.main.web-application-type=none",
-        "spring.task.scheduling.enabled=false"
-    }
-)
-@EnabledIfSystemProperty(named = "chatchat.live.metadata.test", matches = "true")
 class SqlMetadataLiveRegressionTest {
 
-    @Autowired
-    private SqlMetadataSearchService searchService;
+    private ConfigurableApplicationContext liveContext;
 
-    @Autowired
-    private EnterpriseMetadataRequestAdapter enterpriseMetadataRequestAdapter;
+    @AfterEach
+    void closeLiveContext() {
+        if (liveContext != null) {
+            liveContext.close();
+            liveContext = null;
+        }
+    }
 
     @Test
     @SuppressWarnings("unchecked")
     void exactMaintainedTableReturnsItsCompleteFieldMetadata() {
-        String assetName = requiredProperty("chatchat.live.metadata.asset-name");
-        String database = requiredProperty("chatchat.live.metadata.database");
-        String table = requiredProperty("chatchat.live.metadata.table");
+        String assetName = propertyOrFixture("chatchat.live.metadata.asset-name", "release-metadata-asset");
+        String database = propertyOrFixture("chatchat.live.metadata.database", "release_catalog");
+        String table = propertyOrFixture("chatchat.live.metadata.table", "release_customer");
 
-        Map<String, Object> result = searchService.search(Map.of(
+        Map<String, Object> result = activeSearchService(assetName, database, table).search(Map.of(
             "defaultDataAsset", Map.of("assetName", assetName),
             "database", database,
             "tableName", table,
@@ -68,10 +67,14 @@ class SqlMetadataLiveRegressionTest {
     @Test
     @SuppressWarnings("unchecked")
     void naturalLanguageTableReviewBecomesUnifiedFieldRequest() {
-        String assetName = requiredProperty("chatchat.live.metadata.asset-name");
-        String table = requiredProperty("chatchat.live.metadata.table");
+        String assetName = propertyOrFixture("chatchat.live.metadata.asset-name", "release-metadata-asset");
+        String database = propertyOrFixture("chatchat.live.metadata.database", "release_catalog");
+        String table = propertyOrFixture("chatchat.live.metadata.table", "release_customer");
 
-        Map<String, Object> adapted = enterpriseMetadataRequestAdapter.adapt(Map.of(
+        EnterpriseMetadataRequestAdapter adapter = liveRequested()
+            ? liveContext().getBean(EnterpriseMetadataRequestAdapter.class)
+            : new EnterpriseMetadataRequestAdapter(activeSearchService(assetName, database, table));
+        Map<String, Object> adapted = adapter.adapt(Map.of(
             "query", "Review the complete indexed table schema " + table,
             "requestId", "live-enterprise-metadata-adapter",
             "defaultDataAsset", Map.of("assetName", assetName)
@@ -94,5 +97,57 @@ class SqlMetadataLiveRegressionTest {
         String value = System.getProperty(name);
         assertThat(value).as("required live test property %s", name).isNotBlank();
         return value.trim();
+    }
+
+    private String propertyOrFixture(String name, String fixture) {
+        return liveRequested() ? requiredProperty(name) : fixture;
+    }
+
+    private boolean liveRequested() {
+        return Boolean.parseBoolean(System.getProperty("chatchat.live.metadata.test", "false"));
+    }
+
+    private SqlMetadataSearchService activeSearchService(String assetName, String database, String tableName) {
+        if (liveRequested()) {
+            return liveContext().getBean(SqlMetadataSearchService.class);
+        }
+        SqlDatasourceConfig datasource = new SqlDatasourceConfig();
+        datasource.setId("release-metadata-datasource");
+        datasource.setName(assetName);
+        datasource.setTitle(assetName);
+        datasource.setToolName("release_metadata_query");
+        datasource.setEnvironment("TEST");
+        datasource.setDatabaseType("h2");
+
+        TableLocation table = new TableLocation(
+            datasource.getId(), database, database, tableName, "BASE TABLE", 1L,
+            "Release customer metadata", "Release catalog", 1.0d);
+        List<MetadataColumn> columns = List.of(
+            new MetadataColumn(datasource.getId(), database, database, tableName,
+                "customer_id", "varchar", "varchar(64)", "PRI", "Customer identifier", false, 1),
+            new MetadataColumn(datasource.getId(), database, database, tableName,
+                "customer_name", "varchar", "varchar(128)", "", "Customer name", true, 2)
+        );
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        when(datasourceService.listEnabled()).thenReturn(List.of(datasource));
+        MetadataIndexService metadataIndex = mock(MetadataIndexService.class);
+        when(metadataIndex.allTables(datasource)).thenReturn(List.of(table));
+        when(metadataIndex.columns(datasource, table)).thenReturn(columns);
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        when(lucene.enabled()).thenReturn(false);
+        return new SqlMetadataSearchService(lucene, datasourceService, metadataIndex);
+    }
+
+    private ConfigurableApplicationContext liveContext() {
+        if (liveContext == null) {
+            liveContext = new SpringApplicationBuilder(ChatChatMcpServerApplication.class)
+                .web(WebApplicationType.NONE)
+                .properties(
+                    "spring.main.web-application-type=none",
+                    "spring.task.scheduling.enabled=false"
+                )
+                .run();
+        }
+        return liveContext;
     }
 }

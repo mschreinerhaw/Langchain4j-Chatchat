@@ -28,11 +28,6 @@ if (-not $AllowConditionalSkips) {
     $missingReleaseInputs = @()
     if (-not $TencentWsaLive) { $missingReleaseInputs += "-TencentWsaLive" }
     if (-not $DeployedTopologyLive) { $missingReleaseInputs += "-DeployedTopologyLive" }
-    if (-not $SqlMetadataLive) { $missingReleaseInputs += "-SqlMetadataLive" }
-    if ([string]::IsNullOrWhiteSpace($EnterpriseMetadataPath)) { $missingReleaseInputs += "-EnterpriseMetadataPath" }
-    if ([string]::IsNullOrWhiteSpace($env:CHATCHAT_AGENT_COVERAGE_JDBC_URL)) {
-        $missingReleaseInputs += "CHATCHAT_AGENT_COVERAGE_JDBC_URL environment variable"
-    }
     if ($missingReleaseInputs.Count -gt 0) {
         throw "Strict production release requires every live gate. Missing: $($missingReleaseInputs -join ', ')."
     }

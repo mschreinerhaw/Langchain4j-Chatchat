@@ -81,6 +81,32 @@ class ProductionCoverageAuditE2E {
         );
     }
 
+    @Test
+    void releaseFallbackGatesRemainExecutableWithoutConditionalSkips() throws IOException {
+        Path root = repositoryRoot();
+        List<Path> formerlyConditional = List.of(
+            root.resolve("chatchat-api/src/test/java/com/chatchat/api/contract/MaintainedAgentEnvironmentCoverageTest.java"),
+            root.resolve("chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/metadata/EnterpriseMetadataWorkbookLoaderTest.java"),
+            root.resolve("chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/sql/SqlMetadataLiveRegressionTest.java")
+        );
+        for (Path test : formerlyConditional) {
+            String source = Files.readString(test);
+            assertThat(source)
+                .as("release-critical test must execute without external inputs: %s", root.relativize(test))
+                .doesNotContain("@EnabledIf", "@Disabled", "Assumptions.assume");
+        }
+        assertThat(Files.readString(formerlyConditional.get(0))).contains("deterministicMaintainedAgents");
+        assertThat(Files.readString(formerlyConditional.get(1))).contains("createEnterpriseCatalogFixture");
+        assertThat(Files.readString(formerlyConditional.get(2))).contains("activeSearchService");
+
+        String rootPom = Files.readString(root.resolve("pom.xml"));
+        assertThat(rootPom).contains("<exclude>net.sf.jsqlparser.parser.*</exclude>");
+        assertThat(rootPom).doesNotContain(
+            "<exclude>com.chatchat.*</exclude>",
+            "<exclude>com.chatchat.**</exclude>"
+        );
+    }
+
     private Set<String> modules(Path root) throws IOException {
         Matcher matcher = MODULE.matcher(Files.readString(root.resolve("pom.xml")));
         Set<String> modules = new LinkedHashSet<>();

@@ -14,6 +14,8 @@ public record ToolCallTrace(
     Long durationMs,
     Long startedAt,
     Long finishedAt,
+    String mcpCallId,
+    String evidenceId,
     Map<String, Object> governance,
     Map<String, Object> runtimeMetadata
 ) {

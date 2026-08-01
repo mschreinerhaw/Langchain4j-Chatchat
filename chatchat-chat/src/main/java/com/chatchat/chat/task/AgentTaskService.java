@@ -19,11 +19,13 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -92,10 +94,22 @@ public class AgentTaskService {
         if (normalized.getResumeTaskId() != null && !normalized.getResumeTaskId().isBlank()) {
             return confirm(normalized.getTenantId(), normalized.getResumeTaskId(), normalized);
         }
-        String taskId = UUID.randomUUID().toString();
+        String idempotencyKey = normalized.getIdempotencyKey();
+        if (idempotencyKey != null) {
+            Optional<AgentTaskLatestEntity> existing = latestRepository
+                .findByTenantIdAndIdempotencyKey(normalized.getTenantId(), idempotencyKey);
+            if (existing.isPresent()) {
+                assertSameIdempotentRequest(existing.get(), normalized);
+                return AgentTaskResponse.from(existing.get());
+            }
+        }
+        String taskId = idempotencyKey == null
+            ? UUID.randomUUID().toString()
+            : idempotentTaskId(normalized.getTenantId(), idempotencyKey);
         AgentTaskLatestEntity latest = new AgentTaskLatestEntity();
         latest.setTaskId(taskId);
         latest.setTenantId(normalized.getTenantId());
+        latest.setIdempotencyKey(idempotencyKey);
         latest.setUserId(normalized.getUserId());
         latest.setAgentId(normalized.getAgentId());
         latest.setSessionId(normalized.getSessionId());
@@ -104,7 +118,15 @@ public class AgentTaskService {
         latest.setRequestPayloadJson(writePayload(new AgentTaskPayload(normalized)));
         latest.setCreateTime(Instant.now());
         latest.setUpdateTime(Instant.now());
-        latestRepository.save(latest);
+        try {
+            latestRepository.save(latest);
+        } catch (DataIntegrityViolationException duplicate) {
+            AgentTaskLatestEntity existing = latestRepository
+                .findByTenantIdAndIdempotencyKey(normalized.getTenantId(), idempotencyKey)
+                .orElseThrow(() -> duplicate);
+            assertSameIdempotentRequest(existing, normalized);
+            return AgentTaskResponse.from(existing);
+        }
 
         queueQuestion(latest, normalized);
         return AgentTaskResponse.from(latest);
@@ -2015,13 +2037,45 @@ public class AgentTaskService {
      */
     private AgentTaskSubmitRequest normalize(AgentTaskSubmitRequest request) {
         request.setTenantId(requireTenant(request.getTenantId()));
+        request.setIdempotencyKey(normalizeIdempotencyKey(request.getIdempotencyKey()));
         request.setUserId(firstText(request.getUserId(), "anonymous"));
-        request.setSessionId(firstText(request.getSessionId(), UUID.randomUUID().toString()));
+        request.setSessionId(firstText(request.getSessionId(), request.getIdempotencyKey() == null
+            ? UUID.randomUUID().toString()
+            : idempotentTaskId(request.getTenantId(), "session:" + request.getIdempotencyKey())));
         request.setMode(firstText(request.getMode(), "agent_chat"));
         if (request.getSkillId() == null || request.getSkillId().isBlank()) {
             request.setSkillId(request.getAgentId());
         }
         return request;
+    }
+
+    private String normalizeIdempotencyKey(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = value.trim();
+        if (normalized.length() > 128) {
+            throw new IllegalArgumentException("Idempotency key must not exceed 128 characters");
+        }
+        return normalized;
+    }
+
+    private String idempotentTaskId(String tenantId, String idempotencyKey) {
+        String source = "agent-task:" + tenantId + ":" + idempotencyKey;
+        return UUID.nameUUIDFromBytes(source.getBytes(StandardCharsets.UTF_8)).toString();
+    }
+
+    private void assertSameIdempotentRequest(AgentTaskLatestEntity existing,
+                                             AgentTaskSubmitRequest request) {
+        boolean sameRequest = Objects.equals(existing.getTenantId(), request.getTenantId())
+            && Objects.equals(existing.getUserId(), request.getUserId())
+            && Objects.equals(existing.getAgentId(), request.getAgentId())
+            && Objects.equals(existing.getSessionId(), request.getSessionId())
+            && Objects.equals(existing.getQuestion(), request.getQuery());
+        if (!sameRequest) {
+            throw new IllegalArgumentException(
+                "Idempotency key is already bound to a different Agent task request");
+        }
     }
 
     /**

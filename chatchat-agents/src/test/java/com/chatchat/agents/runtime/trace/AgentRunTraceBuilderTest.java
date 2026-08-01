@@ -21,10 +21,19 @@ public class AgentRunTraceBuilderTest {
     void buildsTraceFromRunEvidenceAnswerAndToolCalls() {
         AgentRunTrace trace = builder.fromRun(sampleRun());
 
-        assertThat(trace.contractVersion()).isEqualTo("agent_run_trace_v1");
+        assertThat(trace.contractVersion()).isEqualTo("agent_run_trace_v2");
+        assertThat(trace.traceId()).isEqualTo("trace-1");
+        assertThat(trace.taskId()).isEqualTo("task-1");
+        assertThat(trace.agentId()).isEqualTo("agent-market");
+        assertThat(trace.modelName()).isEqualTo("model-v2");
+        assertThat(trace.modelCallId()).isEqualTo("model-call-1");
+        assertThat(trace.latencyMs()).isEqualTo(1L);
+        assertThat(trace.tokenUsage()).containsEntry("totalTokens", 42);
         assertThat(trace.question()).isEqualTo("config restart?");
         assertThat(trace.toolCalls()).hasSize(1);
         assertThat(trace.toolCalls().get(0).success()).isTrue();
+        assertThat(trace.toolCalls().get(0).mcpCallId()).isEqualTo("mcp-call-1");
+        assertThat(trace.toolCalls().get(0).evidenceId()).isEqualTo("evidence-1");
         assertThat(trace.evidence()).hasSize(1);
         assertThat(trace.evidence().get(0).refId()).isEqualTo("doc://file-1#chunk=3");
         assertThat(trace.evidence().get(0).citationUsed()).isTrue();
@@ -51,7 +60,10 @@ public class AgentRunTraceBuilderTest {
             "answerContractVersion", "evidence_answer_v1",
             "evidenceAnswer", evidenceAnswer,
             "availableEvidenceCitations", List.of(citation),
-            "groundingStatus", "grounded"
+            "groundingStatus", "grounded",
+            "traceId", "trace-1",
+            "modelCallId", "model-call-1",
+            "tokenUsage", Map.of("promptTokens", 30, "completionTokens", 12, "totalTokens", 42)
         );
         return AgentRun.builder()
             .runId("run-trace-1")
@@ -62,6 +74,9 @@ public class AgentRunTraceBuilderTest {
                 .query("config restart?")
                 .tenantId("tenant-a")
                 .userId("user-a")
+                .skillId("agent-market")
+                .modelName("model-v2")
+                .attributes(Map.of("taskId", "task-1"))
                 .build())
             .result(AgentRunResult.builder()
                 .runId("run-trace-1")
@@ -73,6 +88,9 @@ public class AgentRunTraceBuilderTest {
                     .input(Map.of("query", "config restart"))
                     .output("document_search returned doc://file-1#chunk=3")
                     .durationMs(12L)
+                    .runtimeMetadata(Map.of(
+                        "mcpCallId", "mcp-call-1",
+                        "evidenceId", "evidence-1"))
                     .build()))
                 .metadata(metadata)
                 .build())

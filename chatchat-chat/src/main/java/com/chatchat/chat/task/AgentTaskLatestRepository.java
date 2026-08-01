@@ -7,8 +7,11 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 public interface AgentTaskLatestRepository extends JpaRepository<AgentTaskLatestEntity, String> {
+
+    Optional<AgentTaskLatestEntity> findByTenantIdAndIdempotencyKey(String tenantId, String idempotencyKey);
 
     /**
      * Finds the all by order by create time desc.

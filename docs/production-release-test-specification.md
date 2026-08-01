@@ -343,12 +343,15 @@ $env:TENCENTCLOUD_SECRET_KEY = "<由密钥系统注入>"
 .\scripts\test-production-release-e2e.ps1 `
   -TencentWsaLive `
   -DeployedTopologyLive `
+  -CapacitySoakLive `
   -ApiBaseUrl "https://<api-host>" `
   -McpBaseUrl "https://<mcp-host>" `
   -NewsBaseUrl "https://<news-host>" `
   -InferenceQuery "请根据最新公开行情数据进行分析并给出有来源的建议" `
   -InferenceExpectedEvidence "web_search"
 ```
+
+候选版本回归不得在上游模块发生变化后使用 Maven `-rf` 结果作为发布证据；该方式可能从本地仓库解析旧 SNAPSHOT。必须使用带 `-am` 的受影响 Reactor 构建，或执行完整发布脚本。
 
 若目标发布包含真实 SQL 元数据验收，追加：
 
@@ -458,19 +461,23 @@ P0/P1 未关闭数：
 | Runtime 硬编码、制品凭据 | AUTOMATED | 继续纳入严格门禁 |
 | 腾讯 WSA、部署拓扑 | AUTOMATED，但需外部参数启用 | 严格发布必须真实执行 |
 | 取消/超时、分页、重试、连接池 | AUTOMATED | 继续纳入严格门禁 |
-| Prompt Injection 基础场景、租户授权 | 部分 AUTOMATED | 补齐文档/网页/Memory/缓存及跨租户攻击矩阵 |
-| 状态恢复、任务重放、端到端幂等 | NOT_IMPLEMENTED | 建立持久化故障注入 E2E 后才能宣称覆盖 |
-| Prompt/模型版本兼容矩阵 | NOT_IMPLEMENTED | 建立固定语料、版本矩阵和指标门槛 |
-| MCP Schema 差异门禁 | NOT_IMPLEMENTED | 建立 Schema 快照和 Breaking Change 检测 |
-| 全链路可观测性验收 | NOT_IMPLEMENTED | 建立 Trace/Metric/Log/Audit 断言与告警演练 |
-| 环境容量基线与长稳 | NOT_IMPLEMENTED | 完成压测模型和 Soak 基线 |
-| 灰度升级与回滚 | NOT_IMPLEMENTED | 在预发布部署流水线中演练 |
+| Prompt Injection、租户授权和外部证据污染 | AUTOMATED | 已覆盖数据库、文档、Web、MCP 负载与跨租户参数伪造；继续扩充编码变体 |
+| 状态恢复、任务重放、端到端幂等 | AUTOMATED | RocksDB 重启、关系任务恢复、租户级稳定幂等键和并发唯一约束已纳入门禁 |
+| Prompt/模型版本兼容矩阵 | 部分 AUTOMATED | 确定性旧/新 Prompt、Fence、前置文本、非法/截断 JSON 已覆盖；真实候选模型仍需环境证据 |
+| MCP Schema 差异门禁 | 部分 AUTOMATED | Breaking Change 检测器已覆盖删除、改名、必填、类型和枚举；需接入每个部署的 Schema 基线快照 |
+| 全链路可观测性验收 | 部分 AUTOMATED | Agent Trace v2 已输出关联 ID、Token 和延迟；外部指标系统及告警仍需现场演练 |
+| 环境容量基线与长稳 | AUTOMATED 入口，尚无本环境实测 | 严格门禁要求真实部署至少 300 秒；72 小时测试由发布级别配置 |
+| 灰度升级与回滚 | 部分 AUTOMATED | 持久化任务跨升级/回滚与唯一终态已覆盖；多版本部署流量切换仍需现场演练 |
 | License/配额全场景 | 部分 AUTOMATED | 补齐集群一致性、并发扣减和发布验收 |
 
 任何 `NOT_IMPLEMENTED` 项都不能被描述为“已覆盖”。在自动化落地前，如组织决定发布，必须形成明确的风险接受记录；P0 数据边界、状态幂等和回滚能力不得仅凭口头确认豁免。
 
 ## 13. 当前基线说明
 
-截至 2026-08-01，最近一次全仓 `clean test` 记录为 1,363 个测试、0 失败、0 错误、0 跳过，严格结构审计为 3 个测试全部通过，且未再出现 JSqlParser `MethodTooLargeException` 插桩警告。这只能证明代码回归基线健康。
+截至 2026-08-01，当前候选测试报告集为 1,382 个测试、0 失败、0 错误、0 跳过，其中严格结构审计为 3 个测试并已独立复跑通过。功能回归通过不代表覆盖率门禁通过。
 
-该记录不能替代候选版本的严格 `verify`。只有同一候选提交上的真实腾讯 WSA、已部署拓扑、零跳过和覆盖率门槛全部通过，才能给出生产发布结论。
+本次 Reactor `verify` 生成 13 个业务模块的 JaCoCo 报告：聚合行覆盖率为 64.64%，分支覆盖率为 43.88%，均低于 70%/60% 发布门槛。外层执行在 10 分钟限制处终止于 E2E 模块之前；因此当前候选结论必须为 `NO-GO`，不得通过调低门槛或复用旧报告放行。
+
+本环境同时不存在运行中的 Docker 服务，也未注入腾讯 WSA 凭据及 API/MCP/News 部署 URL，真实 WSA、部署拓扑和容量/长稳门禁尚未执行。任何曾写入工作区默认配置的腾讯云凭据必须在发布前完成轮换，Runtime 配置只能从部署环境或密钥系统注入。
+
+该记录不能替代候选版本的严格 `verify`。只有同一候选提交上的真实腾讯 WSA、已部署拓扑、容量/长稳、零跳过和覆盖率门槛全部通过，才能给出生产发布结论。

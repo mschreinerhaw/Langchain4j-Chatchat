@@ -2,12 +2,12 @@
 param(
     [switch]$AllowConditionalSkips,
     [switch]$TencentWsaLive,
-    [string]$TencentWsaQuery = "2026年8月最新人工智能行业动态与官方发布",
+    [string]$TencentWsaQuery = "latest official artificial intelligence industry developments August 2026",
     [switch]$DeployedTopologyLive,
     [string]$ApiBaseUrl,
     [string]$McpBaseUrl,
     [string]$NewsBaseUrl,
-    [string]$InferenceQuery = "请根据最新公开行情数据进行分析并给出有来源的建议",
+    [string]$InferenceQuery = "Analyze the latest public market data and provide source-grounded recommendations",
     [string]$InferenceExpectedEvidence = "web_search",
     [string]$ApiAuthHeader,
     [string]$McpAuthHeader,
@@ -17,6 +17,11 @@ param(
     [string]$SqlMetadataDatabase,
     [string]$SqlMetadataTable,
     [string]$EnterpriseMetadataPath,
+    [switch]$CapacitySoakLive,
+    [int]$SoakDurationSeconds = 300,
+    [int]$SoakConcurrency = 8,
+    [double]$SoakMinimumSuccessRate = 0.999,
+    [int]$SoakMaximumP95Ms = 180000,
     [double]$MinimumLineCoverage = 0.70,
     [double]$MinimumBranchCoverage = 0.60
 )
@@ -28,6 +33,7 @@ if (-not $AllowConditionalSkips) {
     $missingReleaseInputs = @()
     if (-not $TencentWsaLive) { $missingReleaseInputs += "-TencentWsaLive" }
     if (-not $DeployedTopologyLive) { $missingReleaseInputs += "-DeployedTopologyLive" }
+    if (-not $CapacitySoakLive) { $missingReleaseInputs += "-CapacitySoakLive" }
     if ($missingReleaseInputs.Count -gt 0) {
         throw "Strict production release requires every live gate. Missing: $($missingReleaseInputs -join ', ')."
     }
@@ -69,6 +75,19 @@ try {
         }
         $mavenArguments += "-Dchatchat.e2e.tencent-wsa.live=true"
         $mavenArguments += "-Dchatchat.e2e.tencent-wsa.query=$TencentWsaQuery"
+    }
+    if ($CapacitySoakLive) {
+        if (-not $DeployedTopologyLive) {
+            throw "Capacity/soak release gate requires -DeployedTopologyLive and ApiBaseUrl."
+        }
+        if ($SoakDurationSeconds -lt 300) {
+            throw "Strict capacity/soak release gate requires at least 300 seconds."
+        }
+        $mavenArguments += "-Dchatchat.e2e.capacity-soak.live=true"
+        $mavenArguments += "-Dchatchat.e2e.soak-duration-seconds=$SoakDurationSeconds"
+        $mavenArguments += "-Dchatchat.e2e.soak-concurrency=$SoakConcurrency"
+        $mavenArguments += "-Dchatchat.e2e.soak-min-success-rate=$SoakMinimumSuccessRate"
+        $mavenArguments += "-Dchatchat.e2e.soak-max-p95-ms=$SoakMaximumP95Ms"
     }
     if ($SqlMetadataLive) {
         if ([string]::IsNullOrWhiteSpace($SqlMetadataAssetName) -or

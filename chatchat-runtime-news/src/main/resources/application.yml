@@ -52,6 +52,7 @@ chatchat:
       web-search:
         enabled: true
         endpoint: https://wsa.tencentcloudapi.com
+        # Credentials must be injected by the deployment environment. Never add defaults here.
         secret-id: ${TENCENTCLOUD_SECRET_ID:}
         secret-key: ${TENCENTCLOUD_SECRET_KEY:}
         region: ""

@@ -7,6 +7,7 @@ import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -22,7 +23,11 @@ import java.util.UUID;
         @Index(name = "idx_agent_task_tenant_created", columnList = "tenant_id, create_time"),
         @Index(name = "idx_agent_task_session_created", columnList = "tenant_id, session_id, create_time"),
         @Index(name = "idx_agent_task_status_updated", columnList = "status, update_time")
-    }
+    },
+    uniqueConstraints = @UniqueConstraint(
+        name = "uk_agent_task_tenant_idempotency",
+        columnNames = {"tenant_id", "idempotency_key"}
+    )
 )
 public class AgentTaskLatestEntity {
 
@@ -32,6 +37,9 @@ public class AgentTaskLatestEntity {
 
     @Column(name = "tenant_id", length = 64, nullable = false)
     private String tenantId;
+
+    @Column(name = "idempotency_key", length = 128)
+    private String idempotencyKey;
 
     @Column(name = "user_id", length = 64, nullable = false)
     private String userId = "anonymous";

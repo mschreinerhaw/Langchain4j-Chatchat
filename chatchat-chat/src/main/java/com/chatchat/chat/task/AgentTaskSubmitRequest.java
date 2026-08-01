@@ -15,6 +15,7 @@ import java.util.Map;
 public class AgentTaskSubmitRequest {
 
     private String tenantId;
+    private String idempotencyKey;
     private String resumeTaskId;
     private String userId;
     private String agentId;

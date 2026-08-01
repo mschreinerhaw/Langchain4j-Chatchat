@@ -17,7 +17,9 @@ The default command is the strict product-release gate: it requires zero failed,
 .\scripts\test-production-release-e2e.ps1 -AllowConditionalSkips
 ```
 
-For a production-connected release, enable the applicable live gates (WSA, deployed API/MCP/News topology, SQL metadata) and supply the enterprise metadata dataset. Credentials are read from environment variables or passed as runtime properties; they must not be committed.
+For a production-connected release, enable the WSA, deployed API/MCP/News topology, and capacity/soak live gates; also enable SQL metadata and provide the enterprise metadata dataset when those assets are part of the release. Credentials are read from environment variables or passed as runtime properties; they must not be committed.
+
+After changing an upstream module, do not use Maven `-rf` as release evidence because it can resolve a stale local SNAPSHOT for the changed dependency. Rebuild the affected reactor with `-pl ... -am` (or run the complete release script).
 
 Equivalent Maven command:
 

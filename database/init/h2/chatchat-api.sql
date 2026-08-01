@@ -41,13 +41,15 @@
         tenant_id varchar(64) not null,
         user_id varchar(64) not null,
         agent_id varchar(128),
+        idempotency_key varchar(128),
         feedback_comment varchar(1000),
         answer_summary LONGTEXT,
         error_message TEXT,
         final_notification_json LONGTEXT,
         question TEXT,
         request_payload_json TEXT,
-        primary key (task_id)
+        primary key (task_id),
+        constraint uk_agent_task_tenant_idempotency unique (tenant_id, idempotency_key)
     );
 
     create table chat_message_index (
@@ -749,7 +751,7 @@
     create index idx_agent_task_session_created 
        on agent_task_latest (tenant_id, session_id, create_time);
 
-    create index idx_agent_task_status_updated 
+    create index idx_agent_task_status_updated
        on agent_task_latest (status, update_time);
 
     create index idx_chat_message_session_created 

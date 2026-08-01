@@ -44,15 +44,22 @@ public class AgentRunTraceBuilder {
         List<String> unsupported = unsupportedCitations(usedCitations, availableCitations);
         return new AgentRunTrace(
             AgentRunTrace.CONTRACT_VERSION,
+            firstText(stringValue(metadata.get("traceId")), requestAttribute(request, "traceId")),
+            firstText(requestAttribute(request, "taskId"), run.runId()),
             run.runId(),
             request == null ? null : request.getRequestId(),
             request == null ? null : request.getConversationId(),
             request == null ? null : request.getTenantId(),
             request == null ? null : request.getUserId(),
+            request == null ? null : request.getSkillId(),
+            request == null ? null : request.getModelName(),
+            stringValue(metadata.get("modelCallId")),
             request == null ? null : request.getQuery(),
             run.status(),
             run.startedAt(),
             run.finishedAt(),
+            run.finishedAt() == null ? null : Math.max(0L, run.finishedAt() - run.startedAt()),
+            integerMap(metadata.get("tokenUsage")),
             toolCallTraces(run, result),
             evidenceTraces(availableCitations, usedCitations, observationTexts),
             answerTrace(result, metadata, usedCitations),
@@ -76,6 +83,9 @@ public class AgentRunTraceBuilder {
             if (trace == null) {
                 continue;
             }
+            Map<String, Object> runtimeMetadata = trace.getRuntimeMetadata() == null
+                ? Map.of()
+                : trace.getRuntimeMetadata();
             traces.add(new ToolCallTrace(
                 i + 1,
                 trace.getToolName(),
@@ -87,8 +97,11 @@ public class AgentRunTraceBuilder {
                 trace.getDurationMs(),
                 trace.getStartedAt(),
                 trace.getFinishedAt(),
-                asMap(trace.getRuntimeMetadata() == null ? null : trace.getRuntimeMetadata().get("governance")),
-                trace.getRuntimeMetadata()
+                firstText(stringValue(runtimeMetadata.get("mcpCallId")),
+                    stringValue(runtimeMetadata.get("toolCallId"))),
+                stringValue(runtimeMetadata.get("evidenceId")),
+                asMap(runtimeMetadata.get("governance")),
+                runtimeMetadata
             ));
         }
         if (!traces.isEmpty()) {
@@ -113,6 +126,8 @@ public class AgentRunTraceBuilder {
             longValue(firstPresent(executionPlan, "durationMs", "toolExecutionTimeMs")),
             step.plannedAt() > 0 ? step.plannedAt() : null,
             null,
+            stringValue(executionPlan.get("mcpCallId")),
+            stringValue(executionPlan.get("evidenceId")),
             asMap(executionPlan.get("governance")),
             executionPlan
         );
@@ -257,6 +272,35 @@ public class AgentRunTraceBuilder {
             }
         });
         return values;
+    }
+
+    private Map<String, Integer> integerMap(Object value) {
+        if (!(value instanceof Map<?, ?> map)) {
+            return Map.of();
+        }
+        Map<String, Integer> result = new LinkedHashMap<>();
+        map.forEach((key, item) -> {
+            if (key == null || item == null) {
+                return;
+            }
+            if (item instanceof Number number) {
+                result.put(String.valueOf(key), number.intValue());
+                return;
+            }
+            try {
+                result.put(String.valueOf(key), Integer.parseInt(String.valueOf(item)));
+            } catch (NumberFormatException ignored) {
+                // Non-numeric provider metadata is not token usage.
+            }
+        });
+        return result;
+    }
+
+    private String requestAttribute(AgentRunRequest request, String name) {
+        if (request == null || request.getAttributes() == null) {
+            return null;
+        }
+        return stringValue(request.getAttributes().get(name));
     }
 
     private List<String> stringList(Object value) {

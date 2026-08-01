@@ -18,8 +18,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
@@ -29,6 +31,76 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentTaskServiceTest {
+
+    @Test
+    void repeatedIdempotentSubmissionReturnsSameTaskAndQueuesOnlyOnce() {
+        AgentEventBus eventBus = mock(AgentEventBus.class);
+        AgentEventStore eventStore = mock(AgentEventStore.class);
+        AgentTaskLatestRepository repository = mock(AgentTaskLatestRepository.class);
+        AtomicReference<AgentTaskLatestEntity> saved = new AtomicReference<>();
+        when(repository.findByTenantIdAndIdempotencyKey("tenant-1", "message-1001"))
+            .thenReturn(Optional.empty());
+        when(repository.save(any(AgentTaskLatestEntity.class))).thenAnswer(invocation -> {
+            AgentTaskLatestEntity entity = invocation.getArgument(0);
+            saved.set(entity);
+            when(repository.findById(entity.getTaskId())).thenReturn(Optional.of(entity));
+            return entity;
+        });
+        AgentTaskService service = taskService(
+            eventBus, eventStore, repository, mock(TaskConfirmRepository.class), new ObjectMapper());
+
+        AgentTaskSubmitRequest first = idempotentRequest("message-1001", "analyse latest market evidence");
+        first.setSessionId(null);
+        AgentTaskResponse firstResponse = service.submit(first);
+        AgentTaskLatestEntity persisted = saved.get();
+        when(repository.findByTenantIdAndIdempotencyKey("tenant-1", "message-1001"))
+            .thenReturn(Optional.of(persisted));
+        AgentTaskSubmitRequest replay = idempotentRequest("message-1001", "analyse latest market evidence");
+        replay.setSessionId(null);
+        AgentTaskResponse replayResponse = service.submit(replay);
+
+        assertThat(replayResponse.taskId()).isEqualTo(firstResponse.taskId());
+        assertThat(firstResponse.taskId()).isEqualTo(persisted.getTaskId());
+        verify(eventBus, times(1)).publish(any(AgentEvent.class));
+        verify(eventStore, times(1)).save(any(AgentEvent.class));
+    }
+
+    @Test
+    void idempotencyKeyCannotBeReusedForDifferentRequest() {
+        AgentEventBus eventBus = mock(AgentEventBus.class);
+        AgentTaskLatestRepository repository = mock(AgentTaskLatestRepository.class);
+        AgentTaskLatestEntity existing = taskFor(idempotentRequest("message-1002", "first query"));
+        when(repository.findByTenantIdAndIdempotencyKey("tenant-1", "message-1002"))
+            .thenReturn(Optional.of(existing));
+        AgentTaskService service = taskService(
+            eventBus, mock(AgentEventStore.class), repository,
+            mock(TaskConfirmRepository.class), new ObjectMapper());
+
+        assertThatThrownBy(() -> service.submit(idempotentRequest("message-1002", "different query")))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("already bound to a different");
+        verify(eventBus, never()).publish(any(AgentEvent.class));
+    }
+
+    @Test
+    void concurrentInsertConflictReturnsCommittedTaskWithoutDuplicateQueue() {
+        AgentEventBus eventBus = mock(AgentEventBus.class);
+        AgentTaskLatestRepository repository = mock(AgentTaskLatestRepository.class);
+        AgentTaskSubmitRequest request = idempotentRequest("message-race", "race-safe query");
+        AgentTaskLatestEntity winner = taskFor(request);
+        when(repository.findByTenantIdAndIdempotencyKey("tenant-1", "message-race"))
+            .thenReturn(Optional.empty(), Optional.of(winner));
+        when(repository.save(any(AgentTaskLatestEntity.class)))
+            .thenThrow(new org.springframework.dao.DataIntegrityViolationException("duplicate"));
+        AgentTaskService service = taskService(
+            eventBus, mock(AgentEventStore.class), repository,
+            mock(TaskConfirmRepository.class), new ObjectMapper());
+
+        AgentTaskResponse response = service.submit(request);
+
+        assertThat(response.taskId()).isEqualTo(winner.getTaskId());
+        verify(eventBus, never()).publish(any(AgentEvent.class));
+    }
 
     @Test
     void startsMultipleWorkersForOneTenantUpToConfiguredLimit() throws Exception {
@@ -675,6 +747,32 @@ class AgentTaskServiceTest {
             mock(InterpretationPlanStore.class),
             mock(ThreadPoolTaskExecutor.class)
         );
+    }
+
+    private AgentTaskSubmitRequest idempotentRequest(String key, String query) {
+        AgentTaskSubmitRequest request = new AgentTaskSubmitRequest();
+        request.setTenantId("tenant-1");
+        request.setUserId("user-1");
+        request.setAgentId("general");
+        request.setSessionId("session-1");
+        request.setIdempotencyKey(key);
+        request.setQuery(query);
+        return request;
+    }
+
+    private AgentTaskLatestEntity taskFor(AgentTaskSubmitRequest request) {
+        AgentTaskLatestEntity task = new AgentTaskLatestEntity();
+        task.setTaskId("task-" + request.getIdempotencyKey());
+        task.setTenantId(request.getTenantId());
+        task.setUserId(request.getUserId());
+        task.setAgentId(request.getAgentId());
+        task.setSessionId(request.getSessionId());
+        task.setIdempotencyKey(request.getIdempotencyKey());
+        task.setQuestion(request.getQuery());
+        task.setStatus("PENDING");
+        task.setCreateTime(Instant.now());
+        task.setUpdateTime(Instant.now());
+        return task;
     }
 
     private AgentTaskLatestEntity waitingTask(String taskId) {

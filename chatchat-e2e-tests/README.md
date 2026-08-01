@@ -1,5 +1,8 @@
 # ChatChat Production E2E Test Module
 
+完整的生产发布范围、场景矩阵、证据要求和 Go/No-Go 标准见
+[`docs/production-release-test-specification.md`](../docs/production-release-test-specification.md)。
+
 This module is the backend production-release gate. It runs after all required application modules and verifies cross-module contracts that unit tests cannot own individually.
 
 Run the complete release gate from the repository root:

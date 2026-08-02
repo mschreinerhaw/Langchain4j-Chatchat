@@ -93,13 +93,16 @@ class FinalSummaryWebSearchEnhancer {
         if (decision.financialDataRequired()) {
             String financialCapableTool = resolveInternalWebSearchTool(true);
             if (financialCapableTool == null || financialCapableTool.isBlank()) {
-                record(metadata, "finalSummaryWebSearchSkippedReason",
-                    "structured_financial_web_search_unavailable");
-                record(metadata, "finalSummaryFinancialDataRequired", true);
-                return Enhancement.skipped(observations, traces);
+                record(metadata, "finalSummaryWebSearchCapabilityFallback",
+                    "external_web_only_structured_financial_parameter_unavailable");
+            } else {
+                toolName = financialCapableTool;
             }
-            toolName = financialCapableTool;
         }
+        boolean effectiveWebFinancialDataRequired = decision.financialDataRequired()
+            && supportsFinancialRetrievalIntent(toolName);
+        record(metadata, "finalSummaryWebFinancialDataRequiredEffective",
+            effectiveWebFinancialDataRequired);
         log.info(
             "准备联网检索 stage={} runId={} tool={} keywords={} reason={}",
             CANDIDATE_STAGE,
@@ -109,11 +112,13 @@ class FinalSummaryWebSearchEnhancer {
             safe(decision.reason())
         );
         log.info(
-            "Final summary financial retrieval decision runId={} policy={} modelRequired={} effectiveRequired={}",
+            "Final summary financial retrieval decision runId={} policy={} modelRequired={} requested={} "
+                + "webEffective={}",
             safe(text(metadata, "agentRunId", "__agentRunId")),
             forcedFinancialData ? "FORCED" : "INTENT_DRIVEN",
             modelDecision.financialDataRequired(),
-            decision.financialDataRequired()
+            decision.financialDataRequired(),
+            effectiveWebFinancialDataRequired
         );
 
         List<InteractionToolTrace> augmentedTraces = new ArrayList<>(traces == null ? List.of() : traces);
@@ -122,7 +127,7 @@ class FinalSummaryWebSearchEnhancer {
         for (String keyword : decision.keywords().stream()
             .limit(properties.finalSummaryWebSearchMaxKeywords()).toList()) {
             ToolRuntimeExecution execution = execute(
-                toolName, keyword, decision.financialDataRequired(), metadata);
+                toolName, keyword, effectiveWebFinancialDataRequired, metadata);
             if (execution != null && execution.trace() != null) augmentedTraces.add(execution.trace());
             ToolOutput output = execution == null ? null : execution.output();
             if (output == null || !output.isSuccess()) {

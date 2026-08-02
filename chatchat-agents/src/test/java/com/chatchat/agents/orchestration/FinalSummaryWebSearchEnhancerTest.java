@@ -188,6 +188,51 @@ class FinalSummaryWebSearchEnhancerTest {
     }
 
     @Test
+    void financialEvidenceGapStillUsesExternalWebWhenWebToolHasNoStructuredParameter() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        ToolRuntimeService runtime = mock(ToolRuntimeService.class);
+        ChatModel model = mock(ChatModel.class);
+        when(registry.getAllToolNames()).thenReturn(Set.of("mcp_runtime_web_search"));
+        when(registry.getToolMetadata("mcp_runtime_web_search")).thenReturn(ToolMetadata.builder()
+            .id("mcp_runtime_web_search").parameters(List.of()).build());
+        when(model.chat(any(String.class))).thenReturn(
+            "{\"needed\":true,\"financialDataRequired\":true,\"keywords\":[\"missing index close\"],"
+                + "\"reason\":\"one market observation is missing\"}",
+            "The missing observation was supplemented from the external source. "
+                + "[source](https://example.test/index-close)");
+        InteractionToolTrace trace = InteractionToolTrace.builder()
+            .toolName("mcp_runtime_web_search").success(true).output("external evidence").build();
+        ToolOutput output = ToolOutput.success(Map.of(
+            "mode", "hybrid_news_and_web",
+            "results", List.of(Map.of(
+                "title", "Runtime index close",
+                "url", "https://example.test/index-close",
+                "snippet", "The requested close was published by the external source.",
+                "retrievalSource", "tencent_wsa"))));
+        when(runtime.execute(any())).thenReturn(
+            new ToolRuntimeExecution(output, null, trace, "success", Map.of()));
+        Map<String, Object> metadata = new LinkedHashMap<>();
+
+        var result = enhancer(registry, runtime).enhance(
+            model, "complete the index table", "", "one row is missing",
+            List.of("local structured data returned the other rows"), List.of(), metadata);
+
+        ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
+        verify(runtime).execute(captor.capture());
+        assertThat(captor.getValue().getToolInput().getParameters())
+            .containsEntry("financial_data_required", false);
+        assertThat(result.attempted()).isTrue();
+        assertThat(result.used()).isTrue();
+        assertThat(result.enhancedAnswer()).contains("https://example.test/index-close");
+        assertThat(metadata)
+            .containsEntry("finalSummaryFinancialDataRequired", true)
+            .containsEntry("finalSummaryWebFinancialDataRequiredEffective", false)
+            .containsEntry("finalSummaryWebSearchCapabilityFallback",
+                "external_web_only_structured_financial_parameter_unavailable")
+            .containsEntry("finalSummaryWebSearchUsed", true);
+    }
+
+    @Test
     void finalizerQualityLayerCanPreferTheWebEnhancedCandidate() {
         ToolRegistry registry = mock(ToolRegistry.class);
         ToolRuntimeService runtime = mock(ToolRuntimeService.class);

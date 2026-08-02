@@ -320,6 +320,16 @@
             <span>快捷问题</span>
             <textarea v-model="form.quickQuestions" rows="3" placeholder="每行一个问题"></textarea>
           </label>
+          <section class="default-data-asset-settings financial-data-analysis-settings wide-field">
+            <div class="default-data-asset-heading">
+              <strong>结构化金融数据分析</strong>
+              <span>启用后，该 Agent 的联网检索会强制采集受治理的结构化金融数据；未启用时仍由检索意图模型按问题动态判断。</span>
+            </div>
+            <label class="checkbox-row">
+              <input v-model="form.workflowConfig.forceStructuredFinancialData" type="checkbox">
+              <span>强制采集结构化金融数据</span>
+            </label>
+          </section>
           <section class="default-data-asset-settings wide-field">
             <div class="default-data-asset-heading">
               <strong>数据库资产绑定</strong>

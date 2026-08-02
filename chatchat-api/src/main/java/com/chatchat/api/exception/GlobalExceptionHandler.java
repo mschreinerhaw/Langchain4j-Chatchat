@@ -1,7 +1,11 @@
 package com.chatchat.api.exception;
 
 import com.chatchat.api.config.JsonRequestSizeFilter;
+import com.chatchat.api.config.RequestCorrelationFilter;
+import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.common.response.ApiResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -15,9 +19,11 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.HashMap;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.stream.Collectors;
@@ -168,7 +174,7 @@ public class GlobalExceptionHandler {
             AsyncRequestNotUsableException ex,
             WebRequest request) {
 
-        log.debug("Client disconnected before response completed: {}", ex.getMessage());
+        logClientAbort(ex, request);
         return ResponseEntity.status(CLIENT_CLOSED_REQUEST).build();
     }
 
@@ -206,7 +212,7 @@ public class GlobalExceptionHandler {
             WebRequest request) {
 
         if (isClientAbort(ex)) {
-            log.debug("Client disconnected before response completed: {}", ex.getMessage());
+            logClientAbort(ex, request);
             return new ResponseEntity<>(null, CLIENT_CLOSED_REQUEST);
         }
 
@@ -237,6 +243,118 @@ public class GlobalExceptionHandler {
             current = current.getCause();
         }
         return false;
+    }
+
+    private void logClientAbort(Throwable ex, WebRequest webRequest) {
+        ClientAbortDetails details = clientAbortDetails(ex, webRequest);
+        log.debug("Client disconnected before response completed method={} uri={} queryKeys={} requestId={} traceId={} tenantId={} taskId={} contentLength={} durationMs={} responseStatus={} responseCommitted={} responseContentLength={} exceptionType={} rootCauseType={} rootCause={}",
+            details.method(), details.uri(), details.queryKeys(), details.requestId(), details.traceId(),
+            details.tenantId(), details.taskId(), details.contentLength(), details.durationMs(),
+            details.responseStatus(), details.responseCommitted(), details.responseContentLength(),
+            details.exceptionType(), details.rootCauseType(), details.rootCauseMessage());
+    }
+
+    ClientAbortDetails clientAbortDetails(Throwable ex, WebRequest webRequest) {
+        HttpServletRequest request = webRequest instanceof ServletWebRequest servlet ? servlet.getRequest() : null;
+        HttpServletResponse response = webRequest instanceof ServletWebRequest servlet ? servlet.getResponse() : null;
+        Throwable root = rootCause(ex);
+        String uri = request == null ? null : safeLogValue(request.getRequestURI(), 512);
+        return new ClientAbortDetails(
+            request == null ? null : safeLogValue(request.getMethod(), 16),
+            uri,
+            request == null ? null : queryKeys(request.getQueryString()),
+            requestValue(request, RequestCorrelationFilter.REQUEST_ID_ATTRIBUTE, "X-Request-ID", "requestId"),
+            requestValue(request, RequestCorrelationFilter.TRACE_ID_ATTRIBUTE, RequestCorrelationFilter.TRACE_ID_HEADER, "traceId"),
+            firstNonBlank(attributeValue(request, ApiAuthenticationFilter.CURRENT_TENANT_ID), parameterValue(request, "tenantId")),
+            firstNonBlank(parameterValue(request, "taskId"), taskIdFromUri(uri)),
+            request == null ? -1L : request.getContentLengthLong(),
+            requestDurationMs(request),
+            response == null ? -1 : response.getStatus(),
+            response != null && response.isCommitted(),
+            response == null ? null : safeLogValue(response.getHeader("Content-Length"), 32),
+            ex == null ? null : ex.getClass().getName(),
+            root == null ? null : root.getClass().getName(),
+            root == null ? null : safeLogValue(root.getMessage(), 512)
+        );
+    }
+
+    private String requestValue(HttpServletRequest request, String attribute, String header, String parameter) {
+        return firstNonBlank(attributeValue(request, attribute),
+            request == null ? null : safeLogValue(request.getHeader(header), 128), parameterValue(request, parameter));
+    }
+
+    private String attributeValue(HttpServletRequest request, String name) {
+        if (request == null || request.getAttribute(name) == null) return null;
+        return safeLogValue(String.valueOf(request.getAttribute(name)), 128);
+    }
+
+    private String parameterValue(HttpServletRequest request, String name) {
+        if (request == null || request.getQueryString() == null) return null;
+        String prefix = name + "=";
+        return Arrays.stream(request.getQueryString().split("&"))
+            .filter(part -> part.startsWith(prefix))
+            .map(part -> safeLogValue(part.substring(prefix.length()), 128))
+            .findFirst()
+            .orElse(null);
+    }
+
+    private long requestDurationMs(HttpServletRequest request) {
+        if (request == null) return -1L;
+        Object started = request.getAttribute(RequestCorrelationFilter.STARTED_NANOS_ATTRIBUTE);
+        if (!(started instanceof Number number)) return -1L;
+        return Math.max(0L, (System.nanoTime() - number.longValue()) / 1_000_000L);
+    }
+
+    private String queryKeys(String query) {
+        if (query == null || query.isBlank()) return "[]";
+        return Arrays.stream(query.split("&"))
+            .map(part -> part.contains("=") ? part.substring(0, part.indexOf('=')) : part)
+            .map(key -> safeLogValue(key, 64))
+            .filter(key -> key != null && !key.isBlank())
+            .distinct()
+            .sorted()
+            .toList()
+            .toString();
+    }
+
+    private String taskIdFromUri(String uri) {
+        if (uri == null) return null;
+        String marker = "/agent/tasks/";
+        int start = uri.indexOf(marker);
+        if (start < 0) return null;
+        String remainder = uri.substring(start + marker.length());
+        int slash = remainder.indexOf('/');
+        String candidate = slash < 0 ? remainder : remainder.substring(0, slash);
+        if (candidate.isBlank() || "runtime".equals(candidate)) return null;
+        return safeLogValue(candidate, 128);
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) if (value != null && !value.isBlank()) return value;
+        return null;
+    }
+
+    private String safeLogValue(String value, int maxLength) {
+        if (value == null) return null;
+        String safe = value.replace('\r', '_').replace('\n', '_');
+        return safe.length() <= maxLength ? safe : safe.substring(0, maxLength) + "...";
+    }
+
+    record ClientAbortDetails(String method,
+                              String uri,
+                              String queryKeys,
+                              String requestId,
+                              String traceId,
+                              String tenantId,
+                              String taskId,
+                              long contentLength,
+                              long durationMs,
+                              int responseStatus,
+                              boolean responseCommitted,
+                              String responseContentLength,
+                              String exceptionType,
+                              String rootCauseType,
+                              String rootCauseMessage) {
     }
 
     private String multipartErrorMessage(Throwable ex) {

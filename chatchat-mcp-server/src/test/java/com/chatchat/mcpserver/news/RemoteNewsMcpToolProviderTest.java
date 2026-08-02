@@ -77,6 +77,44 @@ class RemoteNewsMcpToolProviderTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void finalSummaryMarkerReturnsDynamicallySelectedFinancialRowsWithoutHardcodedDataset() throws Exception {
+        NewsRuntimeClient news = mock(NewsRuntimeClient.class);
+        FinancialAssetCatalogService market = mock(FinancialAssetCatalogService.class);
+        FinancialDataStore store = mock(FinancialDataStore.class);
+        String query = "authoritative opening observations";
+        when(news.invoke(eq("web_search"), any())).thenReturn(ToolOutput.success(Map.of(
+            "results", List.of(Map.of("resultType", "web", "retrievalSource", "tencent_wsa",
+                "title", "overnight market")) )));
+        when(store.assetSearchQuery(query, 10)).thenReturn(query);
+        when(market.search(query, 6)).thenReturn(List.of(
+            Map.of("dataset_code", "new_runtime_dataset", "asset_name", "runtime market metrics")));
+        when(store.resolveEntityFilters("new_runtime_dataset", query, 5)).thenReturn(List.of());
+        when(store.query("new_runtime_dataset", Map.of(), null, null, 20, "auto"))
+            .thenReturn(Map.of("rows", List.of(Map.of(
+                "metric", "market_breadth", "value", 321, "payload_json", "must-not-cross-boundary"))));
+        RemoteNewsMcpToolProvider provider = provider(news, market, store);
+
+        ToolOutput output = provider.findExecutor("web_search").orElseThrow().execute(ToolInput.builder()
+            .parameters(Map.of("query", query, "num_results", 6, "financial_data_required", true))
+            .context(Map.of("internalPurpose", "final_summary_web_enhancement"))
+            .build());
+
+        assertThat(output.isSuccess()).isTrue();
+        Map<String, Object> data = (Map<String, Object>) output.getData();
+        assertThat(data).containsEntry("financialDataRequired", true)
+            .containsEntry("financialDataSatisfied", true)
+            .containsEntry("financialDatasetCount", 1)
+            .containsEntry("financialObservationCount", 1);
+        assertThat((List<Map<String, Object>>) data.get("financialData")).singleElement().satisfies(dataset -> {
+            assertThat(dataset).containsEntry("dataset", "new_runtime_dataset");
+            assertThat((List<Map<String, Object>>) dataset.get("rows")).singleElement().satisfies(row ->
+                assertThat(row).doesNotContainKey("payload_json").containsKey("_omitted_fields"));
+        });
+        verify(store).query("new_runtime_dataset", Map.of(), null, null, 20, "auto");
+    }
+
+    @Test
     void cancellationFromNewsRuntimeStopsBeforeAnyMarketOrDatabaseWork() {
         NewsRuntimeClient news = mock(NewsRuntimeClient.class);
         FinancialAssetCatalogService market = mock(FinancialAssetCatalogService.class);

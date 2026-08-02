@@ -28,6 +28,45 @@ import static org.mockito.Mockito.when;
 class ToolRuntimeServiceTest {
 
     @Test
+    void agentFinancialPolicyForcesWebSearchParameterAndAuditMetadata() {
+        String toolName = "mcp_dynamic_service_web_search";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName).title("Dynamic web search").categories(List.of("mcp")).build());
+        AtomicReference<ToolInput> capturedInput = new AtomicReference<>();
+        when(registry.executeEnhancedTool(any(), any())).thenAnswer(invocation -> {
+            capturedInput.set(invocation.getArgument(1));
+            return ToolOutput.success(Map.of("results", List.of()));
+        });
+        ToolRuntimeService service = new ToolRuntimeService(
+            registry, new ObjectMapper(), properties(), List.of(), List.of());
+        try {
+            ToolRuntimeExecution execution = service.execute(ToolRuntimeRequest.builder()
+                .toolName(toolName).runtimeMode("agent_chat").requestId("forced-financial-1")
+                .conversationId("conversation-1").tenantId("tenant-1").userId("user-1")
+                .allowedTools(List.of(toolName))
+                .attributes(Map.of("forceStructuredFinancialData", true))
+                .toolInput(ToolInput.builder().parameters(Map.of(
+                    "query", "latest market",
+                    "financial_data_required", false
+                )).build())
+                .build());
+
+            assertThat(capturedInput.get().getParameters())
+                .containsEntry("financial_data_required", true);
+            assertThat(capturedInput.get().getContext())
+                .containsEntry("financialDataPolicy", "FORCED")
+                .containsEntry("financialDataModelRequired", false)
+                .containsEntry("financialDataEffectiveRequired", true);
+            assertThat(execution.audit())
+                .containsEntry("financialDataPolicy", "FORCED")
+                .containsEntry("financialDataEffectiveRequired", true);
+        } finally {
+            service.shutdown();
+        }
+    }
+
+    @Test
     void oversizedToolOutputIsExternalizedAndOnlyBoundedReferenceCrossesRuntimeBoundary() {
         ToolRegistry registry = mock(ToolRegistry.class);
         when(registry.getToolMetadata("large_tool")).thenReturn(ToolMetadata.builder()

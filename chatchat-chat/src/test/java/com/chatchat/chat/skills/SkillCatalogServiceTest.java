@@ -39,6 +39,29 @@ class SkillCatalogServiceTest {
     }
 
     @Test
+    void persistsStructuredFinancialDataForceFlag() {
+        SkillConfigRepository repository = mock(SkillConfigRepository.class);
+        SkillConfigVersionRepository versionRepository = mock(SkillConfigVersionRepository.class);
+        when(repository.findById("db_ops_assistant")).thenReturn(Optional.empty());
+        when(repository.save(any(SkillConfigEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(versionRepository.save(any(SkillConfigVersionEntity.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        SkillCatalogService service = new SkillCatalogService(
+            repository, versionRepository, new ObjectMapper(), mock(JdbcTemplate.class));
+
+        SkillDefinition saved = service.upsert(draftWithWorkflow(Map.of(
+            "enabled", true,
+            "force_structured_financial_data", true
+        )));
+
+        ArgumentCaptor<SkillConfigEntity> entityCaptor = ArgumentCaptor.forClass(SkillConfigEntity.class);
+        verify(repository).save(entityCaptor.capture());
+        assertThat(entityCaptor.getValue().getWorkflowConfigJson())
+            .contains("\"forceStructuredFinancialData\":true");
+        assertThat(saved.workflowConfig()).containsEntry("forceStructuredFinancialData", true);
+    }
+
+    @Test
     void rejectsUnknownRuntimeEnvironment() {
         SkillCatalogService service = new SkillCatalogService(
             mock(SkillConfigRepository.class),

@@ -62,9 +62,16 @@ class DatasourceConfigurationSeparationTest {
 
     private void assertDatasource(Path path, String jdbcPrefix, String dialect) throws Exception {
         List<PropertySource<?>> sources = load(path);
-        assertThat(String.valueOf(value(sources, "spring.datasource.url"))).startsWith(jdbcPrefix);
+        assertThat(propertyDefaultValue(value(sources, "spring.datasource.url"))).startsWith(jdbcPrefix);
         assertThat(value(sources, "spring.datasource.driver-class-name")).isNotNull();
         assertThat(value(sources, "spring.jpa.database-platform")).isEqualTo(dialect);
+    }
+
+    private String propertyDefaultValue(Object rawValue) {
+        String value = String.valueOf(rawValue);
+        if (!value.startsWith("${") || !value.endsWith("}")) return value;
+        int separator = value.indexOf(':', 2);
+        return separator < 0 ? value : value.substring(separator + 1, value.length() - 1);
     }
 
     private List<PropertySource<?>> load(Path path) throws Exception {

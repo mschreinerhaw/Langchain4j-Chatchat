@@ -522,6 +522,7 @@ public class ToolRuntimeService {
         ToolMetadata metadata = toolRegistry.getToolMetadata(toolName);
         ToolInput toolInput = request.getToolInput() == null ? new ToolInput() : request.getToolInput();
         enrichToolInputContext(request, toolInput);
+        applyFinancialRetrievalPolicy(toolName, metadata, request, toolInput);
         if (isParamBindingDenied(toolInput)) {
             return deniedExecution(toolName, request, metadata,
                 firstText(paramBindingError(toolInput), "Tool parameter binding was denied by runtime policy"),
@@ -767,6 +768,52 @@ public class ToolRuntimeService {
         copyRuntimeAttribute(context, request.getAttributes(), "workflowContext");
         copyRuntimeAttribute(context, request.getAttributes(), "workflowVariables");
         toolInput.setContext(context);
+    }
+
+    private void applyFinancialRetrievalPolicy(String toolName,
+                                               ToolMetadata metadata,
+                                               ToolRuntimeRequest request,
+                                               ToolInput toolInput) {
+        if (!isWebSearchTool(toolName) || request == null || toolInput == null) {
+            return;
+        }
+        boolean forced = request.getAttributes() != null
+            && Boolean.TRUE.equals(booleanValue(request.getAttributes().get("forceStructuredFinancialData")));
+        Map<String, Object> parameters = toolInput.getParameters() == null
+            ? new LinkedHashMap<>()
+            : new LinkedHashMap<>(toolInput.getParameters());
+        boolean supportsFinancialIntent = parameters.containsKey("financial_data_required")
+            || metadata != null && metadata.getParameters() != null
+            && metadata.getParameters().stream().anyMatch(parameter -> parameter != null
+                && "financial_data_required".equals(parameter.getName()));
+        if (!supportsFinancialIntent) {
+            if (forced) {
+                log.warn("Agent financial retrieval policy could not be applied because Tool schema lacks capability "
+                        + "tool={} requestId={}", toolName, request.getRequestId());
+            }
+            return;
+        }
+        boolean modelRequired = Boolean.TRUE.equals(booleanValue(parameters.get("financial_data_required")));
+        boolean effectiveRequired = forced || modelRequired;
+        parameters.put("financial_data_required", effectiveRequired);
+        toolInput.setParameters(parameters);
+
+        Map<String, Object> context = toolInput.getContext() == null
+            ? new LinkedHashMap<>()
+            : new LinkedHashMap<>(toolInput.getContext());
+        context.put("financialDataPolicy", forced ? "FORCED" : "INTENT_DRIVEN");
+        context.put("financialDataModelRequired", modelRequired);
+        context.put("financialDataEffectiveRequired", effectiveRequired);
+        toolInput.setContext(context);
+        if (forced) {
+            log.info("Structured financial retrieval forced by Agent policy tool={} requestId={} conversationId={}",
+                toolName, request.getRequestId(), request.getConversationId());
+        }
+    }
+
+    private boolean isWebSearchTool(String toolName) {
+        String normalized = normalizePolicyKey(toolName);
+        return "web_search".equals(normalized) || normalized.endsWith("_web_search");
     }
 
     private void copyRuntimeAttribute(Map<String, Object> context, Map<String, Object> attributes, String key) {
@@ -1328,6 +1375,14 @@ public class ToolRuntimeService {
         values.put("serviceId", resolveServiceId(metadata));
         values.put("serviceName", resolveServiceName(metadata));
         values.put("executionPlan", executionPlan == null ? null : executionPlan.toMap());
+        if (request != null && request.getToolInput() != null) {
+            Map<String, Object> context = request.getToolInput().getContext();
+            if (context != null && context.containsKey("financialDataEffectiveRequired")) {
+                values.put("financialDataPolicy", context.get("financialDataPolicy"));
+                values.put("financialDataModelRequired", context.get("financialDataModelRequired"));
+                values.put("financialDataEffectiveRequired", context.get("financialDataEffectiveRequired"));
+            }
+        }
         if (policyDecision != null) {
             values.put("policyResult", policyDecision.action().code());
             values.put("policyReason", policyDecision.reason());

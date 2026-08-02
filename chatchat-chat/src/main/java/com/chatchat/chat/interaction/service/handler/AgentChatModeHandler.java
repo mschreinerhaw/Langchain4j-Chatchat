@@ -413,6 +413,11 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             Object explicitWorkflow = skill.workflowConfig().get("mcpWorkflow");
             attributes.put("mcpWorkflow", explicitWorkflow == null ? skill.workflowConfig() : explicitWorkflow);
         }
+        boolean forceStructuredFinancialData = forceStructuredFinancialData(skill);
+        if (forceStructuredFinancialData) {
+            attributes.put("forceStructuredFinancialData", true);
+            attributes.put("financialDataPolicy", "FORCED");
+        }
         String runtimeEnvironment = agentRuntimeEnvironment(skill);
         if (runtimeEnvironment != null) {
             attributes.put("agentRuntimeEnvironment", runtimeEnvironment);
@@ -430,6 +435,19 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             attributes.put("mcpToolConfigs", toolConfigs);
         }
         return attributes.isEmpty() ? Map.of() : attributes;
+    }
+
+    private boolean forceStructuredFinancialData(SkillDefinition skill) {
+        if (skill == null || skill.workflowConfig() == null) {
+            return false;
+        }
+        Object value = firstPresent(
+            skill.workflowConfig().get("forceStructuredFinancialData"),
+            skill.workflowConfig().get("force_structured_financial_data")
+        );
+        return value instanceof Boolean bool
+            ? bool
+            : value != null && Boolean.parseBoolean(String.valueOf(value).trim());
     }
 
     private String appendDefaultDataAssetPolicy(String systemPrompt, SkillDefinition skill) {

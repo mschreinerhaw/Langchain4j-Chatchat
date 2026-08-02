@@ -133,6 +133,40 @@ class AgentAnswerFinalizerTaskAssessmentTest {
     }
 
     @Test
+    void malformedToolResultPreservesCandidateAnalysisWithExplicitLimitations() {
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            null,
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        InteractionToolTrace malformed = InteractionToolTrace.builder()
+            .toolName("mcp_dynamic_web_search")
+            .success(true)
+            .output("{\"success\":true,\"results\":[")
+            .build();
+        String candidate = "# 今日市场分析\n\n市场情绪分析框架与风险观察仍可提供，但缺少已验证的实时指数数值。";
+
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("stopReason", "evidence_partial_analysis");
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishExecution(
+            candidate,
+            List.of(malformed),
+            metadata,
+            List.of("web search returned an unparseable payload")
+        );
+
+        assertThat(result.answer())
+            .contains("# 今日市场分析")
+            .contains("市场情绪分析框架")
+            .contains("数据覆盖说明")
+            .contains("实时事实与数值尚未完成验证")
+            .doesNotStartWith("工具调用没有产生可解析、可信的结果");
+        assertThat(result.metadata())
+            .containsEntry("mcpResultEvidenceAvailability", "UNAVAILABLE")
+            .containsEntry("mcpUnavailableResultCount", 1)
+            .containsEntry("evidenceLimitedAnalysisPreserved", true);
+    }
+
+    @Test
     void finalizerEnforcesNonExecutedDisclosureForRequestedDdlDraft() {
         AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
             new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok");

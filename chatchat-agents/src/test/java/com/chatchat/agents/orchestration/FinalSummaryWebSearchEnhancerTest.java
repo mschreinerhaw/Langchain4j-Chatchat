@@ -7,7 +7,9 @@ import com.chatchat.agents.runtime.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.ToolRuntimeService;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.interaction.InteractionToolTrace;
+import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
+import com.chatchat.common.tool.ToolParameter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
 import org.junit.jupiter.api.Test;
@@ -45,6 +47,40 @@ class FinalSummaryWebSearchEnhancerTest {
         assertThat(result.used()).isFalse();
         assertThat(result.enhancedAnswer()).isNull();
         verify(runtime, never()).execute(any());
+    }
+
+    @Test
+    void agentSettingForcesFinancialRetrievalWhenModelIntentSaysNo() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        ToolRuntimeService runtime = mock(ToolRuntimeService.class);
+        ChatModel model = mock(ChatModel.class);
+        when(registry.getAllToolNames()).thenReturn(Set.of("mcp_news_web_search"));
+        when(registry.getToolMetadata("mcp_news_web_search")).thenReturn(ToolMetadata.builder()
+            .id("mcp_news_web_search")
+            .parameters(List.of(ToolParameter.builder().name("financial_data_required").type("boolean").build()))
+            .build());
+        when(model.chat(any(String.class))).thenReturn(
+            "{\"needed\":false,\"financialDataRequired\":false,\"keywords\":[],\"reason\":\"model skipped\"}");
+        when(runtime.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.failure("provider unavailable"), null, null, "failed", Map.of()));
+        Map<String, Object> metadata = new LinkedHashMap<>(Map.of(
+            "agentRunId", "forced-financial-run",
+            "forceStructuredFinancialData", true
+        ));
+
+        var result = enhancer(registry, runtime).enhance(
+            model, "analyze today's market", "", "candidate", List.of(), List.of(), metadata);
+
+        ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
+        verify(runtime).execute(captor.capture());
+        assertThat(result.attempted()).isTrue();
+        assertThat(captor.getValue().getToolInput().getParameters())
+            .containsEntry("financial_data_required", true);
+        assertThat(metadata)
+            .containsEntry("finalSummaryFinancialDataModelRequired", false)
+            .containsEntry("finalSummaryFinancialDataForced", true)
+            .containsEntry("finalSummaryFinancialDataRequired", true)
+            .containsEntry("finalSummaryFinancialDataDecisionSource", "AGENT_SETTING");
     }
 
     @Test
@@ -114,8 +150,12 @@ class FinalSummaryWebSearchEnhancerTest {
         ToolRuntimeService runtime = mock(ToolRuntimeService.class);
         ChatModel model = mock(ChatModel.class);
         when(registry.getAllToolNames()).thenReturn(Set.of("mcp_vendor_web_search"));
+        when(registry.getToolMetadata("mcp_vendor_web_search")).thenReturn(ToolMetadata.builder()
+            .id("mcp_vendor_web_search")
+            .parameters(List.of(ToolParameter.builder().name("financial_data_required").type("boolean").build()))
+            .build());
         when(model.chat(any(String.class))).thenReturn(
-            "{\"needed\":true,\"keywords\":[\"latest market\"],\"reason\":\"current data\"}");
+            "{\"needed\":true,\"financialDataRequired\":true,\"keywords\":[\"latest market\"],\"reason\":\"current data\"}");
         when(runtime.execute(any())).thenReturn(new ToolRuntimeExecution(
             ToolOutput.failure("provider unavailable"), null, null, "failed", Map.of()));
         Map<String, Object> metadata = new LinkedHashMap<>(Map.of(
@@ -140,6 +180,11 @@ class FinalSummaryWebSearchEnhancerTest {
         assertThat(request.getToolInput().getContext())
             .containsEntry("tenantId", "tenant-ctx")
             .containsEntry("userId", "user-ctx");
+        assertThat(request.getToolInput().getParameters())
+            .containsEntry("financial_data_required", true)
+            .containsEntry("financial_dataset_limit", 2)
+            .containsEntry("financial_row_limit", 20);
+        assertThat(metadata).containsEntry("finalSummaryFinancialDataRequired", true);
     }
 
     @Test

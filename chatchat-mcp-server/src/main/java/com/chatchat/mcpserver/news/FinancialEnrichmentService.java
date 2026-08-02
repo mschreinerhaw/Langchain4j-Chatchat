@@ -45,11 +45,39 @@ public class FinancialEnrichmentService {
             warnings.add("market: " + safe(ex.getMessage()));
             assets = List.of();
         }
-        // Discovery and execution are deliberately separate. An implicit web search
-        // may discover governed datasets, but only an explicit dataset call is allowed
-        // to consume analytical query capacity.
-        return new EnrichmentResult(assetQuery, assets, List.of(), List.copyOf(warnings),
-            assets.isEmpty() ? null : "explicit_dataset_required");
+        boolean dataRequired = input != null
+            && input.getParameterAsBoolean("financial_data_required", false);
+        if (!dataRequired || assets.isEmpty()) {
+            return new EnrichmentResult(assetQuery, assets, List.of(), List.copyOf(warnings),
+                assets.isEmpty() ? null : "explicit_dataset_required");
+        }
+
+        int datasetLimit = bounded(input.getParameterAsNumber("financial_dataset_limit"), 2, 1, 3);
+        int rowLimit = bounded(input.getParameterAsNumber("financial_row_limit"), 20, 1, 50);
+        LocalDate startDate = date(input.getParameterAsString("startDate", ""));
+        LocalDate endDate = date(input.getParameterAsString("endDate", ""));
+        String historyMode = input.getParameterAsString("historyMode", "auto");
+        List<Map<String, Object>> financialData = new ArrayList<>();
+        for (Map<String, Object> asset : assets.stream().limit(datasetLimit).toList()) {
+            String dataset = text(asset, "dataset_code", "datasetCode");
+            if (dataset.isBlank()) continue;
+            try {
+                List<Map<String, Object>> resolved = store.resolveEntityFilters(dataset, query, 5);
+                Map<String, Object> filters = resolved.isEmpty() ? Map.of() : resolved.get(0);
+                Map<String, Object> result = new java.util.LinkedHashMap<>(
+                    store.query(dataset, filters, startDate, endDate, rowLimit, historyMode));
+                result.put("dataset", dataset);
+                result.put("resultType", "financial_dataset_query");
+                result.put("retrievalSource", "governed_financial_store");
+                result.put("filters", filters);
+                financialData.add(result);
+            } catch (Exception ex) {
+                CancellationSupport.rethrowIfCancelled(ex, "explicit financial enrichment");
+                warnings.add("financial dataset " + dataset + ": " + safe(ex.getMessage()));
+            }
+        }
+        return new EnrichmentResult(assetQuery, assets, List.copyOf(financialData), List.copyOf(warnings),
+            financialData.isEmpty() ? "financial_data_unavailable" : null);
     }
 
     public Map<String, Object> queryDataset(String dataset, ToolInput input) {
@@ -66,7 +94,17 @@ public class FinancialEnrichmentService {
     boolean needsFinancialEnrichment(ToolInput input) {
         Object purpose = input == null || input.getContext() == null
             ? null : input.getContext().get("internalPurpose");
-        return !FINAL_SUMMARY_PURPOSE.equals(String.valueOf(purpose));
+        return !FINAL_SUMMARY_PURPOSE.equals(String.valueOf(purpose))
+            || input.getParameterAsBoolean("financial_data_required", false);
+    }
+
+    private String text(Map<String, Object> source, String... names) {
+        if (source == null) return "";
+        for (String name : names) {
+            Object value = source.get(name);
+            if (value != null && !String.valueOf(value).isBlank()) return String.valueOf(value).trim();
+        }
+        return "";
     }
 
     private LocalDate date(String value) {

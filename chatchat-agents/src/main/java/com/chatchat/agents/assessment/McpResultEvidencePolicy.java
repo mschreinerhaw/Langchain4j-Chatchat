@@ -24,7 +24,7 @@ public final class McpResultEvidencePolicy {
         "schemaversion", "success", "status", "message", "error", "errormessage",
         "query", "requestid", "traceid", "durationms", "backend", "retrievalmode",
         "expandedquery", "semanticquery", "detectedscenarios", "limit", "offset",
-        "rowcount", "total", "count", "columns", "metadata", "statuscode"
+        "rowcount", "total", "count", "columns", "metadata", "statuscode", "empty_result"
     );
 
     public Assessment assess(List<InteractionToolTrace> traces) {
@@ -33,8 +33,14 @@ public final class McpResultEvidencePolicy {
         int available = 0;
         int empty = 0;
         int unavailable = 0;
+        int failed = 0;
         for (InteractionToolTrace trace : safeTraces) {
-            if (trace == null || !trace.isSuccess()) {
+            if (trace == null) {
+                continue;
+            }
+            if (!trace.isSuccess()) {
+                failed++;
+                unavailable++;
                 continue;
             }
             successful++;
@@ -42,13 +48,19 @@ public final class McpResultEvidencePolicy {
                 case AVAILABLE -> available++;
                 case EMPTY -> empty++;
                 case UNAVAILABLE -> unavailable++;
+                case PARTIAL -> available++;
             }
         }
-        Availability availability = available > 0
-            ? Availability.AVAILABLE
-            : empty > 0 ? Availability.EMPTY : Availability.UNAVAILABLE;
+        boolean mixed = available > 0 && (empty > 0 || unavailable > 0)
+            || empty > 0 && unavailable > 0;
+        Availability availability = mixed
+            ? Availability.PARTIAL
+            : available > 0
+                ? Availability.AVAILABLE
+                : empty > 0 ? Availability.EMPTY : Availability.UNAVAILABLE;
         return new Assessment(
-            CONTRACT_VERSION, availability, successful, available, empty);
+            CONTRACT_VERSION, availability, safeTraces.size(), successful, failed,
+            available, empty, unavailable);
     }
 
     boolean hasQueryResult(String output) {
@@ -60,21 +72,21 @@ public final class McpResultEvidencePolicy {
             return Availability.EMPTY;
         }
         String text = output.trim();
-        if (isEmptyText(text)) {
-            return Availability.EMPTY;
-        }
         if (isFailureText(text)) {
             return Availability.UNAVAILABLE;
         }
-        try {
-            JsonNode parsed = JSON.readTree(text);
-            if (explicitFailure(parsed)) {
+        if (looksLikeStructuredPayload(text)) {
+            try {
+                JsonNode parsed = JSON.readTree(text);
+                if (explicitFailure(parsed)) {
+                    return Availability.UNAVAILABLE;
+                }
+                return substantive(parsed, null) ? Availability.AVAILABLE : Availability.EMPTY;
+            } catch (Exception ignored) {
                 return Availability.UNAVAILABLE;
             }
-            return substantive(parsed, null) ? Availability.AVAILABLE : Availability.EMPTY;
-        } catch (Exception ignored) {
-            return looksLikeStructuredPayload(text) ? Availability.UNAVAILABLE : Availability.AVAILABLE;
         }
+        return isEmptyText(text) ? Availability.EMPTY : Availability.AVAILABLE;
     }
 
     private boolean explicitFailure(JsonNode node) {
@@ -222,6 +234,7 @@ public final class McpResultEvidencePolicy {
 
     public enum Availability {
         AVAILABLE,
+        PARTIAL,
         EMPTY,
         UNAVAILABLE
     }
@@ -229,20 +242,30 @@ public final class McpResultEvidencePolicy {
     public record Assessment(
         String contractVersion,
         Availability availability,
+        int totalToolCount,
         int successfulToolCount,
+        int failedToolCount,
         int availableResultCount,
-        int emptyResultCount
+        int emptyResultCount,
+        int unavailableResultCount
     ) {
         public Assessment {
             contractVersion = CONTRACT_VERSION;
             availability = availability == null ? Availability.UNAVAILABLE : availability;
+            totalToolCount = Math.max(0, totalToolCount);
             successfulToolCount = Math.max(0, successfulToolCount);
+            failedToolCount = Math.max(0, failedToolCount);
             availableResultCount = Math.max(0, availableResultCount);
             emptyResultCount = Math.max(0, emptyResultCount);
+            unavailableResultCount = Math.max(0, unavailableResultCount);
         }
 
         public boolean resultAvailable() {
-            return availability == Availability.AVAILABLE;
+            return availableResultCount > 0;
+        }
+
+        public boolean partial() {
+            return availability == Availability.PARTIAL;
         }
     }
 }

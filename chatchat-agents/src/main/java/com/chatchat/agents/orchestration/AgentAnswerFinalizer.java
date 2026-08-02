@@ -2046,12 +2046,16 @@ class AgentAnswerFinalizer {
         }
         metadata.put("mcpResultEvidencePolicyContractVersion", assessment.contractVersion());
         metadata.put("mcpResultEvidenceAvailability", assessment.availability().name());
+        metadata.put("mcpTotalToolCount", assessment.totalToolCount());
         metadata.put("mcpSuccessfulToolCount", assessment.successfulToolCount());
+        metadata.put("mcpFailedToolCount", assessment.failedToolCount());
         metadata.put("mcpAvailableResultCount", assessment.availableResultCount());
         metadata.put("mcpEmptyResultCount", assessment.emptyResultCount());
+        metadata.put("mcpUnavailableResultCount", assessment.unavailableResultCount());
         metadata.put("mcpResultAnswerAllowed", assessment.resultAvailable());
-        metadata.put("mcpResultAnalysisCapability",
-            assessment.resultAvailable() ? "PARTIAL" : "NONE");
+        metadata.put("mcpResultAnalysisCapability", assessment.availability()
+            == McpResultEvidencePolicy.Availability.AVAILABLE ? "FULL"
+            : assessment.availability() == McpResultEvidencePolicy.Availability.PARTIAL ? "PARTIAL" : "NONE");
         return assessment;
     }
 
@@ -2069,15 +2073,47 @@ class AgentAnswerFinalizer {
                 metadata.put("emptyResultGroundingApplied", true);
                 metadata.put("emptyResultGroundingReason", "successful_mcp_query_returned_no_records");
             }
-            return emptyMcpResultAnswer();
+            return preserveCandidateWithEvidenceLimitation(
+                candidateAnswer,
+                emptyMcpResultAnswer(),
+                "工具查询成功，但未返回匹配记录。以下内容仅保留已有分析框架，不能据此补造事实、数值或趋势。",
+                metadata
+            );
         }
         if (assessment.availability() == McpResultEvidencePolicy.Availability.UNAVAILABLE
-            && assessment.successfulToolCount() > 0) {
+            && assessment.totalToolCount() > 0) {
             if (metadata != null) {
                 metadata.put("invalidResultGroundingApplied", true);
                 metadata.put("invalidResultGroundingReason", "mcp_output_unavailable_or_malformed");
             }
-            return unavailableMcpResultAnswer();
+            return preserveCandidateWithEvidenceLimitation(
+                candidateAnswer,
+                unavailableMcpResultAnswer(),
+                "结构化工具结果当前不可解析或不可验证。以下分析仅基于其他已获得信息或一般分析框架，实时事实与数值尚未完成验证。",
+                metadata
+            );
+        }
+        if (assessment.availability() == McpResultEvidencePolicy.Availability.PARTIAL) {
+            if (metadata != null) {
+                metadata.put("partialResultGroundingApplied", true);
+                metadata.put("partialResultGroundingReason", "mixed_available_and_missing_mcp_evidence");
+            }
+            String partialCandidate = candidateAnswer;
+            if (assessment.resultAvailable() && refusesAnalysis(candidateAnswer)) {
+                if (metadata != null) {
+                    metadata.put("evidenceRefusalBlocked", true);
+                    metadata.put("evidenceRefusalBlockedReason",
+                        "partial_non_empty_mcp_result_with_insufficient_evidence_refusal");
+                    metadata.put("originalRefusalPreview", shortText(candidateAnswer, 1000));
+                }
+                partialCandidate = mcpResultAnalysisFallback();
+            }
+            return preserveCandidateWithEvidenceLimitation(
+                partialCandidate,
+                unavailableMcpResultAnswer(),
+                "工具结果仅部分覆盖本次需求。以下分析保留已获得且可验证的内容；缺失、超时或不可解析部分不作为事实依据。",
+                metadata
+            );
         }
         if (!assessment.resultAvailable()) {
             return candidateAnswer;
@@ -2098,6 +2134,30 @@ class AgentAnswerFinalizer {
             metadata.put("originalRefusalPreview", shortText(answer, 1000));
         }
         return mcpResultAnalysisFallback();
+    }
+
+    private String preserveCandidateWithEvidenceLimitation(String candidateAnswer,
+                                                           String emptyFallback,
+                                                           String limitation,
+                                                           Map<String, Object> metadata) {
+        String answer = candidateAnswer == null ? "" : candidateAnswer.trim();
+        if (answer.isBlank()) {
+            return emptyFallback;
+        }
+        boolean runtimeConfirmedPartialEvidence = metadata != null
+            && (Boolean.TRUE.equals(metadata.get("partialResultGroundingApplied"))
+                || "evidence_partial_analysis".equals(String.valueOf(metadata.get("stopReason"))));
+        if (!runtimeConfirmedPartialEvidence) {
+            return emptyFallback;
+        }
+        if (metadata != null) {
+            metadata.put("evidenceLimitedAnalysisPreserved", true);
+            metadata.put("evidenceLimitation", limitation);
+        }
+        if (answer.contains("数据覆盖说明")) {
+            return answer;
+        }
+        return answer + "\n\n> 数据覆盖说明：" + limitation;
     }
 
     private String emptyMcpResultAnswer() {

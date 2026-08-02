@@ -907,6 +907,12 @@ public class SkillCatalogService {
         if (runtimeEnvironment != null) {
             normalized.put("runtimeEnvironment", runtimeEnvironment);
         }
+        Object forceStructuredFinancialData = firstObject(
+            config,
+            "forceStructuredFinancialData",
+            "force_structured_financial_data"
+        );
+        normalized.put("forceStructuredFinancialData", booleanValue(forceStructuredFinancialData));
         putText(normalized, "workflow", firstObject(config, "workflow", "workflowId", "id", "name"));
         Object mcpWorkflow = config.get("mcpWorkflow");
         if (mcpWorkflow instanceof List<?> || mcpWorkflow instanceof Map<?, ?>) {
@@ -1002,6 +1008,16 @@ public class SkillCatalogService {
             normalized.put("parallelSteps", normalizedParallelSteps);
         }
         return normalized;
+    }
+
+    private boolean booleanValue(Object value) {
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof Number number) {
+            return number.intValue() != 0;
+        }
+        return value != null && Boolean.parseBoolean(String.valueOf(value).trim());
     }
 
     private String normalizeRuntimeEnvironment(Object value) {

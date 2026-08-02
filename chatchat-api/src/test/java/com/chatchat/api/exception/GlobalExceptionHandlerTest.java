@@ -1,11 +1,14 @@
 package com.chatchat.api.exception;
 
 import com.chatchat.api.config.JsonRequestSizeFilter;
+import com.chatchat.api.config.RequestCorrelationFilter;
+import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.common.response.ApiResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 
@@ -53,14 +56,37 @@ class GlobalExceptionHandlerTest {
     @Test
     void asyncRequestNotUsableReturnsClientClosedRequest() {
         GlobalExceptionHandler handler = new GlobalExceptionHandler();
+        MockHttpServletRequest request = new MockHttpServletRequest(
+            "GET", "/api/v1/agent/tasks/task-123/result");
+        request.setQueryString("tenantId=tenant-1&timeoutMs=5000");
+        request.setParameter("tenantId", "tenant-1");
+        request.setAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID, "tenant-1");
+        request.setAttribute(RequestCorrelationFilter.REQUEST_ID_ATTRIBUTE, "request-1");
+        request.setAttribute(RequestCorrelationFilter.TRACE_ID_ATTRIBUTE, "trace-1");
+        request.setAttribute(RequestCorrelationFilter.STARTED_NANOS_ATTRIBUTE, System.nanoTime() - 10_000_000L);
+        MockHttpServletResponse servletResponse = new MockHttpServletResponse();
+        servletResponse.setStatus(200);
 
         ResponseEntity<Void> response = handler.handleAsyncRequestNotUsableException(
             new AsyncRequestNotUsableException("ServletOutputStream failed to write"),
-            new ServletWebRequest(new MockHttpServletRequest())
+            new ServletWebRequest(request, servletResponse)
         );
 
         assertEquals(499, response.getStatusCode().value());
         assertNull(response.getBody());
+        GlobalExceptionHandler.ClientAbortDetails details = handler.clientAbortDetails(
+            new AsyncRequestNotUsableException("ServletOutputStream failed to write", new IOException("Broken pipe")),
+            new ServletWebRequest(request, servletResponse)
+        );
+        assertEquals("GET", details.method());
+        assertEquals("/api/v1/agent/tasks/task-123/result", details.uri());
+        assertEquals("[tenantId, timeoutMs]", details.queryKeys());
+        assertEquals("request-1", details.requestId());
+        assertEquals("trace-1", details.traceId());
+        assertEquals("tenant-1", details.tenantId());
+        assertEquals("task-123", details.taskId());
+        assertEquals("java.io.IOException", details.rootCauseType());
+        assertEquals("Broken pipe", details.rootCauseMessage());
     }
 
     @Test

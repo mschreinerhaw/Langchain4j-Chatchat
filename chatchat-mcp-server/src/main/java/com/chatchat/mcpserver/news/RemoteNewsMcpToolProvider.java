@@ -38,6 +38,11 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
                 + "observations, call the same tool again with an explicit dataset code returned by discovery.",
             List.of(text("query", "News topic, business question, or financial data keywords", false),
                 number("num_results", "Maximum number of unified search results to return", 10, 1, 50),
+                bool("financial_data_required", "Explicit Runtime retrieval-intent marker. Set true only when the answer "
+                    + "requires authoritative structured financial observations in addition to news. Runtime selects "
+                    + "datasets dynamically from the governed asset catalog; never guess a dataset code.", false),
+                number("financial_dataset_limit", "Maximum dynamically matched datasets when financial_data_required is true", 2, 1, 3),
+                number("financial_row_limit", "Maximum rows per dynamically matched financial dataset", 20, 1, 50),
                 text("dataset", "Optional dataset code returned by a financial_data_asset result", false),
                 object("filters", "Exact-match filters on registered fields, such as securityCode or quoteCode"),
                 text("startDate", "Optional observation start date in YYYY-MM-DD", false),
@@ -105,7 +110,8 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         String financialAssetQuery = enrichment.assetQuery();
         List<Map<String, Object>> assets = enrichment.assets().stream()
             .map(source -> assetResult(source, discoveryId)).toList();
-        List<Map<String, Object>> financialData = enrichment.financialData();
+        List<Map<String, Object>> financialData = enrichment.financialData().stream()
+            .map(item -> compactFinancialResult(item, input)).toList();
         CancellationSupport.throwIfCancelled("unified web_search");
         if (news.isEmpty() && assets.isEmpty() && warnings.size() == 2) {
             return ToolOutput.failure("Both news and market search are unavailable: " + String.join("; ", warnings));
@@ -135,6 +141,10 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         data.put("financialObservationCount", financialData.stream()
             .mapToInt(item -> ((Number) item.getOrDefault("count", 0)).intValue()).sum());
         data.put("financialData", financialData);
+        boolean financialDataRequired = input.getParameterAsBoolean("financial_data_required", false);
+        data.put("financialDataRequired", financialDataRequired);
+        data.put("financialDataSatisfied", !financialData.isEmpty()
+            && financialData.stream().anyMatch(item -> ((Number) item.getOrDefault("count", 0)).intValue() > 0));
         if (enrichment.skippedReason() != null) data.put("financialEnrichmentSkippedReason", enrichment.skippedReason());
         data.put("results", results);
         data.put("reference_urls", urls);
@@ -144,6 +154,7 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         result.getMetadata().put("financialDiscoveryId", discoveryId);
         result.getMetadata().put("financialCandidateDatasetCount", assets.size());
         result.getMetadata().put("financialQueriedDatasetCount", financialData.size());
+        result.getMetadata().put("financialDataRequired", financialDataRequired);
         result.getMetadata().put("financialSecondQueryRequired", !assets.isEmpty());
         return result;
     }
@@ -179,6 +190,17 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
             if (unique.size() >= limit) break;
         }
         return List.copyOf(unique.values());
+    }
+
+    private Map<String, Object> compactFinancialResult(Map<String, Object> source, ToolInput input) {
+        Map<String, Object> result = new LinkedHashMap<>(source == null ? Map.of() : source);
+        int rowLimit = bounded(input.getParameterAsNumber("financial_row_limit"), 20, 1, 50);
+        List<Map<String, Object>> compact = compactRows(rows(result), rowLimit);
+        result.put("rows", compact);
+        result.put("count", compact.size());
+        result.put("empty_result", compact.isEmpty());
+        result.put("resultView", "compact_model_context");
+        return result;
     }
 
     private String firstNonBlank(String first, String fallback) {
@@ -334,6 +356,10 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
     }
     private ToolParameter object(String name, String description) {
         return ToolParameter.builder().name(name).type("object").description(description).required(false).build();
+    }
+    private ToolParameter bool(String name, String description, boolean value) {
+        return ToolParameter.builder().name(name).type("boolean").description(description).required(false)
+            .defaultValue(value).build();
     }
     private ToolParameter number(String name, String description, int value, int min, int max) {
         return ToolParameter.builder().name(name).type("number").description(description).required(false)

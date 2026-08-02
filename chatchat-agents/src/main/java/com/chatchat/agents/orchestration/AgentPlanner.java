@@ -481,6 +481,8 @@ class AgentPlanner {
             prompt.append("- Do not use placeholder inputs such as {\"url\":\"\"} or template strings such as ${step1.results[0].url}; use plan.bindings instead.\n\n");
             prompt.append("Web search query fidelity:\n");
             prompt.append("- For web_search.query, preserve the user's original search phrase as much as possible. Do not append inferred years, stale years, or extra date tokens.\n");
+            prompt.append("- For web_search, set financial_data_required=true only when authoritative structured financial observations are required. "
+                + "Do not select or invent dataset codes; Runtime resolves datasets dynamically from the governed catalog.\n");
             prompt.append("- If the user says today, latest, current, recent, \u4eca\u5929, \u6700\u65b0, \u8fd1\u671f, or \u5f53\u524d, keep that temporal wording instead of converting it to another year unless the user explicitly requested an absolute date.\n\n");
         }
         if (!boundDocumentIds.isEmpty() || !boundDocumentTags.isEmpty()) {

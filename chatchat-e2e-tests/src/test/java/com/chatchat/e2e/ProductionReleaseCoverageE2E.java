@@ -45,27 +45,51 @@ class ProductionReleaseCoverageE2E {
             .contains("adversarialButValidQuestionsRemainStableAndReachOnlyTheSelectedHandler",
                 "invalidExtremeRequestsAreRejectedBeforeConversationPersistenceModelOrToolExecution",
                 "concurrentUnpredictableQuestionsRemainResponsiveAndRequestIsolated");
+        assertThat(Files.readString(root.resolve(
+            "chatchat-e2e-tests/src/test/java/com/chatchat/agents/orchestration/ProductionAgentRuntimeFinancialEvidenceStressE2E.java")))
+            .contains("concurrentForcedFinancialRequestsRemainIsolatedAndSchemaDriven",
+                "concurrentExtremeEvidenceCombinationsNeverEraseUsableAnalysisOrLeakRequests",
+                "UUID.randomUUID()", "financial_data_required", "evidenceLimitedAnalysisPreserved");
+        assertThat(Files.readString(root.resolve(
+            "chatchat-e2e-tests/src/test/java/com/chatchat/agents/orchestration/ProductionPartialEvidenceAnswerPreservationE2E.java")))
+            .contains("mixedEvidencePreservesAnalysisAndExposesCoverageBoundary");
     }
 
     @Test
     void runtimeContainsNoDeploymentSpecificMcpNamespaceOrMaintainedTemplateLiteral() throws IOException {
-        Path runtimeSource = repositoryRoot().resolve("chatchat-agents/src/main/java");
+        Path root = repositoryRoot();
+        Path runtimeSource = root.resolve("chatchat-agents/src/main/java");
         String forbiddenNamespace = "mcp_" + "chatchat_mcp_server_";
 
-        try (Stream<Path> paths = Files.walk(runtimeSource)) {
+        try (Stream<Path> paths = Files.walk(root)) {
             List<Path> violations = paths
-                .filter(path -> path.toString().endsWith(".java"))
+                .filter(Files::isRegularFile)
+                .filter(path -> path.toString().contains("src" + java.io.File.separator + "main"))
+                .filter(path -> !path.toString().contains(java.io.File.separator + "target" + java.io.File.separator))
                 .filter(path -> {
                     try {
-                        String source = Files.readString(path);
-                        return source.contains(forbiddenNamespace)
-                            || source.matches("(?s).*[\\\"]sample_[a-zA-Z0-9_]+[\\\"].*");
+                        return Files.readString(path).contains(forbiddenNamespace);
                     } catch (IOException ex) {
                         throw new IllegalStateException(ex);
                     }
                 })
                 .toList();
             assertThat(violations).isEmpty();
+        }
+
+        try (Stream<Path> paths = Files.walk(runtimeSource)) {
+            List<Path> maintainedSampleTemplateViolations = paths
+                .filter(path -> path.toString().endsWith(".java"))
+                .filter(path -> {
+                    try {
+                        return Files.readString(path)
+                            .matches("(?s).*[\\\"]sample_[a-zA-Z0-9_]+[\\\"].*");
+                    } catch (IOException ex) {
+                        throw new IllegalStateException(ex);
+                    }
+                })
+                .toList();
+            assertThat(maintainedSampleTemplateViolations).isEmpty();
         }
     }
 

@@ -57,18 +57,48 @@ class FinalSummaryWebSearchEnhancer {
             || toolRegistry == null || toolRuntimeService == null) {
             return Enhancement.skipped(observations, traces);
         }
-        String toolName = resolveInternalWebSearchTool();
+        boolean forcedFinancialData = booleanValue(metadata == null
+            ? null
+            : metadata.get("forceStructuredFinancialData"));
+        String toolName = resolveInternalWebSearchTool(false);
         if (toolName == null || toolName.isBlank()) {
-            record(metadata, "finalSummaryWebSearchSkippedReason", "web_search_unavailable");
+            record(metadata, "finalSummaryWebSearchSkippedReason", forcedFinancialData
+                ? "structured_financial_web_search_unavailable"
+                : "web_search_unavailable");
             return Enhancement.skipped(observations, traces);
         }
 
-        SearchDecision decision = decide(chatModel, query, systemPrompt, candidateAnswer, observations, traces);
+        SearchDecision modelDecision = decide(chatModel, query, systemPrompt, candidateAnswer, observations, traces);
+        List<String> effectiveKeywords = modelDecision.keywords();
+        if (forcedFinancialData && effectiveKeywords.isEmpty() && query != null && !query.isBlank()) {
+            effectiveKeywords = List.of(preview(query.trim(), 512));
+        }
+        SearchDecision decision = new SearchDecision(
+            modelDecision.needed() || forcedFinancialData,
+            modelDecision.financialDataRequired() || forcedFinancialData,
+            effectiveKeywords,
+            forcedFinancialData ? "forced_by_agent_setting; " + modelDecision.reason() : modelDecision.reason()
+        );
         record(metadata, "finalSummaryWebSearchDecision", decision.needed());
         record(metadata, "finalSummaryWebSearchDecisionReason", decision.reason());
         record(metadata, "finalSummaryWebSearchKeywords", decision.keywords());
+        record(metadata, "finalSummaryFinancialDataModelRequired", modelDecision.financialDataRequired());
+        record(metadata, "finalSummaryFinancialDataForced", forcedFinancialData);
+        record(metadata, "finalSummaryFinancialDataRequired", decision.financialDataRequired());
+        record(metadata, "finalSummaryFinancialDataDecisionSource",
+            forcedFinancialData ? "AGENT_SETTING" : "MODEL_INTENT");
         if (!decision.needed() || decision.keywords().isEmpty()) {
             return Enhancement.skipped(observations, traces);
+        }
+        if (decision.financialDataRequired()) {
+            String financialCapableTool = resolveInternalWebSearchTool(true);
+            if (financialCapableTool == null || financialCapableTool.isBlank()) {
+                record(metadata, "finalSummaryWebSearchSkippedReason",
+                    "structured_financial_web_search_unavailable");
+                record(metadata, "finalSummaryFinancialDataRequired", true);
+                return Enhancement.skipped(observations, traces);
+            }
+            toolName = financialCapableTool;
         }
         log.info(
             "准备联网检索 stage={} runId={} tool={} keywords={} reason={}",
@@ -78,13 +108,21 @@ class FinalSummaryWebSearchEnhancer {
             decision.keywords(),
             safe(decision.reason())
         );
+        log.info(
+            "Final summary financial retrieval decision runId={} policy={} modelRequired={} effectiveRequired={}",
+            safe(text(metadata, "agentRunId", "__agentRunId")),
+            forcedFinancialData ? "FORCED" : "INTENT_DRIVEN",
+            modelDecision.financialDataRequired(),
+            decision.financialDataRequired()
+        );
 
         List<InteractionToolTrace> augmentedTraces = new ArrayList<>(traces == null ? List.of() : traces);
         List<SearchEvidence> evidence = new ArrayList<>();
         List<String> failures = new ArrayList<>();
         for (String keyword : decision.keywords().stream()
             .limit(properties.finalSummaryWebSearchMaxKeywords()).toList()) {
-            ToolRuntimeExecution execution = execute(toolName, keyword, metadata);
+            ToolRuntimeExecution execution = execute(
+                toolName, keyword, decision.financialDataRequired(), metadata);
             if (execution != null && execution.trace() != null) augmentedTraces.add(execution.trace());
             ToolOutput output = execution == null ? null : execution.output();
             if (output == null || !output.isSuccess()) {
@@ -139,6 +177,9 @@ class FinalSummaryWebSearchEnhancer {
         prompt.append("Do not request it for writing, translation, coding based on supplied context, stable general knowledge, "
             + "or when existing evidence already fully supports the answer.\n");
         prompt.append("This decision is not evidence. Return strict JSON only.\n");
+        prompt.append("Set financialDataRequired=true only when the answer needs authoritative structured financial "
+            + "observations such as prices, index levels, returns, volume, market breadth, valuation or financing balances. "
+            + "Keep it false for news, policy text and company announcements alone. Do not choose or invent a dataset name.\n");
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             prompt.append("System instruction:\n").append(preview(systemPrompt, 2_000)).append("\n\n");
         }
@@ -148,7 +189,8 @@ class FinalSummaryWebSearchEnhancer {
             observations == null ? List.of() : observations), 8_000)).append("\n\n");
         prompt.append("A successful web_search trace already exists: ")
             .append(hasSuccessfulWebTrace(traces)).append("\n");
-        prompt.append("JSON schema: {\"needed\":true|false,\"keywords\":[\"concise search phrase\"],"
+        prompt.append("JSON schema: {\"needed\":true|false,\"financialDataRequired\":true|false,"
+            + "\"keywords\":[\"concise search phrase\"],"
             + "\"reason\":\"brief material evidence gap\"}\n");
         String raw = model.chat(prompt.toString());
         log.info("agentModelRawOutput phase=final_summary_web_decision raw=\n{}",
@@ -161,15 +203,18 @@ class FinalSummaryWebSearchEnhancer {
             List<String> keywords = stringList(payload.get("keywords")).stream()
                 .map(String::trim).filter(value -> !value.isBlank()).distinct()
                 .limit(properties.finalSummaryWebSearchMaxKeywords()).toList();
-            return new SearchDecision(needed && !keywords.isEmpty(), keywords,
+            boolean financialDataRequired = Boolean.TRUE.equals(payload.get("financialDataRequired"))
+                || Boolean.parseBoolean(String.valueOf(payload.get("financialDataRequired")));
+            return new SearchDecision(needed && !keywords.isEmpty(), financialDataRequired, keywords,
                 safe(payload.get("reason") == null ? null : String.valueOf(payload.get("reason"))));
         } catch (Exception ex) {
             log.warn("Final summary web-search decision could not be parsed: {}", ex.getMessage());
-            return new SearchDecision(false, List.of(), "decision_parse_failed");
+            return new SearchDecision(false, false, List.of(), "decision_parse_failed");
         }
     }
 
-    private ToolRuntimeExecution execute(String toolName, String keyword, Map<String, Object> metadata) {
+    private ToolRuntimeExecution execute(String toolName, String keyword, boolean financialDataRequired,
+                                         Map<String, Object> metadata) {
         String runId = text(metadata, "agentRunId", "__agentRunId");
         String requestId = firstNonBlank(text(metadata, "requestId"), runId);
         String conversationId = text(metadata, "conversationId");
@@ -186,7 +231,10 @@ class FinalSummaryWebSearchEnhancer {
             .userId(userId)
             .parameters(Map.of(
                 "query", keyword,
-                "num_results", properties.finalSummaryWebSearchResultLimit()))
+                "num_results", properties.finalSummaryWebSearchResultLimit(),
+                "financial_data_required", financialDataRequired,
+                "financial_dataset_limit", 2,
+                "financial_row_limit", 20))
             .context(context)
             .build();
         Map<String, Object> attributes = new LinkedHashMap<>();
@@ -218,6 +266,12 @@ class FinalSummaryWebSearchEnhancer {
             if (value != null && !value.isBlank()) return value;
         }
         return null;
+    }
+
+    private boolean booleanValue(Object value) {
+        return value instanceof Boolean bool
+            ? bool
+            : value != null && Boolean.parseBoolean(String.valueOf(value).trim());
     }
 
     private String synthesize(ChatModel model,
@@ -262,6 +316,11 @@ class FinalSummaryWebSearchEnhancer {
                 if (!url.isBlank()) text.append("URL: ").append(url).append('\n');
                 if (!snippet.isBlank()) text.append("Evidence: ").append(preview(snippet, 800)).append('\n');
             }
+            for (Map<String, Object> financial : financialDataMaps(batch.data())) {
+                text.append("[STRUCTURED FINANCIAL DATA] dataset=")
+                    .append(value(financial, "dataset")).append('\n');
+                text.append("Evidence: ").append(preview(json(financial.get("rows")), 1_600)).append('\n');
+            }
         }
         return preview(text.toString(), properties.finalSummaryWebSearchEvidenceMaxChars());
     }
@@ -280,6 +339,21 @@ class FinalSummaryWebSearchEnhancer {
         return maps;
     }
 
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> financialDataMaps(Object data) {
+        if (!(data instanceof Map<?, ?> root) || !(root.get("financialData") instanceof Iterable<?> values)) {
+            return List.of();
+        }
+        List<Map<String, Object>> maps = new ArrayList<>();
+        for (Object value : values) if (value instanceof Map<?, ?> map) maps.add((Map<String, Object>) map);
+        return maps;
+    }
+
+    private String json(Object value) {
+        try { return objectMapper.writeValueAsString(value); }
+        catch (Exception ignored) { return String.valueOf(value); }
+    }
+
     private boolean containsTencentWsaEvidence(Object value) {
         if (value == null) return false;
         try {
@@ -296,14 +370,25 @@ class FinalSummaryWebSearchEnhancer {
             && toolNames.isWebEvidenceToolName(trace.getToolName()));
     }
 
-    private String resolveInternalWebSearchTool() {
+    private String resolveInternalWebSearchTool(boolean requireFinancialCapability) {
         Set<String> names = toolRegistry.getAllToolNames();
         if (names == null || names.isEmpty()) return null;
-        if (names.contains("web_search")) return "web_search";
+        if (names.contains("web_search")
+            && (!requireFinancialCapability || supportsFinancialRetrievalIntent("web_search"))) {
+            return "web_search";
+        }
         return names.stream()
             .filter(toolNames::isWebSearchToolName)
+            .filter(name -> !requireFinancialCapability || supportsFinancialRetrievalIntent(name))
             .findFirst()
             .orElse(null);
+    }
+
+    private boolean supportsFinancialRetrievalIntent(String toolName) {
+        var metadata = toolRegistry.getToolMetadata(toolName);
+        return metadata != null && metadata.getParameters() != null
+            && metadata.getParameters().stream().anyMatch(parameter -> parameter != null
+                && "financial_data_required".equals(parameter.getName()));
     }
 
     private String value(Map<String, Object> values, String... keys) {
@@ -375,6 +460,7 @@ class FinalSummaryWebSearchEnhancer {
         }
     }
 
-    private record SearchDecision(boolean needed, List<String> keywords, String reason) { }
+    private record SearchDecision(boolean needed, boolean financialDataRequired,
+                                  List<String> keywords, String reason) { }
     private record SearchEvidence(String keyword, Object data) { }
 }

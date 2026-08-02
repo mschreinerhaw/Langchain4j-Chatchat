@@ -74,6 +74,20 @@ class McpResultEvidencePolicyTest {
     }
 
     @Test
+    void structuredWebResultWithFalseEmptyMarkerRemainsAvailable() {
+        McpResultEvidencePolicy.Assessment result = policy.assess(List.of(
+            trace(true, """
+                {"success":true,"empty_result":false,
+                 "results":[{"title":"market observation","retrievalSource":"tencent_wsa"}],
+                 "financialData":[{"dataset":"runtime_dataset","count":1,"rows":[{"value":123}]}]}
+                """)
+        ));
+
+        assertThat(result.availability()).isEqualTo(McpResultEvidencePolicy.Availability.AVAILABLE);
+        assertThat(result.resultAvailable()).isTrue();
+    }
+
+    @Test
     void transportErrorTextMislabelledAsSuccessNeverBecomesEvidence() {
         for (String output : List.of(
             "timeout while reading upstream response",
@@ -85,6 +99,22 @@ class McpResultEvidencePolicyTest {
                 .isEqualTo(McpResultEvidencePolicy.Availability.UNAVAILABLE);
             assertThat(result.resultAvailable()).as(output).isFalse();
         }
+    }
+
+    @Test
+    void mixedAvailableAndFailedToolsArePartialInsteadOfGloballyUnavailable() {
+        McpResultEvidencePolicy.Assessment result = policy.assess(List.of(
+            trace(true, "{\"success\":true,\"results\":[{\"title\":\"usable evidence\"}]}"),
+            trace(false, "timeout")
+        ));
+
+        assertThat(result.availability()).isEqualTo(McpResultEvidencePolicy.Availability.PARTIAL);
+        assertThat(result.resultAvailable()).isTrue();
+        assertThat(result.totalToolCount()).isEqualTo(2);
+        assertThat(result.successfulToolCount()).isEqualTo(1);
+        assertThat(result.failedToolCount()).isEqualTo(1);
+        assertThat(result.availableResultCount()).isEqualTo(1);
+        assertThat(result.unavailableResultCount()).isEqualTo(1);
     }
 
     private InteractionToolTrace trace(boolean success, String output) {

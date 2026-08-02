@@ -446,6 +446,10 @@ public class AgentOrchestrator implements AgentRunExecutor {
         metadata.put("userId", userId);
         metadata.put("skillId", skillId == null ? "general" : skillId);
         metadata.put("modelName", normalizeModelName(modelName));
+        boolean forceStructuredFinancialData = Boolean.TRUE.equals(
+            requestRuntimeAttributes.get("forceStructuredFinancialData"));
+        metadata.put("forceStructuredFinancialData", forceStructuredFinancialData);
+        metadata.put("financialDataPolicy", forceStructuredFinancialData ? "FORCED" : "INTENT_DRIVEN");
         metadata.put("boundDocumentIds", documentIds);
         metadata.put("boundDocumentTags", documentTags);
         metadata.put("availableTools", tools);

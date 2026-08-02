@@ -4432,7 +4432,7 @@ public class InterpretationPlanRuntime {
             }
             Map<String, Object> template = new LinkedHashMap<>((Map<String, Object>) map);
             Object id = firstValueAtAnyPath(template, "$.templateId", "$.id", "$.code", "$.template");
-            if (id != null && templateId.equals(String.valueOf(id))) {
+            if (id != null && templateId.equalsIgnoreCase(String.valueOf(id))) {
                 return template;
             }
         }
@@ -4441,8 +4441,28 @@ public class InterpretationPlanRuntime {
 
     private List<Object> templateCandidates(Object output) {
         List<Object> values = new ArrayList<>();
-        addIterable(values, firstValueAtAnyPath(output, "$.templates", "$.data.templates"));
-        Object results = firstValueAtAnyPath(output, "$.results", "$.data.results");
+        collectTemplateCandidates(output, values, 0);
+        return values;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void collectTemplateCandidates(Object output, List<Object> values, int depth) {
+        if (output == null || values == null || depth > 8) return;
+        if (output instanceof CharSequence text) {
+            String json = text.toString().trim();
+            if (json.startsWith("{") || json.startsWith("[")) {
+                try {
+                    collectTemplateCandidates(RESULT_OBJECT_MAPPER.readValue(json, Object.class), values, depth + 1);
+                } catch (Exception ignored) {
+                    // A text result is not an executable template contract.
+                }
+            }
+            return;
+        }
+        if (!(output instanceof Map<?, ?> raw)) return;
+        Map<String, Object> map = new LinkedHashMap<>((Map<String, Object>) raw);
+        addIterable(values, firstMapValue(map, "templates", "associatedTemplates", "associated_templates"));
+        Object results = firstMapValue(map, "results", "items");
         if (results instanceof Iterable<?> iterable) {
             for (Object result : iterable) {
                 addIterable(values, firstValueAtAnyPath(result,
@@ -4452,7 +4472,12 @@ public class InterpretationPlanRuntime {
                     "$.data.templates"));
             }
         }
-        return values;
+        for (String key : List.of(
+            "structuredContent", "structured_content", "data", "result", "payload", "body", "output",
+            "routingProjection"
+        )) {
+            collectTemplateCandidates(map.get(key), values, depth + 1);
+        }
     }
 
     private void addIterable(List<Object> target, Object value) {

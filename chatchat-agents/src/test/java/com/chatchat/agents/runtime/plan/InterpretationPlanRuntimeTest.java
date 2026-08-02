@@ -1987,6 +1987,84 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void executesSelectedTemplateFromOversizedDiscoveryControlPlaneProjection() {
+        String discoveryTool = "mcp_tenant_database_query_template_query";
+        String executionTool = "mcp_tenant_sql_query_execute";
+        String templateId = "sample_margin_trade_latest";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(any())).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenAnswer(invocation ->
+            ToolMetadata.builder().id(invocation.getArgument(0)).riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest request = invocation.getArgument(0);
+            if (discoveryTool.equals(request.getToolName())) {
+                return new ToolRuntimeExecution(
+                    ToolOutput.success(Map.of(
+                        "outputTruncated", true,
+                        "outputExternal", true,
+                        "routingProjection", Map.of("templates", List.of(Map.of(
+                            "templateId", templateId,
+                            "parameterSchema", Map.of(
+                                "type", "object", "properties", Map.of(), "required", List.of()),
+                            "sqlExecutionBinding", Map.of(
+                                "toolName", "sql_query_execute",
+                                "templateId", templateId,
+                                "executionContext", Map.of(
+                                    "assetName", "financial-market-runtime",
+                                    "env", "RUNTIME",
+                                    "databaseType", "h2"))
+                        )))
+                    )),
+                    ToolMetadata.builder().id(discoveryTool).build(), null, "success", Map.of());
+            }
+            return new ToolRuntimeExecution(
+                ToolOutput.success(Map.of("rows", List.of(Map.of("observation_date", "2026-07-31")))),
+                ToolMetadata.builder().id(executionTool).build(), null, "success", Map.of());
+        });
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("sql_query", "Analyze latest margin trading data", "medium"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", discoveryTool,
+                    Map.of("filters", Map.of("intent", "latest margin trading")), List.of(), null, null),
+                new InterpretationPlan.Step(2, "mcp_tool", executionTool,
+                    Map.of("templateId", templateId, "parameters", Map.of()), List.of(1), null, null),
+                new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"),
+                    List.of(2), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                3, false, List.of(discoveryTool, executionTool), List.of(), 30_000),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, toolRegistry, List.of(discoveryTool, executionTool),
+                "tenant-1", "req-margin-projection", "conv-margin-projection", "user-1", Map.of()));
+
+        assertThat(result.success())
+            .as("status=%s error=%s steps=%s", result.status(), result.errorMessage(), result.steps())
+            .isTrue();
+        ArgumentCaptor<ToolRuntimeRequest> requests = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
+        verify(toolRuntimeService, times(2)).execute(requests.capture());
+        ToolRuntimeRequest executionRequest = requests.getAllValues().get(1);
+        assertThat(executionRequest.getToolName()).isEqualTo(executionTool);
+        assertThat(executionRequest.getToolInput().getParameters())
+            .containsEntry("templateId", templateId)
+            .containsEntry("executionContext", Map.of(
+                "assetName", "financial-market-runtime",
+                "env", "RUNTIME",
+                "databaseType", "h2"));
+    }
+
+    @Test
     void blocksSqlExecutionWhenTemplateDiscoveryReturnsNoTemplateMetadata() {
         String discoveryTool = "mcp_chatchat_mcp_server_database_query_template_query";
         String executionTool = "mcp_chatchat_mcp_server_sql_query_execute";

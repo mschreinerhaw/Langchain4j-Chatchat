@@ -2872,14 +2872,41 @@ public class ToolRuntimeService {
     }
 
     /**
-     * Preserves the small, redacted control-plane portion of an asset discovery
-     * result when the evidence payload itself has to be externalized.  The
-     * projection is derived from the returned result contract, never from model
-     * arguments, and deliberately excludes concrete connection coordinates.
+     * Preserves the small, redacted control-plane portion of discovery results
+     * when the evidence payload itself has to be externalized. The projection is
+     * derived from MCP output contracts, never from model arguments. It keeps the
+     * identity needed for asset routing and the registered contract needed for
+     * template execution, while excluding connection coordinates and executable
+     * bodies such as SQL or shell commands.
      */
     private Map<String, Object> routingProjection(Object data) {
-        if (!(data instanceof Map<?, ?> source) || !(source.get("assets") instanceof Iterable<?> assets)) {
+        if (!(data instanceof Map<?, ?> source)) {
             return Map.of();
+        }
+        Map<String, Object> projection = new LinkedHashMap<>();
+        Object schemaVersion = source.get("schemaVersion");
+        if (schemaVersion != null) {
+            projection.put("sourceSchemaVersion", String.valueOf(schemaVersion));
+        }
+        List<Map<String, Object>> projectedAssets = projectedAssets(source.get("assets"));
+        if (!projectedAssets.isEmpty()) {
+            projection.put("assets", List.copyOf(projectedAssets));
+        }
+        List<Map<String, Object>> projectedTemplates = projectedTemplates(source);
+        if (!projectedTemplates.isEmpty()) {
+            projection.put("templates", List.copyOf(projectedTemplates));
+        }
+        if (projectedAssets.isEmpty() && projectedTemplates.isEmpty()) {
+            return Map.of();
+        }
+        projection.put("returnedCount", !projectedTemplates.isEmpty()
+            ? projectedTemplates.size() : projectedAssets.size());
+        return Map.copyOf(projection);
+    }
+
+    private List<Map<String, Object>> projectedAssets(Object value) {
+        if (!(value instanceof Iterable<?> assets)) {
+            return List.of();
         }
         List<Map<String, Object>> projectedAssets = new ArrayList<>();
         for (Object item : assets) {
@@ -2898,17 +2925,53 @@ public class ToolRuntimeService {
                 projectedAssets.add(Map.of("asset", Map.copyOf(identity)));
             }
         }
-        if (projectedAssets.isEmpty()) {
-            return Map.of();
+        return projectedAssets;
+    }
+
+    private List<Map<String, Object>> projectedTemplates(Map<?, ?> source) {
+        List<Object> candidates = new ArrayList<>();
+        addProjectionCandidates(candidates, source.get("templates"));
+        Object results = source.get("results");
+        if (results instanceof Iterable<?> iterable) {
+            for (Object result : iterable) {
+                if (!(result instanceof Map<?, ?> map)) continue;
+                addProjectionCandidates(candidates, map.get("associatedTemplates"));
+                addProjectionCandidates(candidates, map.get("associated_templates"));
+                addProjectionCandidates(candidates, map.get("templates"));
+            }
         }
-        Map<String, Object> projection = new LinkedHashMap<>();
-        Object schemaVersion = source.get("schemaVersion");
-        if (schemaVersion != null) {
-            projection.put("sourceSchemaVersion", String.valueOf(schemaVersion));
+        List<Map<String, Object>> projected = new ArrayList<>();
+        for (Object item : candidates) {
+            if (!(item instanceof Map<?, ?> template)) continue;
+            Map<String, Object> contract = new LinkedHashMap<>();
+            for (String key : List.of(
+                "schemaVersion", "id", "templateId", "template_id", "code", "template",
+                "mcpToolName", "name", "title", "category", "businessGroup", "intent", "tags",
+                "rank", "relevanceScore", "decisionScore", "matchReasons", "intentSignals",
+                "capabilitySpec", "outputSchema", "dependencySpec", "parameterSchema", "inputSchema",
+                "requiredParameters", "parameterContract", "executionContext", "datasourceAsset",
+                "sqlExecutionBinding", "executionBinding", "execution", "enabled"
+            )) {
+                Object field = template.get(key);
+                if (field != null) contract.put(key, field);
+            }
+            Object description = template.get("description");
+            if (description != null) {
+                contract.put("description", boundedProjectionText(description, 2_000));
+            }
+            if (!contract.isEmpty()) projected.add(Map.copyOf(contract));
         }
-        projection.put("returnedCount", projectedAssets.size());
-        projection.put("assets", List.copyOf(projectedAssets));
-        return Map.copyOf(projection);
+        return projected;
+    }
+
+    private void addProjectionCandidates(List<Object> target, Object value) {
+        if (!(value instanceof Iterable<?> iterable)) return;
+        for (Object item : iterable) target.add(item);
+    }
+
+    private String boundedProjectionText(Object value, int maxChars) {
+        String text = String.valueOf(value);
+        return text.length() <= maxChars ? text : text.substring(0, maxChars) + "...(truncated)";
     }
 
     private void copyRoutingField(Map<String, Object> target, Map<?, ?> source,

@@ -68,4 +68,27 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
         assertThat(evaluation.applied()).isFalse();
         assertThat(evaluation.reason()).contains("not present in the authorized MCP candidate set");
     }
+
+    @Test
+    void projectsEvidenceSelectionInsideOversizedOutputRoutingProjection() {
+        EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
+            new EvidenceBasedTemplateCandidateEvaluator().evaluate(
+                Map.of(
+                    "outputTruncated", true,
+                    "routingProjection", Map.of("templates", List.of(
+                        Map.of("templateId", "OTHER"),
+                        Map.of("templateId", "sample_margin_trade_latest")
+                    ))
+                ),
+                Map.of("selectedTemplateIds", List.of("sample_margin_trade_latest"))
+            );
+
+        assertThat(evaluation.applied()).isTrue();
+        assertThat(evaluation.selectedIds()).containsExactly("sample_margin_trade_latest");
+        Map<?, ?> output = (Map<?, ?>) evaluation.output();
+        Map<?, ?> projection = (Map<?, ?>) output.get("routingProjection");
+        assertThat(projection.get("templates").toString())
+            .contains("sample_margin_trade_latest")
+            .doesNotContain("OTHER");
+    }
 }

@@ -122,7 +122,8 @@ final class EvidenceBasedTemplateCandidateEvaluator {
             return new Projection(map, templates.size(), selected.size(), projectedIds, true);
         }
         for (String key : List.of(
-            "structuredContent", "structured_content", "data", "result", "payload", "body", "output"
+            "structuredContent", "structured_content", "data", "result", "payload", "body", "output",
+            "routingProjection"
         )) {
             Projection nested = project(map.get(key), selectedIds, rejectedIds, evaluations, depth + 1);
             if (nested.applied()) {

@@ -200,6 +200,55 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
+    void oversizedTemplateDiscoveryPreservesExecutableContractProjection() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        String toolName = "tenant_database_query_template_query";
+        when(registry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName).title("Template discovery").build());
+        Map<String, Object> template = new LinkedHashMap<>();
+        template.put("templateId", "sample_margin_trade_latest");
+        template.put("name", "Latest margin trading observations");
+        template.put("description", "x".repeat(100_000));
+        template.put("parameterSchema", Map.of(
+            "type", "object", "properties", Map.of(), "required", List.of()));
+        template.put("sqlExecutionBinding", Map.of(
+            "toolName", "sql_query_execute",
+            "templateId", "sample_margin_trade_latest",
+            "executionContext", Map.of(
+                "assetName", "financial-market-runtime", "env", "RUNTIME")));
+        template.put("templateDsl", Map.of("sql", "select secret implementation body"));
+        when(registry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.success(Map.of(
+            "schemaVersion", "template_query_result.v3",
+            "templates", List.of(template)
+        )));
+        ToolRuntimeProperties runtimeProperties = properties();
+        runtimeProperties.setMaxOutputBytes(16_384);
+        ToolRuntimeService service = new ToolRuntimeService(
+            registry, new ObjectMapper(), runtimeProperties, List.of(), List.of());
+        try {
+            ToolRuntimeExecution execution = service.execute(ToolRuntimeRequest.builder()
+                .toolName(toolName).runtimeMode("agent_chat").requestId("template-output-1")
+                .conversationId("conversation-1").tenantId("tenant-1").userId("user-1")
+                .allowedTools(List.of(toolName))
+                .toolInput(ToolInput.builder().parameters(Map.of()).build()).build());
+
+            assertThat(execution.output().getData()).isInstanceOfSatisfying(Map.class, reference -> {
+                Map<?, ?> projection = (Map<?, ?>) reference.get("routingProjection");
+                List<?> templates = (List<?>) projection.get("templates");
+                Map<?, ?> projected = (Map<?, ?>) templates.get(0);
+                assertThat(projected.get("templateId")).isEqualTo("sample_margin_trade_latest");
+                assertThat(projected.containsKey("parameterSchema")).isTrue();
+                assertThat(projected.containsKey("sqlExecutionBinding")).isTrue();
+                assertThat(projected.get("description").toString()).hasSizeLessThan(2_100);
+                assertThat(projected.containsKey("templateDsl")).isFalse();
+                assertThat(projected.containsKey("sql")).isFalse();
+            });
+        } finally {
+            service.shutdown();
+        }
+    }
+
+    @Test
     void blockedAuditPersistenceCannotBlockToolResponse() throws Exception {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.getToolMetadata("fast_tool")).thenReturn(ToolMetadata.builder()

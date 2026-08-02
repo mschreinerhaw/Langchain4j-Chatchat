@@ -2416,6 +2416,7 @@ class AgentAnswerFinalizer {
             || normalized.contains("insufficient evidence");
         boolean substantive = !cautiousOrFailureLanguage
             || grounded
+            || hasSubstantiveAnalysisStructure(answer)
             || containsAny(normalized,
                 "\u4f46\u786e\u8ba4", "\u4f46\u53ef\u4ee5\u786e\u8ba4", "\u4f46\u6587\u6863\u663e\u793a",
                 "\u5df2\u786e\u8ba4", "\u53ef\u4ee5\u786e\u8ba4", "\u6587\u6863\u663e\u793a",
@@ -2429,6 +2430,48 @@ class AgentAnswerFinalizer {
             false,
             internalProtocol
         );
+    }
+
+    /**
+     * A limitation statement inside an otherwise complete report is not a refusal. The signal is
+     * deliberately domain-neutral: Runtime must not depend on financial terms, tool names, or
+     * dataset identifiers when deciding whether a model produced a substantive business result.
+     */
+    private boolean hasSubstantiveAnalysisStructure(String answer) {
+        if (answer == null) {
+            return false;
+        }
+        String text = answer.trim();
+        if (text.length() < 600) {
+            return false;
+        }
+        int headings = 0;
+        int evidenceItems = 0;
+        int paragraphs = 0;
+        boolean paragraphOpen = false;
+        for (String rawLine : text.split("\\R")) {
+            String line = rawLine == null ? "" : rawLine.trim();
+            if (line.isBlank()) {
+                if (paragraphOpen) {
+                    paragraphs++;
+                    paragraphOpen = false;
+                }
+                continue;
+            }
+            paragraphOpen = true;
+            if (line.matches("^#{1,6}\\s+.+")) {
+                headings++;
+            }
+            if (line.matches("^(?:[-*+]\\s+|\\d+[.)]\\s+|\\|.+\\|$).+")) {
+                evidenceItems++;
+            }
+        }
+        if (paragraphOpen) {
+            paragraphs++;
+        }
+        return headings >= 2 && evidenceItems >= 3
+            || headings >= 3 && paragraphs >= 3
+            || text.length() >= 1_200 && paragraphs >= 4;
     }
 
     private boolean containsInternalEvidenceProtocol(String answer) {

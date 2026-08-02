@@ -133,6 +133,64 @@ class AgentAnswerFinalizerTaskAssessmentTest {
     }
 
     @Test
+    void preservesSubstantiveMultiSectionAnalysisWhenItAlsoDeclaresEvidenceGaps() {
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            null,
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        InteractionToolTrace trace = InteractionToolTrace.builder()
+            .toolName("mcp_runtime_registered_analysis_tool")
+            .success(true)
+            .output("""
+                {"schemaVersion":"tool_result_summary.v1","summaryTruncated":true,
+                 "resultPresent":true,"originalType":"LinkedHashMap","originalSummaryChars":20383,
+                 "preview":{"results":[{"metric":"runtime-value","value":321}]}}
+                """)
+            .build();
+        String candidate = """
+            # Runtime analysis report
+
+            Current evidence is incomplete and several optional signals are missing. This limits
+            confidence, but it does not prevent analysis of the observations that were returned.
+
+            ## Observed state
+
+            - The first returned observation supports a measurable baseline.
+            - The second signal confirms that the result is not empty.
+            - The available sequence supports a cautious directional interpretation.
+
+            ## Drivers
+
+            The returned measurements show a coherent relationship across the available fields.
+            That relationship is usable for the requested analysis even though broader context is
+            unavailable. Claims here remain bounded to the successful tool result.
+
+            ## Risks and limitations
+
+            Missing external context may change confidence and completeness. It does not erase the
+            facts already returned, so the report preserves those facts and labels the boundary.
+
+            ## Recommended follow-up
+
+            Validate the missing optional dimensions in a later query and compare them with this
+            baseline. Until then, use the supported observations and avoid extrapolating beyond them.
+            """;
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("stopReason", "evidence_partial_analysis");
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishExecution(
+            candidate, List.of(trace), metadata, List.of("Tool analysis_tool succeeded with non-empty data."));
+
+        assertThat(result.answer())
+            .startsWith("# Runtime analysis report")
+            .contains("## Observed state", "## Drivers", "## Risks and limitations")
+            .doesNotContain("## 基于 MCP 查询结果的分析");
+        assertThat(result.metadata())
+            .containsEntry("mcpResultEvidenceAvailability", "AVAILABLE")
+            .doesNotContainEntry("evidenceRefusalBlocked", true);
+    }
+
+    @Test
     void malformedToolResultPreservesCandidateAnalysisWithExplicitLimitations() {
         AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
             null,

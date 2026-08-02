@@ -155,6 +155,51 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
+    void oversizedAssetDiscoveryPreservesRedactedRoutingProjection() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        String toolName = "tenant_registered_asset_discovery";
+        when(registry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName).title("Asset discovery").build());
+        Map<String, Object> asset = Map.of(
+            "id", "asset-17",
+            "name", "docker-database-simulator",
+            "displayName", "Docker 数据库模拟服务器",
+            "environment", "DEV",
+            "toolName", "ssh_container_test_service",
+            "description", "x".repeat(100_000)
+        );
+        when(registry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.success(Map.of(
+            "schemaVersion", "asset_query_result.v1",
+            "assets", List.of(Map.of("asset", asset))
+        )));
+        ToolRuntimeProperties runtimeProperties = properties();
+        runtimeProperties.setMaxOutputBytes(16_384);
+        ToolRuntimeService service = new ToolRuntimeService(
+            registry, new ObjectMapper(), runtimeProperties, List.of(), List.of());
+        try {
+            ToolRuntimeExecution execution = service.execute(ToolRuntimeRequest.builder()
+                .toolName(toolName).runtimeMode("agent_chat").requestId("asset-output-1")
+                .conversationId("conversation-1").tenantId("tenant-1").userId("user-1")
+                .allowedTools(List.of(toolName))
+                .toolInput(ToolInput.builder().parameters(Map.of()).build()).build());
+
+            assertThat(execution.output().getData()).isInstanceOfSatisfying(Map.class, reference -> {
+                assertThat(reference).containsEntry("outputTruncated", true)
+                    .containsKey("routingProjection");
+                Map<?, ?> projection = (Map<?, ?>) reference.get("routingProjection");
+                List<?> assets = (List<?>) projection.get("assets");
+                Map<?, ?> projected = (Map<?, ?>) ((Map<?, ?>) assets.get(0)).get("asset");
+                assertThat(projected.get("id")).isEqualTo("asset-17");
+                assertThat(projected.get("name")).isEqualTo("docker-database-simulator");
+                assertThat(projected.get("environment")).isEqualTo("DEV");
+                assertThat(projected.containsKey("description")).isFalse();
+            });
+        } finally {
+            service.shutdown();
+        }
+    }
+
+    @Test
     void blockedAuditPersistenceCannotBlockToolResponse() throws Exception {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.getToolMetadata("fast_tool")).thenReturn(ToolMetadata.builder()

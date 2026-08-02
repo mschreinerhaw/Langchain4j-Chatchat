@@ -1492,7 +1492,8 @@ public class InterpretationPlanRuntime {
                 return true;
             }
         }
-        for (String key : List.of("structuredContent", "structured_content", "data", "result", "payload", "body", "output")) {
+        for (String key : List.of("routingProjection", "structuredContent", "structured_content",
+            "data", "result", "payload", "body", "output")) {
             Object nested = firstMapValue(map, key);
             if (hasStructuredToolEvidence(nested, depth + 1)) {
                 return true;
@@ -1970,7 +1971,8 @@ public class InterpretationPlanRuntime {
                 return nestedExplicit;
             }
         }
-        for (String key : List.of("structuredContent", "structured_content", "data", "result", "payload", "body", "output")) {
+        for (String key : List.of("routingProjection", "structuredContent", "structured_content",
+            "data", "result", "payload", "body", "output")) {
             Object nested = firstMapValue(map, key);
             if (nested != null) {
                 int nestedCount = discoveredAssetCount(nested, listKey, depth + 1);
@@ -4593,7 +4595,7 @@ public class InterpretationPlanRuntime {
     }
 
     private Map<String, Object> assetExecutionContextForId(Object output, String expectedAssetId) {
-        Object assetsValue = firstValueAtAnyPath(output, "$.assets");
+        Object assetsValue = firstValueAtAnyPath(routingCapableOutput(output), "$.assets");
         if (!(assetsValue instanceof Iterable<?> assets) || expectedAssetId == null) {
             return Map.of();
         }
@@ -4621,6 +4623,7 @@ public class InterpretationPlanRuntime {
     }
 
     private Map<String, Object> assetExecutionContext(Object output) {
+        output = routingCapableOutput(output);
         Map<String, Object> context = new LinkedHashMap<>();
         Object assetName = firstValueAtAnyPath(output,
             "$.assets[0].asset.name",
@@ -5616,15 +5619,17 @@ public class InterpretationPlanRuntime {
 
     private boolean isExecutionContextTool(String toolName) {
         String semantic = toolSemanticKey(toolName);
-        return semantic.equals("sql_query_execute")
-            || semantic.equals("sql_script_execute")
-            || semantic.equals("sql_metadata_search")
+        return isSqlQueryExecuteTool(toolName)
+            || isSqlMetadataSearchTool(toolName)
             || semantic.equals("database_query")
+            || semantic.endsWith("_database_query")
             || semantic.equals("database_query_execute")
+            || semantic.endsWith("_database_query_execute")
             || semantic.equals("database_execute")
-            || semantic.equals("linux_command_execute")
-            || semantic.equals("http_request_execute")
-            || semantic.equals("api_template_execute");
+            || semantic.endsWith("_database_execute")
+            || isLinuxCommandExecuteTool(toolName)
+            || isHttpRequestExecuteTool(toolName)
+            || isApiTemplateExecuteTool(toolName);
     }
 
     private boolean isCrawlerTool(String toolName) {
@@ -5988,6 +5993,7 @@ public class InterpretationPlanRuntime {
         if (output == null || requestedField == null || requestedField.isBlank()) {
             return null;
         }
+        output = routingCapableOutput(output);
         Object canonicalAsset = firstValueAtAnyPath(output, "$.assets[0].asset");
         if (!(canonicalAsset instanceof Map<?, ?>)) {
             return null;
@@ -6011,6 +6017,20 @@ public class InterpretationPlanRuntime {
                 "$.assets[0].asset.tool_name");
             default -> null;
         };
+    }
+
+    /**
+     * Oversized tool evidence may be externalized, but its redacted routing
+     * projection remains inline so dependent execution can still target the
+     * discovered asset deterministically.
+     */
+    private Object routingCapableOutput(Object output) {
+        Object assets = firstValueAtAnyPath(output, "$.assets");
+        if (assets instanceof Iterable<?>) {
+            return output;
+        }
+        Object projection = firstValueAtAnyPath(output, "$.routingProjection");
+        return projection instanceof Map<?, ?> ? projection : output;
     }
 
     private Object firstValueAtAnyPath(Object output, String... paths) {

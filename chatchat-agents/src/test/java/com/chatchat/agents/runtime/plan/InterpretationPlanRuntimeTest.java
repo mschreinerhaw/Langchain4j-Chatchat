@@ -6443,6 +6443,76 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void executesDependentCommandUsingRoutingProjectionFromExternalizedAssetEvidence() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        String assetTool = "mcp_chatchat_mcp_server_ssh_asset_query";
+        String commandTool = "mcp_chatchat_mcp_server_linux_command_execute";
+        when(toolRegistry.hasTool(any())).thenReturn(true);
+        when(toolRegistry.getToolMetadata(assetTool)).thenReturn(ToolMetadata.builder()
+            .id(assetTool).riskLevel("low").build());
+        when(toolRegistry.getToolMetadata(commandTool)).thenReturn(ToolMetadata.builder()
+            .id(commandTool).riskLevel("medium").parameters(List.of(
+                ToolParameter.builder().name("template").type("string").required(true).build(),
+                ToolParameter.builder().name("executionContext").type("object").required(true).build()
+            )).build());
+        ToolRuntimeService service = mock(ToolRuntimeService.class);
+        when(service.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest request = invocation.getArgument(0);
+            Object data = request.getToolName().equals(assetTool)
+                ? Map.of(
+                    "outputTruncated", true,
+                    "outputExternal", true,
+                    "routingProjection", Map.of(
+                        "sourceSchemaVersion", "asset_query_result.v1",
+                        "assets", List.of(Map.of("asset", Map.of(
+                            "id", "asset-17",
+                            "name", "docker-database-simulator",
+                            "displayName", "Docker 数据库模拟服务器",
+                            "environment", "DEV",
+                            "toolName", "ssh_container_test_service"
+                        )))
+                    ))
+                : Map.of("status", "ok");
+            return new ToolRuntimeExecution(ToolOutput.success(data),
+                ToolMetadata.builder().id(request.getToolName()).build(), null, "success", Map.of());
+        });
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("system_operation", "分析 Docker 数据库模拟服务器磁盘", "medium"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", assetTool,
+                    Map.of("filters", Map.of("intent", "Docker 数据库模拟服务器")), List.of(), null, null),
+                new InterpretationPlan.Step(2, "mcp_tool", commandTool,
+                    Map.of("template", "CHECK_DISK", "executionContext", Map.of()), List.of(1), null, null),
+                new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
+            ), List.of(), List.of(
+                new InterpretationPlan.Binding(1, "$.assets[0].asset.name", 2,
+                    "executionContext.assetName", "jsonpath", true)
+            ), null),
+            new InterpretationPlan.ExecutionPolicy(3, false, List.of(assetTool, commandTool), List.of(), 30_000),
+            review());
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(service,
+            new InterpretationPlanValidator(), null,
+            request -> InterpretationPlanRuntime.StepReview.accepted("usable", Map.of()),
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3))));
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(plan, toolRegistry,
+                List.of(assetTool, commandTool), "tenant-1", "req-routing-projection",
+                "conv-1", "user-1", Map.of()));
+
+        assertThat(result.success()).as(result.errorMessage()).isTrue();
+        ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
+        verify(service, times(2)).execute(captor.capture());
+        Map<?, ?> commandInput = captor.getAllValues().get(1).getToolInput().getParameters();
+        Map<?, ?> executionContext = (Map<?, ?>) commandInput.get("executionContext");
+        assertThat(executionContext.get("assetName")).isEqualTo("docker-database-simulator");
+        assertThat(executionContext.get("env")).isEqualTo("DEV");
+        assertThat(executionContext.get("assetId")).isEqualTo("asset-17");
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void bindsAndValidatesEveryDiscoveredTemplateInDataCapabilityBatch() {
         String discoveryTool = "tenant_business_template_query";

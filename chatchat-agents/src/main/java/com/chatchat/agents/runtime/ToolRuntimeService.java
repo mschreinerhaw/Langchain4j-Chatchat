@@ -2822,6 +2822,10 @@ public class ToolRuntimeService {
             reference.put("outputTruncated", true);
             reference.put("originalBytes", payloadBytes);
             reference.put("preview", preview);
+            Map<String, Object> routingProjection = routingProjection(data);
+            if (!routingProjection.isEmpty()) {
+                reference.put("routingProjection", routingProjection);
+            }
             reference.put("reason", "TOOL_OUTPUT_LIMIT_EXCEEDED");
             reference.put("maxInlineBytes", properties.safeMaxOutputBytes());
             AgentEvidenceStore store = evidenceStore;
@@ -2864,6 +2868,57 @@ public class ToolRuntimeService {
             fallback.put("reason", "TOOL_OUTPUT_SERIALIZATION_FAILED");
             if (output != null) output.getMetadata().put("outputTruncated", true);
             return Map.copyOf(fallback);
+        }
+    }
+
+    /**
+     * Preserves the small, redacted control-plane portion of an asset discovery
+     * result when the evidence payload itself has to be externalized.  The
+     * projection is derived from the returned result contract, never from model
+     * arguments, and deliberately excludes concrete connection coordinates.
+     */
+    private Map<String, Object> routingProjection(Object data) {
+        if (!(data instanceof Map<?, ?> source) || !(source.get("assets") instanceof Iterable<?> assets)) {
+            return Map.of();
+        }
+        List<Map<String, Object>> projectedAssets = new ArrayList<>();
+        for (Object item : assets) {
+            if (!(item instanceof Map<?, ?> candidate) || !(candidate.get("asset") instanceof Map<?, ?> asset)) {
+                continue;
+            }
+            Map<String, Object> identity = new LinkedHashMap<>();
+            copyRoutingField(identity, asset, "id", "id", "assetId");
+            copyRoutingField(identity, asset, "name", "name", "displayName", "assetName");
+            copyRoutingField(identity, asset, "displayName", "displayName", "name");
+            copyRoutingField(identity, asset, "environment", "environment", "env");
+            copyRoutingField(identity, asset, "toolName", "toolName", "tool_name");
+            copyRoutingField(identity, asset, "databaseRole", "databaseRole", "database_role");
+            copyRoutingField(identity, asset, "type", "type", "assetType");
+            if (!identity.isEmpty()) {
+                projectedAssets.add(Map.of("asset", Map.copyOf(identity)));
+            }
+        }
+        if (projectedAssets.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> projection = new LinkedHashMap<>();
+        Object schemaVersion = source.get("schemaVersion");
+        if (schemaVersion != null) {
+            projection.put("sourceSchemaVersion", String.valueOf(schemaVersion));
+        }
+        projection.put("returnedCount", projectedAssets.size());
+        projection.put("assets", List.copyOf(projectedAssets));
+        return Map.copyOf(projection);
+    }
+
+    private void copyRoutingField(Map<String, Object> target, Map<?, ?> source,
+                                  String targetKey, String... sourceKeys) {
+        for (String sourceKey : sourceKeys) {
+            Object value = source.get(sourceKey);
+            if (value != null && !String.valueOf(value).isBlank()) {
+                target.put(targetKey, value);
+                return;
+            }
         }
     }
 

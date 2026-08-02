@@ -5,6 +5,7 @@ import com.chatchat.common.tool.ToolInput;
 import com.chatchat.runtime.market.storage.FinancialAssetCatalogService;
 import com.chatchat.runtime.market.storage.FinancialDataStore;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -18,10 +19,18 @@ public class FinancialEnrichmentService {
 
     private final FinancialAssetCatalogService catalog;
     private final FinancialDataStore store;
+    private final FinancialQueryCacheService queryCache;
 
     public FinancialEnrichmentService(FinancialAssetCatalogService catalog, FinancialDataStore store) {
+        this(catalog, store, null);
+    }
+
+    @Autowired
+    public FinancialEnrichmentService(FinancialAssetCatalogService catalog, FinancialDataStore store,
+                                      FinancialQueryCacheService queryCache) {
         this.catalog = catalog;
         this.store = store;
+        this.queryCache = queryCache;
     }
 
     public EnrichmentResult enrich(String query, ToolInput input, int limit) {
@@ -29,10 +38,11 @@ public class FinancialEnrichmentService {
             return new EnrichmentResult(query, List.of(), List.of(), List.of(), "runtime_context_disabled");
         }
         List<String> warnings = new ArrayList<>();
-        String assetQuery = query;
+        String retrievalIntent = financialIntentQuery(query, input);
+        String assetQuery = retrievalIntent;
         try {
-            assetQuery = store.assetSearchQuery(query, 10);
-            if (assetQuery == null || assetQuery.isBlank()) assetQuery = query;
+            assetQuery = store.assetSearchQuery(retrievalIntent, 10);
+            if (assetQuery == null || assetQuery.isBlank()) assetQuery = retrievalIntent;
         } catch (Exception ex) {
             CancellationSupport.rethrowIfCancelled(ex, "financial asset query normalization");
             warnings.add("market normalization: " + safe(ex.getMessage()));
@@ -58,19 +68,27 @@ public class FinancialEnrichmentService {
         LocalDate endDate = date(input.getParameterAsString("endDate", ""));
         String historyMode = input.getParameterAsString("historyMode", "auto");
         List<Map<String, Object>> financialData = new ArrayList<>();
-        for (Map<String, Object> asset : assets.stream().limit(datasetLimit).toList()) {
+        int candidateLimit = Math.min(assets.size(), Math.max(datasetLimit, datasetLimit * 2));
+        int attempted = 0;
+        for (Map<String, Object> asset : assets) {
+            if (financialData.size() >= datasetLimit || attempted >= candidateLimit) break;
             String dataset = text(asset, "dataset_code", "datasetCode");
             if (dataset.isBlank()) continue;
+            attempted++;
             try {
                 List<Map<String, Object>> resolved = store.resolveEntityFilters(dataset, query, 5);
                 Map<String, Object> filters = resolved.isEmpty() ? Map.of() : resolved.get(0);
-                Map<String, Object> result = new java.util.LinkedHashMap<>(
-                    store.query(dataset, filters, startDate, endDate, rowLimit, historyMode));
+                Map<String, Object> result = new java.util.LinkedHashMap<>(cachedQuery(
+                    dataset, filters, startDate, endDate, rowLimit, historyMode));
                 result.put("dataset", dataset);
                 result.put("resultType", "financial_dataset_query");
                 result.put("retrievalSource", "governed_financial_store");
                 result.put("filters", filters);
-                financialData.add(result);
+                if (hasObservations(result)) {
+                    financialData.add(result);
+                } else {
+                    warnings.add("financial dataset " + dataset + ": no matching observations");
+                }
             } catch (Exception ex) {
                 CancellationSupport.rethrowIfCancelled(ex, "explicit financial enrichment");
                 warnings.add("financial dataset " + dataset + ": " + safe(ex.getMessage()));
@@ -88,7 +106,17 @@ public class FinancialEnrichmentService {
         LocalDate endDate = date(input.getParameterAsString("endDate", ""));
         String historyMode = input.getParameterAsString("historyMode", "auto");
         int rowLimit = bounded(input.getParameterAsNumber("limit"), 50, 1, 200);
-        return store.query(dataset, filters, startDate, endDate, rowLimit, historyMode);
+        return cachedQuery(dataset, filters, startDate, endDate, rowLimit, historyMode);
+    }
+
+    private Map<String, Object> cachedQuery(String dataset, Map<String, Object> filters,
+                                            LocalDate startDate, LocalDate endDate, int rowLimit,
+                                            String historyMode) {
+        if (queryCache == null) {
+            return store.query(dataset, filters, startDate, endDate, rowLimit, historyMode);
+        }
+        return queryCache.getOrLoad(dataset, filters, startDate, endDate, rowLimit, historyMode,
+            () -> store.query(dataset, filters, startDate, endDate, rowLimit, historyMode));
     }
 
     boolean needsFinancialEnrichment(ToolInput input) {
@@ -96,6 +124,25 @@ public class FinancialEnrichmentService {
             ? null : input.getContext().get("internalPurpose");
         return !FINAL_SUMMARY_PURPOSE.equals(String.valueOf(purpose))
             || input.getParameterAsBoolean("financial_data_required", false);
+    }
+
+    private String financialIntentQuery(String stepQuery, ToolInput input) {
+        if (input != null && input.getParameterAsBoolean("financial_data_required", false)
+            && input.getContext() != null) {
+            Object configured = input.getContext().get("financialIntentQuery");
+            if (configured != null && !String.valueOf(configured).isBlank()) {
+                return String.valueOf(configured).trim();
+            }
+        }
+        return stepQuery == null ? "" : stepQuery.trim();
+    }
+
+    private boolean hasObservations(Map<String, Object> result) {
+        if (result == null || result.isEmpty()) return false;
+        Object rows = result.get("rows");
+        if (rows instanceof Iterable<?> iterable && iterable.iterator().hasNext()) return true;
+        Object count = result.get("count");
+        return count instanceof Number number && number.longValue() > 0L;
     }
 
     private String text(Map<String, Object> source, String... names) {

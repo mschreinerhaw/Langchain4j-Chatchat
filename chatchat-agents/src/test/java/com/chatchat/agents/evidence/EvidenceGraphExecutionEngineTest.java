@@ -198,6 +198,51 @@ class EvidenceGraphExecutionEngineTest {
     }
 
     @Test
+    void singleValidatedWebEvidenceCanSatisfyEvidenceOsWithoutArtificialEdgePenalty() {
+        EvidenceChunk chunk = new EvidenceChunk(
+            EvidenceType.WEB,
+            EvidenceChunk.CONTRACT_VERSION,
+            new EvidenceSource("market-news", "https://example.test/news", "example.test", null, "result-1"),
+            "A current market announcement with a traceable public source.",
+            0.82,
+            Map.of("refId", "web://example.test/news#result=1", "evidenceGrade", "B"),
+            new EvidenceGovernance("tenant", "user", List.of(), "ALLOWED"),
+            Map.of()
+        );
+
+        EvidenceGraph graph = engine.build("query:web-market", List.of(chunk));
+        EvidenceExecutionReport report = new EvidencePathExecutor().execute(graph);
+
+        assertThat(graph.validPaths()).singleElement().satisfies(path -> {
+            assertThat(path.executable()).isTrue();
+            assertThat(path.score()).isGreaterThanOrEqualTo(0.65);
+        });
+        assertThat(report.decision()).isEqualTo(EvidenceExecutionDecision.ANSWER_ALLOWED);
+        assertThat(report.answerContract().evidencePath()).containsExactly("evidence:1:chunk");
+    }
+
+    @Test
+    void singleLowConfidenceWebEvidenceStillFailsProductionThreshold() {
+        EvidenceChunk chunk = new EvidenceChunk(
+            EvidenceType.WEB,
+            EvidenceChunk.CONTRACT_VERSION,
+            new EvidenceSource("unverified-feed", "https://example.test/unverified", "example.test", null, "result-1"),
+            "An unverified market claim that must not become answer evidence.",
+            0.20,
+            Map.of("refId", "web://example.test/unverified#result=1", "evidenceGrade", "C"),
+            new EvidenceGovernance("tenant", "user", List.of(), "ALLOWED"),
+            Map.of()
+        );
+
+        EvidenceExecutionReport report = new EvidencePathExecutor().execute(
+            engine.build("query:unverified-web", List.of(chunk)));
+
+        assertThat(report.decision()).isEqualTo(EvidenceExecutionDecision.EMPTY_RESULT);
+        assertThat(report.reasons()).anySatisfy(reason ->
+            assertThat(reason).contains("path score below threshold"));
+    }
+
+    @Test
     void compilesDeterministicExecutionContractFromSelectedPath() {
         EvidenceChunk chunk = new EvidenceChunk(
             EvidenceType.DOCUMENT,

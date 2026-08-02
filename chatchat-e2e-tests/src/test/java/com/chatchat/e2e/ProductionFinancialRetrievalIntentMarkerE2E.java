@@ -10,6 +10,7 @@ import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.chatchat.mcpserver.news.FinancialEnrichmentService;
+import com.chatchat.mcpserver.news.FinancialDataMcpToolProvider;
 import com.chatchat.mcpserver.news.NewsRuntimeClient;
 import com.chatchat.mcpserver.news.NewsSearchService;
 import com.chatchat.mcpserver.news.RemoteNewsMcpToolProvider;
@@ -35,11 +36,78 @@ class ProductionFinancialRetrievalIntentMarkerE2E {
 
     @Test
     @SuppressWarnings("unchecked")
+    void dedicatedFinancialToolPreservesJointNewsAndDataEvidenceWithoutDuplicateDatabaseRead() throws Exception {
+        NewsRuntimeClient news = mock(NewsRuntimeClient.class);
+        FinancialAssetCatalogService catalog = mock(FinancialAssetCatalogService.class);
+        FinancialDataStore store = mock(FinancialDataStore.class);
+        String query = "runtime securities information analysis";
+        String runtimeDataset = "runtime_dataset_" + UUID.randomUUID().toString().replace("-", "");
+        when(news.invoke(eq("web_search"), any())).thenReturn(ToolOutput.success(Map.of(
+            "results", List.of(Map.of("resultType", "news", "title", "policy and announcement evidence")))));
+        when(store.assetSearchQuery(query, 10)).thenReturn(query);
+        when(catalog.search(query, 3)).thenReturn(List.of(Map.of(
+            "dataset_code", runtimeDataset, "asset_name", "runtime-discovered observations")));
+        when(store.resolveEntityFilters(runtimeDataset, query, 5)).thenReturn(List.of());
+        when(store.query(runtimeDataset, Map.of(), null, null, 20, "auto")).thenReturn(Map.of(
+            "rows", List.of(Map.of("metric", "market_breadth", "value", 321))));
+        FinancialEnrichmentService financial = new FinancialEnrichmentService(catalog, store);
+        RemoteNewsMcpToolProvider webProvider = new RemoteNewsMcpToolProvider(
+            new NewsSearchService(news), Optional.of(financial));
+        FinancialDataMcpToolProvider financialProvider = new FinancialDataMcpToolProvider(financial);
+        String webTool = "mcp_chatchat_mcp_server_web_search";
+        String financialTool = "mcp_chatchat_mcp_server_financial_data_search";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getToolMetadata(webTool)).thenReturn(ToolMetadata.builder()
+            .id(webTool).title("Web search").categories(List.of("mcp")).build());
+        when(registry.getToolMetadata(financialTool)).thenReturn(ToolMetadata.builder()
+            .id(financialTool).title("Local financial data").categories(List.of("mcp")).build());
+        when(registry.executeEnhancedTool(eq(webTool), any())).thenAnswer(invocation ->
+            webProvider.findExecutor("web_search").orElseThrow().execute(invocation.getArgument(1)));
+        when(registry.executeEnhancedTool(eq(financialTool), any())).thenAnswer(invocation ->
+            financialProvider.findExecutor("financial_data_search").orElseThrow().execute(invocation.getArgument(1)));
+        ToolRuntimeService runtime = new ToolRuntimeService(
+            registry, new ObjectMapper(), new ToolRuntimeProperties(), List.of(), List.of());
+        try {
+            Map<String, Object> attributes = Map.of(
+                "forceStructuredFinancialData", true,
+                "dedicatedFinancialDataTool", financialTool,
+                "financialIntentQuery", query);
+            ToolRuntimeExecution webExecution = runtime.execute(ToolRuntimeRequest.builder()
+                .toolName(webTool).runtimeMode("agent_chat").requestId("joint-web")
+                .conversationId("joint-conversation").tenantId("tenant-e2e").userId("user-e2e")
+                .allowedTools(List.of(webTool, financialTool)).attributes(attributes)
+                .toolInput(ToolInput.builder().parameters(Map.of(
+                    "query", query, "financial_data_required", false)).build()).build());
+            Map<String, Object> webData = (Map<String, Object>) webExecution.output().getData();
+            assertThat(webData).containsEntry("newsCount", 1).containsEntry("financialDatasetCount", 0);
+            assertThat(webExecution.audit())
+                .containsEntry("financialDataPolicy", "FORCED_DEDICATED_TOOL")
+                .containsEntry("financialDataEffectiveRequired", false);
+
+            ToolRuntimeExecution financialExecution = runtime.execute(ToolRuntimeRequest.builder()
+                .toolName(financialTool).runtimeMode("agent_chat").requestId("joint-financial")
+                .conversationId("joint-conversation").tenantId("tenant-e2e").userId("user-e2e")
+                .allowedTools(List.of(webTool, financialTool)).attributes(attributes)
+                .toolInput(ToolInput.builder().parameters(Map.of("query", query)).build()).build());
+            Map<String, Object> financialData = (Map<String, Object>) financialExecution.output().getData();
+            assertThat(financialData).containsEntry("retrievalSource", "governed_financial_store")
+                .containsEntry("networkSearchUsed", false)
+                .containsEntry("datasetCount", 1)
+                .containsEntry("observationCount", 1);
+            verify(store).query(runtimeDataset, Map.of(), null, null, 20, "auto");
+        } finally {
+            runtime.shutdown();
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void retrievalMarkerControlsBoundedFinancialReadAndDatasetComesOnlyFromRuntimeCatalog() throws Exception {
         NewsRuntimeClient news = mock(NewsRuntimeClient.class);
         FinancialAssetCatalogService catalog = mock(FinancialAssetCatalogService.class);
         FinancialDataStore store = mock(FinancialDataStore.class);
         String query = "隔夜全球市场与今日开盘结构化观察";
+        String financialIntentQuery = "A share opening breadth valuation and capital-flow analysis";
         String runtimeDataset = "tenant_dataset_" + UUID.randomUUID().toString().replace("-", "");
         when(news.invoke(eq("web_search"), any())).thenReturn(ToolOutput.success(Map.of(
             "results", List.of(Map.of("resultType", "web", "retrievalSource", "tencent_wsa",
@@ -60,8 +128,8 @@ class ProductionFinancialRetrievalIntentMarkerE2E {
         verify(catalog, never()).search(any(), any(Integer.class));
         verify(store, never()).query(any(), any(), any(), any(), any(Integer.class), any());
 
-        when(store.assetSearchQuery(query, 10)).thenReturn(query);
-        when(catalog.search(query, 6)).thenReturn(List.of(Map.of(
+        when(store.assetSearchQuery(financialIntentQuery, 10)).thenReturn(financialIntentQuery);
+        when(catalog.search(financialIntentQuery, 6)).thenReturn(List.of(Map.of(
             "dataset_code", runtimeDataset, "asset_name", "tenant registered opening metrics")));
         when(store.resolveEntityFilters(runtimeDataset, query, 5)).thenReturn(List.of());
         when(store.query(runtimeDataset, Map.of(), null, null, 20, "auto")).thenReturn(Map.of(
@@ -91,7 +159,9 @@ class ProductionFinancialRetrievalIntentMarkerE2E {
                 .toolName(localToolName).runtimeMode("agent_chat").requestId("forced-policy-e2e")
                 .conversationId("forced-policy-conversation").tenantId("tenant-e2e").userId("user-e2e")
                 .allowedTools(List.of(localToolName))
-                .attributes(Map.of("forceStructuredFinancialData", true))
+                .attributes(Map.of(
+                    "forceStructuredFinancialData", true,
+                    "financialIntentQuery", financialIntentQuery))
                 .toolInput(modelInputWithoutMarker)
                 .build());
 
@@ -108,6 +178,7 @@ class ProductionFinancialRetrievalIntentMarkerE2E {
                 .containsEntry("financialDataPolicy", "FORCED")
                 .containsEntry("financialDataModelRequired", false)
                 .containsEntry("financialDataEffectiveRequired", true);
+            verify(catalog).search(financialIntentQuery, 6);
             verify(store).query(runtimeDataset, Map.of(), null, null, 20, "auto");
         } finally {
             runtime.shutdown();

@@ -117,6 +117,24 @@ class McpResultEvidencePolicyTest {
         assertThat(result.unavailableResultCount()).isEqualTo(1);
     }
 
+    @Test
+    void historicalJavaMapRenderingWithNonEmptyResultsRemainsAvailable() {
+        McpResultEvidencePolicy.Assessment result = policy.assess(List.of(trace(true,
+            "{results=[{title=market evidence, url=https://example.test/news}], count=1}")));
+
+        assertThat(result.availability()).isEqualTo(McpResultEvidencePolicy.Availability.AVAILABLE);
+        assertThat(result.availableResultCount()).isEqualTo(1);
+    }
+
+    @Test
+    void historicalJavaMapRenderingWithExplicitEmptyResultsRemainsEmpty() {
+        McpResultEvidencePolicy.Assessment result = policy.assess(List.of(trace(true,
+            "{results=[], count=0}")));
+
+        assertThat(result.availability()).isEqualTo(McpResultEvidencePolicy.Availability.EMPTY);
+        assertThat(result.emptyResultCount()).isEqualTo(1);
+    }
+
     private InteractionToolTrace trace(boolean success, String output) {
         return InteractionToolTrace.builder()
             .toolName("mcp_query")

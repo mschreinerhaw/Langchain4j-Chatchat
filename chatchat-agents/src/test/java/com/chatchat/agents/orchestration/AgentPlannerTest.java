@@ -281,6 +281,30 @@ class AgentPlannerTest {
     }
 
     @Test
+    void forcedFinancialPolicyRequiresDedicatedLocalFinancialToolIndependentlyFromWebSearch() throws Exception {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        Method method = AgentPlanner.class.getDeclaredMethod(
+            "buildPlannerPrompt", String.class, String.class, List.class, List.class, List.class,
+            List.class, List.class, boolean.class, boolean.class, String.class, String.class, Map.class);
+        method.setAccessible(true);
+        String tool = "mcp_chatchat_mcp_server_financial_data_search";
+
+        String prompt = (String) method.invoke(planner,
+            "analyze current market with local observations and news", "",
+            List.of(tool, "mcp_chatchat_mcp_server_web_search"),
+            List.of(), List.of(), List.of(), List.of(tool), true, false, null, null,
+            Map.of("forceStructuredFinancialData", true));
+
+        assertThat(prompt)
+            .contains("Local structured financial data contract")
+            .contains(tool + " reads governed financial observations collected by this platform")
+            .contains("Use web_search separately for news")
+            .contains("MANDATORY: Agent policy forceStructuredFinancialData=true")
+            .contains("The plan MUST include " + tool + " before final_answer")
+            .contains("never invent or hardcode a dataset code");
+    }
+
+    @Test
     void describesPublisherApplicabilityWithoutTurningItIntoToolSelectionPolicy() throws Exception {
         AgentPlanner planner = new AgentPlanner(new TestToolRegistry(true), new ObjectMapper());
         Method method = AgentPlanner.class.getDeclaredMethod("describeTools", List.class, Map.class);

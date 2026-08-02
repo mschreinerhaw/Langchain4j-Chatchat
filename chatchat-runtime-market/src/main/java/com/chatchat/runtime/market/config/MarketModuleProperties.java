@@ -18,7 +18,23 @@ public class MarketModuleProperties {
     /** Fail fast rather than queue Agent requests while the financial read lane is saturated. */
     private long queryQueueTimeoutMs = 100;
     private int partitionCount = 32;
+    private QueryCache queryCache = new QueryCache();
     private Retention retention = new Retention();
+
+    @Data
+    public static class QueryCache {
+        /** Financial reads are cached by default to protect the bounded JDBC lane. */
+        private boolean enabled = true;
+        /** ROCKSDB is local and always preferred unless an operator selects REDIS. */
+        private String storage = "ROCKSDB";
+        /** Thirty-minute freshness window for governed financial observations. */
+        private long ttlSeconds = 30 * 60L;
+        /** A selected but unavailable Redis must not take the financial query path down. */
+        private boolean fallbackToRocksDb = true;
+        private int maxEntryKb = 2048;
+        /** Briefly shares an in-flight result with queued callers, including oversized non-cacheable results. */
+        private long singleFlightGraceMs = 500;
+    }
 
     @Data
     public static class Retention {

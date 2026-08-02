@@ -45,7 +45,9 @@ class ToolRuntimeServiceTest {
                 .toolName(toolName).runtimeMode("agent_chat").requestId("forced-financial-1")
                 .conversationId("conversation-1").tenantId("tenant-1").userId("user-1")
                 .allowedTools(List.of(toolName))
-                .attributes(Map.of("forceStructuredFinancialData", true))
+                .attributes(Map.of(
+                    "forceStructuredFinancialData", true,
+                    "financialIntentQuery", "full user market question"))
                 .toolInput(ToolInput.builder().parameters(Map.of(
                     "query", "latest market",
                     "financial_data_required", false
@@ -57,10 +59,53 @@ class ToolRuntimeServiceTest {
             assertThat(capturedInput.get().getContext())
                 .containsEntry("financialDataPolicy", "FORCED")
                 .containsEntry("financialDataModelRequired", false)
-                .containsEntry("financialDataEffectiveRequired", true);
+                .containsEntry("financialDataEffectiveRequired", true)
+                .containsEntry("financialIntentQuery", "full user market question");
             assertThat(execution.audit())
                 .containsEntry("financialDataPolicy", "FORCED")
                 .containsEntry("financialDataEffectiveRequired", true);
+        } finally {
+            service.shutdown();
+        }
+    }
+
+    @Test
+    void dedicatedFinancialToolPreventsDuplicateImplicitDatabaseHydrationInsideWebSearch() {
+        String webTool = "mcp_dynamic_service_web_search";
+        String financialTool = "mcp_dynamic_service_financial_data_search";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getToolMetadata(webTool)).thenReturn(ToolMetadata.builder()
+            .id(webTool).title("Dynamic web search").categories(List.of("mcp")).build());
+        AtomicReference<ToolInput> capturedInput = new AtomicReference<>();
+        when(registry.executeEnhancedTool(any(), any())).thenAnswer(invocation -> {
+            capturedInput.set(invocation.getArgument(1));
+            return ToolOutput.success(Map.of("results", List.of()));
+        });
+        ToolRuntimeService service = new ToolRuntimeService(
+            registry, new ObjectMapper(), properties(), List.of(), List.of());
+        try {
+            ToolRuntimeExecution execution = service.execute(ToolRuntimeRequest.builder()
+                .toolName(webTool).runtimeMode("agent_chat").requestId("delegated-financial-1")
+                .conversationId("conversation-1").tenantId("tenant-1").userId("user-1")
+                .allowedTools(List.of(webTool, financialTool))
+                .attributes(Map.of(
+                    "forceStructuredFinancialData", true,
+                    "dedicatedFinancialDataTool", financialTool))
+                .toolInput(ToolInput.builder().parameters(Map.of(
+                    "query", "latest securities news",
+                    "financial_data_required", false
+                )).build())
+                .build());
+
+            assertThat(capturedInput.get().getParameters())
+                .containsEntry("financial_data_required", false);
+            assertThat(capturedInput.get().getContext())
+                .containsEntry("financialDataPolicy", "FORCED_DEDICATED_TOOL")
+                .containsEntry("financialDataEffectiveRequired", false)
+                .containsEntry("dedicatedFinancialDataTool", financialTool);
+            assertThat(execution.audit())
+                .containsEntry("financialDataPolicy", "FORCED_DEDICATED_TOOL")
+                .containsEntry("financialDataEffectiveRequired", false);
         } finally {
             service.shutdown();
         }

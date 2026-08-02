@@ -47,7 +47,14 @@ public final class ToolLogSummarizer {
         if (text.length() <= maxChars) {
             return summarized;
         }
-        return text.substring(0, Math.max(0, maxChars)) + "...";
+        Map<String, Object> envelope = new LinkedHashMap<>();
+        envelope.put("schemaVersion", "tool_result_summary.v1");
+        envelope.put("summaryTruncated", true);
+        envelope.put("resultPresent", true);
+        envelope.put("originalType", value == null ? "null" : value.getClass().getSimpleName());
+        envelope.put("originalSummaryChars", text.length());
+        envelope.put("preview", text.substring(0, Math.max(0, maxChars)) + "...");
+        return envelope;
     }
 
     /**

@@ -35,7 +35,8 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
                 + "news, and governed financial data. External search is an internal recall enhancer and is not "
                 + "a separate user-facing tool. The tool searches the compatible "
                 + "financial-data-asset index without implicitly reading financial rows. To read authoritative "
-                + "observations, call the same tool again with an explicit dataset code returned by discovery.",
+                + "observations, call financial_data_search with the business question or an explicit dataset code "
+                + "returned by discovery. Dataset execution through web_search remains compatibility-only.",
             List.of(text("query", "News topic, business question, or financial data keywords", false),
                 number("num_results", "Maximum number of unified search results to return", 10, 1, 50),
                 bool("financial_data_required", "Explicit Runtime retrieval-intent marker. Set true only when the answer "
@@ -240,7 +241,7 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
             "dailyHotDays", numberValue(source, "hot_retention_days", "hotRetentionDays", 7),
             "weeklySnapshotDays", numberValue(source, "archive_retention_days", "archiveRetentionDays", 1825),
             "historyGranularity", text(source, "history_granularity", "historyGranularity")));
-        item.put("readTool", "web_search");
+        item.put("readTool", FinancialDataMcpToolProvider.TOOL_NAME);
         Map<String, Object> evidence = new LinkedHashMap<>();
         evidence.put("dataset", dataset);
         evidence.put("storageLocation", storage);
@@ -248,7 +249,7 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         evidence.put("catalogIndex", "financial-data-asset");
         item.put("evidence", evidence);
         item.put("followUp", Map.of(
-            "tool", "web_search",
+            "tool", FinancialDataMcpToolProvider.TOOL_NAME,
             "arguments", Map.of("dataset", dataset, "discovery_id", discoveryId, "limit", 50)));
         return item;
     }
@@ -280,7 +281,7 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         )));
         guide.put("compatibleDirectQuery", false);
         guide.put("secondStage", Map.of(
-            "tool", "web_search",
+            "tool", FinancialDataMcpToolProvider.TOOL_NAME,
             "requiredArgument", "dataset",
             "reason", "Financial row reads require explicit governed dataset selection"));
         guide.put("queryRevisionHint",

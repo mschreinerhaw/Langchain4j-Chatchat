@@ -6,6 +6,7 @@ import com.chatchat.runtime.market.storage.FinancialDataStore;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -87,5 +88,41 @@ class FinancialEnrichmentServiceTest {
                 .containsEntry("retrievalSource", "governed_financial_store");
         });
         verify(store).query("runtime_registered_dataset", Map.of(), null, null, 20, "auto");
+    }
+
+    @Test
+    void forcedRetrievalUsesFullUserIntentAndSkipsEmptyCandidatesWithinBoundedPool() {
+        FinancialAssetCatalogService catalog = mock(FinancialAssetCatalogService.class);
+        FinancialDataStore store = mock(FinancialDataStore.class);
+        String stepQuery = "company announcements";
+        String fullIntent = "A share opening analysis with market breadth and fund flow";
+        when(store.assetSearchQuery(fullIntent, 10)).thenReturn(fullIntent);
+        when(catalog.search(fullIntent, 6)).thenReturn(List.of(
+            Map.of("dataset_code", "empty_candidate"),
+            Map.of("dataset_code", "runtime_market_dataset"),
+            Map.of("dataset_code", "unused_candidate")));
+        when(store.resolveEntityFilters(org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.eq(stepQuery), org.mockito.ArgumentMatchers.eq(5)))
+            .thenReturn(List.of());
+        when(store.query("empty_candidate", Map.of(), null, null, 20, "auto"))
+            .thenReturn(Map.of("rows", List.of(), "count", 0));
+        when(store.query("runtime_market_dataset", Map.of(), null, null, 20, "auto"))
+            .thenReturn(Map.of("rows", List.of(Map.of("metric", "breadth", "value", 123)), "count", 1));
+        FinancialEnrichmentService service = new FinancialEnrichmentService(catalog, store);
+
+        FinancialEnrichmentService.EnrichmentResult result = service.enrich(
+            stepQuery,
+            ToolInput.builder().parameters(Map.of(
+                "financial_data_required", true,
+                "financial_dataset_limit", 1,
+                "financial_row_limit", 20)).context(Map.of(
+                    "financialIntentQuery", fullIntent)).build(),
+            6);
+
+        assertThat(result.assetQuery()).isEqualTo(fullIntent);
+        assertThat(result.financialData()).singleElement().satisfies(data ->
+            assertThat(data).containsEntry("dataset", "runtime_market_dataset"));
+        assertThat(result.warnings()).anyMatch(value -> value.contains("no matching observations"));
+        verify(store, never()).query("unused_candidate", Map.of(), null, null, 20, "auto");
     }
 }

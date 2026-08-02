@@ -417,6 +417,9 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         if (forceStructuredFinancialData) {
             attributes.put("forceStructuredFinancialData", true);
             attributes.put("financialDataPolicy", "FORCED");
+            if (request != null && request.getQuery() != null && !request.getQuery().isBlank()) {
+                attributes.put("financialIntentQuery", request.getQuery().trim());
+            }
         }
         String runtimeEnvironment = agentRuntimeEnvironment(skill);
         if (runtimeEnvironment != null) {

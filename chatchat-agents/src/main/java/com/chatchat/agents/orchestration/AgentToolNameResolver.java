@@ -13,6 +13,7 @@ class AgentToolNameResolver {
     private static final String DOCUMENT_SEARCH_TOOL = "document_search";
     private static final String WEB_SEARCH_TOOL = "web_search";
     private static final String SEARCH_AND_EXTRACT_TOOL = "search_and_extract";
+    private static final String FINANCIAL_DATA_SEARCH_TOOL = "financial_data_search";
     private final McpToolRouter mcpToolRouter = new McpToolRouter();
 
     AgentToolNameResolver() {
@@ -136,6 +137,10 @@ class AgentToolNameResolver {
         }
         if (normalized.contains(WEB_SEARCH_TOOL)) {
             return WEB_SEARCH_TOOL;
+        }
+        if (normalized.equals(FINANCIAL_DATA_SEARCH_TOOL)
+            || normalized.endsWith("_" + FINANCIAL_DATA_SEARCH_TOOL)) {
+            return FINANCIAL_DATA_SEARCH_TOOL;
         }
         if ("asset_query".equals(normalized) || "asset_discovery".equals(normalized)) {
             return McpToolRouter.ASSET_DISCOVERY;

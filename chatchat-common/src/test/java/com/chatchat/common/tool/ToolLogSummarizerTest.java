@@ -101,4 +101,19 @@ class ToolLogSummarizerTest {
 
         assertThat(String.valueOf(summarized)).contains("visible");
     }
+
+    @Test
+    void oversizedStructuredSummaryKeepsAJsonSerializableContractInsteadOfMapToString() {
+        Object summarized = ToolLogSummarizer.summarize(Map.of(
+            "results", java.util.stream.IntStream.range(0, 20)
+                .mapToObj(index -> Map.of("title", "x".repeat(500), "index", index))
+                .toList()
+        ), 200);
+
+        assertThat(summarized).isInstanceOfSatisfying(Map.class, envelope ->
+            assertThat(envelope)
+                .containsEntry("schemaVersion", "tool_result_summary.v1")
+                .containsEntry("summaryTruncated", true)
+                .containsEntry("resultPresent", true));
+    }
 }

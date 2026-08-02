@@ -2146,7 +2146,11 @@ class AgentAnswerFinalizer {
         }
         boolean runtimeConfirmedPartialEvidence = metadata != null
             && (Boolean.TRUE.equals(metadata.get("partialResultGroundingApplied"))
-                || "evidence_partial_analysis".equals(String.valueOf(metadata.get("stopReason"))));
+                || "evidence_partial_analysis".equals(String.valueOf(metadata.get("stopReason")))
+                || "partial_result".equals(String.valueOf(metadata.get("interpretationPlanFallbackMode")))
+                || Boolean.TRUE.equals(metadata.get("interpretationPlanWorkflowBlocked"))
+                || Boolean.TRUE.equals(metadata.get("mandatoryWorkflowBlocked"))
+                || Boolean.TRUE.equals(metadata.get("fatalExecutionBlocked")));
         if (!runtimeConfirmedPartialEvidence) {
             return emptyFallback;
         }

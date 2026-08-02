@@ -31,6 +31,7 @@ chatchat:
         enabled: true
         tools:
           web_search: { enabled: true, agent-callable: true, timeout: 30s }
+          financial_data_search: { enabled: true, agent-callable: true, timeout: 20s }
     admin:
       token-ttl-minutes: 480
     security:
@@ -109,6 +110,15 @@ chatchat:
           vector-candidate-limit: 50
           bm25-weight: 0.55
           vector-weight: 0.45
+    market:
+      query-cache:
+        # Default financial query cache; select REDIS after Redis connectivity succeeds.
+        enabled: true
+        storage: ROCKSDB
+        ttl-seconds: 1800
+        fallback-to-rocks-db: true
+        max-entry-kb: 2048
+        single-flight-grace-ms: 500
     cache:
       enabled: true
       path: ./data/mcp-cache-rocksdb
@@ -213,6 +223,14 @@ chatchat:
             queue-timeout-seconds: 0
             timeout-seconds: 0
             runtime-level: http
+          financial_data_search:
+            max-concurrency: 4
+            queue-size: 16
+            queue-timeout-seconds: 1
+            timeout-seconds: 20
+            runtime-level: tool
+            max-output-chars: 200000
+            retry-attempts: 0
   tools:
     livedata:
       # Enables the admin page to list and manually register LiveData APIs. Startup auto-sync is disabled.

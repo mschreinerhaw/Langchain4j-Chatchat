@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Hard Runtime policy that separates result availability from result completeness.
@@ -18,7 +20,7 @@ public final class McpResultEvidencePolicy {
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final Set<String> RESULT_KEYS = Set.of(
         "data", "result", "results", "rows", "records", "items", "content",
-        "payload", "structuredcontent", "output", "value", "values"
+        "payload", "structuredcontent", "output", "value", "values", "resultpresent"
     );
     private static final Set<String> CONTROL_KEYS = Set.of(
         "schemaversion", "success", "status", "message", "error", "errormessage",
@@ -75,6 +77,10 @@ public final class McpResultEvidencePolicy {
         if (isFailureText(text)) {
             return Availability.UNAVAILABLE;
         }
+        Availability legacyCollection = classifyLegacyJavaCollectionText(text);
+        if (legacyCollection != null) {
+            return legacyCollection;
+        }
         if (looksLikeStructuredPayload(text)) {
             try {
                 JsonNode parsed = JSON.readTree(text);
@@ -87,6 +93,36 @@ public final class McpResultEvidencePolicy {
             }
         }
         return isEmptyText(text) ? Availability.EMPTY : Availability.AVAILABLE;
+    }
+
+    /**
+     * Older traces may contain Java collection rendering (for example
+     * {@code {results=[{title=...}]}}) because the bounded log preview used to
+     * degrade a structured map to {@code Map.toString()}. This compatibility
+     * path is schema-key driven and does not depend on any tool or template name.
+     */
+    private Availability classifyLegacyJavaCollectionText(String text) {
+        if (text == null || !text.startsWith("{") || !text.contains("=")) {
+            return null;
+        }
+        boolean resultFieldPresent = false;
+        for (String key : RESULT_KEYS) {
+            Pattern field = Pattern.compile(
+                "(?i)(?:^|[\\s,{])" + Pattern.quote(key) + "\\s*=\\s*\\[");
+            Matcher matcher = field.matcher(text);
+            while (matcher.find()) {
+                resultFieldPresent = true;
+                int contentStart = matcher.end();
+                int cursor = contentStart;
+                while (cursor < text.length() && Character.isWhitespace(text.charAt(cursor))) {
+                    cursor++;
+                }
+                if (cursor >= text.length() || text.charAt(cursor) != ']') {
+                    return Availability.AVAILABLE;
+                }
+            }
+        }
+        return resultFieldPresent ? Availability.EMPTY : null;
     }
 
     private boolean explicitFailure(JsonNode node) {

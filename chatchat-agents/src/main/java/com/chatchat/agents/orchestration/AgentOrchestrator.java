@@ -422,6 +422,14 @@ public class AgentOrchestrator implements AgentRunExecutor {
         List<String> mandatoryTools = workflowMandatoryTools.isEmpty()
             ? workflowTools.resolveMandatoryToolCandidates(tools, requiredToolNames)
             : workflowMandatoryTools;
+        boolean forceStructuredFinancialData = Boolean.TRUE.equals(
+            requestRuntimeAttributes.get("forceStructuredFinancialData"));
+        String dedicatedFinancialDataTool = forceStructuredFinancialData
+            ? matchingAvailableTool("financial_data_search", tools) : null;
+        if (dedicatedFinancialDataTool != null) {
+            requestRuntimeAttributes.put("dedicatedFinancialDataTool", dedicatedFinancialDataTool);
+        }
+        mandatoryTools = withForcedFinancialDataTool(mandatoryTools, tools, forceStructuredFinancialData);
         if (requireDocumentWebVerification) {
             mandatoryTools = workflowTools.withDocumentWebVerificationMandatoryTools(mandatoryTools, documentSearchTool, verificationWebSearchTool);
         }
@@ -446,8 +454,6 @@ public class AgentOrchestrator implements AgentRunExecutor {
         metadata.put("userId", userId);
         metadata.put("skillId", skillId == null ? "general" : skillId);
         metadata.put("modelName", normalizeModelName(modelName));
-        boolean forceStructuredFinancialData = Boolean.TRUE.equals(
-            requestRuntimeAttributes.get("forceStructuredFinancialData"));
         metadata.put("forceStructuredFinancialData", forceStructuredFinancialData);
         metadata.put("financialDataPolicy", forceStructuredFinancialData ? "FORCED" : "INTENT_DRIVEN");
         metadata.put("boundDocumentIds", documentIds);
@@ -4317,6 +4323,21 @@ public class AgentOrchestrator implements AgentRunExecutor {
             }
         }
         return null;
+    }
+
+    List<String> withForcedFinancialDataTool(List<String> mandatoryTools,
+                                              List<String> availableTools,
+                                              boolean forced) {
+        List<String> current = mandatoryTools == null ? List.of() : mandatoryTools;
+        if (!forced) return List.copyOf(current);
+        String financialDataTool = matchingAvailableTool("financial_data_search", availableTools);
+        if (financialDataTool == null || current.stream()
+            .anyMatch(tool -> toolNames.sameToolName(tool, financialDataTool))) {
+            return List.copyOf(current);
+        }
+        List<String> augmented = new ArrayList<>(current);
+        augmented.add(financialDataTool);
+        return List.copyOf(augmented);
     }
 
     private void recordPlanEvolution(

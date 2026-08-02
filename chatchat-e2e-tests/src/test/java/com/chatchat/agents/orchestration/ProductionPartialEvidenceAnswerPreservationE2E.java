@@ -5,6 +5,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -49,5 +51,36 @@ class ProductionPartialEvidenceAnswerPreservationE2E {
             .containsEntry("mcpUnavailableResultCount", 1)
             .containsEntry("mcpResultAnalysisCapability", "PARTIAL")
             .containsEntry("evidenceLimitedAnalysisPreserved", true);
+    }
+
+    @Test
+    void successfulHistoricalMapTraceCannotEraseEvidenceSufficientAnalysis() {
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            null,
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        String marker = "MARKET_ANALYSIS_" + UUID.randomUUID();
+        InteractionToolTrace usableSearch = InteractionToolTrace.builder()
+            .toolName("runtime_search_" + UUID.randomUUID())
+            .success(true)
+            .output("{results=[{title=traceable market evidence, url=https://example.test/market}], count=1}")
+            .build();
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("stopReason", "evidence_sufficient");
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishExecution(
+            "# Market analysis " + marker + "\n\nA bounded conclusion based only on the returned evidence.",
+            List.of(usableSearch),
+            metadata,
+            List.of("traceable market evidence")
+        );
+
+        assertThat(result.answer())
+            .contains(marker)
+            .doesNotContain("工具调用没有产生可解析、可信的结果");
+        assertThat(result.metadata())
+            .containsEntry("mcpResultEvidenceAvailability", "AVAILABLE")
+            .containsEntry("mcpResultAnswerAllowed", true)
+            .containsEntry("mcpResultAnalysisCapability", "FULL");
     }
 }

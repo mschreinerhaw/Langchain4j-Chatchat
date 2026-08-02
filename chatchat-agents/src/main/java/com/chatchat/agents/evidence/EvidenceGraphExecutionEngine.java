@@ -506,11 +506,15 @@ public class EvidenceGraphExecutionEngine {
         for (EvidenceGraphNode node : nodes) {
             nodeScore += nodeScore(node);
         }
-        double edgeScore = edgeScore(pathEdges);
         double conflictPenalty = conflictPenalty(nodes, graphEdges);
+        double averageNodeScore = nodeScore / nodes.size();
+        if (pathEdges == null || pathEdges.isEmpty()) {
+            return round(clamp(averageNodeScore - conflictPenalty));
+        }
+        double edgeScore = edgeScore(pathEdges);
         double lengthPenalty = 1.0 + Math.max(0, nodes.size() - 1) * 0.03;
         double diversityBonus = Math.min(0.12, Math.max(0, nodes.size() - 1) * 0.04);
-        double blended = (nodeScore / nodes.size()) * 0.68 + edgeScore * 0.32;
+        double blended = averageNodeScore * 0.68 + edgeScore * 0.32;
         return round(clamp(blended / lengthPenalty + diversityBonus - conflictPenalty));
     }
 
@@ -556,9 +560,9 @@ public class EvidenceGraphExecutionEngine {
             case TRUSTED_SQL -> 1.0;
             case NORMALIZED_SQL -> 0.92;
             case SQL_FRAGMENT -> 0.86;
-            case TABLE_FACT -> 0.78;
-            case TEXT_FACT -> 0.72;
-            case DOC_CHUNK, WEB_CHUNK -> 0.68;
+            case TABLE_FACT -> 0.95;
+            case TEXT_FACT -> 0.92;
+            case DOC_CHUNK, WEB_CHUNK -> 0.88;
         };
         return node.confidence() * typeWeight;
     }

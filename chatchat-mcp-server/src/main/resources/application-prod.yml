@@ -32,6 +32,13 @@ chatchat:
       query-timeout-seconds: ${CHATCHAT_MARKET_QUERY_TIMEOUT_SECONDS:15}
       max-concurrent-queries: ${CHATCHAT_MARKET_MAX_CONCURRENT_QUERIES:4}
       query-queue-timeout-ms: ${CHATCHAT_MARKET_QUERY_QUEUE_TIMEOUT_MS:100}
+      query-cache:
+        enabled: ${CHATCHAT_MARKET_QUERY_CACHE_ENABLED:true}
+        storage: ${CHATCHAT_MARKET_QUERY_CACHE_STORAGE:ROCKSDB}
+        ttl-seconds: ${CHATCHAT_MARKET_QUERY_CACHE_TTL_SECONDS:1800}
+        fallback-to-rocks-db: ${CHATCHAT_MARKET_QUERY_CACHE_FALLBACK_TO_ROCKSDB:true}
+        max-entry-kb: ${CHATCHAT_MARKET_QUERY_CACHE_MAX_ENTRY_KB:2048}
+        single-flight-grace-ms: ${CHATCHAT_MARKET_QUERY_CACHE_SINGLE_FLIGHT_GRACE_MS:500}
       query-pool:
         enabled: ${CHATCHAT_MARKET_QUERY_POOL_ENABLED:true}
         maximum-pool-size: ${CHATCHAT_MARKET_QUERY_POOL_SIZE:4}
@@ -52,6 +59,7 @@ chatchat:
         enabled: true
         tools:
           web_search: { enabled: true, agent-callable: true, timeout: 30s }
+          financial_data_search: { enabled: true, agent-callable: true, timeout: 20s }
     admin:
       token-ttl-minutes: 480
     security:

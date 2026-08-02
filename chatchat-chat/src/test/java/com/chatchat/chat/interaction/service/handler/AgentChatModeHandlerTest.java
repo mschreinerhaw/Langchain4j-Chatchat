@@ -830,7 +830,8 @@ class AgentChatModeHandlerTest {
         );
         assertThat(attributes.getValue())
             .containsEntry("forceStructuredFinancialData", true)
-            .containsEntry("financialDataPolicy", "FORCED");
+            .containsEntry("financialDataPolicy", "FORCED")
+            .containsEntry("financialIntentQuery", "analyze market");
     }
 
     private SkillDefinition skillWithoutWebSearch() {

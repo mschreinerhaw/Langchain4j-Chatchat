@@ -167,7 +167,8 @@ class RemoteNewsMcpToolProviderTest {
         assertThat((List<Map<String, Object>>) data.get("financialData")).isEmpty();
         assertThat((List<Map<String, Object>>) data.get("financialAssets")).singleElement().satisfies(asset -> {
             assertThat(asset).containsEntry("dataset", "market_quote_daily");
-            assertThat((Map<String, Object>) asset.get("followUp")).containsEntry("tool", "web_search");
+            assertThat((Map<String, Object>) asset.get("followUp"))
+                .containsEntry("tool", FinancialDataMcpToolProvider.TOOL_NAME);
         });
     }
 
@@ -301,7 +302,7 @@ class RemoteNewsMcpToolProviderTest {
                 .containsExactly(Map.of("name", "fund_code", "type", "STRING", "description", "基金代码",
                     "exactFilterKey", "fund_code", "containsFilterKey", "fund_code_like"));
             assertThat((Map<String, Object>) asset.get("followUp"))
-                .containsEntry("tool", "web_search")
+                .containsEntry("tool", FinancialDataMcpToolProvider.TOOL_NAME)
                 .satisfies(followUp -> assertThat((Map<String, Object>) followUp.get("arguments"))
                     .containsKeys("dataset", "discovery_id"));
         });
@@ -311,7 +312,7 @@ class RemoteNewsMcpToolProviderTest {
         assertThat(results.get(1)).containsEntry("dataset", "etf_scale_daily")
             .containsEntry("storageLocation", "chatchat_market.etf_scale_daily")
             .containsEntry("relevanceScore", 12.5D)
-            .containsEntry("readTool", "web_search");
+            .containsEntry("readTool", FinancialDataMcpToolProvider.TOOL_NAME);
     }
 
     @Test

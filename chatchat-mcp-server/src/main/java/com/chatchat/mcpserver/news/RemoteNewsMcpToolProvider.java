@@ -98,13 +98,17 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         if (query.isBlank()) return ToolOutput.failure("query parameter is required when dataset is absent");
         String discoveryId = UUID.randomUUID().toString();
         int limit = bounded(input.getParameterAsNumber("num_results"), 10, 1, 50);
+        int financialDatasetLimit = bounded(
+            input.getParameterAsNumber("financial_dataset_limit"), 2, 1, 3);
+        int financialCandidateLimit = Math.min(6,
+            Math.max(financialDatasetLimit, financialDatasetLimit * 2));
         NewsSearchService.SearchResult newsResult = newsSearch.search(input);
         List<Map<String, Object>> news = newsResult.results();
         List<String> warnings = new ArrayList<>();
         if (newsResult.warning() != null) warnings.add(newsResult.warning());
         CancellationSupport.throwIfCancelled("unified web_search");
         FinancialEnrichmentService.EnrichmentResult enrichment = financialEnrichment
-            .map(service -> service.enrich(query, input, limit))
+            .map(service -> service.enrich(query, input, financialCandidateLimit))
             .orElseGet(() -> new FinancialEnrichmentService.EnrichmentResult(
                 query, List.of(), List.of(), List.of(), "capability_unavailable"));
         warnings.addAll(enrichment.warnings());

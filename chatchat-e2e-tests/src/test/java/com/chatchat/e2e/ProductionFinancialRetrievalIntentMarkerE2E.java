@@ -11,21 +11,30 @@ import com.chatchat.common.tool.ToolOutput;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.chatchat.mcpserver.news.FinancialEnrichmentService;
 import com.chatchat.mcpserver.news.FinancialDataMcpToolProvider;
+import com.chatchat.mcpserver.news.FinancialQueryCacheService;
+import com.chatchat.mcpserver.cache.McpCacheProperties;
+import com.chatchat.mcpserver.cache.McpRocksDbStore;
+import com.chatchat.mcpserver.cache.RedisCacheStore;
+import com.chatchat.mcpserver.mcp.McpInvocationContext;
 import com.chatchat.mcpserver.news.NewsRuntimeClient;
 import com.chatchat.mcpserver.news.NewsSearchService;
 import com.chatchat.mcpserver.news.RemoteNewsMcpToolProvider;
 import com.chatchat.runtime.market.storage.FinancialAssetCatalogService;
 import com.chatchat.runtime.market.storage.FinancialDataStore;
+import com.chatchat.runtime.market.config.MarketModuleProperties;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -45,12 +54,24 @@ class ProductionFinancialRetrievalIntentMarkerE2E {
         when(news.invoke(eq("web_search"), any())).thenReturn(ToolOutput.success(Map.of(
             "results", List.of(Map.of("resultType", "news", "title", "policy and announcement evidence")))));
         when(store.assetSearchQuery(query, 10)).thenReturn(query);
+        when(catalog.search(query, 4)).thenReturn(List.of(Map.of(
+            "dataset_code", runtimeDataset, "asset_name", "runtime-discovered observations")));
         when(catalog.search(query, 3)).thenReturn(List.of(Map.of(
             "dataset_code", runtimeDataset, "asset_name", "runtime-discovered observations")));
         when(store.resolveEntityFilters(runtimeDataset, query, 5)).thenReturn(List.of());
         when(store.query(runtimeDataset, Map.of(), null, null, 20, "auto")).thenReturn(Map.of(
             "rows", List.of(Map.of("metric", "market_breadth", "value", 321))));
-        FinancialEnrichmentService financial = new FinancialEnrichmentService(catalog, store);
+        McpRocksDbStore rocks = mock(McpRocksDbStore.class);
+        RedisCacheStore redis = mock(RedisCacheStore.class);
+        AtomicReference<byte[]> cached = new AtomicReference<>();
+        when(rocks.isUsable()).thenReturn(true);
+        when(rocks.get(anyString())).thenAnswer(invocation -> cached.get());
+        doAnswer(invocation -> { cached.set(invocation.getArgument(1)); return null; })
+            .when(rocks).put(anyString(), any(byte[].class));
+        FinancialQueryCacheService cache = new FinancialQueryCacheService(
+            new MarketModuleProperties(), new McpCacheProperties(), rocks, redis,
+            new ObjectMapper().findAndRegisterModules());
+        FinancialEnrichmentService financial = new FinancialEnrichmentService(catalog, store, cache);
         RemoteNewsMcpToolProvider webProvider = new RemoteNewsMcpToolProvider(
             new NewsSearchService(news), Optional.of(financial));
         FinancialDataMcpToolProvider financialProvider = new FinancialDataMcpToolProvider(financial);
@@ -61,10 +82,17 @@ class ProductionFinancialRetrievalIntentMarkerE2E {
             .id(webTool).title("Web search").categories(List.of("mcp")).build());
         when(registry.getToolMetadata(financialTool)).thenReturn(ToolMetadata.builder()
             .id(financialTool).title("Local financial data").categories(List.of("mcp")).build());
-        when(registry.executeEnhancedTool(eq(webTool), any())).thenAnswer(invocation ->
-            webProvider.findExecutor("web_search").orElseThrow().execute(invocation.getArgument(1)));
-        when(registry.executeEnhancedTool(eq(financialTool), any())).thenAnswer(invocation ->
-            financialProvider.findExecutor("financial_data_search").orElseThrow().execute(invocation.getArgument(1)));
+        when(registry.executeEnhancedTool(eq(webTool), any())).thenAnswer(invocation -> {
+            try (McpInvocationContext.Scope ignored = McpInvocationContext.open(context("tenant-e2e"))) {
+                return webProvider.findExecutor("web_search").orElseThrow().execute(invocation.getArgument(1));
+            }
+        });
+        when(registry.executeEnhancedTool(eq(financialTool), any())).thenAnswer(invocation -> {
+            try (McpInvocationContext.Scope ignored = McpInvocationContext.open(context("tenant-e2e"))) {
+                return financialProvider.findExecutor("financial_data_search").orElseThrow()
+                    .execute(invocation.getArgument(1));
+            }
+        });
         ToolRuntimeService runtime = new ToolRuntimeService(
             registry, new ObjectMapper(), new ToolRuntimeProperties(), List.of(), List.of());
         try {
@@ -79,10 +107,12 @@ class ProductionFinancialRetrievalIntentMarkerE2E {
                 .toolInput(ToolInput.builder().parameters(Map.of(
                     "query", query, "financial_data_required", false)).build()).build());
             Map<String, Object> webData = (Map<String, Object>) webExecution.output().getData();
-            assertThat(webData).containsEntry("newsCount", 1).containsEntry("financialDatasetCount", 0);
+            assertThat(webData).containsEntry("newsCount", 1)
+                .containsEntry("financialDatasetCount", 1)
+                .containsEntry("financialDataSatisfied", true);
             assertThat(webExecution.audit())
-                .containsEntry("financialDataPolicy", "FORCED_DEDICATED_TOOL")
-                .containsEntry("financialDataEffectiveRequired", false);
+                .containsEntry("financialDataPolicy", "FORCED_WITH_DEDICATED_TOOL")
+                .containsEntry("financialDataEffectiveRequired", true);
 
             ToolRuntimeExecution financialExecution = runtime.execute(ToolRuntimeRequest.builder()
                 .toolName(financialTool).runtimeMode("agent_chat").requestId("joint-financial")
@@ -98,6 +128,11 @@ class ProductionFinancialRetrievalIntentMarkerE2E {
         } finally {
             runtime.shutdown();
         }
+    }
+
+    private McpInvocationContext.Context context(String tenant) {
+        return new McpInvocationContext.Context("e2e", null, null, "request", null,
+            "user", null, tenant, null, null, null, null, null, null, null, null);
     }
 
     @Test
@@ -129,7 +164,7 @@ class ProductionFinancialRetrievalIntentMarkerE2E {
         verify(store, never()).query(any(), any(), any(), any(), any(Integer.class), any());
 
         when(store.assetSearchQuery(financialIntentQuery, 10)).thenReturn(financialIntentQuery);
-        when(catalog.search(financialIntentQuery, 6)).thenReturn(List.of(Map.of(
+        when(catalog.search(financialIntentQuery, 4)).thenReturn(List.of(Map.of(
             "dataset_code", runtimeDataset, "asset_name", "tenant registered opening metrics")));
         when(store.resolveEntityFilters(runtimeDataset, query, 5)).thenReturn(List.of());
         when(store.query(runtimeDataset, Map.of(), null, null, 20, "auto")).thenReturn(Map.of(
@@ -178,7 +213,7 @@ class ProductionFinancialRetrievalIntentMarkerE2E {
                 .containsEntry("financialDataPolicy", "FORCED")
                 .containsEntry("financialDataModelRequired", false)
                 .containsEntry("financialDataEffectiveRequired", true);
-            verify(catalog).search(financialIntentQuery, 6);
+            verify(catalog).search(financialIntentQuery, 4);
             verify(store).query(runtimeDataset, Map.of(), null, null, 20, "auto");
         } finally {
             runtime.shutdown();

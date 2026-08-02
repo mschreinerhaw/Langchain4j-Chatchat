@@ -87,7 +87,7 @@ class RemoteNewsMcpToolProviderTest {
             "results", List.of(Map.of("resultType", "web", "retrievalSource", "tencent_wsa",
                 "title", "overnight market")) )));
         when(store.assetSearchQuery(query, 10)).thenReturn(query);
-        when(market.search(query, 6)).thenReturn(List.of(
+        when(market.search(query, 4)).thenReturn(List.of(
             Map.of("dataset_code", "new_runtime_dataset", "asset_name", "runtime market metrics")));
         when(store.resolveEntityFilters("new_runtime_dataset", query, 5)).thenReturn(List.of());
         when(store.query("new_runtime_dataset", Map.of(), null, null, 20, "auto"))
@@ -140,7 +140,7 @@ class RemoteNewsMcpToolProviderTest {
         String query = "南方航空 当前的股价和最新资讯信息";
         when(news.invoke(eq("web_search"), any())).thenReturn(ToolOutput.success(Map.of("results", List.of(
             Map.of("resultType", "news", "title", "南方航空最新资讯")))));
-        when(market.search(query, 10)).thenReturn(List.of(
+        when(market.search(query, 4)).thenReturn(List.of(
             Map.of("dataset_code", "market_quote_daily", "asset_name", "证券、指数与A股收盘行情")));
         when(store.resolveEntityFilters("market_quote_daily", query, 5)).thenReturn(List.of(
             Map.of("quote_code", "600029", "quote_name_like", "南方航空")));
@@ -180,7 +180,7 @@ class RemoteNewsMcpToolProviderTest {
         FinancialDataStore store = mock(FinancialDataStore.class);
         String query = "平安银行 当前的股价是多少";
         when(news.invoke(eq("web_search"), any())).thenReturn(ToolOutput.success(Map.of("results", List.of())));
-        when(market.search(query, 10)).thenReturn(List.of(
+        when(market.search(query, 4)).thenReturn(List.of(
             Map.of("dataset_code", "market_quote_daily", "asset_name", "证券、指数与A股收盘行情")));
         when(store.resolveEntityFilters("market_quote_daily", query, 5)).thenReturn(List.of(
             Map.of("quote_code", "000001", "quote_name_like", "平安银行")));
@@ -213,7 +213,7 @@ class RemoteNewsMcpToolProviderTest {
         FinancialDataStore store = mock(FinancialDataStore.class);
         String query = "包钢股份（600010）行情查询";
         when(news.invoke(eq("web_search"), any())).thenReturn(ToolOutput.success(Map.of("results", List.of())));
-        when(market.search(query, 10)).thenReturn(List.of(
+        when(market.search(query, 4)).thenReturn(List.of(
             Map.of("dataset_code", "market_quote_daily", "asset_name", "证券及指数行情"),
             Map.of("dataset_code", "index_valuation_daily", "asset_name", "指数行情与估值"),
             Map.of("dataset_code", "market_statistics_daily", "asset_name", "市场统计")));
@@ -266,7 +266,7 @@ class RemoteNewsMcpToolProviderTest {
         FinancialDataStore store = mock(FinancialDataStore.class);
         when(news.invoke(eq("web_search"), any())).thenReturn(ToolOutput.success(Map.of("results", List.of(Map.of(
             "resultType", "news", "title", "ETF资金流向", "url", "https://example.com/news")))));
-        when(market.search("ETF规模", 10)).thenReturn(List.of(Map.of(
+        when(market.search("ETF规模", 4)).thenReturn(List.of(Map.of(
             "dataset_code", "etf_scale_daily", "asset_name", "ETF规模",
             "business_description", "ETF份额、净值与资产规模",
             "database_name", "chatchat_market", "table_name", "etf_scale_daily",
@@ -322,7 +322,7 @@ class RemoteNewsMcpToolProviderTest {
         FinancialAssetCatalogService market = mock(FinancialAssetCatalogService.class);
         FinancialDataStore store = mock(FinancialDataStore.class);
         when(news.invoke(eq("web_search"), any())).thenReturn(ToolOutput.success(Map.of("results", List.of())));
-        when(market.search("上证指数和沪深300走势", 10)).thenReturn(List.of(
+        when(market.search("上证指数和沪深300走势", 4)).thenReturn(List.of(
             Map.of("dataset_code", "market_quote_daily", "asset_name", "每日行情"),
             Map.of("dataset_code", "index_valuation_daily", "asset_name", "指数估值"),
             Map.of("dataset_code", "market_statistics_daily", "asset_name", "市场统计")));
@@ -362,7 +362,7 @@ class RemoteNewsMcpToolProviderTest {
         FinancialDataStore store = mock(FinancialDataStore.class);
         String query = "生成2026年7月23日A股收盘复盘";
         when(news.invoke(eq("web_search"), any())).thenReturn(ToolOutput.success(Map.of("results", List.of())));
-        when(market.search(query, 10)).thenReturn(List.of(
+        when(market.search(query, 4)).thenReturn(List.of(
             Map.of("dataset_code", "market_quote_daily", "asset_name", "A股行情")));
         when(store.query(eq("market_quote_daily"), eq(Map.of()),
             eq(java.time.LocalDate.parse("2026-07-23")), eq(java.time.LocalDate.parse("2026-07-23")),

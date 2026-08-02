@@ -782,7 +782,7 @@ public class ToolRuntimeService {
             && Boolean.TRUE.equals(booleanValue(request.getAttributes().get("forceStructuredFinancialData")));
         String dedicatedFinancialDataTool = request.getAttributes() == null ? ""
             : String.valueOf(request.getAttributes().getOrDefault("dedicatedFinancialDataTool", "")).trim();
-        boolean delegatedToDedicatedTool = forced && !dedicatedFinancialDataTool.isBlank();
+        boolean dedicatedToolAvailable = forced && !dedicatedFinancialDataTool.isBlank();
         Map<String, Object> parameters = toolInput.getParameters() == null
             ? new LinkedHashMap<>()
             : new LinkedHashMap<>(toolInput.getParameters());
@@ -798,23 +798,24 @@ public class ToolRuntimeService {
             return;
         }
         boolean modelRequired = Boolean.TRUE.equals(booleanValue(parameters.get("financial_data_required")));
-        boolean effectiveRequired = modelRequired || forced && !delegatedToDedicatedTool;
+        boolean effectiveRequired = forced || modelRequired;
         parameters.put("financial_data_required", effectiveRequired);
         toolInput.setParameters(parameters);
 
         Map<String, Object> context = toolInput.getContext() == null
             ? new LinkedHashMap<>()
             : new LinkedHashMap<>(toolInput.getContext());
-        context.put("financialDataPolicy", delegatedToDedicatedTool
-            ? "FORCED_DEDICATED_TOOL" : forced ? "FORCED" : "INTENT_DRIVEN");
+        context.put("financialDataPolicy", dedicatedToolAvailable
+            ? "FORCED_WITH_DEDICATED_TOOL" : forced ? "FORCED" : "INTENT_DRIVEN");
         context.put("financialDataModelRequired", modelRequired);
         context.put("financialDataEffectiveRequired", effectiveRequired);
-        if (delegatedToDedicatedTool) {
+        if (dedicatedToolAvailable) {
             context.put("dedicatedFinancialDataTool", dedicatedFinancialDataTool);
         }
         toolInput.setContext(context);
-        if (delegatedToDedicatedTool) {
-            log.info("Structured financial retrieval delegated to mandatory dedicated tool={} webTool={} "
+        if (dedicatedToolAvailable) {
+            log.info("Structured financial retrieval retained as web fallback and exposed through mandatory "
+                    + "dedicated tool={} webTool={} "
                     + "requestId={} conversationId={}",
                 dedicatedFinancialDataTool, toolName, request.getRequestId(), request.getConversationId());
         } else if (forced) {

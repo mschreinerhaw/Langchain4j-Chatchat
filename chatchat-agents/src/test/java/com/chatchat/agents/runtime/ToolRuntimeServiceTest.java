@@ -70,7 +70,7 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
-    void dedicatedFinancialToolPreventsDuplicateImplicitDatabaseHydrationInsideWebSearch() {
+    void dedicatedFinancialToolKeepsWebFinancialFallbackSoExecutionFailureCannotLoseOriginalEffect() {
         String webTool = "mcp_dynamic_service_web_search";
         String financialTool = "mcp_dynamic_service_financial_data_search";
         ToolRegistry registry = mock(ToolRegistry.class);
@@ -98,14 +98,14 @@ class ToolRuntimeServiceTest {
                 .build());
 
             assertThat(capturedInput.get().getParameters())
-                .containsEntry("financial_data_required", false);
+                .containsEntry("financial_data_required", true);
             assertThat(capturedInput.get().getContext())
-                .containsEntry("financialDataPolicy", "FORCED_DEDICATED_TOOL")
-                .containsEntry("financialDataEffectiveRequired", false)
+                .containsEntry("financialDataPolicy", "FORCED_WITH_DEDICATED_TOOL")
+                .containsEntry("financialDataEffectiveRequired", true)
                 .containsEntry("dedicatedFinancialDataTool", financialTool);
             assertThat(execution.audit())
-                .containsEntry("financialDataPolicy", "FORCED_DEDICATED_TOOL")
-                .containsEntry("financialDataEffectiveRequired", false);
+                .containsEntry("financialDataPolicy", "FORCED_WITH_DEDICATED_TOOL")
+                .containsEntry("financialDataEffectiveRequired", true);
         } finally {
             service.shutdown();
         }

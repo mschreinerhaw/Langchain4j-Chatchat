@@ -68,6 +68,56 @@ class FinancialDataMcpToolProviderTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void emptyRuntimeCatalogIsAUsablePartialResultInsteadOfAProtocolFailure() {
+        FinancialEnrichmentService financial = mock(FinancialEnrichmentService.class);
+        String query = "runtime question with no locally collected observations";
+        when(financial.enrich(eq(query), any(), eq(3))).thenReturn(
+            new FinancialEnrichmentService.EnrichmentResult(query, List.of(), List.of(),
+                List.of("no governed dataset matched the current intent"), "financial_data_unavailable"));
+        FinancialDataMcpToolProvider provider = new FinancialDataMcpToolProvider(financial);
+
+        ToolOutput output = provider.findExecutor(FinancialDataMcpToolProvider.TOOL_NAME).orElseThrow()
+            .execute(ToolInput.builder().parameters(Map.of("query", query)).build());
+
+        assertThat(output.isSuccess()).isTrue();
+        assertThat((Map<String, Object>) output.getData())
+            .containsEntry("datasetCount", 0)
+            .containsEntry("observationCount", 0)
+            .containsEntry("coverageComplete", false)
+            .containsEntry("skippedReason", "financial_data_unavailable")
+            .containsKey("warnings");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void oversizedRuntimeFieldIsOmittedAndRequestedRowLimitCannotEscapeContractMaximum() {
+        FinancialEnrichmentService financial = mock(FinancialEnrichmentService.class);
+        String dataset = "runtime_extreme_dataset";
+        String oversized = "x".repeat(2_000_000);
+        List<Map<String, Object>> rows = java.util.stream.IntStream.range(0, 250)
+            .mapToObj(index -> Map.<String, Object>of(
+                "sequence", index, "metric", "value-" + index, "raw_document", oversized))
+            .toList();
+        when(financial.queryDataset(eq(dataset), any())).thenReturn(Map.of("rows", rows));
+        FinancialDataMcpToolProvider provider = new FinancialDataMcpToolProvider(financial);
+
+        ToolOutput output = provider.findExecutor(FinancialDataMcpToolProvider.TOOL_NAME).orElseThrow()
+            .execute(ToolInput.builder().parameters(Map.of("dataset", dataset, "limit", 100_000)).build());
+
+        assertThat(output.isSuccess()).isTrue();
+        Map<String, Object> data = (Map<String, Object>) output.getData();
+        Map<String, Object> datasetResult = (Map<String, Object>)
+            ((List<?>) data.get("financialData")).get(0);
+        List<Map<String, Object>> compact = (List<Map<String, Object>>) datasetResult.get("rows");
+        assertThat(compact).hasSize(200).allSatisfy(row -> {
+            assertThat(row).doesNotContainKey("raw_document");
+            assertThat((List<String>) row.get("_omitted_fields")).contains("raw_document");
+        });
+        assertThat(data).containsEntry("observationCount", 200);
+    }
+
+    @Test
     void toolContractMakesLocalAndWebResponsibilitiesExplicit() {
         FinancialDataMcpToolProvider provider = new FinancialDataMcpToolProvider(
             mock(FinancialEnrichmentService.class));

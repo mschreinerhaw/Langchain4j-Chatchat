@@ -1236,6 +1236,14 @@ public class InterpretationPlanRuntime {
                 metadata.put("toolResultReviewReason", lastReview.reason());
                 metadata.put("toolResultReviewAttempts", attempt);
                 metadata.putAll(lastReview.metadata() == null ? Map.of() : lastReview.metadata());
+                if (!lastReview.satisfied() && localReview != null && localReview.satisfied()
+                    && Boolean.TRUE.equals(metadata.get("toolResultReviewUnavailable"))) {
+                    metadata.put("toolResultReviewSkipped", true);
+                    metadata.put("toolResultReviewSatisfied", true);
+                    metadata.put("toolResultReviewReason",
+                        "Model reviewer was unavailable; preserving the deterministically fact-checked tool result.");
+                    return execution.withMetadata(metadata, elapsed(startedAt));
+                }
                 appendTemplateExecutionReviewContract(execution, lastReview, metadata);
                 if (lastReview.satisfied()) {
                     execution = applyRuntimeTemplateSelection(execution, lastReview, metadata, startedAt);
@@ -2301,7 +2309,7 @@ public class InterpretationPlanRuntime {
         Map<String, Object> input = new LinkedHashMap<>(step.input() == null ? Map.of() : step.input());
         InterpretationPlan plan = request == null ? null : request.plan();
         applyBindings(step, plan, completed, input);
-        if (batchToolInput(input)) {
+        if (batchToolInput(input) && !runtimeOwnedDiagnosticBatch(step, plan)) {
             bridgeBatchTemplateInvocations(step, request, completed, input);
             return input;
         }
@@ -2445,6 +2453,21 @@ public class InterpretationPlanRuntime {
         }
         Object rawCalls = firstPresent(input, "calls", "toolCalls", "tool_calls");
         return rawCalls instanceof List<?> calls && !calls.isEmpty();
+    }
+
+    private boolean runtimeOwnedDiagnosticBatch(InterpretationPlan.Step step,
+                                                InterpretationPlan plan) {
+        if (step == null || step.id() == null || plan == null || plan.plan() == null
+            || plan.plan().diagnosticProfile() == null
+            || plan.plan().diagnosticProfile().checks() == null) {
+            return false;
+        }
+        long requiredChecks = plan.plan().diagnosticProfile().checks().stream()
+            .filter(Objects::nonNull)
+            .filter(check -> !Boolean.FALSE.equals(check.required()))
+            .filter(check -> check.stepIds() != null && check.stepIds().contains(step.id()))
+            .count();
+        return requiredChecks >= 2;
     }
 
     /**
@@ -3268,7 +3291,7 @@ public class InterpretationPlanRuntime {
         List<String> allowedTools
     ) {
         if (step == null || step.id() == null || plan == null || plan.plan() == null
-            || plan.plan().diagnosticProfile() == null || batchToolInput(input)
+            || plan.plan().diagnosticProfile() == null
             || completed == null || completed.isEmpty()) {
             return null;
         }
@@ -3317,6 +3340,11 @@ public class InterpretationPlanRuntime {
             }
         }
         if (templates.size() < 2) {
+            if (batchToolInput(input)) {
+                throw new IllegalStateException(
+                    "DIAGNOSTIC_BATCH_COMPILATION_FAILED: model-provided batch cannot execute "
+                        + "because fewer than two authorized templates were returned by completed discovery");
+            }
             return null;
         }
 
@@ -3415,6 +3443,11 @@ public class InterpretationPlanRuntime {
             calls.add(call);
         }
         if (calls.size() < 2 || outerTool == null) {
+            if (batchToolInput(input)) {
+                throw new IllegalStateException(
+                    "DIAGNOSTIC_BATCH_COMPILATION_FAILED: Runtime could not map at least two "
+                        + "declared diagnostic checks to authorized discovered templates");
+            }
             return null;
         }
         Map<String, Object> batch = new LinkedHashMap<>();

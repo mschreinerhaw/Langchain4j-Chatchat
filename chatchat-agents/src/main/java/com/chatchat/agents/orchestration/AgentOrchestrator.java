@@ -39,6 +39,7 @@ import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
+import com.chatchat.common.tool.ToolParameter;
 import com.chatchat.common.config.ModelsConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
@@ -2438,7 +2439,20 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (payload.isEmpty()) {
             return InterpretationPlanRuntime.StepReview.rejected(
                 "Tool result review did not return valid JSON.",
-                metadataOf("toolResultReviewRaw", preview(raw))
+                Map.of(
+                    "toolResultReviewRaw", preview(raw),
+                    "toolResultReviewUnavailable", true
+                )
+            );
+        }
+        if (payload.containsKey("error")
+            && firstObject(payload, "satisfied", "accepted", "sufficient") == null) {
+            return InterpretationPlanRuntime.StepReview.rejected(
+                "Tool result reviewer was unavailable: " + preview(stringify(payload.get("error"))),
+                Map.of(
+                    "toolResultReviewRaw", preview(raw),
+                    "toolResultReviewUnavailable", true
+                )
             );
         }
         boolean satisfied = booleanValue(firstObject(payload, "satisfied", "accepted", "sufficient"));
@@ -5127,6 +5141,15 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 fallbackArguments,
                 predecessorTraces
             );
+            List<String> missingRequiredInputs = missingRequiredToolInputs(fallbackTool, fallbackArguments);
+            if (!missingRequiredInputs.isEmpty()) {
+                metadata.put("mandatoryWorkflowStoppedOnFailure", fallbackTool);
+                metadata.put("mandatoryWorkflowMissingRequiredInputs", missingRequiredInputs);
+                observations.add("Mandatory workflow fallback did not invoke " + fallbackTool
+                    + " because required inputs could not be proven from completed predecessor evidence: "
+                    + String.join(", ", missingRequiredInputs) + ".");
+                return;
+            }
             Map<String, Object> originalArguments = new LinkedHashMap<>(fallbackArguments);
             ModelAssistedRetrievalBridge.EnrichmentResult enrichment =
                 modelAssistedRetrievalBridge.enrichWithGate(
@@ -5217,6 +5240,47 @@ public class AgentOrchestrator implements AgentRunExecutor {
         } else {
             metadata.put("mandatoryWorkflowStillMissingAfterFallback", remainingMandatoryTools);
         }
+    }
+
+    private List<String> missingRequiredToolInputs(String toolName, Map<String, Object> arguments) {
+        ToolMetadata toolMetadata = toolRegistry.getToolMetadata(toolName);
+        if (toolMetadata == null || toolMetadata.getParameters() == null) {
+            return List.of();
+        }
+        Map<String, Object> input = arguments == null ? Map.of() : arguments;
+        List<String> missing = new ArrayList<>();
+        for (ToolParameter parameter : toolMetadata.getParameters()) {
+            if (parameter == null || !parameter.isRequired()
+                || parameter.getName() == null || parameter.getName().isBlank()) {
+                continue;
+            }
+            Object value = requiredToolInputValue(input, parameter.getName());
+            if (value == null
+                || value instanceof CharSequence text && text.toString().isBlank()
+                || value instanceof Map<?, ?> map && map.isEmpty()
+                || value instanceof java.util.Collection<?> collection && collection.isEmpty()) {
+                missing.add(parameter.getName());
+            }
+        }
+        return List.copyOf(missing);
+    }
+
+    private Object requiredToolInputValue(Map<String, Object> input, String parameterName) {
+        Object direct = input.get(parameterName);
+        if (direct != null) {
+            return direct;
+        }
+        String normalized = parameterName.trim().toLowerCase(Locale.ROOT).replace("_", "");
+        if ("template".equals(normalized) || "templateid".equals(normalized)) {
+            return firstObject(input, "template", "templateId", "template_id");
+        }
+        if ("executioncontext".equals(normalized) || "mcpexecutioncontext".equals(normalized)) {
+            return firstObject(input, "executionContext", "mcpExecutionContext", "execution_context");
+        }
+        if ("parameters".equals(normalized) || "params".equals(normalized)) {
+            return firstObject(input, "parameters", "params");
+        }
+        return null;
     }
 
     private List<InteractionToolTrace> mandatoryPredecessorTraces(List<String> mandatoryTools,

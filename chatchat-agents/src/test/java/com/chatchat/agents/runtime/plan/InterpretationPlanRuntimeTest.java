@@ -638,6 +638,67 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void preservesFactCheckedTemplateDiscoveryWhenModelReviewerIsUnavailable() {
+        String toolName = "mcp_chatchat_mcp_server_ssh_template_query";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(toolName)).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenReturn(
+            ToolMetadata.builder().id(toolName).riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of(
+                "schemaVersion", "template_query_result.v1",
+                "success", true,
+                "returnedCount", 2,
+                "templates", List.of(
+                    Map.of("templateId", "check_cpu"),
+                    Map.of("templateId", "check_docker_overview")
+                )
+            )),
+            ToolMetadata.builder().id(toolName).build(), null, "success", Map.of()
+        ));
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("ops", "discover diagnostics", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", toolName,
+                    Map.of("filters", Map.of("intent", "cpu docker")), List.of(), null, null),
+                new InterpretationPlan.Step(2, "final_answer", "",
+                    Map.of("answer", "done"), List.of(1), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(2, false, List.of(toolName), List.of(), 30_000),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            null,
+            request -> InterpretationPlanRuntime.StepReview.rejected(
+                "Tool result reviewer was unavailable",
+                Map.of("toolResultReviewUnavailable", true)
+            ),
+            scriptedController(List.of(List.of(1), List.of(2)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, toolRegistry, List.of(toolName), "tenant", "request-review-unavailable",
+                "conversation", "user", Map.of()
+            )
+        );
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.steps().get(0).metadata())
+            .containsEntry("localFactCheckHasEvidence", true)
+            .containsEntry("toolResultReviewUnavailable", true)
+            .containsEntry("toolResultReviewSkipped", true)
+            .containsEntry("toolResultReviewSatisfied", true);
+        assertThat(result.steps().get(0).output().toString())
+            .contains("check_cpu", "check_docker_overview");
+    }
+
+    @Test
     void dependentExecutionBindsRuntimeSelectedTemplateInsteadOfMcpFirstCandidate() {
         String discoveryTool = "mcp_chatchat_mcp_server_database_query_template_query";
         String executionTool = "mcp_chatchat_mcp_server_sql_query_execute";
@@ -6830,7 +6891,12 @@ class InterpretationPlanRuntimeTest {
                         3, "mcp_tool", executorTool,
                         Map.of(
                             "executionMode", "SEQUENTIAL",
-                            "calls", List.of(),
+                            "calls", List.of(
+                                Map.of("callId", "model-cpu", "toolName", executorTool,
+                                    "arguments", Map.of("templateId", "INVENTED_CPU_TEMPLATE")),
+                                Map.of("callId", "model-load", "toolName", executorTool,
+                                    "arguments", Map.of("templateId", "INVENTED_LOAD_TEMPLATE"))
+                            ),
                             "templateId", "ORACLE_INSTANCE_STATUS",
                             "template", "ORACLE_INSTANCE_STATUS",
                             "executionContext", Map.of(
@@ -6914,6 +6980,8 @@ class InterpretationPlanRuntimeTest {
         assertThat((List<Map<String, Object>>) batchRequest.getToolInput().getParameters().get("calls"))
             .extracting(call -> String.valueOf(((Map<?, ?>) call.get("arguments")).get("templateId")))
             .containsExactlyElementsOf(templateIds);
+        assertThat(batchRequest.getToolInput().getParameters().toString())
+            .doesNotContain("INVENTED_CPU_TEMPLATE", "INVENTED_LOAD_TEMPLATE");
         assertThat((List<String>) ((List<Map<String, Object>>) batchRequest.getToolInput()
             .getParameters().get("calls")).get(4).get("requiredFields"))
             .containsExactly("TABLESPACE_NAME", "USED_PERCENT");

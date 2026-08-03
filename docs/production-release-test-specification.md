@@ -350,6 +350,7 @@ $env:TENCENTCLOUD_SECRET_KEY = "<由密钥系统注入>"
   -InferenceQuery "请根据最新公开行情数据进行分析并给出有来源的建议" `
   -InferenceExpectedEvidence "web_search" `
   -PrePlanWorkflowQuery "分析目标 DataNode 及其他大数据角色的运行状态、资源和磁盘使用情况" `
+  -PrePlanSkillId "<绑定目标运维工具链的 Agent ID>" `
   -PrePlanExpectedTools "<资产发现工具>,<模板发现工具>,<执行工具>" `
   -PrePlanExpectedAnswerEvidence "磁盘" `
   -PrePlanFailureQuery "分析一个预发布环境中确定不存在的诊断目标" `

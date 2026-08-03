@@ -39,6 +39,34 @@ class AgentWorkflowStateTracker {
         return attributes;
     }
 
+    Map<String, Object> attributesWithCompletedWorkflowState(Map<String, Object> runtimeAttributes,
+                                                             Set<String> completedTools,
+                                                             List<InteractionToolTrace> traces) {
+        Map<String, Object> attributes = attributesWithCompletedTools(runtimeAttributes, completedTools);
+        Map<String, Object> existingContext = asMap(attributes.get("workflowContext"));
+        if (workflowTargetRef(existingContext) != null) {
+            return attributes;
+        }
+
+        Map<String, String> targetsByCanonicalValue = new LinkedHashMap<>();
+        if (traces != null) {
+            traces.stream()
+                .filter(trace -> trace != null && trace.isSuccess() && isAssetDiscoveryTool(trace.getToolName()))
+                .map(InteractionToolTrace::getInput)
+                .map(this::workflowTargetRef)
+                .filter(value -> value != null && !value.isBlank())
+                .forEach(value -> targetsByCanonicalValue.putIfAbsent(value.trim().toLowerCase(), value.trim()));
+        }
+        if (targetsByCanonicalValue.size() != 1) {
+            return attributes;
+        }
+
+        Map<String, Object> workflowContext = new LinkedHashMap<>(existingContext);
+        workflowContext.put("workflowTargetRef", targetsByCanonicalValue.values().iterator().next());
+        attributes.put("workflowContext", workflowContext);
+        return attributes;
+    }
+
     void rememberCompletedWorkflowTool(Set<String> completedTools, AgentOrchestrator.ToolCallExecution execution) {
         if (completedTools == null || execution == null || execution.trace() == null) {
             return;
@@ -86,8 +114,57 @@ class AgentWorkflowStateTracker {
         return "confirmation_required".equalsIgnoreCase(String.valueOf(outcome));
     }
 
+    private boolean isAssetDiscoveryTool(String toolName) {
+        if (toolName == null || toolName.isBlank()) {
+            return false;
+        }
+        String semantic = toolName.trim().toLowerCase();
+        return semantic.equals("asset_query")
+            || semantic.endsWith("_asset_query")
+            || semantic.equals("database_asset_search")
+            || semantic.endsWith("_database_asset_search");
+    }
+
+    private String workflowTargetRef(Map<String, Object> values) {
+        if (values == null || values.isEmpty()) {
+            return null;
+        }
+        for (String key : List.of(
+            "workflowTargetRef", "targetAssetId", "targetAssetName",
+            "assetId", "assetName", "databaseAssetId", "databaseAssetName"
+        )) {
+            String value = stringValue(values.get(key));
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        for (String nestedKey : List.of(
+            "executionContext", "execution_context", "filters", "target",
+            "defaultDataAsset", "mcpExecutionContext", "workflowContext"
+        )) {
+            String nested = workflowTargetRef(asMap(values.get(nestedKey)));
+            if (nested != null) {
+                return nested;
+            }
+        }
+        return null;
+    }
+
     private String stringValue(Object value) {
         return value == null ? null : String.valueOf(value);
+    }
+
+    private Map<String, Object> asMap(Object value) {
+        if (!(value instanceof Map<?, ?> map)) {
+            return Map.of();
+        }
+        Map<String, Object> values = new LinkedHashMap<>();
+        map.forEach((key, item) -> {
+            if (key != null) {
+                values.put(String.valueOf(key), item);
+            }
+        });
+        return values;
     }
 
     record WorkflowEventSnapshot(

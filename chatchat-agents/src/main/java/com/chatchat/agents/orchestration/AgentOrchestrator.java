@@ -1203,7 +1203,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 userId,
                 tools,
                 workflowAttemptAttributes(
-                    workflowStateTracker.attributesWithCompletedTools(runtimeAttributes, completedTools),
+                    workflowStateTracker.attributesWithCompletedWorkflowState(
+                        runtimeAttributes, completedTools, traces),
                     rewriteCount
                 )
             ));
@@ -1662,7 +1663,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
             runtimeAttributes,
             workflowStateTracker.completedToolsFromTraces(traces)
         );
-        return workflowStateTracker.attributesWithCompletedTools(runtimeAttributes, completedTools);
+        return workflowStateTracker.attributesWithCompletedWorkflowState(runtimeAttributes, completedTools, traces);
     }
 
     private Map<String, Object> runtimeExecutionPolicy(boolean requireToolBeforeFinal) {

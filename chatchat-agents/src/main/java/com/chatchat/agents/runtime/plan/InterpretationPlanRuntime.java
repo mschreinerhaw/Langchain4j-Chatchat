@@ -1078,6 +1078,7 @@ public class InterpretationPlanRuntime {
             attributes.put("toolRouterDecision", routingDecision.metadata());
         }
         attributes.put("executionPlan", executionPlan);
+        appendWorkflowTargetContinuity(attributes, request.plan(), step, completed);
         appendDiagnosticBatchAttributes(attributes, request.plan(), step, resolvedInput);
         attributes.put("completedPlanStepIds", new ArrayList<>(completed.keySet()));
         Set<String> completedToolSet = new LinkedHashSet<>();
@@ -1098,6 +1099,81 @@ public class InterpretationPlanRuntime {
         attributes.put("workflowCompletedTools", completedTools);
         attributes.put("completedTools", completedTools);
         return attributes;
+    }
+
+    private void appendWorkflowTargetContinuity(Map<String, Object> attributes,
+                                                InterpretationPlan plan,
+                                                InterpretationPlan.Step step,
+                                                Map<Integer, StepExecution> completed) {
+        if (attributes == null || plan == null || step == null || completed == null || completed.isEmpty()) {
+            return;
+        }
+        Map<Integer, InterpretationPlan.Step> stepsById = plan.steps().stream()
+            .filter(candidate -> candidate != null && candidate.id() != null)
+            .collect(Collectors.toMap(
+                InterpretationPlan.Step::id,
+                candidate -> candidate,
+                (left, ignored) -> left,
+                LinkedHashMap::new
+            ));
+        LinkedHashSet<Integer> ancestors = new LinkedHashSet<>();
+        collectAncestorStepIds(step, stepsById, ancestors);
+        for (Integer ancestorId : ancestors) {
+            StepExecution execution = completed.get(ancestorId);
+            if (!terminalToolExecutionSucceeded(execution)) {
+                continue;
+            }
+            String targetRef = workflowTargetRef(asStringMap(execution.metadata().get("resolvedInput")));
+            if (targetRef == null || targetRef.isBlank()) {
+                continue;
+            }
+            Map<String, Object> workflowContext = new LinkedHashMap<>(
+                asStringMap(attributes.get("workflowContext"))
+            );
+            workflowContext.putIfAbsent("workflowTargetRef", targetRef);
+            attributes.put("workflowContext", workflowContext);
+            return;
+        }
+    }
+
+    private void collectAncestorStepIds(InterpretationPlan.Step step,
+                                        Map<Integer, InterpretationPlan.Step> stepsById,
+                                        LinkedHashSet<Integer> ancestors) {
+        for (Integer dependencyId : safeIntegerList(step == null ? null : step.dependsOn())) {
+            if (dependencyId == null || ancestors.contains(dependencyId)) {
+                continue;
+            }
+            InterpretationPlan.Step dependency = stepsById.get(dependencyId);
+            if (dependency != null) {
+                collectAncestorStepIds(dependency, stepsById, ancestors);
+            }
+            ancestors.add(dependencyId);
+        }
+    }
+
+    private String workflowTargetRef(Map<String, Object> values) {
+        if (values == null || values.isEmpty()) {
+            return null;
+        }
+        for (String key : List.of(
+            "workflowTargetRef", "targetAssetId", "targetAssetName",
+            "assetId", "assetName", "databaseAssetId", "databaseAssetName"
+        )) {
+            String value = stringValue(values.get(key));
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        for (String nestedKey : List.of(
+            "executionContext", "execution_context", "filters", "target",
+            "defaultDataAsset", "mcpExecutionContext", "workflowContext"
+        )) {
+            String nested = workflowTargetRef(asStringMap(values.get(nestedKey)));
+            if (nested != null && !nested.isBlank()) {
+                return nested;
+            }
+        }
+        return null;
     }
 
     private boolean terminalToolExecutionSucceeded(StepExecution execution) {

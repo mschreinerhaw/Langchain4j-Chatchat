@@ -1334,6 +1334,42 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
+    void canonicalAssetIdCanContinueAWorkflowWhenDagPreservesTheDiscoveredAlias() {
+        List<String> tools = List.of("generated_asset_search", "generated_template_search");
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        tools.forEach(tool -> when(toolRegistry.getToolMetadata(tool)).thenReturn(ToolMetadata.builder()
+            .id(tool).title(tool).categories(List.of("mcp")).build()));
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.success("ok"));
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), properties(), new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of());
+        Map<String, Object> workflow = Map.of(
+            "enabled", true,
+            "workflow", "generated_diagnostic",
+            "executionStrategy", Map.of("mode", "sequential", "stopOnError", true, "maxSteps", 4),
+            "steps", List.of(
+                Map.of("step", 1, "tool", tools.get(0), "required", true),
+                Map.of("step", 2, "tool", tools.get(1), "required", true)
+            )
+        );
+
+        ToolRuntimeExecution discovered = service.execute(diagnosticAliasRequest(
+            tools.get(0), workflow, tools, 0,
+            Map.of("executionContext", Map.of("assetName", "generated-target-alias")),
+            Map.of()
+        ));
+        ToolRuntimeExecution dependent = service.execute(diagnosticAliasRequest(
+            tools.get(1), workflow, tools, 1,
+            Map.of("executionContext", Map.of("assetId", "generated-canonical-id")),
+            Map.of("workflowContext", Map.of("workflowTargetRef", "generated-target-alias"))
+        ));
+
+        assertThat(discovered.output().isSuccess()).isTrue();
+        assertThat(dependent.output().isSuccess()).isTrue();
+        verify(toolRegistry, times(2)).executeEnhancedTool(any(), any());
+    }
+
+    @Test
     void sequentialBatchPreservesOrderAndContinuesAfterOneFailure() {
         String shortName = "sql_query_execute";
         String fullName = "mcp_chatchat_mcp_server_sql_query_execute";
@@ -1873,6 +1909,33 @@ class ToolRuntimeServiceTest {
                 "__agentRunId", "run-diagnostic",
                 "workflowExecutionAttempt", attempt
             ))
+            .build();
+    }
+
+    private ToolRuntimeRequest diagnosticAliasRequest(String toolName,
+                                                      Object workflowConfig,
+                                                      List<String> allowedTools,
+                                                      int attempt,
+                                                      Map<String, Object> parameters,
+                                                      Map<String, Object> additionalAttributes) {
+        Map<String, Object> attributes = new LinkedHashMap<>();
+        attributes.put("mcpWorkflow", workflowConfig);
+        attributes.put("__agentRunId", "run-generated-alias");
+        attributes.put("workflowExecutionAttempt", attempt);
+        attributes.putAll(additionalAttributes);
+        return ToolRuntimeRequest.builder()
+            .toolName(toolName)
+            .runtimeMode("interpretation_plan")
+            .requestId("req-generated-alias-" + attempt)
+            .conversationId("conv-generated-alias")
+            .tenantId("tenant-generated-alias")
+            .userId("user-generated-alias")
+            .allowedTools(allowedTools)
+            .toolInput(ToolInput.builder()
+                .userId("user-generated-alias")
+                .parameters(parameters)
+                .build())
+            .attributes(attributes)
             .build();
     }
 

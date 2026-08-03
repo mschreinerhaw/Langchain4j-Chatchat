@@ -60,6 +60,50 @@ class AgentWorkflowStateTrackerTest {
         ))).containsExactly("successful_step", "failed_terminal_step");
     }
 
+    @Test
+    void carriesTheUniqueSuccessfulAssetTargetAcrossWorkflowAttempts() {
+        AgentWorkflowStateTracker tracker = new AgentWorkflowStateTracker();
+        InteractionToolTrace asset = InteractionToolTrace.builder()
+            .toolName("mcp_generated_ssh_asset_query")
+            .success(true)
+            .input(Map.of("filters", Map.of("assetName", "worker-generated")))
+            .build();
+
+        Map<String, Object> attributes = tracker.attributesWithCompletedWorkflowState(
+            Map.of(), java.util.Set.of(asset.getToolName()), List.of(asset));
+
+        assertThat(attributes.get("workflowContext"))
+            .isEqualTo(Map.of("workflowTargetRef", "worker-generated"));
+    }
+
+    @Test
+    void doesNotGuessWorkflowTargetAcrossFailedOrAmbiguousAssetQueries() {
+        AgentWorkflowStateTracker tracker = new AgentWorkflowStateTracker();
+        InteractionToolTrace first = InteractionToolTrace.builder()
+            .toolName("mcp_generated_ssh_asset_query")
+            .success(true)
+            .input(Map.of("filters", Map.of("assetName", "worker-a")))
+            .build();
+        InteractionToolTrace second = InteractionToolTrace.builder()
+            .toolName("mcp_generated_ssh_asset_query")
+            .success(true)
+            .input(Map.of("filters", Map.of("assetName", "worker-b")))
+            .build();
+        InteractionToolTrace failed = InteractionToolTrace.builder()
+            .toolName("mcp_generated_ssh_asset_query")
+            .success(false)
+            .input(Map.of("filters", Map.of("assetName", "worker-failed")))
+            .build();
+
+        assertThat(tracker.attributesWithCompletedWorkflowState(
+            Map.of(), java.util.Set.of(first.getToolName()), List.of(first, second, failed)))
+            .doesNotContainKey("workflowContext");
+        assertThat(tracker.attributesWithCompletedWorkflowState(
+            Map.of("workflowContext", Map.of("workflowTargetRef", "explicit-target")),
+            java.util.Set.of(first.getToolName()), List.of(first)))
+            .containsEntry("workflowContext", Map.of("workflowTargetRef", "explicit-target"));
+    }
+
     private AgentRunEvent observation(String toolName, boolean success, int stepId) {
         return AgentRunEvent.of(
             "run-1",

@@ -35,26 +35,31 @@ class ProductionDeployedPrePlanWorkflowE2E {
     void userDiagnosticRequestCrossesApiAgentMcpPersistenceAndReturnsRenderableEvidence() throws Exception {
         String apiBaseUrl = required("chatchat.e2e.api-base-url").replaceFirst("/+$", "");
         String query = required("chatchat.e2e.preplan-workflow-query");
+        String skillId = required("chatchat.e2e.preplan-skill-id");
         String answerEvidence = required("chatchat.e2e.preplan-expected-answer-evidence");
         List<String> expectedTools = csv("chatchat.e2e.preplan-expected-tools");
         assertThat(expectedTools)
             .as("the deployed workflow must prove a pre-plan step and at least one dependent step")
             .hasSizeGreaterThanOrEqualTo(2);
 
-        String suffix = UUID.randomUUID().toString();
-        String runId = "deployed-preplan-" + suffix;
-        String conversationId = "deployed-preplan-conversation-" + suffix;
-        String userId = "deployed-preplan-user-" + suffix;
+        String suffix = generatedSuffix();
+        String runId = "e2e-preplan-" + suffix;
+        String conversationId = "e2e-conv-" + suffix;
+        String userId = "e2e-user-" + suffix;
+        assertThat(conversationId.length()).isLessThanOrEqualTo(64);
 
         JsonNode interaction = postJson(apiBaseUrl + "/api/v1/interactions/chat", Map.of(
             "conversationId", conversationId,
             "userId", userId,
             "mode", "agent_chat",
+            "skillId", skillId,
             "query", query,
             "toolInput", Map.of("__agentRunId", runId)
         ));
 
-        assertThat(interaction.path("code").asInt()).isEqualTo(200);
+        assertThat(interaction.path("code").asInt())
+            .as("interaction response=%s", preview(interaction.toString()))
+            .isEqualTo(200);
         JsonNode response = interaction.path("data");
         assertThat(response.path("requestId").asText()).isNotBlank();
         assertThat(response.path("conversationId").asText()).isEqualTo(conversationId);
@@ -93,22 +98,27 @@ class ProductionDeployedPrePlanWorkflowE2E {
     void failedPrePlanToolStopsDependentsPersistsFailureAndReturnsUserFacingExplanation() throws Exception {
         String apiBaseUrl = required("chatchat.e2e.api-base-url").replaceFirst("/+$", "");
         String query = required("chatchat.e2e.preplan-failure-query");
+        String skillId = required("chatchat.e2e.preplan-skill-id");
         String failedTool = required("chatchat.e2e.preplan-failure-tool");
         String expectedExplanation = required("chatchat.e2e.preplan-failure-expected-evidence");
         List<String> blockedTools = csv("chatchat.e2e.preplan-failure-blocked-tools");
 
-        String suffix = UUID.randomUUID().toString();
-        String runId = "deployed-preplan-failure-" + suffix;
-        String conversationId = "deployed-preplan-failure-conversation-" + suffix;
+        String suffix = generatedSuffix();
+        String runId = "e2e-fail-" + suffix;
+        String conversationId = "e2e-fail-conv-" + suffix;
+        assertThat(conversationId.length()).isLessThanOrEqualTo(64);
         JsonNode interaction = postJson(apiBaseUrl + "/api/v1/interactions/chat", Map.of(
             "conversationId", conversationId,
-            "userId", "deployed-preplan-failure-user-" + suffix,
+            "userId", "e2e-fail-user-" + suffix,
             "mode", "agent_chat",
+            "skillId", skillId,
             "query", query,
             "toolInput", Map.of("__agentRunId", runId)
         ));
 
-        assertThat(interaction.path("code").asInt()).isEqualTo(200);
+        assertThat(interaction.path("code").asInt())
+            .as("failure interaction response=%s", preview(interaction.toString()))
+            .isEqualTo(200);
         JsonNode response = interaction.path("data");
         assertThat(response.path("answer").asText())
             .isNotBlank()
@@ -186,7 +196,7 @@ class ProductionDeployedPrePlanWorkflowE2E {
 
     private JsonNode postJson(String url, Object body) throws Exception {
         HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(url))
-            .timeout(Duration.ofMinutes(5))
+            .timeout(Duration.ofMinutes(longProperty("chatchat.e2e.preplan-request-timeout-minutes", 15L, 1L, 60L)))
             .header("Accept", "application/json")
             .header("Content-Type", "application/json")
             .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body)));
@@ -222,6 +232,14 @@ class ProductionDeployedPrePlanWorkflowE2E {
         return value.trim();
     }
 
+    private long longProperty(String name, long fallback, long minimum, long maximum) {
+        long value = Long.parseLong(System.getProperty(name, String.valueOf(fallback)));
+        if (value < minimum || value > maximum) {
+            throw new IllegalArgumentException(name + " must be between " + minimum + " and " + maximum);
+        }
+        return value;
+    }
+
     private String optional(String name, String environmentName) {
         String value = System.getProperty(name);
         if ((value == null || value.isBlank()) && environmentName != null) {
@@ -232,6 +250,10 @@ class ProductionDeployedPrePlanWorkflowE2E {
 
     private String encode(String value) {
         return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
+    }
+
+    private String generatedSuffix() {
+        return UUID.randomUUID().toString().replace("-", "").substring(0, 20);
     }
 
     private String preview(String value) {

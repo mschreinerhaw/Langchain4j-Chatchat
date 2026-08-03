@@ -5342,6 +5342,71 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void carriesRootTargetAliasAcrossDependentDagTools() {
+        String namespace = "mcp_runtime_" + System.nanoTime() + "_";
+        String assetTool = namespace + "asset_query";
+        String templateTool = namespace + "template_query";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        for (String tool : List.of(assetTool, templateTool)) {
+            when(toolRegistry.hasTool(tool)).thenReturn(true);
+            when(toolRegistry.getToolMetadata(tool)).thenReturn(ToolMetadata.builder()
+                .id(tool).riskLevel("low").build());
+        }
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of("ok", true)),
+            ToolMetadata.builder().id("dynamic").build(),
+            null,
+            "success",
+            Map.of()
+        ));
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("diagnostic", "Inspect generated target", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", assetTool,
+                    Map.of("filters", Map.of("assetName", "generated-target-alias")), List.of(), null, null),
+                new InterpretationPlan.Step(2, "mcp_tool", templateTool,
+                    Map.of("executionContext", Map.of("assetId", "generated-canonical-id")), List.of(1), null, null),
+                new InterpretationPlan.Step(3, "final_answer", "",
+                    Map.of("answer", "done"), List.of(2), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(3, false,
+                List.of(assetTool, templateTool), List.of(), 30000),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(3)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan,
+                toolRegistry,
+                List.of(assetTool, templateTool),
+                "generated-tenant",
+                "generated-request",
+                "generated-conversation",
+                "generated-user",
+                Map.of()
+            )
+        );
+
+        assertThat(result.steps()).extracting(InterpretationPlanRuntime.StepExecution::stepId)
+            .contains(1, 2);
+        ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
+        verify(toolRuntimeService, times(2)).execute(captor.capture());
+        ToolRuntimeRequest dependentRequest = captor.getAllValues().get(1);
+        assertThat(dependentRequest.getAttributes().get("workflowCompletedTools"))
+            .asString().contains(assetTool);
+        assertThat(dependentRequest.getAttributes().get("workflowContext"))
+            .isEqualTo(Map.of("workflowTargetRef", "generated-target-alias"));
+    }
+
+    @Test
     void doesNotReuseCompletedStepIdWhenRewriteChangesTheToolIdentity() {
         String rewrittenTool = "mcp_chatchat_mcp_server_sql_metadata_search";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);

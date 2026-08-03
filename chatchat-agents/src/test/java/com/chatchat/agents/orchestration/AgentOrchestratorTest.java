@@ -85,8 +85,9 @@ class AgentOrchestratorTest {
     void interpretationPlanCarriesSuccessfulPrePlanToolsIntoWorkflowDependencies() {
         AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
         InteractionToolTrace successfulAssetQuery = InteractionToolTrace.builder()
-            .toolName("generated_asset_discovery")
+            .toolName("generated_asset_query")
             .success(true)
+            .input(Map.of("filters", Map.of("assetName", "generated-worker")))
             .build();
 
         Map<String, Object> attributes = orchestrator.interpretationPlanInitialAttributes(
@@ -96,7 +97,9 @@ class AgentOrchestratorTest {
 
         assertThat(attributes).containsEntry("existing", true);
         assertThat(attributes.get("workflowCompletedTools"))
-            .isEqualTo(List.of("generated_asset_discovery"));
+            .isEqualTo(List.of("generated_asset_query"));
+        assertThat(attributes.get("workflowContext"))
+            .isEqualTo(Map.of("workflowTargetRef", "generated-worker"));
     }
 
     @Test

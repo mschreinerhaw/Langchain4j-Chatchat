@@ -33,7 +33,7 @@ class ProductionReleaseCoverageE2E {
         );
         assertThat(releaseSuite)
             .contains("chatchat-e2e-tests", "-am", "verify", "frontend.skip=true",
-                "PrePlanWorkflowQuery", "PrePlanExpectedTools", "PrePlanExpectedAnswerEvidence",
+                "PrePlanWorkflowQuery", "PrePlanSkillId", "PrePlanExpectedTools", "PrePlanExpectedAnswerEvidence",
                 "PrePlanFailureQuery", "PrePlanFailureTool", "PrePlanFailureBlockedTools",
                 "PrePlanFailureExpectedEvidence");
         assertThat(Files.readString(root.resolve("pom.xml")))

@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -27,6 +28,69 @@ import static org.mockito.Mockito.when;
  * not lose the runtime-owned template or logical execution target.
  */
 class ProductionTemplateExecutionContextContinuityE2E {
+
+    @Test
+    void uniqueAssetEvidenceBlocksDriftedFallbackTemplateExecution() {
+        String namespace = "mcp_release_" + UUID.randomUUID().toString().replace("-", "") + "_";
+        String assetTool = namespace + "ssh_asset_query";
+        String templateTool = namespace + "ssh_template_query";
+        String executionTool = namespace + "linux_command_execute";
+        AtomicInteger remoteExecutionCalls = new AtomicInteger();
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.hasTool(any())).thenReturn(true);
+        when(registry.getToolMetadata(any())).thenAnswer(invocation -> ToolMetadata.builder()
+            .id(invocation.getArgument(0)).riskLevel("low").runtimeLevel("readonly")
+            .operationType("read").confirmation(Map.of("default", "auto_execute"))
+            .categories(List.of("mcp")).build());
+        when(registry.executeEnhancedTool(any(), any())).thenAnswer(invocation -> {
+            String toolName = invocation.getArgument(0);
+            if (assetTool.equals(toolName)) {
+                return ToolOutput.success(Map.of("assets", List.of(Map.of("asset", Map.of(
+                    "id", "worker11-id", "name", "CDH DataNode 节点 worker11",
+                    "environment", "DEV", "toolName", "ssh_cdh_worker11_datanode")))));
+            }
+            if (templateTool.equals(toolName)) {
+                return ToolOutput.success(Map.of(
+                    "queryIr", Map.of("asset", Map.of("selected", Map.of(
+                        "id", "adp-id", "name", "ADP 平台开发数据库", "environment", "DEV"))),
+                    "templates", List.of(Map.of(
+                        "templateId", "CHECK_HOSTNAME",
+                        "parameterContract", Map.of("executionTool", "linux_command_execute"),
+                        "parameterSchema", Map.of("type", "object", "properties", Map.of(), "required", List.of())
+                    ))
+                ));
+            }
+            remoteExecutionCalls.incrementAndGet();
+            return ToolOutput.success(Map.of("stdout", "must not execute"));
+        });
+        ToolRuntimeService runtime = new ToolRuntimeService(
+            registry, new ObjectMapper(), new ToolRuntimeProperties(), List.of(), List.of());
+        try {
+            ToolRuntimeExecution assetDiscovery = runtime.execute(request(
+                assetTool, "asset-discovery", List.of(assetTool), Map.of()));
+            ToolRuntimeExecution templateDiscovery = runtime.execute(request(
+                templateTool, "template-discovery", List.of(templateTool), Map.of()));
+            List<com.chatchat.common.interaction.InteractionToolTrace> traces =
+                List.of(assetDiscovery.trace(), templateDiscovery.trace());
+            AgentToolArgumentResolver resolver = new AgentToolArgumentResolver(
+                new AgentToolNameResolver(), 5, registry);
+            Map<String, Object> compiled = resolver.applyObservedTemplateContract(
+                executionTool, Map.of("parameters", Map.of()), traces);
+            Map<String, Object> guarded = resolver.enforceObservedAssetContinuity(
+                executionTool, compiled, traces);
+
+            ToolRuntimeExecution execution = runtime.execute(request(
+                executionTool, "blocked-execution", List.of(executionTool), guarded));
+
+            assertThat(execution.output().isSuccess()).isFalse();
+            assertThat(execution.output().getErrorCode()).isEqualTo("ASSET_CONTEXT_MISMATCH");
+            assertThat(execution.output().getErrorMessage())
+                .contains("ADP 平台开发数据库", "CDH DataNode 节点 worker11");
+            assertThat(remoteExecutionCalls).hasValue(0);
+        } finally {
+            runtime.shutdown();
+        }
+    }
 
     @Test
     void oversizedApiSshAndDatabaseTemplateResultsRemainExecutableEndToEnd() throws Exception {

@@ -20,7 +20,8 @@ if [[ ! "$redis_node" =~ ^[A-Za-z0-9._-]+:[0-9]{1,5}$ ]]; then
   exit 1
 fi
 
-mysql_root=(mysql --protocol=socket -uroot -p"${MYSQL_ROOT_PASSWORD}")
+root_password="${MYSQL_ROOT_PASSWORD:-$(read_secret mysql_root_password)}"
+mysql_root=(mysql --protocol=socket -uroot -p"${root_password}")
 
 "${mysql_root[@]}" <<SQL
 CREATE DATABASE IF NOT EXISTS live_runtime_api CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -38,9 +39,19 @@ GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX ON chatchat_news.* TO
 FLUSH PRIVILEGES;
 SQL
 
-"${mysql_root[@]}" live_runtime_api </opt/chatchat-schema/chatchat-api.sql
-"${mysql_root[@]}" live_runtime_mcp </opt/chatchat-schema/chatchat-mcp-server.sql
-"${mysql_root[@]}" chatchat_news </opt/chatchat-schema/chatchat-runtime-news.sql
+initialize_schema() {
+  local database="$1" schema_file="$2" table_count
+  table_count="$("${mysql_root[@]}" --batch --skip-column-names -e \
+    "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '${database}' AND table_type = 'BASE TABLE'")"
+  if [[ "$table_count" == "0" ]]; then
+    echo "Initializing ${database} from ${schema_file}"
+    "${mysql_root[@]}" "$database" <"$schema_file"
+  fi
+}
+
+initialize_schema live_runtime_api /opt/chatchat-schema/chatchat-api.sql
+initialize_schema live_runtime_mcp /opt/chatchat-schema/chatchat-mcp-server.sql
+initialize_schema chatchat_news /opt/chatchat-schema/chatchat-runtime-news.sql
 
 "${mysql_root[@]}" live_runtime_mcp <<SQL
 INSERT INTO mcp_redis_cache_config
@@ -56,4 +67,4 @@ ON DUPLICATE KEY UPDATE
   max_redirects=VALUES(max_redirects), updated_at=VALUES(updated_at);
 SQL
 
-unset api_password mcp_password news_password redis_node MYSQL_ROOT_PASSWORD
+unset api_password mcp_password news_password redis_node root_password MYSQL_ROOT_PASSWORD

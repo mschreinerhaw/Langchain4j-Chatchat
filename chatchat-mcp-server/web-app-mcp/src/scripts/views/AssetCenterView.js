@@ -58,6 +58,14 @@ export default {
       },
       environmentOptions: envOptions(),
       databaseTypeOptions: databaseTypeOptions(),
+      assetEnabledListFilters: [
+        {
+          key: 'enabled',
+          label: '启用状态',
+          placeholder: '全部状态',
+          options: boolOptions()
+        }
+      ],
       searchIndexOptions: [
         { value: 'sql_metadata', label: '元数据索引' },
         { value: 'ssh_host_assets', label: '服务器资产索引' },

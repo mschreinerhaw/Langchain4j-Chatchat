@@ -303,7 +303,10 @@ export default {
   },
   methods: {
     matchesListFilter(item, filter) {
-      const value = String(this.listFilterValues[filter.key] || '').trim();
+      const rawValue = this.listFilterValues[filter.key];
+      const value = rawValue === null || rawValue === undefined
+        ? ''
+        : String(rawValue).trim();
       if (!value) return true;
       const itemValue = String(item?.[filter.key] ?? '').trim().toLowerCase();
       const selected = this.listFilterOptions(filter).find(option => String(option.value) === value);

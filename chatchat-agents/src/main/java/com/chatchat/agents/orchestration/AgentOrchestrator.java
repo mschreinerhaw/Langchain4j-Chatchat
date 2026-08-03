@@ -4948,6 +4948,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
                                               Map<String, Object> runtimeAttributes) {
         Map<String, Object> safeArguments = new LinkedHashMap<>(
             toolArguments.applyObservedTemplateContract(toolName, arguments, priorTraces));
+        safeArguments = new LinkedHashMap<>(
+            toolArguments.enforceObservedAssetContinuity(toolName, safeArguments, priorTraces));
         Map<String, Object> attributes = new LinkedHashMap<>(runtimeAttributes == null ? Map.of() : runtimeAttributes);
         attributes.put("executionPlan", buildRuntimeExecutionPlan(toolName, safeArguments, plannerExecutionPlan));
         ToolInput toolInput = ToolInput.builder()

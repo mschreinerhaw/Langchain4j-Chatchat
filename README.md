@@ -606,3 +606,39 @@ Get-Content .\logs\application.log -Wait |
 - **WSL**：直接 `tail -f`
 
 其中 **PowerShell 的 `Get-Content -Tail 200 -Wait`** 就是 Windows 原生环境下最接近 Linux `tail -n 200 -f` 的方案。
+
+在项目根目录执行：
+
+```powershell
+mvn -pl chatchat-agents -am clean package -DskipTests
+```
+
+参数含义：
+
+- `-pl chatchat-agents`：只选择 `chatchat-agents` 模块。
+- `-am`：同时编译它依赖的项目内模块。
+- `-DskipTests`：编译测试代码，但不运行测试。
+
+如果只想快速编译、不打包：
+
+```powershell
+mvn -pl chatchat-agents -am compile -DskipTests
+```
+
+编译并执行该模块测试：
+
+```powershell
+mvn -pl chatchat-agents -am test
+```
+
+只运行本次相关测试：
+
+```powershell
+mvn -pl chatchat-agents "-Dtest=AgentToolArgumentResolverTest,InterpretationPlanRuntimeTest" test
+```
+
+如果依赖模块已经安装到本地 Maven 仓库，也可以去掉 `-am`：
+
+```powershell
+mvn -pl chatchat-agents clean package -DskipTests
+```

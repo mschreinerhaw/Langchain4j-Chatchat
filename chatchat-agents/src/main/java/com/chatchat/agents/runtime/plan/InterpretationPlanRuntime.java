@@ -1511,6 +1511,14 @@ public class InterpretationPlanRuntime {
             Integer returnedCount = integerValue(metadata.get("financialObservationCount"));
             return returnedCount != null && returnedCount > 0;
         }
+        if ("asset_discovery".equals(evidenceType)) {
+            Integer returnedCount = integerValue(metadata.get("assetDiscoveryReturnedCount"));
+            // A unique typed asset is a completed routing fact, not an answer to the
+            // user's overall request.  Sending it to the model reviewer lets the
+            // reviewer reject the step merely because downstream diagnostics have
+            // not run yet, which aborts the DAG and loses the canonical asset binding.
+            return returnedCount != null && returnedCount == 1;
+        }
         if (!"template_discovery".equals(evidenceType)) {
             return false;
         }
@@ -2445,6 +2453,7 @@ public class InterpretationPlanRuntime {
         enforceAgentRuntimeEnvironment(step, request, input);
         validateRequiredExecutionTemplate(step, input, completed);
         normalizeDiscoveryRoutingInput(step, request, completed, input);
+        enforceCanonicalAssetContinuity(step, completed, input);
         input.remove("runtimeParameterProtocolApplied");
         if (!retrievalGate.isEmpty()) {
             input.put(MODEL_RETRIEVAL_GATE_KEY, retrievalGate);
@@ -4675,6 +4684,99 @@ public class InterpretationPlanRuntime {
         }
         assetContext.forEach((key, value) -> putIfAbsentOrPlaceholder(context, key, value));
         input.put("executionContext", context);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void enforceCanonicalAssetContinuity(InterpretationPlan.Step step,
+                                                  Map<Integer, StepExecution> completed,
+                                                  Map<String, Object> input) {
+        if (step == null || input == null
+            || (!isTemplateDiscoveryTool(step.toolName()) && !isExecutionContextTool(step.toolName()))) {
+            return;
+        }
+        Map<String, Object> canonical = uniqueCompletedAssetExecutionContext(completed);
+        if (canonical.isEmpty()) {
+            return;
+        }
+        String envelopeKey = isTemplateDiscoveryTool(step.toolName()) ? "filters" : "executionContext";
+        Object rawTarget = firstMapValue(input, envelopeKey,
+            isTemplateDiscoveryTool(step.toolName()) ? "executionContext" : "mcpExecutionContext");
+        Map<String, Object> target = rawTarget instanceof Map<?, ?> map
+            ? new LinkedHashMap<>((Map<String, Object>) map)
+            : new LinkedHashMap<>();
+        assertSameCanonicalAsset("assetId", canonical.get("assetId"),
+            firstNonBlankObject(target.get("assetId"), target.get("asset_id")), step);
+        assertSameCanonicalAsset("assetName", canonical.get("assetName"),
+            firstNonBlankObject(target.get("assetName"), target.get("asset_name"), target.get("name")), step);
+        assertSameCanonicalEnvironment(canonical.get("env"),
+            firstNonBlankObject(target.get("env"), target.get("environment")), step);
+        if (isTemplateDiscoveryTool(step.toolName())) {
+            putIfAbsentOrPlaceholder(target, "assetName", canonical.get("assetName"));
+            putIfAbsentOrPlaceholder(target, "env", canonical.get("env"));
+        } else {
+            canonical.forEach((key, value) -> putIfAbsentOrPlaceholder(target, key, value));
+        }
+        input.put(envelopeKey, target);
+    }
+
+    private Map<String, Object> uniqueCompletedAssetExecutionContext(Map<Integer, StepExecution> completed) {
+        Map<String, Object> reviewed = reviewSelectedAssetExecutionContext(completed);
+        if (!reviewed.isEmpty()) {
+            return reviewed;
+        }
+        if (completed == null || completed.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> unique = Map.of();
+        for (StepExecution execution : completed.values()) {
+            if (execution == null || !execution.success() || !isAssetDiscoveryTool(execution.toolName())
+                || discoveredAssetCount(execution.output(), "assets") != 1) {
+                continue;
+            }
+            Map<String, Object> candidate = assetExecutionContext(execution.output());
+            if (candidate.isEmpty()) {
+                continue;
+            }
+            if (!unique.isEmpty() && !sameCanonicalAsset(unique, candidate)) {
+                return Map.of();
+            }
+            unique = candidate;
+        }
+        return unique;
+    }
+
+    private boolean sameCanonicalAsset(Map<String, Object> left, Map<String, Object> right) {
+        String leftId = stringValue(left.get("assetId"));
+        String rightId = stringValue(right.get("assetId"));
+        if (leftId != null && rightId != null) {
+            return leftId.equals(rightId);
+        }
+        return Objects.equals(stringValue(left.get("assetName")), stringValue(right.get("assetName")));
+    }
+
+    private void assertSameCanonicalAsset(String field,
+                                          Object canonicalValue,
+                                          Object suppliedValue,
+                                          InterpretationPlan.Step step) {
+        if (canonicalValue == null || suppliedValue == null
+            || String.valueOf(canonicalValue).equals(String.valueOf(suppliedValue))) {
+            return;
+        }
+        throw new IllegalStateException("ASSET_CONTEXT_MISMATCH: step " + step.id() + " ("
+            + step.toolName() + ") supplied " + field + "=" + suppliedValue
+            + " but asset discovery established " + field + "=" + canonicalValue);
+    }
+
+    private void assertSameCanonicalEnvironment(Object canonicalValue,
+                                                Object suppliedValue,
+                                                InterpretationPlan.Step step) {
+        if (canonicalValue == null || suppliedValue == null
+            || String.valueOf(canonicalValue).equalsIgnoreCase(String.valueOf(suppliedValue))) {
+            return;
+        }
+        throw new IllegalStateException("ASSET_CONTEXT_MISMATCH: step " + step.id() + " ("
+            + step.toolName() + ") supplied env=" + suppliedValue
+            + " but asset discovery established env=" + canonicalValue);
     }
 
     private void putIfAbsentOrPlaceholder(Map<String, Object> target, String key, Object value) {

@@ -4804,7 +4804,7 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
-    void reviewsAssetDiscoveryAfterLocalFactCheckAndExecutesDependentLinuxCommand() {
+    void skipsCumulativeModelReviewForUniqueAssetAndExecutesDependentLinuxCommand() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_ssh_asset_query")).thenReturn(true);
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_linux_command_execute")).thenReturn(true);
@@ -4857,10 +4857,8 @@ class InterpretationPlanRuntimeTest {
         InterpretationPlanRuntime.StepResultReviewer reviewer = request -> {
             if ("mcp_chatchat_mcp_server_ssh_asset_query".equals(request.execution().toolName())) {
                 assetReviewCalls.incrementAndGet();
-                assertThat(request.execution().metadata())
-                    .containsEntry("localFactCheckHasEvidence", true)
-                    .containsEntry("assetDiscoveryReturnedCount", 1);
-                return InterpretationPlanRuntime.StepReview.accepted("asset discovery contains a usable target", Map.of());
+                return InterpretationPlanRuntime.StepReview.rejected(
+                    "the overall diagnostic request still lacks resource evidence", Map.of());
             }
             return InterpretationPlanRuntime.StepReview.accepted("command output usable", Map.of());
         };
@@ -4918,11 +4916,74 @@ class InterpretationPlanRuntimeTest {
         verify(toolRuntimeService, times(2)).execute(captor.capture());
         Map<?, ?> linuxParameters = captor.getAllValues().get(1).getToolInput().getParameters();
         Map<?, ?> executionContext = (Map<?, ?>) linuxParameters.get("executionContext");
-        assertThat(assetReviewCalls).hasValue(1);
+        assertThat(assetReviewCalls).hasValue(0);
+        assertThat(result.steps().get(0).metadata())
+            .containsEntry("localFactCheckHasEvidence", true)
+            .containsEntry("assetDiscoveryReturnedCount", 1)
+            .containsEntry("toolResultReviewSkipped", true);
         assertThat(captor.getAllValues().get(1).getToolName()).isEqualTo("mcp_chatchat_mcp_server_linux_command_execute");
         assertThat(linuxParameters.get("template")).isEqualTo("CHECK_SYSTEM_OVERVIEW");
         assertThat(executionContext.get("assetName")).isEqualTo("docker_service");
         assertThat(executionContext.get("env")).isEqualTo("DEV");
+    }
+
+    @Test
+    void rejectsDependentExecutionWhenPlannedAssetDiffersFromUniqueDiscovery() {
+        String assetTool = "mcp_chatchat_mcp_server_ssh_asset_query";
+        String commandTool = "mcp_chatchat_mcp_server_linux_command_execute";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(any())).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenAnswer(invocation -> ToolMetadata.builder()
+            .id(invocation.getArgument(0)).riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of(
+                "schemaVersion", "asset_query_result.v1",
+                "returnedCount", 1,
+                "assets", List.of(Map.of("asset", Map.of(
+                    "id", "worker11-id",
+                    "name", "CDH DataNode 节点 worker11",
+                    "environment", "DEV"
+                )))
+            )),
+            ToolMetadata.builder().id(assetTool).build(), null, "success", Map.of()
+        ));
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("system_operation", "Analyze worker11", "medium"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", assetTool,
+                    Map.of("filters", Map.of("assetName", "worker11")), List.of(), null, null),
+                new InterpretationPlan.Step(2, "mcp_tool", commandTool,
+                    Map.of("template", "CHECK_HOSTNAME", "executionContext",
+                        Map.of("assetName", "ADP 平台开发数据库", "env", "DEV")),
+                    List.of(1), null, null),
+                new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"),
+                    List.of(2), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(3, false,
+                List.of(assetTool, commandTool), List.of(), 30_000),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            null,
+            request -> InterpretationPlanRuntime.StepReview.accepted("usable", Map.of()),
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(plan, toolRegistry,
+                List.of(assetTool, commandTool), "tenant", "req-asset-mismatch",
+                "conversation", "user", Map.of())
+        );
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorMessage())
+            .contains("ASSET_CONTEXT_MISMATCH", "ADP 平台开发数据库", "CDH DataNode 节点 worker11");
+        verify(toolRuntimeService, times(1)).execute(any());
     }
 
     @Test
@@ -5113,7 +5174,7 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
-    void continuesWhenReviewerContradictsDeterministicAssetFacts() {
+    void skipsReviewerForUniqueDeterministicAssetFacts() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_sql_datasource_asset_query")).thenReturn(true);
         when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_sql_datasource_asset_query"))
@@ -5137,11 +5198,14 @@ class InterpretationPlanRuntimeTest {
             "success",
             Map.of()
         ));
-        InterpretationPlanRuntime.StepResultReviewer reviewer = request ->
-            InterpretationPlanRuntime.StepReview.rejected(
+        AtomicInteger reviewerCalls = new AtomicInteger();
+        InterpretationPlanRuntime.StepResultReviewer reviewer = request -> {
+            reviewerCalls.incrementAndGet();
+            return InterpretationPlanRuntime.StepReview.rejected(
                 "Asset query returned zero results and no matching asset.",
                 Map.of("reviewed", true)
             );
+        };
         InterpretationPlan plan = new InterpretationPlan(
             "1.0",
             new InterpretationPlan.Intent("sql_metadata", "Analyze 248-test-db", "low"),
@@ -5192,12 +5256,12 @@ class InterpretationPlanRuntimeTest {
         assertThat(result.success())
             .as(result.status() + ": " + result.errorMessage() + " steps=" + result.steps())
             .isTrue();
+        assertThat(reviewerCalls).hasValue(0);
         assertThat(result.finalAnswer()).isEqualTo("done");
         assertThat(result.steps().get(0).metadata())
             .containsEntry("localFactCheckHasEvidence", true)
             .containsEntry("assetDiscoveryReturnedCount", 1)
-            .containsEntry("toolResultReviewContradictedLocalFacts", true)
-            .containsEntry("toolResultReviewSatisfied", true);
+            .containsEntry("toolResultReviewSkipped", true);
     }
 
     @Test

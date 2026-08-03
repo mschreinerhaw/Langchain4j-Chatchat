@@ -229,6 +229,158 @@ class AgentToolArgumentResolver {
         return values;
     }
 
+    /**
+     * Keeps a unique typed asset discovery result authoritative across the legacy
+     * agent loop. Model review may improve template ranking, but it must never move
+     * a continuation tool to a different logical asset.
+     */
+    Map<String, Object> enforceObservedAssetContinuity(String toolName,
+                                                       Map<String, Object> arguments,
+                                                       List<InteractionToolTrace> traces) {
+        Map<String, Object> values = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
+        if (!assetScopedContinuationTool(toolName, values)
+            || "DENIED".equals(values.get(McpParamBindingResolver.STATUS_KEY))) {
+            return values;
+        }
+        Map<String, Object> canonical = uniqueObservedAsset(traces);
+        if (canonical.isEmpty()) {
+            return values;
+        }
+        boolean templateDiscovery = templateDiscoveryTool(toolName);
+        String envelopeKey = templateDiscovery ? "filters" : "executionContext";
+        Map<String, Object> target = mutableMap(firstPresent(values, envelopeKey,
+            templateDiscovery ? "executionContext" : "mcpExecutionContext"));
+        String mismatch = assetMismatch(canonical, target);
+        if (mismatch != null) {
+            values.put(McpParamBindingResolver.STATUS_KEY, "DENIED");
+            values.put(McpParamBindingResolver.CODE_KEY, "ASSET_CONTEXT_MISMATCH");
+            values.put(McpParamBindingResolver.ERROR_KEY, mismatch);
+            log.warn("Agent continuation rejected because observed asset context drifted: tool={}, error={}",
+                toolName, mismatch);
+            return values;
+        }
+        putIfText(target, "assetName", firstPresent(canonical, "name", "assetName", "asset_name"));
+        putIfText(target, "env", firstPresent(canonical, "environment", "env"));
+        if (!templateDiscovery) {
+            putIfText(target, "assetId", firstPresent(canonical, "id", "assetId", "asset_id"));
+            putIfText(target, "assetToolName", firstPresent(canonical, "toolName", "tool_name"));
+        }
+        values.put(envelopeKey, target);
+        return values;
+    }
+
+    private Map<String, Object> uniqueObservedAsset(List<InteractionToolTrace> traces) {
+        if (traces == null || traces.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> unique = Map.of();
+        for (InteractionToolTrace trace : traces) {
+            if (trace == null || !trace.isSuccess() || !assetDiscoveryTool(trace.getToolName())
+                || trace.getOutput() == null || trace.getOutput().isBlank()) {
+                continue;
+            }
+            List<Map<String, Object>> assets = discoveredAssets(parseJson(trace.getOutput()));
+            if (assets.size() != 1) {
+                continue;
+            }
+            Map<String, Object> candidate = assets.get(0);
+            if (!unique.isEmpty() && !sameObservedAsset(unique, candidate)) {
+                return Map.of();
+            }
+            unique = candidate;
+        }
+        return unique;
+    }
+
+    private List<Map<String, Object>> discoveredAssets(Object value) {
+        List<Map<String, Object>> assets = new ArrayList<>();
+        collectDiscoveredAssets(value, assets, 0);
+        return assets;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void collectDiscoveredAssets(Object value, List<Map<String, Object>> assets, int depth) {
+        if (value == null || depth > 8) {
+            return;
+        }
+        if (value instanceof List<?> list) {
+            list.forEach(item -> collectDiscoveredAssets(item, assets, depth + 1));
+            return;
+        }
+        if (!(value instanceof Map<?, ?> raw)) {
+            return;
+        }
+        Map<String, Object> map = (Map<String, Object>) raw;
+        Object asset = map.get("asset");
+        if (asset instanceof Map<?, ?> assetMap
+            && scalarText(firstPresent((Map<String, Object>) assetMap, "id", "assetId", "name")) != null) {
+            assets.add(new LinkedHashMap<>((Map<String, Object>) assetMap));
+            return;
+        }
+        for (String key : List.of("assets", "data", "result", "payload", "structuredContent",
+            "structured_content", "routingProjection")) {
+            collectDiscoveredAssets(map.get(key), assets, depth + 1);
+        }
+    }
+
+    private boolean sameObservedAsset(Map<String, Object> left, Map<String, Object> right) {
+        String leftId = scalarText(firstPresent(left, "id", "assetId", "asset_id"));
+        String rightId = scalarText(firstPresent(right, "id", "assetId", "asset_id"));
+        if (leftId != null && rightId != null) {
+            return leftId.equals(rightId);
+        }
+        return Objects.equals(
+            scalarText(firstPresent(left, "name", "assetName", "asset_name")),
+            scalarText(firstPresent(right, "name", "assetName", "asset_name"))
+        );
+    }
+
+    private String assetMismatch(Map<String, Object> canonical, Map<String, Object> supplied) {
+        String canonicalId = scalarText(firstPresent(canonical, "id", "assetId", "asset_id"));
+        String suppliedId = scalarText(firstPresent(supplied, "assetId", "asset_id"));
+        if (canonicalId != null && suppliedId != null && !canonicalId.equals(suppliedId)) {
+            return "Asset continuation supplied assetId=" + suppliedId
+                + " but prior unique discovery established assetId=" + canonicalId;
+        }
+        String canonicalName = scalarText(firstPresent(canonical, "name", "assetName", "asset_name"));
+        String suppliedName = scalarText(firstPresent(supplied, "assetName", "asset_name", "name"));
+        if (canonicalName != null && suppliedName != null && !canonicalName.equals(suppliedName)) {
+            return "Asset continuation supplied assetName=" + suppliedName
+                + " but prior unique discovery established assetName=" + canonicalName;
+        }
+        String canonicalEnv = scalarText(firstPresent(canonical, "environment", "env"));
+        String suppliedEnv = scalarText(firstPresent(supplied, "environment", "env"));
+        if (canonicalEnv != null && suppliedEnv != null && !canonicalEnv.equalsIgnoreCase(suppliedEnv)) {
+            return "Asset continuation supplied env=" + suppliedEnv
+                + " but prior unique discovery established env=" + canonicalEnv;
+        }
+        return null;
+    }
+
+    private boolean assetScopedContinuationTool(String toolName, Map<String, Object> arguments) {
+        if (assetDiscoveryTool(toolName)) {
+            return false;
+        }
+        String normalized = toolName == null ? "" : toolName.trim().toLowerCase(Locale.ROOT);
+        return templateDiscoveryTool(toolName)
+            || normalized.contains("command_execute")
+            || normalized.contains("query_execute")
+            || normalized.contains("script_execute")
+            || normalized.contains("template_execute")
+            || arguments.containsKey("executionContext")
+            || arguments.containsKey("mcpExecutionContext");
+    }
+
+    private boolean assetDiscoveryTool(String toolName) {
+        String normalized = toolName == null ? "" : toolName.trim().toLowerCase(Locale.ROOT);
+        return normalized.contains("asset_query") || normalized.contains("asset_search");
+    }
+
+    private boolean templateDiscoveryTool(String toolName) {
+        String normalized = toolName == null ? "" : toolName.trim().toLowerCase(Locale.ROOT);
+        return normalized.contains("template_query") || normalized.contains("template_search");
+    }
+
     private List<Map<String, Object>> eligibleTemplates(List<Map<String, Object>> candidates,
                                                          String requestedTemplateId) {
         if (requestedTemplateId == null) {

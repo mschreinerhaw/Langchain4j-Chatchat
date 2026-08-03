@@ -21,6 +21,63 @@ class AgentToolArgumentResolverTest {
     private final AgentToolArgumentResolver resolver = new AgentToolArgumentResolver(new AgentToolNameResolver(), 5);
 
     @Test
+    void injectsUniqueObservedAssetIntoFallbackTemplateDiscovery() {
+        InteractionToolTrace assetDiscovery = InteractionToolTrace.builder()
+            .toolName("mcp_chatchat_mcp_server_ssh_asset_query")
+            .success(true)
+            .output("""
+                {"assets":[{"asset":{"id":"worker11-id","name":"CDH DataNode 节点 worker11",
+                "environment":"DEV","toolName":"ssh_cdh_worker11_datanode"}}]}
+                """)
+            .build();
+
+        Map<String, Object> result = resolver.enforceObservedAssetContinuity(
+            "mcp_chatchat_mcp_server_ssh_template_query",
+            Map.of("filters", Map.of("intent", "DataNode health")),
+            List.of(assetDiscovery)
+        );
+
+        Map<?, ?> filters = (Map<?, ?>) result.get("filters");
+        assertThat(filters.get("assetName")).isEqualTo("CDH DataNode 节点 worker11");
+        assertThat(filters.get("env")).isEqualTo("DEV");
+    }
+
+    @Test
+    void deniesFallbackExecutorWhenTemplateDiscoveryDriftsFromUniqueObservedAsset() {
+        InteractionToolTrace assetDiscovery = InteractionToolTrace.builder()
+            .toolName("mcp_chatchat_mcp_server_ssh_asset_query")
+            .success(true)
+            .output("""
+                {"assets":[{"asset":{"id":"worker11-id","name":"CDH DataNode 节点 worker11",
+                "environment":"DEV","toolName":"ssh_cdh_worker11_datanode"}}]}
+                """)
+            .build();
+        InteractionToolTrace wrongTemplateDiscovery = InteractionToolTrace.builder()
+            .toolName("mcp_chatchat_mcp_server_ssh_template_query")
+            .success(true)
+            .output("""
+                {"queryIr":{"asset":{"selected":{"id":"adp-id","name":"ADP 平台开发数据库",
+                "environment":"DEV"}}},"templates":[{"templateId":"CHECK_HOSTNAME",
+                "parameterContract":{"executionTool":"linux_command_execute"},
+                "parameterSchema":{"type":"object","properties":{},"required":[]}}]}
+                """)
+            .build();
+        List<InteractionToolTrace> traces = List.of(assetDiscovery, wrongTemplateDiscovery);
+        Map<String, Object> compiled = resolver.applyObservedTemplateContract(
+            "mcp_chatchat_mcp_server_linux_command_execute",
+            Map.of("parameters", Map.of()), traces);
+
+        Map<String, Object> result = resolver.enforceObservedAssetContinuity(
+            "mcp_chatchat_mcp_server_linux_command_execute", compiled, traces);
+
+        assertThat(result)
+            .containsEntry("__runtimeParamBindingStatus", "DENIED")
+            .containsEntry("__runtimeParamBindingCode", "ASSET_CONTEXT_MISMATCH");
+        assertThat(result.get("__runtimeParamBindingError").toString())
+            .contains("ADP 平台开发数据库", "CDH DataNode 节点 worker11");
+    }
+
+    @Test
     void mandatoryFallbackTransportsPublishedDependencyEvidence() {
         ToolRegistry registry = mock(ToolRegistry.class);
         ToolMetadata metadata = ToolMetadata.builder()

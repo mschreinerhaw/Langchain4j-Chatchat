@@ -275,7 +275,7 @@ class AgentToolArgumentResolver {
         }
         Map<String, Object> unique = Map.of();
         for (InteractionToolTrace trace : traces) {
-            if (trace == null || !trace.isSuccess() || !assetDiscoveryTool(trace.getToolName())
+            if (trace == null || !trace.isSuccess()
                 || trace.getOutput() == null || trace.getOutput().isBlank()) {
                 continue;
             }
@@ -295,7 +295,13 @@ class AgentToolArgumentResolver {
     private List<Map<String, Object>> discoveredAssets(Object value) {
         List<Map<String, Object>> assets = new ArrayList<>();
         collectDiscoveredAssets(value, assets, 0);
-        return assets;
+        List<Map<String, Object>> unique = new ArrayList<>();
+        for (Map<String, Object> candidate : assets) {
+            if (unique.stream().noneMatch(existing -> sameObservedAsset(existing, candidate))) {
+                unique.add(candidate);
+            }
+        }
+        return unique;
     }
 
     @SuppressWarnings("unchecked")

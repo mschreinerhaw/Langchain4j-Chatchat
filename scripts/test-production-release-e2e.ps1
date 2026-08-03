@@ -12,6 +12,7 @@ param(
     [string]$PrePlanWorkflowQuery,
     [string]$PrePlanSkillId,
     [string]$PrePlanExpectedTools,
+    [string]$PrePlanExpectedExecutionTemplates,
     [string]$PrePlanExpectedAnswerEvidence,
     [string]$PrePlanFailureQuery,
     [string]$PrePlanFailureTool,
@@ -64,6 +65,7 @@ try {
         if ([string]::IsNullOrWhiteSpace($PrePlanWorkflowQuery) -or
             [string]::IsNullOrWhiteSpace($PrePlanSkillId) -or
             [string]::IsNullOrWhiteSpace($PrePlanExpectedTools) -or
+            [string]::IsNullOrWhiteSpace($PrePlanExpectedExecutionTemplates) -or
             [string]::IsNullOrWhiteSpace($PrePlanExpectedAnswerEvidence) -or
             [string]::IsNullOrWhiteSpace($PrePlanFailureQuery) -or
             [string]::IsNullOrWhiteSpace($PrePlanFailureTool) -or
@@ -80,6 +82,7 @@ try {
         $mavenArguments += "-Dchatchat.e2e.preplan-workflow-query=$PrePlanWorkflowQuery"
         $mavenArguments += "-Dchatchat.e2e.preplan-skill-id=$PrePlanSkillId"
         $mavenArguments += "-Dchatchat.e2e.preplan-expected-tools=$PrePlanExpectedTools"
+        $mavenArguments += "-Dchatchat.e2e.preplan-expected-execution-templates=$PrePlanExpectedExecutionTemplates"
         $mavenArguments += "-Dchatchat.e2e.preplan-expected-answer-evidence=$PrePlanExpectedAnswerEvidence"
         $mavenArguments += "-Dchatchat.e2e.preplan-failure-query=$PrePlanFailureQuery"
         $mavenArguments += "-Dchatchat.e2e.preplan-failure-tool=$PrePlanFailureTool"

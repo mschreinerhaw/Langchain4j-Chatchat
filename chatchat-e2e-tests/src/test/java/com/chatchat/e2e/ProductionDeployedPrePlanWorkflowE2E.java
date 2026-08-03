@@ -38,6 +38,7 @@ class ProductionDeployedPrePlanWorkflowE2E {
         String skillId = required("chatchat.e2e.preplan-skill-id");
         String answerEvidence = required("chatchat.e2e.preplan-expected-answer-evidence");
         List<String> expectedTools = csv("chatchat.e2e.preplan-expected-tools");
+        List<String> expectedExecutionTemplates = csv("chatchat.e2e.preplan-expected-execution-templates");
         assertThat(expectedTools)
             .as("the deployed workflow must prove a pre-plan step and at least one dependent step")
             .hasSizeGreaterThanOrEqualTo(2);
@@ -70,6 +71,7 @@ class ProductionDeployedPrePlanWorkflowE2E {
         JsonNode traces = response.path("toolTraces");
         assertThat(traces.isArray()).isTrue();
         assertSuccessfulToolOrder(traces, expectedTools);
+        assertSuccessfulExecutionTemplates(traces, expectedExecutionTemplates);
         assertNoWorkflowDependencyFailure(response);
 
         JsonNode timeline = getJson(apiBaseUrl + "/api/v1/agent/runtime/runs/"
@@ -90,7 +92,7 @@ class ProductionDeployedPrePlanWorkflowE2E {
         assertThat(conversation.path("code").asInt()).isEqualTo(200);
         JsonNode messages = conversation.path("data").path("messages");
         assertThat(messages.isArray()).isTrue();
-        assertThat(messages.toString()).contains(query, response.path("answer").asText());
+        assertThat(messageContents(messages)).contains(query, response.path("answer").asText());
         assertThat(messages.toString()).contains(expectedTools.toArray(String[]::new));
     }
 
@@ -178,6 +180,29 @@ class ProductionDeployedPrePlanWorkflowE2E {
             if (toolName.equals(trace.path("toolName").asText())) return trace;
         }
         return null;
+    }
+
+    private void assertSuccessfulExecutionTemplates(JsonNode traces, List<String> expectedTemplates) {
+        List<String> successfulTemplates = new java.util.ArrayList<>();
+        if (traces.isArray()) {
+            for (JsonNode trace : traces) {
+                if (!trace.path("success").asBoolean()) continue;
+                JsonNode input = trace.path("input");
+                String template = input.path("templateId").asText(input.path("template").asText());
+                if (!template.isBlank()) successfulTemplates.add(template);
+            }
+        }
+        assertThat(successfulTemplates)
+            .as("successful execution-template evidence; traces=%s", preview(traces.toString()))
+            .containsAll(expectedTemplates);
+    }
+
+    private List<String> messageContents(JsonNode messages) {
+        List<String> contents = new java.util.ArrayList<>();
+        if (messages.isArray()) {
+            messages.forEach(message -> contents.add(message.path("content").asText()));
+        }
+        return contents;
     }
 
     private void assertNoWorkflowDependencyFailure(JsonNode value) {

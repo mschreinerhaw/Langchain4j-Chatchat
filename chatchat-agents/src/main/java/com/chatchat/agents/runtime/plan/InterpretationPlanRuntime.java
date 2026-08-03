@@ -1342,12 +1342,15 @@ public class InterpretationPlanRuntime {
         String reason = lastReview == null || lastReview.reason() == null || lastReview.reason().isBlank()
             ? "Tool result did not satisfy the plan step after model review."
             : lastReview.reason();
-        if (shouldPreservePartialToolResult(execution)) {
+        if (shouldPreservePartialToolResult(request.plan(), step, execution)) {
             metadata.put("toolResultReviewPartialAccepted", true);
             metadata.put("toolResultReviewPartialReason", reason);
             metadata.put("toolResultReviewReason",
                 "Tool returned structured data and is preserved for final synthesis with limitations: " + reason);
             metadata.put("partialEvidence", true);
+            if (isTemplateDiscoveryTool(execution.toolName()) && lastReview != null) {
+                execution = applyRuntimeTemplateSelection(execution, lastReview, metadata, startedAt);
+            }
             return execution.withMetadata(metadata, elapsed(startedAt));
         }
         return new StepExecution(
@@ -1515,14 +1518,49 @@ public class InterpretationPlanRuntime {
         return returnedCount != null && returnedCount == 1;
     }
 
-    private boolean shouldPreservePartialToolResult(StepExecution execution) {
+    private boolean shouldPreservePartialToolResult(InterpretationPlan plan,
+                                                    InterpretationPlan.Step step,
+                                                    StepExecution execution) {
         if (execution == null || !execution.success() || execution.output() == null) {
             return false;
+        }
+        if (isTemplateDiscoveryTool(execution.toolName())
+            && discoveredAssetCount(execution.output(), "templates") > 0
+            && hasDependentRuntimeOwnedDiagnosticBatch(plan, step)) {
+            return true;
         }
         if (!isPreservableStructuredDataTool(execution.toolName())) {
             return false;
         }
         return hasStructuredToolEvidence(execution.output(), 0);
+    }
+
+    private boolean hasDependentRuntimeOwnedDiagnosticBatch(InterpretationPlan plan,
+                                                            InterpretationPlan.Step discoveryStep) {
+        if (plan == null || plan.plan() == null || discoveryStep == null || discoveryStep.id() == null
+            || plan.steps() == null || plan.steps().isEmpty()) {
+            return false;
+        }
+        Map<Integer, InterpretationPlan.Step> stepsById = plan.steps().stream()
+            .filter(candidate -> candidate != null && candidate.id() != null)
+            .collect(Collectors.toMap(
+                InterpretationPlan.Step::id,
+                candidate -> candidate,
+                (left, ignored) -> left,
+                LinkedHashMap::new
+            ));
+        for (InterpretationPlan.Step candidate : plan.steps()) {
+            if (candidate == null || !isTemplateExecutionTool(candidate.toolName())
+                || !runtimeOwnedDiagnosticBatch(candidate, plan)) {
+                continue;
+            }
+            LinkedHashSet<Integer> ancestors = new LinkedHashSet<>();
+            collectAncestorStepIds(candidate, stepsById, ancestors);
+            if (ancestors.contains(discoveryStep.id())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean isPreservableStructuredDataTool(String toolName) {

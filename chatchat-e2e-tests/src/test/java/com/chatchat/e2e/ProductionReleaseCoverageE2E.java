@@ -33,7 +33,8 @@ class ProductionReleaseCoverageE2E {
         );
         assertThat(releaseSuite)
             .contains("chatchat-e2e-tests", "-am", "verify", "frontend.skip=true",
-                "PrePlanWorkflowQuery", "PrePlanSkillId", "PrePlanExpectedTools", "PrePlanExpectedAnswerEvidence",
+                "PrePlanWorkflowQuery", "PrePlanSkillId", "PrePlanExpectedTools",
+                "PrePlanExpectedExecutionTemplates", "PrePlanExpectedAnswerEvidence",
                 "PrePlanFailureQuery", "PrePlanFailureTool", "PrePlanFailureBlockedTools",
                 "PrePlanFailureExpectedEvidence");
         assertThat(Files.readString(root.resolve("pom.xml")))
@@ -58,7 +59,8 @@ class ProductionReleaseCoverageE2E {
             .contains("userDiagnosticRequestCrossesApiAgentMcpPersistenceAndReturnsRenderableEvidence",
                 "failedPrePlanToolStopsDependentsPersistsFailureAndReturnsUserFacingExplanation",
                 "/api/v1/interactions/chat", "/api/v1/agent/runtime/runs/",
-                "/api/v1/conversations/", "expectedTools", "required previous steps")
+                "/api/v1/conversations/", "expectedTools", "expectedExecutionTemplates",
+                "required previous steps")
             .doesNotContain("Mockito", "mock(", "InMemoryAgentRunStore");
         assertThat(Files.readString(root.resolve(
             "chatchat-e2e-tests/src/test/java/com/chatchat/agents/orchestration/ProductionAgentRuntimeFinancialEvidenceStressE2E.java")))

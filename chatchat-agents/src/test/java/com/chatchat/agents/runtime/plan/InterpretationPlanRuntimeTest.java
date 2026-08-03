@@ -6822,7 +6822,7 @@ class InterpretationPlanRuntimeTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void compilesSharedDiagnosticExecutorIntoFiveAuditableTemplateCalls() {
+    void compilesSharedDiagnosticExecutorIntoFiveAuditableTemplateCallsWhenReviewFindsAnotherGap() {
         String discoveryTool = "database_ops_template_search";
         String executorTool = "sql_query_execute";
         List<String> templateIds = List.of(
@@ -7018,6 +7018,12 @@ class InterpretationPlanRuntimeTest {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             toolRuntimeService,
             new InterpretationPlanValidator(),
+            new InterpretationPlanOptimizer(),
+            null,
+            request -> InterpretationPlanRuntime.StepReview.rejected(
+                "available templates cover useful checks but another diagnostic aspect is missing",
+                Map.of("refinedIntent", "find the remaining diagnostic capability")
+            ),
             scriptedController(List.of(List.of(1), List.of(2), List.of(3), List.of(4)))
         );
 
@@ -7032,6 +7038,9 @@ class InterpretationPlanRuntimeTest {
             .as("status=%s error=%s metadata=%s steps=%s",
                 result.status(), result.errorMessage(), result.metadata(), result.steps())
             .isTrue();
+        assertThat(result.steps().get(0).metadata())
+            .containsEntry("toolResultReviewPartialAccepted", true)
+            .containsEntry("partialEvidence", true);
         ToolRuntimeRequest batchRequest = requests.stream()
             .filter(request -> executorTool.equals(request.getToolName()))
             .findFirst()

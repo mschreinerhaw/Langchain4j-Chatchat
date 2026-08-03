@@ -46,6 +46,11 @@ class ProductionReleaseCoverageE2E {
                 "invalidExtremeRequestsAreRejectedBeforeConversationPersistenceModelOrToolExecution",
                 "concurrentUnpredictableQuestionsRemainResponsiveAndRequestIsolated");
         assertThat(Files.readString(root.resolve(
+            "chatchat-e2e-tests/src/test/java/com/chatchat/e2e/ProductionPrePlanWorkflowContinuityE2E.java")))
+            .contains("prePlanToolCompletionReachesTheFirstDagDependencyWithoutBusinessHardcoding",
+                "failedPrePlanStepCannotBeConvertedIntoSuccessfulDagEvidence",
+                "generatedNamespace", "structuredRuntimeObservation");
+        assertThat(Files.readString(root.resolve(
             "chatchat-e2e-tests/src/test/java/com/chatchat/agents/orchestration/ProductionAgentRuntimeFinancialEvidenceStressE2E.java")))
             .contains("concurrentForcedFinancialRequestsRemainIsolatedAndSchemaDriven",
                 "concurrentExtremeEvidenceCombinationsNeverEraseUsableAnalysisOrLeakRequests",

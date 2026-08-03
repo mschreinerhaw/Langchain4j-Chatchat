@@ -82,6 +82,61 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void interpretationPlanCarriesSuccessfulPrePlanToolsIntoWorkflowDependencies() {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        InteractionToolTrace successfulAssetQuery = InteractionToolTrace.builder()
+            .toolName("generated_asset_discovery")
+            .success(true)
+            .build();
+
+        Map<String, Object> attributes = orchestrator.interpretationPlanInitialAttributes(
+            Map.of("existing", true),
+            List.of(successfulAssetQuery)
+        );
+
+        assertThat(attributes).containsEntry("existing", true);
+        assertThat(attributes.get("workflowCompletedTools"))
+            .isEqualTo(List.of("generated_asset_discovery"));
+    }
+
+    @Test
+    void interpretationPlanRestoresOnlyCompletedToolsFromTheCurrentRun() {
+        InMemoryAgentRunStore runStore = new InMemoryAgentRunStore();
+        AgentRunRequest firstRun = AgentRunRequest.builder()
+            .runId("run-state-a")
+            .requestId("request-state-a")
+            .query("generated workflow")
+            .build();
+        AgentRunRequest secondRun = AgentRunRequest.builder()
+            .runId("run-state-b")
+            .requestId("request-state-b")
+            .query("generated workflow")
+            .build();
+        runStore.start(firstRun);
+        runStore.start(secondRun);
+        runStore.recordObservation(firstRun.getRunId(), AgentObservation.builder()
+            .type("tool")
+            .source("generated_asset_discovery")
+            .content("completed")
+            .metadata(Map.of(
+                "structuredRuntimeObservation", true,
+                "toolName", "generated_asset_discovery",
+                "success", true
+            ))
+            .build());
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            mock(ChatModel.class), mock(ToolRegistry.class), mock(ToolRuntimeService.class),
+            new ObjectMapper(), new ModelsConfig(), new EvidenceTrustEvaluator(), runStore);
+
+        assertThat(orchestrator.interpretationPlanInitialAttributes(
+            Map.of("__agentRunId", firstRun.getRunId()), List.of()).get("workflowCompletedTools"))
+            .isEqualTo(List.of("generated_asset_discovery"));
+        assertThat(orchestrator.interpretationPlanInitialAttributes(
+            Map.of("__agentRunId", secondRun.getRunId()), List.of()))
+            .doesNotContainKey("workflowCompletedTools");
+    }
+
+    @Test
     void finalSynthesisPromptSummarizesAllExecutedPlanAttempts() {
         InterpretationPlanRuntime.ExecutionResult first = attemptResult(
             "result_unsatisfied", false, "first evidence", "first result was incomplete");

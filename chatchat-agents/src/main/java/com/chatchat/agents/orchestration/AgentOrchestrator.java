@@ -940,6 +940,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
                                                                    int maxToolCalls,
                                                                    BooleanSupplier cancellationCheck) {
         runtimeGuard.checkCancelled(cancellationCheck);
+        runtimeAttributes = interpretationPlanInitialAttributes(runtimeAttributes, traces);
         AgentPlanBudgetPolicy.BudgetCaps budgetCaps = AgentPlanBudgetPolicy.fromRuntimeAttributes(runtimeAttributes);
         AgentPlanBudgetPolicy.ApplyResult budgetResult = AgentPlanBudgetPolicy.apply(plan, budgetCaps);
         plan = budgetResult.plan();
@@ -1653,6 +1654,15 @@ public class AgentOrchestrator implements AgentRunExecutor {
         attributes.put("workflowExecutionAttempt", Math.max(0, attempt));
         attributes.put("toolResultReviewMaxAttempts", 1);
         return attributes;
+    }
+
+    Map<String, Object> interpretationPlanInitialAttributes(Map<String, Object> runtimeAttributes,
+                                                             List<InteractionToolTrace> traces) {
+        Set<String> completedTools = completedWorkflowToolsFromEvents(
+            runtimeAttributes,
+            workflowStateTracker.completedToolsFromTraces(traces)
+        );
+        return workflowStateTracker.attributesWithCompletedTools(runtimeAttributes, completedTools);
     }
 
     private Map<String, Object> runtimeExecutionPolicy(boolean requireToolBeforeFinal) {

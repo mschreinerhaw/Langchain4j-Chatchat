@@ -61,6 +61,7 @@ class ProductionCoverageAuditE2E {
         String tests = testSource(root);
         assertThat(tests).contains(
             "ProductionDeployedTopologyE2E",
+            "ProductionDeployedPrePlanWorkflowE2E",
             "ProductionReleaseArtifactE2E",
             "ProductionExtremeReasoningAndTemplateResultE2E",
             "ProductionAgentSecurityBoundaryE2E",

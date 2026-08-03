@@ -348,8 +348,17 @@ $env:TENCENTCLOUD_SECRET_KEY = "<由密钥系统注入>"
   -McpBaseUrl "https://<mcp-host>" `
   -NewsBaseUrl "https://<news-host>" `
   -InferenceQuery "请根据最新公开行情数据进行分析并给出有来源的建议" `
-  -InferenceExpectedEvidence "web_search"
+  -InferenceExpectedEvidence "web_search" `
+  -PrePlanWorkflowQuery "分析目标 DataNode 及其他大数据角色的运行状态、资源和磁盘使用情况" `
+  -PrePlanExpectedTools "<资产发现工具>,<模板发现工具>,<执行工具>" `
+  -PrePlanExpectedAnswerEvidence "磁盘" `
+  -PrePlanFailureQuery "分析一个预发布环境中确定不存在的诊断目标" `
+  -PrePlanFailureTool "<资产发现工具>" `
+  -PrePlanFailureBlockedTools "<模板发现工具>,<执行工具>" `
+  -PrePlanFailureExpectedEvidence "无法"
 ```
+
+其中工具参数必须填写部署环境返回的完整工具名并按业务执行顺序排列。成功场景验证完整工具链；失败场景使用预发布环境中确定失败且无副作用的目标，验证下游工具不会执行、失败证据被持久化且用户能看到可理解的说明。发布门禁会从真实 HTTP 用户入口发起请求，随后回读 Runtime timeline 和 Conversation，验证 Agent、MCP、持久化以及最终答案形成闭环。工具名通过发布环境参数注入，不得写入 Runtime 生产代码。
 
 候选版本回归不得在上游模块发生变化后使用 Maven `-rf` 结果作为发布证据；该方式可能从本地仓库解析旧 SNAPSHOT。必须使用带 `-am` 的受影响 Reactor 构建，或执行完整发布脚本。
 

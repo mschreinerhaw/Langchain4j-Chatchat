@@ -32,7 +32,10 @@ class ProductionReleaseCoverageE2E {
             "FinancialQueryRuntimeContractAcceptanceTest"
         );
         assertThat(releaseSuite)
-            .contains("chatchat-e2e-tests", "-am", "verify", "frontend.skip=true");
+            .contains("chatchat-e2e-tests", "-am", "verify", "frontend.skip=true",
+                "PrePlanWorkflowQuery", "PrePlanExpectedTools", "PrePlanExpectedAnswerEvidence",
+                "PrePlanFailureQuery", "PrePlanFailureTool", "PrePlanFailureBlockedTools",
+                "PrePlanFailureExpectedEvidence");
         assertThat(Files.readString(root.resolve("pom.xml")))
             .contains("<module>chatchat-e2e-tests</module>");
         assertThat(Files.readString(root.resolve(
@@ -50,6 +53,13 @@ class ProductionReleaseCoverageE2E {
             .contains("prePlanToolCompletionReachesTheFirstDagDependencyWithoutBusinessHardcoding",
                 "failedPrePlanStepCannotBeConvertedIntoSuccessfulDagEvidence",
                 "generatedNamespace", "structuredRuntimeObservation");
+        assertThat(Files.readString(root.resolve(
+            "chatchat-e2e-tests/src/test/java/com/chatchat/e2e/ProductionDeployedPrePlanWorkflowE2E.java")))
+            .contains("userDiagnosticRequestCrossesApiAgentMcpPersistenceAndReturnsRenderableEvidence",
+                "failedPrePlanToolStopsDependentsPersistsFailureAndReturnsUserFacingExplanation",
+                "/api/v1/interactions/chat", "/api/v1/agent/runtime/runs/",
+                "/api/v1/conversations/", "expectedTools", "required previous steps")
+            .doesNotContain("Mockito", "mock(", "InMemoryAgentRunStore");
         assertThat(Files.readString(root.resolve(
             "chatchat-e2e-tests/src/test/java/com/chatchat/agents/orchestration/ProductionAgentRuntimeFinancialEvidenceStressE2E.java")))
             .contains("concurrentForcedFinancialRequestsRemainIsolatedAndSchemaDriven",

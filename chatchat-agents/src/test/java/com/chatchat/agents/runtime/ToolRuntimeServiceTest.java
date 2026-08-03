@@ -200,7 +200,7 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
-    void oversizedTemplateDiscoveryPreservesExecutableContractProjection() {
+    void oversizedTemplateDiscoveryPreservesExecutableContractProjection() throws Exception {
         ToolRegistry registry = mock(ToolRegistry.class);
         String toolName = "tenant_database_query_template_query";
         when(registry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
@@ -219,6 +219,9 @@ class ToolRuntimeServiceTest {
         template.put("templateDsl", Map.of("sql", "select secret implementation body"));
         when(registry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.success(Map.of(
             "schemaVersion", "template_query_result.v3",
+            "queryIr", Map.of("asset", Map.of("selected", Map.of(
+                "id", "host-41", "name", "tenant-runtime-host", "environment", "DEV",
+                "password", "must-not-leak"))),
             "templates", List.of(template)
         )));
         ToolRuntimeProperties runtimeProperties = properties();
@@ -242,6 +245,21 @@ class ToolRuntimeServiceTest {
                 assertThat(projected.get("description").toString()).hasSizeLessThan(2_100);
                 assertThat(projected.containsKey("templateDsl")).isFalse();
                 assertThat(projected.containsKey("sql")).isFalse();
+                Map<?, ?> selected = (Map<?, ?>) ((Map<?, ?>) ((Map<?, ?>) projection
+                    .get("queryIr")).get("asset")).get("selected");
+                assertThat(selected.get("id")).isEqualTo("host-41");
+                assertThat(selected.get("name")).isEqualTo("tenant-runtime-host");
+                assertThat(selected.get("environment")).isEqualTo("DEV");
+                assertThat(selected.containsKey("password")).isFalse();
+            });
+            Map<?, ?> traceOutput = new ObjectMapper().readValue(execution.trace().getOutput(), Map.class);
+            assertThat(traceOutput.get("routingProjection")).isInstanceOfSatisfying(Map.class, projection -> {
+                List<?> templates = (List<?>) projection.get("templates");
+                assertThat(templates).singleElement().isInstanceOfSatisfying(Map.class, projected ->
+                    assertThat(projected)
+                        .containsEntry("templateId", "sample_margin_trade_latest")
+                        .containsKey("sqlExecutionBinding")
+                        .doesNotContainKeys("templateDsl", "sql"));
             });
         } finally {
             service.shutdown();

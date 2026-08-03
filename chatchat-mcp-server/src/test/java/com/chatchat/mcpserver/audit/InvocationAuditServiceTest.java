@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.audit;
 
+import com.chatchat.common.audit.AuditQueryProperties;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.mcpserver.api.ApiInvokeResult;
 import com.chatchat.mcpserver.api.ApiServiceConfig;
@@ -29,7 +30,7 @@ class InvocationAuditServiceTest {
     @Test
     void recordsApiTemplateAuditFields() throws Exception {
         McpRocksDbStore store = usableStore();
-        InvocationAuditService service = new InvocationAuditService(store, objectMapper);
+        InvocationAuditService service = service(store);
         ApiServiceConfig config = new ApiServiceConfig();
         config.setId("api-1");
         config.setToolName("order_status_api");
@@ -49,7 +50,7 @@ class InvocationAuditServiceTest {
     @Test
     void recordsDatabaseQueryTemplateAuditFields() throws Exception {
         McpRocksDbStore store = usableStore();
-        InvocationAuditService service = new InvocationAuditService(store, objectMapper);
+        InvocationAuditService service = service(store);
         DatabaseQueryConfig config = new DatabaseQueryConfig();
         config.setId("db-query-1");
         config.setToolName("order_status_query");
@@ -78,7 +79,7 @@ class InvocationAuditServiceTest {
     @Test
     void searchesCommandAuditsByCategoryUserDatasourceAndCommandTypeWithPagination() throws Exception {
         McpRocksDbStore store = usableStore();
-        InvocationAuditService service = new InvocationAuditService(store, objectMapper);
+        InvocationAuditService service = service(store);
         InvocationAuditLog first = commandLog("1", "alice", "Main MySQL", "SQL_QUERY", "SHOW ENGINE INNODB STATUS", 3);
         InvocationAuditLog second = commandLog("2", "alice", "Main MySQL", "SQL_QUERY", "SHOW PROCESSLIST", 2);
         InvocationAuditLog unrelated = commandLog("3", "bob", "Ops Host", "LINUX_COMMAND", "systemctl status app", 1);
@@ -103,6 +104,40 @@ class InvocationAuditServiceTest {
         assertThat(page.items()).extracting(InvocationAuditLog::getId).containsExactly("1");
     }
 
+    @Test
+    void defaultsToConfiguredRecentWindowWithoutDeletingHistoricalAudits() throws Exception {
+        McpRocksDbStore store = usableStore();
+        AuditQueryProperties properties = new AuditQueryProperties();
+        properties.setDefaultQueryWindowDays(3);
+        InvocationAuditService service = new InvocationAuditService(store, objectMapper, properties);
+        InvocationAuditLog recent = commandLog("recent", "alice", "Main", "SQL_QUERY", "SELECT 1", 60);
+        InvocationAuditLog historical = commandLog(
+            "historical", "alice", "Main", "SQL_QUERY", "SELECT 2", 4 * 24 * 60 * 60L);
+        when(store.get("audit:data:recent")).thenReturn(objectMapper.writeValueAsBytes(recent));
+        when(store.get("audit:data:historical")).thenReturn(objectMapper.writeValueAsBytes(historical));
+        doAnswer(invocation -> {
+            Consumer<McpRocksDbStore.KeyValue> consumer = invocation.getArgument(2);
+            consumer.accept(new McpRocksDbStore.KeyValue(
+                "audit:index:recent".getBytes(StandardCharsets.UTF_8),
+                "recent".getBytes(StandardCharsets.UTF_8)));
+            consumer.accept(new McpRocksDbStore.KeyValue(
+                "audit:index:historical".getBytes(StandardCharsets.UTF_8),
+                "historical".getBytes(StandardCharsets.UTF_8)));
+            return null;
+        }).when(store).scan(org.mockito.ArgumentMatchers.eq("audit:index:"), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.any());
+
+        InvocationAuditService.AuditLogPage recentPage = service.search(null);
+        InvocationAuditService.AuditLogPage historicalPage = service.search(new InvocationAuditService.AuditLogSearchQuery(
+            1, 20, null, null, null, null, null, null, null,
+            null, null, null, null, null, null, 0L, null
+        ));
+
+        assertThat(recentPage.totalCount()).isEqualTo(2);
+        assertThat(recentPage.items()).extracting(InvocationAuditLog::getId).containsExactly("recent");
+        assertThat(historicalPage.items()).extracting(InvocationAuditLog::getId)
+            .containsExactly("recent", "historical");
+    }
+
     private InvocationAuditLog commandLog(String id, String username, String datasourceName,
                                            String commandType, String commandSummary, long secondsAgo) {
         InvocationAuditLog log = new InvocationAuditLog();
@@ -122,6 +157,10 @@ class InvocationAuditServiceTest {
         McpRocksDbStore store = mock(McpRocksDbStore.class);
         when(store.isUsable()).thenReturn(true);
         return store;
+    }
+
+    private InvocationAuditService service(McpRocksDbStore store) {
+        return new InvocationAuditService(store, objectMapper, new AuditQueryProperties());
     }
 
     private InvocationAuditLog savedLog(McpRocksDbStore store) throws Exception {

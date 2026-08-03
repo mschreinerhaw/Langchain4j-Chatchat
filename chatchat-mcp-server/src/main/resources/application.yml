@@ -1,3 +1,7 @@
 spring:
   profiles:
     default: dev
+
+chatchat:
+  audit:
+    default-query-window-days: ${CHATCHAT_AUDIT_DEFAULT_QUERY_WINDOW_DAYS:7}

@@ -574,6 +574,7 @@
 .message-panel {
   width: min(860px, calc(100% - 28px));
   max-width: 860px;
+  min-width: 0;
   flex: 1 1 auto;
   min-height: 0;
   height: auto;
@@ -583,7 +584,8 @@
   gap: 14px;
   margin: 0 auto;
   padding: 18px;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.96);
@@ -591,6 +593,9 @@
 }
 
 .chat-message {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr);
   gap: 10px;
@@ -646,7 +651,9 @@
 }
 
 .message-bubble {
+  width: 100%;
   min-width: 0;
+  max-width: 100%;
   padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -807,9 +814,27 @@
 }
 
 .message-markdown {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   color: #1f2937;
   font-size: 14px;
   line-height: 1.75;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.message-markdown > *,
+.message-markdown .evidence-answer-card,
+.message-markdown .evidence-reasoning-card,
+.message-markdown .ui-render-answer-block {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.message-markdown :where(h1, h2, h3, h4, h5, h6, p, li, blockquote, a),
+.message-markdown :not(pre) > code {
+  overflow-wrap: anywhere;
   word-break: break-word;
 }
 
@@ -2214,6 +2239,12 @@
   margin: 10px 0;
   border-collapse: collapse;
   font-size: 13px;
+}
+
+.message-markdown > table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .message-markdown .query-result-table-card {

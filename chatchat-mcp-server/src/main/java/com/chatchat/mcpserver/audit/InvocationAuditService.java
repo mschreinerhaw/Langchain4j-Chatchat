@@ -2,6 +2,7 @@ package com.chatchat.mcpserver.audit;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
 
+import com.chatchat.common.audit.AuditQueryProperties;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.mcpserver.api.ApiInvokeResult;
 import com.chatchat.mcpserver.api.ApiServiceConfig;
@@ -47,6 +48,7 @@ public class InvocationAuditService {
 
     private final McpRocksDbStore rocksDbStore;
     private final ObjectMapper objectMapper;
+    private final AuditQueryProperties auditQueryProperties;
 
     /**
      * Lists the recent.
@@ -655,7 +657,9 @@ public class InvocationAuditService {
             trimToNull(query.datasourceName()),
             query.success(),
             query.statusCode(),
-            query.from(),
+            query.from() == null
+                ? auditQueryProperties.defaultQueryFrom(Instant.now()).toEpochMilli()
+                : query.from(),
             query.to()
         );
     }

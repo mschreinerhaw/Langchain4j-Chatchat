@@ -53,6 +53,11 @@ class ProductionReleaseCoverageE2E {
         assertThat(Files.readString(root.resolve(
             "chatchat-e2e-tests/src/test/java/com/chatchat/agents/orchestration/ProductionPartialEvidenceAnswerPreservationE2E.java")))
             .contains("mixedEvidencePreservesAnalysisAndExposesCoverageBoundary");
+        assertThat(Files.readString(root.resolve(
+            "chatchat-e2e-tests/src/test/java/com/chatchat/agents/orchestration/ProductionTemplateExecutionContextContinuityE2E.java")))
+            .contains("oversizedApiSshAndDatabaseTemplateResultsRemainExecutableEndToEnd",
+                "api_template_query", "ssh_template_query", "database_query_template_query",
+                "routingProjection", "outputTruncated");
     }
 
     @Test

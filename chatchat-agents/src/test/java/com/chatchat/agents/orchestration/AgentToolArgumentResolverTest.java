@@ -820,6 +820,113 @@ class AgentToolArgumentResolverTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void compilesSqlInvocationFromStructuredProjectionInsideTruncatedTraceSummary() {
+        String templateId = "tenant_etf_snapshot_" + System.nanoTime();
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .toolName("mcp_vendor_database_query_template_query")
+            .success(true)
+            .output("""
+                {
+                  "schemaVersion":"tool_result_summary.v1",
+                  "summaryTruncated":true,
+                  "preview":"human-readable preview is intentionally not parsed",
+                  "routingProjection":{
+                    "sourceSchemaVersion":"template_query_result.v1",
+                    "templates":[{
+                      "templateId":"%s",
+                      "parameterSchema":{"type":"object","properties":{},"required":[]},
+                      "sqlExecutionBinding":{
+                        "toolName":"sql_query_execute",
+                        "templateId":"%s",
+                        "executionContext":{"assetName":"tenant-market-runtime","env":"DEV"}
+                      }
+                    }]
+                  }
+                }
+                """.formatted(templateId, templateId))
+            .build();
+
+        Map<String, Object> result = resolver.applyObservedTemplateContract(
+            "mcp_vendor_sql_query_execute",
+            Map.of("purpose", "analyze latest tenant ETF observations"),
+            List.of(discovery));
+
+        assertThat(result)
+            .containsEntry("template", templateId)
+            .containsEntry("parameters", Map.of())
+            .doesNotContainKeys("__runtimeParamBindingStatus", "__runtimeParamBindingError");
+        assertThat((Map<String, Object>) result.get("executionContext"))
+            .containsEntry("assetName", "tenant-market-runtime")
+            .containsEntry("env", "DEV");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void compilesSshInvocationWithSelectedAssetInsideTruncatedTraceProjection() {
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .toolName("mcp_vendor_ssh_template_query")
+            .success(true)
+            .output("""
+                {
+                  "schemaVersion":"tool_result_summary.v1",
+                  "summaryTruncated":true,
+                  "routingProjection":{
+                    "queryIr":{"asset":{"selected":{"name":"runtime-host-7","environment":"PROD"}}},
+                    "templates":[{
+                      "templateId":"CHECK_RUNTIME_LOAD",
+                      "parameterSchema":{"type":"object","properties":{},"required":[]},
+                      "parameterContract":{"executionTool":"linux_command_execute"}
+                    }]
+                  }
+                }
+                """)
+            .build();
+
+        Map<String, Object> result = resolver.applyObservedTemplateContract(
+            "mcp_vendor_linux_command_execute",
+            Map.of("purpose", "inspect runtime host load"),
+            List.of(discovery));
+
+        assertThat(result)
+            .containsEntry("template", "CHECK_RUNTIME_LOAD")
+            .containsEntry("parameters", Map.of())
+            .doesNotContainKeys("__runtimeParamBindingStatus", "__runtimeParamBindingError");
+        assertThat((Map<String, Object>) result.get("executionContext"))
+            .containsEntry("assetName", "runtime-host-7")
+            .containsEntry("env", "PROD");
+    }
+
+    @Test
+    void compilesApiInvocationInsideTruncatedTraceProjection() {
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .toolName("mcp_vendor_api_template_query")
+            .success(true)
+            .output("""
+                {
+                  "schemaVersion":"tool_result_summary.v1",
+                  "summaryTruncated":true,
+                  "routingProjection":{"templates":[{
+                    "templateId":"tenant_order_status",
+                    "parameterSchema":{"type":"object","properties":{},"required":[]},
+                    "parameterContract":{"executionTool":"api_template_execute"}
+                  }]}
+                }
+                """)
+            .build();
+
+        Map<String, Object> result = resolver.applyObservedTemplateContract(
+            "mcp_vendor_api_template_execute",
+            Map.of("purpose", "query order service status"),
+            List.of(discovery));
+
+        assertThat(result)
+            .containsEntry("templateId", "tenant_order_status")
+            .containsEntry("parameters", Map.of())
+            .doesNotContainKeys("template", "__runtimeParamBindingStatus", "__runtimeParamBindingError");
+    }
+
+    @Test
     void notificationToolBindsMessageDefaultsFromUserQuery() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         String toolName = "mcp_chatchat_mcp_server_notify_ops";

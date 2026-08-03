@@ -195,6 +195,7 @@ class AgentToolArgumentResolver {
                         )
                     );
                     values = new LinkedHashMap<>(bridged.executorInput());
+                    mergeObservedExecutionContext(values, template);
                     finishObservedTemplateInput(toolName, values, output);
                     logObservedTemplateContract(toolName, requestedTemplateId, templateId, trace,
                         values, bridged.protocolTrace(), bridged.repairs(), true);
@@ -278,7 +279,10 @@ class AgentToolArgumentResolver {
                         new TemplateInvocationBridge.EvidenceContext(userQuery, Map.of())
                     )
                 );
-                call.put("arguments", bridged.executorInput());
+                Map<String, Object> compiledInput = new LinkedHashMap<>(bridged.executorInput());
+                mergeObservedExecutionContext(compiledInput, template);
+                finishObservedTemplateInput(childTool, compiledInput, output);
+                call.put("arguments", compiledInput);
                 call.remove("input");
                 compiledCalls.add(call);
             } catch (TemplateInvocationBridge.TemplateBridgeException ex) {
@@ -330,6 +334,34 @@ class AgentToolArgumentResolver {
         if (!context.isEmpty()) {
             values.put("executionContext", context);
         }
+    }
+
+    /**
+     * Carries runtime-owned routing context from the discovered template into the
+     * executor request. Template discovery contracts use a few compatible binding
+     * envelopes, so resolve them structurally instead of coupling this bridge to a
+     * particular datasource, environment, or template id.
+     */
+    private void mergeObservedExecutionContext(Map<String, Object> values, Map<String, Object> template) {
+        Object observedValue = null;
+        for (Object candidate : new Object[] {
+            nested(template, "sqlExecutionBinding", "executionContext"),
+            nested(template, "executionBinding", "executionContext"),
+            nested(template, "execution", "executionContext"),
+            template.get("executionContext")
+        }) {
+            if (candidate != null) {
+                observedValue = candidate;
+                break;
+            }
+        }
+        Map<String, Object> observed = mutableMap(observedValue);
+        if (observed.isEmpty()) {
+            return;
+        }
+        Map<String, Object> context = mutableMap(values.get("executionContext"));
+        context.putAll(observed);
+        values.put("executionContext", context);
     }
 
     private void logObservedTemplateContract(String toolName,
@@ -434,7 +466,7 @@ class AgentToolArgumentResolver {
             return;
         }
         for (String key : List.of("templates", "associatedTemplates", "associated_templates", "results", "items",
-            "data", "result", "payload", "structuredContent", "structured_content")) {
+            "data", "result", "payload", "structuredContent", "structured_content", "routingProjection")) {
             collectDiscoveredTemplates(map.get(key), templates, depth + 1);
         }
     }
@@ -472,6 +504,10 @@ class AgentToolArgumentResolver {
             return Map.of();
         }
         Object selected = nested((Map<String, Object>) root, "queryIr", "asset", "selected");
+        if (selected == null) {
+            selected = nested((Map<String, Object>) root,
+                "routingProjection", "queryIr", "asset", "selected");
+        }
         return selected instanceof Map<?, ?> map ? new LinkedHashMap<>((Map<String, Object>) map) : Map.of();
     }
 

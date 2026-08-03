@@ -1342,7 +1342,7 @@ public class ToolRuntimeService {
                                             Map<String, Object> runtimeMetadata) {
         // Traces cross HTTP, event-store and feedback boundaries. They are an
         // operational preview, never the authoritative evidence payload.
-        String outputText = stringify(ToolLogSummarizer.summarizeResult(
+        String outputText = stringify(traceOutputSummary(
             toolName, output == null ? null : output.getData()));
         return InteractionToolTrace.builder()
             .toolName(toolName)
@@ -1358,6 +1358,40 @@ public class ToolRuntimeService {
             .finishedAt(finishedAt)
             .runtimeMetadata(runtimeMetadata)
             .build();
+    }
+
+    /**
+     * Keeps the bounded operational summary and the Runtime-owned routing contract together.
+     * Large discovery results may already have been externalized before trace construction;
+     * their projection must remain structured so a dependent tool can compile its invocation.
+     */
+    private Object traceOutputSummary(String toolName, Object data) {
+        Object summary = ToolLogSummarizer.summarizeResult(toolName, data);
+        Map<String, Object> projection = existingRoutingProjection(data);
+        if (projection.isEmpty()) {
+            projection = routingProjection(data);
+        }
+        if (projection.isEmpty()) {
+            return summary;
+        }
+        Map<String, Object> enriched = summary instanceof Map<?, ?> map
+            ? new LinkedHashMap<>(asMap(map))
+            : new LinkedHashMap<>();
+        if (!(summary instanceof Map<?, ?>)) {
+            enriched.put("summary", summary);
+        }
+        enriched.put("routingProjection", projection);
+        return enriched;
+    }
+
+    private Map<String, Object> existingRoutingProjection(Object data) {
+        if (!(data instanceof Map<?, ?> map)) {
+            return Map.of();
+        }
+        Object projection = map.get("routingProjection");
+        return projection instanceof Map<?, ?> projectionMap
+            ? new LinkedHashMap<>(asMap(projectionMap))
+            : Map.of();
     }
 
     /**
@@ -2896,12 +2930,35 @@ public class ToolRuntimeService {
         if (!projectedTemplates.isEmpty()) {
             projection.put("templates", List.copyOf(projectedTemplates));
         }
-        if (projectedAssets.isEmpty() && projectedTemplates.isEmpty()) {
+        Map<String, Object> selectedAsset = projectedSelectedAsset(source);
+        if (!selectedAsset.isEmpty()) {
+            projection.put("queryIr", Map.of("asset", Map.of("selected", selectedAsset)));
+        }
+        if (projectedAssets.isEmpty() && projectedTemplates.isEmpty() && selectedAsset.isEmpty()) {
             return Map.of();
         }
         projection.put("returnedCount", !projectedTemplates.isEmpty()
             ? projectedTemplates.size() : projectedAssets.size());
         return Map.copyOf(projection);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> projectedSelectedAsset(Map<?, ?> source) {
+        Object queryIr = source.get("queryIr");
+        if (!(queryIr instanceof Map<?, ?> queryMap)
+            || !(queryMap.get("asset") instanceof Map<?, ?> assetEnvelope)
+            || !(assetEnvelope.get("selected") instanceof Map<?, ?> selected)) {
+            return Map.of();
+        }
+        Map<String, Object> identity = new LinkedHashMap<>();
+        copyRoutingField(identity, selected, "id", "id", "assetId");
+        copyRoutingField(identity, selected, "name", "name", "assetName", "displayName");
+        copyRoutingField(identity, selected, "displayName", "displayName", "name");
+        copyRoutingField(identity, selected, "environment", "environment", "env");
+        copyRoutingField(identity, selected, "toolName", "toolName", "tool_name");
+        copyRoutingField(identity, selected, "databaseRole", "databaseRole", "database_role");
+        copyRoutingField(identity, selected, "type", "type", "assetType");
+        return identity.isEmpty() ? Map.of() : Map.copyOf(identity);
     }
 
     private List<Map<String, Object>> projectedAssets(Object value) {
@@ -2950,7 +3007,7 @@ public class ToolRuntimeService {
                 "rank", "relevanceScore", "decisionScore", "matchReasons", "intentSignals",
                 "capabilitySpec", "outputSchema", "dependencySpec", "parameterSchema", "inputSchema",
                 "requiredParameters", "parameterContract", "executionContext", "datasourceAsset",
-                "sqlExecutionBinding", "executionBinding", "execution", "enabled"
+                "sqlExecutionBinding", "executionBinding", "execution", "invocationExample", "enabled"
             )) {
                 Object field = template.get(key);
                 if (field != null) contract.put(key, field);

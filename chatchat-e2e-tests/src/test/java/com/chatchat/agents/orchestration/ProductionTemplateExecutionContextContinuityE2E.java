@@ -79,11 +79,17 @@ class ProductionTemplateExecutionContextContinuityE2E {
             Map<String, Object> guarded = resolver.enforceObservedAssetContinuity(
                 executionTool, compiled, traces);
 
+            assertThat(assetDiscovery.trace().getOutput())
+                .contains("routingProjection", "worker11-id", "CDH DataNode 节点 worker11");
+            assertThat(guarded)
+                .containsEntry("__runtimeParamBindingStatus", "DENIED")
+                .containsEntry("__runtimeParamBindingCode", "ASSET_CONTEXT_MISMATCH");
+
             ToolRuntimeExecution execution = runtime.execute(request(
                 executionTool, "blocked-execution", List.of(executionTool), guarded));
 
             assertThat(execution.output().isSuccess()).isFalse();
-            assertThat(execution.output().getErrorCode()).isEqualTo("ASSET_CONTEXT_MISMATCH");
+            assertThat(execution.output().getExceptionType()).isEqualTo("ASSET_CONTEXT_MISMATCH");
             assertThat(execution.output().getErrorMessage())
                 .contains("ADP 平台开发数据库", "CDH DataNode 节点 worker11");
             assertThat(remoteExecutionCalls).hasValue(0);

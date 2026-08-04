@@ -65,4 +65,36 @@ class HttpRequirementAnalysisMcpToolPublisherTest {
         assertThat(result).containsEntry("allRequirementsHaveCandidates", false);
         assertThat(result.get("missingRequirementIds")).isEqualTo(List.of("credit_score"));
     }
+
+    @Test
+    void acceptsPlannerIntentShapeAndGeneratesCanonicalRequirementFields() {
+        CommandTemplateDiscoveryService discovery = mock(CommandTemplateDiscoveryService.class);
+        when(discovery.query(org.mockito.ArgumentMatchers.any())).thenReturn(Map.of(
+            "returnedCount", 1,
+            "templates", List.of(Map.of("templateId", "http_query_yarn_nodes"))
+        ));
+        HttpRequirementAnalysisMcpToolPublisher publisher = new HttpRequirementAnalysisMcpToolPublisher(
+            mock(McpSyncServer.class), discovery);
+
+        Map<String, Object> result = publisher.analyze(Map.of(
+            "requirements", List.of(Map.of(
+                "intent", "分析 CDH YARN 节点内存和 vcores",
+                "requiredOutputs", List.of("节点内存", "vcores"),
+                "constraints", List.of("数据来自 ResourceManager API")
+            )),
+            "context", Map.of("env", "PROD", "assetType", "http_endpoint")
+        ));
+
+        assertThat(result).containsEntry("success", true)
+            .containsEntry("goal", "分析 CDH YARN 节点内存和 vcores");
+        Map<?, ?> coverage = (Map<?, ?>) ((List<?>) result.get("coverage")).get(0);
+        Map<?, ?> requirement = (Map<?, ?>) coverage.get("requirement");
+        assertThat(requirement.get("id")).isEqualTo("requirement_1");
+        assertThat(requirement.get("description")).isEqualTo("分析 CDH YARN 节点内存和 vcores");
+        org.mockito.Mockito.verify(discovery).query(argThat(query -> {
+            Map<?, ?> filters = (Map<?, ?>) query.get("filters");
+            return "PROD".equals(filters.get("env"))
+                && filters.toString().contains("ResourceManager API");
+        }));
+    }
 }

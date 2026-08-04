@@ -8,6 +8,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -63,5 +64,38 @@ class ApiRequirementAnalysisMcpToolPublisherTest {
         assertThat(result).containsEntry("allRequirementsHaveCandidates", false);
         assertThat(result.get("missingRequirementIds")).isEqualTo(List.of("credit_score"));
         assertThat(result.toString()).contains("NO_CANDIDATE");
+    }
+
+    @Test
+    void acceptsGenericPlannerIntentShapeWithoutDomainHardcoding() {
+        ApiTemplateDiscoveryMcpToolPublisher discovery = mock(ApiTemplateDiscoveryMcpToolPublisher.class);
+        when(discovery.query(any())).thenReturn(Map.of(
+            "returnedCount", 1,
+            "templates", List.of(Map.of("templateId", "matched_api_template"))
+        ));
+        ApiRequirementAnalysisMcpToolPublisher publisher = new ApiRequirementAnalysisMcpToolPublisher(
+            mock(McpSyncServer.class), discovery);
+
+        Map<String, Object> result = publisher.analyze(Map.of(
+            "requirements", List.of(Map.of(
+                "intent", "retrieve requested business metrics",
+                "requiredOutputs", List.of("metricA", "metricB"),
+                "constraints", List.of("read only")
+            )),
+            "context", Map.of("env", "PROD", "service", "analytics")
+        ));
+
+        assertThat(result).containsEntry("success", true)
+            .containsEntry("goal", "retrieve requested business metrics");
+        Map<?, ?> coverage = (Map<?, ?>) ((List<?>) result.get("coverage")).get(0);
+        Map<?, ?> requirement = (Map<?, ?>) coverage.get("requirement");
+        assertThat(requirement.get("id")).isEqualTo("requirement_1");
+        assertThat(requirement.get("description")).isEqualTo("retrieve requested business metrics");
+        org.mockito.Mockito.verify(discovery).query(argThat(query -> {
+            Map<?, ?> filters = (Map<?, ?>) query.get("filters");
+            return "PROD".equals(filters.get("env"))
+                && "analytics".equals(filters.get("service"))
+                && filters.toString().contains("read only");
+        }));
     }
 }

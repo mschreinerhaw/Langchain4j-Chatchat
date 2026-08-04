@@ -25,6 +25,8 @@ class ProductionReleaseCoverageE2E {
             "InterpretationPlanRuntimeTest",
             "RuntimeDeploymentHardcodingTest",
             "ApiTemplateDiscoveryMcpToolPublisherTest",
+            "ApiRequirementAnalysisMcpToolPublisherTest",
+            "HttpRequirementAnalysisMcpToolPublisherTest",
             "HttpRequestToolServiceLivedataTest",
             "LinuxCommandServiceTest",
             "SqlQueryExecuteServiceTest",
@@ -75,6 +77,17 @@ class ProductionReleaseCoverageE2E {
             .contains("oversizedApiSshAndDatabaseTemplateResultsRemainExecutableEndToEnd",
                 "api_template_query", "ssh_template_query", "database_query_template_query",
                 "routingProjection", "outputTruncated");
+        assertThat(Files.readString(root.resolve(
+            "chatchat-e2e-tests/src/test/java/com/chatchat/mcpserver/routing/ProductionRequirementAnalysisProtocolE2E.java")))
+            .contains("extremePlannerPayloadIsNormalizedWithoutBusinessSpecificRules",
+                "malformedEmptyAndOversizedPlannerPayloadsFailClosed",
+                "apiAndHttpPublishersAreForcedToUseOneDomainNeutralProtocol");
+        assertThat(Files.readString(root.resolve(
+            "chatchat-e2e-tests/src/test/java/com/chatchat/mcpserver/api/ProductionApiRequirementAnalysisProtocolE2E.java")))
+            .contains("plannerIntentAliasCrossesNormalizationAndApiDiscovery");
+        assertThat(Files.readString(root.resolve(
+            "chatchat-e2e-tests/src/test/java/com/chatchat/mcpserver/ops/ProductionHttpRequirementAnalysisProtocolE2E.java")))
+            .contains("plannerIntentAliasCrossesNormalizationAndHttpDiscovery");
     }
 
     @Test

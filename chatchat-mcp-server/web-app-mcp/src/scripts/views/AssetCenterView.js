@@ -216,6 +216,24 @@ export default {
         .filter(category => category.enabled !== false)
         .map(category => ({ value: category.id, label: `${category.name} / ${category.code}` }));
     },
+    httpListFilters() {
+      return [
+        ...this.assetEnabledListFilters,
+        {
+          key: 'gatewayAddress',
+          label: '网关地址',
+          placeholder: '全部网关地址',
+          valueGetter: item => gatewayAddress(item?.urlTemplate),
+          options: items => gatewayAddressOptions(items)
+        },
+        {
+          key: 'categoryId',
+          label: '业务分类',
+          placeholder: '全部业务分类',
+          options: () => this.businessCategoryOptions
+        }
+      ];
+    },
     sshFields() {
       return [
         { key: 'name', label: '资产名称', required: true, placeholder: '如 生产订单服务器', help: '资产名称使用业务可读名称，可用中文；工具名称才使用系统规范编码。' },
@@ -739,6 +757,26 @@ function httpTechnicalTypeOptions() {
 
 function technicalTypeLabel(value) {
   return value === 'MICROSERVICE' ? '微服务' : '普通 HTTP';
+}
+
+function gatewayAddress(value) {
+  const url = String(value || '').trim();
+  if (!url) return '';
+  try {
+    const parsed = new URL(url);
+    return `${parsed.protocol}//${parsed.host}`;
+  } catch (error) {
+    const match = url.match(/^(https?:\/\/[^/]+)/i);
+    return match ? match[1] : url;
+  }
+}
+
+function gatewayAddressOptions(items) {
+  return [...new Set((Array.isArray(items) ? items : [])
+    .map(item => gatewayAddress(item?.urlTemplate))
+    .filter(Boolean))]
+    .sort((left, right) => left.localeCompare(right))
+    .map(value => ({ value, label: value }));
 }
 
 function authTypeOptions() {

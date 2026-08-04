@@ -27,7 +27,7 @@
         business_group_name varchar(200),
         title varchar(200) not null,
         business_group_description varchar(1000),
-        description varchar(1000),
+        description varchar(2000),
         url_template varchar(2000),
         body_template longtext,
         capability_spec_json longtext,

@@ -166,14 +166,7 @@ public class McpAssetLuceneIndexService {
     }
 
     public synchronized Map<String, Object> rebuildSqlDatasources(List<String> datasourceIds) {
-        List<String> ids = datasourceIds == null ? List.of() : datasourceIds.stream()
-            .filter(id -> id != null && !id.isBlank())
-            .map(String::trim)
-            .distinct()
-            .toList();
-        if (ids.isEmpty()) {
-            throw new IllegalArgumentException("At least one SQL datasource asset must be selected");
-        }
+        List<String> ids = selectedIds(datasourceIds, "SQL datasource asset");
         int indexed = 0;
         int tableCount = 0;
         List<Map<String, Object>> assets = new ArrayList<>();
@@ -199,6 +192,30 @@ public class McpAssetLuceneIndexService {
         summary.put("sqlTableCount", tableCount);
         summary.put("assets", assets);
         return summary;
+    }
+
+    public synchronized Map<String, Object> rebuildSshHosts(List<String> hostIds) {
+        List<String> ids = selectedIds(hostIds, "SSH host asset");
+        List<LuceneMcpSearchService.AssetDoc> docs = ids.stream()
+            .map(hostConfigService::getById)
+            .peek(host -> requireEnabled(host.isEnabled(), "SSH host asset", host.getId()))
+            .map(assetMetadataFactory::sshAsset)
+            .map(this::assetDoc)
+            .toList();
+        luceneSearchService.upsertAssets("ssh_host", docs);
+        return selectedIndexSummary("ssh_host", ids.size(), docs.size());
+    }
+
+    public synchronized Map<String, Object> rebuildHttpEndpoints(List<String> endpointIds) {
+        List<String> ids = selectedIds(endpointIds, "HTTP endpoint asset");
+        List<LuceneMcpSearchService.AssetDoc> docs = ids.stream()
+            .map(httpEndpointConfigService::getById)
+            .peek(endpoint -> requireEnabled(endpoint.isEnabled(), "HTTP endpoint asset", endpoint.getId()))
+            .map(assetMetadataFactory::httpEndpoint)
+            .map(this::assetDoc)
+            .toList();
+        luceneSearchService.upsertAssets("http_endpoint", docs);
+        return selectedIndexSummary("http_endpoint", ids.size(), docs.size());
     }
 
     public synchronized Map<String, Object> upsertHttpEndpoint(HttpEndpointConfig endpoint) {
@@ -231,6 +248,33 @@ public class McpAssetLuceneIndexService {
             "assetType", assetType,
             "physicalIndex", luceneSearchService.assetIndexName(assetType),
             "indexes", Map.of(key, index)
+        );
+    }
+
+    private List<String> selectedIds(List<String> values, String assetLabel) {
+        List<String> ids = values == null ? List.of() : values.stream()
+            .filter(id -> id != null && !id.isBlank())
+            .map(String::trim)
+            .distinct()
+            .toList();
+        if (ids.isEmpty()) {
+            throw new IllegalArgumentException("At least one " + assetLabel + " must be selected");
+        }
+        return ids;
+    }
+
+    private void requireEnabled(boolean enabled, String assetLabel, String id) {
+        if (!enabled) {
+            throw new IllegalArgumentException(assetLabel + " is disabled and cannot be indexed: " + id);
+        }
+    }
+
+    private Map<String, Object> selectedIndexSummary(String assetType, int selectedCount, int indexed) {
+        return Map.of(
+            "enabled", true,
+            "assetType", assetType,
+            "selectedCount", selectedCount,
+            "indexed", indexed
         );
     }
 

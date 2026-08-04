@@ -142,17 +142,19 @@ public class LivedataApiConfigMapper {
      */
     private String toDescription(LivedataApiDefinition definition, LivedataAutoRegistrationProperties properties) {
         List<String> parts = new ArrayList<>();
-        addIfPresent(parts, definition.description());
-        addIfPresent(parts, definition.apiName());
         String apiKey = firstNonBlank(definition.apiId(), definition.serviceName(), definition.methodName());
         if (apiKey != null) {
             addIfPresent(parts, "LiveData API: " + apiKey);
         }
-        addIfPresent(parts, "namespace: " + firstNonBlank(definition.namespace(), properties.getDefaultNamespace()));
+        String namespace = firstNonBlank(definition.namespace(), properties.getDefaultNamespace());
+        if (namespace != null) {
+            addIfPresent(parts, "namespace: " + namespace);
+        }
         String version = firstNonBlank(definition.releaseVersion(), definition.version());
         if (version != null) {
             addIfPresent(parts, "version: " + version);
         }
+        addIfPresent(parts, definition.description());
         return String.join("\n", parts);
     }
 

@@ -66,6 +66,22 @@ public class McpSearchIndexAdminController {
         );
     }
 
+    @PostMapping("/assets/ssh_host/rebuild-selected")
+    public ApiResponse<Map<String, Object>> rebuildSelectedSshHostIndexes(@RequestBody SelectedAssetIndexRequest request) {
+        return ApiResponse.success(
+            assetLuceneIndexService.rebuildSshHosts(request == null ? List.of() : request.ids()),
+            "Selected SSH host asset indexes rebuilt"
+        );
+    }
+
+    @PostMapping("/assets/http_endpoint/rebuild-selected")
+    public ApiResponse<Map<String, Object>> rebuildSelectedHttpEndpointIndexes(@RequestBody SelectedAssetIndexRequest request) {
+        return ApiResponse.success(
+            assetLuceneIndexService.rebuildHttpEndpoints(request == null ? List.of() : request.ids()),
+            "Selected HTTP endpoint asset indexes rebuilt"
+        );
+    }
+
     @PostMapping("/templates/rebuild")
     public ApiResponse<Map<String, Object>> rebuildTemplateIndex() {
         templateLuceneIndexService.refreshAll();
@@ -75,6 +91,24 @@ public class McpSearchIndexAdminController {
             "databaseQueryIndex", true,
             "apiServiceIndex", true
         ), "MCP template Lucene indexes rebuilt");
+    }
+
+    @PostMapping("/templates/ssh-command/rebuild-selected")
+    public ApiResponse<Map<String, Object>> rebuildSelectedSshCommandTemplateIndexes(
+        @RequestBody SelectedAssetIndexRequest request
+    ) {
+        return ApiResponse.success(
+            templateLuceneIndexService.rebuildCommandTemplates(request == null ? List.of() : request.ids()),
+            "Selected SSH command template indexes rebuilt"
+        );
+    }
+
+    @PostMapping("/templates/sql/rebuild-selected")
+    public ApiResponse<Map<String, Object>> rebuildSelectedSqlTemplateIndexes(@RequestBody SelectedAssetIndexRequest request) {
+        return ApiResponse.success(
+            templateLuceneIndexService.rebuildSqlTemplates(request == null ? List.of() : request.ids()),
+            "Selected SQL template indexes rebuilt"
+        );
     }
 
     @PostMapping("/database-queries/rebuild")

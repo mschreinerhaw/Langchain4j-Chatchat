@@ -41,7 +41,8 @@
       :test-action="testSsh"
       :form-test-action="testSsh"
       form-test-label="测试连接"
-      :rebuild-action="() => api.rebuildAssetIndex('ssh_host')"
+      :rebuild-action="api.rebuildSelectedSshAssetIndexes"
+      rebuild-requires-selection
       rebuild-label="重建服务器索引"
       @notify="$emit('notify', $event)"
       @error="$emit('error', $event)"
@@ -81,7 +82,8 @@
       :columns="httpColumns"
       :form-fields="httpFields"
       :defaults="httpDefaults"
-      :list-filters="assetEnabledListFilters"
+      :list-filters="httpListFilters"
+      stacked-header-actions
       :searchable-fields="['name', 'toolName', 'title', 'description', 'urlTemplate', 'environment', 'method', 'technicalType', 'category', 'tags']"
       :list-action="api.listHttp"
       :save-action="api.saveHttp"
@@ -89,7 +91,8 @@
       :test-action="testHttp"
       :form-test-action="testHttp"
       form-test-label="测试请求"
-      :rebuild-action="() => api.rebuildAssetIndex('http_endpoint')"
+      :rebuild-action="api.rebuildSelectedHttpAssetIndexes"
+      rebuild-requires-selection
       rebuild-label="重建网关索引"
       @notify="$emit('notify', $event)"
       @error="$emit('error', $event)"
@@ -124,7 +127,8 @@
             :list-action="api.listCommandTemplates"
             :save-action="api.saveCommandTemplate"
               :remove-action="api.deleteCommandTemplate"
-              :rebuild-action="api.rebuildTemplateIndex"
+              :rebuild-action="api.rebuildSelectedCommandTemplateIndexes"
+              rebuild-requires-selection
               rebuild-label="重建模板索引"
               @loaded="sshCommandTemplates = $event"
               @notify="$emit('notify', $event)"
@@ -146,7 +150,8 @@
             :list-action="api.listSqlTemplates"
             :save-action="api.saveSqlTemplate"
             :remove-action="api.deleteSqlTemplate"
-            :rebuild-action="api.rebuildTemplateIndex"
+            :rebuild-action="api.rebuildSelectedSqlTemplateIndexes"
+            rebuild-requires-selection
             @loaded="sqlOpsTemplates = $event"
             rebuild-label="重建模板索引"
             @notify="$emit('notify', $event)"

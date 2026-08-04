@@ -12,6 +12,41 @@ import static org.assertj.core.api.Assertions.assertThat;
 class LivedataApiConfigMapperTest {
 
     @Test
+    void appendsSourceDescriptionAfterCriticalLivedataMetadata() {
+        LivedataAutoRegistrationProperties properties = new LivedataAutoRegistrationProperties();
+        properties.setServiceBaseUrl("http://localhost:5006");
+        LivedataApiConfigMapper mapper = new LivedataApiConfigMapper(new ObjectMapper(), () -> properties);
+        LivedataApiDefinition definition = new LivedataApiDefinition(
+            "source-1", "AssetAnalysis", "资产分析", "[]", "资产分析接口描述", "ids",
+            "com.apex.livedata.AssetAnalysis", "call", 0, "1", "20240607153710"
+        );
+
+        ApiServiceConfig mapped = mapper.toApiServiceConfig(definition);
+
+        assertThat(mapped.getDescription()).isEqualTo("""
+            LiveData API: AssetAnalysis
+            namespace: ids
+            version: 20240607153710
+            资产分析接口描述""");
+    }
+
+    @Test
+    void omitsMissingSourceDescriptionWithoutRenderingNull() {
+        LivedataAutoRegistrationProperties properties = new LivedataAutoRegistrationProperties();
+        properties.setServiceBaseUrl("http://localhost:5006");
+        LivedataApiConfigMapper mapper = new LivedataApiConfigMapper(new ObjectMapper(), () -> properties);
+        LivedataApiDefinition definition = new LivedataApiDefinition(
+            "source-1", "AssetAnalysis", "资产分析", "[]", null, "ids",
+            "com.apex.livedata.AssetAnalysis", "call", 0, "1", "20240607153710"
+        );
+
+        assertThat(mapper.toApiServiceConfig(definition).getDescription()).isEqualTo("""
+            LiveData API: AssetAnalysis
+            namespace: ids
+            version: 20240607153710""");
+    }
+
+    @Test
     void mapsApiWithoutAmsTokenWhenTokenParameterIsNotExposed() throws Exception {
         LivedataAutoRegistrationProperties properties = new LivedataAutoRegistrationProperties();
         properties.setServiceBaseUrl("http://192.168.195.224:5006");

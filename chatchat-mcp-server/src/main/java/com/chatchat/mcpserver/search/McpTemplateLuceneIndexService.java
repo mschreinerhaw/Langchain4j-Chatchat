@@ -145,6 +145,54 @@ public class McpTemplateLuceneIndexService {
             .toList());
     }
 
+    public synchronized Map<String, Object> rebuildCommandTemplates(List<String> templateIds) {
+        List<String> ids = selectedIds(templateIds, "SSH command template");
+        List<CommandTemplateConfig> templates = ids.stream()
+            .map(commandTemplateService::getById)
+            .peek(template -> requireEnabled(template.isEnabled(), "SSH command template", template.getId()))
+            .toList();
+        upsertCommandTemplates(templates);
+        return selectedTemplateSummary("ssh_command", ids.size(), templates.size());
+    }
+
+    public synchronized Map<String, Object> rebuildSqlTemplates(List<String> templateIds) {
+        List<String> ids = selectedIds(templateIds, "SQL template");
+        List<SqlTemplateConfig> templates = ids.stream()
+            .map(sqlTemplateService::getById)
+            .peek(template -> requireEnabled(template.isEnabled(), "SQL template", template.getId()))
+            .filter(template -> !isRetiredSqlMetadataTemplate(template))
+            .toList();
+        upsertSqlTemplates(templates);
+        return selectedTemplateSummary("sql", ids.size(), templates.size());
+    }
+
+    private List<String> selectedIds(List<String> values, String templateLabel) {
+        List<String> ids = values == null ? List.of() : values.stream()
+            .filter(id -> id != null && !id.isBlank())
+            .map(String::trim)
+            .distinct()
+            .toList();
+        if (ids.isEmpty()) {
+            throw new IllegalArgumentException("At least one " + templateLabel + " must be selected");
+        }
+        return ids;
+    }
+
+    private void requireEnabled(boolean enabled, String templateLabel, String id) {
+        if (!enabled) {
+            throw new IllegalArgumentException(templateLabel + " is disabled and cannot be indexed: " + id);
+        }
+    }
+
+    private Map<String, Object> selectedTemplateSummary(String templateType, int selectedCount, int indexed) {
+        return Map.of(
+            "enabled", true,
+            "templateType", templateType,
+            "selectedCount", selectedCount,
+            "indexed", indexed
+        );
+    }
+
     public void upsertDatabaseQueryTemplates(List<DatabaseQueryConfig> templates) {
         if (luceneSearchService == null || !luceneSearchService.enabled()) {
             return;

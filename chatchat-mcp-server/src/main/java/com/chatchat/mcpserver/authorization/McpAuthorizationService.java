@@ -604,6 +604,9 @@ public class McpAuthorizationService {
         if ("database_ops_template_search".equals(semantic)) {
             return new ToolScope("sql_datasource", "template", "query");
         }
+        if ("microservice_asset_query".equals(semantic)) {
+            return new ToolScope("http_endpoint", "asset", "query");
+        }
         if (semantic.endsWith("_asset_query")) {
             return new ToolScope(normalizeAssetType(semantic.substring(0, semantic.length() - "_asset_query".length())), "asset", "query");
         }

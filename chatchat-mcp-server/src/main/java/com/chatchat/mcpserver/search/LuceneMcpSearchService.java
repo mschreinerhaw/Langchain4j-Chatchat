@@ -53,7 +53,8 @@ public class LuceneMcpSearchService {
     private static final String ASSET_INDEX_PREFIX = "assets-";
     private static final String DATABASE_QUERY_TEMPLATE_INDEX = "database-query-templates";
     private static final String API_SERVICE_TEMPLATE_INDEX = "api-service-templates";
-    private static final List<String> KNOWN_ASSET_TYPES = List.of("ssh_host", "sql_datasource", "http_endpoint", "api_service");
+    private static final List<String> KNOWN_ASSET_TYPES = List.of(
+        "ssh_host", "sql_datasource", "http_endpoint_http", "http_endpoint_microservice", "api_service");
 
     private static final String FIELD_ID = "id";
     private static final String FIELD_KIND = "kind";
@@ -334,6 +335,33 @@ public class LuceneMcpSearchService {
             }
         } catch (Exception ex) {
             log.warn("MCP Lucene SQL datasource asset replacement failed datasourceId={}: {}", datasourceId, ex.getMessage());
+        }
+    }
+
+    public void replaceAssetAcrossIndexes(String assetId, List<String> assetTypes, AssetDoc doc) {
+        if (!enabled() || assetId == null || assetId.isBlank() || assetTypes == null || assetTypes.isEmpty()) return;
+        if (openSearchSelected()) {
+            openSearchSearchService.replaceAssetAcrossIndexes(assetId, assetTypes, doc);
+            return;
+        }
+        for (String requestedType : assetTypes) {
+            String assetType = normalizeAssetType(requestedType);
+            if (assetType == null) continue;
+            try {
+                Path path = assetIndexPath(assetType);
+                try (FSDirectory directory = FSDirectory.open(path);
+                     IndexWriter writer = new IndexWriter(directory, new IndexWriterConfig(analyzer))) {
+                    writer.deleteDocuments(new Term(FIELD_ID, normalizeExact(assetId)));
+                    if (doc != null && assetType.equals(normalizeAssetType(doc.assetType()))) {
+                        Document document = assetDocument(doc);
+                        writer.updateDocument(new Term(FIELD_ID, document.get(FIELD_ID)), document);
+                    }
+                    writer.commit();
+                }
+            } catch (Exception ex) {
+                log.warn("MCP Lucene cross-index asset replacement failed assetId={} assetType={}: {}",
+                    assetId, assetType, ex.getMessage());
+            }
         }
     }
 

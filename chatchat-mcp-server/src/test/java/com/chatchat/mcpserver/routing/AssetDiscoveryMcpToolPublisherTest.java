@@ -30,7 +30,7 @@ class AssetDiscoveryMcpToolPublisherTest {
 
         ArgumentCaptor<McpServerFeatures.SyncToolSpecification> captor =
             ArgumentCaptor.forClass(McpServerFeatures.SyncToolSpecification.class);
-        verify(server, times(3)).addTool(captor.capture());
+        verify(server, times(4)).addTool(captor.capture());
         List<String> toolNames = captor.getAllValues().stream()
             .map(spec -> spec.tool().name())
             .toList();
@@ -38,7 +38,8 @@ class AssetDiscoveryMcpToolPublisherTest {
             .containsExactlyInAnyOrder(
                 AssetDiscoveryMcpToolPublisher.SSH_ASSET_TOOL_NAME,
                 AssetDiscoveryMcpToolPublisher.SQL_DATASOURCE_ASSET_TOOL_NAME,
-                AssetDiscoveryMcpToolPublisher.HTTP_ENDPOINT_ASSET_TOOL_NAME
+                AssetDiscoveryMcpToolPublisher.HTTP_ENDPOINT_ASSET_TOOL_NAME,
+                AssetDiscoveryMcpToolPublisher.MICROSERVICE_ASSET_TOOL_NAME
             );
         verify(server).removeTool(AssetDiscoveryMcpToolPublisher.SQL_DATASOURCE_ASSET_TOOL_NAME);
         verify(server).notifyToolsListChanged();
@@ -52,7 +53,7 @@ class AssetDiscoveryMcpToolPublisherTest {
             new TargetKindRegistry()
         );
         Method assetQueryTool = AssetDiscoveryMcpToolPublisher.class.getDeclaredMethod(
-            "assetQueryTool", String.class, String.class, String.class, String.class, String.class);
+            "assetQueryTool", String.class, String.class, String.class, String.class, String.class, String.class);
         assetQueryTool.setAccessible(true);
 
         McpServerFeatures.SyncToolSpecification spec =
@@ -62,7 +63,8 @@ class AssetDiscoveryMcpToolPublisherTest {
                 "SSH asset metadata discovery",
                 "Read-only discovery tool for querying redacted SSH host asset metadata and routing hints.",
                 "ssh_host",
-                "host"
+                "host",
+                null
             );
         McpSchema.Tool tool = spec.tool();
         Map<?, ?> meta = tool.meta();
@@ -93,19 +95,36 @@ class AssetDiscoveryMcpToolPublisherTest {
             new TargetKindRegistry()
         );
         Method argumentsMethod = AssetDiscoveryMcpToolPublisher.class.getDeclaredMethod(
-            "forcedAssetArguments", Map.class, String.class, String.class, String.class);
+            "forcedAssetArguments", Map.class, String.class, String.class, String.class, String.class);
         argumentsMethod.setAccessible(true);
 
         Map<?, ?> arguments = (Map<?, ?>) argumentsMethod.invoke(publisher, Map.of(
             "assetType", "http_endpoint",
             "finalDecision", "http",
             "filters", Map.of("assetName", "prod-db")
-        ), AssetDiscoveryMcpToolPublisher.SQL_DATASOURCE_ASSET_TOOL_NAME, "sql_datasource", "database");
+        ), AssetDiscoveryMcpToolPublisher.SQL_DATASOURCE_ASSET_TOOL_NAME, "sql_datasource", "database", null);
 
         assertThat(arguments.get("assetType")).isEqualTo("sql_datasource");
         assertThat(arguments.get("finalDecision")).isEqualTo("database");
         assertThat(arguments.get("confidence")).isEqualTo(1.0);
         assertThat(arguments.get("filters").toString()).contains("prod-db");
         assertThat(arguments.get("candidates").toString()).contains("database");
+    }
+
+    @Test
+    void httpDiscoveryToolsForceSeparateTechnicalTypes() throws Exception {
+        AssetDiscoveryMcpToolPublisher publisher = new AssetDiscoveryMcpToolPublisher(
+            mock(McpSyncServer.class), mock(AssetDiscoveryService.class), new TargetKindRegistry());
+        Method argumentsMethod = AssetDiscoveryMcpToolPublisher.class.getDeclaredMethod(
+            "forcedAssetArguments", Map.class, String.class, String.class, String.class, String.class);
+        argumentsMethod.setAccessible(true);
+
+        Map<?, ?> http = (Map<?, ?>) argumentsMethod.invoke(publisher, Map.of("technicalType", "MICROSERVICE"),
+            AssetDiscoveryMcpToolPublisher.HTTP_ENDPOINT_ASSET_TOOL_NAME, "http_endpoint", "http", "HTTP");
+        Map<?, ?> microservice = (Map<?, ?>) argumentsMethod.invoke(publisher, Map.of("technicalType", "HTTP"),
+            AssetDiscoveryMcpToolPublisher.MICROSERVICE_ASSET_TOOL_NAME, "http_endpoint", "http", "MICROSERVICE");
+
+        assertThat(http.get("technicalType")).isEqualTo("HTTP");
+        assertThat(microservice.get("technicalType")).isEqualTo("MICROSERVICE");
     }
 }

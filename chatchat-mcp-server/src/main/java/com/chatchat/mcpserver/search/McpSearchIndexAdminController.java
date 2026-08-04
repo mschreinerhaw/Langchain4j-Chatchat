@@ -141,16 +141,16 @@ public class McpSearchIndexAdminController {
         if (assetIndexAssetType != null) {
             Map<String, Object> effectiveInput = new LinkedHashMap<>(input);
             effectiveInput.put("assetType", assetIndexAssetType);
-            List<LuceneMcpSearchService.SearchHit> hits = luceneSearchService.searchAssets(
-                new LuceneMcpSearchService.AssetSearchRequest(
+            List<LuceneMcpSearchService.SearchHit> hits = "http_endpoint".equals(assetIndexAssetType)
+                ? searchHttpEndpointPartitions(input, limit)
+                : luceneSearchService.searchAssets(new LuceneMcpSearchService.AssetSearchRequest(
                     assetIndexAssetType,
                     text(firstPresent(input, "query", "q"), null),
                     text(input.get("env"), null),
                     text(firstPresent(input, "dbType", "databaseType"), null),
                     stringList(input.get("labels")),
                     limit
-                )
-            );
+                ));
             result = assetSearchResult(assetIndexName(assetIndexAssetType), effectiveInput, hits, assetIndexAssetType);
         } else if ("templates".equalsIgnoreCase(indexType) || "template".equalsIgnoreCase(indexType)) {
             List<LuceneMcpSearchService.SearchHit> hits = luceneSearchService.searchTemplates(
@@ -342,6 +342,35 @@ public class McpSearchIndexAdminController {
         };
     }
 
+    private List<LuceneMcpSearchService.SearchHit> searchHttpEndpointPartitions(Map<String, Object> input, int limit) {
+        String requested = text(firstPresent(input, "technicalType", "technical_type"), null);
+        List<String> indexTypes;
+        if ("MICROSERVICE".equalsIgnoreCase(requested)) {
+            indexTypes = List.of(McpAssetLuceneIndexService.MICROSERVICE_ASSET_INDEX_TYPE);
+        } else if ("HTTP".equalsIgnoreCase(requested)) {
+            indexTypes = List.of(McpAssetLuceneIndexService.HTTP_ASSET_INDEX_TYPE);
+        } else {
+            indexTypes = List.of(
+                McpAssetLuceneIndexService.HTTP_ASSET_INDEX_TYPE,
+                McpAssetLuceneIndexService.MICROSERVICE_ASSET_INDEX_TYPE);
+        }
+        List<LuceneMcpSearchService.SearchHit> hits = new java.util.ArrayList<>();
+        for (String indexType : indexTypes) {
+            hits.addAll(luceneSearchService.searchAssets(new LuceneMcpSearchService.AssetSearchRequest(
+                indexType,
+                text(firstPresent(input, "query", "q"), null),
+                text(input.get("env"), null),
+                null,
+                stringList(input.get("labels")),
+                limit
+            )));
+        }
+        return hits.stream()
+            .sorted(java.util.Comparator.comparingDouble(LuceneMcpSearchService.SearchHit::score).reversed())
+            .limit(limit)
+            .toList();
+    }
+
     public record SelectedAssetIndexRequest(List<String> ids) {
     }
 
@@ -362,7 +391,9 @@ public class McpSearchIndexAdminController {
         Map<String, Object> value = searchResult(indexType, request, hits);
         value.put("assetType", assetType == null ? "all" : assetType);
         value.put("logicalIndex", assetType == null ? "asset:*" : "asset:" + assetType);
-        value.put("physicalIndex", assetType == null ? "assets-*" : luceneSearchService.assetIndexName(assetType));
+        value.put("physicalIndex", assetType == null ? "assets-*"
+            : "http_endpoint".equals(assetType) ? "assets-http-endpoint-*"
+            : luceneSearchService.assetIndexName(assetType));
         return value;
     }
 

@@ -54,7 +54,8 @@ public class OpenSearchMcpSearchService {
     private static final String ASSET_INDEX_PREFIX = "assets-";
     private static final String DATABASE_QUERY_TEMPLATE_INDEX = "database-query-templates";
     private static final String API_SERVICE_TEMPLATE_INDEX = "api-service-templates";
-    private static final List<String> KNOWN_ASSET_TYPES = List.of("ssh_host", "sql_datasource", "http_endpoint", "api_service");
+    private static final List<String> KNOWN_ASSET_TYPES = List.of(
+        "ssh_host", "sql_datasource", "http_endpoint_http", "http_endpoint_microservice", "api_service");
 
     private static final String FIELD_ID = "id";
     private static final String FIELD_KIND = "kind";
@@ -1526,6 +1527,23 @@ public class OpenSearchMcpSearchService {
             ))
         ), true);
         bulk(index, safeAssetDocs(docs).stream().map(this::assetSource).toList());
+    }
+
+    public synchronized void replaceAssetAcrossIndexes(String assetId,
+                                                        List<String> assetTypes,
+                                                        LuceneMcpSearchService.AssetDoc doc) {
+        if (!enabled() || assetId == null || assetId.isBlank() || assetTypes == null) return;
+        for (String requestedType : assetTypes) {
+            String assetType = normalizeAssetType(requestedType);
+            if (assetType == null) continue;
+            String index = openSearchIndexName(assetIndexName(assetType));
+            ensureIndex(index);
+            request("POST", "/" + index + "/_delete_by_query?conflicts=proceed&refresh=true",
+                Map.of("query", Map.of("term", Map.of(FIELD_ID, assetId))), true);
+            if (doc != null && assetType.equals(normalizeAssetType(doc.assetType()))) {
+                bulk(index, List.of(assetSource(doc)));
+            }
+        }
     }
 
     private JsonNode searchRequest(String method, String path, Object body) {

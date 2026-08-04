@@ -74,7 +74,7 @@ export default {
         { value: 'api_service_assets', label: 'API 服务资产索引' },
         { value: 'templates', label: '模板索引' },
         { value: 'database_query', label: '业务查询索引' },
-        { value: 'api_service', label: 'API 服务索引' },
+        { value: 'api_services', label: 'API 服务模板索引' },
         { value: 'document_search', label: '文档索引' },
         { value: 'enterprise_metadata', label: '企业标准字段与词根索引（enterprise_metadata_catalog）' },
         { value: 'financial_data_asset', label: '金融数据索引（financial-data-asset）' },

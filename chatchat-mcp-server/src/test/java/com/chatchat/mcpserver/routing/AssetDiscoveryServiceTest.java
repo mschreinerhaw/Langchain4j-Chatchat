@@ -550,6 +550,45 @@ class AssetDiscoveryServiceTest {
         assertThat(selection.get("fallbackTriggered")).isEqualTo(false);
     }
 
+    @Test
+    void isolatesHttpAssetsByForcedTechnicalType() {
+        SshHostConfigService hostService = mock(SshHostConfigService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        HttpEndpointConfigService httpService = mock(HttpEndpointConfigService.class);
+        LuceneMcpSearchService searchService = mock(LuceneMcpSearchService.class);
+        AssetDiscoveryService service = new AssetDiscoveryService(
+            hostService, datasourceService, httpService,
+            new AssetMetadataFactory(new ObjectMapper()), searchService, new TargetKindRegistry());
+        HttpEndpointConfig ordinaryHttp = endpoint("http-1", "yarn-rest", "DEV", "[\"yarn\"]");
+        ordinaryHttp.setTechnicalType("HTTP");
+        HttpEndpointConfig microservice = endpoint("service-1", "customer-service", "DEV", "[\"customer\"]");
+        microservice.setTechnicalType("MICROSERVICE");
+        when(hostService.listEnabled()).thenReturn(List.of());
+        when(datasourceService.listEnabled()).thenReturn(List.of());
+        when(httpService.listEnabled()).thenReturn(List.of(ordinaryHttp, microservice));
+        when(searchService.enabled()).thenReturn(true);
+        when(searchService.searchAssets(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
+
+        Map<String, Object> httpResult = service.query(Map.of(
+            "assetType", "http_endpoint", "finalDecision", "http", "confidence", 1.0,
+            "technicalType", "HTTP", "filters", Map.of(), "trace", trace()));
+        Map<String, Object> microserviceResult = service.query(Map.of(
+            "assetType", "http_endpoint", "finalDecision", "http", "confidence", 1.0,
+            "technicalType", "MICROSERVICE", "filters", Map.of(), "trace", trace()));
+
+        assertThat(httpResult).containsEntry("technicalType", "HTTP").containsEntry("returnedCount", 1);
+        assertThat(microserviceResult).containsEntry("technicalType", "MICROSERVICE").containsEntry("returnedCount", 1);
+        assertThat(httpResult.toString()).contains("yarn-rest").doesNotContain("customer-service");
+        assertThat(microserviceResult.toString()).contains("customer-service").doesNotContain("yarn-rest");
+        org.mockito.ArgumentCaptor<LuceneMcpSearchService.AssetSearchRequest> requestCaptor =
+            org.mockito.ArgumentCaptor.forClass(LuceneMcpSearchService.AssetSearchRequest.class);
+        org.mockito.Mockito.verify(searchService, org.mockito.Mockito.times(2)).searchAssets(requestCaptor.capture());
+        assertThat(requestCaptor.getAllValues()).extracting(LuceneMcpSearchService.AssetSearchRequest::assetType)
+            .containsExactly(
+                com.chatchat.mcpserver.search.McpAssetLuceneIndexService.HTTP_ASSET_INDEX_TYPE,
+                com.chatchat.mcpserver.search.McpAssetLuceneIndexService.MICROSERVICE_ASSET_INDEX_TYPE);
+    }
+
     private AssetDiscoveryService service(SshHostConfigService hostService,
                                           SqlDatasourceConfigService datasourceService,
                                           HttpEndpointConfigService httpService) {

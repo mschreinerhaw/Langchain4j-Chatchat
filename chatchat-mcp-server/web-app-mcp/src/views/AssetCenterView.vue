@@ -82,7 +82,7 @@
       :form-fields="httpFields"
       :defaults="httpDefaults"
       :list-filters="assetEnabledListFilters"
-      :searchable-fields="['name', 'toolName', 'title', 'description', 'urlTemplate', 'environment', 'method', 'category', 'tags']"
+      :searchable-fields="['name', 'toolName', 'title', 'description', 'urlTemplate', 'environment', 'method', 'technicalType', 'category', 'tags']"
       :list-action="api.listHttp"
       :save-action="api.saveHttp"
       :remove-action="api.deleteHttp"

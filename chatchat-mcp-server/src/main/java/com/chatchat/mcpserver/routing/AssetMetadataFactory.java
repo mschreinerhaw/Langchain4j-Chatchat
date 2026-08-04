@@ -1,6 +1,7 @@
 package com.chatchat.mcpserver.routing;
 
 import com.chatchat.mcpserver.ops.HttpEndpointConfig;
+import com.chatchat.mcpserver.ops.HttpEndpointTechnicalType;
 import com.chatchat.mcpserver.ops.SshHostConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -106,6 +107,7 @@ public class AssetMetadataFactory {
     }
 
     public Map<String, Object> httpEndpoint(HttpEndpointConfig endpoint) {
+        String technicalType = HttpEndpointTechnicalType.from(endpoint.getTechnicalType()).name();
         return assetEnvelope(
             "http_endpoint",
             endpoint.getId(),
@@ -116,12 +118,14 @@ public class AssetMetadataFactory {
             endpoint.getCategoryId(),
             endpoint.isEnabled(),
             labels(endpoint.getRoutingLabelsJson(), endpoint.getCapabilitiesJson(), endpoint.getTags(), endpoint.getGovernanceJson(),
-                endpoint.getName(), endpoint.getToolName(), endpoint.getTitle(), endpoint.getEnvironment(), endpoint.getCategory()),
+                endpoint.getName(), endpoint.getToolName(), endpoint.getTitle(), endpoint.getEnvironment(), endpoint.getCategory(),
+                technicalType.toLowerCase(Locale.ROOT)),
             mapOf(
                 "protocols", readArray(endpoint.getCapabilitiesJson()),
                 "operations", List.of("http.request"),
                 "method", endpoint.getMethod(),
-                "category", endpoint.getCategory()
+                "category", endpoint.getCategory(),
+                "technicalType", technicalType
             ),
             mapOf(
                 "runtimeAction", endpoint.getRuntimeAction(),

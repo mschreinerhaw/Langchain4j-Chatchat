@@ -4,6 +4,7 @@ import com.chatchat.agents.protocol.ModelProtocolJson;
 
 import com.chatchat.mcpserver.api.ApiServiceConfig;
 import com.chatchat.mcpserver.ops.HttpEndpointConfig;
+import com.chatchat.mcpserver.ops.HttpEndpointTechnicalType;
 import com.chatchat.tools.livedata.LivedataApiDefinition;
 import com.chatchat.tools.livedata.LivedataAutoRegistrationProperties;
 import com.chatchat.tools.livedata.LivedataSettingsProvider;
@@ -105,6 +106,7 @@ public class LivedataApiConfigMapper {
         config.setHeadersJson(writeJson(headers));
         config.setBodyTemplate(toBodyTemplate(params, namespace, sourceHeaders, properties));
         config.setInputSchemaJson(toInputSchema(params, properties));
+        config.setTechnicalType(HttpEndpointTechnicalType.MICROSERVICE.name());
         config.setEnabled(true);
         config.setCategory("api_gateway");
         config.setTags("livedata,api_gateway");

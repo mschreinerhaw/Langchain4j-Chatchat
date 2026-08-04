@@ -201,6 +201,9 @@ public class OpsMcpToolPublisher {
         meta.put("endpointId", endpoint.getId());
         meta.put("endpointName", endpoint.getName());
         meta.put("environment", endpoint.getEnvironment());
+        String technicalType = HttpEndpointTechnicalType.from(endpoint.getTechnicalType()).name();
+        meta.put("technical_type", technicalType);
+        meta.put("technicalType", technicalType);
         meta.put("assetCategory", endpoint.getCategory());
         meta.put("endpointCategory", endpoint.getCategory());
         meta.put("method", endpoint.getMethod());

@@ -42,6 +42,35 @@ class HttpEndpointConfigServiceTest {
         assertThat(objectMapper.readValue(saved.getCapabilitiesJson(), String[].class))
             .containsExactly("api_gateway", "http", "http_request");
         assertThat(saved.getTags()).contains("api_gateway", "http_endpoint", "http_request");
+        assertThat(saved.getTechnicalType()).isEqualTo("HTTP");
+    }
+
+    @Test
+    void normalizesMicroserviceTechnicalType() {
+        HttpEndpointConfigRepository repository = mock(HttpEndpointConfigRepository.class);
+        when(repository.findByNameIgnoreCase("订单微服务")).thenReturn(Optional.empty());
+        when(repository.findByToolNameIgnoreCase("http_order_service")).thenReturn(Optional.empty());
+        when(repository.save(any(HttpEndpointConfig.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        HttpEndpointConfigService service = new HttpEndpointConfigService(
+            repository, new ObjectMapper(), defaultCategoryService(), mock(ApiServiceConfigRepository.class));
+        HttpEndpointConfig config = new HttpEndpointConfig();
+        config.setName("订单微服务");
+        config.setToolName("http_order_service");
+        config.setUrlTemplate("https://api.example.com/orders");
+        config.setTechnicalType("microservice");
+
+        assertThat(service.create(config).getTechnicalType()).isEqualTo("MICROSERVICE");
+    }
+
+    @Test
+    void treatsLegacyLivedataGatewayAsMicroserviceWhenClassificationIsMissing() {
+        HttpEndpointConfig config = new HttpEndpointConfig();
+        config.setTechnicalType(null);
+        config.setTags("livedata,api_gateway,http");
+
+        config.applyTechnicalTypeDefault();
+
+        assertThat(config.getTechnicalType()).isEqualTo("MICROSERVICE");
     }
 
     @Test

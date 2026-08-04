@@ -60,6 +60,7 @@ class LivedataApiConfigMapperTest {
         assertThat(headers.has("namespace")).isFalse();
         assertThat(headers.path("x-ams-token").asText()).isEqualTo("token-from-gateway");
         assertThat(headers.path("Content-Type").asText()).isEqualTo("application/json;charset=UTF-8");
+        assertThat(mapped.getTechnicalType()).isEqualTo("MICROSERVICE");
     }
 
     @Test

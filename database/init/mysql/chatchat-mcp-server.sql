@@ -371,6 +371,7 @@
         updated_at datetime(6) not null,
         method varchar(16) not null,
         environment varchar(32) not null,
+        technical_type varchar(32),
         runtime_action varchar(32) not null,
         category_id varchar(64),
         id varchar(64) not null,

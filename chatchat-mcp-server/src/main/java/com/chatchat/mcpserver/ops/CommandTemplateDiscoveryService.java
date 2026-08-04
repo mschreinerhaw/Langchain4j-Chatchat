@@ -1231,6 +1231,7 @@ public class CommandTemplateDiscoveryService {
             "mcpDecision", decisionMetadata(relevance),
             "matchReasons", relevance.reasons(),
             "category", firstText(endpoint.getCategory(), "http_request"),
+            "technicalType", HttpEndpointTechnicalType.from(endpoint.getTechnicalType()).name(),
             "riskLevel", httpRiskLevel(endpoint),
             "supportedAssetTypes", List.of(assetType),
             "intentSignals", signals,
@@ -2310,8 +2311,13 @@ public class CommandTemplateDiscoveryService {
             return List.of();
         }
         return endpoints.stream()
-            .map(endpoint -> assetMetadata("http_endpoint", endpoint.getId(), endpoint.getName(),
-                endpoint.getTitle(), endpoint.getToolName(), endpoint.getEnvironment(), endpointLabels(endpoint), filters))
+            .map(endpoint -> {
+                Map<String, Object> metadata = new LinkedHashMap<>(assetMetadata(
+                    "http_endpoint", endpoint.getId(), endpoint.getName(), endpoint.getTitle(),
+                    endpoint.getToolName(), endpoint.getEnvironment(), endpointLabels(endpoint), filters));
+                metadata.put("technicalType", HttpEndpointTechnicalType.from(endpoint.getTechnicalType()).name());
+                return metadata;
+            })
             .toList();
     }
 
@@ -2504,6 +2510,7 @@ public class CommandTemplateDiscoveryService {
         addLabel(labels, endpoint.getToolName());
         addLabel(labels, endpoint.getEnvironment());
         addLabel(labels, endpoint.getCategory());
+        addLabel(labels, HttpEndpointTechnicalType.from(endpoint.getTechnicalType()).name());
         addDelimited(labels, endpoint.getTags());
         addJsonLabels(labels, endpoint.getRoutingLabelsJson());
         addJsonLabels(labels, endpoint.getCapabilitiesJson());
@@ -2513,13 +2520,13 @@ public class CommandTemplateDiscoveryService {
     private boolean hasAssetScope(Map<String, Object> filters) {
         return firstValue(filters, "assetName", "asset_name", "name", "env", "environment", "cluster", "service", "target",
             "database", "databaseType", "dbType", "dialect", "databaseRole", "database_role",
-            "template", "templateId", "template_id", "labels") != null;
+            "technicalType", "technical_type", "template", "templateId", "template_id", "labels") != null;
     }
 
     private List<String> contextTokens(Map<String, Object> filters) {
         List<String> tokens = new ArrayList<>();
         for (String key : List.of("cluster", "service", "target", "targetType", "target_type", "database", "databaseRole",
-            "database_role", "labels")) {
+            "database_role", "technicalType", "technical_type", "labels")) {
             Object value = filters.get(key);
             if (value instanceof List<?> list) {
                 list.forEach(item -> addToken(tokens, item));
@@ -2866,6 +2873,7 @@ public class CommandTemplateDiscoveryService {
         addWords(signals, endpoint.getTitle());
         addWords(signals, endpoint.getDescription());
         addWords(signals, endpoint.getCategory());
+        addWords(signals, HttpEndpointTechnicalType.from(endpoint.getTechnicalType()).name());
         addDelimited(signals, endpoint.getTags());
         return signals.stream().limit(12).toList();
     }

@@ -36,8 +36,9 @@ public final class ToolArgumentCompiler {
             Map<String, Object> property = objectMap(entry.getValue());
             SourceValue selected = sourceValue(source, name, property);
             Object value = selected.value();
-            if (value == null && property.containsKey("default")) {
-                value = property.get("default");
+            Object declaredDefault = firstPresent(property, "default", "defaultValue", "default_value");
+            if (value == null && declaredDefault != null) {
+                value = declaredDefault;
                 repairs.add(new Repair(name, "DEFAULT_VALUE_APPLIED", null, value));
             }
             if (value == null) {
@@ -170,6 +171,18 @@ public final class ToolArgumentCompiler {
 
     private boolean hasValue(Object value) {
         return value != null && (!(value instanceof String text) || !text.isBlank());
+    }
+
+    private Object firstPresent(Map<String, Object> source, String... keys) {
+        if (source == null || keys == null) {
+            return null;
+        }
+        for (String key : keys) {
+            if (source.containsKey(key)) {
+                return source.get(key);
+            }
+        }
+        return null;
     }
 
     private boolean valuesEqual(Object left, Object right) {

@@ -433,7 +433,10 @@ class InterpretationPlanRewriterTest {
                 "mcp_chatchat_mcp_server_sql_datasource_template_query", "template_query");
         assertThat(chatModel.lastPrompt())
             .contains("No template discovery tool is available")
-            .contains("Do not add database_ops_template_search/template_query steps");
+            .contains("Do not add database_ops_template_search/template_query steps")
+            .contains("Preserve a decision ledger for changed retrieval or template choices")
+            .contains("Distinguish availability from usability")
+            .contains("explicitly justify the change from observed parameter compatibility");
     }
 
     @Test

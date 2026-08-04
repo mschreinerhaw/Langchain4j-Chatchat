@@ -116,6 +116,81 @@ class TemplateInvocationBridgeTest {
     }
 
     @Test
+    void executesWithoutModelProtocolWhenTemplateDefaultsCoverRequiredParameters() {
+        TemplateInvocationBridge.BridgeResult result = bridge.prepare(
+            new TemplateInvocationBridge.BridgeRequest(
+                "api_template_execute",
+                4,
+                "DEFAULTED_QUERY",
+                template(
+                    "DEFAULTED_QUERY",
+                    Map.of(
+                        "page", Map.of("type", "integer", "default", 1),
+                        "pageSize", Map.of("type", "integer", "defaultValue", 50)
+                    ),
+                    new String[]{"page", "pageSize"}
+                ),
+                Map.of("parameters", Map.of()),
+                null,
+                true,
+                true
+            )
+        );
+
+        assertThat(result.parameters())
+            .containsEntry("page", 1)
+            .containsEntry("pageSize", 50);
+        assertThat(result.modelProtocolApplied()).isFalse();
+        assertThat(result.parameterEvidence())
+            .allSatisfy((name, evidence) -> assertThat(evidence.source())
+                .isEqualTo(TemplateInvocationBridge.TEMPLATE_DEFAULT_SOURCE));
+        assertThat(result.protocolTrace())
+            .containsEntry("templateDefaultParameterCount", 2);
+    }
+
+    @Test
+    void acceptsEvidenceBackedOverridesAndUsesDefaultsForOmittedParameters() {
+        Map<String, Object> protocol = Map.of(
+            "protocol_version", TemplateInvocationBridge.PROTOCOL_VERSION,
+            "step_id", 5,
+            "template_id", "CUSTOMER_QUERY",
+            "arguments", Map.of(
+                "customerId", Map.of(
+                    "value", "C-2002",
+                    "source", "user_query",
+                    "evidence", "C-2002"
+                )
+            ),
+            "unresolved_parameters", List.of("page")
+        );
+
+        TemplateInvocationBridge.BridgeResult result = bridge.prepare(
+            new TemplateInvocationBridge.BridgeRequest(
+                "api_template_execute",
+                5,
+                "CUSTOMER_QUERY",
+                template("CUSTOMER_QUERY", Map.of(
+                    "customerId", Map.of("type", "string"),
+                    "page", Map.of("type", "integer", "default", 1)
+                ), new String[]{"customerId", "page"}),
+                Map.of(),
+                protocol,
+                true,
+                true,
+                new TemplateInvocationBridge.EvidenceContext("查询客户 C-2002", Map.of())
+            )
+        );
+
+        assertThat(result.parameters())
+            .containsEntry("customerId", "C-2002")
+            .containsEntry("page", 1);
+        assertThat(result.parameterEvidence().get("customerId").source())
+            .isEqualTo(TemplateInvocationBridge.USER_QUERY_SOURCE);
+        assertThat(result.parameterEvidence().get("page").source())
+            .isEqualTo(TemplateInvocationBridge.TEMPLATE_DEFAULT_SOURCE);
+    }
+
+    @Test
     void legacyPathRejectsModelParametersWithoutEvidenceProtocol() {
         assertThatThrownBy(() -> bridge.prepare(new TemplateInvocationBridge.BridgeRequest(
                 "api_template_execute",

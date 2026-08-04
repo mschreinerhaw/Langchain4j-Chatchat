@@ -1,5 +1,6 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.assessment.EvidenceAugmentationPolicy;
 import com.chatchat.agents.runtime.ToolRuntimeService;
 import com.chatchat.agents.runtime.ToolRuntimeProperties;
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
@@ -172,7 +173,71 @@ class AgentOrchestratorTest {
             .contains("Do not make the tool evidence list, document heading path, execution trace, or JSON field names the body of the answer")
             .contains("deduplicate repeated headings")
             .contains("Do not claim that enterprise standards, terms, dictionaries, or other governed metadata do not exist")
+            .contains("state its evidence-backed rejection reason")
+            .contains("Do not imply that a service was unavailable")
             .contains("Never present toolName as displayName");
+    }
+
+    @Test
+    void evidenceChainCanExtendPositiveRewriteEstimateWithinRuntimeCeiling() {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        EvidenceAugmentationPolicy.Outcome retrieveMore = new EvidenceAugmentationPolicy.Outcome(
+            EvidenceAugmentationPolicy.CONTRACT_VERSION,
+            EvidenceAugmentationPolicy.Decision.RETRIEVE_MORE,
+            true,
+            true,
+            "A verified next action remains"
+        );
+        List<Map<String, Object>> history = List.of(Map.of(
+            "missingEvidence", List.of("executable parameter contract"),
+            "nextActions", List.of(Map.of(
+                "tool", "api_template_query",
+                "reason", "select a parameter-compatible alternative"
+            ))
+        ));
+
+        assertThat(orchestrator.evidenceDrivenRewriteLimit(
+            1, retrieveMore, history, List.of("mcp_service_api_template_query")))
+            .isEqualTo(2);
+        assertThat(orchestrator.evidenceDrivenRewriteLimit(
+            1, retrieveMore, history, List.of("document_search")))
+            .isEqualTo(1);
+        assertThat(orchestrator.evidenceDrivenRewriteLimit(
+            0, retrieveMore, history, List.of("mcp_service_api_template_query")))
+            .isZero();
+    }
+
+    @Test
+    void templateSelectionFeedbackPreservesCandidateReasonsForFinalAnswer() {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        InterpretationPlanRuntime.StepExecution step = new InterpretationPlanRuntime.StepExecution(
+            2,
+            "mcp_tool",
+            "api_template_query",
+            true,
+            Map.of("templates", List.of()),
+            null,
+            null,
+            null,
+            12,
+            Map.of(
+                "selectedTemplateIds", List.of("compatible-template"),
+                "rejectedTemplateIds", List.of("precise-template"),
+                "templateEvaluations", List.of(Map.of(
+                    "templateId", "precise-template",
+                    "decision", "reject",
+                    "reasons", List.of("required customer parameter is not declared")
+                )),
+                "runtimeTemplateSelectionReason", "Selected from evidence-reviewed candidates"
+            )
+        );
+
+        assertThat(orchestrator.templateSelectionFeedbackObservation("rewrite", step))
+            .contains("template_selection_feedback.v1")
+            .contains("precise-template")
+            .contains("required customer parameter is not declared")
+            .contains("compatible-template")
+            .contains("Selected from evidence-reviewed candidates");
     }
 
     @Test

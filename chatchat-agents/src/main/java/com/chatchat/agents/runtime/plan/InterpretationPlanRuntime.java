@@ -1443,7 +1443,9 @@ public class InterpretationPlanRuntime {
         if (templateId == null) {
             return false;
         }
-        return !requiredTemplateParameters(completedTemplateMetadata(completed, templateId)).isEmpty();
+        Map<String, Object> template = completedTemplateMetadata(completed, templateId);
+        return requiredTemplateParameters(template).stream()
+            .anyMatch(name -> !templateParameterHasDefault(template, name));
     }
 
     @SuppressWarnings("unchecked")
@@ -3884,12 +3886,11 @@ public class InterpretationPlanRuntime {
             return true;
         }
         Object parametersValue = arguments == null ? null : arguments.get("parameters");
-        if (!(parametersValue instanceof Map<?, ?> parameters)) {
-            return false;
-        }
+        Map<?, ?> parameters = parametersValue instanceof Map<?, ?> map ? map : Map.of();
         return required.stream().allMatch(name -> {
             Object value = parameters.get(name);
-            return value != null && !String.valueOf(value).isBlank();
+            return (value != null && !String.valueOf(value).isBlank())
+                || templateParameterHasDefault(template, name);
         });
     }
 
@@ -4664,6 +4665,27 @@ public class InterpretationPlanRuntime {
             }
         }
         return values;
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean templateParameterHasDefault(Map<String, Object> template, String parameterName) {
+        if (template == null || template.isEmpty() || parameterName == null || parameterName.isBlank()) {
+            return false;
+        }
+        Object schemaValue = firstMapValue(template, "parameterSchema", "parameter_schema", "inputSchema", "schema");
+        if (!(schemaValue instanceof Map<?, ?> schema)) {
+            return false;
+        }
+        Object propertiesValue = firstMapValue(schema, "properties");
+        if (!(propertiesValue instanceof Map<?, ?> properties)) {
+            return false;
+        }
+        Object propertyValue = properties.get(parameterName);
+        if (!(propertyValue instanceof Map<?, ?> property)) {
+            return false;
+        }
+        Object defaultValue = firstMapValue(property, "default", "defaultValue", "default_value");
+        return defaultValue != null && (!(defaultValue instanceof String text) || !text.isBlank());
     }
 
     private String canonicalParameterKey(String key) {

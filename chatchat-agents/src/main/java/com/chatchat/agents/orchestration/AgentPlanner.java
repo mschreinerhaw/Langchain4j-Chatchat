@@ -417,7 +417,7 @@ class AgentPlanner {
         prompt.append("- When the user asks which APIs are needed for a broad requirement, first emit semantic requirement steps and call api_requirement_analyze. Treat CANDIDATES_FOUND only as candidates: review coverage, refine rejected candidates, and execute only accepted templateIds.\n");
         prompt.append("- For requirements implemented by maintained HTTP endpoint assets, call http_requirement_analyze, review capabilitySpec/outputSchema/dependencySpec, then discover through http_endpoint_template_query and execute accepted template ids through http_request_execute. Rejected ids must be excluded from bounded retries.\n");
         prompt.append("- For linux_command_execute, use template from ssh_template_query.templates[].templateId and put all command arguments under input.parameters. Do not pass command, rawCommand, shell, host, hostname, ip, or hostId.\n");
-        prompt.append("- Never call any template-governed execution tool with empty parameters when the selected template declares requiredParameters. Add a prior discovery/planning step or bind values from user input/tool output.\n\n");
+        prompt.append("- A template-declared default is authoritative contract evidence and needs no user/tool evidence. Pass only evidence-backed overrides; Runtime may fill omitted parameters from parameterSchema defaults. If a required parameter has no default, bind it from user input/tool output before execution.\n\n");
         if (requireToolBeforeFinal) {
             prompt.append("Mandatory tool policy:\n");
             prompt.append("- This agent is bound to required runtime tools. Your response MUST be an InterpretationPlan that includes the required tool steps.\n");

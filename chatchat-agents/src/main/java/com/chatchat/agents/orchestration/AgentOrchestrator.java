@@ -1064,9 +1064,21 @@ public class AgentOrchestrator implements AgentRunExecutor {
         int maxRewriteTimes = augmentationOverrideAvailable && latestAugmentationDecision.continueLoop()
             ? 1
             : configuredMaxRewriteTimes;
+        int evidenceDrivenRewriteLimit = evidenceDrivenRewriteLimit(
+            configuredMaxRewriteTimes,
+            latestAugmentationDecision,
+            evidenceHistory,
+            tools
+        );
+        if (evidenceDrivenRewriteLimit > maxRewriteTimes) {
+            maxRewriteTimes = evidenceDrivenRewriteLimit;
+            metadata.put("evidenceDrivenRewriteBudgetApplied", true);
+            metadata.put("evidenceDrivenRewriteBudgetReason",
+                "The evidence chain contains an available-tool next action, so refinement remains enabled within the runtime attempt ceiling.");
+        }
         boolean templateExecutionRetryRequested = templateExecutionRetryRequested(firstResult);
         if (templateExecutionRetryRequested && tools != null && !tools.isEmpty()) {
-            maxRewriteTimes = 1;
+            maxRewriteTimes = Math.max(maxRewriteTimes, 1);
             metadata.put("templateExecutionRetryBounded", true);
             metadata.put("templateExecutionRetryLimit", 1);
             metadata.put("templateExecutionRetryStrategy",
@@ -1882,6 +1894,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("- Each argument must be evidence-bearing: use {value, source:user_query, evidence:{quote}} for an exact User-query fact, or {value, source:tool_result, evidence:{step_id,output_path}} for an exact value in a successful completed step. Runtime re-reads and compares every cited source before execution.\n");
         prompt.append("- Add analysis_summary to explain the parameter profile. Never use model inference as a source, and never copy parameterSchema, defaults, routing fields, credentials, or an entire template object into arguments. Runtime owns defaults, type compilation, routing and execution.\n");
         prompt.append("- Put parameters that cannot be proven by the User query or a completed tool result in unresolved_parameters. When a required parameter is unresolved, request rewrite_plan instead of executing with an invented or empty value.\n");
+        prompt.append("- Do not put a parameter in unresolved_parameters merely because the user omitted it when the selected template declares a non-empty default for that field. Template defaults are authoritative contract evidence; emit only evidence-backed overrides and let Runtime apply the remaining defaults.\n");
         if (compressionEnabled) {
             prompt.append("- Context compression is active because the complete DAG evidence exceeded its token budget.\n");
             prompt.append("- Compressed tool outputs below are semantic scheduling projections. Full results remain authoritative in Runtime step records and tool traces.\n");
@@ -2168,6 +2181,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("- Use evidence_quality_v1 as independent quality dimensions. Each dimension has value/status/type/reason; UNKNOWN means not assessed and must never be interpreted as 0.5. modelConfidence is MODEL_ESTIMATED and is not an evidence-quality score.\n");
         prompt.append("- Use evidence_graph_v1 as the authoritative Evidence-to-Hypothesis relationship layer. Only ACTIVE SUPPORTS or CONTRADICTS relations with existing Evidence nodes may justify a hypothesis; rejectedRelations are audit findings, not evidence.\n");
         prompt.append("- Use plan_evolution_v1 only to explain why the runtime changed its retrieval or execution path. A plan change is not evidence for the user's factual answer.\n");
+        prompt.append("- Treat template_selection_feedback.v1 and runtimeTemplateCandidateEvaluations as the decision ledger for template changes. When a previously preferred or more precise template was rejected, state its evidence-backed rejection reason; when another template was selected or queried, state the evidence gap it was chosen to close. Do not imply that a service was unavailable when the trace shows a binding, contract, parameter-evidence, policy, or pre-invocation failure.\n");
         prompt.append("- The final answer must be grounded in the cumulative MCP results from every iteration. Do not treat an intermediate model conclusion as evidence unless its referenced evidenceId exists in an executed tool result.\n");
         prompt.append("- Resolve conflicts explicitly. If three iterations still leave a material gap, report that gap instead of filling it with model knowledge.\n");
         prompt.append("- Do not hide earlier partial or failed attempts when they contain usable evidence. State unresolved limitations after considering all attempts.\n");
@@ -4789,13 +4803,23 @@ public class AgentOrchestrator implements AgentRunExecutor {
             + firstNonBlank(step.errorMessage(), "unknown error");
     }
 
-    private String templateSelectionFeedbackObservation(String stage,
-                                                        InterpretationPlanRuntime.StepExecution step) {
+    String templateSelectionFeedbackObservation(String stage,
+                                                InterpretationPlanRuntime.StepExecution step) {
         if (step == null || step.metadata() == null || step.metadata().isEmpty()) {
             return null;
         }
         Map<String, Object> feedback = new LinkedHashMap<>();
-        for (String key : List.of("selectedTemplateIds", "rejectedTemplateIds", "refinedIntent")) {
+        for (String key : List.of(
+            "selectedTemplateIds",
+            "rejectedTemplateIds",
+            "templateEvaluations",
+            "refinedIntent",
+            "runtimeSelectedTemplateIds",
+            "runtimeTemplateCandidateEvaluations",
+            "runtimeTemplateSelectionReason",
+            "templateExecutionReview",
+            "templateReselectionRequired"
+        )) {
             Object value = step.metadata().get(key);
             if (value != null && !String.valueOf(value).isBlank() && !List.of().equals(value)) {
                 feedback.put(key, value);
@@ -4809,6 +4833,28 @@ public class AgentOrchestrator implements AgentRunExecutor {
         feedback.put("stepId", step.stepId());
         feedback.put("toolName", step.toolName());
         return "InterpretationPlan template selection feedback: " + stringify(feedback);
+    }
+
+    /**
+     * Lets evidence, rather than a model's optimistic initial rewrite estimate,
+     * decide whether another bounded refinement round is still useful. An
+     * explicit zero remains the caller's stop decision; positive estimates may
+     * expand only when the latest evidence names a tool that is actually in the
+     * current availability snapshot.
+     */
+    int evidenceDrivenRewriteLimit(int configuredMaxRewriteTimes,
+                                   EvidenceAugmentationPolicy.Outcome outcome,
+                                   List<Map<String, Object>> evidenceHistory,
+                                   List<String> availableTools) {
+        int configured = Math.max(0,
+            Math.min(MAX_INTERPRETATION_PLAN_ATTEMPTS - 1, configuredMaxRewriteTimes));
+        if (configured == 0 || outcome == null || !outcome.continueLoop()) {
+            return configured;
+        }
+        if (evidenceRefinementRequiredTools(evidenceHistory, availableTools).isEmpty()) {
+            return configured;
+        }
+        return MAX_INTERPRETATION_PLAN_ATTEMPTS - 1;
     }
 
     private String canonicalEvidenceObservation(InterpretationPlanRuntime.StepExecution step) {

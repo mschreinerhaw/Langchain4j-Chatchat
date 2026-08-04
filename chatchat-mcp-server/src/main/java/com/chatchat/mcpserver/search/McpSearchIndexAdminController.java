@@ -337,6 +337,10 @@ public class McpSearchIndexAdminController {
             case "ssh_host", "ssh_host_assets", "ssh_assets", "server_assets", "service_assets", "asset_ssh_host", "assets_ssh_host" -> "ssh_host";
             case "sql_datasource", "sql_datasource_assets", "database_assets", "db_assets", "asset_sql_datasource", "assets_sql_datasource" -> "sql_datasource";
             case "http_endpoint", "http_endpoint_assets", "http_assets", "asset_http_endpoint", "assets_http_endpoint" -> "http_endpoint";
+            case "http_endpoint_http", "http_endpoint_http_assets", "ordinary_http_assets" ->
+                McpAssetLuceneIndexService.HTTP_ASSET_INDEX_TYPE;
+            case "http_endpoint_microservice", "http_endpoint_microservice_assets", "microservice_assets" ->
+                McpAssetLuceneIndexService.MICROSERVICE_ASSET_INDEX_TYPE;
             case "api_service", "api_service_assets", "api_assets", "asset_api_service", "assets_api_service" -> "api_service";
             default -> null;
         };
@@ -379,6 +383,8 @@ public class McpSearchIndexAdminController {
             case "ssh_host" -> "ssh_host_assets";
             case "sql_datasource" -> "sql_datasource_assets";
             case "http_endpoint" -> "http_endpoint_assets";
+            case McpAssetLuceneIndexService.HTTP_ASSET_INDEX_TYPE -> "http_endpoint_http_assets";
+            case McpAssetLuceneIndexService.MICROSERVICE_ASSET_INDEX_TYPE -> "http_endpoint_microservice_assets";
             case "api_service" -> "api_service_assets";
             default -> "assets";
         };

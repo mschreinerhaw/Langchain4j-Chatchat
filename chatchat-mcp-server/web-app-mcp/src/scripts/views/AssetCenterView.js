@@ -71,6 +71,8 @@ export default {
         { value: 'ssh_host_assets', label: '服务器资产索引' },
         { value: 'sql_datasource_assets', label: '数据库资产索引' },
         { value: 'http_endpoint_assets', label: 'API 网关资产索引' },
+        { value: 'http_endpoint_http_assets', label: '普通 HTTP 资产索引' },
+        { value: 'http_endpoint_microservice_assets', label: '微服务资产索引' },
         { value: 'api_service_assets', label: 'API 服务资产索引' },
         { value: 'templates', label: '模板索引' },
         { value: 'database_query', label: '业务查询索引' },

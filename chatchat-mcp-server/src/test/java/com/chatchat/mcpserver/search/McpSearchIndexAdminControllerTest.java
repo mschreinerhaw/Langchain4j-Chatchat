@@ -124,6 +124,8 @@ class McpSearchIndexAdminControllerTest {
     @CsvSource({
         "ssh_host_assets,ssh_host,assets-ssh-host",
         "sql_datasource_assets,sql_datasource,assets-sql-datasource",
+        "http_endpoint_http_assets,http_endpoint_http,assets-http-endpoint-http",
+        "http_endpoint_microservice_assets,http_endpoint_microservice,assets-http-endpoint-microservice",
         "api_service_assets,api_service,assets-api-service"
     })
     void typedAssetIndexForcesDedicatedAssetType(String indexType, String assetType, String physicalIndex) {

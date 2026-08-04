@@ -640,5 +640,7 @@ mvn -pl chatchat-agents "-Dtest=AgentToolArgumentResolverTest,InterpretationPlan
 如果依赖模块已经安装到本地 Maven 仓库，也可以去掉 `-am`：
 
 ```powershell
-mvn -pl chatchat-agents clean package -DskipTests
+mvn -pl chatchat-api  -am package -DskipTests
+mvn -pl chatchat-mcp-server  -am package -DskipTests
+mvn -pl chatchat-runtime-news  -am package -DskipTests
 ```

@@ -91,12 +91,18 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
         Map<String, Object> filters = filters(arguments);
         int limit = limit(arguments);
         List<String> excludedTemplateIds = excludedTemplateIds(arguments);
+        List<String> requestedTemplateIds = requestedTemplateIds(arguments);
         List<ApiServiceConfig> enabledConfigs = configService.listEnabled();
         ApiServiceCategoryService.CategoryResolution categoryResolution = categoryService.resolve(
             categoryFilters(filters), enabledConfigs);
         List<ApiServiceConfig> scopedConfigs = hasAssetScope(filters)
             ? scopedApiServices(enabledConfigs, filters)
             : enabledConfigs;
+        if (!requestedTemplateIds.isEmpty()) {
+            scopedConfigs = scopedConfigs.stream()
+                .filter(config -> requestedTemplateIds.contains(text(config.getToolName())))
+                .toList();
+        }
         List<String> assetSignals = hasAssetScope(filters)
             ? apiServiceSignals(scopedConfigs)
             : List.of();
@@ -160,6 +166,7 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             "selectedCategory", categoryMetadata(categoryResolution.category()),
             "categoryCandidates", categoryResolution.candidates().stream().map(this::categoryMetadata).toList(),
             "possiblyTruncated", matched.size() > limit,
+            "requestedTemplateIds", requestedTemplateIds,
             "excludedTemplateIds", excludedTemplateIds,
             "selectionProtocol", mapOf(
                 "schemaVersion", "template_selection_protocol.v1",
@@ -248,6 +255,11 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             "excludeTemplateIds", Map.of(
                 "type", "array",
                 "description", "Template ids rejected by a prior semantic review. They are excluded from this refinement query.",
+                "items", Map.of("type", "string")
+            ),
+            "templateIds", Map.of(
+                "type", "array",
+                "description", "Authorized template ids returned by prior asset discovery. When present, discovery is restricted to this exact candidate set.",
                 "items", Map.of("type", "string")
             )
         ), List.of("filters"), false, null, null);
@@ -355,6 +367,33 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
                 throw new IllegalArgumentException("Raw API execution field is not allowed in api_template_query: " + field);
             }
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> requestedTemplateIds(Map<String, Object> arguments) {
+        if (arguments == null || arguments.isEmpty()) {
+            return List.of();
+        }
+        Object value = firstValue(arguments, "templateIds", "template_ids", "candidateTemplateIds");
+        if (value == null && arguments.get("filters") instanceof Map<?, ?> filters) {
+            value = firstValue((Map<String, Object>) filters,
+                "templateIds", "template_ids", "candidateTemplateIds");
+        }
+        List<String> ids = new ArrayList<>();
+        if (value instanceof Iterable<?> iterable) {
+            iterable.forEach(item -> {
+                String id = text(item);
+                if (!id.isBlank() && !ids.contains(id)) {
+                    ids.add(id);
+                }
+            });
+        } else {
+            String id = text(value);
+            if (!id.isBlank()) {
+                ids.add(id);
+            }
+        }
+        return List.copyOf(ids);
     }
 
     private List<String> terms(Map<String, Object> filters) {

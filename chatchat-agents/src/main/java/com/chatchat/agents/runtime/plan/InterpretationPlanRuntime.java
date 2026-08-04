@@ -2441,6 +2441,11 @@ public class InterpretationPlanRuntime {
         normalizeNewsSearchInput(step, request, input);
         applyPublishedInputAdapterContract(step, request, completed, input);
         Map<String, Object> retrievalGate = applyStepInputEnricher(step, request, completed, input);
+        // Discovery schemas require the runtime-owned filters envelope. Normalize loose model
+        // arguments before compiling against the published schema; otherwise a valid semantic
+        // request such as {intent: ..., templateIds: [...]} fails on the missing filters field and
+        // the fallback agent loop loses the discovered-template scope.
+        normalizeDiscoveryRoutingInput(step, request, completed, input);
         compileDirectToolArguments(step, request, input);
         hydrateExecutionContextFromCompletedAssets(step, completed, input);
         normalizeSqlExecutionContext(step, input);
@@ -2452,7 +2457,6 @@ public class InterpretationPlanRuntime {
         repairTableScopedSqlTemplate(step, contractContext, input);
         enforceAgentRuntimeEnvironment(step, request, input);
         validateRequiredExecutionTemplate(step, input, completed);
-        normalizeDiscoveryRoutingInput(step, request, completed, input);
         enforceCanonicalAssetContinuity(step, completed, input);
         input.remove("runtimeParameterProtocolApplied");
         if (!retrievalGate.isEmpty()) {
@@ -4966,6 +4970,7 @@ public class InterpretationPlanRuntime {
             input.put("filters", new LinkedHashMap<>());
             filters = input.get("filters");
         }
+        promoteLooseDiscoveryFilters(input);
         applyReviewedAssetSelectionToTemplateDiscovery(step, completed, input);
         sanitizeDiscoveryFilters(step, request, input);
         sanitizeDiscoveryEnvironment(step, request, completed, input);
@@ -4993,6 +4998,27 @@ public class InterpretationPlanRuntime {
             return;
         }
         input.put("trace", routingTraceForStep(step, request));
+    }
+
+    @SuppressWarnings("unchecked")
+    private void promoteLooseDiscoveryFilters(Map<String, Object> input) {
+        Object value = firstMapValue(input, "filters", "executionContext", "mcpExecutionContext");
+        if (!(value instanceof Map<?, ?> map)) {
+            return;
+        }
+        Map<String, Object> filters = new LinkedHashMap<>((Map<String, Object>) map);
+        for (String field : List.of(
+            "intent", "goal", "category", "keywords", "queryTerms", "retrievalSignals",
+            "intentCandidates", "bilingualIntent", "bilingualQuery", "intentZh", "intentEn"
+        )) {
+            Object semanticValue = input.remove(field);
+            if (semanticValue != null) {
+                filters.putIfAbsent(field, semanticValue);
+            }
+        }
+        input.remove("executionContext");
+        input.remove("mcpExecutionContext");
+        input.put("filters", filters);
     }
 
     @SuppressWarnings("unchecked")

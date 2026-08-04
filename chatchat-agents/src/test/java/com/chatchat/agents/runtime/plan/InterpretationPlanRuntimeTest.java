@@ -3155,6 +3155,61 @@ class InterpretationPlanRuntimeTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void compilesLooseTemplateDiscoveryIntentWithoutLosingDiscoveredTemplateIds() throws Exception {
+        String toolName = "mcp_chatchat_mcp_server_api_template_query";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName)
+            .metadata(Map.of(
+                "inputSchema", Map.of(
+                    "type", "object",
+                    "properties", Map.of(
+                        "filters", Map.of("type", "object", "additionalProperties", true),
+                        "trace", Map.of("type", "object", "additionalProperties", true),
+                        "filtersSchemaVersion", Map.of("type", "string"),
+                        "templateIds", Map.of("type", "array", "items", Map.of("type", "string")),
+                        "limit", Map.of("type", "integer")
+                    ),
+                    "required", List.of("filters"),
+                    "additionalProperties", false
+                ),
+                "mcpToolMeta", Map.of("routingProtocol", Map.of(
+                    "allowedFilterFields", List.of("intent", "queryterms", "retrievalsignals")
+                ))
+            ))
+            .build());
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class), new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class));
+        List<String> candidateIds = List.of(
+            "livedata_hisJyZjmxls", "livedata_EvtRealOptCptlJour",
+            "livedata_EvtRealSecuMargCptlJour");
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            1, "mcp_tool", toolName,
+            Map.of("intent", "查询客户资金流水", "templateIds", candidateIds, "limit", 10),
+            List.of(), null, null);
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0", new InterpretationPlan.Intent("data_query", "查询客户资金流水", "low"),
+            context(), new InterpretationPlan.Plan(List.of(step)),
+            new InterpretationPlan.ExecutionPolicy(1, false, List.of(toolName), List.of(), 30000), review());
+        InterpretationPlanRuntime.ExecutionRequest request = new InterpretationPlanRuntime.ExecutionRequest(
+            plan, toolRegistry, List.of(toolName), "tenant-1", "req-template-scope",
+            "conv-template-scope", "user-1", Map.of("originalUserQuery", "查询客户资金流水"));
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedStepInput", InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class, Map.class);
+        method.setAccessible(true);
+
+        Map<String, Object> resolved = (Map<String, Object>) method.invoke(runtime, step, request, Map.of());
+
+        assertThat(resolved.get("templateIds")).isEqualTo(candidateIds);
+        assertThat((Map<String, Object>) resolved.get("filters"))
+            .containsEntry("intent", "查询客户资金流水");
+        assertThat(resolved).containsKeys("trace", "filtersSchemaVersion");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void injectsRetrievalIntentForDatabaseDiscoveryWhenPlannerOmittedFilter() throws Exception {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             mock(ToolRuntimeService.class),

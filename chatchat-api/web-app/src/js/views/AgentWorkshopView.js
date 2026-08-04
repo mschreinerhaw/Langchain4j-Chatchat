@@ -192,6 +192,9 @@ export default {
       dialogOpen: false,
       dialogMode: "create",
       activeAgent: null,
+      recallConfirmOpen: false,
+      recallTarget: null,
+      recallConfirmError: "",
       form: emptyForm(),
       importDialogOpen: false,
       importText: "",
@@ -1426,20 +1429,37 @@ export default {
         this.saving = false;
       }
     },
-    async recallAgent(agent) {
+    recallAgent(agent) {
       if (!agent?.id || agent.marketStatus !== "published") {
         return;
       }
-      if (!window.confirm(`确认从能力市场回收「${agent.name || agent.id}」？`)) {
+      this.recallTarget = agent;
+      this.recallConfirmError = "";
+      this.recallConfirmOpen = true;
+    },
+    closeRecallConfirm() {
+      if (this.saving) {
+        return;
+      }
+      this.recallConfirmOpen = false;
+      this.recallTarget = null;
+      this.recallConfirmError = "";
+    },
+    async confirmRecallAgent() {
+      const agent = this.recallTarget;
+      if (!agent?.id || agent.marketStatus !== "published" || this.saving) {
         return;
       }
       this.saving = true;
       this.error = "";
+      this.recallConfirmError = "";
       try {
         await recallWorkshopAgent(agent.id);
+        this.recallConfirmOpen = false;
+        this.recallTarget = null;
         await this.loadWorkshop();
       } catch (error) {
-        this.error = error.message || "能力回收失败";
+        this.recallConfirmError = error.message || "能力回收失败，请稍后重试。";
       } finally {
         this.saving = false;
       }

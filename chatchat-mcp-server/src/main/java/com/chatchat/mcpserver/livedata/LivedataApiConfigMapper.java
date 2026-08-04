@@ -312,14 +312,13 @@ public class LivedataApiConfigMapper {
      * Empty or malformed metadata means that no return fields were declared.
      */
     private String toOutputSchema(String responseColumnsJson) {
-        List<ParamDefinition> columns = parseParams(responseColumnsJson);
+        List<ParamDefinition> columns = parseResponseColumns(responseColumnsJson);
         if (columns.isEmpty()) {
             return null;
         }
 
         Map<String, Object> schema = new LinkedHashMap<>();
         Map<String, Object> properties = new LinkedHashMap<>();
-        Set<String> required = new LinkedHashSet<>();
         for (ParamDefinition column : columns) {
             Map<String, Object> field = new LinkedHashMap<>();
             field.put("type", column.jsonType());
@@ -327,15 +326,42 @@ public class LivedataApiConfigMapper {
                 field.put("description", column.description());
             }
             properties.put(column.name(), field);
-            if (column.required()) {
-                required.add(column.name());
-            }
         }
         schema.put("type", "object");
         schema.put("properties", properties);
-        schema.put("required", List.copyOf(required));
+        schema.put("required", List.of());
         schema.put("additionalProperties", false);
         return writeJson(schema);
+    }
+
+    /**
+     * Parses the LiveData response_columns contract. Its public display contract
+     * consists only of name, dataType and description; the numeric id is metadata
+     * and must never become an API return-field name.
+     */
+    private List<ParamDefinition> parseResponseColumns(String responseColumnsJson) {
+        if (responseColumnsJson == null || responseColumnsJson.isBlank()) {
+            return List.of();
+        }
+        try {
+            JsonNode root = objectMapper.readTree(responseColumnsJson);
+            List<ParamDefinition> columns = new ArrayList<>();
+            for (JsonNode node : extractParamNodes(root)) {
+                if (!node.isObject()) {
+                    continue;
+                }
+                String name = normalizeParamName(readText(node, "name"));
+                if (name == null) {
+                    continue;
+                }
+                String type = normalizeJsonType(readText(node, "dataType"));
+                String description = readText(node, "description");
+                columns.add(new ParamDefinition(name, type, description, false, null));
+            }
+            return columns;
+        } catch (Exception ex) {
+            return List.of();
+        }
     }
 
     /**

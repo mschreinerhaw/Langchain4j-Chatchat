@@ -103,18 +103,19 @@ class LivedataApiConfigMapperTest {
             "source-1", "orders", "Order query", "[]", null, "livedata",
             "OrderService", "query", 0, "1", "1",
             """
-                [{"key":"order_id","name":"Order ID","type":"varchar","isRequire":1},
-                 {"fieldName":"total_amount","description":"Order total","dataType":"decimal"}]
+                [{"id":700398516123672576,"name":"etl_date","dataType":"string","description":"交易日期"},
+                 {"id":702086756278935552,"name":"amt_rmb","dataType":"decimal","description":"金额（人民币）"}]
                 """
         );
 
         ApiServiceConfig mapped = mapper.toApiServiceConfig(definition);
 
         var schema = new ObjectMapper().readTree(mapped.getOutputSchemaJson());
-        assertThat(schema.path("properties").path("order_id").path("type").asText()).isEqualTo("string");
-        assertThat(schema.path("properties").path("order_id").path("description").asText()).isEqualTo("Order ID");
-        assertThat(schema.path("properties").path("total_amount").path("type").asText()).isEqualTo("number");
-        assertThat(schema.path("required").get(0).asText()).isEqualTo("order_id");
+        assertThat(schema.path("properties").path("etl_date").path("type").asText()).isEqualTo("string");
+        assertThat(schema.path("properties").path("etl_date").path("description").asText()).isEqualTo("交易日期");
+        assertThat(schema.path("properties").path("amt_rmb").path("type").asText()).isEqualTo("number");
+        assertThat(schema.path("properties").has("700398516123672576")).isFalse();
+        assertThat(schema.path("required").isEmpty()).isTrue();
         assertThat(schema.path("additionalProperties").asBoolean()).isFalse();
     }
 

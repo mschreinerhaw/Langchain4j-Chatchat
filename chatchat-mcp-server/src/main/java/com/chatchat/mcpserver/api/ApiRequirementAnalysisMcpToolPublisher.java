@@ -48,9 +48,10 @@ public class ApiRequirementAnalysisMcpToolPublisher {
             .name(TOOL_NAME)
             .title("API requirement capability analysis")
             .description("Resolve a model-produced requirement decomposition against registered API templates. "
-                + "It returns candidates and gaps per requirement, but does not execute APIs and does not claim that a candidate is semantically accepted.")
+                + "Accepts either requirements[] or query shorthand. It returns candidates and gaps per requirement, "
+                + "but does not execute APIs and does not claim that a candidate is semantically accepted.")
             .inputSchema(new McpSchema.JsonSchema("object", RequirementAnalysisProtocol.inputProperties(),
-                List.of("requirements"), false, null, null))
+                List.of(), false, null, null))
             .meta(Map.of(
                 "schemaVersion", "api_requirement_analysis.v1",
                 "runtime_action", "read_only",

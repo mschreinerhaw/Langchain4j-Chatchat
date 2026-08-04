@@ -18,6 +18,8 @@ public final class RequirementAnalysisProtocol {
     public static Map<String, Object> inputProperties() {
         return Map.of(
             "schemaVersion", Map.of("type", "string"),
+            "query", Map.of("type", "string", "description",
+                "Single requirement shorthand. Used when requirements is omitted or empty."),
             "goal", Map.of("type", "string", "description",
                 "Overall goal. Optional when a requirement intent or description is supplied."),
             "requirements", Map.of(
@@ -49,8 +51,17 @@ public final class RequirementAnalysisProtocol {
     public static NormalizedRequest normalize(Map<String, Object> arguments) {
         Map<String, Object> input = arguments == null ? Map.of() : arguments;
         Object rawRequirements = input.get("requirements");
-        if (!(rawRequirements instanceof List<?> requirements) || requirements.isEmpty()) {
-            throw new IllegalArgumentException("requirements must contain at least one requirement");
+        List<?> requirements;
+        if (rawRequirements == null || (rawRequirements instanceof List<?> list && list.isEmpty())) {
+            String query = text(input.get("query"));
+            if (query.isBlank()) {
+                throw new IllegalArgumentException("requirements or query must contain at least one requirement");
+            }
+            requirements = List.of(Map.of("intent", query));
+        } else if (rawRequirements instanceof List<?> list) {
+            requirements = list;
+        } else {
+            throw new IllegalArgumentException("requirements must be an array");
         }
         if (requirements.size() > MAX_REQUIREMENTS) {
             throw new IllegalArgumentException("requirements exceeds maximum " + MAX_REQUIREMENTS);

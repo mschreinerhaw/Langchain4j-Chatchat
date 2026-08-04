@@ -48,9 +48,10 @@ public class HttpRequirementAnalysisMcpToolPublisher {
             .name(TOOL_NAME)
             .title("HTTP endpoint requirement capability analysis")
             .description("Resolve a model-produced requirement decomposition against registered HTTP endpoint templates. "
-                + "It returns candidates and gaps but never executes HTTP requests and never treats retrieval as semantic acceptance.")
+                + "Accepts either requirements[] or query shorthand. It returns candidates and gaps but never executes "
+                + "HTTP requests and never treats retrieval as semantic acceptance.")
             .inputSchema(new McpSchema.JsonSchema("object", RequirementAnalysisProtocol.inputProperties(),
-                List.of("requirements"), false, null, null))
+                List.of(), false, null, null))
             .meta(Map.of(
                 "schemaVersion", "http_requirement_analysis.v1",
                 "runtime_action", "read_only",

@@ -30,10 +30,7 @@ class ProductionApiRequirementAnalysisProtocolE2E {
         String dynamicIntent = "分析动态指标-" + System.nanoTime();
 
         Map<String, Object> result = publisher.analyze(Map.of(
-            "requirements", List.of(Map.of(
-                "intent", "  " + dynamicIntent + "  ",
-                "requiredOutputs", List.of("指标甲", "metric-b"),
-                "constraints", List.of("只读", "tenant-scoped"))),
+            "query", "  " + dynamicIntent + "  ",
             "context", Map.of("environment", "PRE", "assetName", "asset-" + System.nanoTime()),
             "limitPerRequirement", 0));
 

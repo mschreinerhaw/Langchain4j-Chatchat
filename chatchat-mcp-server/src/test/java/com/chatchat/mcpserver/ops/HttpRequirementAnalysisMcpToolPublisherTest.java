@@ -1,6 +1,7 @@
 package com.chatchat.mcpserver.ops;
 
 import io.modelcontextprotocol.server.McpSyncServer;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -9,9 +10,26 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class HttpRequirementAnalysisMcpToolPublisherTest {
+
+    @Test
+    void publishesQueryShorthandWithoutIncorrectlyRequiringStructuredRequirements() {
+        McpSyncServer server = mock(McpSyncServer.class);
+        HttpRequirementAnalysisMcpToolPublisher publisher = new HttpRequirementAnalysisMcpToolPublisher(
+            server, mock(CommandTemplateDiscoveryService.class));
+
+        publisher.refresh();
+
+        ArgumentCaptor<io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification> specification =
+            ArgumentCaptor.forClass(io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification.class);
+        verify(server).addTool(specification.capture());
+        assertThat(specification.getValue().tool().inputSchema().properties())
+            .containsKeys("query", "requirements");
+        assertThat(specification.getValue().tool().inputSchema().required()).isEmpty();
+    }
 
     @Test
     void analyzesHttpRequirementsThroughTheHttpTemplateDomain() {
@@ -96,5 +114,26 @@ class HttpRequirementAnalysisMcpToolPublisherTest {
             return "PROD".equals(filters.get("env"))
                 && filters.toString().contains("ResourceManager API");
         }));
+    }
+
+    @Test
+    void acceptsQueryShorthandProducedByRuntimePlanRepair() {
+        CommandTemplateDiscoveryService discovery = mock(CommandTemplateDiscoveryService.class);
+        when(discovery.query(org.mockito.ArgumentMatchers.any())).thenReturn(Map.of(
+            "returnedCount", 1,
+            "templates", List.of(Map.of("templateId", "dynamic_http_template"))
+        ));
+        HttpRequirementAnalysisMcpToolPublisher publisher = new HttpRequirementAnalysisMcpToolPublisher(
+            mock(McpSyncServer.class), discovery);
+
+        Map<String, Object> result = publisher.analyze(Map.of("query", "inspect requested HTTP resource"));
+
+        assertThat(result).containsEntry("success", true)
+            .containsEntry("goal", "inspect requested HTTP resource")
+            .containsEntry("requirementCount", 1);
+        Map<?, ?> requirement = (Map<?, ?>) ((Map<?, ?>) ((List<?>) result.get("coverage")).get(0))
+            .get("requirement");
+        assertThat(requirement.get("id")).isEqualTo("requirement_1");
+        assertThat(requirement.get("description")).isEqualTo("inspect requested HTTP resource");
     }
 }

@@ -30,10 +30,7 @@ class ProductionHttpRequirementAnalysisProtocolE2E {
         String dynamicIntent = "inspect-dynamic-resource-" + System.nanoTime();
 
         Map<String, Object> result = publisher.analyze(Map.of(
-            "requirements", List.of(Map.of(
-                "intent", dynamicIntent,
-                "requiredOutputs", List.of("容量", "usage"),
-                "constraints", List.of("read-only"))),
+            "query", dynamicIntent,
             "context", Map.of("env", "DEV", "service", "service-" + System.nanoTime()),
             "limitPerRequirement", "not-a-number"));
 

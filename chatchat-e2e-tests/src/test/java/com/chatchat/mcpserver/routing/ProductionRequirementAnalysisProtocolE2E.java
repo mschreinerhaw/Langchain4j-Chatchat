@@ -67,6 +67,13 @@ class ProductionRequirementAnalysisProtocolE2E {
         assertThatIllegalArgumentException()
             .isThrownBy(() -> RequirementAnalysisProtocol.normalize(Map.of("requirements", List.of(Map.of("intent", "  ")))))
             .withMessageContaining("description or intent");
+        assertThatIllegalArgumentException()
+            .isThrownBy(() -> RequirementAnalysisProtocol.normalize(Map.of("query", "  ")))
+            .withMessageContaining("requirements or query");
+        assertThatIllegalArgumentException()
+            .isThrownBy(() -> RequirementAnalysisProtocol.normalize(Map.of(
+                "requirements", "not-an-array", "query", "must-not-hide-malformed-structured-input")))
+            .withMessageContaining("must be an array");
 
         List<Map<String, Object>> oversized = java.util.stream.IntStream
             .rangeClosed(1, RequirementAnalysisProtocol.MAX_REQUIREMENTS + 1)

@@ -93,4 +93,44 @@ class LivedataApiConfigMapperTest {
         assertThat(schema.path("properties").path("tab_name").path("default").asText()).isEqualTo("TJGMXLS");
         assertThat(schema.path("required").isEmpty()).isTrue();
     }
+
+    @Test
+    void mapsResponseColumnsToApiServiceOutputSchema() throws Exception {
+        LivedataAutoRegistrationProperties properties = new LivedataAutoRegistrationProperties();
+        properties.setServiceBaseUrl("http://localhost:5006");
+        LivedataApiConfigMapper mapper = new LivedataApiConfigMapper(new ObjectMapper(), () -> properties);
+        LivedataApiDefinition definition = new LivedataApiDefinition(
+            "source-1", "orders", "Order query", "[]", null, "livedata",
+            "OrderService", "query", 0, "1", "1",
+            """
+                [{"key":"order_id","name":"Order ID","type":"varchar","isRequire":1},
+                 {"fieldName":"total_amount","description":"Order total","dataType":"decimal"}]
+                """
+        );
+
+        ApiServiceConfig mapped = mapper.toApiServiceConfig(definition);
+
+        var schema = new ObjectMapper().readTree(mapped.getOutputSchemaJson());
+        assertThat(schema.path("properties").path("order_id").path("type").asText()).isEqualTo("string");
+        assertThat(schema.path("properties").path("order_id").path("description").asText()).isEqualTo("Order ID");
+        assertThat(schema.path("properties").path("total_amount").path("type").asText()).isEqualTo("number");
+        assertThat(schema.path("required").get(0).asText()).isEqualTo("order_id");
+        assertThat(schema.path("additionalProperties").asBoolean()).isFalse();
+    }
+
+    @Test
+    void leavesOutputSchemaEmptyWhenResponseColumnsAreEmptyOrMalformed() {
+        LivedataAutoRegistrationProperties properties = new LivedataAutoRegistrationProperties();
+        properties.setServiceBaseUrl("http://localhost:5006");
+        LivedataApiConfigMapper mapper = new LivedataApiConfigMapper(new ObjectMapper(), () -> properties);
+
+        for (String responseColumns : new String[] { null, "", "not-json", "[]" }) {
+            LivedataApiDefinition definition = new LivedataApiDefinition(
+                "source-1", "orders", "Order query", "[]", null, "livedata",
+                "OrderService", "query", 0, "1", "1", responseColumns
+            );
+
+            assertThat(mapper.toApiServiceConfig(definition).getOutputSchemaJson()).isNull();
+        }
+    }
 }

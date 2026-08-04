@@ -117,7 +117,7 @@ public class LivedataConfigService implements LivedataSettingsProvider {
         jdbcTemplate.setMaxRows(settings.getMaxApis());
         String sql = """
             select id, api_id, api_name, params, description, namespace, service_name,
-                   method_name, state, version, release_version
+                   method_name, state, version, release_version, response_columns
             from %s
             %s
             order by update_time desc, create_time desc, id desc
@@ -268,7 +268,8 @@ public class LivedataConfigService implements LivedataSettingsProvider {
             rs.getString("method_name"),
             readInteger(rs.getObject("state")),
             rs.getString("version"),
-            rs.getString("release_version")
+            rs.getString("release_version"),
+            rs.getString("response_columns")
         );
     }
 

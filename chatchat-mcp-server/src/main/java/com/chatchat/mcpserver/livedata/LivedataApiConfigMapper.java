@@ -61,6 +61,7 @@ public class LivedataApiConfigMapper {
             config.setBodyTemplate(toBodyTemplate(params, namespace, Map.of(), properties));
         }
         config.setInputSchemaJson(toInputSchema(params, properties));
+        config.setOutputSchemaJson(toOutputSchema(definition.responseColumns()));
         config.setEnabled(definition.state() == null || definition.state() == properties.getPublishedState());
         config.setTimeoutMs(properties.getTimeoutMs());
         config.setCacheEnabled(properties.isCacheEnabled());
@@ -303,6 +304,37 @@ public class LivedataApiConfigMapper {
         schema.put("properties", propertiesNode);
         schema.put("required", List.copyOf(required));
         schema.put("additionalProperties", params.isEmpty());
+        return writeJson(schema);
+    }
+
+    /**
+     * Converts LiveData response_columns metadata to the API service output schema.
+     * Empty or malformed metadata means that no return fields were declared.
+     */
+    private String toOutputSchema(String responseColumnsJson) {
+        List<ParamDefinition> columns = parseParams(responseColumnsJson);
+        if (columns.isEmpty()) {
+            return null;
+        }
+
+        Map<String, Object> schema = new LinkedHashMap<>();
+        Map<String, Object> properties = new LinkedHashMap<>();
+        Set<String> required = new LinkedHashSet<>();
+        for (ParamDefinition column : columns) {
+            Map<String, Object> field = new LinkedHashMap<>();
+            field.put("type", column.jsonType());
+            if (column.description() != null && !column.description().isBlank()) {
+                field.put("description", column.description());
+            }
+            properties.put(column.name(), field);
+            if (column.required()) {
+                required.add(column.name());
+            }
+        }
+        schema.put("type", "object");
+        schema.put("properties", properties);
+        schema.put("required", List.copyOf(required));
+        schema.put("additionalProperties", false);
         return writeJson(schema);
     }
 

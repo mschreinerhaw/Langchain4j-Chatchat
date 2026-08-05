@@ -11,6 +11,7 @@ import com.chatchat.agents.runtime.plan.InterpretationPlanJsonSchema;
 import com.chatchat.agents.runtime.plan.InterpretationPlanValidator;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolMetadata;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
 import lombok.extern.slf4j.Slf4j;
@@ -340,6 +341,7 @@ class AgentPlanner {
             + "when an exact date is required, derive it only from this Runtime context.\n\n");
         prompt.append("Planning contract:\n");
         prompt.append("- Output exactly one InterpretationPlan JSON object. Do not output an envelope, markdown, code fences, comments, or natural language.\n");
+        prompt.append("- Escape every ASCII double quote inside JSON string values (including Markdown answer text), or use Chinese corner quotes.\n");
         prompt.append("- The InterpretationPlan is the single source of truth for this loop iteration.\n");
         prompt.append("- Do not emit candidate_answer or another answer channel. A user-facing result belongs only in final_answer.input.answer.\n");
         prompt.append("- The user query MUST first be converted into this executable InterpretationPlan before any tool execution.\n");
@@ -838,7 +840,7 @@ class AgentPlanner {
         }
         String json = extractJson(raw);
         try {
-            Map<String, Object> envelope = objectMapper.readValue(json, Map.class);
+            Map<String, Object> envelope = parsePlannerEnvelope(json);
             Map<String, Object> candidatePayload = asMap(
                 firstObject(envelope, "candidate_answer", "candidateAnswer"));
             Map<String, Object> planningPayload = asMap(envelope.get("planning"));
@@ -894,6 +896,79 @@ class AgentPlanner {
             log.debug("Failed to parse planner decision: {}", raw, ex);
             return null;
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> parsePlannerEnvelope(String json) throws JsonProcessingException {
+        try {
+            return objectMapper.readValue(json, Map.class);
+        } catch (JsonProcessingException initialFailure) {
+            String repaired = repairUnescapedStringQuotes(json);
+            if (repaired.equals(json)) {
+                throw initialFailure;
+            }
+            Map<String, Object> parsed = objectMapper.readValue(repaired, Map.class);
+            log.warn("Planner JSON contained unescaped quote characters inside string values; "
+                + "Runtime repaired the JSON syntax before InterpretationPlan validation.");
+            return parsed;
+        }
+    }
+
+    /**
+     * Repairs only quote characters that cannot legally terminate the current JSON string. A
+     * terminating quote must be followed (ignoring whitespace) by a JSON structural delimiter.
+     * The repaired document is still parsed and fully validated; missing commas, braces and other
+     * malformed structures remain rejected.
+     */
+    private String repairUnescapedStringQuotes(String json) {
+        if (json == null || json.isBlank()) {
+            return json;
+        }
+        StringBuilder repaired = new StringBuilder(json.length() + 16);
+        boolean inString = false;
+        boolean escaped = false;
+        boolean changed = false;
+        for (int index = 0; index < json.length(); index++) {
+            char current = json.charAt(index);
+            if (!inString) {
+                repaired.append(current);
+                if (current == '"') {
+                    inString = true;
+                }
+                continue;
+            }
+            if (escaped) {
+                repaired.append(current);
+                escaped = false;
+                continue;
+            }
+            if (current == '\\') {
+                repaired.append(current);
+                escaped = true;
+                continue;
+            }
+            if (current != '"') {
+                repaired.append(current);
+                continue;
+            }
+            int next = index + 1;
+            while (next < json.length() && Character.isWhitespace(json.charAt(next))) {
+                next++;
+            }
+            boolean legalTerminator = next >= json.length()
+                || json.charAt(next) == ':'
+                || json.charAt(next) == ','
+                || json.charAt(next) == '}'
+                || json.charAt(next) == ']';
+            if (legalTerminator) {
+                repaired.append(current);
+                inString = false;
+            } else {
+                repaired.append('\\').append(current);
+                changed = true;
+            }
+        }
+        return changed ? repaired.toString() : json;
     }
 
     private AgentDecision attachCandidateAnswer(AgentDecision decision,

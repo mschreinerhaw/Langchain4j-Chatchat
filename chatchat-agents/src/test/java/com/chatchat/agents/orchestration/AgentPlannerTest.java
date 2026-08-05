@@ -21,6 +21,64 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AgentPlannerTest {
 
     @Test
+    void repairsUnescapedQuotesInsideInterpretationPlanMarkdownAnswer() throws Exception {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        String raw = """
+            {
+              "version": "1.0",
+              "intent": {"type": "data_query", "goal": "render observed data", "risk_level": "low"},
+              "context": {"key_facts": [], "assumptions": [], "missing_info": [], "constraints": []},
+              "plan": {
+                "steps": [{
+                  "id": 1,
+                  "action_type": "final_answer",
+                  "tool_name": "",
+                  "input": {"answer": "## 查询结果\\n\\n若无记录则标注"无委托数据记录"，不得填充占位数据。"},
+                  "depends_on": []
+                }],
+                "edge_contracts": [],
+                "dependency_contracts": [],
+                "bindings": []
+              },
+              "execution_policy": {
+                "max_steps": 1,
+                "allow_parallel": false,
+                "allow_tool": [],
+                "deny_tool": [],
+                "timeout_ms": 30000,
+                "fallback_mode": "partial_result"
+              },
+              "review": {
+                "self_check": {"tool_sufficiency": true, "missing_steps": []},
+                "fallback_plan": []
+              }
+            }
+            """;
+
+        Method parseDecision = AgentPlanner.class.getDeclaredMethod(
+            "parseDecision", String.class, PlannerValidationContext.class);
+        parseDecision.setAccessible(true);
+        AgentDecision decision = (AgentDecision) parseDecision.invoke(planner, raw, null);
+
+        assertThat(decision).isNotNull();
+        assertThat(decision.interpretationPlan()).isNotNull();
+        assertThat(decision.answer()).contains("无委托数据记录", "## 查询结果");
+    }
+
+    @Test
+    void quoteRepairDoesNotHideMissingJsonPropertyComma() throws Exception {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        Method parseDecision = AgentPlanner.class.getDeclaredMethod(
+            "parseDecision", String.class, PlannerValidationContext.class);
+        parseDecision.setAccessible(true);
+
+        AgentDecision decision = (AgentDecision) parseDecision.invoke(
+            planner, "{\"action\":\"final\",\"answer\":\"ok\" \"reason\":\"missing comma\"}", null);
+
+        assertThat(decision).isNull();
+    }
+
+    @Test
     void propagatesStructuredDraftArtifactContractWithoutKeywordInference() {
         AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
         String response = """

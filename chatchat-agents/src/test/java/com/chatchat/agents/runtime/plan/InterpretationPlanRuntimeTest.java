@@ -6382,7 +6382,8 @@ class InterpretationPlanRuntimeTest {
         assertThat(result.finalAnswer()).isEqualTo("done");
         assertThat(result.metadata())
             .containsEntry("protocolVersion", InterpretationExecutionProtocol.VERSION)
-            .containsEntry("executionTraceId", "run-event-dag::interpretation_plan");
+            .containsEntry("executionTraceId", "run-event-dag::interpretation_plan")
+            .containsEntry("planExecutionScope", "run-event-dag::attempt:0");
         List<AgentRunEvent> events = runStore.events("run-event-dag");
         assertThat(events).extracting(AgentRunEvent::type)
             .contains(AgentRunEventType.STEP_RECORDED, AgentRunEventType.OBSERVATION_RECORDED);
@@ -6400,6 +6401,7 @@ class InterpretationPlanRuntimeTest {
             .map(metadata -> (Map<?, ?>) metadata)
             .anyMatch(metadata -> InterpretationExecutionProtocol.VERSION.equals(metadata.get("protocolVersion"))
                 && "run-event-dag::interpretation_plan".equals(metadata.get("executionTraceId"))
+                && "run-event-dag::attempt:0".equals(metadata.get("planExecutionScope"))
                 && "controller_decision".equals(metadata.get("lifecyclePhase"))
                 && metadata.get("decision") instanceof Map<?, ?>
                 && metadata.get("guardResult") instanceof Map<?, ?>))
@@ -6503,6 +6505,61 @@ class InterpretationPlanRuntimeTest {
             .contains("mcp_tool", "final_answer");
         List<?> completedPlanStepIds = (List<?>) completed.metadata().get("completedPlanStepIds");
         assertThat(completedPlanStepIds.containsAll(List.of(1, 2, 3))).isTrue();
+        verify(toolRuntimeService, times(2)).execute(any());
+    }
+
+    @Test
+    void doesNotTreatPreviousPlanAttemptStepAsCompletedInCurrentDag() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("document_search")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("document_search"))
+            .thenReturn(ToolMetadata.builder().riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of("results", List.of("attempt evidence"))),
+            ToolMetadata.builder().id("document_search").build(),
+            null,
+            "success",
+            Map.of()
+        ));
+        InMemoryAgentRunStore runStore = new InMemoryAgentRunStore();
+        InterpretationPlanRuntime.StepResultReviewer reviewer = request ->
+            InterpretationPlanRuntime.StepReview.accepted("usable", Map.of());
+        InterpretationPlanRuntime firstRuntime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            runStore,
+            reviewer,
+            request -> InterpretationPlanRuntime.DagDecision.rewritePlan("start a new plan revision")
+        );
+
+        InterpretationPlanRuntime.ExecutionResult first = firstRuntime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                serialPlan(), toolRegistry, List.of("document_search"),
+                "tenant-1", "req-attempt-1", "conv-attempt", "user-1",
+                Map.of("__agentRunId", "run-attempt-scope", "workflowExecutionAttempt", 0)
+            ));
+
+        assertThat(first.status()).isEqualTo("DAG_REWRITE_REQUESTED");
+        InterpretationPlanRuntime secondRuntime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            runStore,
+            reviewer,
+            request -> InterpretationPlanRuntime.DagDecision.finalAnswer(
+                2, "done", "current DAG completed")
+        );
+
+        InterpretationPlanRuntime.ExecutionResult second = secondRuntime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                serialPlan(), toolRegistry, List.of("document_search"),
+                "tenant-1", "req-attempt-2", "conv-attempt", "user-1",
+                Map.of("__agentRunId", "run-attempt-scope", "workflowExecutionAttempt", 1)
+            ));
+
+        assertThat(second.success()).isTrue();
+        assertThat(second.steps()).extracting(InterpretationPlanRuntime.StepExecution::stepId)
+            .containsExactly(1, 2);
         verify(toolRuntimeService, times(2)).execute(any());
     }
 

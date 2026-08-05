@@ -2623,9 +2623,16 @@ class AgentOrchestratorTest {
             .containsExactly(profileTool, assetTool);
         assertThat(result.metadata())
             .containsEntry("workflowMandatoryTools", List.of(profileTool, assetTool))
+            .containsEntry("authoritativeWorkflowTaskId", "req-workflow-override")
+            .containsEntry("authoritativeWorkflowSource", "user_defined_mcp_workflow")
             .containsEntry("maxSteps", 7)
             .containsEntry("runtimeEnforcedMcpWorkflow", true)
             .doesNotContainKey("workflowToolOverrides");
+        assertThat((List<Map<String, Object>>) result.metadata().get("authoritativeWorkflowDag"))
+            .hasSize(2)
+            .anySatisfy(node -> assertThat(node)
+                .containsEntry("tool", assetTool)
+                .containsEntry("dependsOnTools", List.of(profileTool)));
     }
 
     @Test
@@ -2850,7 +2857,8 @@ class AgentOrchestratorTest {
         );
 
         assertThat(result.answer())
-            .contains("必需工具 mandatory_query_execute 未执行到终态")
+            .contains("mandatory_fetch_alert_template, mandatory_query_execute")
+            .contains("未执行到终态")
             .doesNotContain("This answer must not be used");
         assertThat(result.toolTraces())
             .extracting(InteractionToolTrace::getToolName)
@@ -2862,7 +2870,7 @@ class AgentOrchestratorTest {
             .containsEntry("errorCode", "PLAN_INVALID_REQUIRED_TOOL_NOT_EXECUTED")
             .containsEntry("stopReason", "mandatory_workflow_incomplete");
         assertThat((List<String>) result.metadata().get("missingMandatoryTools"))
-            .containsExactly(sqlExecute);
+            .containsExactly(templateSearch, sqlExecute);
         verify(toolRegistry, never()).executeEnhancedTool(eq(sqlExecute), any());
     }
 

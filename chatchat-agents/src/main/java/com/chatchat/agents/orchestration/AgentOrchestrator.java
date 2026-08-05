@@ -31,6 +31,7 @@ import com.chatchat.agents.runtime.plan.InterpretationPlanRewriter;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRecord;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
 import com.chatchat.agents.runtime.plan.InterpretationPlanStore;
+import com.chatchat.agents.runtime.plan.InterpretationPlanOptimizer;
 import com.chatchat.agents.runtime.plan.InterpretationPlanValidator;
 import com.chatchat.agents.runtime.plan.RetrievalQualityGate;
 import com.chatchat.agents.tool.ToolRegistry;
@@ -419,6 +420,24 @@ public class AgentOrchestrator implements AgentRunExecutor {
             requestRuntimeAttributes,
             query
         );
+        List<Map<String, Object>> authoritativeWorkflowDag = workflowMandatoryResolution.authoritativeDag().stream()
+            .map(node -> metadataOf(
+                "id", node.id(),
+                "tool", node.toolName(),
+                "dependsOnTools", node.dependsOnTools(),
+                "order", node.order(),
+                "sourceIndex", node.sourceIndex()
+            ))
+            .toList();
+        String authoritativeWorkflowTaskId = firstNonBlank(
+            stringValue(requestRuntimeAttributes.get("__agentTaskId")),
+            firstNonBlank(stringValue(requestRuntimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE)), requestId)
+        );
+        if (!authoritativeWorkflowDag.isEmpty()) {
+            requestRuntimeAttributes.put("authoritativeWorkflowDag", authoritativeWorkflowDag);
+            requestRuntimeAttributes.put("authoritativeWorkflowTaskId", authoritativeWorkflowTaskId);
+            requestRuntimeAttributes.put("authoritativeWorkflowSource", "user_defined_mcp_workflow");
+        }
         List<String> workflowMandatoryTools = workflowMandatoryResolution.tools();
         List<String> mandatoryTools = workflowMandatoryTools.isEmpty()
             ? workflowTools.resolveMandatoryToolCandidates(tools, requiredToolNames)
@@ -464,6 +483,10 @@ public class AgentOrchestrator implements AgentRunExecutor {
         metadata.put("mandatoryToolCall", requireToolBeforeFinal);
         metadata.put("mandatoryTools", mandatoryTools);
         metadata.put("workflowMandatoryTools", workflowMandatoryTools);
+        metadata.put("authoritativeWorkflowDag", authoritativeWorkflowDag);
+        metadata.put("authoritativeWorkflowTaskId", authoritativeWorkflowTaskId);
+        metadata.put("authoritativeWorkflowSource", authoritativeWorkflowDag.isEmpty()
+            ? "none" : "user_defined_mcp_workflow");
         metadata.put("executionPolicy", runtimeExecutionPolicy(requireToolBeforeFinal));
         metadata.put("factGroundingContract", AgentRuntimeFactGroundingContract.metadata());
         metadata.put("requiredToolExecutions", requiredToolExecutionContracts);
@@ -514,7 +537,6 @@ public class AgentOrchestrator implements AgentRunExecutor {
         );
 
         Set<String> completedWorkflowTools = new LinkedHashSet<>();
-        completedWorkflowTools.addAll(workflowMandatoryResolution.skippedTools());
         ToolCallExecution pendingConfirmedExecution = executePendingConfirmedTool(
             query,
             conversationId,
@@ -944,8 +966,22 @@ public class AgentOrchestrator implements AgentRunExecutor {
         AgentPlanBudgetPolicy.BudgetCaps budgetCaps = AgentPlanBudgetPolicy.fromRuntimeAttributes(runtimeAttributes);
         AgentPlanBudgetPolicy.ApplyResult budgetResult = AgentPlanBudgetPolicy.apply(plan, budgetCaps);
         plan = budgetResult.plan();
+        Object authoritativeWorkflowDag = runtimeAttributes == null
+            ? null : runtimeAttributes.get("authoritativeWorkflowDag");
+        String authoritativeWorkflowTaskId = runtimeAttributes == null
+            ? null : stringValue(runtimeAttributes.get("authoritativeWorkflowTaskId"));
+        boolean hasAuthoritativeWorkflowDag = authoritativeWorkflowDag instanceof Collection<?> collection
+            && !collection.isEmpty();
+        List<String> authoritativeWorkflowDagPasses = List.of();
+        if (hasAuthoritativeWorkflowDag) {
+            InterpretationPlanOptimizer.OptimizationResult workflowDagOptimization =
+                new InterpretationPlanOptimizer().optimize(plan, authoritativeWorkflowDag);
+            plan = workflowDagOptimization.plan() == null ? plan : workflowDagOptimization.plan();
+            authoritativeWorkflowDagPasses = workflowDagOptimization.appliedPasses();
+        }
         metadata.put("interpretationPlanPipeline", true);
         metadata.put("interpretationPlanVersion", plan.version());
+        metadata.put("authoritativeWorkflowDagPasses", authoritativeWorkflowDagPasses);
         if (budgetCaps.configured()) {
             metadata.put("agentBudgetCaps", budgetCaps.metadata());
             metadata.put("agentBudgetAdjusted", budgetResult.adjusted());
@@ -972,7 +1008,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
         InterpretationPlanValidator.ValidationResult initialEvaluation = validator.validate(
             plan,
             toolRegistry,
-            new LinkedHashSet<>(tools == null ? List.of() : tools)
+            new LinkedHashSet<>(tools == null ? List.of() : tools),
+            authoritativeWorkflowDag,
+            authoritativeWorkflowTaskId
         );
         recordInterpretationPlanEvaluation("initial", initialEvaluation, runtimeAttributes, metadata);
         InterpretationPlanRuntime.ExecutionResult firstResult;
@@ -1143,18 +1181,38 @@ public class AgentOrchestrator implements AgentRunExecutor {
                     )
                     : null
             ));
+            InterpretationPlan rewrittenPlan = rewrite.rewrittenPlan();
+            InterpretationPlanValidator.ValidationResult rewrittenValidation = rewrite.validation();
+            List<String> authoritativeRewritePasses = List.of();
+            if (rewrittenPlan != null && hasAuthoritativeWorkflowDag) {
+                InterpretationPlanOptimizer.OptimizationResult authoritativeRewrite =
+                    new InterpretationPlanOptimizer().optimize(rewrittenPlan, authoritativeWorkflowDag);
+                rewrittenPlan = authoritativeRewrite.plan() == null ? rewrittenPlan : authoritativeRewrite.plan();
+                authoritativeRewritePasses = authoritativeRewrite.appliedPasses();
+                rewrittenValidation = validator.validate(
+                    rewrittenPlan,
+                    toolRegistry,
+                    new LinkedHashSet<>(tools == null ? List.of() : tools),
+                    authoritativeWorkflowDag,
+                    authoritativeWorkflowTaskId
+                );
+            }
+            boolean rewrittenValid = rewrittenPlan != null
+                && rewrittenValidation != null && rewrittenValidation.valid();
             metadata.put("interpretationPlanRewriteAttempted", true);
             metadata.put("interpretationPlanRewriteCount", rewriteCount);
-            metadata.put("interpretationPlanRewriteValid", rewrite.valid());
-            metadata.put("interpretationPlanRewriteExecutable", rewrite.executable());
-            if (rewrite.errorMessage() != null && !rewrite.errorMessage().isBlank()) {
+            metadata.put("interpretationPlanRewriteValid", rewrittenValid);
+            metadata.put("interpretationPlanRewriteExecutable",
+                rewrittenValidation != null && rewrittenValidation.executable());
+            metadata.put("authoritativeWorkflowRewritePasses", authoritativeRewritePasses);
+            if (!rewrittenValid && rewrite.errorMessage() != null && !rewrite.errorMessage().isBlank()) {
                 metadata.put("interpretationPlanRewriteError", rewrite.errorMessage());
             }
             recordPlanEvolution(
                 currentPlan,
-                rewrite.rewrittenPlan(),
+                rewrittenPlan,
                 rewriteCount + 1,
-                rewrite.valid() ? "ACCEPTED" : "REJECTED",
+                rewrittenValid ? "ACCEPTED" : "REJECTED",
                 evidenceHistory,
                 runtimeAttributes,
                 metadata
@@ -1164,11 +1222,11 @@ public class AgentOrchestrator implements AgentRunExecutor {
             String rewriteStage = rewriteCount == 1 ? "rewrite" : "rewrite" + rewriteCount;
             recordInterpretationPlanEvaluation(
                 rewriteStage,
-                rewrite.validation(),
+                rewrittenValidation,
                 runtimeAttributes,
                 metadata
             );
-            if (!rewrite.valid() || rewrite.rewrittenPlan() == null) {
+            if (!rewrittenValid) {
                 String evaluationError = firstNonBlank(
                     rewrite.errorMessage(),
                     "rewriter did not return a valid plan"
@@ -1177,27 +1235,27 @@ public class AgentOrchestrator implements AgentRunExecutor {
                     + " failed plan evaluation and was not executed: " + evaluationError);
                 currentResult = planEvaluationFailure(
                     rewriteStage,
-                    rewrite.validation(),
+                    rewrittenValidation,
                     evaluationError
                 );
-                if (rewrite.rewrittenPlan() != null) {
-                    currentPlan = rewrite.rewrittenPlan();
+                if (rewrittenPlan != null) {
+                    currentPlan = rewrittenPlan;
                 }
                 planAttemptResults.add(currentResult);
                 continue;
             }
 
-            if (ToolCallFingerprint.materiallyEquivalent(currentPlan, rewrite.rewrittenPlan())) {
+            if (ToolCallFingerprint.materiallyEquivalent(currentPlan, rewrittenPlan)) {
                 duplicateToolPlanSuppressed = true;
                 metadata.put("duplicateToolPlanSuppressed", true);
                 metadata.put("duplicateToolPlanStage", rewriteStage);
-                metadata.put("duplicateToolPlanFingerprints", ToolCallFingerprint.forPlan(rewrite.rewrittenPlan()));
+                metadata.put("duplicateToolPlanFingerprints", ToolCallFingerprint.forPlan(rewrittenPlan));
                 observations.add("InterpretationPlan " + rewriteStage
                     + " was not executed because its tool calls have no material input change from the previous evidence round.");
                 break;
             }
 
-            currentPlan = rewrite.rewrittenPlan();
+            currentPlan = rewrittenPlan;
             saveInterpretationPlanSnapshot(
                 rewriteStage,
                 currentPlan,

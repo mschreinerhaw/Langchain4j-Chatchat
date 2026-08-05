@@ -191,14 +191,7 @@ public class McpToolRegistryBridge {
             .outputType("json")
             .timeoutMillis(definition.timeoutMillis())
             .agentCompatible(true)
-            .parameters(List.of(
-                ToolParameter.builder()
-                    .name("query")
-                    .type("string")
-                    .description("Natural language query for MCP tool input")
-                    .required(false)
-                    .build()
-            ))
+            .parameters(toolParameters(definition.inputSchema()))
             .tags(tags)
             .metadata(extraMetadata)
             .build();
@@ -218,6 +211,52 @@ public class McpToolRegistryBridge {
             tags,
             applicability
         ));
+    }
+
+    /**
+     * Preserves the MCP JSON Schema contract in the local tool registry. Runtime
+     * guards rely on this metadata to reject dependent calls whose required
+     * inputs have not yet been produced by an upstream step.
+     */
+    private List<ToolParameter> toolParameters(Map<String, Object> inputSchema) {
+        Map<String, Object> schema = inputSchema == null ? Map.of() : inputSchema;
+        Map<String, Object> properties = mapValue(schema.get("properties"));
+        Set<String> required = new LinkedHashSet<>(stringList(schema.get("required")));
+        if (properties.isEmpty()) {
+            return List.of(ToolParameter.builder()
+                .name("query")
+                .type("string")
+                .description("Natural language query for MCP tool input")
+                .required(false)
+                .build());
+        }
+        List<ToolParameter> parameters = new ArrayList<>();
+        properties.forEach((name, rawProperty) -> {
+            Map<String, Object> property = mapValue(rawProperty);
+            parameters.add(ToolParameter.builder()
+                .name(name)
+                .type(firstText(stringValue(property.get("type")), "object"))
+                .description(stringValue(property.get("description")))
+                .required(required.contains(name))
+                .defaultValue(property.get("default"))
+                .enumValues(stringList(property.get("enum")).toArray(String[]::new))
+                .metadata(property)
+                .build());
+        });
+        return List.copyOf(parameters);
+    }
+
+    private Map<String, Object> mapValue(Object value) {
+        if (!(value instanceof Map<?, ?> raw)) {
+            return Map.of();
+        }
+        Map<String, Object> values = new LinkedHashMap<>();
+        raw.forEach((key, item) -> {
+            if (key != null) {
+                values.put(String.valueOf(key), item);
+            }
+        });
+        return values;
     }
 
     private Map<String, Object> applicability(McpToolDefinition definition) {

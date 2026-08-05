@@ -34,6 +34,54 @@ import static org.mockito.Mockito.when;
 class AgentChatModeHandlerTest {
 
     @Test
+    @SuppressWarnings("unchecked")
+    void taskWorkflowSnapshotOverridesLaterAgentConfiguration() {
+        AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
+        McpToolRegistryBridge bridge = mock(McpToolRegistryBridge.class);
+        AgentChatModeHandler handler = new AgentChatModeHandler(
+            orchestrator,
+            skillCatalogService,
+            new AgentToolPolicyResolver(toolRegistry, skillCatalogService, bridge)
+        );
+        when(skillCatalogService.resolve("ops")).thenReturn(skillWithoutWebSearch());
+        when(bridge.listRegisteredTools()).thenReturn(List.of());
+        when(orchestrator.executeAgent(
+            anyString(), isNull(), anyList(), anyString(), isNull(), anyList(), anyList(),
+            anyString(), anyString(), anyString(), anyString(), anyInt(), anyList(), anyBoolean(), anyMap()
+        )).thenReturn(agentResult("ok"));
+        Map<String, Object> snapshot = Map.of("steps", List.of(
+            Map.of("id", "asset", "tool", "api_asset_query")
+        ));
+
+        handler.handle(
+            InteractionRequest.builder()
+                .mode("agent_chat")
+                .skillId("ops")
+                .query("run task workflow")
+                .userId("u1")
+                .toolInput(Map.of(
+                    "__taskWorkflowDefinition", snapshot,
+                    "__taskWorkflowTaskId", "task-100",
+                    "__taskWorkflowSource", "user_defined_mcp_workflow"))
+                .build(),
+            InteractionContext.builder().requestId("req-100").conversationId("conv-100")
+                .mode(InteractionMode.AGENT_CHAT).history(List.of()).build()
+        );
+
+        ArgumentCaptor<Map<String, Object>> attributes = ArgumentCaptor.forClass(Map.class);
+        verify(orchestrator).executeAgent(
+            anyString(), isNull(), anyList(), anyString(), isNull(), anyList(), anyList(),
+            anyString(), anyString(), anyString(), anyString(), anyInt(), anyList(), anyBoolean(), attributes.capture()
+        );
+        assertThat(attributes.getValue())
+            .containsEntry("mcpWorkflow", snapshot)
+            .containsEntry("authoritativeWorkflowTaskId", "task-100")
+            .containsEntry("authoritativeWorkflowSource", "user_defined_mcp_workflow");
+    }
+
+    @Test
     void boundAgentModelOverridesRequestModelAtRuntime() {
         AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
         ToolRegistry toolRegistry = mock(ToolRegistry.class);

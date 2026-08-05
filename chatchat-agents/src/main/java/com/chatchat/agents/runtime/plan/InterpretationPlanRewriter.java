@@ -86,6 +86,14 @@ public class InterpretationPlanRewriter {
             rewrittenPlan = normalizeRewritePlan(
                 request.originalPlan(), rewrittenPlan, request.availableTools());
             rewrittenPlan = preserveBudgetCeilings(request.budgetCeilings(), rewrittenPlan);
+            // Rehydrate completed/locked predecessor nodes before validation. A continuation
+            // may be executable because those nodes already completed, but the persisted DAG
+            // must remain structurally complete for auditing and subsequent rewrites.
+            rewrittenPlan = repairContinuationPlan(request.originalPlan(), rewrittenPlan);
+            rewrittenPlan = repairExecutionPolicyStepLimit(
+                rewrittenPlan,
+                request.budgetCeilings() == null ? null : request.budgetCeilings().maxSteps()
+            );
             InterpretationPlanValidator.ValidationResult validation = validator.validate(
                 rewrittenPlan,
                 request.toolRegistry(),

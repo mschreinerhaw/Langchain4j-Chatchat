@@ -7,6 +7,8 @@ import com.chatchat.agents.runtime.plan.InterpretationPlanStore;
 import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.chat.interaction.model.InteractionResponse;
 import com.chatchat.chat.interaction.service.InteractionOrchestrationService;
+import com.chatchat.chat.skills.SkillCatalogService;
+import com.chatchat.chat.skills.SkillDefinition;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -16,6 +18,7 @@ import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.PageRequest;
@@ -74,6 +77,9 @@ public class AgentTaskService {
     private final TaskConfirmRepository taskConfirmRepository;
     private final InterpretationPlanStore interpretationPlanStore;
 
+    @Autowired(required = false)
+    private SkillCatalogService skillCatalogService;
+
     @Qualifier("agentTaskExecutor")
     private final ThreadPoolTaskExecutor taskExecutor;
 
@@ -105,6 +111,7 @@ public class AgentTaskService {
         String taskId = idempotencyKey == null
             ? UUID.randomUUID().toString()
             : idempotentTaskId(normalized.getTenantId(), idempotencyKey);
+        snapshotUserDefinedWorkflow(normalized, taskId);
         AgentTaskLatestEntity latest = new AgentTaskLatestEntity();
         latest.setTaskId(taskId);
         latest.setTenantId(normalized.getTenantId());
@@ -129,6 +136,29 @@ public class AgentTaskService {
 
         queueQuestion(latest, normalized);
         return AgentTaskResponse.from(latest);
+    }
+
+    /** Freezes the user-defined MCP workflow against the task id before the task is persisted. */
+    private void snapshotUserDefinedWorkflow(AgentTaskSubmitRequest request, String taskId) {
+        if (request == null || skillCatalogService == null) {
+            return;
+        }
+        String skillId = firstText(request.getSkillId(), request.getAgentId());
+        SkillDefinition skill = skillCatalogService.resolve(skillId);
+        if (skill == null || skill.workflowConfig() == null || skill.workflowConfig().isEmpty()) {
+            return;
+        }
+        Object configured = skill.workflowConfig().get("mcpWorkflow");
+        Object workflow = configured == null ? skill.workflowConfig() : configured;
+        if (!(workflow instanceof Map<?, ?>) && !(workflow instanceof List<?>)) {
+            return;
+        }
+        Map<String, Object> toolInput = new LinkedHashMap<>(
+            request.getToolInput() == null ? Map.of() : request.getToolInput());
+        toolInput.put("__taskWorkflowDefinition", objectMapper.convertValue(workflow, Object.class));
+        toolInput.put("__taskWorkflowTaskId", taskId);
+        toolInput.put("__taskWorkflowSource", "user_defined_mcp_workflow");
+        request.setToolInput(toolInput);
     }
 
     public Optional<String> finalAnswer(String tenantId, String taskId) {

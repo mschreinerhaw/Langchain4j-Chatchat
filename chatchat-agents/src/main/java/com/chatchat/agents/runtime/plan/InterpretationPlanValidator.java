@@ -6,6 +6,7 @@ import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolParameter;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -85,6 +86,14 @@ public class InterpretationPlanValidator {
      * @return validation result
      */
     public ValidationResult validate(InterpretationPlan plan, ToolRegistry toolRegistry, Set<String> availableTools) {
+        return validate(plan, toolRegistry, availableTools, null, null);
+    }
+
+    public ValidationResult validate(InterpretationPlan plan,
+                                     ToolRegistry toolRegistry,
+                                     Set<String> availableTools,
+                                     Object authoritativeWorkflowDag,
+                                     String taskId) {
         ValidationState state = new ValidationState();
         if (plan == null) {
             state.error("plan", "InterpretationPlan is required");
@@ -106,8 +115,86 @@ public class InterpretationPlanValidator {
         validateDependencyContracts(plan, stepsById, state);
         validateEdgeContracts(plan, stepsById, state);
         validateBindings(plan, stepsById, state);
+        validateTemplateExecutionEvidenceChains(
+            plan, stepsById, authoritativeWorkflowDag, state);
+        validateAuthoritativeWorkflowDag(
+            stepsById, authoritativeWorkflowDag, taskId, state);
         List<InterpretationPlan.Step> orderedSteps = validateDag(stepsById, state);
         return state.result(orderedSteps);
+    }
+
+    /** The task's user-defined workflow is the sole authority for MCP tool coverage and edges. */
+    private void validateAuthoritativeWorkflowDag(
+        Map<Integer, InterpretationPlan.Step> stepsById,
+        Object rawDag,
+        String taskId,
+        ValidationState state
+    ) {
+        if (!(rawDag instanceof Collection<?> nodes) || nodes.isEmpty()) {
+            return;
+        }
+        Map<String, InterpretationPlan.Step> planByTool = new LinkedHashMap<>();
+        for (Object rawNode : nodes) {
+            if (!(rawNode instanceof Map<?, ?> node)) {
+                continue;
+            }
+            String tool = mapText(node, "tool", "toolName");
+            if (blank(tool)) {
+                state.error("authoritativeWorkflowDag", "Configured task workflow node must declare a tool.");
+                continue;
+            }
+            List<InterpretationPlan.Step> matches = stepsById.values().stream()
+                .filter(step -> semanticToolName(tool).equals(semanticToolName(step.toolName())))
+                .toList();
+            if (matches.size() != 1) {
+                state.error("authoritativeWorkflowDag",
+                    "Task " + workflowTaskLabel(taskId) + " requires exactly one plan step for configured MCP tool "
+                        + tool + "; found " + matches.size() + ".");
+                continue;
+            }
+            planByTool.put(semanticToolName(tool), matches.get(0));
+        }
+        for (Object rawNode : nodes) {
+            if (!(rawNode instanceof Map<?, ?> node)) {
+                continue;
+            }
+            String tool = mapText(node, "tool", "toolName");
+            InterpretationPlan.Step target = planByTool.get(semanticToolName(tool));
+            if (target == null) {
+                continue;
+            }
+            Object rawDependencies = node.get("dependsOnTools");
+            if (!(rawDependencies instanceof Collection<?> dependencies)) {
+                continue;
+            }
+            for (Object rawDependency : dependencies) {
+                String dependencyTool = rawDependency == null ? null : String.valueOf(rawDependency).trim();
+                InterpretationPlan.Step source = planByTool.get(semanticToolName(dependencyTool));
+                if (source == null) {
+                    state.error("authoritativeWorkflowDag",
+                        "Task " + workflowTaskLabel(taskId) + " configured dependency " + dependencyTool
+                            + " is missing from the executable plan.");
+                } else if (target.dependsOn() == null || !target.dependsOn().contains(source.id())) {
+                    state.error("plan.steps[" + target.id() + "].depends_on",
+                        "Task " + workflowTaskLabel(taskId) + " requires configured MCP edge "
+                            + dependencyTool + " -> " + tool + ".");
+                }
+            }
+        }
+    }
+
+    private String mapText(Map<?, ?> values, String... keys) {
+        for (String key : keys) {
+            Object value = values.get(key);
+            if (value != null && !String.valueOf(value).isBlank()) {
+                return String.valueOf(value).trim();
+            }
+        }
+        return null;
+    }
+
+    private String workflowTaskLabel(String taskId) {
+        return taskId == null || taskId.isBlank() ? "<unknown>" : taskId;
     }
 
     private void validateRequiredSections(InterpretationPlan plan, ValidationState state) {
@@ -1014,6 +1101,89 @@ public class InterpretationPlanValidator {
         }
     }
 
+    /** Every governed executor must prove asset -> template -> execution provenance. */
+    private void validateTemplateExecutionEvidenceChains(InterpretationPlan plan,
+                                                         Map<Integer, InterpretationPlan.Step> stepsById,
+                                                         Object authoritativeWorkflowDag,
+                                                         ValidationState state) {
+        List<InterpretationPlan.Step> assetSteps = stepsById.values().stream()
+            .filter(step -> isAssetDiscoveryTool(step.toolName()))
+            .toList();
+        List<InterpretationPlan.Step> templateSteps = stepsById.values().stream()
+            .filter(step -> templateDiscoveryTool(step.toolName()))
+            .toList();
+        List<InterpretationPlan.Step> executeSteps = stepsById.values().stream()
+            .filter(step -> templateExecutionTool(step.toolName()))
+            .toList();
+        if (executeSteps.isEmpty()) {
+            return;
+        }
+        boolean authoritativeWorkflow = authoritativeWorkflowDag instanceof Collection<?> nodes
+            && !nodes.isEmpty();
+        // A task-configured workflow is the only source that can require missing workflow
+        // nodes. Direct Runtime callers and legacy plans may start at an already-resolved
+        // asset or template boundary; validate the complete provenance chain only when the
+        // plan actually carries both discovery stages. Runtime still rejects an executor
+        // without a usable templateId through its argument contract.
+        if (!authoritativeWorkflow && (assetSteps.isEmpty() || templateSteps.isEmpty())) {
+            return;
+        }
+        if (assetSteps.isEmpty()) {
+            state.error("plan.steps",
+                "Template-governed execution requires an asset-discovery step in the current DAG.");
+        }
+        if (templateSteps.isEmpty()) {
+            state.error("plan.steps",
+                "Template-governed execution requires a template-discovery step in the current DAG.");
+        }
+
+        for (InterpretationPlan.Step templateStep : templateSteps) {
+            boolean dependsOnAsset = assetSteps.stream()
+                .anyMatch(asset -> dependsOnTransitively(templateStep.id(), asset.id(), stepsById, new HashSet<>()));
+            if (!dependsOnAsset) {
+                state.error("plan.steps[" + templateStep.id() + "].depends_on",
+                    "Template discovery must depend on asset discovery in the current task execution scope.");
+            }
+        }
+        for (InterpretationPlan.Step executeStep : executeSteps) {
+            boolean dependsOnTemplate = templateSteps.stream()
+                .anyMatch(template -> dependsOnTransitively(
+                    executeStep.id(), template.id(), stepsById, new HashSet<>()));
+            boolean selectedTemplateBinding = plan.plan().bindings() != null
+                && plan.plan().bindings().stream()
+                    .filter(java.util.Objects::nonNull)
+                    .anyMatch(binding -> templateSteps.stream().anyMatch(step -> step.id().equals(binding.from()))
+                        && executeStep.id().equals(binding.to())
+                        && containsNormalized(binding.outputPath(), "templateId")
+                        && (containsNormalized(binding.inputField(), "templateId")
+                            || "template".equals(normalizeField(binding.inputField()))));
+            if (!dependsOnTemplate || !selectedTemplateBinding) {
+                state.error("plan.steps[" + executeStep.id() + "]",
+                    "Template-governed execution requires a dependency and Runtime-owned scalar templateId binding from template discovery; a model literal is not provenance.");
+            }
+        }
+    }
+
+    private boolean dependsOnTransitively(Integer stepId,
+                                          Integer requiredDependencyId,
+                                          Map<Integer, InterpretationPlan.Step> stepsById,
+                                          Set<Integer> visited) {
+        if (stepId == null || requiredDependencyId == null || stepsById == null
+            || visited == null || !visited.add(stepId)) {
+            return false;
+        }
+        InterpretationPlan.Step step = stepsById.get(stepId);
+        if (step == null || step.dependsOn() == null) {
+            return false;
+        }
+        if (step.dependsOn().contains(requiredDependencyId)) {
+            return true;
+        }
+        return step.dependsOn().stream()
+            .anyMatch(dependency -> dependsOnTransitively(
+                dependency, requiredDependencyId, stepsById, visited));
+    }
+
     private boolean isAssetDiscoveryTool(String toolName) {
         if (toolName == null || toolName.isBlank()) {
             return false;
@@ -1230,18 +1400,7 @@ public class InterpretationPlanValidator {
 
     private boolean templateExecutionTool(String toolName) {
         String semantic = semanticToolName(toolName);
-        return "sql_query_execute".equals(semantic)
-            || semantic.endsWith("_sql_query_execute")
-            || "sql_script_execute".equals(semantic)
-            || semantic.endsWith("_sql_script_execute")
-            || "database_query_execute".equals(semantic)
-            || semantic.endsWith("_database_query_execute")
-            || "linux_command_execute".equals(semantic)
-            || semantic.endsWith("_linux_command_execute")
-            || "http_request_execute".equals(semantic)
-            || semantic.endsWith("_http_request_execute")
-            || "api_template_execute".equals(semantic)
-            || semantic.endsWith("_api_template_execute");
+        return "execute".equals(semantic) || semantic.endsWith("_execute");
     }
 
     private String semanticToolName(String toolName) {

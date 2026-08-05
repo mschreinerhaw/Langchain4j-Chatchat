@@ -17,7 +17,9 @@ record InterpretationPlanEventState(
     Set<String> allowOnlyActions
 ) {
 
-    static InterpretationPlanEventState from(List<AgentRunEvent> events, Set<Integer> fallbackCompletedStepIds) {
+    static InterpretationPlanEventState from(List<AgentRunEvent> events,
+                                             Set<Integer> fallbackCompletedStepIds,
+                                             Object workflowExecutionAttempt) {
         Set<Integer> completed = new LinkedHashSet<>(fallbackCompletedStepIds == null ? Set.of() : fallbackCompletedStepIds);
         Set<Integer> failed = new LinkedHashSet<>();
         Set<Integer> immutableSteps = new LinkedHashSet<>();
@@ -29,6 +31,10 @@ record InterpretationPlanEventState(
                     continue;
                 }
                 Map<String, Object> metadata = asMap(event.payload() == null ? null : event.payload().get("metadata"));
+                if (!sameWorkflowExecutionAttempt(
+                    metadata.get("workflowExecutionAttempt"), workflowExecutionAttempt)) {
+                    continue;
+                }
                 Integer stepId = integerValue(firstPresent(metadata, "interpretationPlanStepId", "workflowStepId", "stepId"));
                 if (stepId == null) {
                     continue;
@@ -65,6 +71,21 @@ record InterpretationPlanEventState(
             }
         }
         return new InterpretationPlanEventState(completed, failed, immutableSteps, blockedTools, allowOnlyActions);
+    }
+
+    private static boolean sameWorkflowExecutionAttempt(Object storedAttempt, Object currentAttempt) {
+        return normalizedWorkflowExecutionAttempt(storedAttempt)
+            .equals(normalizedWorkflowExecutionAttempt(currentAttempt));
+    }
+
+    private static String normalizedWorkflowExecutionAttempt(Object value) {
+        if (value == null || String.valueOf(value).isBlank()) {
+            return "0";
+        }
+        if (value instanceof Number number) {
+            return String.valueOf(number.longValue());
+        }
+        return String.valueOf(value).trim();
     }
 
     private static Object firstPresent(Map<String, Object> values, String... keys) {

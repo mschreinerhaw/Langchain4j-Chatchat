@@ -19,6 +19,60 @@ class InterpretationPlanValidatorTest {
     private final InterpretationPlanValidator validator = new InterpretationPlanValidator();
 
     @Test
+    void rejectsPlanThatOmitsUserDefinedTaskWorkflowNode() {
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("workflow", "run configured task", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(finalStep(1, List.of()))),
+            new InterpretationPlan.ExecutionPolicy(1, false, List.of(), List.of(), 30000),
+            review(true)
+        );
+        List<Map<String, Object>> configuredDag = List.of(
+            Map.of("tool", "mcp_server_asset_query", "dependsOnTools", List.of())
+        );
+
+        InterpretationPlanValidator.ValidationResult result = validator.validate(
+            plan, mock(ToolRegistry.class), Set.of(), configuredDag, "task-42");
+
+        assertThat(result.valid()).isFalse();
+        assertThat(result.errors()).extracting(InterpretationPlanValidator.ValidationIssue::message)
+            .anyMatch(message -> message.contains("task-42")
+                && message.contains("mcp_server_asset_query")
+                && message.contains("found 0"));
+    }
+
+    @Test
+    void rejectsDisconnectedApiAssetTemplateExecutionChain() {
+        String asset = "mcp_chatchat_mcp_server_api_asset_query";
+        String query = "mcp_chatchat_mcp_server_api_template_query";
+        String execute = "mcp_chatchat_mcp_server_api_template_execute";
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", "customer analysis", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", asset, Map.of("filters", Map.of()), List.of(), null, null),
+                new InterpretationPlan.Step(2, "mcp_tool", query,
+                    Map.of("templateIds", List.of("model-invented-id")), List.of(), null, null),
+                new InterpretationPlan.Step(3, "mcp_tool", execute,
+                    Map.of("templateId", "", "parameters", Map.of()), List.of(2), null, null),
+                finalStep(4, List.of(3))
+            )),
+            new InterpretationPlan.ExecutionPolicy(4, false, List.of(asset, query, execute), List.of(), 30000),
+            review(true)
+        );
+
+        InterpretationPlanValidator.ValidationResult result = validator.validate(
+            plan, mock(ToolRegistry.class), Set.of(asset, query, execute));
+
+        assertThat(result.valid()).isFalse();
+        assertThat(result.errors()).extracting(InterpretationPlanValidator.ValidationIssue::message)
+            .anyMatch(message -> message.contains("must depend on asset discovery"))
+            .anyMatch(message -> message.contains("Runtime-owned scalar templateId binding"));
+    }
+
+    @Test
     void validPlanIsExecutableAndTopologicallyOrdered() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("document_search")).thenReturn(true);
@@ -630,8 +684,14 @@ class InterpretationPlanValidatorTest {
     }
 
     @Test
-    void allowsBusinessTemplateBridgeWithoutDatasourceExecutionContext() {
+    void allowsAssetBackedBusinessTemplateBridgeWithoutDatasourceExecutionContext() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("mcp_chatchat_mcp_server_api_asset_query")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_api_asset_query"))
+            .thenReturn(ToolMetadata.builder()
+                .id("mcp_chatchat_mcp_server_api_asset_query")
+                .riskLevel("low")
+                .build());
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_business_query_template_search")).thenReturn(true);
         when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_business_query_template_search"))
             .thenReturn(ToolMetadata.builder()
@@ -654,8 +714,8 @@ class InterpretationPlanValidatorTest {
                     new InterpretationPlan.Step(
                         1,
                         "mcp_tool",
-                        "mcp_chatchat_mcp_server_business_query_template_search",
-                        Map.of("filters", Map.of("intent", "行情数据大幅波动时异常提醒")),
+                        "mcp_chatchat_mcp_server_api_asset_query",
+                        Map.of("query", "market anomaly alert"),
                         List.of(),
                         null,
                         null
@@ -663,25 +723,33 @@ class InterpretationPlanValidatorTest {
                     new InterpretationPlan.Step(
                         2,
                         "mcp_tool",
-                        "mcp_chatchat_mcp_server_sql_query_execute",
-                        Map.of(
-                            "templateId", "edayQuqtMoni",
-                            "parameters", Map.of("etl_date", "20260601")
-                        ),
+                        "mcp_chatchat_mcp_server_business_query_template_search",
+                        Map.of("filters", Map.of("intent", "行情数据大幅波动时异常提醒")),
                         List.of(1),
                         null,
                         null
                     ),
-                    finalStep(3, List.of(2))
+                    new InterpretationPlan.Step(
+                        3,
+                        "mcp_tool",
+                        "mcp_chatchat_mcp_server_sql_query_execute",
+                        Map.of("parameters", Map.of("etl_date", "20260601")),
+                        List.of(2),
+                        null,
+                        null
+                    ),
+                    finalStep(4, List.of(3))
                 ),
                 List.of(),
-                List.of(),
+                List.of(new InterpretationPlan.Binding(
+                    2, "$.templates[0].templateId", 3, "$.templateId", "jsonpath", true)),
                 null
             ),
             new InterpretationPlan.ExecutionPolicy(
-                3,
+                4,
                 false,
-                List.of("mcp_chatchat_mcp_server_business_query_template_search",
+                List.of("mcp_chatchat_mcp_server_api_asset_query",
+                    "mcp_chatchat_mcp_server_business_query_template_search",
                     "mcp_chatchat_mcp_server_sql_query_execute"),
                 List.of(),
                 30000
@@ -692,7 +760,8 @@ class InterpretationPlanValidatorTest {
         InterpretationPlanValidator.ValidationResult result = validator.validate(
             plan,
             toolRegistry,
-            Set.of("mcp_chatchat_mcp_server_business_query_template_search",
+            Set.of("mcp_chatchat_mcp_server_api_asset_query",
+                "mcp_chatchat_mcp_server_business_query_template_search",
                 "mcp_chatchat_mcp_server_sql_query_execute")
         );
 

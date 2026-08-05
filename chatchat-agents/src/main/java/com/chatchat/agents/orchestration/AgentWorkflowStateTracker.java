@@ -71,7 +71,10 @@ class AgentWorkflowStateTracker {
         if (completedTools == null || execution == null || execution.trace() == null) {
             return;
         }
-        if (!isConfirmationRequired(execution) && execution.trace().getToolName() != null && !execution.trace().getToolName().isBlank()) {
+        if (execution.trace().isSuccess()
+            && !isConfirmationRequired(execution)
+            && execution.trace().getToolName() != null
+            && !execution.trace().getToolName().isBlank()) {
             completedTools.add(execution.trace().getToolName());
         }
     }
@@ -82,7 +85,7 @@ class AgentWorkflowStateTracker {
             return completed;
         }
         traces.stream()
-            .filter(trace -> trace != null && !confirmationRequired(trace))
+            .filter(trace -> trace != null && trace.isSuccess() && !confirmationRequired(trace))
             .map(InteractionToolTrace::getToolName)
             .filter(tool -> tool != null && !tool.isBlank())
             .forEach(completed::add);
@@ -211,14 +214,14 @@ class AgentWorkflowStateTracker {
                         }
                         continue;
                     }
-                    if (success == null && !Boolean.TRUE.equals(metadata.get("structuredRuntimeObservation"))) {
+                    if (!Boolean.TRUE.equals(success)) {
                         continue;
                     }
                     Integer stepId = firstInteger(firstObject(metadata, "interpretationPlanStepId", "workflowStepId", "stepId"));
                     if (stepId != null) {
                         completedStepIds.add(stepId);
                     }
-                    if (toolName != null && !toolName.isBlank() && Boolean.TRUE.equals(success)) {
+                    if (toolName != null && !toolName.isBlank()) {
                         completedTools.add(toolName);
                     }
                 }

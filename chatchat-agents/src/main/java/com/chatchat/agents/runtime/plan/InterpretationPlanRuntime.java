@@ -197,7 +197,12 @@ public class InterpretationPlanRuntime {
         if (request == null || request.plan() == null) {
             return ExecutionResult.failed("INVALID_REQUEST", "Execution request and plan are required", List.of(), Map.of(), null, 0L);
         }
-        InterpretationPlanOptimizer.OptimizationResult optimization = optimizer.optimize(request.plan());
+        Object authoritativeWorkflowDag = request.attributes() == null
+            ? null : request.attributes().get("authoritativeWorkflowDag");
+        String authoritativeWorkflowTaskId = request.attributes() == null
+            ? null : stringValue(request.attributes().get("authoritativeWorkflowTaskId"));
+        InterpretationPlanOptimizer.OptimizationResult optimization = optimizer.optimize(
+            request.plan(), authoritativeWorkflowDag);
         InterpretationPlan executablePlan = optimization.plan() == null ? request.plan() : optimization.plan();
         String executionTraceId = executionTraceId(request, startedAt);
         ExecutionRequest executableRequest = request.withPlanAndAttributes(
@@ -207,7 +212,9 @@ public class InterpretationPlanRuntime {
         InterpretationPlanValidator.ValidationResult validation = validator.validate(
             executablePlan,
             request.toolRegistry(),
-            new LinkedHashSet<>(safeList(request.allowedTools()))
+            new LinkedHashSet<>(safeList(request.allowedTools())),
+            authoritativeWorkflowDag,
+            authoritativeWorkflowTaskId
         );
         if (!validation.valid()) {
             return withDiagnosticRun(ExecutionResult.failed(
@@ -255,11 +262,11 @@ public class InterpretationPlanRuntime {
         int decisionCount = 0;
 
         while (!remaining.isEmpty()) {
-            InterpretationPlanEventState eventState = eventState(runId, completed.keySet());
+            InterpretationPlanEventState eventState = eventState(runId, completed.keySet(), executableRequest);
             Set<Integer> storedCompletedStepIds = new LinkedHashSet<>(completed.keySet());
             storedCompletedStepIds.addAll(eventState.completedStepIds());
-            List<StepExecution> hydratedExecutions =
-                hydrateCompletedExecutionsFromEvents(runId, storedCompletedStepIds, completed, stepsById);
+            List<StepExecution> hydratedExecutions = hydrateCompletedExecutionsFromEvents(
+                runId, storedCompletedStepIds, completed, stepsById, executableRequest);
             for (StepExecution hydrated : hydratedExecutions) {
                 if (hydrated.finalAnswer() != null && !hydrated.finalAnswer().isBlank()) {
                     finalAnswer = hydrated.finalAnswer();
@@ -434,6 +441,8 @@ public class InterpretationPlanRuntime {
             mapOf(
                 "protocolVersion", InterpretationExecutionProtocol.VERSION,
                 "executionTraceId", executionTraceId,
+                "workflowExecutionAttempt", workflowExecutionAttempt(executableRequest),
+                "planExecutionScope", planExecutionScope(executableRequest),
                 "stepCount", executions.size(),
                 "requiredPlanStepIds", new ArrayList<>(stepsById.keySet()),
                 "completedPlanStepIds", new ArrayList<>(completed.keySet()),
@@ -957,6 +966,7 @@ public class InterpretationPlanRuntime {
         executionPlan.put("protocolVersion", InterpretationExecutionProtocol.VERSION);
         executionPlan.put("executionTraceId", executionTraceId(request));
         executionPlan.put("workflowExecutionAttempt", workflowExecutionAttempt(request));
+        executionPlan.put("planExecutionScope", planExecutionScope(request));
         executionPlan.put("evidenceIteration", evidenceIteration(request));
         executionPlan.put("interpretationPlanStepId", step.id());
         executionPlan.put("actionType", step.actionType());
@@ -988,6 +998,7 @@ public class InterpretationPlanRuntime {
         metadata.put("protocolVersion", InterpretationExecutionProtocol.VERSION);
         metadata.put("executionTraceId", executionTraceId(request));
         metadata.put("workflowExecutionAttempt", workflowExecutionAttempt(request));
+        metadata.put("planExecutionScope", planExecutionScope(request));
         metadata.put("evidenceIteration", evidenceIteration(request));
         metadata.put("lifecyclePhase", "observation");
         metadata.put("interpretationPlanStepId", step.stepId());
@@ -1019,6 +1030,17 @@ public class InterpretationPlanRuntime {
         return request == null || request.attributes() == null
             ? 0
             : request.attributes().getOrDefault("workflowExecutionAttempt", 0);
+    }
+
+    /** Stable task/plan-attempt key used to isolate rewritten DAG state and evidence. */
+    private String planExecutionScope(ExecutionRequest request) {
+        String taskId = runId(request);
+        if (taskId == null || taskId.isBlank()) {
+            taskId = request == null || request.requestId() == null || request.requestId().isBlank()
+                ? "unscoped"
+                : request.requestId();
+        }
+        return taskId + "::attempt:" + String.valueOf(workflowExecutionAttempt(request));
     }
 
     private int evidenceIteration(ExecutionRequest request) {
@@ -1058,6 +1080,8 @@ public class InterpretationPlanRuntime {
         metadata.put("workflow", "interpretation_plan");
         metadata.put("protocolVersion", InterpretationExecutionProtocol.VERSION);
         metadata.put("executionTraceId", executionTraceId(request));
+        metadata.put("workflowExecutionAttempt", workflowExecutionAttempt(request));
+        metadata.put("planExecutionScope", planExecutionScope(request));
         metadata.put("lifecyclePhase", "state_update");
         metadata.put("completedPlanStepIds", new ArrayList<>(completed.keySet()));
         metadata.put("remainingPlanStepIds", new ArrayList<>(remaining));
@@ -1084,7 +1108,9 @@ public class InterpretationPlanRuntime {
             + (step.errorMessage() == null || step.errorMessage().isBlank() ? "unknown error" : step.errorMessage());
     }
 
-    private InterpretationPlanEventState eventState(String runId, Set<Integer> fallbackCompletedStepIds) {
+    private InterpretationPlanEventState eventState(String runId,
+                                                    Set<Integer> fallbackCompletedStepIds,
+                                                    ExecutionRequest request) {
         if (runStore == null || runId == null || runId.isBlank()) {
             return new InterpretationPlanEventState(
                 fallbackCompletedStepIds == null ? Set.of() : new LinkedHashSet<>(fallbackCompletedStepIds),
@@ -1094,7 +1120,8 @@ public class InterpretationPlanRuntime {
                 Set.of()
             );
         }
-        return InterpretationPlanEventState.from(runStore.events(runId), fallbackCompletedStepIds);
+        return InterpretationPlanEventState.from(
+            runStore.events(runId), fallbackCompletedStepIds, workflowExecutionAttempt(request));
     }
 
     private Map<String, Object> attributesForStep(ExecutionRequest request,
@@ -1106,6 +1133,7 @@ public class InterpretationPlanRuntime {
         attributes.put("interpretationPlanVersion", request.plan().version());
         attributes.put("interpretationPlanStepId", step.id());
         attributes.put("interpretationPlanActionType", step.actionType());
+        attributes.put("planExecutionScope", planExecutionScope(request));
         Map<String, Object> executionPlan = new LinkedHashMap<>();
         executionPlan.put("workflow", "interpretation_plan");
         executionPlan.put("intent", request.plan().intent() == null ? "" : request.plan().intent().goal());
@@ -2324,13 +2352,14 @@ public class InterpretationPlanRuntime {
     private List<StepExecution> hydrateCompletedExecutionsFromEvents(String runId,
                                                                      Set<Integer> completedStepIds,
                                                                      Map<Integer, StepExecution> completed,
-                                                                     Map<Integer, InterpretationPlan.Step> plannedSteps) {
+                                                                     Map<Integer, InterpretationPlan.Step> plannedSteps,
+                                                                     ExecutionRequest request) {
         if (runStore == null || runId == null || runId.isBlank()
             || completedStepIds == null || completedStepIds.isEmpty() || completed == null
             || plannedSteps == null || plannedSteps.isEmpty()) {
             return List.of();
         }
-        Map<Integer, AgentObservation> rawObservations = rawObservationsByStep(runId);
+        Map<Integer, AgentObservation> rawObservations = rawObservationsByStep(runId, request);
         List<StepExecution> hydrated = new ArrayList<>();
         for (AgentRunEvent event : runStore.events(runId)) {
             if (event == null || event.type() != AgentRunEventType.OBSERVATION_RECORDED) {
@@ -2338,6 +2367,10 @@ public class InterpretationPlanRuntime {
             }
             Map<String, Object> payload = asStringMap(event.payload());
             Map<String, Object> eventMetadata = asStringMap(payload.get("metadata"));
+            if (!sameWorkflowExecutionAttempt(
+                eventMetadata.get("workflowExecutionAttempt"), workflowExecutionAttempt(request))) {
+                continue;
+            }
             Integer stepId = integerValue(firstPresent(
                 eventMetadata, "interpretationPlanStepId", "workflowStepId", "stepId"));
             if (stepId == null || !completedStepIds.contains(stepId) || completed.containsKey(stepId)) {
@@ -2452,13 +2485,17 @@ public class InterpretationPlanRuntime {
         return answer == null || String.valueOf(answer).isBlank() ? null : String.valueOf(answer);
     }
 
-    private Map<Integer, AgentObservation> rawObservationsByStep(String runId) {
+    private Map<Integer, AgentObservation> rawObservationsByStep(String runId, ExecutionRequest request) {
         if (runStore == null || runId == null || runId.isBlank()) {
             return Map.of();
         }
         Map<Integer, AgentObservation> observations = new LinkedHashMap<>();
         for (AgentObservation observation : runStore.observations(runId)) {
             if (observation == null || observation.metadata() == null) {
+                continue;
+            }
+            if (!sameWorkflowExecutionAttempt(
+                observation.metadata().get("workflowExecutionAttempt"), workflowExecutionAttempt(request))) {
                 continue;
             }
             Integer stepId = integerValue(firstPresent(
@@ -2468,6 +2505,21 @@ public class InterpretationPlanRuntime {
             }
         }
         return observations;
+    }
+
+    private boolean sameWorkflowExecutionAttempt(Object storedAttempt, Object currentAttempt) {
+        return normalizedWorkflowExecutionAttempt(storedAttempt)
+            .equals(normalizedWorkflowExecutionAttempt(currentAttempt));
+    }
+
+    private String normalizedWorkflowExecutionAttempt(Object value) {
+        if (value == null || String.valueOf(value).isBlank()) {
+            return "0";
+        }
+        if (value instanceof Number number) {
+            return String.valueOf(number.longValue());
+        }
+        return String.valueOf(value).trim();
     }
 
     private Map<String, Object> resolvedStepInput(InterpretationPlan.Step step,
@@ -6286,6 +6338,8 @@ public class InterpretationPlanRuntime {
         metadata.put("workflow", "interpretation_plan");
         metadata.put("structuredRuntimeObservation", true);
         metadata.put("type", "controller_decision");
+        metadata.put("workflowExecutionAttempt", workflowExecutionAttempt(request));
+        metadata.put("planExecutionScope", planExecutionScope(request));
         metadata.put("decision", decisionMetadata);
         metadata.put("guardResult", guardResult);
         metadata.put("remainingStepIds", remaining == null ? List.of() : new ArrayList<>(remaining));

@@ -83,12 +83,29 @@ class AgentWorkflowDecisionEngine {
             index++;
         }
 
+        List<WorkflowToolStep> dependencyOrdered = dependencyOrderedSteps(declaredSteps);
         LinkedHashMap<String, Boolean> ordered = new LinkedHashMap<>();
-        dependencyOrderedSteps(declaredSteps).stream()
+        dependencyOrdered.stream()
             .filter(WorkflowToolStep::executable)
             .map(WorkflowToolStep::toolName)
             .forEach(tool -> ordered.put(tool, Boolean.TRUE));
-        return new WorkflowMandatoryResolution(new ArrayList<>(ordered.keySet()), distinctDecisions(skippedDecisions));
+        List<WorkflowDagNode> authoritativeDag = dependencyOrdered.stream()
+            .filter(WorkflowToolStep::executable)
+            .map(step -> new WorkflowDagNode(
+                workflowStepLabel(step),
+                step.toolName(),
+                step.dependencies().stream()
+                    .flatMap(reference -> resolveWorkflowDependency(declaredSteps, step, reference).stream())
+                    .filter(WorkflowToolStep::executable)
+                    .map(WorkflowToolStep::toolName)
+                    .distinct()
+                    .toList(),
+                step.order(),
+                step.sourceIndex()
+            ))
+            .toList();
+        return new WorkflowMandatoryResolution(
+            new ArrayList<>(ordered.keySet()), distinctDecisions(skippedDecisions), authoritativeDag);
     }
 
     /**
@@ -770,8 +787,13 @@ record FinalExecutionDecision(
 
 record WorkflowMandatoryResolution(
     List<String> tools,
-    List<ToolExecutionDecision> skippedDecisions
+    List<ToolExecutionDecision> skippedDecisions,
+    List<WorkflowDagNode> authoritativeDag
 ) {
+    WorkflowMandatoryResolution(List<String> tools, List<ToolExecutionDecision> skippedDecisions) {
+        this(tools, skippedDecisions, List.of());
+    }
+
     List<String> skippedTools() {
         if (skippedDecisions == null || skippedDecisions.isEmpty()) {
             return List.of();
@@ -782,5 +804,17 @@ record WorkflowMandatoryResolution(
             .filter(toolName -> toolName != null && !toolName.isBlank())
             .distinct()
             .toList();
+    }
+}
+
+record WorkflowDagNode(
+    String id,
+    String toolName,
+    List<String> dependsOnTools,
+    int order,
+    int sourceIndex
+) {
+    WorkflowDagNode {
+        dependsOnTools = dependsOnTools == null ? List.of() : List.copyOf(dependsOnTools);
     }
 }

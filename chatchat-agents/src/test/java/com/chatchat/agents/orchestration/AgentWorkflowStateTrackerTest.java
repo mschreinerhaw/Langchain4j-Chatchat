@@ -45,7 +45,7 @@ class AgentWorkflowStateTrackerTest {
     }
 
     @Test
-    void terminalTraceStateExcludesConfirmationButPreservesFailedAttemptSemantics() {
+    void onlySuccessfulMcpTraceStatusCountsAsCompleted() {
         AgentWorkflowStateTracker tracker = new AgentWorkflowStateTracker();
         InteractionToolTrace confirmation = InteractionToolTrace.builder()
             .toolName("approval_pending")
@@ -57,7 +57,28 @@ class AgentWorkflowStateTrackerTest {
             InteractionToolTrace.builder().toolName("successful_step").success(true).build(),
             InteractionToolTrace.builder().toolName("failed_terminal_step").success(false).build(),
             confirmation
-        ))).containsExactly("successful_step", "failed_terminal_step");
+        ))).containsExactly("successful_step");
+    }
+
+    @Test
+    void observationWithoutExplicitSuccessfulMcpStatusIsNotExecuted() {
+        AgentWorkflowStateTracker tracker = new AgentWorkflowStateTracker();
+        AgentRunEvent missingStatus = AgentRunEvent.of(
+            "run-1",
+            AgentRunEventType.OBSERVATION_RECORDED,
+            "incomplete observation",
+            Map.of("metadata", Map.of(
+                "structuredRuntimeObservation", true,
+                "toolName", "api_asset_query",
+                "interpretationPlanStepId", 1
+            ))
+        );
+
+        AgentWorkflowStateTracker.WorkflowEventSnapshot snapshot =
+            tracker.eventSnapshot(List.of(missingStatus));
+
+        assertThat(snapshot.completedTools()).isEmpty();
+        assertThat(snapshot.completedStepIds()).isEmpty();
     }
 
     @Test

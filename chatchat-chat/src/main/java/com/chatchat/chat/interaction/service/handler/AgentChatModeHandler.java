@@ -387,7 +387,17 @@ public class AgentChatModeHandler implements InteractionModeHandler {
                                                   SkillDefinition skill,
                                                   Map<String, Object> executionContext) {
         Map<String, Object> attributes = new LinkedHashMap<>();
+        Object taskWorkflowDefinition = null;
         if (request != null && request.getToolInput() != null && !request.getToolInput().isEmpty()) {
+            taskWorkflowDefinition = request.getToolInput().get("__taskWorkflowDefinition");
+            Object taskWorkflowTaskId = request.getToolInput().get("__taskWorkflowTaskId");
+            if (taskWorkflowTaskId != null && !String.valueOf(taskWorkflowTaskId).isBlank()) {
+                attributes.put("authoritativeWorkflowTaskId", String.valueOf(taskWorkflowTaskId).trim());
+            }
+            Object taskWorkflowSource = request.getToolInput().get("__taskWorkflowSource");
+            if (taskWorkflowSource != null && !String.valueOf(taskWorkflowSource).isBlank()) {
+                attributes.put("authoritativeWorkflowSource", String.valueOf(taskWorkflowSource).trim());
+            }
             Object confirmation = request.getToolInput().get("mcpConfirmation");
             if (confirmation instanceof Map<?, ?>) {
                 attributes.put("mcpConfirmation", confirmation);
@@ -409,7 +419,9 @@ public class AgentChatModeHandler implements InteractionModeHandler {
                 attributes.put("responseContract", responseContract);
             }
         }
-        if (skill != null && skill.workflowConfig() != null && !skill.workflowConfig().isEmpty()) {
+        if (taskWorkflowDefinition instanceof Map<?, ?> || taskWorkflowDefinition instanceof List<?>) {
+            attributes.put("mcpWorkflow", taskWorkflowDefinition);
+        } else if (skill != null && skill.workflowConfig() != null && !skill.workflowConfig().isEmpty()) {
             Object explicitWorkflow = skill.workflowConfig().get("mcpWorkflow");
             attributes.put("mcpWorkflow", explicitWorkflow == null ? skill.workflowConfig() : explicitWorkflow);
         }

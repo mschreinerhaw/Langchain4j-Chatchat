@@ -88,6 +88,42 @@ class McpToolRegistryBridgeLifecycleTest {
     }
 
     @Test
+    void discoveredInputSchemaRequiredFieldsArePropagatedToToolParameters() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        McpServiceConfigService configService = mock(McpServiceConfigService.class);
+        McpGatewayClient gateway = mock(McpGatewayClient.class);
+        McpServiceConfig service = new McpServiceConfig();
+        service.setId("service-1");
+        service.setName("remote");
+        Map<String, Object> inputSchema = Map.of(
+            "type", "object",
+            "properties", Map.of(
+                "templateId", Map.of("type", "string", "description", "Selected template"),
+                "parameters", Map.of("type", "object")
+            ),
+            "required", List.of("templateId")
+        );
+        when(configService.listEnabled()).thenReturn(List.of(service));
+        when(gateway.discoverTools(service, 0)).thenReturn(List.of(
+            new McpToolDefinition("template_execute", "execute", inputSchema)
+        ));
+        McpToolRegistryBridge bridge = new McpToolRegistryBridge(
+            registry, configService, gateway, new ObjectMapper());
+
+        bridge.refreshRegistry(0);
+
+        ArgumentCaptor<ToolMetadata> metadata = ArgumentCaptor.forClass(ToolMetadata.class);
+        org.mockito.Mockito.verify(registry).registerTool(anyString(), metadata.capture(), any());
+        assertThat(metadata.getValue().getParameters())
+            .extracting(com.chatchat.common.tool.ToolParameter::getName,
+                com.chatchat.common.tool.ToolParameter::isRequired)
+            .containsExactlyInAnyOrder(
+                org.assertj.core.groups.Tuple.tuple("templateId", true),
+                org.assertj.core.groups.Tuple.tuple("parameters", false)
+            );
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void finalSummaryPurposeIsPropagatedInsideMcpContext() throws Exception {
         McpToolRegistryBridge bridge = new McpToolRegistryBridge(

@@ -32,6 +32,10 @@ class AgentWorkflowDecisionEngineTest {
             List.of(asset, query, execute), Map.of("mcpWorkflow", workflow), "customer profile");
 
         assertThat(result.tools()).containsExactly(asset, query, execute);
+        assertThat(result.authoritativeDag()).extracting(WorkflowDagNode::toolName)
+            .containsExactly(asset, query, execute);
+        assertThat(result.authoritativeDag().get(1).dependsOnTools()).containsExactly(asset);
+        assertThat(result.authoritativeDag().get(2).dependsOnTools()).containsExactly(query);
     }
 
     @Test

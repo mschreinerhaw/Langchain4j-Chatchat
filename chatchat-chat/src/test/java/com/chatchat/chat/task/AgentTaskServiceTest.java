@@ -6,6 +6,8 @@ import com.chatchat.agents.runtime.plan.InterpretationPlanStore;
 import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.chat.interaction.model.InteractionResponse;
 import com.chatchat.chat.interaction.service.InteractionOrchestrationService;
+import com.chatchat.chat.skills.SkillCatalogService;
+import com.chatchat.chat.skills.SkillDefinition;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -13,6 +15,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Field;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +34,39 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentTaskServiceTest {
+
+    @Test
+    void snapshotsUserDefinedWorkflowAgainstTaskIdBeforeExecution() throws Exception {
+        AgentTaskService service = taskService(
+            mock(AgentEventBus.class), mock(AgentEventStore.class), mock(AgentTaskLatestRepository.class),
+            mock(TaskConfirmRepository.class), new ObjectMapper());
+        SkillCatalogService catalog = mock(SkillCatalogService.class);
+        SkillDefinition skill = new SkillDefinition(
+            "ops", "Ops", "", List.of(), List.of(), "agent_chat", null, "", "",
+            List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), null,
+            Map.of("mcpWorkflow", Map.of("steps", List.of(
+                Map.of("id", "asset", "tool", "api_asset_query"),
+                Map.of("id", "execute", "tool", "api_template_execute", "dependsOn", List.of("asset"))
+            ))),
+            null, null, List.of(), "published", false
+        );
+        when(catalog.resolve("ops")).thenReturn(skill);
+        Field catalogField = AgentTaskService.class.getDeclaredField("skillCatalogService");
+        catalogField.setAccessible(true);
+        catalogField.set(service, catalog);
+        Method snapshot = AgentTaskService.class.getDeclaredMethod(
+            "snapshotUserDefinedWorkflow", AgentTaskSubmitRequest.class, String.class);
+        snapshot.setAccessible(true);
+        AgentTaskSubmitRequest request = new AgentTaskSubmitRequest();
+        request.setSkillId("ops");
+
+        snapshot.invoke(service, request, "task-100");
+
+        assertThat(request.getToolInput())
+            .containsEntry("__taskWorkflowTaskId", "task-100")
+            .containsEntry("__taskWorkflowSource", "user_defined_mcp_workflow")
+            .containsKey("__taskWorkflowDefinition");
+    }
 
     @Test
     void repeatedIdempotentSubmissionReturnsSameTaskAndQueuesOnlyOnce() {

@@ -24,6 +24,7 @@ import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.BoostQuery;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.MatchAllDocsQuery;
+import org.apache.lucene.search.MatchNoDocsQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TermQuery;
@@ -49,6 +50,9 @@ import java.util.stream.Collectors;
 @Slf4j
 public class LuceneMcpSearchService {
 
+    private static final int MAX_QUERY_TEXT_LENGTH = 512;
+    private static final int MAX_LOGGED_QUERY_TEXT_LENGTH = 160;
+
     private static final String TEMPLATE_INDEX = "templates";
     private static final String ASSET_INDEX_PREFIX = "assets-";
     private static final String DATABASE_QUERY_TEMPLATE_INDEX = "database-query-templates";
@@ -65,6 +69,7 @@ public class LuceneMcpSearchService {
     private static final String FIELD_TEXT = "text";
     private static final String FIELD_NAME_TEXT = "nameText";
     private static final String FIELD_INTENT_TEXT = "intentText";
+    private static final String FIELD_KEYWORD_ALIASES = "keywordAliases";
     private static final String FIELD_NAME = "name";
     private static final String FIELD_DESCRIPTION = "description";
     private static final String FIELD_CATEGORY = "category";
@@ -118,7 +123,7 @@ public class LuceneMcpSearchService {
             return searchAssets(effectiveRequest);
         } catch (Exception ex) {
             log.warn("MCP Lucene asset search failed assetType={} queryText={} env={} dbType={} limit={}: {}",
-                effectiveRequest.assetType(), effectiveRequest.queryText(), effectiveRequest.env(),
+                effectiveRequest.assetType(), queryPreview(effectiveRequest.queryText()), effectiveRequest.env(),
                 effectiveRequest.dbType(), effectiveRequest.limit(), ex.getMessage());
             return List.of();
         }
@@ -168,7 +173,7 @@ public class LuceneMcpSearchService {
             return searchTemplateIndex(TEMPLATE_INDEX, request);
         } catch (Exception ex) {
             log.warn("MCP Lucene template search failed assetType={} dbType={} intentText={} limit={}: {}",
-                request.assetType(), request.dbType(), request.intentText(), request.limit(), ex.getMessage());
+                request.assetType(), request.dbType(), queryPreview(request.intentText()), request.limit(), ex.getMessage());
             return List.of();
         }
     }
@@ -191,7 +196,7 @@ public class LuceneMcpSearchService {
             return searchDatabaseQueryTemplates(request);
         } catch (Exception ex) {
             log.warn("MCP Lucene database query template search failed assetType={} dbType={} intentText={} limit={}: {}",
-                request.assetType(), request.dbType(), request.intentText(), request.limit(), ex.getMessage());
+                request.assetType(), request.dbType(), queryPreview(request.intentText()), request.limit(), ex.getMessage());
             return List.of();
         }
     }
@@ -381,7 +386,7 @@ public class LuceneMcpSearchService {
             return searchKnownAssetIndexes(effectiveRequest);
         } catch (Exception ex) {
             log.warn("MCP Lucene asset search failed assetType={} queryText={} env={} dbType={} limit={}: {}",
-                effectiveRequest.assetType(), effectiveRequest.queryText(), effectiveRequest.env(),
+                effectiveRequest.assetType(), queryPreview(effectiveRequest.queryText()), effectiveRequest.env(),
                 effectiveRequest.dbType(), effectiveRequest.limit(), ex.getMessage());
             return List.of();
         }
@@ -418,7 +423,7 @@ public class LuceneMcpSearchService {
         } catch (Exception ex) {
             lastSearchDiagnostic.set(searchDiagnostic(ex));
             log.warn("MCP Lucene {} search failed assetType={} dbType={} intentText={} limit={}: {}",
-                label, request.assetType(), request.dbType(), request.intentText(), request.limit(), ex.getMessage());
+                label, request.assetType(), request.dbType(), queryPreview(request.intentText()), request.limit(), ex.getMessage());
             return List.of();
         }
     }
@@ -641,8 +646,12 @@ public class LuceneMcpSearchService {
         }
         String queryText = normalizeText(request.queryText());
         if (queryText != null) {
+            if (queryText.length() > MAX_QUERY_TEXT_LENGTH) {
+                return new MatchNoDocsQuery("query text exceeds safe length");
+            }
             BooleanQuery.Builder text = new BooleanQuery.Builder();
             text.add(new BoostQuery(textQuery(queryText, FIELD_NAME_TEXT, FIELD_TEXT, FIELD_TABLE, FIELD_FULL_PATH), 2.0f), BooleanClause.Occur.SHOULD);
+            text.add(new BoostQuery(textQuery(queryText, FIELD_KEYWORD_ALIASES), 1.35f), BooleanClause.Occur.SHOULD);
             text.add(new BoostQuery(exactQuery(FIELD_ID, queryText), 3.0f), BooleanClause.Occur.SHOULD);
             text.add(new BoostQuery(exactQuery(FIELD_RESULT_ID, queryText), 3.0f), BooleanClause.Occur.SHOULD);
             text.add(new BoostQuery(exactQuery(FIELD_FULL_PATH, queryText), 4.0f), BooleanClause.Occur.SHOULD);
@@ -667,7 +676,10 @@ public class LuceneMcpSearchService {
         addExact(root, FIELD_CATEGORY, request.category(), BooleanClause.Occur.MUST);
         String queryText = normalizeText(request.intentText());
         if (queryText != null) {
-            root.add(new BoostQuery(textQuery(queryText, FIELD_INTENT_TEXT, FIELD_TEXT), 2.0f), BooleanClause.Occur.MUST);
+            if (queryText.length() > MAX_QUERY_TEXT_LENGTH) {
+                return new MatchNoDocsQuery("query text exceeds safe length");
+            }
+            root.add(new BoostQuery(textQuery(queryText, FIELD_INTENT_TEXT, FIELD_TEXT, FIELD_KEYWORD_ALIASES), 2.0f), BooleanClause.Occur.MUST);
         }
         BooleanQuery built = root.build();
         return built.clauses().isEmpty() ? new MatchAllDocsQuery() : built;
@@ -713,6 +725,8 @@ public class LuceneMcpSearchService {
             doc.extraText(), doc.tableComment(), doc.databaseComment()));
         addText(document, FIELD_TEXT, join(doc.name(), doc.displayName(), doc.toolName(), doc.databaseName(), doc.tableName(), doc.fullPath(),
             doc.extraText(), doc.tableComment(), doc.databaseComment(), String.join(" ", doc.labels())));
+        addText(document, FIELD_KEYWORD_ALIASES, String.join(" ", SearchKeywordAliasGenerator.aliases(
+            doc.name(), doc.displayName(), doc.toolName(), doc.databaseName(), doc.tableName())));
         addStored(document, "source", doc.source());
         for (String label : doc.labels()) {
             addExact(document, FIELD_LABEL, label);
@@ -737,6 +751,8 @@ public class LuceneMcpSearchService {
             doc.dbType(), doc.toolName(), doc.toolDescription(), doc.implementationSteps(), doc.domain(),
             doc.businessScope(), String.join(" ", doc.indexTags()), String.join(" ", doc.stepNames()),
             String.join(" ", doc.stepDescriptions()), String.join(" ", doc.intentSignals())));
+        addText(document, FIELD_KEYWORD_ALIASES, String.join(" ", SearchKeywordAliasGenerator.aliases(
+            doc.id(), doc.name(), doc.toolName(), doc.category())));
         addStored(document, "source", doc.source());
         return document;
     }
@@ -794,6 +810,13 @@ public class LuceneMcpSearchService {
 
     private String normalizeText(String value) {
         return value == null || value.isBlank() ? null : value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String queryPreview(String value) {
+        if (value == null || value.length() <= MAX_LOGGED_QUERY_TEXT_LENGTH) {
+            return value;
+        }
+        return value.substring(0, MAX_LOGGED_QUERY_TEXT_LENGTH) + "…(" + value.length() + " chars)";
     }
 
     private String firstText(String... values) {

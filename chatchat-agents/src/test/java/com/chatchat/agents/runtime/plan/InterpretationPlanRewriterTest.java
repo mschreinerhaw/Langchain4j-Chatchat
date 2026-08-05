@@ -37,6 +37,11 @@ class InterpretationPlanRewriterTest {
 
         assertThat(chatModel.lastPrompt())
             .contains("compact scheduling evidence")
+            .contains("bounded abbreviation aliases")
+            .contains("khzczx")
+            .contains("Customer Asset Service -> cas")
+            .contains("never write generated aliases to assetName")
+            .contains("Preserve a user-supplied abbreviation")
             .contains("originalChars=")
             .contains("full evidence remains in Runtime")
             .hasSizeLessThan(200_000);

@@ -137,4 +137,28 @@ class ApiRequirementAnalysisMcpToolPublisherTest {
         assertThat(requirement.get("id")).isEqualTo("requirement_1");
         assertThat(requirement.get("description")).isEqualTo("inspect requested API data");
     }
+
+    @Test
+    void acceptsPlannerGoalAsSingleRequirementShorthand() {
+        ApiTemplateDiscoveryMcpToolPublisher discovery = mock(ApiTemplateDiscoveryMcpToolPublisher.class);
+        when(discovery.query(any())).thenReturn(Map.of(
+            "returnedCount", 1,
+            "templates", List.of(Map.of("templateId", "matched_api_template"))
+        ));
+        ApiRequirementAnalysisMcpToolPublisher publisher = new ApiRequirementAnalysisMcpToolPublisher(
+            mock(McpSyncServer.class), discovery);
+
+        Map<String, Object> result = publisher.analyze(Map.of(
+            "goal", "retrieve all requested customer dimensions",
+            "context", Map.of("env", "DEV")
+        ));
+
+        assertThat(result).containsEntry("success", true)
+            .containsEntry("goal", "retrieve all requested customer dimensions")
+            .containsEntry("requirementCount", 1);
+        Map<?, ?> requirement = (Map<?, ?>) ((Map<?, ?>) ((List<?>) result.get("coverage")).get(0))
+            .get("requirement");
+        assertThat(requirement.get("description"))
+            .isEqualTo("retrieve all requested customer dimensions");
+    }
 }

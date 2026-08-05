@@ -53,7 +53,7 @@ public final class RequirementAnalysisProtocol {
         Object rawRequirements = input.get("requirements");
         List<?> requirements;
         if (rawRequirements == null || (rawRequirements instanceof List<?> list && list.isEmpty())) {
-            String query = text(input.get("query"));
+            String query = firstText(input.get("query"), input.get("goal"));
             if (query.isBlank()) {
                 throw new IllegalArgumentException("requirements or query must contain at least one requirement");
             }

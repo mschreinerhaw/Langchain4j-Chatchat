@@ -71,8 +71,11 @@ public final class TemplateInvocationBridge {
         input.put("template", runtimeTemplateId);
         removeReadOnlyTemplateMetadata(input);
 
+        Map<String, Object> schema = objectMap(firstPresent(template,
+            "parameterSchema", "parameter_schema", "inputSchema", "schema"));
         Map<String, Object> parameters = objectMap(input.get("parameters"));
         boolean protocolApplied = false;
+        boolean runtimeEvidenceRecovered = false;
         ParameterAudit parameterAudit = ParameterAudit.empty();
         if (request.parameterProtocol() != null) {
             parameterAudit = auditModelProtocol(
@@ -87,13 +90,13 @@ public final class TemplateInvocationBridge {
             parameters.putAll(parameterAudit.parameters());
             protocolApplied = true;
         } else if (!parameters.isEmpty()) {
-            throw failure("TEMPLATE_PARAMETER_PROTOCOL_REQUIRED",
-                "template " + runtimeTemplateId + " contains model-proposed parameters "
-                    + parameters.keySet() + " without per-parameter evidence");
+            parameterAudit = auditRuntimeRecoverableParameters(
+                runtimeTemplateId, parameters, schema, request.evidenceContext());
+            parameters.clear();
+            parameters.putAll(parameterAudit.parameters());
+            runtimeEvidenceRecovered = !parameterAudit.evidence().isEmpty();
         }
 
-        Map<String, Object> schema = objectMap(firstPresent(template,
-            "parameterSchema", "parameter_schema", "inputSchema", "schema"));
         List<String> required = requiredParameters(template, schema);
 
         ToolArgumentCompiler.CompilationResult compilation = argumentCompiler.compile(parameters, schema);
@@ -168,6 +171,7 @@ public final class TemplateInvocationBridge {
             protocolApplied
         ));
         protocolTrace.put("reviewedParameterCount", parameterAudit.evidence().size());
+        protocolTrace.put("runtimeParameterEvidenceRecovered", runtimeEvidenceRecovered);
         protocolTrace.put("templateDefaultParameterCount",
             Math.max(0, compiledEvidence.size() - parameterAudit.evidence().size()));
         protocolTrace.put("parameterEvidenceSources", compiledEvidence.values().stream()
@@ -182,6 +186,72 @@ public final class TemplateInvocationBridge {
             Map.copyOf(compiledEvidence),
             Map.copyOf(protocolTrace)
         );
+    }
+
+    /**
+     * Recovers provenance deterministically when the controller omitted the model protocol.
+     * Values are accepted only when they are declared by the selected template and occur
+     * verbatim in the Runtime-owned user query. A value equal to the declared schema default is
+     * removed so the compiler reapplies the authoritative default instead of trusting the model.
+     */
+    private ParameterAudit auditRuntimeRecoverableParameters(String templateId,
+                                                              Map<String, Object> proposed,
+                                                              Map<String, Object> schema,
+                                                              EvidenceContext context) {
+        Map<String, Object> properties = objectMap(schema.get("properties"));
+        Map<String, Object> recovered = new LinkedHashMap<>();
+        Map<String, ParameterEvidence> evidence = new LinkedHashMap<>();
+        List<String> denied = new ArrayList<>();
+        String userQuery = context == null ? null : context.userQuery();
+        for (Map.Entry<String, Object> entry : proposed.entrySet()) {
+            String name = entry.getKey();
+            Object value = entry.getValue();
+            Map<String, Object> property = objectMap(properties.get(name));
+            if (property.isEmpty() || !hasValue(value)) {
+                denied.add(name);
+                continue;
+            }
+            Object declaredDefault = firstPresent(property, "default", "defaultValue", "default_value");
+            if (hasValue(declaredDefault) && equivalent(value, declaredDefault)) {
+                continue;
+            }
+            String quote = userQueryEvidenceQuote(userQuery, value);
+            if (quote == null) {
+                denied.add(name);
+                continue;
+            }
+            recovered.put(name, value);
+            evidence.put(name, new ParameterEvidence(
+                USER_QUERY_SOURCE,
+                Map.of("quote", quote, "recoveredBy", "runtime_exact_match"),
+                value
+            ));
+        }
+        if (!denied.isEmpty()) {
+            throw failure("TEMPLATE_PARAMETER_PROTOCOL_REQUIRED",
+                "template " + templateId + " contains parameters " + denied
+                    + " without per-parameter evidence; values are neither schema defaults "
+                    + "nor exact Runtime user-query evidence");
+        }
+        return new ParameterAudit(Map.copyOf(recovered), Map.copyOf(evidence), List.of());
+    }
+
+    private String userQueryEvidenceQuote(String userQuery, Object value) {
+        if (!hasText(userQuery) || !hasValue(value)) {
+            return null;
+        }
+        String needle = String.valueOf(value).trim();
+        if (compact(needle).length() < 2) {
+            return null;
+        }
+        String lowerQuery = userQuery.toLowerCase(Locale.ROOT);
+        int index = lowerQuery.indexOf(needle.toLowerCase(Locale.ROOT));
+        if (index < 0) {
+            return null;
+        }
+        int start = Math.max(0, index - 32);
+        int end = Math.min(userQuery.length(), index + needle.length() + 32);
+        return userQuery.substring(start, end);
     }
 
     @SuppressWarnings("unchecked")

@@ -213,6 +213,45 @@ class LuceneMcpSearchServiceTest {
         ))).extracting(LuceneMcpSearchService.SearchHit::id).containsExactly("db-orders");
     }
 
+    @Test
+    void searchesAssetsByChinesePinyinInitialsWithoutMatchingUnrelatedNames() {
+        LuceneMcpSearchService service = service();
+
+        List<LuceneMcpSearchService.SearchHit> hits = service.searchAssets(
+            List.of(
+                new LuceneMcpSearchService.AssetDoc("customer-assets", "api_service", "客户资产中心",
+                    "客户资产中心", "customer_asset_center", "PROD", null, List.of(), "asset_registry"),
+                new LuceneMcpSearchService.AssetDoc("order-assets", "api_service", "订单服务中心",
+                    "订单服务中心", "order_service_center", "PROD", null, List.of(), "asset_registry")
+            ),
+            new LuceneMcpSearchService.AssetSearchRequest(
+                "api_service", "khzczx", "PROD", null, List.of(), 10)
+        );
+
+        assertThat(hits).extracting(LuceneMcpSearchService.SearchHit::id)
+            .containsExactly("customer-assets");
+    }
+
+    @Test
+    void searchesTemplatesByEnglishWordInitials() {
+        LuceneMcpSearchService service = service();
+
+        List<LuceneMcpSearchService.SearchHit> hits = service.searchTemplates(
+            List.of(
+                new LuceneMcpSearchService.TemplateDoc("CUSTOMER_ASSET_STATUS", "api_service",
+                    "Customer Asset Status", "Inspect customer assets", "inspection", "generic",
+                    "customer assets", "LOW", List.of(), "template_registry"),
+                new LuceneMcpSearchService.TemplateDoc("ORDER_PAYMENT_STATUS", "api_service",
+                    "Order Payment Status", "Inspect order payments", "inspection", "generic",
+                    "order payments", "LOW", List.of(), "template_registry")
+            ),
+            new LuceneMcpSearchService.TemplateSearchRequest("api_service", null, "cas", 10)
+        );
+
+        assertThat(hits).extracting(LuceneMcpSearchService.SearchHit::id)
+            .containsExactly("CUSTOMER_ASSET_STATUS");
+    }
+
     private LuceneMcpSearchService service() {
         LuceneSearchProperties properties = new LuceneSearchProperties();
         properties.setIndexDir(tempDir.toString());

@@ -259,6 +259,78 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void continuesIndependentBranchesWhenDependencyAllowsPartialEvidence() {
+        String failingTool = "orders_query";
+        String succeedingTool = "positions_query";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(any())).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenReturn(ToolMetadata.builder().riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest request = invocation.getArgument(0);
+            ToolOutput output = failingTool.equals(request.getToolName())
+                ? ToolOutput.failure("orders backend unavailable")
+                : ToolOutput.success(Map.of("records", List.of(Map.of("symbol", "600000"))));
+            return new ToolRuntimeExecution(
+                output,
+                ToolMetadata.builder().id(request.getToolName()).build(),
+                null,
+                output.isSuccess() ? "success" : "failed",
+                Map.of()
+            );
+        });
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", "collect independent customer dimensions", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", failingTool, Map.of(), List.of(), null, null),
+                    new InterpretationPlan.Step(2, "mcp_tool", succeedingTool, Map.of(), List.of(), null, null),
+                    new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "partial result"),
+                        List.of(1, 2), null, null)
+                ),
+                List.of(),
+                List.of(
+                    new InterpretationPlan.DependencyContract(
+                        1, 3, true, null, "answer may use partial order evidence",
+                        "continue_with_partial_evidence"),
+                    new InterpretationPlan.DependencyContract(
+                        2, 3, true, null, "answer uses position evidence",
+                        "continue_with_partial_evidence")
+                ),
+                List.of(),
+                null
+            ),
+            new InterpretationPlan.ExecutionPolicy(
+                3, false, List.of(failingTool, succeedingTool), List.of(), 30_000),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, toolRegistry, List.of(failingTool, succeedingTool), "tenant-1",
+                "req-partial-continuation", "conv-partial-continuation", "user-1", Map.of()
+            )
+        );
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.status()).isEqualTo("completed_with_partial_evidence");
+        assertThat(result.finalAnswer()).isEqualTo("partial result");
+        assertThat(result.steps()).extracting(InterpretationPlanRuntime.StepExecution::stepId)
+            .containsExactly(1, 2, 3);
+        assertThat(result.metadata())
+            .containsEntry("continuedFailureStepIds", List.of(1))
+            .containsEntry("partialEvidence", true);
+        verify(toolRuntimeService, times(2)).execute(any());
+    }
+
+    @Test
     void stopsDagWhenModelReviewRejectsToolResult() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("document_search")).thenReturn(true);
@@ -6937,6 +7009,235 @@ class InterpretationPlanRuntimeTest {
         assertThat(calls).allSatisfy(call -> assertThat(call.get("arguments"))
             .isInstanceOfSatisfying(Map.class, arguments ->
                 assertThat(arguments).containsEntry("parameters", Map.of())));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void compilesChineseDiagnosticDimensionsAndRecoversUserParameterForEveryTemplate() {
+        String discoveryTool = "mcp_chatchat_mcp_server_api_template_query";
+        String executorTool = "mcp_chatchat_mcp_server_api_template_execute";
+        List<Map<String, Object>> templates = List.of(
+            apiDiagnosticTemplate("orders-template", "委托流水", executorTool),
+            apiDiagnosticTemplate("trades-template", "成交明细", executorTool),
+            apiDiagnosticTemplate("transit-template", "在途资产", executorTool)
+        );
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.hasTool(any())).thenReturn(true);
+        when(registry.getToolMetadata(any())).thenAnswer(invocation ->
+            ToolMetadata.builder().id(invocation.getArgument(0)).riskLevel("low").build());
+        AtomicReference<Map<String, Object>> batchInput = new AtomicReference<>();
+        ToolRuntimeService service = mock(ToolRuntimeService.class);
+        when(service.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest request = invocation.getArgument(0);
+            if (discoveryTool.equals(request.getToolName())) {
+                return new ToolRuntimeExecution(ToolOutput.success(Map.of(
+                    "queryIr", Map.of("asset", Map.of(
+                        "scoped", true,
+                        "selected", Map.of("id", "asset-live-dev", "name", "live-dev", "environment", "DEV")
+                    )),
+                    "templates", templates
+                )), ToolMetadata.builder().id(discoveryTool).build(), null, "success", Map.of());
+            }
+            batchInput.set(request.getToolInput().getParameters());
+            List<ToolCallResult> results = List.of(
+                new ToolCallResult("orders", executorTool, "orders-template", "asset-live-dev", "SUCCESS", 1,
+                    "e1", Map.of("records", List.of()), Map.of()),
+                new ToolCallResult("trades", executorTool, "trades-template", "asset-live-dev", "SUCCESS", 1,
+                    "e2", Map.of("records", List.of()), Map.of()),
+                new ToolCallResult("transit", executorTool, "transit-template", "asset-live-dev", "SUCCESS", 1,
+                    "e3", Map.of("records", List.of()), Map.of())
+            );
+            return new ToolRuntimeExecution(ToolOutput.success(new ToolCallBatchResult(
+                "diagnostic-step-2", "SEQUENTIAL", "start", "end", "SUCCESS",
+                new ToolCallBatchResult.Summary(3, 3, 0, 0, 0, 3), results
+            )), ToolMetadata.builder().id(executorTool).build(), null, "success",
+                Map.of("batchExecution", true, "remoteToolInvocationCount", 3));
+        });
+        List<InterpretationPlan.DiagnosticCheck> checks = List.of(
+            new InterpretationPlan.DiagnosticCheck("orders", "customer_orders", "委托", true, 1, List.of(2)),
+            new InterpretationPlan.DiagnosticCheck("trades", "customer_trades", "成交", true, 2, List.of(2)),
+            new InterpretationPlan.DiagnosticCheck("transit", "assets_in_transit", "在途", true, 3, List.of(2))
+        );
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", "query customer dimensions", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", discoveryTool,
+                        Map.of("filters", Map.of("intent", "customer dimensions")), List.of(), null, null),
+                    new InterpretationPlan.Step(2, "mcp_tool", executorTool,
+                        Map.of("parameters", Map.of("khh", "100200299999")), List.of(1), null, null),
+                    new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"),
+                        List.of(2), null, null)
+                ),
+                List.of(), List.of(), List.of(), null,
+                new InterpretationPlan.DiagnosticProfile("customer_dimensions", "api", checks)
+            ),
+            new InterpretationPlan.ExecutionPolicy(
+                3, false, List.of(discoveryTool, executorTool), List.of(), 30_000),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            service, new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, registry, List.of(discoveryTool, executorTool), "tenant-1", "req-cn-batch",
+                "conv-cn-batch", "user-1",
+                Map.of("originalUserQuery", "查询客户 100200299999 的委托、成交和在途资产")
+            )
+        );
+
+        assertThat(result.success()).as(result.errorMessage()).isTrue();
+        assertThat(batchInput.get().get("calls")).isInstanceOfSatisfying(List.class, calls -> {
+            assertThat(calls).hasSize(3);
+            assertThat(calls.toString()).contains("orders-template", "trades-template", "transit-template");
+            for (Object rawCall : calls) {
+                Map<String, Object> call = (Map<String, Object>) rawCall;
+                Map<String, Object> arguments = (Map<String, Object>) call.get("arguments");
+                assertThat((Map<String, Object>) arguments.get("parameters"))
+                    .containsEntry("khh", "100200299999");
+            }
+        });
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void executesAllReviewedTemplatesWhenIntermediateAnalysisFailsAndPlanHasNoDiagnosticProfile() {
+        String discoveryTool = "mcp_chatchat_mcp_server_api_template_query";
+        String analysisTool = "mcp_chatchat_mcp_server_api_requirement_analyze";
+        String executorTool = "mcp_chatchat_mcp_server_api_template_execute";
+        List<String> templateIds = List.of("orders-template", "trades-template", "transit-template");
+        List<Map<String, Object>> templates = templateIds.stream()
+            .map(id -> {
+                Map<String, Object> template = new LinkedHashMap<>(apiDiagnosticTemplate(id, id, executorTool));
+                template.put("parameterSchema", Map.of(
+                    "type", "object",
+                    "properties", Map.of("khh", Map.of("type", "string", "default", "100200000000")),
+                    "required", List.of("khh")
+                ));
+                return template;
+            })
+            .toList();
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.hasTool(any())).thenReturn(true);
+        when(registry.getToolMetadata(any())).thenAnswer(invocation ->
+            ToolMetadata.builder().id(invocation.getArgument(0)).riskLevel("low").build());
+        AtomicReference<Map<String, Object>> batchInput = new AtomicReference<>();
+        ToolRuntimeService service = mock(ToolRuntimeService.class);
+        when(service.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest request = invocation.getArgument(0);
+            if (discoveryTool.equals(request.getToolName())) {
+                return new ToolRuntimeExecution(
+                    ToolOutput.success(Map.of("templates", templates)),
+                    ToolMetadata.builder().id(discoveryTool).build(), null, "success", Map.of());
+            }
+            if (analysisTool.equals(request.getToolName())) {
+                return new ToolRuntimeExecution(
+                    ToolOutput.failure("analysis service unavailable"),
+                    ToolMetadata.builder().id(analysisTool).build(), null, "failed", Map.of());
+            }
+            batchInput.set(request.getToolInput().getParameters());
+            List<ToolCallResult> results = templateIds.stream()
+                .map(id -> new ToolCallResult(id, executorTool, id, null, "SUCCESS", 1,
+                    "evidence-" + id, Map.of("records", List.of()), Map.of()))
+                .toList();
+            return new ToolRuntimeExecution(ToolOutput.success(new ToolCallBatchResult(
+                "reviewed-template-step-3", "SEQUENTIAL", "start", "end", "SUCCESS",
+                new ToolCallBatchResult.Summary(3, 3, 0, 0, 0, 3), results)),
+                ToolMetadata.builder().id(executorTool).build(), null, "success",
+                Map.of("batchExecution", true, "remoteToolInvocationCount", 3));
+        });
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", "query customer dimensions", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", discoveryTool,
+                        Map.of("filters", Map.of("intent", "customer dimensions")), List.of(), null, null),
+                    new InterpretationPlan.Step(2, "mcp_tool", analysisTool,
+                        Map.of("goal", "analyze customer dimensions"), List.of(1), null, null),
+                    new InterpretationPlan.Step(3, "mcp_tool", executorTool,
+                        Map.of("batchId", "model-batch", "executionMode", "SEQUENTIAL",
+                            "stopOnFailure", false, "calls", "{{ bindings.recommendedTemplates }}"),
+                        List.of(2), null, null),
+                    new InterpretationPlan.Step(4, "final_answer", "", Map.of("answer", "done"),
+                        List.of(3), null, null)
+                ),
+                List.of(),
+                List.of(
+                    new InterpretationPlan.DependencyContract(1, 2, true, null, "analyze templates", "stop"),
+                    new InterpretationPlan.DependencyContract(2, 3, true, null, "execute recommendations", "stop")
+                ),
+                List.of(new InterpretationPlan.Binding(2, "$.recommendedTemplates", 3,
+                    "calls", "jsonpath", true)),
+                null,
+                null
+            ),
+            new InterpretationPlan.ExecutionPolicy(4, false,
+                List.of(discoveryTool, analysisTool, executorTool), List.of(), 30_000),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            service,
+            new InterpretationPlanValidator(),
+            null,
+            request -> discoveryTool.equals(request.execution().toolName())
+                ? InterpretationPlanRuntime.StepReview.accepted("three templates accepted", Map.of(
+                    "selectedTemplateIds", templateIds,
+                    "nextActions", List.of(Map.of(
+                        "tool", "api_template_execute",
+                        "input_changes", Map.of("parameters", Map.of("khh", "100200241779"))
+                    ))
+                ))
+                : InterpretationPlanRuntime.StepReview.accepted("execution accepted", Map.of()),
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3), List.of(4)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, registry, List.of(discoveryTool, analysisTool, executorTool), "tenant-1",
+                "req-reviewed-batch", "conv-reviewed-batch", "user-1",
+                Map.of("originalUserQuery", "查询客户 100200241779 的委托、成交和在途资产")
+            )
+        );
+
+        assertThat(result.success()).as("status=%s error=%s", result.status(), result.errorMessage()).isTrue();
+        assertThat(result.status()).isEqualTo("completed_with_partial_evidence");
+        assertThat(result.metadata()).containsEntry("continuedFailureStepIds", List.of(2));
+        assertThat(batchInput.get()).containsEntry("stopOnFailure", false);
+        List<Map<String, Object>> calls = (List<Map<String, Object>>) batchInput.get().get("calls");
+        assertThat(calls).hasSize(3);
+        assertThat(calls).extracting(call -> call.get("callId")).containsExactlyElementsOf(templateIds);
+        assertThat(calls).allSatisfy(call -> {
+            Map<String, Object> arguments = (Map<String, Object>) call.get("arguments");
+            assertThat((Map<String, Object>) arguments.get("parameters"))
+                .containsEntry("khh", "100200241779");
+        });
+    }
+
+    private Map<String, Object> apiDiagnosticTemplate(String templateId,
+                                                      String description,
+                                                      String executorTool) {
+        return Map.of(
+            "templateId", templateId,
+            "name", description,
+            "description", description,
+            "parameterSchema", Map.of(
+                "type", "object",
+                "properties", Map.of("khh", Map.of("type", "string", "default", "100200241779")),
+                "required", List.of("khh")
+            ),
+            "executionBinding", Map.of(
+                "toolName", executorTool,
+                "templateId", templateId,
+                "executionContext", Map.of("assetId", "asset-live-dev", "env", "DEV")
+            )
+        );
     }
 
     @Test

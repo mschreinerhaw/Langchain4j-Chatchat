@@ -149,6 +149,69 @@ class TemplateInvocationBridgeTest {
     }
 
     @Test
+    void runtimeRecoversExactUserQueryEvidenceWhenControllerOmitsParameterProtocol() {
+        TemplateInvocationBridge.BridgeResult result = bridge.prepare(
+            new TemplateInvocationBridge.BridgeRequest(
+                "api_template_execute",
+                4,
+                "CUSTOMER_QUERY",
+                template(
+                    "CUSTOMER_QUERY",
+                    Map.of(
+                        "customerId", Map.of("type", "string", "default", "C-DEFAULT"),
+                        "page", Map.of("type", "integer", "default", 1)
+                    ),
+                    new String[]{"customerId", "page"}
+                ),
+                Map.of("parameters", Map.of("customerId", "C-2002")),
+                null,
+                true,
+                true,
+                new TemplateInvocationBridge.EvidenceContext(
+                    "Query orders for customer C-2002 today",
+                    Map.of()
+                )
+            )
+        );
+
+        assertThat(result.parameters())
+            .containsEntry("customerId", "C-2002")
+            .containsEntry("page", 1);
+        assertThat(result.parameterEvidence().get("customerId").source())
+            .isEqualTo(TemplateInvocationBridge.USER_QUERY_SOURCE);
+        assertThat(result.protocolTrace())
+            .containsEntry("runtimeParameterEvidenceRecovered", true)
+            .containsEntry("reviewedParameterCount", 1);
+    }
+
+    @Test
+    void runtimeCanonicalizesDefaultEquivalentModelValueThroughSchemaDefault() {
+        TemplateInvocationBridge.BridgeResult result = bridge.prepare(
+            new TemplateInvocationBridge.BridgeRequest(
+                "api_template_execute",
+                4,
+                "DEFAULTED_CUSTOMER_QUERY",
+                template(
+                    "DEFAULTED_CUSTOMER_QUERY",
+                    Map.of("customerId", Map.of("type", "string", "default", "C-1001")),
+                    new String[]{"customerId"}
+                ),
+                Map.of("parameters", Map.of("customerId", "C-1001")),
+                null,
+                true,
+                true
+            )
+        );
+
+        assertThat(result.parameters()).containsEntry("customerId", "C-1001");
+        assertThat(result.parameterEvidence().get("customerId").source())
+            .isEqualTo(TemplateInvocationBridge.TEMPLATE_DEFAULT_SOURCE);
+        assertThat(result.repairs())
+            .extracting(ToolArgumentCompiler.Repair::repairCode)
+            .contains("DEFAULT_VALUE_APPLIED");
+    }
+
+    @Test
     void acceptsEvidenceBackedOverridesAndUsesDefaultsForOmittedParameters() {
         Map<String, Object> protocol = Map.of(
             "protocol_version", TemplateInvocationBridge.PROTOCOL_VERSION,

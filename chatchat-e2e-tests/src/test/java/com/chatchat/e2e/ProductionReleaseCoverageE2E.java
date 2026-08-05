@@ -70,6 +70,12 @@ class ProductionReleaseCoverageE2E {
                 "concurrentExtremeEvidenceCombinationsNeverEraseUsableAnalysisOrLeakRequests",
                 "UUID.randomUUID()", "financial_data_required", "evidenceLimitedAnalysisPreserved");
         assertThat(Files.readString(root.resolve(
+            "chatchat-e2e-tests/src/test/java/com/chatchat/agents/orchestration/ProductionAbbreviationRetrievalStressE2E.java")))
+            .contains("modelAliasesRemainIsolatedAcrossResolverAssetAndTemplateSearchUnderConcurrency",
+                "CANDIDATES_PER_KIND = 256", "CONCURRENCY = 48",
+                "queryTerms", "keywords", "doesNotContainKeys(\"assetName\", \"templateId\")",
+                "searchAssets", "searchTemplates", "repeat(20_000)");
+        assertThat(Files.readString(root.resolve(
             "chatchat-e2e-tests/src/test/java/com/chatchat/agents/orchestration/ProductionPartialEvidenceAnswerPreservationE2E.java")))
             .contains("mixedEvidencePreservesAnalysisAndExposesCoverageBoundary");
         assertThat(Files.readString(root.resolve(

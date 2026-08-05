@@ -66,6 +66,7 @@ public class OpenSearchMcpSearchService {
     private static final String FIELD_TEXT = "text";
     private static final String FIELD_NAME_TEXT = "nameText";
     private static final String FIELD_INTENT_TEXT = "intentText";
+    private static final String FIELD_KEYWORD_ALIASES = "keywordAliases";
     private static final String FIELD_NAME = "name";
     private static final String FIELD_DESCRIPTION = "description";
     private static final String FIELD_CATEGORY = "category";
@@ -581,6 +582,7 @@ public class OpenSearchMcpSearchService {
             Map.entry(FIELD_DATABASE_COMMENT, chineseTextMapping(false)),
             Map.entry(FIELD_NAME_TEXT, textMapping()),
             Map.entry(FIELD_INTENT_TEXT, textMapping()),
+            Map.entry(FIELD_KEYWORD_ALIASES, aliasTextMapping()),
             Map.entry(FIELD_TEXT, textMapping()),
             Map.entry("source", Map.of("type", "keyword"))
         ));
@@ -626,6 +628,7 @@ public class OpenSearchMcpSearchService {
                     FIELD_NAME_TEXT + "^2.4",
                     FIELD_NAME_TEXT + ".ngram^1.6",
                     FIELD_NAME_TEXT + ".pinyin^1.8",
+                    FIELD_KEYWORD_ALIASES + "^1.7",
                     FIELD_TEXT,
                     FIELD_TEXT + ".ngram^1.1",
                     FIELD_TEXT + ".pinyin^1.2",
@@ -680,6 +683,7 @@ public class OpenSearchMcpSearchService {
                 "stepDescriptions^4.0",
                 "indexTags^4.5",
                 "domain^2.5",
+                FIELD_KEYWORD_ALIASES + "^2.0",
                 FIELD_INTENT_TEXT + "^2.4",
                 FIELD_INTENT_TEXT + ".ngram^1.5",
                 FIELD_TEXT,
@@ -794,6 +798,9 @@ public class OpenSearchMcpSearchService {
             doc.fullPath(), doc.extraText(), doc.tableComment(), doc.databaseComment()));
         put(source, FIELD_TEXT, join(doc.name(), doc.displayName(), doc.toolName(), doc.databaseName(), doc.tableName(),
             doc.fullPath(), doc.extraText(), doc.tableComment(), doc.databaseComment(), String.join(" ", doc.labels())));
+        List<String> keywordAliases = SearchKeywordAliasGenerator.aliases(
+            doc.name(), doc.displayName(), doc.toolName(), doc.databaseName(), doc.tableName());
+        if (!keywordAliases.isEmpty()) source.put(FIELD_KEYWORD_ALIASES, keywordAliases);
         put(source, "source", doc.source());
         for (String label : doc.labels()) {
             append(source, FIELD_LABEL, normalizeExact(label));
@@ -823,6 +830,9 @@ public class OpenSearchMcpSearchService {
             doc.dbType(), doc.toolName(), doc.toolDescription(), doc.implementationSteps(), doc.domain(),
             doc.businessScope(), String.join(" ", doc.indexTags()), String.join(" ", doc.stepNames()),
             String.join(" ", doc.stepDescriptions()), String.join(" ", doc.intentSignals())));
+        List<String> keywordAliases = SearchKeywordAliasGenerator.aliases(
+            doc.id(), doc.name(), doc.toolName(), doc.category());
+        if (!keywordAliases.isEmpty()) source.put(FIELD_KEYWORD_ALIASES, keywordAliases);
         put(source, "source", doc.source());
         return source;
     }
@@ -924,6 +934,7 @@ public class OpenSearchMcpSearchService {
             Map.entry("stepNames", chineseTextMapping(false)),
             Map.entry("stepDescriptions", chineseTextMapping(false)),
             Map.entry(FIELD_INTENT_TEXT, textMapping()),
+            Map.entry(FIELD_KEYWORD_ALIASES, aliasTextMapping()),
             Map.entry(FIELD_TEXT, textMapping()),
             Map.entry("source", Map.of("type", "keyword")),
             Map.entry(CAPABILITY_VECTOR, Map.of(
@@ -1026,6 +1037,10 @@ public class OpenSearchMcpSearchService {
 
     private Map<String, Object> textMapping() {
         return chineseTextMapping(true);
+    }
+
+    private Map<String, Object> aliasTextMapping() {
+        return Map.of("type", "text", "analyzer", "standard", "search_analyzer", "standard");
     }
 
     private Map<String, Object> analysisSettings() {

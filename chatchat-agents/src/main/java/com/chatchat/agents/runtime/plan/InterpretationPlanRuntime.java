@@ -249,6 +249,7 @@ public class InterpretationPlanRuntime {
         Map<Integer, StepExecution> completed = new LinkedHashMap<>();
         Set<Integer> remaining = new LinkedHashSet<>(stepsById.keySet());
         List<StepExecution> executions = new ArrayList<>();
+        List<StepExecution> toleratedFailures = new ArrayList<>();
         String finalAnswer = null;
         String runId = runId(executableRequest);
         int decisionCount = 0;
@@ -390,6 +391,17 @@ public class InterpretationPlanRuntime {
                 .orElse(null);
             recordStateUpdate(executableRequest, completed, remaining, waveResults, failed);
             if (failed != null) {
+                String failurePolicy = dependencyFailurePolicy(executablePlan, failed.stepId());
+                boolean recoverableReviewedBatch = hasRecoverableReviewedTemplateBatchDownstream(
+                    executablePlan, failed.stepId(), completed);
+                if ("continue_with_partial_evidence".equals(failurePolicy) || recoverableReviewedBatch) {
+                    toleratedFailures.add(failed);
+                    log.warn("InterpretationPlan continuing after step failure under dependency policy: "
+                            + "traceId={}, stepId={}, tool={}, policy={}, reviewedBatchRecovery={}, remainingStepIds={}, error={}",
+                        executionTraceId, failed.stepId(), failed.toolName(), failurePolicy, recoverableReviewedBatch,
+                        new ArrayList<>(remaining), failed.errorMessage());
+                    continue;
+                }
                 String failureStatus = failed.errorMessage() != null
                     && failed.errorMessage().startsWith(
                         DiagnosticRunStateMachine.FailureCode.STEP_OUTPUT_CONTRACT_FAILED.wireValue() + ":")
@@ -410,14 +422,16 @@ public class InterpretationPlanRuntime {
             }
         }
 
+        String completionStatus = toleratedFailures.isEmpty()
+            ? "completed" : "completed_with_partial_evidence";
         return withDiagnosticRun(new ExecutionResult(
-            "completed",
+            completionStatus,
             true,
             false,
             null,
             finalAnswer,
             executions,
-            Map.of(
+            mapOf(
                 "protocolVersion", InterpretationExecutionProtocol.VERSION,
                 "executionTraceId", executionTraceId,
                 "stepCount", executions.size(),
@@ -427,10 +441,31 @@ public class InterpretationPlanRuntime {
                 "parallel", allowParallel(executablePlan),
                 "decisionCount", decisionCount,
                 "llmDagController", true,
-                "optimizationPasses", optimization.appliedPasses()
+                "optimizationPasses", optimization.appliedPasses(),
+                "continuedFailureStepIds", toleratedFailures.stream().map(StepExecution::stepId).toList(),
+                "partialEvidence", !toleratedFailures.isEmpty()
             ),
             elapsed(startedAt)
         ), executableRequest, remaining);
+    }
+
+    private String dependencyFailurePolicy(InterpretationPlan plan, Integer failedStepId) {
+        if (plan == null || plan.plan() == null || failedStepId == null
+            || plan.plan().dependencyContracts() == null) {
+            return "stop";
+        }
+        List<String> policies = plan.plan().dependencyContracts().stream()
+            .filter(Objects::nonNull)
+            .filter(contract -> failedStepId.equals(contract.from()))
+            .map(InterpretationPlan.DependencyContract::onFailure)
+            .filter(Objects::nonNull)
+            .map(value -> value.trim().toLowerCase(Locale.ROOT))
+            .filter(value -> !value.isBlank())
+            .toList();
+        return !policies.isEmpty()
+            && policies.stream().allMatch("continue_with_partial_evidence"::equals)
+            ? "continue_with_partial_evidence"
+            : "stop";
     }
 
     private ExecutionResult withDiagnosticRun(ExecutionResult result,
@@ -568,6 +603,11 @@ public class InterpretationPlanRuntime {
                     step, request.plan(), completed, resolvedInput, allowedTools
                 );
                 if (templateInvocation == null) {
+                    templateInvocation = reviewedTemplateBatchInvocation(
+                        step, completed, resolvedInput, allowedTools
+                    );
+                }
+                if (templateInvocation == null) {
                     templateInvocation = templateExecutorInvocation(
                         step,
                         completed,
@@ -579,6 +619,9 @@ public class InterpretationPlanRuntime {
                     executionToolName = templateInvocation.toolName();
                     resolvedInput = templateInvocation.arguments();
                     retrievalGate = Map.of();
+                    if (batchToolInput(resolvedInput)) {
+                        bridgeBatchTemplateInvocations(step, request, completed, resolvedInput);
+                    }
                 }
                 assertNoUnresolvedBindingPlaceholders(resolvedInput);
                 log.info("InterpretationPlan step resolved input: traceId={}, stepId={}, tool={}, input={}",
@@ -2433,7 +2476,7 @@ public class InterpretationPlanRuntime {
         Map<String, Object> input = new LinkedHashMap<>(step.input() == null ? Map.of() : step.input());
         InterpretationPlan plan = request == null ? null : request.plan();
         applyBindings(step, plan, completed, input);
-        if (batchToolInput(input) && !runtimeOwnedDiagnosticBatch(step, plan)) {
+        if (batchToolInput(input) && !runtimeOwnedTemplateBatch(step, plan, completed)) {
             bridgeBatchTemplateInvocations(step, request, completed, input);
             return input;
         }
@@ -2452,13 +2495,17 @@ public class InterpretationPlanRuntime {
         hydrateExecutionContextFromCompletedAssets(step, completed, input);
         normalizeSqlExecutionContext(step, input);
         Map<Integer, StepExecution> contractContext = resolveTemplateContractFromMcp(step, request, completed, input);
-        bridgeTemplateInvocation(step, request, contractContext, input);
-        validateTemplateExecutionArgumentContract(step, input);
+        if (!runtimeOwnedTemplateBatch(step, plan, completed)) {
+            bridgeTemplateInvocation(step, request, contractContext, input);
+            validateTemplateExecutionArgumentContract(step, input);
+        }
         hydrateExecutionContextFromTemplate(step, contractContext, input);
         hydrateSqlMetadataParametersFromMetadataSearch(step, contractContext, input);
         repairTableScopedSqlTemplate(step, contractContext, input);
         enforceAgentRuntimeEnvironment(step, request, input);
-        validateRequiredExecutionTemplate(step, input, completed);
+        if (!runtimeOwnedTemplateBatch(step, plan, completed)) {
+            validateRequiredExecutionTemplate(step, input, completed);
+        }
         enforceCanonicalAssetContinuity(step, completed, input);
         input.remove("runtimeParameterProtocolApplied");
         if (!retrievalGate.isEmpty()) {
@@ -2599,6 +2646,27 @@ public class InterpretationPlanRuntime {
         return requiredChecks >= 2;
     }
 
+    private boolean runtimeOwnedTemplateBatch(InterpretationPlan.Step step,
+                                              InterpretationPlan plan,
+                                              Map<Integer, StepExecution> completed) {
+        return runtimeOwnedDiagnosticBatch(step, plan)
+            || runtimeOwnedReviewedTemplateBatch(step, completed);
+    }
+
+    private boolean runtimeOwnedReviewedTemplateBatch(InterpretationPlan.Step step,
+                                                       Map<Integer, StepExecution> completed) {
+        if (step == null || !isTemplateExecutionTool(step.toolName())
+            || !declaresBatchTransport(step.input())) {
+            return false;
+        }
+        return reviewedSelectedTemplateIds(completed).size() >= 2;
+    }
+
+    private boolean declaresBatchTransport(Map<String, Object> input) {
+        return input != null && (input.containsKey("calls")
+            || input.containsKey("toolCalls") || input.containsKey("tool_calls"));
+    }
+
     /**
      * Applies the same Runtime-owned discovery and parameter-evidence contract to every child of
      * a model-produced batch. A batch is only a transport optimization; it must not bypass the
@@ -2651,19 +2719,30 @@ public class InterpretationPlanRuntime {
             Map<String, Object> protocol = rawProtocol instanceof Map<?, ?> map
                 ? new LinkedHashMap<>((Map<String, Object>) map)
                 : null;
-            TemplateInvocationBridge.BridgeResult bridged = TEMPLATE_INVOCATION_BRIDGE.prepare(
-                new TemplateInvocationBridge.BridgeRequest(
-                    childTool,
-                    step == null ? null : step.id(),
-                    templateId,
-                    templateMetadata,
-                    arguments,
-                    protocol,
-                    requiresTemplateParameterProtocol(request),
-                    true,
-                    templateParameterEvidenceContext(request, completed)
-                )
-            );
+            TemplateInvocationBridge.BridgeResult bridged;
+            try {
+                bridged = TEMPLATE_INVOCATION_BRIDGE.prepare(
+                    new TemplateInvocationBridge.BridgeRequest(
+                        childTool,
+                        step == null ? null : step.id(),
+                        templateId,
+                        templateMetadata,
+                        arguments,
+                        protocol,
+                        requiresTemplateParameterProtocol(request),
+                        true,
+                        templateParameterEvidenceContext(request, completed)
+                    )
+                );
+            } catch (TemplateInvocationBridge.TemplateBridgeException ex) {
+                if (!runtimeOwnedTemplateBatch(step, request == null ? null : request.plan(), completed)) {
+                    throw ex;
+                }
+                log.warn("InterpretationPlan skipped Runtime-owned batch child after parameter audit: "
+                        + "stepId={}, callIndex={}, tool={}, templateId={}, error={}",
+                    step == null ? null : step.id(), index, childTool, templateId, ex.getMessage());
+                continue;
+            }
             Map<String, Object> childInput = new LinkedHashMap<>(bridged.executorInput());
             childInput.remove(TemplateInvocationBridge.APPLIED_MARKER);
             call.put("arguments", childInput);
@@ -2673,6 +2752,11 @@ public class InterpretationPlanRuntime {
                     + "tool={} templateId={} parameterKeys={} modelProtocolApplied={} protocolTrace={}",
                 step == null ? null : step.id(), index, childTool, templateId,
                 bridged.parameters().keySet(), bridged.modelProtocolApplied(), bridged.protocolTrace());
+        }
+        if (bridgedCalls.isEmpty()) {
+            throw new IllegalStateException(
+                "TEMPLATE_BATCH_PARAMETER_AUDIT_FAILED: no authorized call retained "
+                    + "after Runtime parameter evidence validation");
         }
         input.put("calls", bridgedCalls);
         input.remove("toolCalls");
@@ -3469,12 +3553,9 @@ public class InterpretationPlanRuntime {
             }
         }
         if (templates.size() < 2) {
-            if (batchToolInput(input)) {
-                throw new IllegalStateException(
-                    "DIAGNOSTIC_BATCH_COMPILATION_FAILED: model-provided batch cannot execute "
-                        + "because fewer than two authorized templates were returned by completed discovery");
-            }
-            return null;
+            throw new IllegalStateException(
+                "DIAGNOSTIC_BATCH_COMPILATION_FAILED: fewer than two authorized templates "
+                    + "were returned by completed discovery");
         }
 
         Map<Integer, Integer> templateAssignments = diagnosticTemplateAssignments(checks, templates);
@@ -3572,12 +3653,9 @@ public class InterpretationPlanRuntime {
             calls.add(call);
         }
         if (calls.size() < 2 || outerTool == null) {
-            if (batchToolInput(input)) {
-                throw new IllegalStateException(
-                    "DIAGNOSTIC_BATCH_COMPILATION_FAILED: Runtime could not map at least two "
-                        + "declared diagnostic checks to authorized discovered templates");
-            }
-            return null;
+            throw new IllegalStateException(
+                "DIAGNOSTIC_BATCH_COMPILATION_FAILED: Runtime could not map at least two "
+                    + "declared diagnostic checks to authorized discovered templates");
         }
         Map<String, Object> batch = new LinkedHashMap<>();
         batch.put("batchId", "diagnostic-step-" + step.id());
@@ -3601,6 +3679,145 @@ public class InterpretationPlanRuntime {
                 .toList(),
             missingCheckIds);
         return new TemplateExecutorInvocation(outerTool, batch);
+    }
+
+    /**
+     * Compiles the model-reviewed template selection into the batch transport already declared by
+     * the plan. The selected ids are first intersected with successful discovery output by
+     * {@link EvidenceBasedTemplateCandidateEvaluator}; Runtime never executes an id supplied only
+     * by the model.
+     */
+    private TemplateExecutorInvocation reviewedTemplateBatchInvocation(
+        InterpretationPlan.Step step,
+        Map<Integer, StepExecution> completed,
+        Map<String, Object> input,
+        List<String> allowedTools
+    ) {
+        if (!runtimeOwnedReviewedTemplateBatch(step, completed)) {
+            return null;
+        }
+        List<String> selectedIds = reviewedSelectedTemplateIds(completed);
+        Map<String, Object> batchInput = new LinkedHashMap<>(input == null ? Map.of() : input);
+        mergeReviewedTemplateExecutionInputChanges(completed, step.toolName(), batchInput);
+        List<Map<String, Object>> calls = new ArrayList<>();
+        String outerTool = null;
+        for (String templateId : selectedIds) {
+            Map<String, Object> template = completedTemplateMetadata(completed, templateId);
+            if (template.isEmpty()) {
+                continue;
+            }
+            String declaredExecutor = firstText(templateExecutorTool(template), step.toolName());
+            String childTool = resolveExecutionToolName(declaredExecutor, allowedTools);
+            if (childTool == null || !ToolCallBatchSchema.supports(childTool)) {
+                continue;
+            }
+            Map<String, Object> arguments = diagnosticBatchArguments(batchInput, template, templateId);
+            if (!requiredTemplateParametersSatisfied(template, arguments)) {
+                continue;
+            }
+            if (outerTool == null) {
+                outerTool = childTool;
+            }
+            Map<String, Object> call = new LinkedHashMap<>();
+            call.put("callId", templateId);
+            call.put("toolName", childTool);
+            call.put("arguments", arguments);
+            calls.add(call);
+        }
+        if (calls.size() < 2 || outerTool == null) {
+            throw new IllegalStateException(
+                "REVIEWED_TEMPLATE_BATCH_COMPILATION_FAILED: fewer than two reviewed, authorized "
+                    + "templates were executable under their published contracts");
+        }
+        Map<String, Object> batch = new LinkedHashMap<>();
+        batch.put("batchId", "reviewed-template-step-" + step.id());
+        batch.put("executionMode", firstText(stringValue(batchInput.get("executionMode")), "SEQUENTIAL"));
+        batch.put("stopOnFailure", false);
+        batch.put("calls", calls);
+        log.info("InterpretationPlan compiled reviewed template batch: stepId={}, selectedCount={}, "
+                + "compiledCalls={}, templateIds={}",
+            step.id(), selectedIds.size(), calls.size(),
+            calls.stream().map(call -> call.get("callId")).toList());
+        return new TemplateExecutorInvocation(outerTool, batch);
+    }
+
+    private List<String> reviewedSelectedTemplateIds(Map<Integer, StepExecution> completed) {
+        StepExecution selection = reviewedTemplateSelectionExecution(completed);
+        if (selection == null) {
+            return List.of();
+        }
+        LinkedHashSet<String> selected = new LinkedHashSet<>();
+        for (String id : stringValues(firstPresent(selection.metadata(),
+            "runtimeSelectedTemplateIds", "selectedTemplateIds"))) {
+            String canonical = canonicalTemplateId(id);
+            if (canonical != null && !templateMetadataById(selection.output(), canonical).isEmpty()) {
+                selected.add(canonical);
+            }
+        }
+        return List.copyOf(selected);
+    }
+
+    private StepExecution reviewedTemplateSelectionExecution(Map<Integer, StepExecution> completed) {
+        if (completed == null) {
+            return null;
+        }
+        StepExecution latest = null;
+        for (StepExecution execution : completed.values()) {
+            if (execution != null && execution.success() && isTemplateDiscoveryTool(execution.toolName())
+                && stringValues(firstPresent(execution.metadata(),
+                    "runtimeSelectedTemplateIds", "selectedTemplateIds")).size() >= 2) {
+                latest = execution;
+            }
+        }
+        return latest;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void mergeReviewedTemplateExecutionInputChanges(Map<Integer, StepExecution> completed,
+                                                            String executorTool,
+                                                            Map<String, Object> target) {
+        if (completed == null || target == null) {
+            return;
+        }
+        StepExecution selection = reviewedTemplateSelectionExecution(completed);
+        Object rawActions = selection == null || selection.metadata() == null
+            ? null : selection.metadata().get("nextActions");
+        if (rawActions instanceof Iterable<?> actions) {
+            for (Object item : actions) {
+                if (!(item instanceof Map<?, ?> rawAction)) {
+                    continue;
+                }
+                Map<String, Object> action = new LinkedHashMap<>((Map<String, Object>) rawAction);
+                String tool = stringValue(firstMapValue(action, "tool", "toolName", "tool_name"));
+                if (tool == null || (!sameToolName(tool, executorTool)
+                    && !(isTemplateExecutionTool(tool) && isTemplateExecutionTool(executorTool)))) {
+                    continue;
+                }
+                Object rawChanges = firstMapValue(action, "input_changes", "inputChanges");
+                if (!(rawChanges instanceof Map<?, ?> changes)) {
+                    continue;
+                }
+                changes.forEach((key, value) -> {
+                    if (key != null && value != null
+                        && !"selected_template_ids".equals(String.valueOf(key))
+                        && !"selectedTemplateIds".equals(String.valueOf(key))) {
+                        target.put(String.valueOf(key), value);
+                    }
+                });
+            }
+        }
+    }
+
+    private boolean hasRecoverableReviewedTemplateBatchDownstream(InterpretationPlan plan,
+                                                                   Integer failedStepId,
+                                                                   Map<Integer, StepExecution> completed) {
+        if (plan == null || failedStepId == null || plan.steps() == null) {
+            return false;
+        }
+        return plan.steps().stream()
+            .filter(Objects::nonNull)
+            .filter(step -> safeIntegerList(step.dependsOn()).contains(failedStepId))
+            .anyMatch(step -> runtimeOwnedReviewedTemplateBatch(step, completed));
     }
 
     @SuppressWarnings("unchecked")
@@ -3790,14 +4007,28 @@ public class InterpretationPlanRuntime {
         if (check == null || templateIdentity == null || templateIdentity.isBlank()) {
             return 0;
         }
+        String normalizedIdentity = templateIdentity.toLowerCase(Locale.ROOT);
         Set<String> templateTokens = diagnosticTokens(templateIdentity);
         Set<String> checkTokens = diagnosticTokens(
             firstText(check.checkId(), "") + " " + firstText(check.capability(), "")
+                + " " + firstText(check.dimension(), "")
         );
         int score = 0;
         for (String token : checkTokens) {
-            if (templateTokens.contains(token)) {
+            if (templateTokens.contains(token) || normalizedIdentity.contains(token)) {
                 score += token.length();
+            }
+        }
+        for (String phrase : java.util.Arrays.asList(
+            firstText(check.capability(), ""),
+            firstText(check.dimension(), "")
+        )) {
+            if (phrase == null) {
+                continue;
+            }
+            String normalizedPhrase = phrase.toLowerCase(Locale.ROOT).trim();
+            if (normalizedPhrase.length() >= 2 && normalizedIdentity.contains(normalizedPhrase)) {
+                score += normalizedPhrase.length() * 4;
             }
         }
         return score;
@@ -3828,11 +4059,14 @@ public class InterpretationPlanRuntime {
             "oracle", "database", "query", "execute", "template", "diagnostic", "health", "check"
         );
         Set<String> tokens = new LinkedHashSet<>();
-        for (String raw : value.toLowerCase(Locale.ROOT).split("[^a-z0-9]+")) {
+        for (String raw : value.toLowerCase(Locale.ROOT).split("[^\\p{IsHan}a-z0-9]+")) {
             String token = raw.endsWith("s") && raw.length() > 4
                 ? raw.substring(0, raw.length() - 1)
                 : raw;
-            if (token.length() >= 4 && !ignored.contains(token)) {
+            boolean han = token.codePoints().anyMatch(codePoint ->
+                Character.UnicodeScript.of(codePoint) == Character.UnicodeScript.HAN);
+            if ((han && token.length() >= 2 || !han && token.length() >= 4)
+                && !ignored.contains(token)) {
                 tokens.add(token);
             }
         }
@@ -5477,7 +5711,7 @@ public class InterpretationPlanRuntime {
                 firstText(binding.outputPath(), "") + " " + firstText(binding.inputField(), ""), completed
             )) {
                 log.info("InterpretationPlan ignored model template transport binding because Runtime "
-                        + "will compile the authorized diagnostic batch: fromStep={}, toStep={}, outputPath={}, inputField={}",
+                        + "will compile the authorized template batch: fromStep={}, toStep={}, outputPath={}, inputField={}",
                     binding.from(), binding.to(), binding.outputPath(), binding.inputField());
                 continue;
             }
@@ -6083,7 +6317,7 @@ public class InterpretationPlanRuntime {
                 plan, contract.from(), contract.to(), contract.field(), completed
             )) {
                 log.info("InterpretationPlan ignored model template transport edge contract because Runtime "
-                        + "will compile the authorized diagnostic batch: fromStep={}, toStep={}, field={}",
+                        + "will compile the authorized template batch: fromStep={}, toStep={}, field={}",
                     contract.from(), contract.to(), contract.field());
                 continue;
             }
@@ -6111,9 +6345,8 @@ public class InterpretationPlanRuntime {
                                                            Integer toStepId,
                                                            String field,
                                                            Map<Integer, StepExecution> completed) {
-        if (plan == null || plan.plan() == null || plan.plan().diagnosticProfile() == null
-            || fromStepId == null || toStepId == null || field == null
-            || !field.toLowerCase(Locale.ROOT).contains("template")) {
+        if (plan == null || plan.plan() == null || fromStepId == null || toStepId == null
+            || field == null) {
             return false;
         }
         InterpretationPlan.Step sourceStep = plan.steps().stream()
@@ -6124,9 +6357,17 @@ public class InterpretationPlanRuntime {
             .filter(candidate -> candidate != null && toStepId.equals(candidate.id()))
             .findFirst()
             .orElse(null);
-        if (sourceStep == null || sourceStep.mcpToolAction()
-            || targetStep == null || !targetStep.mcpToolAction()
+        if (targetStep == null || !targetStep.mcpToolAction()
             || !isTemplateExecutionTool(targetStep.toolName())) {
+            return false;
+        }
+        String normalizedField = field.toLowerCase(Locale.ROOT);
+        if (runtimeOwnedReviewedTemplateBatch(targetStep, completed)
+            && (normalizedField.contains("template") || normalizedField.contains("call"))) {
+            return true;
+        }
+        if (plan.plan().diagnosticProfile() == null || sourceStep == null || sourceStep.mcpToolAction()
+            || !normalizedField.contains("template")) {
             return false;
         }
         long mappedRequiredChecks = (plan.plan().diagnosticProfile().checks() == null

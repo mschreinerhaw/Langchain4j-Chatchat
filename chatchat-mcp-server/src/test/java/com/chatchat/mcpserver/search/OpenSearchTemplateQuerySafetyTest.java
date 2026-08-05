@@ -34,7 +34,7 @@ class OpenSearchTemplateQuerySafetyTest {
                 "database_query", null, "rong zi rong quan", 20));
 
         assertThat(new ObjectMapper().writeValueAsString(body))
-            .contains("intentText.pinyin", "text.pinyin");
+            .contains("intentText.pinyin", "text.pinyin", "keywordAliases");
     }
 
     @SuppressWarnings("unchecked")

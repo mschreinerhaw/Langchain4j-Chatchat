@@ -836,12 +836,17 @@ public class InterpretationPlanRuntime {
             }
         }
         if (plan != null && plan.plan() != null && plan.plan().edgeContracts() != null) {
+            Map<Integer, StepExecution> validationState = new LinkedHashMap<>(
+                completed == null ? Map.of() : completed);
+            if (step.id() != null) {
+                validationState.put(step.id(), execution);
+            }
             for (InterpretationPlan.EdgeContract contract : plan.plan().edgeContracts()) {
                 if (contract == null || !Objects.equals(step.id(), contract.from())) {
                     continue;
                 }
                 if (runtimeOwnsDiagnosticTemplateTransport(
-                    plan, contract.from(), contract.to(), contract.field(), completed
+                    plan, contract.from(), contract.to(), contract.field(), validationState
                 )) {
                     continue;
                 }
@@ -1891,7 +1896,7 @@ public class InterpretationPlanRuntime {
         }
         for (String key : List.of(
             "retrievalReview", "retrieval_review", "structuredContent", "structured_content",
-            "data", "result", "payload", "body", "output"
+            "routingProjection", "preview", "data", "result", "payload", "body", "output"
         )) {
             String nested = discoveryResultCode(firstMapValue(map, key), depth + 1);
             if (nested != null) {
@@ -2174,7 +2179,7 @@ public class InterpretationPlanRuntime {
                 return nestedExplicit;
             }
         }
-        for (String key : List.of("routingProjection", "structuredContent", "structured_content",
+        for (String key : List.of("routingProjection", "preview", "structuredContent", "structured_content",
             "data", "result", "payload", "body", "output")) {
             Object nested = firstMapValue(map, key);
             if (nested != null) {
@@ -6420,7 +6425,8 @@ public class InterpretationPlanRuntime {
             && (normalizedField.contains("template") || normalizedField.contains("call"))) {
             return true;
         }
-        if (plan.plan().diagnosticProfile() == null || sourceStep == null || sourceStep.mcpToolAction()
+        if (plan.plan().diagnosticProfile() == null || sourceStep == null
+            || (sourceStep.mcpToolAction() && !isTemplateDiscoveryTool(sourceStep.toolName()))
             || !normalizedField.contains("template")) {
             return false;
         }

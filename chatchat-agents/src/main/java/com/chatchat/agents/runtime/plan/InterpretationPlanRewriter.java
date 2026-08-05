@@ -86,28 +86,24 @@ public class InterpretationPlanRewriter {
             rewrittenPlan = normalizeRewritePlan(
                 request.originalPlan(), rewrittenPlan, request.availableTools());
             rewrittenPlan = preserveBudgetCeilings(request.budgetCeilings(), rewrittenPlan);
-            // Rehydrate completed/locked predecessor nodes before validation. A continuation
-            // may be executable because those nodes already completed, but the persisted DAG
-            // must remain structurally complete for auditing and subsequent rewrites.
-            rewrittenPlan = repairContinuationPlan(request.originalPlan(), rewrittenPlan);
-            rewrittenPlan = repairExecutionPolicyStepLimit(
-                rewrittenPlan,
-                request.budgetCeilings() == null ? null : request.budgetCeilings().maxSteps()
-            );
             InterpretationPlanValidator.ValidationResult validation = validator.validate(
                 rewrittenPlan,
                 request.toolRegistry(),
                 new java.util.LinkedHashSet<>(request.availableTools() == null ? List.of() : request.availableTools())
             );
             validation = validateRequiredToolExecutions(rewrittenPlan, request.requiredToolExecutions(), validation);
-            if (!validation.valid()) {
-                InterpretationPlan repairedPlan = repairContinuationPlan(request.originalPlan(), rewrittenPlan);
+            InterpretationPlan continuationPlan = repairContinuationPlan(request.originalPlan(), rewrittenPlan);
+            if (!validation.valid() || continuationPlan != rewrittenPlan) {
+                InterpretationPlan repairedPlan = continuationPlan;
                 repairedPlan = repairExecutionPolicyStepLimit(
                     repairedPlan,
                     request.budgetCeilings() == null
                         ? null
                         : request.budgetCeilings().maxSteps()
                 );
+                InterpretationPlanOptimizer.OptimizationResult optimizedRepair =
+                    new InterpretationPlanOptimizer().optimize(repairedPlan);
+                repairedPlan = optimizedRepair.plan() == null ? repairedPlan : optimizedRepair.plan();
                 if (repairedPlan != rewrittenPlan) {
                     InterpretationPlanValidator.ValidationResult repairedValidation = validator.validate(
                         repairedPlan,

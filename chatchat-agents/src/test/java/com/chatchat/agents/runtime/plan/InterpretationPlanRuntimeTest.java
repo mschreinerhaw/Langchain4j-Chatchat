@@ -719,12 +719,18 @@ class InterpretationPlanRuntimeTest {
         ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
         when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
             ToolOutput.success(Map.of(
-                "schemaVersion", "template_query_result.v1",
-                "success", true,
-                "returnedCount", 2,
-                "templates", List.of(
-                    Map.of("templateId", "check_cpu"),
-                    Map.of("templateId", "check_docker_overview")
+                "schemaVersion", "tool_result_summary.v1",
+                "summaryTruncated", true,
+                "preview", Map.of(
+                    "routingProjection", Map.of(
+                        "schemaVersion", "template_query_result.v1",
+                        "success", true,
+                        "returnedCount", 2,
+                        "templates", List.of(
+                            Map.of("templateId", "check_cpu"),
+                            Map.of("templateId", "check_docker_overview")
+                        )
+                    )
                 )
             )),
             ToolMetadata.builder().id(toolName).build(), null, "success", Map.of()

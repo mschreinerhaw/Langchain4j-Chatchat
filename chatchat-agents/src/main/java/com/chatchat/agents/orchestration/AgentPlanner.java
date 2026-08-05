@@ -8,6 +8,7 @@ import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.agents.runtime.plan.InterpretationExecutionProtocol;
 import com.chatchat.agents.runtime.plan.InterpretationPlanJsonSchema;
+import com.chatchat.agents.runtime.plan.InterpretationPlanOptimizer;
 import com.chatchat.agents.runtime.plan.InterpretationPlanValidator;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolMetadata;
@@ -1016,6 +1017,22 @@ class AgentPlanner {
             validationContext == null ? null : validationContext.budgetCaps()
         );
         interpretationPlan = budgetResult.plan();
+        InterpretationPlanOptimizer.OptimizationResult optimization =
+            new InterpretationPlanOptimizer().optimize(interpretationPlan);
+        if (optimization.plan() != null) {
+            InterpretationPlan optimized = optimization.plan();
+            // Planning-time optimization repairs the graph before validation. The model's
+            // already budget-capped execution policy remains authoritative here; runtime
+            // policy tuning must not silently expand an explicit zero-rewrite budget.
+            interpretationPlan = new InterpretationPlan(
+                optimized.version(),
+                optimized.intent(),
+                optimized.context(),
+                optimized.plan(),
+                interpretationPlan.executionPolicy(),
+                optimized.review()
+            );
+        }
         InterpretationPlanValidator.ValidationResult validation =
             interpretationPlanValidator.validate(
                 interpretationPlan,

@@ -160,7 +160,89 @@ chatchat:
     openai:
       apiKey: replace-with-your-key
       baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
+      # auto | openai | dashscope-native | dashscope-multimodal | dashscope-text
+      protocol: auto
 ```
+
+### 模型协议与 URL 配置
+
+`chatchat.models.openai` 是现有模型连接配置命名空间。除 OpenAI-compatible
+协议外，它也支持 DashScope 原生文本及多模态协议；使用原生协议时
+`defaultProvider` 仍配置为 `openai`。
+
+| `protocol` | 适用场景 | URL 处理方式 |
+|---|---|---|
+| `auto` | 推荐默认值 | 根据 URL 自动识别 OpenAI-compatible、DashScope 原生文本或多模态协议 |
+| `openai` | OpenAI 及兼容服务 | 使用 OpenAI Chat Completions 协议；完整的 `/chat/completions` 地址会自动转换为 Base URL |
+| `dashscope-native` | 标准 DashScope 原生地址 | 根据 URL 中的 `text-generation` 或 `multimodal-generation` 自动选择消息格式 |
+| `dashscope-multimodal` | 路径不标准的多模态私有网关 | 强制使用 DashScope MultiModalConversation 请求格式 |
+| `dashscope-text` | 路径不标准的文本私有网关 | 强制使用 DashScope Generation 请求格式 |
+
+`auto` 当前识别以下 URL 形式：
+
+- OpenAI-compatible Base URL，例如 `https://api.openai.com/v1`；
+- OpenAI-compatible 完整接口，例如 `https://example.com/v1/chat/completions`；
+- DashScope compatible-mode，例如 `https://dashscope.aliyuncs.com/compatible-mode/v1`；
+- DashScope 原生文本接口 `.../api/v1/services/aigc/text-generation/generation`；
+- DashScope 原生多模态接口 `.../api/v1/services/aigc/multimodal-generation/generation`；
+- 阿里云百炼 workspace 专属域名下的上述 compatible-mode 或原生接口。
+
+OpenAI-compatible 配置：
+
+```yaml
+chatchat:
+  models:
+    defaultProvider: openai
+    defaultChatModel: qwen-plus
+    openai:
+      apiKey: ${DASHSCOPE_API_KEY:}
+      baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
+      protocol: auto
+      timeout: 180000
+      maxTokens: -1
+      maxRetries: 3
+```
+
+阿里云百炼原生多模态配置：
+
+```yaml
+chatchat:
+  models:
+    defaultProvider: openai
+    defaultChatModel: qwen3.6-plus
+    openai:
+      apiKey: ${DASHSCOPE_API_KEY:}
+      baseUrl: https://llm-7upawl16up8649rh.cn-beijing.maas.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+      protocol: auto
+      timeout: 180000
+      maxTokens: -1
+      maxRetries: 3
+```
+
+如果私有网关隐藏或重写了标准路径，自动识别无法判断文本/多模态格式，需显式指定：
+
+```yaml
+chatchat:
+  models:
+    defaultProvider: openai
+    defaultChatModel: your-model-name
+    openai:
+      apiKey: ${MODEL_API_KEY:}
+      baseUrl: https://model.example.com/invoke
+      protocol: dashscope-multimodal
+```
+
+注意事项：
+
+- DashScope 原生接口与 OpenAI-compatible 接口的请求体不同，不能只把原生完整
+  URL 填入 OpenAI 客户端。运行时会将 LangChain4j 消息转换为
+  `model + input.messages + parameters` 结构。
+- 原生多模态协议支持文本、图片、音频消息，以及 `parameters.tools`、工具调用和
+  工具结果回传。
+- API Key 应通过环境变量或密钥管理服务注入，不要提交到仓库。
+- 应用启动日志会输出最终识别到的协议、endpoint 和模型名，但不会输出 API Key。
+- 如果网关路径不具有标准特征，应使用显式 `protocol`，避免将原生接口误当作
+  OpenAI-compatible 接口。
 
 ## 本地开发
 

@@ -44,6 +44,12 @@ public class ModelsConfig {
     public static class OpenAIConfig {
         private String apiKey;
         private String baseUrl = "https://api.openai.com/v1";
+        /**
+         * Model wire protocol: auto, openai, dashscope-native,
+         * dashscope-multimodal, or dashscope-text.
+         * Auto detects full DashScope generation endpoints and OpenAI-compatible URLs.
+         */
+        private String protocol = "auto";
         private int timeout = 30;
         /**
          * Maximum completion tokens sent to the model. -1 means do not set a model-side limit.

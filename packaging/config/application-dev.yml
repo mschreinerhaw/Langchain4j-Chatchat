@@ -81,6 +81,8 @@ chatchat:
   models:
     defaultProvider: openai
     defaultChatModel: qwen3.6-plus
+    availableChatModels:
+      - deepseek-v4-pro
     context-window-max-tokens: 200000
     context-reserved-system-tokens: 20000
     context-reserved-history-tokens: 30000
@@ -90,6 +92,8 @@ chatchat:
       # OpenAI-compatible API key. For DashScope compatible mode, set DASHSCOPE_API_KEY or OPENAI_API_KEY.
       api-key:
       baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
+      # auto detects OpenAI-compatible URLs and DashScope native generation endpoints.
+      protocol: auto
       timeout: 1800000
       # Maximum model completion tokens. -1 means do not set a model-side token limit.
       maxTokens: -1

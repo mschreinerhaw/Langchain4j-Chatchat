@@ -6,9 +6,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.Set;
 
 /**
  * Central decision engine for MCP workflow tool execution and final-answer gates.
@@ -56,6 +59,10 @@ class AgentWorkflowDecisionEngine {
             }
             Boolean required = booleanObject(step.get("required"));
             String condition = stringValue(step.get("condition"));
+            int order = firstInteger(firstObject(step, "step", "order"), index);
+            List<String> dependencies = stringList(firstObject(step,
+                "dependsOn", "depends_on", "requiredDependsOn", "required_depends_on"));
+            List<String> aliases = workflowStepAliases(step, tool, order, index);
             for (String stepTool : stepTools) {
                 ToolExecutionDecision decision = resolveToolExecution(
                     stepTool,
@@ -66,7 +73,8 @@ class AgentWorkflowDecisionEngine {
                     List.of()
                 );
                 if (decision.outcome() == ToolExecutionOutcome.EXECUTE) {
-                    requiredSteps.add(new WorkflowToolStep(firstInteger(firstObject(step, "step", "order"), index), decision.toolName()));
+                    requiredSteps.add(new WorkflowToolStep(
+                        order, index, decision.toolName(), aliases, dependencies));
                 } else if (decision.outcome() != ToolExecutionOutcome.DEFER_TO_PLANNER) {
                     skippedDecisions.add(decision);
                 }
@@ -75,11 +83,92 @@ class AgentWorkflowDecisionEngine {
         }
 
         LinkedHashMap<String, Boolean> ordered = new LinkedHashMap<>();
-        requiredSteps.stream()
-            .sorted(Comparator.comparingInt(WorkflowToolStep::order))
+        dependencyOrderedSteps(requiredSteps).stream()
             .map(WorkflowToolStep::toolName)
             .forEach(tool -> ordered.put(tool, Boolean.TRUE));
         return new WorkflowMandatoryResolution(new ArrayList<>(ordered.keySet()), distinctDecisions(skippedDecisions));
+    }
+
+    /**
+     * Orders mandatory workflow tools by their declared dependency graph. Numeric
+     * order and source position are deterministic tie breakers only; treating
+     * them as the workflow itself can place an executor before its discovery
+     * dependency when generated steps share or omit an order value.
+     */
+    private List<WorkflowToolStep> dependencyOrderedSteps(List<WorkflowToolStep> steps) {
+        if (steps == null || steps.size() < 2) {
+            return steps == null ? List.of() : List.copyOf(steps);
+        }
+        Map<WorkflowToolStep, Integer> inDegree = new LinkedHashMap<>();
+        Map<WorkflowToolStep, List<WorkflowToolStep>> dependents = new LinkedHashMap<>();
+        for (WorkflowToolStep step : steps) {
+            inDegree.put(step, 0);
+            dependents.put(step, new ArrayList<>());
+        }
+        for (WorkflowToolStep step : steps) {
+            Set<WorkflowToolStep> resolvedDependencies = new LinkedHashSet<>();
+            for (String dependency : step.dependencies()) {
+                steps.stream()
+                    .filter(candidate -> candidate != step && workflowStepMatches(candidate, dependency))
+                    .forEach(resolvedDependencies::add);
+            }
+            inDegree.put(step, resolvedDependencies.size());
+            resolvedDependencies.forEach(dependency -> dependents.get(dependency).add(step));
+        }
+
+        Comparator<WorkflowToolStep> stableOrder = Comparator
+            .comparingInt(WorkflowToolStep::order)
+            .thenComparingInt(WorkflowToolStep::sourceIndex);
+        PriorityQueue<WorkflowToolStep> ready = new PriorityQueue<>(stableOrder);
+        inDegree.forEach((step, degree) -> {
+            if (degree == 0) {
+                ready.add(step);
+            }
+        });
+        List<WorkflowToolStep> ordered = new ArrayList<>();
+        while (!ready.isEmpty()) {
+            WorkflowToolStep current = ready.remove();
+            ordered.add(current);
+            for (WorkflowToolStep dependent : dependents.get(current)) {
+                int remaining = inDegree.computeIfPresent(dependent, (ignored, degree) -> degree - 1);
+                if (remaining == 0) {
+                    ready.add(dependent);
+                }
+            }
+        }
+        if (ordered.size() == steps.size()) {
+            return ordered;
+        }
+        // Preserve the previous deterministic behavior for malformed cyclic graphs;
+        // workflow validation elsewhere remains responsible for reporting the cycle.
+        return steps.stream().sorted(stableOrder).toList();
+    }
+
+    private boolean workflowStepMatches(WorkflowToolStep step, String dependency) {
+        if (step == null || dependency == null || dependency.isBlank()) {
+            return false;
+        }
+        return step.aliases().stream().anyMatch(alias ->
+            alias.equalsIgnoreCase(dependency.trim()) || sameToolName(alias, dependency));
+    }
+
+    private List<String> workflowStepAliases(Map<String, Object> step,
+                                             String tool,
+                                             int order,
+                                             int sourceIndex) {
+        LinkedHashMap<String, Boolean> aliases = new LinkedHashMap<>();
+        for (Object value : new Object[] {
+            firstObject(step, "name", "id"),
+            firstObject(step, "step", "order"),
+            tool,
+            String.valueOf(order),
+            String.valueOf(sourceIndex)}) {
+            String alias = stringValue(value);
+            if (alias != null && !alias.isBlank()) {
+                aliases.put(alias.trim(), Boolean.TRUE);
+            }
+        }
+        return new ArrayList<>(aliases.keySet());
     }
 
     ToolExecutionDecision resolveToolExecution(String requestedToolName,
@@ -603,8 +692,15 @@ class AgentWorkflowDecisionEngine {
 
     private record WorkflowToolStep(
         int order,
-        String toolName
+        int sourceIndex,
+        String toolName,
+        List<String> aliases,
+        List<String> dependencies
     ) {
+        private WorkflowToolStep {
+            aliases = aliases == null ? List.of() : List.copyOf(aliases);
+            dependencies = dependencies == null ? List.of() : List.copyOf(dependencies);
+        }
     }
 }
 

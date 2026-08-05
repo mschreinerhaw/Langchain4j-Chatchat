@@ -83,7 +83,6 @@ chatchat:
         - python
         - python3
   models:
-    defaultProvider: openai
     defaultChatModel: qwen3.6-plus
     context-window-max-tokens: 200000
     context-reserved-system-tokens: 20000

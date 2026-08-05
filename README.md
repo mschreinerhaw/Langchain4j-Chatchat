@@ -144,8 +144,9 @@ chatchat-mcp-server/src/main/distribution/config/application.yml
 - `spring.datasource.*`：应用数据库，默认 H2 文件库。
 - `spring.jpa.*`：JPA 自动建表和数据库方言。
 - `server.port`：服务端口，主应用默认 `8080`，MCP Server 默认 `8090`。
-- `chatchat.models.*`：模型供应商、默认聊天模型、默认 embedding 模型。
-- `chatchat.models.openai.*`：OpenAI-compatible API Key、Base URL、超时、重试和代理。
+- `chatchat.models.*`：默认聊天模型、可选模型及上下文预算。
+- `chatchat.models.chatModels.<model>.*`：每个模型独立的协议、API Key、URL、超时、重试和代理。
+- `chatchat.models.openai.*`：旧版共享连接配置，仅作为未配置 `chatModels` 时的兼容回退。
 - `chatchat.mcp.center.*`：主应用连接独立 MCP Server 的配置。
 - `chatchat.search.*`：知识库检索和文件存储目录。
 - `chatchat.chat.detail-store.*`：聊天明细存储方式和 RocksDB 路径。
@@ -157,18 +158,24 @@ chatchat-mcp-server/src/main/distribution/config/application.yml
 ```yaml
 chatchat:
   models:
-    openai:
-      apiKey: replace-with-your-key
-      baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
-      # auto | openai | dashscope-native | dashscope-multimodal | dashscope-text
-      protocol: auto
+    defaultChatModel: qwen-plus
+    chatModels:
+      qwen-plus:
+        apiKey: replace-with-your-key
+        baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
+        # auto | openai | dashscope-native | dashscope-multimodal | dashscope-text
+        protocol: auto
 ```
 
 ### 模型协议与 URL 配置
 
-`chatchat.models.openai` 是现有模型连接配置命名空间。除 OpenAI-compatible
-协议外，它也支持 DashScope 原生文本及多模态协议；使用原生协议时
-`defaultProvider` 仍配置为 `openai`。
+推荐使用 `chatchat.models.chatModels.<model>` 为每个模型配置独立连接。
+运行时按请求中的模型名选择连接，不再通过 `defaultProvider=openai` 限制模型创建。
+旧版 `chatchat.models.openai` 仍可作为所有未单独配置模型的共享回退。
+如果对外展示名与供应商模型 ID 不同，可在连接中设置 `modelName` 覆盖实际请求值。
+
+`availableChatModels` 可以显式补充模型列表；运行时还会自动合并
+`defaultChatModel` 和 `chatModels` 的键并去重，因此不需要在多处重复维护模型名。
 
 | `protocol` | 适用场景 | URL 处理方式 |
 |---|---|---|
@@ -192,15 +199,15 @@ OpenAI-compatible 配置：
 ```yaml
 chatchat:
   models:
-    defaultProvider: openai
     defaultChatModel: qwen-plus
-    openai:
-      apiKey: ${DASHSCOPE_API_KEY:}
-      baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
-      protocol: auto
-      timeout: 180000
-      maxTokens: -1
-      maxRetries: 3
+    chatModels:
+      qwen-plus:
+        apiKey: ${DASHSCOPE_API_KEY:}
+        baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
+        protocol: auto
+        timeout: 180000
+        maxTokens: -1
+        maxRetries: 3
 ```
 
 阿里云百炼原生多模态配置：
@@ -208,15 +215,15 @@ chatchat:
 ```yaml
 chatchat:
   models:
-    defaultProvider: openai
     defaultChatModel: qwen3.6-plus
-    openai:
-      apiKey: ${DASHSCOPE_API_KEY:}
-      baseUrl: https://llm-7upawl16up8649rh.cn-beijing.maas.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
-      protocol: auto
-      timeout: 180000
-      maxTokens: -1
-      maxRetries: 3
+    chatModels:
+      qwen3.6-plus:
+        apiKey: ${DASHSCOPE_API_KEY:}
+        baseUrl: https://llm-7upawl16up8649rh.cn-beijing.maas.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+        protocol: auto
+        timeout: 180000
+        maxTokens: -1
+        maxRetries: 3
 ```
 
 如果私有网关隐藏或重写了标准路径，自动识别无法判断文本/多模态格式，需显式指定：
@@ -224,12 +231,12 @@ chatchat:
 ```yaml
 chatchat:
   models:
-    defaultProvider: openai
     defaultChatModel: your-model-name
-    openai:
-      apiKey: ${MODEL_API_KEY:}
-      baseUrl: https://model.example.com/invoke
-      protocol: dashscope-multimodal
+    chatModels:
+      your-model-name:
+        apiKey: ${MODEL_API_KEY:}
+        baseUrl: https://model.example.com/invoke
+        protocol: dashscope-multimodal
 ```
 
 注意事项：

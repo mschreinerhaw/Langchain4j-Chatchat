@@ -87,7 +87,6 @@ chatchat:
         - python
         - python3
   models:
-    defaultProvider: openai
     defaultChatModel: deepseek-v4-pro
     context-window-max-tokens: 200000
     context-reserved-system-tokens: 20000
@@ -95,12 +94,14 @@ chatchat:
     context-reserved-output-tokens: 30000
     availableChatModels:
       - deepseek-v4-pro
-    openai:
-      apiKey:
-      baseUrl: https://api.openai.com/v1
-      timeout: 1800000
-      maxTokens: -1
-      maxRetries: 3
+    chatModels:
+      deepseek-v4-pro:
+        apiKey:
+        baseUrl: https://api.openai.com/v1
+        protocol: auto
+        timeout: 1800000
+        maxTokens: -1
+        maxRetries: 3
   agent:
     task:
       queue-capacity: 1000

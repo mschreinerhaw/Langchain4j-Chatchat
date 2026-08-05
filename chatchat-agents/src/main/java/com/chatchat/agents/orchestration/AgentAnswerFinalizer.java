@@ -1912,10 +1912,15 @@ class AgentAnswerFinalizer {
     }
 
     private long modelRequestTimeoutMs(ModelsConfig modelsConfig) {
-        if (modelsConfig == null || modelsConfig.getOpenai() == null) {
+        if (modelsConfig == null) {
             return 0L;
         }
-        int timeout = modelsConfig.getOpenai().getTimeout();
+        ModelsConfig.ModelConnectionConfig connection = modelsConfig.resolveChatModelConfig(
+            modelsConfig.getDefaultChatModel());
+        if (connection == null) {
+            return 0L;
+        }
+        int timeout = connection.getTimeout();
         if (timeout <= 0) {
             return 0L;
         }

@@ -31,4 +31,14 @@ class ModelEndpointTest {
         assertThat(endpoint.protocol()).isEqualTo(ModelEndpoint.Protocol.DASHSCOPE_NATIVE);
         assertThat(endpoint.multimodal()).isTrue();
     }
+
+    @Test
+    void detectsNativeEndpointBehindARewrittenPrefix() {
+        ModelEndpoint endpoint = ModelEndpoint.resolve(
+            "https://gateway.example/tenant/route/multimodal-generation/generation?workspace=test",
+            "auto");
+
+        assertThat(endpoint.protocol()).isEqualTo(ModelEndpoint.Protocol.DASHSCOPE_NATIVE);
+        assertThat(endpoint.multimodal()).isTrue();
+    }
 }

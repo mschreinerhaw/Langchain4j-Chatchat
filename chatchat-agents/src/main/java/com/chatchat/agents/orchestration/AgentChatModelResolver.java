@@ -38,9 +38,6 @@ public class AgentChatModelResolver {
         if (normalized == null || normalized.equals(modelsConfig.getDefaultChatModel())) {
             return defaultChatModel;
         }
-        if (!"openai".equalsIgnoreCase(modelsConfig.getDefaultProvider())) {
-            return defaultChatModel;
-        }
         return chatModelsByName.computeIfAbsent(normalized,
             model -> chatModelFactory.create(model, true));
     }

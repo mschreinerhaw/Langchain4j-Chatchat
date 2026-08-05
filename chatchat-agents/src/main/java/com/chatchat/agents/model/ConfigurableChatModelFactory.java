@@ -25,21 +25,29 @@ public class ConfigurableChatModelFactory {
     private final ObjectMapper objectMapper;
 
     public ChatModel create(String modelName, boolean logTraffic) {
-        ModelsConfig.OpenAIConfig config = modelsConfig.getOpenai();
+        if (modelName == null || modelName.isBlank()) {
+            throw new IllegalArgumentException("Chat model name must not be blank");
+        }
+        ModelsConfig.ModelConnectionConfig config = modelsConfig.resolveChatModelConfig(modelName);
+        if (config == null) {
+            throw new IllegalArgumentException("No connection configuration found for chat model: " + modelName);
+        }
+        String providerModelName = config.getModelName() == null || config.getModelName().isBlank()
+            ? modelName.trim() : config.getModelName().trim();
         ModelEndpoint endpoint = ModelEndpoint.resolve(config.getBaseUrl(), config.getProtocol());
         Duration timeout = resolveTimeout(config.getTimeout());
-        log.info("Initializing chat model protocol={} endpoint={} model={}",
-            endpoint.protocol(), endpoint.url(), modelName);
+        log.info("Initializing chat model protocol={} endpoint={} selectedModel={} providerModel={}",
+            endpoint.protocol(), endpoint.url(), modelName, providerModelName);
         if (endpoint.protocol() == ModelEndpoint.Protocol.DASHSCOPE_NATIVE) {
             return new DashScopeNativeChatModel(
-                endpoint.url(), endpoint.multimodal(), config.getApiKey(), modelName,
+                endpoint.url(), endpoint.multimodal(), config.getApiKey(), providerModelName,
                 timeout, config.getMaxTokens(), config.getMaxRetries(), httpClient(config.getProxy()), objectMapper);
         }
 
         OpenAiChatModel.OpenAiChatModelBuilder builder = OpenAiChatModel.builder()
             .apiKey(config.getApiKey())
             .baseUrl(endpoint.url())
-            .modelName(modelName)
+            .modelName(providerModelName)
             .maxRetries(config.getMaxRetries())
             .logRequests(logTraffic)
             .logResponses(logTraffic);

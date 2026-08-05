@@ -40,9 +40,9 @@ public record ModelEndpoint(Protocol protocol, String url, boolean multimodal) {
     }
 
     private static boolean isDashScopeNativePath(String url) {
-        String normalized = url.toLowerCase(Locale.ROOT);
-        return normalized.contains("/api/v1/services/aigc/multimodal-generation/generation")
-            || normalized.contains("/api/v1/services/aigc/text-generation/generation");
+        String path = URI.create(url).getPath().toLowerCase(Locale.ROOT).replaceAll("/+$", "");
+        return path.endsWith("/multimodal-generation/generation")
+            || path.endsWith("/text-generation/generation");
     }
 
     private static String openAiBaseUrl(String url) {

@@ -7,7 +7,6 @@ import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -22,25 +21,28 @@ public class LangChain4jConfig {
     private final ModelsConfig modelsConfig;
     private final ConfigurableChatModelFactory chatModelFactory;
 
-    /**
-     * Configure OpenAI chat model
-     */
+    /** Configure the default chat model from its protocol-aware connection. */
     @Bean
-    @ConditionalOnProperty(prefix = "chatchat.models", name = "defaultProvider", havingValue = "openai")
     public ChatModel chatLanguageModel() {
-        log.info("Initializing OpenAI Chat Model");
-        if (modelsConfig.getOpenai().getApiKey() == null || modelsConfig.getOpenai().getApiKey().isBlank()) {
-            log.warn("OpenAI API key is not configured. Chat model calls will fail until chatchat.models.openai.apiKey is set.");
+        String modelName = modelsConfig.getDefaultChatModel();
+        ModelsConfig.ModelConnectionConfig connection = modelsConfig.resolveChatModelConfig(modelName);
+        if (modelName == null || modelName.isBlank()) {
+            log.warn("Default chat model is not configured");
+            return new MissingModelConfigurationChatModel("Default chat model is not configured. "
+                + "Set chatchat.models.defaultChatModel before using chat.");
+        }
+        if (connection == null || connection.getApiKey() == null || connection.getApiKey().isBlank()) {
+            log.warn("API key is not configured for chat model {}", modelName);
             return new MissingApiKeyChatModel();
         }
 
-        return chatModelFactory.create(modelsConfig.getDefaultChatModel(), false);
+        return chatModelFactory.create(modelName, false);
     }
 
     private static final class MissingApiKeyChatModel implements ChatModel {
 
-        private static final String MESSAGE = "OpenAI API key is not configured. Set chatchat.models.openai.apiKey "
-            + "or CHATCHAT_MODELS_OPENAI_API_KEY before using chat.";
+        private static final String MESSAGE = "Model API key is not configured. Set the selected "
+            + "chatchat.models.chatModels.<model>.apiKey or the legacy chatchat.models.openai.apiKey.";
 
         @Override
         public String chat(String userMessage) {
@@ -50,6 +52,25 @@ public class LangChain4jConfig {
         @Override
         public ChatResponse doChat(ChatRequest chatRequest) {
             throw new IllegalStateException(MESSAGE);
+        }
+    }
+
+    private static final class MissingModelConfigurationChatModel implements ChatModel {
+
+        private final String message;
+
+        private MissingModelConfigurationChatModel(String message) {
+            this.message = message;
+        }
+
+        @Override
+        public String chat(String userMessage) {
+            throw new IllegalStateException(message);
+        }
+
+        @Override
+        public ChatResponse doChat(ChatRequest chatRequest) {
+            throw new IllegalStateException(message);
         }
     }
 }

@@ -114,6 +114,7 @@ public class AgentWorkshopController {
             availableTools,
             registryBridge.listRegisteredTools(),
             modelOptions(),
+            modelsConfig.getDefaultChatModel(),
             searchService.listLibrary("all", null, 1, 500).documents(),
             pageInfo,
             agentCategories(allAgents)
@@ -662,6 +663,7 @@ public class AgentWorkshopController {
         List<String> availableTools,
         List<McpToolRegistryBridge.RegisteredMcpTool> registeredMcpTools,
         List<ModelOption> models,
+        String defaultModelName,
         List<LibraryDocumentItem> documents,
         PageInfo page,
         List<String> agentCategories

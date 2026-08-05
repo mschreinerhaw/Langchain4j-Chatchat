@@ -335,12 +335,18 @@
           </label>
           <label>
             <span>绑定模型</span>
-            <select v-model="form.modelName">
-              <option v-if="!models.length" value="">默认模型</option>
+            <input
+              v-model.trim="form.modelName"
+              list="agent-workshop-model-options"
+              :placeholder="defaultModelName() || '输入模型名称'"
+              autocomplete="off"
+            >
+            <datalist id="agent-workshop-model-options">
               <option v-for="model in models" :key="model.value" :value="model.value">
                 {{ model.label || model.value }}
               </option>
-            </select>
+            </datalist>
+            <small>候选项来自后端配置；也可输入共享兼容端点支持的模型名，保存后立即用于该 Agent。</small>
           </label>
           <label class="runtime-environment-field">
             <span>运行环境</span>

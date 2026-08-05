@@ -186,6 +186,7 @@ export default {
       availableTools: [],
       registeredMcpTools: [],
       models: [],
+      backendDefaultModelName: "",
       documents: [],
       loading: false,
       saving: false,
@@ -460,6 +461,7 @@ export default {
         this.availableTools = Array.isArray(payload?.availableTools) ? payload.availableTools : [];
         this.registeredMcpTools = Array.isArray(payload?.registeredMcpTools) ? payload.registeredMcpTools : [];
         this.models = Array.isArray(payload?.models) ? payload.models : [];
+        this.backendDefaultModelName = String(payload?.defaultModelName || "").trim();
         this.documents = Array.isArray(payload?.documents) ? payload.documents : [];
         this.normalizeAgentFilters();
       } catch (error) {
@@ -1498,7 +1500,9 @@ export default {
       this.syncWorkflowSteps([...selected].sort());
     },
     defaultModelName() {
-      return this.models.find((model) => model?.value)?.value || "";
+      return this.backendDefaultModelName
+        || this.models.find((model) => model?.value)?.value
+        || "";
     }
   }
 };

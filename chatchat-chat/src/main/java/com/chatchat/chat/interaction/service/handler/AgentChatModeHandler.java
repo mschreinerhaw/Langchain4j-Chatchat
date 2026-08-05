@@ -130,7 +130,7 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             modelName,
             runtimeAttributes
         );
-        logAgentRunOutput(context, request, result);
+        logAgentRunOutput(context, result, modelName);
 
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("availableTools", toolPolicy.availableTools());
@@ -654,7 +654,7 @@ public class AgentChatModeHandler implements InteractionModeHandler {
     }
 
     @SuppressWarnings("unchecked")
-    private void logAgentRunOutput(InteractionContext context, InteractionRequest request, AgentRunResult result) {
+    private void logAgentRunOutput(InteractionContext context, AgentRunResult result, String modelName) {
         Map<String, Object> metadata = result == null || result.metadata() == null ? Map.of() : result.metadata();
         Object plannerSteps = metadata.get("plannerSteps");
         if (plannerSteps instanceof List<?> steps) {
@@ -692,7 +692,7 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             context.requestId(),
             context.conversationId(),
             result == null ? null : result.runId(),
-            request.getModelName(),
+            modelName,
             result == null ? null : result.status(),
             result == null ? null : result.stopReason(),
             result == null || result.answer() == null ? 0 : result.answer().length(),

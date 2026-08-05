@@ -27,6 +27,7 @@ import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashSet;
@@ -2489,6 +2490,9 @@ public class ToolRuntimeService {
         }
 
         List<String> dependencies = new ArrayList<>();
+        List<String> authoritativeDependencies = authoritativeWorkflowDependencies(request, toolName);
+        boolean authoritativeSequence = authoritativeDependencies != null
+            && authoritativeWorkflowHasEdges(request);
         if (globalDependency != null && globalDependency.getDependsOn() != null) {
             dependencies.addAll(globalDependency.getDependsOn());
             matchedRules.add("tool_dependencies." + toolName + "=" + globalDependency.getDependsOn());
@@ -2507,27 +2511,32 @@ public class ToolRuntimeService {
                 return new WorkflowDecision(true, workflowName, stateKey, ToolRuntimeAction.DENY,
                     "Tool " + toolName + " is not part of MCP workflow " + workflowName, matchedRules);
             }
-            if (currentStep.getDependsOn() != null) {
+            if (!authoritativeSequence && currentStep.getDependsOn() != null) {
                 dependencies.addAll(currentStep.getDependsOn());
             }
             if (currentStep.getOptionalDependsOn() != null && !currentStep.getOptionalDependsOn().isEmpty()) {
                 matchedRules.add("workflow." + workflowName + "." + toolName + ".optionalDependsOn=" + currentStep.getOptionalDependsOn());
             }
-            WorkflowDecision sequenceDecision = validateWorkflowSequence(
-                workflowName,
-                workflow,
-                currentStep,
-                toolName,
-                completed,
-                attempted,
-                completedFacts,
-                targetRefs,
-                strategy,
-                matchedRules,
-                stateKey
-            );
-            if (sequenceDecision.action() == ToolRuntimeAction.DENY) {
-                return sequenceDecision;
+            if (!authoritativeSequence) {
+                WorkflowDecision sequenceDecision = validateWorkflowSequence(
+                    workflowName,
+                    workflow,
+                    currentStep,
+                    toolName,
+                    completed,
+                    attempted,
+                    completedFacts,
+                    targetRefs,
+                    strategy,
+                    matchedRules,
+                    stateKey
+                );
+                if (sequenceDecision.action() == ToolRuntimeAction.DENY) {
+                    return sequenceDecision;
+                }
+            } else {
+                dependencies.addAll(authoritativeDependencies);
+                matchedRules.add("authoritative_workflow_dag." + toolName + "=" + authoritativeDependencies);
             }
             if (currentStep.getCondition() != null && !currentStep.getCondition().isBlank()) {
                 Map<String, Object> context = workflowContext(request, toolInput);
@@ -2605,6 +2614,41 @@ public class ToolRuntimeService {
             || "high".equals(risk)
             || "forbidden".equals(risk)
             || (!operation.isBlank() && !"read".equals(operation) && !"readonly".equals(operation) && !"read_only".equals(operation));
+    }
+
+    private boolean authoritativeWorkflowHasEdges(ToolRuntimeRequest request) {
+        Object rawDag = request == null || request.getAttributes() == null
+            ? null : request.getAttributes().get("authoritativeWorkflowDag");
+        if (!(rawDag instanceof Collection<?> nodes)) {
+            return false;
+        }
+        return nodes.stream()
+            .filter(Map.class::isInstance)
+            .map(Map.class::cast)
+            .map(node -> node.get("dependsOnTools"))
+            .filter(Collection.class::isInstance)
+            .map(Collection.class::cast)
+            .anyMatch(dependencies -> !dependencies.isEmpty());
+    }
+
+    /** Returns null when the current tool is not governed by the authoritative DAG. */
+    private List<String> authoritativeWorkflowDependencies(ToolRuntimeRequest request, String toolName) {
+        Object rawDag = request == null || request.getAttributes() == null
+            ? null : request.getAttributes().get("authoritativeWorkflowDag");
+        if (!(rawDag instanceof Collection<?> nodes)) {
+            return null;
+        }
+        for (Object value : nodes) {
+            if (!(value instanceof Map<?, ?> node)) {
+                continue;
+            }
+            String configuredTool = stringValue(firstPresent(node.get("tool"), node.get("toolName")));
+            if (!sameTool(configuredTool, toolName)) {
+                continue;
+            }
+            return stringList(firstPresent(node.get("dependsOnTools"), node.get("depends_on_tools")));
+        }
+        return null;
     }
 
     /**

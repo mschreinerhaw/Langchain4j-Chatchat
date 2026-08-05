@@ -177,6 +177,29 @@ chatchat:
 `availableChatModels` 可以显式补充模型列表；运行时还会自动合并
 `defaultChatModel` 和 `chatModels` 的键并去重，因此不需要在多处重复维护模型名。
 
+模型名包含 `.` 时，标准 Spring Binder 会把普通 Map 键中的点解释为配置层级。
+ChatChat 会在启动时兼容恢复此类完整模型名；也可以使用 Spring 原生的带方括号
+YAML 键（方括号本身需要引号）：
+
+```yaml
+chatchat:
+  models:
+    defaultChatModel: deepseek-v4-pro
+    chatModels:
+      deepseek-v4-pro:
+        baseUrl: https://api.deepseek.com
+        protocol: openai
+      "[qwen3.8-max]":
+        baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
+        protocol: openai
+      "[qwen3.7-plus]":
+        baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
+        protocol: openai
+```
+
+普通的 `qwen3.8-max:` 写法同样受支持。推荐使用方括号格式，以便配置文件在
+其他只使用标准 Spring Binder 的程序中也能保持相同语义。
+
 | `protocol` | 适用场景 | URL 处理方式 |
 |---|---|---|
 | `auto` | 推荐默认值 | 根据 URL 自动识别 OpenAI-compatible、DashScope 原生文本或多模态协议 |

@@ -335,18 +335,13 @@
           </label>
           <label>
             <span>绑定模型</span>
-            <input
-              v-model.trim="form.modelName"
-              list="agent-workshop-model-options"
-              :placeholder="defaultModelName() || '输入模型名称'"
-              autocomplete="off"
-            >
-            <datalist id="agent-workshop-model-options">
+            <select v-model="form.modelName" :disabled="models.length === 0">
+              <option v-if="models.length === 0" value="">后端未返回可用模型</option>
               <option v-for="model in models" :key="model.value" :value="model.value">
                 {{ model.label || model.value }}
               </option>
-            </datalist>
-            <small>候选项来自后端配置；也可输入共享兼容端点支持的模型名，保存后立即用于该 Agent。</small>
+            </select>
+            <small>候选项由后端从 defaultChatModel、availableChatModels 和 chatModels 配置合并返回。</small>
           </label>
           <label class="runtime-environment-field">
             <span>运行环境</span>

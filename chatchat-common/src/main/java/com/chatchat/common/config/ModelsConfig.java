@@ -1,7 +1,13 @@
 package com.chatchat.common.config;
 
 import lombok.Data;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.EnvironmentAware;
+import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.EnumerablePropertySource;
+import org.springframework.core.env.PropertySource;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -16,7 +22,20 @@ import java.util.Map;
 @Data
 @Component
 @ConfigurationProperties(prefix = "chatchat.models")
-public class ModelsConfig {
+public class ModelsConfig implements EnvironmentAware, InitializingBean {
+
+    private static final List<String> CHAT_MODEL_PREFIXES = List.of(
+        "chatchat.models.chatModels.",
+        "chatchat.models.chat-models."
+    );
+    private static final List<String> CHAT_MODEL_PROPERTY_SUFFIXES = List.of(
+        ".proxy.enabled", ".proxy.host", ".proxy.port", ".proxy.type",
+        ".modelName", ".model-name", ".apiKey", ".api-key",
+        ".baseUrl", ".base-url", ".protocol", ".timeout",
+        ".maxTokens", ".max-tokens", ".maxRetries", ".max-retries"
+    );
+
+    private transient ConfigurableEnvironment environment;
 
     /** Legacy metadata retained for configuration compatibility; protocol selects the client. */
     @Deprecated
@@ -45,6 +64,92 @@ public class ModelsConfig {
 
     /** Legacy shared connection used when a model has no dedicated chatModels entry. */
     private OpenAIConfig openai = new OpenAIConfig();
+
+    @Override
+    public void setEnvironment(Environment environment) {
+        this.environment = environment instanceof ConfigurableEnvironment configurable
+            ? configurable
+            : null;
+    }
+
+    @Override
+    public void afterPropertiesSet() {
+        mergeDottedChatModelKeys();
+    }
+
+    /**
+     * Spring treats dots in unbracketed map keys as nesting separators. Recover model
+     * names such as {@code vendor.model-name} by recognizing only the configured
+     * connection-property suffix; no provider or model name is encoded here.
+     */
+    void mergeDottedChatModelKeys() {
+        if (environment == null) {
+            return;
+        }
+        LinkedHashSet<String> assigned = new LinkedHashSet<>();
+        for (PropertySource<?> source : environment.getPropertySources()) {
+            if (!(source instanceof EnumerablePropertySource<?> enumerable)) {
+                continue;
+            }
+            for (String propertyName : enumerable.getPropertyNames()) {
+                DottedModelProperty property = dottedModelProperty(propertyName);
+                if (property == null || !assigned.add(property.modelName() + "\u0000" + property.field())) {
+                    continue;
+                }
+                String value = environment.getProperty(propertyName);
+                if (value != null) {
+                    applyRecoveredProperty(property, value);
+                }
+            }
+        }
+    }
+
+    private DottedModelProperty dottedModelProperty(String propertyName) {
+        if (propertyName == null || propertyName.indexOf('[') >= 0) {
+            return null;
+        }
+        String prefix = CHAT_MODEL_PREFIXES.stream()
+            .filter(propertyName::startsWith)
+            .findFirst()
+            .orElse(null);
+        if (prefix == null) {
+            return null;
+        }
+        String remainder = propertyName.substring(prefix.length());
+        for (String suffix : CHAT_MODEL_PROPERTY_SUFFIXES) {
+            if (remainder.endsWith(suffix) && remainder.length() > suffix.length()) {
+                String modelName = remainder.substring(0, remainder.length() - suffix.length()).trim();
+                if (modelName.contains(".")) {
+                    return new DottedModelProperty(modelName, suffix.substring(1));
+                }
+            }
+        }
+        return null;
+    }
+
+    private void applyRecoveredProperty(DottedModelProperty property, String value) {
+        ModelConnectionConfig connection = chatModels.computeIfAbsent(
+            property.modelName(), ignored -> new ModelConnectionConfig());
+        switch (property.field()) {
+            case "modelName", "model-name" -> connection.setModelName(value);
+            case "apiKey", "api-key" -> connection.setApiKey(value);
+            case "baseUrl", "base-url" -> connection.setBaseUrl(value);
+            case "protocol" -> connection.setProtocol(value);
+            case "timeout" -> connection.setTimeout(Integer.parseInt(value));
+            case "maxTokens", "max-tokens" -> connection.setMaxTokens(Integer.parseInt(value));
+            case "maxRetries", "max-retries" -> connection.setMaxRetries(Integer.parseInt(value));
+            case "proxy.enabled" -> connection.getProxy().setEnabled(Boolean.parseBoolean(value));
+            case "proxy.host" -> connection.getProxy().setHost(value);
+            case "proxy.port" -> connection.getProxy().setPort(Integer.parseInt(value));
+            case "proxy.type" -> connection.getProxy().setType(value);
+            default -> {
+                // All accepted fields are enumerated above.
+            }
+        }
+    }
+
+    private record DottedModelProperty(String modelName, String field) {
+    }
 
     public List<String> getAvailableChatModels() {
         LinkedHashSet<String> names = new LinkedHashSet<>();

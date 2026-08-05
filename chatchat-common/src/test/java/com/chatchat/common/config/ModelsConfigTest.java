@@ -4,7 +4,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.properties.bind.Bindable;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
+import org.springframework.boot.env.YamlPropertySourceLoader;
+import org.springframework.core.env.PropertySource;
+import org.springframework.core.env.StandardEnvironment;
+import org.springframework.core.io.ByteArrayResource;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -61,5 +66,46 @@ class ModelsConfigTest {
         assertThat(connection.getModelName()).isEqualTo("provider-model");
         assertThat(connection.getBaseUrl()).isEqualTo("https://gateway.example/invoke");
         assertThat(connection.getProtocol()).isEqualTo("dashscope-text");
+    }
+
+    @Test
+    void bindsEverySelectableModelFromYamlConnectionMap() throws Exception {
+        String yaml = """
+            chatchat:
+              models:
+                defaultChatModel: deepseek-v4-pro
+                availableChatModels:
+                  - deepseek-v4-pro
+                chatModels:
+                  deepseek-v4-pro:
+                    baseUrl: https://api.deepseek.com
+                  deepseek-v4-flash:
+                    baseUrl: https://api.deepseek.com
+                  qwen3.8-max:
+                    baseUrl: https://dashscope.example/v1
+                  qwen3.7-plus:
+                    baseUrl: https://dashscope.example/v1
+            """;
+        List<PropertySource<?>> sources = new YamlPropertySourceLoader().load(
+            "models-test",
+            new ByteArrayResource(yaml.getBytes(StandardCharsets.UTF_8))
+        );
+        Binder binder = new Binder(
+            org.springframework.boot.context.properties.source.ConfigurationPropertySources.from(sources.get(0))
+        );
+
+        ModelsConfig config = binder.bind("chatchat.models", Bindable.of(ModelsConfig.class))
+            .orElseThrow(() -> new AssertionError("model YAML configuration was not bound"));
+        StandardEnvironment environment = new StandardEnvironment();
+        environment.getPropertySources().addFirst(sources.get(0));
+        config.setEnvironment(environment);
+        config.afterPropertiesSet();
+
+        assertThat(config.getAvailableChatModels()).containsExactly(
+            "deepseek-v4-pro",
+            "deepseek-v4-flash",
+            "qwen3.8-max",
+            "qwen3.7-plus"
+        );
     }
 }

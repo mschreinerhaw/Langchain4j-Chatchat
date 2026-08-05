@@ -83,7 +83,8 @@ class AgentWorkflowDecisionEngine {
             index++;
         }
 
-        List<WorkflowToolStep> dependencyOrdered = dependencyOrderedSteps(declaredSteps);
+        List<WorkflowToolStep> resolvedSteps = withTemplateProtocolDependencies(declaredSteps);
+        List<WorkflowToolStep> dependencyOrdered = dependencyOrderedSteps(resolvedSteps);
         LinkedHashMap<String, Boolean> ordered = new LinkedHashMap<>();
         dependencyOrdered.stream()
             .filter(WorkflowToolStep::executable)
@@ -95,7 +96,7 @@ class AgentWorkflowDecisionEngine {
                 workflowStepLabel(step),
                 step.toolName(),
                 step.dependencies().stream()
-                    .flatMap(reference -> resolveWorkflowDependency(declaredSteps, step, reference).stream())
+                    .flatMap(reference -> resolveWorkflowDependency(resolvedSteps, step, reference).stream())
                     .filter(WorkflowToolStep::executable)
                     .map(WorkflowToolStep::toolName)
                     .distinct()
@@ -106,6 +107,65 @@ class AgentWorkflowDecisionEngine {
             .toList();
         return new WorkflowMandatoryResolution(
             new ArrayList<>(ordered.keySet()), distinctDecisions(skippedDecisions), authoritativeDag);
+    }
+
+    /**
+     * Template execution has a transport-level data dependency that cannot be made
+     * optional by a planner: asset discovery selects the routing asset, template
+     * discovery returns the template id, and only then may execution run. Fill only
+     * missing edges for an unambiguous tool family; explicit contradictory edges are
+     * retained and will be rejected by the normal cycle validator.
+     */
+    private List<WorkflowToolStep> withTemplateProtocolDependencies(List<WorkflowToolStep> steps) {
+        List<WorkflowToolStep> augmented = new ArrayList<>(steps);
+        for (int index = 0; index < augmented.size(); index++) {
+            WorkflowToolStep step = augmented.get(index);
+            String family = templateToolFamily(step.toolName(), "template_query");
+            if (family != null) {
+                List<WorkflowToolStep> assets = matchingTemplateFamily(augmented, family, "asset_query");
+                if (assets.size() == 1) {
+                    augmented.set(index, withWorkflowDependency(step, workflowStepLabel(assets.get(0))));
+                }
+                continue;
+            }
+            family = templateToolFamily(step.toolName(), "template_execute");
+            if (family != null) {
+                List<WorkflowToolStep> queries = matchingTemplateFamily(augmented, family, "template_query");
+                if (queries.size() == 1) {
+                    augmented.set(index, withWorkflowDependency(step, workflowStepLabel(queries.get(0))));
+                }
+            }
+        }
+        return augmented;
+    }
+
+    private List<WorkflowToolStep> matchingTemplateFamily(List<WorkflowToolStep> steps,
+                                                           String family,
+                                                           String role) {
+        return steps.stream()
+            .filter(candidate -> family.equals(templateToolFamily(candidate.toolName(), role)))
+            .toList();
+    }
+
+    private String templateToolFamily(String toolName, String role) {
+        if (toolName == null || role == null) {
+            return null;
+        }
+        String normalized = toolName.trim().toLowerCase(Locale.ROOT).replace('-', '_');
+        return normalized.endsWith(role)
+            ? normalized.substring(0, normalized.length() - role.length())
+            : null;
+    }
+
+    private WorkflowToolStep withWorkflowDependency(WorkflowToolStep step, String dependency) {
+        if (dependency == null || dependency.isBlank()
+            || step.dependencies().stream().anyMatch(dependency::equalsIgnoreCase)) {
+            return step;
+        }
+        List<String> dependencies = new ArrayList<>(step.dependencies());
+        dependencies.add(dependency);
+        return new WorkflowToolStep(step.order(), step.sourceIndex(), step.toolName(),
+            step.aliases(), dependencies, step.executable());
     }
 
     /**

@@ -903,6 +903,58 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
+    void authoritativeDagOverridesStaleSequentialOrderForTemplateProtocol() {
+        String asset = "mcp_chatchat_mcp_server_api_asset_query";
+        String query = "mcp_chatchat_mcp_server_api_template_query";
+        String execute = "mcp_chatchat_mcp_server_api_template_execute";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        for (String tool : List.of(asset, query, execute)) {
+            when(toolRegistry.getToolMetadata(tool)).thenReturn(ToolMetadata.builder()
+                .id(tool).title(tool).build());
+        }
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.success("ok"));
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), properties(), new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of());
+        Map<String, Object> staleWorkflow = Map.of(
+            "enabled", true,
+            "executionStrategy", Map.of("mode", "sequential", "stopOnError", true),
+            "steps", List.of(
+                Map.of("step", 1, "tool", asset, "required", true),
+                Map.of("step", 2, "tool", execute, "required", true),
+                Map.of("step", 3, "tool", query, "required", true)
+            )
+        );
+        List<Map<String, Object>> authoritativeDag = List.of(
+            Map.of("tool", asset, "dependsOnTools", List.of()),
+            Map.of("tool", query, "dependsOnTools", List.of(asset)),
+            Map.of("tool", execute, "dependsOnTools", List.of(query))
+        );
+        java.util.function.Function<String, ToolRuntimeRequest> request = tool -> ToolRuntimeRequest.builder()
+            .toolName(tool)
+            .runtimeMode("interpretation_plan")
+            .requestId("req-authoritative-template-workflow")
+            .conversationId("conv-authoritative-template-workflow")
+            .tenantId("tenant-1")
+            .userId("user-1")
+            .allowedTools(List.of(asset, query, execute))
+            .toolInput(ToolInput.builder().userId("user-1").parameters(Map.of()).build())
+            .attributes(Map.of(
+                "mcpWorkflow", staleWorkflow,
+                "authoritativeWorkflowDag", authoritativeDag
+            ))
+            .build();
+
+        ToolRuntimeExecution assetExecution = service.execute(request.apply(asset));
+        ToolRuntimeExecution queryExecution = service.execute(request.apply(query));
+
+        assertThat(assetExecution.output().isSuccess()).isTrue();
+        assertThat(queryExecution.output().isSuccess()).isTrue();
+        assertThat(queryExecution.audit().get("matchedPolicyRules").toString())
+            .contains("authoritative_workflow_dag." + query + "=[" + asset + "]");
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void agentWorkflowArrayDeniesDatabaseExecuteUntilDependenciesAndConfirmation() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);

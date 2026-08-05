@@ -21,6 +21,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -122,7 +123,8 @@ class AgentPlanner {
             normalizeList(availableTools),
             query,
             experiencePrior(runtimeAttributes),
-            AgentPlanBudgetPolicy.fromRuntimeAttributes(runtimeAttributes)
+            AgentPlanBudgetPolicy.fromRuntimeAttributes(runtimeAttributes),
+            authoritativeWorkflowDagForPlanning(runtimeAttributes)
         );
         String runId = stringValue(runtimeAttributes == null ? null : runtimeAttributes.get("__agentRunId"));
         int maxAttempts = plannerRepairAttempts(runtimeAttributes);
@@ -1018,7 +1020,10 @@ class AgentPlanner {
         );
         interpretationPlan = budgetResult.plan();
         InterpretationPlanOptimizer.OptimizationResult optimization =
-            new InterpretationPlanOptimizer().optimize(interpretationPlan);
+            new InterpretationPlanOptimizer().optimize(
+                interpretationPlan,
+                validationContext == null ? null : validationContext.authoritativeWorkflowDag()
+            );
         if (optimization.plan() != null) {
             InterpretationPlan optimized = optimization.plan();
             // Planning-time optimization repairs the graph before validation. The model's
@@ -3112,6 +3117,21 @@ class AgentPlanner {
         }
         return second == null || second.isBlank() ? null : second;
     }
+
+    private Object authoritativeWorkflowDagForPlanning(Map<String, Object> runtimeAttributes) {
+        Object rawDag = runtimeAttributes == null ? null : runtimeAttributes.get("authoritativeWorkflowDag");
+        if (!(rawDag instanceof Collection<?> nodes)) {
+            return null;
+        }
+        boolean hasDeclaredEdge = nodes.stream()
+            .filter(Map.class::isInstance)
+            .map(Map.class::cast)
+            .map(node -> node.get("dependsOnTools"))
+            .filter(Collection.class::isInstance)
+            .map(Collection.class::cast)
+            .anyMatch(dependencies -> !dependencies.isEmpty());
+        return hasDeclaredEdge ? rawDag : null;
+    }
 }
 
 record PlannerValidationContext(
@@ -3123,8 +3143,23 @@ record PlannerValidationContext(
     List<String> availableTools,
     String query,
     Map<String, Object> experiencePrior,
-    AgentPlanBudgetPolicy.BudgetCaps budgetCaps
+    AgentPlanBudgetPolicy.BudgetCaps budgetCaps,
+    Object authoritativeWorkflowDag
 ) {
+    PlannerValidationContext(List<String> mandatoryTools,
+                             boolean requireToolBeforeFinal,
+                             boolean requireDocumentWebVerification,
+                             String documentSearchTool,
+                             String verificationWebSearchTool,
+                             List<String> availableTools,
+                             String query,
+                             Map<String, Object> experiencePrior,
+                             AgentPlanBudgetPolicy.BudgetCaps budgetCaps) {
+        this(mandatoryTools, requireToolBeforeFinal, requireDocumentWebVerification,
+            documentSearchTool, verificationWebSearchTool, availableTools, query, experiencePrior,
+            budgetCaps, null);
+    }
+
     PlannerValidationContext(List<String> mandatoryTools,
                              boolean requireToolBeforeFinal,
                              boolean requireDocumentWebVerification,
@@ -3135,7 +3170,7 @@ record PlannerValidationContext(
                              Map<String, Object> experiencePrior) {
         this(mandatoryTools, requireToolBeforeFinal, requireDocumentWebVerification,
             documentSearchTool, verificationWebSearchTool, availableTools, query, experiencePrior,
-            new AgentPlanBudgetPolicy.BudgetCaps(null, null, null));
+            new AgentPlanBudgetPolicy.BudgetCaps(null, null, null), null);
     }
 
     PlannerValidationContext(List<String> mandatoryTools,
@@ -3147,7 +3182,7 @@ record PlannerValidationContext(
                              String query) {
         this(mandatoryTools, requireToolBeforeFinal, requireDocumentWebVerification,
             documentSearchTool, verificationWebSearchTool, availableTools, query, Map.of(),
-            new AgentPlanBudgetPolicy.BudgetCaps(null, null, null));
+            new AgentPlanBudgetPolicy.BudgetCaps(null, null, null), null);
     }
 }
 

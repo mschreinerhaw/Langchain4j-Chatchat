@@ -39,6 +39,27 @@ class AgentWorkflowDecisionEngineTest {
     }
 
     @Test
+    void templateProtocolRepairsMissingDependenciesBeforePlannerValidation() {
+        String asset = "mcp_chatchat_mcp_server_api_asset_query";
+        String query = "mcp_chatchat_mcp_server_api_template_query";
+        String execute = "mcp_chatchat_mcp_server_api_template_execute";
+        Map<String, Object> workflow = Map.of(
+            "steps", List.of(
+                Map.of("step", 1, "tool", asset, "required", true),
+                Map.of("step", 2, "tool", execute, "required", true),
+                Map.of("step", 3, "tool", query, "required", true)
+            )
+        );
+
+        WorkflowMandatoryResolution result = engine.resolveWorkflowMandatoryTools(
+            List.of(asset, query, execute), Map.of("mcpWorkflow", workflow), "customer profile");
+
+        assertThat(result.tools()).containsExactly(asset, query, execute);
+        assertThat(result.authoritativeDag().get(1).dependsOnTools()).containsExactly(asset);
+        assertThat(result.authoritativeDag().get(2).dependsOnTools()).containsExactly(query);
+    }
+
+    @Test
     void dependencyCanReferenceNumericStepIdentifier() {
         String query = "mcp_chatchat_mcp_server_api_template_query";
         String execute = "mcp_chatchat_mcp_server_api_template_execute";

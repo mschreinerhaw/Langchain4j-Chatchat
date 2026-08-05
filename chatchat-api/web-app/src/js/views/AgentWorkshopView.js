@@ -460,7 +460,7 @@ export default {
         this.agentPageCount = payload?.page?.totalPages || 1;
         this.availableTools = Array.isArray(payload?.availableTools) ? payload.availableTools : [];
         this.registeredMcpTools = Array.isArray(payload?.registeredMcpTools) ? payload.registeredMcpTools : [];
-        this.models = Array.isArray(payload?.models) ? payload.models : [];
+        this.models = this.normalizeModelOptions(payload?.models);
         this.backendDefaultModelName = String(payload?.defaultModelName || "").trim();
         this.documents = Array.isArray(payload?.documents) ? payload.documents : [];
         this.normalizeAgentFilters();
@@ -479,6 +479,25 @@ export default {
         }
         return left.localToolName.localeCompare(right.localToolName);
       });
+    },
+    normalizeModelOptions(value) {
+      if (!Array.isArray(value)) {
+        return [];
+      }
+      const options = [];
+      const seen = new Set();
+      value.forEach((entry) => {
+        const modelValue = String(typeof entry === "string" ? entry : entry?.value || "").trim();
+        if (!modelValue || seen.has(modelValue)) {
+          return;
+        }
+        seen.add(modelValue);
+        options.push({
+          value: modelValue,
+          label: String(typeof entry === "object" ? entry?.label || modelValue : modelValue).trim()
+        });
+      });
+      return options;
     },
     resolveToolGroup(tool) {
       if (this.toolGroupMode === "category") {

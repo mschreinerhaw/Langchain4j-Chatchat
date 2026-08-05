@@ -144,11 +144,17 @@ public class ConversationService {
      */
     @Transactional(readOnly = true)
     public List<Conversation> listUserConversationSummaries(String tenantId, String userId, int limit) {
+        return listUserConversationSummaries(tenantId, userId, 0, limit);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Conversation> listUserConversationSummaries(String tenantId, String userId, int page, int limit) {
         int normalizedLimit = Math.max(1, Math.min(limit, 100));
+        int normalizedPage = Math.max(0, page);
         return sessionRepository.findByTenantIdAndUserIdOrderByUpdatedAtDesc(
                 normalizeTenantId(tenantId),
                 normalize(userId, DEFAULT_USER_ID),
-                PageRequest.of(0, normalizedLimit)
+                PageRequest.of(normalizedPage, normalizedLimit)
             ).stream()
             .map(session -> toConversation(session, List.of()))
             .toList();
@@ -293,6 +299,87 @@ public class ConversationService {
 
         session.setUpdatedAt(lastCreatedAt);
         sessionRepository.save(session);
+    }
+
+    /**
+     * Merges a bounded client snapshot without deleting messages that were not
+     * included because of the HTTP persistence budget. Incoming messages replace
+     * matching IDs, while explicit truncation placeholders never downgrade an
+     * already persisted complete message.
+     */
+    @Transactional
+    public void mergeMessages(String tenantId,
+                              String conversationId,
+                              String userId,
+                              List<Conversation.Message> messages) {
+        List<Conversation.Message> existing = getConversation(tenantId, conversationId)
+            .map(Conversation::getMessages)
+            .orElse(List.of());
+        replaceMessages(tenantId, conversationId, userId, mergeMessageSnapshots(existing, messages));
+    }
+
+    static List<Conversation.Message> mergeMessageSnapshots(List<Conversation.Message> existing,
+                                                             List<Conversation.Message> incoming) {
+        List<Conversation.Message> merged = new ArrayList<>(existing == null ? List.of() : existing);
+        Map<String, Integer> positions = new LinkedHashMap<>();
+        for (int index = 0; index < merged.size(); index++) {
+            Conversation.Message message = merged.get(index);
+            if (message != null && message.getId() != null && !message.getId().isBlank()) {
+                positions.put(message.getId(), index);
+            }
+        }
+        for (Conversation.Message message : incoming == null ? List.<Conversation.Message>of() : incoming) {
+            if (message == null) {
+                continue;
+            }
+            Integer position = message.getId() == null ? null : positions.get(message.getId());
+            if (position == null) {
+                merged.add(message);
+                if (message.getId() != null && !message.getId().isBlank()) {
+                    positions.put(message.getId(), merged.size() - 1);
+                }
+                continue;
+            }
+            Conversation.Message previous = merged.get(position);
+            if (isTruncatedText(message.getContent()) && !isTruncatedText(previous.getContent())) {
+                message.setContent(previous.getContent());
+            }
+            preserveCompleteMap(previous.getVisualizationSpec(), message.getVisualizationSpec(), message::setVisualizationSpec);
+            preserveCompleteMap(previous.getUiResponse(), message.getUiResponse(), message::setUiResponse);
+            preserveCompleteMap(previous.getAnalysisSelection(), message.getAnalysisSelection(), message::setAnalysisSelection);
+            preserveCompleteList(previous.getSources(), message.getSources(), message::setSources);
+            preserveCompleteList(previous.getTraces(), message.getTraces(), message::setTraces);
+            preserveCompleteList(previous.getSteps(), message.getSteps(), message::setSteps);
+            preserveCompleteList(previous.getEvidencePremises(), message.getEvidencePremises(), message::setEvidencePremises);
+            merged.set(position, message);
+        }
+        return collapseDuplicateAssistantResults(merged);
+    }
+
+    private static boolean isTruncatedText(String value) {
+        return value != null && value.contains("...[message content truncated; originalBytes=");
+    }
+
+    private static boolean isTruncationMarker(Map<String, Object> value) {
+        return value != null && Boolean.TRUE.equals(value.get("persistenceTruncated"));
+    }
+
+    private static void preserveCompleteMap(Map<String, Object> previous,
+                                            Map<String, Object> incoming,
+                                            java.util.function.Consumer<Map<String, Object>> setter) {
+        if (isTruncationMarker(incoming) && !isTruncationMarker(previous)) {
+            setter.accept(previous);
+        }
+    }
+
+    private static void preserveCompleteList(List<Map<String, Object>> previous,
+                                             List<Map<String, Object>> incoming,
+                                             java.util.function.Consumer<List<Map<String, Object>>> setter) {
+        boolean truncated = incoming != null && incoming.stream().anyMatch(ConversationService::isTruncationMarker);
+        boolean previousTruncated = previous != null && previous.stream().anyMatch(ConversationService::isTruncationMarker);
+        if (truncated && !previousTruncated) {
+            setter.accept(previous);
+        }
     }
 
     static List<Conversation.Message> collapseDuplicateAssistantResults(List<Conversation.Message> messages) {

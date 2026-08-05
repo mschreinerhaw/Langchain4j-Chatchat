@@ -321,7 +321,7 @@ public class DataQueryController {
             request.getMode(),
             request.getAgentName()
         );
-        conversationService.replaceMessages(tenantId, conversationId, userId, toConversationMessages(messages));
+        conversationService.mergeMessages(tenantId, conversationId, userId, toConversationMessages(messages));
         List<HistoryItem> history = loadPersistentHistory(tenantId, userId, null, null, 30);
         long now = System.currentTimeMillis();
         replaceCurrentHistorySnapshot(history, new HistoryItem(
@@ -371,7 +371,7 @@ public class DataQueryController {
             ? List.of()
             : collapseDuplicateAssistantResults(request.getMessages());
         if (request != null && request.getMessages() != null) {
-            conversationService.replaceMessages(resolvedTenantId, conversationId, userId, toConversationMessages(messages));
+            conversationService.mergeMessages(resolvedTenantId, conversationId, userId, toConversationMessages(messages));
         }
         List<HistoryItem> history = loadPersistentHistory(resolvedTenantId, userId, null, null, 30);
         if (request != null && request.getMessages() != null) {

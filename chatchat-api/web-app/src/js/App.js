@@ -43,6 +43,7 @@ const USER_ID = "mx_48991534";
 const IDLE_LOGOUT_MS = 30 * 60 * 1000;
 const ACTIVITY_THROTTLE_MS = 1000;
 const TODO_REFRESH_MS = 30000;
+const HISTORY_PAGE_SIZE = 30;
 const ACTIVITY_EVENTS = ["click", "keydown", "mousemove", "mousedown", "scroll", "touchstart", "wheel"];
 const DEFAULT_VIEW = "chat";
 const LOGIN_ROUTE = "login";
@@ -122,6 +123,8 @@ export default {
       historyLoading: false,
       historyError: "",
       conversationHistory: [],
+      historyHasMore: true,
+      historyNextPage: 0,
       favoriteConversationIds: [],
       favoriteConversationRecordIds: {},
       favoriteSavingIds: {},
@@ -495,22 +498,40 @@ export default {
       }, IDLE_LOGOUT_MS);
     },
     async loadConversationHistory(filters = {}) {
-      const { suppressError = false, ...historyFilters } = filters || {};
+      const { suppressError = false, append = false, ...historyFilters } = filters || {};
+      if (append && (!this.historyHasMore || this.historyLoading)) {
+        return;
+      }
       const previousHistory = this.conversationHistory;
       this.historyLoading = true;
       this.historyError = "";
       try {
         const history = await fetchConversationHistory(this.userId, {
           tenantId: this.tenantId,
-          limit: 30,
+          limit: HISTORY_PAGE_SIZE,
+          page: append ? this.historyNextPage : 0,
           ...historyFilters
         });
-        const nextHistory = (Array.isArray(history) ? history : [])
+        const page = (Array.isArray(history) ? history : [])
           .map((conversation) => mergeChatRuntimeState(conversation));
+        const nextHistory = append
+          ? [...previousHistory, ...page].filter((conversation, index, items) => {
+              const id = conversation.id || conversation.conversationId;
+              return items.findIndex((item) => (item.id || item.conversationId) === id) === index;
+            })
+          : page;
         this.conversationHistory = nextHistory;
-        this.resetActiveConversationWhenRemoved(previousHistory, nextHistory);
+        this.historyNextPage = (append ? this.historyNextPage : 0) + 1;
+        this.historyHasMore = page.length === HISTORY_PAGE_SIZE;
+        if (!append) {
+          this.resetActiveConversationWhenRemoved(previousHistory, nextHistory);
+        }
       } catch (error) {
-        this.conversationHistory = [];
+        if (!append) {
+          this.conversationHistory = [];
+          this.historyNextPage = 0;
+          this.historyHasMore = true;
+        }
         if (suppressError) {
           return;
         }
@@ -518,6 +539,9 @@ export default {
       } finally {
         this.historyLoading = false;
       }
+    },
+    loadMoreConversationHistory() {
+      return this.loadConversationHistory({ append: true });
     },
     async loadFavoriteConversationIds() {
       if (!this.authSession || !this.userId) {

@@ -583,6 +583,9 @@ export async function fetchConversationHistory(userId, filters = {}) {
   if (filters.limit) {
     params.set("limit", String(filters.limit));
   }
+  if (Number.isFinite(Number(filters.page)) && Number(filters.page) > 0) {
+    params.set("page", String(filters.page));
+  }
   const query = params.toString();
   const summaries = await apiRequest(
     `/conversations/user/${encodeURIComponent(userId)}/summaries${query ? `?${query}` : ""}`

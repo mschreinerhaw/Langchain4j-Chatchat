@@ -51,7 +51,7 @@
       <section class="recent-block">
         <div class="recent-head">
           <span>最近对话</span>
-          <span>{{ historyLoading ? "加载中" : `${filteredConversations.length}/${recentConversations.length}` }}</span>
+          <span>{{ historyLoading ? "加载中" : `${filteredConversations.length}/${recentConversations.length}${historyHasMore ? '+' : ''}` }}</span>
         </div>
         <label class="history-search">
           <Search :size="15" stroke-width="2" />
@@ -114,6 +114,15 @@
           @click="showAllHistory = !showAllHistory"
         >
           {{ showAllHistory ? "收起历史" : "查看全部对话" }}
+        </button>
+        <button
+          v-if="showAllHistory && historyHasMore"
+          class="more-link"
+          type="button"
+          :disabled="historyLoading"
+          @click="$emit('load-more-history')"
+        >
+          {{ historyLoading ? "加载中" : "加载更多历史" }}
         </button>
         <button class="more-link" type="button" @click="$emit('refresh-history')">刷新历史</button>
       </section>

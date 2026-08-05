@@ -73,12 +73,14 @@ public class ConversationController {
     public ApiResponse<List<ConversationListItem>> listUserConversationSummaries(
         @PathVariable("userId") String userId,
         @RequestParam(value = "tenantId", required = false) String tenantId,
+        @RequestParam(value = "page", defaultValue = "0") Integer page,
         @RequestParam(value = "limit", defaultValue = "30") Integer limit,
         HttpServletRequest servletRequest
     ) {
+        int normalizedPage = page == null ? 0 : Math.max(0, page);
         int normalizedLimit = limit == null ? 30 : Math.max(1, Math.min(limit, 100));
         List<ConversationListItem> summaries = conversationService
-            .listUserConversationSummaries(resolveTenantId(servletRequest, tenantId), userId, normalizedLimit)
+            .listUserConversationSummaries(resolveTenantId(servletRequest, tenantId), userId, normalizedPage, normalizedLimit)
             .stream()
             .map(ConversationListItem::from)
             .toList();

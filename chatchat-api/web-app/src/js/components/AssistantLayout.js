@@ -25,6 +25,10 @@ export default {
       type: String,
       default: ""
     },
+    historyHasMore: {
+      type: Boolean,
+      default: false
+    },
     historyLoading: {
       type: Boolean,
       default: false
@@ -54,6 +58,7 @@ export default {
     "delete-conversation",
     "favorite-conversation",
     "logout",
+    "load-more-history",
     "navigate",
     "refresh-history",
     "select-conversation"

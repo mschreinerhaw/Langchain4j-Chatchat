@@ -1,13 +1,6 @@
 import { ChevronDown, ChevronRight, Maximize2, Minimize2, Pin, PinOff, X } from "@lucide/vue";
 import VisualizationRenderer from "../../components/VisualizationRenderer.vue";
-
-function parseChartNumber(value) {
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value : null;
-  }
-  const parsed = Number(String(value ?? "").replace(/,/g, ""));
-  return Number.isFinite(parsed) ? parsed : null;
-}
+import { coerceChartMetricRows, parseChartNumber, selectChartMetricKey } from "../utils/chartDatasetTypes.js";
 
 function makeDatasetId(index) {
   return `dataset_${index + 1}`;
@@ -15,14 +8,16 @@ function makeDatasetId(index) {
 
 function normalizeChartDataset(data = {}, index = 0) {
   const columns = Array.isArray(data.columns) ? data.columns : [];
+  const rows = Array.isArray(data.rows) ? data.rows : [];
+  const xKey = data.xKey || columns[0] || "";
   return {
     id: data.id || makeDatasetId(index),
     title: data.title || `数据集 ${index + 1}`,
     columns,
-    rows: Array.isArray(data.rows) ? data.rows : [],
+    rows,
     chartType: data.chartType || "bar",
-    xKey: data.xKey || columns[0] || "",
-    yKey: data.yKey || columns[1] || columns[0] || "",
+    xKey,
+    yKey: selectChartMetricKey(columns, rows, xKey, data.yKey),
     groupKey: data.groupKey || "",
     selectedColumns: Array.isArray(data.selectedColumns) ? data.selectedColumns.filter((column) => columns.includes(column)) : [...columns]
   };
@@ -304,7 +299,7 @@ export default {
       }
       const chartType = modal.chartType || "bar";
       const xKey = modal.xKey || modal.columns[0] || "";
-      const yKey = modal.yKey || modal.columns.find((column) => column !== xKey) || modal.columns[0] || "";
+      const yKey = selectChartMetricKey(modal.columns, modal.rows, xKey, modal.yKey);
       if (chartType === "table") {
         return {
           version: "v1",
@@ -391,10 +386,7 @@ export default {
         });
         return [...totals.entries()].map(([label, value]) => ({ [xKey]: label, [yKey]: value }));
       }
-      return modal.rows.map((row) => ({
-        ...row,
-        [yKey]: parseChartNumber(row[yKey]) ?? 0
-      }));
+      return coerceChartMetricRows(modal.rows, yKey);
     }
   }
 };

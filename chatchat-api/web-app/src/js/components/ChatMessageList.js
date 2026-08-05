@@ -1,5 +1,5 @@
 import MarkdownIt from "markdown-it";
-import { Check, ChevronDown, ChevronRight, CircleCheck, CircleX, Copy } from "@lucide/vue";
+import { Check, ChevronDown, ChevronRight, CircleCheck, CircleX, Copy, FileDown } from "@lucide/vue";
 import ResponseReferences from "../../components/ResponseReferences.vue";
 import chartAnalysisMixin from "./ChatMessageListChartAnalysis.js";
 import {
@@ -8,6 +8,8 @@ import {
   extractWebSearchPagesFromTraces,
   inlineWebCitationLinks
 } from "../utils/webReferences.js";
+import { selectCompleteMessageContent } from "../utils/messageContentSelection.js";
+import { answerPdfFileName, exportRenderedAnswerToPdf } from "../utils/answerPdfExport.js";
 
 const markdown = new MarkdownIt({
   html: false,
@@ -103,6 +105,7 @@ export default {
     CircleCheck,
     CircleX,
     Copy,
+    FileDown,
     ResponseReferences
   },
   emits: ["feedback", "visualization-drill-down"],
@@ -128,6 +131,8 @@ export default {
     return {
       copiedMessageId: "",
       copiedResetTimer: null,
+      exportingPdfMessageId: "",
+      pdfExportErrorMessageId: "",
       codeCopyResetTimers: new Set(),
       collapsedToolCallMessageIds: new Set(),
       expandedCompletedToolCallMessageIds: new Set(),
@@ -290,6 +295,13 @@ export default {
         && !message.streaming
         && !message.feedbackTime
         && !["waiting", "cancelled", "failed", "streaming", "running"].includes(status);
+    },
+    canExportMessagePdf(message = {}) {
+      const status = String(message.status || "").toLowerCase();
+      return message.role === "assistant"
+        && this.messageHasRenderableContent(message)
+        && !message.streaming
+        && !["waiting", "streaming", "running"].includes(status);
     },
     assistantName(message = {}) {
       return String(message.agentName || this.assistantDisplayName || "\u52a9\u624b").trim() || "\u52a9\u624b";
@@ -1262,7 +1274,9 @@ export default {
       if (blocks.length) {
         return blocks;
       }
-      const answer = this.cleanUiProtocolText(uiResponse.answer || fallbackContent);
+      const answer = this.cleanUiProtocolText(
+        selectCompleteMessageContent(uiResponse.answer, fallbackContent)
+      );
       return answer ? [{ type: "markdown", text: answer }] : [];
     },
     normalizeUiCitations(citations = []) {
@@ -2548,6 +2562,28 @@ export default {
         }, 1400);
       } catch (error) {
         console.warn("Copy answer failed", error);
+      }
+    },
+    async exportMessagePdf(message, event) {
+      if (!this.canExportMessagePdf(message) || this.exportingPdfMessageId) {
+        return;
+      }
+      const sourceElement = event?.currentTarget
+        ?.closest(".chat-message")
+        ?.querySelector(".message-markdown");
+      this.exportingPdfMessageId = message.id;
+      this.pdfExportErrorMessageId = "";
+      try {
+        await exportRenderedAnswerToPdf({
+          sourceElement,
+          message,
+          fileName: answerPdfFileName(message, sourceElement)
+        });
+      } catch (error) {
+        this.pdfExportErrorMessageId = message.id;
+        console.warn("Export answer PDF failed", error);
+      } finally {
+        this.exportingPdfMessageId = "";
       }
     },
     buildCopyText(message = {}) {

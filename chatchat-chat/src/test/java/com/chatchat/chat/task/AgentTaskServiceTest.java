@@ -609,6 +609,18 @@ class AgentTaskServiceTest {
     }
 
     @Test
+    void cleanDisplayAnswerDoesNotTruncateLongUserFacingAnswer() {
+        String answer = "# 客户全景分析报告\n\n" + "完整分析段落。".repeat(1200);
+
+        String cleaned = AgentTaskService.cleanDisplayAnswer(answer);
+
+        assertThat(cleaned)
+            .isEqualTo(answer)
+            .hasSize(answer.length())
+            .doesNotContain("truncated");
+    }
+
+    @Test
     void citationsRecoverReadableLinksFromSuccessfulWebSearchTrace() {
         ObjectMapper objectMapper = new ObjectMapper();
         AgentTaskService service = new AgentTaskService(

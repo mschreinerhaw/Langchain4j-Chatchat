@@ -59,7 +59,6 @@ public class AgentTaskService {
     private static final int MAX_CONFIRMATION_ROUNDS = 20;
     private static final int DEBUG_TEXT_LIMIT = 8000;
     private static final int UI_CITATION_PREMISE_LIMIT = 900;
-    private static final int UI_ANSWER_LIMIT = 6000;
     private static final Pattern JSON_FENCE_PATTERN = Pattern.compile("```json\\s*([\\s\\S]*?)```", Pattern.CASE_INSENSITIVE);
 
     private final AgentEventBus eventBus;
@@ -2363,7 +2362,7 @@ public class AgentTaskService {
         }
         String text = JSON_FENCE_PATTERN.matcher(value).replaceAll("").trim();
         text = text.replaceAll("(?is)reasoningPayload:\\s*```json\\s*.*?\\s*```", "").trim();
-        return text.length() <= UI_ANSWER_LIMIT ? text : text.substring(0, UI_ANSWER_LIMIT);
+        return text;
     }
 
     private Map<String, Object> debugPayload(InteractionResponse response, Map<String, Object> reasoningPayload) {

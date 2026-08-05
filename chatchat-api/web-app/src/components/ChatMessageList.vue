@@ -228,24 +228,44 @@
           :tool-traces="message.traces || []"
           compact
         />
-        <div v-if="canShowEvaluation(message)" class="message-feedback" aria-label="回答评价">
+        <div
+          v-if="canShowEvaluation(message) || canExportMessagePdf(message)"
+          class="message-feedback"
+          aria-label="回答操作"
+        >
+          <template v-if="canShowEvaluation(message)">
+            <button
+              v-for="option in feedbackOptions"
+              :key="option.value"
+              type="button"
+              class="message-feedback-button"
+              :class="{ unresolved: option.value === 'unresolved' }"
+              :disabled="message.feedbackSubmitting"
+              :title="`评价为${option.label}`"
+              @click="$emit('feedback', { message, action: option.value })"
+            >
+              <CircleX v-if="option.value === 'unresolved'" :size="16" stroke-width="2.2" />
+              <CircleCheck v-else :size="16" stroke-width="2.2" />
+              <span>{{ option.label }}</span>
+            </button>
+          </template>
           <button
-            v-for="option in feedbackOptions"
-            :key="option.value"
+            v-if="canExportMessagePdf(message)"
             type="button"
             class="message-feedback-button"
-            :class="{ unresolved: option.value === 'unresolved' }"
-            :disabled="message.feedbackSubmitting"
-            :title="`评价为${option.label}`"
-            @click="$emit('feedback', { message, action: option.value })"
+            :disabled="exportingPdfMessageId === message.id"
+            :title="exportingPdfMessageId === message.id ? '正在生成PDF' : '导出当前回答为PDF'"
+            @click="exportMessagePdf(message, $event)"
           >
-            <CircleX v-if="option.value === 'unresolved'" :size="16" stroke-width="2.2" />
-            <CircleCheck v-else :size="16" stroke-width="2.2" />
-            <span>{{ option.label }}</span>
+            <FileDown :size="16" stroke-width="2.2" />
+            <span>{{ exportingPdfMessageId === message.id ? "导出中" : "导出PDF" }}</span>
           </button>
         </div>
-        <p v-else-if="message.feedbackTime" class="message-feedback-done">感谢评价</p>
+        <p v-if="message.feedbackTime" class="message-feedback-done">感谢评价</p>
         <p v-if="message.feedbackError" class="message-feedback-error">{{ message.feedbackError }}</p>
+        <p v-if="pdfExportErrorMessageId === message.id" class="message-feedback-error">
+          PDF 导出失败，请稍后重试
+        </p>
       </div>
     </article>
 

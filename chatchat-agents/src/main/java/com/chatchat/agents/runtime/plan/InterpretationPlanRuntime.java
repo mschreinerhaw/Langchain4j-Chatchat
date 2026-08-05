@@ -1,5 +1,6 @@
 package com.chatchat.agents.runtime.plan;
 
+import com.chatchat.agents.protocol.McpToolProtocolRole;
 import com.chatchat.agents.evidence.EvidenceExecutionLock;
 import com.chatchat.agents.evidence.EvidenceLockGraph;
 import com.chatchat.agents.runtime.evidence.DiagnosticEvidenceNormalizer;
@@ -6166,15 +6167,14 @@ public class InterpretationPlanRuntime {
 
     private boolean isAssetDiscoveryTool(String toolName) {
         String semantic = toolSemanticKey(toolName);
-        return "asset_query".equals(semantic)
+        return McpToolProtocolRole.ASSET_QUERY.matches(semantic)
             || "database_asset_search".equals(semantic)
-            || semantic.endsWith("_asset_query");
+            ;
     }
 
     private boolean isTemplateDiscoveryTool(String toolName) {
         String semantic = toolSemanticKey(toolName);
-        return "template_query".equals(semantic)
-            || semantic.endsWith("_template_query")
+        return McpToolProtocolRole.TEMPLATE_QUERY.matches(semantic)
             || semantic.endsWith("_template_search");
     }
 
@@ -6201,7 +6201,8 @@ public class InterpretationPlanRuntime {
 
     private boolean isApiTemplateExecuteTool(String toolName) {
         String semantic = toolSemanticKey(toolName);
-        return "api_template_execute".equals(semantic) || semantic.endsWith("_api_template_execute");
+        return McpToolProtocolRole.TEMPLATE_EXECUTE.matches(semantic)
+            && ("api_template_execute".equals(semantic) || semantic.endsWith("_api_template_execute"));
     }
 
     private boolean isTemplateExecutionTool(String toolName) {

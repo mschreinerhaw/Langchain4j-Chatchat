@@ -3,6 +3,7 @@ package com.chatchat.agents.orchestration;
 import com.chatchat.agents.assessment.RuntimeAnswerCandidate;
 import com.chatchat.agents.assessment.TaskContract;
 import com.chatchat.agents.protocol.ModelProtocolJson;
+import com.chatchat.agents.protocol.McpToolProtocolRole;
 import com.chatchat.agents.runtime.AgentRuntimeFactGroundingContract;
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
@@ -3033,16 +3034,16 @@ class AgentPlanner {
 
     private boolean isAssetDiscoverySemantic(String semantic) {
         return "asset_discovery".equals(semantic)
-            || "asset_query".equals(semantic)
+            || McpToolProtocolRole.ASSET_QUERY.matches(semantic)
             || "asset_search".equals(semantic)
             || (semantic != null
-                && (semantic.endsWith("_asset_query") || semantic.endsWith("_asset_search")));
+                && semantic.endsWith("_asset_search"));
     }
 
     private boolean isTemplateDiscoverySemantic(String semantic) {
         return "template_discovery".equals(semantic)
-            || "template_query".equals(semantic)
-            || (semantic != null && (semantic.endsWith("_template_query") || semantic.endsWith("_template_search")));
+            || McpToolProtocolRole.TEMPLATE_QUERY.matches(semantic)
+            || (semantic != null && semantic.endsWith("_template_search"));
     }
 
     private Map<String, Object> asMap(Object data) {

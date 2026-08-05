@@ -1,5 +1,6 @@
 package com.chatchat.agents.runtime.plan;
 
+import com.chatchat.agents.protocol.McpToolProtocolRole;
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolMetadata;
@@ -1189,9 +1190,8 @@ public class InterpretationPlanValidator {
             return false;
         }
         String normalized = toolName.trim().toLowerCase(Locale.ROOT);
-        return normalized.endsWith("_asset_query")
+        return McpToolProtocolRole.ASSET_QUERY.matches(normalized)
             || normalized.endsWith("_asset_search")
-            || "asset_query".equals(normalized)
             || "asset_search".equals(normalized);
     }
 
@@ -1393,14 +1393,14 @@ public class InterpretationPlanValidator {
 
     private boolean templateDiscoveryTool(String toolName) {
         String semantic = semanticToolName(toolName);
-        return "template_query".equals(semantic)
-            || semantic.endsWith("_template_query")
+        return McpToolProtocolRole.TEMPLATE_QUERY.matches(semantic)
             || semantic.endsWith("_template_search");
     }
 
     private boolean templateExecutionTool(String toolName) {
         String semantic = semanticToolName(toolName);
-        return "execute".equals(semantic) || semantic.endsWith("_execute");
+        return McpToolProtocolRole.TEMPLATE_EXECUTE.matches(semantic)
+            || "execute".equals(semantic) || semantic.endsWith("_execute");
     }
 
     private String semanticToolName(String toolName) {

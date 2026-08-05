@@ -1,5 +1,6 @@
 package com.chatchat.agents.runtime.plan;
 
+import com.chatchat.agents.protocol.McpToolProtocolRole;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -445,21 +446,22 @@ public class InterpretationPlanOptimizer {
     private boolean isAssetDiscoveryStep(InterpretationPlan.Step step) {
         String semantic = step == null ? "" : semanticToolName(step.toolName());
         return step != null && step.mcpToolAction()
-            && (semantic.equals("asset_query") || semantic.equals("asset_discovery")
-                || semantic.endsWith("_asset_query") || semantic.endsWith("_asset_search"));
+            && (McpToolProtocolRole.ASSET_QUERY.matches(semantic)
+                || semantic.equals("asset_discovery") || semantic.endsWith("_asset_search"));
     }
 
     private boolean isTemplateDiscoveryStep(InterpretationPlan.Step step) {
         String semantic = step == null ? "" : semanticToolName(step.toolName());
         return step != null && step.mcpToolAction()
-            && (semantic.equals("template_query") || semantic.equals("template_discovery")
-                || semantic.endsWith("_template_query") || semantic.endsWith("_template_search"));
+            && (McpToolProtocolRole.TEMPLATE_QUERY.matches(semantic)
+                || semantic.equals("template_discovery") || semantic.endsWith("_template_search"));
     }
 
     private boolean isTemplateExecutionStep(InterpretationPlan.Step step) {
         String semantic = step == null ? "" : semanticToolName(step.toolName());
         return step != null && step.mcpToolAction()
-            && (semantic.equals("execute") || semantic.endsWith("_execute"));
+            && (McpToolProtocolRole.TEMPLATE_EXECUTE.matches(semantic)
+                || semantic.equals("execute") || semantic.endsWith("_execute"));
     }
 
     private String semanticToolName(String toolName) {

@@ -1,5 +1,6 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.protocol.McpToolProtocolRole;
 import com.chatchat.common.interaction.InteractionToolTrace;
 
 import java.util.ArrayList;
@@ -120,17 +121,19 @@ class AgentWorkflowDecisionEngine {
         List<WorkflowToolStep> augmented = new ArrayList<>(steps);
         for (int index = 0; index < augmented.size(); index++) {
             WorkflowToolStep step = augmented.get(index);
-            String family = templateToolFamily(step.toolName(), "template_query");
+            String family = McpToolProtocolRole.TEMPLATE_QUERY.family(step.toolName());
             if (family != null) {
-                List<WorkflowToolStep> assets = matchingTemplateFamily(augmented, family, "asset_query");
+                List<WorkflowToolStep> assets = matchingTemplateFamily(
+                    augmented, family, McpToolProtocolRole.ASSET_QUERY);
                 if (assets.size() == 1) {
                     augmented.set(index, withWorkflowDependency(step, workflowStepLabel(assets.get(0))));
                 }
                 continue;
             }
-            family = templateToolFamily(step.toolName(), "template_execute");
+            family = McpToolProtocolRole.TEMPLATE_EXECUTE.family(step.toolName());
             if (family != null) {
-                List<WorkflowToolStep> queries = matchingTemplateFamily(augmented, family, "template_query");
+                List<WorkflowToolStep> queries = matchingTemplateFamily(
+                    augmented, family, McpToolProtocolRole.TEMPLATE_QUERY);
                 if (queries.size() == 1) {
                     augmented.set(index, withWorkflowDependency(step, workflowStepLabel(queries.get(0))));
                 }
@@ -141,20 +144,10 @@ class AgentWorkflowDecisionEngine {
 
     private List<WorkflowToolStep> matchingTemplateFamily(List<WorkflowToolStep> steps,
                                                            String family,
-                                                           String role) {
+                                                           McpToolProtocolRole role) {
         return steps.stream()
-            .filter(candidate -> family.equals(templateToolFamily(candidate.toolName(), role)))
+            .filter(candidate -> family.equals(role.family(candidate.toolName())))
             .toList();
-    }
-
-    private String templateToolFamily(String toolName, String role) {
-        if (toolName == null || role == null) {
-            return null;
-        }
-        String normalized = toolName.trim().toLowerCase(Locale.ROOT).replace('-', '_');
-        return normalized.endsWith(role)
-            ? normalized.substring(0, normalized.length() - role.length())
-            : null;
     }
 
     private WorkflowToolStep withWorkflowDependency(WorkflowToolStep step, String dependency) {

@@ -29,6 +29,7 @@ class AgentRuntimeFactGroundingContractTest {
             .contains("Never relabel toolName as displayName")
             .contains("Partial-result presentation contract")
             .contains("Template child failures are isolated execution results")
+            .contains("Preserve failure identity exactly")
             .contains("DATA_RETURNED, EMPTY_RESULT, NOT_EXECUTED, BLOCKED, and FAILED")
             .contains("Convert YYYYMMDD to YYYY-MM-DD without changing any digit")
             .contains("do not replace the requested report with an API inventory")

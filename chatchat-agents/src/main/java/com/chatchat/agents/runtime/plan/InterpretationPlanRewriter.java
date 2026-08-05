@@ -1,6 +1,7 @@
 package com.chatchat.agents.runtime.plan;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
+import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
@@ -82,7 +83,8 @@ public class InterpretationPlanRewriter {
             ModelProtocolJson.prettyJsonForLog(raw));
         try {
             InterpretationPlan rewrittenPlan = objectMapper.readValue(extractJson(raw), InterpretationPlan.class);
-            rewrittenPlan = normalizeRewritePlan(request.originalPlan(), rewrittenPlan);
+            rewrittenPlan = normalizeRewritePlan(
+                request.originalPlan(), rewrittenPlan, request.availableTools());
             rewrittenPlan = preserveBudgetCeilings(request.budgetCeilings(), rewrittenPlan);
             InterpretationPlanValidator.ValidationResult validation = validator.validate(
                 rewrittenPlan,
@@ -236,6 +238,7 @@ public class InterpretationPlanRewriter {
         prompt.append("HTTP/API/SSH template repair rules:\n");
         prompt.append("- For http_request_execute and linux_command_execute, bind a returned templates[].templateId into input.template and pass only parameters declared by templates[].parameterSchema under input.parameters.\n");
         prompt.append("- For API templates returned by api_template_query, call api_template_execute with the returned scalar templateId and pass only arguments declared by templates[].parameterSchema/parameterContract under parameters.\n");
+        prompt.append("- Prefer execution over speculative parameter repair: retain only evidence-backed schema parameter overrides and omit everything else so authoritative template defaults apply. A missing optional/defaulted value must never prevent template execution.\n");
         prompt.append("- When template discovery returned candidates but semantic review rejected them, preserve the rejection reason, add their ids to excludeTemplateIds, refine intent/goal/keywords, and query again. Never repeat an identical template query.\n");
         prompt.append("- When changing from a precise-looking candidate to a broader or different template query, explicitly justify the change from observed parameter compatibility, execution failure, missing evidence, or semantic mismatch. Retrieval rank or a template name alone is not sufficient justification.\n");
         prompt.append("- Treat template_execution_satisfaction.v1 as an authoritative retry contract. A failed template execution may be repaired exactly once: apply only evidence-proven retryInputChanges, bind every missingParameter, or re-run template discovery so the Runtime candidate evaluation layer can select another authorized template.\n");
@@ -508,7 +511,8 @@ public class InterpretationPlanRewriter {
      * semantic validation so a recoverable rewrite is not discarded.
      */
     private InterpretationPlan normalizeRewritePlan(InterpretationPlan originalPlan,
-                                                    InterpretationPlan rewrittenPlan) {
+                                                    InterpretationPlan rewrittenPlan,
+                                                    List<String> availableTools) {
         if (rewrittenPlan == null) {
             return null;
         }
@@ -534,11 +538,16 @@ public class InterpretationPlanRewriter {
                     ? List.copyOf(precedingStepIds)
                     : List.of();
             }
+            Map<String, Object> normalizedInput = normalizeBatchChildToolNames(
+                step,
+                step.input() == null ? Map.of() : step.input(),
+                availableTools
+            );
             normalizedSteps.add(new InterpretationPlan.Step(
                 step.id(),
                 actionType,
                 step.toolName() == null ? "" : step.toolName(),
-                step.input() == null ? Map.of() : step.input(),
+                normalizedInput,
                 dependsOn,
                 step.outputContract(),
                 step.validation()
@@ -590,6 +599,53 @@ public class InterpretationPlanRewriter {
             executionPolicy,
             normalizedReview
         );
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> normalizeBatchChildToolNames(InterpretationPlan.Step step,
+                                                             Map<String, Object> input,
+                                                             List<String> availableTools) {
+        if (step == null || input == null || !ToolCallBatchSchema.supports(step.toolName())) {
+            return input == null ? Map.of() : input;
+        }
+        Object rawCalls = input.get("calls");
+        if (!(rawCalls instanceof List<?> calls) || calls.isEmpty()) {
+            return input;
+        }
+        Map<String, Object> normalizedInput = new LinkedHashMap<>(input);
+        List<Object> normalizedCalls = new ArrayList<>(calls.size());
+        for (Object rawCall : calls) {
+            if (!(rawCall instanceof Map<?, ?> map)) {
+                normalizedCalls.add(rawCall);
+                continue;
+            }
+            Map<String, Object> call = new LinkedHashMap<>((Map<String, Object>) map);
+            Object declared = call.containsKey("toolName")
+                ? call.get("toolName") : call.get("tool_name");
+            String declaredTool = declared == null ? step.toolName() : String.valueOf(declared);
+            String resolved = resolveAvailableToolName(declaredTool, availableTools);
+            if (resolved == null && sameTool(declaredTool, step.toolName())) {
+                resolved = step.toolName();
+            }
+            if (resolved != null) {
+                call.put("toolName", resolved);
+                call.remove("tool_name");
+            }
+            normalizedCalls.add(call);
+        }
+        normalizedInput.put("calls", List.copyOf(normalizedCalls));
+        return normalizedInput;
+    }
+
+    private String resolveAvailableToolName(String declaredTool, List<String> availableTools) {
+        if (declaredTool == null || declaredTool.isBlank()
+            || availableTools == null || availableTools.isEmpty()) {
+            return null;
+        }
+        return availableTools.stream()
+            .filter(tool -> sameTool(tool, declaredTool))
+            .findFirst()
+            .orElse(null);
     }
 
     /**

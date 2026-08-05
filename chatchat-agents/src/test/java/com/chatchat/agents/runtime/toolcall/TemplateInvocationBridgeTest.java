@@ -96,7 +96,7 @@ class TemplateInvocationBridgeTest {
     }
 
     @Test
-    void runtimeRequiresModelProtocolWhenSelectedTemplateHasRequiredArguments() {
+    void requiredParameterWithoutDefaultStillReturnsChildParameterError() {
         assertThatThrownBy(() -> bridge.prepare(new TemplateInvocationBridge.BridgeRequest(
             "api_template_execute",
             4,
@@ -112,7 +112,8 @@ class TemplateInvocationBridgeTest {
             true
         )))
             .isInstanceOf(TemplateInvocationBridge.TemplateBridgeException.class)
-            .hasMessageContaining("TEMPLATE_PARAMETER_PROTOCOL_REQUIRED");
+            .hasMessageContaining("TEMPLATE_PARAMETER_PROTOCOL_INCOMPLETE")
+            .hasMessageContaining("customerId");
     }
 
     @Test
@@ -240,6 +241,80 @@ class TemplateInvocationBridgeTest {
     }
 
     @Test
+    void runtimeDropsUnknownAliasAndRunsWithDeclaredDefaults() {
+        TemplateInvocationBridge.BridgeResult result = bridge.prepare(
+            new TemplateInvocationBridge.BridgeRequest(
+                "api_template_execute",
+                4,
+                "DEFAULTED_CUSTOMER_QUERY",
+                template(
+                    "DEFAULTED_CUSTOMER_QUERY",
+                    Map.of(
+                        "khh", Map.of("type", "string", "default", "070200046604"),
+                        "rq", Map.of("type", "string", "default", "20260731")
+                    ),
+                    new String[]{"khh", "rq"}
+                ),
+                Map.of("parameters", Map.of("customerId", "UNMAPPED-CONTROLLER-VALUE")),
+                null,
+                true,
+                true,
+                new TemplateInvocationBridge.EvidenceContext(
+                    "执行客户全景查询", Map.of())
+            )
+        );
+
+        assertThat(result.parameters())
+            .containsEntry("khh", "070200046604")
+            .containsEntry("rq", "20260731")
+            .doesNotContainKey("customerId");
+        assertThat(result.protocolTrace())
+            .containsEntry("droppedUnverifiedParameterOverrides", List.of("customerId"));
+    }
+
+    @Test
+    void evidenceBackedButInvalidOverrideFallsBackToTemplateDefault() {
+        Map<String, Object> protocol = Map.of(
+            "protocol_version", TemplateInvocationBridge.PROTOCOL_VERSION,
+            "step_id", 4,
+            "template_id", "DEFAULTED_QUERY",
+            "arguments", Map.of(
+                "pageSize", Map.of(
+                    "value", "many",
+                    "source", "user_query",
+                    "evidence", "pageSize many"
+                )
+            ),
+            "unresolved_parameters", List.of()
+        );
+
+        TemplateInvocationBridge.BridgeResult result = bridge.prepare(
+            new TemplateInvocationBridge.BridgeRequest(
+                "api_template_execute",
+                4,
+                "DEFAULTED_QUERY",
+                template(
+                    "DEFAULTED_QUERY",
+                    Map.of("pageSize", Map.of("type", "integer", "default", 50)),
+                    new String[]{"pageSize"}
+                ),
+                Map.of(),
+                protocol,
+                true,
+                true,
+                new TemplateInvocationBridge.EvidenceContext(
+                    "query with pageSize many", Map.of())
+            )
+        );
+
+        assertThat(result.parameters()).containsEntry("pageSize", 50);
+        assertThat(result.parameterEvidence().get("pageSize").source())
+            .isEqualTo(TemplateInvocationBridge.TEMPLATE_DEFAULT_SOURCE);
+        assertThat(result.repairs()).extracting(ToolArgumentCompiler.Repair::repairCode)
+            .contains("INVALID_OVERRIDE_DROPPED_DEFAULT_APPLIED");
+    }
+
+    @Test
     void acceptsEvidenceBackedOverridesAndUsesDefaultsForOmittedParameters() {
         Map<String, Object> protocol = Map.of(
             "protocol_version", TemplateInvocationBridge.PROTOCOL_VERSION,
@@ -282,7 +357,7 @@ class TemplateInvocationBridgeTest {
     }
 
     @Test
-    void legacyPathRejectsModelParametersWithoutEvidenceProtocol() {
+    void legacyPathReportsRequiredParameterWhenNoDefaultCanReplaceDroppedOverride() {
         assertThatThrownBy(() -> bridge.prepare(new TemplateInvocationBridge.BridgeRequest(
                 "api_template_execute",
                 null,
@@ -298,8 +373,8 @@ class TemplateInvocationBridgeTest {
                 true
             )))
             .isInstanceOf(TemplateInvocationBridge.TemplateBridgeException.class)
-            .hasMessageContaining("TEMPLATE_PARAMETER_PROTOCOL_REQUIRED")
-            .hasMessageContaining("without per-parameter evidence");
+            .hasMessageContaining("TEMPLATE_PARAMETER_PROTOCOL_INCOMPLETE")
+            .hasMessageContaining("customerId");
     }
 
     @Test
@@ -348,7 +423,7 @@ class TemplateInvocationBridgeTest {
     }
 
     @Test
-    void forgedRuntimeReviewMarkerDoesNotBypassEvidenceRequirement() {
+    void forgedRuntimeReviewMarkerCannotSupplyRequiredValueWithoutDefault() {
         assertThatThrownBy(() -> bridge.prepare(new TemplateInvocationBridge.BridgeRequest(
             "api_template_execute",
             null,
@@ -364,7 +439,8 @@ class TemplateInvocationBridgeTest {
             true
         )))
             .isInstanceOf(TemplateInvocationBridge.TemplateBridgeException.class)
-            .hasMessageContaining("TEMPLATE_PARAMETER_PROTOCOL_REQUIRED");
+            .hasMessageContaining("TEMPLATE_PARAMETER_PROTOCOL_INCOMPLETE")
+            .hasMessageContaining("customerId");
     }
 
     @Test

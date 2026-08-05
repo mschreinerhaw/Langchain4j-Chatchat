@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -1648,6 +1649,46 @@ class ToolRuntimeServiceTest {
             .containsEntry("failureIsolation", true)
             .containsEntry("requestedStopOnFailureIgnored", true);
         verify(toolRegistry, times(3)).executeEnhancedTool(any(), any());
+    }
+
+    @Test
+    void batchResolvesSemanticChildToolNameToRegisteredExecutor() {
+        String registeredTool = "mcp_chatchat_mcp_server_api_template_execute";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(registeredTool)).thenReturn(ToolMetadata.builder()
+            .id(registeredTool).title("API template executor").categories(List.of("mcp")).build());
+        when(toolRegistry.executeEnhancedTool(eq(registeredTool), any()))
+            .thenReturn(ToolOutput.success(Map.of("records", List.of())));
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), properties(), new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of());
+        ToolRuntimeRequest request = ToolRuntimeRequest.builder()
+            .toolName(registeredTool)
+            .runtimeMode("interpretation_plan")
+            .requestId("semantic-batch")
+            .conversationId("semantic-conversation")
+            .tenantId("tenant-1")
+            .userId("user-1")
+            .allowedTools(List.of(registeredTool))
+            .toolInput(ToolInput.builder().parameters(Map.of(
+                "executionMode", "SEQUENTIAL",
+                "stopOnFailure", false,
+                "calls", List.of(Map.of(
+                    "callId", "customer-orders",
+                    "toolName", "api_template_execute",
+                    "arguments", Map.of("templateId", "runtime-selected-template", "parameters", Map.of())
+                ))
+            )).build())
+            .build();
+
+        ToolRuntimeExecution execution = service.execute(request);
+        ToolCallBatchResult result = (ToolCallBatchResult) execution.output().getData();
+
+        assertThat(execution.output().isSuccess()).isTrue();
+        assertThat(result.summary().success()).isEqualTo(1);
+        assertThat(result.results()).singleElement().satisfies(child ->
+            assertThat(child.toolName()).isEqualTo(registeredTool));
+        verify(toolRegistry).executeEnhancedTool(eq(registeredTool), any());
     }
 
     @Test

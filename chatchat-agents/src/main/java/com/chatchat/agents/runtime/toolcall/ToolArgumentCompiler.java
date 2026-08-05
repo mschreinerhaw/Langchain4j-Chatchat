@@ -31,6 +31,7 @@ public final class ToolArgumentCompiler {
         List<ValidationError> errors = new ArrayList<>();
         List<Repair> repairs = new ArrayList<>();
         Set<String> consumed = new LinkedHashSet<>();
+        Set<String> requiredFields = new LinkedHashSet<>(stringList(schema.get("required")));
         for (Map.Entry<?, ?> entry : rawProperties.entrySet()) {
             String name = String.valueOf(entry.getKey());
             Map<String, Object> property = objectMap(entry.getValue());
@@ -47,7 +48,26 @@ public final class ToolArgumentCompiler {
             consumed.add(selected.sourceName());
             Conversion conversion = convert(name, value, property);
             if (conversion.error() != null) {
-                errors.add(conversion.error());
+                Conversion defaultConversion = declaredDefault == null
+                    ? null : convert(name, declaredDefault, property);
+                if (defaultConversion != null && defaultConversion.error() == null) {
+                    compiled.put(name, defaultConversion.value());
+                    repairs.add(new Repair(
+                        name,
+                        "INVALID_OVERRIDE_DROPPED_DEFAULT_APPLIED",
+                        value,
+                        defaultConversion.value()
+                    ));
+                } else if (requiredFields.contains(name)) {
+                    errors.add(conversion.error());
+                } else {
+                    repairs.add(new Repair(
+                        name,
+                        "INVALID_OPTIONAL_OVERRIDE_DROPPED",
+                        value,
+                        null
+                    ));
+                }
                 continue;
             }
             compiled.put(name, conversion.value());
@@ -64,7 +84,7 @@ public final class ToolArgumentCompiler {
                 }
             });
         }
-        for (String required : stringList(schema.get("required"))) {
+        for (String required : requiredFields) {
             if (!hasValue(compiled.get(required))) {
                 errors.add(new ValidationError(required, "REQUIRED_PARAMETER_MISSING",
                     "Missing required parameter " + required, source.get(required), expectedType(objectMap(rawProperties.get(required)))));

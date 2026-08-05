@@ -1162,7 +1162,7 @@ public class InterpretationPlanValidator {
 
     private boolean toolExists(String toolName, ToolRegistry toolRegistry, Set<String> availableTools) {
         if (availableTools != null && !availableTools.isEmpty()) {
-            return containsTool(availableTools, toolName);
+            return availableTools.stream().anyMatch(available -> sameSemanticTool(available, toolName));
         }
         if (toolRegistry == null || blank(toolName)) {
             return false;
@@ -1171,10 +1171,21 @@ public class InterpretationPlanValidator {
             if (toolRegistry.hasTool(toolName)) {
                 return true;
             }
+            Set<String> registeredTools = toolRegistry.getAllToolNames();
+            if (registeredTools != null
+                && registeredTools.stream().anyMatch(registered -> sameSemanticTool(registered, toolName))) {
+                return true;
+            }
         } catch (RuntimeException ignored) {
             // Fall through to metadata-based resolution.
         }
         return toolMetadata(toolName, toolRegistry) != null;
+    }
+
+    private boolean sameSemanticTool(String left, String right) {
+        String leftSemantic = semanticToolName(left);
+        String rightSemantic = semanticToolName(right);
+        return !leftSemantic.isBlank() && leftSemantic.equals(rightSemantic);
     }
 
     private boolean templatePlaceholderStep(InterpretationPlan plan,

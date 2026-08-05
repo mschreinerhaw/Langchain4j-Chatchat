@@ -85,6 +85,8 @@ MCP 根据 `templateId` 读取真实 API 配置，检查模板是否启用，并
 
 参数化模板统一使用 `template_parameter_protocol_v2`。模型输出基于用户原文或成功工具结果的参数画像；Runtime 会回查证据，校验步骤 ID、输出路径、模板 ID、字段声明、必填参数和类型，再由模板桥接层编译成执行请求。
 
+参数执行语义以 [Agent Runtime 模板参数传递契约](agent-runtime-template-argument-contract.md) 为唯一权威口径：有效且有证据的映射值覆盖默认值；无法映射、证据不足或校验无效的覆盖值不得进入请求，应回退默认值或省略可选参数。只有必填且无默认值的参数缺失时，当前模板返回参数错误；多模板执行继续处理其他模板。
+
 ## 4. API 模板元数据
 
 `mcp_api_service_config` 增加以下可选 JSON 字段，Hibernate `ddl-auto=update` 会在服务启动时同步列：
@@ -99,7 +101,7 @@ MCP 根据 `templateId` 读取真实 API 配置，检查模板是否启用，并
 
 - 无候选：返回 `NO_CANDIDATE`，进入计划改写或向用户报告能力缺口。
 - 多候选：必须经过模型语义评审，不再由 Runtime 因“数量大于零”直接跳过评审。
-- 参数不足：不执行 API；模型从当前用户问题或已完成步骤中补充参数。
+- 参数不足：先应用模板默认值；无法映射、证据不足或无效的覆盖值直接丢弃。仅当必填参数没有默认值且仍无有效值时，当前 API 不执行并返回结构化参数错误；同批其他 API 继续执行。
 - 模板被禁用或不存在：`api_template_execute` 拒绝执行。
 - 重检：携带 `excludeTemplateIds` 和 `refinedIntent`，受 InterpretationPlan 的 `maxRewriteTimes` 限制。
 

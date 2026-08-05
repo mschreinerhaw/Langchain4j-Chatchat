@@ -1496,6 +1496,7 @@ public class ToolRuntimeService {
                 stringValue(firstPresent(call.get("toolName"), call.get("tool_name"))),
                 request.getToolName()
             );
+            toolName = resolveBatchChildToolName(request, toolName);
             Map<String, Object> arguments = asMap(firstPresent(
                 call.get("arguments"), call.get("input"), call.get("parameters")
             ));
@@ -1535,6 +1536,23 @@ public class ToolRuntimeService {
             firstText(request.getRequestId(), UUID.randomUUID().toString()) + "-batch"
         );
         return new ToolCallBatch(batchId, BatchExecutionMode.SEQUENTIAL, stopOnFailure, parsedCalls);
+    }
+
+    private String resolveBatchChildToolName(ToolRuntimeRequest request, String declaredTool) {
+        if (declaredTool == null || declaredTool.isBlank()) {
+            return request == null ? declaredTool : request.getToolName();
+        }
+        if (request != null && request.getAllowedTools() != null) {
+            for (String allowedTool : request.getAllowedTools()) {
+                if (sameTool(allowedTool, declaredTool)) {
+                    return allowedTool;
+                }
+            }
+        }
+        if (request != null && sameTool(request.getToolName(), declaredTool)) {
+            return request.getToolName();
+        }
+        return declaredTool;
     }
 
     private BatchValidation validateBatchEnvelope(ToolRuntimeRequest request) {

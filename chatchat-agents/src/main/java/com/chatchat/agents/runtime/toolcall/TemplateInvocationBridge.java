@@ -153,15 +153,18 @@ public final class TemplateInvocationBridge {
         }
         Map<String, ParameterEvidence> compiledEvidence = new LinkedHashMap<>(parameterAudit.evidence());
         for (ToolArgumentCompiler.Repair repair : compilation.repairs()) {
-            if ("DEFAULT_VALUE_APPLIED".equals(repair.repairCode())) {
-                compiledEvidence.putIfAbsent(
-                    repair.field(),
-                    new ParameterEvidence(
-                        TEMPLATE_DEFAULT_SOURCE,
-                        Map.of("templateId", runtimeTemplateId, "schemaField", repair.field()),
-                        repair.repairedValue()
-                    )
+            if ("DEFAULT_VALUE_APPLIED".equals(repair.repairCode())
+                || "INVALID_OVERRIDE_DROPPED_DEFAULT_APPLIED".equals(repair.repairCode())) {
+                ParameterEvidence defaultEvidence = new ParameterEvidence(
+                    TEMPLATE_DEFAULT_SOURCE,
+                    Map.of("templateId", runtimeTemplateId, "schemaField", repair.field()),
+                    repair.repairedValue()
                 );
+                if ("INVALID_OVERRIDE_DROPPED_DEFAULT_APPLIED".equals(repair.repairCode())) {
+                    compiledEvidence.put(repair.field(), defaultEvidence);
+                } else {
+                    compiledEvidence.putIfAbsent(repair.field(), defaultEvidence);
+                }
             }
         }
         Map<String, Object> protocolTrace = new LinkedHashMap<>(AgentProtocolCatalog.trace(
@@ -172,6 +175,7 @@ public final class TemplateInvocationBridge {
         ));
         protocolTrace.put("reviewedParameterCount", parameterAudit.evidence().size());
         protocolTrace.put("runtimeParameterEvidenceRecovered", runtimeEvidenceRecovered);
+        protocolTrace.put("droppedUnverifiedParameterOverrides", parameterAudit.unresolved());
         protocolTrace.put("templateDefaultParameterCount",
             Math.max(0, compiledEvidence.size() - parameterAudit.evidence().size()));
         protocolTrace.put("parameterEvidenceSources", compiledEvidence.values().stream()
@@ -233,13 +237,12 @@ public final class TemplateInvocationBridge {
                 value
             ));
         }
-        if (!denied.isEmpty()) {
-            throw failure("TEMPLATE_PARAMETER_PROTOCOL_REQUIRED",
-                "template " + templateId + " contains parameters " + denied
-                    + " without per-parameter evidence; values are neither schema defaults "
-                    + "nor exact Runtime user-query evidence");
-        }
-        return new ParameterAudit(Map.copyOf(recovered), Map.copyOf(evidence), List.of());
+        // Execution is the primary objective. Unknown or unverified controller/model
+        // overrides are not forwarded, but they also must not poison a template whose
+        // authoritative schema defaults are sufficient. Required fields without a
+        // default are checked after default compilation and still fail this child only.
+        return new ParameterAudit(
+            Map.copyOf(recovered), Map.copyOf(evidence), List.copyOf(denied));
     }
 
     private String userQueryEvidenceQuote(String userQuery, Object value) {

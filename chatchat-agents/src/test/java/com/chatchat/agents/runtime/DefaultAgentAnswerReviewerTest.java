@@ -28,6 +28,10 @@ class DefaultAgentAnswerReviewerTest {
             .contains("EMPTY_RESULT, NOT_EXECUTED, BLOCKED, and FAILED")
             .contains("without an invented business cause")
             .contains("displayed date or date range differs from executed parameters");
+        assertThat(prompt)
+            .contains("substitutes an inferred failure cause")
+            .contains("UNAVAILABLE/NameResolver")
+            .contains("tool was unregistered");
     }
 
     @Test

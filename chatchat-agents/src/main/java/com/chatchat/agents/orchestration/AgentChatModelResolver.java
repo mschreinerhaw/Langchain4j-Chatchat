@@ -4,6 +4,7 @@ import com.chatchat.agents.model.ConfigurableChatModelFactory;
 import com.chatchat.common.config.ModelsConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -25,6 +26,7 @@ public class AgentChatModelResolver {
             new ConfigurableChatModelFactory(modelsConfig, new ObjectMapper()));
     }
 
+    @Autowired
     public AgentChatModelResolver(ChatModel defaultChatModel,
                                   ModelsConfig modelsConfig,
                                   ConfigurableChatModelFactory chatModelFactory) {

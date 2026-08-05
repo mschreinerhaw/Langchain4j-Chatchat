@@ -41,7 +41,7 @@ class AgentWorkflowDecisionEngine {
             return new WorkflowMandatoryResolution(List.of(), List.of());
         }
 
-        List<WorkflowToolStep> requiredSteps = new ArrayList<>();
+        List<WorkflowToolStep> declaredSteps = new ArrayList<>();
         List<ToolExecutionDecision> skippedDecisions = new ArrayList<>();
         Map<String, Object> conditionContext = workflowConditionContext(runtimeAttributes, query);
         int index = 1;
@@ -59,10 +59,9 @@ class AgentWorkflowDecisionEngine {
             }
             Boolean required = booleanObject(step.get("required"));
             String condition = stringValue(step.get("condition"));
-            int order = firstInteger(firstObject(step, "step", "order"), index);
+            int order = firstInteger(step.get("order"), firstInteger(step.get("step"), index));
             List<String> dependencies = stringList(firstObject(step,
                 "dependsOn", "depends_on", "requiredDependsOn", "required_depends_on"));
-            List<String> aliases = workflowStepAliases(step, tool, order, index);
             for (String stepTool : stepTools) {
                 ToolExecutionDecision decision = resolveToolExecution(
                     stepTool,
@@ -72,10 +71,12 @@ class AgentWorkflowDecisionEngine {
                     tools,
                     List.of()
                 );
-                if (decision.outcome() == ToolExecutionOutcome.EXECUTE) {
-                    requiredSteps.add(new WorkflowToolStep(
-                        order, index, decision.toolName(), aliases, dependencies));
-                } else if (decision.outcome() != ToolExecutionOutcome.DEFER_TO_PLANNER) {
+                declaredSteps.add(new WorkflowToolStep(
+                    order, index, decision.toolName(),
+                    workflowStepAliases(step, stepTool, decision.toolName()), dependencies,
+                    decision.outcome() == ToolExecutionOutcome.EXECUTE));
+                if (decision.outcome() != ToolExecutionOutcome.EXECUTE
+                    && decision.outcome() != ToolExecutionOutcome.DEFER_TO_PLANNER) {
                     skippedDecisions.add(decision);
                 }
             }
@@ -83,7 +84,8 @@ class AgentWorkflowDecisionEngine {
         }
 
         LinkedHashMap<String, Boolean> ordered = new LinkedHashMap<>();
-        dependencyOrderedSteps(requiredSteps).stream()
+        dependencyOrderedSteps(declaredSteps).stream()
+            .filter(WorkflowToolStep::executable)
             .map(WorkflowToolStep::toolName)
             .forEach(tool -> ordered.put(tool, Boolean.TRUE));
         return new WorkflowMandatoryResolution(new ArrayList<>(ordered.keySet()), distinctDecisions(skippedDecisions));
@@ -96,8 +98,8 @@ class AgentWorkflowDecisionEngine {
      * dependency when generated steps share or omit an order value.
      */
     private List<WorkflowToolStep> dependencyOrderedSteps(List<WorkflowToolStep> steps) {
-        if (steps == null || steps.size() < 2) {
-            return steps == null ? List.of() : List.copyOf(steps);
+        if (steps == null || steps.isEmpty()) {
+            return List.of();
         }
         Map<WorkflowToolStep, Integer> inDegree = new LinkedHashMap<>();
         Map<WorkflowToolStep, List<WorkflowToolStep>> dependents = new LinkedHashMap<>();
@@ -108,9 +110,7 @@ class AgentWorkflowDecisionEngine {
         for (WorkflowToolStep step : steps) {
             Set<WorkflowToolStep> resolvedDependencies = new LinkedHashSet<>();
             for (String dependency : step.dependencies()) {
-                steps.stream()
-                    .filter(candidate -> candidate != step && workflowStepMatches(candidate, dependency))
-                    .forEach(resolvedDependencies::add);
+                resolvedDependencies.addAll(resolveWorkflowDependency(steps, step, dependency));
             }
             inDegree.put(step, resolvedDependencies.size());
             resolvedDependencies.forEach(dependency -> dependents.get(dependency).add(step));
@@ -139,36 +139,75 @@ class AgentWorkflowDecisionEngine {
         if (ordered.size() == steps.size()) {
             return ordered;
         }
-        // Preserve the previous deterministic behavior for malformed cyclic graphs;
-        // workflow validation elsewhere remains responsible for reporting the cycle.
-        return steps.stream().sorted(stableOrder).toList();
+        List<String> cyclicSteps = steps.stream()
+            .filter(step -> inDegree.getOrDefault(step, 0) > 0)
+            .sorted(stableOrder)
+            .map(this::workflowStepLabel)
+            .distinct()
+            .toList();
+        throw new AgentWorkflowConfigurationException(
+            "WORKFLOW_DEPENDENCY_CYCLE",
+            "Workflow dependency graph contains a cycle involving: " + cyclicSteps);
     }
 
-    private boolean workflowStepMatches(WorkflowToolStep step, String dependency) {
-        if (step == null || dependency == null || dependency.isBlank()) {
-            return false;
+    private List<WorkflowToolStep> resolveWorkflowDependency(List<WorkflowToolStep> steps,
+                                                             WorkflowToolStep dependent,
+                                                             String dependency) {
+        String reference = dependency == null ? "" : dependency.trim();
+        if (reference.isEmpty()) {
+            throw new AgentWorkflowConfigurationException(
+                "WORKFLOW_DEPENDENCY_UNRESOLVED",
+                "Workflow step '" + workflowStepLabel(dependent) + "' declares a blank dependency");
         }
-        return step.aliases().stream().anyMatch(alias ->
-            alias.equalsIgnoreCase(dependency.trim()) || sameToolName(alias, dependency));
+        List<WorkflowToolStep> matches = steps.stream()
+            .filter(candidate -> candidate.aliases().stream()
+                .anyMatch(alias -> alias.equalsIgnoreCase(reference)))
+            .toList();
+        if (matches.isEmpty()) {
+            throw new AgentWorkflowConfigurationException(
+                "WORKFLOW_DEPENDENCY_UNRESOLVED",
+                "Workflow step '" + workflowStepLabel(dependent)
+                    + "' depends on unknown step or tool '" + reference + "'");
+        }
+        Set<Integer> matchedSourceSteps = matches.stream()
+            .map(WorkflowToolStep::sourceIndex)
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        if (matchedSourceSteps.size() > 1) {
+            throw new AgentWorkflowConfigurationException(
+                "WORKFLOW_DEPENDENCY_AMBIGUOUS",
+                "Workflow step '" + workflowStepLabel(dependent)
+                    + "' dependency '" + reference + "' matches multiple workflow steps "
+                    + matchedSourceSteps + "; use a unique id or name");
+        }
+        if (matchedSourceSteps.contains(dependent.sourceIndex())) {
+            throw new AgentWorkflowConfigurationException(
+                "WORKFLOW_DEPENDENCY_SELF_REFERENCE",
+                "Workflow step '" + workflowStepLabel(dependent) + "' cannot depend on itself via '"
+                    + reference + "'");
+        }
+        return matches;
     }
 
     private List<String> workflowStepAliases(Map<String, Object> step,
-                                             String tool,
-                                             int order,
-                                             int sourceIndex) {
+                                             String configuredTool,
+                                             String resolvedTool) {
         LinkedHashMap<String, Boolean> aliases = new LinkedHashMap<>();
         for (Object value : new Object[] {
-            firstObject(step, "name", "id"),
-            firstObject(step, "step", "order"),
-            tool,
-            String.valueOf(order),
-            String.valueOf(sourceIndex)}) {
+            step.get("id"),
+            step.get("name"),
+            step.get("step"),
+            configuredTool,
+            resolvedTool}) {
             String alias = stringValue(value);
             if (alias != null && !alias.isBlank()) {
                 aliases.put(alias.trim(), Boolean.TRUE);
             }
         }
         return new ArrayList<>(aliases.keySet());
+    }
+
+    private String workflowStepLabel(WorkflowToolStep step) {
+        return step.aliases().isEmpty() ? step.toolName() : step.aliases().get(0);
     }
 
     ToolExecutionDecision resolveToolExecution(String requestedToolName,
@@ -695,7 +734,8 @@ class AgentWorkflowDecisionEngine {
         int sourceIndex,
         String toolName,
         List<String> aliases,
-        List<String> dependencies
+        List<String> dependencies,
+        boolean executable
     ) {
         private WorkflowToolStep {
             aliases = aliases == null ? List.of() : List.copyOf(aliases);

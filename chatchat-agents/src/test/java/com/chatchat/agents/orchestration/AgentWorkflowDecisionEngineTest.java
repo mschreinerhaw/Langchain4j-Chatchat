@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class AgentWorkflowDecisionEngineTest {
 
@@ -48,5 +49,73 @@ class AgentWorkflowDecisionEngineTest {
             List.of(query, execute), Map.of("mcpWorkflow", workflow), "execute template");
 
         assertThat(result.tools()).containsExactly(query, execute);
+    }
+
+    @Test
+    void rejectsAmbiguousNumericStepIdentifier() {
+        Map<String, Object> workflow = Map.of(
+            "steps", List.of(
+                Map.of("step", 1, "tool", "load_customer", "required", true),
+                Map.of("step", 1, "tool", "load_account", "required", true),
+                Map.of("step", 2, "tool", "build_report", "required", true,
+                    "dependsOn", List.of("1"))
+            )
+        );
+
+        assertThatThrownBy(() -> engine.resolveWorkflowMandatoryTools(
+            List.of("load_customer", "load_account", "build_report"),
+            Map.of("mcpWorkflow", workflow), "build report"))
+            .isInstanceOf(AgentWorkflowConfigurationException.class)
+            .hasMessageContaining("WORKFLOW_DEPENDENCY_AMBIGUOUS")
+            .hasMessageContaining("use a unique id or name");
+    }
+
+    @Test
+    void rejectsUnresolvedDependencyInsteadOfIgnoringIt() {
+        Map<String, Object> workflow = Map.of(
+            "steps", List.of(
+                Map.of("id", "report", "tool", "build_report", "required", true,
+                    "dependsOn", List.of("missing_input"))
+            )
+        );
+
+        assertThatThrownBy(() -> engine.resolveWorkflowMandatoryTools(
+            List.of("build_report"), Map.of("mcpWorkflow", workflow), "build report"))
+            .isInstanceOf(AgentWorkflowConfigurationException.class)
+            .hasMessageContaining("WORKFLOW_DEPENDENCY_UNRESOLVED")
+            .hasMessageContaining("missing_input");
+    }
+
+    @Test
+    void rejectsDependencyCycleInsteadOfFallingBackToNumericOrder() {
+        Map<String, Object> workflow = Map.of(
+            "steps", List.of(
+                Map.of("id", "load", "tool", "load_data", "required", true,
+                    "dependsOn", List.of("report")),
+                Map.of("id", "report", "tool", "build_report", "required", true,
+                    "dependsOn", List.of("load"))
+            )
+        );
+
+        assertThatThrownBy(() -> engine.resolveWorkflowMandatoryTools(
+            List.of("load_data", "build_report"), Map.of("mcpWorkflow", workflow), "build report"))
+            .isInstanceOf(AgentWorkflowConfigurationException.class)
+            .hasMessageContaining("WORKFLOW_DEPENDENCY_CYCLE");
+    }
+
+    @Test
+    void doesNotTreatSourcePositionAsAnImplicitStepIdentifier() {
+        Map<String, Object> workflow = Map.of(
+            "steps", List.of(
+                Map.of("tool", "load_data", "required", true),
+                Map.of("tool", "build_report", "required", true,
+                    "dependsOn", List.of("1"))
+            )
+        );
+
+        assertThatThrownBy(() -> engine.resolveWorkflowMandatoryTools(
+            List.of("load_data", "build_report"), Map.of("mcpWorkflow", workflow), "build report"))
+            .isInstanceOf(AgentWorkflowConfigurationException.class)
+            .hasMessageContaining("WORKFLOW_DEPENDENCY_UNRESOLVED");
     }
 }

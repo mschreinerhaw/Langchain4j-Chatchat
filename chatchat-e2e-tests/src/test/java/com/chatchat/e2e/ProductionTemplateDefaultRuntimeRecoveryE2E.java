@@ -187,7 +187,7 @@ class ProductionTemplateDefaultRuntimeRecoveryE2E {
 
     @Test
     @SuppressWarnings("unchecked")
-    void executesAllDefaultRequiredParametersWithoutRequestingModelEvidence() {
+    void executesDefaultRequiredParametersAndDiscardsUnprovenOverrides() {
         String suffix = UUID.randomUUID().toString().replace("-", "");
         String templateTool = "mcp_runtime_" + suffix + "_api_template_query";
         String executorTool = "mcp_runtime_" + suffix + "_api_template_execute";
@@ -221,7 +221,7 @@ class ProductionTemplateDefaultRuntimeRecoveryE2E {
         try {
             InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
                 new InterpretationPlanRuntime.ExecutionRequest(
-                    plan(templateTool, executorTool),
+                    plan(templateTool, executorTool, Map.of("market", "UNPROVEN-OVERRIDE")),
                     registry,
                     List.of(templateTool, executorTool),
                     "tenant-" + suffix,
@@ -328,6 +328,12 @@ class ProductionTemplateDefaultRuntimeRecoveryE2E {
     }
 
     private InterpretationPlan plan(String templateTool, String executorTool) {
+        return plan(templateTool, executorTool, Map.of());
+    }
+
+    private InterpretationPlan plan(String templateTool,
+                                    String executorTool,
+                                    Map<String, Object> executorParameters) {
         return new InterpretationPlan(
             "1.0",
             new InterpretationPlan.Intent("data_query", "Execute a usable governed query", "low"),
@@ -350,7 +356,7 @@ class ProductionTemplateDefaultRuntimeRecoveryE2E {
                         2,
                         "mcp_tool",
                         executorTool,
-                        Map.of("parameters", Map.of()),
+                        Map.of("parameters", executorParameters == null ? Map.of() : executorParameters),
                         List.of(1),
                         new InterpretationPlan.OutputContract("object", "api_execution_result.v1"),
                         null

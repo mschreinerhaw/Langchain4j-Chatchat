@@ -216,6 +216,12 @@ public final class TemplateInvocationBridge {
                 continue;
             }
             String quote = userQueryEvidenceQuote(userQuery, value);
+            if (quote == null && hasValue(declaredDefault)) {
+                // An unverified model/controller override must not poison an otherwise executable
+                // default-backed template. Drop it and let the compiler reapply the authoritative
+                // schema default. Explicit values still win when they occur in Runtime evidence.
+                continue;
+            }
             if (quote == null) {
                 denied.add(name);
                 continue;

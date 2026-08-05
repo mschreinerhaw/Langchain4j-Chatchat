@@ -212,6 +212,34 @@ class TemplateInvocationBridgeTest {
     }
 
     @Test
+    void runtimeDropsUnprovenOverrideAndUsesAuthoritativeSchemaDefault() {
+        TemplateInvocationBridge.BridgeResult result = bridge.prepare(
+            new TemplateInvocationBridge.BridgeRequest(
+                "api_template_execute",
+                4,
+                "DEFAULTED_CUSTOMER_QUERY",
+                template(
+                    "DEFAULTED_CUSTOMER_QUERY",
+                    Map.of("customerId", Map.of("type", "string", "default", "C-DEFAULT")),
+                    new String[]{"customerId"}
+                ),
+                Map.of("parameters", Map.of("customerId", "UNPROVEN-OVERRIDE")),
+                null,
+                true,
+                true,
+                new TemplateInvocationBridge.EvidenceContext("执行默认客户查询", Map.of())
+            )
+        );
+
+        assertThat(result.parameters()).containsEntry("customerId", "C-DEFAULT");
+        assertThat(result.parameterEvidence().get("customerId").source())
+            .isEqualTo(TemplateInvocationBridge.TEMPLATE_DEFAULT_SOURCE);
+        assertThat(result.repairs())
+            .extracting(ToolArgumentCompiler.Repair::repairCode)
+            .contains("DEFAULT_VALUE_APPLIED");
+    }
+
+    @Test
     void acceptsEvidenceBackedOverridesAndUsesDefaultsForOmittedParameters() {
         Map<String, Object> protocol = Map.of(
             "protocol_version", TemplateInvocationBridge.PROTOCOL_VERSION,

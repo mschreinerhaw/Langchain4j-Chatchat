@@ -76,8 +76,9 @@ public class TemplateParameterValidator {
                 value = source.get(name);
             } else {
                 Map<String, Object> property = objectMap(properties.get(name));
-                if (property.containsKey("default")) {
-                    value = property.get("default");
+                Object declaredDefault = firstPresent(property, "default", "defaultValue", "default_value");
+                if (declaredDefault != null) {
+                    value = declaredDefault;
                 }
             }
             if (value != null) {
@@ -273,5 +274,17 @@ public class TemplateParameterValidator {
 
     private String formatNumber(Double value) {
         return value == null ? "" : value % 1 == 0 ? String.valueOf(value.longValue()) : String.valueOf(value);
+    }
+
+    private Object firstPresent(Map<String, Object> source, String... keys) {
+        if (source == null || source.isEmpty() || keys == null) {
+            return null;
+        }
+        for (String key : keys) {
+            if (source.containsKey(key) && source.get(key) != null) {
+                return source.get(key);
+            }
+        }
+        return null;
     }
 }

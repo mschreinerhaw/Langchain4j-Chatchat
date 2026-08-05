@@ -11,6 +11,7 @@ import com.chatchat.agents.evidence.EvidenceAnswerGroundingGuard;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.AgentAnswerReview;
 import com.chatchat.agents.runtime.AgentAnswerReviewer;
+import com.chatchat.agents.runtime.AgentRuntimeFactGroundingContract;
 import com.chatchat.agents.runtime.AgentRuntimeProperties;
 import com.chatchat.agents.runtime.AnswerCandidateCollector;
 import com.chatchat.agents.runtime.DraftArtifactRuntimePolicy;
@@ -780,6 +781,7 @@ class AgentAnswerFinalizer {
         prompt.append("If observations include web citation labels, append the matching label immediately after every sentence that relies on that web source.\n");
         prompt.append("Do not invent citations or cite URLs that are not listed in the observations.\n");
         prompt.append("If an Evidence trust policy asks for more evidence, avoid strong claims and say that trusted evidence is insufficient.\n");
+        prompt.append(AgentRuntimeFactGroundingContract.promptSection());
         if (containsEvidence(observations == null ? List.of() : observations)
             || mcpResultAvailable(metadata)) {
             AnswerAssemblyPolicy assemblyPolicy = answerAssemblyEngine.plan(

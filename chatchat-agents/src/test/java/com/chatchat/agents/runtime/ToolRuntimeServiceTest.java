@@ -1615,7 +1615,7 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
-    void sequentialBatchStopsImmediatelyWhenStopOnFailureIsEnabled() {
+    void templateExecutionLayerIgnoresLegacyStopFlagAndReturnsEveryFailure() {
         String toolName = "sql_query_execute";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
@@ -1632,15 +1632,22 @@ class ToolRuntimeServiceTest {
             batchCall("third", toolName, "THREE")
         );
 
-        ToolCallBatchResult result = (ToolCallBatchResult) service.execute(
-            batchRequest(calls, true, Map.of())).output().getData();
+        ToolRuntimeExecution execution = service.execute(batchRequest(calls, true, Map.of()));
+        ToolCallBatchResult result = (ToolCallBatchResult) execution.output().getData();
 
+        assertThat(execution.output().isSuccess()).isTrue();
         assertThat(result.status()).isEqualTo("FAILED");
-        assertThat(result.summary().failed()).isEqualTo(1);
-        assertThat(result.summary().skipped()).isEqualTo(2);
+        assertThat(result.summary().failed()).isEqualTo(3);
+        assertThat(result.summary().skipped()).isZero();
         assertThat(result.results()).extracting(item -> item.status())
-            .containsExactly("FAILED", "NOT_EXECUTED", "NOT_EXECUTED");
-        verify(toolRegistry, times(1)).executeEnhancedTool(any(), any());
+            .containsExactly("FAILED", "FAILED", "FAILED");
+        assertThat(result.results()).allSatisfy(item ->
+            assertThat(item.error()).containsEntry("message", "first failed"));
+        assertThat(execution.audit())
+            .containsEntry("templateExecutionLayer", true)
+            .containsEntry("failureIsolation", true)
+            .containsEntry("requestedStopOnFailureIgnored", true);
+        verify(toolRegistry, times(3)).executeEnhancedTool(any(), any());
     }
 
     @Test

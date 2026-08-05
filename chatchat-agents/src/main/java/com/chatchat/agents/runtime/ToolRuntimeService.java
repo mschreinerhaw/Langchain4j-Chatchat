@@ -2,6 +2,7 @@ package com.chatchat.agents.runtime;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.batch.BatchExecutionMode;
+import com.chatchat.agents.runtime.batch.TemplateExecutionLayer;
 import com.chatchat.agents.runtime.batch.ToolCallBatch;
 import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
 import com.chatchat.agents.runtime.batch.ToolCallRequest;
@@ -63,6 +64,7 @@ public class ToolRuntimeService {
     private final McpWorkflowProperties mcpWorkflowProperties;
     private final List<ToolRuntimePolicyProvider> policyProviders;
     private final List<ToolRuntimeAuditSink> auditSinks;
+    private final TemplateExecutionLayer templateExecutionLayer = new TemplateExecutionLayer();
     private final ToolRuntimeUserPolicyStore userPolicyStore;
     private final ExecutorService toolExecutionExecutor;
     private final ExecutorService auditExecutor;
@@ -267,57 +269,64 @@ public class ToolRuntimeService {
         int remoteToolInvocations = 0;
         int resultCount = 0;
         boolean timeBudgetExhausted = false;
-        boolean stop = false;
+        List<TemplateExecutionLayer.Attempt> attempts = templateExecutionLayer.execute(
+            calls,
+            (call, index) -> {
+                String callId = firstText(call == null ? null : call.callId(), "call-" + (index + 1));
+                String toolName = normalizeText(call == null ? null : call.toolName());
+                Map<String, Object> arguments = call == null || call.arguments() == null
+                    ? Map.of()
+                    : call.arguments();
+                if (diagnosticRemainingTimeMs(context) == 0L) {
+                    return TemplateExecutionLayer.Invocation.terminal(
+                        DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue(),
+                        DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue(),
+                        "Diagnostic execution time budget exhausted before invocation",
+                        "BATCH_DEADLINE_EXHAUSTED",
+                        "Not executed because the Runtime execution deadline was exhausted"
+                    );
+                }
+                if (toolName == null || !batchCapableTool(toolName)) {
+                    return TemplateExecutionLayer.Invocation.failed(
+                        "FAILED",
+                        "BATCH_TOOL_NOT_ALLOWED",
+                        "Batch calls support authorized SQL, SSH, HTTP, and API template executors"
+                    );
+                }
+                ToolRuntimeRequest childRequest = batchChildRequest(
+                    context, batchId, callId, toolName, arguments, index);
+                return TemplateExecutionLayer.Invocation.completed(execute(childRequest));
+            }
+        );
 
-        for (int index = 0; index < calls.size(); index++) {
-            ToolCallRequest call = calls.get(index);
+        for (TemplateExecutionLayer.Attempt attempt : attempts) {
+            int index = attempt.index();
+            ToolCallRequest call = attempt.call();
             String callId = firstText(call == null ? null : call.callId(), "call-" + (index + 1));
             String toolName = normalizeText(call == null ? null : call.toolName());
             Map<String, Object> arguments = call == null || call.arguments() == null
                 ? Map.of()
                 : call.arguments();
-            if (stop) {
-                skipped++;
-                results.add(skippedBatchResult(context, batchId, index, callId, toolName, arguments,
-                    "NOT_EXECUTED", "BATCH_STOPPED", "Not executed because a previous call stopped the batch"));
-                continue;
-            }
-            if (diagnosticRemainingTimeMs(context) == 0L) {
-                timeBudgetExhausted = true;
-                skipped++;
-                results.add(skippedBatchResult(context, batchId, index, callId, toolName, arguments,
-                    DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue(),
-                    DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue(),
-                    "Diagnostic execution time budget exhausted before invocation"));
-                stop = true;
-                continue;
-            }
-            if (toolName == null || !batchCapableTool(toolName)) {
-                failed++;
-                results.add(skippedBatchResult(context, batchId, index, callId, toolName, arguments, "FAILED",
-                    "BATCH_TOOL_NOT_ALLOWED", "Batch calls support sql_query_execute, ssh_linux_execute, api_query_execute and their configured aliases"));
-                stop = batch != null && batch.stopOnFailure();
-                continue;
-            }
-
-            ToolRuntimeRequest childRequest = batchChildRequest(context, batchId, callId, toolName, arguments, index);
-            ToolRuntimeExecution execution;
-            try {
-                execution = execute(childRequest);
-            } catch (RuntimeException ex) {
-                failed++;
+            if (!attempt.completed()) {
+                String attemptStatus = firstText(attempt.status(), "FAILED");
+                if ("NOT_EXECUTED".equalsIgnoreCase(attemptStatus)) {
+                    skipped++;
+                } else {
+                    failed++;
+                }
+                if (DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue()
+                    .equalsIgnoreCase(attemptStatus)) {
+                    timeBudgetExhausted = true;
+                }
                 results.add(skippedBatchResult(
-                    context,
-                    batchId,
-                    index,
-                    callId, toolName, arguments,
-                    "FAILED",
-                    "BATCH_CHILD_RUNTIME_ERROR",
-                    firstText(ex.getMessage(), ex.getClass().getSimpleName())
+                    context, batchId, index, callId, toolName, arguments,
+                    attemptStatus,
+                    firstText(attempt.errorCode(), "TEMPLATE_CHILD_FAILED"),
+                    firstText(attempt.message(), "Template execution failed")
                 ));
-                stop = batch != null && batch.stopOnFailure();
                 continue;
             }
+            ToolRuntimeExecution execution = attempt.execution();
             ToolOutput output = execution == null ? null : execution.output();
             if (output != null) {
                 resultCount++;
@@ -390,12 +399,6 @@ public class ToolRuntimeService {
                 call.evidencePolicy(),
                 null
             ));
-            if (!"SUCCESS".equals(status) && batch != null && batch.stopOnFailure()) {
-                stop = true;
-            }
-            if (timeBudgetExhausted) {
-                stop = true;
-            }
         }
 
         Map<String, Object> assetArguments = calls.isEmpty() || calls.get(0) == null
@@ -467,7 +470,8 @@ public class ToolRuntimeService {
         boolean successful = DiagnosticRunStateMachine.Outcome.SUCCESS.wireValue().equals(result.status())
             || DiagnosticRunStateMachine.Outcome.PARTIAL_SUCCESS.wireValue().equals(result.status())
             || "BATCH_COMPILATION_INCOMPLETE".equals(result.status())
-            || "BATCH_RESULT_INCONSISTENT".equals(result.status());
+            || "BATCH_RESULT_INCONSISTENT".equals(result.status())
+            || failureIsolatedBatchCompleted(result);
         ToolOutput output = ToolOutput.builder()
             .success(successful)
             .data(result)
@@ -486,6 +490,9 @@ public class ToolRuntimeService {
         runtimeMetadata.put("remoteToolInvoked", false);
         runtimeMetadata.put("remoteToolInvocationCount", result.summary().remoteToolInvocations());
         runtimeMetadata.put("batchExecution", true);
+        runtimeMetadata.put("templateExecutionLayer", true);
+        runtimeMetadata.put("failureIsolation", true);
+        runtimeMetadata.put("requestedStopOnFailureIgnored", batch != null && batch.stopOnFailure());
         runtimeMetadata.put("batchId", result.batchId());
         runtimeMetadata.put("declaredCheckCount", result.cardinality().declaredCheckCount());
         runtimeMetadata.put("compiledCallCount", result.cardinality().compiledCallCount());
@@ -511,6 +518,18 @@ public class ToolRuntimeService {
             result.status().toLowerCase(Locale.ROOT),
             runtimeMetadata
         );
+    }
+
+    private boolean failureIsolatedBatchCompleted(ToolCallBatchResult result) {
+        if (result == null || result.cardinality() == null || result.summary() == null) {
+            return false;
+        }
+        if (DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue()
+            .equalsIgnoreCase(result.status())) {
+            return false;
+        }
+        return result.cardinality().compiledCallCount() > 0
+            && result.results().size() == result.summary().total();
     }
 
     private ToolRuntimeExecution executeOnce(ToolRuntimeRequest request) {

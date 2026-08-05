@@ -38,15 +38,17 @@ public final class ToolCallBatchSchema {
         Map<String, Object> schema = new LinkedHashMap<>();
         schema.put("type", "object");
         schema.put("description",
-            "Accepts the normal single-call input or a runtime-managed ordered MCP batch.");
+            "Accepts the normal single-call input or a runtime-managed failure-isolated ordered template batch.");
         schema.put("anyOf", List.of(original, batchSchema()));
         schema.put("x-chatchat-batch", Map.of(
             "executionMode", "SEQUENTIAL",
             "maxCalls", DEFAULT_MAX_CALLS,
             "maxPayloadBytes", DEFAULT_MAX_PAYLOAD_BYTES,
             "nestedBatchAllowed", false,
+            "failureIsolation", true,
             "allowedToolFamilies", List.of(
-                "sql_query_execute", "ssh_linux_execute", "api_query_execute")
+                "sql_query_execute", "ssh_linux_execute", "api_query_execute",
+                "api_template_execute", "http_request_execute")
         ));
         return schema;
     }
@@ -111,7 +113,11 @@ public final class ToolCallBatchSchema {
         schema.put("properties", Map.of(
             "batchId", Map.of("type", "string", "minLength", 1, "maxLength", 128),
             "executionMode", Map.of("type", "string", "enum", List.of("SEQUENTIAL")),
-            "stopOnFailure", Map.of("type", "boolean", "default", false),
+            "stopOnFailure", Map.of(
+                "type", "boolean",
+                "default", false,
+                "description", "Compatibility field. Template child failures are always isolated and never stop later calls."
+            ),
             "calls", Map.of(
                 "type", "array",
                 "minItems", 1,

@@ -13,6 +13,24 @@ import static org.assertj.core.api.Assertions.assertThat;
 class DefaultAgentAnswerReviewerTest {
 
     @Test
+    void reviewPromptEnforcesReadablePartialDataReportsAndExactDates() {
+        DefaultAgentAnswerReviewer reviewer = new DefaultAgentAnswerReviewer(new ObjectMapper());
+
+        String prompt = reviewer.buildPrompt(
+            "Analyze every available customer metric",
+            null,
+            List.of("api_template_execute success=true parameters={rq=20260731} records=[]"),
+            "Only one metric was returned."
+        );
+
+        assertThat(prompt)
+            .contains("leads with API/template inventory")
+            .contains("EMPTY_RESULT, NOT_EXECUTED, BLOCKED, and FAILED")
+            .contains("without an invented business cause")
+            .contains("displayed date or date range differs from executed parameters");
+    }
+
+    @Test
     void reportsIssuesWithoutReplacingCandidateWhenReviewerReturnsLegacyRevision() {
         DefaultAgentAnswerReviewer reviewer = new DefaultAgentAnswerReviewer(new ObjectMapper());
         QueueChatModel chatModel = new QueueChatModel(

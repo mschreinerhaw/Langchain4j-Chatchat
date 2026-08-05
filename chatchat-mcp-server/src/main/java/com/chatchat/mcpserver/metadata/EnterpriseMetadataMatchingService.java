@@ -120,6 +120,26 @@ public class EnterpriseMetadataMatchingService {
             "requiredMetadataTypes", requiredTypes(),
             "perFieldTypeRetrieval", true
         ));
+        response.put("claimCoverage", mapOf(
+            "scope", "ENTERPRISE_FIELD_METADATA",
+            "supportedClaims", List.of(
+                "standard field name and definition alignment",
+                "standard field data-type alignment when evidence declares a type",
+                "business term/root alignment",
+                "code dictionary alignment"
+            ),
+            "notAssessedClaims", List.of(
+                "primary or unique key design",
+                "partitioning, bucketing, or indexing design",
+                "storage format or compression",
+                "retention, lifecycle, or TTL policy",
+                "complete table-level enterprise design conformance"
+            ),
+            "fullTableDesignConformanceSupported", false
+        ));
+        if (!schema.governanceAssessment().isEmpty()) {
+            response.put("fieldConformanceAssessment", schema.governanceAssessment());
+        }
         response.put("reviewContract", mapOf(
             "reviewRequired", true,
             "decisionScope", "PER_FIELD",
@@ -338,7 +358,8 @@ public class EnterpriseMetadataMatchingService {
             "FIELD_LIST",
             firstText(text(objectMap(request.get("targetObject")).get("name")), "field_draft"),
             fields,
-            fieldListSourceEvidence(request)
+            fieldListSourceEvidence(request),
+            Map.of()
         );
     }
 
@@ -363,7 +384,24 @@ public class EnterpriseMetadataMatchingService {
                 "executionStatus", governance.getOrDefault("executionStatus", "NOT_EXECUTED"),
                 "analysisSource", governance.get("analysisSource"),
                 "sourceEvidence", governance.get("sourceEvidence")
-            )
+            ),
+            governanceAssessment(governance)
+        );
+    }
+
+    private Map<String, Object> governanceAssessment(Map<String, Object> governance) {
+        if (governance == null || governance.isEmpty()
+            || governance.get("conforms") == null) {
+            return Map.of();
+        }
+        return mapOf(
+            "scope", "FIELD_METADATA_CONFORMANCE",
+            "conformsWithinScope", governance.get("conforms"),
+            "differenceCount", governance.get("differenceCount"),
+            "severityCounts", governance.get("severityCounts"),
+            "differences", governance.get("differences"),
+            "factBoundary", governance.get("factBoundary"),
+            "fullTableDesignConformance", "NOT_ASSESSED"
         );
     }
 
@@ -697,7 +735,8 @@ public class EnterpriseMetadataMatchingService {
         String mode,
         String table,
         List<ResolvedField> fields,
-        Map<String, Object> sourceEvidence
+        Map<String, Object> sourceEvidence,
+        Map<String, Object> governanceAssessment
     ) {
     }
 

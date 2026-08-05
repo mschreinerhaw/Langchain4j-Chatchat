@@ -170,6 +170,7 @@ public class InterpretationPlanRewriter {
         prompt.append("- Keep execution_policy.deny_tool for tools that failed due to policy, permission, or safety.\n\n");
         prompt.append("Sequential MCP batch repair contract:\n");
         prompt.append("- When multiple remaining authorized template executions use sql_query_execute, ssh_linux_execute, api_query_execute, or configured aliases, combine them into one mcp_tool input {batchId,executionMode:\"SEQUENTIAL\",stopOnFailure:false,calls:[{callId,toolName,arguments}]} instead of creating one model round per call.\n");
+        prompt.append("- Template execution is failure-isolated by Runtime. Preserve every remaining child in the batch and never stop or omit later templates because an earlier template failed or returned no rows.\n");
         prompt.append("- Preserve original diagnostic order and exact discovered template identifiers/arguments. Runtime validates, executes, audits, and persists each child independently; do not inline raw SQL, shell commands, URLs, credentials, or transport fields.\n\n");
         prompt.append("- Never repair a diagnostic batch by adding a reasoning/aggregation step that copies discovered template ids into invented output fields. Map diagnostic checks to the executor step and let Runtime deterministically resolve only asset-scoped authorized template metadata.\n\n");
         if (request.budgetCeilings() != null) {
@@ -566,7 +567,7 @@ public class InterpretationPlanRewriter {
         );
         InterpretationPlan.Plan normalizedBody = new InterpretationPlan.Plan(
             normalizedSteps,
-            body == null || body.edgeContracts() == null ? List.of() : body.edgeContracts(),
+            repairedLockedBindingEdges(body),
             body == null || body.dependencyContracts() == null ? List.of() : body.dependencyContracts(),
             body == null || body.bindings() == null ? List.of() : body.bindings(),
             body == null ? null : body.stability(),
@@ -589,6 +590,60 @@ public class InterpretationPlanRewriter {
             executionPolicy,
             normalizedReview
         );
+    }
+
+    /**
+     * A model may correctly bind separate discovered templates into batch children
+     * while declaring only one coarse edge such as {@code templates}. Locked-edge
+     * validation requires each required binding to have its exact source path. The
+     * binding is already subject to normal tool/path validation, so materializing
+     * its matching edge contract restores protocol structure without inventing a
+     * template id or an execution value.
+     */
+    private List<InterpretationPlan.EdgeContract> repairedLockedBindingEdges(
+        InterpretationPlan.Plan body
+    ) {
+        List<InterpretationPlan.EdgeContract> existing = body == null || body.edgeContracts() == null
+            ? List.of()
+            : body.edgeContracts();
+        if (body == null || body.stability() == null
+            || !Boolean.TRUE.equals(body.stability().lockedEdges())
+            || body.bindings() == null || body.bindings().isEmpty()) {
+            return existing;
+        }
+        List<InterpretationPlan.EdgeContract> repaired = new ArrayList<>(existing);
+        for (InterpretationPlan.Binding binding : body.bindings()) {
+            if (binding == null || Boolean.FALSE.equals(binding.required())
+                || binding.from() == null || binding.to() == null
+                || binding.outputPath() == null || binding.outputPath().isBlank()) {
+                continue;
+            }
+            String canonicalPath = canonicalPath(binding.outputPath());
+            boolean present = repaired.stream()
+                .filter(Objects::nonNull)
+                .anyMatch(edge -> Objects.equals(edge.from(), binding.from())
+                    && Objects.equals(edge.to(), binding.to())
+                    && canonicalPath(edge.field()).equals(canonicalPath));
+            if (!present) {
+                repaired.add(new InterpretationPlan.EdgeContract(
+                    binding.from(), binding.to(), binding.outputPath(),
+                    templateIdentifierPath(binding.outputPath()) ? "string" : "any", true
+                ));
+            }
+        }
+        return List.copyOf(repaired);
+    }
+
+    private String canonicalPath(String value) {
+        return value == null ? "" : value.replace("_", "").replace("-", "")
+            .replace("$", "").replace("[", "").replace("]", "")
+            .replace(".", "").trim().toLowerCase(Locale.ROOT);
+    }
+
+    private boolean templateIdentifierPath(String value) {
+        String normalized = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+        return normalized.endsWith(".templateid") || normalized.endsWith(".template_id")
+            || normalized.endsWith(".id") || normalized.endsWith(".code");
     }
 
     private InterpretationPlan repairContinuationPlan(InterpretationPlan originalPlan, InterpretationPlan rewrittenPlan) {

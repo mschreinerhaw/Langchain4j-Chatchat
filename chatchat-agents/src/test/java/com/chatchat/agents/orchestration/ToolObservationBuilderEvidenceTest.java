@@ -14,6 +14,47 @@ class ToolObservationBuilderEvidenceTest {
     private final ToolObservationBuilder builder = new ToolObservationBuilder(new EvidenceTrustEvaluator());
 
     @Test
+    void enterpriseMetadataDiscoverySeparatesRetrievalSuccessFromClaimCoverage() {
+        Map<String, Object> discovery = Map.of(
+            "schemaVersion", "enterprise_metadata_search_result.v3",
+            "success", true,
+            "query", "table design standard",
+            "backend", "opensearch",
+            "retrievalMode", "mixed",
+            "count", 1,
+            "countsByType", Map.of("metadata_field", 1),
+            "claimCoverage", Map.of(
+                "scope", "ENTERPRISE_FIELD_METADATA",
+                "supportedClaims", List.of("standard field name and definition alignment"),
+                "notAssessedClaims", List.of("complete table-level enterprise design conformance"),
+                "fullTableDesignConformanceSupported", false
+            ),
+            "results", List.of(Map.of(
+                "metadataType", "metadata_field",
+                "id", "F001",
+                "name", "业务日期",
+                "technicalName", "biz_date",
+                "description", "业务发生日期",
+                "relevanceScore", 0.75D,
+                "internalPayload", "x".repeat(100_000)
+            )),
+            "evidenceObjects", List.of(Map.of("raw", "y".repeat(100_000)))
+        );
+
+        String observation = builder.buildAuthoritativeExecutionEvidence(
+            "mcp_chatchat_mcp_server_enterprise_metadata_search", discovery);
+
+        assertThat(observation)
+            .contains("\"schemaVersion\":\"enterprise_metadata_discovery_context.v1\"")
+            .contains("\"fullTableDesignConformanceSupported\":false")
+            .contains("complete table-level enterprise design conformance")
+            .contains("Retrieval success is not evidence")
+            .contains("\"technicalName\":\"biz_date\"")
+            .doesNotContain("internalPayload", "evidenceObjects", "x".repeat(100));
+        assertThat(observation.length()).isLessThan(10_000);
+    }
+
+    @Test
     void enterpriseMetadataEvidenceExtractsOnlyFieldEnglishNameAndCommentForEveryReturnedCandidate() {
         List<Map<String, Object>> candidates = java.util.stream.IntStream.rangeClosed(1, 5)
             .mapToObj(index -> Map.<String, Object>of(

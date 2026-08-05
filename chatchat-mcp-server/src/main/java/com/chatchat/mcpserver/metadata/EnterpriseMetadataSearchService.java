@@ -148,7 +148,34 @@ public class EnterpriseMetadataSearchService {
             "sampleValuesIncluded", false,
             "sourceAuthority", "configured_enterprise_metadata_catalog"
         ));
+        response.put("claimCoverage", claimCoverage());
         return response;
+    }
+
+    /**
+     * Declares the semantic boundary of this catalog independently of the query.
+     * A successful lookup proves that retrieval ran; it does not turn field, term,
+     * and dictionary evidence into table-level physical-design evidence.
+     */
+    private Map<String, Object> claimCoverage() {
+        return Map.of(
+            "scope", "ENTERPRISE_FIELD_METADATA",
+            "supportedClaims", List.of(
+                "standard field name and definition alignment",
+                "standard field data-type alignment when the returned record declares a type",
+                "business term/root alignment",
+                "code dictionary alignment"
+            ),
+            "notAssessedClaims", List.of(
+                "primary or unique key design",
+                "partitioning, bucketing, or indexing design",
+                "storage format or compression",
+                "retention, lifecycle, or TTL policy",
+                "complete table-level enterprise design conformance"
+            ),
+            "fullTableDesignConformanceSupported", false,
+            "interpretation", "success=true means retrieval completed, not that every requested governance claim is supported"
+        );
     }
 
     private SearchBucket searchRequiredType(String originalQuery,

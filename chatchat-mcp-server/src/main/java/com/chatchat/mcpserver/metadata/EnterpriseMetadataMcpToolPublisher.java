@@ -68,7 +68,9 @@ public class EnterpriseMetadataMcpToolPublisher {
                 + "A downstream reasoning/script step must review the returned evidence before producing DDL. "
                 + "Use this read-only capability when a task needs enterprise field meaning, technical names, "
                 + "data types, standard definitions or business-term mapping. It does not create tables, "
-                + "generate SQL or execute a workflow. Treat results and evidenceObjects as the factual boundary; "
+                + "generate SQL or execute a workflow. It does not contain table-level rules for keys, partitions, "
+                + "indexes, storage, compression or lifecycle; retrieve an authoritative design-standard document "
+                + "and complete physical DDL when those claims are requested. Treat results and evidenceObjects as the factual boundary; "
                 + "never invent fields that were not returned.")
             .inputSchema(inputSchema())
             .meta(meta())
@@ -418,7 +420,8 @@ public class EnterpriseMetadataMcpToolPublisher {
                     "Creating or altering a table",
                     "Executing SQL",
                     "Guessing fields not present in the returned evidence",
-                    "Returning real data samples or sensitive field values"
+                    "Returning real data samples or sensitive field values",
+                    "Proving complete table-level physical-design conformance"
                 )
             ),
             "logicalIndexes", List.of(

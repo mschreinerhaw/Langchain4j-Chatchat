@@ -133,6 +133,13 @@ class EnterpriseMetadataSearchServiceTest {
         assertThat(response)
             .containsEntry("schemaVersion", EnterpriseMetadataSearchService.REQUIRED_BUNDLE_SCHEMA_VERSION)
             .containsEntry("count", 3);
+        assertThat((Map<String, Object>) response.get("claimCoverage"))
+            .containsEntry("scope", "ENTERPRISE_FIELD_METADATA")
+            .containsEntry("fullTableDesignConformanceSupported", false);
+        assertThat((List<String>) ((Map<String, Object>) response.get("claimCoverage"))
+            .get("notAssessedClaims"))
+            .contains("partitioning, bucketing, or indexing design",
+                "complete table-level enterprise design conformance");
         assertThat((List<String>) response.get("requiredTypes"))
             .containsExactly("metadata_field", "metadata_term", "metadata_dictionary");
         Map<String, Object> countsByType = (Map<String, Object>) response.get("countsByType");

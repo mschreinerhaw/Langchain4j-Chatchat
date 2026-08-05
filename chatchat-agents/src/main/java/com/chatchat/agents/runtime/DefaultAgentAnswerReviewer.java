@@ -83,6 +83,9 @@ public class DefaultAgentAnswerReviewer implements AgentAnswerReviewer {
         prompt.append("If observations include document_evidence_v1, document evidence context, or document citations, reject and revise answers that rely on document evidence but omit the matching document citation.\n");
         prompt.append("If observations include document_evidence_v1, reject answers that cannot be represented as EvidenceAnswer with answer, citations, confidence, and missingInfo.\n");
         prompt.append("If observations include answer_assembly_policy_v1, enforce its mode, citation placement, partial-answer, conflict-handling, and missingInfo requirements.\n");
+        prompt.append("For partial data reports, reject an answer that leads with API/template inventory instead of analyzing returned data, treats missing dimensions as a failed report, or uses discovery as proof that customer data was obtained.\n");
+        prompt.append("Reject any answer that collapses EMPTY_RESULT, NOT_EXECUTED, BLOCKED, and FAILED into one state. A successful empty result must be described as no records for the exact executed parameters, without an invented business cause.\n");
+        prompt.append("Reject any answer whose displayed date or date range differs from executed parameters or returned records, including a changed year during YYYYMMDD formatting.\n");
         prompt.append("If observations include web citation labels such as [网页1], web-derived claims in the answer must keep the matching labels; reject and revise answers that omit those labels.\n");
         prompt.append("Do not remove citation markers that prove which web page supports a statement.\n");
         prompt.append("Report concrete issues and optional enhancement suggestions. Missing optional context is a limitation, not automatic grounds for refusal.\n\n");

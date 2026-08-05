@@ -163,6 +163,13 @@ class EnterpriseMetadataMatchingServiceTest {
             .containsEntry("table", "customer_profile")
             .containsEntry("fieldCount", 2);
         assertThat(maps(result.get("fieldMatches"))).hasSize(2);
+        assertThat(map(result.get("claimCoverage")))
+            .containsEntry("fullTableDesignConformanceSupported", false);
+        assertThat(map(result.get("fieldConformanceAssessment")))
+            .containsEntry("scope", "FIELD_METADATA_CONFORMANCE")
+            .containsEntry("conformsWithinScope", false)
+            .containsEntry("differenceCount", 1)
+            .containsEntry("fullTableDesignConformance", "NOT_ASSESSED");
         verify(searchService, org.mockito.Mockito.times(6)).search(any());
     }
 
@@ -196,6 +203,15 @@ class EnterpriseMetadataMatchingServiceTest {
             "schemaVersion", schemaVersion,
             "analysisSource", source,
             "table", table,
+            "conforms", false,
+            "differenceCount", 1,
+            "severityCounts", Map.of("WARNING", 1),
+            "differences", List.of(Map.of(
+                "field", "open_date",
+                "code", "NULLABILITY_MISMATCH",
+                "severity", "WARNING"
+            )),
+            "factBoundary", "physical_schema_and_maintained_enterprise_metadata_catalog",
             "columns", List.of(
                 Map.of("physical", Map.of(
                     "name", "customer_name",

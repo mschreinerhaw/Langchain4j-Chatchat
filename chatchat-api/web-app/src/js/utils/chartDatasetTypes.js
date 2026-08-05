@@ -16,7 +16,10 @@ export function isNumericChartColumn(rows = [], column = "") {
   }
   const values = rows
     .map((row) => row?.[column])
-    .filter((value) => value !== null && value !== undefined && String(value).trim() !== "");
+    .filter((value) => {
+      const text = String(value ?? "").trim();
+      return text && !/^(?:-|—|–|无|暂无|N\/?A|null)$/i.test(text);
+    });
   return values.length > 0 && values.every((value) => parseChartNumber(value) !== null);
 }
 

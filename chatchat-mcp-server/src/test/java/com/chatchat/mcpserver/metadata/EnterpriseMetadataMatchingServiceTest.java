@@ -27,6 +27,8 @@ class EnterpriseMetadataMatchingServiceTest {
             mock(MetadataGovernancePolicyService.class);
         MetadataGovernancePolicy policy = policy();
         when(policyService.current()).thenReturn(policy);
+        when(policyService.claimCoverage()).thenReturn(MetadataGovernancePolicyService.claimCoverage(
+            policy.getClaimCoverage(), policy.getVersion()));
         when(searchService.search(any())).thenAnswer(invocation ->
             searchResult(invocation.getArgument(0)));
         EnterpriseMetadataCatalog catalog = mock(EnterpriseMetadataCatalog.class);
@@ -164,7 +166,10 @@ class EnterpriseMetadataMatchingServiceTest {
             .containsEntry("fieldCount", 2);
         assertThat(maps(result.get("fieldMatches"))).hasSize(2);
         assertThat(map(result.get("claimCoverage")))
-            .containsEntry("fullTableDesignConformanceSupported", false);
+            .containsEntry("contractVersion", "enterprise_metadata_claim_coverage.v1")
+            .containsEntry("fullTableDesignConformanceSupported", false)
+            .containsEntry("declarationSource", "metadata_governance_policy")
+            .containsEntry("policyVersion", "test-policy-v1");
         assertThat(map(result.get("fieldConformanceAssessment")))
             .containsEntry("scope", "FIELD_METADATA_CONFORMANCE")
             .containsEntry("conformsWithinScope", false)
@@ -278,6 +283,7 @@ class EnterpriseMetadataMatchingServiceTest {
 
     private MetadataGovernancePolicy policy() {
         MetadataGovernancePolicy policy = new MetadataGovernancePolicy();
+        policy.setVersion("test-policy-v1");
         MetadataGovernancePolicy.MetadataContract contract =
             policy.getMetadataContract();
         contract.setFieldType("metadata_field");

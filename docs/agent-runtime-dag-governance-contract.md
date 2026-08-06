@@ -163,6 +163,8 @@ schedule(all ready nodes from audited)
 
 只有任务级事件可以终止任务轮询。任何节点级事件，即使其 `status=FAILED`，也只能改变该节点及其依赖分支的状态，不能直接终止任务。
 
+工具执行状态与模型评定的证据充分性必须分轴记录。工具已成功返回非空结构化证据时，Reviewer 的 `satisfied=false` 只能产生 `evidenceSufficiency=INSUFFICIENT`、`stepFulfillmentStatus=PARTIAL` 和证据增广建议，不得把 `toolExecutionStatus=SUCCEEDED` 改写为节点失败。只有工具真实调用失败，或 Runtime 根据发布 Schema/本地事实校验确认结果违反执行契约时，才能将节点执行状态置为失败。该规则按结构化结果通用判断，不得维护 SQL、企业元数据、文档检索等工具白名单。
+
 ### 7.2 失败传播
 
 节点失败后 Runtime 必须：
@@ -418,3 +420,23 @@ Runtime 不得根据具体表、字段、工具或业务关键词生成“符合
 6. 二次分析使用后必须移除临时完整证据上下文，最终元数据仅保留协议版本、是否应用、证据字符数、审核反馈和选择原因。
 
 该协议与模型供应商、模型名称、自然语言和业务场景无关。模型输出中的 JSON fence、前置文本及字符串内未转义换行按宽容协议解析，但所有事实仍只能来自实际执行结果。
+
+## 18. Evidence Compression Gate
+
+`InterpretationPlanRewriter` 只消费面向调度修复的压缩证据视图，不直接拼接完整 MCP 返回值：
+
+```text
+MCP Result
+  -> Evidence Normalizer
+  -> Evidence Compression Gate
+  -> InterpretationPlanRewriter
+```
+
+压缩网关采用 `evidence_compression_gate_v1`，必须满足：
+
+1. 压缩是 Runtime 的确定性结构投影，不调用模型，也不按工具或业务场景维护字段白名单；
+2. 优先保留 evidence/run/trace/step/tool 标识、执行状态、错误、缺口、冲突、假设、下一动作、修复和契约信息；
+3. 集合保留数量、结构和有界样本，长文本保留头尾及 SHA-256 证据引用，重复 observation 按内容摘要去重；
+4. rewrite 专用 observation 与 evidence history 分别受字符预算约束，压缩日志记录原始大小、压缩大小、比例、省略数量和契约版本；
+5. 压缩视图只能用于 DAG 调度与修复。完整工具证据继续保存在 Runtime Evidence Store，并供最终综合、答案复核、审计和重放使用；
+6. 压缩不得改变工具执行状态、业务事实或用户流程，不得将“未进入 rewrite prompt”解释为“证据不存在”。

@@ -1489,7 +1489,8 @@ public class InterpretationPlanRuntime {
                     execution,
                     Map.copyOf(completed),
                     attempt,
-                    maxAttempts
+                    maxAttempts,
+                    runId(request)
                 ));
             } catch (RuntimeException ex) {
                 lastReview = StepReview.rejected(
@@ -1532,12 +1533,19 @@ public class InterpretationPlanRuntime {
         String reason = lastReview == null || lastReview.reason() == null || lastReview.reason().isBlank()
             ? "Tool result did not satisfy the plan step after model review."
             : lastReview.reason();
-        if (shouldPreservePartialToolResult(request.plan(), step, execution)) {
+        if (shouldPreservePartialToolResult(execution)) {
             metadata.put("toolResultReviewPartialAccepted", true);
             metadata.put("toolResultReviewPartialReason", reason);
             metadata.put("toolResultReviewReason",
                 "Tool returned structured data and is preserved for final synthesis with limitations: " + reason);
             metadata.put("partialEvidence", true);
+            metadata.put("toolExecutionStatus", "SUCCEEDED");
+            metadata.put("evidenceSufficiency", "INSUFFICIENT");
+            metadata.put("stepFulfillmentStatus", "PARTIAL");
+            metadata.put("modelReviewExecutionStatusOverridePrevented", true);
+            log.info("InterpretationPlan preserved successful tool execution with partial evidence: "
+                    + "traceId={} stepId={} tool={} evidenceSufficiency=INSUFFICIENT reason={}",
+                executionTraceId(request), execution.stepId(), execution.toolName(), reason);
             if (isTemplateDiscoveryTool(execution.toolName()) && lastReview != null) {
                 execution = applyRuntimeTemplateSelection(execution, lastReview, metadata, startedAt);
             }
@@ -1750,71 +1758,11 @@ public class InterpretationPlanRuntime {
         return false;
     }
 
-    private boolean shouldPreservePartialToolResult(InterpretationPlan plan,
-                                                    InterpretationPlan.Step step,
-                                                    StepExecution execution) {
+    private boolean shouldPreservePartialToolResult(StepExecution execution) {
         if (execution == null || !execution.success() || execution.output() == null) {
             return false;
         }
-        if (isTemplateDiscoveryTool(execution.toolName())
-            && discoveredAssetCount(execution.output(), "templates") > 0
-            && hasDependentRuntimeOwnedDiagnosticBatch(plan, step)) {
-            return true;
-        }
-        if (!isPreservableStructuredDataTool(execution.toolName())) {
-            return false;
-        }
         return hasStructuredToolEvidence(execution.output(), 0);
-    }
-
-    private boolean hasDependentRuntimeOwnedDiagnosticBatch(InterpretationPlan plan,
-                                                            InterpretationPlan.Step discoveryStep) {
-        if (plan == null || plan.plan() == null || discoveryStep == null || discoveryStep.id() == null
-            || plan.steps() == null || plan.steps().isEmpty()) {
-            return false;
-        }
-        Map<Integer, InterpretationPlan.Step> stepsById = plan.steps().stream()
-            .filter(candidate -> candidate != null && candidate.id() != null)
-            .collect(Collectors.toMap(
-                InterpretationPlan.Step::id,
-                candidate -> candidate,
-                (left, ignored) -> left,
-                LinkedHashMap::new
-            ));
-        for (InterpretationPlan.Step candidate : plan.steps()) {
-            if (candidate == null || !isTemplateExecutionTool(candidate.toolName())
-                || !runtimeOwnedDiagnosticBatch(candidate, plan)) {
-                continue;
-            }
-            LinkedHashSet<Integer> ancestors = new LinkedHashSet<>();
-            collectAncestorStepIds(candidate, stepsById, ancestors);
-            if (ancestors.contains(discoveryStep.id())) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean isPreservableStructuredDataTool(String toolName) {
-        String semantic = toolSemanticKey(toolName);
-        String raw = toolName == null ? "" : toolName.trim().toLowerCase(Locale.ROOT).replace('-', '_');
-        return isStructuredDataToolKey(semantic) || isStructuredDataToolKey(raw);
-    }
-
-    private boolean isStructuredDataToolKey(String value) {
-        if (value == null || value.isBlank()) {
-            return false;
-        }
-        return value.equals("sql_query_execute")
-            || value.endsWith("_sql_query_execute")
-            || value.contains("sql_query_execute")
-            || value.equals("sql_script_execute")
-            || value.endsWith("_sql_script_execute")
-            || value.contains("sql_script_execute")
-            || value.equals("database_query")
-            || value.equals("database_query_execute")
-            || value.endsWith("_database_query_execute")
-            || value.contains("database_query_execute");
     }
 
     private boolean hasStructuredToolEvidence(Object output, int depth) {
@@ -1839,6 +1787,25 @@ public class InterpretationPlanRuntime {
         Integer rowCount = integerValue(firstMapValue(map, "rowCount", "row_count", "resultSetCount", "result_set_count", "statementCount", "statement_count"));
         if (rowCount != null && rowCount > 0) {
             return true;
+        }
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            String key = entry.getKey() == null
+                ? ""
+                : String.valueOf(entry.getKey()).replace("_", "").toLowerCase(Locale.ROOT);
+            Object value = entry.getValue();
+            Integer count = integerValue(value);
+            if (count != null && count > 0
+                && ("count".equals(key) || "size".equals(key) || "total".equals(key)
+                    || key.endsWith("count") || key.endsWith("size") || key.endsWith("total"))) {
+                return true;
+            }
+            if (value instanceof Collection<?> collection && !collection.isEmpty()) {
+                return true;
+            }
+            if (value instanceof Map<?, ?> nested && !nested.isEmpty()
+                && hasStructuredToolEvidence(nested, depth + 1)) {
+                return true;
+            }
         }
         for (String key : List.of("rows", "columns", "results", "resultSets", "result_sets", "records", "items")) {
             Object value = firstMapValue(map, key);
@@ -7482,8 +7449,17 @@ public class InterpretationPlanRuntime {
         StepExecution execution,
         Map<Integer, StepExecution> completed,
         int attempt,
-        int maxAttempts
+        int maxAttempts,
+        String runId
     ) {
+        public StepReviewRequest(InterpretationPlan plan,
+                                 InterpretationPlan.Step step,
+                                 StepExecution execution,
+                                 Map<Integer, StepExecution> completed,
+                                 int attempt,
+                                 int maxAttempts) {
+            this(plan, step, execution, completed, attempt, maxAttempts, null);
+        }
     }
 
     public record StepReview(

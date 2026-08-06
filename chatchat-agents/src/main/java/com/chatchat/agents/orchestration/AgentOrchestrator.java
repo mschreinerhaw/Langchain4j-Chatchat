@@ -1209,16 +1209,21 @@ public class AgentOrchestrator implements AgentRunExecutor {
             InterpretationPlan rewrittenPlan = rewrite.rewrittenPlan();
             InterpretationPlanValidator.ValidationResult rewrittenValidation = rewrite.validation();
             List<String> authoritativeRewritePasses = List.of();
+            Object rewriteWorkflowDag = authoritativeWorkflowDagForContinuation(
+                authoritativeWorkflowDag,
+                rewrittenPlan,
+                completedTools
+            );
             if (rewrittenPlan != null && hasAuthoritativeWorkflowDag) {
                 InterpretationPlanOptimizer.OptimizationResult authoritativeRewrite =
-                    new InterpretationPlanOptimizer().optimize(rewrittenPlan, authoritativeWorkflowDag);
+                    new InterpretationPlanOptimizer().optimize(rewrittenPlan, rewriteWorkflowDag);
                 rewrittenPlan = authoritativeRewrite.plan() == null ? rewrittenPlan : authoritativeRewrite.plan();
                 authoritativeRewritePasses = authoritativeRewrite.appliedPasses();
                 rewrittenValidation = validator.validate(
                     rewrittenPlan,
                     toolRegistry,
                     new LinkedHashSet<>(tools == null ? List.of() : tools),
-                    authoritativeWorkflowDag,
+                    rewriteWorkflowDag,
                     authoritativeWorkflowTaskId
                 );
             }
@@ -2329,7 +2334,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("- When returned metadata includes columns, list the exact physical column names under their corresponding physical table and preserve returned type/key/comment details. Never translate, rename, or invent identifiers.\n");
         prompt.append("- If column metadata was not returned for a matched table, say so explicitly instead of presenting illustrative fields as facts.\n\n");
         prompt.append("- For enterprise_metadata_model_context.v1, coverage.inputFieldCount, processedFieldCount, allFieldsProcessed, and fieldsWithCandidates are authoritative. Do not infer that unshown or unprocessed fields were matched. A field may be processed with zero candidates; only returned candidates may support its annotation.\n");
-        prompt.append("- For enterprise_metadata_model_context.v1 and enterprise_metadata_discovery_context.v1, claimCoverage is authoritative. Retrieval success and non-zero candidates support only supportedClaims; they cannot establish any notAssessedClaims. Never report complete table-design conformance from field, term-root, or dictionary evidence alone.\n");
+        prompt.append("- For enterprise_metadata_model_context.v1 and enterprise_metadata_discovery_context.v1, the tool-returned claimCoverage is authoritative and policy-driven. Retrieval success and non-zero candidates support only supportedClaims; they cannot establish claims listed in notAssessedClaims. Use fullTableDesignConformanceSupported exactly as returned and never assume a fixed capability boundary from the schema version or tool name.\n");
         prompt.append("- Review notes and shortened previews are not factual evidence. When they conflict with authoritativeToolResultEvidence, use authoritativeToolResultEvidence and omit the conflicting review claim.\n\n");
         prompt.append("- Mandatory workflow observations are executed after the listed plan attempts. A successful local contract review in those observations is newer authoritative evidence and resolves earlier missing_evidence claims for the same tool result.\n");
         prompt.append("- Database layering labels (for example ADS/DWS/DWD/DIM), table names, schemas, databases, and fields are evidence facts only when the current tool output explicitly returned them. Never infer a layer from a naming convention. Never output 'possible table examples', 'common tables', or supplemental table recommendations that were not retrieved.\n");
@@ -2555,7 +2560,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
             ));
         }
         long startedAt = System.currentTimeMillis();
-        String runId = null;
+        String runId = request.runId();
         log.info("agentModelRequest phase=tool_result_review runId={} stepId={} tool={} attempt={}/{} modelClass={}",
             firstNonBlank(runId, ""),
             request.step() == null ? null : request.step().id(),
@@ -3269,6 +3274,59 @@ public class AgentOrchestrator implements AgentRunExecutor {
             return runtimeMaximum;
         }
         return Math.max(0, Math.min(runtimeMaximum, plan.executionPolicy().maxRewriteTimes()));
+    }
+
+    private Object authoritativeWorkflowDagForContinuation(Object rawDag,
+                                                            InterpretationPlan rewrittenPlan,
+                                                            Set<String> completedTools) {
+        if (!(rawDag instanceof Collection<?> nodes) || nodes.isEmpty()
+            || completedTools == null || completedTools.isEmpty()
+            || rewrittenPlan == null || rewrittenPlan.steps() == null) {
+            return rawDag;
+        }
+        Set<String> plannedTools = rewrittenPlan.steps().stream()
+            .filter(Objects::nonNull)
+            .map(InterpretationPlan.Step::toolName)
+            .filter(Objects::nonNull)
+            .map(this::toolSemanticKey)
+            .filter(value -> !value.isBlank())
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        Set<String> omittedCompletedTools = completedTools.stream()
+            .filter(Objects::nonNull)
+            .map(this::toolSemanticKey)
+            .filter(value -> !value.isBlank() && !plannedTools.contains(value))
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        if (omittedCompletedTools.isEmpty()) {
+            return rawDag;
+        }
+        List<Map<String, Object>> continuationDag = new ArrayList<>();
+        for (Object rawNode : nodes) {
+            if (!(rawNode instanceof Map<?, ?> node)) {
+                continue;
+            }
+            String toolName = firstNonBlank(
+                stringValue(node.get("tool")),
+                stringValue(node.get("toolName"))
+            );
+            if (omittedCompletedTools.contains(toolSemanticKey(toolName))) {
+                continue;
+            }
+            Map<String, Object> continuationNode = new LinkedHashMap<>();
+            node.forEach((key, value) -> {
+                if (key != null) {
+                    continuationNode.put(String.valueOf(key), value);
+                }
+            });
+            Object dependencies = node.get("dependsOnTools");
+            if (dependencies instanceof Collection<?> values) {
+                continuationNode.put("dependsOnTools", values.stream()
+                    .filter(Objects::nonNull)
+                    .filter(value -> !omittedCompletedTools.contains(toolSemanticKey(String.valueOf(value))))
+                    .toList());
+            }
+            continuationDag.add(continuationNode);
+        }
+        return continuationDag;
     }
 
     private void recordInterpretationPlanEvaluation(

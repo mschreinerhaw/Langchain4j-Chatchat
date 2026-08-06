@@ -120,23 +120,7 @@ public class EnterpriseMetadataMatchingService {
             "requiredMetadataTypes", requiredTypes(),
             "perFieldTypeRetrieval", true
         ));
-        response.put("claimCoverage", mapOf(
-            "scope", "ENTERPRISE_FIELD_METADATA",
-            "supportedClaims", List.of(
-                "standard field name and definition alignment",
-                "standard field data-type alignment when evidence declares a type",
-                "business term/root alignment",
-                "code dictionary alignment"
-            ),
-            "notAssessedClaims", List.of(
-                "primary or unique key design",
-                "partitioning, bucketing, or indexing design",
-                "storage format or compression",
-                "retention, lifecycle, or TTL policy",
-                "complete table-level enterprise design conformance"
-            ),
-            "fullTableDesignConformanceSupported", false
-        ));
+        response.put("claimCoverage", policyService.claimCoverage());
         if (!schema.governanceAssessment().isEmpty()) {
             response.put("fieldConformanceAssessment", schema.governanceAssessment());
         }

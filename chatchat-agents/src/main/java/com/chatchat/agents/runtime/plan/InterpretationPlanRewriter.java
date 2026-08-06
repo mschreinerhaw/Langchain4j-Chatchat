@@ -23,14 +23,10 @@ import java.util.Set;
 @Slf4j
 public class InterpretationPlanRewriter {
 
-    private static final int REWRITE_OBSERVATIONS_MAX_CHARS = 64_000;
-    private static final int REWRITE_OBSERVATION_MAX_CHARS = 6_000;
-    private static final int REWRITE_OBSERVATION_MAX_ITEMS = 64;
-    private static final int REWRITE_EVIDENCE_HISTORY_MAX_CHARS = 64_000;
-
     private final ChatModel chatModel;
     private final ObjectMapper objectMapper;
     private final InterpretationPlanValidator validator;
+    private final EvidenceCompressionGate evidenceCompressionGate;
 
     public InterpretationPlanRewriter(ChatModel chatModel,
                                       ObjectMapper objectMapper,
@@ -38,6 +34,7 @@ public class InterpretationPlanRewriter {
         this.chatModel = chatModel;
         this.objectMapper = objectMapper == null ? new ObjectMapper() : objectMapper;
         this.validator = validator == null ? new InterpretationPlanValidator() : validator;
+        this.evidenceCompressionGate = new EvidenceCompressionGate(this.objectMapper);
     }
 
     /**
@@ -53,12 +50,19 @@ public class InterpretationPlanRewriter {
         if (chatModel == null) {
             return RewriteResult.failed("ChatModel is required for plan rewriting", null, null);
         }
-        String prompt = buildRewritePrompt(request);
+        EvidenceCompressionGate.CompressionResult compressedEvidence = evidenceCompressionGate.compress(
+            request.observations(), request.evidenceHistory());
+        String prompt = buildRewritePrompt(request, compressedEvidence);
         long startedAt = System.currentTimeMillis();
-        log.info("agentModelRequest phase=interpretation_plan_rewrite promptChars={} observationCount={} availableToolCount={}",
+        log.info("agentModelRequest phase=interpretation_plan_rewrite promptChars={} observationCount={} availableToolCount={} "
+                + "evidenceCompressionContract={} evidenceCharsBefore={} evidenceCharsAfter={} compressionRatio={}",
             prompt.length(),
             request.observations() == null ? 0 : request.observations().size(),
-            request.availableTools() == null ? 0 : request.availableTools().size());
+            request.availableTools() == null ? 0 : request.availableTools().size(),
+            EvidenceCompressionGate.CONTRACT_VERSION,
+            compressedEvidence.metadata().get("originalChars"),
+            compressedEvidence.metadata().get("compressedChars"),
+            compressedEvidence.metadata().get("compressionRatio"));
         String raw;
         try {
             raw = chatModel.chat(prompt);
@@ -144,7 +148,8 @@ public class InterpretationPlanRewriter {
         }
     }
 
-    private String buildRewritePrompt(RewriteRequest request) {
+    private String buildRewritePrompt(RewriteRequest request,
+                                      EvidenceCompressionGate.CompressionResult compressedEvidence) {
         StringBuilder prompt = new StringBuilder();
         prompt.append("You are an MCP plan rewriter.\n");
         prompt.append("Your job is to repair a failed InterpretationPlan without executing tools.\n");
@@ -255,64 +260,17 @@ public class InterpretationPlanRewriter {
         prompt.append("Available tools:\n").append(request.availableTools() == null ? List.of() : request.availableTools()).append("\n");
         prompt.append("Failed step:\n").append(toJson(failedStep(request))).append("\n");
         prompt.append("Failure reason:\n").append(request.failureReason()).append("\n");
-        prompt.append("Observations so far (compact scheduling evidence; full evidence remains Runtime-owned):\n")
-            .append(rewritePromptObservations(request.observations()))
+        prompt.append("Evidence Compression Gate metadata:\n")
+            .append(toJson(compressedEvidence.metadata()))
+            .append("\n");
+        prompt.append("Observations so far (compressed scheduling evidence; full evidence remains Runtime-owned):\n")
+            .append(compressedEvidence.observations())
             .append("\n");
         prompt.append("Evidence iteration history (authoritative basis for plan revision):\n")
-            .append(rewritePromptEvidenceHistory(request.evidenceHistory()))
+            .append(compressedEvidence.evidenceHistory())
             .append("\n");
         prompt.append("Original plan:\n").append(toJson(request.originalPlan()));
         return prompt.toString();
-    }
-
-    List<String> rewritePromptObservations(List<String> observations) {
-        if (observations == null || observations.isEmpty()) {
-            return List.of();
-        }
-        List<String> selected = observations.stream()
-            .filter(Objects::nonNull)
-            .toList();
-        if (selected.size() > REWRITE_OBSERVATION_MAX_ITEMS) {
-            List<String> bounded = new ArrayList<>(REWRITE_OBSERVATION_MAX_ITEMS);
-            bounded.addAll(selected.subList(0, 8));
-            bounded.addAll(selected.subList(
-                selected.size() - (REWRITE_OBSERVATION_MAX_ITEMS - 8),
-                selected.size()
-            ));
-            selected = bounded;
-        }
-        int perObservation = Math.min(
-            REWRITE_OBSERVATION_MAX_CHARS,
-            Math.max(256, REWRITE_OBSERVATIONS_MAX_CHARS / Math.max(1, selected.size()) - 64)
-        );
-        List<String> compact = new ArrayList<>(selected.size());
-        for (int index = 0; index < selected.size(); index++) {
-            String observation = selected.get(index);
-            if (observation.length() <= perObservation) {
-                compact.add(observation);
-                continue;
-            }
-            int headChars = Math.max(1, perObservation * 3 / 4);
-            int tailChars = Math.max(1, perObservation - headChars);
-            compact.add("[observation " + (index + 1) + " originalChars=" + observation.length() + "] "
-                + observation.substring(0, headChars)
-                + "... [middle omitted; full evidence remains in Runtime] ..."
-                + observation.substring(observation.length() - tailChars));
-        }
-        return List.copyOf(compact);
-    }
-
-    String rewritePromptEvidenceHistory(List<Map<String, Object>> evidenceHistory) {
-        String serialized = toJson(evidenceHistory == null ? List.of() : evidenceHistory);
-        if (serialized.length() <= REWRITE_EVIDENCE_HISTORY_MAX_CHARS) {
-            return serialized;
-        }
-        int headChars = REWRITE_EVIDENCE_HISTORY_MAX_CHARS * 3 / 4;
-        int tailChars = REWRITE_EVIDENCE_HISTORY_MAX_CHARS - headChars;
-        return "[evidenceHistory originalChars=" + serialized.length() + "] "
-            + serialized.substring(0, headChars)
-            + "... [middle omitted; full evidence remains in Runtime] ..."
-            + serialized.substring(serialized.length() - tailChars);
     }
 
     private boolean hasAvailableSemanticTool(List<String> availableTools, String semanticToolName) {

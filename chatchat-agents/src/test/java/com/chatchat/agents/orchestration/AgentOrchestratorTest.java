@@ -861,6 +861,68 @@ class AgentOrchestratorTest {
         assertThat(metadata).containsEntry("interpretationPlanResultSatisfied", false);
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void continuationWorkflowDagOmitsCompletedNodesThatAreNotRepeated() throws Exception {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        InterpretationPlan rewrittenPlan = new InterpretationPlan(
+            "1.0",
+            null,
+            null,
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(
+                    1, "mcp_tool", "mcp_chatchat_mcp_server_sql_metadata_search",
+                    Map.of("query", "orders"), List.of(), null, null),
+                new InterpretationPlan.Step(
+                    2, "mcp_tool", "mcp_chatchat_mcp_server_enterprise_metadata_search",
+                    Map.of("query", "ADS table standard"), List.of(), null, null),
+                new InterpretationPlan.Step(
+                    3, "final_answer", "final_answer",
+                    Map.of("answer", "partial assessment"), List.of(1, 2), null, null)
+            )),
+            null,
+            null
+        );
+        List<Map<String, Object>> authoritativeDag = List.of(
+            Map.of(
+                "tool", "mcp_chatchat_mcp_server_database_asset_search",
+                "dependsOnTools", List.of()),
+            Map.of(
+                "tool", "mcp_chatchat_mcp_server_sql_metadata_search",
+                "dependsOnTools", List.of("mcp_chatchat_mcp_server_database_asset_search")),
+            Map.of(
+                "tool", "mcp_chatchat_mcp_server_enterprise_metadata_search",
+                "dependsOnTools", List.of())
+        );
+        Method method = AgentOrchestrator.class.getDeclaredMethod(
+            "authoritativeWorkflowDagForContinuation",
+            Object.class,
+            InterpretationPlan.class,
+            Set.class
+        );
+        method.setAccessible(true);
+
+        Object result = method.invoke(
+            orchestrator,
+            authoritativeDag,
+            rewrittenPlan,
+            Set.of(
+                "mcp_chatchat_mcp_server_database_asset_search",
+                "mcp_chatchat_mcp_server_sql_metadata_search",
+                "mcp_chatchat_mcp_server_enterprise_metadata_search"
+            )
+        );
+
+        List<Map<String, Object>> continuationDag = (List<Map<String, Object>>) result;
+        assertThat(continuationDag)
+            .extracting(node -> node.get("tool"))
+            .containsExactly(
+                "mcp_chatchat_mcp_server_sql_metadata_search",
+                "mcp_chatchat_mcp_server_enterprise_metadata_search"
+            );
+        assertThat((List<String>) continuationDag.get(0).get("dependsOnTools")).isEmpty();
+    }
+
     private static InterpretationPlanRuntime.ExecutionResult attemptResult(String status,
                                                                             boolean success,
                                                                             String evidence,
@@ -1218,7 +1280,7 @@ class AgentOrchestratorTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void interpretationPlanLetsModelRejectDocumentSearchEvenWhenChunksExist() {
+    void interpretationPlanPreservesSuccessfulDocumentSearchWhenModelNeedsMoreEvidence() {
         StrictDocumentReviewChatModel chatModel = new StrictDocumentReviewChatModel(
             """
                 {
@@ -1288,9 +1350,14 @@ class AgentOrchestratorTest {
                 Map<String, Object> stepMetadata = (Map<String, Object>) step.get("metadata");
                 assertThat(step)
                     .containsEntry("toolName", "document_search")
-                    .containsEntry("success", false);
+                    .containsEntry("success", true);
                 assertThat(stepMetadata)
-                    .containsEntry("toolResultReviewSatisfied", false);
+                    .containsEntry("toolResultReviewSatisfied", false)
+                    .containsEntry("toolExecutionStatus", "SUCCEEDED")
+                    .containsEntry("evidenceSufficiency", "INSUFFICIENT")
+                    .containsEntry("stepFulfillmentStatus", "PARTIAL")
+                    .containsEntry("modelReviewExecutionStatusOverridePrevented", true)
+                    .containsEntry("partialEvidence", true);
                 assertThat(stepMetadata)
                     .containsEntry("rejectedEvidenceRefs", List.of("doc://spark#chunk=159", "doc://spark#chunk=155"));
                 Map<String, Object> evaluation = (Map<String, Object>) stepMetadata.get("evidenceEvaluation");

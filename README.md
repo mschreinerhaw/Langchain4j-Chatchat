@@ -81,6 +81,7 @@ Runtime 的权威输入按优先级为：
   -> 修复后重新校验
   -> 分波次执行
   -> 失败隔离与证据增广
+  -> Evidence Normalizer / Compression Gate（仅供 DAG rewrite）
   -> 任务级结果聚合
   -> 模型基于完整证据分析
   -> 答案评审与交付
@@ -147,6 +148,8 @@ Runtime 不得：
 ## 证据与模型二次分析
 
 Runtime 保留完整工具输出、结构化证据对象、来源节点和尝试信息。展示摘要可以截断，但规划、参数恢复、最终综合和答案复核使用完整证据快照。
+
+`InterpretationPlanRewriter` 例外地只读取 `evidence_compression_gate_v1` 生成的有界调度视图。网关确定性保留证据标识、节点/工具状态、错误、缺口、冲突、假设、下一动作和结构化样本，并对重复 observation 去重；完整证据仍留在 Runtime Evidence Store，供最终综合、复核、审计和重放使用。
 
 最终分析采用 `model_analysis_repair_v1` 协议：
 

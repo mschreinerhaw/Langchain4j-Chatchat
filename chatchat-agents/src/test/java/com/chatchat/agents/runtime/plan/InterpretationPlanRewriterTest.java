@@ -93,15 +93,19 @@ class InterpretationPlanRewriterTest {
         ));
 
         assertThat(chatModel.lastPrompt())
-            .contains("compact scheduling evidence")
+            .contains("Evidence Compression Gate metadata")
+            .contains("evidence_compression_gate_v1")
+            .contains("compressed scheduling evidence")
             .contains("bounded abbreviation aliases")
             .contains("khzczx")
             .contains("Customer Asset Service -> cas")
             .contains("never write generated aliases to assetName")
             .contains("Preserve a user-supplied abbreviation")
-            .contains("originalChars=")
-            .contains("full evidence remains in Runtime")
-            .hasSizeLessThan(200_000);
+            .contains("originalChars")
+            .contains("full evidence remains Runtime-owned")
+            .contains("fullEvidenceRetainedByRuntime")
+            .contains("evidenceRef")
+            .hasSizeLessThan(50_000);
     }
 
     @Test

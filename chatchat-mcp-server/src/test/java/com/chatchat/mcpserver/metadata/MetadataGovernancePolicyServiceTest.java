@@ -37,6 +37,11 @@ class MetadataGovernancePolicyServiceTest {
         assertThat(service.refresh().revision()).isEqualTo(3);
         MetadataGovernancePolicy changed = EnterpriseMetadataTestProperties.policy();
         changed.getComparison().setMinimumFieldScore(0.72D);
+        changed.getClaimCoverage().setScope("ENTERPRISE_TABLE_DESIGN_METADATA");
+        changed.getClaimCoverage().setSupportedClaims(java.util.List.of(
+            "complete table-level enterprise design conformance"));
+        changed.getClaimCoverage().setNotAssessedClaims(java.util.List.of());
+        changed.getClaimCoverage().setFullTableDesignConformanceSupported(true);
 
         MetadataGovernancePolicy saved = service.save(changed, 3L);
 
@@ -44,6 +49,16 @@ class MetadataGovernancePolicyServiceTest {
         assertThat(service.status())
             .containsEntry("revision", 4L)
             .containsEntry("source", "database");
+        assertThat(service.claimCoverage())
+            .containsEntry("contractVersion", "enterprise_metadata_claim_coverage.v1")
+            .containsEntry("scope", "ENTERPRISE_TABLE_DESIGN_METADATA")
+            .containsEntry("fullTableDesignConformanceSupported", true)
+            .containsEntry("declarationSource", "metadata_governance_policy")
+            .containsEntry("policyVersion", "test-policy-v1");
+        assertThat((java.util.List<String>) service.claimCoverage().get("supportedClaims"))
+            .containsExactly("complete table-level enterprise design conformance");
+        assertThat((java.util.List<String>) service.claimCoverage().get("notAssessedClaims"))
+            .isEmpty();
         assertThatThrownBy(() -> service.save(changed, 3L))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("revision conflict");

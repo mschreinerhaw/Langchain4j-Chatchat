@@ -506,6 +506,73 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void preservesSuccessfulStructuredEvidenceWhenModelReviewNeedsMoreEvidence() {
+        String toolName = "future_enterprise_standard_search";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(toolName)).thenReturn(true);
+        when(toolRegistry.getToolMetadata(toolName))
+            .thenReturn(ToolMetadata.builder().id(toolName).riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of(
+                "schemaVersion", "future_evidence.v1",
+                "success", true,
+                "count", 20,
+                "evidenceObjectCount", 20,
+                "records", List.of(Map.of("standard", "ADS naming"))
+            )),
+            ToolMetadata.builder().id(toolName).build(),
+            null,
+            "success",
+            Map.of()
+        ));
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("governance", "evaluate design", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", toolName, Map.of(), List.of(), null, null),
+                new InterpretationPlan.Step(2, "final_answer", "", Map.of("answer", "done"), List.of(1), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(2, false, List.of(toolName), List.of(), 30_000),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            null,
+            request -> InterpretationPlanRuntime.StepReview.rejected(
+                "returned evidence is useful but not sufficient for the complete conclusion",
+                Map.of(
+                    "evidenceIterationSufficient", false,
+                    "missingEvidence", List.of("physical metadata"),
+                    "nextActions", List.of(Map.of("intent", "retrieve missing evidence"))
+                )
+            ),
+            scriptedController(List.of(List.of(1), List.of(2)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, toolRegistry, List.of(toolName),
+                "tenant-1", "request-partial-standard", "conversation-1", "user-1", Map.of()
+            ));
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.steps()).extracting(InterpretationPlanRuntime.StepExecution::stepId)
+            .containsExactly(1, 2);
+        assertThat(result.steps().get(0).success()).isTrue();
+        assertThat(result.steps().get(0).errorMessage()).isNull();
+        assertThat(result.steps().get(0).metadata())
+            .containsEntry("toolResultReviewSatisfied", false)
+            .containsEntry("toolExecutionStatus", "SUCCEEDED")
+            .containsEntry("evidenceSufficiency", "INSUFFICIENT")
+            .containsEntry("stepFulfillmentStatus", "PARTIAL")
+            .containsEntry("modelReviewExecutionStatusOverridePrevented", true)
+            .containsEntry("partialEvidence", true);
+    }
+
+    @Test
     void factChecksTemplateDiscoveryWhenMcpResultIsJsonString() throws Exception {
         String templateQueryResult = """
             {
@@ -6633,6 +6700,44 @@ class InterpretationPlanRuntimeTest {
                 && metadata.get("decision") instanceof Map<?, ?>
                 && metadata.get("guardResult") instanceof Map<?, ?>))
             .isTrue();
+    }
+
+    @Test
+    void carriesAgentRunIdIntoToolResultReviewRequest() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("document_search")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("document_search"))
+            .thenReturn(ToolMetadata.builder().id("document_search").riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of("results", List.of("runtime evidence"))),
+            ToolMetadata.builder().id("document_search").build(),
+            null,
+            "success",
+            Map.of()
+        ));
+        AtomicReference<String> reviewedRunId = new AtomicReference<>();
+        InterpretationPlanRuntime.StepResultReviewer reviewer = request -> {
+            reviewedRunId.set(request.runId());
+            return InterpretationPlanRuntime.StepReview.accepted("usable", Map.of());
+        };
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            null,
+            reviewer,
+            scriptedController(List.of(List.of(1), List.of(2)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                serialPlan(), toolRegistry, List.of("document_search"),
+                "tenant-1", "request-review-run-id", "conversation-1", "user-1",
+                Map.of("__agentRunId", "run-tool-result-review")
+            ));
+
+        assertThat(result.success()).isTrue();
+        assertThat(reviewedRunId.get()).isEqualTo("run-tool-result-review");
     }
 
     @Test

@@ -47,17 +47,26 @@ function numeric(value) {
 }
 
 function formatAxisTick(value) {
-  const number = numeric(value);
-  if (number === null) {
-    return compact(value);
+  return formatDataValue(value);
+}
+
+export function formatDataValue(value) {
+  if (value === null || value === undefined) {
+    return "";
   }
-  const absolute = Math.abs(number);
-  if (absolute >= 1e15 || (absolute > 0 && absolute < 1e-4)) {
-    return number.toExponential(2);
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) {
+      return String(value);
+    }
+    return new Intl.NumberFormat("zh-CN", {
+      useGrouping: true,
+      maximumFractionDigits: 20
+    }).format(value);
   }
-  return new Intl.NumberFormat("en-US", {
-    maximumFractionDigits: 4
-  }).format(number);
+  if (typeof value === "bigint") {
+    return new Intl.NumberFormat("zh-CN", { useGrouping: true }).format(value);
+  }
+  return compact(value);
 }
 
 function measureAxisLabelWidth(value) {
@@ -449,7 +458,7 @@ export default {
           trigger: this.chartType === "pie" ? "item" : "axis",
           confine: true,
           formatter: (params) => this.formatTooltip(params, seriesNameByKey),
-          valueFormatter: (value) => this.formatCompact(Array.isArray(value) ? value[1] : value)
+          valueFormatter: (value) => this.formatDataValue(Array.isArray(value) ? value[1] : value)
         },
         legend: {
           type: "scroll",
@@ -629,8 +638,8 @@ export default {
     xLabels() {
       if (this.chartType === "scatter") {
         return [
-          { key: "min-x", text: this.formatCompact(this.minXValue), x: 48 },
-          { key: "max-x", text: this.formatCompact(this.maxXValue), x: 608 }
+          { key: "min-x", text: this.formatDataValue(this.minXValue), x: 48 },
+          { key: "max-x", text: this.formatDataValue(this.maxXValue), x: 608 }
         ];
       }
       const count = Math.max(1, this.rows.length - 1);
@@ -869,8 +878,9 @@ export default {
         const data = item.data || {};
         const key = data.yKey || item.seriesName || "";
         const name = seriesNameByKey[key] || item.seriesName || key;
-        const value = Array.isArray(data.value) ? data.value[1] : data.value;
-        lines.push(`${escapeHtml(name)}：${escapeHtml(this.formatCompact(value))}`);
+        const plottedValue = Array.isArray(data.value) ? data.value[1] : data.value;
+        const value = Object.prototype.hasOwnProperty.call(row, key) ? row[key] : plottedValue;
+        lines.push(`${escapeHtml(name)}：${escapeHtml(this.formatDataValue(value))}`);
       });
       return lines.join("<br/>");
     },
@@ -912,12 +922,8 @@ export default {
       const largeArc = end - start > Math.PI ? 1 : 0;
       return `M 0 0 L ${startPoint[0]} ${startPoint[1]} A ${radius} ${radius} 0 ${largeArc} 1 ${endPoint[0]} ${endPoint[1]} Z`;
     },
-    formatCompact(value) {
-      const number = numeric(value);
-      if (number === null) {
-        return compact(value);
-      }
-      return new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(number);
+    formatDataValue(value) {
+      return formatDataValue(value);
     }
   }
 };

@@ -1488,6 +1488,52 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
+    void optionalNonTemplateToolDoesNotInheritUnrelatedMandatorySequence() {
+        String query = "mcp_chatchat_mcp_server_api_template_query";
+        String execute = "mcp_chatchat_mcp_server_api_template_execute";
+        String independent = "mcp_chatchat_mcp_server_financial_data_search";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(independent)).thenReturn(ToolMetadata.builder()
+            .id(independent).title("financial data").categories(List.of("mcp")).build());
+        when(toolRegistry.executeEnhancedTool(eq(independent), any()))
+            .thenReturn(ToolOutput.success(Map.of("records", List.of())));
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), properties(), new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of());
+        Map<String, Object> workflow = Map.of(
+            "enabled", true,
+            "executionStrategy", Map.of("mode", "sequential", "stopOnError", false),
+            "steps", List.of(
+                Map.of("step", 1, "tool", query, "required", true),
+                Map.of("step", 2, "tool", execute, "required", true),
+                Map.of("step", 3, "tool", independent, "required", false)
+            )
+        );
+        List<Map<String, Object>> mandatoryDag = List.of(
+            Map.of("tool", query, "dependsOnTools", List.of()),
+            Map.of("tool", execute, "dependsOnTools", List.of(query))
+        );
+        ToolRuntimeRequest request = ToolRuntimeRequest.builder()
+            .toolName(independent)
+            .runtimeMode("interpretation_plan")
+            .requestId("optional-independent")
+            .conversationId("optional-independent-conversation")
+            .tenantId("tenant-1")
+            .userId("user-1")
+            .allowedTools(List.of(query, execute, independent))
+            .toolInput(ToolInput.builder().parameters(Map.of("query", "market context")).build())
+            .attributes(Map.of("mcpWorkflow", workflow, "authoritativeWorkflowDag", mandatoryDag))
+            .build();
+
+        ToolRuntimeExecution result = service.execute(request);
+
+        assertThat(result.output().isSuccess()).isTrue();
+        assertThat(result.audit().get("matchedPolicyRules")).asString()
+            .contains("authoritative_workflow_dag.optional_tool." + independent);
+        verify(toolRegistry).executeEnhancedTool(eq(independent), any());
+    }
+
+    @Test
     void preflightBlockedTemplateIsRecordedAndDoesNotStopExecutableTemplates() {
         String toolName = "api_template_execute";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);

@@ -104,6 +104,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
     private final AgentToolArgumentResolver toolArguments;
     private final AgentWorkflowToolResolver workflowTools;
     private final ModelAssistedRetrievalBridge modelAssistedRetrievalBridge;
+    private final ModelAssistedContextParameterBridge modelAssistedContextParameterBridge;
     private final AnswerCandidateCollector answerCandidateCollector = new AnswerCandidateCollector();
     private final AgentWorkflowStateTracker workflowStateTracker = new AgentWorkflowStateTracker();
     private final AgentAnswerFinalizer answerFinalizer;
@@ -215,6 +216,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
         this.toolArguments = new AgentToolArgumentResolver(this.toolNames, WEB_SEARCH_REFERENCE_LIMIT, this.toolRegistry);
         this.workflowTools = new AgentWorkflowToolResolver(this.toolNames);
         this.modelAssistedRetrievalBridge = new ModelAssistedRetrievalBridge(this.toolRegistry, objectMapper);
+        this.modelAssistedContextParameterBridge =
+            new ModelAssistedContextParameterBridge(this.toolRegistry, objectMapper);
         this.answerFinalizer = new AgentAnswerFinalizer(
             resolvedAnswerReviewer,
             this.runtimeGuard,
@@ -1000,12 +1003,15 @@ public class AgentOrchestrator implements AgentRunExecutor {
             runStore,
             request -> reviewInterpretationPlanToolResult(activeChatModel, query, systemPrompt, cancellationCheck, request),
             request -> decideInterpretationPlanDagStep(activeChatModel, query, systemPrompt, cancellationCheck, request),
-            request -> modelAssistedRetrievalBridge.enrichWithGate(
-                activeChatModel,
-                request.step() == null ? null : request.step().toolName(),
-                request.input(),
-                templateRetrievalEvidenceContext(query, request.completed())
-            ).argumentsWithGateMarker()
+            request -> {
+                String stepTool = request.step() == null ? null : request.step().toolName();
+                ModelAssistedRetrievalBridge.RetrievalEvidenceContext evidenceContext =
+                    templateRetrievalEvidenceContext(query, request.completed());
+                Map<String, Object> contextual = modelAssistedContextParameterBridge.propose(
+                    activeChatModel, stepTool, request.input(), evidenceContext);
+                return modelAssistedRetrievalBridge.enrichWithGate(
+                    activeChatModel, stepTool, contextual, evidenceContext).argumentsWithGateMarker();
+            }
         );
         List<InterpretationPlanRuntime.ExecutionResult> planAttemptResults = new ArrayList<>();
         List<Map<String, Object>> evidenceHistory = new ArrayList<>();

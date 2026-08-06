@@ -237,6 +237,7 @@ public class InterpretationPlanRewriter {
             .append(InterpretationExecutionProtocol.TEMPLATE_PARAMETER_PROTOCOL_VERSION)
             .append(" as an evidence-based parameter profile after seeing the returned parameterSchema and completed evidence; do not guess undeclared parameter names in the rewritten executor input.\n");
         prompt.append("- Parameter evidence must cite an exact user-query quote or a successful completed step_id/output_path. Runtime re-reads the cited value, audits it, applies defaults/type conversion, and alone invokes MCP.\n");
+        prompt.append("- For missing direct non-template tool arguments, use contextParameterEvidence with parameter/source and either stepId+outputPath or quote+value; preserve or add the dependency on the cited completed step. Runtime verifies every proposal and never trusts a model-supplied value by itself.\n");
         prompt.append("- parameterSchema, requiredParameters, parameterContract, invocationExample, selectedTemplate, and an entire templates[i] object are read-only discovery metadata. Never pass any of them as templateId or parameters.\n");
         prompt.append("- A binding targeting template/templateId must use an output_path ending in the scalar identifier field templateId (or the discovery contract's explicit scalar id field).\n\n");
         prompt.append("HTTP/API/SSH template repair rules:\n");

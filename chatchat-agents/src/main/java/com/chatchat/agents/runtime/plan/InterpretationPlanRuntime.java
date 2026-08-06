@@ -13,6 +13,7 @@ import com.chatchat.agents.runtime.ToolRuntimeExecution;
 import com.chatchat.agents.runtime.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.ToolRuntimeService;
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
+import com.chatchat.agents.runtime.toolcall.ContextualToolArgumentResolver;
 import com.chatchat.agents.runtime.toolcall.ToolArgumentCompiler;
 import com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge;
 import com.chatchat.agents.protocol.AgentProtocolCatalog;
@@ -53,6 +54,7 @@ public class InterpretationPlanRuntime {
     private static final String ORIGINAL_USER_QUERY_ATTRIBUTE = "originalUserQuery";
     private static final String AGENT_RUNTIME_ENVIRONMENT_ATTRIBUTE = "agentRuntimeEnvironment";
     private static final String MODEL_RETRIEVAL_GATE_KEY = "__modelRetrievalQualityGate";
+    private static final String CONTEXT_PARAMETER_RECOVERY_KEY = "__runtimeContextParameterRecovery";
     private static final EvidenceBasedTemplateCandidateEvaluator TEMPLATE_CANDIDATE_EVALUATOR =
         new EvidenceBasedTemplateCandidateEvaluator();
     private static final Pattern EXPLICIT_ENV_ASSIGNMENT_PATTERN = Pattern.compile(
@@ -78,6 +80,8 @@ public class InterpretationPlanRuntime {
     );
     private static final ObjectMapper RESULT_OBJECT_MAPPER = new ObjectMapper();
     private static final ToolArgumentCompiler TOOL_ARGUMENT_COMPILER = new ToolArgumentCompiler();
+    private static final ContextualToolArgumentResolver CONTEXT_ARGUMENT_RESOLVER =
+        new ContextualToolArgumentResolver();
     private static final TemplateInvocationBridge TEMPLATE_INVOCATION_BRIDGE =
         new TemplateInvocationBridge();
     private static final DiagnosticEvidenceNormalizer DIAGNOSTIC_EVIDENCE_NORMALIZER =
@@ -594,6 +598,8 @@ public class InterpretationPlanRuntime {
         if (step.mcpToolAction()) {
             try {
                 Map<String, Object> resolvedInput = resolvedStepInput(step, request, completed);
+                Map<String, Object> contextParameterRecovery = new LinkedHashMap<>(
+                    asStringMap(resolvedInput.remove(CONTEXT_PARAMETER_RECOVERY_KEY)));
                 boolean templateCompletenessRepairApplied = false;
                 List<String> templateCompletenessRepairIds = List.of();
                 List<Map<String, Object>> templatePreflightTerminalRepairs = List.of();
@@ -783,6 +789,19 @@ public class InterpretationPlanRuntime {
                     stepMetadata.put("repairEvent", repairEvent);
                     stepMetadata.put("runtimeTemplatePreflightRepairs",
                         templatePreflightTerminalRepairs);
+                }
+                if (!contextParameterRecovery.isEmpty()) {
+                    Map<String, Object> repairEvent = new LinkedHashMap<>(contextParameterRecovery);
+                    repairEvent.put("contractVersion", "runtime_dag_governance.v1");
+                    repairEvent.put("eventKind", "DAG_REPAIR");
+                    repairEvent.put("eventState", "APPLIED");
+                    repairEvent.put("repairCode", "CONTEXT_PARAMETER_EVIDENCE_APPLIED");
+                    repairEvent.put("stepId", step.id());
+                    stepMetadata.put("eventKind", "DAG_REPAIR");
+                    stepMetadata.put("eventState", "APPLIED");
+                    stepMetadata.put("repairAttempt", 1);
+                    stepMetadata.put("repairEvent", Map.copyOf(repairEvent));
+                    stepMetadata.put("contextParameterRecovery", Map.copyOf(contextParameterRecovery));
                 }
                 if (enhancedQuality != null) {
                     stepMetadata.put("retrievalQualityGate", RetrievalQualityGate.report(
@@ -2675,7 +2694,7 @@ public class InterpretationPlanRuntime {
         // request such as {intent: ..., templateIds: [...]} fails on the missing filters field and
         // the fallback agent loop loses the discovered-template scope.
         normalizeDiscoveryRoutingInput(step, request, completed, input);
-        compileDirectToolArguments(step, request, input);
+        compileDirectToolArguments(step, request, completed, input);
         hydrateExecutionContextFromCompletedAssets(step, completed, input);
         normalizeSqlExecutionContext(step, input);
         Map<Integer, StepExecution> contractContext = resolveTemplateContractFromMcp(step, request, completed, input);
@@ -3246,6 +3265,7 @@ public class InterpretationPlanRuntime {
 
     private void compileDirectToolArguments(InterpretationPlan.Step step,
                                             ExecutionRequest request,
+                                            Map<Integer, StepExecution> completed,
                                             Map<String, Object> input) {
         if (step == null || request == null || input == null || isTemplateExecutionTool(step.toolName())
             || request.toolRegistry() == null) {
@@ -3272,12 +3292,37 @@ public class InterpretationPlanRuntime {
         Map<String, Object> semantic = new LinkedHashMap<>(input);
         semantic.remove("purpose");
         List<String> promotedEnvelopes = promotePublishedSchemaArguments(semantic, schema);
+        Map<Integer, Object> completedOutputs = new LinkedHashMap<>();
+        if (completed != null) {
+            completed.forEach((stepId, execution) -> {
+                if (stepId != null && execution != null && execution.success()
+                    && execution.output() != null) {
+                    completedOutputs.put(stepId, execution.output());
+                }
+            });
+        }
+        ContextualToolArgumentResolver.Resolution contextual = CONTEXT_ARGUMENT_RESOLVER.resolve(
+            new ContextualToolArgumentResolver.Request(
+                semantic, schema, originalUserQuery(request), completedOutputs));
+        semantic.clear();
+        semantic.putAll(contextual.arguments());
         ToolArgumentCompiler.CompilationResult compilation = TOOL_ARGUMENT_COMPILER.compile(semantic, schema);
         if (!compilation.valid()) {
             throw new IllegalStateException(compilation.structuredError(step.toolName(), stringValue(input.get("action"))));
         }
         input.clear();
         input.putAll(compilation.parameters());
+        if (contextual.applied()) {
+            input.put(CONTEXT_PARAMETER_RECOVERY_KEY, Map.of(
+                "recoveredArguments", contextual.recovered(),
+                "unresolvedRequiredFields", contextual.unresolvedRequiredFields(),
+                "modelCandidatesVerified", contextual.recovered().stream()
+                    .filter(ContextualToolArgumentResolver.RecoveredArgument::modelProposed).count()
+            ));
+            log.info("InterpretationPlan recovered direct-tool parameters from verified context: "
+                    + "stepId={}, tool={}, recovered={}, unresolved={}",
+                step.id(), step.toolName(), contextual.recovered(), contextual.unresolvedRequiredFields());
+        }
         if (!compilation.repairs().isEmpty() || !promotedEnvelopes.isEmpty()) {
             log.info("InterpretationPlan compiled direct tool semantic arguments stepId={} tool={} promotedEnvelopes={} repairs={} compiledKeys={}",
                 step.id(), step.toolName(), promotedEnvelopes, compilation.repairs(), input.keySet());

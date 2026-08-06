@@ -2509,6 +2509,11 @@ public class ToolRuntimeService {
         List<String> authoritativeDependencies = authoritativeWorkflowDependencies(request, toolName);
         boolean authoritativeSequence = authoritativeDependencies != null
             && authoritativeWorkflowHasEdges(request);
+        boolean authoritativeOptionalTool = authoritativeDependencies == null
+            && authoritativeWorkflowConfigured(request)
+            && workflow != null
+            && workflowStep(workflow, toolName) != null
+            && !workflowStep(workflow, toolName).isRequired();
         if (globalDependency != null && globalDependency.getDependsOn() != null) {
             dependencies.addAll(globalDependency.getDependsOn());
             matchedRules.add("tool_dependencies." + toolName + "=" + globalDependency.getDependsOn());
@@ -2527,13 +2532,14 @@ public class ToolRuntimeService {
                 return new WorkflowDecision(true, workflowName, stateKey, ToolRuntimeAction.DENY,
                     "Tool " + toolName + " is not part of MCP workflow " + workflowName, matchedRules);
             }
-            if (!authoritativeSequence && currentStep.getDependsOn() != null) {
+            if ((!authoritativeSequence || authoritativeOptionalTool)
+                && currentStep.getDependsOn() != null) {
                 dependencies.addAll(currentStep.getDependsOn());
             }
             if (currentStep.getOptionalDependsOn() != null && !currentStep.getOptionalDependsOn().isEmpty()) {
                 matchedRules.add("workflow." + workflowName + "." + toolName + ".optionalDependsOn=" + currentStep.getOptionalDependsOn());
             }
-            if (!authoritativeSequence) {
+            if (!authoritativeSequence && !authoritativeOptionalTool) {
                 WorkflowDecision sequenceDecision = validateWorkflowSequence(
                     workflowName,
                     workflow,
@@ -2551,8 +2557,13 @@ public class ToolRuntimeService {
                     return sequenceDecision;
                 }
             } else {
-                dependencies.addAll(authoritativeDependencies);
-                matchedRules.add("authoritative_workflow_dag." + toolName + "=" + authoritativeDependencies);
+                if (authoritativeDependencies != null) {
+                    dependencies.addAll(authoritativeDependencies);
+                    matchedRules.add("authoritative_workflow_dag." + toolName + "=" + authoritativeDependencies);
+                } else {
+                    matchedRules.add("authoritative_workflow_dag.optional_tool." + toolName
+                        + "=explicit_dependencies_only");
+                }
             }
             if (currentStep.getCondition() != null && !currentStep.getCondition().isBlank()) {
                 Map<String, Object> context = workflowContext(request, toolInput);
@@ -2645,6 +2656,12 @@ public class ToolRuntimeService {
             .filter(Collection.class::isInstance)
             .map(Collection.class::cast)
             .anyMatch(dependencies -> !dependencies.isEmpty());
+    }
+
+    private boolean authoritativeWorkflowConfigured(ToolRuntimeRequest request) {
+        Object rawDag = request == null || request.getAttributes() == null
+            ? null : request.getAttributes().get("authoritativeWorkflowDag");
+        return rawDag instanceof Collection<?> nodes && !nodes.isEmpty();
     }
 
     /** Returns null when the current tool is not governed by the authoritative DAG. */

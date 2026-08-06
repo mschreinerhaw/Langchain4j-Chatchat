@@ -394,3 +394,12 @@ attempt, latencyMs, decisionReason
 - 边契约解析顺序为：完整输出或 `routingProjection` → 已解析的工具输入 → Agent 运行环境 → 用户流程快照中的显式环境。
 - 使用 Agent 环境恢复契约时，Runtime 必须发布 `DAG_REPAIR/APPLIED` 事件，修复码为 `AGENT_ENVIRONMENT_CONTEXT_APPLIED`。
 - 最终汇总不得从被截断的预览推断“字段缺失”；只有 Runtime 在完成上述恢复后仍输出的权威契约违例才能作为失败事实。
+
+## 16. 独立工具与上下文参数恢复
+
+- 权威 DAG 是工具先后关系的唯一执行依据。未进入必选 DAG 的可选工具不得隐式继承 MCP 发布清单中排在它之前的必选工具；只有该工具显式声明的 `dependsOn` 可以形成前置条件。
+- 非模板工具缺少已发布 Schema 的必填参数时，Runtime 应先从成功完成节点的结构化输出及用户原始请求中恢复。字段匹配只允许使用 Schema 字段名及其显式 `aliases`，禁止按具体工具名、股票代码或业务问题编写分支。
+- 模型仅可提出证据指针：完成节点的 `stepId + outputPath`，或用户原文中的精确 `quote + value`。模型提出的值不具备执行权；Runtime 必须重新读取对应节点输出或核对用户原文，验真后才可写入工具参数。
+- 同一标量参数存在多个不同候选值时不得猜测。Schema 若要求数组则按数组契约处理；Schema 要求标量时必须由已验证的精确证据指针消除歧义，否则保留为未解析参数并按节点级失败处理。
+- 证据提议字段属于 Runtime 内部协议，调用 MCP 前必须移除，不得泄漏给远端工具。
+- 成功恢复参数必须发布 `DAG_REPAIR/APPLIED`，修复码为 `CONTEXT_PARAMETER_EVIDENCE_APPLIED`，并记录字段、来源节点、JSON 路径以及该证据是否由模型提出。

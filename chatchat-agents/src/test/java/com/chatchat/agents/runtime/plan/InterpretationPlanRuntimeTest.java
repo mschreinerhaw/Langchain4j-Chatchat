@@ -9,6 +9,7 @@ import com.chatchat.agents.runtime.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.ToolRuntimeService;
 import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
 import com.chatchat.agents.runtime.batch.ToolCallResult;
+import com.chatchat.agents.runtime.toolcall.ContextualToolArgumentResolver;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolParameter;
@@ -33,6 +34,77 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class InterpretationPlanRuntimeTest {
+
+    @Test
+    void recoversMissingDirectToolArgumentFromCompletedEvidenceAndPublishesRepair() {
+        String sourceTool = "portfolio_snapshot_query";
+        String targetTool = "market_observation_query";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(any())).thenReturn(true);
+        when(toolRegistry.getToolMetadata(sourceTool)).thenReturn(
+            ToolMetadata.builder().id(sourceTool).riskLevel("low").build());
+        when(toolRegistry.getToolMetadata(targetTool)).thenReturn(ToolMetadata.builder()
+            .id(targetTool)
+            .riskLevel("low")
+            .metadata(Map.of("inputSchema", Map.of(
+                "type", "object",
+                "required", List.of("symbol"),
+                "properties", Map.of("symbol", Map.of(
+                    "type", "string", "aliases", List.of("stockCode"))))))
+            .build());
+        AtomicReference<ToolRuntimeRequest> targetRequest = new AtomicReference<>();
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest request = invocation.getArgument(0);
+            Object output;
+            if (sourceTool.equals(request.getToolName())) {
+                output = Map.of("positions", List.of(Map.of("stockCode", "600839")));
+            } else {
+                targetRequest.set(request);
+                output = Map.of("quote", 12.34);
+            }
+            return new ToolRuntimeExecution(
+                ToolOutput.success(output),
+                ToolMetadata.builder().id(request.getToolName()).build(),
+                null, "success", Map.of());
+        });
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("tool_chain", "analyze portfolio market data", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", sourceTool, Map.of(), List.of(), null, null),
+                new InterpretationPlan.Step(2, "mcp_tool", targetTool, Map.of(), List.of(1), null, null),
+                new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"),
+                    List.of(2), null, null)
+            ), List.of(), List.of(), List.of(), null, null),
+            new InterpretationPlan.ExecutionPolicy(
+                3, false, List.of(sourceTool, targetTool), List.of(), 30_000),
+            review());
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService, new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3))));
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, toolRegistry, List.of(sourceTool, targetTool),
+                "tenant", "request-context-repair", "conversation", "user",
+                Map.of("originalUserQuery", "analyze my position")));
+
+        assertThat(result.success()).isTrue();
+        assertThat(targetRequest.get().getToolInput().getParameters())
+            .containsEntry("symbol", "600839")
+            .doesNotContainKey("__runtimeContextParameterRecovery")
+            .doesNotContainKey(ContextualToolArgumentResolver.MODEL_EVIDENCE_FIELD);
+        assertThat(result.steps()).filteredOn(step -> step.stepId() == 2)
+            .singleElement()
+            .satisfies(step -> {
+                assertThat(step.metadata()).containsEntry("eventKind", "DAG_REPAIR")
+                    .containsEntry("eventState", "APPLIED");
+                assertThat(((Map<?, ?>) step.metadata().get("repairEvent")).get("repairCode"))
+                    .isEqualTo("CONTEXT_PARAMETER_EVIDENCE_APPLIED");
+            });
+    }
 
     @Test
     void newsSearchUsesOriginalTodayQueryAndRuntimeOwnedDateRange() throws Exception {

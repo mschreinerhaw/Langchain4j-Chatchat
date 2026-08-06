@@ -2165,6 +2165,12 @@ public class AgentOrchestrator implements AgentRunExecutor {
             observations,
             storedObservations
         );
+        String reviewEvidenceContext = interpretationPlanReviewEvidenceContext(prompt);
+        if (metadata != null && !reviewEvidenceContext.isBlank()) {
+            metadata.put("modelAnalysisReviewContext", reviewEvidenceContext);
+            metadata.put("modelEvidenceReviewRewriteAllowed", true);
+            metadata.put("modelAnalysisReviewContractVersion", "model_analysis_repair_v1");
+        }
         String runId = stringValue(runtimeAttributes == null ? null : runtimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE));
         long startedAt = System.currentTimeMillis();
         log.info("agentModelRequest phase=interpretation_plan_summary runId={} stage={} modelClass={} promptChars={} stepCount={} storedObservationCount={}",
@@ -2219,6 +2225,21 @@ public class AgentOrchestrator implements AgentRunExecutor {
         return answer == null || answer.isBlank()
             ? (result == null ? "" : firstNonBlank(result.finalAnswer(), ""))
             : answer;
+    }
+
+    private String interpretationPlanReviewEvidenceContext(String synthesisPrompt) {
+        if (synthesisPrompt == null || synthesisPrompt.isBlank()) {
+            return "";
+        }
+        int start = synthesisPrompt.indexOf("Executed plan attempts (");
+        if (start < 0) {
+            return "";
+        }
+        int end = synthesisPrompt.lastIndexOf("\nReturn only the final user-facing Markdown answer");
+        if (end <= start) {
+            end = synthesisPrompt.length();
+        }
+        return synthesisPrompt.substring(start, end);
     }
 
     private boolean hasBatchExecutionResult(InterpretationPlanRuntime.ExecutionResult result) {

@@ -59,6 +59,37 @@ class DefaultAgentAnswerReviewerTest {
     }
 
     @Test
+    void reanalyzesCompleteExecutedEvidenceWhenRepairProtocolIsPresent() {
+        DefaultAgentAnswerReviewer reviewer = new DefaultAgentAnswerReviewer(new ObjectMapper());
+        QueueChatModel chatModel = new QueueChatModel(
+            """
+                {"accepted":false,
+                 "feedback":"The candidate used a naming convention as evidence.",
+                 "issues":["Unsupported inference"],
+                 "suggestions":[],
+                 "revisedAnswer":"## Analysis\nThe returned record supports field A. The requested overall judgment remains unresolved."}
+                """
+        );
+
+        AgentAnswerReview review = reviewer.review(
+            chatModel,
+            "Evaluate the returned object",
+            null,
+            List.of("model_analysis_repair_v1 complete executed evidence: field A was returned"),
+            "The object fully complies because its name starts with a conventional prefix."
+        );
+
+        assertThat(review.status()).isEqualTo(AgentAnswerReview.REVISED);
+        assertThat(review.answer())
+            .contains("The returned record supports field A")
+            .doesNotContain("fully complies");
+        assertThat(chatModel.messages().get(0))
+            .contains("second-pass model analysis")
+            .contains("produce a complete revisedAnswer")
+            .contains("field A was returned");
+    }
+
+    @Test
     void acceptsAnswerWhenReviewerPayloadAcceptsIt() {
         DefaultAgentAnswerReviewer reviewer = new DefaultAgentAnswerReviewer(new ObjectMapper());
         QueueChatModel chatModel = new QueueChatModel(

@@ -4,6 +4,7 @@ import com.chatchat.agents.model.ConfigurableChatModelFactory;
 import com.chatchat.common.config.ModelsConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -14,6 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Resolves chat model instances for agent runs.
  */
 @Component
+@Slf4j
 public class AgentChatModelResolver {
 
     private final ChatModel defaultChatModel;
@@ -37,11 +39,15 @@ public class AgentChatModelResolver {
 
     public ChatModel resolveChatModel(String modelName) {
         String normalized = normalizeModelName(modelName);
+        String selectedModelName = normalized == null ? modelsConfig.getDefaultChatModel() : normalized;
+        if (selectedModelName != null && !selectedModelName.isBlank()) {
+            log.info("Agent chat model selected modelName={}", selectedModelName);
+        }
         if (normalized == null || normalized.equals(modelsConfig.getDefaultChatModel())) {
             return defaultChatModel;
         }
         return chatModelsByName.computeIfAbsent(normalized,
-            model -> chatModelFactory.create(model, true));
+            chatModelFactory::create);
     }
 
     private String normalizeModelName(String modelName) {

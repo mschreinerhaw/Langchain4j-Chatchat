@@ -22,12 +22,12 @@ class AgentChatModelResolverTest {
         ChatModel defaultModel = mock(ChatModel.class);
         ChatModel alternateModel = mock(ChatModel.class);
         ConfigurableChatModelFactory factory = mock(ConfigurableChatModelFactory.class);
-        when(factory.create("alternate-model", true)).thenReturn(alternateModel);
+        when(factory.create("alternate-model")).thenReturn(alternateModel);
 
         AgentChatModelResolver resolver = new AgentChatModelResolver(defaultModel, config, factory);
 
         assertThat(resolver.resolveChatModel("alternate-model")).isSameAs(alternateModel);
-        verify(factory).create("alternate-model", true);
+        verify(factory).create("alternate-model");
     }
 
     @Test

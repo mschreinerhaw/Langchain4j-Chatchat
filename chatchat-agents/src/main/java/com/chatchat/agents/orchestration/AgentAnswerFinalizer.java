@@ -1784,20 +1784,21 @@ class AgentAnswerFinalizer {
                                            String finalAnswer,
                                            Map<String, Object> metadata) {
         String runId = stringValue(metadata == null ? null : metadata.get("agentRunId"));
+        List<String> reviewObservations = modelAnalysisReviewObservations(observations, metadata);
         if (finalAnswer == null || finalAnswer.isBlank() || activeChatModel == null) {
             log.info("agentModelSkipped phase=review runId={} reason={} answerChars={} observationCount={}",
                 firstNonBlank(runId, ""),
                 activeChatModel == null ? "chat_model_unavailable" : "empty_answer",
                 finalAnswer == null ? 0 : finalAnswer.length(),
-                observations == null ? 0 : observations.size());
-            return answerReviewer.review(activeChatModel, query, systemPrompt, observations, finalAnswer);
+                reviewObservations.size());
+            return answerReviewer.review(activeChatModel, query, systemPrompt, reviewObservations, finalAnswer);
         }
         long startedAt = System.currentTimeMillis();
         log.info("agentModelRequest phase=review runId={} modelClass={} answerChars={} observationCount={}",
             firstNonBlank(runId, ""),
             activeChatModel == null ? null : activeChatModel.getClass().getName(),
             finalAnswer == null ? 0 : finalAnswer.length(),
-            observations == null ? 0 : observations.size());
+            reviewObservations.size());
         long timeoutMs = configuredTimeoutMs("chatchat.agent.answer.review.timeout.ms", modelRequestTimeoutMs);
         AgentAnswerReview review;
         try {
@@ -1805,7 +1806,7 @@ class AgentAnswerFinalizer {
                 "review",
                 runId,
                 timeoutMs,
-                () -> answerReviewer.review(activeChatModel, query, systemPrompt, observations, finalAnswer)
+                () -> answerReviewer.review(activeChatModel, query, systemPrompt, reviewObservations, finalAnswer)
             );
         } catch (TimeoutException ex) {
             if (metadata != null) {
@@ -1858,6 +1859,23 @@ class AgentAnswerFinalizer {
                 review.feedback());
         }
         return review;
+    }
+
+    private List<String> modelAnalysisReviewObservations(List<String> observations,
+                                                         Map<String, Object> metadata) {
+        List<String> values = new ArrayList<>(observations == null ? List.of() : observations);
+        if (metadata == null) {
+            return List.copyOf(values);
+        }
+        Object context = metadata.remove("modelAnalysisReviewContext");
+        if (context == null || String.valueOf(context).isBlank()) {
+            return List.copyOf(values);
+        }
+        String evidence = String.valueOf(context);
+        values.add("model_analysis_repair_v1 complete executed evidence:\n" + evidence);
+        metadata.put("modelAnalysisReviewContextApplied", true);
+        metadata.put("modelAnalysisReviewEvidenceChars", evidence.length());
+        return List.copyOf(values);
     }
 
     private AgentAnswerReview acceptWithoutReviewer(String answer, String feedback) {

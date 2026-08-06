@@ -36,7 +36,7 @@ public class LangChain4jConfig {
             return new MissingApiKeyChatModel();
         }
 
-        return chatModelFactory.create(modelName, false);
+        return chatModelFactory.create(modelName);
     }
 
     private static final class MissingApiKeyChatModel implements ChatModel {

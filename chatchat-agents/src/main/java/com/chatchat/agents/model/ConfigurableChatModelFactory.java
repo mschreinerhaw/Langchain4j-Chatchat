@@ -7,7 +7,6 @@ import dev.langchain4j.http.client.jdk.JdkHttpClientBuilder;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.net.InetSocketAddress;
@@ -16,7 +15,6 @@ import java.net.http.HttpClient;
 import java.time.Duration;
 
 /** Builds a LangChain4j ChatModel for OpenAI-compatible and native provider URLs. */
-@Slf4j
 @Component
 @RequiredArgsConstructor
 public class ConfigurableChatModelFactory {
@@ -24,7 +22,7 @@ public class ConfigurableChatModelFactory {
     private final ModelsConfig modelsConfig;
     private final ObjectMapper objectMapper;
 
-    public ChatModel create(String modelName, boolean logTraffic) {
+    public ChatModel create(String modelName) {
         if (modelName == null || modelName.isBlank()) {
             throw new IllegalArgumentException("Chat model name must not be blank");
         }
@@ -36,8 +34,6 @@ public class ConfigurableChatModelFactory {
             ? modelName.trim() : config.getModelName().trim();
         ModelEndpoint endpoint = ModelEndpoint.resolve(config.getBaseUrl(), config.getProtocol());
         Duration timeout = resolveTimeout(config.getTimeout());
-        log.info("Initializing chat model protocol={} endpoint={} selectedModel={} providerModel={}",
-            endpoint.protocol(), endpoint.url(), modelName, providerModelName);
         if (endpoint.protocol() == ModelEndpoint.Protocol.DASHSCOPE_NATIVE) {
             return new DashScopeNativeChatModel(
                 endpoint.url(), endpoint.multimodal(), config.getApiKey(), providerModelName,
@@ -49,8 +45,8 @@ public class ConfigurableChatModelFactory {
             .baseUrl(endpoint.url())
             .modelName(providerModelName)
             .maxRetries(config.getMaxRetries())
-            .logRequests(logTraffic)
-            .logResponses(logTraffic);
+            .logRequests(false)
+            .logResponses(false);
         if (!timeout.isZero() && !timeout.isNegative()) {
             builder.timeout(timeout);
         }

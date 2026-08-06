@@ -4,6 +4,7 @@ import com.chatchat.agents.runtime.ToolRuntimeExecution;
 import com.chatchat.agents.runtime.ToolRuntimeProperties;
 import com.chatchat.agents.runtime.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.ToolRuntimeService;
+import com.chatchat.agents.runtime.DefaultAgentAnswerReviewer;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.tool.ToolInput;
@@ -11,6 +12,7 @@ import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolParameter;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.langchain4j.model.chat.ChatModel;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -139,6 +141,79 @@ class ProductionAgentRuntimeFinancialEvidenceStressE2E {
                         assertThat(result.answer()).contains("数据覆盖说明");
                         assertThat(result.metadata()).containsEntry("evidenceLimitedAnalysisPreserved", true);
                     }
+                    return Map.entry(marker, result.answer());
+                })).toList();
+
+                List<Map.Entry<String, String>> answers = new ArrayList<>();
+                for (var future : futures) answers.add(future.get(20, TimeUnit.SECONDS));
+                assertThat(answers).hasSize(REQUESTS);
+                for (Map.Entry<String, String> answer : answers) {
+                    answers.stream().map(Map.Entry::getKey).filter(marker -> !marker.equals(answer.getKey()))
+                        .forEach(other -> assertThat(answer.getValue()).doesNotContain(other));
+                }
+            });
+        } finally {
+            workers.shutdownNow();
+        }
+    }
+
+    @Test
+    void concurrentModelDriftIsReanalyzedFromEachRequestsCompleteEvidence() {
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            new DefaultAgentAnswerReviewer(new ObjectMapper()),
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        ChatModel repairModel = new ChatModel() {
+            @Override
+            public String chat(String prompt) {
+                if (!prompt.contains("model_analysis_repair_v1")) {
+                    return "{}";
+                }
+                int markerStart = prompt.indexOf("EVIDENCE_MARKER_");
+                int markerEnd = markerStart;
+                while (markerEnd < prompt.length()
+                    && (Character.isLetterOrDigit(prompt.charAt(markerEnd))
+                        || prompt.charAt(markerEnd) == '_')) {
+                    markerEnd++;
+                }
+                String marker = markerStart < 0 ? "MISSING" : prompt.substring(markerStart, markerEnd);
+                return "{\"accepted\":false,"
+                    + "\"feedback\":\"Candidate drifted beyond executed evidence\","
+                    + "\"issues\":[\"unsupported inference\"],\"suggestions\":[],"
+                    + "\"revisedAnswer\":\"Reanalyzed directly from " + marker + "\"}";
+            }
+        };
+        ExecutorService workers = Executors.newFixedThreadPool(32);
+        try {
+            assertTimeoutPreemptively(Duration.ofSeconds(30), () -> {
+                var futures = IntStream.range(0, REQUESTS).mapToObj(index -> workers.submit(() -> {
+                    String marker = "EVIDENCE_MARKER_" + index + "_" + UUID.randomUUID()
+                        .toString().replace("-", "");
+                    Map<String, Object> metadata = new ConcurrentHashMap<>();
+                    metadata.put("modelEvidenceReviewRewriteAllowed", true);
+                    metadata.put("modelAnalysisReviewContext",
+                        "Executed plan attempts (1): successful output value=" + marker);
+
+                    AgentOrchestrator.AgentExecutionResult result = finalizer.finishReviewedAnswer(
+                        repairModel,
+                        "Analyze the executed result",
+                        null,
+                        List.of(),
+                        metadata,
+                        List.of("candidate synthesis completed"),
+                        "A broad conclusion invented by the first model " + index,
+                        () -> false,
+                        "attempts_exhausted"
+                    );
+
+                    assertThat(result.answer())
+                        .contains("Reanalyzed directly from " + marker)
+                        .doesNotContain("broad conclusion invented");
+                    assertThat(result.metadata())
+                        .containsEntry("answerDecision", AnswerDecisionEngine.REVIEWER_REWRITE)
+                        .containsEntry("answerReviewAuthority", "evidence_analysis_repair")
+                        .containsEntry("modelAnalysisReviewContextApplied", true)
+                        .doesNotContainKey("modelAnalysisReviewContext");
                     return Map.entry(marker, result.answer());
                 })).toList();
 

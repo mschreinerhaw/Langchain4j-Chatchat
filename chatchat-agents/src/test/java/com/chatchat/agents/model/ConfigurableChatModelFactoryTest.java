@@ -24,7 +24,7 @@ class ConfigurableChatModelFactoryTest {
         config.getChatModels().put("vision-model", dedicated);
 
         ChatModel model = new ConfigurableChatModelFactory(config, new ObjectMapper())
-            .create("vision-model", false);
+            .create("vision-model");
 
         assertThat(model).isInstanceOf(DashScopeNativeChatModel.class);
         assertThat(((DashScopeNativeChatModel) model).requestBody(ChatRequest.builder()
@@ -40,7 +40,7 @@ class ConfigurableChatModelFactoryTest {
         config.getOpenai().setProtocol("openai");
 
         ChatModel model = new ConfigurableChatModelFactory(config, new ObjectMapper())
-            .create("unmapped-model", false);
+            .create("unmapped-model");
 
         assertThat(model).isInstanceOf(OpenAiChatModel.class);
     }

@@ -38,7 +38,8 @@ public class HttpRequirementAnalysisMcpToolPublisher {
         } catch (Exception ex) {
             log.debug("HTTP requirement analysis tool was not registered: {}", ex.getMessage());
         }
-        mcpSyncServer.addTool(toolSpecification());
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, toolSpecification());
         mcpSyncServer.notifyToolsListChanged();
         log.info("HTTP requirement analysis MCP tool refreshed: {}", TOOL_NAME);
     }

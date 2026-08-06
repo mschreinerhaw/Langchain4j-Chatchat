@@ -69,9 +69,12 @@ public class SqlMcpToolPublisher {
         datasourceConfigService.listAll().forEach(datasource -> remove(datasource.getToolName()));
         managedToolNames.forEach(this::remove);
         managedToolNames.clear();
-        mcpSyncServer.addTool(sqlMetadataSearchTool());
-        mcpSyncServer.addTool(sqlQueryGatewayTool());
-        mcpSyncServer.addTool(sqlScriptGatewayTool());
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, sqlMetadataSearchTool());
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, sqlQueryGatewayTool());
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, sqlScriptGatewayTool());
         mcpSyncServer.notifyToolsListChanged();
         log.info("SQL MCP gateway tools refreshed: sql_metadata_search, sql_query_execute, sql_script_execute");
     }

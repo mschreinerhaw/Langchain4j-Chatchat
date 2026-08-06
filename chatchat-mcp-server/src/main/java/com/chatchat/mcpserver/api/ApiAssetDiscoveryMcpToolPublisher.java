@@ -58,7 +58,8 @@ public class ApiAssetDiscoveryMcpToolPublisher {
 
     public synchronized void refresh() {
         remove(TOOL_NAME);
-        mcpSyncServer.addTool(apiAssetQueryTool());
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, apiAssetQueryTool());
         mcpSyncServer.notifyToolsListChanged();
         log.info("API asset discovery MCP tool refreshed: {}", TOOL_NAME);
     }

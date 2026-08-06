@@ -45,7 +45,8 @@ public class EnterpriseMetadataMcpToolPublisher {
     public synchronized void refresh() {
         remove(TOOL_NAME);
         remove(RETIRED_MATCH_TOOL_NAME);
-        mcpSyncServer.addTool(searchSpecification());
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, searchSpecification());
         mcpSyncServer.notifyToolsListChanged();
         log.info("Enterprise metadata MCP capabilities registered tools={}; retiredToolRemoved={}",
             TOOL_NAME, RETIRED_MATCH_TOOL_NAME);

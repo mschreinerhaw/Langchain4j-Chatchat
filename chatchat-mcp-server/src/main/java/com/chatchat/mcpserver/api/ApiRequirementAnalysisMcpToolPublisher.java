@@ -38,7 +38,8 @@ public class ApiRequirementAnalysisMcpToolPublisher {
         } catch (Exception ex) {
             log.debug("API requirement analysis tool was not registered: {}", ex.getMessage());
         }
-        mcpSyncServer.addTool(toolSpecification());
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, toolSpecification());
         mcpSyncServer.notifyToolsListChanged();
         log.info("API requirement analysis MCP tool refreshed: {}", TOOL_NAME);
     }

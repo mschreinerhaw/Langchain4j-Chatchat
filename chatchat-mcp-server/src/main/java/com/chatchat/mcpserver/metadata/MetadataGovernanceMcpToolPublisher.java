@@ -37,7 +37,8 @@ public class MetadataGovernanceMcpToolPublisher {
     public synchronized void refresh() {
         remove(ANNOTATE_TOOL);
         remove(RETIRED_COMPARE_TOOL);
-        mcpSyncServer.addTool(annotationSpecification());
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, annotationSpecification());
         mcpSyncServer.notifyToolsListChanged();
         log.info("Enterprise metadata governance capabilities registered tools={}; retiredToolRemoved={}",
             ANNOTATE_TOOL, RETIRED_COMPARE_TOOL);

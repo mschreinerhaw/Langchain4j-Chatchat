@@ -49,7 +49,8 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
 
     public synchronized void refresh() {
         remove(TOOL_NAME);
-        mcpSyncServer.addTool(apiTemplateQueryTool());
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, apiTemplateQueryTool());
         mcpSyncServer.notifyToolsListChanged();
         log.info("API template discovery MCP tool refreshed: {}", TOOL_NAME);
     }

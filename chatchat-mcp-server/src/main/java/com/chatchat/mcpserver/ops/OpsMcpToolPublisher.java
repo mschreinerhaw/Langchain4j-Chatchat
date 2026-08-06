@@ -60,8 +60,10 @@ public class OpsMcpToolPublisher {
         managedSshToolNames.forEach(this::remove);
         managedSshToolNames.clear();
 
-        mcpSyncServer.addTool(linuxCommandGatewayTool());
-        mcpSyncServer.addTool(httpRequestGatewayTool());
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, linuxCommandGatewayTool());
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, httpRequestGatewayTool());
         mcpSyncServer.notifyToolsListChanged();
         log.info("Ops MCP gateway tools refreshed: linux_command_execute, http_request_execute");
     }

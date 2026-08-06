@@ -3,6 +3,7 @@ package com.chatchat.runtime.mcp.registry;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolMetadata;
+import com.chatchat.common.tool.McpToolNamePolicy;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.integration.mcp.service.McpCapabilityService;
 import jakarta.annotation.PostConstruct;
@@ -29,9 +30,11 @@ public class McpToolRegistry {
         this.capabilityService = capabilityService;
         this.properties = properties;
         Map<String, RegisteredMcpTool> discovered = new LinkedHashMap<>();
+        Map<String, String> publishedSemanticNames = new LinkedHashMap<>();
         for (McpToolProvider provider : providers) {
             for (McpToolDefinition definition : provider.definitions()) {
                 validateProvider(provider, definition);
+                validatePublicationName(definition.name(), publishedSemanticNames);
                 McpToolExecutor executor = provider.findExecutor(definition.name())
                     .orElseThrow(() -> new IllegalStateException("MCP tool has no executor: " + definition.name()));
                 RegisteredMcpTool registered = configured(definition, executor);
@@ -124,6 +127,20 @@ public class McpToolRegistry {
     private void validateProvider(McpToolProvider provider, McpToolDefinition definition) {
         if (!provider.capabilityCode().equals(definition.capabilityCode())) {
             throw new IllegalStateException("MCP provider capability mismatch for tool: " + definition.name());
+        }
+    }
+
+    private void validatePublicationName(String name, Map<String, String> publishedSemanticNames) {
+        try {
+            McpToolNamePolicy.requirePublishableName(name);
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalStateException("Invalid MCP tool publication name: " + ex.getMessage(), ex);
+        }
+        String semanticKey = McpToolNamePolicy.workflowSemanticKey(name);
+        String existing = publishedSemanticNames.putIfAbsent(semanticKey, name);
+        if (existing != null && !existing.equals(name)) {
+            throw new IllegalStateException("MCP tool publication name conflicts with API workflow review: '"
+                + existing + "' and '" + name + "' resolve to '" + semanticKey + "'");
         }
     }
 }

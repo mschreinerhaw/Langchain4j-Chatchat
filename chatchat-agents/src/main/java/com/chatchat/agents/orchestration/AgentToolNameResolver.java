@@ -1,6 +1,7 @@
 package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.routing.McpToolRouter;
+import com.chatchat.common.tool.McpToolNamePolicy;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -125,10 +126,10 @@ class AgentToolNameResolver {
     }
 
     private String toolSemanticKey(String toolName) {
-        if (toolName == null || toolName.isBlank()) {
+        String normalized = McpToolNamePolicy.workflowSemanticKey(toolName);
+        if (normalized.isBlank()) {
             return null;
         }
-        String normalized = toolName.trim().toLowerCase(Locale.ROOT);
         if (normalized.contains(DOCUMENT_SEARCH_TOOL)) {
             return DOCUMENT_SEARCH_TOOL;
         }

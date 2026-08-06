@@ -42,6 +42,25 @@ class McpToolRegistryTest {
     }
 
     @Test
+    void rejectsNamesThatConflictUnderApiWorkflowReview() {
+        assertThatThrownBy(() -> new McpToolRegistry(List.of(
+            provider("api-template-query"),
+            provider("mcp_chatchat_mcp_server_api_template_query")),
+            mock(ToolRegistry.class), mock(McpCapabilityService.class), new McpCapabilitiesProperties()))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("conflicts with API workflow review")
+            .hasMessageContaining("api_template_query");
+    }
+
+    @Test
+    void rejectsInvalidNameBeforePublishing() {
+        assertThatThrownBy(() -> new McpToolRegistry(List.of(provider("invalid tool name")),
+            mock(ToolRegistry.class), mock(McpCapabilityService.class), new McpCapabilitiesProperties()))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("Invalid MCP tool publication name");
+    }
+
+    @Test
     void disabledToolIsNotPublished() {
         McpCapabilitiesProperties properties = new McpCapabilitiesProperties();
         McpCapabilitiesProperties.Capability capability = new McpCapabilitiesProperties.Capability();

@@ -2,6 +2,7 @@ package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.protocol.McpToolProtocolRole;
 import com.chatchat.common.interaction.InteractionToolTrace;
+import com.chatchat.common.tool.McpToolNamePolicy;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -659,29 +660,7 @@ class AgentWorkflowDecisionEngine {
     }
 
     private String toolSemanticKey(String toolName) {
-        if (toolName == null) {
-            return "";
-        }
-        String normalized = toolName.trim().toLowerCase(Locale.ROOT).replace('-', '_');
-        while (normalized.startsWith("mcp_")) {
-            normalized = normalized.substring(4);
-        }
-        String[] prefixes = {
-            "chatchat_mcp_server_",
-            "chatchat_",
-            "xxx_"
-        };
-        boolean changed = true;
-        while (changed) {
-            changed = false;
-            for (String prefix : prefixes) {
-                if (normalized.startsWith(prefix)) {
-                    normalized = normalized.substring(prefix.length());
-                    changed = true;
-                }
-            }
-        }
-        return normalized;
+        return McpToolNamePolicy.workflowSemanticKey(toolName);
     }
 
     @SuppressWarnings("unchecked")

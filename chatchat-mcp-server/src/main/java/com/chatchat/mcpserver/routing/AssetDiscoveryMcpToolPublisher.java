@@ -43,7 +43,8 @@ public class AssetDiscoveryMcpToolPublisher {
         remove(LEGACY_SQL_DATASOURCE_ASSET_TOOL_NAME);
         remove(HTTP_ENDPOINT_ASSET_TOOL_NAME);
         remove(MICROSERVICE_ASSET_TOOL_NAME);
-        mcpSyncServer.addTool(assetQueryTool(
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, assetQueryTool(
             SSH_ASSET_TOOL_NAME,
             "SSH asset metadata discovery",
             "Read-only discovery tool for querying redacted SSH host asset metadata and routing hints.",
@@ -51,7 +52,8 @@ public class AssetDiscoveryMcpToolPublisher {
             "host",
             null
         ));
-        mcpSyncServer.addTool(assetQueryTool(
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, assetQueryTool(
             SQL_DATASOURCE_ASSET_TOOL_NAME,
             "Database asset search",
             "Read-only discovery tool for confirming redacted database datasource assets and routing hints.",
@@ -59,7 +61,8 @@ public class AssetDiscoveryMcpToolPublisher {
             "database",
             null
         ));
-        mcpSyncServer.addTool(assetQueryTool(
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, assetQueryTool(
             HTTP_ENDPOINT_ASSET_TOOL_NAME,
             "Ordinary HTTP asset search",
             "Read-only discovery tool exclusively for ordinary HTTP endpoint assets. It never returns microservice assets.",
@@ -67,7 +70,8 @@ public class AssetDiscoveryMcpToolPublisher {
             "http",
             "HTTP"
         ));
-        mcpSyncServer.addTool(assetQueryTool(
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, assetQueryTool(
             MICROSERVICE_ASSET_TOOL_NAME,
             "Microservice asset search",
             "Read-only discovery tool exclusively for microservice gateway assets. It never returns ordinary HTTP assets.",

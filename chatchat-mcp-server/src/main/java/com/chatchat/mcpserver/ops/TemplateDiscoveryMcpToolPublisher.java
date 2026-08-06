@@ -44,7 +44,8 @@ public class TemplateDiscoveryMcpToolPublisher {
         remove(LEGACY_SQL_DATASOURCE_TEMPLATE_TOOL_NAME);
         remove(HTTP_ENDPOINT_TEMPLATE_TOOL_NAME);
         remove(DATABASE_QUERY_TEMPLATE_TOOL_NAME);
-        mcpSyncServer.addTool(domainTemplateQueryTool(
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, domainTemplateQueryTool(
             SSH_TEMPLATE_TOOL_NAME,
             "SSH command template discovery",
             "Read-only MCP tool for retrieving SSH host command templates only.",
@@ -52,7 +53,8 @@ public class TemplateDiscoveryMcpToolPublisher {
             "host",
             "host command templates"
         ));
-        mcpSyncServer.addTool(domainTemplateQueryTool(
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, domainTemplateQueryTool(
             SQL_DATASOURCE_TEMPLATE_TOOL_NAME,
             "Database maintenance template search",
             "Read-only MCP tool for retrieving database maintenance, metadata, and diagnostic templates only.",
@@ -60,7 +62,8 @@ public class TemplateDiscoveryMcpToolPublisher {
             "database",
             "database maintenance templates"
         ));
-        mcpSyncServer.addTool(domainTemplateQueryTool(
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, domainTemplateQueryTool(
             HTTP_ENDPOINT_TEMPLATE_TOOL_NAME,
             "HTTP endpoint template discovery",
             "Read-only MCP tool for retrieving HTTP endpoint request templates only.",
@@ -68,7 +71,8 @@ public class TemplateDiscoveryMcpToolPublisher {
             "http",
             "HTTP endpoint templates"
         ));
-        mcpSyncServer.addTool(domainTemplateQueryTool(
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, domainTemplateQueryTool(
             DATABASE_QUERY_TEMPLATE_TOOL_NAME,
             "Categorized database query template discovery",
             "Searches published database query templates by data capability category, business intent, "

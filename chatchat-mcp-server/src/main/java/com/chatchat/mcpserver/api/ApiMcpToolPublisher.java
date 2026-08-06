@@ -50,7 +50,8 @@ public class ApiMcpToolPublisher {
         });
         managedToolNames.clear();
 
-        mcpSyncServer.addTool(toolSpecFactory.toGatewayToolSpecification());
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, toolSpecFactory.toGatewayToolSpecification());
         mcpSyncServer.notifyToolsListChanged();
         log.info("API MCP per-service tool publishing disabled; use api_template_query and {}", EXECUTE_TOOL_NAME);
     }

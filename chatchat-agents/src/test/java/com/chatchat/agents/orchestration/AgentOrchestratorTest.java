@@ -208,6 +208,42 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void evidenceExplorationRequiresAnActionableAvailableToolAfterSuccessfulExecution() {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        InterpretationPlanRuntime.ExecutionResult success = new InterpretationPlanRuntime.ExecutionResult(
+            "completed_with_partial_evidence", true, false, null, "partial", List.of(), Map.of(), 1L);
+
+        assertThat(orchestrator.evidenceExplorationAvailable(
+            Map.of("nextActions", List.of()), success, List.of("generic_search"), true))
+            .isFalse();
+        assertThat(orchestrator.evidenceExplorationAvailable(
+            Map.of("nextActions", List.of(Map.of("tool", "generic_search"))),
+            success, List.of("generic_search"), true))
+            .isTrue();
+    }
+
+    @Test
+    void pendingEvidenceActionsDropDeclinedAndAlreadyFulfilledRetrievals() {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        List<Map<String, Object>> evidence = List.of(
+            Map.of(
+                "tool", "schema_search",
+                "success", true,
+                "shouldExpandQuery", true,
+                "nextActions", List.of(Map.of("tool", "policy_search", "intent", "find policy"))
+            ),
+            Map.of(
+                "tool", "policy_search",
+                "success", true,
+                "shouldExpandQuery", false,
+                "nextActions", List.of(Map.of("tool", "policy_search", "intent", "try again"))
+            )
+        );
+
+        assertThat(orchestrator.pendingEvidenceNextActions(evidence)).isEmpty();
+    }
+
+    @Test
     void templateSelectionFeedbackPreservesCandidateReasonsForFinalAnswer() {
         AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
         InterpretationPlanRuntime.StepExecution step = new InterpretationPlanRuntime.StepExecution(
@@ -819,7 +855,7 @@ class AgentOrchestratorTest {
     }
 
     @Test
-    void partialToolReviewRejectsWholeAttemptSoPlanCanBeRewritten() throws Exception {
+    void partialToolReviewPreservesSuccessfulAttemptForLimitedAnalysis() throws Exception {
         AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
         InterpretationPlanRuntime.StepExecution step = new InterpretationPlanRuntime.StepExecution(
             1,
@@ -850,15 +886,14 @@ class AgentOrchestratorTest {
         List<String> observations = new ArrayList<>();
         Map<String, Object> metadata = new LinkedHashMap<>();
 
-        InterpretationPlanRuntime.ExecutionResult rejected =
+        InterpretationPlanRuntime.ExecutionResult preserved =
             (InterpretationPlanRuntime.ExecutionResult) method.invoke(
                 orchestrator, "initial", execution, observations, metadata);
 
-        assertThat(rejected.success()).isFalse();
-        assertThat(rejected.status()).isEqualTo("result_unsatisfied");
-        assertThat(rejected.steps()).isEqualTo(execution.steps());
-        assertThat(observations).anyMatch(value -> value.contains("requires a full plan rewrite"));
-        assertThat(metadata).containsEntry("interpretationPlanResultSatisfied", false);
+        assertThat(preserved).isSameAs(execution);
+        assertThat(preserved.success()).isTrue();
+        assertThat(observations).noneMatch(value -> value.contains("requires a full plan rewrite"));
+        assertThat(metadata).containsEntry("interpretationPlanResultSatisfied", true);
     }
 
     @Test
@@ -1340,10 +1375,10 @@ class AgentOrchestratorTest {
         assertThat(result.toolTraces()).extracting(InteractionToolTrace::getToolName)
             .containsExactly("document_search");
         assertThat(result.metadata())
-            .containsEntry("evidenceAugmentationOverrideApplied", true)
             .containsEntry("interpretationPlanConfiguredMaxRewriteTimes", 0)
-            .containsEntry("interpretationPlanMaxRewriteTimes", 1)
-            .containsEntry("interpretationPlanRewriteAttempted", true);
+            .containsEntry("interpretationPlanMaxRewriteTimes", 0)
+            .containsEntry("stopReason", "evidence_partial_analysis")
+            .doesNotContainKeys("evidenceAugmentationOverrideApplied", "interpretationPlanRewriteAttempted");
         List<Map<String, Object>> steps = (List<Map<String, Object>>) result.metadata().get("interpretationPlanStepExecutions");
         assertThat(steps)
             .anySatisfy(step -> {

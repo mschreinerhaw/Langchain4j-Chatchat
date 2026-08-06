@@ -1074,8 +1074,12 @@ public class AgentOrchestrator implements AgentRunExecutor {
         EvidenceAugmentationPolicy.Outcome latestAugmentationDecision = decideEvidenceAugmentation(
             firstEvidence,
             firstResult,
-            tools != null && !tools.isEmpty()
-                && (configuredMaxRewriteTimes > 0 || augmentationOverrideAvailable),
+            evidenceExplorationAvailable(
+                firstEvidence,
+                firstResult,
+                tools,
+                configuredMaxRewriteTimes > 0 || augmentationOverrideAvailable
+            ),
             false,
             metadata
         );
@@ -1368,7 +1372,12 @@ public class AgentOrchestrator implements AgentRunExecutor {
             latestAugmentationDecision = decideEvidenceAugmentation(
                 currentEvidence,
                 currentResult,
-                tools != null && !tools.isEmpty() && rewriteCount < maxRewriteTimes,
+                evidenceExplorationAvailable(
+                    currentEvidence,
+                    currentResult,
+                    tools,
+                    rewriteCount < maxRewriteTimes
+                ),
                 false,
                 metadata
             );
@@ -3226,8 +3235,10 @@ public class AgentOrchestrator implements AgentRunExecutor {
             Map<String, Object> stepMetadata = step == null || step.metadata() == null
                 ? Map.of()
                 : step.metadata();
-            if (Boolean.TRUE.equals(stepMetadata.get("toolResultReviewPartialAccepted"))
-                || Boolean.FALSE.equals(stepMetadata.get("toolResultReviewSatisfied"))) {
+            boolean partialEvidenceAccepted = Boolean.TRUE.equals(
+                stepMetadata.get("toolResultReviewPartialAccepted"));
+            if (!partialEvidenceAccepted
+                && Boolean.FALSE.equals(stepMetadata.get("toolResultReviewSatisfied"))) {
                 reasons.add("step " + step.stepId() + ": " + firstNonBlank(
                     stringValue(stepMetadata.get("toolResultReviewReason")),
                     firstNonBlank(
@@ -3493,7 +3504,6 @@ public class AgentOrchestrator implements AgentRunExecutor {
             }
             addEvidenceAnalysisItems(missingEvidence, item.get("missingEvidence"));
             addEvidenceAnalysisItems(conflicts, item.get("conflicts"));
-            addEvidenceAnalysisItems(nextActions, item.get("nextActions"));
             currentHypotheses.addAll(normalizeHypotheses(
                 item.get("hypotheses"),
                 stringValue(item.get("evidenceId"))
@@ -3507,6 +3517,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 iterationSufficient &= booleanValue(item.get("iterationSufficient"));
             }
         }
+        nextActions.addAll(pendingEvidenceNextActions(toolEvidence));
         analysis.put("sufficient", explicitIterationDecision ? iterationSufficient : fallbackSufficient);
         analysis.put("conclusion", conclusions.isEmpty()
             ? (fallbackSufficient ? "The round returned usable evidence." : "The round did not return sufficient evidence.")
@@ -3737,6 +3748,10 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 : step.metadata().getOrDefault("evidenceConflicts", List.of()));
             item.put("nextActions", step.metadata() == null ? List.of()
                 : step.metadata().getOrDefault("nextActions", List.of()));
+            Map<String, Object> evidenceEvaluation = step.metadata() == null
+                ? Map.of()
+                : asMap(step.metadata().get("evidenceEvaluation"));
+            item.put("shouldExpandQuery", evidenceEvaluation.get("shouldExpandQuery"));
             item.put("hypotheses", step.metadata() == null ? List.of()
                 : step.metadata().getOrDefault("hypotheses", List.of()));
             item.put("templateExecutionReview", step.metadata() == null ? Map.of()
@@ -4349,6 +4364,68 @@ public class AgentOrchestrator implements AgentRunExecutor {
             authorizationRequired,
             taskEvidenceRequirement(metadata)
         ));
+    }
+
+    boolean evidenceExplorationAvailable(Map<String, Object> snapshot,
+                                         InterpretationPlanRuntime.ExecutionResult result,
+                                         List<String> availableTools,
+                                         boolean budgetAvailable) {
+        if (!budgetAvailable || availableTools == null || availableTools.isEmpty()) {
+            return false;
+        }
+        if (result == null || !result.success()) {
+            return true;
+        }
+        if (snapshot == null) {
+            return false;
+        }
+        return !evidenceRefinementRequiredTools(List.of(snapshot), availableTools).isEmpty();
+    }
+
+    List<Object> pendingEvidenceNextActions(List<Map<String, Object>> toolEvidence) {
+        if (toolEvidence == null || toolEvidence.isEmpty()) {
+            return List.of();
+        }
+        List<Object> pending = new ArrayList<>();
+        for (int index = 0; index < toolEvidence.size(); index++) {
+            Map<String, Object> source = toolEvidence.get(index);
+            if (source == null) {
+                continue;
+            }
+            Object rawActions = source.get("nextActions");
+            if (!(rawActions instanceof Iterable<?> actions)) {
+                continue;
+            }
+            for (Object rawAction : actions) {
+                if (!(rawAction instanceof Map<?, ?> rawActionMap)) {
+                    addEvidenceAnalysisItems(pending, rawAction);
+                    continue;
+                }
+                Map<String, Object> action = asStringObjectMap(rawActionMap);
+                String requestedTool = stringValue(firstObject(action,
+                    "tool", "toolName", "tool_name"));
+                if (requestedTool != null
+                    && Boolean.FALSE.equals(source.get("shouldExpandQuery"))) {
+                    continue;
+                }
+                boolean fulfilledLater = false;
+                if (requestedTool != null) {
+                    for (int laterIndex = index + 1; laterIndex < toolEvidence.size(); laterIndex++) {
+                        Map<String, Object> later = toolEvidence.get(laterIndex);
+                        if (later != null
+                            && Boolean.TRUE.equals(later.get("success"))
+                            && toolNames.sameToolName(requestedTool, stringValue(later.get("tool")))) {
+                            fulfilledLater = true;
+                            break;
+                        }
+                    }
+                }
+                if (!fulfilledLater) {
+                    pending.add(action);
+                }
+            }
+        }
+        return List.copyOf(pending);
     }
 
     private TaskContract.EvidenceRequirement taskEvidenceRequirement(Map<String, Object> metadata) {

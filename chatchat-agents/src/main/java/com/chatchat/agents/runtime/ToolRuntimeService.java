@@ -3020,6 +3020,61 @@ public class ToolRuntimeService {
     }
 
     /**
+     * Resolves a Runtime-owned large-output reference for in-process evidence review.
+     * The bounded reference remains the value used for persistence, audit, and UI
+     * transport; reviewers use the complete stored value so a preview cannot be
+     * mistaken for the tool's full result contract.
+     */
+    public Object resolveOutputForEvidenceReview(ToolOutput output) {
+        if (output == null) {
+            return null;
+        }
+        Object data = output.getData();
+        if (!(data instanceof Map<?, ?> reference)
+            || !Boolean.TRUE.equals(reference.get("outputExternal"))
+            || !Boolean.TRUE.equals(reference.get("outputTruncated"))) {
+            return data;
+        }
+        Object documentIdValue = reference.get("documentId");
+        if (documentIdValue == null || String.valueOf(documentIdValue).isBlank()) {
+            return data;
+        }
+        String documentId = String.valueOf(documentIdValue);
+        String evidenceId = stringValue(reference.get("evidenceId"));
+        Map<String, Object> metadata = output.getMetadata();
+        if (metadata == null
+            || !documentId.equals(stringValue(metadata.get("outputDocumentId")))
+            || evidenceId == null
+            || !evidenceId.equals(stringValue(metadata.get("outputEvidenceId")))) {
+            log.warn("Rejected unverified externalized tool output reference documentId={}", documentId);
+            return data;
+        }
+        AgentEvidenceStore store = evidenceStore;
+        if (store == null || !store.isEnabled()) {
+            return data;
+        }
+        try {
+            Optional<String> stored = store.get(documentId);
+            if (stored.isEmpty() || stored.get().isBlank()) {
+                log.warn("Externalized tool output unavailable for evidence review documentId={}", documentId);
+                return data;
+            }
+            String storedHash = sha256(stored.get());
+            if (!evidenceId.endsWith(storedHash.substring(0, 24))) {
+                log.warn("Externalized tool output failed integrity verification documentId={}", documentId);
+                return data;
+            }
+            Object resolved = objectMapper.readValue(stored.get(), Object.class);
+            log.debug("Resolved externalized tool output for evidence review documentId={}", documentId);
+            return resolved;
+        } catch (Exception ex) {
+            log.warn("Failed to resolve externalized tool output for evidence review documentId={} error={}",
+                documentId, ex.getMessage());
+            return data;
+        }
+    }
+
+    /**
      * Preserves the small, redacted control-plane portion of discovery results
      * when the evidence payload itself has to be externalized. The projection is
      * derived from MCP output contracts, never from model arguments. It keeps the

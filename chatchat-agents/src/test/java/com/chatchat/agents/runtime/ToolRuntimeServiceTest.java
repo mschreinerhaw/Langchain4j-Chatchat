@@ -150,6 +150,9 @@ class ToolRuntimeServiceTest {
             assertThat(execution.output().getMetadata())
                 .containsEntry("outputTruncated", true)
                 .containsKeys("outputDocumentId", "outputEvidenceId", "outputOriginalBytes");
+            assertThat(service.resolveOutputForEvidenceReview(execution.output()))
+                .isInstanceOfSatisfying(Map.class, resolved ->
+                    assertThat(resolved).containsEntry("rows", "x".repeat(100_000)));
         } finally {
             service.shutdown();
         }

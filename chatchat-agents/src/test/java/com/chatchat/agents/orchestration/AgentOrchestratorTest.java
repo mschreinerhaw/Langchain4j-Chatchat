@@ -422,6 +422,50 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void dagStatusKeepsSuccessfulTruncatedEvidenceSeparateFromExecutionFailure() {
+        InterpretationPlanRuntime.StepExecution successfulPartialStep =
+            new InterpretationPlanRuntime.StepExecution(
+                3,
+                "mcp_tool",
+                "future_metadata_tool",
+                true,
+                Map.of("outputTruncated", true, "preview", Map.of("items", List.of("one"))),
+                null,
+                null,
+                null,
+                5L,
+                Map.of(
+                    "toolExecutionStatus", "SUCCEEDED",
+                    "evidenceSufficiency", "INSUFFICIENT",
+                    "stepFulfillmentStatus", "PARTIAL",
+                    "partialEvidence", true
+                )
+            );
+        InterpretationPlanRuntime.DagDecisionRequest request =
+            new InterpretationPlanRuntime.DagDecisionRequest(
+                null,
+                Set.of(4),
+                Map.of(3, successfulPartialStep),
+                List.of(successfulPartialStep),
+                Set.of(1, 2, 3),
+                4,
+                InterpretationExecutionProtocol.VERSION,
+                "trace",
+                ""
+            );
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+
+        assertThat(orchestrator.runtimeDagExecutionStatus(request))
+            .contains("succeededStepIds=[3]")
+            .contains("failedStepIds=[]")
+            .contains("partialEvidenceStepIds=[3]");
+        assertThat(orchestrator.buildInterpretationPlanDagDecisionPrompt("query", null, request))
+            .contains("outputTruncated=true")
+            .contains("none of these means the tool call failed")
+            .contains("Never call a successful truncated result a failed step");
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void mandatoryWorkflowLocallyReviewsCompleteEnterpriseMetadataResult() throws Exception {
         AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));

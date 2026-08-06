@@ -1887,7 +1887,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
             request.decisionCount(),
             System.currentTimeMillis() - startedAt,
             raw == null ? 0 : raw.length());
-        log.info("agentModelRawOutput phase=interpretation_plan_dag_decision decisionCount={} raw=\n{}",
+        log.debug("agentModelRawOutput phase=interpretation_plan_dag_decision decisionCount={} raw=\n{}",
             request.decisionCount(),
             ModelProtocolJson.prettyJsonForLog(raw));
         Map<String, Object> payload = parseJsonObject(raw);
@@ -1914,7 +1914,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (stepIds.isEmpty() && singleStep != null) {
             stepIds = integerList(List.of(singleStep));
         }
-        String reason = firstNonBlank(
+        String modelReason = firstNonBlank(
             stringValue(firstObject(payload, "reason", "analysis", "rationale")),
             "LLM DAG controller decision."
         );
@@ -1925,8 +1925,10 @@ public class AgentOrchestrator implements AgentRunExecutor {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("raw", preview(raw));
         metadata.put("controllerPhase", "llm_decision");
+        metadata.put("modelReason", modelReason);
+        metadata.put("runtimeStatusGrounded", true);
         if (reviewAnswer != null && !reviewAnswer.isBlank()) {
-            metadata.put("reviewAnswer", reviewAnswer);
+            metadata.put("modelReviewAnswer", reviewAnswer);
         }
         if (firstObject(payload, "final_answer", "finalAnswer") != null) {
             metadata.put("legacyFinalAnswerFieldIgnored", true);
@@ -1939,7 +1941,15 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (parameterProtocols instanceof List<?> protocols) {
             metadata.put("parameterProtocols", protocols);
         }
-        return new InterpretationPlanRuntime.DagDecision(protocolVersion, action, stepIds, reason, null, metadata);
+        String runtimeStatus = runtimeDagExecutionStatus(request);
+        metadata.put("reviewAnswer", runtimeStatus);
+        metadata.put("runtimeExecutionStatus", runtimeStatus);
+        String groundedReason = "Runtime accepted DAG action=" + action
+            + " stepIds=" + stepIds + ". " + runtimeStatus;
+        log.info("agentDagDecisionGrounded decisionCount={} action={} stepIds={} status={}",
+            request.decisionCount(), action, stepIds, runtimeStatus);
+        return new InterpretationPlanRuntime.DagDecision(
+            protocolVersion, action, stepIds, groundedReason, null, metadata);
     }
 
     String buildInterpretationPlanDagDecisionPrompt(String query,
@@ -1992,6 +2002,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("Rules:\n");
         prompt.append("- Select only step ids from remaining_step_ids.\n");
         prompt.append("- completed_step_ids and executionLock are authoritative runtime state. Never re-run or override a completed/locked step, even if you think the state is contradictory.\n");
+        prompt.append("- A completed step record with success=true means the tool execution succeeded. This status is authoritative and may not be rewritten as failed by reason or review_answer.\n");
+        prompt.append("- Keep execution status, result completeness, and evidence sufficiency separate. outputTruncated=true, partialEvidence=true, or evidenceSufficiency=INSUFFICIENT describes incomplete evidence; none of these means the tool call failed.\n");
+        prompt.append("- Describe a step as failed only when its executed record has success=false or a non-empty execution error. Never call a successful truncated result a failed step.\n");
         prompt.append("- Do not select a step until all of its depends_on steps are in completed_step_ids.\n");
         prompt.append("- Use execute_parallel_steps only when execution_policy.allow_parallel is true and every selected step is independently ready.\n");
         prompt.append("- Select the final_answer step only when it is the last remaining executable step and evidence is sufficient.\n");
@@ -2064,6 +2077,40 @@ public class AgentOrchestrator implements AgentRunExecutor {
         }
         prompt.append("\nReturn only the decision JSON.");
         return prompt.toString();
+    }
+
+    String runtimeDagExecutionStatus(InterpretationPlanRuntime.DagDecisionRequest request) {
+        List<Integer> succeeded = new ArrayList<>();
+        List<Integer> failed = new ArrayList<>();
+        List<Integer> partialEvidence = new ArrayList<>();
+        if (request != null && request.executions() != null) {
+            for (InterpretationPlanRuntime.StepExecution execution : request.executions()) {
+                if (execution == null || execution.stepId() == null) {
+                    continue;
+                }
+                if (execution.success()) {
+                    succeeded.add(execution.stepId());
+                    Map<String, Object> stepMetadata = execution.metadata() == null
+                        ? Map.of() : execution.metadata();
+                    if (Boolean.TRUE.equals(stepMetadata.get("partialEvidence"))
+                        || "INSUFFICIENT".equals(String.valueOf(stepMetadata.get("evidenceSufficiency")))
+                        || outputIsTruncated(execution.output())) {
+                        partialEvidence.add(execution.stepId());
+                    }
+                } else {
+                    failed.add(execution.stepId());
+                }
+            }
+        }
+        return "Authoritative Runtime state: succeededStepIds=" + succeeded
+            + ", failedStepIds=" + failed
+            + ", partialEvidenceStepIds=" + partialEvidence + ".";
+    }
+
+    private boolean outputIsTruncated(Object output) {
+        Map<String, Object> root = objectMap(output);
+        return Boolean.TRUE.equals(booleanValue(firstObject(root,
+            "outputTruncated", "truncated", "isTruncated")));
     }
 
     Object dagDecisionPromptOutputSnapshot(String toolName, Object output) {
@@ -2742,6 +2789,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append(AgentRuntimeFactGroundingContract.promptSection());
         prompt.append("- Decide whether this tool output is sufficient for the current plan step and user request.\n");
         prompt.append("- iteration_sufficient evaluates the cumulative user request, not merely whether this one tool call technically succeeded. Set it false when material evidence is still missing and provide evidence_used, missing_evidence, conflicts, and tool-agnostic next_actions.\n");
+        prompt.append("- satisfied and iteration_sufficient describe semantic usefulness and evidence sufficiency; they do not control or rewrite the tool execution status.\n");
+        prompt.append("- outputTruncated=true means result completeness is partial. If the ToolOutput itself succeeded, record the returned evidence and its limits; never describe the tool call or Runtime step as failed solely because content is truncated.\n");
         prompt.append("- next_actions may revise the current tool input, call another available tool, validate a conflict, or retrieve a missing fact. Do not assume any particular tool type.\n");
         prompt.append("- hypotheses must be testable explanations, not facts. Mark each SUPPORTED, CONTRADICTED, or UNRESOLVED and relate it to returned evidence. Runtime will bind the current evidenceId when the model cannot know it yet.\n");
         prompt.append("- Preserve a hypothesis_id when the same hypothesis is refined later; create a new id only for a materially different explanation.\n");

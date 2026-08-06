@@ -1439,8 +1439,12 @@ public class InterpretationPlanRuntime {
             batchMetadata.put("batchExecution", true);
             return execution.withMetadata(batchMetadata, elapsed(startedAt));
         }
-        StepReview localReview = localToolResultReview(step, execution);
+        StepExecution evidenceReviewExecution = executionWithResolvedEvidence(execution);
+        StepReview localReview = localToolResultReview(step, evidenceReviewExecution);
         Map<String, Object> metadata = new LinkedHashMap<>(execution.metadata());
+        if (evidenceReviewExecution != execution) {
+            metadata.put("externalizedEvidenceResolvedForReview", true);
+        }
         if (localReview != null) {
             metadata.put("toolResultReviewEnabled", stepResultReviewer != null);
             metadata.put("localDecisionPhase", "fact_check");
@@ -1486,7 +1490,7 @@ public class InterpretationPlanRuntime {
                 lastReview = stepResultReviewer.review(new StepReviewRequest(
                     request.plan(),
                     step,
-                    execution,
+                    evidenceReviewExecution.withMetadata(metadata, elapsed(startedAt)),
                     Map.copyOf(completed),
                     attempt,
                     maxAttempts,
@@ -1562,6 +1566,31 @@ public class InterpretationPlanRuntime {
             execution.finalAnswer(),
             elapsed(startedAt),
             metadata
+        );
+    }
+
+    private StepExecution executionWithResolvedEvidence(StepExecution execution) {
+        if (execution == null || execution.output() == null) {
+            return execution;
+        }
+        if (execution.toolExecution() == null || execution.toolExecution().output() == null) {
+            return execution;
+        }
+        Object resolved = toolRuntimeService.resolveOutputForEvidenceReview(execution.toolExecution().output());
+        if (resolved == null || resolved == execution.output()) {
+            return execution;
+        }
+        return new StepExecution(
+            execution.stepId(),
+            execution.actionType(),
+            execution.toolName(),
+            execution.success(),
+            resolved,
+            execution.errorMessage(),
+            execution.toolExecution(),
+            execution.finalAnswer(),
+            execution.durationMs(),
+            execution.metadata()
         );
     }
 

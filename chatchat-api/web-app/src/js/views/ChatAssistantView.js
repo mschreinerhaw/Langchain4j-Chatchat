@@ -26,6 +26,7 @@ import {
   mergeChatRuntimeState,
   upsertChatRuntimeState
 } from "../utils/chatRuntimeState";
+import { isTerminalAgentEvent, terminalEventFromEvents } from "../utils/agentTaskTerminalEvents";
 import {
   boundMessagesForPersistence,
   boundQuestionForPersistence,
@@ -896,37 +897,6 @@ function isFinalAnswerRuntimeStep(runtimePayload = {}) {
 
 function runtimeToolNameOf(runtimePayload = {}) {
   return runtimePayload.resolvedToolName || runtimePayload.toolName || runtimePayload.source || "";
-}
-
-function isTerminalAgentEvent(event = {}) {
-  const type = normalizeEventType(event);
-  const status = normalizeEventStatus(event);
-  return type === "ANSWER"
-    || type === "RESULT"
-    || type === "ERROR"
-    || type === "NEEDS_CONFIRMATION"
-    || type === "COMPLETE"
-    || status === "SUCCESS"
-    || status === "PARTIAL"
-    || status === "PARTIAL_SUCCESS"
-    || status === "EMPTY"
-    || status === "NO_PRESENTABLE_RESULT"
-    || status === "TIME_BUDGET_EXHAUSTED"
-    || status === "MODEL_BUDGET_EXHAUSTED"
-    || status === "FAILED"
-    || status === "CANCELLED"
-    || status === "WAIT_CONFIRMATION";
-}
-
-function terminalEventFromEvents(events = []) {
-  const terminalEvents = [...(Array.isArray(events) ? events : [])]
-    .filter(isTerminalAgentEvent)
-    .sort((left, right) => (left.createTime || left.timestamp || 0) - (right.createTime || right.timestamp || 0));
-  return terminalEvents
-    .filter((event) => ["ANSWER", "RESULT", "ERROR", "NEEDS_CONFIRMATION"].includes(normalizeEventType(event)))
-    .at(-1)
-    || terminalEvents.at(-1)
-    || null;
 }
 
 function eventOrderValue(event = {}) {

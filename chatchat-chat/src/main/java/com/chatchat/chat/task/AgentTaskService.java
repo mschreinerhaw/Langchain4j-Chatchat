@@ -1808,9 +1808,26 @@ public class AgentTaskService {
      */
     private AgentEvent findLatestTerminalEvent(List<AgentEvent> events) {
         return events.stream()
-            .filter(event -> TERMINAL_STATUSES.contains(normalizeStatus(event.getStatus())))
+            .filter(this::isTerminalTaskEvent)
             .reduce((previous, current) -> current)
             .orElse(null);
+    }
+
+    /**
+     * Tool failures remain step-level evidence. They must not become task terminal
+     * events merely because their status is FAILED.
+     */
+    private boolean isTerminalTaskEvent(AgentEvent event) {
+        if (event == null) {
+            return false;
+        }
+        String type = normalizeStatus(event.getType());
+        if (List.of("ANSWER", "RESULT", "ERROR", "COMPLETE", "RUNTIME_FAILED", "RUNTIME_CANCELLED")
+            .contains(type)) {
+            return true;
+        }
+        return "STATUS".equals(type)
+            && TERMINAL_STATUSES.contains(normalizeStatus(event.getStatus()));
     }
 
     /**
@@ -2146,12 +2163,17 @@ public class AgentTaskService {
         boolean hasAnswer = !answer.isBlank();
         boolean hasSources = response != null && response.getSources() != null && !response.getSources().isEmpty();
         boolean hasToolOutput = response != null && response.getToolTraces() != null && !response.getToolTraces().isEmpty();
+        boolean hasFailedToolOutput = response != null && response.getToolTraces() != null
+            && response.getToolTraces().stream().anyMatch(trace -> trace != null && !trace.isSuccess());
         boolean hasObservations = metadataList(response == null ? null : response.getMetadata(), "observations");
         boolean hasArtifact = hasAnswer || hasSources || hasToolOutput || hasObservations;
         String explicitTerminalStatus = explicitExecutionTerminalStatus(response, agentMetadata);
         String status = explicitTerminalStatus != null
             ? explicitTerminalStatus
-            : (fatalExecutionBlocked ? "FAILED" : (hasAnswer ? "SUCCESS" : (hasArtifact ? "PARTIAL" : "NO_PRESENTABLE_RESULT")));
+            : ((fatalExecutionBlocked || hasFailedToolOutput) && hasArtifact
+                ? "PARTIAL_SUCCESS"
+                : (fatalExecutionBlocked ? "FAILED"
+                    : (hasAnswer ? "SUCCESS" : (hasArtifact ? "PARTIAL" : "NO_PRESENTABLE_RESULT"))));
         String message = switch (status) {
             case "SUCCESS" -> "Agent task completed";
             case "FAILED" -> "Agent task failed before required tool workflow completed";

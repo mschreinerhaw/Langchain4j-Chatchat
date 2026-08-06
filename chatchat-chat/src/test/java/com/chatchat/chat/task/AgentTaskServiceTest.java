@@ -36,6 +36,68 @@ import static org.mockito.Mockito.when;
 class AgentTaskServiceTest {
 
     @Test
+    void failedToolResultDoesNotOverrideLaterPartialTaskCompletion() throws Exception {
+        AgentTaskService service = taskService(
+            mock(AgentEventBus.class), mock(AgentEventStore.class), mock(AgentTaskLatestRepository.class),
+            mock(TaskConfirmRepository.class), new ObjectMapper());
+        AgentEvent failedTool = AgentEvent.builder()
+            .type("TOOL_RESULT")
+            .status("FAILED")
+            .toolName("mcp_chatchat_mcp_server_api_template_execute")
+            .build();
+        AgentEvent partialResult = AgentEvent.builder()
+            .type("RESULT")
+            .status("PARTIAL_SUCCESS")
+            .payload("{\"answer\":\"available evidence\"}")
+            .build();
+        Method findTerminal = AgentTaskService.class.getDeclaredMethod("findLatestTerminalEvent", List.class);
+        findTerminal.setAccessible(true);
+
+        AgentEvent terminal = (AgentEvent) findTerminal.invoke(service, List.of(failedTool, partialResult));
+
+        assertThat(terminal).isSameAs(partialResult);
+    }
+
+    @Test
+    void failedToolResultAloneIsNotATaskTerminalEvent() throws Exception {
+        AgentTaskService service = taskService(
+            mock(AgentEventBus.class), mock(AgentEventStore.class), mock(AgentTaskLatestRepository.class),
+            mock(TaskConfirmRepository.class), new ObjectMapper());
+        AgentEvent failedTool = AgentEvent.builder()
+            .type("TOOL_RESULT")
+            .status("FAILED")
+            .build();
+        Method findTerminal = AgentTaskService.class.getDeclaredMethod("findLatestTerminalEvent", List.class);
+        findTerminal.setAccessible(true);
+
+        assertThat(findTerminal.invoke(service, List.of(failedTool))).isNull();
+    }
+
+    @Test
+    void failedToolWithCapturedEvidenceCompilesAsPartialSuccess() throws Exception {
+        AgentTaskService service = taskService(
+            mock(AgentEventBus.class), mock(AgentEventStore.class), mock(AgentTaskLatestRepository.class),
+            mock(TaskConfirmRepository.class), new ObjectMapper());
+        InteractionResponse response = InteractionResponse.builder()
+            .answer("已返回可用结果，并明确说明其中一个指标查询失败。")
+            .toolTraces(List.of(
+                InteractionToolTrace.builder().toolName("api_asset_query").success(true).output("asset").build(),
+                InteractionToolTrace.builder().toolName("api_template_execute").success(false)
+                    .errorMessage("UNAVAILABLE: NameResolver returned no usable address").build()
+            ))
+            .metadata(Map.of("agent", Map.of("fatalExecutionBlocked", true)))
+            .build();
+        Method compile = AgentTaskService.class.getDeclaredMethod("compileExecutionResult", InteractionResponse.class);
+        compile.setAccessible(true);
+
+        Object contract = compile.invoke(service, response);
+        Method status = contract.getClass().getDeclaredMethod("status");
+        status.setAccessible(true);
+
+        assertThat(status.invoke(contract)).isEqualTo("PARTIAL_SUCCESS");
+    }
+
+    @Test
     void snapshotsUserDefinedWorkflowAgainstTaskIdBeforeExecution() throws Exception {
         AgentTaskService service = taskService(
             mock(AgentEventBus.class), mock(AgentEventStore.class), mock(AgentTaskLatestRepository.class),

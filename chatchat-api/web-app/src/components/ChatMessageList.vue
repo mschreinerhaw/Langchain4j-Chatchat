@@ -104,18 +104,21 @@
             <li
               v-for="call in runtimeToolCalls(message)"
               :key="call.id"
-              :class="{ done: toolCallDone(call), failed: toolCallFailed(call), active: !toolCallDone(call) && !toolCallFailed(call) }"
+              :class="toolCallStateClass(call)"
             >
               <span class="runtime-tool-status" aria-hidden="true">
-                <Check v-if="toolCallDone(call)" :size="14" stroke-width="2.6" />
+                <Wrench v-if="toolCallRepaired(call)" :size="14" stroke-width="2.5" />
+                <TriangleAlert v-else-if="toolCallWarning(call)" :size="14" stroke-width="2.4" />
+                <RefreshCw v-else-if="toolCallRepairing(call)" :size="14" stroke-width="2.4" />
                 <CircleX v-else-if="toolCallFailed(call)" :size="14" stroke-width="2.4" />
+                <Check v-else-if="toolCallDone(call)" :size="14" stroke-width="2.6" />
                 <i v-else></i>
               </span>
               <div>
                 <code>{{ call.name }}</code>
                 <small v-if="call.detail">{{ call.detail }}</small>
               </div>
-              <em>{{ call.latencyMs ? `${call.latencyMs}ms` : (toolCallDone(call) ? '完成' : toolCallFailed(call) ? '失败' : '运行中') }}</em>
+              <em>{{ toolCallStatusLabel(call) }}</em>
             </li>
           </ol>
         </section>

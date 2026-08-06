@@ -8,6 +8,9 @@
 
 发布门禁脚本：`scripts/test-production-release-e2e.ps1`
 
+DAG 拓扑审核、模型漂移的确定性修复、局部失败继续执行、任务终态聚合及 MCP 命名验收遵循
+[`Agent Runtime DAG 审核与自动修复规范`](agent-runtime-dag-governance-contract.md)。
+
 ## 1. 目的
 
 本规范定义 ChatChat 从代码提交到生产发布前必须完成的测试、证据和放行条件。目标是证明系统在真实部署条件下能够稳定完成 Agent 推理、MCP 工具治理、能力发现、资产授权、模板执行、数据库查询和联网检索，而不只是证明代码可以编译或模拟请求可以返回。

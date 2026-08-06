@@ -593,6 +593,8 @@ public class InterpretationPlanRuntime {
         if (step.mcpToolAction()) {
             try {
                 Map<String, Object> resolvedInput = resolvedStepInput(step, request, completed);
+                boolean templateCompletenessRepairApplied = false;
+                List<String> templateCompletenessRepairIds = List.of();
                 Map<String, Object> retrievalGate = new LinkedHashMap<>(
                     asStringMap(resolvedInput.remove(MODEL_RETRIEVAL_GATE_KEY))
                 );
@@ -631,6 +633,9 @@ public class InterpretationPlanRuntime {
                     resolvedInput = templateInvocation.arguments();
                     retrievalGate = Map.of();
                     if (batchToolInput(resolvedInput)) {
+                        templateCompletenessRepairIds = reviewedSelectedTemplateIds(completed);
+                        templateCompletenessRepairApplied = templateCompletenessRepairIds.size() >= 2
+                            && !declaresBatchTransport(step.input());
                         bridgeBatchTemplateInvocations(step, request, completed, resolvedInput);
                     }
                 }
@@ -720,6 +725,23 @@ public class InterpretationPlanRuntime {
                 Object normalizedOutput = DIAGNOSTIC_EVIDENCE_NORMALIZER.normalize(rawOutput);
                 Map<String, Object> stepMetadata = new LinkedHashMap<>();
                 stepMetadata.put("resolvedInput", new LinkedHashMap<>(resolvedInput));
+                if (templateCompletenessRepairApplied) {
+                    Map<String, Object> repairEvent = Map.of(
+                        "contractVersion", "runtime_dag_governance.v1",
+                        "eventKind", "DAG_REPAIR",
+                        "eventState", "APPLIED",
+                        "repairCode", "TEMPLATE_SET_COMPLETENESS_RESTORED",
+                        "stepId", step.id(),
+                        "admittedTemplateIds", templateCompletenessRepairIds,
+                        "compiledCallCount", templateCompletenessRepairIds.size(),
+                        "stopOnFailure", false
+                    );
+                    stepMetadata.put("eventKind", "DAG_REPAIR");
+                    stepMetadata.put("eventState", "APPLIED");
+                    stepMetadata.put("repairAttempt", 1);
+                    stepMetadata.put("repairEvent", repairEvent);
+                    stepMetadata.put("runtimeTemplateCompletenessRepair", repairEvent);
+                }
                 if (enhancedQuality != null) {
                     stepMetadata.put("retrievalQualityGate", RetrievalQualityGate.report(
                         enhancedQuality, originalQuality, originalSelected
@@ -2746,8 +2768,7 @@ public class InterpretationPlanRuntime {
 
     private boolean runtimeOwnedReviewedTemplateBatch(InterpretationPlan.Step step,
                                                        Map<Integer, StepExecution> completed) {
-        if (step == null || !isTemplateExecutionTool(step.toolName())
-            || !declaresBatchTransport(step.input())) {
+        if (step == null || !isTemplateExecutionTool(step.toolName())) {
             return false;
         }
         return reviewedSelectedTemplateIds(completed).size() >= 2;
@@ -3773,10 +3794,10 @@ public class InterpretationPlanRuntime {
     }
 
     /**
-     * Compiles the model-reviewed template selection into the batch transport already declared by
-     * the plan. The selected ids are first intersected with successful discovery output by
-     * {@link EvidenceBasedTemplateCandidateEvaluator}; Runtime never executes an id supplied only
-     * by the model.
+     * Compiles every template admitted by successful governed discovery into a Runtime-owned
+     * failure-isolated batch. The plan does not have to declare batch transport: a scalar
+     * {@code templates[0]} binding is upgraded here so model drift cannot silently omit the rest
+     * of the discovered set. Runtime still never executes an id that is absent from MCP output.
      */
     private TemplateExecutorInvocation reviewedTemplateBatchInvocation(
         InterpretationPlan.Step step,
@@ -3815,10 +3836,11 @@ public class InterpretationPlanRuntime {
             call.put("arguments", arguments);
             calls.add(call);
         }
-        if (calls.size() < 2 || outerTool == null) {
+        if (calls.size() != selectedIds.size() || calls.size() < 2 || outerTool == null) {
             throw new IllegalStateException(
-                "REVIEWED_TEMPLATE_BATCH_COMPILATION_FAILED: fewer than two reviewed, authorized "
-                    + "templates were executable under their published contracts");
+                "REVIEWED_TEMPLATE_BATCH_COMPILATION_FAILED: every admitted template must compile "
+                    + "before execution; admitted=" + selectedIds + ", compiled="
+                    + calls.stream().map(call -> call.get("callId")).toList());
         }
         Map<String, Object> batch = new LinkedHashMap<>();
         batch.put("batchId", "reviewed-template-step-" + step.id());
@@ -3838,10 +3860,15 @@ public class InterpretationPlanRuntime {
             return List.of();
         }
         LinkedHashSet<String> selected = new LinkedHashSet<>();
-        for (String id : stringValues(firstPresent(selection.metadata(),
-            "runtimeSelectedTemplateIds", "selectedTemplateIds"))) {
+        for (Object candidate : templateCandidates(selection.output())) {
+            if (!(candidate instanceof Map<?, ?> rawTemplate)) {
+                continue;
+            }
+            @SuppressWarnings("unchecked")
+            Map<String, Object> template = new LinkedHashMap<>((Map<String, Object>) rawTemplate);
+            String id = canonicalTemplateId(template);
             String canonical = canonicalTemplateId(id);
-            if (canonical != null && !templateMetadataById(selection.output(), canonical).isEmpty()) {
+            if (canonical != null) {
                 selected.add(canonical);
             }
         }
@@ -3855,8 +3882,14 @@ public class InterpretationPlanRuntime {
         StepExecution latest = null;
         for (StepExecution execution : completed.values()) {
             if (execution != null && execution.success() && isTemplateDiscoveryTool(execution.toolName())
-                && stringValues(firstPresent(execution.metadata(),
-                    "runtimeSelectedTemplateIds", "selectedTemplateIds")).size() >= 2) {
+                && templateCandidates(execution.output()).stream()
+                    .filter(Map.class::isInstance)
+                    .map(Map.class::cast)
+                    .map(this::canonicalTemplateId)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .limit(2)
+                    .count() >= 2) {
                 latest = execution;
             }
         }

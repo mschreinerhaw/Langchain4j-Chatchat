@@ -27,6 +27,7 @@ import {
   upsertChatRuntimeState
 } from "../utils/chatRuntimeState";
 import { isTerminalAgentEvent, terminalEventFromEvents } from "../utils/agentTaskTerminalEvents";
+import { runtimeObservationIdentity, runtimeObservationPresentation } from "../utils/runtimeObservationPresentation";
 import {
   boundMessagesForPersistence,
   boundQuestionForPersistence,
@@ -815,7 +816,7 @@ function normalizeExecutionStep(step = {}, index = 0) {
     id: step.id || step.eventId || `step-${index}`,
     title: step.title || step.label || "\u6267\u884c\u6b65\u9aa4",
     detail: step.detail || step.description || step.message || "",
-    status: ["pending", "active", "done", "partial", "empty", "error", "cancelled"].includes(status) ? status : "pending",
+    status: ["pending", "active", "done", "partial", "empty", "error", "cancelled", "warning", "repairing", "repaired"].includes(status) ? status : "pending",
     type: step.type || "",
     toolName: step.toolName || "",
     timestamp: step.timestamp || step.createTime || Date.now(),
@@ -946,6 +947,10 @@ function eventStepId(event = {}, payload = {}) {
   if (type === "RUNTIME_OBSERVATION") {
     const runtimePayload = runtimePayloadOf(payload);
     const runtimeToolName = runtimeToolNameOf(runtimePayload);
+    const observationIdentity = runtimeObservationIdentity(runtimePayload);
+    if (observationIdentity) {
+      return `runtime-observation:${observationIdentity}`;
+    }
     return runtimeToolName ? `runtime-observation:${runtimeToolName}:${eventOrderValue(event)}` : "analysis";
   }
   if (type === "THINK") {
@@ -1033,14 +1038,16 @@ function agentEventToExecutionStep(event = {}) {
   if (type === "RUNTIME_OBSERVATION") {
     const runtimePayload = runtimePayloadOf(payload);
     const source = runtimeToolNameOf(runtimePayload);
+    const presentation = runtimeObservationPresentation(runtimePayload);
     return {
       ...base,
-      title: source ? "\u5de5\u5177\u8fd4\u56de\u7ed3\u679c" : "\u5206\u6790\u4e2d",
+      title: presentation?.title || (source ? "\u5de5\u5177\u8fd4\u56de\u7ed3\u679c" : "\u5206\u6790\u4e2d"),
+      toolName: presentation?.toolName || source,
       detail: compactText([
-        source,
+        presentation ? "" : source,
         runtimePayload.contentPreview
       ].filter(Boolean).join(" - "), 120),
-      status: "done"
+      status: presentation?.status || "done"
     };
   }
   if (type === "RUNTIME_STARTED") {

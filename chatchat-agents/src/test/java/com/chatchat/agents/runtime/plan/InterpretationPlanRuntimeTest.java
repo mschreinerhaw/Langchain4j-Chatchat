@@ -7042,9 +7042,9 @@ class InterpretationPlanRuntimeTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void bindsAndValidatesEveryDiscoveredTemplateInDataCapabilityBatch() {
-        String discoveryTool = "tenant_business_template_query";
-        String executionTool = "sql_query_execute";
+    void upgradesScalarBindingAndExecutesEveryDiscoveredTemplateWithoutModelBatchInstructions() {
+        String discoveryTool = "mcp_chatchat_mcp_server_api_template_query";
+        String executionTool = "mcp_chatchat_mcp_server_api_template_execute";
         String firstTemplate = "tenant_snapshot_a_" + System.nanoTime();
         String secondTemplate = "tenant_snapshot_b_" + System.nanoTime();
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
@@ -7090,24 +7090,13 @@ class InterpretationPlanRuntimeTest {
                     new InterpretationPlan.Step(1, "mcp_tool", discoveryTool,
                         Map.of("filters", Map.of("intent", "tenant snapshots")), List.of(), null, null),
                     new InterpretationPlan.Step(2, "mcp_tool", executionTool,
-                        Map.of(
-                            "executionMode", "SEQUENTIAL",
-                            "calls", List.of(
-                                Map.of("callId", "a", "toolName", executionTool,
-                                    "arguments", Map.of("templateId", "model-placeholder-a", "parameters", Map.of())),
-                                Map.of("callId", "b", "toolName", executionTool,
-                                    "arguments", Map.of("templateId", "model-placeholder-b", "parameters", Map.of()))
-                            )
-                        ), List.of(1), null, null),
+                        Map.of("parameters", Map.of()),
+                        List.of(1), null, null),
                     new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
                 ),
                 List.of(),
-                List.of(
-                    new InterpretationPlan.Binding(1, "$.templates[0].templateId", 2,
-                        "$.calls[0].arguments.templateId", "jsonpath", true),
-                    new InterpretationPlan.Binding(1, "$.templates[1].templateId", 2,
-                        "$.calls[1].arguments.templateId", "jsonpath", true)
-                ),
+                List.of(new InterpretationPlan.Binding(1, "$.templates[0].templateId", 2,
+                    "$.templateId", "jsonpath", true)),
                 null
             ),
             new InterpretationPlan.ExecutionPolicy(3, false,
@@ -7118,8 +7107,7 @@ class InterpretationPlanRuntimeTest {
             toolRuntimeService,
             new InterpretationPlanValidator(),
             null,
-            request -> InterpretationPlanRuntime.StepReview.accepted(
-                "both discovered templates match", Map.of("selectedTemplateIds", List.of(firstTemplate, secondTemplate))),
+            request -> InterpretationPlanRuntime.StepReview.accepted("usable", Map.of()),
             scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
         );
 
@@ -7132,11 +7120,18 @@ class InterpretationPlanRuntimeTest {
         assertThat(result.success())
             .as("status=%s error=%s", result.status(), result.errorMessage())
             .isTrue();
+        assertThat(result.steps()).filteredOn(step -> Integer.valueOf(2).equals(step.stepId()))
+            .singleElement()
+            .satisfies(step -> assertThat(step.metadata())
+                .containsEntry("eventKind", "DAG_REPAIR")
+                .containsEntry("eventState", "APPLIED")
+                .containsKey("runtimeTemplateCompletenessRepair"));
         assertThat(executionInput.get()).doesNotContainKey("runtimeTemplateBinding");
+        assertThat(executionInput.get()).containsEntry("stopOnFailure", false);
         assertThat(executionInput.get().get("calls")).isInstanceOfSatisfying(List.class, calls -> {
             assertThat(calls).hasSize(2);
             assertThat(calls.toString()).contains(firstTemplate, secondTemplate)
-                .doesNotContain("model-placeholder");
+                .doesNotContain("templates[0]");
         });
         List<Map<String, Object>> calls = (List<Map<String, Object>>) executionInput.get().get("calls");
         assertThat(calls).allSatisfy(call -> assertThat(call.get("arguments"))

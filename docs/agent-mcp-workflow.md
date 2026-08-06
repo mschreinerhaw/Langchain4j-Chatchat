@@ -2,6 +2,9 @@
 
 Agent 配置可以在 `workflowConfig.mcpWorkflow` 中声明 MCP 工具编排契约。Planner 把它作为执行计划的工具图，Runtime 按同一契约硬拦截越序、缺依赖、缺租户上下文、缺授权和缺确认的工具调用。
 
+DAG 的唯一判定标准、模型漂移修复、局部失败继续执行、任务状态聚合和 MCP 发布命名统一遵循
+[`Agent Runtime DAG 审核与自动修复规范`](agent-runtime-dag-governance-contract.md)。
+
 模板检索、候选投影、执行满意度复核和一次修复/重选遵循
 [`Agent Runtime 模板候选评定与执行满意度契约`](agent-runtime-template-evaluation-contract.md)。
 

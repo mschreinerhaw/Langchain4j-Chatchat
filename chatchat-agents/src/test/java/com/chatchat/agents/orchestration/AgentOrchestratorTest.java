@@ -1500,6 +1500,7 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     void interpretationPlanFailureTriggersRewriteAndRunsRewrittenPlan() {
         QueueChatModel chatModel = new QueueChatModel(
             """
@@ -1584,6 +1585,13 @@ class AgentOrchestratorTest {
             .containsEntry("interpretationPlanRewriteValid", true)
             .containsEntry("interpretationPlanRewriteSuccess", true)
             .containsEntry("stopReason", "evidence_sufficient");
+        List<Map<String, Object>> repairEvents = (List<Map<String, Object>>) result.metadata().get("dagRepairEvents");
+        assertThat(repairEvents)
+            .extracting(event -> event.get("eventState"))
+            .containsExactly("STARTED", "APPLIED");
+        assertThat(repairEvents.get(1))
+            .containsEntry("contractVersion", "runtime_dag_governance.v1")
+            .containsEntry("repairAttempt", 1);
     }
 
     @Test

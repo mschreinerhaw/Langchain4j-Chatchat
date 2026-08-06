@@ -1,5 +1,5 @@
 import MarkdownIt from "markdown-it";
-import { Check, ChevronDown, ChevronRight, CircleCheck, CircleX, Copy, FileDown } from "@lucide/vue";
+import { Check, ChevronDown, ChevronRight, CircleCheck, CircleX, Copy, FileDown, RefreshCw, TriangleAlert, Wrench } from "@lucide/vue";
 import ResponseReferences from "../../components/ResponseReferences.vue";
 import chartAnalysisMixin from "./ChatMessageListChartAnalysis.js";
 import {
@@ -106,6 +106,9 @@ export default {
     CircleX,
     Copy,
     FileDown,
+    RefreshCw,
+    TriangleAlert,
+    Wrench,
     ResponseReferences
   },
   emits: ["feedback", "visualization-drill-down"],
@@ -472,7 +475,12 @@ export default {
       const steps = this.visibleExecutionSteps(message)
         .filter((step) => step.toolName && ["TOOL_CALL", "TOOL_RESULT", "RUNTIME_STEP", "RUNTIME_OBSERVATION"].includes(String(step.type || "").toUpperCase()));
       const explicit = steps.filter((step) => ["TOOL_CALL", "TOOL_RESULT"].includes(String(step.type || "").toUpperCase()));
-      const selected = explicit.length ? explicit : steps.filter((step) => String(step.type || "").toUpperCase().startsWith("RUNTIME_"));
+      const governance = steps.filter((step) => String(step.type || "").toUpperCase() === "RUNTIME_OBSERVATION"
+        && ["warning", "repairing", "repaired"].includes(String(step.status || "").toLowerCase()));
+      const selected = (explicit.length
+        ? [...governance, ...explicit]
+        : steps.filter((step) => String(step.type || "").toUpperCase().startsWith("RUNTIME_")))
+        .sort((left, right) => Number(left.timestamp || 0) - Number(right.timestamp || 0));
       if (selected.length) {
         return selected.map((step, index) => {
           const status = !this.isExecutionRunning(message) && !message.streaming && step.status === "active"
@@ -505,18 +513,60 @@ export default {
     toolCallFailed(call = {}) {
       return ["error", "failed", "cancelled"].includes(String(call.status || "").toLowerCase());
     },
+    toolCallWarning(call = {}) {
+      return String(call.status || "").toLowerCase() === "warning";
+    },
+    toolCallRepairing(call = {}) {
+      return String(call.status || "").toLowerCase() === "repairing";
+    },
+    toolCallRepaired(call = {}) {
+      return String(call.status || "").toLowerCase() === "repaired";
+    },
+    toolCallStateClass(call = {}) {
+      return {
+        done: this.toolCallDone(call),
+        failed: this.toolCallFailed(call),
+        warning: this.toolCallWarning(call),
+        repairing: this.toolCallRepairing(call),
+        repaired: this.toolCallRepaired(call),
+        active: !this.toolCallDone(call)
+          && !this.toolCallFailed(call)
+          && !this.toolCallWarning(call)
+          && !this.toolCallRepairing(call)
+          && !this.toolCallRepaired(call)
+      };
+    },
+    toolCallStatusLabel(call = {}) {
+      if (this.toolCallRepairing(call)) return "修复中";
+      if (this.toolCallRepaired(call)) return "已修复";
+      if (this.toolCallWarning(call)) return "检测到问题";
+      if (this.toolCallFailed(call)) return call.latencyMs ? `失败 · ${call.latencyMs}ms` : "失败";
+      if (this.toolCallDone(call)) return call.latencyMs ? `完成 · ${call.latencyMs}ms` : "完成";
+      return "运行中";
+    },
     runtimeToolStatusClass(message = {}) {
       const calls = this.runtimeToolCalls(message);
       const messageStatus = String(message.status || "").toLowerCase();
-      if (["failed", "cancelled"].includes(messageStatus) || calls.some((call) => this.toolCallFailed(call))) {
+      if (["failed", "cancelled"].includes(messageStatus)) {
         return "failed";
       }
+      if (calls.some((call) => this.toolCallRepairing(call))) {
+        return "repairing";
+      }
+      const hasFailedCall = calls.some((call) => this.toolCallFailed(call));
       if (
         this.isExecutionRunning(message)
         || message.streaming
-        || calls.some((call) => !this.toolCallDone(call) && !this.toolCallFailed(call))
+        || calls.some((call) => !this.toolCallDone(call)
+          && !this.toolCallFailed(call)
+          && !this.toolCallWarning(call)
+          && !this.toolCallRepaired(call))
       ) {
-        return "running";
+        return hasFailedCall ? "degraded" : "running";
+      }
+      if (hasFailedCall) return "degraded";
+      if (calls.some((call) => this.toolCallRepaired(call))) {
+        return "repaired";
       }
       return "completed";
     },
@@ -527,6 +577,18 @@ export default {
       }
       if (status === "running") {
         return "正在内部运行";
+      }
+      if (status === "repairing") {
+        return "正在自动修复";
+      }
+      if (status === "repaired") {
+        const repaired = this.runtimeToolCalls(message).filter((call) => this.toolCallRepaired(call)).length;
+        return `已自动修复（${repaired}）`;
+      }
+      if (status === "degraded") {
+        if (this.isExecutionRunning(message) || message.streaming) return "局部失败，继续运行";
+        const repaired = this.runtimeToolCalls(message).some((call) => this.toolCallRepaired(call));
+        return repaired ? "已修复，存在局部失败" : "部分调用失败";
       }
       return `完成（${this.runtimeToolCalls(message).length} 项）`;
     },

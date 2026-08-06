@@ -642,7 +642,11 @@ public class AgentOrchestrator implements AgentRunExecutor {
                     "action", decision.action(),
                     "toolName", stringValue(decision.toolName()),
                     "resolvedToolName", plannedToolName,
-                    "plannerProtocol", decision.executionPlan() == null ? null : decision.executionPlan().get("plannerProtocol")
+                    "plannerProtocol", decision.executionPlan() == null ? null : decision.executionPlan().get("plannerProtocol"),
+                    "eventKind", decision.interpretationPlan() == null ? null : "DAG_VALIDATION",
+                    "eventState", decision.interpretationPlan() == null ? null
+                        : (decision.executionPlan() != null
+                            && Boolean.TRUE.equals(decision.executionPlan().get("interpretationPlanValid")) ? "PASSED" : "FAILED")
                 )
             );
 
@@ -1134,12 +1138,24 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 "A non-empty MCP result had an actionable evidence gap; one bounded refinement round was preserved.");
         }
         for (int rewriteCount = 1; rewriteCount <= maxRewriteTimes; rewriteCount++) {
-            observations.add(planAttemptRewriteSummary(
+            String rewriteSummary = planAttemptRewriteSummary(
                 rewriteCount,
                 currentPlan,
                 currentResult
-            ));
+            );
+            observations.add(rewriteSummary);
             InterpretationPlan.Step failedStep = failedStep(currentPlan, currentResult);
+            String repairReason = evidenceRewriteReason(currentResult, evidenceHistory);
+            recordDagRepairEvent(
+                runtimeAttributes,
+                metadata,
+                "STARTED",
+                rewriteCount,
+                repairReason,
+                failedStep,
+                List.of(),
+                null
+            );
             Set<String> completedTools = completedWorkflowToolsFromEvents(
                 runtimeAttributes,
                 workflowStateTracker.completedToolsFromTraces(traces)
@@ -1159,7 +1175,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
             InterpretationPlanRewriter.RewriteResult rewrite = rewriter.rewrite(new InterpretationPlanRewriter.RewriteRequest(
                 currentPlan,
                 failedStep,
-                evidenceRewriteReason(currentResult, evidenceHistory),
+                repairReason,
                 observations,
                 tools,
                 toolRegistry,
@@ -1216,6 +1232,19 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 evidenceHistory,
                 runtimeAttributes,
                 metadata
+            );
+            List<Map<String, Object>> repairChanges = rewrittenPlan == null
+                ? List.of()
+                : planChanges(currentPlan, rewrittenPlan);
+            recordDagRepairEvent(
+                runtimeAttributes,
+                metadata,
+                rewrittenValid ? "APPLIED" : "REJECTED",
+                rewriteCount,
+                repairReason,
+                failedStep,
+                repairChanges,
+                rewrittenValidation
             );
             runtimeGuard.checkCancelled(cancellationCheck);
 
@@ -2684,7 +2713,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("- Treat retrieval score as a weak prior only. Your semantic evidence evaluation must state relevance, answerability, supported aspects, missing aspects, usefulness, and whether another query expansion is needed.\n");
         prompt.append("- For template discovery and API/HTTP requirement analysis, compare title, description, capabilitySpec, outputSchema, dependencySpec and required parameters with the current requirement. Return only ids present in the tool output under selected_template_ids/rejected_template_ids. If candidates do not cover the requirement, set satisfied=false and provide refined_intent.\n");
         prompt.append("- Template retrieval scores and ordering are weak recall priors, never acceptance decisions. Semantically review every returned template candidate.\n");
-        prompt.append("- When multiple templates are returned, selected_template_ids is required when satisfied=true. Order selected_template_ids from highest to lowest semantic fit; Runtime will project that order before binding templates[0].\n");
+        prompt.append("- When governed template discovery returns multiple admitted templates, every template remaining in that discovery result is execution-required. A scalar templates[0] plan binding does not reduce this set: Runtime compiles all admitted templates into a failure-isolated batch and final synthesis must wait for a terminal result from every call. selected_template_ids may order or narrow candidates only during the discovery admission decision; it may never be used after admission to skip physical execution.\n");
         prompt.append("- Put unrelated or materially weaker candidates in rejected_template_ids. Do not select a template merely because Lucene ranked it first or its score ties another candidate.\n");
         prompt.append("- For each returned template candidate, emit template_evaluations with evidence-based relevance, evidence_fit, parameter_readiness, total_score, decision, reasons, and missing_parameters. Scores are 0..1 and must be justified by returned metadata and the current user request.\n");
         prompt.append("- For a template execution tool, set template_execution_satisfied explicitly. If false, list missing_parameters and provide retry_input_changes only for values proven by the user query or completed tool evidence; otherwise leave retry_input_changes empty and set reselect_template=true.\n");
@@ -4437,6 +4466,63 @@ public class AgentOrchestrator implements AgentRunExecutor {
         List<String> augmented = new ArrayList<>(current);
         augmented.add(financialDataTool);
         return List.copyOf(augmented);
+    }
+
+    private void recordDagRepairEvent(Map<String, Object> runtimeAttributes,
+                                      Map<String, Object> metadata,
+                                      String eventState,
+                                      int rewriteCount,
+                                      String reason,
+                                      InterpretationPlan.Step failedStep,
+                                      List<Map<String, Object>> changes,
+                                      InterpretationPlanValidator.ValidationResult validation) {
+        String normalizedState = firstNonBlank(eventState, "UNKNOWN").toUpperCase(Locale.ROOT);
+        List<Map<String, Object>> safeChanges = changes == null ? List.of() : List.copyOf(changes);
+        List<InterpretationPlanValidator.ValidationIssue> validationIssues = validation == null
+            ? List.of()
+            : validation.issues();
+        Map<String, Object> repairEvent = metadataOf(
+            "contractVersion", "runtime_dag_governance.v1",
+            "eventKind", "DAG_REPAIR",
+            "eventState", normalizedState,
+            "repairAttempt", rewriteCount,
+            "fromIteration", rewriteCount,
+            "toIteration", rewriteCount + 1,
+            "reason", firstNonBlank(reason, "Runtime detected an evidence or execution gap."),
+            "failedStepId", failedStep == null ? null : failedStep.id(),
+            "failedToolName", failedStep == null ? null : failedStep.toolName(),
+            "changeCount", safeChanges.size(),
+            "changes", safeChanges,
+            "validationIssues", validationIssues,
+            "createdAt", System.currentTimeMillis()
+        );
+        if (metadata != null) {
+            metadataList(metadata, "dagRepairEvents").add(repairEvent);
+        }
+        String content = switch (normalizedState) {
+            case "STARTED" -> "Runtime started DAG repair attempt " + rewriteCount
+                + " after detecting a recoverable plan or execution failure.";
+            case "APPLIED" -> "Runtime applied DAG repair attempt " + rewriteCount
+                + " with " + safeChanges.size() + " audited change(s); validation passed.";
+            case "REJECTED" -> "DAG repair attempt " + rewriteCount
+                + " did not pass runtime validation; the next bounded recovery action will be evaluated.";
+            default -> "Runtime recorded DAG repair attempt " + rewriteCount + ".";
+        };
+        runResultAdapter.recordRuntimeObservation(
+            runtimeAttributes,
+            AGENT_RUN_ID_ATTRIBUTE,
+            content,
+            "interpretation_plan_repair",
+            metadataOf(
+                "type", "repair",
+                "workflow", "interpretation_plan",
+                "lifecyclePhase", "dag_repair",
+                "eventKind", "DAG_REPAIR",
+                "eventState", normalizedState,
+                "repairAttempt", rewriteCount,
+                "repairEvent", repairEvent
+            )
+        );
     }
 
     private void recordPlanEvolution(

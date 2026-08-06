@@ -278,6 +278,14 @@ public class ToolRuntimeService {
                 Map<String, Object> arguments = call == null || call.arguments() == null
                     ? Map.of()
                     : call.arguments();
+                if (call != null && call.preflightErrorCode() != null
+                    && !call.preflightErrorCode().isBlank()) {
+                    return TemplateExecutionLayer.Invocation.failed(
+                        "BLOCKED",
+                        call.preflightErrorCode(),
+                        firstText(call.preflightMessage(), "Runtime preflight blocked this admitted template")
+                    );
+                }
                 if (diagnosticRemainingTimeMs(context) == 0L) {
                     return TemplateExecutionLayer.Invocation.terminal(
                         DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue(),
@@ -312,6 +320,8 @@ public class ToolRuntimeService {
                 String attemptStatus = firstText(attempt.status(), "FAILED");
                 if ("NOT_EXECUTED".equalsIgnoreCase(attemptStatus)) {
                     skipped++;
+                } else if ("BLOCKED".equalsIgnoreCase(attemptStatus)) {
+                    blocked++;
                 } else {
                     failed++;
                 }
@@ -1485,6 +1495,8 @@ public class ToolRuntimeService {
             return null;
         }
         List<ToolCallRequest> parsedCalls = new ArrayList<>();
+        boolean runtimeOwnedPreflight = request.getAttributes() != null
+            && Boolean.TRUE.equals(request.getAttributes().get("runtimeOwnedTemplatePreflight"));
         int index = 0;
         for (Object item : calls) {
             index++;
@@ -1520,7 +1532,11 @@ public class ToolRuntimeService {
                     call.get("freshnessMaxAgeSeconds"), call.get("freshness_max_age_seconds")))
             );
             parsedCalls.add(new ToolCallRequest(
-                callId, toolName, arguments, emptyResultIsSuccess, requiredFields, evidencePolicy));
+                callId, toolName, arguments, emptyResultIsSuccess, requiredFields, evidencePolicy,
+                runtimeOwnedPreflight ? stringValue(firstPresent(
+                    call.get("preflightErrorCode"), call.get("preflight_error_code"))) : null,
+                runtimeOwnedPreflight ? stringValue(firstPresent(
+                    call.get("preflightMessage"), call.get("preflight_message"))) : null));
         }
         String mode = firstText(
             stringValue(firstPresent(parameters.get("executionMode"), parameters.get("execution_mode"))),

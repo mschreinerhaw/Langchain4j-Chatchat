@@ -381,7 +381,9 @@ attempt, latencyMs, decisionReason
 - 每个已准入模板必须获得 `SUCCESS`、`FAILED` 或安全边界导致的 `BLOCKED` 终态记录；错误结果是可审计证据，不得导致其余模板被跳过。
 - 在全部已准入模板获得终态记录之前，`final_answer` 不得进入可就绪状态。
 - 模型对局部结果的“已满足”、“不相关”或“证据足够”判断不具有提前终止权。
-- 若任一已准入模板无法在其发布契约下编译，Runtime 必须拒绝不完整批次并记录缺失的模板 ID，不得静默删除后执行子集。
+- 若任一已准入模板因缺少必填参数、元数据或可用执行器而无法安全调用，Runtime 必须为该模板生成带明确错误码与原因的 `BLOCKED` 终态，并继续执行其余模板；禁止以批次预检失败为由阻断整个 DAG，也禁止静默删除该模板。
+- 预检修复必须发布结构化 `DAG_REPAIR/APPLIED` 事件，修复码为 `TEMPLATE_BATCH_TERMINAL_COVERAGE_APPLIED`，至少包含模板 ID、`BLOCKED` 状态、错误码、原因及 `remainingCallsContinued=true`，供前端展示完整链路。
+- 已准入数量、批次调用数量和终态结果数量必须一致；远程调用数量允许小于已准入数量，但差值必须全部由可审计的 `BLOCKED` 结果解释。
 
 该契约的完成判定只依赖 MCP 发现输出、已发布 Schema、用户流程快照和实际工具终态，不依赖模型是否正确生成 `selected_template_ids`、`calls` 或批量绑定。
 

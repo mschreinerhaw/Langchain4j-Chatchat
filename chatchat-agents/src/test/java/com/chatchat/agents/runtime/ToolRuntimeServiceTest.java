@@ -1488,6 +1488,46 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
+    void preflightBlockedTemplateIsRecordedAndDoesNotStopExecutableTemplates() {
+        String toolName = "api_template_execute";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName).title(toolName).categories(List.of("mcp")).build());
+        List<String> invoked = new ArrayList<>();
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenAnswer(invocation -> {
+            ToolInput input = invocation.getArgument(1);
+            invoked.add(String.valueOf(input.getParameters().get("templateCode")));
+            return ToolOutput.success(Map.of("records", List.of()));
+        });
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), properties(), new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of());
+        Map<String, Object> first = batchCall("orders", toolName, "orders");
+        Map<String, Object> blocked = new LinkedHashMap<>(batchCall("positions", toolName, "positions"));
+        blocked.put("preflightErrorCode", "TEMPLATE_REQUIRED_PARAMETERS_MISSING");
+        blocked.put("preflightMessage", "Required template parameters are unavailable: [accountId]");
+        Map<String, Object> third = batchCall("balance", toolName, "balance");
+
+        ToolRuntimeExecution execution = service.execute(
+            batchRequest(List.of(first, blocked, third), false,
+                Map.of("runtimeOwnedTemplatePreflight", true)));
+        ToolCallBatchResult result = (ToolCallBatchResult) execution.output().getData();
+
+        assertThat(execution.output().isSuccess()).isTrue();
+        assertThat(result.status()).isEqualTo("PARTIAL_SUCCESS");
+        assertThat(result.summary().success()).isEqualTo(2);
+        assertThat(result.summary().blocked()).isEqualTo(1);
+        assertThat(result.summary().remoteToolInvocations()).isEqualTo(2);
+        assertThat(result.results()).extracting(ToolCallResult::callId)
+            .containsExactly("orders", "positions", "balance");
+        assertThat(result.results().get(1).status()).isEqualTo("BLOCKED");
+        assertThat(result.results().get(1).invoked()).isFalse();
+        assertThat(result.results().get(1).error())
+            .containsEntry("code", "TEMPLATE_REQUIRED_PARAMETERS_MISSING");
+        assertThat(invoked).containsExactly("orders", "balance");
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void templateDeclaredRequiredFieldsReduceQualityWithoutReducingExecutionCoverage() {
         String toolName = "sql_query_execute";

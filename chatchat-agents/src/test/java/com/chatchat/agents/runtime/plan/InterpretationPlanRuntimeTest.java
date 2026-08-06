@@ -7313,7 +7313,7 @@ class InterpretationPlanRuntimeTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void executesAllReviewedTemplatesWhenIntermediateAnalysisFailsAndPlanHasNoDiagnosticProfile() {
+    void givesEveryReviewedTemplateATerminalBatchEntryWhenOneCannotCompile() {
         String discoveryTool = "mcp_chatchat_mcp_server_api_template_query";
         String analysisTool = "mcp_chatchat_mcp_server_api_requirement_analyze";
         String executorTool = "mcp_chatchat_mcp_server_api_template_execute";
@@ -7323,8 +7323,12 @@ class InterpretationPlanRuntimeTest {
                 Map<String, Object> template = new LinkedHashMap<>(apiDiagnosticTemplate(id, id, executorTool));
                 template.put("parameterSchema", Map.of(
                     "type", "object",
-                    "properties", Map.of("khh", Map.of("type", "string", "default", "100200000000")),
-                    "required", List.of("khh")
+                    "properties", Map.of(
+                        "khh", Map.of("type", "string", "default", "100200000000"),
+                        "missingOnlyForTransit", Map.of("type", "string")
+                    ),
+                    "required", "transit-template".equals(id)
+                        ? List.of("khh", "missingOnlyForTransit") : List.of("khh")
                 ));
                 return template;
             })
@@ -7425,6 +7429,21 @@ class InterpretationPlanRuntimeTest {
             assertThat((Map<String, Object>) arguments.get("parameters"))
                 .containsEntry("khh", "100200241779");
         });
+        assertThat(calls.get(0)).doesNotContainKey("preflightErrorCode");
+        assertThat(calls.get(1)).doesNotContainKey("preflightErrorCode");
+        assertThat(calls.get(2))
+            .containsEntry("preflightErrorCode", "TEMPLATE_REQUIRED_PARAMETERS_MISSING");
+        assertThat(calls.get(2).get("preflightMessage")).asString()
+            .contains("missingOnlyForTransit");
+        InterpretationPlanRuntime.StepExecution executionStep = result.steps().stream()
+            .filter(candidate -> candidate.stepId() == 3)
+            .findFirst()
+            .orElseThrow();
+        assertThat(executionStep.metadata())
+            .containsEntry("eventKind", "DAG_REPAIR")
+            .containsEntry("eventState", "APPLIED");
+        assertThat(executionStep.metadata().get("repairEvent")).asString()
+            .contains("TEMPLATE_BATCH_TERMINAL_COVERAGE_APPLIED", "transit-template", "BLOCKED");
     }
 
     private Map<String, Object> apiDiagnosticTemplate(String templateId,

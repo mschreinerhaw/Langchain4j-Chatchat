@@ -596,6 +596,7 @@ public class InterpretationPlanRuntime {
                 Map<String, Object> resolvedInput = resolvedStepInput(step, request, completed);
                 boolean templateCompletenessRepairApplied = false;
                 List<String> templateCompletenessRepairIds = List.of();
+                List<Map<String, Object>> templatePreflightTerminalRepairs = List.of();
                 Map<String, Object> retrievalGate = new LinkedHashMap<>(
                     asStringMap(resolvedInput.remove(MODEL_RETRIEVAL_GATE_KEY))
                 );
@@ -638,6 +639,23 @@ public class InterpretationPlanRuntime {
                         templateCompletenessRepairApplied = templateCompletenessRepairIds.size() >= 2
                             && !declaresBatchTransport(step.input());
                         bridgeBatchTemplateInvocations(step, request, completed, resolvedInput);
+                        Object rawBatchCalls = resolvedInput.get("calls");
+                        if (rawBatchCalls instanceof List<?> batchCalls) {
+                            templatePreflightTerminalRepairs = batchCalls.stream()
+                                .filter(Map.class::isInstance)
+                                .map(Map.class::cast)
+                                .filter(call -> call.get("preflightErrorCode") != null)
+                                .map(call -> Map.<String, Object>of(
+                                    "templateId", firstText(
+                                        stringValue(call.get("callId")), "unknown"),
+                                    "terminalStatus", "BLOCKED",
+                                    "errorCode", String.valueOf(call.get("preflightErrorCode")),
+                                    "reason", firstText(
+                                        stringValue(call.get("preflightMessage")),
+                                        "Runtime preflight blocked unsafe invocation")
+                                ))
+                                .toList();
+                        }
                     }
                 }
                 assertNoUnresolvedBindingPlaceholders(resolvedInput);
@@ -646,6 +664,11 @@ public class InterpretationPlanRuntime {
                     step.id(),
                     executionToolName,
                     summarize(resolvedInput));
+                Map<String, Object> stepAttributes = new LinkedHashMap<>(
+                    attributesForStep(request, step, completed, resolvedInput, routingDecision));
+                if (!templatePreflightTerminalRepairs.isEmpty()) {
+                    stepAttributes.put("runtimeOwnedTemplatePreflight", true);
+                }
                 ToolRuntimeExecution execution = toolRuntimeService.execute(ToolRuntimeRequest.builder()
                     .toolName(executionToolName)
                     .runtimeMode("interpretation_plan")
@@ -660,7 +683,7 @@ public class InterpretationPlanRuntime {
                         .userId(request.userId())
                         .parameters(resolvedInput)
                         .build())
-                    .attributes(attributesForStep(request, step, completed, resolvedInput, routingDecision))
+                    .attributes(stepAttributes)
                     .build());
                 RetrievalQualityGate.Evaluation enhancedQuality = retrievalGate.isEmpty()
                     ? null
@@ -742,6 +765,24 @@ public class InterpretationPlanRuntime {
                     stepMetadata.put("repairAttempt", 1);
                     stepMetadata.put("repairEvent", repairEvent);
                     stepMetadata.put("runtimeTemplateCompletenessRepair", repairEvent);
+                }
+                if (!templatePreflightTerminalRepairs.isEmpty()) {
+                    Map<String, Object> repairEvent = Map.of(
+                        "contractVersion", "runtime_dag_governance.v1",
+                        "eventKind", "DAG_REPAIR",
+                        "eventState", "APPLIED",
+                        "repairCode", "TEMPLATE_BATCH_TERMINAL_COVERAGE_APPLIED",
+                        "stepId", step.id(),
+                        "blockedTemplateCount", templatePreflightTerminalRepairs.size(),
+                        "blockedTemplates", templatePreflightTerminalRepairs,
+                        "remainingCallsContinued", true
+                    );
+                    stepMetadata.put("eventKind", "DAG_REPAIR");
+                    stepMetadata.put("eventState", "APPLIED");
+                    stepMetadata.put("repairAttempt", 1);
+                    stepMetadata.put("repairEvent", repairEvent);
+                    stepMetadata.put("runtimeTemplatePreflightRepairs",
+                        templatePreflightTerminalRepairs);
                 }
                 if (enhancedQuality != null) {
                     stepMetadata.put("retrievalQualityGate", RetrievalQualityGate.report(
@@ -2836,6 +2877,16 @@ public class InterpretationPlanRuntime {
                     + " must be an object");
             }
             Map<String, Object> call = new LinkedHashMap<>((Map<String, Object>) rawCall);
+            String preflightErrorCode = stringValue(firstMapValue(
+                call, "preflightErrorCode", "preflight_error_code"));
+            if (preflightErrorCode != null && !preflightErrorCode.isBlank()) {
+                bridgedCalls.add(call);
+                log.info("InterpretationPlan retained terminal preflight result for Runtime-owned "
+                        + "batch child: stepId={}, callIndex={}, callId={}, errorCode={}",
+                    step == null ? null : step.id(), index,
+                    firstMapValue(call, "callId", "call_id"), preflightErrorCode);
+                continue;
+            }
             Object rawArguments = firstMapValue(call, "arguments", "input");
             if (!(rawArguments instanceof Map<?, ?> argumentMap)) {
                 throw new IllegalStateException("TEMPLATE_BATCH_CONTRACT_FAILED: call " + index
@@ -3845,41 +3896,51 @@ public class InterpretationPlanRuntime {
         String outerTool = null;
         for (String templateId : selectedIds) {
             Map<String, Object> template = completedTemplateMetadata(completed, templateId);
-            if (template.isEmpty()) {
-                continue;
-            }
             String declaredExecutor = firstText(templateExecutorTool(template), step.toolName());
             String childTool = resolveExecutionToolName(declaredExecutor, allowedTools);
-            if (childTool == null || !ToolCallBatchSchema.supports(childTool)) {
-                continue;
-            }
             Map<String, Object> arguments = diagnosticBatchArguments(batchInput, template, templateId);
-            if (!requiredTemplateParametersSatisfied(template, arguments)) {
-                continue;
-            }
-            if (outerTool == null) {
-                outerTool = childTool;
-            }
             Map<String, Object> call = new LinkedHashMap<>();
             call.put("callId", templateId);
-            call.put("toolName", childTool);
+            call.put("toolName", firstText(childTool, step.toolName()));
             call.put("arguments", arguments);
+            if (template.isEmpty()) {
+                call.put("preflightErrorCode", "ADMITTED_TEMPLATE_METADATA_UNAVAILABLE");
+                call.put("preflightMessage", "The admitted template metadata was unavailable at execution preflight");
+            } else if (childTool == null || !ToolCallBatchSchema.supports(childTool)) {
+                call.put("preflightErrorCode", "TEMPLATE_EXECUTOR_UNAVAILABLE");
+                call.put("preflightMessage", "No authorized batch-capable executor was available for the admitted template");
+            } else {
+                List<String> missingParameters = missingRequiredTemplateParameters(template, arguments);
+                if (!missingParameters.isEmpty()) {
+                    call.put("preflightErrorCode", "TEMPLATE_REQUIRED_PARAMETERS_MISSING");
+                    call.put("preflightMessage", "Required template parameters are unavailable: "
+                        + missingParameters);
+                }
+                if (outerTool == null) {
+                    outerTool = childTool;
+                }
+            }
             calls.add(call);
         }
-        if (calls.size() != selectedIds.size() || calls.size() < 2 || outerTool == null) {
+        if (calls.size() < 2) {
             throw new IllegalStateException(
-                "REVIEWED_TEMPLATE_BATCH_COMPILATION_FAILED: every admitted template must compile "
-                    + "before execution; admitted=" + selectedIds + ", compiled="
-                    + calls.stream().map(call -> call.get("callId")).toList());
+                "REVIEWED_TEMPLATE_BATCH_COMPILATION_FAILED: no complete admitted template set "
+                    + "was available; admitted=" + selectedIds);
+        }
+        outerTool = firstText(outerTool, resolveExecutionToolName(step.toolName(), allowedTools));
+        if (outerTool == null || !ToolCallBatchSchema.supports(outerTool)) {
+            throw new IllegalStateException(
+                "REVIEWED_TEMPLATE_BATCH_EXECUTOR_UNAVAILABLE: no authorized batch transport exists");
         }
         Map<String, Object> batch = new LinkedHashMap<>();
         batch.put("batchId", "reviewed-template-step-" + step.id());
         batch.put("executionMode", firstText(stringValue(batchInput.get("executionMode")), "SEQUENTIAL"));
         batch.put("stopOnFailure", false);
         batch.put("calls", calls);
-        log.info("InterpretationPlan compiled reviewed template batch: stepId={}, selectedCount={}, "
-                + "compiledCalls={}, templateIds={}",
+        log.info("InterpretationPlan compiled reviewed template batch with terminal preflight coverage: "
+                + "stepId={}, selectedCount={}, compiledCalls={}, blockedCalls={}, templateIds={}",
             step.id(), selectedIds.size(), calls.size(),
+            calls.stream().filter(call -> call.containsKey("preflightErrorCode")).count(),
             calls.stream().map(call -> call.get("callId")).toList());
         return new TemplateExecutorInvocation(outerTool, batch);
     }
@@ -4269,17 +4330,21 @@ public class InterpretationPlanRuntime {
         Map<String, Object> template,
         Map<String, Object> arguments
     ) {
+        return missingRequiredTemplateParameters(template, arguments).isEmpty();
+    }
+
+    private List<String> missingRequiredTemplateParameters(
+        Map<String, Object> template,
+        Map<String, Object> arguments
+    ) {
         List<String> required = requiredTemplateParameters(template);
-        if (required.isEmpty()) {
-            return true;
-        }
         Object parametersValue = arguments == null ? null : arguments.get("parameters");
         Map<?, ?> parameters = parametersValue instanceof Map<?, ?> map ? map : Map.of();
-        return required.stream().allMatch(name -> {
+        return required.stream().filter(name -> {
             Object value = parameters.get(name);
-            return (value != null && !String.valueOf(value).isBlank())
-                || templateParameterHasDefault(template, name);
-        });
+            return (value == null || String.valueOf(value).isBlank())
+                && !templateParameterHasDefault(template, name);
+        }).toList();
     }
 
     private Boolean booleanObject(Object value) {

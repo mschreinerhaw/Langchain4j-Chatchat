@@ -984,6 +984,37 @@ class AgentToolArgumentResolverTest {
     }
 
     @Test
+    void mandatoryRecoveryCompilesTemplateBeforeRequiredInputPreflight() {
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .toolName("mcp_runtime_api_template_query")
+            .success(true)
+            .output("""
+                {
+                  "schemaVersion":"tool_result_summary.v1",
+                  "summaryTruncated":true,
+                  "routingProjection":{"templates":[{
+                    "templateId":"runtime_customer_snapshot",
+                    "parameterSchema":{"type":"object","properties":{},"required":[]},
+                    "parameterContract":{"executionTool":"api_template_execute"}
+                  }]}
+                }
+                """)
+            .build();
+
+        Map<String, Object> result = resolver.applyDeterministicDependencyContracts(
+            "mcp_runtime_api_template_execute",
+            Map.of("purpose", "run the configured customer workflow"),
+            List.of(discovery),
+            "run the configured customer workflow"
+        );
+
+        assertThat(result)
+            .containsEntry("templateId", "runtime_customer_snapshot")
+            .containsEntry("parameters", Map.of())
+            .doesNotContainKeys("__runtimeParamBindingStatus", "__runtimeParamBindingError");
+    }
+
+    @Test
     void notificationToolBindsMessageDefaultsFromUserQuery() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         String toolName = "mcp_chatchat_mcp_server_notify_ops";

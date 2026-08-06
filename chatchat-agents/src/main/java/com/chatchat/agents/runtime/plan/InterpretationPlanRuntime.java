@@ -27,6 +27,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -1337,7 +1338,7 @@ public class InterpretationPlanRuntime {
             if (localReview.satisfied() && stepResultReviewer == null) {
                 return execution.withMetadata(metadata, elapsed(startedAt));
             }
-            if (localReview.satisfied() && shouldSkipModelReviewAfterLocalFactCheck(metadata)) {
+            if (localReview.satisfied() && shouldSkipModelReviewAfterLocalFactCheck(request, step, metadata)) {
                 metadata.put("toolResultReviewSkipped", true);
                 metadata.put("toolResultReviewSkipReason", "deterministic discovery fact check accepted non-empty structured results");
                 return execution.withMetadata(metadata, elapsed(startedAt));
@@ -1578,7 +1579,9 @@ public class InterpretationPlanRuntime {
         }).toList();
     }
 
-    private boolean shouldSkipModelReviewAfterLocalFactCheck(Map<String, Object> metadata) {
+    private boolean shouldSkipModelReviewAfterLocalFactCheck(ExecutionRequest request,
+                                                              InterpretationPlan.Step step,
+                                                              Map<String, Object> metadata) {
         if (metadata == null || metadata.isEmpty()) {
             return false;
         }
@@ -1592,17 +1595,47 @@ public class InterpretationPlanRuntime {
         }
         if ("asset_discovery".equals(evidenceType)) {
             Integer returnedCount = integerValue(metadata.get("assetDiscoveryReturnedCount"));
-            // A unique typed asset is a completed routing fact, not an answer to the
-            // user's overall request.  Sending it to the model reviewer lets the
-            // reviewer reject the step merely because downstream diagnostics have
-            // not run yet, which aborts the DAG and loses the canonical asset binding.
-            return returnedCount != null && returnedCount == 1;
+            // A configured workflow owns both candidate fan-out and the downstream
+            // selection step. A model reviewer must not reject this routing fact merely
+            // because the remaining configured nodes have not run yet.
+            return returnedCount != null && returnedCount > 0
+                && (returnedCount == 1 || authoritativeWorkflowGoverns(request, step));
         }
         if (!"template_discovery".equals(evidenceType)) {
             return false;
         }
         Integer returnedCount = integerValue(metadata.get("templateDiscoveryReturnedCount"));
-        return returnedCount != null && returnedCount == 1;
+        return returnedCount != null && returnedCount > 0
+            && (returnedCount == 1 || authoritativeWorkflowGoverns(request, step));
+    }
+
+    // Retained for compatibility with focused contract tests and legacy reflective
+    // diagnostics that only evaluate the local fact-check metadata.
+    private boolean shouldSkipModelReviewAfterLocalFactCheck(Map<String, Object> metadata) {
+        return shouldSkipModelReviewAfterLocalFactCheck(null, null, metadata);
+    }
+
+    private boolean authoritativeWorkflowGoverns(ExecutionRequest request,
+                                                   InterpretationPlan.Step step) {
+        if (request == null || request.attributes() == null || step == null
+            || step.toolName() == null || step.toolName().isBlank()) {
+            return false;
+        }
+        Object rawDag = request.attributes().get("authoritativeWorkflowDag");
+        if (!(rawDag instanceof Collection<?> nodes) || nodes.isEmpty()) {
+            return false;
+        }
+        String stepTool = toolSemanticKey(step.toolName());
+        for (Object rawNode : nodes) {
+            if (!(rawNode instanceof Map<?, ?> node)) {
+                continue;
+            }
+            Object configured = firstMapValue(node, "tool", "toolName");
+            if (configured != null && stepTool.equals(toolSemanticKey(String.valueOf(configured)))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean shouldPreservePartialToolResult(InterpretationPlan plan,

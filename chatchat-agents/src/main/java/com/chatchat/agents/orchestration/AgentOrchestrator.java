@@ -5255,10 +5255,11 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 query,
                 webSearchResultLimit
             );
-            fallbackArguments = toolArguments.applyPublishedDependencyEvidenceContract(
+            fallbackArguments = toolArguments.applyDeterministicDependencyContracts(
                 fallbackTool,
                 fallbackArguments,
-                predecessorTraces
+                predecessorTraces,
+                query
             );
             List<String> missingRequiredInputs = missingRequiredToolInputs(fallbackTool, fallbackArguments);
             if (!missingRequiredInputs.isEmpty()) {

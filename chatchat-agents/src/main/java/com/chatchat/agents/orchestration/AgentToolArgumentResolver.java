@@ -590,6 +590,22 @@ class AgentToolArgumentResolver {
         return values;
     }
 
+    /**
+     * Applies every deterministic predecessor-evidence adapter needed by workflow
+     * recovery. The ordering is intentional: generic published evidence is attached
+     * first, then a template executor is compiled from the observed discovery result.
+     */
+    Map<String, Object> applyDeterministicDependencyContracts(
+        String toolName,
+        Map<String, Object> arguments,
+        List<InteractionToolTrace> dependencyTraces,
+        String userQuery
+    ) {
+        Map<String, Object> resolved = applyPublishedDependencyEvidenceContract(
+            toolName, arguments, dependencyTraces);
+        return applyObservedTemplateContract(toolName, resolved, dependencyTraces, userQuery);
+    }
+
     private Object parseJson(String text) {
         try {
             return OBJECT_MAPPER.readValue(text, Object.class);

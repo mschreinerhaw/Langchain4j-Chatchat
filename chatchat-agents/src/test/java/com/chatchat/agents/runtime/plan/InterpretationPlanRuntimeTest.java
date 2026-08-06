@@ -710,6 +710,76 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void authoritativeWorkflowAcceptsNonEmptyDiscoveryWithoutModelReview() {
+        String assetTool = "mcp_runtime_api_asset_query";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(assetTool)).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenReturn(
+            ToolMetadata.builder().id(assetTool).riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of(
+                "schemaVersion", "asset_query_result.v1",
+                "success", true,
+                "returnedCount", 2,
+                "assets", List.of(
+                    Map.of("asset", Map.of("id", "asset-a", "name", "customer-a")),
+                    Map.of("asset", Map.of("id", "asset-b", "name", "customer-b"))
+                )
+            )),
+            ToolMetadata.builder().id(assetTool).build(),
+            null,
+            "success",
+            Map.of()
+        ));
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", "run configured workflow", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", assetTool, Map.of(), List.of(), null, null),
+                new InterpretationPlan.Step(2, "final_answer", "", Map.of("answer", "done"), List.of(1), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(2, false, List.of(assetTool), List.of(), 30000),
+            review()
+        );
+        AtomicInteger reviewerCalls = new AtomicInteger();
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            null,
+            request -> {
+                reviewerCalls.incrementAndGet();
+                return InterpretationPlanRuntime.StepReview.rejected("downstream work is incomplete", Map.of());
+            },
+            scriptedController(List.of(List.of(1), List.of(2)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan,
+                toolRegistry,
+                List.of(assetTool),
+                "tenant-1",
+                "req-authoritative-discovery",
+                "conv-authoritative-discovery",
+                "user-1",
+                Map.of("authoritativeWorkflowDag", List.of(
+                    Map.of("id", "asset", "tool", assetTool, "dependsOnTools", List.of())
+                ))
+            )
+        );
+
+        assertThat(result.success()).isTrue();
+        assertThat(reviewerCalls).hasValue(0);
+        assertThat(result.steps().get(0).metadata())
+            .containsEntry("assetDiscoveryReturnedCount", 2)
+            .containsEntry("toolResultReviewSkipped", true)
+            .containsEntry("toolResultReviewSkipReason",
+                "deterministic discovery fact check accepted non-empty structured results");
+    }
+
+    @Test
     void preservesFactCheckedTemplateDiscoveryWhenModelReviewerIsUnavailable() {
         String toolName = "mcp_chatchat_mcp_server_ssh_template_query";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);

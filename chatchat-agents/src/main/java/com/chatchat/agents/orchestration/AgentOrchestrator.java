@@ -4408,19 +4408,18 @@ public class AgentOrchestrator implements AgentRunExecutor {
                     && Boolean.FALSE.equals(source.get("shouldExpandQuery"))) {
                     continue;
                 }
-                boolean fulfilledLater = false;
+                boolean alreadyExecutedSuccessfully = false;
                 if (requestedTool != null) {
-                    for (int laterIndex = index + 1; laterIndex < toolEvidence.size(); laterIndex++) {
-                        Map<String, Object> later = toolEvidence.get(laterIndex);
-                        if (later != null
-                            && Boolean.TRUE.equals(later.get("success"))
-                            && toolNames.sameToolName(requestedTool, stringValue(later.get("tool")))) {
-                            fulfilledLater = true;
+                    for (Map<String, Object> executed : toolEvidence) {
+                        if (executed != null
+                            && Boolean.TRUE.equals(executed.get("success"))
+                            && toolNames.sameToolName(requestedTool, stringValue(executed.get("tool")))) {
+                            alreadyExecutedSuccessfully = true;
                             break;
                         }
                     }
                 }
-                if (!fulfilledLater) {
+                if (!alreadyExecutedSuccessfully) {
                     pending.add(action);
                 }
             }

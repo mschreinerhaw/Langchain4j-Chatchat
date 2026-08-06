@@ -223,7 +223,7 @@ class AgentOrchestratorTest {
     }
 
     @Test
-    void pendingEvidenceActionsDropDeclinedAndAlreadyFulfilledRetrievals() {
+    void pendingEvidenceActionsDropDeclinedAndAlreadyExecutedRetrievals() {
         AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
         List<Map<String, Object>> evidence = List.of(
             Map.of(
@@ -241,6 +241,22 @@ class AgentOrchestratorTest {
         );
 
         assertThat(orchestrator.pendingEvidenceNextActions(evidence)).isEmpty();
+    }
+
+    @Test
+    void pendingEvidenceActionsPreserveAvailableWorkNotExecutedInTheRound() {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        Map<String, Object> pendingAction = Map.of(
+            "tool", "verification_search",
+            "intent", "verify the remaining gap"
+        );
+
+        assertThat(orchestrator.pendingEvidenceNextActions(List.of(Map.of(
+            "tool", "primary_search",
+            "success", true,
+            "shouldExpandQuery", true,
+            "nextActions", List.of(pendingAction)
+        )))).containsExactly(pendingAction);
     }
 
     @Test

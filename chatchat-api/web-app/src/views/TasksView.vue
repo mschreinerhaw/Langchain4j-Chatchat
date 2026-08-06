@@ -681,10 +681,32 @@
         <span class="runtime-pill">{{ planEdges.length }} 条边</span>
       </div>
 
-      <div v-if="selectedTaskDisplay" class="selected-task">
-        <strong>{{ selectedTaskDisplay.id }}</strong>
-        <span>{{ selectedTaskDisplay.subtitle }}</span>
-        <p>{{ selectedTaskDisplay.description }}</p>
+      <div v-if="selectedTaskDisplay" class="plan-task-summary" :class="{ open: planTaskDetailsOpen }">
+        <button
+          type="button"
+          class="plan-task-summary-toggle"
+          :aria-expanded="planTaskDetailsOpen"
+          @click="planTaskDetailsOpen = !planTaskDetailsOpen"
+        >
+          <span class="plan-task-summary-copy">
+            <strong>{{ selectedTaskDisplay.id }} · {{ selectedTaskDisplay.subtitle }}</strong>
+            <span>{{ planTaskPreview }}</span>
+          </span>
+          <span class="plan-task-summary-status" :class="statusClass(selectedTask.status)">
+            {{ formatTaskStatus(selectedTask.status) }}
+          </span>
+          <span class="plan-task-summary-action">{{ planTaskDetailsOpen ? "收起" : "查看任务" }}</span>
+        </button>
+        <div v-if="planTaskDetailsOpen" class="plan-task-summary-detail">
+          <section>
+            <small>任务内容</small>
+            <p>{{ selectedTask.question || "未命名任务" }}</p>
+          </section>
+          <section v-if="selectedTask.answerSummary || selectedTask.errorMessage">
+            <small>{{ selectedTask.errorMessage ? "失败信息" : "结果摘要" }}</small>
+            <p>{{ selectedTask.errorMessage || selectedTask.answerSummary }}</p>
+          </section>
+        </div>
       </div>
 
       <div v-if="selectedTask && planNodes.length > 0" class="plan-dag-layout">

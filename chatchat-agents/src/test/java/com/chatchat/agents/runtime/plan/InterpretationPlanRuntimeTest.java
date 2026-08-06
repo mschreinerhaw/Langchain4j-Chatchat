@@ -3303,6 +3303,85 @@ class InterpretationPlanRuntimeTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void recoversRequiredAssetEnvironmentFromAgentContextWhenSummaryProjectionOmitsIt() {
+        String assetTool = "mcp_chatchat_mcp_server_api_asset_query";
+        String templateTool = "mcp_chatchat_mcp_server_api_template_query";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.hasTool(any())).thenReturn(true);
+        when(registry.getToolMetadata(any())).thenAnswer(invocation ->
+            ToolMetadata.builder().id(invocation.getArgument(0)).riskLevel("low").build());
+        AtomicReference<Map<String, Object>> templateInput = new AtomicReference<>();
+        ToolRuntimeService service = mock(ToolRuntimeService.class);
+        when(service.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest toolRequest = invocation.getArgument(0);
+            if (assetTool.equals(toolRequest.getToolName())) {
+                return new ToolRuntimeExecution(ToolOutput.success(Map.of(
+                    "schemaVersion", "tool_result_summary.v1",
+                    "summaryTruncated", true,
+                    "resultPresent", true,
+                    "preview", "{assets=[{asset={name=customer-api, ... truncated}}]}",
+                    "routingProjection", Map.of("assets", List.of(Map.of(
+                        "asset", Map.of("id", "asset-1", "name", "customer-api")
+                    )))
+                )), ToolMetadata.builder().id(assetTool).build(), null, "success", Map.of());
+            }
+            templateInput.set(toolRequest.getToolInput().getParameters());
+            return new ToolRuntimeExecution(ToolOutput.success(Map.of(
+                "templates", List.of(Map.of("templateId", "customer-overview"))
+            )), ToolMetadata.builder().id(templateTool).build(), null, "success", Map.of());
+        });
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", "customer overview", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", assetTool,
+                        Map.of("filters", Map.of("intent", "customer overview")), List.of(), null, null),
+                    new InterpretationPlan.Step(2, "mcp_tool", templateTool,
+                        Map.of("filters", Map.of("intent", "customer overview")), List.of(1), null, null),
+                    new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"),
+                        List.of(2), null, null)
+                ),
+                List.of(new InterpretationPlan.EdgeContract(
+                    1, 2, "assets[0].asset.environment", "string", true)),
+                List.of(new InterpretationPlan.DependencyContract(
+                    1, 2, true, null, "template discovery uses Agent environment", "stop")),
+                List.of(new InterpretationPlan.Binding(
+                    1, "$.assets[0].asset.environment", 2, "filters.env", "jsonpath", true)),
+                null
+            ),
+            new InterpretationPlan.ExecutionPolicy(
+                3, false, List.of(assetTool, templateTool), List.of(), 30_000),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            service, new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, registry, List.of(assetTool, templateTool), "tenant-1", "req-env-recovery",
+                "conv-env-recovery", "user-1", Map.of("agentRuntimeEnvironment", "DEV")
+            )
+        );
+
+        assertThat(result.success()).as(result.errorMessage()).isTrue();
+        assertThat((Map<String, Object>) templateInput.get().get("filters"))
+            .containsEntry("env", "DEV");
+        assertThat(result.steps()).filteredOn(step -> Integer.valueOf(1).equals(step.stepId()))
+            .singleElement()
+            .satisfies(step -> assertThat(step.metadata())
+                .containsEntry("eventKind", "DAG_REPAIR")
+                .containsEntry("eventState", "APPLIED")
+                .containsKey("deterministicContractRepairs"));
+        assertThat(result.steps()).noneMatch(step -> step.errorMessage() != null
+            && step.errorMessage().contains("EDGE_CONTRACT_FAILED"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void compilesLooseTemplateDiscoveryIntentWithoutLosingDiscoveredTemplateIds() throws Exception {
         String toolName = "mcp_chatchat_mcp_server_api_template_query";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);

@@ -379,7 +379,8 @@ public class InterpretationPlanRuntime {
                     finalAnswer = execution.finalAnswer();
                 }
             }
-            StepExecution contractFailure = validateEdgeContracts(executablePlan, waveResults, completed);
+            StepExecution contractFailure = validateEdgeContracts(
+                executablePlan, waveResults, completed, executableRequest);
             if (contractFailure != null) {
                 executions.add(contractFailure);
                 return withDiagnosticRun(ExecutionResult.failed(
@@ -768,7 +769,7 @@ public class InterpretationPlanRuntime {
                 if (result.success()) {
                     result = reviewToolResult(request, step, result, completed, startedAt);
                 }
-                result = validateStepOutput(request.plan(), step, result, completed);
+                result = validateStepOutput(request.plan(), step, result, completed, request);
                 recordPlanObservation(request, result, execution == null ? null : execution.output());
                 return result;
             } catch (RuntimeException ex) {
@@ -804,7 +805,7 @@ public class InterpretationPlanRuntime {
                 stringValue(firstPresent(step.input(), "answer", "response", "text", "result")),
                 elapsed(startedAt)
             );
-            result = validateStepOutput(request.plan(), step, result, completed);
+            result = validateStepOutput(request.plan(), step, result, completed, request);
             recordPlanObservation(request, result, null);
             return result;
         }
@@ -819,7 +820,7 @@ public class InterpretationPlanRuntime {
             null,
             elapsed(startedAt)
         );
-        result = validateStepOutput(request.plan(), step, result, completed);
+        result = validateStepOutput(request.plan(), step, result, completed, request);
         recordPlanObservation(request, result, null);
         return result;
     }
@@ -827,7 +828,8 @@ public class InterpretationPlanRuntime {
     private StepExecution validateStepOutput(InterpretationPlan plan,
                                              InterpretationPlan.Step step,
                                              StepExecution execution,
-                                             Map<Integer, StepExecution> completed) {
+                                             Map<Integer, StepExecution> completed,
+                                             ExecutionRequest request) {
         if (step == null || execution == null || !execution.success()) {
             return execution;
         }
@@ -859,6 +861,7 @@ public class InterpretationPlanRuntime {
                     + " but was " + (actual == null ? "missing" : actual));
             }
         }
+        List<Map<String, Object>> deterministicContractRepairs = new ArrayList<>();
         if (plan != null && plan.plan() != null && plan.plan().edgeContracts() != null) {
             Map<Integer, StepExecution> validationState = new LinkedHashMap<>(
                 completed == null ? Map.of() : completed);
@@ -874,13 +877,40 @@ public class InterpretationPlanRuntime {
                 )) {
                     continue;
                 }
-                ContractCheck check = checkContract(contract, execution);
+                Object outputValue = contractValue(execution, contract.field());
+                ContractCheck check = checkContract(contract, execution, request);
                 if (!check.success()) {
                     violations.add(check.message());
+                } else if (outputValue == null && environmentContractField(contract.field())
+                    && environmentContractValue(execution, request, contract.from()) != null) {
+                    deterministicContractRepairs.add(Map.of(
+                        "repairCode", "AGENT_ENVIRONMENT_CONTEXT_APPLIED",
+                        "field", contract.field(),
+                        "value", environmentContractValue(execution, request, contract.from()),
+                        "sourceStepId", contract.from(),
+                        "targetStepId", contract.to()
+                    ));
                 }
             }
         }
         if (violations.isEmpty()) {
+            if (!deterministicContractRepairs.isEmpty()) {
+                Map<String, Object> metadata = new LinkedHashMap<>(execution.metadata());
+                Map<String, Object> repairEvent = Map.of(
+                    "contractVersion", "runtime_dag_governance.v1",
+                    "eventKind", "DAG_REPAIR",
+                    "eventState", "APPLIED",
+                    "repairCode", "AGENT_ENVIRONMENT_CONTEXT_APPLIED",
+                    "stepId", step.id(),
+                    "repairs", List.copyOf(deterministicContractRepairs)
+                );
+                metadata.put("eventKind", "DAG_REPAIR");
+                metadata.put("eventState", "APPLIED");
+                metadata.put("repairAttempt", 1);
+                metadata.put("repairEvent", repairEvent);
+                metadata.put("deterministicContractRepairs", List.copyOf(deterministicContractRepairs));
+                return execution.withMetadata(metadata, execution.durationMs());
+            }
             return execution;
         }
         Map<String, Object> metadata = new LinkedHashMap<>(
@@ -2588,7 +2618,7 @@ public class InterpretationPlanRuntime {
                                                   Map<Integer, StepExecution> completed) {
         Map<String, Object> input = new LinkedHashMap<>(step.input() == null ? Map.of() : step.input());
         InterpretationPlan plan = request == null ? null : request.plan();
-        applyBindings(step, plan, completed, input);
+        applyBindings(step, plan, completed, input, request);
         if (batchToolInput(input) && !runtimeOwnedTemplateBatch(step, plan, completed)) {
             bridgeBatchTemplateInvocations(step, request, completed, input);
             return input;
@@ -5820,7 +5850,8 @@ public class InterpretationPlanRuntime {
     private void applyBindings(InterpretationPlan.Step step,
                                InterpretationPlan plan,
                                Map<Integer, StepExecution> completed,
-                               Map<String, Object> input) {
+                               Map<String, Object> input,
+                               ExecutionRequest request) {
         if (step == null || step.id() == null || plan == null || plan.plan() == null
             || plan.plan().bindings() == null || plan.plan().bindings().isEmpty()) {
             return;
@@ -5847,7 +5878,7 @@ public class InterpretationPlanRuntime {
                 }
                 continue;
             }
-            Object value = bindingValue(source, binding);
+            Object value = bindingValue(source, binding, request);
             if (value == null) {
                 if (binding.required() == null || binding.required()) {
                     throw new IllegalStateException("BINDING_FAILED: missing output_path " + binding.outputPath()
@@ -6010,7 +6041,9 @@ public class InterpretationPlanRuntime {
             : null;
     }
 
-    private Object bindingValue(StepExecution source, InterpretationPlan.Binding binding) {
+    private Object bindingValue(StepExecution source,
+                                InterpretationPlan.Binding binding,
+                                ExecutionRequest request) {
         if (source == null || binding == null) {
             return null;
         }
@@ -6021,6 +6054,15 @@ public class InterpretationPlanRuntime {
         value = canonicalProtocolValue(source.output(), binding.inputField());
         if (value != null) {
             return value;
+        }
+        if (environmentContractField(binding.outputPath()) || environmentContractField(binding.inputField())) {
+            value = environmentContractValue(source, request, binding.from());
+            if (value != null) {
+                log.info("InterpretationPlan recovered environment binding from deterministic Agent context: "
+                        + "fromStep={}, toStep={}, outputPath={}, inputField={}, env={}",
+                    binding.from(), binding.to(), binding.outputPath(), binding.inputField(), value);
+                return value;
+            }
         }
         if (isTemplateDiscoveryTool(source.toolName()) && bindingTargetsTemplateId(binding)) {
             return firstValueAtAnyPath(source.output(),
@@ -6427,7 +6469,8 @@ public class InterpretationPlanRuntime {
 
     private StepExecution validateEdgeContracts(InterpretationPlan plan,
                                                 List<StepExecution> waveResults,
-                                                Map<Integer, StepExecution> completed) {
+                                                Map<Integer, StepExecution> completed,
+                                                ExecutionRequest request) {
         if (plan == null || plan.plan() == null || plan.plan().edgeContracts() == null || plan.plan().edgeContracts().isEmpty()) {
             return null;
         }
@@ -6448,7 +6491,7 @@ public class InterpretationPlanRuntime {
                 continue;
             }
             StepExecution source = completed.get(contract.from());
-            ContractCheck check = checkContract(contract, source);
+            ContractCheck check = checkContract(contract, source, request);
             if (!check.success()) {
                 return new StepExecution(
                     contract.to(),
@@ -6516,7 +6559,21 @@ public class InterpretationPlanRuntime {
     }
 
     private ContractCheck checkContract(InterpretationPlan.EdgeContract contract, StepExecution source) {
+        return checkContract(contract, source, null);
+    }
+
+    private ContractCheck checkContract(InterpretationPlan.EdgeContract contract,
+                                        StepExecution source,
+                                        ExecutionRequest request) {
         Object value = contractValue(source, contract.field());
+        if (value == null && environmentContractField(contract.field())) {
+            value = environmentContractValue(source, request, contract.from());
+            if (value != null) {
+                log.info("InterpretationPlan satisfied environment edge contract from deterministic Agent context: "
+                        + "fromStep={}, toStep={}, field={}, env={}",
+                    contract.from(), contract.to(), contract.field(), value);
+            }
+        }
         boolean required = contract.required() == null || contract.required();
         if (value == null) {
             return required
@@ -6544,6 +6601,45 @@ public class InterpretationPlanRuntime {
                 + " expected " + type + " but was " + value.getClass().getSimpleName());
         }
         return new ContractCheck(true, null);
+    }
+
+    private boolean environmentContractField(String field) {
+        String key = contractFieldKey(field);
+        return "env".equals(key) || "environment".equals(key);
+    }
+
+    private String environmentContractValue(StepExecution source,
+                                            ExecutionRequest request,
+                                            Integer sourceStepId) {
+        if (source == null || !isAssetDiscoveryTool(source.toolName())) {
+            return null;
+        }
+        Object value = firstValueAtAnyPath(source.metadata(),
+            "$.resolvedInput.filters.env",
+            "$.resolvedInput.filters.environment",
+            "$.resolvedInput.executionContext.env",
+            "$.resolvedInput.executionContext.environment",
+            "$.resolvedInput.env",
+            "$.resolvedInput.environment");
+        String canonical = canonicalProtocolEnvironment(value == null ? null : String.valueOf(value));
+        if (canonical != null) {
+            return canonical;
+        }
+        canonical = agentRuntimeEnvironment(request);
+        if (canonical != null) {
+            return canonical;
+        }
+        if (request == null || request.plan() == null || sourceStepId == null) {
+            return null;
+        }
+        InterpretationPlan.Step sourceStep = request.plan().steps().stream()
+            .filter(Objects::nonNull)
+            .filter(step -> sourceStepId.equals(step.id()))
+            .findFirst()
+            .orElse(null);
+        value = firstValueAtAnyPath(sourceStep == null ? null : sourceStep.input(),
+            "$.filters.env", "$.filters.environment", "$.env", "$.environment");
+        return canonicalProtocolEnvironment(value == null ? null : String.valueOf(value));
     }
 
     private String canonicalEdgeContractType(String field, String declaredType) {

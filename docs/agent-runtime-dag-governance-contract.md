@@ -384,3 +384,11 @@ attempt, latencyMs, decisionReason
 - 若任一已准入模板无法在其发布契约下编译，Runtime 必须拒绝不完整批次并记录缺失的模板 ID，不得静默删除后执行子集。
 
 该契约的完成判定只依赖 MCP 发现输出、已发布 Schema、用户流程快照和实际工具终态，不依赖模型是否正确生成 `selected_template_ids`、`calls` 或批量绑定。
+
+## 15. Agent 环境与截断摘要的契约优先级
+
+- Agent 配置中的运行环境是本次 MCP 路由的权威上下文。当 Agent 已设置 `env`，Planner 产生的 `asset.environment` 或 `filters.env` 边契约必须从该上下文确定性恢复，不得因工具预览中未重复环境字段而失败。
+- `tool_result_summary.v1.summaryTruncated=true` 只表示内联 `preview` 被缩短，不表示原始结果缺少字段。
+- 边契约解析顺序为：完整输出或 `routingProjection` → 已解析的工具输入 → Agent 运行环境 → 用户流程快照中的显式环境。
+- 使用 Agent 环境恢复契约时，Runtime 必须发布 `DAG_REPAIR/APPLIED` 事件，修复码为 `AGENT_ENVIRONMENT_CONTEXT_APPLIED`。
+- 最终汇总不得从被截断的预览推断“字段缺失”；只有 Runtime 在完成上述恢复后仍输出的权威契约违例才能作为失败事实。

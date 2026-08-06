@@ -103,6 +103,30 @@ class ToolLogSummarizerTest {
     }
 
     @Test
+    void externalizedResultLogsReferenceStateInsteadOfInventingDomainCounts() {
+        Object summarized = ToolLogSummarizer.summarizeResult(
+            "mcp_chatchat_mcp_server_enterprise_metadata_search",
+            Map.of(
+                "outputExternal", true,
+                "outputTruncated", true,
+                "originalBytes", 7_388_563,
+                "maxInlineBytes", 262_144,
+                "reason", "TOOL_OUTPUT_LIMIT_EXCEEDED",
+                "documentId", "tool-output:internal",
+                "preview", Map.of("fieldMatches", List.of("first"))
+            ));
+
+        assertThat(summarized).isInstanceOfSatisfying(Map.class, summary ->
+            assertThat(summary)
+                .containsEntry("schemaVersion", "externalized_tool_result_summary.v1")
+                .containsEntry("outputExternal", true)
+                .containsEntry("outputTruncated", true)
+                .containsEntry("originalBytes", 7_388_563)
+                .containsEntry("resultPresent", true)
+                .doesNotContainKeys("sourceFieldCount", "matchedFieldCount", "preview", "documentId"));
+    }
+
+    @Test
     void oversizedStructuredSummaryKeepsAJsonSerializableContractInsteadOfMapToString() {
         Object summarized = ToolLogSummarizer.summarize(Map.of(
             "results", java.util.stream.IntStream.range(0, 20)

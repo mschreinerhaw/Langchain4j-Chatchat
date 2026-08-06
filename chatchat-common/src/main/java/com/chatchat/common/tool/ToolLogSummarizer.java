@@ -63,6 +63,20 @@ public final class ToolLogSummarizer {
      * intentionally consumed by Runtime rather than emitted repeatedly by each layer.
      */
     public static Object summarizeResult(String toolName, Object value) {
+        Map<String, Object> runtimeReference = mapValue(value);
+        if (Boolean.TRUE.equals(runtimeReference.get("outputTruncated"))
+            && runtimeReference.containsKey("documentId")) {
+            Map<String, Object> summary = new LinkedHashMap<>();
+            summary.put("schemaVersion", "externalized_tool_result_summary.v1");
+            copyIfPresent(summary, runtimeReference, "outputExternal");
+            copyIfPresent(summary, runtimeReference, "outputTruncated");
+            copyIfPresent(summary, runtimeReference, "originalBytes");
+            copyIfPresent(summary, runtimeReference, "maxInlineBytes");
+            copyIfPresent(summary, runtimeReference, "reason");
+            summary.put("resultPresent", true);
+            summary.put("detailsLogged", false);
+            return summary;
+        }
         Map<String, Object> enterpriseMetadata = enterpriseMetadataPayload(toolName, value, 0);
         if (enterpriseMetadata.isEmpty()) {
             return summarize(value);

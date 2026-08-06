@@ -1116,9 +1116,10 @@ public class AgentOrchestrator implements AgentRunExecutor {
         InterpretationPlanRewriter rewriter = new InterpretationPlanRewriter(activeChatModel, objectMapper, validator);
         InterpretationPlan currentPlan = plan;
         InterpretationPlanRuntime.ExecutionResult currentResult = firstResult;
-        int maxRewriteTimes = augmentationOverrideAvailable && latestAugmentationDecision.continueLoop()
-            ? 1
-            : configuredMaxRewriteTimes;
+        boolean executionRecoveryRequired = !firstResult.success();
+        int maxRewriteTimes = latestAugmentationDecision.continueLoop()
+            ? (augmentationOverrideAvailable ? 1 : configuredMaxRewriteTimes)
+            : executionRecoveryRequired ? configuredMaxRewriteTimes : 0;
         int evidenceDrivenRewriteLimit = evidenceDrivenRewriteLimit(
             configuredMaxRewriteTimes,
             latestAugmentationDecision,
@@ -1159,16 +1160,19 @@ public class AgentOrchestrator implements AgentRunExecutor {
             observations.add(rewriteSummary);
             InterpretationPlan.Step failedStep = failedStep(currentPlan, currentResult);
             String repairReason = evidenceRewriteReason(currentResult, evidenceHistory);
-            recordDagRepairEvent(
-                runtimeAttributes,
-                metadata,
-                "STARTED",
-                rewriteCount,
-                repairReason,
-                failedStep,
-                List.of(),
-                null
-            );
+            boolean dagRepairAttempt = !currentResult.success() || failedStep != null;
+            if (dagRepairAttempt) {
+                recordDagRepairEvent(
+                    runtimeAttributes,
+                    metadata,
+                    "STARTED",
+                    rewriteCount,
+                    repairReason,
+                    failedStep,
+                    List.of(),
+                    null
+                );
+            }
             Set<String> completedTools = completedWorkflowToolsFromEvents(
                 runtimeAttributes,
                 workflowStateTracker.completedToolsFromTraces(traces)
@@ -1254,16 +1258,18 @@ public class AgentOrchestrator implements AgentRunExecutor {
             List<Map<String, Object>> repairChanges = rewrittenPlan == null
                 ? List.of()
                 : planChanges(currentPlan, rewrittenPlan);
-            recordDagRepairEvent(
-                runtimeAttributes,
-                metadata,
-                rewrittenValid ? "APPLIED" : "REJECTED",
-                rewriteCount,
-                repairReason,
-                failedStep,
-                repairChanges,
-                rewrittenValidation
-            );
+            if (dagRepairAttempt) {
+                recordDagRepairEvent(
+                    runtimeAttributes,
+                    metadata,
+                    rewrittenValid ? "APPLIED" : "REJECTED",
+                    rewriteCount,
+                    repairReason,
+                    failedStep,
+                    repairChanges,
+                    rewrittenValidation
+                );
+            }
             runtimeGuard.checkCancelled(cancellationCheck);
 
             String rewriteStage = rewriteCount == 1 ? "rewrite" : "rewrite" + rewriteCount;
@@ -5240,7 +5246,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         int configured = Math.max(0,
             Math.min(MAX_INTERPRETATION_PLAN_ATTEMPTS - 1, configuredMaxRewriteTimes));
         if (configured == 0 || outcome == null || !outcome.continueLoop()) {
-            return configured;
+            return 0;
         }
         if (evidenceRefinementRequiredTools(evidenceHistory, availableTools).isEmpty()) {
             return configured;

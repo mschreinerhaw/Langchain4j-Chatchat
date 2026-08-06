@@ -1388,7 +1388,7 @@ class AgentOrchestratorTest {
                       {"id": 2, "action_type": "final_answer", "tool_name": "", "input": {"answer": "Use the retrieved JDBC and Filesystem chunks, and state that the combined sync example is missing."}, "depends_on": [1]}
                     ]
                   },
-                  "execution_policy": {"max_steps": 2, "allow_parallel": false, "allow_tool": ["document_search"], "deny_tool": [], "timeout_ms": 30000, "max_rewrite_times": 0},
+                  "execution_policy": {"max_steps": 2, "allow_parallel": false, "allow_tool": ["document_search"], "deny_tool": [], "timeout_ms": 30000, "max_rewrite_times": 2},
                   "review": {"self_check": {"completeness_score": 0.8, "hallucination_risk": 0.2, "tool_sufficiency": true, "missing_steps": []}, "fallback_plan": []}
                 }
                 """,
@@ -1435,10 +1435,10 @@ class AgentOrchestratorTest {
         assertThat(result.toolTraces()).extracting(InteractionToolTrace::getToolName)
             .containsExactly("document_search");
         assertThat(result.metadata())
-            .containsEntry("interpretationPlanConfiguredMaxRewriteTimes", 0)
+            .containsEntry("interpretationPlanConfiguredMaxRewriteTimes", 2)
             .containsEntry("interpretationPlanMaxRewriteTimes", 0)
             .containsEntry("stopReason", "evidence_partial_analysis")
-            .doesNotContainKeys("evidenceAugmentationOverrideApplied", "interpretationPlanRewriteAttempted");
+            .doesNotContainKeys("evidenceAugmentationOverrideApplied", "interpretationPlanRewriteAttempted", "dagRepairEvents");
         List<Map<String, Object>> steps = (List<Map<String, Object>>) result.metadata().get("interpretationPlanStepExecutions");
         assertThat(steps)
             .anySatisfy(step -> {

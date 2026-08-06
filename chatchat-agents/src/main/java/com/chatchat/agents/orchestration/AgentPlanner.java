@@ -1048,6 +1048,21 @@ class AgentPlanner {
             );
         List<String> runtimeIssues = validateRuntimePlanRules(interpretationPlan, validationContext);
         Map<String, Object> validationMetadata = new LinkedHashMap<>(validationMetadata(validation, runtimeIssues));
+        if (!optimization.appliedPasses().isEmpty()) {
+            validationMetadata.put("interpretationPlanOptimizationPasses", optimization.appliedPasses());
+        }
+        if (optimization.appliedPasses().contains("AuthoritativeWorkflowDagPass")) {
+            Map<String, Object> repairEvent = Map.of(
+                "contractVersion", "runtime_dag_governance.v1",
+                "eventKind", "DAG_REPAIR",
+                "eventState", "APPLIED",
+                "repairCode", "AUTHORITATIVE_WORKFLOW_DAG_RESTORED",
+                "source", "user_defined_mcp_workflow"
+            );
+            validationMetadata.put("eventKind", "DAG_REPAIR");
+            validationMetadata.put("eventState", "APPLIED");
+            validationMetadata.put("repairEvent", repairEvent);
+        }
         if (validationContext != null && validationContext.budgetCaps() != null
             && validationContext.budgetCaps().configured()) {
             validationMetadata.put("agentBudgetCaps", validationContext.budgetCaps().metadata());
@@ -1418,16 +1433,18 @@ class AgentPlanner {
             }
         }
         Integer previousMandatoryStepId = null;
+        boolean authoritativeDagConfigured = !authoritativeWorkflowNodes(context.authoritativeWorkflowDag()).isEmpty();
         for (String mandatoryTool : mandatoryTools) {
             Integer mandatoryStepId = firstToolStepId(toolStepIds, mandatoryTool);
             if (mandatoryStepId == null) {
                 issues.add("Mandatory tool is missing from InterpretationPlan: " + mandatoryTool);
                 continue;
             }
-            if (previousMandatoryStepId != null && mandatoryStepId <= previousMandatoryStepId) {
+            if (!authoritativeDagConfigured
+                && previousMandatoryStepId != null && mandatoryStepId <= previousMandatoryStepId) {
                 issues.add("Mandatory tools must appear in configured order: " + mandatoryTool);
             }
-            if (previousMandatoryStepId != null
+            if (!authoritativeDagConfigured && previousMandatoryStepId != null
                 && !dependsOnStep(mandatoryStepId, previousMandatoryStepId, stepsById, new LinkedHashSet<>())) {
                 issues.add("Mandatory tool must depend on previous configured workflow step: " + mandatoryTool);
             }
@@ -1435,6 +1452,10 @@ class AgentPlanner {
                 issues.add("final_answer must depend on mandatory tool before answering: " + mandatoryTool);
             }
             previousMandatoryStepId = mandatoryStepId;
+        }
+        if (authoritativeDagConfigured) {
+            validateAuthoritativeWorkflowDependencies(
+                context.authoritativeWorkflowDag(), stepsById, toolStepIds, issues);
         }
         if (context.requireDocumentWebVerification()) {
             Integer documentStepId = firstToolStepId(toolStepIds, context.documentSearchTool());
@@ -1462,6 +1483,54 @@ class AgentPlanner {
         validateAssetDiscoveryIsNotGuessed(plan, context, toolStepIds, issues);
         validateWebSearchCrawlerSplit(plan, context, stepsById, toolStepIds, finalStep, issues);
         return issues;
+    }
+
+    private void validateAuthoritativeWorkflowDependencies(Object rawDag,
+                                                            Map<Integer, InterpretationPlan.Step> stepsById,
+                                                            Map<String, List<Integer>> toolStepIds,
+                                                            List<String> issues) {
+        for (Map<String, Object> node : authoritativeWorkflowNodes(rawDag)) {
+            String tool = stringValue(firstObject(node, "tool", "toolName"));
+            Integer targetStepId = firstToolStepId(toolStepIds, tool);
+            if (targetStepId == null) {
+                continue;
+            }
+            for (String dependencyTool : stringList(firstObject(
+                node, "dependsOnTools", "depends_on_tools", "dependsOn", "depends_on"))) {
+                Integer dependencyStepId = firstToolStepId(toolStepIds, dependencyTool);
+                if (dependencyStepId == null) {
+                    issues.add("Authoritative workflow dependency tool is missing from InterpretationPlan: "
+                        + dependencyTool + " -> " + tool);
+                    continue;
+                }
+                if (!dependsOnStep(targetStepId, dependencyStepId, stepsById, new LinkedHashSet<>())) {
+                    issues.add("Mandatory tool must preserve authoritative workflow dependency: "
+                        + dependencyTool + " -> " + tool);
+                }
+            }
+        }
+    }
+
+    private List<Map<String, Object>> authoritativeWorkflowNodes(Object rawDag) {
+        if (!(rawDag instanceof Collection<?> nodes)) {
+            return List.of();
+        }
+        return nodes.stream()
+            .filter(Map.class::isInstance)
+            .map(Map.class::cast)
+            .map(this::asStringObjectMap)
+            .filter(node -> firstObject(node, "tool", "toolName") != null)
+            .toList();
+    }
+
+    private Map<String, Object> asStringObjectMap(Map<?, ?> source) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        source.forEach((key, value) -> {
+            if (key != null) {
+                result.put(String.valueOf(key), value);
+            }
+        });
+        return result;
     }
 
     private void validateAssetDiscoveryIsNotGuessed(InterpretationPlan plan,
@@ -3122,17 +3191,10 @@ class AgentPlanner {
 
     private Object authoritativeWorkflowDagForPlanning(Map<String, Object> runtimeAttributes) {
         Object rawDag = runtimeAttributes == null ? null : runtimeAttributes.get("authoritativeWorkflowDag");
-        if (!(rawDag instanceof Collection<?> nodes)) {
+        if (!(rawDag instanceof Collection<?> nodes) || nodes.isEmpty()) {
             return null;
         }
-        boolean hasDeclaredEdge = nodes.stream()
-            .filter(Map.class::isInstance)
-            .map(Map.class::cast)
-            .map(node -> node.get("dependsOnTools"))
-            .filter(Collection.class::isInstance)
-            .map(Collection.class::cast)
-            .anyMatch(dependencies -> !dependencies.isEmpty());
-        return hasDeclaredEdge ? rawDag : null;
+        return rawDag;
     }
 }
 

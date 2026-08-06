@@ -397,6 +397,8 @@ attempt, latencyMs, decisionReason
 
 ## 16. 独立工具与上下文参数恢复
 
+- `authoritativeWorkflowDag` 存在时，它是必选工具依赖关系的唯一标准镜像。Planner 校验不得根据必选工具列表位置推导“前一个工具”依赖；未在镜像中声明边的必选节点是独立分支，可以与其他就绪分支并行或按调度策略执行。
+- 模型增加、删除或改写镜像内工具边时，Runtime 必须在执行前恢复为标准镜像，并发布 `DAG_REPAIR/APPLIED`，修复码为 `AUTHORITATIVE_WORKFLOW_DAG_RESTORED`。修复后的合法计划必须直接进入执行，不得因被删除的模型边再次触发 Planner 重试。
 - 权威 DAG 是工具先后关系的唯一执行依据。未进入必选 DAG 的可选工具不得隐式继承 MCP 发布清单中排在它之前的必选工具；只有该工具显式声明的 `dependsOn` 可以形成前置条件。
 - 非模板工具缺少已发布 Schema 的必填参数时，Runtime 应先从成功完成节点的结构化输出及用户原始请求中恢复。字段匹配只允许使用 Schema 字段名及其显式 `aliases`，禁止按具体工具名、股票代码或业务问题编写分支。
 - 模型仅可提出证据指针：完成节点的 `stepId + outputPath`，或用户原文中的精确 `quote + value`。模型提出的值不具备执行权；Runtime 必须重新读取对应节点输出或核对用户原文，验真后才可写入工具参数。

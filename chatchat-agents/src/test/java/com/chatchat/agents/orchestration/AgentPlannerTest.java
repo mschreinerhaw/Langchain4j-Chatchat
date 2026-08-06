@@ -21,6 +21,69 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AgentPlannerTest {
 
     @Test
+    void authoritativeWorkflowDagAllowsIndependentMandatoryBranchAndRepairsModelEdge() {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        String assetTool = "workflow_asset_lookup";
+        String schemaTool = "workflow_schema_lookup";
+        String standardTool = "workflow_standard_lookup";
+        String response = """
+            {
+              "version":"1.0",
+              "intent":{"type":"data_query","goal":"validate design","risk_level":"low"},
+              "context":{"key_facts":[],"assumptions":[],"missing_info":[],"constraints":[]},
+              "plan":{
+                "steps":[
+                  {"id":1,"action_type":"mcp_tool","tool_name":"workflow_asset_lookup","input":{},"depends_on":[]},
+                  {"id":2,"action_type":"mcp_tool","tool_name":"workflow_schema_lookup","input":{},"depends_on":[1]},
+                  {"id":3,"action_type":"mcp_tool","tool_name":"workflow_standard_lookup","input":{},"depends_on":[2]},
+                  {"id":4,"action_type":"final_answer","tool_name":"","input":{"answer":"done"},"depends_on":[1,2,3]}
+                ],
+                "dependency_contracts":[
+                  {"from":1,"to":2,"required":true},
+                  {"from":2,"to":3,"required":true}
+                ],
+                "edge_contracts":[],
+                "bindings":[]
+              },
+              "execution_policy":{"max_steps":4,"allow_parallel":false,
+                "allow_tool":["workflow_asset_lookup","workflow_schema_lookup","workflow_standard_lookup"],
+                "deny_tool":[]},
+              "review":{"self_check":{"completeness_score":0.9,"hallucination_risk":0.1,
+                "tool_sufficiency":false,"missing_steps":[]},"fallback_plan":[]}
+            }
+            """;
+        ChatModel model = new ChatModel() {
+            @Override
+            public String chat(String message) {
+                return response;
+            }
+        };
+        List<Map<String, Object>> authoritativeDag = List.of(
+            Map.of("tool", assetTool, "dependsOnTools", List.of()),
+            Map.of("tool", schemaTool, "dependsOnTools", List.of(assetTool)),
+            Map.of("tool", standardTool, "dependsOnTools", List.of())
+        );
+
+        PlannerExecutionResult result = planner.decideNextAction(
+            model, "validate table", "",
+            List.of(assetTool, schemaTool, standardTool), List.of(), List.of(), List.of(),
+            List.of(assetTool, schemaTool, standardTool), true,
+            false, null, null,
+            Map.of("plannerMaxRepairAttempts", 1, "authoritativeWorkflowDag", authoritativeDag));
+
+        assertThat(result.plan().valid()).isTrue();
+        InterpretationPlan.Step standardStep = result.decision().interpretationPlan().steps().stream()
+            .filter(step -> standardTool.equals(step.toolName()))
+            .findFirst().orElseThrow();
+        assertThat(standardStep.dependsOn()).isEmpty();
+        assertThat(result.decision().executionPlan())
+            .containsEntry("eventKind", "DAG_REPAIR")
+            .containsEntry("eventState", "APPLIED");
+        assertThat(((Map<?, ?>) result.decision().executionPlan().get("repairEvent")).get("repairCode"))
+            .isEqualTo("AUTHORITATIVE_WORKFLOW_DAG_RESTORED");
+    }
+
+    @Test
     void repairsUnescapedQuotesInsideInterpretationPlanMarkdownAnswer() throws Exception {
         AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
         String raw = """
@@ -1245,6 +1308,9 @@ class AgentPlannerTest {
     private static class TestToolRegistry implements ToolRegistry {
         private final boolean includeApplicability;
         private final Set<String> tools = Set.of(
+            "workflow_asset_lookup",
+            "workflow_schema_lookup",
+            "workflow_standard_lookup",
             "mcp_chatchat_mcp_server_asset_query",
             "mcp_chatchat_mcp_server_template_query",
             "mcp_chatchat_mcp_server_sql_datasource_asset_query",
@@ -1337,7 +1403,8 @@ class AgentPlannerTest {
         }
 
         private List<ToolParameter> parameters(String toolName) {
-            if ("mcp_chatchat_mcp_server_asset_query".equals(toolName)
+            if ((toolName != null && toolName.startsWith("workflow_"))
+                || "mcp_chatchat_mcp_server_asset_query".equals(toolName)
                 || "mcp_chatchat_mcp_server_template_query".equals(toolName)
                 || "mcp_chatchat_mcp_server_sql_datasource_asset_query".equals(toolName)
                 || "mcp_chatchat_mcp_server_sql_datasource_template_query".equals(toolName)) {

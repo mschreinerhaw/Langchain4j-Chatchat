@@ -635,6 +635,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
             plannerStep.put("observationCount", observations.size());
             plannerSteps.add(plannerStep);
             runResultAdapter.recordRuntimeStep(requestRuntimeAttributes, AGENT_RUN_ID_ATTRIBUTE, plannerStep);
+            recordPlannerDagRepairEvent(
+                requestRuntimeAttributes, metadata,
+                decision.executionPlan() == null ? null : decision.executionPlan().get("repairEvent"));
             recordLifecyclePhase(
                 requestRuntimeAttributes,
                 metadata,
@@ -4527,6 +4530,37 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 "eventKind", "DAG_REPAIR",
                 "eventState", normalizedState,
                 "repairAttempt", rewriteCount,
+                "repairEvent", repairEvent
+            )
+        );
+    }
+
+    private void recordPlannerDagRepairEvent(Map<String, Object> runtimeAttributes,
+                                             Map<String, Object> metadata,
+                                             Object rawRepairEvent) {
+        Map<String, Object> repairEvent = asMap(rawRepairEvent);
+        if (!"DAG_REPAIR".equalsIgnoreCase(stringValue(repairEvent.get("eventKind")))
+            || repairEvent.isEmpty()) {
+            return;
+        }
+        if (metadata != null) {
+            metadataList(metadata, "dagRepairEvents").add(new LinkedHashMap<>(repairEvent));
+        }
+        String repairCode = firstNonBlank(
+            stringValue(repairEvent.get("repairCode")), "AUTHORITATIVE_DAG_REPAIR");
+        runResultAdapter.recordRuntimeObservation(
+            runtimeAttributes,
+            AGENT_RUN_ID_ATTRIBUTE,
+            "Runtime restored the planner DAG from the authoritative workflow contract ("
+                + repairCode + ").",
+            "interpretation_plan_repair",
+            metadataOf(
+                "type", "repair",
+                "workflow", "interpretation_plan",
+                "lifecyclePhase", "dag_repair",
+                "eventKind", "DAG_REPAIR",
+                "eventState", firstNonBlank(
+                    stringValue(repairEvent.get("eventState")), "APPLIED"),
                 "repairEvent", repairEvent
             )
         );

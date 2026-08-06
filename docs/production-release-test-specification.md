@@ -10,6 +10,8 @@
 
 DAG 拓扑审核、模型漂移的确定性修复、局部失败继续执行、任务终态聚合及 MCP 命名验收遵循
 [`Agent Runtime DAG 审核与自动修复规范`](agent-runtime-dag-governance-contract.md)。
+候选模型的能力、上下文、量化部署和准入测试遵循
+[`Agent Runtime 最低模型性能与部署要求`](agent-runtime-minimum-model-requirements.md)。
 
 ## 1. 目的
 

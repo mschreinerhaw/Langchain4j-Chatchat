@@ -181,6 +181,11 @@ export const auditApi = {
     return apiFetch(`${API_BASE}/audit-logs${query.toString() ? `?${query}` : ''}`);
   },
   get: id => apiFetch(`${API_BASE}/audit-logs/${encodeURIComponent(id)}`),
+  cleanup: ({ from, to, auditCategory = '' }) => {
+    const query = new URLSearchParams({ from: String(from), to: String(to) });
+    if (auditCategory) query.set('auditCategory', auditCategory);
+    return apiFetch(`${API_BASE}/audit-logs?${query}`, { method: 'DELETE' });
+  },
   listCommands: params => {
     const query = new URLSearchParams();
     Object.entries(params || {}).forEach(([key, value]) => {

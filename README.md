@@ -421,6 +421,7 @@ mvn -pl chatchat-e2e-tests -am test
 - [事实落地契约](docs/agent-runtime-fact-grounding-contract.md)
 - [最终答案质量评审契约](docs/agent-runtime-answer-quality-review-contract.md)
 - [Runtime 回归测试规范](docs/agent-runtime-regression-tests.md)
+- [Agent Runtime 最低模型性能与部署要求](docs/agent-runtime-minimum-model-requirements.md)
 - [企业元数据治理能力](docs/metadata-governance-capability.md)
 
 ## 数据与运维注意事项

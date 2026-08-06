@@ -5,10 +5,13 @@
         <h2>调用审计</h2>
         <p>查询 MCP 工具调用记录和执行结果摘要。</p>
       </div>
-      <el-button type="primary" :disabled="busy" :loading="busy" @click="search">
-        <el-icon><Search /></el-icon>
-        <span>查询</span>
-      </el-button>
+      <div class="panel-actions">
+        <el-button type="danger" plain :disabled="busy" @click="cleanupOpen = true">清理</el-button>
+        <el-button type="primary" :disabled="busy" :loading="busy" @click="search">
+          <el-icon><Search /></el-icon>
+          <span>查询</span>
+        </el-button>
+      </div>
     </header>
 
     <el-row :gutter="12">
@@ -73,6 +76,13 @@
     <ModalPanel :open="detailOpen" title="审计详情" wide @close="detailOpen = false">
       <JsonBlock :value="detail" />
     </ModalPanel>
+    <AuditCleanupDialog
+      :open="cleanupOpen"
+      title="清理调用审计日志"
+      @close="cleanupOpen = false"
+      @cleared="handleCleared"
+      @error="$emit('error', $event)"
+    />
   </section>
 </template>
 

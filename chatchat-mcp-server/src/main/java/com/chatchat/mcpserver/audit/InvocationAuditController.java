@@ -4,6 +4,7 @@ import com.chatchat.common.response.ApiResponse;
 import com.chatchat.mcpserver.audit.InvocationAuditService.AuditLogPage;
 import com.chatchat.mcpserver.audit.InvocationAuditService.AuditLogSearchQuery;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,6 +19,19 @@ import java.util.List;
 public class InvocationAuditController {
 
     private final InvocationAuditService auditService;
+
+    @DeleteMapping
+    public ApiResponse<AuditCleanupView> cleanup(
+        @RequestParam("from") Long from,
+        @RequestParam("to") Long to,
+        @RequestParam(value = "auditCategory", required = false) String auditCategory
+    ) {
+        if (from == null || to == null) {
+            throw new IllegalArgumentException("Audit cleanup requires both from and to");
+        }
+        long deletedCount = auditService.deleteByTimeRange(from, to, auditCategory);
+        return ApiResponse.success(new AuditCleanupView(deletedCount, from, to, auditCategory));
+    }
 
     /**
      * Searches the search.
@@ -199,6 +213,14 @@ public class InvocationAuditController {
         int totalPages,
         boolean hasPrevious,
         boolean hasNext
+    ) {
+    }
+
+    public record AuditCleanupView(
+        long deletedCount,
+        long from,
+        long to,
+        String auditCategory
     ) {
     }
 }

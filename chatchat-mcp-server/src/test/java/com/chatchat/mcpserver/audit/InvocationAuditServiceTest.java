@@ -19,6 +19,7 @@ import java.util.function.Consumer;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -138,6 +139,48 @@ class InvocationAuditServiceTest {
             .containsExactly("recent", "historical");
     }
 
+    @Test
+    void deletesOnlyAuditsInInclusiveTimeRangeAndRequestedCategory() throws Exception {
+        McpRocksDbStore store = usableStore();
+        InvocationAuditService service = service(store);
+        long now = System.currentTimeMillis();
+        InvocationAuditLog commandInRange = commandLogAt("command-in", "COMMAND_EXECUTION", now - 1_000);
+        InvocationAuditLog invocationInRange = commandLogAt("invocation-in", "TOOL_INVOCATION", now - 2_000);
+        InvocationAuditLog commandOutOfRange = commandLogAt("command-out", "COMMAND_EXECUTION", now - 20_000);
+        when(store.get("audit:data:command-in")).thenReturn(objectMapper.writeValueAsBytes(commandInRange));
+        when(store.get("audit:data:invocation-in")).thenReturn(objectMapper.writeValueAsBytes(invocationInRange));
+        when(store.get("audit:data:command-out")).thenReturn(objectMapper.writeValueAsBytes(commandOutOfRange));
+        doAnswer(invocation -> {
+            Consumer<McpRocksDbStore.KeyValue> consumer = invocation.getArgument(2);
+            auditIndex(consumer, "index-command-in", "command-in");
+            auditIndex(consumer, "index-invocation-in", "invocation-in");
+            auditIndex(consumer, "index-command-out", "command-out");
+            return null;
+        }).when(store).scan(org.mockito.ArgumentMatchers.eq("audit:index:"),
+            org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.any());
+
+        long deleted = service.deleteByTimeRange(now - 5_000, now, "COMMAND_EXECUTION");
+
+        assertThat(deleted).isEqualTo(1);
+        verify(store).delete("audit:data:command-in");
+        verify(store).delete("audit:index:index-command-in".getBytes(StandardCharsets.UTF_8));
+        verify(store, never()).delete("audit:data:invocation-in");
+        verify(store, never()).delete("audit:data:command-out");
+    }
+
+    @Test
+    void rejectsReversedCleanupTimeRangeWithoutScanning() {
+        McpRocksDbStore store = usableStore();
+        InvocationAuditService service = service(store);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                () -> service.deleteByTimeRange(2_000, 1_000, null))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("start time");
+        verify(store, never()).scan(org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.any());
+    }
+
     private InvocationAuditLog commandLog(String id, String username, String datasourceName,
                                            String commandType, String commandSummary, long secondsAgo) {
         InvocationAuditLog log = new InvocationAuditLog();
@@ -151,6 +194,20 @@ class InvocationAuditServiceTest {
         log.setSuccess(true);
         log.setCreatedAt(Instant.now().minusSeconds(secondsAgo));
         return log;
+    }
+
+    private InvocationAuditLog commandLogAt(String id, String auditCategory, long createdAt) {
+        InvocationAuditLog log = commandLog(id, "alice", "Main", "SQL_QUERY", "SELECT 1", 0);
+        log.setAuditCategory(auditCategory);
+        log.setCreatedAt(Instant.ofEpochMilli(createdAt));
+        return log;
+    }
+
+    private void auditIndex(Consumer<McpRocksDbStore.KeyValue> consumer, String indexSuffix, String id) {
+        consumer.accept(new McpRocksDbStore.KeyValue(
+            ("audit:index:" + indexSuffix).getBytes(StandardCharsets.UTF_8),
+            id.getBytes(StandardCharsets.UTF_8)
+        ));
     }
 
     private McpRocksDbStore usableStore() {

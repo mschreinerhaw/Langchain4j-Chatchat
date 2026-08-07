@@ -37,7 +37,8 @@ class McpToolRegistryBridgeLifecycleTest {
             mock(ToolRegistry.class),
             configService,
             mock(McpGatewayClient.class),
-            new ObjectMapper()
+            new ObjectMapper(),
+            new DynamicMcpToolRouteService()
         );
 
         verifyNoInteractions(configService);
@@ -60,7 +61,8 @@ class McpToolRegistryBridgeLifecycleTest {
             mock(ToolRegistry.class),
             configService,
             mock(McpGatewayClient.class),
-            new ObjectMapper()
+            new ObjectMapper(),
+            new DynamicMcpToolRouteService()
         );
 
         bridge.initialize();
@@ -81,7 +83,8 @@ class McpToolRegistryBridgeLifecycleTest {
             "web_search", "search", java.util.Map.of(), null, null, null, null, null,
             java.util.Map.of(), java.util.Map.of(), java.util.Map.of(), java.util.Map.of(), 30_000L,
             java.util.Map.of())));
-        McpToolRegistryBridge bridge = new McpToolRegistryBridge(registry, configService, gateway, new ObjectMapper());
+        McpToolRegistryBridge bridge = new McpToolRegistryBridge(
+            registry, configService, gateway, new ObjectMapper(), new DynamicMcpToolRouteService());
 
         bridge.refreshRegistry(0);
 
@@ -111,7 +114,7 @@ class McpToolRegistryBridgeLifecycleTest {
             new McpToolDefinition("template_execute", "execute", inputSchema)
         ));
         McpToolRegistryBridge bridge = new McpToolRegistryBridge(
-            registry, configService, gateway, new ObjectMapper());
+            registry, configService, gateway, new ObjectMapper(), new DynamicMcpToolRouteService());
 
         bridge.refreshRegistry(0);
 
@@ -131,7 +134,7 @@ class McpToolRegistryBridgeLifecycleTest {
     void finalSummaryPurposeIsPropagatedInsideMcpContext() throws Exception {
         McpToolRegistryBridge bridge = new McpToolRegistryBridge(
             mock(ToolRegistry.class), mock(McpServiceConfigService.class), mock(McpGatewayClient.class),
-            new ObjectMapper());
+            new ObjectMapper(), new DynamicMcpToolRouteService());
         Method enrich = McpToolRegistryBridge.class.getDeclaredMethod(
             "enrichInvocationContext", Map.class, com.chatchat.common.tool.ToolInput.class);
         enrich.setAccessible(true);
@@ -168,7 +171,7 @@ class McpToolRegistryBridgeLifecycleTest {
             .thenReturn(new com.chatchat.integration.mcp.model.McpToolInvokeResult(
                 true, Map.of("templates", List.of()), null, null));
         McpToolRegistryBridge bridge = new McpToolRegistryBridge(
-            registry, configService, gateway, new ObjectMapper());
+            registry, configService, gateway, new ObjectMapper(), new DynamicMcpToolRouteService());
 
         bridge.refreshRegistry(0);
         ArgumentCaptor<ToolRegistry.EnhancedTool> toolCaptor =

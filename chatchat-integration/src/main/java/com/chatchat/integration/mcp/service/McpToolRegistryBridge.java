@@ -38,16 +38,14 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 public class McpToolRegistryBridge {
 
-    private static final String TEMPLATE_QUERY_CHILD_ARGUMENT = "_templateQueryChildToolName";
-
     private final ToolRegistry toolRegistry;
     private final McpServiceConfigService configService;
     private final McpGatewayClient gatewayClient;
     private final ObjectMapper objectMapper;
+    private final DynamicMcpToolRouteService routeService;
 
     private final Set<String> managedToolNames = ConcurrentHashMap.newKeySet();
     private final Map<String, RegisteredMcpTool> registeredTools = new ConcurrentHashMap<>();
-    private final Map<String, String> dynamicParentRoutes = new ConcurrentHashMap<>();
 
     /**
      * Performs the initialize operation.
@@ -76,7 +74,7 @@ public class McpToolRegistryBridge {
         managedToolNames.forEach(toolRegistry::unregisterTool);
         managedToolNames.clear();
         registeredTools.clear();
-        dynamicParentRoutes.clear();
+        routeService.clear();
 
         List<McpServiceConfig> services = configService.listEnabled();
         if (services.isEmpty()) {
@@ -93,7 +91,12 @@ public class McpToolRegistryBridge {
                     continue;
                 }
                 for (McpToolDefinition definition : tools) {
-                    registerSingleTool(service, definition);
+                    try {
+                        registerSingleTool(service, definition);
+                    } catch (IllegalArgumentException ex) {
+                        log.warn("Skip invalid MCP tool route serviceId={} toolName={}: {}",
+                            service.getId(), definition == null ? null : definition.name(), ex.getMessage());
+                    }
                 }
             } catch (Exception ex) {
                 log.warn("Skip MCP service {} (id={}) during refresh: {}",
@@ -135,13 +138,9 @@ public class McpToolRegistryBridge {
      */
     public McpToolInvokeResult invoke(String serviceId, String toolName, Map<String, Object> arguments) {
         McpServiceConfig config = configService.getById(serviceId);
-        String parentToolName = dynamicParentRoutes.get(routeKey(serviceId, toolName));
-        if (parentToolName == null) {
-            return gatewayClient.invokeTool(config, toolName, arguments);
-        }
-        Map<String, Object> routedArguments = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
-        routedArguments.put(TEMPLATE_QUERY_CHILD_ARGUMENT, toolName);
-        return gatewayClient.invokeTool(config, parentToolName, routedArguments);
+        DynamicMcpToolRouteService.InvocationPlan plan =
+            routeService.plan(serviceId, toolName, arguments);
+        return gatewayClient.invokeTool(config, plan.remoteToolName(), plan.arguments());
     }
 
     /**
@@ -173,6 +172,12 @@ public class McpToolRegistryBridge {
         }
         if (definition.timeoutMillis() != null) {
             extraMetadata.put("remoteTimeoutMs", definition.timeoutMillis());
+        }
+        DynamicMcpToolRouteService.RouteDefinition route =
+            routeService.register(service.getId(), definition).orElse(null);
+        if (route != null) {
+            extraMetadata.put("parentRemoteToolName", route.parentToolName());
+            extraMetadata.put("routingMode", route.routingMode());
         }
 
         String category = firstText(definition.category(), "mcp_external");
@@ -206,14 +211,10 @@ public class McpToolRegistryBridge {
             .metadata(extraMetadata)
             .build();
 
-        String parentRemoteToolName = dynamicTemplateQueryParent(definition);
-        if (parentRemoteToolName != null) {
-            dynamicParentRoutes.put(routeKey(service.getId(), definition.name()), parentRemoteToolName);
-        }
         ToolRegistry.EnhancedTool tool = new McpEnhancedTool(
             service.getId(),
-            parentRemoteToolName == null ? definition.name() : parentRemoteToolName,
-            parentRemoteToolName == null ? null : definition.name(),
+            definition.name(),
+            route,
             metadata);
         toolRegistry.registerTool(localName, metadata, tool);
         managedToolNames.add(localName);
@@ -229,24 +230,6 @@ public class McpToolRegistryBridge {
             tags,
             applicability
         ));
-    }
-
-    private String dynamicTemplateQueryParent(McpToolDefinition definition) {
-        if (definition == null || definition.meta() == null) {
-            return null;
-        }
-        Object kind = definition.meta().get("kind");
-        Object parent = definition.meta().get("parentToolName");
-        if (!"dynamic_authorized_template_discovery".equals(String.valueOf(kind))
-            || parent == null || String.valueOf(parent).isBlank()) {
-            return null;
-        }
-        return String.valueOf(parent).trim();
-    }
-
-    private String routeKey(String serviceId, String childToolName) {
-        return String.valueOf(serviceId).trim().toLowerCase(Locale.ROOT) + "\n"
-            + String.valueOf(childToolName).trim().toLowerCase(Locale.ROOT);
     }
 
     /**
@@ -441,22 +424,23 @@ public class McpToolRegistryBridge {
     private class McpEnhancedTool implements ToolRegistry.EnhancedTool {
 
         private final String serviceId;
-        private final String remoteToolName;
-        private final String childToolName;
+        private final String requestedToolName;
+        private final DynamicMcpToolRouteService.RouteDefinition route;
         private final ToolMetadata metadata;
 
         /**
          * Creates a new McpToolRegistryBridge instance.
          *
          * @param serviceId the service id value
-         * @param remoteToolName the remote tool name value
+         * @param requestedToolName the Agent-visible tool name
          * @param metadata the metadata value
          */
-        private McpEnhancedTool(String serviceId, String remoteToolName, String childToolName,
+        private McpEnhancedTool(String serviceId, String requestedToolName,
+                                DynamicMcpToolRouteService.RouteDefinition route,
                                 ToolMetadata metadata) {
             this.serviceId = serviceId;
-            this.remoteToolName = remoteToolName;
-            this.childToolName = childToolName;
+            this.requestedToolName = requestedToolName;
+            this.route = route;
             this.metadata = metadata;
         }
 
@@ -486,29 +470,29 @@ public class McpToolRegistryBridge {
                 arguments.put("query", input.getRawInput());
             }
             enrichInvocationContext(arguments, input);
-            if (childToolName != null) {
-                arguments.put(TEMPLATE_QUERY_CHILD_ARGUMENT, childToolName);
-            }
+            DynamicMcpToolRouteService.InvocationPlan plan = route == null
+                ? routeService.plan(serviceId, requestedToolName, arguments)
+                : routeService.plan(route, arguments);
             long startedAt = System.currentTimeMillis();
             log.info("MCP bridge tool call started localTool={} serviceId={} remoteTool={} requestId={} timeoutMs={} args={}",
                 metadata.getId(),
                 serviceId,
-                remoteToolName,
+                plan.remoteToolName(),
                 input.getRequestId(),
                 metadata.getTimeoutMillis() == null || metadata.getTimeoutMillis() <= 0
                     ? "unbounded" : metadata.getTimeoutMillis(),
-                ToolLogSummarizer.summarize(arguments));
+                ToolLogSummarizer.summarize(plan.arguments()));
             McpToolInvokeResult result = gatewayClient.invokeTool(
                 configService.getById(serviceId),
-                remoteToolName,
-                arguments,
+                plan.remoteToolName(),
+                plan.arguments(),
                 metadata.getTimeoutMillis()
             );
             if (!result.success()) {
                 log.warn("MCP bridge tool call failed localTool={} serviceId={} remoteTool={} requestId={} durationMs={} errorCode={} action={} retryable={} error={} executionState={} result={}",
                     metadata.getId(),
                     serviceId,
-                    remoteToolName,
+                    plan.remoteToolName(),
                     input.getRequestId(),
                     Math.max(0L, System.currentTimeMillis() - startedAt),
                     result.errorCode(),
@@ -516,17 +500,17 @@ public class McpToolRegistryBridge {
                     result.retryable(),
                     result.errorMessage(),
                     result.executionState(),
-                    ToolLogSummarizer.summarizeResult(remoteToolName, result.data()));
+                    ToolLogSummarizer.summarizeResult(plan.remoteToolName(), result.data()));
                 return failureOutput(result);
             }
             log.info("MCP bridge tool call succeeded localTool={} serviceId={} remoteTool={} requestId={} durationMs={} message={} result={}",
                 metadata.getId(),
                 serviceId,
-                remoteToolName,
+                plan.remoteToolName(),
                 input.getRequestId(),
                 Math.max(0L, System.currentTimeMillis() - startedAt),
                 result.message(),
-                ToolLogSummarizer.summarizeResult(remoteToolName, result.data()));
+                ToolLogSummarizer.summarizeResult(plan.remoteToolName(), result.data()));
             ToolOutput output = ToolOutput.success(result.data(), result.message() == null ? "MCP call success" : result.message());
             if (output.getMetadata() == null) {
                 output.setMetadata(new LinkedHashMap<>());

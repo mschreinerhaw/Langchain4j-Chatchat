@@ -191,12 +191,17 @@ function collapseDuplicateAssistantResults(messages = []) {
     const duplicateAssistant = previous?.role === "assistant"
       && message?.role === "assistant"
       && !!answer
-      && normalizedAnswerContent(previous) === answer;
+      && !!normalizedAnswerContent(previous)
+      && (normalizedAnswerContent(previous) === answer
+        || (!!previous.taskId !== !!message.taskId));
     if (!duplicateAssistant) {
       collapsed.push(message);
       continue;
     }
-    if (assistantPresentationScore(message) > assistantPresentationScore(previous)) {
+    const preferMessage = (!!message.taskId !== !!previous.taskId)
+      ? !!message.taskId
+      : assistantPresentationScore(message) > assistantPresentationScore(previous);
+    if (preferMessage) {
       collapsed[collapsed.length - 1] = {
         ...message,
         id: previous.id || message.id,

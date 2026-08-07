@@ -393,7 +393,7 @@ public class ConversationService {
                 collapsed.add(message);
                 continue;
             }
-            if (presentationScore(message) > presentationScore(previous)) {
+            if (preferAssistantResult(message, previous)) {
                 collapsed.set(collapsed.size() - 1, message);
             }
         }
@@ -409,7 +409,30 @@ public class ConversationService {
         }
         String firstAnswer = normalizedAnswer(first);
         String secondAnswer = normalizedAnswer(second);
-        return !firstAnswer.isBlank() && firstAnswer.equals(secondAnswer);
+        if (firstAnswer.isBlank() || secondAnswer.isBlank()) {
+            return false;
+        }
+        if (firstAnswer.equals(secondAnswer)) {
+            return true;
+        }
+
+        // Agent execution and conversation memory persist the same turn independently.
+        // The runtime copy carries a task id and the richer presentation metadata,
+        // while the memory copy has no task id and can differ slightly after response
+        // normalization. Consecutive copies still represent one assistant turn.
+        return hasTaskId(first) != hasTaskId(second);
+    }
+
+    private static boolean hasTaskId(Conversation.Message message) {
+        return message != null && message.getTaskId() != null && !message.getTaskId().isBlank();
+    }
+
+    private static boolean preferAssistantResult(Conversation.Message candidate,
+                                                 Conversation.Message current) {
+        if (hasTaskId(candidate) != hasTaskId(current)) {
+            return hasTaskId(candidate);
+        }
+        return presentationScore(candidate) > presentationScore(current);
     }
 
     private static String normalizedAnswer(Conversation.Message message) {

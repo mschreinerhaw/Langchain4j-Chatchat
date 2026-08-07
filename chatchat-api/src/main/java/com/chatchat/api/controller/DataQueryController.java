@@ -755,7 +755,7 @@ public class DataQueryController {
                 collapsed.add(message);
                 continue;
             }
-            if (assistantPresentationScore(message) > assistantPresentationScore(previous)) {
+            if (preferAssistantResult(message, previous)) {
                 collapsed.set(collapsed.size() - 1, message);
             }
         }
@@ -770,7 +770,21 @@ public class DataQueryController {
         }
         String firstAnswer = normalizedAssistantAnswer(first);
         String secondAnswer = normalizedAssistantAnswer(second);
-        return !firstAnswer.isBlank() && firstAnswer.equals(secondAnswer);
+        if (firstAnswer.isBlank() || secondAnswer.isBlank()) {
+            return false;
+        }
+        return firstAnswer.equals(secondAnswer) || hasTaskId(first) != hasTaskId(second);
+    }
+
+    private boolean hasTaskId(ConversationMessage message) {
+        return message != null && message.getTaskId() != null && !message.getTaskId().isBlank();
+    }
+
+    private boolean preferAssistantResult(ConversationMessage candidate, ConversationMessage current) {
+        if (hasTaskId(candidate) != hasTaskId(current)) {
+            return hasTaskId(candidate);
+        }
+        return assistantPresentationScore(candidate) > assistantPresentationScore(current);
     }
 
     private String normalizedAssistantAnswer(ConversationMessage message) {

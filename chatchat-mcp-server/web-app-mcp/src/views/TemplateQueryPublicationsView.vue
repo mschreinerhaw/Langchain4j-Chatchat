@@ -21,11 +21,29 @@
       show-icon
     />
 
-    <el-table :data="bindings" border stripe empty-text="暂无模板查询发布绑定">
+    <section class="publication-list-toolbar">
+      <el-select v-model="publicationCategoryFilter" clearable placeholder="全部模板分类">
+        <el-option
+          v-for="item in publicationCategoryOptions"
+          :key="item.value"
+          :value="item.value"
+          :label="item.label"
+        />
+      </el-select>
+      <el-input
+        v-model.trim="publicationKeyword"
+        clearable
+        placeholder="搜索工具、父级检索、角色、成员或租户"
+      />
+    </section>
+
+    <el-table :data="paginatedBindings" border stripe empty-text="暂无模板查询发布绑定">
       <el-table-column prop="toolName" label="工具名称" min-width="230">
         <template #default="{ row }">
-          <code>{{ row.toolName }}</code>
-          <el-tag size="small" effect="plain">v{{ row.revision || 1 }}</el-tag>
+          <span class="tool-name-with-revision">
+            <code>{{ row.toolName }}</code>
+            <sup class="revision-badge">v{{ row.revision || 1 }}</sup>
+          </span>
         </template>
       </el-table-column>
       <el-table-column label="父级模板检索" min-width="230">
@@ -45,7 +63,9 @@
           {{ row.subjectType === 'USER' ? (row.username || '指定成员') : '角色全部成员' }}
         </template>
       </el-table-column>
-      <el-table-column prop="tenantId" label="租户" min-width="130" />
+      <el-table-column prop="tenantName" label="租户" min-width="130">
+        <template #default="{ row }">{{ row.tenantName || '-' }}</template>
+      </el-table-column>
       <el-table-column label="模板范围" min-width="330">
         <template #default="{ row }">
           <div class="binding-scope-tags">
@@ -67,6 +87,18 @@
         </template>
       </el-table-column>
     </el-table>
+
+    <div class="publication-list-pagination">
+      <span>共 {{ filteredBindings.length }} 条发布记录</span>
+      <el-pagination
+        v-model:current-page="publicationPage"
+        :page-size="publicationPageSize"
+        :total="filteredBindings.length"
+        layout="prev, pager, next"
+        background
+        hide-on-single-page
+      />
+    </div>
 
     <el-dialog v-model="dialogOpen" :title="form.id ? '编辑 template_query 发布范围' : '新增 template_query 发布范围'" width="980px" destroy-on-close>
       <el-alert

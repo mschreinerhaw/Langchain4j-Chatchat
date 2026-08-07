@@ -1,5 +1,10 @@
 .template-publication-page .el-alert { margin-bottom: 18px; }
 .cell-subtitle { display: block; margin-top: 3px; color: var(--el-text-color-secondary); }
+.tool-name-with-revision { display: inline-flex; max-width: 100%; align-items: flex-start; gap: 4px; }
+.tool-name-with-revision code { overflow-wrap: anywhere; }
+.revision-badge { flex: none; padding: 0 3px; border: 1px solid var(--el-color-primary-light-7); border-radius: 3px; color: var(--el-color-primary); font-size: 9px; font-weight: 500; line-height: 14px; }
+.publication-list-toolbar { display: grid; grid-template-columns: 220px minmax(280px, 1fr); gap: 10px; margin-bottom: 12px; }
+.publication-list-pagination { display: flex; justify-content: space-between; align-items: center; min-height: 36px; margin-top: 12px; color: var(--el-text-color-secondary); }
 .binding-scope-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .binding-form { margin-top: 18px; }
 .field-help { margin-top: 6px; color: var(--el-text-color-secondary); font-size: 12px; line-height: 1.5; }
@@ -19,6 +24,7 @@
 .template-option-copy small { color: var(--el-text-color-secondary); line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .template-pagination { display: flex; justify-content: space-between; align-items: center; min-height: 36px; margin-top: 12px; color: var(--el-text-color-secondary); }
 @media (max-width: 900px) {
+  .publication-list-toolbar { grid-template-columns: 1fr; }
   .template-picker-toolbar { grid-template-columns: 1fr; }
   .template-option-grid { grid-template-columns: 1fr; }
 }

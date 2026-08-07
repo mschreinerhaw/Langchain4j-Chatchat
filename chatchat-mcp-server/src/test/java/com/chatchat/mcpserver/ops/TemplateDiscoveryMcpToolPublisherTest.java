@@ -124,7 +124,8 @@ class TemplateDiscoveryMcpToolPublisherTest {
         return new TemplateDiscoveryMcpToolPublisher(
             server,
             mock(CommandTemplateDiscoveryService.class),
-            new TargetKindRegistry()
+            new TargetKindRegistry(),
+            mock(org.springframework.beans.factory.ObjectProvider.class)
         );
     }
 }

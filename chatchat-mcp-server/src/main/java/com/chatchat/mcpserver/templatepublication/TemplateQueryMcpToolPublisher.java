@@ -30,6 +30,7 @@ import java.util.LinkedHashSet;
 public class TemplateQueryMcpToolPublisher {
 
     private static final String LEGACY_TOOL_NAME = "template_query";
+    public static final String CHILD_TOOL_ARGUMENT = "_templateQueryChildToolName";
 
     private final McpSyncServer mcpSyncServer;
     private final TemplateQueryBindingService bindingService;
@@ -67,7 +68,7 @@ public class TemplateQueryMcpToolPublisher {
                 + "Template Query Publication administration and never returns raw commands, SQL, URLs, headers, "
                 + "request bodies, credentials, or other execution specifications.")
             .inputSchema(inputSchema())
-            .meta(meta())
+            .meta(meta(toolName))
             .build();
         return McpServerFeatures.SyncToolSpecification.builder()
             .tool(tool)
@@ -95,19 +96,42 @@ public class TemplateQueryMcpToolPublisher {
     }
 
     Map<String, Object> query(String toolName, Map<String, Object> arguments) {
+        return query(toolName, null, arguments);
+    }
+
+    public Map<String, Object> queryFromParent(String toolName, String parentToolName,
+                                               Map<String, Object> arguments) {
+        return query(toolName, parentToolName, arguments);
+    }
+
+    private Map<String, Object> query(String toolName, String invokedParentToolName,
+                                      Map<String, Object> arguments) {
         String reviewedName = TemplateQueryToolNamePolicy.requireToolName(toolName);
         TemplateQueryBindingService.PolicyResolution policy = bindingService.resolvePolicy(
             McpInvocationContext.current(), reviewedName);
+        if (invokedParentToolName != null && !policy.parentToolNames().contains(invokedParentToolName)) {
+            throw new IllegalArgumentException("Dynamic template query is not bound to parent tool: "
+                + invokedParentToolName);
+        }
         Map<String, Set<String>> allowed = policy.allowedTemplates();
         String requestedType = text(arguments == null ? null : arguments.get("assetType"));
         int limit = limit(arguments);
         Set<String> excludedTemplateIds = stringSet(
             arguments == null ? null : arguments.get("excludeTemplateIds"));
-        List<String> assetTypes = requestedType.isBlank()
-            ? List.of(TemplateAssetCatalogService.SSH, TemplateAssetCatalogService.SQL,
-                TemplateAssetCatalogService.HTTP, TemplateAssetCatalogService.DATABASE_QUERY,
-                TemplateAssetCatalogService.API)
-            : List.of(requestedType);
+        List<String> assetTypes;
+        if (invokedParentToolName != null) {
+            String configuredParent = bindingService.parentToolName(reviewedName);
+            if (!configuredParent.equals(invokedParentToolName)) {
+                throw new IllegalArgumentException("Dynamic template query parent mismatch: " + reviewedName);
+            }
+            assetTypes = List.of(parentAssetType(invokedParentToolName));
+        } else {
+            assetTypes = requestedType.isBlank()
+                ? List.of(TemplateAssetCatalogService.SSH, TemplateAssetCatalogService.SQL,
+                    TemplateAssetCatalogService.HTTP, TemplateAssetCatalogService.DATABASE_QUERY,
+                    TemplateAssetCatalogService.API)
+                : List.of(requestedType);
+        }
 
         List<Map<String, Object>> templates = new ArrayList<>();
         int candidateCount = 0;
@@ -119,6 +143,7 @@ public class TemplateQueryMcpToolPublisher {
                 continue;
             }
             Map<String, Object> scopedArguments = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
+            scopedArguments.remove(CHILD_TOOL_ARGUMENT);
             scopedArguments.put("assetType", assetType);
             if (TemplateAssetCatalogService.API.equals(assetType)) {
                 scopedArguments.put("templateIds", List.copyOf(templateIds));
@@ -162,7 +187,8 @@ public class TemplateQueryMcpToolPublisher {
             "returnedCount", templates.size(),
             "templates", List.copyOf(templates),
             "publicationScope", Map.of(
-                "serviceId", context == null || context.clientId() == null ? "" : context.clientId(),
+                "serviceId", context == null || context.clientId() == null || context.clientId().isBlank()
+                    ? TemplateQueryParentCatalog.SERVICE_ID : context.clientId(),
                 "roleBound", context != null && context.roles() != null && !context.roles().isBlank(),
                 "configuredAssetTypes", allowed.keySet(),
                 "configuredTemplateCount", policy.configuredTemplateCount(),
@@ -179,6 +205,26 @@ public class TemplateQueryMcpToolPublisher {
             ),
             "rawExecutionSpecReturned", false
         );
+    }
+
+    public static String childToolName(Map<String, Object> arguments) {
+        Object value = arguments == null ? null : arguments.get(CHILD_TOOL_ARGUMENT);
+        return value == null ? "" : String.valueOf(value).trim();
+    }
+
+    private String parentAssetType(String parentToolName) {
+        return switch (parentToolName) {
+            case com.chatchat.mcpserver.ops.TemplateDiscoveryMcpToolPublisher.SSH_TEMPLATE_TOOL_NAME ->
+                TemplateAssetCatalogService.SSH;
+            case com.chatchat.mcpserver.ops.TemplateDiscoveryMcpToolPublisher.SQL_DATASOURCE_TEMPLATE_TOOL_NAME ->
+                TemplateAssetCatalogService.SQL;
+            case com.chatchat.mcpserver.ops.TemplateDiscoveryMcpToolPublisher.HTTP_ENDPOINT_TEMPLATE_TOOL_NAME ->
+                TemplateAssetCatalogService.HTTP;
+            case com.chatchat.mcpserver.ops.TemplateDiscoveryMcpToolPublisher.DATABASE_QUERY_TEMPLATE_TOOL_NAME ->
+                TemplateAssetCatalogService.DATABASE_QUERY;
+            case ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME -> TemplateAssetCatalogService.API;
+            default -> throw new IllegalArgumentException("Unsupported parent template query tool: " + parentToolName);
+        };
     }
 
     private Map<String, Object> forceTarget(Map<String, Object> arguments, String assetType) {
@@ -221,7 +267,7 @@ public class TemplateQueryMcpToolPublisher {
         ), List.of(), false, null, null);
     }
 
-    private Map<String, Object> meta() {
+    private Map<String, Object> meta(String toolName) {
         Map<String, Object> governance = new LinkedHashMap<>();
         governance.put("category", "template_discovery");
         governance.put("operation_type", "read");
@@ -249,6 +295,8 @@ public class TemplateQueryMcpToolPublisher {
             "template_query_publication", "system-managed", governance));
         meta.put("schemaVersion", CommandTemplateDiscoveryService.QUERY_SCHEMA_VERSION);
         meta.put("kind", "dynamic_authorized_template_discovery");
+        meta.put("parentToolName", bindingService.parentToolName(toolName));
+        meta.put("routingMode", "api_parent_mcp_policy_filter");
         meta.put("readOnly", true);
         meta.put("runtimeAction", "read_only");
         meta.put("controlPlane", "server_managed");

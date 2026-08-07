@@ -53,6 +53,7 @@ class TemplateQueryMcpToolPublisherTest {
             mock(ApiTemplateDiscoveryMcpToolPublisher.class),
             new AgentRuntimeGovernanceFactory(new ObjectMapper()));
         when(bindings.publishedToolNames()).thenReturn(Set.of("customer_template_query"));
+        when(bindings.parentToolName("customer_template_query")).thenReturn("api_template_query");
 
         publisher.refresh();
 
@@ -61,7 +62,8 @@ class TemplateQueryMcpToolPublisherTest {
         verify(server).addTool(captor.capture());
         assertThat(captor.getValue().tool().name()).isEqualTo("customer_template_query");
         assertThat(captor.getValue().tool().meta().toString())
-            .contains("governanceEditable=false", "only_selected_templates=true", "allow_user_override=false");
+            .contains("governanceEditable=false", "only_selected_templates=true", "allow_user_override=false",
+                "parentToolName=api_template_query", "routingMode=api_parent_mcp_policy_filter");
         assertThat(captor.getValue().tool().inputSchema().properties())
             .doesNotContainKeys("templateIds", "serviceId", "roleId", "governance");
     }
@@ -95,6 +97,7 @@ class TemplateQueryMcpToolPublisherTest {
         Set<String> allowed = Set.of("customer_query", "excluded_query");
         when(bindings.resolvePolicy(context, "customer_template_query"))
             .thenReturn(policy(Map.of("api_service", allowed)));
+        when(bindings.parentToolName("customer_template_query")).thenReturn("api_template_query");
         when(apiDiscovery.queryAuthorized(org.mockito.ArgumentMatchers.anyMap(), eq(allowed)))
             .thenReturn(Map.of("templates", List.of(
                 Map.of("templateId", "customer_query", "name", "Customer query"),
@@ -103,7 +106,7 @@ class TemplateQueryMcpToolPublisherTest {
 
         Map<String, Object> result;
         try (McpInvocationContext.Scope ignored = McpInvocationContext.open(context)) {
-            result = publisher.query("customer_template_query", Map.of(
+            result = publisher.queryFromParent("customer_template_query", "api_template_query", Map.of(
                 "assetType", "api_service",
                 "templateIds", List.of("unbound_template"),
                 "excludeTemplateIds", List.of("excluded_query"),

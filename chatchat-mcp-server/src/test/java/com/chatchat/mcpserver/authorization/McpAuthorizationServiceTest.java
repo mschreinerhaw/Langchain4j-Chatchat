@@ -127,6 +127,37 @@ class McpAuthorizationServiceTest {
     }
 
     @Test
+    void authorizesParentInvocationAgainstServerInjectedChildToolIdentity() throws Exception {
+        String permissions = """
+            [{
+              "tenantId":"tenant-1",
+              "targetType":"role",
+              "targetId":"role-1",
+              "localToolName":"customer_service_template_query",
+              "effect":"allow",
+              "enabled":true
+            }]
+            """;
+        McpAuthorizationService service = service(snapshot(permissions));
+
+        McpAuthorizationService.AuthorizationDecision decision = service.authorize(
+            "api_template_query",
+            Map.of("userId", "user-1", "tenantId", "tenant-1",
+                "_templateQueryChildToolName", "customer_service_template_query")
+        );
+
+        assertThat(decision.allowed()).isTrue();
+    }
+
+    @Test
+    void exposesTenantNameWithoutUsingInternalIdAsDisplayFallback() throws Exception {
+        McpAuthorizationService service = service(snapshot("[]"));
+
+        assertThat(service.tenantName("tenant-1")).isEqualTo("示例租户");
+        assertThat(service.tenantName("missing-tenant")).isNull();
+    }
+
+    @Test
     void adminUserIdIsResolvedToWhitelistedUsername() throws Exception {
         McpAuthorizationService service = service(snapshot("[]"));
 
@@ -424,6 +455,7 @@ class McpAuthorizationServiceTest {
                 {"id":"user-admin-id","tenantId":"tenant-1","tenantNo":100000,"username":"admin","roleIds":[]}
               ],
               "roles":[{"id":"role-1","tenantId":"tenant-1","roleCode":"USER","roleName":"User"}],
+              "tenants":[{"id":"tenant-1","tenantName":"示例租户"}],
               "tools":[],
               "permissions":%s
             }

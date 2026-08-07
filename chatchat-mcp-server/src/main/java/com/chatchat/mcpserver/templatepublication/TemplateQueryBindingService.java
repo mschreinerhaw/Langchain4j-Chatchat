@@ -109,10 +109,14 @@ public class TemplateQueryBindingService {
 
     @Transactional(readOnly = true)
     public PolicyResolution resolvePolicy(McpInvocationContext.Context context, String toolName) {
-        if (context == null || context.clientId() == null || context.clientId().isBlank()) {
+        if (context == null) {
             return PolicyResolution.empty();
         }
         String requiredToolName = toolName == null ? null : TemplateQueryToolNamePolicy.requireToolName(toolName);
+        String serviceId = normalize(context.clientId());
+        if (serviceId == null && requiredToolName != null) {
+            serviceId = normalize(TemplateQueryParentCatalog.SERVICE_ID);
+        }
         McpAuthorizationService.CallerAuthorizationContext caller = authorizationService.currentCallerContext();
         Set<String> callerRoles = new LinkedHashSet<>();
         if (caller != null && caller.roleIds() != null) {
@@ -124,7 +128,7 @@ public class TemplateQueryBindingService {
         }
         long generation = bindingGeneration.get();
         PolicyCacheKey cacheKey = new PolicyCacheKey(
-            normalize(context.clientId()), requiredToolName, tenantId,
+            serviceId, requiredToolName, tenantId,
             normalize(caller.userId()), normalize(caller.username()),
             String.join(",", new TreeSet<>(callerRoles)),
             authorizationService.authorizationRevision(), generation);
@@ -136,7 +140,7 @@ public class TemplateQueryBindingService {
         Map<String, Set<String>> allowed = new LinkedHashMap<>();
         Map<String, Set<String>> authorizedKeysByRole = new LinkedHashMap<>();
         Set<String> parentToolNames = new TreeSet<>();
-        for (TemplateQueryBinding binding : repository.findByServiceIdAndEnabledTrue(context.clientId().trim())) {
+        for (TemplateQueryBinding binding : repository.findByServiceIdAndEnabledTrue(serviceId)) {
             if (requiredToolName != null && !requiredToolName.equals(toolName(binding.getDomainCode()))) {
                 continue;
             }
@@ -194,6 +198,24 @@ public class TemplateQueryBindingService {
             .map(this::toolName)
             .forEach(names::add);
         return Set.copyOf(names);
+    }
+
+    @Transactional(readOnly = true)
+    public String parentToolName(String toolName) {
+        String requiredToolName = TemplateQueryToolNamePolicy.requireToolName(toolName);
+        Set<String> parents = repository.findByDomainCode(
+                requiredToolName.substring(0, requiredToolName.length() - TemplateQueryToolNamePolicy.SUFFIX.length()))
+            .stream()
+            .filter(TemplateQueryBinding::isEnabled)
+            .map(TemplateQueryBinding::getParentToolName)
+            .filter(value -> value != null && !value.isBlank())
+            .map(String::trim)
+            .collect(java.util.stream.Collectors.toCollection(TreeSet::new));
+        if (parents.size() != 1) {
+            throw new IllegalStateException("Dynamic template query must resolve to exactly one parent tool: "
+                + requiredToolName);
+        }
+        return parents.iterator().next();
     }
 
     private BindingView save(TemplateQueryBinding binding, UpsertRequest request) {
@@ -357,7 +379,8 @@ public class TemplateQueryBindingService {
     private BindingView toView(TemplateQueryBinding binding,
                                TemplateQueryParentCatalog.ParentTool parent,
                                McpSynchronizedRole role, McpAuthorizationService.UserView user) {
-        return new BindingView(binding.getId(), binding.getTenantId(), binding.getServiceId(),
+        return new BindingView(binding.getId(), binding.getTenantId(), authorizationService.tenantName(binding.getTenantId()),
+            binding.getServiceId(),
             parent == null ? "" : parent.serviceName(), binding.getParentToolName(),
             parent == null ? "" : parent.title(), parent == null ? "" : parent.assetType(), binding.getRoleId(),
             role == null ? "" : role.getRoleCode(), role == null ? "" : role.getRoleName(),
@@ -385,7 +408,7 @@ public class TemplateQueryBindingService {
 
     public record UpsertRequest(String parentToolName, String roleId, String subjectType, String userId, String domainCode,
                                 List<String> templateKeys, Boolean enabled, Long expectedRevision) { }
-    public record BindingView(String id, String tenantId, String serviceId, String serviceName,
+    public record BindingView(String id, String tenantId, String tenantName, String serviceId, String serviceName,
                               String parentToolName, String parentToolTitle, String parentAssetType,
                               String roleId, String roleCode, String roleName, String subjectType,
                               String userId, String username, String domainCode,

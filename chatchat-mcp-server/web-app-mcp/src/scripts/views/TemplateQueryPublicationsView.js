@@ -23,6 +23,10 @@ export default {
       templateLoading: false,
       parents: [],
       roles: [],
+      publicationKeyword: '',
+      publicationCategoryFilter: '',
+      publicationPage: 1,
+      publicationPageSize: 10,
       keyword: '',
       typeFilter: '',
       businessCategoryFilter: '',
@@ -33,6 +37,35 @@ export default {
     };
   },
   computed: {
+    publicationCategoryOptions() {
+      const categories = new Map();
+      this.parents.forEach(parent => {
+        if (parent.assetType && !categories.has(parent.assetType)) {
+          categories.set(parent.assetType, {
+            value: parent.assetType,
+            label: TYPE_LABELS[parent.assetType] || parent.title || parent.assetType
+          });
+        }
+      });
+      return [...categories.values()]
+        .sort((left, right) => left.label.localeCompare(right.label, 'zh-CN'));
+    },
+    filteredBindings() {
+      const keyword = this.publicationKeyword.trim().toLowerCase();
+      return this.bindings.filter(binding => {
+        const categoryMatched = !this.publicationCategoryFilter
+          || binding.parentAssetType === this.publicationCategoryFilter;
+        const text = [binding.toolName, binding.domainCode, binding.parentToolTitle,
+          binding.parentToolName, binding.roleName, binding.roleCode, binding.username,
+          binding.tenantName]
+          .filter(Boolean).join(' ').toLowerCase();
+        return categoryMatched && (!keyword || text.includes(keyword));
+      });
+    },
+    paginatedBindings() {
+      const start = (this.publicationPage - 1) * this.publicationPageSize;
+      return this.filteredBindings.slice(start, start + this.publicationPageSize);
+    },
     filteredTemplates() {
       const keyword = this.keyword.trim().toLowerCase();
       return this.templates.filter(item => {
@@ -106,6 +139,8 @@ export default {
         this.bindings = Array.isArray(bindings) ? bindings : [];
         this.parents = Array.isArray(parents) ? parents : [];
         this.roles = Array.isArray(roles) ? roles : [];
+        const lastPage = Math.max(1, Math.ceil(this.filteredBindings.length / this.publicationPageSize));
+        this.publicationPage = Math.min(this.publicationPage, lastPage);
       } catch (error) {
         this.$emit('error', error);
       } finally {
@@ -246,6 +281,12 @@ export default {
     }
   },
   watch: {
+    publicationKeyword() {
+      this.publicationPage = 1;
+    },
+    publicationCategoryFilter() {
+      this.publicationPage = 1;
+    },
     keyword() {
       this.templatePage = 1;
     },

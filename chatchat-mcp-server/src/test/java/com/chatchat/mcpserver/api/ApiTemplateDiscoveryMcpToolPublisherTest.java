@@ -272,7 +272,8 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
             new LuceneMcpSearchService.SearchHit("order_status_api", "template", 8.0f, List.of("lucene"))
         ));
         ApiTemplateDiscoveryMcpToolPublisher publisher = new ApiTemplateDiscoveryMcpToolPublisher(
-            mock(McpSyncServer.class), configService, categoryService, lucene, new ObjectMapper());
+            mock(McpSyncServer.class), configService, categoryService, lucene, new ObjectMapper(),
+            mock(org.springframework.beans.factory.ObjectProvider.class));
 
         Map<String, Object> result = publisher.query(Map.of(
             "filters", Map.of("category", "订单服务", "intent", "查询状态")));
@@ -298,7 +299,8 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
         LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
         when(lucene.enabled()).thenReturn(true);
         ApiTemplateDiscoveryMcpToolPublisher publisher = new ApiTemplateDiscoveryMcpToolPublisher(
-            mock(McpSyncServer.class), configService, categoryService, lucene, new ObjectMapper());
+            mock(McpSyncServer.class), configService, categoryService, lucene, new ObjectMapper(),
+            mock(org.springframework.beans.factory.ObjectProvider.class));
 
         Map<String, Object> result = publisher.query(Map.of("filters", Map.of("intent", "查询状态")));
 
@@ -329,7 +331,8 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
             new LuceneMcpSearchService.SearchHit("generic_lookup_api", "template", 8.0f, List.of("default"))
         ));
         ApiTemplateDiscoveryMcpToolPublisher publisher = new ApiTemplateDiscoveryMcpToolPublisher(
-            mock(McpSyncServer.class), configService, categoryService, lucene, new ObjectMapper());
+            mock(McpSyncServer.class), configService, categoryService, lucene, new ObjectMapper(),
+            mock(org.springframework.beans.factory.ObjectProvider.class));
 
         Map<String, Object> result = publisher.query(Map.of(
             "filters", Map.of("category", "missing-category", "intent", "查询业务状态")));
@@ -375,6 +378,7 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
             new ApiServiceCategoryService.CategoryResolution(null, false, List.of()));
         when(categoryService.keywords(any())).thenReturn(List.of());
         return new ApiTemplateDiscoveryMcpToolPublisher(
-            mock(McpSyncServer.class), configService, categoryService, lucene, new ObjectMapper());
+            mock(McpSyncServer.class), configService, categoryService, lucene, new ObjectMapper(),
+            mock(org.springframework.beans.factory.ObjectProvider.class));
     }
 }

@@ -2,6 +2,7 @@ package com.chatchat.mcpserver.ops;
 
 import com.chatchat.mcpserver.mcp.McpToolApplicability;
 import com.chatchat.mcpserver.routing.TargetKindRegistry;
+import com.chatchat.mcpserver.templatepublication.TemplateQueryMcpToolPublisher;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -11,6 +12,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
@@ -31,6 +33,7 @@ public class TemplateDiscoveryMcpToolPublisher {
     private final McpSyncServer mcpSyncServer;
     private final CommandTemplateDiscoveryService templateDiscoveryService;
     private final TargetKindRegistry targetKindRegistry;
+    private final ObjectProvider<TemplateQueryMcpToolPublisher> dynamicQueryPublisher;
 
     @Order(Ordered.LOWEST_PRECEDENCE)
     @EventListener(ApplicationReadyEvent.class)
@@ -107,8 +110,12 @@ public class TemplateDiscoveryMcpToolPublisher {
             .tool(tool)
             .callHandler((exchange, request) -> {
                 try {
-                    Map<String, Object> result = templateDiscoveryService.query(forcedTemplateArguments(
-                        request.arguments(), toolName, assetType, targetKind));
+                    String childToolName = TemplateQueryMcpToolPublisher.childToolName(request.arguments());
+                    Map<String, Object> result = childToolName.isBlank()
+                        ? templateDiscoveryService.query(forcedTemplateArguments(
+                            request.arguments(), toolName, assetType, targetKind))
+                        : dynamicQueryPublisher.getObject().queryFromParent(
+                            childToolName, toolName, request.arguments());
                     return McpSchema.CallToolResult.builder()
                         .addTextContent(domainLabel + " query completed")
                         .structuredContent(result)

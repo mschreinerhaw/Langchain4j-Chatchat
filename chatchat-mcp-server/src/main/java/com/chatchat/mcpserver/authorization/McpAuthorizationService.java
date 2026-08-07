@@ -2,6 +2,8 @@ package com.chatchat.mcpserver.authorization;
 
 import com.chatchat.common.security.InternalCredentialProperties;
 import com.chatchat.mcpserver.mcp.McpInvocationContext;
+import com.chatchat.mcpserver.templatepublication.TemplateQueryMcpToolPublisher;
+import com.chatchat.mcpserver.templatepublication.TemplateQueryToolNamePolicy;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -113,21 +115,44 @@ public class McpAuthorizationService {
             return AuthorizationDecision.denyDecision("no MCP asset authorization is assigned to caller");
         }
 
-        String normalizedToolName = normalize(toolName);
-        McpScopeExpression requestedScope = requestedScope(toolName, arguments, principal);
+        String authorizationToolName = delegatedAuthorizationTool(toolName, arguments);
+        String normalizedToolName = normalize(authorizationToolName);
+        McpScopeExpression requestedScope = requestedScope(authorizationToolName, arguments, principal);
         List<ToolPermission> effective = matched.stream()
             .filter(permission -> permission.matchesRequest(normalizedToolName, requestedScope))
             .toList();
         boolean denied = effective.stream().anyMatch(permission -> DENY.equals(permission.effect()));
         if (denied) {
-            return AuthorizationDecision.denyDecision("no permission to execute mcp tool: " + toolName);
+            return AuthorizationDecision.denyDecision("no permission to execute mcp tool: " + authorizationToolName);
         }
         boolean hasAllowList = matched.stream().anyMatch(permission -> ALLOW.equals(permission.effect()));
         boolean allowed = effective.stream().anyMatch(permission -> ALLOW.equals(permission.effect()));
         if (hasAllowList && !allowed) {
-            return AuthorizationDecision.denyDecision("mcp tool is not included in caller allow list: " + toolName);
+            return AuthorizationDecision.denyDecision(
+                "mcp tool is not included in caller allow list: " + authorizationToolName);
         }
         return AuthorizationDecision.allowDecision();
+    }
+
+    private String delegatedAuthorizationTool(String invokedToolName, Map<String, Object> arguments) {
+        Object childValue = arguments == null ? null
+            : arguments.get(TemplateQueryMcpToolPublisher.CHILD_TOOL_ARGUMENT);
+        String childToolName = childValue == null ? null : blankToNull(String.valueOf(childValue));
+        if (childToolName == null || !isTemplateQueryParent(invokedToolName)) {
+            return invokedToolName;
+        }
+        try {
+            return TemplateQueryToolNamePolicy.requireToolName(childToolName);
+        } catch (IllegalArgumentException ex) {
+            return invokedToolName;
+        }
+    }
+
+    private boolean isTemplateQueryParent(String toolName) {
+        String normalized = normalize(toolName);
+        return Set.of("ssh_template_query", "database_ops_template_search",
+                "http_endpoint_template_query", "database_query_template_query", "api_template_query")
+            .contains(normalized);
     }
 
     private boolean isAdminPrincipal(Principal principal) {
@@ -216,6 +241,11 @@ public class McpAuthorizationService {
             .sorted(java.util.Comparator.comparing(UserView::username,
                 java.util.Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
             .toList();
+    }
+
+    public String tenantName(String tenantId) {
+        String normalizedTenantId = normalize(tenantId);
+        return normalizedTenantId == null ? null : snapshotRef.get().tenantNamesById().get(normalizedTenantId);
     }
 
     public boolean roleAllows(String roleId, String tenantId, String toolName,
@@ -894,11 +924,12 @@ public class McpAuthorizationService {
         Map<String, User> usersByUsername,
         Map<String, Role> rolesById,
         Map<String, String> roleCodeToId,
+        Map<String, String> tenantNamesById,
         List<Tool> tools,
         List<ToolPermission> permissions
     ) {
         static Snapshot empty() {
-            return new Snapshot(Instant.EPOCH, Map.of(), Map.of(), Map.of(), Map.of(), List.of(), List.of());
+            return new Snapshot(Instant.EPOCH, Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), List.of(), List.of());
         }
 
         static Snapshot from(JsonNode data) {
@@ -950,6 +981,18 @@ public class McpAuthorizationService {
                 }
             }
 
+            Map<String, String> tenantNamesById = new LinkedHashMap<>();
+            JsonNode tenants = data.path("tenants");
+            if (tenants.isArray()) {
+                for (JsonNode node : tenants) {
+                    String tenantId = normalize(node.path("id").asText(null));
+                    String tenantName = node.path("tenantName").asText(null);
+                    if (tenantId != null && tenantName != null && !tenantName.isBlank()) {
+                        tenantNamesById.put(tenantId, tenantName.trim());
+                    }
+                }
+            }
+
             List<Tool> tools = new ArrayList<>();
             JsonNode toolNodes = data.path("tools");
             if (toolNodes.isArray()) {
@@ -985,7 +1028,8 @@ public class McpAuthorizationService {
                     ));
                 }
             }
-            return new Snapshot(Instant.now(), usersById, usersByUsername, rolesById, roleCodeToId, tools, permissions);
+            return new Snapshot(Instant.now(), usersById, usersByUsername, rolesById, roleCodeToId,
+                tenantNamesById, tools, permissions);
         }
 
         boolean usable() {

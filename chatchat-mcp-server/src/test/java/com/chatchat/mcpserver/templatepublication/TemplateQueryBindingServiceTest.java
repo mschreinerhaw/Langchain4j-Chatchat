@@ -133,6 +133,30 @@ class TemplateQueryBindingServiceTest {
         assertThat(allowed.toString()).doesNotContain("secret_query");
     }
 
+    @Test
+    void resolvesFixedPublicationServiceWhenTransportClientIdIsUnavailable() {
+        TemplateQueryBindingRepository repository = mock(TemplateQueryBindingRepository.class);
+        McpSynchronizedRoleRepository roles = mock(McpSynchronizedRoleRepository.class);
+        McpAuthorizationService authorization = mock(McpAuthorizationService.class);
+        TemplateAssetCatalogService catalog = mock(TemplateAssetCatalogService.class);
+        TemplateQueryBindingService service = new TemplateQueryBindingService(
+            repository, catalog, new TemplateQueryParentCatalog(), roles, new ObjectMapper(), authorization);
+        TemplateQueryBinding binding = binding("binding-1", "tenant-1",
+            TemplateQueryParentCatalog.SERVICE_ID, "role-1", "[\"api_service:customer_query\"]");
+        when(repository.findByServiceIdAndEnabledTrue(TemplateQueryParentCatalog.SERVICE_ID))
+            .thenReturn(List.of(binding));
+        when(roles.findById("role-1")).thenReturn(Optional.of(role("role-1", "FINANCE")));
+        when(authorization.currentCallerContext()).thenReturn(
+            new McpAuthorizationService.CallerAuthorizationContext(
+                "tenant-1", "user-1", "user", List.of("role-1")));
+        when(catalog.listAuthorizedForRoleAndType("role-1", TemplateAssetCatalogService.API))
+            .thenReturn(List.of(asset("api_service:customer_query")));
+
+        McpInvocationContext.Context withoutClientId = context(null, "FINANCE");
+        assertThat(service.allowedTemplates(withoutClientId, "customer_template_query"))
+            .containsEntry("api_service", Set.of("customer_query"));
+    }
+
     private TemplateQueryBinding binding(String id, String tenant, String service, String role, String keys) {
         TemplateQueryBinding binding = new TemplateQueryBinding();
         binding.setId(id);

@@ -5,6 +5,7 @@ import com.chatchat.mcpserver.category.BusinessCategoryService;
 import com.chatchat.mcpserver.ops.CommandTemplateDiscoveryService;
 import com.chatchat.mcpserver.routing.TargetKindRegistry;
 import com.chatchat.mcpserver.search.LuceneMcpSearchService;
+import com.chatchat.mcpserver.templatepublication.TemplateQueryMcpToolPublisher;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
@@ -16,6 +17,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -40,6 +42,7 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
     private final ApiServiceCategoryService categoryService;
     private final LuceneMcpSearchService luceneSearchService;
     private final ObjectMapper objectMapper;
+    private final ObjectProvider<TemplateQueryMcpToolPublisher> dynamicQueryPublisher;
 
     @Order(Ordered.LOWEST_PRECEDENCE)
     @EventListener(ApplicationReadyEvent.class)
@@ -71,7 +74,11 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             .tool(tool)
             .callHandler((exchange, request) -> {
                 try {
-                    Map<String, Object> result = query(request.arguments());
+                    String childToolName = TemplateQueryMcpToolPublisher.childToolName(request.arguments());
+                    Map<String, Object> result = childToolName.isBlank()
+                        ? query(request.arguments())
+                        : dynamicQueryPublisher.getObject().queryFromParent(
+                            childToolName, TOOL_NAME, request.arguments());
                     return McpSchema.CallToolResult.builder()
                         .addTextContent("API template query completed")
                         .structuredContent(result)

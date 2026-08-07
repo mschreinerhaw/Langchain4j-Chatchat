@@ -99,6 +99,32 @@ class TemplateQueryBindingServiceTest {
     }
 
     @Test
+    void preservesParentRouteWhenMatchingBindingHasEmptyTemplateAuthorizationIntersection() {
+        TemplateQueryBindingRepository repository = mock(TemplateQueryBindingRepository.class);
+        McpSynchronizedRoleRepository roles = mock(McpSynchronizedRoleRepository.class);
+        McpAuthorizationService authorization = mock(McpAuthorizationService.class);
+        TemplateAssetCatalogService catalog = mock(TemplateAssetCatalogService.class);
+        TemplateQueryBindingService service = new TemplateQueryBindingService(
+            repository, catalog, new TemplateQueryParentCatalog(), roles, new ObjectMapper(), authorization);
+        TemplateQueryBinding binding = binding("binding-1", "tenant-1", "service-1", "role-1",
+            "[\"api_service:disabled_query\"]");
+        when(repository.findByServiceIdAndEnabledTrue("service-1")).thenReturn(List.of(binding));
+        when(roles.findById("role-1")).thenReturn(Optional.of(role("role-1", "FINANCE")));
+        when(authorization.currentCallerContext()).thenReturn(
+            new McpAuthorizationService.CallerAuthorizationContext(
+                "tenant-1", "user-1", "user", List.of("role-1")));
+        when(catalog.listAuthorizedForRoleAndType("role-1", TemplateAssetCatalogService.API))
+            .thenReturn(List.of());
+
+        TemplateQueryBindingService.PolicyResolution resolution = service.resolvePolicy(
+            context("service-1", "FINANCE"), "customer_template_query");
+
+        assertThat(resolution.parentToolNames()).containsExactly("api_template_query");
+        assertThat(resolution.allowedTemplates()).isEmpty();
+        assertThat(resolution.configuredTemplateCount()).isZero();
+    }
+
+    @Test
     void appliesRoleWideTemplatesAndOnlyTheAuthenticatedMembersPersonalTemplates() {
         TemplateQueryBindingRepository repository = mock(TemplateQueryBindingRepository.class);
         McpSynchronizedRoleRepository roles = mock(McpSynchronizedRoleRepository.class);

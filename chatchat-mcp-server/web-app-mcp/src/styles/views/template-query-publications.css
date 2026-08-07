@@ -2,7 +2,7 @@
 .cell-subtitle { display: block; margin-top: 3px; color: var(--el-text-color-secondary); }
 .tool-name-with-revision { display: inline; line-height: 1.7; }
 .tool-name-with-revision code { white-space: normal; overflow-wrap: anywhere; }
-.revision-badge { display: inline-block; margin-left: 4px; padding: 0 3px; border: 1px solid var(--el-color-primary-light-7); border-radius: 3px; color: var(--el-color-primary); font-size: 9px; font-weight: 500; line-height: 14px; vertical-align: super; }
+.revision-badge { display: inline-block; margin-left: 4px; padding: 0 3px; border: 1px solid var(--el-color-primary-light-7); border-radius: 3px; color: var(--el-color-primary); font-size: 9px; font-weight: 500; line-height: 14px; vertical-align: sub; }
 .publication-list-toolbar { display: grid; grid-template-columns: 220px minmax(280px, 1fr); gap: 10px; margin-bottom: 12px; }
 .publication-list-pagination { display: flex; justify-content: space-between; align-items: center; min-height: 36px; margin-top: 12px; color: var(--el-text-color-secondary); }
 .binding-scope-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }

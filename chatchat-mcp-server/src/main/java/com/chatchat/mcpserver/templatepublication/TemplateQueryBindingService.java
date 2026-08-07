@@ -161,6 +161,10 @@ public class TemplateQueryBindingService {
             } catch (IllegalArgumentException ex) {
                 continue;
             }
+            // Parent/child routing is established by the matching publication binding.
+            // It must not disappear merely because the current template authorization
+            // intersection is empty (for example after an asset was disabled).
+            parentToolNames.add(parent.toolName());
             String authorizationKey = role.getId() + "|" + parent.assetType();
             Set<String> authorizedKeys = authorizedKeysByRole.computeIfAbsent(authorizationKey, ignored ->
                 catalogService.listAuthorizedForRoleAndType(role.getId(), parent.assetType()).stream()
@@ -176,7 +180,6 @@ public class TemplateQueryBindingService {
                 }
                 allowed.computeIfAbsent(key.substring(0, separator), ignored -> new LinkedHashSet<>())
                     .add(key.substring(separator + 1));
-                parentToolNames.add(parent.toolName());
             }
         }
         Map<String, Set<String>> immutable = new LinkedHashMap<>();

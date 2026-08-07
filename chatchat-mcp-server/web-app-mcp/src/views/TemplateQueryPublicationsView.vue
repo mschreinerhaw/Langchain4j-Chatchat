@@ -42,7 +42,7 @@
         <template #default="{ row }">
           <span class="tool-name-with-revision">
             <code>{{ row.toolName }}</code>
-            <sup class="revision-badge">v{{ row.revision || 1 }}</sup>
+            <sub class="revision-badge">v{{ row.revision || 1 }}</sub>
           </span>
         </template>
       </el-table-column>

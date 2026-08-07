@@ -112,9 +112,15 @@ public class TemplateQueryMcpToolPublisher {
         if (configuredParent != null && !configuredParent.equals(invokedParentToolName)) {
             throw new IllegalArgumentException("Dynamic template query parent mismatch: " + reviewedName);
         }
-        TemplateQueryBindingService.PolicyResolution policy = bindingService.resolvePolicy(
-            McpInvocationContext.current(), reviewedName);
+        McpInvocationContext.Context invocationContext = McpInvocationContext.current();
+        TemplateQueryBindingService.PolicyResolution policy = invocationContext == null
+            ? bindingService.resolvePolicy(null, reviewedName, arguments)
+            : bindingService.resolvePolicy(invocationContext, reviewedName);
         if (invokedParentToolName != null && !policy.parentToolNames().contains(invokedParentToolName)) {
+            log.warn("Dynamic template query authorization rejected tool={} parent={} transportContext={} "
+                    + "resolvedParents={} configuredTemplateCount={}",
+                reviewedName, invokedParentToolName, invocationContext != null,
+                policy.parentToolNames(), policy.configuredTemplateCount());
             throw new IllegalArgumentException("Dynamic template query is not authorized for current caller: "
                 + reviewedName);
         }

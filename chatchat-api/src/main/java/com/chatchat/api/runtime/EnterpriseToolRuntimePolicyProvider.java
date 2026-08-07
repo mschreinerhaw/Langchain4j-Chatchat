@@ -54,7 +54,8 @@ public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyPro
         if (toolName == null) {
             return null;
         }
-        if (!isManagedMcpTool(toolName, metadata)) {
+        boolean managedMcpTool = isManagedMcpTool(toolName, metadata);
+        if (!managedMcpTool && !isMcpRuntimeTool(metadata)) {
             return null;
         }
         if (tenantId == null) {
@@ -69,6 +70,12 @@ public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyPro
         String userId = caller == null ? requestedUserId : normalize(caller.getId());
         Set<String> roleIds = resolvedRoleIds(tenantId, caller);
         attachCanonicalCallerContext(request, caller, roleIds);
+        // Dynamic template-query children are governed by their publication binding
+        // in MCP. API only resolves their canonical caller roles from the database;
+        // they are intentionally not required to be duplicated in mcp_tool_asset.
+        if (!managedMcpTool) {
+            return null;
+        }
         if (isAdminUser(userId) || hasRoleCode(roleIds, tenantId, "super_admin")) {
             return ToolRuntimePolicy.builder().allowed(true).build();
         }
@@ -128,6 +135,16 @@ public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyPro
         }
         String metadataId = metadata == null ? null : normalize(metadata.getId());
         return metadataId != null && toolAssetRepository.findById(metadataId).isPresent();
+    }
+
+    private boolean isMcpRuntimeTool(ToolMetadata metadata) {
+        if (metadata == null) {
+            return false;
+        }
+        boolean mcpCategory = metadata.getCategories() != null && metadata.getCategories().stream()
+            .anyMatch(value -> "mcp".equalsIgnoreCase(normalizeText(value)));
+        String author = normalizeText(metadata.getAuthor());
+        return mcpCategory || (author != null && author.regionMatches(true, 0, "MCP:", 0, 4));
     }
 
     private boolean active(McpToolPermission permission) {

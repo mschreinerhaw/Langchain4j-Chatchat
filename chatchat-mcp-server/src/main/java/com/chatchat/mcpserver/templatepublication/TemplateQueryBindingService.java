@@ -109,18 +109,32 @@ public class TemplateQueryBindingService {
 
     @Transactional(readOnly = true)
     public PolicyResolution resolvePolicy(McpInvocationContext.Context context, String toolName) {
-        if (context == null) {
+        return resolvePolicy(context, toolName, null);
+    }
+
+    @Transactional(readOnly = true)
+    public PolicyResolution resolvePolicy(McpInvocationContext.Context context, String toolName,
+                                          Map<String, Object> invocationArguments) {
+        if (context == null && toolName == null) {
             return PolicyResolution.empty();
         }
         String requiredToolName = toolName == null ? null : TemplateQueryToolNamePolicy.requireToolName(toolName);
-        // Dynamic template-query publications belong to the fixed logical MCP
-        // publication service. The transport client id identifies the caller's
-        // authenticated connection and may be a registry id/token owner that is
-        // different from that logical service id; it must not become a binding key.
-        String serviceId = requiredToolName == null
-            ? normalize(context.clientId())
-            : normalize(TemplateQueryParentCatalog.SERVICE_ID);
-        McpAuthorizationService.CallerAuthorizationContext caller = authorizationService.currentCallerContext();
+        String domainCode = requiredToolName == null ? null
+            : requiredToolName.substring(0,
+                requiredToolName.length() - TemplateQueryToolNamePolicy.SUFFIX.length());
+        // The persisted publication binding is the source of truth for a dynamic
+        // child tool's parent and service. Transport client ids are caller identity,
+        // not publication relationship keys.
+        List<TemplateQueryBinding> bindings = domainCode == null
+            ? repository.findByServiceIdAndEnabledTrue(normalize(context == null ? null : context.clientId()))
+            : repository.findByDomainCode(domainCode).stream()
+                .filter(TemplateQueryBinding::isEnabled)
+                .toList();
+        String serviceId = domainCode == null ? normalize(context == null ? null : context.clientId())
+            : "domain:" + normalize(domainCode);
+        McpAuthorizationService.CallerAuthorizationContext caller = invocationArguments == null
+            ? authorizationService.currentCallerContext()
+            : authorizationService.currentCallerContext(invocationArguments);
         Set<String> callerRoles = new LinkedHashSet<>();
         if (caller != null && caller.roleIds() != null) {
             caller.roleIds().stream().map(this::normalize).filter(item -> item != null).forEach(callerRoles::add);
@@ -143,10 +157,7 @@ public class TemplateQueryBindingService {
         Map<String, Set<String>> allowed = new LinkedHashMap<>();
         Map<String, Set<String>> authorizedKeysByRole = new LinkedHashMap<>();
         Set<String> parentToolNames = new TreeSet<>();
-        for (TemplateQueryBinding binding : repository.findByServiceIdAndEnabledTrue(serviceId)) {
-            if (requiredToolName != null && !requiredToolName.equals(toolName(binding.getDomainCode()))) {
-                continue;
-            }
+        for (TemplateQueryBinding binding : bindings) {
             if (!tenantId.equals(normalize(binding.getTenantId()))) {
                 continue;
             }
@@ -162,6 +173,9 @@ public class TemplateQueryBindingService {
             try {
                 parent = parentCatalog.require(binding.getParentToolName());
             } catch (IllegalArgumentException ex) {
+                continue;
+            }
+            if (!Objects.equals(normalize(binding.getServiceId()), normalize(parent.serviceId()))) {
                 continue;
             }
             // Parent/child routing is established by the matching publication binding.
@@ -298,7 +312,9 @@ public class TemplateQueryBindingService {
     }
 
     private boolean roleMatches(McpSynchronizedRole role, Set<String> tokens) {
-        return tokens.contains(normalize(role.getId())) || tokens.contains(normalize(role.getRoleCode()));
+        return tokens.contains(normalize(role.getId()))
+            || tokens.contains(normalize(role.getRoleCode()))
+            || tokens.contains(normalize(role.getRoleName()));
     }
 
     private boolean callerMatchesSubject(McpAuthorizationService.CallerAuthorizationContext caller,

@@ -220,6 +220,19 @@ public class McpAuthorizationService {
             List.copyOf(principal.roleIds()));
     }
 
+    /**
+     * Resolves the caller at an MCP tool-handler boundary. The servlet transport
+     * context remains authoritative when it is available. Tool arguments are a
+     * fallback for MCP SDK execution threads that no longer retain the servlet
+     * {@link ThreadLocal}; any role claim is still canonicalized against the
+     * synchronized role table and caller tenant before it is accepted.
+     */
+    public CallerAuthorizationContext currentCallerContext(Map<String, Object> arguments) {
+        Principal principal = principal(arguments == null ? Map.of() : arguments, snapshotRef.get());
+        return new CallerAuthorizationContext(principal.tenantId(), principal.userId(), principal.username(),
+            List.copyOf(principal.roleIds()));
+    }
+
     public List<UserView> roleMembers(String roleId) {
         String requiredRoleId = blankToNull(roleId);
         if (requiredRoleId == null) {
@@ -618,7 +631,7 @@ public class McpAuthorizationService {
         if (user != null) {
             roleIds.addAll(user.roleIds());
         }
-        roleIds.addAll(validatedTransportRoleIds(context, snapshot, tenantId));
+        roleIds.addAll(validatedCallerRoleIds(context, arguments, tenantId));
         return new Principal(
             tenantId,
             tenantNo,
@@ -635,21 +648,42 @@ public class McpAuthorizationService {
      * when each claimed role is present, active and belongs to the caller tenant
      * in the synchronized authorization snapshot.
      */
-    private Set<String> validatedTransportRoleIds(McpInvocationContext.Context context,
-                                                  Snapshot snapshot,
-                                                  String tenantId) {
-        if (context == null || blankToNull(context.clientId()) == null
-            || blankToNull(context.roles()) == null || blankToNull(tenantId) == null) {
+    private Set<String> validatedCallerRoleIds(McpInvocationContext.Context context,
+                                               Map<String, Object> arguments,
+                                               String tenantId) {
+        if (blankToNull(tenantId) == null) {
+            return Set.of();
+        }
+        Map<String, Object> mcpContext = map(arguments, "mcpContext");
+        Map<String, Object> identity = map(mcpContext, "identity");
+        String claimedRoles = context == null
+            ? firstText(text(arguments, "roles"), text(arguments, "roleIds"),
+                text(mcpContext, "roles"), text(identity, "roles"))
+            : context.roles();
+        if (blankToNull(claimedRoles) == null) {
             return Set.of();
         }
         Set<String> validated = new LinkedHashSet<>();
-        for (String candidate : context.roles().split("[\\s,;\\[\\]]+")) {
-            Role role = snapshot.rolesById().get(normalize(candidate));
-            if (role != null && snapshot.activeRole(role) && snapshot.sameTenant(role.tenantId(), tenantId)) {
-                validated.add(role.id());
+        for (String candidate : claimedRoles.split("[,;\\[\\]]+")) {
+            String token = blankToNull(candidate);
+            if (token == null) {
+                continue;
+            }
+            McpSynchronizedRole role = roleRepository.findById(token)
+                .filter(item -> tenantId.equalsIgnoreCase(blankToNull(item.getTenantId())))
+                .or(() -> roleRepository.findFirstByTenantIdAndRoleCodeIgnoreCase(tenantId, token))
+                .or(() -> roleRepository.findFirstByTenantIdAndRoleNameIgnoreCase(tenantId, token))
+                .orElse(null);
+            if (activeSynchronizedRole(role)) {
+                validated.add(role.getId());
             }
         }
         return validated;
+    }
+
+    private boolean activeSynchronizedRole(McpSynchronizedRole role) {
+        String status = role == null ? null : normalize(role.getStatus());
+        return role != null && (status == null || "enabled".equals(status) || "active".equals(status));
     }
 
     @SuppressWarnings("unchecked")

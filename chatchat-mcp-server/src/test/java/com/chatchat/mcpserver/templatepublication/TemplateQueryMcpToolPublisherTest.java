@@ -123,6 +123,33 @@ class TemplateQueryMcpToolPublisherTest {
         verifyNoInteractions(discovery);
     }
 
+    @Test
+    void resolvesPolicyFromInvocationArgumentsWhenTransportThreadContextIsLost() {
+        TemplateQueryBindingService bindings = mock(TemplateQueryBindingService.class);
+        ApiTemplateDiscoveryMcpToolPublisher apiDiscovery = mock(ApiTemplateDiscoveryMcpToolPublisher.class);
+        TemplateQueryMcpToolPublisher publisher = publisher(
+            bindings, mock(CommandTemplateDiscoveryService.class), apiDiscovery);
+        Map<String, Object> arguments = Map.of(
+            "tenantId", "tenant-1",
+            "userId", "user-1",
+            "roles", "role-1",
+            "limit", 10
+        );
+        Set<String> allowed = Set.of("customer_query");
+        when(bindings.parentToolName("customer_template_query")).thenReturn("api_template_query");
+        when(bindings.resolvePolicy(null, "customer_template_query", arguments))
+            .thenReturn(policy(Map.of("api_service", allowed)));
+        when(apiDiscovery.queryAuthorized(org.mockito.ArgumentMatchers.anyMap(), eq(allowed)))
+            .thenReturn(Map.of("templates", List.of(
+                Map.of("templateId", "customer_query", "name", "Customer query"))));
+
+        Map<String, Object> result = publisher.queryFromParent(
+            "customer_template_query", "api_template_query", arguments);
+
+        assertThat(result.get("templates").toString()).contains("customer_query");
+        verify(bindings).resolvePolicy(null, "customer_template_query", arguments);
+    }
+
     private TemplateQueryMcpToolPublisher publisher(TemplateQueryBindingService bindings,
                                                      CommandTemplateDiscoveryService discovery,
                                                      ApiTemplateDiscoveryMcpToolPublisher apiDiscovery) {

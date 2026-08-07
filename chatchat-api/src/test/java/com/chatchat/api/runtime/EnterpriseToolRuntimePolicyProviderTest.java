@@ -3,6 +3,7 @@ package com.chatchat.api.runtime;
 import com.chatchat.agents.runtime.ToolRuntimePolicy;
 import com.chatchat.agents.runtime.ToolRuntimeRequest;
 import com.chatchat.common.tool.ToolInput;
+import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.enterprise.entity.McpToolPermission;
 import com.chatchat.enterprise.entity.McpToolAsset;
 import com.chatchat.enterprise.entity.SysRole;
@@ -70,6 +71,34 @@ class EnterpriseToolRuntimePolicyProviderTest {
             .build(), null);
 
         assertThat(policy).isNull();
+    }
+
+    @Test
+    void resolvesDatabaseRolesForDynamicTemplateQueryWithoutRequiringToolAssetDuplication() {
+        String toolName = "mcp_chatchat_mcp_server_customer_service_template_query";
+        SysRole role = role("role-customer", "tenant-a", "CUSTOMER_SERVICE");
+        SysUser user = user("user-a", "tenant-a", "customer-agent");
+        when(toolAssetRepository.findByLocalToolName(toolName)).thenReturn(Optional.empty());
+        when(userRepository.findById("user-a")).thenReturn(Optional.of(user));
+        when(roleRepository.findByTenantIdOrderByRoleNameAsc("tenant-a")).thenReturn(List.of(role));
+        when(userRoleRepository.findByUserId("user-a")).thenReturn(List.of(binding(user, role)));
+        ToolRuntimeRequest request = ToolRuntimeRequest.builder()
+            .tenantId("tenant-a")
+            .userId("user-a")
+            .toolName(toolName)
+            .toolInput(ToolInput.builder().context(Map.of()).build())
+            .build();
+
+        ToolRuntimePolicy policy = provider.resolve(request, ToolMetadata.builder()
+            .categories(List.of("mcp", "external"))
+            .author("MCP:ChatChat MCP Server")
+            .build());
+
+        assertThat(policy).isNull();
+        assertThat(request.getToolInput().getContext())
+            .containsEntry("roles", List.of("role-customer"))
+            .containsEntry("username", "customer-agent")
+            .containsEntry("canonicalRolesResolved", true);
     }
 
     @Test

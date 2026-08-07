@@ -161,7 +161,7 @@ class McpAuthorizationServiceTest {
               "enabled":true
             }]
             """;
-        McpAuthorizationService service = service(snapshotWithoutUserRoles(permissions));
+        McpAuthorizationService service = service(snapshotWithoutUserRoles(permissions), transportRoleRepository());
         McpInvocationContext.Context context = new McpInvocationContext.Context(
             "api", "127.0.0.1", "junit", "request-1", "chatchat-api",
             "user-1", "user1", "tenant-1", "role-1", null, null, "trace-1",
@@ -177,6 +177,56 @@ class McpAuthorizationServiceTest {
         }
 
         assertThat(decision.allowed()).isTrue();
+    }
+
+    @Test
+    void resolvesAuthenticatedTransportRoleByRoleName() throws Exception {
+        McpAuthorizationService service = service(snapshotWithoutUserRoles("[]"), transportRoleRepository());
+        McpInvocationContext.Context context = new McpInvocationContext.Context(
+            "api", "127.0.0.1", "junit", "request-1", "chatchat-api",
+            "user-1", "user1", "tenant-1", "User", null, null, "trace-1",
+            null, null, "read", null
+        );
+
+        McpAuthorizationService.CallerAuthorizationContext caller;
+        try (McpInvocationContext.Scope ignored = McpInvocationContext.open(context)) {
+            caller = service.currentCallerContext();
+        }
+
+        assertThat(caller.roleIds()).contains("role-1");
+    }
+
+    @Test
+    void resolvesDatabaseValidatedRoleWhenTransportClientIdIsUnavailable() throws Exception {
+        McpAuthorizationService service = service(snapshotWithoutUserRoles("[]"), transportRoleRepository());
+        McpInvocationContext.Context context = new McpInvocationContext.Context(
+            "api", "127.0.0.1", "junit", "request-1", null,
+            "user-1", "user1", "tenant-1", "role-1", null, null, "trace-1",
+            null, null, "read", null
+        );
+
+        McpAuthorizationService.CallerAuthorizationContext caller;
+        try (McpInvocationContext.Scope ignored = McpInvocationContext.open(context)) {
+            caller = service.currentCallerContext();
+        }
+
+        assertThat(caller.roleIds()).containsExactly("role-1");
+    }
+
+    @Test
+    void resolvesDatabaseValidatedRoleFromArgumentsAfterTransportThreadContextIsLost() throws Exception {
+        McpAuthorizationService service = service(snapshotWithoutUserRoles("[]"), transportRoleRepository());
+
+        McpAuthorizationService.CallerAuthorizationContext caller = service.currentCallerContext(Map.of(
+            "tenantId", "tenant-1",
+            "userId", "user-1",
+            "username", "user1",
+            "roles", "role-1"
+        ));
+
+        assertThat(caller.tenantId()).isEqualTo("tenant-1");
+        assertThat(caller.userId()).isEqualTo("user-1");
+        assertThat(caller.roleIds()).containsExactly("role-1");
     }
 
     @Test
@@ -480,6 +530,21 @@ class McpAuthorizationServiceTest {
         role.setId(id);
         role.setSource(source);
         return role;
+    }
+
+    private McpSynchronizedRoleRepository transportRoleRepository() {
+        McpSynchronizedRoleRepository repository = mock(McpSynchronizedRoleRepository.class);
+        McpSynchronizedRole role = synchronizedRole("role-1", "chatchat-api");
+        role.setTenantId("tenant-1");
+        role.setRoleCode("USER");
+        role.setRoleName("User");
+        role.setStatus("enabled");
+        when(repository.findById("role-1")).thenReturn(Optional.of(role));
+        when(repository.findFirstByTenantIdAndRoleCodeIgnoreCase("tenant-1", "User"))
+            .thenReturn(Optional.of(role));
+        when(repository.findFirstByTenantIdAndRoleNameIgnoreCase("tenant-1", "User"))
+            .thenReturn(Optional.of(role));
+        return repository;
     }
 
     private Object emptySnapshot() throws Exception {

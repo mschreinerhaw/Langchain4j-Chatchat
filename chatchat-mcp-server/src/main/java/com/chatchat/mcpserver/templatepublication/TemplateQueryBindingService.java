@@ -113,10 +113,13 @@ public class TemplateQueryBindingService {
             return PolicyResolution.empty();
         }
         String requiredToolName = toolName == null ? null : TemplateQueryToolNamePolicy.requireToolName(toolName);
-        String serviceId = normalize(context.clientId());
-        if (serviceId == null && requiredToolName != null) {
-            serviceId = normalize(TemplateQueryParentCatalog.SERVICE_ID);
-        }
+        // Dynamic template-query publications belong to the fixed logical MCP
+        // publication service. The transport client id identifies the caller's
+        // authenticated connection and may be a registry id/token owner that is
+        // different from that logical service id; it must not become a binding key.
+        String serviceId = requiredToolName == null
+            ? normalize(context.clientId())
+            : normalize(TemplateQueryParentCatalog.SERVICE_ID);
         McpAuthorizationService.CallerAuthorizationContext caller = authorizationService.currentCallerContext();
         Set<String> callerRoles = new LinkedHashSet<>();
         if (caller != null && caller.roleIds() != null) {

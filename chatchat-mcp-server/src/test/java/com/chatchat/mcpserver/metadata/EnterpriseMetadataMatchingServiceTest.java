@@ -150,6 +150,27 @@ class EnterpriseMetadataMatchingServiceTest {
     }
 
     @Test
+    void usesCallerLimitForEverySuppliedFieldWithoutApplyingLegacyFixedCap() {
+        Map<String, Object> result = service.match(Map.of(
+            "fields", List.of(
+                Map.of("fieldName", "customer_name"),
+                Map.of("fieldName", "open_date")
+            ),
+            "limit", 135
+        ));
+
+        assertThat(map(result.get("coverage")))
+            .containsEntry("inputFieldCount", 2)
+            .containsEntry("processedFieldCount", 2)
+            .containsEntry("allFieldsProcessed", true);
+        ArgumentCaptor<EnterpriseMetadataSearchService.SearchRequest> requests =
+            ArgumentCaptor.forClass(EnterpriseMetadataSearchService.SearchRequest.class);
+        verify(searchService, org.mockito.Mockito.times(6)).search(requests.capture());
+        assertThat(requests.getAllValues())
+            .allSatisfy(request -> assertThat(request.limit()).isEqualTo(135));
+    }
+
+    @Test
     void expandsEveryColumnFromCreateTableBeforeSearching() {
         when(governanceAnalysisService.annotateDdl(any())).thenReturn(governanceResult(
             "metadata_ddl_annotation.v1", "DDL", "customer_profile"));

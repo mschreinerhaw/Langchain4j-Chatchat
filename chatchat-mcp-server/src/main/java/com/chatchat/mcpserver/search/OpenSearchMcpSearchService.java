@@ -1245,7 +1245,10 @@ public class OpenSearchMcpSearchService {
         Map<String, Object> effectiveQuery = filters.isEmpty()
             ? lexical
             : Map.of("bool", Map.of("must", List.of(lexical), "filter", filters));
-        int resultLimit = Math.max(1, Math.min(limit, 100));
+        if (limit < 1) {
+            throw new IllegalArgumentException("limit must be greater than 0");
+        }
+        int resultLimit = limit;
         JsonNode lexicalResponse = searchRequest("POST", "/" + index + "/_search", Map.of(
             "size", Math.max(resultLimit, Math.min(vectorCandidateLimit, 500)),
             "query", effectiveQuery

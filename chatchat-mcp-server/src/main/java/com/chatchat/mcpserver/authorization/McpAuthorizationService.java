@@ -23,6 +23,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -613,10 +614,11 @@ public class McpAuthorizationService {
             && !canonicalTenantId.equalsIgnoreCase(requestedTenantId);
         String tenantId = firstText(canonicalTenantId, requestedTenantId);
         Long tenantNo = user == null ? null : user.tenantNo();
-        Set<String> roleIds = new HashSet<>();
+        Set<String> roleIds = new LinkedHashSet<>();
         if (user != null) {
             roleIds.addAll(user.roleIds());
         }
+        roleIds.addAll(validatedTransportRoleIds(context, snapshot, tenantId));
         return new Principal(
             tenantId,
             tenantNo,
@@ -626,6 +628,28 @@ public class McpAuthorizationService {
             user != null,
             tenantMismatch
         );
+    }
+
+    /**
+     * Accepts role claims only from an authenticated MCP service call and only
+     * when each claimed role is present, active and belongs to the caller tenant
+     * in the synchronized authorization snapshot.
+     */
+    private Set<String> validatedTransportRoleIds(McpInvocationContext.Context context,
+                                                  Snapshot snapshot,
+                                                  String tenantId) {
+        if (context == null || blankToNull(context.clientId()) == null
+            || blankToNull(context.roles()) == null || blankToNull(tenantId) == null) {
+            return Set.of();
+        }
+        Set<String> validated = new LinkedHashSet<>();
+        for (String candidate : context.roles().split("[\\s,;\\[\\]]+")) {
+            Role role = snapshot.rolesById().get(normalize(candidate));
+            if (role != null && snapshot.activeRole(role) && snapshot.sameTenant(role.tenantId(), tenantId)) {
+                validated.add(role.id());
+            }
+        }
+        return validated;
     }
 
     @SuppressWarnings("unchecked")

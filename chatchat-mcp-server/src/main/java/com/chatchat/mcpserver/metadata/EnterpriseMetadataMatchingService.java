@@ -50,7 +50,8 @@ public class EnterpriseMetadataMatchingService {
         if (strategies.isEmpty()) {
             strategies = DEFAULT_MATCH_STRATEGIES;
         }
-        int candidateLimit = boundedLimit(request.get("candidateLimitPerType"));
+        int candidateLimit = requestedLimit(request.containsKey("candidateLimitPerType")
+            ? request.get("candidateLimitPerType") : request.get("limit"));
         ResolvedSchema schema = resolveSchema(request);
         List<MetadataEvidenceProviderProtocol.FieldQuery> providerFields =
             new ArrayList<>();
@@ -619,10 +620,23 @@ public class EnterpriseMetadataMatchingService {
         return result;
     }
 
-    private int boundedLimit(Object value) {
-        int requested = value instanceof Number number
-            ? number.intValue() : properties.getDefaultLimit();
-        return Math.max(1, Math.min(requested, properties.getMaxResults()));
+    private int requestedLimit(Object value) {
+        int requested;
+        if (value instanceof Number number) {
+            requested = number.intValue();
+        } else if (value != null) {
+            try {
+                requested = Integer.parseInt(String.valueOf(value).trim());
+            } catch (NumberFormatException ex) {
+                throw new IllegalArgumentException("limit must be an integer", ex);
+            }
+        } else {
+            requested = properties.getDefaultLimit();
+        }
+        if (requested < 1) {
+            throw new IllegalArgumentException("limit must be greater than 0");
+        }
+        return requested;
     }
 
     private List<String> requiredTypes() {

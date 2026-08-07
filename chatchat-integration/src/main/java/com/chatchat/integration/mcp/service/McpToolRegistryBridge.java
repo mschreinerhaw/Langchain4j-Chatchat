@@ -580,11 +580,15 @@ public class McpToolRegistryBridge {
             stringValue(inputContext.get("username")),
             stringValue(inputContext.get("userName"))
         );
-        String roles = firstText(
-            stringValue(arguments.get("roles")),
-            stringValue(arguments.get("roleIds")),
-            stringValue(inputContext.get("roles")),
-            stringValue(inputContext.get("roleIds"))
+        boolean canonicalRolesResolved = Boolean.TRUE.equals(inputContext.get("canonicalRolesResolved"));
+        String canonicalRoles = firstText(
+            roleValue(inputContext.get("roles")),
+            roleValue(inputContext.get("roleIds"))
+        );
+        String roles = canonicalRolesResolved ? canonicalRoles : firstText(
+            roleValue(arguments.get("roles")),
+            roleValue(arguments.get("roleIds")),
+            canonicalRoles
         );
         String requestId = firstText(
             stringValue(arguments.get("requestId")),
@@ -606,7 +610,14 @@ public class McpToolRegistryBridge {
         if (username != null) {
             arguments.putIfAbsent("username", username);
         }
-        if (roles != null) {
+        if (canonicalRolesResolved) {
+            arguments.remove("roleIds");
+            if (roles == null) {
+                arguments.remove("roles");
+            } else {
+                arguments.put("roles", roles);
+            }
+        } else if (roles != null) {
             arguments.putIfAbsent("roles", roles);
         }
         if (requestId != null) {
@@ -634,7 +645,14 @@ public class McpToolRegistryBridge {
         if (username != null) {
             mcpContext.putIfAbsent("username", username);
         }
-        if (roles != null) {
+        if (canonicalRolesResolved) {
+            mcpContext.remove("roleIds");
+            if (roles == null) {
+                mcpContext.remove("roles");
+            } else {
+                mcpContext.put("roles", roles);
+            }
+        } else if (roles != null) {
             mcpContext.putIfAbsent("roles", roles);
         }
         if (requestId != null) {
@@ -678,6 +696,19 @@ public class McpToolRegistryBridge {
 
     private String stringValue(Object value) {
         return value == null ? null : String.valueOf(value);
+    }
+
+    private String roleValue(Object value) {
+        if (value instanceof Iterable<?> values) {
+            List<String> roles = new ArrayList<>();
+            for (Object item : values) {
+                if (item != null && !String.valueOf(item).isBlank()) {
+                    roles.add(String.valueOf(item).trim());
+                }
+            }
+            return roles.isEmpty() ? null : String.join(",", roles);
+        }
+        return stringValue(value);
     }
 
     private Object firstPresent(Object... values) {

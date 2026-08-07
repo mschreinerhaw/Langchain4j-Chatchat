@@ -151,6 +151,34 @@ class McpToolRegistryBridgeLifecycleTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void canonicalRuntimeRolesOverrideModelSuppliedRoles() throws Exception {
+        McpToolRegistryBridge bridge = new McpToolRegistryBridge(
+            mock(ToolRegistry.class), mock(McpServiceConfigService.class), mock(McpGatewayClient.class),
+            new ObjectMapper(), new DynamicMcpToolRouteService());
+        Method enrich = McpToolRegistryBridge.class.getDeclaredMethod(
+            "enrichInvocationContext", Map.class, com.chatchat.common.tool.ToolInput.class);
+        enrich.setAccessible(true);
+        Map<String, Object> arguments = new LinkedHashMap<>(Map.of(
+            "roles", "SUPER_ADMIN",
+            "roleIds", "forged-role"
+        ));
+        var input = com.chatchat.common.tool.ToolInput.builder()
+            .context(Map.of(
+                "roles", List.of("role-a", "role-b"),
+                "canonicalRolesResolved", true
+            ))
+            .build();
+
+        enrich.invoke(bridge, arguments, input);
+
+        assertThat(arguments).containsEntry("roles", "role-a,role-b").doesNotContainKey("roleIds");
+        assertThat((Map<String, Object>) arguments.get("mcpContext"))
+            .containsEntry("roles", "role-a,role-b")
+            .doesNotContainKey("roleIds");
+    }
+
+    @Test
     void dynamicTemplateQueryInvokesParentAndInjectsChildIdentity() {
         ToolRegistry registry = mock(ToolRegistry.class);
         McpServiceConfigService configService = mock(McpServiceConfigService.class);

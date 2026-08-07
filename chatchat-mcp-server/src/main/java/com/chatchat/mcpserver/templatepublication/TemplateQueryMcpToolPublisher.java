@@ -107,11 +107,16 @@ public class TemplateQueryMcpToolPublisher {
     private Map<String, Object> query(String toolName, String invokedParentToolName,
                                       Map<String, Object> arguments) {
         String reviewedName = TemplateQueryToolNamePolicy.requireToolName(toolName);
+        String configuredParent = invokedParentToolName == null
+            ? null : bindingService.parentToolName(reviewedName);
+        if (configuredParent != null && !configuredParent.equals(invokedParentToolName)) {
+            throw new IllegalArgumentException("Dynamic template query parent mismatch: " + reviewedName);
+        }
         TemplateQueryBindingService.PolicyResolution policy = bindingService.resolvePolicy(
             McpInvocationContext.current(), reviewedName);
         if (invokedParentToolName != null && !policy.parentToolNames().contains(invokedParentToolName)) {
-            throw new IllegalArgumentException("Dynamic template query is not bound to parent tool: "
-                + invokedParentToolName);
+            throw new IllegalArgumentException("Dynamic template query is not authorized for current caller: "
+                + reviewedName);
         }
         Map<String, Set<String>> allowed = policy.allowedTemplates();
         String requestedType = text(arguments == null ? null : arguments.get("assetType"));
@@ -120,10 +125,6 @@ public class TemplateQueryMcpToolPublisher {
             arguments == null ? null : arguments.get("excludeTemplateIds"));
         List<String> assetTypes;
         if (invokedParentToolName != null) {
-            String configuredParent = bindingService.parentToolName(reviewedName);
-            if (!configuredParent.equals(invokedParentToolName)) {
-                throw new IllegalArgumentException("Dynamic template query parent mismatch: " + reviewedName);
-            }
             assetTypes = List.of(parentAssetType(invokedParentToolName));
         } else {
             assetTypes = requestedType.isBlank()

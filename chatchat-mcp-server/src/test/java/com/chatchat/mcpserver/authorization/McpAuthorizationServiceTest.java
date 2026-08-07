@@ -150,6 +150,53 @@ class McpAuthorizationServiceTest {
     }
 
     @Test
+    void usesValidatedRolesForwardedByAuthenticatedApiWhenUserMembershipSnapshotIsStale() throws Exception {
+        String permissions = """
+            [{
+              "tenantId":"tenant-1",
+              "targetType":"role",
+              "targetId":"role-1",
+              "localToolName":"customer_service_template_query",
+              "effect":"allow",
+              "enabled":true
+            }]
+            """;
+        McpAuthorizationService service = service(snapshotWithoutUserRoles(permissions));
+        McpInvocationContext.Context context = new McpInvocationContext.Context(
+            "api", "127.0.0.1", "junit", "request-1", "chatchat-api",
+            "user-1", "user1", "tenant-1", "role-1", null, null, "trace-1",
+            null, null, "read", null
+        );
+
+        McpAuthorizationService.AuthorizationDecision decision;
+        try (McpInvocationContext.Scope ignored = McpInvocationContext.open(context)) {
+            decision = service.authorize(
+                "api_template_query",
+                Map.of("_templateQueryChildToolName", "customer_service_template_query")
+            );
+        }
+
+        assertThat(decision.allowed()).isTrue();
+    }
+
+    @Test
+    void rejectsForwardedRoleThatDoesNotBelongToCallerTenant() throws Exception {
+        McpAuthorizationService service = service(multiTenantBusinessAdminSnapshot());
+        McpInvocationContext.Context context = new McpInvocationContext.Context(
+            "api", "127.0.0.1", "junit", "request-1", "chatchat-api",
+            "business-admin-a", null, "tenant-a", "role-business-b", null, null, "trace-1",
+            null, null, "read", null
+        );
+
+        McpAuthorizationService.CallerAuthorizationContext caller;
+        try (McpInvocationContext.Scope ignored = McpInvocationContext.open(context)) {
+            caller = service.currentCallerContext();
+        }
+
+        assertThat(caller.roleIds()).doesNotContain("role-business-b");
+    }
+
+    @Test
     void exposesTenantNameWithoutUsingInternalIdAsDisplayFallback() throws Exception {
         McpAuthorizationService service = service(snapshot("[]"));
 
@@ -454,6 +501,19 @@ class McpAuthorizationServiceTest {
                 {"id":"user-1","tenantId":"tenant-1","username":"user1","roleIds":["role-1"]},
                 {"id":"user-admin-id","tenantId":"tenant-1","tenantNo":100000,"username":"admin","roleIds":[]}
               ],
+              "roles":[{"id":"role-1","tenantId":"tenant-1","roleCode":"USER","roleName":"User"}],
+              "tenants":[{"id":"tenant-1","tenantName":"示例租户"}],
+              "tools":[],
+              "permissions":%s
+            }
+            """.formatted(permissions));
+        return snapshotFrom(data);
+    }
+
+    private Object snapshotWithoutUserRoles(String permissions) throws Exception {
+        JsonNode data = objectMapper.readTree("""
+            {
+              "users":[{"id":"user-1","tenantId":"tenant-1","username":"user1","roleIds":[]}],
               "roles":[{"id":"role-1","tenantId":"tenant-1","roleCode":"USER","roleName":"User"}],
               "tenants":[{"id":"tenant-1","tenantName":"示例租户"}],
               "tools":[],

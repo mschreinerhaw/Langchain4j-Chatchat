@@ -188,6 +188,11 @@ public class McpAuthorizationService {
         return currentView();
     }
 
+    public CallerAuthorizationContext currentCallerContext() {
+        Principal principal = principal(Map.of(), snapshotRef.get());
+        return new CallerAuthorizationContext(principal.tenantId(), List.copyOf(principal.roleIds()));
+    }
+
     public List<RoleView> roles(String tenantId) {
         List<McpSynchronizedRole> roles = tenantId == null || tenantId.isBlank()
             ? roleRepository.findAllByOrderByRoleNameAscRoleCodeAsc()
@@ -740,6 +745,8 @@ public class McpAuthorizationService {
         boolean tenantMismatch
     ) {
     }
+
+    public record CallerAuthorizationContext(String tenantId, List<String> roleIds) { }
 
     private record User(String id, String tenantId, Long tenantNo, String username, List<String> roleIds) {
     }

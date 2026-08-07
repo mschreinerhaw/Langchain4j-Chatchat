@@ -584,6 +584,19 @@
         primary key (id)
     );
 
+    create table mcp_template_query_binding (
+        enabled boolean not null,
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        id varchar(64) not null,
+        role_id varchar(64) not null,
+        service_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        template_keys_json longtext not null,
+        primary key (id),
+        constraint uk_template_query_service_role unique (service_id, role_id)
+    );
+
     create table mcp_trading_calendar_config (
         enabled boolean not null,
         updated_at timestamp(6) with time zone not null,

@@ -47,6 +47,7 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
     private final McpAuthorizationProperties authorizationProperties;
     private final McpAuthorizationService authorizationService;
     private final McpLicenseService licenseService;
+    private final McpServiceRegistryService serviceRegistryService;
 
     /**
      * Performs the do filter internal operation.
@@ -146,10 +147,7 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
                 textAt(body, "params", "_meta", "traceId"),
                 textAt(body, "params", "context", "traceId")
             ),
-            firstText(
-                request.getHeader("X-Client-Id"),
-                request.getHeader("MCP-Client-Id")
-            ),
+            serviceRegistryService.resolveActiveServiceId(resolveInvocationToken(request)),
             firstText(
                 request.getHeader("X-User-Id"),
                 request.getHeader("X-Operator-Id"),
@@ -266,6 +264,19 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
             return false;
         }
         return "tools/call".equals(text(node.get("method")));
+    }
+
+    private String resolveInvocationToken(HttpServletRequest request) {
+        String token = request.getHeader("X-MCP-TOKEN");
+        if (token != null && !token.isBlank()) {
+            return token.trim();
+        }
+        String authorization = request.getHeader("Authorization");
+        if (authorization != null && authorization.regionMatches(true, 0, "Bearer ", 0, 7)) {
+            String value = authorization.substring(7).trim();
+            return value.isBlank() ? null : value;
+        }
+        return null;
     }
 
     private boolean containsMcpRequest(JsonNode node) {

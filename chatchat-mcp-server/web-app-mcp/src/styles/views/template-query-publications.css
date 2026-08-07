@@ -1,0 +1,21 @@
+.template-publication-page .el-alert { margin-bottom: 18px; }
+.cell-subtitle { display: block; margin-top: 3px; color: var(--el-text-color-secondary); }
+.binding-scope-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.binding-form { margin-top: 18px; }
+.w-100 { width: 100%; }
+.template-picker-toolbar { display: grid; grid-template-columns: 210px minmax(260px, 1fr) auto auto; gap: 10px; margin: 8px 0 12px; }
+.selection-summary { display: flex; gap: 8px; align-items: center; min-height: 34px; padding: 8px 12px; background: var(--el-fill-color-light); border-radius: 8px; }
+.template-groups { display: block; max-height: 490px; margin-top: 12px; padding-right: 6px; overflow: auto; }
+.template-group { margin-bottom: 16px; }
+.template-group > header { display: flex; justify-content: space-between; margin-bottom: 8px; color: var(--el-text-color-regular); }
+.template-group > header span { color: var(--el-text-color-secondary); font-size: 12px; }
+.template-option-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.template-option-grid .el-checkbox { width: 100%; height: auto; min-height: 88px; margin: 0; padding: 10px 12px; align-items: flex-start; }
+.template-option-grid .el-checkbox__label { min-width: 0; white-space: normal; }
+.template-option-copy { display: grid; gap: 3px; }
+.template-option-copy code { color: var(--el-color-primary); overflow-wrap: anywhere; }
+.template-option-copy small { color: var(--el-text-color-secondary); line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+@media (max-width: 900px) {
+  .template-picker-toolbar { grid-template-columns: 1fr; }
+  .template-option-grid { grid-template-columns: 1fr; }
+}

@@ -370,6 +370,12 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
         }
     }
 
+    public Map<String, Object> queryAuthorized(Map<String, Object> arguments, java.util.Set<String> templateIds) {
+        Map<String, Object> restricted = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
+        restricted.put("templateIds", templateIds == null ? List.of() : List.copyOf(templateIds));
+        return query(restricted);
+    }
+
     @SuppressWarnings("unchecked")
     private List<String> requestedTemplateIds(Map<String, Object> arguments) {
         if (arguments == null || arguments.isEmpty()) {

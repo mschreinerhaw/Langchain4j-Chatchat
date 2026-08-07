@@ -61,6 +61,18 @@ public class McpServiceRegistryService {
             .isPresent();
     }
 
+    @Transactional(readOnly = true)
+    public String resolveActiveServiceId(String token) {
+        if (token == null || token.isBlank()) {
+            return null;
+        }
+        return repository.findByServiceToken(token.trim())
+            .filter(McpServiceRegistration::isEnabled)
+            .filter(service -> "ACTIVE".equalsIgnoreCase(service.getStatus()))
+            .map(McpServiceRegistration::getId)
+            .orElse(null);
+    }
+
     /**
      * Creates the create.
      *

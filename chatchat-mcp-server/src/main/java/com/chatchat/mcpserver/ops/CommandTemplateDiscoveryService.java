@@ -184,6 +184,7 @@ public class CommandTemplateDiscoveryService {
             filters
         );
         Set<String> rejectedTemplateIds = excludedTemplateIds(arguments);
+        Set<String> allowedTemplateIds = requestedTemplateIds(arguments);
         if (!rejectedTemplateIds.isEmpty()) {
             filters.put("excludeTemplateIds", rejectedTemplateIds);
         }
@@ -197,15 +198,15 @@ public class CommandTemplateDiscoveryService {
         Map<String, Object> retrievalFilters = filtersWithNormalizedIntent(filters, intent);
         Map<String, Object> result;
         if ("sql_datasource".equals(assetType)) {
-            result = querySqlTemplates(assetType, filters, retrievalFilters, intent, limit);
+            result = querySqlTemplates(assetType, filters, retrievalFilters, intent, limit, allowedTemplateIds);
         } else if ("http_endpoint".equals(assetType)) {
-            result = queryHttpTemplates(assetType, filters, retrievalFilters, intent, limit);
+            result = queryHttpTemplates(assetType, filters, retrievalFilters, intent, limit, allowedTemplateIds);
         } else if ("database_query".equals(assetType)) {
-            result = queryDatabaseQueryTemplates(assetType, filters, retrievalFilters, intent, limit);
+            result = queryDatabaseQueryTemplates(assetType, filters, retrievalFilters, intent, limit, allowedTemplateIds);
         } else if (!"ssh_host".equals(assetType)) {
             result = result(assetType, filters, intent, List.of(), limit, List.of(), false, false);
         } else {
-            result = querySshTemplates(assetType, filters, retrievalFilters, intent, limit);
+            result = querySshTemplates(assetType, filters, retrievalFilters, intent, limit, allowedTemplateIds);
         }
         result.put("routingDecision", routingDecision(target, startedAt));
         return result;
@@ -215,7 +216,8 @@ public class CommandTemplateDiscoveryService {
                                                   Map<String, Object> filters,
                                                   Map<String, Object> retrievalFilters,
                                                   NormalizedIntent intent,
-                                                  int limit) {
+                                                  int limit,
+                                                  Set<String> allowedTemplateIds) {
         List<SshHostConfig> hosts = matchingHosts(filters);
         Set<String> allowedByAsset = allowedTemplatesForHosts(hosts, filters);
         boolean assetScoped = hasAssetScope(filters);
@@ -235,6 +237,7 @@ public class CommandTemplateDiscoveryService {
             Math.max(limit, MAX_LIMIT)
         );
         List<ScoredTemplate<CommandTemplateConfig>> candidates = templates.stream()
+            .filter(template -> allowedTemplateIds.isEmpty() || allowedTemplateIds.contains(normalize(template.getCode())))
             .filter(template -> !assetScoped || allowedByAsset.contains(normalize(template.getCode())))
             .filter(template -> !excludedTemplateIds(filters).contains(normalize(template.getCode())))
             .map(template -> new ScoredTemplate<>(template,
@@ -261,7 +264,8 @@ public class CommandTemplateDiscoveryService {
                                                   Map<String, Object> filters,
                                                   Map<String, Object> retrievalFilters,
                                                   NormalizedIntent intent,
-                                                  int limit) {
+                                                  int limit,
+                                                  Set<String> allowedTemplateIds) {
         boolean assetScoped = hasAssetScope(filters);
         List<SqlDatasourceConfig> datasources = matchingDatasources(filters);
         if (assetScoped && datasources.isEmpty()) {
@@ -286,6 +290,7 @@ public class CommandTemplateDiscoveryService {
             Math.max(limit, MAX_LIMIT)
         );
         List<ScoredTemplate<SqlTemplateConfig>> candidates = templates.stream()
+            .filter(template -> allowedTemplateIds.isEmpty() || allowedTemplateIds.contains(normalize(template.getCode())))
             .filter(template -> sqlTemplateCompatibleWithRequestedType(template, filters, datasources, assetScoped))
             .filter(template -> sqlTemplateAuthorizedByDatasource(template, datasources, assetScoped))
             .filter(template -> !excludedTemplateIds(filters).contains(normalize(template.getCode())))
@@ -331,8 +336,11 @@ public class CommandTemplateDiscoveryService {
                                                    Map<String, Object> filters,
                                                    Map<String, Object> retrievalFilters,
                                                    NormalizedIntent intent,
-                                                   int limit) {
+                                                   int limit,
+                                                   Set<String> allowedTemplateIds) {
         List<HttpEndpointConfig> endpoints = httpEndpointConfigService.listEnabled().stream()
+            .filter(endpoint -> allowedTemplateIds.isEmpty() || allowedTemplateIds.contains(normalize(
+                firstText(endpoint.getToolName(), firstText(endpoint.getName(), endpoint.getId())))))
             .filter(endpoint -> matchesHttpEndpoint(endpoint, filters))
             .filter(endpoint -> !excludedTemplateIds(filters).contains(normalize(
                 firstText(endpoint.getToolName(), firstText(endpoint.getName(), endpoint.getId())))))
@@ -374,7 +382,8 @@ public class CommandTemplateDiscoveryService {
                                                             Map<String, Object> filters,
                                                             Map<String, Object> retrievalFilters,
                                                             NormalizedIntent intent,
-                                                            int limit) {
+                                                            int limit,
+                                                            Set<String> allowedTemplateIds) {
         List<DatabaseQueryConfig> templates = databaseQueryConfigService == null
             ? List.of()
             : databaseQueryConfigService.listEnabled();
@@ -384,6 +393,10 @@ public class CommandTemplateDiscoveryService {
         List<DatabaseQueryConfig> scopedDatabaseQueries = assetScoped
             ? scopedDatabaseQueryTemplates(templates, filters)
             : templates;
+        scopedDatabaseQueries = scopedDatabaseQueries.stream()
+            .filter(template -> allowedTemplateIds.isEmpty()
+                || allowedTemplateIds.contains(normalize(databaseQueryTemplateId(template))))
+            .toList();
         // Candidate template text belongs in indexed documents, never in the query.
         // Feeding every scoped template's title/description back into intent makes
         // unrelated templates self-match and can explode OpenSearch query clauses.
@@ -2681,6 +2694,24 @@ public class CommandTemplateDiscoveryService {
             }
         }
         return Set.copyOf(excluded);
+    }
+
+    private Set<String> requestedTemplateIds(Map<String, Object> arguments) {
+        if (arguments == null || arguments.isEmpty()) {
+            return Set.of();
+        }
+        Object value = arguments.get("_authorizedTemplateIds");
+        if (!(value instanceof Iterable<?> iterable)) {
+            return Set.of();
+        }
+        Set<String> requested = new LinkedHashSet<>();
+        for (Object item : iterable) {
+            String normalized = normalize(item == null ? null : String.valueOf(item));
+            if (normalized != null) {
+                requested.add(normalized);
+            }
+        }
+        return Set.copyOf(requested);
     }
 
     private void rejectConcreteTargetFields(Map<String, Object> filters) {

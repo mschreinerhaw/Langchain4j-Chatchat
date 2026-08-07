@@ -581,6 +581,18 @@
         primary key (id)
     ) engine=InnoDB;
 
+    create table mcp_template_query_binding (
+        enabled bit not null,
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        id varchar(64) not null,
+        role_id varchar(64) not null,
+        service_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        template_keys_json longtext not null,
+        primary key (id)
+    ) engine=InnoDB;
+
     create table mcp_trading_calendar_config (
         enabled bit not null,
         updated_at datetime(6) not null,
@@ -649,6 +661,9 @@
 
     alter table mcp_sql_template 
        add constraint UK46shneqbk0h3xgcgi0y01cm1x unique (code);
+
+    alter table mcp_template_query_binding
+       add constraint uk_template_query_service_role unique (service_id, role_id);
 
     alter table mcp_metadata_scenario 
        add constraint fk_metadata_scenario_domain 

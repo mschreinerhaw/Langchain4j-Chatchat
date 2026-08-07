@@ -196,6 +196,19 @@ export const auditApi = {
   getCommand: id => apiFetch(`${API_BASE}/audit-logs/commands/${encodeURIComponent(id)}`)
 };
 
+export const templateQueryPublicationsApi = {
+  list: () => apiFetch(`${API_BASE}/template-query-publications`),
+  templates: () => apiFetch(`${API_BASE}/template-query-publications/templates`),
+  services: () => apiFetch(`${API_BASE}/template-query-publications/services`),
+  roles: () => apiFetch(`${API_BASE}/template-query-publications/roles`),
+  save: binding => saveEntity(`${API_BASE}/template-query-publications`, binding),
+  remove: id => apiFetch(`${API_BASE}/template-query-publications/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  setEnabled: (id, enabled) => apiFetch(
+    `${API_BASE}/template-query-publications/${encodeURIComponent(id)}/enabled?enabled=${enabled}`,
+    { method: 'POST' }
+  )
+};
+
 export const authorizationApi = {
   snapshot: () => apiFetch(`${API_BASE}/mcp-authorization/snapshot`),
   sync: () => apiFetch(`${API_BASE}/mcp-authorization/sync`, { method: 'POST' }),

@@ -198,8 +198,9 @@ export const auditApi = {
 
 export const templateQueryPublicationsApi = {
   list: () => apiFetch(`${API_BASE}/template-query-publications`),
-  templates: () => apiFetch(`${API_BASE}/template-query-publications/templates`),
-  services: () => apiFetch(`${API_BASE}/template-query-publications/services`),
+  templates: (roleId, parentToolName) => apiFetch(`${API_BASE}/template-query-publications/templates?roleId=${encodeURIComponent(roleId)}&parentToolName=${encodeURIComponent(parentToolName)}`),
+  members: roleId => apiFetch(`${API_BASE}/template-query-publications/members?roleId=${encodeURIComponent(roleId)}`),
+  parents: () => apiFetch(`${API_BASE}/template-query-publications/parents`),
   roles: () => apiFetch(`${API_BASE}/template-query-publications/roles`),
   save: binding => saveEntity(`${API_BASE}/template-query-publications`, binding),
   remove: id => apiFetch(`${API_BASE}/template-query-publications/${encodeURIComponent(id)}`, { method: 'DELETE' }),

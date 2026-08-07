@@ -22,19 +22,21 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.LinkedHashSet;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class TemplateQueryMcpToolPublisher {
 
-    public static final String TOOL_NAME = "template_query";
+    private static final String LEGACY_TOOL_NAME = "template_query";
 
     private final McpSyncServer mcpSyncServer;
     private final TemplateQueryBindingService bindingService;
     private final CommandTemplateDiscoveryService discoveryService;
     private final ApiTemplateDiscoveryMcpToolPublisher apiDiscoveryPublisher;
     private final AgentRuntimeGovernanceFactory governanceFactory;
+    private final Set<String> publishedToolNames = new LinkedHashSet<>();
 
     @Order(Ordered.LOWEST_PRECEDENCE)
     @EventListener(ApplicationReadyEvent.class)
@@ -43,15 +45,22 @@ public class TemplateQueryMcpToolPublisher {
     }
 
     public synchronized void refresh() {
-        remove();
-        McpToolPublicationReviewer.addReviewedTool(mcpSyncServer, specification());
+        Set<String> namesToRemove = new LinkedHashSet<>(publishedToolNames);
+        namesToRemove.add(LEGACY_TOOL_NAME);
+        namesToRemove.forEach(this::remove);
+        publishedToolNames.clear();
+        for (String toolName : bindingService.publishedToolNames()) {
+            String reviewedName = TemplateQueryToolNamePolicy.requireToolName(toolName);
+            McpToolPublicationReviewer.addReviewedTool(mcpSyncServer, specification(reviewedName));
+            publishedToolNames.add(reviewedName);
+        }
         mcpSyncServer.notifyToolsListChanged();
-        log.info("Governed dynamic MCP tool published: {}", TOOL_NAME);
+        log.info("Governed dynamic template query tools published: {}", publishedToolNames);
     }
 
-    private McpServerFeatures.SyncToolSpecification specification() {
+    private McpServerFeatures.SyncToolSpecification specification(String toolName) {
         McpSchema.Tool tool = McpSchema.Tool.builder()
-            .name(TOOL_NAME)
+            .name(toolName)
             .title("Authorized template query")
             .description("Read-only discovery of system-maintained templates. The result scope is fixed by "
                 + "the authenticated MCP service and caller roles. It only returns templates selected in "
@@ -64,7 +73,7 @@ public class TemplateQueryMcpToolPublisher {
             .tool(tool)
             .callHandler((exchange, request) -> {
                 try {
-                    Map<String, Object> result = query(request.arguments());
+                    Map<String, Object> result = query(toolName, request.arguments());
                     return McpSchema.CallToolResult.builder()
                         .addTextContent("Authorized template query completed")
                         .structuredContent(result)
@@ -85,10 +94,15 @@ public class TemplateQueryMcpToolPublisher {
             .build();
     }
 
-    Map<String, Object> query(Map<String, Object> arguments) {
-        Map<String, Set<String>> allowed = bindingService.allowedTemplates(McpInvocationContext.current());
+    Map<String, Object> query(String toolName, Map<String, Object> arguments) {
+        String reviewedName = TemplateQueryToolNamePolicy.requireToolName(toolName);
+        TemplateQueryBindingService.PolicyResolution policy = bindingService.resolvePolicy(
+            McpInvocationContext.current(), reviewedName);
+        Map<String, Set<String>> allowed = policy.allowedTemplates();
         String requestedType = text(arguments == null ? null : arguments.get("assetType"));
         int limit = limit(arguments);
+        Set<String> excludedTemplateIds = stringSet(
+            arguments == null ? null : arguments.get("excludeTemplateIds"));
         List<String> assetTypes = requestedType.isBlank()
             ? List.of(TemplateAssetCatalogService.SSH, TemplateAssetCatalogService.SQL,
                 TemplateAssetCatalogService.HTTP, TemplateAssetCatalogService.DATABASE_QUERY,
@@ -96,6 +110,9 @@ public class TemplateQueryMcpToolPublisher {
             : List.of(requestedType);
 
         List<Map<String, Object>> templates = new ArrayList<>();
+        int candidateCount = 0;
+        int filteredUnauthorizedCount = 0;
+        int filteredExcludedCount = 0;
         for (String assetType : assetTypes) {
             Set<String> templateIds = allowed.getOrDefault(assetType, Set.of());
             if (templateIds.isEmpty()) {
@@ -116,6 +133,16 @@ public class TemplateQueryMcpToolPublisher {
             if (values instanceof Iterable<?> iterable) {
                 for (Object value : iterable) {
                     if (value instanceof Map<?, ?> map && templates.size() < limit) {
+                        candidateCount++;
+                        String returnedTemplateId = text(map.get("templateId"));
+                        if (returnedTemplateId.isBlank() || !templateIds.contains(returnedTemplateId)) {
+                            filteredUnauthorizedCount++;
+                            continue;
+                        }
+                        if (excludedTemplateIds.contains(returnedTemplateId)) {
+                            filteredExcludedCount++;
+                            continue;
+                        }
                         Map<String, Object> item = new LinkedHashMap<>();
                         map.forEach((key, entry) -> item.put(String.valueOf(key), entry));
                         item.putIfAbsent("assetType", assetType);
@@ -131,14 +158,24 @@ public class TemplateQueryMcpToolPublisher {
         return Map.of(
             "schemaVersion", CommandTemplateDiscoveryService.RESULT_SCHEMA_VERSION,
             "success", true,
-            "toolName", TOOL_NAME,
+            "toolName", reviewedName,
             "returnedCount", templates.size(),
             "templates", List.copyOf(templates),
             "publicationScope", Map.of(
                 "serviceId", context == null || context.clientId() == null ? "" : context.clientId(),
                 "roleBound", context != null && context.roles() != null && !context.roles().isBlank(),
                 "configuredAssetTypes", allowed.keySet(),
-                "configuredTemplateCount", allowed.values().stream().mapToInt(Set::size).sum()
+                "configuredTemplateCount", policy.configuredTemplateCount(),
+                "parentToolNames", policy.parentToolNames(),
+                "policyVersion", policy.policyVersion()
+            ),
+            "filterAudit", Map.of(
+                "candidateCount", candidateCount,
+                "returnedCount", templates.size(),
+                "filteredUnauthorizedCount", filteredUnauthorizedCount,
+                "filteredExcludedCount", filteredExcludedCount,
+                "policyCacheHit", policy.cacheHit(),
+                "policyResolvedAt", policy.resolvedAt().toString()
             ),
             "rawExecutionSpecReturned", false
         );
@@ -242,6 +279,20 @@ public class TemplateQueryMcpToolPublisher {
         return value == null ? "" : String.valueOf(value).trim();
     }
 
+    private Set<String> stringSet(Object value) {
+        if (!(value instanceof Iterable<?> iterable)) {
+            return Set.of();
+        }
+        Set<String> values = new LinkedHashSet<>();
+        for (Object item : iterable) {
+            String normalized = text(item);
+            if (!normalized.isBlank()) {
+                values.add(normalized);
+            }
+        }
+        return Set.copyOf(values);
+    }
+
     private Map<String, Object> mutableMap(Object... values) {
         Map<String, Object> result = new LinkedHashMap<>();
         for (int index = 0; index + 1 < values.length; index += 2) {
@@ -250,11 +301,11 @@ public class TemplateQueryMcpToolPublisher {
         return result;
     }
 
-    private void remove() {
+    private void remove(String toolName) {
         try {
-            mcpSyncServer.removeTool(TOOL_NAME);
+            mcpSyncServer.removeTool(toolName);
         } catch (Exception ex) {
-            log.debug("Dynamic template query tool was not registered: {}", ex.getMessage());
+            log.debug("Dynamic template query tool {} was not registered: {}", toolName, ex.getMessage());
         }
     }
 }

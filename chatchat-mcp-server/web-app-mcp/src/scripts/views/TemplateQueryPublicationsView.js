@@ -19,10 +19,15 @@ export default {
       saving: false,
       bindings: [],
       templates: [],
-      services: [],
+      members: [],
+      templateLoading: false,
+      parents: [],
       roles: [],
       keyword: '',
       typeFilter: '',
+      businessCategoryFilter: '',
+      templatePage: 1,
+      templatePageSize: 10,
       dialogOpen: false,
       form: this.emptyForm()
     };
@@ -32,16 +37,44 @@ export default {
       const keyword = this.keyword.trim().toLowerCase();
       return this.templates.filter(item => {
         const typeMatched = !this.typeFilter || item.assetType === this.typeFilter;
-        const text = [item.templateId, item.title, item.description, item.category]
+        const businessCategory = (item.businessCategoryCode || '').trim();
+        const categoryMatched = !this.businessCategoryFilter
+          || (this.businessCategoryFilter === '__uncategorized__'
+            ? !businessCategory : businessCategory === this.businessCategoryFilter);
+        const text = [item.templateId, item.title, item.description, item.category,
+          item.businessCategoryCode, item.businessCategoryName]
           .filter(Boolean).join(' ').toLowerCase();
-        return typeMatched && (!keyword || text.includes(keyword));
+        return typeMatched && categoryMatched && (!keyword || text.includes(keyword));
       });
+    },
+    businessCategoryOptions() {
+      const source = this.typeFilter
+        ? this.templates.filter(item => item.assetType === this.typeFilter)
+        : this.templates;
+      const categories = new Map();
+      source.forEach(item => {
+        const code = (item.businessCategoryCode || '').trim();
+        if (code && !categories.has(code)) {
+          const name = (item.businessCategoryName || '').trim();
+          categories.set(code, { value: code, label: name && name !== code ? `${name}（${code}）` : code });
+        }
+      });
+      const options = [...categories.values()]
+        .sort((left, right) => left.label.localeCompare(right.label, 'zh-CN'));
+      if (source.some(item => !(item.businessCategoryCode || '').trim())) {
+        options.push({ value: '__uncategorized__', label: '未配置业务分类' });
+      }
+      return options;
+    },
+    paginatedTemplates() {
+      const start = (this.templatePage - 1) * this.templatePageSize;
+      return this.filteredTemplates.slice(start, start + this.templatePageSize);
     },
     groupedTemplates() {
       return Object.entries(TYPE_LABELS).map(([assetType, label]) => ({
         assetType,
         label,
-        items: this.filteredTemplates.filter(item => item.assetType === assetType)
+        items: this.paginatedTemplates.filter(item => item.assetType === assetType)
       })).filter(group => group.items.length);
     },
     selectedTypes() {
@@ -49,6 +82,9 @@ export default {
       return Object.entries(TYPE_LABELS)
         .filter(([assetType]) => this.templates.some(item => item.assetType === assetType && selected.has(item.key)))
         .map(([, label]) => label);
+    },
+    selectedParent() {
+      return this.parents.find(item => item.toolName === this.form.parentToolName) || null;
     }
   },
   mounted() {
@@ -56,17 +92,19 @@ export default {
   },
   methods: {
     emptyForm() {
-      return { id: '', serviceId: '', roleId: '', templateKeys: [], enabled: true };
+      return {
+        id: '', parentToolName: '', roleId: '', subjectType: 'ROLE', userId: '',
+        domainCode: '', templateKeys: [], enabled: true, expectedRevision: null
+      };
     },
     async load() {
       this.loading = true;
       try {
-        const [bindings, templates, services, roles] = await Promise.all([
-          api.list(), api.templates(), api.services(), api.roles()
+        const [bindings, parents, roles] = await Promise.all([
+          api.list(), api.parents(), api.roles()
         ]);
         this.bindings = Array.isArray(bindings) ? bindings : [];
-        this.templates = Array.isArray(templates) ? templates : [];
-        this.services = Array.isArray(services) ? services : [];
+        this.parents = Array.isArray(parents) ? parents : [];
         this.roles = Array.isArray(roles) ? roles : [];
       } catch (error) {
         this.$emit('error', error);
@@ -76,25 +114,82 @@ export default {
     },
     openCreate() {
       this.form = this.emptyForm();
+      this.templates = [];
+      this.members = [];
       this.keyword = '';
       this.typeFilter = '';
+      this.businessCategoryFilter = '';
+      this.templatePage = 1;
       this.dialogOpen = true;
     },
-    openEdit(binding) {
+    async openEdit(binding) {
       this.form = {
         id: binding.id,
-        serviceId: binding.serviceId,
+        parentToolName: binding.parentToolName,
         roleId: binding.roleId,
+        subjectType: binding.subjectType || 'ROLE',
+        userId: binding.userId || '',
+        domainCode: binding.domainCode || '',
         templateKeys: [...(binding.templateKeys || [])],
-        enabled: binding.enabled !== false
+        enabled: binding.enabled !== false,
+        expectedRevision: binding.revision
       };
       this.keyword = '';
-      this.typeFilter = '';
+      this.typeFilter = binding.parentAssetType || '';
+      this.businessCategoryFilter = '';
+      this.templatePage = 1;
       this.dialogOpen = true;
+      await this.loadRoleContext(false);
+    },
+    async onParentChange() {
+      this.form.templateKeys = [];
+      this.typeFilter = this.selectedParent?.assetType || '';
+      await this.loadRoleContext(true);
+    },
+    async onRoleChange() {
+      this.form.templateKeys = [];
+      this.form.userId = '';
+      await this.loadRoleContext(true);
+    },
+    async loadRoleContext(clearSelection) {
+      if (!this.form.roleId || !this.form.parentToolName) {
+        this.templates = [];
+        this.members = [];
+        return;
+      }
+      this.templateLoading = true;
+      try {
+        const [templates, members] = await Promise.all([
+          api.templates(this.form.roleId, this.form.parentToolName), api.members(this.form.roleId)
+        ]);
+        this.templates = Array.isArray(templates) ? templates : [];
+        this.members = Array.isArray(members) ? members : [];
+        if (clearSelection) this.form.templateKeys = [];
+        const allowed = new Set(this.templates.map(item => item.key));
+        this.form.templateKeys = this.form.templateKeys.filter(key => allowed.has(key));
+      } catch (error) {
+        this.templates = [];
+        this.members = [];
+        this.$emit('error', error);
+      } finally {
+        this.templateLoading = false;
+      }
+    },
+    onSubjectTypeChange() {
+      if (this.form.subjectType !== 'USER') this.form.userId = '';
     },
     async save() {
-      if (!this.form.serviceId || !this.form.roleId) {
-        this.$emit('error', new Error('请选择 MCP 服务和角色'));
+      if (!/^[a-z][a-z0-9_]{0,63}$/.test(this.form.domainCode)
+        || this.form.domainCode.endsWith('_template_query')) {
+        this.$emit('error', new Error('领域编码必须以小写字母开头，只能包含小写字母、数字和下划线；无需填写固定后缀'));
+        return;
+      }
+      if (!this.form.parentToolName || !this.form.roleId) {
+        this.$emit('error', new Error('请选择父级模板检索工具和角色'));
+        return;
+      }
+      if (this.form.subjectType === 'USER' && !this.form.userId) {
+        this.$emit('error', new Error('请选择角色组成员'));
         return;
       }
       if (!this.form.templateKeys.length) {
@@ -148,6 +243,18 @@ export default {
       return Object.entries(TYPE_LABELS)
         .filter(([type]) => keys.some(key => key.startsWith(`${type}:`)))
         .map(([, label]) => label);
+    }
+  },
+  watch: {
+    keyword() {
+      this.templatePage = 1;
+    },
+    typeFilter() {
+      this.businessCategoryFilter = '';
+      this.templatePage = 1;
+    },
+    businessCategoryFilter() {
+      this.templatePage = 1;
     }
   }
 };

@@ -18,7 +18,8 @@ import java.util.UUID;
 @Setter
 @Entity
 @Table(name = "mcp_template_query_binding", uniqueConstraints = @UniqueConstraint(
-    name = "uk_template_query_service_role", columnNames = {"service_id", "role_id"}))
+    name = "uk_template_query_service_role_domain_subject",
+    columnNames = {"service_id", "role_id", "domain_code", "subject_type", "subject_id"}))
 public class TemplateQueryBinding {
 
     @Id
@@ -31,8 +32,20 @@ public class TemplateQueryBinding {
     @Column(name = "service_id", nullable = false, length = 64)
     private String serviceId;
 
+    @Column(name = "parent_tool_name", nullable = false, length = 128)
+    private String parentToolName;
+
     @Column(name = "role_id", nullable = false, length = 64)
     private String roleId;
+
+    @Column(name = "domain_code", nullable = false, length = 64)
+    private String domainCode;
+
+    @Column(name = "subject_type", nullable = false, length = 16)
+    private String subjectType = "ROLE";
+
+    @Column(name = "subject_id", nullable = false, length = 128)
+    private String subjectId;
 
     @Lob
     @Column(name = "template_keys_json", nullable = false, columnDefinition = "longtext")
@@ -40,6 +53,9 @@ public class TemplateQueryBinding {
 
     @Column(nullable = false)
     private boolean enabled = true;
+
+    @Column(nullable = false)
+    private long revision = 1L;
 
     @Column(nullable = false)
     private Instant createdAt;

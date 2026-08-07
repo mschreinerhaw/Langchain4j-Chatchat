@@ -190,7 +190,68 @@ public class McpAuthorizationService {
 
     public CallerAuthorizationContext currentCallerContext() {
         Principal principal = principal(Map.of(), snapshotRef.get());
-        return new CallerAuthorizationContext(principal.tenantId(), List.copyOf(principal.roleIds()));
+        return new CallerAuthorizationContext(principal.tenantId(), principal.userId(), principal.username(),
+            List.copyOf(principal.roleIds()));
+    }
+
+    public List<UserView> roleMembers(String roleId) {
+        String requiredRoleId = blankToNull(roleId);
+        if (requiredRoleId == null) {
+            throw new IllegalArgumentException("roleId is required");
+        }
+        Snapshot snapshot = snapshotRef.get();
+        Role role = snapshot.rolesById().get(normalize(requiredRoleId));
+        if (role == null || !snapshot.activeRole(role)) {
+            return List.of();
+        }
+        String roleCode = normalize(role.roleCode());
+        return snapshot.usersById().values().stream()
+            .filter(user -> snapshot.sameTenant(user.tenantId(), role.tenantId()))
+            .filter(user -> user.roleIds() != null && user.roleIds().stream().anyMatch(value -> {
+                String normalized = normalize(value);
+                return normalize(requiredRoleId).equals(normalized)
+                    || (roleCode != null && roleCode.equals(normalized));
+            }))
+            .map(user -> new UserView(user.id(), user.tenantId(), user.tenantNo(), user.username(), user.roleIds()))
+            .sorted(java.util.Comparator.comparing(UserView::username,
+                java.util.Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
+            .toList();
+    }
+
+    public boolean roleAllows(String roleId, String tenantId, String toolName,
+                              McpScopeExpression requestedScope) {
+        Snapshot snapshot = snapshotRef.get();
+        Role role = snapshot.rolesById().get(normalize(roleId));
+        if (role == null || !snapshot.activeRole(role) || !snapshot.sameTenant(role.tenantId(), tenantId)) {
+            return false;
+        }
+        if ("super_admin".equals(normalize(role.roleCode()))) {
+            return true;
+        }
+        String normalizedRoleId = normalize(role.id());
+        String normalizedRoleCode = normalize(role.roleCode());
+        List<ToolPermission> permissions = snapshot.permissions().stream()
+            .filter(ToolPermission::active)
+            .filter(permission -> snapshot.sameTenant(permission.tenantId(), tenantId))
+            .filter(permission -> "role".equals(normalize(permission.targetType())))
+            .filter(permission -> {
+                String target = normalize(permission.targetId());
+                return target != null && (target.equals(normalizedRoleId) || target.equals(normalizedRoleCode));
+            })
+            .toList();
+        String normalizedToolName = normalize(toolName);
+        List<ToolPermission> effective = permissions.stream()
+            .filter(permission -> permission.matchesRequest(normalizedToolName, requestedScope))
+            .toList();
+        if (effective.stream().anyMatch(permission -> DENY.equals(permission.effect()))) {
+            return false;
+        }
+        return effective.stream().anyMatch(permission -> ALLOW.equals(permission.effect()));
+    }
+
+    public long authorizationRevision() {
+        Instant refreshedAt = snapshotRef.get().refreshedAt();
+        return refreshedAt == null ? 0L : refreshedAt.toEpochMilli();
     }
 
     public List<RoleView> roles(String tenantId) {
@@ -746,7 +807,8 @@ public class McpAuthorizationService {
     ) {
     }
 
-    public record CallerAuthorizationContext(String tenantId, List<String> roleIds) { }
+    public record CallerAuthorizationContext(String tenantId, String userId, String username,
+                                              List<String> roleIds) { }
 
     private record User(String id, String tenantId, Long tenantNo, String username, List<String> roleIds) {
     }

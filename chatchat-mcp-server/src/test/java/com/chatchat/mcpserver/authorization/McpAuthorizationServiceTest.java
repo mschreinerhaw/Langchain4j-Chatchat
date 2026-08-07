@@ -106,6 +106,27 @@ class McpAuthorizationServiceTest {
     }
 
     @Test
+    void exposesRoleMembersAndAppliesRolePermissionAsTemplateCeiling() throws Exception {
+        String permissions = """
+            [{
+              "tenantId":"tenant-1",
+              "targetType":"role",
+              "targetId":"role-1",
+              "localToolName":"customer_profile_query",
+              "effect":"allow",
+              "enabled":true
+            }]
+            """;
+        McpAuthorizationService service = service(snapshot(permissions));
+
+        assertThat(service.roleMembers("role-1"))
+            .extracting(McpAuthorizationService.UserView::username)
+            .containsExactly("user1");
+        assertThat(service.roleAllows("role-1", "tenant-1", "customer_profile_query", null)).isTrue();
+        assertThat(service.roleAllows("role-1", "tenant-1", "unapproved_query", null)).isFalse();
+    }
+
+    @Test
     void adminUserIdIsResolvedToWhitelistedUsername() throws Exception {
         McpAuthorizationService service = service(snapshot("[]"));
 

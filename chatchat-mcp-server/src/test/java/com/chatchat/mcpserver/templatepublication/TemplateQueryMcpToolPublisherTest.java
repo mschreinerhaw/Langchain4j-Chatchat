@@ -13,11 +13,13 @@ import org.mockito.ArgumentCaptor;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -25,20 +27,39 @@ import static org.mockito.Mockito.when;
 class TemplateQueryMcpToolPublisherTest {
 
     @Test
-    void publishesFixedReviewedGovernanceWithoutEditableScopeArguments() {
+    void removesLegacyGenericTemplateQueryAndDoesNotPublishItAgain() {
         McpSyncServer server = mock(McpSyncServer.class);
-        when(server.listTools()).thenReturn(List.of());
+        TemplateQueryBindingService bindings = mock(TemplateQueryBindingService.class);
         TemplateQueryMcpToolPublisher publisher = new TemplateQueryMcpToolPublisher(
-            server, mock(TemplateQueryBindingService.class), mock(CommandTemplateDiscoveryService.class),
+            server, bindings, mock(CommandTemplateDiscoveryService.class),
             mock(ApiTemplateDiscoveryMcpToolPublisher.class),
             new AgentRuntimeGovernanceFactory(new ObjectMapper()));
+        when(bindings.publishedToolNames()).thenReturn(Set.of());
+
+        publisher.refresh();
+
+        verify(server).removeTool("template_query");
+        verify(server, never()).addTool(org.mockito.ArgumentMatchers.any());
+        verify(server).notifyToolsListChanged();
+    }
+
+    @Test
+    void publishesFixedReviewedGovernanceWithoutEditableScopeArguments() {
+        McpSyncServer server = mock(McpSyncServer.class);
+        TemplateQueryBindingService bindings = mock(TemplateQueryBindingService.class);
+        when(server.listTools()).thenReturn(List.of());
+        TemplateQueryMcpToolPublisher publisher = new TemplateQueryMcpToolPublisher(
+            server, bindings, mock(CommandTemplateDiscoveryService.class),
+            mock(ApiTemplateDiscoveryMcpToolPublisher.class),
+            new AgentRuntimeGovernanceFactory(new ObjectMapper()));
+        when(bindings.publishedToolNames()).thenReturn(Set.of("customer_template_query"));
 
         publisher.refresh();
 
         ArgumentCaptor<McpServerFeatures.SyncToolSpecification> captor =
             ArgumentCaptor.forClass(McpServerFeatures.SyncToolSpecification.class);
         verify(server).addTool(captor.capture());
-        assertThat(captor.getValue().tool().name()).isEqualTo("template_query");
+        assertThat(captor.getValue().tool().name()).isEqualTo("customer_template_query");
         assertThat(captor.getValue().tool().meta().toString())
             .contains("governanceEditable=false", "only_selected_templates=true", "allow_user_override=false");
         assertThat(captor.getValue().tool().inputSchema().properties())
@@ -52,11 +73,11 @@ class TemplateQueryMcpToolPublisherTest {
         ApiTemplateDiscoveryMcpToolPublisher apiDiscovery = mock(ApiTemplateDiscoveryMcpToolPublisher.class);
         TemplateQueryMcpToolPublisher publisher = publisher(bindings, discovery, apiDiscovery);
         McpInvocationContext.Context context = context("service-1", "role-1");
-        when(bindings.allowedTemplates(context)).thenReturn(Map.of());
+        when(bindings.resolvePolicy(context, "customer_template_query")).thenReturn(policy(Map.of()));
 
         Map<String, Object> result;
         try (McpInvocationContext.Scope ignored = McpInvocationContext.open(context)) {
-            result = publisher.query(Map.of("assetType", "api_service", "limit", 20));
+            result = publisher.query("customer_template_query", Map.of("assetType", "api_service", "limit", 20));
         }
 
         assertThat(result.get("templates")).isEqualTo(List.of());
@@ -71,22 +92,29 @@ class TemplateQueryMcpToolPublisherTest {
         ApiTemplateDiscoveryMcpToolPublisher apiDiscovery = mock(ApiTemplateDiscoveryMcpToolPublisher.class);
         TemplateQueryMcpToolPublisher publisher = publisher(bindings, discovery, apiDiscovery);
         McpInvocationContext.Context context = context("service-1", "role-1");
-        Set<String> allowed = Set.of("customer_query");
-        when(bindings.allowedTemplates(context)).thenReturn(Map.of("api_service", allowed));
+        Set<String> allowed = Set.of("customer_query", "excluded_query");
+        when(bindings.resolvePolicy(context, "customer_template_query"))
+            .thenReturn(policy(Map.of("api_service", allowed)));
         when(apiDiscovery.queryAuthorized(org.mockito.ArgumentMatchers.anyMap(), eq(allowed)))
-            .thenReturn(Map.of("templates", List.of(Map.of(
-                "templateId", "customer_query", "name", "Customer query"))));
+            .thenReturn(Map.of("templates", List.of(
+                Map.of("templateId", "customer_query", "name", "Customer query"),
+                Map.of("templateId", "excluded_query", "name", "Explicitly excluded"),
+                Map.of("templateId", "unbound_template", "name", "Must be removed"))));
 
         Map<String, Object> result;
         try (McpInvocationContext.Scope ignored = McpInvocationContext.open(context)) {
-            result = publisher.query(Map.of(
+            result = publisher.query("customer_template_query", Map.of(
                 "assetType", "api_service",
                 "templateIds", List.of("unbound_template"),
+                "excludeTemplateIds", List.of("excluded_query"),
                 "limit", 20
             ));
         }
 
-        assertThat(result.get("templates").toString()).contains("customer_query").doesNotContain("unbound_template");
+        assertThat(result.get("templates").toString()).contains("customer_query")
+            .doesNotContain("unbound_template", "excluded_query");
+        assertThat(result.get("filterAudit").toString())
+            .contains("filteredUnauthorizedCount=1", "filteredExcludedCount=1");
         verify(apiDiscovery).queryAuthorized(argThat(arguments ->
             allowed.equals(Set.copyOf((List<String>) arguments.get("templateIds")))), eq(allowed));
         verifyNoInteractions(discovery);
@@ -98,6 +126,12 @@ class TemplateQueryMcpToolPublisherTest {
         return new TemplateQueryMcpToolPublisher(
             mock(McpSyncServer.class), bindings, discovery, apiDiscovery,
             mock(AgentRuntimeGovernanceFactory.class));
+    }
+
+    private TemplateQueryBindingService.PolicyResolution policy(Map<String, Set<String>> allowed) {
+        return new TemplateQueryBindingService.PolicyResolution(
+            allowed, Set.of("api_template_query"), "policy-v1", false,
+            allowed.values().stream().mapToInt(Set::size).sum(), Instant.parse("2026-08-07T00:00:00Z"));
     }
 
     private McpInvocationContext.Context context(String serviceId, String roles) {

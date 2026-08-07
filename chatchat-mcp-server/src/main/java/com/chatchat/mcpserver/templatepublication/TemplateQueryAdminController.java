@@ -2,8 +2,6 @@ package com.chatchat.mcpserver.templatepublication;
 
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.mcpserver.authorization.McpAuthorizationService;
-import com.chatchat.mcpserver.mcp.McpServiceRegistration;
-import com.chatchat.mcpserver.mcp.McpServiceRegistryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,8 +22,9 @@ public class TemplateQueryAdminController {
 
     private final TemplateQueryBindingService bindingService;
     private final TemplateAssetCatalogService catalogService;
-    private final McpServiceRegistryService serviceRegistryService;
+    private final TemplateQueryParentCatalog parentCatalog;
     private final McpAuthorizationService authorizationService;
+    private final TemplateQueryMcpToolPublisher toolPublisher;
 
     @GetMapping
     public ApiResponse<List<TemplateQueryBindingService.BindingView>> list() {
@@ -35,39 +34,46 @@ public class TemplateQueryAdminController {
     @PostMapping
     public ApiResponse<TemplateQueryBindingService.BindingView> create(
         @RequestBody TemplateQueryBindingService.UpsertRequest request) {
-        return ApiResponse.success(bindingService.create(request), "Template query binding created");
+        TemplateQueryBindingService.BindingView result = bindingService.create(request);
+        toolPublisher.refresh();
+        return ApiResponse.success(result, "Template query binding created");
     }
 
     @PutMapping("/{id}")
     public ApiResponse<TemplateQueryBindingService.BindingView> update(
         @PathVariable("id") String id,
         @RequestBody TemplateQueryBindingService.UpsertRequest request) {
-        return ApiResponse.success(bindingService.update(id, request), "Template query binding updated");
+        TemplateQueryBindingService.BindingView result = bindingService.update(id, request);
+        toolPublisher.refresh();
+        return ApiResponse.success(result, "Template query binding updated");
     }
 
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(@PathVariable("id") String id) {
         bindingService.delete(id);
+        toolPublisher.refresh();
         return ApiResponse.success(null, "Template query binding deleted");
     }
 
     @PostMapping("/{id}/enabled")
     public ApiResponse<TemplateQueryBindingService.BindingView> setEnabled(
         @PathVariable("id") String id, @RequestParam("enabled") boolean enabled) {
-        return ApiResponse.success(bindingService.setEnabled(id, enabled), "Template query binding status updated");
+        TemplateQueryBindingService.BindingView result = bindingService.setEnabled(id, enabled);
+        toolPublisher.refresh();
+        return ApiResponse.success(result, "Template query binding status updated");
     }
 
     @GetMapping("/templates")
-    public ApiResponse<List<TemplateAssetCatalogService.TemplateAsset>> templates() {
-        return ApiResponse.success(catalogService.listEnabled());
+    public ApiResponse<List<TemplateAssetCatalogService.TemplateAsset>> templates(
+        @RequestParam("roleId") String roleId,
+        @RequestParam("parentToolName") String parentToolName) {
+        TemplateQueryParentCatalog.ParentTool parent = parentCatalog.require(parentToolName);
+        return ApiResponse.success(catalogService.listAuthorizedForRoleAndType(roleId, parent.assetType()));
     }
 
-    @GetMapping("/services")
-    public ApiResponse<List<ServiceOption>> services() {
-        return ApiResponse.success(serviceRegistryService.listAll().stream()
-            .filter(McpServiceRegistration::isEnabled)
-            .map(item -> new ServiceOption(item.getId(), item.getName(), item.getEnvironment()))
-            .toList());
+    @GetMapping("/parents")
+    public ApiResponse<List<TemplateQueryParentCatalog.ParentTool>> parents() {
+        return ApiResponse.success(parentCatalog.list());
     }
 
     @GetMapping("/roles")
@@ -76,5 +82,12 @@ public class TemplateQueryAdminController {
         return ApiResponse.success(authorizationService.roles(tenantId));
     }
 
-    public record ServiceOption(String id, String name, String environment) { }
+    @GetMapping("/members")
+    public ApiResponse<List<MemberOption>> members(@RequestParam("roleId") String roleId) {
+        return ApiResponse.success(authorizationService.roleMembers(roleId).stream()
+            .map(item -> new MemberOption(item.id(), item.username()))
+            .toList());
+    }
+
+    public record MemberOption(String id, String username) { }
 }

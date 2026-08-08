@@ -25,6 +25,7 @@ import java.util.zip.ZipInputStream;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -50,7 +51,9 @@ class LicenseDeliveryPackageServiceTest {
         LicenseDocument document = fixture.mapper.readValue(files.get("license.dat"), LicenseDocument.class);
         assertTrue(new LicenseCrypto(fixture.mapper).verify(document,
             new String(files.get("license-public.pem"), StandardCharsets.UTF_8)));
-        assertTrue(new String(files.get("README.txt"), StandardCharsets.UTF_8).contains("CHATCHAT_LICENSE_PUBLIC_KEY_PATH"));
+        String instructions = new String(files.get("README.txt"), StandardCharsets.UTF_8);
+        assertTrue(instructions.contains("CHATCHAT_LICENSE_PUBLIC_KEY_PATH"));
+        assertFalse(instructions.contains("私钥"));
     }
 
     @Test

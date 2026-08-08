@@ -127,11 +127,12 @@ form.elements.issuedTime.addEventListener('change', () => {
 });
 updatePreview();
 
-async function loadMcpMenus() {
+async function loadMcpMenus({ preserveSelection = false, failOnError = false } = {}) {
   const menuContainer = document.querySelector('#mcpMenuModules');
   const capabilityContainer = document.querySelector('#mcpCapabilityModules');
+  const previousSelection = new Set(selectedValues('modules'));
   try {
-    const response = await fetch('/api/licenses/mcp-menus');
+    const response = await fetch('/api/licenses/mcp-menus', { cache: 'no-store' });
     const menus = await response.json();
     if (!response.ok) throw new Error(menus.message || '同步 MCP 菜单失败');
     menuContainer.replaceChildren();
@@ -147,7 +148,7 @@ async function loadMcpMenus() {
       input.type = 'checkbox';
       input.name = 'modules';
       input.value = menu.key;
-      input.checked = false;
+      input.checked = preserveSelection && previousSelection.has(menu.key);
       const text = document.createElement('span');
       const title = document.createElement('b');
       title.textContent = menu.label;
@@ -163,12 +164,31 @@ async function loadMcpMenus() {
     });
     if (!menuContainer.children.length) menuContainer.textContent = '目标服务未发布管理菜单';
     if (!capabilityContainer.children.length) capabilityContainer.textContent = '目标服务未发布功能模块';
-    applyPlan(form.elements.edition.value || 'enterprise');
+    const publishedKeys = new Set(menus.map(menu => menu.key));
+    const removed = [...previousSelection].filter(key => !publishedKeys.has(key));
+    const migrated = [];
+    if (preserveSelection) {
+      removed.forEach(parentKey => {
+        const children = menus.filter(menu => menu.parentKey === parentKey);
+        children.forEach(child => {
+          const input = form.querySelector(`input[name="modules"][value="${CSS.escape(child.key)}"]`);
+          if (input) input.checked = true;
+        });
+        if (children.length) migrated.push({ parentKey, children: children.map(child => child.key) });
+      });
+    }
+    if (preserveSelection) updatePreview();
+    else applyPlan(form.elements.edition.value || 'enterprise');
+    return { menus, removed, migrated };
   } catch (error) {
-    menuContainer.textContent = error.message;
-    capabilityContainer.textContent = error.message;
+    if (!preserveSelection) {
+      menuContainer.textContent = error.message;
+      capabilityContainer.textContent = error.message;
+    }
     message.style.color = '#d14956';
     message.textContent = error.message;
+    if (failOnError) throw error;
+    return { menus: [], removed: [], migrated: [] };
   }
 }
 loadMcpMenus();
@@ -350,25 +370,37 @@ form.addEventListener('submit', async event => {
     return;
   }
   button.disabled = true;
-  button.querySelector('span').textContent = '正在签发…';
-
-  const data = new FormData(form);
-  const payload = {
-    licenseNo: data.get('licenseNo'),
-    customer: null,
-    customerCode: data.get('customerCode'),
-    product: data.get('product'),
-    edition: data.get('edition'),
-    modules: data.getAll('modules'),
-    maxUsers: Number(data.get('maxUsers')),
-    maxAgents: Number(data.get('maxAgents')),
-    serverId: data.get('serverId'),
-    issuedTime: data.get('issuedTime'),
-    expireTime: data.get('expireTime'),
-    features: {}
-  };
+  button.querySelector('span').textContent = '正在同步授权目录…';
 
   try {
+    const synchronization = await loadMcpMenus({ preserveSelection: true, failOnError: true });
+    const modules = selectedValues('modules');
+    if (!modules.length) throw new Error('所选权益均已从目标 MCP 服务下线，请重新选择产品功能权益');
+    const migratedParents = new Set(synchronization.migrated.map(item => item.parentKey));
+    const removedNames = synchronization.removed
+      .filter(key => !migratedParents.has(key))
+      .map(key => moduleLabels[key] || key);
+    const migrationNames = synchronization.migrated.map(item => {
+      const parent = moduleLabels[item.parentKey] || item.parentKey;
+      const children = item.children.map(key => moduleLabels[key] || key).join('、');
+      return `${parent}已展开为${children}`;
+    });
+    const data = new FormData(form);
+    const payload = {
+      licenseNo: data.get('licenseNo'),
+      customer: null,
+      customerCode: data.get('customerCode'),
+      product: data.get('product'),
+      edition: data.get('edition'),
+      modules,
+      maxUsers: Number(data.get('maxUsers')),
+      maxAgents: Number(data.get('maxAgents')),
+      serverId: data.get('serverId'),
+      issuedTime: data.get('issuedTime'),
+      expireTime: data.get('expireTime'),
+      features: {}
+    };
+    button.querySelector('span').textContent = '正在签发…';
     const response = await fetch('/api/licenses/issue', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -394,7 +426,14 @@ form.addEventListener('submit', async event => {
       }
     }
     message.style.color = '#15875a';
-    message.textContent = auditUpdated ? '授权交付包已下载，内含 license.dat 与 license-public.pem' : '授权包已下载，但下载审计状态更新失败，请在审计页面核查';
+    const synchronizationNotice = [
+      migrationNames.length ? `已迁移旧模块：${migrationNames.join('；')}` : '',
+      removedNames.length ? `已移除未发布模块：${removedNames.join('、')}` : ''
+    ].filter(Boolean).join('；');
+    const noticeSuffix = synchronizationNotice ? `；${synchronizationNotice}` : '';
+    message.textContent = auditUpdated
+      ? `授权交付包已下载，内含 license.dat 与 license-public.pem${noticeSuffix}`
+      : `授权包已下载，但下载审计状态更新失败，请在审计页面核查${noticeSuffix}`;
   } catch (error) {
     message.style.color = '#d14956';
     message.textContent = error.message;

@@ -69,16 +69,16 @@
 
         <section class="license-section license-capabilities">
           <div class="license-section-heading">
-            <div><h3>已授权能力</h3><p>可供业务调用的产品能力许可。</p></div>
-            <span class="license-count">{{ enabledFeatures.length }} 项</span>
+            <div><h3>已授权 MCP 功能模块</h3><p>当前 License 可使用的资产、模板、索引与工具能力。</p></div>
+            <span class="license-count">{{ authorizedCapabilities.length }} 项</span>
           </div>
-          <div v-if="enabledFeatures.length" class="license-feature-list">
-            <div v-for="item in enabledFeatures" :key="item.key" class="license-feature-item">
+          <div v-if="authorizedCapabilities.length" class="license-feature-list">
+            <div v-for="item in authorizedCapabilities" :key="item.key" class="license-feature-item">
               <span class="license-feature-check">✓</span>
               <div><strong>{{ item.label }}</strong><small>{{ item.key }}</small></div>
             </div>
           </div>
-          <div v-else class="license-empty">当前 License 未配置能力许可</div>
+          <div v-else class="license-empty">当前 License 未配置 MCP 功能模块</div>
         </section>
       </div>
 

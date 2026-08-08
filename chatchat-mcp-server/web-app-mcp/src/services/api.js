@@ -243,7 +243,8 @@ export const authorizationApi = {
 
 export const licenseApi = {
   status: () => apiFetch(`${API_BASE}/license/status`),
-  menus: () => apiFetch(`${API_BASE}/license/menus`)
+  menus: () => apiFetch(`${API_BASE}/license/menus`),
+  catalog: () => apiFetch(`${API_BASE}/license/menu-catalog`)
 };
 
 function saveEntity(baseUrl, entity, mapper = value => value) {

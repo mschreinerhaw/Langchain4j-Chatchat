@@ -5,15 +5,10 @@ const EDITION_LABELS = {
   community: '社区版', standard: '标准版', professional: '专业版', enterprise: '企业版', trial: '试用版'
 };
 
-const FEATURE_LABELS = {
-  sql_query: 'SQL 查询', news_collect: '资讯采集', agent_runtime: 'Agent 运行时',
-  market_analysis: '市场分析', jmx_monitor: 'JMX 监控', ssh_execute: 'SSH 运维执行'
-};
-
 export default {
   name: 'LicenseView',
   emits: ['notify', 'error'],
-  data: () => ({ busy: false, status: {}, menus: [] }),
+  data: () => ({ busy: false, status: {}, catalog: [] }),
   computed: {
     license() { return this.status.license || {}; },
     statusType() {
@@ -56,12 +51,13 @@ export default {
       if (this.daysRemaining === 0) return '今天到期，请及时续期';
       return `剩余 ${this.daysRemaining} 天`;
     },
-    enabledFeatures() {
-      return Object.entries(this.license.features || {})
-        .filter(([, enabled]) => enabled)
-        .map(([key]) => ({ key, label: FEATURE_LABELS[key] || this.humanizeKey(key) }));
+    licensedCatalog() {
+      const licensed = new Set((this.license.modules || []).map(key => String(key).trim().toLowerCase()));
+      const allLicensed = licensed.has('mcp');
+      return this.catalog.filter(item => allLicensed || licensed.has(String(item.key).trim().toLowerCase()));
     },
-    authorizedMenus() { return this.menus.filter(item => item.authorized); }
+    authorizedMenus() { return this.licensedCatalog.filter(item => item.navigation !== false); },
+    authorizedCapabilities() { return this.licensedCatalog.filter(item => item.navigation === false); }
   },
   mounted() { this.loadStatus(); },
   methods: {
@@ -82,9 +78,9 @@ export default {
     async loadStatus() {
       this.busy = true;
       try {
-        const [status, menus] = await Promise.all([licenseApi.status(), licenseApi.menus()]);
+        const [status, catalog] = await Promise.all([licenseApi.status(), licenseApi.catalog()]);
         this.status = status || {};
-        this.menus = Array.isArray(menus) ? menus : [];
+        this.catalog = Array.isArray(catalog) ? catalog : [];
       } catch (error) {
         this.$emit('error', error);
       } finally {

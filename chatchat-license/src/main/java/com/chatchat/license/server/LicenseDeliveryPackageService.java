@@ -63,8 +63,7 @@ public class LicenseDeliveryPackageService {
             2. 配置以下环境变量，建议使用绝对路径：
                CHATCHAT_LICENSE_FILE=/opt/livemcp/data/license/license.dat
                CHATCHAT_LICENSE_PUBLIC_KEY_PATH=/opt/livemcp/data/license/license-public.pem
-            3. license-public.pem 是验签公钥，可以交付客户；不得向客户交付 License Center 私钥。
-            4. 替换有效 license.dat 后工具调用可自动恢复；首次配置公钥路径后请重启 MCP Server。
+            3. 替换有效 license.dat 后工具调用可自动恢复；首次配置公钥路径后请重启 MCP Server。
             """;
     }
 

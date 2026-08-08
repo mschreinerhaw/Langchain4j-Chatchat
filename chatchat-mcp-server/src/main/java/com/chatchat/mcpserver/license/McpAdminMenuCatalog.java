@@ -64,11 +64,18 @@ public class McpAdminMenuCatalog {
         if (licensedModules.contains("mcp") || licensedModules.contains(normalize(menuKey))) {
             return true;
         }
-        return menus.stream()
+        boolean implied = menus.stream()
             .filter(menu -> normalize(menu.key()).equals(normalize(menuKey)))
             .flatMap(menu -> menu.impliedBy() == null ? java.util.stream.Stream.empty() : menu.impliedBy().stream())
             .map(McpAdminMenuCatalog::normalize)
             .anyMatch(licensedModules::contains);
+        if (implied) return true;
+
+        // Aggregate navigation modules (for example assetCenter) are not issued directly.
+        // A licensed child must grant access to the shared parent APIs without granting siblings.
+        return menus.stream()
+            .filter(candidate -> normalize(menuKey).equals(normalize(candidate.parentKey())))
+            .anyMatch(candidate -> directlyLicensed(candidate, licensedModules));
     }
 
     public List<MenuAccess> access(LicenseStatus status) {
@@ -88,10 +95,14 @@ public class McpAdminMenuCatalog {
     }
 
     private boolean navigationAuthorized(LicenseStatus status, MenuDefinition menu) {
-        if (authorized(status, menu.key())) return true;
-        return menus.stream()
-            .filter(candidate -> normalize(menu.key()).equals(normalize(candidate.parentKey())))
-            .anyMatch(candidate -> authorized(status, candidate.key()));
+        return authorized(status, menu.key());
+    }
+
+    private boolean directlyLicensed(MenuDefinition menu, java.util.Set<String> licensedModules) {
+        if (licensedModules.contains(normalize(menu.key()))) return true;
+        return menu.impliedBy() != null && menu.impliedBy().stream()
+            .map(McpAdminMenuCatalog::normalize)
+            .anyMatch(licensedModules::contains);
     }
 
     private static boolean matchesTool(String pattern, String toolName) {

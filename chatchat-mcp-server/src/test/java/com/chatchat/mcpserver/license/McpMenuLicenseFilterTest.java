@@ -82,6 +82,7 @@ class McpMenuLicenseFilterTest {
         assertThat(catalog.access(status)).filteredOn(McpAdminMenuCatalog.MenuAccess::authorized)
             .extracting(McpAdminMenuCatalog.MenuAccess::key)
             .containsExactly("assetCenter");
+        assertThat(catalog.authorized(status, "assetCenter")).isTrue();
         assertThat(catalog.authorized(status, "assetJmx")).isTrue();
         assertThat(catalog.authorized(status, "assetSsh")).isFalse();
         assertThat(catalog.moduleForTool("jmx_monitor_execute"))
@@ -90,6 +91,22 @@ class McpMenuLicenseFilterTest {
         assertThat(catalog.moduleForTool("linux_command_execute"))
             .get().extracting(McpAdminMenuCatalog.MenuDefinition::key)
             .isEqualTo("assetSsh");
+    }
+
+    @Test
+    void granularCapabilityCanUseSharedParentAssetApi() throws Exception {
+        McpLicenseService licenses = mock(McpLicenseService.class);
+        when(licenses.status()).thenReturn(valid(List.of("assetJmx")));
+        McpMenuLicenseFilter filter = new McpMenuLicenseFilter(licenses, catalog, objectMapper);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        AtomicInteger calls = new AtomicInteger();
+
+        assertThat(catalog.menuForPath("/api/v1/ops/refresh-tools"))
+            .get().extracting(McpAdminMenuCatalog.MenuDefinition::key)
+            .isEqualTo("assetCenter");
+        filter.doFilter(request("/api/v1/ops/refresh-tools", "tenant-a"), response, countingChain(calls));
+
+        assertThat(calls).hasValue(1);
     }
 
     @Test

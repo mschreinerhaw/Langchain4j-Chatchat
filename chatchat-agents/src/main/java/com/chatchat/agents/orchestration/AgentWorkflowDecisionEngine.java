@@ -1,14 +1,19 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.protocol.McpToolProtocolRole;
 import com.chatchat.common.interaction.InteractionToolTrace;
+import com.chatchat.common.tool.McpToolNamePolicy;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.Set;
 
 /**
  * Central decision engine for MCP workflow tool execution and final-answer gates.
@@ -38,7 +43,7 @@ class AgentWorkflowDecisionEngine {
             return new WorkflowMandatoryResolution(List.of(), List.of());
         }
 
-        List<WorkflowToolStep> requiredSteps = new ArrayList<>();
+        List<WorkflowToolStep> declaredSteps = new ArrayList<>();
         List<ToolExecutionDecision> skippedDecisions = new ArrayList<>();
         Map<String, Object> conditionContext = workflowConditionContext(runtimeAttributes, query);
         int index = 1;
@@ -56,6 +61,9 @@ class AgentWorkflowDecisionEngine {
             }
             Boolean required = booleanObject(step.get("required"));
             String condition = stringValue(step.get("condition"));
+            int order = firstInteger(step.get("order"), firstInteger(step.get("step"), index));
+            List<String> dependencies = stringList(firstObject(step,
+                "dependsOn", "depends_on", "requiredDependsOn", "required_depends_on"));
             for (String stepTool : stepTools) {
                 ToolExecutionDecision decision = resolveToolExecution(
                     stepTool,
@@ -65,21 +73,212 @@ class AgentWorkflowDecisionEngine {
                     tools,
                     List.of()
                 );
-                if (decision.outcome() == ToolExecutionOutcome.EXECUTE) {
-                    requiredSteps.add(new WorkflowToolStep(firstInteger(firstObject(step, "step", "order"), index), decision.toolName()));
-                } else if (decision.outcome() != ToolExecutionOutcome.DEFER_TO_PLANNER) {
+                declaredSteps.add(new WorkflowToolStep(
+                    order, index, decision.toolName(),
+                    workflowStepAliases(step, stepTool, decision.toolName()), dependencies,
+                    decision.outcome() == ToolExecutionOutcome.EXECUTE));
+                if (decision.outcome() != ToolExecutionOutcome.EXECUTE
+                    && decision.outcome() != ToolExecutionOutcome.DEFER_TO_PLANNER) {
                     skippedDecisions.add(decision);
                 }
             }
             index++;
         }
 
+        List<WorkflowToolStep> resolvedSteps = withTemplateProtocolDependencies(declaredSteps);
+        List<WorkflowToolStep> dependencyOrdered = dependencyOrderedSteps(resolvedSteps);
         LinkedHashMap<String, Boolean> ordered = new LinkedHashMap<>();
-        requiredSteps.stream()
-            .sorted(Comparator.comparingInt(WorkflowToolStep::order))
+        dependencyOrdered.stream()
+            .filter(WorkflowToolStep::executable)
             .map(WorkflowToolStep::toolName)
             .forEach(tool -> ordered.put(tool, Boolean.TRUE));
-        return new WorkflowMandatoryResolution(new ArrayList<>(ordered.keySet()), distinctDecisions(skippedDecisions));
+        List<WorkflowDagNode> authoritativeDag = dependencyOrdered.stream()
+            .filter(WorkflowToolStep::executable)
+            .map(step -> new WorkflowDagNode(
+                workflowStepLabel(step),
+                step.toolName(),
+                step.dependencies().stream()
+                    .flatMap(reference -> resolveWorkflowDependency(resolvedSteps, step, reference).stream())
+                    .filter(WorkflowToolStep::executable)
+                    .map(WorkflowToolStep::toolName)
+                    .distinct()
+                    .toList(),
+                step.order(),
+                step.sourceIndex()
+            ))
+            .toList();
+        return new WorkflowMandatoryResolution(
+            new ArrayList<>(ordered.keySet()), distinctDecisions(skippedDecisions), authoritativeDag);
+    }
+
+    /**
+     * Template execution has a transport-level data dependency that cannot be made
+     * optional by a planner: asset discovery selects the routing asset, template
+     * discovery returns the template id, and only then may execution run. Fill only
+     * missing edges for an unambiguous tool family; explicit contradictory edges are
+     * retained and will be rejected by the normal cycle validator.
+     */
+    private List<WorkflowToolStep> withTemplateProtocolDependencies(List<WorkflowToolStep> steps) {
+        List<WorkflowToolStep> augmented = new ArrayList<>(steps);
+        for (int index = 0; index < augmented.size(); index++) {
+            WorkflowToolStep step = augmented.get(index);
+            String family = McpToolProtocolRole.TEMPLATE_QUERY.family(step.toolName());
+            if (family != null) {
+                List<WorkflowToolStep> assets = matchingTemplateFamily(
+                    augmented, family, McpToolProtocolRole.ASSET_QUERY);
+                if (assets.size() == 1) {
+                    augmented.set(index, withWorkflowDependency(step, workflowStepLabel(assets.get(0))));
+                }
+                continue;
+            }
+            family = McpToolProtocolRole.TEMPLATE_EXECUTE.family(step.toolName());
+            if (family != null) {
+                List<WorkflowToolStep> queries = matchingTemplateFamily(
+                    augmented, family, McpToolProtocolRole.TEMPLATE_QUERY);
+                if (queries.size() == 1) {
+                    augmented.set(index, withWorkflowDependency(step, workflowStepLabel(queries.get(0))));
+                }
+            }
+        }
+        return augmented;
+    }
+
+    private List<WorkflowToolStep> matchingTemplateFamily(List<WorkflowToolStep> steps,
+                                                           String family,
+                                                           McpToolProtocolRole role) {
+        return steps.stream()
+            .filter(candidate -> family.equals(role.family(candidate.toolName())))
+            .toList();
+    }
+
+    private WorkflowToolStep withWorkflowDependency(WorkflowToolStep step, String dependency) {
+        if (dependency == null || dependency.isBlank()
+            || step.dependencies().stream().anyMatch(dependency::equalsIgnoreCase)) {
+            return step;
+        }
+        List<String> dependencies = new ArrayList<>(step.dependencies());
+        dependencies.add(dependency);
+        return new WorkflowToolStep(step.order(), step.sourceIndex(), step.toolName(),
+            step.aliases(), dependencies, step.executable());
+    }
+
+    /**
+     * Orders mandatory workflow tools by their declared dependency graph. Numeric
+     * order and source position are deterministic tie breakers only; treating
+     * them as the workflow itself can place an executor before its discovery
+     * dependency when generated steps share or omit an order value.
+     */
+    private List<WorkflowToolStep> dependencyOrderedSteps(List<WorkflowToolStep> steps) {
+        if (steps == null || steps.isEmpty()) {
+            return List.of();
+        }
+        Map<WorkflowToolStep, Integer> inDegree = new LinkedHashMap<>();
+        Map<WorkflowToolStep, List<WorkflowToolStep>> dependents = new LinkedHashMap<>();
+        for (WorkflowToolStep step : steps) {
+            inDegree.put(step, 0);
+            dependents.put(step, new ArrayList<>());
+        }
+        for (WorkflowToolStep step : steps) {
+            Set<WorkflowToolStep> resolvedDependencies = new LinkedHashSet<>();
+            for (String dependency : step.dependencies()) {
+                resolvedDependencies.addAll(resolveWorkflowDependency(steps, step, dependency));
+            }
+            inDegree.put(step, resolvedDependencies.size());
+            resolvedDependencies.forEach(dependency -> dependents.get(dependency).add(step));
+        }
+
+        Comparator<WorkflowToolStep> stableOrder = Comparator
+            .comparingInt(WorkflowToolStep::order)
+            .thenComparingInt(WorkflowToolStep::sourceIndex);
+        PriorityQueue<WorkflowToolStep> ready = new PriorityQueue<>(stableOrder);
+        inDegree.forEach((step, degree) -> {
+            if (degree == 0) {
+                ready.add(step);
+            }
+        });
+        List<WorkflowToolStep> ordered = new ArrayList<>();
+        while (!ready.isEmpty()) {
+            WorkflowToolStep current = ready.remove();
+            ordered.add(current);
+            for (WorkflowToolStep dependent : dependents.get(current)) {
+                int remaining = inDegree.computeIfPresent(dependent, (ignored, degree) -> degree - 1);
+                if (remaining == 0) {
+                    ready.add(dependent);
+                }
+            }
+        }
+        if (ordered.size() == steps.size()) {
+            return ordered;
+        }
+        List<String> cyclicSteps = steps.stream()
+            .filter(step -> inDegree.getOrDefault(step, 0) > 0)
+            .sorted(stableOrder)
+            .map(this::workflowStepLabel)
+            .distinct()
+            .toList();
+        throw new AgentWorkflowConfigurationException(
+            "WORKFLOW_DEPENDENCY_CYCLE",
+            "Workflow dependency graph contains a cycle involving: " + cyclicSteps);
+    }
+
+    private List<WorkflowToolStep> resolveWorkflowDependency(List<WorkflowToolStep> steps,
+                                                             WorkflowToolStep dependent,
+                                                             String dependency) {
+        String reference = dependency == null ? "" : dependency.trim();
+        if (reference.isEmpty()) {
+            throw new AgentWorkflowConfigurationException(
+                "WORKFLOW_DEPENDENCY_UNRESOLVED",
+                "Workflow step '" + workflowStepLabel(dependent) + "' declares a blank dependency");
+        }
+        List<WorkflowToolStep> matches = steps.stream()
+            .filter(candidate -> candidate.aliases().stream()
+                .anyMatch(alias -> alias.equalsIgnoreCase(reference)))
+            .toList();
+        if (matches.isEmpty()) {
+            throw new AgentWorkflowConfigurationException(
+                "WORKFLOW_DEPENDENCY_UNRESOLVED",
+                "Workflow step '" + workflowStepLabel(dependent)
+                    + "' depends on unknown step or tool '" + reference + "'");
+        }
+        Set<Integer> matchedSourceSteps = matches.stream()
+            .map(WorkflowToolStep::sourceIndex)
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        if (matchedSourceSteps.size() > 1) {
+            throw new AgentWorkflowConfigurationException(
+                "WORKFLOW_DEPENDENCY_AMBIGUOUS",
+                "Workflow step '" + workflowStepLabel(dependent)
+                    + "' dependency '" + reference + "' matches multiple workflow steps "
+                    + matchedSourceSteps + "; use a unique id or name");
+        }
+        if (matchedSourceSteps.contains(dependent.sourceIndex())) {
+            throw new AgentWorkflowConfigurationException(
+                "WORKFLOW_DEPENDENCY_SELF_REFERENCE",
+                "Workflow step '" + workflowStepLabel(dependent) + "' cannot depend on itself via '"
+                    + reference + "'");
+        }
+        return matches;
+    }
+
+    private List<String> workflowStepAliases(Map<String, Object> step,
+                                             String configuredTool,
+                                             String resolvedTool) {
+        LinkedHashMap<String, Boolean> aliases = new LinkedHashMap<>();
+        for (Object value : new Object[] {
+            step.get("id"),
+            step.get("name"),
+            step.get("step"),
+            configuredTool,
+            resolvedTool}) {
+            String alias = stringValue(value);
+            if (alias != null && !alias.isBlank()) {
+                aliases.put(alias.trim(), Boolean.TRUE);
+            }
+        }
+        return new ArrayList<>(aliases.keySet());
+    }
+
+    private String workflowStepLabel(WorkflowToolStep step) {
+        return step.aliases().isEmpty() ? step.toolName() : step.aliases().get(0);
     }
 
     ToolExecutionDecision resolveToolExecution(String requestedToolName,
@@ -461,29 +660,7 @@ class AgentWorkflowDecisionEngine {
     }
 
     private String toolSemanticKey(String toolName) {
-        if (toolName == null) {
-            return "";
-        }
-        String normalized = toolName.trim().toLowerCase(Locale.ROOT).replace('-', '_');
-        while (normalized.startsWith("mcp_")) {
-            normalized = normalized.substring(4);
-        }
-        String[] prefixes = {
-            "chatchat_mcp_server_",
-            "chatchat_",
-            "xxx_"
-        };
-        boolean changed = true;
-        while (changed) {
-            changed = false;
-            for (String prefix : prefixes) {
-                if (normalized.startsWith(prefix)) {
-                    normalized = normalized.substring(prefix.length());
-                    changed = true;
-                }
-            }
-        }
-        return normalized;
+        return McpToolNamePolicy.workflowSemanticKey(toolName);
     }
 
     @SuppressWarnings("unchecked")
@@ -603,8 +780,16 @@ class AgentWorkflowDecisionEngine {
 
     private record WorkflowToolStep(
         int order,
-        String toolName
+        int sourceIndex,
+        String toolName,
+        List<String> aliases,
+        List<String> dependencies,
+        boolean executable
     ) {
+        private WorkflowToolStep {
+            aliases = aliases == null ? List.of() : List.copyOf(aliases);
+            dependencies = dependencies == null ? List.of() : List.copyOf(dependencies);
+        }
     }
 }
 
@@ -634,8 +819,13 @@ record FinalExecutionDecision(
 
 record WorkflowMandatoryResolution(
     List<String> tools,
-    List<ToolExecutionDecision> skippedDecisions
+    List<ToolExecutionDecision> skippedDecisions,
+    List<WorkflowDagNode> authoritativeDag
 ) {
+    WorkflowMandatoryResolution(List<String> tools, List<ToolExecutionDecision> skippedDecisions) {
+        this(tools, skippedDecisions, List.of());
+    }
+
     List<String> skippedTools() {
         if (skippedDecisions == null || skippedDecisions.isEmpty()) {
             return List.of();
@@ -646,5 +836,17 @@ record WorkflowMandatoryResolution(
             .filter(toolName -> toolName != null && !toolName.isBlank())
             .distinct()
             .toList();
+    }
+}
+
+record WorkflowDagNode(
+    String id,
+    String toolName,
+    List<String> dependsOnTools,
+    int order,
+    int sourceIndex
+) {
+    WorkflowDagNode {
+        dependsOnTools = dependsOnTools == null ? List.of() : List.copyOf(dependsOnTools);
     }
 }

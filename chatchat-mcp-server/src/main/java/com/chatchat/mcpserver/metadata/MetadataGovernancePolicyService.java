@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -54,6 +56,39 @@ public class MetadataGovernancePolicyService {
             return refresh().policy();
         }
         return current.policy();
+    }
+
+    public Map<String, Object> claimCoverage() {
+        MetadataGovernancePolicy policy = current();
+        return claimCoverage(policy.getClaimCoverage(), policy.getVersion());
+    }
+
+    static Map<String, Object> claimCoverage(MetadataGovernancePolicy.ClaimCoverage configured,
+                                             String policyVersion) {
+        MetadataGovernancePolicy.ClaimCoverage coverage = configured == null
+            ? new MetadataGovernancePolicy.ClaimCoverage()
+            : configured;
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("contractVersion", coverage.getContractVersion());
+        result.put("scope", coverage.getScope());
+        result.put("supportedClaims", normalizedClaims(coverage.getSupportedClaims()));
+        result.put("notAssessedClaims", normalizedClaims(coverage.getNotAssessedClaims()));
+        result.put("fullTableDesignConformanceSupported",
+            coverage.isFullTableDesignConformanceSupported());
+        result.put("interpretation", coverage.getInterpretation());
+        result.put("declarationSource", "metadata_governance_policy");
+        result.put("policyVersion", policyVersion);
+        return Map.copyOf(result);
+    }
+
+    private static List<String> normalizedClaims(List<String> claims) {
+        if (claims == null || claims.isEmpty()) {
+            return List.of();
+        }
+        return List.copyOf(new LinkedHashSet<>(claims.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .map(String::trim)
+            .toList()));
     }
 
     public Map<String, Object> status() {
@@ -141,6 +176,16 @@ public class MetadataGovernancePolicyService {
         required(contract.getDictionaryType(), "metadataContract.dictionaryType");
         if (contract.getRequiredBundle() == null || contract.getRequiredBundle().isEmpty()) {
             throw new IllegalArgumentException("metadataContract.requiredBundle is required");
+        }
+        MetadataGovernancePolicy.ClaimCoverage claimCoverage = policy.getClaimCoverage();
+        if (claimCoverage == null) {
+            throw new IllegalArgumentException("claimCoverage is required");
+        }
+        required(claimCoverage.getContractVersion(), "claimCoverage.contractVersion");
+        required(claimCoverage.getScope(), "claimCoverage.scope");
+        required(claimCoverage.getInterpretation(), "claimCoverage.interpretation");
+        if (normalizedClaims(claimCoverage.getSupportedClaims()).isEmpty()) {
+            throw new IllegalArgumentException("claimCoverage.supportedClaims is required");
         }
         MetadataGovernancePolicy.SearchPolicy search = policy.getSearch();
         if (search == null || search.getTermExpansionLimit() < 1

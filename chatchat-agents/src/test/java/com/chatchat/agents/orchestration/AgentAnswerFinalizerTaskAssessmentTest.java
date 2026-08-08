@@ -61,6 +61,49 @@ class AgentAnswerFinalizerTaskAssessmentTest {
     }
 
     @Test
+    void appliesReviewerModelReanalysisWhenRuntimeProvidesCompleteEvidenceContext() {
+        AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) -> {
+            assertThat(observations).anyMatch(item -> item.contains("model_analysis_repair_v1"));
+            assertThat(observations).anyMatch(item -> item.contains("returned_record_42"));
+            return new AgentAnswerReview(
+                AgentAnswerReview.REVISED,
+                "## Revised analysis\n\nThe returned record is 42; no broader conclusion is asserted.",
+                "Unsupported candidate claims were removed."
+            );
+        };
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            reviewer,
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("modelEvidenceReviewRewriteAllowed", true);
+        metadata.put("modelAnalysisReviewContext", "Executed plan attempts: returned_record_42");
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishReviewedAnswer(
+            null,
+            "Analyze the result",
+            null,
+            List.of(),
+            metadata,
+            List.of("initial observation"),
+            "The object is completely compliant based on its conventional name.",
+            () -> false,
+            "attempts_exhausted"
+        );
+
+        assertThat(result.answer())
+            .contains("The returned record is 42")
+            .doesNotContain("completely compliant");
+        assertThat(result.metadata())
+            .containsEntry("answerDecision", AnswerDecisionEngine.REVIEWER_REWRITE)
+            .containsEntry("answerDecisionReason", "model_reanalyzed_complete_executed_evidence")
+            .containsEntry("answerReviewAuthority", "evidence_analysis_repair")
+            .containsEntry("answerReviewRewriteApplied", true)
+            .containsEntry("modelAnalysisReviewContextApplied", true)
+            .doesNotContainKey("modelAnalysisReviewContext");
+    }
+
+    @Test
     void attachesPublicAssessmentContractToFinalExecutionMetadata() {
         AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
             new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok");

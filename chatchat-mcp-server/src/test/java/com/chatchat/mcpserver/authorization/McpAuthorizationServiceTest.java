@@ -106,6 +106,155 @@ class McpAuthorizationServiceTest {
     }
 
     @Test
+    void exposesRoleMembersAndAppliesRolePermissionAsTemplateCeiling() throws Exception {
+        String permissions = """
+            [{
+              "tenantId":"tenant-1",
+              "targetType":"role",
+              "targetId":"role-1",
+              "localToolName":"customer_profile_query",
+              "effect":"allow",
+              "enabled":true
+            }]
+            """;
+        McpAuthorizationService service = service(snapshot(permissions));
+
+        assertThat(service.roleMembers("role-1"))
+            .extracting(McpAuthorizationService.UserView::username)
+            .containsExactly("user1");
+        assertThat(service.roleAllows("role-1", "tenant-1", "customer_profile_query", null)).isTrue();
+        assertThat(service.roleAllows("role-1", "tenant-1", "unapproved_query", null)).isFalse();
+    }
+
+    @Test
+    void authorizesParentInvocationAgainstServerInjectedChildToolIdentity() throws Exception {
+        String permissions = """
+            [{
+              "tenantId":"tenant-1",
+              "targetType":"role",
+              "targetId":"role-1",
+              "localToolName":"customer_service_template_query",
+              "effect":"allow",
+              "enabled":true
+            }]
+            """;
+        McpAuthorizationService service = service(snapshot(permissions));
+
+        McpAuthorizationService.AuthorizationDecision decision = service.authorize(
+            "api_template_query",
+            Map.of("userId", "user-1", "tenantId", "tenant-1",
+                "_templateQueryChildToolName", "customer_service_template_query")
+        );
+
+        assertThat(decision.allowed()).isTrue();
+    }
+
+    @Test
+    void usesValidatedRolesForwardedByAuthenticatedApiWhenUserMembershipSnapshotIsStale() throws Exception {
+        String permissions = """
+            [{
+              "tenantId":"tenant-1",
+              "targetType":"role",
+              "targetId":"role-1",
+              "localToolName":"customer_service_template_query",
+              "effect":"allow",
+              "enabled":true
+            }]
+            """;
+        McpAuthorizationService service = service(snapshotWithoutUserRoles(permissions), transportRoleRepository());
+        McpInvocationContext.Context context = new McpInvocationContext.Context(
+            "api", "127.0.0.1", "junit", "request-1", "chatchat-api",
+            "user-1", "user1", "tenant-1", "role-1", null, null, "trace-1",
+            null, null, "read", null
+        );
+
+        McpAuthorizationService.AuthorizationDecision decision;
+        try (McpInvocationContext.Scope ignored = McpInvocationContext.open(context)) {
+            decision = service.authorize(
+                "api_template_query",
+                Map.of("_templateQueryChildToolName", "customer_service_template_query")
+            );
+        }
+
+        assertThat(decision.allowed()).isTrue();
+    }
+
+    @Test
+    void resolvesAuthenticatedTransportRoleByRoleName() throws Exception {
+        McpAuthorizationService service = service(snapshotWithoutUserRoles("[]"), transportRoleRepository());
+        McpInvocationContext.Context context = new McpInvocationContext.Context(
+            "api", "127.0.0.1", "junit", "request-1", "chatchat-api",
+            "user-1", "user1", "tenant-1", "User", null, null, "trace-1",
+            null, null, "read", null
+        );
+
+        McpAuthorizationService.CallerAuthorizationContext caller;
+        try (McpInvocationContext.Scope ignored = McpInvocationContext.open(context)) {
+            caller = service.currentCallerContext();
+        }
+
+        assertThat(caller.roleIds()).contains("role-1");
+    }
+
+    @Test
+    void resolvesDatabaseValidatedRoleWhenTransportClientIdIsUnavailable() throws Exception {
+        McpAuthorizationService service = service(snapshotWithoutUserRoles("[]"), transportRoleRepository());
+        McpInvocationContext.Context context = new McpInvocationContext.Context(
+            "api", "127.0.0.1", "junit", "request-1", null,
+            "user-1", "user1", "tenant-1", "role-1", null, null, "trace-1",
+            null, null, "read", null
+        );
+
+        McpAuthorizationService.CallerAuthorizationContext caller;
+        try (McpInvocationContext.Scope ignored = McpInvocationContext.open(context)) {
+            caller = service.currentCallerContext();
+        }
+
+        assertThat(caller.roleIds()).containsExactly("role-1");
+    }
+
+    @Test
+    void resolvesDatabaseValidatedRoleFromArgumentsAfterTransportThreadContextIsLost() throws Exception {
+        McpAuthorizationService service = service(snapshotWithoutUserRoles("[]"), transportRoleRepository());
+
+        McpAuthorizationService.CallerAuthorizationContext caller = service.currentCallerContext(Map.of(
+            "tenantId", "tenant-1",
+            "userId", "user-1",
+            "username", "user1",
+            "roles", "role-1"
+        ));
+
+        assertThat(caller.tenantId()).isEqualTo("tenant-1");
+        assertThat(caller.userId()).isEqualTo("user-1");
+        assertThat(caller.roleIds()).containsExactly("role-1");
+    }
+
+    @Test
+    void rejectsForwardedRoleThatDoesNotBelongToCallerTenant() throws Exception {
+        McpAuthorizationService service = service(multiTenantBusinessAdminSnapshot());
+        McpInvocationContext.Context context = new McpInvocationContext.Context(
+            "api", "127.0.0.1", "junit", "request-1", "chatchat-api",
+            "business-admin-a", null, "tenant-a", "role-business-b", null, null, "trace-1",
+            null, null, "read", null
+        );
+
+        McpAuthorizationService.CallerAuthorizationContext caller;
+        try (McpInvocationContext.Scope ignored = McpInvocationContext.open(context)) {
+            caller = service.currentCallerContext();
+        }
+
+        assertThat(caller.roleIds()).doesNotContain("role-business-b");
+    }
+
+    @Test
+    void exposesTenantNameWithoutUsingInternalIdAsDisplayFallback() throws Exception {
+        McpAuthorizationService service = service(snapshot("[]"));
+
+        assertThat(service.tenantName("tenant-1")).isEqualTo("示例租户");
+        assertThat(service.tenantName("missing-tenant")).isNull();
+    }
+
+    @Test
     void adminUserIdIsResolvedToWhitelistedUsername() throws Exception {
         McpAuthorizationService service = service(snapshot("[]"));
 
@@ -383,6 +532,21 @@ class McpAuthorizationServiceTest {
         return role;
     }
 
+    private McpSynchronizedRoleRepository transportRoleRepository() {
+        McpSynchronizedRoleRepository repository = mock(McpSynchronizedRoleRepository.class);
+        McpSynchronizedRole role = synchronizedRole("role-1", "chatchat-api");
+        role.setTenantId("tenant-1");
+        role.setRoleCode("USER");
+        role.setRoleName("User");
+        role.setStatus("enabled");
+        when(repository.findById("role-1")).thenReturn(Optional.of(role));
+        when(repository.findFirstByTenantIdAndRoleCodeIgnoreCase("tenant-1", "User"))
+            .thenReturn(Optional.of(role));
+        when(repository.findFirstByTenantIdAndRoleNameIgnoreCase("tenant-1", "User"))
+            .thenReturn(Optional.of(role));
+        return repository;
+    }
+
     private Object emptySnapshot() throws Exception {
         JsonNode data = objectMapper.readTree("""
             {
@@ -403,6 +567,20 @@ class McpAuthorizationServiceTest {
                 {"id":"user-admin-id","tenantId":"tenant-1","tenantNo":100000,"username":"admin","roleIds":[]}
               ],
               "roles":[{"id":"role-1","tenantId":"tenant-1","roleCode":"USER","roleName":"User"}],
+              "tenants":[{"id":"tenant-1","tenantName":"示例租户"}],
+              "tools":[],
+              "permissions":%s
+            }
+            """.formatted(permissions));
+        return snapshotFrom(data);
+    }
+
+    private Object snapshotWithoutUserRoles(String permissions) throws Exception {
+        JsonNode data = objectMapper.readTree("""
+            {
+              "users":[{"id":"user-1","tenantId":"tenant-1","username":"user1","roleIds":[]}],
+              "roles":[{"id":"role-1","tenantId":"tenant-1","roleCode":"USER","roleName":"User"}],
+              "tenants":[{"id":"tenant-1","tenantName":"示例租户"}],
               "tools":[],
               "permissions":%s
             }

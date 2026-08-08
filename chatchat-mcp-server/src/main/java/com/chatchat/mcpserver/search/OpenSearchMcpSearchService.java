@@ -54,7 +54,8 @@ public class OpenSearchMcpSearchService {
     private static final String ASSET_INDEX_PREFIX = "assets-";
     private static final String DATABASE_QUERY_TEMPLATE_INDEX = "database-query-templates";
     private static final String API_SERVICE_TEMPLATE_INDEX = "api-service-templates";
-    private static final List<String> KNOWN_ASSET_TYPES = List.of("ssh_host", "sql_datasource", "http_endpoint", "api_service");
+    private static final List<String> KNOWN_ASSET_TYPES = List.of(
+        "ssh_host", "sql_datasource", "http_endpoint_http", "http_endpoint_microservice", "api_service");
 
     private static final String FIELD_ID = "id";
     private static final String FIELD_KIND = "kind";
@@ -65,6 +66,7 @@ public class OpenSearchMcpSearchService {
     private static final String FIELD_TEXT = "text";
     private static final String FIELD_NAME_TEXT = "nameText";
     private static final String FIELD_INTENT_TEXT = "intentText";
+    private static final String FIELD_KEYWORD_ALIASES = "keywordAliases";
     private static final String FIELD_NAME = "name";
     private static final String FIELD_DESCRIPTION = "description";
     private static final String FIELD_CATEGORY = "category";
@@ -580,6 +582,7 @@ public class OpenSearchMcpSearchService {
             Map.entry(FIELD_DATABASE_COMMENT, chineseTextMapping(false)),
             Map.entry(FIELD_NAME_TEXT, textMapping()),
             Map.entry(FIELD_INTENT_TEXT, textMapping()),
+            Map.entry(FIELD_KEYWORD_ALIASES, aliasTextMapping()),
             Map.entry(FIELD_TEXT, textMapping()),
             Map.entry("source", Map.of("type", "keyword"))
         ));
@@ -625,6 +628,7 @@ public class OpenSearchMcpSearchService {
                     FIELD_NAME_TEXT + "^2.4",
                     FIELD_NAME_TEXT + ".ngram^1.6",
                     FIELD_NAME_TEXT + ".pinyin^1.8",
+                    FIELD_KEYWORD_ALIASES + "^1.7",
                     FIELD_TEXT,
                     FIELD_TEXT + ".ngram^1.1",
                     FIELD_TEXT + ".pinyin^1.2",
@@ -679,6 +683,7 @@ public class OpenSearchMcpSearchService {
                 "stepDescriptions^4.0",
                 "indexTags^4.5",
                 "domain^2.5",
+                FIELD_KEYWORD_ALIASES + "^2.0",
                 FIELD_INTENT_TEXT + "^2.4",
                 FIELD_INTENT_TEXT + ".ngram^1.5",
                 FIELD_TEXT,
@@ -793,6 +798,9 @@ public class OpenSearchMcpSearchService {
             doc.fullPath(), doc.extraText(), doc.tableComment(), doc.databaseComment()));
         put(source, FIELD_TEXT, join(doc.name(), doc.displayName(), doc.toolName(), doc.databaseName(), doc.tableName(),
             doc.fullPath(), doc.extraText(), doc.tableComment(), doc.databaseComment(), String.join(" ", doc.labels())));
+        List<String> keywordAliases = SearchKeywordAliasGenerator.aliases(
+            doc.name(), doc.displayName(), doc.toolName(), doc.databaseName(), doc.tableName());
+        if (!keywordAliases.isEmpty()) source.put(FIELD_KEYWORD_ALIASES, keywordAliases);
         put(source, "source", doc.source());
         for (String label : doc.labels()) {
             append(source, FIELD_LABEL, normalizeExact(label));
@@ -822,6 +830,9 @@ public class OpenSearchMcpSearchService {
             doc.dbType(), doc.toolName(), doc.toolDescription(), doc.implementationSteps(), doc.domain(),
             doc.businessScope(), String.join(" ", doc.indexTags()), String.join(" ", doc.stepNames()),
             String.join(" ", doc.stepDescriptions()), String.join(" ", doc.intentSignals())));
+        List<String> keywordAliases = SearchKeywordAliasGenerator.aliases(
+            doc.id(), doc.name(), doc.toolName(), doc.category());
+        if (!keywordAliases.isEmpty()) source.put(FIELD_KEYWORD_ALIASES, keywordAliases);
         put(source, "source", doc.source());
         return source;
     }
@@ -923,6 +934,7 @@ public class OpenSearchMcpSearchService {
             Map.entry("stepNames", chineseTextMapping(false)),
             Map.entry("stepDescriptions", chineseTextMapping(false)),
             Map.entry(FIELD_INTENT_TEXT, textMapping()),
+            Map.entry(FIELD_KEYWORD_ALIASES, aliasTextMapping()),
             Map.entry(FIELD_TEXT, textMapping()),
             Map.entry("source", Map.of("type", "keyword")),
             Map.entry(CAPABILITY_VECTOR, Map.of(
@@ -1025,6 +1037,10 @@ public class OpenSearchMcpSearchService {
 
     private Map<String, Object> textMapping() {
         return chineseTextMapping(true);
+    }
+
+    private Map<String, Object> aliasTextMapping() {
+        return Map.of("type", "text", "analyzer", "standard", "search_analyzer", "standard");
     }
 
     private Map<String, Object> analysisSettings() {
@@ -1229,7 +1245,10 @@ public class OpenSearchMcpSearchService {
         Map<String, Object> effectiveQuery = filters.isEmpty()
             ? lexical
             : Map.of("bool", Map.of("must", List.of(lexical), "filter", filters));
-        int resultLimit = Math.max(1, Math.min(limit, 100));
+        if (limit < 1) {
+            throw new IllegalArgumentException("limit must be greater than 0");
+        }
+        int resultLimit = limit;
         JsonNode lexicalResponse = searchRequest("POST", "/" + index + "/_search", Map.of(
             "size", Math.max(resultLimit, Math.min(vectorCandidateLimit, 500)),
             "query", effectiveQuery
@@ -1526,6 +1545,23 @@ public class OpenSearchMcpSearchService {
             ))
         ), true);
         bulk(index, safeAssetDocs(docs).stream().map(this::assetSource).toList());
+    }
+
+    public synchronized void replaceAssetAcrossIndexes(String assetId,
+                                                        List<String> assetTypes,
+                                                        LuceneMcpSearchService.AssetDoc doc) {
+        if (!enabled() || assetId == null || assetId.isBlank() || assetTypes == null) return;
+        for (String requestedType : assetTypes) {
+            String assetType = normalizeAssetType(requestedType);
+            if (assetType == null) continue;
+            String index = openSearchIndexName(assetIndexName(assetType));
+            ensureIndex(index);
+            request("POST", "/" + index + "/_delete_by_query?conflicts=proceed&refresh=true",
+                Map.of("query", Map.of("term", Map.of(FIELD_ID, assetId))), true);
+            if (doc != null && assetType.equals(normalizeAssetType(doc.assetType()))) {
+                bulk(index, List.of(assetSource(doc)));
+            }
+        }
     }
 
     private JsonNode searchRequest(String method, String path, Object body) {

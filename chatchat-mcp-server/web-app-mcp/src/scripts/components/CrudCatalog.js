@@ -26,6 +26,7 @@ export default {
     rebuildAction: { type: Function, default: null },
     rebuildLabel: { type: String, default: '' },
     rebuildRequiresSelection: { type: Boolean, default: false },
+    stackedHeaderActions: { type: Boolean, default: false },
     extraActions: { type: Array, default: () => [] },
     defaults: { type: Object, default: () => ({}) },
     searchableFields: { type: Array, default: () => [] },
@@ -303,9 +304,15 @@ export default {
   },
   methods: {
     matchesListFilter(item, filter) {
-      const value = String(this.listFilterValues[filter.key] || '').trim();
+      const rawValue = this.listFilterValues[filter.key];
+      const value = rawValue === null || rawValue === undefined
+        ? ''
+        : String(rawValue).trim();
       if (!value) return true;
-      const itemValue = String(item?.[filter.key] ?? '').trim().toLowerCase();
+      const rawItemValue = typeof filter.valueGetter === 'function'
+        ? filter.valueGetter(item)
+        : item?.[filter.key];
+      const itemValue = String(rawItemValue ?? '').trim().toLowerCase();
       const selected = this.listFilterOptions(filter).find(option => String(option.value) === value);
       const acceptedValues = [value, ...(Array.isArray(selected?.matches) ? selected.matches : [])]
         .map(candidate => String(candidate || '').trim().toLowerCase())
@@ -325,7 +332,7 @@ export default {
       }
     },
     listFilterOptions(filter) {
-      const source = typeof filter.options === 'function' ? filter.options() : filter.options;
+      const source = typeof filter.options === 'function' ? filter.options(this.items) : filter.options;
       return Array.isArray(source) ? source : [];
     },
     openCreate() {
@@ -573,7 +580,7 @@ export default {
       if (this.rebuildRequiresSelection && !this.selectedIds.size) return;
       await this.run(
         () => this.rebuildAction([...this.selectedIds]),
-        this.rebuildRequiresSelection ? `已重建选中的 ${this.selectedIds.size} 个资产索引` : '索引已重建'
+        this.rebuildRequiresSelection ? `已重建选中的 ${this.selectedIds.size} 项索引` : '索引已重建'
       );
     },
     async run(action, message) {

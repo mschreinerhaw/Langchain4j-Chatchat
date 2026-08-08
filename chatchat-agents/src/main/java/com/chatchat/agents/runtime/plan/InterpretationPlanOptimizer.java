@@ -1,6 +1,8 @@
 package com.chatchat.agents.runtime.plan;
 
+import com.chatchat.agents.protocol.McpToolProtocolRole;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -15,6 +17,10 @@ import java.util.Set;
 public class InterpretationPlanOptimizer {
 
     public OptimizationResult optimize(InterpretationPlan plan) {
+        return optimize(plan, null);
+    }
+
+    public OptimizationResult optimize(InterpretationPlan plan, Object authoritativeWorkflowDag) {
         if (plan == null || plan.plan() == null || plan.steps().isEmpty()) {
             return new OptimizationResult(plan, List.of());
         }
@@ -56,6 +62,25 @@ public class InterpretationPlanOptimizer {
             }
         }
 
+        boolean hasAuthoritativeWorkflowDag = !configuredWorkflowNodes(authoritativeWorkflowDag).isEmpty();
+        ConfiguredDagRepairResult configuredDag = repairConfiguredWorkflowDag(
+            steps, dependencyContracts, authoritativeWorkflowDag);
+        steps = configuredDag.steps();
+        dependencyContracts = configuredDag.dependencyContracts();
+        if (configuredDag.changed()) {
+            passes.add("AuthoritativeWorkflowDagPass");
+        }
+
+        TemplateDagRepairResult templateDag = repairTemplateExecutionDag(
+            steps, edgeContracts, dependencyContracts, bindings, !hasAuthoritativeWorkflowDag);
+        steps = templateDag.steps();
+        edgeContracts = templateDag.edgeContracts();
+        dependencyContracts = templateDag.dependencyContracts();
+        bindings = templateDag.bindings();
+        if (templateDag.changed()) {
+            passes.add("TemplateExecutionDagRepairPass");
+        }
+
         OrderingResult ordering = policyAwareOrdering(plan, steps);
         steps = ordering.steps();
         if (ordering.changed()) {
@@ -88,6 +113,372 @@ public class InterpretationPlanOptimizer {
             plan.review()
         );
         return new OptimizationResult(optimized, List.copyOf(passes));
+    }
+
+    /** Applies only user-configured workflow-to-workflow edges; model edges are not authoritative. */
+    private ConfiguredDagRepairResult repairConfiguredWorkflowDag(
+        List<InterpretationPlan.Step> sourceSteps,
+        List<InterpretationPlan.DependencyContract> sourceDependencies,
+        Object rawDag
+    ) {
+        List<ConfiguredWorkflowNode> nodes = configuredWorkflowNodes(rawDag);
+        if (nodes.isEmpty()) {
+            return new ConfiguredDagRepairResult(
+                new ArrayList<>(sourceSteps), new ArrayList<>(sourceDependencies), false);
+        }
+        List<InterpretationPlan.Step> steps = new ArrayList<>(sourceSteps);
+        List<InterpretationPlan.DependencyContract> contracts = new ArrayList<>(sourceDependencies);
+        Map<String, InterpretationPlan.Step> planStepsByTool = new LinkedHashMap<>();
+        for (ConfiguredWorkflowNode node : nodes) {
+            List<InterpretationPlan.Step> matches = steps.stream()
+                .filter(step -> sameProtocolTool(step == null ? null : step.toolName(), node.toolName()))
+                .toList();
+            if (matches.size() == 1) {
+                planStepsByTool.put(semanticToolName(node.toolName()), matches.get(0));
+            }
+        }
+        Set<Integer> configuredStepIds = new LinkedHashSet<>();
+        planStepsByTool.values().stream()
+            .map(InterpretationPlan.Step::id)
+            .filter(Objects::nonNull)
+            .forEach(configuredStepIds::add);
+        boolean changed = false;
+        for (ConfiguredWorkflowNode node : nodes) {
+            InterpretationPlan.Step target = planStepsByTool.get(semanticToolName(node.toolName()));
+            if (target == null || target.id() == null) {
+                continue;
+            }
+            Set<Integer> requiredIds = node.dependsOnTools().stream()
+                .map(tool -> planStepsByTool.get(semanticToolName(tool)))
+                .filter(Objects::nonNull)
+                .map(InterpretationPlan.Step::id)
+                .filter(Objects::nonNull)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+            List<Integer> repaired = new ArrayList<>();
+            for (Integer dependency : target.dependsOn() == null ? List.<Integer>of() : target.dependsOn()) {
+                if (!configuredStepIds.contains(dependency) || requiredIds.contains(dependency)) {
+                    repaired.add(dependency);
+                }
+            }
+            requiredIds.forEach(dependency -> {
+                if (!repaired.contains(dependency)) {
+                    repaired.add(dependency);
+                }
+            });
+            if (!repaired.equals(target.dependsOn() == null ? List.of() : target.dependsOn())) {
+                int index = indexOfStep(steps, target.id());
+                steps.set(index, withDependencies(target, List.copyOf(repaired)));
+                target = steps.get(index);
+                planStepsByTool.put(semanticToolName(node.toolName()), target);
+                changed = true;
+            }
+            for (Integer requiredId : requiredIds) {
+                changed |= addRequiredDependencyContract(
+                    contracts, requiredId, target.id(),
+                    "Required by the user-defined task workflow DAG.");
+            }
+        }
+        Set<String> configuredEdges = nodes.stream()
+            .flatMap(node -> node.dependsOnTools().stream()
+                .map(source -> semanticToolName(source) + "->" + semanticToolName(node.toolName())))
+            .collect(java.util.stream.Collectors.toSet());
+        int before = contracts.size();
+        contracts.removeIf(contract -> {
+            if (contract == null || contract.from() == null || contract.to() == null
+                || !configuredStepIds.contains(contract.from()) || !configuredStepIds.contains(contract.to())) {
+                return false;
+            }
+            InterpretationPlan.Step from = steps.stream()
+                .filter(step -> Objects.equals(step.id(), contract.from())).findFirst().orElse(null);
+            InterpretationPlan.Step to = steps.stream()
+                .filter(step -> Objects.equals(step.id(), contract.to())).findFirst().orElse(null);
+            return from != null && to != null && !configuredEdges.contains(
+                semanticToolName(from.toolName()) + "->" + semanticToolName(to.toolName()));
+        });
+        changed |= before != contracts.size();
+        return new ConfiguredDagRepairResult(steps, contracts, changed);
+    }
+
+    private List<ConfiguredWorkflowNode> configuredWorkflowNodes(Object rawDag) {
+        if (!(rawDag instanceof Collection<?> collection)) {
+            return List.of();
+        }
+        List<ConfiguredWorkflowNode> nodes = new ArrayList<>();
+        for (Object value : collection) {
+            if (!(value instanceof Map<?, ?> map)) {
+                continue;
+            }
+            String tool = mapValue(map, "tool", "toolName");
+            if (tool == null || tool.isBlank()) {
+                continue;
+            }
+            Object dependencies = map.get("dependsOnTools");
+            List<String> dependsOnTools = dependencies instanceof Collection<?> values
+                ? values.stream().filter(Objects::nonNull).map(String::valueOf).filter(text -> !text.isBlank()).toList()
+                : List.of();
+            nodes.add(new ConfiguredWorkflowNode(tool.trim(), dependsOnTools));
+        }
+        return nodes;
+    }
+
+    private String mapValue(Map<?, ?> map, String... keys) {
+        for (String key : keys) {
+            Object value = map.get(key);
+            if (value != null && !String.valueOf(value).isBlank()) {
+                return String.valueOf(value).trim();
+            }
+        }
+        return null;
+    }
+
+    private boolean sameProtocolTool(String left, String right) {
+        return !semanticToolName(left).isBlank() && semanticToolName(left).equals(semanticToolName(right));
+    }
+
+    private TemplateDagRepairResult repairTemplateExecutionDag(
+        List<InterpretationPlan.Step> sourceSteps,
+        List<InterpretationPlan.EdgeContract> sourceEdges,
+        List<InterpretationPlan.DependencyContract> sourceDependencies,
+        List<InterpretationPlan.Binding> sourceBindings,
+        boolean mayRepairWorkflowEdges
+    ) {
+        List<InterpretationPlan.Step> steps = new ArrayList<>(sourceSteps);
+        List<InterpretationPlan.EdgeContract> edges = new ArrayList<>(sourceEdges);
+        List<InterpretationPlan.DependencyContract> dependencies = new ArrayList<>(sourceDependencies);
+        List<InterpretationPlan.Binding> bindings = new ArrayList<>(sourceBindings);
+        List<InterpretationPlan.Step> assets = steps.stream()
+            .filter(this::isAssetDiscoveryStep)
+            .toList();
+        List<InterpretationPlan.Step> templates = steps.stream()
+            .filter(this::isTemplateDiscoveryStep)
+            .toList();
+        List<InterpretationPlan.Step> executors = steps.stream()
+            .filter(this::isTemplateExecutionStep)
+            .toList();
+        if (assets.isEmpty() || templates.isEmpty() || executors.isEmpty()) {
+            return new TemplateDagRepairResult(steps, edges, dependencies, bindings, false);
+        }
+
+        boolean changed = false;
+        for (InterpretationPlan.Step template : templates) {
+            InterpretationPlan.Step asset = bestProtocolPredecessor(template, assets);
+            if (asset == null) {
+                continue;
+            }
+            if (mayRepairWorkflowEdges) {
+                changed |= addDependency(steps, template.id(), asset.id());
+                changed |= addRequiredDependencyContract(
+                    dependencies, asset.id(), template.id(),
+                    "Template discovery requires the current task asset evidence.");
+            }
+            int templateIndex = indexOfStep(steps, template.id());
+            if (templateIndex >= 0) {
+                InterpretationPlan.Step current = steps.get(templateIndex);
+                Map<String, Object> input = new LinkedHashMap<>(
+                    current.input() == null ? Map.of() : current.input());
+                boolean removedLiteral = input.remove("templateIds") != null
+                    | input.remove("template_ids") != null;
+                if (removedLiteral) {
+                    steps.set(templateIndex, new InterpretationPlan.Step(
+                        current.id(), current.actionType(), current.toolName(), input,
+                        current.dependsOn(), current.outputContract(), current.validation()));
+                    changed = true;
+                }
+            }
+        }
+        for (InterpretationPlan.Step executor : executors) {
+            int executorIndex = indexOfStep(steps, executor.id());
+            if (executorIndex >= 0) {
+                InterpretationPlan.Step current = steps.get(executorIndex);
+                Map<String, Object> input = new LinkedHashMap<>(
+                    current.input() == null ? Map.of() : current.input());
+                boolean removedLiteral = input.remove("templateId") != null
+                    | input.remove("template_id") != null
+                    | input.remove("template") != null
+                    | input.remove("runtimeTemplateBinding") != null;
+                if (removedLiteral) {
+                    steps.set(executorIndex, new InterpretationPlan.Step(
+                        current.id(), current.actionType(), current.toolName(), input,
+                        current.dependsOn(), current.outputContract(), current.validation()));
+                    changed = true;
+                }
+            }
+            List<InterpretationPlan.Step> configuredPredecessors = mayRepairWorkflowEdges
+                ? templates
+                : templates.stream()
+                    .filter(template -> dependsOnTransitively(executor.id(), template.id(), steps, new LinkedHashSet<>()))
+                    .toList();
+            InterpretationPlan.Step template = bestProtocolPredecessor(executor, configuredPredecessors);
+            if (template == null) {
+                continue;
+            }
+            if (mayRepairWorkflowEdges) {
+                changed |= addDependency(steps, executor.id(), template.id());
+                changed |= addRequiredDependencyContract(
+                    dependencies, template.id(), executor.id(),
+                    "Template execution requires a selected template contract.");
+            }
+            if (!hasTemplateIdBinding(bindings, template.id(), executor.id())) {
+                bindings.add(new InterpretationPlan.Binding(
+                    template.id(), "$.templates[0].templateId", executor.id(),
+                    "$.templateId", "jsonpath", true));
+                changed = true;
+            }
+            if (!hasEdgeContract(edges, template.id(), executor.id(), "$.templates[0].templateId")) {
+                edges.add(new InterpretationPlan.EdgeContract(
+                    template.id(), executor.id(), "$.templates[0].templateId", "string", true));
+                changed = true;
+            }
+        }
+        return new TemplateDagRepairResult(steps, edges, dependencies, bindings, changed);
+    }
+
+    private boolean dependsOnTransitively(Integer stepId,
+                                          Integer dependencyId,
+                                          List<InterpretationPlan.Step> steps,
+                                          Set<Integer> visited) {
+        if (stepId == null || dependencyId == null || !visited.add(stepId)) {
+            return false;
+        }
+        InterpretationPlan.Step step = steps.stream()
+            .filter(candidate -> candidate != null && Objects.equals(candidate.id(), stepId))
+            .findFirst().orElse(null);
+        if (step == null || step.dependsOn() == null) {
+            return false;
+        }
+        return step.dependsOn().contains(dependencyId)
+            || step.dependsOn().stream().anyMatch(parent ->
+                dependsOnTransitively(parent, dependencyId, steps, visited));
+    }
+
+    private boolean addDependency(List<InterpretationPlan.Step> steps, Integer targetId, Integer dependencyId) {
+        int index = indexOfStep(steps, targetId);
+        if (index < 0 || dependencyId == null) {
+            return false;
+        }
+        InterpretationPlan.Step step = steps.get(index);
+        List<Integer> values = new ArrayList<>(step.dependsOn() == null ? List.of() : step.dependsOn());
+        if (values.contains(dependencyId)) {
+            return false;
+        }
+        values.add(dependencyId);
+        steps.set(index, withDependencies(step, List.copyOf(values)));
+        return true;
+    }
+
+    private int indexOfStep(List<InterpretationPlan.Step> steps, Integer stepId) {
+        for (int index = 0; index < steps.size(); index++) {
+            if (steps.get(index) != null && Objects.equals(stepId, steps.get(index).id())) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    private boolean addRequiredDependencyContract(List<InterpretationPlan.DependencyContract> contracts,
+                                                  Integer from,
+                                                  Integer to,
+                                                  String reason) {
+        boolean exists = contracts.stream()
+            .filter(Objects::nonNull)
+            .anyMatch(contract -> Objects.equals(from, contract.from())
+                && Objects.equals(to, contract.to())
+                && !Boolean.FALSE.equals(contract.required()));
+        if (exists) {
+            return false;
+        }
+        contracts.add(new InterpretationPlan.DependencyContract(
+            from, to, true, null, reason, "replan"));
+        return true;
+    }
+
+    private boolean hasTemplateIdBinding(List<InterpretationPlan.Binding> bindings,
+                                         Integer from,
+                                         Integer to) {
+        return bindings.stream()
+            .filter(Objects::nonNull)
+            .anyMatch(binding -> Objects.equals(from, binding.from())
+                && Objects.equals(to, binding.to())
+                && normalizeField(binding.outputPath()).contains("templateid")
+                && normalizeField(binding.inputField()).contains("templateid"));
+    }
+
+    private boolean hasEdgeContract(List<InterpretationPlan.EdgeContract> edges,
+                                    Integer from,
+                                    Integer to,
+                                    String field) {
+        return edges.stream()
+            .filter(Objects::nonNull)
+            .anyMatch(edge -> Objects.equals(from, edge.from())
+                && Objects.equals(to, edge.to())
+                && normalizeField(field).equals(normalizeField(edge.field())));
+    }
+
+    private InterpretationPlan.Step bestProtocolPredecessor(InterpretationPlan.Step target,
+                                                            List<InterpretationPlan.Step> candidates) {
+        return candidates.stream()
+            .max(Comparator
+                .comparingInt((InterpretationPlan.Step candidate) -> protocolAffinity(
+                    target == null ? null : target.toolName(), candidate.toolName()))
+                .thenComparingInt(candidate -> candidate.id() != null
+                    && target != null && target.id() != null && candidate.id() < target.id() ? 1 : 0)
+                .thenComparingInt(candidate -> candidate.id() == null ? Integer.MIN_VALUE : candidate.id()))
+            .orElse(null);
+    }
+
+    private int protocolAffinity(String left, String right) {
+        Set<String> leftTokens = protocolTokens(left);
+        Set<String> rightTokens = protocolTokens(right);
+        leftTokens.retainAll(rightTokens);
+        return leftTokens.size();
+    }
+
+    private Set<String> protocolTokens(String toolName) {
+        String semantic = semanticToolName(toolName);
+        Set<String> ignored = Set.of(
+            "asset", "query", "search", "template", "execute", "execution",
+            "request", "script", "command", "discovery", "ops");
+        return java.util.Arrays.stream(semantic.split("_"))
+            .filter(token -> !token.isBlank() && !ignored.contains(token))
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    private boolean isAssetDiscoveryStep(InterpretationPlan.Step step) {
+        String semantic = step == null ? "" : semanticToolName(step.toolName());
+        return step != null && step.mcpToolAction()
+            && (McpToolProtocolRole.ASSET_QUERY.matches(semantic)
+                || semantic.equals("asset_discovery") || semantic.endsWith("_asset_search"));
+    }
+
+    private boolean isTemplateDiscoveryStep(InterpretationPlan.Step step) {
+        String semantic = step == null ? "" : semanticToolName(step.toolName());
+        return step != null && step.mcpToolAction()
+            && (McpToolProtocolRole.TEMPLATE_QUERY.matches(semantic)
+                || semantic.equals("template_discovery") || semantic.endsWith("_template_search"));
+    }
+
+    private boolean isTemplateExecutionStep(InterpretationPlan.Step step) {
+        String semantic = step == null ? "" : semanticToolName(step.toolName());
+        return step != null && step.mcpToolAction()
+            && (McpToolProtocolRole.TEMPLATE_EXECUTE.matches(semantic)
+                || semantic.equals("execute") || semantic.endsWith("_execute"));
+    }
+
+    private String semanticToolName(String toolName) {
+        String value = normalize(toolName);
+        while (value.startsWith("mcp_")) {
+            value = value.substring(4);
+        }
+        for (String prefix : List.of("chatchat_mcp_server_", "chatchat_", "xxx_")) {
+            if (value.startsWith(prefix)) {
+                value = value.substring(prefix.length());
+            }
+        }
+        return value;
+    }
+
+    private String normalizeField(String value) {
+        return value == null ? "" : value.toLowerCase().replaceAll("[^a-z0-9]", "");
     }
 
     private StepInputSanitizeResult sanitizeDocumentSearchInputs(List<InterpretationPlan.Step> steps) {
@@ -612,6 +1003,25 @@ public class InterpretationPlanOptimizer {
 
     private record StepInputSanitizeResult(
         List<InterpretationPlan.Step> steps,
+        boolean changed
+    ) {
+    }
+
+    private record TemplateDagRepairResult(
+        List<InterpretationPlan.Step> steps,
+        List<InterpretationPlan.EdgeContract> edgeContracts,
+        List<InterpretationPlan.DependencyContract> dependencyContracts,
+        List<InterpretationPlan.Binding> bindings,
+        boolean changed
+    ) {
+    }
+
+    private record ConfiguredWorkflowNode(String toolName, List<String> dependsOnTools) {
+    }
+
+    private record ConfiguredDagRepairResult(
+        List<InterpretationPlan.Step> steps,
+        List<InterpretationPlan.DependencyContract> dependencyContracts,
         boolean changed
     ) {
     }

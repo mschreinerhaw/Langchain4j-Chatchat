@@ -45,7 +45,8 @@ public class EnterpriseMetadataMcpToolPublisher {
     public synchronized void refresh() {
         remove(TOOL_NAME);
         remove(RETIRED_MATCH_TOOL_NAME);
-        mcpSyncServer.addTool(searchSpecification());
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, searchSpecification());
         mcpSyncServer.notifyToolsListChanged();
         log.info("Enterprise metadata MCP capabilities registered tools={}; retiredToolRemoved={}",
             TOOL_NAME, RETIRED_MATCH_TOOL_NAME);
@@ -59,16 +60,16 @@ public class EnterpriseMetadataMcpToolPublisher {
                 + "Every invocation performs the required standard-field, term-root and dictionary retrieval internally; "
                 + "For a new table whose fields do not exist yet, supply queryTerms (or query) containing model-extracted "
                 + "business concepts and candidate field meanings; the tool returns relevant enterprise metadata records. "
-                + "When fields are supplied, one invocation processes the complete field list and returns field-scoped "
+                + "When fields are supplied, one invocation validates every supplied field and returns field-scoped "
                 + "standard-field, term-root and dictionary evidence. Do not split those metadata types into separate tool calls. "
-                + "For an existing physical table, supply tableName/targetObject or include its exact identifier in query; "
-                + "the capability resolves the complete indexed table schema internally when dependency evidence is unavailable. "
                 + "For CREATE TABLE requests, use queryTerms for discovery when the draft schema is not yet known; when a "
                 + "complete model-proposed schema exists, place it in fields and the proposed table name in targetObject. "
                 + "A downstream reasoning/script step must review the returned evidence before producing DDL. "
                 + "Use this read-only capability when a task needs enterprise field meaning, technical names, "
                 + "data types, standard definitions or business-term mapping. It does not create tables, "
-                + "generate SQL or execute a workflow. Treat results and evidenceObjects as the factual boundary; "
+                + "generate SQL or execute a workflow. The returned claimCoverage is the authoritative, governance-policy-driven "
+                + "declaration of supported and unassessed claims; callers must not assume a fixed table-design scope from the tool name. "
+                + "Treat results and evidenceObjects as the factual boundary; "
                 + "never invent fields that were not returned.")
             .inputSchema(inputSchema())
             .meta(meta())
@@ -338,8 +339,8 @@ public class EnterpriseMetadataMcpToolPublisher {
             "fields", mapOf(
                 "type", "array",
                 "items", fieldSchema,
-                "description", "Optional complete field list extracted from prior SQL metadata evidence. "
-                    + "All fields are processed in this single tool invocation."
+                "description", "Fields to validate. Every supplied field is processed in this single invocation; "
+                    + "the capability does not claim whole-table conformance."
             ),
             "tableName", Map.of(
                 "type", "string",
@@ -381,14 +382,12 @@ public class EnterpriseMetadataMcpToolPublisher {
             "limit", Map.of(
                 "type", "integer",
                 "minimum", 1,
-                "maximum", properties.getMaxResults(),
-                "description", "Maximum total returned results across standard fields, term roots and dictionaries"
+                "description", "Caller-requested total metadata result count across standard fields, term roots and dictionaries; no fixed service cap is applied"
             ),
             "candidateLimitPerType", mapOf(
                 "type", "integer",
                 "minimum", 1,
-                "maximum", properties.getMaxResults(),
-                "description", "Maximum candidates per metadata type and field for a structured field bundle"
+                "description", "Caller-requested candidates per metadata type for every supplied field; defaults to limit when provided"
             )
         ), List.of(), false, null, null);
     }
@@ -418,7 +417,8 @@ public class EnterpriseMetadataMcpToolPublisher {
                     "Creating or altering a table",
                     "Executing SQL",
                     "Guessing fields not present in the returned evidence",
-                    "Returning real data samples or sensitive field values"
+                    "Returning real data samples or sensitive field values",
+                    "Proving complete table-level physical-design conformance"
                 )
             ),
             "logicalIndexes", List.of(

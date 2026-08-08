@@ -6,6 +6,8 @@ import com.chatchat.agents.runtime.plan.InterpretationPlanStore;
 import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.chat.interaction.model.InteractionResponse;
 import com.chatchat.chat.interaction.service.InteractionOrchestrationService;
+import com.chatchat.chat.skills.SkillCatalogService;
+import com.chatchat.chat.skills.SkillDefinition;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -13,6 +15,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Field;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +34,101 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentTaskServiceTest {
+
+    @Test
+    void failedToolResultDoesNotOverrideLaterPartialTaskCompletion() throws Exception {
+        AgentTaskService service = taskService(
+            mock(AgentEventBus.class), mock(AgentEventStore.class), mock(AgentTaskLatestRepository.class),
+            mock(TaskConfirmRepository.class), new ObjectMapper());
+        AgentEvent failedTool = AgentEvent.builder()
+            .type("TOOL_RESULT")
+            .status("FAILED")
+            .toolName("mcp_chatchat_mcp_server_api_template_execute")
+            .build();
+        AgentEvent partialResult = AgentEvent.builder()
+            .type("RESULT")
+            .status("PARTIAL_SUCCESS")
+            .payload("{\"answer\":\"available evidence\"}")
+            .build();
+        Method findTerminal = AgentTaskService.class.getDeclaredMethod("findLatestTerminalEvent", List.class);
+        findTerminal.setAccessible(true);
+
+        AgentEvent terminal = (AgentEvent) findTerminal.invoke(service, List.of(failedTool, partialResult));
+
+        assertThat(terminal).isSameAs(partialResult);
+    }
+
+    @Test
+    void failedToolResultAloneIsNotATaskTerminalEvent() throws Exception {
+        AgentTaskService service = taskService(
+            mock(AgentEventBus.class), mock(AgentEventStore.class), mock(AgentTaskLatestRepository.class),
+            mock(TaskConfirmRepository.class), new ObjectMapper());
+        AgentEvent failedTool = AgentEvent.builder()
+            .type("TOOL_RESULT")
+            .status("FAILED")
+            .build();
+        Method findTerminal = AgentTaskService.class.getDeclaredMethod("findLatestTerminalEvent", List.class);
+        findTerminal.setAccessible(true);
+
+        assertThat(findTerminal.invoke(service, List.of(failedTool))).isNull();
+    }
+
+    @Test
+    void failedToolWithCapturedEvidenceCompilesAsPartialSuccess() throws Exception {
+        AgentTaskService service = taskService(
+            mock(AgentEventBus.class), mock(AgentEventStore.class), mock(AgentTaskLatestRepository.class),
+            mock(TaskConfirmRepository.class), new ObjectMapper());
+        InteractionResponse response = InteractionResponse.builder()
+            .answer("已返回可用结果，并明确说明其中一个指标查询失败。")
+            .toolTraces(List.of(
+                InteractionToolTrace.builder().toolName("api_asset_query").success(true).output("asset").build(),
+                InteractionToolTrace.builder().toolName("api_template_execute").success(false)
+                    .errorMessage("UNAVAILABLE: NameResolver returned no usable address").build()
+            ))
+            .metadata(Map.of("agent", Map.of("fatalExecutionBlocked", true)))
+            .build();
+        Method compile = AgentTaskService.class.getDeclaredMethod("compileExecutionResult", InteractionResponse.class);
+        compile.setAccessible(true);
+
+        Object contract = compile.invoke(service, response);
+        Method status = contract.getClass().getDeclaredMethod("status");
+        status.setAccessible(true);
+
+        assertThat(status.invoke(contract)).isEqualTo("PARTIAL_SUCCESS");
+    }
+
+    @Test
+    void snapshotsUserDefinedWorkflowAgainstTaskIdBeforeExecution() throws Exception {
+        AgentTaskService service = taskService(
+            mock(AgentEventBus.class), mock(AgentEventStore.class), mock(AgentTaskLatestRepository.class),
+            mock(TaskConfirmRepository.class), new ObjectMapper());
+        SkillCatalogService catalog = mock(SkillCatalogService.class);
+        SkillDefinition skill = new SkillDefinition(
+            "ops", "Ops", "", List.of(), List.of(), "agent_chat", null, "", "",
+            List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), null,
+            Map.of("mcpWorkflow", Map.of("steps", List.of(
+                Map.of("id", "asset", "tool", "api_asset_query"),
+                Map.of("id", "execute", "tool", "api_template_execute", "dependsOn", List.of("asset"))
+            ))),
+            null, null, List.of(), "published", false
+        );
+        when(catalog.resolve("ops")).thenReturn(skill);
+        Field catalogField = AgentTaskService.class.getDeclaredField("skillCatalogService");
+        catalogField.setAccessible(true);
+        catalogField.set(service, catalog);
+        Method snapshot = AgentTaskService.class.getDeclaredMethod(
+            "snapshotUserDefinedWorkflow", AgentTaskSubmitRequest.class, String.class);
+        snapshot.setAccessible(true);
+        AgentTaskSubmitRequest request = new AgentTaskSubmitRequest();
+        request.setSkillId("ops");
+
+        snapshot.invoke(service, request, "task-100");
+
+        assertThat(request.getToolInput())
+            .containsEntry("__taskWorkflowTaskId", "task-100")
+            .containsEntry("__taskWorkflowSource", "user_defined_mcp_workflow")
+            .containsKey("__taskWorkflowDefinition");
+    }
 
     @Test
     void repeatedIdempotentSubmissionReturnsSameTaskAndQueuesOnlyOnce() {
@@ -606,6 +704,18 @@ class AgentTaskServiceTest {
             .contains("可展示内容")
             .doesNotContain("uiResponse")
             .doesNotContain("```json");
+    }
+
+    @Test
+    void cleanDisplayAnswerDoesNotTruncateLongUserFacingAnswer() {
+        String answer = "# 客户全景分析报告\n\n" + "完整分析段落。".repeat(1200);
+
+        String cleaned = AgentTaskService.cleanDisplayAnswer(answer);
+
+        assertThat(cleaned)
+            .isEqualTo(answer)
+            .hasSize(answer.length())
+            .doesNotContain("truncated");
     }
 
     @Test

@@ -1,6 +1,7 @@
 [
   {"key":"apiServices","label":"API 服务","icon":"Connection","apiPrefixes":["/api/v1/api-services","/api/v1/livedata-apis"]},
   {"key":"mcpServices","label":"MCP 服务","icon":"Cpu","apiPrefixes":["/api/v1/mcp-services"]},
+  {"key":"templateQueryPublications","label":"模板工具发布","icon":"Share","apiPrefixes":["/api/v1/template-query-publications"],"impliedBy":["mcpServices"]},
   {"key":"newsCollection","label":"资讯采集","icon":"Tickets","apiPrefixes":["/api/v1/news"]},
   {"key":"assetCenter","label":"资产中心","icon":"FolderOpened","apiPrefixes":["/api/v1/ops","/api/v1/sql","/api/v1/template-dsl","/api/v1/mcp-search-index","/api/v1/admin/enterprise-metadata"]},
   {"key":"businessCategories","label":"业务分类维护","icon":"CollectionTag","apiPrefixes":["/api/v1/business-categories"],"impliedBy":["apiServices","assetCenter","databaseMcp"]},

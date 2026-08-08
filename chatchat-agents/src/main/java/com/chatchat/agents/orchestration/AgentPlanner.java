@@ -3,14 +3,17 @@ package com.chatchat.agents.orchestration;
 import com.chatchat.agents.assessment.RuntimeAnswerCandidate;
 import com.chatchat.agents.assessment.TaskContract;
 import com.chatchat.agents.protocol.ModelProtocolJson;
+import com.chatchat.agents.protocol.McpToolProtocolRole;
 import com.chatchat.agents.runtime.AgentRuntimeFactGroundingContract;
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.agents.runtime.plan.InterpretationExecutionProtocol;
 import com.chatchat.agents.runtime.plan.InterpretationPlanJsonSchema;
+import com.chatchat.agents.runtime.plan.InterpretationPlanOptimizer;
 import com.chatchat.agents.runtime.plan.InterpretationPlanValidator;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolMetadata;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +22,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -120,7 +124,8 @@ class AgentPlanner {
             normalizeList(availableTools),
             query,
             experiencePrior(runtimeAttributes),
-            AgentPlanBudgetPolicy.fromRuntimeAttributes(runtimeAttributes)
+            AgentPlanBudgetPolicy.fromRuntimeAttributes(runtimeAttributes),
+            authoritativeWorkflowDagForPlanning(runtimeAttributes)
         );
         String runId = stringValue(runtimeAttributes == null ? null : runtimeAttributes.get("__agentRunId"));
         int maxAttempts = plannerRepairAttempts(runtimeAttributes);
@@ -340,6 +345,7 @@ class AgentPlanner {
             + "when an exact date is required, derive it only from this Runtime context.\n\n");
         prompt.append("Planning contract:\n");
         prompt.append("- Output exactly one InterpretationPlan JSON object. Do not output an envelope, markdown, code fences, comments, or natural language.\n");
+        prompt.append("- Escape every ASCII double quote inside JSON string values (including Markdown answer text), or use Chinese corner quotes.\n");
         prompt.append("- The InterpretationPlan is the single source of truth for this loop iteration.\n");
         prompt.append("- Do not emit candidate_answer or another answer channel. A user-facing result belongs only in final_answer.input.answer.\n");
         prompt.append("- The user query MUST first be converted into this executable InterpretationPlan before any tool execution.\n");
@@ -380,6 +386,7 @@ class AgentPlanner {
         prompt.append("- Finding a template or asset is not execution evidence. final_answer must depend on the actual executor step or an explicit error/permission observation.\n\n");
         prompt.append("Sequential MCP batch contract:\n");
         prompt.append("- When two or more independent templates must be executed through sql_query_execute, ssh_linux_execute, api_query_execute, or their configured aliases, prefer one mcp_tool step whose input is {batchId, executionMode:\"SEQUENTIAL\", stopOnFailure:false, calls:[{callId,toolName,arguments}]}.\n");
+        prompt.append("- Runtime owns a failure-isolated template execution layer: every compiled child must receive SUCCESS, EMPTY/RESULT_MISSING, BLOCKED, FAILED, or NOT_EXECUTED evidence. A child error must not stop later templates; stopOnFailure is compatibility-only and must be false.\n");
         prompt.append("- When one batch step supplies multiple diagnostic_profile checks, set every child callId to the exact diagnostic check_id it proves. Never map multiple checks to a single non-batch executor call; one successful scalar call is evidence for only its explicitly identified check.\n");
         prompt.append("- Keep calls in diagnostic priority order. Each call arguments object must satisfy that executor's normal authorized template contract; never include raw SQL, shell commands, URLs, credentials, or transport fields.\n");
         prompt.append("- A batch is one model planning decision but each child is one real remote tool invocation. Runtime validates and audits every child independently, persists its evidence immediately, continues after individual failures by default, and returns one ordered structured batch result.\n");
@@ -395,6 +402,7 @@ class AgentPlanner {
             .append(InterpretationExecutionProtocol.TEMPLATE_PARAMETER_PROTOCOL_VERSION)
             .append(" as an evidence-based parameter profile from the current user query and successful completed tool outputs; Runtime verifies every evidence reference and compiles it against the returned parameterSchema.\n");
         prompt.append("- The model may analyze, normalize and organize semantic parameter values, but it must cite either an exact user-query quote or an exact completed step_id/output_path. Runtime owns approval, defaults, routing and MCP execution.\n");
+        prompt.append("- For a non-template tool with a missing published-Schema argument, you may propose input.contextParameterEvidence=[{parameter,source:'completed_step',stepId,outputPath}] or [{parameter,source:'user_query',quote,value}]. Add a DAG dependency on the cited step. Runtime re-reads the source and rejects invented or ambiguous values.\n");
         prompt.append("- template/templateId MUST be one scalar string copied from templates[i].templateId. A binding to templateId MUST select the leaf path templates[i].templateId; never bind templates[i], selectedTemplate, parameterSchema, parameterContract, or invocationExample as the template value.\n");
         prompt.append("- input.parameters contains execution VALUES only. parameterSchema, requiredParameters, parameterContract, and invocationExample are read-only metadata used to construct/validate those values and MUST NOT be copied into input.parameters.\n");
         prompt.append("- NEVER create a binding from templates[i].parameterSchema, requiredParameters, parameterContract, or invocationExample to parameters. If no required business parameter exists, keep input.parameters={} and omit that binding.\n");
@@ -414,10 +422,11 @@ class AgentPlanner {
         prompt.append("- HTTP/API/SSH execution must follow the same template governance as SQL: discover/select a registered template, read templates[].parameterSchema/requiredParameters/parameterContract/invocationExample, then call the execution tool with only declared parameters.\n");
         prompt.append("- For http_request_execute, use template from http_endpoint_template_query.templates[].templateId and put all endpoint arguments under input.parameters. Do not pass raw url, uri, method, headers, body, host, hostname, ip, or endpointId.\n");
         prompt.append("- For API templates returned by api_template_query, call api_template_execute, copy templates[].templateId into templateId, and pass only arguments declared by templates[].parameterSchema under parameters. Use capabilitySpec/outputSchema/dependencySpec to check requirement coverage and ordering. Do not invent raw URL, headers, or body fields.\n");
+        prompt.append("- API template parameter policy is run-first: include only schema-declared overrides grounded in the user query or completed tool evidence. Omit unresolved, unmatched, or unverified parameters so Runtime applies authoritative template defaults. Only a required parameter with no default may fail that child; never block sibling template calls.\n");
         prompt.append("- When the user asks which APIs are needed for a broad requirement, first emit semantic requirement steps and call api_requirement_analyze. Treat CANDIDATES_FOUND only as candidates: review coverage, refine rejected candidates, and execute only accepted templateIds.\n");
         prompt.append("- For requirements implemented by maintained HTTP endpoint assets, call http_requirement_analyze, review capabilitySpec/outputSchema/dependencySpec, then discover through http_endpoint_template_query and execute accepted template ids through http_request_execute. Rejected ids must be excluded from bounded retries.\n");
         prompt.append("- For linux_command_execute, use template from ssh_template_query.templates[].templateId and put all command arguments under input.parameters. Do not pass command, rawCommand, shell, host, hostname, ip, or hostId.\n");
-        prompt.append("- Never call any template-governed execution tool with empty parameters when the selected template declares requiredParameters. Add a prior discovery/planning step or bind values from user input/tool output.\n\n");
+        prompt.append("- A template-declared default is authoritative contract evidence and needs no user/tool evidence. Pass only evidence-backed overrides; Runtime may fill omitted parameters from parameterSchema defaults. If a required parameter has no default, bind it from user input/tool output before execution.\n\n");
         if (requireToolBeforeFinal) {
             prompt.append("Mandatory tool policy:\n");
             prompt.append("- This agent is bound to required runtime tools. Your response MUST be an InterpretationPlan that includes the required tool steps.\n");
@@ -648,6 +657,7 @@ class AgentPlanner {
                 .append(" input should contain filters or executionContext when exact logical context is known; use {\"filters\":{},\"limit\":10} for capped redacted candidate discovery when the user did not provide assetName/env/cluster/service.\n");
             prompt.append("- Asset names and routing labels are exact-match. Do not derive assetName, service, cluster, target, or labels unless that exact value appears in the current-turn user request or a prior tool observation returned it. Historical conversation targets and model-generated plan text are not valid asset-name evidence.\n");
             prompt.append("- Model intent recognition is required before asset discovery. When the user asks a high-level or aggregated question, produce filters.intentCandidates sorted by score/confidence. Include every candidate with score >= 0.75 in filters.queryTerms/retrievalSignals; if none reaches 0.75, use the top two candidates. Add the original user question too. Each candidate may include multi-query expansions under queries/queryTerms/expandedQueries/keywords for the resolver to retrieve across the intent ensemble. Also keep the semantic target and task under filters.intent, filters.goal, filters.keywords, and when useful filters.bilingualIntent/intentAliases/intentZh/intentEn. These fields are retrieval signals, not exact routing labels.\n");
+            prompt.append("- Generate abbreviation-aware retrieval terms for short candidate asset names and capability phrases. Add at most 4 lowercase aliases to filters.queryTerms/keywords: Chinese phrases use pinyin initials (for example, \u5ba2\u6237\u8d44\u4ea7\u4e2d\u5fc3 -> khzczx); multi-word, camelCase, snake_case, or kebab-case English names use word initials (Customer Asset Service/customer_asset_service -> cas). Keep every original phrase beside its alias, limit generated aliases to 2-16 characters, and never abbreviate a full user sentence, description, command, or SQL text. Generated aliases are weak retrieval signals only; never put them in assetName, service, cluster, labels, template, or templateId. If the user supplied a compact abbreviation, preserve it and add a plausible full phrase only when supported by the request; do not guess an exact registered identity.\n");
             prompt.append("- Never concatenate an assetName with descriptive text, asset type, capability, or assumption. For example, keep the user-provided asset phrase unchanged; if the exact asset name is uncertain, omit filters.assetName and use semantic retrieval filters instead of pretending the phrase is an exact registered name.\n");
             prompt.append("- Do not invent service labels such as service:<topic> from natural-language topic words until an asset/tool observation proves they are registered routing labels.\n");
             prompt.append("- Valid input example when no exact target clue is known: {\"candidates\":[{\"targetKind\":\"database\",\"confidence\":0.82},{\"targetKind\":\"http\",\"confidence\":0.42}],\"finalDecision\":\"database\",\"filters\":{},\"trace\":{\"plannerVersion\":\"v1.1\",\"model\":\"<model>\"},\"limit\":10}.\n");
@@ -672,6 +682,7 @@ class AgentPlanner {
             prompt.append("- If the user asks for a capability and no exact asset context is known, query by candidate set plus intent, for example {\"candidates\":[{\"targetKind\":\"host\",\"confidence\":0.82},{\"targetKind\":\"database\",\"confidence\":0.51}],\"finalDecision\":\"host\",\"filters\":{\"intent\":\"<user-capability-intent>\"},\"trace\":{\"plannerVersion\":\"v1.1\",\"model\":\"<model>\"},\"limit\":10}; still use a returned templateId exactly.\n");
             prompt.append("- Valid host input example: {\"candidates\":[{\"targetKind\":\"host\",\"confidence\":0.9}],\"finalDecision\":\"host\",\"filters\":{\"assetName\":\"<asset-name-from-typed-asset-discovery>\",\"env\":\"<env-from-typed-asset-discovery>\",\"intent\":\"<user-capability-intent>\"},\"trace\":{\"plannerVersion\":\"v1.1\",\"model\":\"<model>\"},\"limit\":10}.\n");
             prompt.append("- For template discovery filters, if the user intent contains database/component/metric/action names, include both Chinese and English retrieval terms. filters.intent keeps the user's original natural-language intent; filters.bilingualIntent must include Chinese aliases and English technical terms; filters.intentZh and filters.intentEn should split the primary Chinese/English intent; filters.intentAliases must include Chinese aliases plus English technical terms; filters.keywords must include canonical DB/component keywords, command names, metric names, and common aliases. Do not rely on Chinese-only or English-only intent for template retrieval.\n");
+            prompt.append("- Apply the same abbreviation-aware expansion used by asset discovery to template naming/capability phrases: add at most 4 lowercase Chinese pinyin-initial or English word-initial aliases to filters.queryTerms/keywords, retain the original phrases, and keep each alias between 2 and 16 characters. Never generate an alias as template/templateId or use abbreviations derived from descriptions, commands, SQL, or the whole user sentence.\n");
             prompt.append("- Valid database input example: {\"candidates\":[{\"targetKind\":\"database\",\"confidence\":0.9}],\"finalDecision\":\"database\",\"filters\":{\"assetName\":\"<asset-name-from-typed-asset-discovery>\",\"env\":\"<env-from-typed-asset-discovery>\",\"intent\":\"<database-query-intent>\",\"bilingualIntent\":[\"<Chinese alias>\",\"<English technical term>\"],\"intentZh\":\"<Chinese intent>\",\"intentEn\":\"<English technical intent>\",\"intentAliases\":[\"<Chinese alias>\",\"<English technical term>\"],\"keywords\":[\"<canonical command or metric>\",\"<Chinese keyword>\",\"<English keyword>\"]},\"trace\":{\"plannerVersion\":\"v1.1\",\"model\":\"<model>\"},\"limit\":10}.\n");
             prompt.append("- templates[] is ranked by relevanceScore. Choose the returned template whose name, description, intentSignals, matchReasons, and asset type best match the user intent; do not blindly bind the first asset allowedCommandTemplates item.\n");
             prompt.append("- If the selected template's parameterSchema.required is non-empty, include a parameters object in the execution tool input with exactly those required fields; never place template parameters at the top level.\n");
@@ -836,7 +847,7 @@ class AgentPlanner {
         }
         String json = extractJson(raw);
         try {
-            Map<String, Object> envelope = objectMapper.readValue(json, Map.class);
+            Map<String, Object> envelope = parsePlannerEnvelope(json);
             Map<String, Object> candidatePayload = asMap(
                 firstObject(envelope, "candidate_answer", "candidateAnswer"));
             Map<String, Object> planningPayload = asMap(envelope.get("planning"));
@@ -894,6 +905,79 @@ class AgentPlanner {
         }
     }
 
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> parsePlannerEnvelope(String json) throws JsonProcessingException {
+        try {
+            return objectMapper.readValue(json, Map.class);
+        } catch (JsonProcessingException initialFailure) {
+            String repaired = repairUnescapedStringQuotes(json);
+            if (repaired.equals(json)) {
+                throw initialFailure;
+            }
+            Map<String, Object> parsed = objectMapper.readValue(repaired, Map.class);
+            log.warn("Planner JSON contained unescaped quote characters inside string values; "
+                + "Runtime repaired the JSON syntax before InterpretationPlan validation.");
+            return parsed;
+        }
+    }
+
+    /**
+     * Repairs only quote characters that cannot legally terminate the current JSON string. A
+     * terminating quote must be followed (ignoring whitespace) by a JSON structural delimiter.
+     * The repaired document is still parsed and fully validated; missing commas, braces and other
+     * malformed structures remain rejected.
+     */
+    private String repairUnescapedStringQuotes(String json) {
+        if (json == null || json.isBlank()) {
+            return json;
+        }
+        StringBuilder repaired = new StringBuilder(json.length() + 16);
+        boolean inString = false;
+        boolean escaped = false;
+        boolean changed = false;
+        for (int index = 0; index < json.length(); index++) {
+            char current = json.charAt(index);
+            if (!inString) {
+                repaired.append(current);
+                if (current == '"') {
+                    inString = true;
+                }
+                continue;
+            }
+            if (escaped) {
+                repaired.append(current);
+                escaped = false;
+                continue;
+            }
+            if (current == '\\') {
+                repaired.append(current);
+                escaped = true;
+                continue;
+            }
+            if (current != '"') {
+                repaired.append(current);
+                continue;
+            }
+            int next = index + 1;
+            while (next < json.length() && Character.isWhitespace(json.charAt(next))) {
+                next++;
+            }
+            boolean legalTerminator = next >= json.length()
+                || json.charAt(next) == ':'
+                || json.charAt(next) == ','
+                || json.charAt(next) == '}'
+                || json.charAt(next) == ']';
+            if (legalTerminator) {
+                repaired.append(current);
+                inString = false;
+            } else {
+                repaired.append('\\').append(current);
+                changed = true;
+            }
+        }
+        return changed ? repaired.toString() : json;
+    }
+
     private AgentDecision attachCandidateAnswer(AgentDecision decision,
                                                 Map<String, Object> candidatePayload) {
         if (decision == null || candidatePayload == null || candidatePayload.isEmpty()) {
@@ -937,6 +1021,25 @@ class AgentPlanner {
             validationContext == null ? null : validationContext.budgetCaps()
         );
         interpretationPlan = budgetResult.plan();
+        InterpretationPlanOptimizer.OptimizationResult optimization =
+            new InterpretationPlanOptimizer().optimize(
+                interpretationPlan,
+                validationContext == null ? null : validationContext.authoritativeWorkflowDag()
+            );
+        if (optimization.plan() != null) {
+            InterpretationPlan optimized = optimization.plan();
+            // Planning-time optimization repairs the graph before validation. The model's
+            // already budget-capped execution policy remains authoritative here; runtime
+            // policy tuning must not silently expand an explicit zero-rewrite budget.
+            interpretationPlan = new InterpretationPlan(
+                optimized.version(),
+                optimized.intent(),
+                optimized.context(),
+                optimized.plan(),
+                interpretationPlan.executionPolicy(),
+                optimized.review()
+            );
+        }
         InterpretationPlanValidator.ValidationResult validation =
             interpretationPlanValidator.validate(
                 interpretationPlan,
@@ -945,6 +1048,21 @@ class AgentPlanner {
             );
         List<String> runtimeIssues = validateRuntimePlanRules(interpretationPlan, validationContext);
         Map<String, Object> validationMetadata = new LinkedHashMap<>(validationMetadata(validation, runtimeIssues));
+        if (!optimization.appliedPasses().isEmpty()) {
+            validationMetadata.put("interpretationPlanOptimizationPasses", optimization.appliedPasses());
+        }
+        if (optimization.appliedPasses().contains("AuthoritativeWorkflowDagPass")) {
+            Map<String, Object> repairEvent = Map.of(
+                "contractVersion", "runtime_dag_governance.v1",
+                "eventKind", "DAG_REPAIR",
+                "eventState", "APPLIED",
+                "repairCode", "AUTHORITATIVE_WORKFLOW_DAG_RESTORED",
+                "source", "user_defined_mcp_workflow"
+            );
+            validationMetadata.put("eventKind", "DAG_REPAIR");
+            validationMetadata.put("eventState", "APPLIED");
+            validationMetadata.put("repairEvent", repairEvent);
+        }
         if (validationContext != null && validationContext.budgetCaps() != null
             && validationContext.budgetCaps().configured()) {
             validationMetadata.put("agentBudgetCaps", validationContext.budgetCaps().metadata());
@@ -1315,16 +1433,18 @@ class AgentPlanner {
             }
         }
         Integer previousMandatoryStepId = null;
+        boolean authoritativeDagConfigured = !authoritativeWorkflowNodes(context.authoritativeWorkflowDag()).isEmpty();
         for (String mandatoryTool : mandatoryTools) {
             Integer mandatoryStepId = firstToolStepId(toolStepIds, mandatoryTool);
             if (mandatoryStepId == null) {
                 issues.add("Mandatory tool is missing from InterpretationPlan: " + mandatoryTool);
                 continue;
             }
-            if (previousMandatoryStepId != null && mandatoryStepId <= previousMandatoryStepId) {
+            if (!authoritativeDagConfigured
+                && previousMandatoryStepId != null && mandatoryStepId <= previousMandatoryStepId) {
                 issues.add("Mandatory tools must appear in configured order: " + mandatoryTool);
             }
-            if (previousMandatoryStepId != null
+            if (!authoritativeDagConfigured && previousMandatoryStepId != null
                 && !dependsOnStep(mandatoryStepId, previousMandatoryStepId, stepsById, new LinkedHashSet<>())) {
                 issues.add("Mandatory tool must depend on previous configured workflow step: " + mandatoryTool);
             }
@@ -1332,6 +1452,10 @@ class AgentPlanner {
                 issues.add("final_answer must depend on mandatory tool before answering: " + mandatoryTool);
             }
             previousMandatoryStepId = mandatoryStepId;
+        }
+        if (authoritativeDagConfigured) {
+            validateAuthoritativeWorkflowDependencies(
+                context.authoritativeWorkflowDag(), stepsById, toolStepIds, issues);
         }
         if (context.requireDocumentWebVerification()) {
             Integer documentStepId = firstToolStepId(toolStepIds, context.documentSearchTool());
@@ -1359,6 +1483,54 @@ class AgentPlanner {
         validateAssetDiscoveryIsNotGuessed(plan, context, toolStepIds, issues);
         validateWebSearchCrawlerSplit(plan, context, stepsById, toolStepIds, finalStep, issues);
         return issues;
+    }
+
+    private void validateAuthoritativeWorkflowDependencies(Object rawDag,
+                                                            Map<Integer, InterpretationPlan.Step> stepsById,
+                                                            Map<String, List<Integer>> toolStepIds,
+                                                            List<String> issues) {
+        for (Map<String, Object> node : authoritativeWorkflowNodes(rawDag)) {
+            String tool = stringValue(firstObject(node, "tool", "toolName"));
+            Integer targetStepId = firstToolStepId(toolStepIds, tool);
+            if (targetStepId == null) {
+                continue;
+            }
+            for (String dependencyTool : stringList(firstObject(
+                node, "dependsOnTools", "depends_on_tools", "dependsOn", "depends_on"))) {
+                Integer dependencyStepId = firstToolStepId(toolStepIds, dependencyTool);
+                if (dependencyStepId == null) {
+                    issues.add("Authoritative workflow dependency tool is missing from InterpretationPlan: "
+                        + dependencyTool + " -> " + tool);
+                    continue;
+                }
+                if (!dependsOnStep(targetStepId, dependencyStepId, stepsById, new LinkedHashSet<>())) {
+                    issues.add("Mandatory tool must preserve authoritative workflow dependency: "
+                        + dependencyTool + " -> " + tool);
+                }
+            }
+        }
+    }
+
+    private List<Map<String, Object>> authoritativeWorkflowNodes(Object rawDag) {
+        if (!(rawDag instanceof Collection<?> nodes)) {
+            return List.of();
+        }
+        return nodes.stream()
+            .filter(Map.class::isInstance)
+            .map(Map.class::cast)
+            .map(this::asStringObjectMap)
+            .filter(node -> firstObject(node, "tool", "toolName") != null)
+            .toList();
+    }
+
+    private Map<String, Object> asStringObjectMap(Map<?, ?> source) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        source.forEach((key, value) -> {
+            if (key != null) {
+                result.put(String.valueOf(key), value);
+            }
+        });
+        return result;
     }
 
     private void validateAssetDiscoveryIsNotGuessed(InterpretationPlan plan,
@@ -2932,16 +3104,16 @@ class AgentPlanner {
 
     private boolean isAssetDiscoverySemantic(String semantic) {
         return "asset_discovery".equals(semantic)
-            || "asset_query".equals(semantic)
+            || McpToolProtocolRole.ASSET_QUERY.matches(semantic)
             || "asset_search".equals(semantic)
             || (semantic != null
-                && (semantic.endsWith("_asset_query") || semantic.endsWith("_asset_search")));
+                && semantic.endsWith("_asset_search"));
     }
 
     private boolean isTemplateDiscoverySemantic(String semantic) {
         return "template_discovery".equals(semantic)
-            || "template_query".equals(semantic)
-            || (semantic != null && (semantic.endsWith("_template_query") || semantic.endsWith("_template_search")));
+            || McpToolProtocolRole.TEMPLATE_QUERY.matches(semantic)
+            || (semantic != null && semantic.endsWith("_template_search"));
     }
 
     private Map<String, Object> asMap(Object data) {
@@ -3016,6 +3188,14 @@ class AgentPlanner {
         }
         return second == null || second.isBlank() ? null : second;
     }
+
+    private Object authoritativeWorkflowDagForPlanning(Map<String, Object> runtimeAttributes) {
+        Object rawDag = runtimeAttributes == null ? null : runtimeAttributes.get("authoritativeWorkflowDag");
+        if (!(rawDag instanceof Collection<?> nodes) || nodes.isEmpty()) {
+            return null;
+        }
+        return rawDag;
+    }
 }
 
 record PlannerValidationContext(
@@ -3027,8 +3207,23 @@ record PlannerValidationContext(
     List<String> availableTools,
     String query,
     Map<String, Object> experiencePrior,
-    AgentPlanBudgetPolicy.BudgetCaps budgetCaps
+    AgentPlanBudgetPolicy.BudgetCaps budgetCaps,
+    Object authoritativeWorkflowDag
 ) {
+    PlannerValidationContext(List<String> mandatoryTools,
+                             boolean requireToolBeforeFinal,
+                             boolean requireDocumentWebVerification,
+                             String documentSearchTool,
+                             String verificationWebSearchTool,
+                             List<String> availableTools,
+                             String query,
+                             Map<String, Object> experiencePrior,
+                             AgentPlanBudgetPolicy.BudgetCaps budgetCaps) {
+        this(mandatoryTools, requireToolBeforeFinal, requireDocumentWebVerification,
+            documentSearchTool, verificationWebSearchTool, availableTools, query, experiencePrior,
+            budgetCaps, null);
+    }
+
     PlannerValidationContext(List<String> mandatoryTools,
                              boolean requireToolBeforeFinal,
                              boolean requireDocumentWebVerification,
@@ -3039,7 +3234,7 @@ record PlannerValidationContext(
                              Map<String, Object> experiencePrior) {
         this(mandatoryTools, requireToolBeforeFinal, requireDocumentWebVerification,
             documentSearchTool, verificationWebSearchTool, availableTools, query, experiencePrior,
-            new AgentPlanBudgetPolicy.BudgetCaps(null, null, null));
+            new AgentPlanBudgetPolicy.BudgetCaps(null, null, null), null);
     }
 
     PlannerValidationContext(List<String> mandatoryTools,
@@ -3051,7 +3246,7 @@ record PlannerValidationContext(
                              String query) {
         this(mandatoryTools, requireToolBeforeFinal, requireDocumentWebVerification,
             documentSearchTool, verificationWebSearchTool, availableTools, query, Map.of(),
-            new AgentPlanBudgetPolicy.BudgetCaps(null, null, null));
+            new AgentPlanBudgetPolicy.BudgetCaps(null, null, null), null);
     }
 }
 

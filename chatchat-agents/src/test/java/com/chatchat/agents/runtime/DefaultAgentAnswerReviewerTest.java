@@ -13,6 +13,28 @@ import static org.assertj.core.api.Assertions.assertThat;
 class DefaultAgentAnswerReviewerTest {
 
     @Test
+    void reviewPromptEnforcesReadablePartialDataReportsAndExactDates() {
+        DefaultAgentAnswerReviewer reviewer = new DefaultAgentAnswerReviewer(new ObjectMapper());
+
+        String prompt = reviewer.buildPrompt(
+            "Analyze every available customer metric",
+            null,
+            List.of("api_template_execute success=true parameters={rq=20260731} records=[]"),
+            "Only one metric was returned."
+        );
+
+        assertThat(prompt)
+            .contains("leads with API/template inventory")
+            .contains("EMPTY_RESULT, NOT_EXECUTED, BLOCKED, and FAILED")
+            .contains("without an invented business cause")
+            .contains("displayed date or date range differs from executed parameters");
+        assertThat(prompt)
+            .contains("substitutes an inferred failure cause")
+            .contains("UNAVAILABLE/NameResolver")
+            .contains("tool was unregistered");
+    }
+
+    @Test
     void reportsIssuesWithoutReplacingCandidateWhenReviewerReturnsLegacyRevision() {
         DefaultAgentAnswerReviewer reviewer = new DefaultAgentAnswerReviewer(new ObjectMapper());
         QueueChatModel chatModel = new QueueChatModel(
@@ -34,6 +56,37 @@ class DefaultAgentAnswerReviewerTest {
             .contains("final answer quality reviewer")
             .contains("authority is diagnostic only")
             .contains("Document evidence snippets");
+    }
+
+    @Test
+    void reanalyzesCompleteExecutedEvidenceWhenRepairProtocolIsPresent() {
+        DefaultAgentAnswerReviewer reviewer = new DefaultAgentAnswerReviewer(new ObjectMapper());
+        QueueChatModel chatModel = new QueueChatModel(
+            """
+                {"accepted":false,
+                 "feedback":"The candidate used a naming convention as evidence.",
+                 "issues":["Unsupported inference"],
+                 "suggestions":[],
+                 "revisedAnswer":"## Analysis\nThe returned record supports field A. The requested overall judgment remains unresolved."}
+                """
+        );
+
+        AgentAnswerReview review = reviewer.review(
+            chatModel,
+            "Evaluate the returned object",
+            null,
+            List.of("model_analysis_repair_v1 complete executed evidence: field A was returned"),
+            "The object fully complies because its name starts with a conventional prefix."
+        );
+
+        assertThat(review.status()).isEqualTo(AgentAnswerReview.REVISED);
+        assertThat(review.answer())
+            .contains("The returned record supports field A")
+            .doesNotContain("fully complies");
+        assertThat(chatModel.messages().get(0))
+            .contains("second-pass model analysis")
+            .contains("produce a complete revisedAnswer")
+            .contains("field A was returned");
     }
 
     @Test

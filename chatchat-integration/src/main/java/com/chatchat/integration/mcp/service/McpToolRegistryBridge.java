@@ -42,6 +42,7 @@ public class McpToolRegistryBridge {
     private final McpServiceConfigService configService;
     private final McpGatewayClient gatewayClient;
     private final ObjectMapper objectMapper;
+    private final DynamicMcpToolRouteService routeService;
 
     private final Set<String> managedToolNames = ConcurrentHashMap.newKeySet();
     private final Map<String, RegisteredMcpTool> registeredTools = new ConcurrentHashMap<>();
@@ -73,6 +74,7 @@ public class McpToolRegistryBridge {
         managedToolNames.forEach(toolRegistry::unregisterTool);
         managedToolNames.clear();
         registeredTools.clear();
+        routeService.clear();
 
         List<McpServiceConfig> services = configService.listEnabled();
         if (services.isEmpty()) {
@@ -89,7 +91,12 @@ public class McpToolRegistryBridge {
                     continue;
                 }
                 for (McpToolDefinition definition : tools) {
-                    registerSingleTool(service, definition);
+                    try {
+                        registerSingleTool(service, definition);
+                    } catch (IllegalArgumentException ex) {
+                        log.warn("Skip invalid MCP tool route serviceId={} toolName={}: {}",
+                            service.getId(), definition == null ? null : definition.name(), ex.getMessage());
+                    }
                 }
             } catch (Exception ex) {
                 log.warn("Skip MCP service {} (id={}) during refresh: {}",
@@ -131,7 +138,9 @@ public class McpToolRegistryBridge {
      */
     public McpToolInvokeResult invoke(String serviceId, String toolName, Map<String, Object> arguments) {
         McpServiceConfig config = configService.getById(serviceId);
-        return gatewayClient.invokeTool(config, toolName, arguments);
+        DynamicMcpToolRouteService.InvocationPlan plan =
+            routeService.plan(serviceId, toolName, arguments);
+        return gatewayClient.invokeTool(config, plan.remoteToolName(), plan.arguments());
     }
 
     /**
@@ -164,6 +173,12 @@ public class McpToolRegistryBridge {
         if (definition.timeoutMillis() != null) {
             extraMetadata.put("remoteTimeoutMs", definition.timeoutMillis());
         }
+        DynamicMcpToolRouteService.RouteDefinition route =
+            routeService.register(service.getId(), definition).orElse(null);
+        if (route != null) {
+            extraMetadata.put("parentRemoteToolName", route.parentToolName());
+            extraMetadata.put("routingMode", route.routingMode());
+        }
 
         String category = firstText(definition.category(), "mcp_external");
         List<String> categories = distinctStrings(List.of("mcp", "external", category));
@@ -191,19 +206,16 @@ public class McpToolRegistryBridge {
             .outputType("json")
             .timeoutMillis(definition.timeoutMillis())
             .agentCompatible(true)
-            .parameters(List.of(
-                ToolParameter.builder()
-                    .name("query")
-                    .type("string")
-                    .description("Natural language query for MCP tool input")
-                    .required(false)
-                    .build()
-            ))
+            .parameters(toolParameters(definition.inputSchema()))
             .tags(tags)
             .metadata(extraMetadata)
             .build();
 
-        ToolRegistry.EnhancedTool tool = new McpEnhancedTool(service.getId(), definition.name(), metadata);
+        ToolRegistry.EnhancedTool tool = new McpEnhancedTool(
+            service.getId(),
+            definition.name(),
+            route,
+            metadata);
         toolRegistry.registerTool(localName, metadata, tool);
         managedToolNames.add(localName);
         registeredTools.put(localName, new RegisteredMcpTool(
@@ -218,6 +230,52 @@ public class McpToolRegistryBridge {
             tags,
             applicability
         ));
+    }
+
+    /**
+     * Preserves the MCP JSON Schema contract in the local tool registry. Runtime
+     * guards rely on this metadata to reject dependent calls whose required
+     * inputs have not yet been produced by an upstream step.
+     */
+    private List<ToolParameter> toolParameters(Map<String, Object> inputSchema) {
+        Map<String, Object> schema = inputSchema == null ? Map.of() : inputSchema;
+        Map<String, Object> properties = mapValue(schema.get("properties"));
+        Set<String> required = new LinkedHashSet<>(stringList(schema.get("required")));
+        if (properties.isEmpty()) {
+            return List.of(ToolParameter.builder()
+                .name("query")
+                .type("string")
+                .description("Natural language query for MCP tool input")
+                .required(false)
+                .build());
+        }
+        List<ToolParameter> parameters = new ArrayList<>();
+        properties.forEach((name, rawProperty) -> {
+            Map<String, Object> property = mapValue(rawProperty);
+            parameters.add(ToolParameter.builder()
+                .name(name)
+                .type(firstText(stringValue(property.get("type")), "object"))
+                .description(stringValue(property.get("description")))
+                .required(required.contains(name))
+                .defaultValue(property.get("default"))
+                .enumValues(stringList(property.get("enum")).toArray(String[]::new))
+                .metadata(property)
+                .build());
+        });
+        return List.copyOf(parameters);
+    }
+
+    private Map<String, Object> mapValue(Object value) {
+        if (!(value instanceof Map<?, ?> raw)) {
+            return Map.of();
+        }
+        Map<String, Object> values = new LinkedHashMap<>();
+        raw.forEach((key, item) -> {
+            if (key != null) {
+                values.put(String.valueOf(key), item);
+            }
+        });
+        return values;
     }
 
     private Map<String, Object> applicability(McpToolDefinition definition) {
@@ -366,19 +424,23 @@ public class McpToolRegistryBridge {
     private class McpEnhancedTool implements ToolRegistry.EnhancedTool {
 
         private final String serviceId;
-        private final String remoteToolName;
+        private final String requestedToolName;
+        private final DynamicMcpToolRouteService.RouteDefinition route;
         private final ToolMetadata metadata;
 
         /**
          * Creates a new McpToolRegistryBridge instance.
          *
          * @param serviceId the service id value
-         * @param remoteToolName the remote tool name value
+         * @param requestedToolName the Agent-visible tool name
          * @param metadata the metadata value
          */
-        private McpEnhancedTool(String serviceId, String remoteToolName, ToolMetadata metadata) {
+        private McpEnhancedTool(String serviceId, String requestedToolName,
+                                DynamicMcpToolRouteService.RouteDefinition route,
+                                ToolMetadata metadata) {
             this.serviceId = serviceId;
-            this.remoteToolName = remoteToolName;
+            this.requestedToolName = requestedToolName;
+            this.route = route;
             this.metadata = metadata;
         }
 
@@ -408,26 +470,29 @@ public class McpToolRegistryBridge {
                 arguments.put("query", input.getRawInput());
             }
             enrichInvocationContext(arguments, input);
+            DynamicMcpToolRouteService.InvocationPlan plan = route == null
+                ? routeService.plan(serviceId, requestedToolName, arguments)
+                : routeService.plan(route, arguments);
             long startedAt = System.currentTimeMillis();
             log.info("MCP bridge tool call started localTool={} serviceId={} remoteTool={} requestId={} timeoutMs={} args={}",
                 metadata.getId(),
                 serviceId,
-                remoteToolName,
+                plan.remoteToolName(),
                 input.getRequestId(),
                 metadata.getTimeoutMillis() == null || metadata.getTimeoutMillis() <= 0
                     ? "unbounded" : metadata.getTimeoutMillis(),
-                ToolLogSummarizer.summarize(arguments));
+                ToolLogSummarizer.summarize(plan.arguments()));
             McpToolInvokeResult result = gatewayClient.invokeTool(
                 configService.getById(serviceId),
-                remoteToolName,
-                arguments,
+                plan.remoteToolName(),
+                plan.arguments(),
                 metadata.getTimeoutMillis()
             );
             if (!result.success()) {
                 log.warn("MCP bridge tool call failed localTool={} serviceId={} remoteTool={} requestId={} durationMs={} errorCode={} action={} retryable={} error={} executionState={} result={}",
                     metadata.getId(),
                     serviceId,
-                    remoteToolName,
+                    plan.remoteToolName(),
                     input.getRequestId(),
                     Math.max(0L, System.currentTimeMillis() - startedAt),
                     result.errorCode(),
@@ -435,17 +500,17 @@ public class McpToolRegistryBridge {
                     result.retryable(),
                     result.errorMessage(),
                     result.executionState(),
-                    ToolLogSummarizer.summarizeResult(remoteToolName, result.data()));
+                    ToolLogSummarizer.summarizeResult(plan.remoteToolName(), result.data()));
                 return failureOutput(result);
             }
             log.info("MCP bridge tool call succeeded localTool={} serviceId={} remoteTool={} requestId={} durationMs={} message={} result={}",
                 metadata.getId(),
                 serviceId,
-                remoteToolName,
+                plan.remoteToolName(),
                 input.getRequestId(),
                 Math.max(0L, System.currentTimeMillis() - startedAt),
                 result.message(),
-                ToolLogSummarizer.summarizeResult(remoteToolName, result.data()));
+                ToolLogSummarizer.summarizeResult(plan.remoteToolName(), result.data()));
             ToolOutput output = ToolOutput.success(result.data(), result.message() == null ? "MCP call success" : result.message());
             if (output.getMetadata() == null) {
                 output.setMetadata(new LinkedHashMap<>());
@@ -515,11 +580,15 @@ public class McpToolRegistryBridge {
             stringValue(inputContext.get("username")),
             stringValue(inputContext.get("userName"))
         );
-        String roles = firstText(
-            stringValue(arguments.get("roles")),
-            stringValue(arguments.get("roleIds")),
-            stringValue(inputContext.get("roles")),
-            stringValue(inputContext.get("roleIds"))
+        boolean canonicalRolesResolved = Boolean.TRUE.equals(inputContext.get("canonicalRolesResolved"));
+        String canonicalRoles = firstText(
+            roleValue(inputContext.get("roles")),
+            roleValue(inputContext.get("roleIds"))
+        );
+        String roles = canonicalRolesResolved ? canonicalRoles : firstText(
+            roleValue(arguments.get("roles")),
+            roleValue(arguments.get("roleIds")),
+            canonicalRoles
         );
         String requestId = firstText(
             stringValue(arguments.get("requestId")),
@@ -541,7 +610,14 @@ public class McpToolRegistryBridge {
         if (username != null) {
             arguments.putIfAbsent("username", username);
         }
-        if (roles != null) {
+        if (canonicalRolesResolved) {
+            arguments.remove("roleIds");
+            if (roles == null) {
+                arguments.remove("roles");
+            } else {
+                arguments.put("roles", roles);
+            }
+        } else if (roles != null) {
             arguments.putIfAbsent("roles", roles);
         }
         if (requestId != null) {
@@ -569,7 +645,14 @@ public class McpToolRegistryBridge {
         if (username != null) {
             mcpContext.putIfAbsent("username", username);
         }
-        if (roles != null) {
+        if (canonicalRolesResolved) {
+            mcpContext.remove("roleIds");
+            if (roles == null) {
+                mcpContext.remove("roles");
+            } else {
+                mcpContext.put("roles", roles);
+            }
+        } else if (roles != null) {
             mcpContext.putIfAbsent("roles", roles);
         }
         if (requestId != null) {
@@ -613,6 +696,19 @@ public class McpToolRegistryBridge {
 
     private String stringValue(Object value) {
         return value == null ? null : String.valueOf(value);
+    }
+
+    private String roleValue(Object value) {
+        if (value instanceof Iterable<?> values) {
+            List<String> roles = new ArrayList<>();
+            for (Object item : values) {
+                if (item != null && !String.valueOf(item).isBlank()) {
+                    roles.add(String.valueOf(item).trim());
+                }
+            }
+            return roles.isEmpty() ? null : String.join(",", roles);
+        }
+        return stringValue(value);
     }
 
     private Object firstPresent(Object... values) {

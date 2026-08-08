@@ -60,8 +60,10 @@ public class OpsMcpToolPublisher {
         managedSshToolNames.forEach(this::remove);
         managedSshToolNames.clear();
 
-        mcpSyncServer.addTool(linuxCommandGatewayTool());
-        mcpSyncServer.addTool(httpRequestGatewayTool());
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, linuxCommandGatewayTool());
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, httpRequestGatewayTool());
         mcpSyncServer.notifyToolsListChanged();
         log.info("Ops MCP gateway tools refreshed: linux_command_execute, http_request_execute");
     }
@@ -201,6 +203,9 @@ public class OpsMcpToolPublisher {
         meta.put("endpointId", endpoint.getId());
         meta.put("endpointName", endpoint.getName());
         meta.put("environment", endpoint.getEnvironment());
+        String technicalType = HttpEndpointTechnicalType.from(endpoint.getTechnicalType()).name();
+        meta.put("technical_type", technicalType);
+        meta.put("technicalType", technicalType);
         meta.put("assetCategory", endpoint.getCategory());
         meta.put("endpointCategory", endpoint.getCategory());
         meta.put("method", endpoint.getMethod());

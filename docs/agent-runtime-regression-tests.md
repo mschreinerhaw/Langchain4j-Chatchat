@@ -1,5 +1,8 @@
 # Agent Runtime Regression Tests
 
+DAG 拓扑审核、模型节点漂移、确定性自动修复、局部工具失败和任务终态测试必须遵循
+[`Agent Runtime DAG 审核与自动修复规范`](agent-runtime-dag-governance-contract.md)。
+
 This regression layer tests the Agent evidence chain instead of only checking final answer text.
 
 The framework is hybrid by design:

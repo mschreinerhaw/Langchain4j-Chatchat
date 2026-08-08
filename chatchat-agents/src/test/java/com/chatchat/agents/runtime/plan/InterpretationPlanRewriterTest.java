@@ -15,6 +15,63 @@ import static org.mockito.Mockito.when;
 class InterpretationPlanRewriterTest {
 
     @Test
+    void repairsExactLockedEdgesForTemplateBindingsInsideOrderedBatch() {
+        CapturingChatModel chatModel = new CapturingChatModel("""
+            {
+              "version":"1.0",
+              "intent":{"type":"data_query","goal":"Analyze every available metric","risk_level":"low"},
+              "context":{"key_facts":[],"missing_info":[],"assumptions":[],"constraints":[]},
+              "plan":{
+                "steps":[
+                  {"id":1,"action_type":"mcp_tool","tool_name":"mcp_chatchat_mcp_server_api_template_query","input":{"query":"metrics"},"depends_on":[]},
+                  {"id":2,"action_type":"mcp_tool","tool_name":"mcp_chatchat_mcp_server_api_template_execute","input":{
+                    "batchId":"metric-batch","executionMode":"SEQUENTIAL","stopOnFailure":false,
+                    "calls":[
+                      {"callId":"metric-1","toolName":"api_template_execute","arguments":{"templateId":"","parameters":{}}},
+                      {"callId":"metric-2","toolName":"api_template_execute","arguments":{"templateId":"","parameters":{}}}
+                    ]},"depends_on":[1]},
+                  {"id":3,"action_type":"final_answer","tool_name":"","input":{"answer":"Analyze returned metrics."},"depends_on":[2]}
+                ],
+                "edge_contracts":[{"from":1,"to":2,"field":"templates","type":"array","required":true}],
+                "bindings":[
+                  {"from":1,"output_path":"$.templates[0].templateId","to":2,"input_path":"$.calls[0].arguments.templateId","type":"jsonpath","required":true},
+                  {"from":1,"output_path":"$.templates[1].templateId","to":2,"input_path":"$.calls[1].arguments.templateId","type":"jsonpath","required":true}
+                ],
+                "stability":{"stable_nodes":[1,2],"critical_tools":["mcp_chatchat_mcp_server_api_template_query","mcp_chatchat_mcp_server_api_template_execute"],"locked_edges":true,"mutable_action_types":[]}
+              },
+              "execution_policy":{"max_steps":3,"allow_parallel":false,"allow_tool":["mcp_chatchat_mcp_server_api_template_query","mcp_chatchat_mcp_server_api_template_execute"],"deny_tool":[],"max_rewrite_times":0,"fallback_mode":"partial_result"},
+              "review":{"self_check":{"completeness_score":0.8,"hallucination_risk":0.1,"tool_sufficiency":true,"missing_steps":[]},"fallback_plan":[]}
+            }
+            """);
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.hasTool("mcp_chatchat_mcp_server_api_template_query")).thenReturn(true);
+        when(registry.hasTool("mcp_chatchat_mcp_server_api_template_execute")).thenReturn(true);
+        InterpretationPlanRewriter rewriter = new InterpretationPlanRewriter(
+            chatModel, new ObjectMapper(), new InterpretationPlanValidator());
+
+        InterpretationPlanRewriter.RewriteResult result = rewriter.rewrite(
+            new InterpretationPlanRewriter.RewriteRequest(
+                originalPlan(), originalPlan().steps().get(0), "more metrics required",
+                List.of("template discovery succeeded"),
+                List.of(
+                    "mcp_chatchat_mcp_server_api_template_query",
+                    "mcp_chatchat_mcp_server_api_template_execute"), registry
+            ));
+
+        assertThat(result.valid()).as(result.errorMessage()).isTrue();
+        assertThat(result.rewrittenPlan().plan().edgeContracts())
+            .extracting(InterpretationPlan.EdgeContract::field)
+            .contains("$.templates[0].templateId", "$.templates[1].templateId");
+        assertThat(result.rewrittenPlan().steps().get(1).input().get("calls"))
+            .asList().hasSize(2);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> calls = (List<Map<String, Object>>)
+            result.rewrittenPlan().steps().get(1).input().get("calls");
+        assertThat(calls).allSatisfy(call -> assertThat(call)
+            .containsEntry("toolName", "mcp_chatchat_mcp_server_api_template_execute"));
+    }
+
+    @Test
     void rewritePromptCompactsOversizedRuntimeObservations() throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
         CapturingChatModel chatModel = new CapturingChatModel(
@@ -36,10 +93,19 @@ class InterpretationPlanRewriterTest {
         ));
 
         assertThat(chatModel.lastPrompt())
-            .contains("compact scheduling evidence")
-            .contains("originalChars=")
-            .contains("full evidence remains in Runtime")
-            .hasSizeLessThan(200_000);
+            .contains("Evidence Compression Gate metadata")
+            .contains("evidence_compression_gate_v1")
+            .contains("compressed scheduling evidence")
+            .contains("bounded abbreviation aliases")
+            .contains("khzczx")
+            .contains("Customer Asset Service -> cas")
+            .contains("never write generated aliases to assetName")
+            .contains("Preserve a user-supplied abbreviation")
+            .contains("originalChars")
+            .contains("full evidence remains Runtime-owned")
+            .contains("fullEvidenceRetainedByRuntime")
+            .contains("evidenceRef")
+            .hasSizeLessThan(50_000);
     }
 
     @Test
@@ -433,7 +499,10 @@ class InterpretationPlanRewriterTest {
                 "mcp_chatchat_mcp_server_sql_datasource_template_query", "template_query");
         assertThat(chatModel.lastPrompt())
             .contains("No template discovery tool is available")
-            .contains("Do not add database_ops_template_search/template_query steps");
+            .contains("Do not add database_ops_template_search/template_query steps")
+            .contains("Preserve a decision ledger for changed retrieval or template choices")
+            .contains("Distinguish availability from usability")
+            .contains("explicitly justify the change from observed parameter compatibility");
     }
 
     @Test

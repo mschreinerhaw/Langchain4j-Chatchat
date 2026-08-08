@@ -1,6 +1,7 @@
 package com.chatchat.agents.runtime.plan;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
+import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
@@ -22,14 +23,10 @@ import java.util.Set;
 @Slf4j
 public class InterpretationPlanRewriter {
 
-    private static final int REWRITE_OBSERVATIONS_MAX_CHARS = 64_000;
-    private static final int REWRITE_OBSERVATION_MAX_CHARS = 6_000;
-    private static final int REWRITE_OBSERVATION_MAX_ITEMS = 64;
-    private static final int REWRITE_EVIDENCE_HISTORY_MAX_CHARS = 64_000;
-
     private final ChatModel chatModel;
     private final ObjectMapper objectMapper;
     private final InterpretationPlanValidator validator;
+    private final EvidenceCompressionGate evidenceCompressionGate;
 
     public InterpretationPlanRewriter(ChatModel chatModel,
                                       ObjectMapper objectMapper,
@@ -37,6 +34,7 @@ public class InterpretationPlanRewriter {
         this.chatModel = chatModel;
         this.objectMapper = objectMapper == null ? new ObjectMapper() : objectMapper;
         this.validator = validator == null ? new InterpretationPlanValidator() : validator;
+        this.evidenceCompressionGate = new EvidenceCompressionGate(this.objectMapper);
     }
 
     /**
@@ -52,12 +50,19 @@ public class InterpretationPlanRewriter {
         if (chatModel == null) {
             return RewriteResult.failed("ChatModel is required for plan rewriting", null, null);
         }
-        String prompt = buildRewritePrompt(request);
+        EvidenceCompressionGate.CompressionResult compressedEvidence = evidenceCompressionGate.compress(
+            request.observations(), request.evidenceHistory());
+        String prompt = buildRewritePrompt(request, compressedEvidence);
         long startedAt = System.currentTimeMillis();
-        log.info("agentModelRequest phase=interpretation_plan_rewrite promptChars={} observationCount={} availableToolCount={}",
+        log.info("agentModelRequest phase=interpretation_plan_rewrite promptChars={} observationCount={} availableToolCount={} "
+                + "evidenceCompressionContract={} evidenceCharsBefore={} evidenceCharsAfter={} compressionRatio={}",
             prompt.length(),
             request.observations() == null ? 0 : request.observations().size(),
-            request.availableTools() == null ? 0 : request.availableTools().size());
+            request.availableTools() == null ? 0 : request.availableTools().size(),
+            EvidenceCompressionGate.CONTRACT_VERSION,
+            compressedEvidence.metadata().get("originalChars"),
+            compressedEvidence.metadata().get("compressedChars"),
+            compressedEvidence.metadata().get("compressionRatio"));
         String raw;
         try {
             raw = chatModel.chat(prompt);
@@ -82,7 +87,8 @@ public class InterpretationPlanRewriter {
             ModelProtocolJson.prettyJsonForLog(raw));
         try {
             InterpretationPlan rewrittenPlan = objectMapper.readValue(extractJson(raw), InterpretationPlan.class);
-            rewrittenPlan = normalizeRewritePlan(request.originalPlan(), rewrittenPlan);
+            rewrittenPlan = normalizeRewritePlan(
+                request.originalPlan(), rewrittenPlan, request.availableTools());
             rewrittenPlan = preserveBudgetCeilings(request.budgetCeilings(), rewrittenPlan);
             InterpretationPlanValidator.ValidationResult validation = validator.validate(
                 rewrittenPlan,
@@ -90,14 +96,18 @@ public class InterpretationPlanRewriter {
                 new java.util.LinkedHashSet<>(request.availableTools() == null ? List.of() : request.availableTools())
             );
             validation = validateRequiredToolExecutions(rewrittenPlan, request.requiredToolExecutions(), validation);
-            if (!validation.valid()) {
-                InterpretationPlan repairedPlan = repairContinuationPlan(request.originalPlan(), rewrittenPlan);
+            InterpretationPlan continuationPlan = repairContinuationPlan(request.originalPlan(), rewrittenPlan);
+            if (!validation.valid() || continuationPlan != rewrittenPlan) {
+                InterpretationPlan repairedPlan = continuationPlan;
                 repairedPlan = repairExecutionPolicyStepLimit(
                     repairedPlan,
                     request.budgetCeilings() == null
                         ? null
                         : request.budgetCeilings().maxSteps()
                 );
+                InterpretationPlanOptimizer.OptimizationResult optimizedRepair =
+                    new InterpretationPlanOptimizer().optimize(repairedPlan);
+                repairedPlan = optimizedRepair.plan() == null ? repairedPlan : optimizedRepair.plan();
                 if (repairedPlan != rewrittenPlan) {
                     InterpretationPlanValidator.ValidationResult repairedValidation = validator.validate(
                         repairedPlan,
@@ -138,7 +148,8 @@ public class InterpretationPlanRewriter {
         }
     }
 
-    private String buildRewritePrompt(RewriteRequest request) {
+    private String buildRewritePrompt(RewriteRequest request,
+                                      EvidenceCompressionGate.CompressionResult compressedEvidence) {
         StringBuilder prompt = new StringBuilder();
         prompt.append("You are an MCP plan rewriter.\n");
         prompt.append("Your job is to repair a failed InterpretationPlan without executing tools.\n");
@@ -150,6 +161,8 @@ public class InterpretationPlanRewriter {
         prompt.append("- Evidence refinement is tool-agnostic: when evidenceHistory marks a round insufficient, use nextActions to revise inputs, repeat a suitable tool, or select another available tool that can close the recorded evidence gap.\n");
         prompt.append("- Never repeat an identical tool call unless the recorded failure is transient and a retry is explicitly justified. A repeated call must materially change its inputs or execution conditions.\n");
         prompt.append("- Every revised action must be traceable to evidence IDs, missingEvidence, or conflicts from evidenceHistory. Do not discard useful evidence from earlier rounds.\n");
+        prompt.append("- Preserve a decision ledger for changed retrieval or template choices: carry the prior candidate id, its evidence-backed rejection/abandonment reason, the replacement candidate or refined query, and the evidence gap that replacement is intended to close. Put these facts in dependency reasons, next-step inputs such as excludeTemplateIds/refined intent, and the final_answer dependency chain so Runtime can audit and summarize them.\n");
+        prompt.append("- Distinguish availability from usability. A tool is unavailable only when it is absent from Available tools or an executed availability/transport result says so. Binding failures, missing parameter evidence, contract denial, empty results, and semantic rejection mean the tool or candidate was not usable for that attempt; never rewrite those states as service unavailable.\n");
         prompt.append("- When hypotheses are present, revise the plan to test unresolved or conflicting hypotheses. Preserve hypothesis IDs through the evidence chain; never treat the hypothesis statement itself as proof.\n");
         prompt.append("- Use Evidence Object quality dimensions when choosing among competing evidence paths. Read each dimension's value/status/type/reason; UNKNOWN is not a neutral score and must not be treated as 0.5. Never mix MODEL_ESTIMATED modelConfidence with computed evidence quality.\n");
         prompt.append("- Use evidence_graph_v1 ACTIVE SUPPORTS/CONTRADICTS relations to identify which hypothesis needs validation. Ignore rejectedRelations as factual support and never create a plan from a nonexistent evidence reference.\n");
@@ -168,6 +181,7 @@ public class InterpretationPlanRewriter {
         prompt.append("- Keep execution_policy.deny_tool for tools that failed due to policy, permission, or safety.\n\n");
         prompt.append("Sequential MCP batch repair contract:\n");
         prompt.append("- When multiple remaining authorized template executions use sql_query_execute, ssh_linux_execute, api_query_execute, or configured aliases, combine them into one mcp_tool input {batchId,executionMode:\"SEQUENTIAL\",stopOnFailure:false,calls:[{callId,toolName,arguments}]} instead of creating one model round per call.\n");
+        prompt.append("- Template execution is failure-isolated by Runtime. Preserve every remaining child in the batch and never stop or omit later templates because an earlier template failed or returned no rows.\n");
         prompt.append("- Preserve original diagnostic order and exact discovered template identifiers/arguments. Runtime validates, executes, audits, and persists each child independently; do not inline raw SQL, shell commands, URLs, credentials, or transport fields.\n\n");
         prompt.append("- Never repair a diagnostic batch by adding a reasoning/aggregation step that copies discovered template ids into invented output fields. Map diagnostic checks to the executor step and let Runtime deterministically resolve only asset-scoped authorized template metadata.\n\n");
         if (request.budgetCeilings() != null) {
@@ -195,6 +209,7 @@ public class InterpretationPlanRewriter {
         boolean metadataSearchAvailable = hasAvailableSemanticTool(request.availableTools(), "sql_metadata_search");
         prompt.append("Asset discovery repair rules:\n");
         prompt.append("- Model intent recognition belongs in the plan. When repairing an asset_query/database_asset_search/ssh/http/api asset discovery step for a high-level user request, preserve or add scored intentCandidates sorted by score/confidence. Include every candidate with score >= 0.75 in queryTerms/retrievalSignals; if none reaches 0.75, use the top two candidates. Add the original user question and useful multi-query expansions under queries/queryTerms/expandedQueries/keywords, alongside semantic filters such as intent, goal, keywords, bilingualIntent, intentAliases, intentZh, and intentEn.\n");
+        prompt.append("- Repair asset and template retrieval with bounded abbreviation aliases when useful. Add at most 4 lowercase aliases to queryTerms/keywords while retaining their original phrases: use Chinese pinyin initials (\u5ba2\u6237\u8d44\u4ea7\u4e2d\u5fc3 -> khzczx) and English word initials across multi-word/camelCase/snake_case/kebab-case names (Customer Asset Service -> cas). Aliases must be 2-16 characters and come only from short candidate names or capability phrases, never a full sentence, description, command, or SQL text. Treat them as weak retrieval signals; never write generated aliases to assetName, service, cluster, labels, template, or templateId. Preserve a user-supplied abbreviation and expand it only when the full phrase is supported by request or observation evidence.\n");
         prompt.append("- enterprise_metadata_search uses canonical top-level queryTerms (or query). Do not emit keywords alone for this tool; keywords is accepted only as a legacy alias and Runtime normalizes it to queryTerms.\n");
         prompt.append("- For web_search, preserve an explicit financial_data_required=true marker when the answer needs authoritative structured financial observations. Do not invent dataset codes; Runtime selects them from governed retrieval results.\n");
         prompt.append("- Do not convert a natural-language phrase such as MySQL server/database/host into filters.assetName unless the exact registered asset name appears in the current-turn user request or was returned by a prior observation. Ignore historical conversation targets and model-generated plan text as asset-name evidence.\n");
@@ -210,7 +225,7 @@ public class InterpretationPlanRewriter {
             prompt.append("- If prior observations already contain structured sql_metadata_search columns/types/comments, preserve that evidence and do not re-add metadata search unless more data is explicitly missing and the tool is available.\n");
         }
         prompt.append("- Read templates[].requiredParameters, templates[].parameterContract, and templates[].invocationExample as authoritative. If requiredParameters contains tableName, fill sql_query_execute.input.parameters.tableName from the user request, sql_metadata_search result, or table-location result.\n");
-        prompt.append("- Never retry a template execution with empty parameters when the template declares required parameters; add/bind the missing parameters first.\n");
+        prompt.append("- Template-declared defaults are authoritative contract evidence. Pass only evidence-backed overrides and let Runtime apply omitted defaults; add/bind only required parameters that have no usable default.\n");
         prompt.append("- sql_query_execute must include executionContext from typed asset discovery, user context, template routing metadata, sql_metadata_search/table-location evidence, or an observed invocationExample. Use database_asset_search when datasource asset confirmation is needed, unless a prior template discovery observation supplies executable routing metadata.\n");
         prompt.append("- Do not inline JSONPath placeholders such as $.assets[0].asset.name inside executionContext; use bindings only when a prior observed step really returns that field.\n");
         if (metadataSearchAvailable) {
@@ -227,79 +242,35 @@ public class InterpretationPlanRewriter {
             .append(InterpretationExecutionProtocol.TEMPLATE_PARAMETER_PROTOCOL_VERSION)
             .append(" as an evidence-based parameter profile after seeing the returned parameterSchema and completed evidence; do not guess undeclared parameter names in the rewritten executor input.\n");
         prompt.append("- Parameter evidence must cite an exact user-query quote or a successful completed step_id/output_path. Runtime re-reads the cited value, audits it, applies defaults/type conversion, and alone invokes MCP.\n");
+        prompt.append("- For missing direct non-template tool arguments, use contextParameterEvidence with parameter/source and either stepId+outputPath or quote+value; preserve or add the dependency on the cited completed step. Runtime verifies every proposal and never trusts a model-supplied value by itself.\n");
         prompt.append("- parameterSchema, requiredParameters, parameterContract, invocationExample, selectedTemplate, and an entire templates[i] object are read-only discovery metadata. Never pass any of them as templateId or parameters.\n");
         prompt.append("- A binding targeting template/templateId must use an output_path ending in the scalar identifier field templateId (or the discovery contract's explicit scalar id field).\n\n");
         prompt.append("HTTP/API/SSH template repair rules:\n");
         prompt.append("- For http_request_execute and linux_command_execute, bind a returned templates[].templateId into input.template and pass only parameters declared by templates[].parameterSchema under input.parameters.\n");
         prompt.append("- For API templates returned by api_template_query, call api_template_execute with the returned scalar templateId and pass only arguments declared by templates[].parameterSchema/parameterContract under parameters.\n");
+        prompt.append("- Prefer execution over speculative parameter repair: retain only evidence-backed schema parameter overrides and omit everything else so authoritative template defaults apply. A missing optional/defaulted value must never prevent template execution.\n");
         prompt.append("- When template discovery returned candidates but semantic review rejected them, preserve the rejection reason, add their ids to excludeTemplateIds, refine intent/goal/keywords, and query again. Never repeat an identical template query.\n");
+        prompt.append("- When changing from a precise-looking candidate to a broader or different template query, explicitly justify the change from observed parameter compatibility, execution failure, missing evidence, or semantic mismatch. Retrieval rank or a template name alone is not sufficient justification.\n");
         prompt.append("- Treat template_execution_satisfaction.v1 as an authoritative retry contract. A failed template execution may be repaired exactly once: apply only evidence-proven retryInputChanges, bind every missingParameter, or re-run template discovery so the Runtime candidate evaluation layer can select another authorized template.\n");
         prompt.append("- If templateReselectionRequired=true, do not retry the same templateId. Feed the execution failure, missing parameters, and rejected template id back into template discovery/evaluation and materially change the candidate selection.\n");
         prompt.append("- When the failed discovery resultCode/reason is QUERY_CLAUSE_LIMIT_EXCEEDED, the model must audit the original user intent and retry the same template discovery tool with a compact query: keep one precise intent phrase, at most 8 discriminative keywords and at most 4 aliases; remove registry/template descriptions and repeated bilingual expansions. Do not proceed to any executor until the retry returns an executable template.\n");
         prompt.append("- Remove raw HTTP fields url/uri/method/headers/body/endpointId and raw SSH fields command/rawCommand/shell/host/hostname/ip/hostId from execution inputs. Replan through template discovery if needed.\n");
-        prompt.append("- Never retry HTTP/API/SSH template execution with empty parameters when requiredParameters is non-empty; add/bind the missing parameters first.\n\n");
+        prompt.append("- For HTTP/API/SSH templates, omitted parameters with declared defaults need no model evidence. Add/bind only required parameters that have no usable default; never invent an override.\n\n");
         prompt.append("InterpretationPlan JSON Schema:\n").append(InterpretationPlanJsonSchema.SCHEMA).append("\n\n");
         prompt.append("Available tools:\n").append(request.availableTools() == null ? List.of() : request.availableTools()).append("\n");
         prompt.append("Failed step:\n").append(toJson(failedStep(request))).append("\n");
         prompt.append("Failure reason:\n").append(request.failureReason()).append("\n");
-        prompt.append("Observations so far (compact scheduling evidence; full evidence remains Runtime-owned):\n")
-            .append(rewritePromptObservations(request.observations()))
+        prompt.append("Evidence Compression Gate metadata:\n")
+            .append(toJson(compressedEvidence.metadata()))
+            .append("\n");
+        prompt.append("Observations so far (compressed scheduling evidence; full evidence remains Runtime-owned):\n")
+            .append(compressedEvidence.observations())
             .append("\n");
         prompt.append("Evidence iteration history (authoritative basis for plan revision):\n")
-            .append(rewritePromptEvidenceHistory(request.evidenceHistory()))
+            .append(compressedEvidence.evidenceHistory())
             .append("\n");
         prompt.append("Original plan:\n").append(toJson(request.originalPlan()));
         return prompt.toString();
-    }
-
-    List<String> rewritePromptObservations(List<String> observations) {
-        if (observations == null || observations.isEmpty()) {
-            return List.of();
-        }
-        List<String> selected = observations.stream()
-            .filter(Objects::nonNull)
-            .toList();
-        if (selected.size() > REWRITE_OBSERVATION_MAX_ITEMS) {
-            List<String> bounded = new ArrayList<>(REWRITE_OBSERVATION_MAX_ITEMS);
-            bounded.addAll(selected.subList(0, 8));
-            bounded.addAll(selected.subList(
-                selected.size() - (REWRITE_OBSERVATION_MAX_ITEMS - 8),
-                selected.size()
-            ));
-            selected = bounded;
-        }
-        int perObservation = Math.min(
-            REWRITE_OBSERVATION_MAX_CHARS,
-            Math.max(256, REWRITE_OBSERVATIONS_MAX_CHARS / Math.max(1, selected.size()) - 64)
-        );
-        List<String> compact = new ArrayList<>(selected.size());
-        for (int index = 0; index < selected.size(); index++) {
-            String observation = selected.get(index);
-            if (observation.length() <= perObservation) {
-                compact.add(observation);
-                continue;
-            }
-            int headChars = Math.max(1, perObservation * 3 / 4);
-            int tailChars = Math.max(1, perObservation - headChars);
-            compact.add("[observation " + (index + 1) + " originalChars=" + observation.length() + "] "
-                + observation.substring(0, headChars)
-                + "... [middle omitted; full evidence remains in Runtime] ..."
-                + observation.substring(observation.length() - tailChars));
-        }
-        return List.copyOf(compact);
-    }
-
-    String rewritePromptEvidenceHistory(List<Map<String, Object>> evidenceHistory) {
-        String serialized = toJson(evidenceHistory == null ? List.of() : evidenceHistory);
-        if (serialized.length() <= REWRITE_EVIDENCE_HISTORY_MAX_CHARS) {
-            return serialized;
-        }
-        int headChars = REWRITE_EVIDENCE_HISTORY_MAX_CHARS * 3 / 4;
-        int tailChars = REWRITE_EVIDENCE_HISTORY_MAX_CHARS - headChars;
-        return "[evidenceHistory originalChars=" + serialized.length() + "] "
-            + serialized.substring(0, headChars)
-            + "... [middle omitted; full evidence remains in Runtime] ..."
-            + serialized.substring(serialized.length() - tailChars);
     }
 
     private boolean hasAvailableSemanticTool(List<String> availableTools, String semanticToolName) {
@@ -503,7 +474,8 @@ public class InterpretationPlanRewriter {
      * semantic validation so a recoverable rewrite is not discarded.
      */
     private InterpretationPlan normalizeRewritePlan(InterpretationPlan originalPlan,
-                                                    InterpretationPlan rewrittenPlan) {
+                                                    InterpretationPlan rewrittenPlan,
+                                                    List<String> availableTools) {
         if (rewrittenPlan == null) {
             return null;
         }
@@ -529,11 +501,16 @@ public class InterpretationPlanRewriter {
                     ? List.copyOf(precedingStepIds)
                     : List.of();
             }
+            Map<String, Object> normalizedInput = normalizeBatchChildToolNames(
+                step,
+                step.input() == null ? Map.of() : step.input(),
+                availableTools
+            );
             normalizedSteps.add(new InterpretationPlan.Step(
                 step.id(),
                 actionType,
                 step.toolName() == null ? "" : step.toolName(),
-                step.input() == null ? Map.of() : step.input(),
+                normalizedInput,
                 dependsOn,
                 step.outputContract(),
                 step.validation()
@@ -562,7 +539,7 @@ public class InterpretationPlanRewriter {
         );
         InterpretationPlan.Plan normalizedBody = new InterpretationPlan.Plan(
             normalizedSteps,
-            body == null || body.edgeContracts() == null ? List.of() : body.edgeContracts(),
+            repairedLockedBindingEdges(body),
             body == null || body.dependencyContracts() == null ? List.of() : body.dependencyContracts(),
             body == null || body.bindings() == null ? List.of() : body.bindings(),
             body == null ? null : body.stability(),
@@ -585,6 +562,107 @@ public class InterpretationPlanRewriter {
             executionPolicy,
             normalizedReview
         );
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> normalizeBatchChildToolNames(InterpretationPlan.Step step,
+                                                             Map<String, Object> input,
+                                                             List<String> availableTools) {
+        if (step == null || input == null || !ToolCallBatchSchema.supports(step.toolName())) {
+            return input == null ? Map.of() : input;
+        }
+        Object rawCalls = input.get("calls");
+        if (!(rawCalls instanceof List<?> calls) || calls.isEmpty()) {
+            return input;
+        }
+        Map<String, Object> normalizedInput = new LinkedHashMap<>(input);
+        List<Object> normalizedCalls = new ArrayList<>(calls.size());
+        for (Object rawCall : calls) {
+            if (!(rawCall instanceof Map<?, ?> map)) {
+                normalizedCalls.add(rawCall);
+                continue;
+            }
+            Map<String, Object> call = new LinkedHashMap<>((Map<String, Object>) map);
+            Object declared = call.containsKey("toolName")
+                ? call.get("toolName") : call.get("tool_name");
+            String declaredTool = declared == null ? step.toolName() : String.valueOf(declared);
+            String resolved = resolveAvailableToolName(declaredTool, availableTools);
+            if (resolved == null && sameTool(declaredTool, step.toolName())) {
+                resolved = step.toolName();
+            }
+            if (resolved != null) {
+                call.put("toolName", resolved);
+                call.remove("tool_name");
+            }
+            normalizedCalls.add(call);
+        }
+        normalizedInput.put("calls", List.copyOf(normalizedCalls));
+        return normalizedInput;
+    }
+
+    private String resolveAvailableToolName(String declaredTool, List<String> availableTools) {
+        if (declaredTool == null || declaredTool.isBlank()
+            || availableTools == null || availableTools.isEmpty()) {
+            return null;
+        }
+        return availableTools.stream()
+            .filter(tool -> sameTool(tool, declaredTool))
+            .findFirst()
+            .orElse(null);
+    }
+
+    /**
+     * A model may correctly bind separate discovered templates into batch children
+     * while declaring only one coarse edge such as {@code templates}. Locked-edge
+     * validation requires each required binding to have its exact source path. The
+     * binding is already subject to normal tool/path validation, so materializing
+     * its matching edge contract restores protocol structure without inventing a
+     * template id or an execution value.
+     */
+    private List<InterpretationPlan.EdgeContract> repairedLockedBindingEdges(
+        InterpretationPlan.Plan body
+    ) {
+        List<InterpretationPlan.EdgeContract> existing = body == null || body.edgeContracts() == null
+            ? List.of()
+            : body.edgeContracts();
+        if (body == null || body.stability() == null
+            || !Boolean.TRUE.equals(body.stability().lockedEdges())
+            || body.bindings() == null || body.bindings().isEmpty()) {
+            return existing;
+        }
+        List<InterpretationPlan.EdgeContract> repaired = new ArrayList<>(existing);
+        for (InterpretationPlan.Binding binding : body.bindings()) {
+            if (binding == null || Boolean.FALSE.equals(binding.required())
+                || binding.from() == null || binding.to() == null
+                || binding.outputPath() == null || binding.outputPath().isBlank()) {
+                continue;
+            }
+            String canonicalPath = canonicalPath(binding.outputPath());
+            boolean present = repaired.stream()
+                .filter(Objects::nonNull)
+                .anyMatch(edge -> Objects.equals(edge.from(), binding.from())
+                    && Objects.equals(edge.to(), binding.to())
+                    && canonicalPath(edge.field()).equals(canonicalPath));
+            if (!present) {
+                repaired.add(new InterpretationPlan.EdgeContract(
+                    binding.from(), binding.to(), binding.outputPath(),
+                    templateIdentifierPath(binding.outputPath()) ? "string" : "any", true
+                ));
+            }
+        }
+        return List.copyOf(repaired);
+    }
+
+    private String canonicalPath(String value) {
+        return value == null ? "" : value.replace("_", "").replace("-", "")
+            .replace("$", "").replace("[", "").replace("]", "")
+            .replace(".", "").trim().toLowerCase(Locale.ROOT);
+    }
+
+    private boolean templateIdentifierPath(String value) {
+        String normalized = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+        return normalized.endsWith(".templateid") || normalized.endsWith(".template_id")
+            || normalized.endsWith(".id") || normalized.endsWith(".code");
     }
 
     private InterpretationPlan repairContinuationPlan(InterpretationPlan originalPlan, InterpretationPlan rewrittenPlan) {

@@ -10,17 +10,19 @@ public record ToolCallRequest(
     Map<String, Object> arguments,
     Boolean emptyResultIsSuccess,
     List<String> requiredFields,
-    ToolEvidencePolicy evidencePolicy
+    ToolEvidencePolicy evidencePolicy,
+    String preflightErrorCode,
+    String preflightMessage
 ) {
     public ToolCallRequest(String callId, String toolName, Map<String, Object> arguments) {
-        this(callId, toolName, arguments, null, List.of(), ToolEvidencePolicy.empty());
+        this(callId, toolName, arguments, null, List.of(), ToolEvidencePolicy.empty(), null, null);
     }
 
     public ToolCallRequest(String callId,
                            String toolName,
                            Map<String, Object> arguments,
                            Boolean emptyResultIsSuccess) {
-        this(callId, toolName, arguments, emptyResultIsSuccess, List.of(), ToolEvidencePolicy.empty());
+        this(callId, toolName, arguments, emptyResultIsSuccess, List.of(), ToolEvidencePolicy.empty(), null, null);
     }
 
     public ToolCallRequest(String callId,
@@ -28,7 +30,7 @@ public record ToolCallRequest(
                            Map<String, Object> arguments,
                            Boolean emptyResultIsSuccess,
                            List<String> requiredFields) {
-        this(callId, toolName, arguments, emptyResultIsSuccess, requiredFields, ToolEvidencePolicy.empty());
+        this(callId, toolName, arguments, emptyResultIsSuccess, requiredFields, ToolEvidencePolicy.empty(), null, null);
     }
 
     public ToolCallRequest {

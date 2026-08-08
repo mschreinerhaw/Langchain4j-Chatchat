@@ -25,6 +25,8 @@ class ProductionReleaseCoverageE2E {
             "InterpretationPlanRuntimeTest",
             "RuntimeDeploymentHardcodingTest",
             "ApiTemplateDiscoveryMcpToolPublisherTest",
+            "ApiRequirementAnalysisMcpToolPublisherTest",
+            "HttpRequirementAnalysisMcpToolPublisherTest",
             "HttpRequestToolServiceLivedataTest",
             "LinuxCommandServiceTest",
             "SqlQueryExecuteServiceTest",
@@ -32,7 +34,11 @@ class ProductionReleaseCoverageE2E {
             "FinancialQueryRuntimeContractAcceptanceTest"
         );
         assertThat(releaseSuite)
-            .contains("chatchat-e2e-tests", "-am", "verify", "frontend.skip=true");
+            .contains("chatchat-e2e-tests", "-am", "verify", "frontend.skip=true",
+                "PrePlanWorkflowQuery", "PrePlanSkillId", "PrePlanExpectedTools",
+                "PrePlanExpectedExecutionTemplates", "PrePlanExpectedAnswerEvidence",
+                "PrePlanFailureQuery", "PrePlanFailureTool", "PrePlanFailureBlockedTools",
+                "PrePlanFailureExpectedEvidence");
         assertThat(Files.readString(root.resolve("pom.xml")))
             .contains("<module>chatchat-e2e-tests</module>");
         assertThat(Files.readString(root.resolve(
@@ -46,13 +52,48 @@ class ProductionReleaseCoverageE2E {
                 "invalidExtremeRequestsAreRejectedBeforeConversationPersistenceModelOrToolExecution",
                 "concurrentUnpredictableQuestionsRemainResponsiveAndRequestIsolated");
         assertThat(Files.readString(root.resolve(
+            "chatchat-e2e-tests/src/test/java/com/chatchat/e2e/ProductionPrePlanWorkflowContinuityE2E.java")))
+            .contains("prePlanToolCompletionReachesTheFirstDagDependencyWithoutBusinessHardcoding",
+                "failedPrePlanStepCannotBeConvertedIntoSuccessfulDagEvidence",
+                "generatedNamespace", "structuredRuntimeObservation");
+        assertThat(Files.readString(root.resolve(
+            "chatchat-e2e-tests/src/test/java/com/chatchat/e2e/ProductionDeployedPrePlanWorkflowE2E.java")))
+            .contains("userDiagnosticRequestCrossesApiAgentMcpPersistenceAndReturnsRenderableEvidence",
+                "failedPrePlanToolStopsDependentsPersistsFailureAndReturnsUserFacingExplanation",
+                "/api/v1/interactions/chat", "/api/v1/agent/runtime/runs/",
+                "/api/v1/conversations/", "expectedTools", "expectedExecutionTemplates",
+                "required previous steps")
+            .doesNotContain("Mockito", "mock(", "InMemoryAgentRunStore");
+        assertThat(Files.readString(root.resolve(
             "chatchat-e2e-tests/src/test/java/com/chatchat/agents/orchestration/ProductionAgentRuntimeFinancialEvidenceStressE2E.java")))
             .contains("concurrentForcedFinancialRequestsRemainIsolatedAndSchemaDriven",
                 "concurrentExtremeEvidenceCombinationsNeverEraseUsableAnalysisOrLeakRequests",
                 "UUID.randomUUID()", "financial_data_required", "evidenceLimitedAnalysisPreserved");
         assertThat(Files.readString(root.resolve(
+            "chatchat-e2e-tests/src/test/java/com/chatchat/agents/orchestration/ProductionAbbreviationRetrievalStressE2E.java")))
+            .contains("modelAliasesRemainIsolatedAcrossResolverAssetAndTemplateSearchUnderConcurrency",
+                "CANDIDATES_PER_KIND = 256", "CONCURRENCY = 48",
+                "queryTerms", "keywords", "doesNotContainKeys(\"assetName\", \"templateId\")",
+                "searchAssets", "searchTemplates", "repeat(20_000)");
+        assertThat(Files.readString(root.resolve(
             "chatchat-e2e-tests/src/test/java/com/chatchat/agents/orchestration/ProductionPartialEvidenceAnswerPreservationE2E.java")))
             .contains("mixedEvidencePreservesAnalysisAndExposesCoverageBoundary");
+        assertThat(Files.readString(root.resolve(
+            "chatchat-e2e-tests/src/test/java/com/chatchat/agents/orchestration/ProductionTemplateExecutionContextContinuityE2E.java")))
+            .contains("oversizedApiSshAndDatabaseTemplateResultsRemainExecutableEndToEnd",
+                "api_template_query", "ssh_template_query", "database_query_template_query",
+                "routingProjection", "outputTruncated");
+        assertThat(Files.readString(root.resolve(
+            "chatchat-e2e-tests/src/test/java/com/chatchat/mcpserver/routing/ProductionRequirementAnalysisProtocolE2E.java")))
+            .contains("extremePlannerPayloadIsNormalizedWithoutBusinessSpecificRules",
+                "malformedEmptyAndOversizedPlannerPayloadsFailClosed",
+                "apiAndHttpPublishersAreForcedToUseOneDomainNeutralProtocol");
+        assertThat(Files.readString(root.resolve(
+            "chatchat-e2e-tests/src/test/java/com/chatchat/mcpserver/api/ProductionApiRequirementAnalysisProtocolE2E.java")))
+            .contains("plannerIntentAliasCrossesNormalizationAndApiDiscovery");
+        assertThat(Files.readString(root.resolve(
+            "chatchat-e2e-tests/src/test/java/com/chatchat/mcpserver/ops/ProductionHttpRequirementAnalysisProtocolE2E.java")))
+            .contains("plannerIntentAliasCrossesNormalizationAndHttpDiscovery");
     }
 
     @Test

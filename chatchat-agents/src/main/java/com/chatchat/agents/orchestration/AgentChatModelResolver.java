@@ -1,16 +1,13 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.model.ConfigurableChatModelFactory;
 import com.chatchat.common.config.ModelsConfig;
-import dev.langchain4j.http.client.HttpClientBuilder;
-import dev.langchain4j.http.client.jdk.JdkHttpClientBuilder;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
-import dev.langchain4j.model.openai.OpenAiChatModel;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.net.InetSocketAddress;
-import java.net.ProxySelector;
-import java.net.http.HttpClient;
-import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -18,66 +15,39 @@ import java.util.concurrent.ConcurrentHashMap;
  * Resolves chat model instances for agent runs.
  */
 @Component
+@Slf4j
 public class AgentChatModelResolver {
 
     private final ChatModel defaultChatModel;
     private final ModelsConfig modelsConfig;
+    private final ConfigurableChatModelFactory chatModelFactory;
     private final Map<String, ChatModel> chatModelsByName = new ConcurrentHashMap<>();
 
     public AgentChatModelResolver(ChatModel defaultChatModel, ModelsConfig modelsConfig) {
+        this(defaultChatModel, modelsConfig,
+            new ConfigurableChatModelFactory(modelsConfig, new ObjectMapper()));
+    }
+
+    @Autowired
+    public AgentChatModelResolver(ChatModel defaultChatModel,
+                                  ModelsConfig modelsConfig,
+                                  ConfigurableChatModelFactory chatModelFactory) {
         this.defaultChatModel = defaultChatModel;
         this.modelsConfig = modelsConfig;
+        this.chatModelFactory = chatModelFactory;
     }
 
     public ChatModel resolveChatModel(String modelName) {
         String normalized = normalizeModelName(modelName);
+        String selectedModelName = normalized == null ? modelsConfig.getDefaultChatModel() : normalized;
+        if (selectedModelName != null && !selectedModelName.isBlank()) {
+            log.info("Agent chat model selected modelName={}", selectedModelName);
+        }
         if (normalized == null || normalized.equals(modelsConfig.getDefaultChatModel())) {
             return defaultChatModel;
         }
-        if (!"openai".equalsIgnoreCase(modelsConfig.getDefaultProvider())) {
-            return defaultChatModel;
-        }
-        return chatModelsByName.computeIfAbsent(normalized, this::buildOpenAiChatModel);
-    }
-
-    private ChatModel buildOpenAiChatModel(String modelName) {
-        if (modelsConfig.getOpenai().getApiKey() == null || modelsConfig.getOpenai().getApiKey().isBlank()) {
-            return defaultChatModel;
-        }
-        OpenAiChatModel.OpenAiChatModelBuilder builder = OpenAiChatModel.builder()
-            .apiKey(modelsConfig.getOpenai().getApiKey())
-            .baseUrl(modelsConfig.getOpenai().getBaseUrl())
-            .modelName(modelName)
-            .maxRetries(modelsConfig.getOpenai().getMaxRetries())
-            .logRequests(true)
-            .logResponses(true);
-        if (modelsConfig.getOpenai().getTimeout() > 0) {
-            builder.timeout(resolveOpenAiTimeout(modelsConfig.getOpenai().getTimeout()));
-        }
-        HttpClientBuilder httpClientBuilder = resolveOpenAiHttpClientBuilder();
-        if (httpClientBuilder != null) {
-            builder.httpClientBuilder(httpClientBuilder);
-        }
-        return builder.build();
-    }
-
-    private Duration resolveOpenAiTimeout(int timeout) {
-        return timeout >= 1000 ? Duration.ofMillis(timeout) : Duration.ofSeconds(timeout);
-    }
-
-    private HttpClientBuilder resolveOpenAiHttpClientBuilder() {
-        ModelsConfig.ProxyConfig proxyConfig = modelsConfig.getOpenai().getProxy();
-        if (proxyConfig == null || !proxyConfig.isEnabled()
-            || proxyConfig.getHost() == null || proxyConfig.getHost().isBlank()
-            || proxyConfig.getPort() == null || proxyConfig.getPort() <= 0) {
-            return null;
-        }
-        if ("socks".equalsIgnoreCase(proxyConfig.getType())) {
-            return null;
-        }
-        HttpClient.Builder httpClientBuilder = HttpClient.newBuilder()
-            .proxy(ProxySelector.of(new InetSocketAddress(proxyConfig.getHost(), proxyConfig.getPort())));
-        return new JdkHttpClientBuilder().httpClientBuilder(httpClientBuilder);
+        return chatModelsByName.computeIfAbsent(normalized,
+            chatModelFactory::create);
     }
 
     private String normalizeModelName(String modelName) {

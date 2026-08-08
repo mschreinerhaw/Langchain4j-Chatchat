@@ -217,19 +217,12 @@ function Wait-ContainerHealthy {
     throw "$ContainerName did not become healthy within $TimeoutSeconds seconds."
 }
 
-function Sync-LocalMySqlRuntimeGrants {
-    $GrantScript = @'
-MYSQL_PWD=$(cat /run/secrets/mysql_root_password) mysql --protocol=socket -uroot <<'SQL'
-GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX ON live_runtime_api.* TO 'chatchat_api'@'%';
-GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX ON live_runtime_mcp.* TO 'chatchat_mcp'@'%';
-GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX ON chatchat_news.* TO 'chatchat_news'@'%';
-FLUSH PRIVILEGES;
-SQL
-'@
-    $Encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($GrantScript))
-    & docker exec chatchat-mysql sh -ec "printf '%s' '$Encoded' | base64 -d | sh"
+function Sync-LocalMySqlInfrastructure {
+    # The mounted script may have CRLF line endings in an existing Windows checkout.
+    # Strip CR at execution time as well as enforcing LF through .gitattributes.
+    & docker exec chatchat-mysql sh -ec "tr -d '\r' </docker-entrypoint-initdb.d/01-init-chatchat.sh | bash"
     if ($LASTEXITCODE -ne 0) {
-        throw "Failed to synchronize local MySQL runtime schema privileges."
+        throw "Failed to synchronize the local MySQL users, grants, or schemas."
     }
 }
 
@@ -264,7 +257,7 @@ function Initialize-LocalMySqlInfrastructure {
         throw "Failed to reconcile the Compose mysql service."
     }
     Wait-ContainerHealthy -ContainerName "chatchat-mysql"
-    Sync-LocalMySqlRuntimeGrants
+    Sync-LocalMySqlInfrastructure
     if (-not (Test-PortOpen -Port 3306)) {
         throw "chatchat-mysql is healthy but host port 127.0.0.1:3306 is unavailable."
     }

@@ -2,6 +2,7 @@ package com.chatchat.mcpserver.audit;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
 
+import com.chatchat.common.audit.AuditQueryProperties;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.mcpserver.api.ApiInvokeResult;
 import com.chatchat.mcpserver.api.ApiServiceConfig;
@@ -47,6 +48,7 @@ public class InvocationAuditService {
 
     private final McpRocksDbStore rocksDbStore;
     private final ObjectMapper objectMapper;
+    private final AuditQueryProperties auditQueryProperties;
 
     /**
      * Lists the recent.
@@ -403,6 +405,64 @@ public class InvocationAuditService {
         save(log);
     }
 
+    /**
+     * Deletes audit logs created within the inclusive time range.
+     *
+     * @param from inclusive range start in epoch milliseconds
+     * @param to inclusive range end in epoch milliseconds
+     * @param auditCategory optional exact audit category
+     * @return number of deleted audit logs
+     */
+    public long deleteByTimeRange(long from, long to, String auditCategory) {
+        if (from < 0 || to < 0) {
+            throw new IllegalArgumentException("Audit cleanup time range must not be negative");
+        }
+        if (from > to) {
+            throw new IllegalArgumentException("Audit cleanup start time must not be after end time");
+        }
+        if (!rocksDbStore.isUsable()) {
+            return 0;
+        }
+
+        String normalizedCategory = trimToNull(auditCategory);
+        List<AuditDeleteTarget> targets = new ArrayList<>();
+        rocksDbStore.scan(INDEX_KEY_PREFIX, Integer.MAX_VALUE, entry -> {
+            String id = new String(entry.value(), StandardCharsets.UTF_8);
+            Optional<InvocationAuditLog> optionalLog = findById(id);
+            if (optionalLog.isEmpty()) {
+                return;
+            }
+            InvocationAuditLog auditLog = optionalLog.get();
+            long createdAt = auditLog.getCreatedAt() == null ? 0 : auditLog.getCreatedAt().toEpochMilli();
+            if (createdAt < from || createdAt > to) {
+                return;
+            }
+            if (normalizedCategory != null
+                && !equalsIgnoreCase(auditLog.getAuditCategory(), normalizedCategory)) {
+                return;
+            }
+            targets.add(new AuditDeleteTarget(entry.key(), id));
+        });
+
+        long deletedCount = 0;
+        for (AuditDeleteTarget target : targets) {
+            try {
+                rocksDbStore.delete(DATA_KEY_PREFIX + target.id());
+                rocksDbStore.delete(target.indexKey());
+                deletedCount++;
+            } catch (Exception ex) {
+                log.error("Failed to delete MCP invocation audit log {}: {}", target.id(), ex.getMessage(), ex);
+                throw new IllegalStateException(
+                    "Failed to delete audit log " + target.id() + "; deleted " + deletedCount + " log(s) before failure",
+                    ex
+                );
+            }
+        }
+        log.info("MCP invocation audit cleanup completed from={} to={} category={} deletedCount={}",
+            from, to, normalizedCategory, deletedCount);
+        return deletedCount;
+    }
+
     public void recordDatabaseQueryStepCall(DatabaseQueryConfig config,
                                             String nodeCode,
                                             String nodeName,
@@ -655,7 +715,9 @@ public class InvocationAuditService {
             trimToNull(query.datasourceName()),
             query.success(),
             query.statusCode(),
-            query.from(),
+            query.from() == null
+                ? auditQueryProperties.defaultQueryFrom(Instant.now()).toEpochMilli()
+                : query.from(),
             query.to()
         );
     }
@@ -840,6 +902,9 @@ public class InvocationAuditService {
         long createdAt = log.getCreatedAt() == null ? System.currentTimeMillis() : log.getCreatedAt().toEpochMilli();
         long reverseTime = Long.MAX_VALUE - createdAt;
         return INDEX_KEY_PREFIX + String.format("%019d", reverseTime) + ":" + log.getId();
+    }
+
+    private record AuditDeleteTarget(byte[] indexKey, String id) {
     }
 
     /**

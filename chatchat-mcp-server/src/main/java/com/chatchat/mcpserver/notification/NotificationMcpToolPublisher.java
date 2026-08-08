@@ -50,7 +50,8 @@ public class NotificationMcpToolPublisher {
 
         for (NotificationChannelConfig config : configService.listEnabled()) {
             try {
-                mcpSyncServer.addTool(toolSpecFactory.toToolSpecification(config));
+                com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+                    mcpSyncServer, toolSpecFactory.toToolSpecification(config));
                 managedToolNames.add(config.getToolName());
             } catch (Exception ex) {
                 log.warn("Skip notification MCP tool {}: {}", config.getToolName(), ex.getMessage());

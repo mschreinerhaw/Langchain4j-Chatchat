@@ -1,5 +1,6 @@
 package com.chatchat.api.enterprise;
 
+import com.chatchat.common.audit.AuditQueryProperties;
 import com.chatchat.enterprise.entity.SysAuditLog;
 import com.chatchat.enterprise.repository.SysAuditLogRepository;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -47,6 +49,7 @@ public class LoginAuditService {
 
     private final SysAuditLogRepository auditLogRepository;
     private final ObjectMapper objectMapper;
+    private final AuditQueryProperties auditQueryProperties;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordSuccess(String actionName, String attemptedUsername, EnterpriseAdminService.AuthResult result, HttpServletRequest request) {
@@ -216,6 +219,10 @@ public class LoginAuditService {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(criteriaBuilder.equal(root.get("moduleName"), "auth"));
             predicates.add(root.get("actionName").in(LOGIN_ACTIONS));
+            predicates.add(criteriaBuilder.greaterThanOrEqualTo(
+                root.get("createdAt"),
+                auditQueryProperties.defaultQueryFrom(Instant.now())
+            ));
             if (query.tenantId() != null) {
                 predicates.add(criteriaBuilder.equal(root.get("tenantId"), query.tenantId()));
             }

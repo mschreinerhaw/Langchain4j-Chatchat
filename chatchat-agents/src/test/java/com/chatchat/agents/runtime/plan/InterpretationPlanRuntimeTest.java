@@ -9,6 +9,7 @@ import com.chatchat.agents.runtime.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.ToolRuntimeService;
 import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
 import com.chatchat.agents.runtime.batch.ToolCallResult;
+import com.chatchat.agents.runtime.toolcall.ContextualToolArgumentResolver;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolParameter;
@@ -33,6 +34,77 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class InterpretationPlanRuntimeTest {
+
+    @Test
+    void recoversMissingDirectToolArgumentFromCompletedEvidenceAndPublishesRepair() {
+        String sourceTool = "portfolio_snapshot_query";
+        String targetTool = "market_observation_query";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(any())).thenReturn(true);
+        when(toolRegistry.getToolMetadata(sourceTool)).thenReturn(
+            ToolMetadata.builder().id(sourceTool).riskLevel("low").build());
+        when(toolRegistry.getToolMetadata(targetTool)).thenReturn(ToolMetadata.builder()
+            .id(targetTool)
+            .riskLevel("low")
+            .metadata(Map.of("inputSchema", Map.of(
+                "type", "object",
+                "required", List.of("symbol"),
+                "properties", Map.of("symbol", Map.of(
+                    "type", "string", "aliases", List.of("stockCode"))))))
+            .build());
+        AtomicReference<ToolRuntimeRequest> targetRequest = new AtomicReference<>();
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest request = invocation.getArgument(0);
+            Object output;
+            if (sourceTool.equals(request.getToolName())) {
+                output = Map.of("positions", List.of(Map.of("stockCode", "600839")));
+            } else {
+                targetRequest.set(request);
+                output = Map.of("quote", 12.34);
+            }
+            return new ToolRuntimeExecution(
+                ToolOutput.success(output),
+                ToolMetadata.builder().id(request.getToolName()).build(),
+                null, "success", Map.of());
+        });
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("tool_chain", "analyze portfolio market data", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", sourceTool, Map.of(), List.of(), null, null),
+                new InterpretationPlan.Step(2, "mcp_tool", targetTool, Map.of(), List.of(1), null, null),
+                new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"),
+                    List.of(2), null, null)
+            ), List.of(), List.of(), List.of(), null, null),
+            new InterpretationPlan.ExecutionPolicy(
+                3, false, List.of(sourceTool, targetTool), List.of(), 30_000),
+            review());
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService, new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3))));
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, toolRegistry, List.of(sourceTool, targetTool),
+                "tenant", "request-context-repair", "conversation", "user",
+                Map.of("originalUserQuery", "analyze my position")));
+
+        assertThat(result.success()).isTrue();
+        assertThat(targetRequest.get().getToolInput().getParameters())
+            .containsEntry("symbol", "600839")
+            .doesNotContainKey("__runtimeContextParameterRecovery")
+            .doesNotContainKey(ContextualToolArgumentResolver.MODEL_EVIDENCE_FIELD);
+        assertThat(result.steps()).filteredOn(step -> step.stepId() == 2)
+            .singleElement()
+            .satisfies(step -> {
+                assertThat(step.metadata()).containsEntry("eventKind", "DAG_REPAIR")
+                    .containsEntry("eventState", "APPLIED");
+                assertThat(((Map<?, ?>) step.metadata().get("repairEvent")).get("repairCode"))
+                    .isEqualTo("CONTEXT_PARAMETER_EVIDENCE_APPLIED");
+            });
+    }
 
     @Test
     void newsSearchUsesOriginalTodayQueryAndRuntimeOwnedDateRange() throws Exception {
@@ -259,6 +331,78 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void continuesIndependentBranchesWhenDependencyAllowsPartialEvidence() {
+        String failingTool = "orders_query";
+        String succeedingTool = "positions_query";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(any())).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenReturn(ToolMetadata.builder().riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest request = invocation.getArgument(0);
+            ToolOutput output = failingTool.equals(request.getToolName())
+                ? ToolOutput.failure("orders backend unavailable")
+                : ToolOutput.success(Map.of("records", List.of(Map.of("symbol", "600000"))));
+            return new ToolRuntimeExecution(
+                output,
+                ToolMetadata.builder().id(request.getToolName()).build(),
+                null,
+                output.isSuccess() ? "success" : "failed",
+                Map.of()
+            );
+        });
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", "collect independent customer dimensions", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", failingTool, Map.of(), List.of(), null, null),
+                    new InterpretationPlan.Step(2, "mcp_tool", succeedingTool, Map.of(), List.of(), null, null),
+                    new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "partial result"),
+                        List.of(1, 2), null, null)
+                ),
+                List.of(),
+                List.of(
+                    new InterpretationPlan.DependencyContract(
+                        1, 3, true, null, "answer may use partial order evidence",
+                        "continue_with_partial_evidence"),
+                    new InterpretationPlan.DependencyContract(
+                        2, 3, true, null, "answer uses position evidence",
+                        "continue_with_partial_evidence")
+                ),
+                List.of(),
+                null
+            ),
+            new InterpretationPlan.ExecutionPolicy(
+                3, false, List.of(failingTool, succeedingTool), List.of(), 30_000),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, toolRegistry, List.of(failingTool, succeedingTool), "tenant-1",
+                "req-partial-continuation", "conv-partial-continuation", "user-1", Map.of()
+            )
+        );
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.status()).isEqualTo("completed_with_partial_evidence");
+        assertThat(result.finalAnswer()).isEqualTo("partial result");
+        assertThat(result.steps()).extracting(InterpretationPlanRuntime.StepExecution::stepId)
+            .containsExactly(1, 2, 3);
+        assertThat(result.metadata())
+            .containsEntry("continuedFailureStepIds", List.of(1))
+            .containsEntry("partialEvidence", true);
+        verify(toolRuntimeService, times(2)).execute(any());
+    }
+
+    @Test
     void stopsDagWhenModelReviewRejectsToolResult() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("document_search")).thenReturn(true);
@@ -358,6 +502,73 @@ class InterpretationPlanRuntimeTest {
         assertThat(result.steps().get(0).metadata())
             .containsEntry("toolResultReviewSatisfied", false)
             .containsEntry("toolResultReviewPartialAccepted", true)
+            .containsEntry("partialEvidence", true);
+    }
+
+    @Test
+    void preservesSuccessfulStructuredEvidenceWhenModelReviewNeedsMoreEvidence() {
+        String toolName = "future_enterprise_standard_search";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(toolName)).thenReturn(true);
+        when(toolRegistry.getToolMetadata(toolName))
+            .thenReturn(ToolMetadata.builder().id(toolName).riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of(
+                "schemaVersion", "future_evidence.v1",
+                "success", true,
+                "count", 20,
+                "evidenceObjectCount", 20,
+                "records", List.of(Map.of("standard", "ADS naming"))
+            )),
+            ToolMetadata.builder().id(toolName).build(),
+            null,
+            "success",
+            Map.of()
+        ));
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("governance", "evaluate design", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", toolName, Map.of(), List.of(), null, null),
+                new InterpretationPlan.Step(2, "final_answer", "", Map.of("answer", "done"), List.of(1), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(2, false, List.of(toolName), List.of(), 30_000),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            null,
+            request -> InterpretationPlanRuntime.StepReview.rejected(
+                "returned evidence is useful but not sufficient for the complete conclusion",
+                Map.of(
+                    "evidenceIterationSufficient", false,
+                    "missingEvidence", List.of("physical metadata"),
+                    "nextActions", List.of(Map.of("intent", "retrieve missing evidence"))
+                )
+            ),
+            scriptedController(List.of(List.of(1), List.of(2)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, toolRegistry, List.of(toolName),
+                "tenant-1", "request-partial-standard", "conversation-1", "user-1", Map.of()
+            ));
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.steps()).extracting(InterpretationPlanRuntime.StepExecution::stepId)
+            .containsExactly(1, 2);
+        assertThat(result.steps().get(0).success()).isTrue();
+        assertThat(result.steps().get(0).errorMessage()).isNull();
+        assertThat(result.steps().get(0).metadata())
+            .containsEntry("toolResultReviewSatisfied", false)
+            .containsEntry("toolExecutionStatus", "SUCCEEDED")
+            .containsEntry("evidenceSufficiency", "INSUFFICIENT")
+            .containsEntry("stepFulfillmentStatus", "PARTIAL")
+            .containsEntry("modelReviewExecutionStatusOverridePrevented", true)
             .containsEntry("partialEvidence", true);
     }
 
@@ -635,6 +846,143 @@ class InterpretationPlanRuntimeTest {
             .isEqualTo("CHECK_PROCESS");
         assertThat(projectedOutput.get("runtimeTemplateSelection").toString())
             .contains("selectionAuthority=runtime_evidence_model_review", "candidateCount=2");
+    }
+
+    @Test
+    void authoritativeWorkflowAcceptsNonEmptyDiscoveryWithoutModelReview() {
+        String assetTool = "mcp_runtime_api_asset_query";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(assetTool)).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenReturn(
+            ToolMetadata.builder().id(assetTool).riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of(
+                "schemaVersion", "asset_query_result.v1",
+                "success", true,
+                "returnedCount", 2,
+                "assets", List.of(
+                    Map.of("asset", Map.of("id", "asset-a", "name", "customer-a")),
+                    Map.of("asset", Map.of("id", "asset-b", "name", "customer-b"))
+                )
+            )),
+            ToolMetadata.builder().id(assetTool).build(),
+            null,
+            "success",
+            Map.of()
+        ));
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", "run configured workflow", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", assetTool, Map.of(), List.of(), null, null),
+                new InterpretationPlan.Step(2, "final_answer", "", Map.of("answer", "done"), List.of(1), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(2, false, List.of(assetTool), List.of(), 30000),
+            review()
+        );
+        AtomicInteger reviewerCalls = new AtomicInteger();
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            null,
+            request -> {
+                reviewerCalls.incrementAndGet();
+                return InterpretationPlanRuntime.StepReview.rejected("downstream work is incomplete", Map.of());
+            },
+            scriptedController(List.of(List.of(1), List.of(2)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan,
+                toolRegistry,
+                List.of(assetTool),
+                "tenant-1",
+                "req-authoritative-discovery",
+                "conv-authoritative-discovery",
+                "user-1",
+                Map.of("authoritativeWorkflowDag", List.of(
+                    Map.of("id", "asset", "tool", assetTool, "dependsOnTools", List.of())
+                ))
+            )
+        );
+
+        assertThat(result.success()).isTrue();
+        assertThat(reviewerCalls).hasValue(0);
+        assertThat(result.steps().get(0).metadata())
+            .containsEntry("assetDiscoveryReturnedCount", 2)
+            .containsEntry("toolResultReviewSkipped", true)
+            .containsEntry("toolResultReviewSkipReason",
+                "deterministic discovery fact check accepted non-empty structured results");
+    }
+
+    @Test
+    void preservesFactCheckedTemplateDiscoveryWhenModelReviewerIsUnavailable() {
+        String toolName = "mcp_chatchat_mcp_server_ssh_template_query";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(toolName)).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenReturn(
+            ToolMetadata.builder().id(toolName).riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of(
+                "schemaVersion", "tool_result_summary.v1",
+                "summaryTruncated", true,
+                "preview", Map.of(
+                    "routingProjection", Map.of(
+                        "schemaVersion", "template_query_result.v1",
+                        "success", true,
+                        "returnedCount", 2,
+                        "templates", List.of(
+                            Map.of("templateId", "check_cpu"),
+                            Map.of("templateId", "check_docker_overview")
+                        )
+                    )
+                )
+            )),
+            ToolMetadata.builder().id(toolName).build(), null, "success", Map.of()
+        ));
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("ops", "discover diagnostics", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", toolName,
+                    Map.of("filters", Map.of("intent", "cpu docker")), List.of(), null, null),
+                new InterpretationPlan.Step(2, "final_answer", "",
+                    Map.of("answer", "done"), List.of(1), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(2, false, List.of(toolName), List.of(), 30_000),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            null,
+            request -> InterpretationPlanRuntime.StepReview.rejected(
+                "Tool result reviewer was unavailable",
+                Map.of("toolResultReviewUnavailable", true)
+            ),
+            scriptedController(List.of(List.of(1), List.of(2)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, toolRegistry, List.of(toolName), "tenant", "request-review-unavailable",
+                "conversation", "user", Map.of()
+            )
+        );
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.steps().get(0).metadata())
+            .containsEntry("localFactCheckHasEvidence", true)
+            .containsEntry("toolResultReviewUnavailable", true)
+            .containsEntry("toolResultReviewSkipped", true)
+            .containsEntry("toolResultReviewSatisfied", true);
+        assertThat(result.steps().get(0).output().toString())
+            .contains("check_cpu", "check_docker_overview");
     }
 
     @Test
@@ -3094,6 +3442,140 @@ class InterpretationPlanRuntimeTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void recoversRequiredAssetEnvironmentFromAgentContextWhenSummaryProjectionOmitsIt() {
+        String assetTool = "mcp_chatchat_mcp_server_api_asset_query";
+        String templateTool = "mcp_chatchat_mcp_server_api_template_query";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.hasTool(any())).thenReturn(true);
+        when(registry.getToolMetadata(any())).thenAnswer(invocation ->
+            ToolMetadata.builder().id(invocation.getArgument(0)).riskLevel("low").build());
+        AtomicReference<Map<String, Object>> templateInput = new AtomicReference<>();
+        ToolRuntimeService service = mock(ToolRuntimeService.class);
+        when(service.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest toolRequest = invocation.getArgument(0);
+            if (assetTool.equals(toolRequest.getToolName())) {
+                return new ToolRuntimeExecution(ToolOutput.success(Map.of(
+                    "schemaVersion", "tool_result_summary.v1",
+                    "summaryTruncated", true,
+                    "resultPresent", true,
+                    "preview", "{assets=[{asset={name=customer-api, ... truncated}}]}",
+                    "routingProjection", Map.of("assets", List.of(Map.of(
+                        "asset", Map.of("id", "asset-1", "name", "customer-api")
+                    )))
+                )), ToolMetadata.builder().id(assetTool).build(), null, "success", Map.of());
+            }
+            templateInput.set(toolRequest.getToolInput().getParameters());
+            return new ToolRuntimeExecution(ToolOutput.success(Map.of(
+                "templates", List.of(Map.of("templateId", "customer-overview"))
+            )), ToolMetadata.builder().id(templateTool).build(), null, "success", Map.of());
+        });
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", "customer overview", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", assetTool,
+                        Map.of("filters", Map.of("intent", "customer overview")), List.of(), null, null),
+                    new InterpretationPlan.Step(2, "mcp_tool", templateTool,
+                        Map.of("filters", Map.of("intent", "customer overview")), List.of(1), null, null),
+                    new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"),
+                        List.of(2), null, null)
+                ),
+                List.of(new InterpretationPlan.EdgeContract(
+                    1, 2, "assets[0].asset.environment", "string", true)),
+                List.of(new InterpretationPlan.DependencyContract(
+                    1, 2, true, null, "template discovery uses Agent environment", "stop")),
+                List.of(new InterpretationPlan.Binding(
+                    1, "$.assets[0].asset.environment", 2, "filters.env", "jsonpath", true)),
+                null
+            ),
+            new InterpretationPlan.ExecutionPolicy(
+                3, false, List.of(assetTool, templateTool), List.of(), 30_000),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            service, new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, registry, List.of(assetTool, templateTool), "tenant-1", "req-env-recovery",
+                "conv-env-recovery", "user-1", Map.of("agentRuntimeEnvironment", "DEV")
+            )
+        );
+
+        assertThat(result.success()).as(result.errorMessage()).isTrue();
+        assertThat((Map<String, Object>) templateInput.get().get("filters"))
+            .containsEntry("env", "DEV");
+        assertThat(result.steps()).filteredOn(step -> Integer.valueOf(1).equals(step.stepId()))
+            .singleElement()
+            .satisfies(step -> assertThat(step.metadata())
+                .containsEntry("eventKind", "DAG_REPAIR")
+                .containsEntry("eventState", "APPLIED")
+                .containsKey("deterministicContractRepairs"));
+        assertThat(result.steps()).noneMatch(step -> step.errorMessage() != null
+            && step.errorMessage().contains("EDGE_CONTRACT_FAILED"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void compilesLooseTemplateDiscoveryIntentWithoutLosingDiscoveredTemplateIds() throws Exception {
+        String toolName = "mcp_chatchat_mcp_server_api_template_query";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName)
+            .metadata(Map.of(
+                "inputSchema", Map.of(
+                    "type", "object",
+                    "properties", Map.of(
+                        "filters", Map.of("type", "object", "additionalProperties", true),
+                        "trace", Map.of("type", "object", "additionalProperties", true),
+                        "filtersSchemaVersion", Map.of("type", "string"),
+                        "templateIds", Map.of("type", "array", "items", Map.of("type", "string")),
+                        "limit", Map.of("type", "integer")
+                    ),
+                    "required", List.of("filters"),
+                    "additionalProperties", false
+                ),
+                "mcpToolMeta", Map.of("routingProtocol", Map.of(
+                    "allowedFilterFields", List.of("intent", "queryterms", "retrievalsignals")
+                ))
+            ))
+            .build());
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class), new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class));
+        List<String> candidateIds = List.of(
+            "livedata_hisJyZjmxls", "livedata_EvtRealOptCptlJour",
+            "livedata_EvtRealSecuMargCptlJour");
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            1, "mcp_tool", toolName,
+            Map.of("intent", "查询客户资金流水", "templateIds", candidateIds, "limit", 10),
+            List.of(), null, null);
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0", new InterpretationPlan.Intent("data_query", "查询客户资金流水", "low"),
+            context(), new InterpretationPlan.Plan(List.of(step)),
+            new InterpretationPlan.ExecutionPolicy(1, false, List.of(toolName), List.of(), 30000), review());
+        InterpretationPlanRuntime.ExecutionRequest request = new InterpretationPlanRuntime.ExecutionRequest(
+            plan, toolRegistry, List.of(toolName), "tenant-1", "req-template-scope",
+            "conv-template-scope", "user-1", Map.of("originalUserQuery", "查询客户资金流水"));
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedStepInput", InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class, Map.class);
+        method.setAccessible(true);
+
+        Map<String, Object> resolved = (Map<String, Object>) method.invoke(runtime, step, request, Map.of());
+
+        assertThat(resolved.get("templateIds")).isEqualTo(candidateIds);
+        assertThat((Map<String, Object>) resolved.get("filters"))
+            .containsEntry("intent", "查询客户资金流水");
+        assertThat(resolved).containsKeys("trace", "filtersSchemaVersion");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void injectsRetrievalIntentForDatabaseDiscoveryWhenPlannerOmittedFilter() throws Exception {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             mock(ToolRuntimeService.class),
@@ -4743,7 +5225,7 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
-    void reviewsAssetDiscoveryAfterLocalFactCheckAndExecutesDependentLinuxCommand() {
+    void skipsCumulativeModelReviewForUniqueAssetAndExecutesDependentLinuxCommand() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_ssh_asset_query")).thenReturn(true);
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_linux_command_execute")).thenReturn(true);
@@ -4796,10 +5278,8 @@ class InterpretationPlanRuntimeTest {
         InterpretationPlanRuntime.StepResultReviewer reviewer = request -> {
             if ("mcp_chatchat_mcp_server_ssh_asset_query".equals(request.execution().toolName())) {
                 assetReviewCalls.incrementAndGet();
-                assertThat(request.execution().metadata())
-                    .containsEntry("localFactCheckHasEvidence", true)
-                    .containsEntry("assetDiscoveryReturnedCount", 1);
-                return InterpretationPlanRuntime.StepReview.accepted("asset discovery contains a usable target", Map.of());
+                return InterpretationPlanRuntime.StepReview.rejected(
+                    "the overall diagnostic request still lacks resource evidence", Map.of());
             }
             return InterpretationPlanRuntime.StepReview.accepted("command output usable", Map.of());
         };
@@ -4857,11 +5337,74 @@ class InterpretationPlanRuntimeTest {
         verify(toolRuntimeService, times(2)).execute(captor.capture());
         Map<?, ?> linuxParameters = captor.getAllValues().get(1).getToolInput().getParameters();
         Map<?, ?> executionContext = (Map<?, ?>) linuxParameters.get("executionContext");
-        assertThat(assetReviewCalls).hasValue(1);
+        assertThat(assetReviewCalls).hasValue(0);
+        assertThat(result.steps().get(0).metadata())
+            .containsEntry("localFactCheckHasEvidence", true)
+            .containsEntry("assetDiscoveryReturnedCount", 1)
+            .containsEntry("toolResultReviewSkipped", true);
         assertThat(captor.getAllValues().get(1).getToolName()).isEqualTo("mcp_chatchat_mcp_server_linux_command_execute");
         assertThat(linuxParameters.get("template")).isEqualTo("CHECK_SYSTEM_OVERVIEW");
         assertThat(executionContext.get("assetName")).isEqualTo("docker_service");
         assertThat(executionContext.get("env")).isEqualTo("DEV");
+    }
+
+    @Test
+    void rejectsDependentExecutionWhenPlannedAssetDiffersFromUniqueDiscovery() {
+        String assetTool = "mcp_chatchat_mcp_server_ssh_asset_query";
+        String commandTool = "mcp_chatchat_mcp_server_linux_command_execute";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(any())).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenAnswer(invocation -> ToolMetadata.builder()
+            .id(invocation.getArgument(0)).riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of(
+                "schemaVersion", "asset_query_result.v1",
+                "returnedCount", 1,
+                "assets", List.of(Map.of("asset", Map.of(
+                    "id", "worker11-id",
+                    "name", "CDH DataNode 节点 worker11",
+                    "environment", "DEV"
+                )))
+            )),
+            ToolMetadata.builder().id(assetTool).build(), null, "success", Map.of()
+        ));
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("system_operation", "Analyze worker11", "medium"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", assetTool,
+                    Map.of("filters", Map.of("assetName", "worker11")), List.of(), null, null),
+                new InterpretationPlan.Step(2, "mcp_tool", commandTool,
+                    Map.of("template", "CHECK_HOSTNAME", "executionContext",
+                        Map.of("assetName", "ADP 平台开发数据库", "env", "DEV")),
+                    List.of(1), null, null),
+                new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"),
+                    List.of(2), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(3, false,
+                List.of(assetTool, commandTool), List.of(), 30_000),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            null,
+            request -> InterpretationPlanRuntime.StepReview.accepted("usable", Map.of()),
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(plan, toolRegistry,
+                List.of(assetTool, commandTool), "tenant", "req-asset-mismatch",
+                "conversation", "user", Map.of())
+        );
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorMessage())
+            .contains("ASSET_CONTEXT_MISMATCH", "ADP 平台开发数据库", "CDH DataNode 节点 worker11");
+        verify(toolRuntimeService, times(1)).execute(any());
     }
 
     @Test
@@ -5052,7 +5595,7 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
-    void continuesWhenReviewerContradictsDeterministicAssetFacts() {
+    void skipsReviewerForUniqueDeterministicAssetFacts() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_sql_datasource_asset_query")).thenReturn(true);
         when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_sql_datasource_asset_query"))
@@ -5076,11 +5619,14 @@ class InterpretationPlanRuntimeTest {
             "success",
             Map.of()
         ));
-        InterpretationPlanRuntime.StepResultReviewer reviewer = request ->
-            InterpretationPlanRuntime.StepReview.rejected(
+        AtomicInteger reviewerCalls = new AtomicInteger();
+        InterpretationPlanRuntime.StepResultReviewer reviewer = request -> {
+            reviewerCalls.incrementAndGet();
+            return InterpretationPlanRuntime.StepReview.rejected(
                 "Asset query returned zero results and no matching asset.",
                 Map.of("reviewed", true)
             );
+        };
         InterpretationPlan plan = new InterpretationPlan(
             "1.0",
             new InterpretationPlan.Intent("sql_metadata", "Analyze 248-test-db", "low"),
@@ -5131,12 +5677,12 @@ class InterpretationPlanRuntimeTest {
         assertThat(result.success())
             .as(result.status() + ": " + result.errorMessage() + " steps=" + result.steps())
             .isTrue();
+        assertThat(reviewerCalls).hasValue(0);
         assertThat(result.finalAnswer()).isEqualTo("done");
         assertThat(result.steps().get(0).metadata())
             .containsEntry("localFactCheckHasEvidence", true)
             .containsEntry("assetDiscoveryReturnedCount", 1)
-            .containsEntry("toolResultReviewContradictedLocalFacts", true)
-            .containsEntry("toolResultReviewSatisfied", true);
+            .containsEntry("toolResultReviewSkipped", true);
     }
 
     @Test
@@ -5278,6 +5824,71 @@ class InterpretationPlanRuntimeTest {
         assertThat(parameters.get("templateId")).isEqualTo("MYSQL_INNODB_STATUS");
         assertThat(executionContext.get("assetName")).isEqualTo("閺堫剙婀碝ySQL濞村鐦張宥呭");
         assertThat(executionContext.get("env")).isEqualTo("DEV");
+    }
+
+    @Test
+    void carriesRootTargetAliasAcrossDependentDagTools() {
+        String namespace = "mcp_runtime_" + System.nanoTime() + "_";
+        String assetTool = namespace + "asset_query";
+        String templateTool = namespace + "template_query";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        for (String tool : List.of(assetTool, templateTool)) {
+            when(toolRegistry.hasTool(tool)).thenReturn(true);
+            when(toolRegistry.getToolMetadata(tool)).thenReturn(ToolMetadata.builder()
+                .id(tool).riskLevel("low").build());
+        }
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of("ok", true)),
+            ToolMetadata.builder().id("dynamic").build(),
+            null,
+            "success",
+            Map.of()
+        ));
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("diagnostic", "Inspect generated target", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", assetTool,
+                    Map.of("filters", Map.of("assetName", "generated-target-alias")), List.of(), null, null),
+                new InterpretationPlan.Step(2, "mcp_tool", templateTool,
+                    Map.of("executionContext", Map.of("assetId", "generated-canonical-id")), List.of(1), null, null),
+                new InterpretationPlan.Step(3, "final_answer", "",
+                    Map.of("answer", "done"), List.of(2), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(3, false,
+                List.of(assetTool, templateTool), List.of(), 30000),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(3)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan,
+                toolRegistry,
+                List.of(assetTool, templateTool),
+                "generated-tenant",
+                "generated-request",
+                "generated-conversation",
+                "generated-user",
+                Map.of()
+            )
+        );
+
+        assertThat(result.steps()).extracting(InterpretationPlanRuntime.StepExecution::stepId)
+            .contains(1, 2);
+        ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
+        verify(toolRuntimeService, times(2)).execute(captor.capture());
+        ToolRuntimeRequest dependentRequest = captor.getAllValues().get(1);
+        assertThat(dependentRequest.getAttributes().get("workflowCompletedTools"))
+            .asString().contains(assetTool);
+        assertThat(dependentRequest.getAttributes().get("workflowContext"))
+            .isEqualTo(Map.of("workflowTargetRef", "generated-target-alias"));
     }
 
     @Test
@@ -6065,7 +6676,8 @@ class InterpretationPlanRuntimeTest {
         assertThat(result.finalAnswer()).isEqualTo("done");
         assertThat(result.metadata())
             .containsEntry("protocolVersion", InterpretationExecutionProtocol.VERSION)
-            .containsEntry("executionTraceId", "run-event-dag::interpretation_plan");
+            .containsEntry("executionTraceId", "run-event-dag::interpretation_plan")
+            .containsEntry("planExecutionScope", "run-event-dag::attempt:0");
         List<AgentRunEvent> events = runStore.events("run-event-dag");
         assertThat(events).extracting(AgentRunEvent::type)
             .contains(AgentRunEventType.STEP_RECORDED, AgentRunEventType.OBSERVATION_RECORDED);
@@ -6083,10 +6695,49 @@ class InterpretationPlanRuntimeTest {
             .map(metadata -> (Map<?, ?>) metadata)
             .anyMatch(metadata -> InterpretationExecutionProtocol.VERSION.equals(metadata.get("protocolVersion"))
                 && "run-event-dag::interpretation_plan".equals(metadata.get("executionTraceId"))
+                && "run-event-dag::attempt:0".equals(metadata.get("planExecutionScope"))
                 && "controller_decision".equals(metadata.get("lifecyclePhase"))
                 && metadata.get("decision") instanceof Map<?, ?>
                 && metadata.get("guardResult") instanceof Map<?, ?>))
             .isTrue();
+    }
+
+    @Test
+    void carriesAgentRunIdIntoToolResultReviewRequest() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("document_search")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("document_search"))
+            .thenReturn(ToolMetadata.builder().id("document_search").riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of("results", List.of("runtime evidence"))),
+            ToolMetadata.builder().id("document_search").build(),
+            null,
+            "success",
+            Map.of()
+        ));
+        AtomicReference<String> reviewedRunId = new AtomicReference<>();
+        InterpretationPlanRuntime.StepResultReviewer reviewer = request -> {
+            reviewedRunId.set(request.runId());
+            return InterpretationPlanRuntime.StepReview.accepted("usable", Map.of());
+        };
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            null,
+            reviewer,
+            scriptedController(List.of(List.of(1), List.of(2)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                serialPlan(), toolRegistry, List.of("document_search"),
+                "tenant-1", "request-review-run-id", "conversation-1", "user-1",
+                Map.of("__agentRunId", "run-tool-result-review")
+            ));
+
+        assertThat(result.success()).isTrue();
+        assertThat(reviewedRunId.get()).isEqualTo("run-tool-result-review");
     }
 
     @Test
@@ -6186,6 +6837,61 @@ class InterpretationPlanRuntimeTest {
             .contains("mcp_tool", "final_answer");
         List<?> completedPlanStepIds = (List<?>) completed.metadata().get("completedPlanStepIds");
         assertThat(completedPlanStepIds.containsAll(List.of(1, 2, 3))).isTrue();
+        verify(toolRuntimeService, times(2)).execute(any());
+    }
+
+    @Test
+    void doesNotTreatPreviousPlanAttemptStepAsCompletedInCurrentDag() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("document_search")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("document_search"))
+            .thenReturn(ToolMetadata.builder().riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of("results", List.of("attempt evidence"))),
+            ToolMetadata.builder().id("document_search").build(),
+            null,
+            "success",
+            Map.of()
+        ));
+        InMemoryAgentRunStore runStore = new InMemoryAgentRunStore();
+        InterpretationPlanRuntime.StepResultReviewer reviewer = request ->
+            InterpretationPlanRuntime.StepReview.accepted("usable", Map.of());
+        InterpretationPlanRuntime firstRuntime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            runStore,
+            reviewer,
+            request -> InterpretationPlanRuntime.DagDecision.rewritePlan("start a new plan revision")
+        );
+
+        InterpretationPlanRuntime.ExecutionResult first = firstRuntime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                serialPlan(), toolRegistry, List.of("document_search"),
+                "tenant-1", "req-attempt-1", "conv-attempt", "user-1",
+                Map.of("__agentRunId", "run-attempt-scope", "workflowExecutionAttempt", 0)
+            ));
+
+        assertThat(first.status()).isEqualTo("DAG_REWRITE_REQUESTED");
+        InterpretationPlanRuntime secondRuntime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            runStore,
+            reviewer,
+            request -> InterpretationPlanRuntime.DagDecision.finalAnswer(
+                2, "done", "current DAG completed")
+        );
+
+        InterpretationPlanRuntime.ExecutionResult second = secondRuntime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                serialPlan(), toolRegistry, List.of("document_search"),
+                "tenant-1", "req-attempt-2", "conv-attempt", "user-1",
+                Map.of("__agentRunId", "run-attempt-scope", "workflowExecutionAttempt", 1)
+            ));
+
+        assertThat(second.success()).isTrue();
+        assertThat(second.steps()).extracting(InterpretationPlanRuntime.StepExecution::stepId)
+            .containsExactly(1, 2);
         verify(toolRuntimeService, times(2)).execute(any());
     }
 
@@ -6592,9 +7298,9 @@ class InterpretationPlanRuntimeTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void bindsAndValidatesEveryDiscoveredTemplateInDataCapabilityBatch() {
-        String discoveryTool = "tenant_business_template_query";
-        String executionTool = "sql_query_execute";
+    void upgradesScalarBindingAndExecutesEveryDiscoveredTemplateWithoutModelBatchInstructions() {
+        String discoveryTool = "mcp_chatchat_mcp_server_api_template_query";
+        String executionTool = "mcp_chatchat_mcp_server_api_template_execute";
         String firstTemplate = "tenant_snapshot_a_" + System.nanoTime();
         String secondTemplate = "tenant_snapshot_b_" + System.nanoTime();
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
@@ -6640,24 +7346,13 @@ class InterpretationPlanRuntimeTest {
                     new InterpretationPlan.Step(1, "mcp_tool", discoveryTool,
                         Map.of("filters", Map.of("intent", "tenant snapshots")), List.of(), null, null),
                     new InterpretationPlan.Step(2, "mcp_tool", executionTool,
-                        Map.of(
-                            "executionMode", "SEQUENTIAL",
-                            "calls", List.of(
-                                Map.of("callId", "a", "toolName", executionTool,
-                                    "arguments", Map.of("templateId", "model-placeholder-a", "parameters", Map.of())),
-                                Map.of("callId", "b", "toolName", executionTool,
-                                    "arguments", Map.of("templateId", "model-placeholder-b", "parameters", Map.of()))
-                            )
-                        ), List.of(1), null, null),
+                        Map.of("parameters", Map.of()),
+                        List.of(1), null, null),
                     new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
                 ),
                 List.of(),
-                List.of(
-                    new InterpretationPlan.Binding(1, "$.templates[0].templateId", 2,
-                        "$.calls[0].arguments.templateId", "jsonpath", true),
-                    new InterpretationPlan.Binding(1, "$.templates[1].templateId", 2,
-                        "$.calls[1].arguments.templateId", "jsonpath", true)
-                ),
+                List.of(new InterpretationPlan.Binding(1, "$.templates[0].templateId", 2,
+                    "$.templateId", "jsonpath", true)),
                 null
             ),
             new InterpretationPlan.ExecutionPolicy(3, false,
@@ -6668,8 +7363,7 @@ class InterpretationPlanRuntimeTest {
             toolRuntimeService,
             new InterpretationPlanValidator(),
             null,
-            request -> InterpretationPlanRuntime.StepReview.accepted(
-                "both discovered templates match", Map.of("selectedTemplateIds", List.of(firstTemplate, secondTemplate))),
+            request -> InterpretationPlanRuntime.StepReview.accepted("usable", Map.of()),
             scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
         );
 
@@ -6682,11 +7376,18 @@ class InterpretationPlanRuntimeTest {
         assertThat(result.success())
             .as("status=%s error=%s", result.status(), result.errorMessage())
             .isTrue();
+        assertThat(result.steps()).filteredOn(step -> Integer.valueOf(2).equals(step.stepId()))
+            .singleElement()
+            .satisfies(step -> assertThat(step.metadata())
+                .containsEntry("eventKind", "DAG_REPAIR")
+                .containsEntry("eventState", "APPLIED")
+                .containsKey("runtimeTemplateCompletenessRepair"));
         assertThat(executionInput.get()).doesNotContainKey("runtimeTemplateBinding");
+        assertThat(executionInput.get()).containsEntry("stopOnFailure", false);
         assertThat(executionInput.get().get("calls")).isInstanceOfSatisfying(List.class, calls -> {
             assertThat(calls).hasSize(2);
             assertThat(calls.toString()).contains(firstTemplate, secondTemplate)
-                .doesNotContain("model-placeholder");
+                .doesNotContain("templates[0]");
         });
         List<Map<String, Object>> calls = (List<Map<String, Object>>) executionInput.get().get("calls");
         assertThat(calls).allSatisfy(call -> assertThat(call.get("arguments"))
@@ -6696,7 +7397,255 @@ class InterpretationPlanRuntimeTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void compilesSharedDiagnosticExecutorIntoFiveAuditableTemplateCalls() {
+    void compilesChineseDiagnosticDimensionsAndRecoversUserParameterForEveryTemplate() {
+        String discoveryTool = "mcp_chatchat_mcp_server_api_template_query";
+        String executorTool = "mcp_chatchat_mcp_server_api_template_execute";
+        List<Map<String, Object>> templates = List.of(
+            apiDiagnosticTemplate("orders-template", "委托流水", executorTool),
+            apiDiagnosticTemplate("trades-template", "成交明细", executorTool),
+            apiDiagnosticTemplate("transit-template", "在途资产", executorTool)
+        );
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.hasTool(any())).thenReturn(true);
+        when(registry.getToolMetadata(any())).thenAnswer(invocation ->
+            ToolMetadata.builder().id(invocation.getArgument(0)).riskLevel("low").build());
+        AtomicReference<Map<String, Object>> batchInput = new AtomicReference<>();
+        ToolRuntimeService service = mock(ToolRuntimeService.class);
+        when(service.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest request = invocation.getArgument(0);
+            if (discoveryTool.equals(request.getToolName())) {
+                return new ToolRuntimeExecution(ToolOutput.success(Map.of(
+                    "queryIr", Map.of("asset", Map.of(
+                        "scoped", true,
+                        "selected", Map.of("id", "asset-live-dev", "name", "live-dev", "environment", "DEV")
+                    )),
+                    "templates", templates
+                )), ToolMetadata.builder().id(discoveryTool).build(), null, "success", Map.of());
+            }
+            batchInput.set(request.getToolInput().getParameters());
+            List<ToolCallResult> results = List.of(
+                new ToolCallResult("orders", executorTool, "orders-template", "asset-live-dev", "SUCCESS", 1,
+                    "e1", Map.of("records", List.of()), Map.of()),
+                new ToolCallResult("trades", executorTool, "trades-template", "asset-live-dev", "SUCCESS", 1,
+                    "e2", Map.of("records", List.of()), Map.of()),
+                new ToolCallResult("transit", executorTool, "transit-template", "asset-live-dev", "SUCCESS", 1,
+                    "e3", Map.of("records", List.of()), Map.of())
+            );
+            return new ToolRuntimeExecution(ToolOutput.success(new ToolCallBatchResult(
+                "diagnostic-step-2", "SEQUENTIAL", "start", "end", "SUCCESS",
+                new ToolCallBatchResult.Summary(3, 3, 0, 0, 0, 3), results
+            )), ToolMetadata.builder().id(executorTool).build(), null, "success",
+                Map.of("batchExecution", true, "remoteToolInvocationCount", 3));
+        });
+        List<InterpretationPlan.DiagnosticCheck> checks = List.of(
+            new InterpretationPlan.DiagnosticCheck("orders", "customer_orders", "委托", true, 1, List.of(2)),
+            new InterpretationPlan.DiagnosticCheck("trades", "customer_trades", "成交", true, 2, List.of(2)),
+            new InterpretationPlan.DiagnosticCheck("transit", "assets_in_transit", "在途", true, 3, List.of(2))
+        );
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", "query customer dimensions", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", discoveryTool,
+                        Map.of("filters", Map.of("intent", "customer dimensions")), List.of(), null, null),
+                    new InterpretationPlan.Step(2, "mcp_tool", executorTool,
+                        Map.of("parameters", Map.of("khh", "100200299999")), List.of(1), null, null),
+                    new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"),
+                        List.of(2), null, null)
+                ),
+                List.of(), List.of(), List.of(), null,
+                new InterpretationPlan.DiagnosticProfile("customer_dimensions", "api", checks)
+            ),
+            new InterpretationPlan.ExecutionPolicy(
+                3, false, List.of(discoveryTool, executorTool), List.of(), 30_000),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            service, new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, registry, List.of(discoveryTool, executorTool), "tenant-1", "req-cn-batch",
+                "conv-cn-batch", "user-1",
+                Map.of("originalUserQuery", "查询客户 100200299999 的委托、成交和在途资产")
+            )
+        );
+
+        assertThat(result.success()).as(result.errorMessage()).isTrue();
+        assertThat(batchInput.get().get("calls")).isInstanceOfSatisfying(List.class, calls -> {
+            assertThat(calls).hasSize(3);
+            assertThat(calls.toString()).contains("orders-template", "trades-template", "transit-template");
+            for (Object rawCall : calls) {
+                Map<String, Object> call = (Map<String, Object>) rawCall;
+                Map<String, Object> arguments = (Map<String, Object>) call.get("arguments");
+                assertThat((Map<String, Object>) arguments.get("parameters"))
+                    .containsEntry("khh", "100200299999");
+            }
+        });
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void givesEveryReviewedTemplateATerminalBatchEntryWhenOneCannotCompile() {
+        String discoveryTool = "mcp_chatchat_mcp_server_api_template_query";
+        String analysisTool = "mcp_chatchat_mcp_server_api_requirement_analyze";
+        String executorTool = "mcp_chatchat_mcp_server_api_template_execute";
+        List<String> templateIds = List.of("orders-template", "trades-template", "transit-template");
+        List<Map<String, Object>> templates = templateIds.stream()
+            .map(id -> {
+                Map<String, Object> template = new LinkedHashMap<>(apiDiagnosticTemplate(id, id, executorTool));
+                template.put("parameterSchema", Map.of(
+                    "type", "object",
+                    "properties", Map.of(
+                        "khh", Map.of("type", "string", "default", "100200000000"),
+                        "missingOnlyForTransit", Map.of("type", "string")
+                    ),
+                    "required", "transit-template".equals(id)
+                        ? List.of("khh", "missingOnlyForTransit") : List.of("khh")
+                ));
+                return template;
+            })
+            .toList();
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.hasTool(any())).thenReturn(true);
+        when(registry.getToolMetadata(any())).thenAnswer(invocation ->
+            ToolMetadata.builder().id(invocation.getArgument(0)).riskLevel("low").build());
+        AtomicReference<Map<String, Object>> batchInput = new AtomicReference<>();
+        ToolRuntimeService service = mock(ToolRuntimeService.class);
+        when(service.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest request = invocation.getArgument(0);
+            if (discoveryTool.equals(request.getToolName())) {
+                return new ToolRuntimeExecution(
+                    ToolOutput.success(Map.of("templates", templates)),
+                    ToolMetadata.builder().id(discoveryTool).build(), null, "success", Map.of());
+            }
+            if (analysisTool.equals(request.getToolName())) {
+                return new ToolRuntimeExecution(
+                    ToolOutput.failure("analysis service unavailable"),
+                    ToolMetadata.builder().id(analysisTool).build(), null, "failed", Map.of());
+            }
+            batchInput.set(request.getToolInput().getParameters());
+            List<ToolCallResult> results = templateIds.stream()
+                .map(id -> new ToolCallResult(id, executorTool, id, null, "SUCCESS", 1,
+                    "evidence-" + id, Map.of("records", List.of()), Map.of()))
+                .toList();
+            return new ToolRuntimeExecution(ToolOutput.success(new ToolCallBatchResult(
+                "reviewed-template-step-3", "SEQUENTIAL", "start", "end", "SUCCESS",
+                new ToolCallBatchResult.Summary(3, 3, 0, 0, 0, 3), results)),
+                ToolMetadata.builder().id(executorTool).build(), null, "success",
+                Map.of("batchExecution", true, "remoteToolInvocationCount", 3));
+        });
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", "query customer dimensions", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", discoveryTool,
+                        Map.of("filters", Map.of("intent", "customer dimensions")), List.of(), null, null),
+                    new InterpretationPlan.Step(2, "mcp_tool", analysisTool,
+                        Map.of("goal", "analyze customer dimensions"), List.of(1), null, null),
+                    new InterpretationPlan.Step(3, "mcp_tool", executorTool,
+                        Map.of("batchId", "model-batch", "executionMode", "SEQUENTIAL",
+                            "stopOnFailure", false, "calls", "{{ bindings.recommendedTemplates }}"),
+                        List.of(2), null, null),
+                    new InterpretationPlan.Step(4, "final_answer", "", Map.of("answer", "done"),
+                        List.of(3), null, null)
+                ),
+                List.of(),
+                List.of(
+                    new InterpretationPlan.DependencyContract(1, 2, true, null, "analyze templates", "stop"),
+                    new InterpretationPlan.DependencyContract(2, 3, true, null, "execute recommendations", "stop")
+                ),
+                List.of(new InterpretationPlan.Binding(2, "$.recommendedTemplates", 3,
+                    "calls", "jsonpath", true)),
+                null,
+                null
+            ),
+            new InterpretationPlan.ExecutionPolicy(4, false,
+                List.of(discoveryTool, analysisTool, executorTool), List.of(), 30_000),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            service,
+            new InterpretationPlanValidator(),
+            null,
+            request -> discoveryTool.equals(request.execution().toolName())
+                ? InterpretationPlanRuntime.StepReview.accepted("three templates accepted", Map.of(
+                    "selectedTemplateIds", templateIds,
+                    "nextActions", List.of(Map.of(
+                        "tool", "api_template_execute",
+                        "input_changes", Map.of("parameters", Map.of("khh", "100200241779"))
+                    ))
+                ))
+                : InterpretationPlanRuntime.StepReview.accepted("execution accepted", Map.of()),
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3), List.of(4)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, registry, List.of(discoveryTool, analysisTool, executorTool), "tenant-1",
+                "req-reviewed-batch", "conv-reviewed-batch", "user-1",
+                Map.of("originalUserQuery", "查询客户 100200241779 的委托、成交和在途资产")
+            )
+        );
+
+        assertThat(result.success()).as("status=%s error=%s", result.status(), result.errorMessage()).isTrue();
+        assertThat(result.status()).isEqualTo("completed_with_partial_evidence");
+        assertThat(result.metadata()).containsEntry("continuedFailureStepIds", List.of(2));
+        assertThat(batchInput.get()).containsEntry("stopOnFailure", false);
+        List<Map<String, Object>> calls = (List<Map<String, Object>>) batchInput.get().get("calls");
+        assertThat(calls).hasSize(3);
+        assertThat(calls).extracting(call -> call.get("callId")).containsExactlyElementsOf(templateIds);
+        assertThat(calls).allSatisfy(call -> {
+            Map<String, Object> arguments = (Map<String, Object>) call.get("arguments");
+            assertThat((Map<String, Object>) arguments.get("parameters"))
+                .containsEntry("khh", "100200241779");
+        });
+        assertThat(calls.get(0)).doesNotContainKey("preflightErrorCode");
+        assertThat(calls.get(1)).doesNotContainKey("preflightErrorCode");
+        assertThat(calls.get(2))
+            .containsEntry("preflightErrorCode", "TEMPLATE_REQUIRED_PARAMETERS_MISSING");
+        assertThat(calls.get(2).get("preflightMessage")).asString()
+            .contains("missingOnlyForTransit");
+        InterpretationPlanRuntime.StepExecution executionStep = result.steps().stream()
+            .filter(candidate -> candidate.stepId() == 3)
+            .findFirst()
+            .orElseThrow();
+        assertThat(executionStep.metadata())
+            .containsEntry("eventKind", "DAG_REPAIR")
+            .containsEntry("eventState", "APPLIED");
+        assertThat(executionStep.metadata().get("repairEvent")).asString()
+            .contains("TEMPLATE_BATCH_TERMINAL_COVERAGE_APPLIED", "transit-template", "BLOCKED");
+    }
+
+    private Map<String, Object> apiDiagnosticTemplate(String templateId,
+                                                      String description,
+                                                      String executorTool) {
+        return Map.of(
+            "templateId", templateId,
+            "name", description,
+            "description", description,
+            "parameterSchema", Map.of(
+                "type", "object",
+                "properties", Map.of("khh", Map.of("type", "string", "default", "100200241779")),
+                "required", List.of("khh")
+            ),
+            "executionBinding", Map.of(
+                "toolName", executorTool,
+                "templateId", templateId,
+                "executionContext", Map.of("assetId", "asset-live-dev", "env", "DEV")
+            )
+        );
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void compilesSharedDiagnosticExecutorIntoFiveAuditableTemplateCallsWhenReviewFindsAnotherGap() {
         String discoveryTool = "database_ops_template_search";
         String executorTool = "sql_query_execute";
         List<String> templateIds = List.of(
@@ -6830,7 +7779,12 @@ class InterpretationPlanRuntimeTest {
                         3, "mcp_tool", executorTool,
                         Map.of(
                             "executionMode", "SEQUENTIAL",
-                            "calls", List.of(),
+                            "calls", List.of(
+                                Map.of("callId", "model-cpu", "toolName", executorTool,
+                                    "arguments", Map.of("templateId", "INVENTED_CPU_TEMPLATE")),
+                                Map.of("callId", "model-load", "toolName", executorTool,
+                                    "arguments", Map.of("templateId", "INVENTED_LOAD_TEMPLATE"))
+                            ),
                             "templateId", "ORACLE_INSTANCE_STATUS",
                             "template", "ORACLE_INSTANCE_STATUS",
                             "executionContext", Map.of(
@@ -6887,6 +7841,12 @@ class InterpretationPlanRuntimeTest {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             toolRuntimeService,
             new InterpretationPlanValidator(),
+            new InterpretationPlanOptimizer(),
+            null,
+            request -> InterpretationPlanRuntime.StepReview.rejected(
+                "available templates cover useful checks but another diagnostic aspect is missing",
+                Map.of("refinedIntent", "find the remaining diagnostic capability")
+            ),
             scriptedController(List.of(List.of(1), List.of(2), List.of(3), List.of(4)))
         );
 
@@ -6901,6 +7861,9 @@ class InterpretationPlanRuntimeTest {
             .as("status=%s error=%s metadata=%s steps=%s",
                 result.status(), result.errorMessage(), result.metadata(), result.steps())
             .isTrue();
+        assertThat(result.steps().get(0).metadata())
+            .containsEntry("toolResultReviewPartialAccepted", true)
+            .containsEntry("partialEvidence", true);
         ToolRuntimeRequest batchRequest = requests.stream()
             .filter(request -> executorTool.equals(request.getToolName()))
             .findFirst()
@@ -6914,6 +7877,8 @@ class InterpretationPlanRuntimeTest {
         assertThat((List<Map<String, Object>>) batchRequest.getToolInput().getParameters().get("calls"))
             .extracting(call -> String.valueOf(((Map<?, ?>) call.get("arguments")).get("templateId")))
             .containsExactlyElementsOf(templateIds);
+        assertThat(batchRequest.getToolInput().getParameters().toString())
+            .doesNotContain("INVENTED_CPU_TEMPLATE", "INVENTED_LOAD_TEMPLATE");
         assertThat((List<String>) ((List<Map<String, Object>>) batchRequest.getToolInput()
             .getParameters().get("calls")).get(4).get("requiredFields"))
             .containsExactly("TABLESPACE_NAME", "USED_PERCENT");

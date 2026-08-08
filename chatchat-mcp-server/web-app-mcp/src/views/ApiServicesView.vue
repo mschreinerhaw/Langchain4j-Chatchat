@@ -16,6 +16,7 @@
         :columns="columns"
         :form-fields="formFields"
         :defaults="defaults"
+        :list-filters="enabledListFilters"
         :searchable-fields="searchableFields"
         :list-action="listServices"
         :save-action="api.save"
@@ -57,6 +58,11 @@
             clearable
             placeholder="搜索 API 名称、工具名、服务或 namespace"
           />
+          <el-select v-model="livedataStatus" clearable placeholder="全部状态">
+            <el-option label="已注册" value="registered" />
+            <el-option label="可注册" value="available" />
+            <el-option label="不可注册" value="unavailable" />
+          </el-select>
           <el-checkbox v-model="overwriteExisting">覆盖同名工具</el-checkbox>
         </div>
 

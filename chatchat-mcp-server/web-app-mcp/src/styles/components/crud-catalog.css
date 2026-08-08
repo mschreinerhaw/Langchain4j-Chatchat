@@ -9,6 +9,39 @@
   flex: 0 0 180px;
 }
 
+.catalog-query-actions,
+.catalog-command-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.catalog-header-actions.is-stacked {
+  display: grid;
+  flex: 1 1 900px;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: end;
+}
+
+.catalog-header-actions.is-stacked .catalog-query-actions {
+  grid-row: 2;
+  width: 100%;
+}
+
+.catalog-header-actions.is-stacked .catalog-command-actions {
+  grid-row: 1;
+}
+
+@media (max-width: 1100px) {
+  .catalog-header-actions.is-stacked,
+  .catalog-header-actions.is-stacked .catalog-query-actions {
+    justify-items: stretch;
+    justify-content: flex-start;
+  }
+}
+
 .entity-form-layout {
   display: grid;
   gap: 10px;

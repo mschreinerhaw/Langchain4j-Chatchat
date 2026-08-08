@@ -308,6 +308,11 @@ class ToolObservationBuilder {
     private String buildEnterpriseMetadataObservation(String toolName,
                                                       ToolOutput output,
                                                       Map<String, Object> payload) {
+        String schemaVersion = stringValue(payload.get("schemaVersion"));
+        if (schemaVersion != null
+            && schemaVersion.startsWith("enterprise_metadata_search_result.")) {
+            return buildEnterpriseMetadataDiscoveryObservation(toolName, output, payload);
+        }
         Map<String, Object> sourceSchema = asMap(payload.get("sourceSchema"));
         List<Map<String, Object>> fields = mapList(sourceSchema.get("fields"));
         List<Map<String, Object>> fieldMatches = mapList(payload.get("fieldMatches"));
@@ -355,6 +360,11 @@ class ToolObservationBuilder {
             "allFieldsProcessed", allFieldsProcessed,
             "fieldsWithCandidates", fieldsWithCandidates
         ));
+        context.put("claimCoverage", asMap(payload.get("claimCoverage")));
+        if (!asMap(payload.get("fieldConformanceAssessment")).isEmpty()) {
+            context.put("fieldConformanceAssessment",
+                asMap(payload.get("fieldConformanceAssessment")));
+        }
         context.put("fields", List.copyOf(formattedFields));
         context.put("projection", Map.of(
             "includedCandidateProperties", List.of("field", "englishName", "comment"),
@@ -368,6 +378,48 @@ class ToolObservationBuilder {
             ));
         }
         return ModelProtocolJson.compact(context);
+    }
+
+    private String buildEnterpriseMetadataDiscoveryObservation(String toolName,
+                                                                ToolOutput output,
+                                                                Map<String, Object> payload) {
+        List<Map<String, Object>> candidates = mapList(payload.get("results")).stream()
+            .map(this::enterpriseMetadataDiscoveryCandidate)
+            .toList();
+        Map<String, Object> context = new LinkedHashMap<>();
+        context.put("schemaVersion", "enterprise_metadata_discovery_context.v1");
+        context.put("sourceSchemaVersion", payload.get("schemaVersion"));
+        context.put("success", booleanValue(payload.get("success")));
+        putIfPresent(context, "query", payload.get("query"));
+        context.put("retrieval", mapOfNonNull(
+            "backend", payload.get("backend"),
+            "mode", payload.get("retrievalMode"),
+            "returnedCount", payload.get("count"),
+            "countsByType", payload.get("countsByType"),
+            "requiredRetrieval", payload.get("requiredRetrieval")
+        ));
+        context.put("claimCoverage", asMap(payload.get("claimCoverage")));
+        context.put("candidates", candidates);
+        context.put("interpretationRules", List.of(
+            "Retrieval success is not evidence that the returned records answer the user's requested claim.",
+            "Use candidates only for the claim types declared in claimCoverage.supportedClaims.",
+            "Claims listed in claimCoverage.notAssessedClaims remain unsupported even when candidate count is greater than zero."
+        ));
+        return ModelProtocolJson.compact(context);
+    }
+
+    private Map<String, Object> enterpriseMetadataDiscoveryCandidate(Map<String, Object> source) {
+        return mapOfNonNull(
+            "metadataType", source.get("metadataType"),
+            "id", source.get("id"),
+            "name", source.get("name"),
+            "technicalName", source.get("technicalName"),
+            "description", source.get("description"),
+            "status", source.get("status"),
+            "dataType", source.get("dataType"),
+            "source", source.get("source"),
+            "relevanceScore", source.get("relevanceScore")
+        );
     }
 
     private int intValue(Object value, int fallback) {
@@ -427,14 +479,31 @@ class ToolObservationBuilder {
 
     private Map<String, Object> enterpriseMetadataPayload(Object data) {
         Map<String, Object> root = unwrapStructuredRoot(data);
-        if ("enterprise_metadata_field_discovery.v1".equals(stringValue(root.get("schemaVersion")))) {
+        if (isEnterpriseMetadataSchema(root.get("schemaVersion"))) {
             return root;
         }
         Map<String, Object> nestedData = asMap(root.get("data"));
-        if ("enterprise_metadata_field_discovery.v1".equals(stringValue(nestedData.get("schemaVersion")))) {
+        if (isEnterpriseMetadataSchema(nestedData.get("schemaVersion"))) {
             return nestedData;
         }
         return Map.of();
+    }
+
+    private boolean isEnterpriseMetadataSchema(Object value) {
+        String schemaVersion = stringValue(value);
+        return "enterprise_metadata_field_discovery.v1".equals(schemaVersion)
+            || (schemaVersion != null
+                && schemaVersion.startsWith("enterprise_metadata_search_result."));
+    }
+
+    private Map<String, Object> mapOfNonNull(Object... values) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        for (int index = 0; index + 1 < values.length; index += 2) {
+            if (values[index + 1] != null) {
+                result.put(String.valueOf(values[index]), values[index + 1]);
+            }
+        }
+        return Map.copyOf(result);
     }
 
     private String buildStandardExecutionObservation(String toolName, ToolOutput output, Object data) {

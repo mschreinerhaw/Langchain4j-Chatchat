@@ -4,6 +4,7 @@ import com.chatchat.agents.protocol.ModelProtocolJson;
 
 import com.chatchat.mcpserver.api.ApiServiceConfig;
 import com.chatchat.mcpserver.ops.HttpEndpointConfig;
+import com.chatchat.mcpserver.ops.HttpEndpointTechnicalType;
 import com.chatchat.tools.livedata.LivedataApiDefinition;
 import com.chatchat.tools.livedata.LivedataAutoRegistrationProperties;
 import com.chatchat.tools.livedata.LivedataSettingsProvider;
@@ -61,6 +62,7 @@ public class LivedataApiConfigMapper {
             config.setBodyTemplate(toBodyTemplate(params, namespace, Map.of(), properties));
         }
         config.setInputSchemaJson(toInputSchema(params, properties));
+        config.setOutputSchemaJson(toOutputSchema(definition.responseColumns()));
         config.setEnabled(definition.state() == null || definition.state() == properties.getPublishedState());
         config.setTimeoutMs(properties.getTimeoutMs());
         config.setCacheEnabled(properties.isCacheEnabled());
@@ -104,6 +106,7 @@ public class LivedataApiConfigMapper {
         config.setHeadersJson(writeJson(headers));
         config.setBodyTemplate(toBodyTemplate(params, namespace, sourceHeaders, properties));
         config.setInputSchemaJson(toInputSchema(params, properties));
+        config.setTechnicalType(HttpEndpointTechnicalType.MICROSERVICE.name());
         config.setEnabled(true);
         config.setCategory("api_gateway");
         config.setTags("livedata,api_gateway");
@@ -139,17 +142,19 @@ public class LivedataApiConfigMapper {
      */
     private String toDescription(LivedataApiDefinition definition, LivedataAutoRegistrationProperties properties) {
         List<String> parts = new ArrayList<>();
-        addIfPresent(parts, definition.description());
-        addIfPresent(parts, definition.apiName());
         String apiKey = firstNonBlank(definition.apiId(), definition.serviceName(), definition.methodName());
         if (apiKey != null) {
             addIfPresent(parts, "LiveData API: " + apiKey);
         }
-        addIfPresent(parts, "namespace: " + firstNonBlank(definition.namespace(), properties.getDefaultNamespace()));
+        String namespace = firstNonBlank(definition.namespace(), properties.getDefaultNamespace());
+        if (namespace != null) {
+            addIfPresent(parts, "namespace: " + namespace);
+        }
         String version = firstNonBlank(definition.releaseVersion(), definition.version());
         if (version != null) {
             addIfPresent(parts, "version: " + version);
         }
+        addIfPresent(parts, definition.description());
         return String.join("\n", parts);
     }
 
@@ -304,6 +309,63 @@ public class LivedataApiConfigMapper {
         schema.put("required", List.copyOf(required));
         schema.put("additionalProperties", params.isEmpty());
         return writeJson(schema);
+    }
+
+    /**
+     * Converts LiveData response_columns metadata to the API service output schema.
+     * Empty or malformed metadata means that no return fields were declared.
+     */
+    private String toOutputSchema(String responseColumnsJson) {
+        List<ParamDefinition> columns = parseResponseColumns(responseColumnsJson);
+        if (columns.isEmpty()) {
+            return null;
+        }
+
+        Map<String, Object> schema = new LinkedHashMap<>();
+        Map<String, Object> properties = new LinkedHashMap<>();
+        for (ParamDefinition column : columns) {
+            Map<String, Object> field = new LinkedHashMap<>();
+            field.put("type", column.jsonType());
+            if (column.description() != null && !column.description().isBlank()) {
+                field.put("description", column.description());
+            }
+            properties.put(column.name(), field);
+        }
+        schema.put("type", "object");
+        schema.put("properties", properties);
+        schema.put("required", List.of());
+        schema.put("additionalProperties", false);
+        return writeJson(schema);
+    }
+
+    /**
+     * Parses the LiveData response_columns contract. Its public display contract
+     * consists only of name, dataType and description; the numeric id is metadata
+     * and must never become an API return-field name.
+     */
+    private List<ParamDefinition> parseResponseColumns(String responseColumnsJson) {
+        if (responseColumnsJson == null || responseColumnsJson.isBlank()) {
+            return List.of();
+        }
+        try {
+            JsonNode root = objectMapper.readTree(responseColumnsJson);
+            List<ParamDefinition> columns = new ArrayList<>();
+            for (JsonNode node : extractParamNodes(root)) {
+                if (!node.isObject()) {
+                    continue;
+                }
+                String name = normalizeParamName(readText(node, "name"));
+                if (name == null) {
+                    continue;
+                }
+                String type = normalizeJsonType(readText(node, "dataType"));
+                String description = readText(node, "description");
+                columns.add(new ParamDefinition(name, type, description, false, null));
+            }
+            return columns;
+        } catch (Exception ex) {
+            return List.of();
+        }
     }
 
     /**

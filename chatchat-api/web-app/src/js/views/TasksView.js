@@ -116,6 +116,7 @@ export default {
       planDragStart: null,
       planDragMoved: false,
       planControlsVisible: false,
+      planTaskDetailsOpen: false,
       cancellingTaskIds: {},
       feedbackSubmitting: false,
       feedbackDraft: {
@@ -320,6 +321,14 @@ export default {
         description:
           this.selectedTask.answerSummary || this.selectedTask.errorMessage || this.selectedTask.question || ""
       };
+    },
+    planTaskPreview() {
+      const content =
+        this.selectedTask?.question
+        || this.selectedTask?.answerSummary
+        || this.selectedTask?.errorMessage
+        || "未命名任务";
+      return this.compactPlanText(content, 120);
     },
     planNodes() {
       return Array.isArray(this.selectedPlanDag?.nodes) ? this.selectedPlanDag.nodes : [];
@@ -659,6 +668,7 @@ export default {
       this.selectedPlanDag = null;
       this.selectedPlanVersions = [];
       this.planControlsVisible = false;
+      this.planTaskDetailsOpen = false;
       this.resetPlanDagView();
       await this.reloadEvents();
       if (this.activeTab === "plan") {

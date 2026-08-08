@@ -104,18 +104,21 @@
             <li
               v-for="call in runtimeToolCalls(message)"
               :key="call.id"
-              :class="{ done: toolCallDone(call), failed: toolCallFailed(call), active: !toolCallDone(call) && !toolCallFailed(call) }"
+              :class="toolCallStateClass(call)"
             >
               <span class="runtime-tool-status" aria-hidden="true">
-                <Check v-if="toolCallDone(call)" :size="14" stroke-width="2.6" />
+                <Wrench v-if="toolCallRepaired(call)" :size="14" stroke-width="2.5" />
+                <TriangleAlert v-else-if="toolCallWarning(call)" :size="14" stroke-width="2.4" />
+                <RefreshCw v-else-if="toolCallRepairing(call)" :size="14" stroke-width="2.4" />
                 <CircleX v-else-if="toolCallFailed(call)" :size="14" stroke-width="2.4" />
+                <Check v-else-if="toolCallDone(call)" :size="14" stroke-width="2.6" />
                 <i v-else></i>
               </span>
               <div>
                 <code>{{ call.name }}</code>
                 <small v-if="call.detail">{{ call.detail }}</small>
               </div>
-              <em>{{ call.latencyMs ? `${call.latencyMs}ms` : (toolCallDone(call) ? '完成' : toolCallFailed(call) ? '失败' : '运行中') }}</em>
+              <em>{{ toolCallStatusLabel(call) }}</em>
             </li>
           </ol>
         </section>
@@ -228,24 +231,44 @@
           :tool-traces="message.traces || []"
           compact
         />
-        <div v-if="canShowEvaluation(message)" class="message-feedback" aria-label="回答评价">
+        <div
+          v-if="canShowEvaluation(message) || canExportMessagePdf(message)"
+          class="message-feedback"
+          aria-label="回答操作"
+        >
+          <template v-if="canShowEvaluation(message)">
+            <button
+              v-for="option in feedbackOptions"
+              :key="option.value"
+              type="button"
+              class="message-feedback-button"
+              :class="{ unresolved: option.value === 'unresolved' }"
+              :disabled="message.feedbackSubmitting"
+              :title="`评价为${option.label}`"
+              @click="$emit('feedback', { message, action: option.value })"
+            >
+              <CircleX v-if="option.value === 'unresolved'" :size="16" stroke-width="2.2" />
+              <CircleCheck v-else :size="16" stroke-width="2.2" />
+              <span>{{ option.label }}</span>
+            </button>
+          </template>
           <button
-            v-for="option in feedbackOptions"
-            :key="option.value"
+            v-if="canExportMessagePdf(message)"
             type="button"
             class="message-feedback-button"
-            :class="{ unresolved: option.value === 'unresolved' }"
-            :disabled="message.feedbackSubmitting"
-            :title="`评价为${option.label}`"
-            @click="$emit('feedback', { message, action: option.value })"
+            :disabled="exportingPdfMessageId === message.id"
+            :title="exportingPdfMessageId === message.id ? '正在生成PDF' : '导出当前回答为PDF'"
+            @click="exportMessagePdf(message, $event)"
           >
-            <CircleX v-if="option.value === 'unresolved'" :size="16" stroke-width="2.2" />
-            <CircleCheck v-else :size="16" stroke-width="2.2" />
-            <span>{{ option.label }}</span>
+            <FileDown :size="16" stroke-width="2.2" />
+            <span>{{ exportingPdfMessageId === message.id ? "导出中" : "导出PDF" }}</span>
           </button>
         </div>
-        <p v-else-if="message.feedbackTime" class="message-feedback-done">感谢评价</p>
+        <p v-if="message.feedbackTime" class="message-feedback-done">感谢评价</p>
         <p v-if="message.feedbackError" class="message-feedback-error">{{ message.feedbackError }}</p>
+        <p v-if="pdfExportErrorMessageId === message.id" class="message-feedback-error">
+          PDF 导出失败，请稍后重试
+        </p>
       </div>
     </article>
 

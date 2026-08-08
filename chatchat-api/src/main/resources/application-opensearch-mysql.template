@@ -61,7 +61,6 @@ chatchat:
         - python
         - python3
   models:
-    defaultProvider: openai
     defaultChatModel: deepseek-v4-pro
     availableChatModels:
       - deepseek-v4-pro

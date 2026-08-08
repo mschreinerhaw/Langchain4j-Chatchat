@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.ops;
 
+import com.chatchat.mcpserver.routing.RequirementAnalysisProtocol;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -22,8 +23,6 @@ import java.util.Map;
 public class HttpRequirementAnalysisMcpToolPublisher {
 
     public static final String TOOL_NAME = "http_requirement_analyze";
-    private static final int MAX_REQUIREMENTS = 20;
-
     private final McpSyncServer mcpSyncServer;
     private final CommandTemplateDiscoveryService templateDiscoveryService;
 
@@ -39,7 +38,8 @@ public class HttpRequirementAnalysisMcpToolPublisher {
         } catch (Exception ex) {
             log.debug("HTTP requirement analysis tool was not registered: {}", ex.getMessage());
         }
-        mcpSyncServer.addTool(toolSpecification());
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, toolSpecification());
         mcpSyncServer.notifyToolsListChanged();
         log.info("HTTP requirement analysis MCP tool refreshed: {}", TOOL_NAME);
     }
@@ -49,27 +49,10 @@ public class HttpRequirementAnalysisMcpToolPublisher {
             .name(TOOL_NAME)
             .title("HTTP endpoint requirement capability analysis")
             .description("Resolve a model-produced requirement decomposition against registered HTTP endpoint templates. "
-                + "It returns candidates and gaps but never executes HTTP requests and never treats retrieval as semantic acceptance.")
-            .inputSchema(new McpSchema.JsonSchema("object", Map.of(
-                "schemaVersion", Map.of("type", "string"),
-                "goal", Map.of("type", "string"),
-                "requirements", Map.of(
-                    "type", "array",
-                    "maxItems", MAX_REQUIREMENTS,
-                    "items", Map.of(
-                        "type", "object",
-                        "properties", Map.of(
-                            "id", Map.of("type", "string"),
-                            "description", Map.of("type", "string"),
-                            "requiredOutputs", Map.of("type", "array", "items", Map.of("type", "string")),
-                            "dependsOn", Map.of("type", "array", "items", Map.of("type", "string"))
-                        ),
-                        "required", List.of("id", "description")
-                    )
-                ),
-                "excludeTemplateIds", Map.of("type", "array", "items", Map.of("type", "string")),
-                "limitPerRequirement", Map.of("type", "integer", "minimum", 1, "maximum", 10)
-            ), List.of("goal", "requirements"), false, null, null))
+                + "Accepts either requirements[] or query shorthand. It returns candidates and gaps but never executes "
+                + "HTTP requests and never treats retrieval as semantic acceptance.")
+            .inputSchema(new McpSchema.JsonSchema("object", RequirementAnalysisProtocol.inputProperties(),
+                List.of(), false, null, null))
             .meta(Map.of(
                 "schemaVersion", "http_requirement_analysis.v1",
                 "runtime_action", "read_only",
@@ -104,46 +87,24 @@ public class HttpRequirementAnalysisMcpToolPublisher {
 
     @SuppressWarnings("unchecked")
     Map<String, Object> analyze(Map<String, Object> arguments) {
-        String goal = text(arguments == null ? null : arguments.get("goal"));
-        if (goal.isBlank()) {
-            throw new IllegalArgumentException("goal is required");
-        }
-        Object rawRequirements = arguments.get("requirements");
-        if (!(rawRequirements instanceof List<?> requirements) || requirements.isEmpty()) {
-            throw new IllegalArgumentException("requirements must contain at least one requirement");
-        }
-        if (requirements.size() > MAX_REQUIREMENTS) {
-            throw new IllegalArgumentException("requirements exceeds maximum " + MAX_REQUIREMENTS);
-        }
-        int limit = integer(arguments.get("limitPerRequirement"), 5, 1, 10);
-        Object exclusions = arguments.get("excludeTemplateIds");
+        RequirementAnalysisProtocol.NormalizedRequest input = RequirementAnalysisProtocol.normalize(arguments);
         List<Map<String, Object>> coverage = new ArrayList<>();
         List<String> missingRequirementIds = new ArrayList<>();
-        for (Object item : requirements) {
-            if (!(item instanceof Map<?, ?> raw)) {
-                throw new IllegalArgumentException("each requirement must be an object");
-            }
-            Map<String, Object> requirement = new LinkedHashMap<>((Map<String, Object>) raw);
-            String id = text(requirement.get("id"));
-            String description = text(requirement.get("description"));
-            if (id.isBlank() || description.isBlank()) {
-                throw new IllegalArgumentException("requirement id and description are required");
-            }
-            Map<String, Object> filters = new LinkedHashMap<>();
-            filters.put("intent", description);
-            filters.put("goal", goal);
-            filters.put("keywords", requirement.getOrDefault("requiredOutputs", List.of()));
+        for (Map<String, Object> requirement : input.requirements()) {
+            String id = String.valueOf(requirement.get("id"));
+            Map<String, Object> filters = RequirementAnalysisProtocol.discoveryFilters(
+                requirement, input.goal(), input.context());
             Map<String, Object> query = new LinkedHashMap<>();
             query.put("assetType", "http_endpoint");
             query.put("finalDecision", "http");
             query.put("candidates", List.of(Map.of("targetKind", "http", "confidence", 1.0)));
             query.put("filters", filters);
-            query.put("limit", limit);
-            if (exclusions != null) {
-                query.put("excludeTemplateIds", exclusions);
+            query.put("limit", input.limitPerRequirement());
+            if (input.excludeTemplateIds() != null) {
+                query.put("excludeTemplateIds", input.excludeTemplateIds());
             }
             Map<String, Object> discovery = templateDiscoveryService.query(query);
-            int returnedCount = integer(discovery.get("returnedCount"), 0, 0, Integer.MAX_VALUE);
+            int returnedCount = RequirementAnalysisProtocol.integer(discovery.get("returnedCount"), 0, 0, Integer.MAX_VALUE);
             if (returnedCount == 0) {
                 missingRequirementIds.add(id);
             }
@@ -158,7 +119,7 @@ public class HttpRequirementAnalysisMcpToolPublisher {
         return mapOf(
             "schemaVersion", "http_requirement_analysis.v1",
             "success", true,
-            "goal", goal,
+            "goal", input.goal(),
             "requirementCount", coverage.size(),
             "allRequirementsHaveCandidates", missingRequirementIds.isEmpty(),
             "missingRequirementIds", missingRequirementIds,
@@ -166,18 +127,6 @@ public class HttpRequirementAnalysisMcpToolPublisher {
             "decisionPolicy", "CANDIDATES_FOUND is not semantic acceptance; the model reviewer must accept, refine, or reject candidates before execution.",
             "executionTool", "http_request_execute"
         );
-    }
-
-    private int integer(Object value, int fallback, int min, int max) {
-        try {
-            return Math.max(min, Math.min(max, Integer.parseInt(String.valueOf(value))));
-        } catch (Exception ignored) {
-            return fallback;
-        }
-    }
-
-    private String text(Object value) {
-        return value == null ? "" : String.valueOf(value).trim();
     }
 
     private Map<String, Object> mapOf(Object... values) {

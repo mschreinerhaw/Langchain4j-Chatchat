@@ -3,6 +3,7 @@ package com.chatchat.api.runtime;
 import com.chatchat.agents.runtime.ToolRuntimePolicy;
 import com.chatchat.agents.runtime.ToolRuntimeRequest;
 import com.chatchat.common.tool.ToolInput;
+import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.enterprise.entity.McpToolPermission;
 import com.chatchat.enterprise.entity.McpToolAsset;
 import com.chatchat.enterprise.entity.SysRole;
@@ -73,6 +74,34 @@ class EnterpriseToolRuntimePolicyProviderTest {
     }
 
     @Test
+    void resolvesDatabaseRolesForDynamicTemplateQueryWithoutRequiringToolAssetDuplication() {
+        String toolName = "mcp_chatchat_mcp_server_customer_service_template_query";
+        SysRole role = role("role-customer", "tenant-a", "CUSTOMER_SERVICE");
+        SysUser user = user("user-a", "tenant-a", "customer-agent");
+        when(toolAssetRepository.findByLocalToolName(toolName)).thenReturn(Optional.empty());
+        when(userRepository.findById("user-a")).thenReturn(Optional.of(user));
+        when(roleRepository.findByTenantIdOrderByRoleNameAsc("tenant-a")).thenReturn(List.of(role));
+        when(userRoleRepository.findByUserId("user-a")).thenReturn(List.of(binding(user, role)));
+        ToolRuntimeRequest request = ToolRuntimeRequest.builder()
+            .tenantId("tenant-a")
+            .userId("user-a")
+            .toolName(toolName)
+            .toolInput(ToolInput.builder().context(Map.of()).build())
+            .build();
+
+        ToolRuntimePolicy policy = provider.resolve(request, ToolMetadata.builder()
+            .categories(List.of("mcp", "external"))
+            .author("MCP:ChatChat MCP Server")
+            .build());
+
+        assertThat(policy).isNull();
+        assertThat(request.getToolInput().getContext())
+            .containsEntry("roles", List.of("role-customer"))
+            .containsEntry("username", "customer-agent")
+            .containsEntry("canonicalRolesResolved", true);
+    }
+
+    @Test
     void deniesMissingTenantContext() {
         ToolRuntimePolicy policy = provider.resolve(request(null, "user-a", Map.of()), null);
 
@@ -96,15 +125,21 @@ class EnterpriseToolRuntimePolicyProviderTest {
                 "mcp:sql_datasource:execute:query@tenant=tenant-a;domain=db-1;level=read"
             )));
 
-        ToolRuntimePolicy allowed = provider.resolve(request("tenant-a", "user-a", Map.of(
+        ToolRuntimeRequest allowedRequest = request("tenant-a", "user-a", Map.of(
             "scopeExpression", "mcp:sql_datasource:execute:query@tenant=tenant-a;domain=db-1;level=read"
-        )), null);
+        ));
+        ToolRuntimePolicy allowed = provider.resolve(allowedRequest, null);
         ToolRuntimePolicy otherAsset = provider.resolve(request("tenant-a", "user-a", Map.of(
             "scopeExpression", "mcp:sql_datasource:execute:query@tenant=tenant-a;domain=db-2;level=read"
         )), null);
 
         assertThat(allowed.allowed()).isTrue();
         assertThat(otherAsset.allowed()).isFalse();
+        assertThat(allowedRequest.getToolInput().getContext())
+            .containsEntry("roles", List.of("role-analyst"))
+            .containsEntry("roleIds", List.of("role-analyst"))
+            .containsEntry("canonicalRolesResolved", true)
+            .containsEntry("username", "analyst");
     }
 
     @Test
@@ -127,15 +162,20 @@ class EnterpriseToolRuntimePolicyProviderTest {
         when(userRepository.findById("user-a")).thenReturn(Optional.of(user));
         when(roleRepository.findByTenantIdOrderByRoleNameAsc("tenant-a")).thenReturn(List.of(role));
 
-        ToolRuntimePolicy policy = provider.resolve(ToolRuntimeRequest.builder()
+        ToolRuntimeRequest request = ToolRuntimeRequest.builder()
             .tenantId("tenant-a")
             .userId("user-a")
             .toolName("sql_asset_query")
+            .toolInput(ToolInput.builder().context(Map.of("roles", List.of("SUPER_ADMIN"))).build())
             .attributes(Map.of("roles", List.of("SUPER_ADMIN"), "roleIds", List.of("role-super")))
-            .build(), null);
+            .build();
+        ToolRuntimePolicy policy = provider.resolve(request, null);
 
         assertThat(policy.allowed()).isFalse();
         assertThat(policy.reason()).contains("No MCP asset authorization");
+        assertThat(request.getToolInput().getContext())
+            .containsEntry("roles", List.of())
+            .containsEntry("canonicalRolesResolved", true);
     }
 
     @Test

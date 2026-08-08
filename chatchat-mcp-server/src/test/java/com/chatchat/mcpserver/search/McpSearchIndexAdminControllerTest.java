@@ -124,7 +124,8 @@ class McpSearchIndexAdminControllerTest {
     @CsvSource({
         "ssh_host_assets,ssh_host,assets-ssh-host",
         "sql_datasource_assets,sql_datasource,assets-sql-datasource",
-        "http_endpoint_assets,http_endpoint,assets-http-endpoint",
+        "http_endpoint_http_assets,http_endpoint_http,assets-http-endpoint-http",
+        "http_endpoint_microservice_assets,http_endpoint_microservice,assets-http-endpoint-microservice",
         "api_service_assets,api_service,assets-api-service"
     })
     void typedAssetIndexForcesDedicatedAssetType(String indexType, String assetType, String physicalIndex) {
@@ -155,6 +156,48 @@ class McpSearchIndexAdminControllerTest {
         assertThat(data).containsEntry("physicalIndex", physicalIndex);
         assertThat(data.get("request")).isInstanceOf(Map.class);
         assertThat(((Map<?, ?>) data.get("request")).get("assetType")).isEqualTo(assetType);
+    }
+
+    @Test
+    void httpEndpointAdminIndexSearchesBothBackendTechnicalPartitions() {
+        when(luceneSearchService.enabled()).thenReturn(true);
+        when(luceneSearchService.searchAssets(any())).thenReturn(List.of());
+
+        ApiResponse<Map<String, Object>> response = controller.search(Map.of(
+            "indexType", "http_endpoint_assets", "query", "YARN", "limit", 10));
+
+        ArgumentCaptor<LuceneMcpSearchService.AssetSearchRequest> captor =
+            ArgumentCaptor.forClass(LuceneMcpSearchService.AssetSearchRequest.class);
+        verify(luceneSearchService, org.mockito.Mockito.times(2)).searchAssets(captor.capture());
+        assertThat(captor.getAllValues()).extracting(LuceneMcpSearchService.AssetSearchRequest::assetType)
+            .containsExactlyInAnyOrder(
+                McpAssetLuceneIndexService.HTTP_ASSET_INDEX_TYPE,
+                McpAssetLuceneIndexService.MICROSERVICE_ASSET_INDEX_TYPE);
+        assertThat(response.getData())
+            .containsEntry("assetType", "http_endpoint")
+            .containsEntry("physicalIndex", "assets-http-endpoint-*");
+    }
+
+    @Test
+    void apiServicesIndexSearchesTemplatesInsteadOfDuplicatingApiServiceAssets() {
+        when(luceneSearchService.enabled()).thenReturn(true);
+        when(luceneSearchService.searchApiServiceTemplates(any()))
+            .thenReturn(List.of(hit("api_service")));
+
+        ApiResponse<Map<String, Object>> response = controller.search(Map.of(
+            "indexType", "api_services",
+            "query", "LiveData customer analysis",
+            "limit", 10
+        ));
+
+        ArgumentCaptor<LuceneMcpSearchService.TemplateSearchRequest> captor =
+            ArgumentCaptor.forClass(LuceneMcpSearchService.TemplateSearchRequest.class);
+        verify(luceneSearchService).searchApiServiceTemplates(captor.capture());
+        assertThat(captor.getValue().assetType()).isEqualTo("api_service");
+        assertThat(captor.getValue().intentText()).isEqualTo("LiveData customer analysis");
+        assertThat(response.getData())
+            .containsEntry("indexType", "api_service")
+            .containsEntry("count", 1);
     }
 
     @ParameterizedTest

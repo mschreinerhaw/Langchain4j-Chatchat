@@ -8,6 +8,7 @@
     :active-view="activeView"
     :active-conversation-id="activeHistoryId"
     :history-error="historyError"
+    :history-has-more="historyHasMore"
     :history-loading="historyLoading"
     :favorite-conversation-ids="favoriteConversationIds"
     :favorite-saving-ids="favoriteSavingIds"
@@ -18,6 +19,7 @@
     @delete-conversation="deleteConversation"
     @favorite-conversation="favoriteConversation"
     @refresh-history="loadConversationHistory"
+    @load-more-history="loadMoreConversationHistory"
     @select-conversation="selectConversation"
     @logout="handleLogout"
   >

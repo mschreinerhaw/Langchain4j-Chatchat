@@ -2,6 +2,7 @@ package com.chatchat.agents.runtime;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.json.JsonReadFeature;
 import dev.langchain4j.model.chat.ChatModel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -16,7 +17,8 @@ public class DefaultAgentAnswerReviewer implements AgentAnswerReviewer {
     private final ObjectMapper objectMapper;
 
     public DefaultAgentAnswerReviewer(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper == null ? new ObjectMapper() : objectMapper;
+        this.objectMapper = objectMapper == null ? new ObjectMapper() : objectMapper.copy();
+        this.objectMapper.enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature());
     }
 
     @Override
@@ -51,6 +53,14 @@ public class DefaultAgentAnswerReviewer implements AgentAnswerReviewer {
                         + firstNonBlank(feedback, "none")
                 );
             }
+            if (modelAnalysisRepairEnabled(observations)
+                && revisedAnswer != null && !revisedAnswer.isBlank()) {
+                return new AgentAnswerReview(
+                    AgentAnswerReview.REVISED,
+                    revisedAnswer,
+                    firstNonBlank(feedback, "Candidate answer was re-analyzed from executed evidence.")
+                );
+            }
             return new AgentAnswerReview(
                 AgentAnswerReview.REJECTED,
                 answer,
@@ -66,7 +76,16 @@ public class DefaultAgentAnswerReviewer implements AgentAnswerReviewer {
         StringBuilder prompt = new StringBuilder();
         prompt.append("You are the final answer quality reviewer for an enterprise AI assistant.\n");
         prompt.append("Evaluate whether the candidate answer satisfies the user's actual formal request.\n");
-        prompt.append("Your authority is diagnostic only. Do not rewrite the answer, change the task type, or replace a generated business result.\n");
+        boolean repairMode = modelAnalysisRepairEnabled(observations);
+        if (repairMode) {
+            prompt.append("This is a second-pass model analysis under protocol model_analysis_repair_v1.\n");
+            prompt.append("Audit every material statement in the candidate against the complete executed evidence below.\n");
+            prompt.append("If any material statement is unsupported, inferred from naming conventions, or substitutes general practice for the user's requested standard, set accepted=false and produce a complete revisedAnswer based only on the executed evidence.\n");
+            prompt.append("The revisedAnswer must still analyze all usable returned results; do not replace analysis with a generic refusal or a Runtime-authored conclusion.\n");
+            prompt.append("Preserve supported facts, distinguish unresolved questions, and do not add facts from model memory.\n");
+        } else {
+            prompt.append("Your authority is diagnostic only. Do not rewrite the answer, change the task type, or replace a generated business result.\n");
+        }
         prompt.append("Reject answers that only point to documents/tools, summarize where information may be, or avoid giving the concrete requested result.\n");
         prompt.append("A good answer must directly address the user request, use the available observations as evidence, and clearly state missing evidence when the observations are insufficient.\n");
         prompt.append("Do not invent facts that are absent from the observations.\n");
@@ -83,6 +102,10 @@ public class DefaultAgentAnswerReviewer implements AgentAnswerReviewer {
         prompt.append("If observations include document_evidence_v1, document evidence context, or document citations, reject and revise answers that rely on document evidence but omit the matching document citation.\n");
         prompt.append("If observations include document_evidence_v1, reject answers that cannot be represented as EvidenceAnswer with answer, citations, confidence, and missingInfo.\n");
         prompt.append("If observations include answer_assembly_policy_v1, enforce its mode, citation placement, partial-answer, conflict-handling, and missingInfo requirements.\n");
+        prompt.append("For partial data reports, reject an answer that leads with API/template inventory instead of analyzing returned data, treats missing dimensions as a failed report, or uses discovery as proof that customer data was obtained.\n");
+        prompt.append("Reject any answer that collapses EMPTY_RESULT, NOT_EXECUTED, BLOCKED, and FAILED into one state. A successful empty result must be described as no records for the exact executed parameters, without an invented business cause.\n");
+        prompt.append("Reject any answer whose displayed date or date range differs from executed parameters or returned records, including a changed year during YYYYMMDD formatting.\n");
+        prompt.append("Reject an answer that substitutes an inferred failure cause for the observed error code/message. A recorded executor tool trace contradicts a claim that the tool was unregistered; UNAVAILABLE/NameResolver must remain a transport/address-resolution failure, and parameter-evidence rejection must not be relabeled as a schema-name mismatch without explicit schema evidence.\n");
         prompt.append("If observations include web citation labels such as [网页1], web-derived claims in the answer must keep the matching labels; reject and revise answers that omit those labels.\n");
         prompt.append("Do not remove citation markers that prove which web page supports a statement.\n");
         prompt.append("Report concrete issues and optional enhancement suggestions. Missing optional context is a limitation, not automatic grounds for refusal.\n\n");
@@ -98,8 +121,14 @@ public class DefaultAgentAnswerReviewer implements AgentAnswerReviewer {
         }
         prompt.append("\nCandidate answer:\n").append(answer).append("\n\n");
         prompt.append("Respond with strict JSON only:\n");
-        prompt.append("{\"accepted\":true|false,\"feedback\":\"brief assessment\",\"issues\":[\"concrete issue\"],\"suggestions\":[\"optional enhancement\"]}");
+        prompt.append("{\"accepted\":true|false,\"feedback\":\"brief assessment\",\"issues\":[\"concrete issue\"],\"suggestions\":[\"optional enhancement\"],\"revisedAnswer\":\"complete evidence-based Markdown when accepted=false in model_analysis_repair_v1, otherwise empty\"}");
         return prompt.toString();
+    }
+
+    private boolean modelAnalysisRepairEnabled(List<String> observations) {
+        return observations != null && observations.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .anyMatch(value -> value.contains("model_analysis_repair_v1"));
     }
 
     private String reviewFeedback(Map<String, Object> payload) {

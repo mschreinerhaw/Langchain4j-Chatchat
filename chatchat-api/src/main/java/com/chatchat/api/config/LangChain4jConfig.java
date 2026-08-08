@@ -1,23 +1,14 @@
 package com.chatchat.api.config;
 
+import com.chatchat.agents.model.ConfigurableChatModelFactory;
 import com.chatchat.common.config.ModelsConfig;
-import dev.langchain4j.http.client.HttpClientBuilder;
-import dev.langchain4j.http.client.jdk.JdkHttpClientBuilder;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.ChatResponse;
-import dev.langchain4j.model.openai.OpenAiChatModel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import java.net.InetSocketAddress;
-import java.net.ProxySelector;
-import java.net.http.HttpClient;
-import java.time.Duration;
-import java.util.Locale;
 
 /**
  * LangChain4j configuration for Spring Boot
@@ -28,86 +19,30 @@ import java.util.Locale;
 public class LangChain4jConfig {
 
     private final ModelsConfig modelsConfig;
+    private final ConfigurableChatModelFactory chatModelFactory;
 
-    /**
-     * Configure OpenAI chat model
-     */
+    /** Configure the default chat model from its protocol-aware connection. */
     @Bean
-    @ConditionalOnProperty(prefix = "chatchat.models", name = "defaultProvider", havingValue = "openai")
     public ChatModel chatLanguageModel() {
-        log.info("Initializing OpenAI Chat Model");
-        if (modelsConfig.getOpenai().getApiKey() == null || modelsConfig.getOpenai().getApiKey().isBlank()) {
-            log.warn("OpenAI API key is not configured. Chat model calls will fail until chatchat.models.openai.apiKey is set.");
+        String modelName = modelsConfig.getDefaultChatModel();
+        ModelsConfig.ModelConnectionConfig connection = modelsConfig.resolveChatModelConfig(modelName);
+        if (modelName == null || modelName.isBlank()) {
+            log.warn("Default chat model is not configured");
+            return new MissingModelConfigurationChatModel("Default chat model is not configured. "
+                + "Set chatchat.models.defaultChatModel before using chat.");
+        }
+        if (connection == null || connection.getApiKey() == null || connection.getApiKey().isBlank()) {
+            log.warn("API key is not configured for chat model {}", modelName);
             return new MissingApiKeyChatModel();
         }
 
-        OpenAiChatModel.OpenAiChatModelBuilder builder = OpenAiChatModel.builder()
-            .apiKey(modelsConfig.getOpenai().getApiKey())
-            .baseUrl(modelsConfig.getOpenai().getBaseUrl())
-            .modelName(modelsConfig.getDefaultChatModel())
-            .maxRetries(modelsConfig.getOpenai().getMaxRetries())
-            .logRequests(false)
-            .logResponses(false);
-        Duration timeout = resolveOpenAiTimeout();
-        if (!timeout.isZero() && !timeout.isNegative()) {
-            builder.timeout(timeout);
-        }
-        if (modelsConfig.getOpenai().getMaxTokens() > 0) {
-            builder.maxTokens(modelsConfig.getOpenai().getMaxTokens());
-        }
-
-        HttpClientBuilder httpClientBuilder = resolveOpenAiHttpClientBuilder();
-        if (httpClientBuilder != null) {
-            builder.httpClientBuilder(httpClientBuilder);
-        }
-
-        return builder.build();
-    }
-
-    private Duration resolveOpenAiTimeout() {
-        int timeout = modelsConfig.getOpenai().getTimeout();
-        if (timeout <= 0) {
-            return Duration.ZERO;
-        }
-        if (timeout >= 1000) {
-            return Duration.ofMillis(timeout);
-        }
-        return Duration.ofSeconds(timeout);
-    }
-
-    /**
-     * Resolves the open ai http client builder.
-     *
-     * @return the resolved open ai http client builder
-     */
-    private HttpClientBuilder resolveOpenAiHttpClientBuilder() {
-        ModelsConfig.ProxyConfig proxyConfig = modelsConfig.getOpenai().getProxy();
-        if (proxyConfig == null || !proxyConfig.isEnabled()) {
-            return null;
-        }
-        if (proxyConfig.getHost() == null || proxyConfig.getHost().isBlank() ||
-            proxyConfig.getPort() == null || proxyConfig.getPort() <= 0) {
-            log.warn("OpenAI proxy is enabled but host/port is invalid, proxy will be ignored");
-            return null;
-        }
-
-        String proxyType = proxyConfig.getType() == null ? "http" : proxyConfig.getType().toLowerCase(Locale.ROOT);
-        if ("socks".equals(proxyType)) {
-            log.warn("OpenAI SOCKS proxy is not supported by the current LangChain4j JDK HTTP client, proxy will be ignored");
-            return null;
-        }
-
-        log.info("Using OpenAI proxy: {}://{}:{}", proxyType,
-            proxyConfig.getHost(), proxyConfig.getPort());
-        HttpClient.Builder httpClientBuilder = HttpClient.newBuilder()
-            .proxy(ProxySelector.of(new InetSocketAddress(proxyConfig.getHost(), proxyConfig.getPort())));
-        return new JdkHttpClientBuilder().httpClientBuilder(httpClientBuilder);
+        return chatModelFactory.create(modelName);
     }
 
     private static final class MissingApiKeyChatModel implements ChatModel {
 
-        private static final String MESSAGE = "OpenAI API key is not configured. Set chatchat.models.openai.apiKey "
-            + "or CHATCHAT_MODELS_OPENAI_API_KEY before using chat.";
+        private static final String MESSAGE = "Model API key is not configured. Set the selected "
+            + "chatchat.models.chatModels.<model>.apiKey or the legacy chatchat.models.openai.apiKey.";
 
         @Override
         public String chat(String userMessage) {
@@ -117,6 +52,25 @@ public class LangChain4jConfig {
         @Override
         public ChatResponse doChat(ChatRequest chatRequest) {
             throw new IllegalStateException(MESSAGE);
+        }
+    }
+
+    private static final class MissingModelConfigurationChatModel implements ChatModel {
+
+        private final String message;
+
+        private MissingModelConfigurationChatModel(String message) {
+            this.message = message;
+        }
+
+        @Override
+        public String chat(String userMessage) {
+            throw new IllegalStateException(message);
+        }
+
+        @Override
+        public ChatResponse doChat(ChatRequest chatRequest) {
+            throw new IllegalStateException(message);
         }
     }
 }

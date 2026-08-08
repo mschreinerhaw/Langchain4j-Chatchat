@@ -27,7 +27,7 @@
         business_group_name varchar(200),
         title varchar(200) not null,
         business_group_description varchar(1000),
-        description varchar(1000),
+        description varchar(2000),
         url_template varchar(2000),
         body_template longtext,
         capability_spec_json longtext,
@@ -375,6 +375,7 @@
         method varchar(16) not null,
         environment varchar(32) not null,
         runtime_action varchar(32) not null,
+        technical_type varchar(32),
         category_id varchar(64),
         id varchar(64) not null,
         category varchar(80),
@@ -581,6 +582,24 @@
         routing_labels_json longtext,
         sql_template longtext not null,
         primary key (id)
+    );
+
+    create table mcp_template_query_binding (
+        enabled boolean not null,
+        created_at timestamp(6) with time zone not null,
+        revision bigint not null,
+        updated_at timestamp(6) with time zone not null,
+        subject_type varchar(16) not null,
+        domain_code varchar(64) not null,
+        id varchar(64) not null,
+        role_id varchar(64) not null,
+        service_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        parent_tool_name varchar(128) not null,
+        subject_id varchar(128) not null,
+        template_keys_json longtext not null,
+        primary key (id),
+        constraint uk_template_query_service_role_domain_subject unique (service_id, role_id, domain_code, subject_type, subject_id)
     );
 
     create table mcp_trading_calendar_config (

@@ -50,7 +50,8 @@ public class EnterpriseMetadataMatchingService {
         if (strategies.isEmpty()) {
             strategies = DEFAULT_MATCH_STRATEGIES;
         }
-        int candidateLimit = boundedLimit(request.get("candidateLimitPerType"));
+        int candidateLimit = requestedLimit(request.containsKey("candidateLimitPerType")
+            ? request.get("candidateLimitPerType") : request.get("limit"));
         ResolvedSchema schema = resolveSchema(request);
         List<MetadataEvidenceProviderProtocol.FieldQuery> providerFields =
             new ArrayList<>();
@@ -120,6 +121,10 @@ public class EnterpriseMetadataMatchingService {
             "requiredMetadataTypes", requiredTypes(),
             "perFieldTypeRetrieval", true
         ));
+        response.put("claimCoverage", policyService.claimCoverage());
+        if (!schema.governanceAssessment().isEmpty()) {
+            response.put("fieldConformanceAssessment", schema.governanceAssessment());
+        }
         response.put("reviewContract", mapOf(
             "reviewRequired", true,
             "decisionScope", "PER_FIELD",
@@ -338,7 +343,8 @@ public class EnterpriseMetadataMatchingService {
             "FIELD_LIST",
             firstText(text(objectMap(request.get("targetObject")).get("name")), "field_draft"),
             fields,
-            fieldListSourceEvidence(request)
+            fieldListSourceEvidence(request),
+            Map.of()
         );
     }
 
@@ -363,7 +369,24 @@ public class EnterpriseMetadataMatchingService {
                 "executionStatus", governance.getOrDefault("executionStatus", "NOT_EXECUTED"),
                 "analysisSource", governance.get("analysisSource"),
                 "sourceEvidence", governance.get("sourceEvidence")
-            )
+            ),
+            governanceAssessment(governance)
+        );
+    }
+
+    private Map<String, Object> governanceAssessment(Map<String, Object> governance) {
+        if (governance == null || governance.isEmpty()
+            || governance.get("conforms") == null) {
+            return Map.of();
+        }
+        return mapOf(
+            "scope", "FIELD_METADATA_CONFORMANCE",
+            "conformsWithinScope", governance.get("conforms"),
+            "differenceCount", governance.get("differenceCount"),
+            "severityCounts", governance.get("severityCounts"),
+            "differences", governance.get("differences"),
+            "factBoundary", governance.get("factBoundary"),
+            "fullTableDesignConformance", "NOT_ASSESSED"
         );
     }
 
@@ -597,10 +620,23 @@ public class EnterpriseMetadataMatchingService {
         return result;
     }
 
-    private int boundedLimit(Object value) {
-        int requested = value instanceof Number number
-            ? number.intValue() : properties.getDefaultLimit();
-        return Math.max(1, Math.min(requested, properties.getMaxResults()));
+    private int requestedLimit(Object value) {
+        int requested;
+        if (value instanceof Number number) {
+            requested = number.intValue();
+        } else if (value != null) {
+            try {
+                requested = Integer.parseInt(String.valueOf(value).trim());
+            } catch (NumberFormatException ex) {
+                throw new IllegalArgumentException("limit must be an integer", ex);
+            }
+        } else {
+            requested = properties.getDefaultLimit();
+        }
+        if (requested < 1) {
+            throw new IllegalArgumentException("limit must be greater than 0");
+        }
+        return requested;
     }
 
     private List<String> requiredTypes() {
@@ -697,7 +733,8 @@ public class EnterpriseMetadataMatchingService {
         String mode,
         String table,
         List<ResolvedField> fields,
-        Map<String, Object> sourceEvidence
+        Map<String, Object> sourceEvidence,
+        Map<String, Object> governanceAssessment
     ) {
     }
 

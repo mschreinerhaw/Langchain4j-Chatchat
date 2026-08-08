@@ -10,6 +10,105 @@ import static org.assertj.core.api.Assertions.assertThat;
 class InterpretationPlanOptimizerTest {
 
     @Test
+    void userDefinedTaskWorkflowOverridesModelToolEdges() {
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("workflow", "run configured workflow", "low"),
+            new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", "load_asset", Map.of(), List.of(3), null, null),
+                new InterpretationPlan.Step(2, "mcp_tool", "select_template", Map.of(), List.of(3), null, null),
+                new InterpretationPlan.Step(3, "mcp_tool", "publish_result", Map.of(), List.of(1), null, null),
+                new InterpretationPlan.Step(4, "final_answer", "", Map.of("answer", "done"), List.of(3), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                4, false, List.of("load_asset", "select_template", "publish_result"), List.of(), 30000),
+            new InterpretationPlan.Review(
+                new InterpretationPlan.SelfCheck(0.8, 0.1, true, List.of()), List.of())
+        );
+        List<Map<String, Object>> configuredDag = List.of(
+            Map.of("tool", "load_asset", "dependsOnTools", List.of()),
+            Map.of("tool", "select_template", "dependsOnTools", List.of("load_asset")),
+            Map.of("tool", "publish_result", "dependsOnTools", List.of("select_template"))
+        );
+
+        InterpretationPlanOptimizer.OptimizationResult result =
+            new InterpretationPlanOptimizer().optimize(plan, configuredDag);
+
+        InterpretationPlan.Step load = stepByTool(result.plan(), "load_asset");
+        InterpretationPlan.Step select = stepByTool(result.plan(), "select_template");
+        InterpretationPlan.Step publish = stepByTool(result.plan(), "publish_result");
+        assertThat(result.appliedPasses()).contains("AuthoritativeWorkflowDagPass");
+        assertThat(load.dependsOn()).isEmpty();
+        assertThat(select.dependsOn()).containsExactly(load.id());
+        assertThat(publish.dependsOn()).containsExactly(select.id());
+    }
+
+    @Test
+    void repairsMisorderedTemplateExecutionChainAndRemovesModelOwnedTemplateIds() {
+        String assetTool = "mcp_chatchat_mcp_server_api_asset_query";
+        String templateTool = "mcp_chatchat_mcp_server_api_template_query";
+        String executeTool = "mcp_chatchat_mcp_server_api_template_execute";
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("tool_execution", "Execute the selected API template", "medium"),
+            new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(20, "mcp_tool", executeTool,
+                    Map.of("templateId", "model-invented-id", "parameters", Map.of("query", "x")),
+                    List.of(), null, null),
+                new InterpretationPlan.Step(30, "mcp_tool", templateTool,
+                    Map.of("templateIds", List.of("model-invented-id")), List.of(), null, null),
+                new InterpretationPlan.Step(10, "mcp_tool", assetTool,
+                    Map.of("query", "x"), List.of(), null, null),
+                new InterpretationPlan.Step(40, "final_answer", "", Map.of("answer", "done"),
+                    List.of(20), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                4, false, List.of(assetTool, templateTool, executeTool), List.of(), 30000),
+            new InterpretationPlan.Review(
+                new InterpretationPlan.SelfCheck(0.8, 0.1, true, List.of()), List.of())
+        );
+
+        InterpretationPlanOptimizer.OptimizationResult result = new InterpretationPlanOptimizer().optimize(plan);
+
+        InterpretationPlan.Step asset = stepByTool(result.plan(), assetTool);
+        InterpretationPlan.Step template = stepByTool(result.plan(), templateTool);
+        InterpretationPlan.Step execute = stepByTool(result.plan(), executeTool);
+        assertThat(result.appliedPasses()).contains("TemplateExecutionDagRepairPass");
+        assertThat(template.dependsOn()).contains(asset.id());
+        assertThat(execute.dependsOn()).contains(template.id());
+        assertThat(template.input()).doesNotContainKeys("templateIds", "template_ids");
+        assertThat(execute.input()).doesNotContainKeys(
+            "templateId", "template_id", "template", "runtimeTemplateBinding");
+        assertThat(result.plan().plan().bindings()).anySatisfy(binding -> {
+            assertThat(binding.from()).isEqualTo(template.id());
+            assertThat(binding.to()).isEqualTo(execute.id());
+            assertThat(binding.outputPath()).isEqualTo("$.templates[0].templateId");
+            assertThat(binding.inputField()).isEqualTo("$.templateId");
+            assertThat(binding.required()).isTrue();
+        });
+        assertThat(result.plan().plan().dependencyContracts())
+            .anySatisfy(contract -> {
+                assertThat(contract.from()).isEqualTo(asset.id());
+                assertThat(contract.to()).isEqualTo(template.id());
+                assertThat(contract.required()).isTrue();
+            })
+            .anySatisfy(contract -> {
+                assertThat(contract.from()).isEqualTo(template.id());
+                assertThat(contract.to()).isEqualTo(execute.id());
+                assertThat(contract.required()).isTrue();
+            });
+    }
+
+    private InterpretationPlan.Step stepByTool(InterpretationPlan plan, String toolName) {
+        return plan.steps().stream()
+            .filter(step -> toolName.equals(step.toolName()))
+            .findFirst()
+            .orElseThrow();
+    }
+
+    @Test
     void prunesNoopStepsDedupesToolCallsAndEnablesParallelHint() {
         InterpretationPlan plan = new InterpretationPlan(
             "1.0",

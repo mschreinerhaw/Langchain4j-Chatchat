@@ -524,6 +524,119 @@
   line-height: 1.6;
 }
 
+.plan-task-summary {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #e3eaf4;
+  border-radius: 8px;
+  background: #fbfcff;
+}
+
+.plan-task-summary-toggle {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  padding: 10px 12px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.plan-task-summary-toggle:hover {
+  background: rgba(47, 124, 246, 0.04);
+}
+
+.plan-task-summary-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.plan-task-summary-copy strong,
+.plan-task-summary-copy span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plan-task-summary-copy strong {
+  color: var(--primary-strong);
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+}
+
+.plan-task-summary-copy span {
+  color: #344054;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.plan-task-summary-status,
+.plan-task-summary-action {
+  flex: none;
+  border-radius: 7px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.plan-task-summary-status {
+  background: #eef2f7;
+  color: #475467;
+}
+
+.plan-task-summary-status.success {
+  background: rgba(32, 178, 107, 0.11);
+  color: #168555;
+}
+
+.plan-task-summary-status.failed,
+.plan-task-summary-status.cancelled {
+  background: rgba(239, 79, 95, 0.11);
+  color: #b42335;
+}
+
+.plan-task-summary-action {
+  color: var(--primary-strong);
+}
+
+.plan-task-summary-detail {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid #e3eaf4;
+  padding: 12px;
+  background: #fff;
+}
+
+.plan-task-summary-detail section {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.plan-task-summary-detail small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.plan-task-summary-detail p {
+  max-height: 240px;
+  margin: 0;
+  overflow: auto;
+  color: #344054;
+  font-size: 13px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
 .task-feedback {
   display: flex;
   flex-wrap: wrap;
@@ -1869,6 +1982,254 @@
   border-color: rgba(239, 79, 95, 0.34);
   background: rgba(239, 79, 95, 0.04);
   color: #c81932;
+}
+
+.agent-workshop-view .agent-recall-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.48);
+  backdrop-filter: blur(4px);
+  animation: agent-recall-fade-in 160ms ease-out;
+}
+
+.agent-workshop-view .agent-recall-dialog {
+  width: min(460px, 100%);
+  overflow: hidden;
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22), 0 8px 24px rgba(15, 23, 42, 0.1);
+  animation: agent-recall-rise-in 180ms ease-out;
+}
+
+.agent-workshop-view .agent-recall-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 13px;
+  padding: 20px 22px 16px;
+}
+
+.agent-workshop-view .agent-recall-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  background: linear-gradient(145deg, #fff7ed, #ffedd5);
+  color: #ea580c;
+  box-shadow: inset 0 0 0 1px rgba(249, 115, 22, 0.12);
+}
+
+.agent-workshop-view .agent-recall-icon svg {
+  width: 22px;
+  height: 22px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.agent-workshop-view .agent-recall-header p {
+  margin: 0 0 3px;
+  color: #ea580c;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.agent-workshop-view .agent-recall-header h2 {
+  margin: 0;
+  color: #172033;
+  font-size: 20px;
+  line-height: 1.35;
+}
+
+.agent-workshop-view .agent-recall-close {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 24px;
+  line-height: 1;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.agent-workshop-view .agent-recall-close:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.agent-workshop-view .agent-recall-body {
+  padding: 4px 22px 22px;
+}
+
+.agent-workshop-view .agent-recall-body > p:first-child {
+  margin: 0;
+  color: #475569;
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.agent-workshop-view .agent-recall-body > p strong {
+  color: #172033;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.agent-workshop-view .agent-recall-note {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 9px;
+  margin-top: 16px;
+  padding: 12px 13px;
+  border: 1px solid #fed7aa;
+  border-radius: 12px;
+  background: #fffaf5;
+}
+
+.agent-workshop-view .agent-recall-note > span {
+  width: 19px;
+  height: 19px;
+  display: grid;
+  place-items: center;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: #fb923c;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+  font-style: normal;
+}
+
+.agent-workshop-view .agent-recall-note p {
+  margin: 0;
+  color: #9a5b23;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.agent-workshop-view .agent-recall-error {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.08);
+  color: #c81932;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.agent-workshop-view .agent-recall-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 15px 22px 20px;
+  border-top: 1px solid #eef2f7;
+  background: #fbfcfe;
+}
+
+.agent-workshop-view .agent-recall-actions button {
+  min-width: 96px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 750;
+  transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease, background 150ms ease;
+}
+
+.agent-workshop-view .agent-recall-cancel {
+  border: 1px solid #dbe2ea;
+  background: #fff;
+  color: #475569;
+}
+
+.agent-workshop-view .agent-recall-cancel:hover:not(:disabled) {
+  border-color: #b9c4d2;
+  background: #f8fafc;
+}
+
+.agent-workshop-view .agent-recall-submit {
+  border: 1px solid #ea580c;
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  color: #fff;
+  box-shadow: 0 7px 16px rgba(234, 88, 12, 0.2);
+}
+
+.agent-workshop-view .agent-recall-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(234, 88, 12, 0.27);
+}
+
+.agent-workshop-view .agent-recall-actions button:disabled,
+.agent-workshop-view .agent-recall-close:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.agent-workshop-view .agent-recall-spinner {
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(255, 255, 255, 0.42);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: agent-recall-spin 700ms linear infinite;
+}
+
+@keyframes agent-recall-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes agent-recall-rise-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes agent-recall-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 560px) {
+  .agent-workshop-view .agent-recall-backdrop {
+    align-items: end;
+    padding: 12px;
+  }
+
+  .agent-workshop-view .agent-recall-dialog {
+    border-radius: 16px;
+  }
+
+  .agent-workshop-view .agent-recall-header,
+  .agent-workshop-view .agent-recall-body {
+    padding-right: 17px;
+    padding-left: 17px;
+  }
+
+  .agent-workshop-view .agent-recall-actions {
+    padding: 14px 17px 17px;
+  }
+
+  .agent-workshop-view .agent-recall-actions button {
+    flex: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-workshop-view .agent-recall-backdrop,
+  .agent-workshop-view .agent-recall-dialog,
+  .agent-workshop-view .agent-recall-spinner {
+    animation-duration: 1ms;
+  }
 }
 
 .agent-workshop-view .agent-dialog-backdrop {
@@ -3435,6 +3796,14 @@
   .runtime-panel > header label,
   .runtime-tabs button {
     width: 100%;
+  }
+
+  .plan-task-summary-toggle {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .plan-task-summary-copy {
+    grid-column: 1 / -1;
   }
 
   .runtime-flow article:not(:last-child)::after {

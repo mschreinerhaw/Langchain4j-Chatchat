@@ -1,5 +1,6 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.assessment.EvidenceAugmentationPolicy;
 import com.chatchat.agents.runtime.ToolRuntimeService;
 import com.chatchat.agents.runtime.ToolRuntimeProperties;
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
@@ -82,6 +83,64 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void interpretationPlanCarriesSuccessfulPrePlanToolsIntoWorkflowDependencies() {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        InteractionToolTrace successfulAssetQuery = InteractionToolTrace.builder()
+            .toolName("generated_asset_query")
+            .success(true)
+            .input(Map.of("filters", Map.of("assetName", "generated-worker")))
+            .build();
+
+        Map<String, Object> attributes = orchestrator.interpretationPlanInitialAttributes(
+            Map.of("existing", true),
+            List.of(successfulAssetQuery)
+        );
+
+        assertThat(attributes).containsEntry("existing", true);
+        assertThat(attributes.get("workflowCompletedTools"))
+            .isEqualTo(List.of("generated_asset_query"));
+        assertThat(attributes.get("workflowContext"))
+            .isEqualTo(Map.of("workflowTargetRef", "generated-worker"));
+    }
+
+    @Test
+    void interpretationPlanRestoresOnlyCompletedToolsFromTheCurrentRun() {
+        InMemoryAgentRunStore runStore = new InMemoryAgentRunStore();
+        AgentRunRequest firstRun = AgentRunRequest.builder()
+            .runId("run-state-a")
+            .requestId("request-state-a")
+            .query("generated workflow")
+            .build();
+        AgentRunRequest secondRun = AgentRunRequest.builder()
+            .runId("run-state-b")
+            .requestId("request-state-b")
+            .query("generated workflow")
+            .build();
+        runStore.start(firstRun);
+        runStore.start(secondRun);
+        runStore.recordObservation(firstRun.getRunId(), AgentObservation.builder()
+            .type("tool")
+            .source("generated_asset_discovery")
+            .content("completed")
+            .metadata(Map.of(
+                "structuredRuntimeObservation", true,
+                "toolName", "generated_asset_discovery",
+                "success", true
+            ))
+            .build());
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            mock(ChatModel.class), mock(ToolRegistry.class), mock(ToolRuntimeService.class),
+            new ObjectMapper(), new ModelsConfig(), new EvidenceTrustEvaluator(), runStore);
+
+        assertThat(orchestrator.interpretationPlanInitialAttributes(
+            Map.of("__agentRunId", firstRun.getRunId()), List.of()).get("workflowCompletedTools"))
+            .isEqualTo(List.of("generated_asset_discovery"));
+        assertThat(orchestrator.interpretationPlanInitialAttributes(
+            Map.of("__agentRunId", secondRun.getRunId()), List.of()))
+            .doesNotContainKey("workflowCompletedTools");
+    }
+
+    @Test
     void finalSynthesisPromptSummarizesAllExecutedPlanAttempts() {
         InterpretationPlanRuntime.ExecutionResult first = attemptResult(
             "result_unsatisfied", false, "first evidence", "first result was incomplete");
@@ -114,7 +173,123 @@ class AgentOrchestratorTest {
             .contains("Do not make the tool evidence list, document heading path, execution trace, or JSON field names the body of the answer")
             .contains("deduplicate repeated headings")
             .contains("Do not claim that enterprise standards, terms, dictionaries, or other governed metadata do not exist")
+            .contains("state its evidence-backed rejection reason")
+            .contains("Do not imply that a service was unavailable")
             .contains("Never present toolName as displayName");
+    }
+
+    @Test
+    void evidenceChainCanExtendPositiveRewriteEstimateWithinRuntimeCeiling() {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        EvidenceAugmentationPolicy.Outcome retrieveMore = new EvidenceAugmentationPolicy.Outcome(
+            EvidenceAugmentationPolicy.CONTRACT_VERSION,
+            EvidenceAugmentationPolicy.Decision.RETRIEVE_MORE,
+            true,
+            true,
+            "A verified next action remains"
+        );
+        List<Map<String, Object>> history = List.of(Map.of(
+            "missingEvidence", List.of("executable parameter contract"),
+            "nextActions", List.of(Map.of(
+                "tool", "api_template_query",
+                "reason", "select a parameter-compatible alternative"
+            ))
+        ));
+
+        assertThat(orchestrator.evidenceDrivenRewriteLimit(
+            1, retrieveMore, history, List.of("mcp_service_api_template_query")))
+            .isEqualTo(2);
+        assertThat(orchestrator.evidenceDrivenRewriteLimit(
+            1, retrieveMore, history, List.of("document_search")))
+            .isEqualTo(1);
+        assertThat(orchestrator.evidenceDrivenRewriteLimit(
+            0, retrieveMore, history, List.of("mcp_service_api_template_query")))
+            .isZero();
+    }
+
+    @Test
+    void evidenceExplorationRequiresAnActionableAvailableToolAfterSuccessfulExecution() {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        InterpretationPlanRuntime.ExecutionResult success = new InterpretationPlanRuntime.ExecutionResult(
+            "completed_with_partial_evidence", true, false, null, "partial", List.of(), Map.of(), 1L);
+
+        assertThat(orchestrator.evidenceExplorationAvailable(
+            Map.of("nextActions", List.of()), success, List.of("generic_search"), true))
+            .isFalse();
+        assertThat(orchestrator.evidenceExplorationAvailable(
+            Map.of("nextActions", List.of(Map.of("tool", "generic_search"))),
+            success, List.of("generic_search"), true))
+            .isTrue();
+    }
+
+    @Test
+    void pendingEvidenceActionsDropDeclinedAndAlreadyExecutedRetrievals() {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        List<Map<String, Object>> evidence = List.of(
+            Map.of(
+                "tool", "schema_search",
+                "success", true,
+                "shouldExpandQuery", true,
+                "nextActions", List.of(Map.of("tool", "policy_search", "intent", "find policy"))
+            ),
+            Map.of(
+                "tool", "policy_search",
+                "success", true,
+                "shouldExpandQuery", false,
+                "nextActions", List.of(Map.of("tool", "policy_search", "intent", "try again"))
+            )
+        );
+
+        assertThat(orchestrator.pendingEvidenceNextActions(evidence)).isEmpty();
+    }
+
+    @Test
+    void pendingEvidenceActionsPreserveAvailableWorkNotExecutedInTheRound() {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        Map<String, Object> pendingAction = Map.of(
+            "tool", "verification_search",
+            "intent", "verify the remaining gap"
+        );
+
+        assertThat(orchestrator.pendingEvidenceNextActions(List.of(Map.of(
+            "tool", "primary_search",
+            "success", true,
+            "shouldExpandQuery", true,
+            "nextActions", List.of(pendingAction)
+        )))).containsExactly(pendingAction);
+    }
+
+    @Test
+    void templateSelectionFeedbackPreservesCandidateReasonsForFinalAnswer() {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        InterpretationPlanRuntime.StepExecution step = new InterpretationPlanRuntime.StepExecution(
+            2,
+            "mcp_tool",
+            "api_template_query",
+            true,
+            Map.of("templates", List.of()),
+            null,
+            null,
+            null,
+            12,
+            Map.of(
+                "selectedTemplateIds", List.of("compatible-template"),
+                "rejectedTemplateIds", List.of("precise-template"),
+                "templateEvaluations", List.of(Map.of(
+                    "templateId", "precise-template",
+                    "decision", "reject",
+                    "reasons", List.of("required customer parameter is not declared")
+                )),
+                "runtimeTemplateSelectionReason", "Selected from evidence-reviewed candidates"
+            )
+        );
+
+        assertThat(orchestrator.templateSelectionFeedbackObservation("rewrite", step))
+            .contains("template_selection_feedback.v1")
+            .contains("precise-template")
+            .contains("required customer parameter is not declared")
+            .contains("compatible-template")
+            .contains("Selected from evidence-reviewed candidates");
     }
 
     @Test
@@ -244,6 +419,50 @@ class AgentOrchestratorTest {
         assertThat(decision.action()).isEqualTo("execute_step");
         assertThat(decision.stepIds()).containsExactly(3);
         assertThat(decision.reason()).contains("sole remaining final_answer step");
+    }
+
+    @Test
+    void dagStatusKeepsSuccessfulTruncatedEvidenceSeparateFromExecutionFailure() {
+        InterpretationPlanRuntime.StepExecution successfulPartialStep =
+            new InterpretationPlanRuntime.StepExecution(
+                3,
+                "mcp_tool",
+                "future_metadata_tool",
+                true,
+                Map.of("outputTruncated", true, "preview", Map.of("items", List.of("one"))),
+                null,
+                null,
+                null,
+                5L,
+                Map.of(
+                    "toolExecutionStatus", "SUCCEEDED",
+                    "evidenceSufficiency", "INSUFFICIENT",
+                    "stepFulfillmentStatus", "PARTIAL",
+                    "partialEvidence", true
+                )
+            );
+        InterpretationPlanRuntime.DagDecisionRequest request =
+            new InterpretationPlanRuntime.DagDecisionRequest(
+                null,
+                Set.of(4),
+                Map.of(3, successfulPartialStep),
+                List.of(successfulPartialStep),
+                Set.of(1, 2, 3),
+                4,
+                InterpretationExecutionProtocol.VERSION,
+                "trace",
+                ""
+            );
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+
+        assertThat(orchestrator.runtimeDagExecutionStatus(request))
+            .contains("succeededStepIds=[3]")
+            .contains("failedStepIds=[]")
+            .contains("partialEvidenceStepIds=[3]");
+        assertThat(orchestrator.buildInterpretationPlanDagDecisionPrompt("query", null, request))
+            .contains("outputTruncated=true")
+            .contains("none of these means the tool call failed")
+            .contains("Never call a successful truncated result a failed step");
     }
 
     @Test
@@ -696,7 +915,7 @@ class AgentOrchestratorTest {
     }
 
     @Test
-    void partialToolReviewRejectsWholeAttemptSoPlanCanBeRewritten() throws Exception {
+    void partialToolReviewPreservesSuccessfulAttemptForLimitedAnalysis() throws Exception {
         AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
         InterpretationPlanRuntime.StepExecution step = new InterpretationPlanRuntime.StepExecution(
             1,
@@ -727,15 +946,76 @@ class AgentOrchestratorTest {
         List<String> observations = new ArrayList<>();
         Map<String, Object> metadata = new LinkedHashMap<>();
 
-        InterpretationPlanRuntime.ExecutionResult rejected =
+        InterpretationPlanRuntime.ExecutionResult preserved =
             (InterpretationPlanRuntime.ExecutionResult) method.invoke(
                 orchestrator, "initial", execution, observations, metadata);
 
-        assertThat(rejected.success()).isFalse();
-        assertThat(rejected.status()).isEqualTo("result_unsatisfied");
-        assertThat(rejected.steps()).isEqualTo(execution.steps());
-        assertThat(observations).anyMatch(value -> value.contains("requires a full plan rewrite"));
-        assertThat(metadata).containsEntry("interpretationPlanResultSatisfied", false);
+        assertThat(preserved).isSameAs(execution);
+        assertThat(preserved.success()).isTrue();
+        assertThat(observations).noneMatch(value -> value.contains("requires a full plan rewrite"));
+        assertThat(metadata).containsEntry("interpretationPlanResultSatisfied", true);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void continuationWorkflowDagOmitsCompletedNodesThatAreNotRepeated() throws Exception {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        InterpretationPlan rewrittenPlan = new InterpretationPlan(
+            "1.0",
+            null,
+            null,
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(
+                    1, "mcp_tool", "mcp_chatchat_mcp_server_sql_metadata_search",
+                    Map.of("query", "orders"), List.of(), null, null),
+                new InterpretationPlan.Step(
+                    2, "mcp_tool", "mcp_chatchat_mcp_server_enterprise_metadata_search",
+                    Map.of("query", "ADS table standard"), List.of(), null, null),
+                new InterpretationPlan.Step(
+                    3, "final_answer", "final_answer",
+                    Map.of("answer", "partial assessment"), List.of(1, 2), null, null)
+            )),
+            null,
+            null
+        );
+        List<Map<String, Object>> authoritativeDag = List.of(
+            Map.of(
+                "tool", "mcp_chatchat_mcp_server_database_asset_search",
+                "dependsOnTools", List.of()),
+            Map.of(
+                "tool", "mcp_chatchat_mcp_server_sql_metadata_search",
+                "dependsOnTools", List.of("mcp_chatchat_mcp_server_database_asset_search")),
+            Map.of(
+                "tool", "mcp_chatchat_mcp_server_enterprise_metadata_search",
+                "dependsOnTools", List.of())
+        );
+        Method method = AgentOrchestrator.class.getDeclaredMethod(
+            "authoritativeWorkflowDagForContinuation",
+            Object.class,
+            InterpretationPlan.class,
+            Set.class
+        );
+        method.setAccessible(true);
+
+        Object result = method.invoke(
+            orchestrator,
+            authoritativeDag,
+            rewrittenPlan,
+            Set.of(
+                "mcp_chatchat_mcp_server_database_asset_search",
+                "mcp_chatchat_mcp_server_sql_metadata_search",
+                "mcp_chatchat_mcp_server_enterprise_metadata_search"
+            )
+        );
+
+        List<Map<String, Object>> continuationDag = (List<Map<String, Object>>) result;
+        assertThat(continuationDag)
+            .extracting(node -> node.get("tool"))
+            .containsExactly(
+                "mcp_chatchat_mcp_server_sql_metadata_search",
+                "mcp_chatchat_mcp_server_enterprise_metadata_search"
+            );
+        assertThat((List<String>) continuationDag.get(0).get("dependsOnTools")).isEmpty();
     }
 
     private static InterpretationPlanRuntime.ExecutionResult attemptResult(String status,
@@ -1095,7 +1375,7 @@ class AgentOrchestratorTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void interpretationPlanLetsModelRejectDocumentSearchEvenWhenChunksExist() {
+    void interpretationPlanPreservesSuccessfulDocumentSearchWhenModelNeedsMoreEvidence() {
         StrictDocumentReviewChatModel chatModel = new StrictDocumentReviewChatModel(
             """
                 {
@@ -1108,7 +1388,7 @@ class AgentOrchestratorTest {
                       {"id": 2, "action_type": "final_answer", "tool_name": "", "input": {"answer": "Use the retrieved JDBC and Filesystem chunks, and state that the combined sync example is missing."}, "depends_on": [1]}
                     ]
                   },
-                  "execution_policy": {"max_steps": 2, "allow_parallel": false, "allow_tool": ["document_search"], "deny_tool": [], "timeout_ms": 30000, "max_rewrite_times": 0},
+                  "execution_policy": {"max_steps": 2, "allow_parallel": false, "allow_tool": ["document_search"], "deny_tool": [], "timeout_ms": 30000, "max_rewrite_times": 2},
                   "review": {"self_check": {"completeness_score": 0.8, "hallucination_risk": 0.2, "tool_sufficiency": true, "missing_steps": []}, "fallback_plan": []}
                 }
                 """,
@@ -1155,19 +1435,24 @@ class AgentOrchestratorTest {
         assertThat(result.toolTraces()).extracting(InteractionToolTrace::getToolName)
             .containsExactly("document_search");
         assertThat(result.metadata())
-            .containsEntry("evidenceAugmentationOverrideApplied", true)
-            .containsEntry("interpretationPlanConfiguredMaxRewriteTimes", 0)
-            .containsEntry("interpretationPlanMaxRewriteTimes", 1)
-            .containsEntry("interpretationPlanRewriteAttempted", true);
+            .containsEntry("interpretationPlanConfiguredMaxRewriteTimes", 2)
+            .containsEntry("interpretationPlanMaxRewriteTimes", 0)
+            .containsEntry("stopReason", "evidence_partial_analysis")
+            .doesNotContainKeys("evidenceAugmentationOverrideApplied", "interpretationPlanRewriteAttempted", "dagRepairEvents");
         List<Map<String, Object>> steps = (List<Map<String, Object>>) result.metadata().get("interpretationPlanStepExecutions");
         assertThat(steps)
             .anySatisfy(step -> {
                 Map<String, Object> stepMetadata = (Map<String, Object>) step.get("metadata");
                 assertThat(step)
                     .containsEntry("toolName", "document_search")
-                    .containsEntry("success", false);
+                    .containsEntry("success", true);
                 assertThat(stepMetadata)
-                    .containsEntry("toolResultReviewSatisfied", false);
+                    .containsEntry("toolResultReviewSatisfied", false)
+                    .containsEntry("toolExecutionStatus", "SUCCEEDED")
+                    .containsEntry("evidenceSufficiency", "INSUFFICIENT")
+                    .containsEntry("stepFulfillmentStatus", "PARTIAL")
+                    .containsEntry("modelReviewExecutionStatusOverridePrevented", true)
+                    .containsEntry("partialEvidence", true);
                 assertThat(stepMetadata)
                     .containsEntry("rejectedEvidenceRefs", List.of("doc://spark#chunk=159", "doc://spark#chunk=155"));
                 Map<String, Object> evaluation = (Map<String, Object>) stepMetadata.get("evidenceEvaluation");
@@ -1377,6 +1662,7 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     void interpretationPlanFailureTriggersRewriteAndRunsRewrittenPlan() {
         QueueChatModel chatModel = new QueueChatModel(
             """
@@ -1461,6 +1747,13 @@ class AgentOrchestratorTest {
             .containsEntry("interpretationPlanRewriteValid", true)
             .containsEntry("interpretationPlanRewriteSuccess", true)
             .containsEntry("stopReason", "evidence_sufficient");
+        List<Map<String, Object>> repairEvents = (List<Map<String, Object>>) result.metadata().get("dagRepairEvents");
+        assertThat(repairEvents)
+            .extracting(event -> event.get("eventState"))
+            .containsExactly("STARTED", "APPLIED");
+        assertThat(repairEvents.get(1))
+            .containsEntry("contractVersion", "runtime_dag_governance.v1")
+            .containsEntry("repairAttempt", 1);
     }
 
     @Test
@@ -2500,9 +2793,16 @@ class AgentOrchestratorTest {
             .containsExactly(profileTool, assetTool);
         assertThat(result.metadata())
             .containsEntry("workflowMandatoryTools", List.of(profileTool, assetTool))
+            .containsEntry("authoritativeWorkflowTaskId", "req-workflow-override")
+            .containsEntry("authoritativeWorkflowSource", "user_defined_mcp_workflow")
             .containsEntry("maxSteps", 7)
             .containsEntry("runtimeEnforcedMcpWorkflow", true)
             .doesNotContainKey("workflowToolOverrides");
+        assertThat((List<Map<String, Object>>) result.metadata().get("authoritativeWorkflowDag"))
+            .hasSize(2)
+            .anySatisfy(node -> assertThat(node)
+                .containsEntry("tool", assetTool)
+                .containsEntry("dependsOnTools", List.of(profileTool)));
     }
 
     @Test
@@ -2727,7 +3027,8 @@ class AgentOrchestratorTest {
         );
 
         assertThat(result.answer())
-            .contains("必需工具 mandatory_query_execute 未执行到终态")
+            .contains("mandatory_fetch_alert_template, mandatory_query_execute")
+            .contains("未执行到终态")
             .doesNotContain("This answer must not be used");
         assertThat(result.toolTraces())
             .extracting(InteractionToolTrace::getToolName)
@@ -2739,7 +3040,7 @@ class AgentOrchestratorTest {
             .containsEntry("errorCode", "PLAN_INVALID_REQUIRED_TOOL_NOT_EXECUTED")
             .containsEntry("stopReason", "mandatory_workflow_incomplete");
         assertThat((List<String>) result.metadata().get("missingMandatoryTools"))
-            .containsExactly(sqlExecute);
+            .containsExactly(templateSearch, sqlExecute);
         verify(toolRegistry, never()).executeEnhancedTool(eq(sqlExecute), any());
     }
 

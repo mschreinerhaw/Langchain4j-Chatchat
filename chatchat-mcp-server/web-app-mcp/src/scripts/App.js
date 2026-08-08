@@ -1,6 +1,7 @@
 ﻿import LoginView from '../views/LoginView.vue';
 import ApiServicesView from '../views/ApiServicesView.vue';
 import McpServicesView from '../views/McpServicesView.vue';
+import TemplateQueryPublicationsView from '../views/TemplateQueryPublicationsView.vue';
 import AssetCenterView from '../views/AssetCenterView.vue';
 import BusinessCategoriesView from '../views/BusinessCategoriesView.vue';
 import DatabaseMcpView from '../views/DatabaseMcpView.vue';
@@ -23,6 +24,7 @@ import '../styles/layout.css';
 const menuComponents = {
   apiServices: ApiServicesView,
   mcpServices: McpServicesView,
+  templateQueryPublications: TemplateQueryPublicationsView,
   newsCollection: NewsCollectionView,
   assetCenter: AssetCenterView,
   businessCategories: BusinessCategoriesView,

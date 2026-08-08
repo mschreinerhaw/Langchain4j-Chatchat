@@ -18,7 +18,6 @@ public class EnterpriseMetadataProperties {
     ));
     private String indexName = "enterprise_metadata_catalog";
     private int defaultLimit = 20;
-    private int maxResults = 100;
     private boolean refreshOnStartup = true;
     private Knn knn = new Knn();
     private ScenarioClassification scenarioClassification = new ScenarioClassification();

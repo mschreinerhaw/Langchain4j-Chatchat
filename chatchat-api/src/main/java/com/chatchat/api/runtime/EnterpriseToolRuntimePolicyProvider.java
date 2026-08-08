@@ -4,6 +4,7 @@ import com.chatchat.agents.runtime.ToolRuntimePolicy;
 import com.chatchat.agents.runtime.ToolRuntimePolicyProvider;
 import com.chatchat.agents.runtime.ToolRuntimeRequest;
 import com.chatchat.common.tool.ToolMetadata;
+import com.chatchat.common.tool.ToolInput;
 import com.chatchat.enterprise.entity.McpToolPermission;
 import com.chatchat.enterprise.entity.McpToolAsset;
 import com.chatchat.enterprise.entity.SysRole;
@@ -53,7 +54,8 @@ public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyPro
         if (toolName == null) {
             return null;
         }
-        if (!isManagedMcpTool(toolName, metadata)) {
+        boolean managedMcpTool = isManagedMcpTool(toolName, metadata);
+        if (!managedMcpTool && !isMcpRuntimeTool(metadata)) {
             return null;
         }
         if (tenantId == null) {
@@ -67,6 +69,13 @@ public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyPro
         }
         String userId = caller == null ? requestedUserId : normalize(caller.getId());
         Set<String> roleIds = resolvedRoleIds(tenantId, caller);
+        attachCanonicalCallerContext(request, caller, roleIds);
+        // Dynamic template-query children are governed by their publication binding
+        // in MCP. API only resolves their canonical caller roles from the database;
+        // they are intentionally not required to be duplicated in mcp_tool_asset.
+        if (!managedMcpTool) {
+            return null;
+        }
         if (isAdminUser(userId) || hasRoleCode(roleIds, tenantId, "super_admin")) {
             return ToolRuntimePolicy.builder().allowed(true).build();
         }
@@ -128,6 +137,16 @@ public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyPro
         return metadataId != null && toolAssetRepository.findById(metadataId).isPresent();
     }
 
+    private boolean isMcpRuntimeTool(ToolMetadata metadata) {
+        if (metadata == null) {
+            return false;
+        }
+        boolean mcpCategory = metadata.getCategories() != null && metadata.getCategories().stream()
+            .anyMatch(value -> "mcp".equalsIgnoreCase(normalizeText(value)));
+        String author = normalizeText(metadata.getAuthor());
+        return mcpCategory || (author != null && author.regionMatches(true, 0, "MCP:", 0, 4));
+    }
+
     private boolean active(McpToolPermission permission) {
         return permission != null && permission.isEnabled()
             && (permission.getExpiresAt() == null || permission.getExpiresAt().isAfter(Instant.now()));
@@ -184,6 +203,30 @@ public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyPro
             .forEach(roles::add);
         roles.remove(null);
         return roles;
+    }
+
+    /**
+     * Carries the roles resolved from the enterprise identity tables to the MCP
+     * transport. These values are deliberately written after identity resolution,
+     * so model supplied role arguments cannot become authorization claims.
+     */
+    private void attachCanonicalCallerContext(ToolRuntimeRequest request, SysUser caller, Set<String> roleIds) {
+        ToolInput input = request == null ? null : request.getToolInput();
+        if (input == null) {
+            return;
+        }
+        Map<String, Object> context = new LinkedHashMap<>(
+            input.getContext() == null ? Map.of() : input.getContext());
+        context.put("roles", List.copyOf(roleIds == null ? Set.of() : roleIds));
+        context.put("roleIds", List.copyOf(roleIds == null ? Set.of() : roleIds));
+        context.put("canonicalRolesResolved", true);
+        if (caller != null) {
+            String username = normalizeText(caller.getUsername());
+            if (username != null) {
+                context.put("username", username);
+            }
+        }
+        input.setContext(context);
     }
 
     private boolean hasRoleCode(Set<String> roleIds, String tenantId, String expectedCode) {

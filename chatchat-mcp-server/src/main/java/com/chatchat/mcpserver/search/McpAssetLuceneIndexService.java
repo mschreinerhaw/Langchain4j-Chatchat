@@ -4,6 +4,7 @@ import com.chatchat.mcpserver.api.ApiServiceConfig;
 import com.chatchat.mcpserver.api.ApiServiceConfigService;
 import com.chatchat.mcpserver.ops.HttpEndpointConfig;
 import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
+import com.chatchat.mcpserver.ops.HttpEndpointTechnicalType;
 import com.chatchat.mcpserver.ops.SshHostConfig;
 import com.chatchat.mcpserver.ops.SshHostConfigService;
 import com.chatchat.mcpserver.routing.AssetMetadataFactory;
@@ -31,7 +32,10 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class McpAssetLuceneIndexService {
 
-    private static final List<String> KNOWN_ASSET_TYPES = List.of("ssh_host", "sql_datasource", "http_endpoint", "api_service");
+    public static final String HTTP_ASSET_INDEX_TYPE = "http_endpoint_http";
+    public static final String MICROSERVICE_ASSET_INDEX_TYPE = "http_endpoint_microservice";
+    private static final List<String> KNOWN_ASSET_TYPES = List.of(
+        "ssh_host", "sql_datasource", HTTP_ASSET_INDEX_TYPE, MICROSERVICE_ASSET_INDEX_TYPE, "api_service");
 
     private final LuceneMcpSearchService luceneSearchService;
     private final SshHostConfigService hostConfigService;
@@ -78,27 +82,32 @@ public class McpAssetLuceneIndexService {
         List<SqlDatasourceConfig> datasources = safe(datasourceConfigService.listEnabled());
         List<LuceneMcpSearchService.AssetDoc> sshDocs = sshAssetDocs();
         List<LuceneMcpSearchService.AssetDoc> sqlDocs = sqlAssetDocs(datasources);
-        List<LuceneMcpSearchService.AssetDoc> httpDocs = httpEndpointAssetDocs();
+        List<LuceneMcpSearchService.AssetDoc> httpDocs = httpEndpointAssetDocs(HttpEndpointTechnicalType.HTTP);
+        List<LuceneMcpSearchService.AssetDoc> microserviceDocs = httpEndpointAssetDocs(HttpEndpointTechnicalType.MICROSERVICE);
         List<LuceneMcpSearchService.AssetDoc> apiServiceDocs = apiServiceAssetDocs();
         luceneSearchService.indexAssets("ssh_host", sshDocs);
         luceneSearchService.indexAssets("sql_datasource", sqlDocs);
-        luceneSearchService.indexAssets("http_endpoint", httpDocs);
+        luceneSearchService.indexAssets(HTTP_ASSET_INDEX_TYPE, httpDocs);
+        luceneSearchService.indexAssets(MICROSERVICE_ASSET_INDEX_TYPE, microserviceDocs);
         luceneSearchService.indexAssets("api_service", apiServiceDocs);
         long tableDocCount = sqlDocs.stream().filter(doc -> "metadata_table".equals(doc.source())).count();
-        int indexed = sshDocs.size() + sqlDocs.size() + httpDocs.size() + apiServiceDocs.size();
+        int indexed = sshDocs.size() + sqlDocs.size() + httpDocs.size() + microserviceDocs.size() + apiServiceDocs.size();
         Map<String, Object> summary = Map.of(
             "enabled", true,
             "indexed", indexed,
             "sshHostCount", sshDocs.size(),
             "sqlDatasourceCount", datasources.size(),
             "sqlTableCount", tableDocCount,
-            "httpEndpointCount", httpDocs.size(),
+            "httpEndpointCount", httpDocs.size() + microserviceDocs.size(),
+            "ordinaryHttpCount", httpDocs.size(),
+            "microserviceCount", microserviceDocs.size(),
             "apiServiceCount", apiServiceDocs.size(),
             "indexes", Map.of(
                 "service", Map.of("assetType", "ssh_host", "physicalIndex", luceneSearchService.assetIndexName("ssh_host"), "indexed", sshDocs.size()),
                 "apiService", Map.of("assetType", "api_service", "physicalIndex", luceneSearchService.assetIndexName("api_service"), "indexed", apiServiceDocs.size()),
                 "database", Map.of("assetType", "sql_datasource", "physicalIndex", luceneSearchService.assetIndexName("sql_datasource"), "indexed", sqlDocs.size()),
-                "http", Map.of("assetType", "http_endpoint", "physicalIndex", luceneSearchService.assetIndexName("http_endpoint"), "indexed", httpDocs.size())
+                "http", Map.of("assetType", HTTP_ASSET_INDEX_TYPE, "physicalIndex", luceneSearchService.assetIndexName(HTTP_ASSET_INDEX_TYPE), "indexed", httpDocs.size()),
+                "microservice", Map.of("assetType", MICROSERVICE_ASSET_INDEX_TYPE, "physicalIndex", luceneSearchService.assetIndexName(MICROSERVICE_ASSET_INDEX_TYPE), "indexed", microserviceDocs.size())
             )
         );
         log.info("MCP Lucene asset index refreshed, indexed {} docs ssh={} apiService={} sql={} sqlTables={} http={}",
@@ -129,10 +138,8 @@ public class McpAssetLuceneIndexService {
                 summary.put("sqlTableCount", tableDocCount);
                 yield summary;
             }
-            case "http_endpoint" -> {
-                List<LuceneMcpSearchService.AssetDoc> docs = httpEndpointAssetDocs();
-                luceneSearchService.indexAssets("http_endpoint", docs);
-                yield singleIndexSummary("http", "http_endpoint", docs.size());
+            case "http_endpoint", HTTP_ASSET_INDEX_TYPE, MICROSERVICE_ASSET_INDEX_TYPE -> {
+                yield refreshHttpEndpointIndexes();
             }
             case "api_service" -> {
                 List<LuceneMcpSearchService.AssetDoc> docs = apiServiceAssetDocs();
@@ -166,14 +173,7 @@ public class McpAssetLuceneIndexService {
     }
 
     public synchronized Map<String, Object> rebuildSqlDatasources(List<String> datasourceIds) {
-        List<String> ids = datasourceIds == null ? List.of() : datasourceIds.stream()
-            .filter(id -> id != null && !id.isBlank())
-            .map(String::trim)
-            .distinct()
-            .toList();
-        if (ids.isEmpty()) {
-            throw new IllegalArgumentException("At least one SQL datasource asset must be selected");
-        }
+        List<String> ids = selectedIds(datasourceIds, "SQL datasource asset");
         int indexed = 0;
         int tableCount = 0;
         List<Map<String, Object>> assets = new ArrayList<>();
@@ -201,13 +201,34 @@ public class McpAssetLuceneIndexService {
         return summary;
     }
 
+    public synchronized Map<String, Object> rebuildSshHosts(List<String> hostIds) {
+        List<String> ids = selectedIds(hostIds, "SSH host asset");
+        List<LuceneMcpSearchService.AssetDoc> docs = ids.stream()
+            .map(hostConfigService::getById)
+            .peek(host -> requireEnabled(host.isEnabled(), "SSH host asset", host.getId()))
+            .map(assetMetadataFactory::sshAsset)
+            .map(this::assetDoc)
+            .toList();
+        luceneSearchService.upsertAssets("ssh_host", docs);
+        return selectedIndexSummary("ssh_host", ids.size(), docs.size());
+    }
+
+    public synchronized Map<String, Object> rebuildHttpEndpoints(List<String> endpointIds) {
+        List<String> ids = selectedIds(endpointIds, "HTTP endpoint asset");
+        List<HttpEndpointConfig> endpoints = ids.stream().map(httpEndpointConfigService::getById).toList();
+        endpoints.forEach(endpoint -> requireEnabled(endpoint.isEnabled(), "HTTP endpoint asset", endpoint.getId()));
+        endpoints.forEach(endpoint -> luceneSearchService.replaceAssetAcrossIndexes(
+            endpoint.getId(),
+            List.of(HTTP_ASSET_INDEX_TYPE, MICROSERVICE_ASSET_INDEX_TYPE),
+            httpEndpointAssetDoc(endpoint)));
+        return selectedIndexSummary("http_endpoint", ids.size(), endpoints.size());
+    }
+
     public synchronized Map<String, Object> upsertHttpEndpoint(HttpEndpointConfig endpoint) {
-        if (endpoint == null || !endpoint.isEnabled()) {
-            return refresh("http_endpoint");
-        }
-        List<LuceneMcpSearchService.AssetDoc> docs = List.of(assetDoc(assetMetadataFactory.httpEndpoint(endpoint)));
-        luceneSearchService.upsertAssets("http_endpoint", docs);
-        return singleIndexSummary("http", "http_endpoint", docs.size());
+        if (endpoint == null || !endpoint.isEnabled()) return refreshHttpEndpointIndexes();
+        luceneSearchService.replaceAssetAcrossIndexes(
+            endpoint.getId(), List.of(HTTP_ASSET_INDEX_TYPE, MICROSERVICE_ASSET_INDEX_TYPE), httpEndpointAssetDoc(endpoint));
+        return selectedIndexSummary("http_endpoint", 1, 1);
     }
 
     public synchronized Map<String, Object> upsertApiService(ApiServiceConfig config) {
@@ -234,6 +255,33 @@ public class McpAssetLuceneIndexService {
         );
     }
 
+    private List<String> selectedIds(List<String> values, String assetLabel) {
+        List<String> ids = values == null ? List.of() : values.stream()
+            .filter(id -> id != null && !id.isBlank())
+            .map(String::trim)
+            .distinct()
+            .toList();
+        if (ids.isEmpty()) {
+            throw new IllegalArgumentException("At least one " + assetLabel + " must be selected");
+        }
+        return ids;
+    }
+
+    private void requireEnabled(boolean enabled, String assetLabel, String id) {
+        if (!enabled) {
+            throw new IllegalArgumentException(assetLabel + " is disabled and cannot be indexed: " + id);
+        }
+    }
+
+    private Map<String, Object> selectedIndexSummary(String assetType, int selectedCount, int indexed) {
+        return Map.of(
+            "enabled", true,
+            "assetType", assetType,
+            "selectedCount", selectedCount,
+            "indexed", indexed
+        );
+    }
+
     private List<LuceneMcpSearchService.AssetDoc> sshAssetDocs() {
         List<LuceneMcpSearchService.AssetDoc> docs = new ArrayList<>();
         safe(hostConfigService.listEnabled()).stream()
@@ -255,13 +303,43 @@ public class McpAssetLuceneIndexService {
         return docs;
     }
 
-    private List<LuceneMcpSearchService.AssetDoc> httpEndpointAssetDocs() {
-        List<LuceneMcpSearchService.AssetDoc> docs = new ArrayList<>();
-        safe(httpEndpointConfigService.listEnabled()).stream()
-            .map(assetMetadataFactory::httpEndpoint)
-            .map(this::assetDoc)
-            .forEach(docs::add);
-        return docs;
+    private List<LuceneMcpSearchService.AssetDoc> httpEndpointAssetDocs(HttpEndpointTechnicalType technicalType) {
+        return safe(httpEndpointConfigService.listEnabled()).stream()
+            .filter(endpoint -> HttpEndpointTechnicalType.from(endpoint.getTechnicalType()) == technicalType)
+            .map(this::httpEndpointAssetDoc)
+            .toList();
+    }
+
+    private LuceneMcpSearchService.AssetDoc httpEndpointAssetDoc(HttpEndpointConfig endpoint) {
+        HttpEndpointTechnicalType technicalType = HttpEndpointTechnicalType.from(endpoint.getTechnicalType());
+        LuceneMcpSearchService.AssetDoc doc = assetDoc(assetMetadataFactory.httpEndpoint(endpoint));
+        return withAssetType(doc, technicalType == HttpEndpointTechnicalType.HTTP
+            ? HTTP_ASSET_INDEX_TYPE : MICROSERVICE_ASSET_INDEX_TYPE);
+    }
+
+    private Map<String, Object> refreshHttpEndpointIndexes() {
+        List<LuceneMcpSearchService.AssetDoc> httpDocs = httpEndpointAssetDocs(HttpEndpointTechnicalType.HTTP);
+        List<LuceneMcpSearchService.AssetDoc> microserviceDocs = httpEndpointAssetDocs(HttpEndpointTechnicalType.MICROSERVICE);
+        luceneSearchService.indexAssets(HTTP_ASSET_INDEX_TYPE, httpDocs);
+        luceneSearchService.indexAssets(MICROSERVICE_ASSET_INDEX_TYPE, microserviceDocs);
+        return Map.of(
+            "enabled", true,
+            "assetType", "http_endpoint",
+            "indexed", httpDocs.size() + microserviceDocs.size(),
+            "ordinaryHttpCount", httpDocs.size(),
+            "microserviceCount", microserviceDocs.size(),
+            "indexes", Map.of(
+                "http", Map.of("physicalIndex", luceneSearchService.assetIndexName(HTTP_ASSET_INDEX_TYPE), "indexed", httpDocs.size()),
+                "microservice", Map.of("physicalIndex", luceneSearchService.assetIndexName(MICROSERVICE_ASSET_INDEX_TYPE), "indexed", microserviceDocs.size())
+            )
+        );
+    }
+
+    private LuceneMcpSearchService.AssetDoc withAssetType(LuceneMcpSearchService.AssetDoc doc, String assetType) {
+        return new LuceneMcpSearchService.AssetDoc(
+            doc.id(), assetType, doc.name(), doc.displayName(), doc.toolName(), doc.env(), doc.dbType(),
+            doc.labels(), doc.source(), doc.resultId(), doc.databaseName(), doc.tableName(), doc.fullPath(),
+            doc.extraText(), doc.tableComment(), doc.databaseComment());
     }
 
     private List<LuceneMcpSearchService.AssetDoc> apiServiceAssetDocs() {
@@ -306,6 +384,8 @@ public class McpAssetLuceneIndexService {
             case "ssh_host", "ssh_host_assets", "ssh_assets", "server_assets", "service_assets", "asset_ssh_host", "assets_ssh_host" -> "ssh_host";
             case "sql_datasource", "sql_datasource_assets", "database_assets", "db_assets", "asset_sql_datasource", "assets_sql_datasource" -> "sql_datasource";
             case "http_endpoint", "http_endpoint_assets", "http_assets", "asset_http_endpoint", "assets_http_endpoint" -> "http_endpoint";
+            case HTTP_ASSET_INDEX_TYPE -> HTTP_ASSET_INDEX_TYPE;
+            case MICROSERVICE_ASSET_INDEX_TYPE -> MICROSERVICE_ASSET_INDEX_TYPE;
             case "api_service", "api_service_assets", "api_assets", "asset_api_service", "assets_api_service" -> "api_service";
             default -> null;
         };

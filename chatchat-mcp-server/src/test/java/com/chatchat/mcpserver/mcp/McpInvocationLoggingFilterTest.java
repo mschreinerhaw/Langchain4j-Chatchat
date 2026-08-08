@@ -35,7 +35,8 @@ class McpInvocationLoggingFilterTest {
         when(licenseService.toolDenialReason(null))
             .thenReturn("License 已过期，MCP 调用已停止，请联系供应商续期");
         McpInvocationLoggingFilter filter = new McpInvocationLoggingFilter(
-            auditService, new ObjectMapper(), properties, authorizationService, licenseService);
+            auditService, new ObjectMapper(), properties, authorizationService, licenseService,
+            mock(McpServiceRegistryService.class));
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/mcp");
         request.setContentType("application/json");
         request.setContent("""
@@ -65,7 +66,8 @@ class McpInvocationLoggingFilterTest {
             LicenseStatus.invalid("EXPIRED", "License 已过期", "SERVER-TEST", null)
         );
         McpInvocationLoggingFilter filter = new McpInvocationLoggingFilter(
-            auditService, new ObjectMapper(), properties, authorizationService, licenseService);
+            auditService, new ObjectMapper(), properties, authorizationService, licenseService,
+            mock(McpServiceRegistryService.class));
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/mcp");
         request.addHeader("X-Tenant-Id", "tenant-1");
         request.addHeader("X-User-Id", "user-1");
@@ -100,7 +102,8 @@ class McpInvocationLoggingFilterTest {
             new ObjectMapper(),
             properties,
             authorizationService,
-            licenseService
+            licenseService,
+            mock(McpServiceRegistryService.class)
         );
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/mcp");
         request.addHeader("X-Tenant-Id", "tenant-1");

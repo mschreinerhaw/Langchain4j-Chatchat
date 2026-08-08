@@ -6,44 +6,48 @@
           <h2>{{ title }}</h2>
           <p v-if="subtitle">{{ subtitle }}</p>
         </div>
-        <div class="panel-actions">
-          <el-select
-            v-for="filter in listFilters"
-            :key="filter.key"
-            v-model="listFilterValues[filter.key]"
-            class="catalog-filter-select"
-            clearable
-            filterable
-            :placeholder="filter.placeholder || filter.label"
-          >
-            <el-option
-              v-for="option in listFilterOptions(filter)"
-              :key="option.value"
-              :label="option.label"
-              :value="option.value"
-            />
-          </el-select>
-          <el-input v-model.trim="keyword" class="search-input" clearable :placeholder="searchPlaceholder">
-            <template #prefix><el-icon><Search /></el-icon></template>
-          </el-input>
-          <el-button
-            v-if="rebuildLabel"
-            plain
-            :loading="busy"
-            :disabled="Boolean(rowOperation) || (rebuildRequiresSelection && !selectedIds.size)"
-            @click="runRebuild"
-          >
-            <el-icon><Refresh /></el-icon>
-            <span>{{ rebuildLabel }}</span>
-          </el-button>
-          <el-button v-if="refreshAction" plain :loading="busy" @click="load">
-            <el-icon><Refresh /></el-icon>
-            <span>刷新</span>
-          </el-button>
-          <el-button type="primary" @click="openCreate">
-            <el-icon><Plus /></el-icon>
-            <span>新增</span>
-          </el-button>
+        <div class="panel-actions catalog-header-actions" :class="{ 'is-stacked': stackedHeaderActions }">
+          <div class="catalog-query-actions">
+            <el-select
+              v-for="filter in listFilters"
+              :key="filter.key"
+              v-model="listFilterValues[filter.key]"
+              class="catalog-filter-select"
+              clearable
+              filterable
+              :placeholder="filter.placeholder || filter.label"
+            >
+              <el-option
+                v-for="option in listFilterOptions(filter)"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
+              />
+            </el-select>
+            <el-input v-model.trim="keyword" class="search-input" clearable :placeholder="searchPlaceholder">
+              <template #prefix><el-icon><Search /></el-icon></template>
+            </el-input>
+          </div>
+          <div class="catalog-command-actions">
+            <el-button
+              v-if="rebuildLabel"
+              plain
+              :loading="busy"
+              :disabled="Boolean(rowOperation) || (rebuildRequiresSelection && !selectedIds.size)"
+              @click="runRebuild"
+            >
+              <el-icon><Refresh /></el-icon>
+              <span>{{ rebuildLabel }}</span>
+            </el-button>
+            <el-button v-if="refreshAction" plain :loading="busy" @click="load">
+              <el-icon><Refresh /></el-icon>
+              <span>刷新</span>
+            </el-button>
+            <el-button type="primary" @click="openCreate">
+              <el-icon><Plus /></el-icon>
+              <span>新增</span>
+            </el-button>
+          </div>
         </div>
       </div>
     </template>

@@ -2,6 +2,7 @@ package com.chatchat.agents.runtime;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.batch.BatchExecutionMode;
+import com.chatchat.agents.runtime.batch.TemplateExecutionLayer;
 import com.chatchat.agents.runtime.batch.ToolCallBatch;
 import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
 import com.chatchat.agents.runtime.batch.ToolCallRequest;
@@ -26,6 +27,7 @@ import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashSet;
@@ -63,6 +65,7 @@ public class ToolRuntimeService {
     private final McpWorkflowProperties mcpWorkflowProperties;
     private final List<ToolRuntimePolicyProvider> policyProviders;
     private final List<ToolRuntimeAuditSink> auditSinks;
+    private final TemplateExecutionLayer templateExecutionLayer = new TemplateExecutionLayer();
     private final ToolRuntimeUserPolicyStore userPolicyStore;
     private final ExecutorService toolExecutionExecutor;
     private final ExecutorService auditExecutor;
@@ -267,57 +270,74 @@ public class ToolRuntimeService {
         int remoteToolInvocations = 0;
         int resultCount = 0;
         boolean timeBudgetExhausted = false;
-        boolean stop = false;
+        List<TemplateExecutionLayer.Attempt> attempts = templateExecutionLayer.execute(
+            calls,
+            (call, index) -> {
+                String callId = firstText(call == null ? null : call.callId(), "call-" + (index + 1));
+                String toolName = normalizeText(call == null ? null : call.toolName());
+                Map<String, Object> arguments = call == null || call.arguments() == null
+                    ? Map.of()
+                    : call.arguments();
+                if (call != null && call.preflightErrorCode() != null
+                    && !call.preflightErrorCode().isBlank()) {
+                    return TemplateExecutionLayer.Invocation.failed(
+                        "BLOCKED",
+                        call.preflightErrorCode(),
+                        firstText(call.preflightMessage(), "Runtime preflight blocked this admitted template")
+                    );
+                }
+                if (diagnosticRemainingTimeMs(context) == 0L) {
+                    return TemplateExecutionLayer.Invocation.terminal(
+                        DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue(),
+                        DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue(),
+                        "Diagnostic execution time budget exhausted before invocation",
+                        "BATCH_DEADLINE_EXHAUSTED",
+                        "Not executed because the Runtime execution deadline was exhausted"
+                    );
+                }
+                if (toolName == null || !batchCapableTool(toolName)) {
+                    return TemplateExecutionLayer.Invocation.failed(
+                        "FAILED",
+                        "BATCH_TOOL_NOT_ALLOWED",
+                        "Batch calls support authorized SQL, SSH, HTTP, and API template executors"
+                    );
+                }
+                ToolRuntimeRequest childRequest = batchChildRequest(
+                    context, batchId, callId, toolName, arguments, index);
+                return TemplateExecutionLayer.Invocation.completed(execute(childRequest));
+            }
+        );
 
-        for (int index = 0; index < calls.size(); index++) {
-            ToolCallRequest call = calls.get(index);
+        for (TemplateExecutionLayer.Attempt attempt : attempts) {
+            int index = attempt.index();
+            ToolCallRequest call = attempt.call();
             String callId = firstText(call == null ? null : call.callId(), "call-" + (index + 1));
             String toolName = normalizeText(call == null ? null : call.toolName());
             Map<String, Object> arguments = call == null || call.arguments() == null
                 ? Map.of()
                 : call.arguments();
-            if (stop) {
-                skipped++;
-                results.add(skippedBatchResult(context, batchId, index, callId, toolName, arguments,
-                    "NOT_EXECUTED", "BATCH_STOPPED", "Not executed because a previous call stopped the batch"));
-                continue;
-            }
-            if (diagnosticRemainingTimeMs(context) == 0L) {
-                timeBudgetExhausted = true;
-                skipped++;
-                results.add(skippedBatchResult(context, batchId, index, callId, toolName, arguments,
-                    DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue(),
-                    DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue(),
-                    "Diagnostic execution time budget exhausted before invocation"));
-                stop = true;
-                continue;
-            }
-            if (toolName == null || !batchCapableTool(toolName)) {
-                failed++;
-                results.add(skippedBatchResult(context, batchId, index, callId, toolName, arguments, "FAILED",
-                    "BATCH_TOOL_NOT_ALLOWED", "Batch calls support sql_query_execute, ssh_linux_execute, api_query_execute and their configured aliases"));
-                stop = batch != null && batch.stopOnFailure();
-                continue;
-            }
-
-            ToolRuntimeRequest childRequest = batchChildRequest(context, batchId, callId, toolName, arguments, index);
-            ToolRuntimeExecution execution;
-            try {
-                execution = execute(childRequest);
-            } catch (RuntimeException ex) {
-                failed++;
+            if (!attempt.completed()) {
+                String attemptStatus = firstText(attempt.status(), "FAILED");
+                if ("NOT_EXECUTED".equalsIgnoreCase(attemptStatus)) {
+                    skipped++;
+                } else if ("BLOCKED".equalsIgnoreCase(attemptStatus)) {
+                    blocked++;
+                } else {
+                    failed++;
+                }
+                if (DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue()
+                    .equalsIgnoreCase(attemptStatus)) {
+                    timeBudgetExhausted = true;
+                }
                 results.add(skippedBatchResult(
-                    context,
-                    batchId,
-                    index,
-                    callId, toolName, arguments,
-                    "FAILED",
-                    "BATCH_CHILD_RUNTIME_ERROR",
-                    firstText(ex.getMessage(), ex.getClass().getSimpleName())
+                    context, batchId, index, callId, toolName, arguments,
+                    attemptStatus,
+                    firstText(attempt.errorCode(), "TEMPLATE_CHILD_FAILED"),
+                    firstText(attempt.message(), "Template execution failed")
                 ));
-                stop = batch != null && batch.stopOnFailure();
                 continue;
             }
+            ToolRuntimeExecution execution = attempt.execution();
             ToolOutput output = execution == null ? null : execution.output();
             if (output != null) {
                 resultCount++;
@@ -390,12 +410,6 @@ public class ToolRuntimeService {
                 call.evidencePolicy(),
                 null
             ));
-            if (!"SUCCESS".equals(status) && batch != null && batch.stopOnFailure()) {
-                stop = true;
-            }
-            if (timeBudgetExhausted) {
-                stop = true;
-            }
         }
 
         Map<String, Object> assetArguments = calls.isEmpty() || calls.get(0) == null
@@ -467,7 +481,8 @@ public class ToolRuntimeService {
         boolean successful = DiagnosticRunStateMachine.Outcome.SUCCESS.wireValue().equals(result.status())
             || DiagnosticRunStateMachine.Outcome.PARTIAL_SUCCESS.wireValue().equals(result.status())
             || "BATCH_COMPILATION_INCOMPLETE".equals(result.status())
-            || "BATCH_RESULT_INCONSISTENT".equals(result.status());
+            || "BATCH_RESULT_INCONSISTENT".equals(result.status())
+            || failureIsolatedBatchCompleted(result);
         ToolOutput output = ToolOutput.builder()
             .success(successful)
             .data(result)
@@ -486,6 +501,9 @@ public class ToolRuntimeService {
         runtimeMetadata.put("remoteToolInvoked", false);
         runtimeMetadata.put("remoteToolInvocationCount", result.summary().remoteToolInvocations());
         runtimeMetadata.put("batchExecution", true);
+        runtimeMetadata.put("templateExecutionLayer", true);
+        runtimeMetadata.put("failureIsolation", true);
+        runtimeMetadata.put("requestedStopOnFailureIgnored", batch != null && batch.stopOnFailure());
         runtimeMetadata.put("batchId", result.batchId());
         runtimeMetadata.put("declaredCheckCount", result.cardinality().declaredCheckCount());
         runtimeMetadata.put("compiledCallCount", result.cardinality().compiledCallCount());
@@ -511,6 +529,18 @@ public class ToolRuntimeService {
             result.status().toLowerCase(Locale.ROOT),
             runtimeMetadata
         );
+    }
+
+    private boolean failureIsolatedBatchCompleted(ToolCallBatchResult result) {
+        if (result == null || result.cardinality() == null || result.summary() == null) {
+            return false;
+        }
+        if (DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue()
+            .equalsIgnoreCase(result.status())) {
+            return false;
+        }
+        return result.cardinality().compiledCallCount() > 0
+            && result.results().size() == result.summary().total();
     }
 
     private ToolRuntimeExecution executeOnce(ToolRuntimeRequest request) {
@@ -1342,7 +1372,7 @@ public class ToolRuntimeService {
                                             Map<String, Object> runtimeMetadata) {
         // Traces cross HTTP, event-store and feedback boundaries. They are an
         // operational preview, never the authoritative evidence payload.
-        String outputText = stringify(ToolLogSummarizer.summarizeResult(
+        String outputText = stringify(traceOutputSummary(
             toolName, output == null ? null : output.getData()));
         return InteractionToolTrace.builder()
             .toolName(toolName)
@@ -1358,6 +1388,40 @@ public class ToolRuntimeService {
             .finishedAt(finishedAt)
             .runtimeMetadata(runtimeMetadata)
             .build();
+    }
+
+    /**
+     * Keeps the bounded operational summary and the Runtime-owned routing contract together.
+     * Large discovery results may already have been externalized before trace construction;
+     * their projection must remain structured so a dependent tool can compile its invocation.
+     */
+    private Object traceOutputSummary(String toolName, Object data) {
+        Object summary = ToolLogSummarizer.summarizeResult(toolName, data);
+        Map<String, Object> projection = existingRoutingProjection(data);
+        if (projection.isEmpty()) {
+            projection = routingProjection(data);
+        }
+        if (projection.isEmpty()) {
+            return summary;
+        }
+        Map<String, Object> enriched = summary instanceof Map<?, ?> map
+            ? new LinkedHashMap<>(asMap(map))
+            : new LinkedHashMap<>();
+        if (!(summary instanceof Map<?, ?>)) {
+            enriched.put("summary", summary);
+        }
+        enriched.put("routingProjection", projection);
+        return enriched;
+    }
+
+    private Map<String, Object> existingRoutingProjection(Object data) {
+        if (!(data instanceof Map<?, ?> map)) {
+            return Map.of();
+        }
+        Object projection = map.get("routingProjection");
+        return projection instanceof Map<?, ?> projectionMap
+            ? new LinkedHashMap<>(asMap(projectionMap))
+            : Map.of();
     }
 
     /**
@@ -1431,6 +1495,8 @@ public class ToolRuntimeService {
             return null;
         }
         List<ToolCallRequest> parsedCalls = new ArrayList<>();
+        boolean runtimeOwnedPreflight = request.getAttributes() != null
+            && Boolean.TRUE.equals(request.getAttributes().get("runtimeOwnedTemplatePreflight"));
         int index = 0;
         for (Object item : calls) {
             index++;
@@ -1443,6 +1509,7 @@ public class ToolRuntimeService {
                 stringValue(firstPresent(call.get("toolName"), call.get("tool_name"))),
                 request.getToolName()
             );
+            toolName = resolveBatchChildToolName(request, toolName);
             Map<String, Object> arguments = asMap(firstPresent(
                 call.get("arguments"), call.get("input"), call.get("parameters")
             ));
@@ -1465,7 +1532,11 @@ public class ToolRuntimeService {
                     call.get("freshnessMaxAgeSeconds"), call.get("freshness_max_age_seconds")))
             );
             parsedCalls.add(new ToolCallRequest(
-                callId, toolName, arguments, emptyResultIsSuccess, requiredFields, evidencePolicy));
+                callId, toolName, arguments, emptyResultIsSuccess, requiredFields, evidencePolicy,
+                runtimeOwnedPreflight ? stringValue(firstPresent(
+                    call.get("preflightErrorCode"), call.get("preflight_error_code"))) : null,
+                runtimeOwnedPreflight ? stringValue(firstPresent(
+                    call.get("preflightMessage"), call.get("preflight_message"))) : null));
         }
         String mode = firstText(
             stringValue(firstPresent(parameters.get("executionMode"), parameters.get("execution_mode"))),
@@ -1482,6 +1553,23 @@ public class ToolRuntimeService {
             firstText(request.getRequestId(), UUID.randomUUID().toString()) + "-batch"
         );
         return new ToolCallBatch(batchId, BatchExecutionMode.SEQUENTIAL, stopOnFailure, parsedCalls);
+    }
+
+    private String resolveBatchChildToolName(ToolRuntimeRequest request, String declaredTool) {
+        if (declaredTool == null || declaredTool.isBlank()) {
+            return request == null ? declaredTool : request.getToolName();
+        }
+        if (request != null && request.getAllowedTools() != null) {
+            for (String allowedTool : request.getAllowedTools()) {
+                if (sameTool(allowedTool, declaredTool)) {
+                    return allowedTool;
+                }
+            }
+        }
+        if (request != null && sameTool(request.getToolName(), declaredTool)) {
+            return request.getToolName();
+        }
+        return declaredTool;
     }
 
     private BatchValidation validateBatchEnvelope(ToolRuntimeRequest request) {
@@ -2418,6 +2506,14 @@ public class ToolRuntimeService {
         }
 
         List<String> dependencies = new ArrayList<>();
+        List<String> authoritativeDependencies = authoritativeWorkflowDependencies(request, toolName);
+        boolean authoritativeSequence = authoritativeDependencies != null
+            && authoritativeWorkflowHasEdges(request);
+        boolean authoritativeOptionalTool = authoritativeDependencies == null
+            && authoritativeWorkflowConfigured(request)
+            && workflow != null
+            && workflowStep(workflow, toolName) != null
+            && !workflowStep(workflow, toolName).isRequired();
         if (globalDependency != null && globalDependency.getDependsOn() != null) {
             dependencies.addAll(globalDependency.getDependsOn());
             matchedRules.add("tool_dependencies." + toolName + "=" + globalDependency.getDependsOn());
@@ -2436,27 +2532,38 @@ public class ToolRuntimeService {
                 return new WorkflowDecision(true, workflowName, stateKey, ToolRuntimeAction.DENY,
                     "Tool " + toolName + " is not part of MCP workflow " + workflowName, matchedRules);
             }
-            if (currentStep.getDependsOn() != null) {
+            if ((!authoritativeSequence || authoritativeOptionalTool)
+                && currentStep.getDependsOn() != null) {
                 dependencies.addAll(currentStep.getDependsOn());
             }
             if (currentStep.getOptionalDependsOn() != null && !currentStep.getOptionalDependsOn().isEmpty()) {
                 matchedRules.add("workflow." + workflowName + "." + toolName + ".optionalDependsOn=" + currentStep.getOptionalDependsOn());
             }
-            WorkflowDecision sequenceDecision = validateWorkflowSequence(
-                workflowName,
-                workflow,
-                currentStep,
-                toolName,
-                completed,
-                attempted,
-                completedFacts,
-                targetRefs,
-                strategy,
-                matchedRules,
-                stateKey
-            );
-            if (sequenceDecision.action() == ToolRuntimeAction.DENY) {
-                return sequenceDecision;
+            if (!authoritativeSequence && !authoritativeOptionalTool) {
+                WorkflowDecision sequenceDecision = validateWorkflowSequence(
+                    workflowName,
+                    workflow,
+                    currentStep,
+                    toolName,
+                    completed,
+                    attempted,
+                    completedFacts,
+                    targetRefs,
+                    strategy,
+                    matchedRules,
+                    stateKey
+                );
+                if (sequenceDecision.action() == ToolRuntimeAction.DENY) {
+                    return sequenceDecision;
+                }
+            } else {
+                if (authoritativeDependencies != null) {
+                    dependencies.addAll(authoritativeDependencies);
+                    matchedRules.add("authoritative_workflow_dag." + toolName + "=" + authoritativeDependencies);
+                } else {
+                    matchedRules.add("authoritative_workflow_dag.optional_tool." + toolName
+                        + "=explicit_dependencies_only");
+                }
             }
             if (currentStep.getCondition() != null && !currentStep.getCondition().isBlank()) {
                 Map<String, Object> context = workflowContext(request, toolInput);
@@ -2534,6 +2641,47 @@ public class ToolRuntimeService {
             || "high".equals(risk)
             || "forbidden".equals(risk)
             || (!operation.isBlank() && !"read".equals(operation) && !"readonly".equals(operation) && !"read_only".equals(operation));
+    }
+
+    private boolean authoritativeWorkflowHasEdges(ToolRuntimeRequest request) {
+        Object rawDag = request == null || request.getAttributes() == null
+            ? null : request.getAttributes().get("authoritativeWorkflowDag");
+        if (!(rawDag instanceof Collection<?> nodes)) {
+            return false;
+        }
+        return nodes.stream()
+            .filter(Map.class::isInstance)
+            .map(Map.class::cast)
+            .map(node -> node.get("dependsOnTools"))
+            .filter(Collection.class::isInstance)
+            .map(Collection.class::cast)
+            .anyMatch(dependencies -> !dependencies.isEmpty());
+    }
+
+    private boolean authoritativeWorkflowConfigured(ToolRuntimeRequest request) {
+        Object rawDag = request == null || request.getAttributes() == null
+            ? null : request.getAttributes().get("authoritativeWorkflowDag");
+        return rawDag instanceof Collection<?> nodes && !nodes.isEmpty();
+    }
+
+    /** Returns null when the current tool is not governed by the authoritative DAG. */
+    private List<String> authoritativeWorkflowDependencies(ToolRuntimeRequest request, String toolName) {
+        Object rawDag = request == null || request.getAttributes() == null
+            ? null : request.getAttributes().get("authoritativeWorkflowDag");
+        if (!(rawDag instanceof Collection<?> nodes)) {
+            return null;
+        }
+        for (Object value : nodes) {
+            if (!(value instanceof Map<?, ?> node)) {
+                continue;
+            }
+            String configuredTool = stringValue(firstPresent(node.get("tool"), node.get("toolName")));
+            if (!sameTool(configuredTool, toolName)) {
+                continue;
+            }
+            return stringList(firstPresent(node.get("dependsOnTools"), node.get("depends_on_tools")));
+        }
+        return null;
     }
 
     /**
@@ -2872,6 +3020,61 @@ public class ToolRuntimeService {
     }
 
     /**
+     * Resolves a Runtime-owned large-output reference for in-process evidence review.
+     * The bounded reference remains the value used for persistence, audit, and UI
+     * transport; reviewers use the complete stored value so a preview cannot be
+     * mistaken for the tool's full result contract.
+     */
+    public Object resolveOutputForEvidenceReview(ToolOutput output) {
+        if (output == null) {
+            return null;
+        }
+        Object data = output.getData();
+        if (!(data instanceof Map<?, ?> reference)
+            || !Boolean.TRUE.equals(reference.get("outputExternal"))
+            || !Boolean.TRUE.equals(reference.get("outputTruncated"))) {
+            return data;
+        }
+        Object documentIdValue = reference.get("documentId");
+        if (documentIdValue == null || String.valueOf(documentIdValue).isBlank()) {
+            return data;
+        }
+        String documentId = String.valueOf(documentIdValue);
+        String evidenceId = stringValue(reference.get("evidenceId"));
+        Map<String, Object> metadata = output.getMetadata();
+        if (metadata == null
+            || !documentId.equals(stringValue(metadata.get("outputDocumentId")))
+            || evidenceId == null
+            || !evidenceId.equals(stringValue(metadata.get("outputEvidenceId")))) {
+            log.warn("Rejected unverified externalized tool output reference documentId={}", documentId);
+            return data;
+        }
+        AgentEvidenceStore store = evidenceStore;
+        if (store == null || !store.isEnabled()) {
+            return data;
+        }
+        try {
+            Optional<String> stored = store.get(documentId);
+            if (stored.isEmpty() || stored.get().isBlank()) {
+                log.warn("Externalized tool output unavailable for evidence review documentId={}", documentId);
+                return data;
+            }
+            String storedHash = sha256(stored.get());
+            if (!evidenceId.endsWith(storedHash.substring(0, 24))) {
+                log.warn("Externalized tool output failed integrity verification documentId={}", documentId);
+                return data;
+            }
+            Object resolved = objectMapper.readValue(stored.get(), Object.class);
+            log.debug("Resolved externalized tool output for evidence review documentId={}", documentId);
+            return resolved;
+        } catch (Exception ex) {
+            log.warn("Failed to resolve externalized tool output for evidence review documentId={} error={}",
+                documentId, ex.getMessage());
+            return data;
+        }
+    }
+
+    /**
      * Preserves the small, redacted control-plane portion of discovery results
      * when the evidence payload itself has to be externalized. The projection is
      * derived from MCP output contracts, never from model arguments. It keeps the
@@ -2896,12 +3099,35 @@ public class ToolRuntimeService {
         if (!projectedTemplates.isEmpty()) {
             projection.put("templates", List.copyOf(projectedTemplates));
         }
-        if (projectedAssets.isEmpty() && projectedTemplates.isEmpty()) {
+        Map<String, Object> selectedAsset = projectedSelectedAsset(source);
+        if (!selectedAsset.isEmpty()) {
+            projection.put("queryIr", Map.of("asset", Map.of("selected", selectedAsset)));
+        }
+        if (projectedAssets.isEmpty() && projectedTemplates.isEmpty() && selectedAsset.isEmpty()) {
             return Map.of();
         }
         projection.put("returnedCount", !projectedTemplates.isEmpty()
             ? projectedTemplates.size() : projectedAssets.size());
         return Map.copyOf(projection);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> projectedSelectedAsset(Map<?, ?> source) {
+        Object queryIr = source.get("queryIr");
+        if (!(queryIr instanceof Map<?, ?> queryMap)
+            || !(queryMap.get("asset") instanceof Map<?, ?> assetEnvelope)
+            || !(assetEnvelope.get("selected") instanceof Map<?, ?> selected)) {
+            return Map.of();
+        }
+        Map<String, Object> identity = new LinkedHashMap<>();
+        copyRoutingField(identity, selected, "id", "id", "assetId");
+        copyRoutingField(identity, selected, "name", "name", "assetName", "displayName");
+        copyRoutingField(identity, selected, "displayName", "displayName", "name");
+        copyRoutingField(identity, selected, "environment", "environment", "env");
+        copyRoutingField(identity, selected, "toolName", "toolName", "tool_name");
+        copyRoutingField(identity, selected, "databaseRole", "databaseRole", "database_role");
+        copyRoutingField(identity, selected, "type", "type", "assetType");
+        return identity.isEmpty() ? Map.of() : Map.copyOf(identity);
     }
 
     private List<Map<String, Object>> projectedAssets(Object value) {
@@ -2950,7 +3176,7 @@ public class ToolRuntimeService {
                 "rank", "relevanceScore", "decisionScore", "matchReasons", "intentSignals",
                 "capabilitySpec", "outputSchema", "dependencySpec", "parameterSchema", "inputSchema",
                 "requiredParameters", "parameterContract", "executionContext", "datasourceAsset",
-                "sqlExecutionBinding", "executionBinding", "execution", "enabled"
+                "sqlExecutionBinding", "executionBinding", "execution", "invocationExample", "enabled"
             )) {
                 Object field = template.get(key);
                 if (field != null) contract.put(key, field);

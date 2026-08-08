@@ -27,6 +27,8 @@ class EnterpriseMetadataMatchingServiceTest {
             mock(MetadataGovernancePolicyService.class);
         MetadataGovernancePolicy policy = policy();
         when(policyService.current()).thenReturn(policy);
+        when(policyService.claimCoverage()).thenReturn(MetadataGovernancePolicyService.claimCoverage(
+            policy.getClaimCoverage(), policy.getVersion()));
         when(searchService.search(any())).thenAnswer(invocation ->
             searchResult(invocation.getArgument(0)));
         EnterpriseMetadataCatalog catalog = mock(EnterpriseMetadataCatalog.class);
@@ -148,6 +150,27 @@ class EnterpriseMetadataMatchingServiceTest {
     }
 
     @Test
+    void usesCallerLimitForEverySuppliedFieldWithoutApplyingLegacyFixedCap() {
+        Map<String, Object> result = service.match(Map.of(
+            "fields", List.of(
+                Map.of("fieldName", "customer_name"),
+                Map.of("fieldName", "open_date")
+            ),
+            "limit", 135
+        ));
+
+        assertThat(map(result.get("coverage")))
+            .containsEntry("inputFieldCount", 2)
+            .containsEntry("processedFieldCount", 2)
+            .containsEntry("allFieldsProcessed", true);
+        ArgumentCaptor<EnterpriseMetadataSearchService.SearchRequest> requests =
+            ArgumentCaptor.forClass(EnterpriseMetadataSearchService.SearchRequest.class);
+        verify(searchService, org.mockito.Mockito.times(6)).search(requests.capture());
+        assertThat(requests.getAllValues())
+            .allSatisfy(request -> assertThat(request.limit()).isEqualTo(135));
+    }
+
+    @Test
     void expandsEveryColumnFromCreateTableBeforeSearching() {
         when(governanceAnalysisService.annotateDdl(any())).thenReturn(governanceResult(
             "metadata_ddl_annotation.v1", "DDL", "customer_profile"));
@@ -163,6 +186,16 @@ class EnterpriseMetadataMatchingServiceTest {
             .containsEntry("table", "customer_profile")
             .containsEntry("fieldCount", 2);
         assertThat(maps(result.get("fieldMatches"))).hasSize(2);
+        assertThat(map(result.get("claimCoverage")))
+            .containsEntry("contractVersion", "enterprise_metadata_claim_coverage.v1")
+            .containsEntry("fullTableDesignConformanceSupported", false)
+            .containsEntry("declarationSource", "metadata_governance_policy")
+            .containsEntry("policyVersion", "test-policy-v1");
+        assertThat(map(result.get("fieldConformanceAssessment")))
+            .containsEntry("scope", "FIELD_METADATA_CONFORMANCE")
+            .containsEntry("conformsWithinScope", false)
+            .containsEntry("differenceCount", 1)
+            .containsEntry("fullTableDesignConformance", "NOT_ASSESSED");
         verify(searchService, org.mockito.Mockito.times(6)).search(any());
     }
 
@@ -196,6 +229,15 @@ class EnterpriseMetadataMatchingServiceTest {
             "schemaVersion", schemaVersion,
             "analysisSource", source,
             "table", table,
+            "conforms", false,
+            "differenceCount", 1,
+            "severityCounts", Map.of("WARNING", 1),
+            "differences", List.of(Map.of(
+                "field", "open_date",
+                "code", "NULLABILITY_MISMATCH",
+                "severity", "WARNING"
+            )),
+            "factBoundary", "physical_schema_and_maintained_enterprise_metadata_catalog",
             "columns", List.of(
                 Map.of("physical", Map.of(
                     "name", "customer_name",
@@ -262,6 +304,7 @@ class EnterpriseMetadataMatchingServiceTest {
 
     private MetadataGovernancePolicy policy() {
         MetadataGovernancePolicy policy = new MetadataGovernancePolicy();
+        policy.setVersion("test-policy-v1");
         MetadataGovernancePolicy.MetadataContract contract =
             policy.getMetadataContract();
         contract.setFieldType("metadata_field");

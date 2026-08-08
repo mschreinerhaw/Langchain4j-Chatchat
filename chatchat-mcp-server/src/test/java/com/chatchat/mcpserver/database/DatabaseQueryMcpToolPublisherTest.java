@@ -3,6 +3,7 @@ package com.chatchat.mcpserver.database;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.server.McpServerFeatures;
+import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -25,6 +26,10 @@ class DatabaseQueryMcpToolPublisherTest {
             mock(McpServerFeatures.SyncToolSpecification.class);
         McpServerFeatures.SyncToolSpecification marketSpec =
             mock(McpServerFeatures.SyncToolSpecification.class);
+        McpSchema.Tool validationTool = mock(McpSchema.Tool.class);
+        when(validationSpec.tool()).thenReturn(validationTool);
+        when(validationTool.name()).thenReturn("data_validation_validate_customer_asset");
+        when(mcpSyncServer.listTools()).thenReturn(List.of());
         when(configService.listEnabled()).thenReturn(List.of(validation, market));
         when(toolSpecFactory.toToolSpecification(validation)).thenReturn(validationSpec);
         when(toolSpecFactory.toToolSpecification(market)).thenReturn(marketSpec);

@@ -67,8 +67,7 @@ public class EnterpriseMetadataSearchService {
         List<String> requestedTypes = normalizeTypes(effective.types());
         List<String> statuses = normalizeValues(effective.statuses());
         List<String> scenarios = normalizeValues(effective.scenarios());
-        int limit = effective.limit() == null ? properties.getDefaultLimit() : effective.limit();
-        limit = Math.max(1, Math.min(limit, properties.getMaxResults()));
+        int limit = requestedLimit(effective.limit());
         String expandedQuery = expandedQuery(query);
 
         String semanticQuery = scenarioClassifier.enrichQuery(expandedQuery);
@@ -148,6 +147,7 @@ public class EnterpriseMetadataSearchService {
             "sampleValuesIncluded", false,
             "sourceAuthority", "configured_enterprise_metadata_catalog"
         ));
+        response.put("claimCoverage", policyService.claimCoverage());
         return response;
     }
 
@@ -276,7 +276,7 @@ public class EnterpriseMetadataSearchService {
             return openSearch.searchEnterpriseMetadata(
                     properties.getIndexName(), query, types, statuses, scenarios, queryVector,
                     properties.getKnn().getVectorField(),
-                    properties.getKnn().getCandidateLimit(),
+                    Math.max(properties.getKnn().getCandidateLimit(), limit),
                     properties.getKnn().getBm25Weight(),
                     properties.getKnn().getVectorWeight(),
                     limit)
@@ -471,6 +471,14 @@ public class EnterpriseMetadataSearchService {
         }
         return configured.stream().map(this::normalize).filter(java.util.Objects::nonNull)
             .distinct().toList();
+    }
+
+    private int requestedLimit(Integer value) {
+        int requested = value == null ? properties.getDefaultLimit() : value;
+        if (requested < 1) {
+            throw new IllegalArgumentException("limit must be greater than 0");
+        }
+        return requested;
     }
 
     private MetadataGovernancePolicy.MetadataContract metadataContract() {

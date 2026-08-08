@@ -5,10 +5,13 @@
         <h2>执行命令审计</h2>
         <p>查询 SQL、SQL 脚本、数据库模板和 Linux 命令的执行记录。</p>
       </div>
-      <el-button type="primary" :disabled="busy" :loading="busy" @click="search">
-        <el-icon><Search /></el-icon>
-        <span>查询</span>
-      </el-button>
+      <div class="panel-actions">
+        <el-button type="danger" plain :disabled="busy" @click="cleanupOpen = true">清理</el-button>
+        <el-button type="primary" :disabled="busy" :loading="busy" @click="search">
+          <el-icon><Search /></el-icon>
+          <span>查询</span>
+        </el-button>
+      </div>
     </header>
 
     <el-row :gutter="12">
@@ -85,6 +88,14 @@
     <ModalPanel :open="detailOpen" title="命令审计详情" wide @close="detailOpen = false">
       <JsonBlock :value="detail" />
     </ModalPanel>
+    <AuditCleanupDialog
+      :open="cleanupOpen"
+      title="清理命令审计日志"
+      audit-category="COMMAND_EXECUTION"
+      @close="cleanupOpen = false"
+      @cleared="handleCleared"
+      @error="$emit('error', $event)"
+    />
   </section>
 </template>
 

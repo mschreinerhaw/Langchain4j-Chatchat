@@ -186,12 +186,16 @@ export default {
       availableTools: [],
       registeredMcpTools: [],
       models: [],
+      backendDefaultModelName: "",
       documents: [],
       loading: false,
       saving: false,
       dialogOpen: false,
       dialogMode: "create",
       activeAgent: null,
+      recallConfirmOpen: false,
+      recallTarget: null,
+      recallConfirmError: "",
       form: emptyForm(),
       importDialogOpen: false,
       importText: "",
@@ -456,7 +460,8 @@ export default {
         this.agentPageCount = payload?.page?.totalPages || 1;
         this.availableTools = Array.isArray(payload?.availableTools) ? payload.availableTools : [];
         this.registeredMcpTools = Array.isArray(payload?.registeredMcpTools) ? payload.registeredMcpTools : [];
-        this.models = Array.isArray(payload?.models) ? payload.models : [];
+        this.models = this.normalizeModelOptions(payload?.models);
+        this.backendDefaultModelName = String(payload?.defaultModelName || "").trim();
         this.documents = Array.isArray(payload?.documents) ? payload.documents : [];
         this.normalizeAgentFilters();
       } catch (error) {
@@ -474,6 +479,25 @@ export default {
         }
         return left.localToolName.localeCompare(right.localToolName);
       });
+    },
+    normalizeModelOptions(value) {
+      if (!Array.isArray(value)) {
+        return [];
+      }
+      const options = [];
+      const seen = new Set();
+      value.forEach((entry) => {
+        const modelValue = String(typeof entry === "string" ? entry : entry?.value || "").trim();
+        if (!modelValue || seen.has(modelValue)) {
+          return;
+        }
+        seen.add(modelValue);
+        options.push({
+          value: modelValue,
+          label: String(typeof entry === "object" ? entry?.label || modelValue : modelValue).trim()
+        });
+      });
+      return options;
     },
     resolveToolGroup(tool) {
       if (this.toolGroupMode === "category") {
@@ -1426,20 +1450,37 @@ export default {
         this.saving = false;
       }
     },
-    async recallAgent(agent) {
+    recallAgent(agent) {
       if (!agent?.id || agent.marketStatus !== "published") {
         return;
       }
-      if (!window.confirm(`确认从能力市场回收「${agent.name || agent.id}」？`)) {
+      this.recallTarget = agent;
+      this.recallConfirmError = "";
+      this.recallConfirmOpen = true;
+    },
+    closeRecallConfirm() {
+      if (this.saving) {
+        return;
+      }
+      this.recallConfirmOpen = false;
+      this.recallTarget = null;
+      this.recallConfirmError = "";
+    },
+    async confirmRecallAgent() {
+      const agent = this.recallTarget;
+      if (!agent?.id || agent.marketStatus !== "published" || this.saving) {
         return;
       }
       this.saving = true;
       this.error = "";
+      this.recallConfirmError = "";
       try {
         await recallWorkshopAgent(agent.id);
+        this.recallConfirmOpen = false;
+        this.recallTarget = null;
         await this.loadWorkshop();
       } catch (error) {
-        this.error = error.message || "能力回收失败";
+        this.recallConfirmError = error.message || "能力回收失败，请稍后重试。";
       } finally {
         this.saving = false;
       }
@@ -1478,7 +1519,9 @@ export default {
       this.syncWorkflowSteps([...selected].sort());
     },
     defaultModelName() {
-      return this.models.find((model) => model?.value)?.value || "";
+      return this.backendDefaultModelName
+        || this.models.find((model) => model?.value)?.value
+        || "";
     }
   }
 };

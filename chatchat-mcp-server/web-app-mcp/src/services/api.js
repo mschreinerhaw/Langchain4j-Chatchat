@@ -113,8 +113,12 @@ export const assetsApi = {
   saveSqlTemplate: template => saveEntity(`${API_BASE}/sql/templates`, template),
   deleteSqlTemplate: id => apiFetch(`${API_BASE}/sql/templates/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   rebuildAssetIndex: assetType => apiFetch(`${SEARCH_INDEX_URL}${assetType ? `/assets/${encodeURIComponent(assetType)}/rebuild` : '/assets/rebuild'}`, { method: 'POST' }),
+  rebuildSelectedSshAssetIndexes: ids => apiFetch(`${SEARCH_INDEX_URL}/assets/ssh_host/rebuild-selected`, { method: 'POST', body: JSON.stringify({ ids: ids || [] }) }),
   rebuildSelectedSqlAssetIndexes: ids => apiFetch(`${SEARCH_INDEX_URL}/assets/sql_datasource/rebuild-selected`, { method: 'POST', body: JSON.stringify({ ids: ids || [] }) }),
+  rebuildSelectedHttpAssetIndexes: ids => apiFetch(`${SEARCH_INDEX_URL}/assets/http_endpoint/rebuild-selected`, { method: 'POST', body: JSON.stringify({ ids: ids || [] }) }),
   rebuildTemplateIndex: () => apiFetch(`${SEARCH_INDEX_URL}/templates/rebuild`, { method: 'POST' }),
+  rebuildSelectedCommandTemplateIndexes: ids => apiFetch(`${SEARCH_INDEX_URL}/templates/ssh-command/rebuild-selected`, { method: 'POST', body: JSON.stringify({ ids: ids || [] }) }),
+  rebuildSelectedSqlTemplateIndexes: ids => apiFetch(`${SEARCH_INDEX_URL}/templates/sql/rebuild-selected`, { method: 'POST', body: JSON.stringify({ ids: ids || [] }) }),
   rebuildEnterpriseMetadataIndex: () => apiFetch(`${SEARCH_INDEX_URL}/enterprise-metadata/rebuild`, { method: 'POST' }),
   enterpriseMetadataStatus: () => apiFetch(`${API_BASE}/admin/enterprise-metadata/status`),
   searchIndex: request => apiFetch(`${SEARCH_INDEX_URL}/search`, { method: 'POST', body: JSON.stringify(request || {}) }),
@@ -177,6 +181,11 @@ export const auditApi = {
     return apiFetch(`${API_BASE}/audit-logs${query.toString() ? `?${query}` : ''}`);
   },
   get: id => apiFetch(`${API_BASE}/audit-logs/${encodeURIComponent(id)}`),
+  cleanup: ({ from, to, auditCategory = '' }) => {
+    const query = new URLSearchParams({ from: String(from), to: String(to) });
+    if (auditCategory) query.set('auditCategory', auditCategory);
+    return apiFetch(`${API_BASE}/audit-logs?${query}`, { method: 'DELETE' });
+  },
   listCommands: params => {
     const query = new URLSearchParams();
     Object.entries(params || {}).forEach(([key, value]) => {
@@ -185,6 +194,20 @@ export const auditApi = {
     return apiFetch(`${API_BASE}/audit-logs/commands${query.toString() ? `?${query}` : ''}`);
   },
   getCommand: id => apiFetch(`${API_BASE}/audit-logs/commands/${encodeURIComponent(id)}`)
+};
+
+export const templateQueryPublicationsApi = {
+  list: () => apiFetch(`${API_BASE}/template-query-publications`),
+  templates: (roleId, parentToolName) => apiFetch(`${API_BASE}/template-query-publications/templates?roleId=${encodeURIComponent(roleId)}&parentToolName=${encodeURIComponent(parentToolName)}`),
+  members: roleId => apiFetch(`${API_BASE}/template-query-publications/members?roleId=${encodeURIComponent(roleId)}`),
+  parents: () => apiFetch(`${API_BASE}/template-query-publications/parents`),
+  roles: () => apiFetch(`${API_BASE}/template-query-publications/roles`),
+  save: binding => saveEntity(`${API_BASE}/template-query-publications`, binding),
+  remove: id => apiFetch(`${API_BASE}/template-query-publications/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  setEnabled: (id, enabled) => apiFetch(
+    `${API_BASE}/template-query-publications/${encodeURIComponent(id)}/enabled?enabled=${enabled}`,
+    { method: 'POST' }
+  )
 };
 
 export const authorizationApi = {

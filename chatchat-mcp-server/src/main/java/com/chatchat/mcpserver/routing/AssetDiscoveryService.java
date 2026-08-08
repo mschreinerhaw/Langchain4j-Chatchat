@@ -1,6 +1,8 @@
 package com.chatchat.mcpserver.routing;
 
+import com.chatchat.mcpserver.ops.HttpEndpointConfig;
 import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
+import com.chatchat.mcpserver.ops.HttpEndpointTechnicalType;
 import com.chatchat.mcpserver.ops.SshHostConfigService;
 import com.chatchat.mcpserver.search.LuceneMcpSearchService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
@@ -125,6 +127,7 @@ public class AssetDiscoveryService {
             filters
         );
         String assetType = target.definition().assetType();
+        String technicalType = technicalType(arguments, assetType);
         enforceBoundAssetFilter(arguments, filters, assetType);
         boolean broadDiscovery = !hasContextFilter(filters) && !hasRetrievalFilter(filters);
         filters.putIfAbsent("filtersSchemaVersion", target.filtersSchemaVersion());
@@ -132,21 +135,23 @@ public class AssetDiscoveryService {
         if (target.reviewRequired()) {
             return reviewResult(target, filters, limit, startedAt);
         }
-        List<Map<String, Object>> allAssets = allAssets(assetType);
-        List<Map<String, Object>> matchedAll = matchingAssetsFromLucene(allAssets, assetType, filters, searchLimit(limit, allAssets.size()));
+        List<Map<String, Object>> allAssets = allAssets(assetType, technicalType);
+        List<Map<String, Object>> matchedAll = matchingAssetsFromLucene(
+            allAssets, assetType, technicalType, filters, searchLimit(limit, allAssets.size()));
         List<Map<String, Object>> matched = applyLimit(matchedAll, limit);
-        List<Map<String, Object>> unavailableMatched = unavailableAssets(assetType, filters, limit);
+        List<Map<String, Object>> unavailableMatched = unavailableAssets(assetType, technicalType, filters, limit);
         AssetSelection selection = applyBoundAssetSelection(arguments, allAssets, matched, assetType);
         matched = selection.assets();
         Map<String, Object> compactFilters = compactFilters(filters);
 
-        return mapOf(
+        Map<String, Object> result = mapOf(
             "schemaVersion", RESULT_SCHEMA_VERSION,
             "querySchemaVersion", QUERY_SCHEMA_VERSION,
             "success", true,
             "view", view(arguments),
             "routingPolicyVersion", AssetMetadataFactory.ROUTING_POLICY_VERSION,
             "targetKind", target.definition().targetKind(),
+            "technicalType", technicalType,
             "filtersSchemaVersion", target.filtersSchemaVersion(),
             "discoveryPolicy", mapOf(
                 "readOnly", true,
@@ -169,6 +174,10 @@ public class AssetDiscoveryService {
             "assets", matched,
             "unavailableAssets", unavailableMatched
         );
+        if (technicalType == null) {
+            result.remove("technicalType");
+        }
+        return result;
     }
 
     private void enforceBoundAssetFilter(Map<String, Object> arguments,
@@ -262,6 +271,7 @@ public class AssetDiscoveryService {
 
     private List<Map<String, Object>> matchingAssetsFromLucene(List<Map<String, Object>> assets,
                                                                String assetType,
+                                                               String technicalType,
                                                                Map<String, Object> filters,
                                                                int limit) {
         // The registry is the source of truth for an explicitly named logical asset. Searching the
@@ -288,7 +298,7 @@ public class AssetDiscoveryService {
                 byId.put(id, asset);
             }
         });
-        LuceneMcpSearchService.AssetSearchRequest request = assetSearchRequest(assetType, filters, limit);
+        LuceneMcpSearchService.AssetSearchRequest request = assetSearchRequest(assetType, technicalType, filters, limit);
         List<LuceneMcpSearchService.SearchHit> hits = luceneSearchService.searchAssets(request);
         Map<String, LuceneMcpSearchService.SearchHit> bestHitByAssetId = new LinkedHashMap<>();
         hits.forEach(hit -> {
@@ -475,16 +485,24 @@ public class AssetDiscoveryService {
     }
 
     private LuceneMcpSearchService.AssetSearchRequest assetSearchRequest(String assetType,
+                                                                         String technicalType,
                                                                          Map<String, Object> filters,
                                                                          int limit) {
         return new LuceneMcpSearchService.AssetSearchRequest(
-            normalize(assetType),
+            assetIndexType(assetType, technicalType),
             firstText(text(firstValue(filters, "assetName", "asset_name", "name")), retrievalText(filters)),
             text(firstValue(filters, "env", "environment")),
             text(firstValue(filters, "databaseType", "dbType", "dialect")),
             contextTokens(filters),
             limit
         );
+    }
+
+    private String assetIndexType(String assetType, String technicalType) {
+        if (!equalsNormalized(assetType, "http_endpoint") || technicalType == null) return normalize(assetType);
+        return HttpEndpointTechnicalType.from(technicalType) == HttpEndpointTechnicalType.MICROSERVICE
+            ? com.chatchat.mcpserver.search.McpAssetLuceneIndexService.MICROSERVICE_ASSET_INDEX_TYPE
+            : com.chatchat.mcpserver.search.McpAssetLuceneIndexService.HTTP_ASSET_INDEX_TYPE;
     }
 
     @SuppressWarnings("unchecked")
@@ -519,7 +537,7 @@ public class AssetDiscoveryService {
         return text(((Map<String, Object>) map).get("id"));
     }
 
-    private List<Map<String, Object>> allAssets(String assetType) {
+    private List<Map<String, Object>> allAssets(String assetType, String technicalType) {
         List<Map<String, Object>> assets = new ArrayList<>();
         if (assetType == null || equalsNormalized(assetType, "ssh_host")) {
             assets.addAll(safeList(hostConfigService.listEnabled()).stream().map(assetMetadataFactory::sshAsset).toList());
@@ -528,12 +546,15 @@ public class AssetDiscoveryService {
             assets.addAll(safeList(datasourceConfigService.listEnabled()).stream().map(assetMetadataFactory::sqlDatasource).toList());
         }
         if (assetType == null || equalsNormalized(assetType, "http_endpoint")) {
-            assets.addAll(safeList(httpEndpointConfigService.listEnabled()).stream().map(assetMetadataFactory::httpEndpoint).toList());
+            assets.addAll(safeList(httpEndpointConfigService.listEnabled()).stream()
+                .filter(endpoint -> matchesTechnicalType(endpoint, technicalType))
+                .map(assetMetadataFactory::httpEndpoint)
+                .toList());
         }
         return assets;
     }
 
-    private List<Map<String, Object>> allRegisteredAssets(String assetType) {
+    private List<Map<String, Object>> allRegisteredAssets(String assetType, String technicalType) {
         List<Map<String, Object>> assets = new ArrayList<>();
         if (assetType == null || equalsNormalized(assetType, "ssh_host")) {
             assets.addAll(safeList(hostConfigService.listAll()).stream().map(assetMetadataFactory::sshAsset).toList());
@@ -542,16 +563,22 @@ public class AssetDiscoveryService {
             assets.addAll(safeList(datasourceConfigService.listAll()).stream().map(assetMetadataFactory::sqlDatasource).toList());
         }
         if (assetType == null || equalsNormalized(assetType, "http_endpoint")) {
-            assets.addAll(safeList(httpEndpointConfigService.listAll()).stream().map(assetMetadataFactory::httpEndpoint).toList());
+            assets.addAll(safeList(httpEndpointConfigService.listAll()).stream()
+                .filter(endpoint -> matchesTechnicalType(endpoint, technicalType))
+                .map(assetMetadataFactory::httpEndpoint)
+                .toList());
         }
         return assets;
     }
 
-    private List<Map<String, Object>> unavailableAssets(String assetType, Map<String, Object> filters, int limit) {
+    private List<Map<String, Object>> unavailableAssets(String assetType,
+                                                        String technicalType,
+                                                        Map<String, Object> filters,
+                                                        int limit) {
         if (!hasContextFilter(filters)) {
             return List.of();
         }
-        return allRegisteredAssets(assetType).stream()
+        return allRegisteredAssets(assetType, technicalType).stream()
             .filter(asset -> matches(asset, filters))
             .filter(asset -> {
                 Object assetNode = asset.get("asset");
@@ -614,6 +641,22 @@ public class AssetDiscoveryService {
         }
         normalizeFilterAliases(filters);
         return filters;
+    }
+
+    private String technicalType(Map<String, Object> arguments, String assetType) {
+        String value = text(firstValue(arguments, "technicalType", "technical_type"));
+        if (!equalsNormalized(assetType, "http_endpoint")) {
+            if (value != null) {
+                throw new IllegalArgumentException("technicalType is only valid for http_endpoint asset queries");
+            }
+            return null;
+        }
+        return value == null ? null : HttpEndpointTechnicalType.from(value).name();
+    }
+
+    private boolean matchesTechnicalType(HttpEndpointConfig endpoint, String technicalType) {
+        return technicalType == null
+            || HttpEndpointTechnicalType.from(endpoint.getTechnicalType()).name().equals(technicalType);
     }
 
     /**

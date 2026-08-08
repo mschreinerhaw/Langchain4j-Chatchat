@@ -21,6 +21,127 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AgentPlannerTest {
 
     @Test
+    void authoritativeWorkflowDagAllowsIndependentMandatoryBranchAndRepairsModelEdge() {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        String assetTool = "workflow_asset_lookup";
+        String schemaTool = "workflow_schema_lookup";
+        String standardTool = "workflow_standard_lookup";
+        String response = """
+            {
+              "version":"1.0",
+              "intent":{"type":"data_query","goal":"validate design","risk_level":"low"},
+              "context":{"key_facts":[],"assumptions":[],"missing_info":[],"constraints":[]},
+              "plan":{
+                "steps":[
+                  {"id":1,"action_type":"mcp_tool","tool_name":"workflow_asset_lookup","input":{},"depends_on":[]},
+                  {"id":2,"action_type":"mcp_tool","tool_name":"workflow_schema_lookup","input":{},"depends_on":[1]},
+                  {"id":3,"action_type":"mcp_tool","tool_name":"workflow_standard_lookup","input":{},"depends_on":[2]},
+                  {"id":4,"action_type":"final_answer","tool_name":"","input":{"answer":"done"},"depends_on":[1,2,3]}
+                ],
+                "dependency_contracts":[
+                  {"from":1,"to":2,"required":true},
+                  {"from":2,"to":3,"required":true}
+                ],
+                "edge_contracts":[],
+                "bindings":[]
+              },
+              "execution_policy":{"max_steps":4,"allow_parallel":false,
+                "allow_tool":["workflow_asset_lookup","workflow_schema_lookup","workflow_standard_lookup"],
+                "deny_tool":[]},
+              "review":{"self_check":{"completeness_score":0.9,"hallucination_risk":0.1,
+                "tool_sufficiency":false,"missing_steps":[]},"fallback_plan":[]}
+            }
+            """;
+        ChatModel model = new ChatModel() {
+            @Override
+            public String chat(String message) {
+                return response;
+            }
+        };
+        List<Map<String, Object>> authoritativeDag = List.of(
+            Map.of("tool", assetTool, "dependsOnTools", List.of()),
+            Map.of("tool", schemaTool, "dependsOnTools", List.of(assetTool)),
+            Map.of("tool", standardTool, "dependsOnTools", List.of())
+        );
+
+        PlannerExecutionResult result = planner.decideNextAction(
+            model, "validate table", "",
+            List.of(assetTool, schemaTool, standardTool), List.of(), List.of(), List.of(),
+            List.of(assetTool, schemaTool, standardTool), true,
+            false, null, null,
+            Map.of("plannerMaxRepairAttempts", 1, "authoritativeWorkflowDag", authoritativeDag));
+
+        assertThat(result.plan().valid()).isTrue();
+        InterpretationPlan.Step standardStep = result.decision().interpretationPlan().steps().stream()
+            .filter(step -> standardTool.equals(step.toolName()))
+            .findFirst().orElseThrow();
+        assertThat(standardStep.dependsOn()).isEmpty();
+        assertThat(result.decision().executionPlan())
+            .containsEntry("eventKind", "DAG_REPAIR")
+            .containsEntry("eventState", "APPLIED");
+        assertThat(((Map<?, ?>) result.decision().executionPlan().get("repairEvent")).get("repairCode"))
+            .isEqualTo("AUTHORITATIVE_WORKFLOW_DAG_RESTORED");
+    }
+
+    @Test
+    void repairsUnescapedQuotesInsideInterpretationPlanMarkdownAnswer() throws Exception {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        String raw = """
+            {
+              "version": "1.0",
+              "intent": {"type": "data_query", "goal": "render observed data", "risk_level": "low"},
+              "context": {"key_facts": [], "assumptions": [], "missing_info": [], "constraints": []},
+              "plan": {
+                "steps": [{
+                  "id": 1,
+                  "action_type": "final_answer",
+                  "tool_name": "",
+                  "input": {"answer": "## 查询结果\\n\\n若无记录则标注"无委托数据记录"，不得填充占位数据。"},
+                  "depends_on": []
+                }],
+                "edge_contracts": [],
+                "dependency_contracts": [],
+                "bindings": []
+              },
+              "execution_policy": {
+                "max_steps": 1,
+                "allow_parallel": false,
+                "allow_tool": [],
+                "deny_tool": [],
+                "timeout_ms": 30000,
+                "fallback_mode": "partial_result"
+              },
+              "review": {
+                "self_check": {"tool_sufficiency": true, "missing_steps": []},
+                "fallback_plan": []
+              }
+            }
+            """;
+
+        Method parseDecision = AgentPlanner.class.getDeclaredMethod(
+            "parseDecision", String.class, PlannerValidationContext.class);
+        parseDecision.setAccessible(true);
+        AgentDecision decision = (AgentDecision) parseDecision.invoke(planner, raw, null);
+
+        assertThat(decision).isNotNull();
+        assertThat(decision.interpretationPlan()).isNotNull();
+        assertThat(decision.answer()).contains("无委托数据记录", "## 查询结果");
+    }
+
+    @Test
+    void quoteRepairDoesNotHideMissingJsonPropertyComma() throws Exception {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        Method parseDecision = AgentPlanner.class.getDeclaredMethod(
+            "parseDecision", String.class, PlannerValidationContext.class);
+        parseDecision.setAccessible(true);
+
+        AgentDecision decision = (AgentDecision) parseDecision.invoke(
+            planner, "{\"action\":\"final\",\"answer\":\"ok\" \"reason\":\"missing comma\"}", null);
+
+        assertThat(decision).isNull();
+    }
+
+    @Test
     void propagatesStructuredDraftArtifactContractWithoutKeywordInference() {
         AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
         String response = """
@@ -360,6 +481,13 @@ class AgentPlannerTest {
             .contains("filters.bilingualIntent")
             .contains("filters.intentZh")
             .contains("filters.intentEn")
+            .contains("abbreviation-aware retrieval terms")
+            .contains("khzczx")
+            .contains("customer_asset_service -> cas")
+            .contains("at most 4 lowercase aliases")
+            .contains("weak retrieval signals only")
+            .contains("never put them in assetName")
+            .contains("Apply the same abbreviation-aware expansion used by asset discovery")
             .contains("Do not rely on Chinese-only or English-only intent")
             .contains("not as semantic ranking")
             .contains("Follow the dependency order configured by the user/runtime")
@@ -1180,6 +1308,9 @@ class AgentPlannerTest {
     private static class TestToolRegistry implements ToolRegistry {
         private final boolean includeApplicability;
         private final Set<String> tools = Set.of(
+            "workflow_asset_lookup",
+            "workflow_schema_lookup",
+            "workflow_standard_lookup",
             "mcp_chatchat_mcp_server_asset_query",
             "mcp_chatchat_mcp_server_template_query",
             "mcp_chatchat_mcp_server_sql_datasource_asset_query",
@@ -1272,7 +1403,8 @@ class AgentPlannerTest {
         }
 
         private List<ToolParameter> parameters(String toolName) {
-            if ("mcp_chatchat_mcp_server_asset_query".equals(toolName)
+            if ((toolName != null && toolName.startsWith("workflow_"))
+                || "mcp_chatchat_mcp_server_asset_query".equals(toolName)
                 || "mcp_chatchat_mcp_server_template_query".equals(toolName)
                 || "mcp_chatchat_mcp_server_sql_datasource_asset_query".equals(toolName)
                 || "mcp_chatchat_mcp_server_sql_datasource_template_query".equals(toolName)) {

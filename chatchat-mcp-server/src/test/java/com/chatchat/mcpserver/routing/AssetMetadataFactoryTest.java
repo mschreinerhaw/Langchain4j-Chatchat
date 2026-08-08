@@ -1,6 +1,7 @@
 package com.chatchat.mcpserver.routing;
 
 import com.chatchat.mcpserver.ops.SshHostConfig;
+import com.chatchat.mcpserver.ops.HttpEndpointConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -13,6 +14,25 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AssetMetadataFactoryTest {
 
     private final AssetMetadataFactory factory = new AssetMetadataFactory(new ObjectMapper());
+
+    @Test
+    void httpMetadataExposesTechnicalTypeToModelAndSearchLabels() {
+        HttpEndpointConfig endpoint = new HttpEndpointConfig();
+        endpoint.setId("http-1");
+        endpoint.setName("order-service");
+        endpoint.setTitle("Order service");
+        endpoint.setToolName("http_order_service");
+        endpoint.setEnvironment("PROD");
+        endpoint.setTechnicalType("MICROSERVICE");
+
+        Map<String, Object> metadata = factory.httpEndpoint(endpoint);
+        Map<?, ?> capability = (Map<?, ?>) metadata.get("capabilities");
+        Map<?, ?> routingHints = (Map<?, ?>) metadata.get("routingHints");
+
+        assertThat(capability.get("technicalType")).isEqualTo("MICROSERVICE");
+        assertThat(((List<?>) routingHints.get("labels")).stream().map(String::valueOf).toList())
+            .contains("microservice");
+    }
 
     @Test
     void sshMetadataContainsRoutingHintsAndNoConcreteHostAddress() {

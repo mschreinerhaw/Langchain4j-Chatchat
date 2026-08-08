@@ -48,7 +48,8 @@ public class DatabaseQueryMcpToolPublisher {
                 continue;
             }
             try {
-                mcpSyncServer.addTool(toolSpecFactory.toToolSpecification(config));
+                com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+                    mcpSyncServer, toolSpecFactory.toToolSpecification(config));
                 managedToolNames.add(namingPolicy.toolName(config));
                 published++;
             } catch (Exception ex) {

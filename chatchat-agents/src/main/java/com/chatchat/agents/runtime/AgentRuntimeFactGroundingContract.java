@@ -24,6 +24,11 @@ public final class AgentRuntimeFactGroundingContract {
             "Identifiers, counts, statuses, completeness flags, database layers, schemas, tables, fields, and execution results remain exact.",
             "Inferences and recommendations must be explicitly separated from observed facts and must never be presented as retrieved objects.",
             "Missing evidence must be reported as missing; it must not be filled with examples, conventions, or model knowledge.",
+            "Partial data is a normal result: analyze every returned dataset first and report unavailable dimensions separately.",
+            "Successful empty results, unexecuted calls, blocked calls, and failed calls are distinct states and must never be collapsed into an error or into one another.",
+            "Template execution is failure-isolated: one child error must be reported on that child and must not erase, stop, or downgrade successfully returned sibling template data.",
+            "Execution failure causes must preserve the observed error code and message. Never replace a transport, binding, registration, policy, or downstream-address error with a different inferred cause.",
+            "Dates and ranges must be copied from executed parameters or returned data without changing year, month, or day.",
             "SQL, shell commands, scripts, and validation snippets must not be presented as executed, authorized, or retrieved unless their exact text was returned as tool evidence.",
             "When the user explicitly asks to draft SQL, DDL, commands, or scripts, the model may generate a clearly labeled non-executed draft using observed facts plus explicit assumptions for human review.",
             "Asset displayName, name, id, and toolName are distinct contract fields and must never be relabeled or substituted."
@@ -46,6 +51,13 @@ public final class AgentRuntimeFactGroundingContract {
             - Preserve exact identifiers, counts, statuses, completeness/truncation flags, database layers, schemas, tables, fields, and execution outcomes.
             - Keep explicit inference/recommendation separate from observed facts. Never present inferred examples or naming conventions as retrieved results.
             - When evidence is missing, state the missing evidence; do not fill the gap with model knowledge.
+            - Partial-result presentation contract: analyze every successfully returned dataset first. Put missing dimensions in a short coverage/limitation section after the available-data analysis; do not replace the requested report with an API inventory or capability analysis.
+            - Keep these states distinct: DATA_RETURNED, EMPTY_RESULT, NOT_EXECUTED, BLOCKED, and FAILED. A successful empty result is a valid observation for the exact executed parameters, not a system error; do not invent a business cause for the empty result.
+            - Template child failures are isolated execution results. Continue analyzing successful and empty sibling results, and list each failed child's returned error compactly instead of declaring the whole report unavailable.
+            - Preserve failure identity exactly. If an executor produced a tool trace, it was registered for that invocation; do not call it unregistered. Do not rewrite NameResolver/UNAVAILABLE transport evidence as a parameter error, or a parameter-evidence rejection as a template-schema name mismatch unless schema evidence explicitly proves that mismatch.
+            - Discovery proves that an asset/template exists, not that customer/business data was retrieved. Never label a discovered-but-unexecuted metric as "covered", "obtained", or successful data acquisition.
+            - Copy query dates and date ranges exactly from executed parameters or returned records. Convert YYYYMMDD to YYYY-MM-DD without changing any digit; never substitute an illustrative range or a different year.
+            - Do not claim the runtime or environment only permits discovery when an executor actually ran. Do not recommend manual one-by-one calls when the intended runtime workflow is an ordered batch; report the missing batch execution compactly.
             - Never present illustrative/manual SQL, shell commands, scripts, or validation snippets as executed, authorized, retrieved, or factual tool output unless their exact text was returned by an authorized tool.
             - If the user explicitly asks to draft SQL, DDL, commands, or scripts, you may generate a clearly labeled non-executed draft for human review. Use observed facts where available, mark assumptions and unresolved choices, and never imply Runtime executed or approved it.
             - Preserve asset contract semantics exactly: displayName/name is the asset label, assetId/id is the asset identifier, and toolName is the bound execution tool. Never relabel toolName as displayName.

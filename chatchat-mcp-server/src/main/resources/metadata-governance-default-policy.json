@@ -28,6 +28,25 @@
     "dictionaryEnglishNameAttribute": "dictionaryEnglishName",
     "dictionaryIdAttribute": "dictionaryId"
   },
+  "claimCoverage": {
+    "contractVersion": "enterprise_metadata_claim_coverage.v1",
+    "scope": "ENTERPRISE_FIELD_METADATA",
+    "supportedClaims": [
+      "standard field name and definition alignment",
+      "standard field data-type alignment when the returned record declares a type",
+      "business term/root alignment",
+      "code dictionary alignment"
+    ],
+    "notAssessedClaims": [
+      "primary or unique key design",
+      "partitioning, bucketing, or indexing design",
+      "storage format or compression",
+      "retention, lifecycle, or TTL policy",
+      "complete table-level enterprise design conformance"
+    ],
+    "fullTableDesignConformanceSupported": false,
+    "interpretation": "success=true means retrieval completed, not that every requested governance claim is supported"
+  },
   "search": {
     "exactWeight": 1.0,
     "containsWeight": 0.75,

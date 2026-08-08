@@ -66,6 +66,22 @@ public class McpSearchIndexAdminController {
         );
     }
 
+    @PostMapping("/assets/ssh_host/rebuild-selected")
+    public ApiResponse<Map<String, Object>> rebuildSelectedSshHostIndexes(@RequestBody SelectedAssetIndexRequest request) {
+        return ApiResponse.success(
+            assetLuceneIndexService.rebuildSshHosts(request == null ? List.of() : request.ids()),
+            "Selected SSH host asset indexes rebuilt"
+        );
+    }
+
+    @PostMapping("/assets/http_endpoint/rebuild-selected")
+    public ApiResponse<Map<String, Object>> rebuildSelectedHttpEndpointIndexes(@RequestBody SelectedAssetIndexRequest request) {
+        return ApiResponse.success(
+            assetLuceneIndexService.rebuildHttpEndpoints(request == null ? List.of() : request.ids()),
+            "Selected HTTP endpoint asset indexes rebuilt"
+        );
+    }
+
     @PostMapping("/templates/rebuild")
     public ApiResponse<Map<String, Object>> rebuildTemplateIndex() {
         templateLuceneIndexService.refreshAll();
@@ -75,6 +91,24 @@ public class McpSearchIndexAdminController {
             "databaseQueryIndex", true,
             "apiServiceIndex", true
         ), "MCP template Lucene indexes rebuilt");
+    }
+
+    @PostMapping("/templates/ssh-command/rebuild-selected")
+    public ApiResponse<Map<String, Object>> rebuildSelectedSshCommandTemplateIndexes(
+        @RequestBody SelectedAssetIndexRequest request
+    ) {
+        return ApiResponse.success(
+            templateLuceneIndexService.rebuildCommandTemplates(request == null ? List.of() : request.ids()),
+            "Selected SSH command template indexes rebuilt"
+        );
+    }
+
+    @PostMapping("/templates/sql/rebuild-selected")
+    public ApiResponse<Map<String, Object>> rebuildSelectedSqlTemplateIndexes(@RequestBody SelectedAssetIndexRequest request) {
+        return ApiResponse.success(
+            templateLuceneIndexService.rebuildSqlTemplates(request == null ? List.of() : request.ids()),
+            "Selected SQL template indexes rebuilt"
+        );
     }
 
     @PostMapping("/database-queries/rebuild")
@@ -107,16 +141,16 @@ public class McpSearchIndexAdminController {
         if (assetIndexAssetType != null) {
             Map<String, Object> effectiveInput = new LinkedHashMap<>(input);
             effectiveInput.put("assetType", assetIndexAssetType);
-            List<LuceneMcpSearchService.SearchHit> hits = luceneSearchService.searchAssets(
-                new LuceneMcpSearchService.AssetSearchRequest(
+            List<LuceneMcpSearchService.SearchHit> hits = "http_endpoint".equals(assetIndexAssetType)
+                ? searchHttpEndpointPartitions(input, limit)
+                : luceneSearchService.searchAssets(new LuceneMcpSearchService.AssetSearchRequest(
                     assetIndexAssetType,
                     text(firstPresent(input, "query", "q"), null),
                     text(input.get("env"), null),
                     text(firstPresent(input, "dbType", "databaseType"), null),
                     stringList(input.get("labels")),
                     limit
-                )
-            );
+                ));
             result = assetSearchResult(assetIndexName(assetIndexAssetType), effectiveInput, hits, assetIndexAssetType);
         } else if ("templates".equalsIgnoreCase(indexType) || "template".equalsIgnoreCase(indexType)) {
             List<LuceneMcpSearchService.SearchHit> hits = luceneSearchService.searchTemplates(
@@ -303,9 +337,42 @@ public class McpSearchIndexAdminController {
             case "ssh_host", "ssh_host_assets", "ssh_assets", "server_assets", "service_assets", "asset_ssh_host", "assets_ssh_host" -> "ssh_host";
             case "sql_datasource", "sql_datasource_assets", "database_assets", "db_assets", "asset_sql_datasource", "assets_sql_datasource" -> "sql_datasource";
             case "http_endpoint", "http_endpoint_assets", "http_assets", "asset_http_endpoint", "assets_http_endpoint" -> "http_endpoint";
+            case "http_endpoint_http", "http_endpoint_http_assets", "ordinary_http_assets" ->
+                McpAssetLuceneIndexService.HTTP_ASSET_INDEX_TYPE;
+            case "http_endpoint_microservice", "http_endpoint_microservice_assets", "microservice_assets" ->
+                McpAssetLuceneIndexService.MICROSERVICE_ASSET_INDEX_TYPE;
             case "api_service", "api_service_assets", "api_assets", "asset_api_service", "assets_api_service" -> "api_service";
             default -> null;
         };
+    }
+
+    private List<LuceneMcpSearchService.SearchHit> searchHttpEndpointPartitions(Map<String, Object> input, int limit) {
+        String requested = text(firstPresent(input, "technicalType", "technical_type"), null);
+        List<String> indexTypes;
+        if ("MICROSERVICE".equalsIgnoreCase(requested)) {
+            indexTypes = List.of(McpAssetLuceneIndexService.MICROSERVICE_ASSET_INDEX_TYPE);
+        } else if ("HTTP".equalsIgnoreCase(requested)) {
+            indexTypes = List.of(McpAssetLuceneIndexService.HTTP_ASSET_INDEX_TYPE);
+        } else {
+            indexTypes = List.of(
+                McpAssetLuceneIndexService.HTTP_ASSET_INDEX_TYPE,
+                McpAssetLuceneIndexService.MICROSERVICE_ASSET_INDEX_TYPE);
+        }
+        List<LuceneMcpSearchService.SearchHit> hits = new java.util.ArrayList<>();
+        for (String indexType : indexTypes) {
+            hits.addAll(luceneSearchService.searchAssets(new LuceneMcpSearchService.AssetSearchRequest(
+                indexType,
+                text(firstPresent(input, "query", "q"), null),
+                text(input.get("env"), null),
+                null,
+                stringList(input.get("labels")),
+                limit
+            )));
+        }
+        return hits.stream()
+            .sorted(java.util.Comparator.comparingDouble(LuceneMcpSearchService.SearchHit::score).reversed())
+            .limit(limit)
+            .toList();
     }
 
     public record SelectedAssetIndexRequest(List<String> ids) {
@@ -316,6 +383,8 @@ public class McpSearchIndexAdminController {
             case "ssh_host" -> "ssh_host_assets";
             case "sql_datasource" -> "sql_datasource_assets";
             case "http_endpoint" -> "http_endpoint_assets";
+            case McpAssetLuceneIndexService.HTTP_ASSET_INDEX_TYPE -> "http_endpoint_http_assets";
+            case McpAssetLuceneIndexService.MICROSERVICE_ASSET_INDEX_TYPE -> "http_endpoint_microservice_assets";
             case "api_service" -> "api_service_assets";
             default -> "assets";
         };
@@ -328,7 +397,9 @@ public class McpSearchIndexAdminController {
         Map<String, Object> value = searchResult(indexType, request, hits);
         value.put("assetType", assetType == null ? "all" : assetType);
         value.put("logicalIndex", assetType == null ? "asset:*" : "asset:" + assetType);
-        value.put("physicalIndex", assetType == null ? "assets-*" : luceneSearchService.assetIndexName(assetType));
+        value.put("physicalIndex", assetType == null ? "assets-*"
+            : "http_endpoint".equals(assetType) ? "assets-http-endpoint-*"
+            : luceneSearchService.assetIndexName(assetType));
         return value;
     }
 

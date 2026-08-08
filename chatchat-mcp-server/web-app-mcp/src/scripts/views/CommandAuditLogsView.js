@@ -1,17 +1,19 @@
 import ModalPanel from '../../components/ModalPanel.vue';
 import JsonBlock from '../../components/JsonBlock.vue';
+import AuditCleanupDialog from '../../components/AuditCleanupDialog.vue';
 import { auditApi } from '../../services/api';
 import { formatDateTime } from '../../utils/json';
 
 export default {
   name: 'CommandAuditLogsView',
-  components: { ModalPanel, JsonBlock },
+  components: { ModalPanel, JsonBlock, AuditCleanupDialog },
   emits: ['error'],
   data() {
     return {
       busy: false,
       logs: [],
       detailOpen: false,
+      cleanupOpen: false,
       detail: null,
       filters: {
         username: '',
@@ -96,6 +98,10 @@ export default {
       } catch (error) {
         this.$emit('error', error);
       }
+    },
+    async handleCleared() {
+      this.pageInfo.page = 1;
+      await this.load();
     }
   }
 };

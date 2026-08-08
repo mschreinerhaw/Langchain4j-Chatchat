@@ -84,6 +84,7 @@ public class HttpEndpointConfigService {
         config.setGovernanceJson(normalizeJsonObject(request.getGovernanceJson(), "governance"));
         config.setEnabled(request.isEnabled());
         config.setEnvironment(firstText(request.getEnvironment(), config.getEnvironment()));
+        config.setTechnicalType(firstText(request.getTechnicalType(), config.getTechnicalType()));
         config.setCategory(firstText(request.getCategory(), config.getCategory()));
         config.setTags(request.getTags());
         config.setRoutingLabelsJson(request.getRoutingLabelsJson());
@@ -152,6 +153,7 @@ public class HttpEndpointConfigService {
         config.setDependencySpecJson(normalizeJsonObject(config.getDependencySpecJson(), "dependencySpec"));
         config.setGovernanceJson(normalizeJsonObject(config.getGovernanceJson(), "governance"));
         config.setEnvironment(normalizeEnvironment(config.getEnvironment()));
+        config.setTechnicalType(HttpEndpointTechnicalType.from(config.getTechnicalType()).name());
         config.setCategory(firstText(config.getCategory(), "api_gateway").toLowerCase(Locale.ROOT));
         String routingLabelsJson = normalizeJsonArray(
             mergedProtocolValues(config.getRoutingLabelsJson(), config.getRoutingLabels()), "routingLabels");

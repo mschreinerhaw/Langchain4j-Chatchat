@@ -58,15 +58,25 @@ export default {
       },
       environmentOptions: envOptions(),
       databaseTypeOptions: databaseTypeOptions(),
+      assetEnabledListFilters: [
+        {
+          key: 'enabled',
+          label: '启用状态',
+          placeholder: '全部状态',
+          options: boolOptions()
+        }
+      ],
       searchIndexOptions: [
         { value: 'sql_metadata', label: '元数据索引' },
         { value: 'ssh_host_assets', label: '服务器资产索引' },
         { value: 'sql_datasource_assets', label: '数据库资产索引' },
         { value: 'http_endpoint_assets', label: 'API 网关资产索引' },
+        { value: 'http_endpoint_http_assets', label: '普通 HTTP 资产索引' },
+        { value: 'http_endpoint_microservice_assets', label: '微服务资产索引' },
         { value: 'api_service_assets', label: 'API 服务资产索引' },
         { value: 'templates', label: '模板索引' },
         { value: 'database_query', label: '业务查询索引' },
-        { value: 'api_service', label: 'API 服务索引' },
+        { value: 'api_services', label: 'API 服务模板索引' },
         { value: 'document_search', label: '文档索引' },
         { value: 'enterprise_metadata', label: '企业标准字段与词根索引（enterprise_metadata_catalog）' },
         { value: 'financial_data_asset', label: '金融数据索引（financial-data-asset）' },
@@ -127,6 +137,7 @@ export default {
         enabled: false,
         categoryId: '',
         environment: 'DEV',
+        technicalType: 'HTTP',
         category: 'business_api',
         runtimeAction: 'readonly',
         timeoutMs: 10000,
@@ -176,6 +187,7 @@ export default {
       httpColumns: [
         { key: 'name', label: '资产名称' },
         { key: 'categoryId', label: '业务分类', formatter: value => this.categoryLabel(value) },
+        { key: 'technicalType', label: '技术分类', formatter: technicalTypeLabel },
         { key: 'toolName', label: '工具名称', type: 'code' },
         { key: 'method', label: '方法' },
         { key: 'urlTemplate', label: 'URL' },
@@ -205,6 +217,24 @@ export default {
       return this.businessCategories
         .filter(category => category.enabled !== false)
         .map(category => ({ value: category.id, label: `${category.name} / ${category.code}` }));
+    },
+    httpListFilters() {
+      return [
+        ...this.assetEnabledListFilters,
+        {
+          key: 'gatewayAddress',
+          label: '网关地址',
+          placeholder: '全部网关地址',
+          valueGetter: item => gatewayAddress(item?.urlTemplate),
+          options: items => gatewayAddressOptions(items)
+        },
+        {
+          key: 'categoryId',
+          label: '业务分类',
+          placeholder: '全部业务分类',
+          options: () => this.businessCategoryOptions
+        }
+      ];
     },
     sshFields() {
       return [
@@ -307,6 +337,7 @@ export default {
         { key: 'toolName', label: '工具名称', placeholder: '如 http_query_monitor_status', help: 'API 网关资产工具名按 http_ 前缀命名，查询类接口建议使用 http_query_<业务能力>，例如 http_query_monitor_status；只使用小写字母、数字和下划线。' },
         { key: 'title', label: '显示名称', placeholder: '如 订单中心 API 网关', help: '展示给用户和模型看的名称，可用中文；未填写时通常按资产名称展示。' },
         { key: 'categoryId', label: '业务分类', type: 'select', required: true, options: () => this.businessCategoryOptions, placeholder: '选择统一业务分类', help: 'API 网关资产与 API 服务模板共用同一分类。' },
+        { key: 'technicalType', label: '技术分类', type: 'select', required: true, options: httpTechnicalTypeOptions(), placeholder: '选择微服务或普通 HTTP', help: '用于区分微服务接口与普通 HTTP 请求，并会写入检索索引和模型可见的资产元数据。' },
         { key: 'enabled', label: '状态', type: 'select', options: boolOptions() },
         { key: 'description', label: '工具描述', type: 'textarea', span: 'col-12', placeholder: '说明该 API 可查询或执行的业务能力', help: '建议写清楚接口用途、输入参数含义和返回结果范围。' },
         { key: 'method', label: '方法', type: 'select', required: true, options: methodOptions(), placeholder: '选择 HTTP 方法' },
@@ -717,6 +748,37 @@ function envOptions() {
 
 function methodOptions() {
   return ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map(value => ({ value, label: value }));
+}
+
+function httpTechnicalTypeOptions() {
+  return [
+    { value: 'MICROSERVICE', label: '微服务' },
+    { value: 'HTTP', label: '普通 HTTP' }
+  ];
+}
+
+function technicalTypeLabel(value) {
+  return value === 'MICROSERVICE' ? '微服务' : '普通 HTTP';
+}
+
+function gatewayAddress(value) {
+  const url = String(value || '').trim();
+  if (!url) return '';
+  try {
+    const parsed = new URL(url);
+    return `${parsed.protocol}//${parsed.host}`;
+  } catch (error) {
+    const match = url.match(/^(https?:\/\/[^/]+)/i);
+    return match ? match[1] : url;
+  }
+}
+
+function gatewayAddressOptions(items) {
+  return [...new Set((Array.isArray(items) ? items : [])
+    .map(item => gatewayAddress(item?.urlTemplate))
+    .filter(Boolean))]
+    .sort((left, right) => left.localeCompare(right))
+    .map(value => ({ value, label: value }));
 }
 
 function authTypeOptions() {

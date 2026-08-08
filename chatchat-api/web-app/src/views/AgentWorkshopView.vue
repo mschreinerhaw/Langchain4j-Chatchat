@@ -239,6 +239,63 @@
       </div>
     </nav>
 
+    <div
+      v-if="recallConfirmOpen"
+      class="agent-recall-backdrop"
+      @click.self="closeRecallConfirm"
+    >
+      <section
+        class="agent-recall-dialog"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="agent-recall-title"
+        aria-describedby="agent-recall-description"
+      >
+        <header class="agent-recall-header">
+          <span class="agent-recall-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M4 7h11a5 5 0 0 1 0 10H9" />
+              <path d="m8 4-4 3 4 3" />
+            </svg>
+          </span>
+          <div>
+            <p>能力市场</p>
+            <h2 id="agent-recall-title">确认回收能力</h2>
+          </div>
+          <button
+            type="button"
+            class="agent-recall-close"
+            aria-label="关闭"
+            title="关闭"
+            :disabled="saving"
+            @click="closeRecallConfirm"
+          >×</button>
+        </header>
+
+        <div class="agent-recall-body">
+          <p id="agent-recall-description">
+            确认从能力市场回收
+            <strong>「{{ recallTarget?.name || recallTarget?.id }}」</strong>？
+          </p>
+          <div class="agent-recall-note">
+            <span aria-hidden="true">i</span>
+            <p>回收后该能力将从市场下架，但不会删除 Agent 配置；后续仍可重新发布。</p>
+          </div>
+          <p v-if="recallConfirmError" class="agent-recall-error">{{ recallConfirmError }}</p>
+        </div>
+
+        <footer class="agent-recall-actions">
+          <button type="button" class="agent-recall-cancel" :disabled="saving" @click="closeRecallConfirm">
+            取消
+          </button>
+          <button type="button" class="agent-recall-submit" :disabled="saving" @click="confirmRecallAgent">
+            <span v-if="saving" class="agent-recall-spinner" aria-hidden="true"></span>
+            {{ saving ? "正在回收" : "确认回收" }}
+          </button>
+        </footer>
+      </section>
+    </div>
+
     <div v-if="dialogOpen" class="agent-dialog-backdrop">
       <form class="agent-dialog" @submit.prevent="saveAgent">
         <header>
@@ -278,12 +335,13 @@
           </label>
           <label>
             <span>绑定模型</span>
-            <select v-model="form.modelName">
-              <option v-if="!models.length" value="">默认模型</option>
+            <select v-model="form.modelName" :disabled="models.length === 0">
+              <option v-if="models.length === 0" value="">后端未返回可用模型</option>
               <option v-for="model in models" :key="model.value" :value="model.value">
                 {{ model.label || model.value }}
               </option>
             </select>
+            <small>候选项由后端从 defaultChatModel、availableChatModels 和 chatModels 配置合并返回。</small>
           </label>
           <label class="runtime-environment-field">
             <span>运行环境</span>

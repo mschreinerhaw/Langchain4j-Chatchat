@@ -2,6 +2,7 @@ package com.chatchat.mcpserver.ops;
 
 import com.chatchat.mcpserver.mcp.McpToolApplicability;
 import com.chatchat.mcpserver.routing.TargetKindRegistry;
+import com.chatchat.mcpserver.templatepublication.TemplateQueryMcpToolPublisher;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -11,6 +12,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
@@ -31,6 +33,7 @@ public class TemplateDiscoveryMcpToolPublisher {
     private final McpSyncServer mcpSyncServer;
     private final CommandTemplateDiscoveryService templateDiscoveryService;
     private final TargetKindRegistry targetKindRegistry;
+    private final ObjectProvider<TemplateQueryMcpToolPublisher> dynamicQueryPublisher;
 
     @Order(Ordered.LOWEST_PRECEDENCE)
     @EventListener(ApplicationReadyEvent.class)
@@ -44,7 +47,8 @@ public class TemplateDiscoveryMcpToolPublisher {
         remove(LEGACY_SQL_DATASOURCE_TEMPLATE_TOOL_NAME);
         remove(HTTP_ENDPOINT_TEMPLATE_TOOL_NAME);
         remove(DATABASE_QUERY_TEMPLATE_TOOL_NAME);
-        mcpSyncServer.addTool(domainTemplateQueryTool(
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, domainTemplateQueryTool(
             SSH_TEMPLATE_TOOL_NAME,
             "SSH command template discovery",
             "Read-only MCP tool for retrieving SSH host command templates only.",
@@ -52,7 +56,8 @@ public class TemplateDiscoveryMcpToolPublisher {
             "host",
             "host command templates"
         ));
-        mcpSyncServer.addTool(domainTemplateQueryTool(
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, domainTemplateQueryTool(
             SQL_DATASOURCE_TEMPLATE_TOOL_NAME,
             "Database maintenance template search",
             "Read-only MCP tool for retrieving database maintenance, metadata, and diagnostic templates only.",
@@ -60,7 +65,8 @@ public class TemplateDiscoveryMcpToolPublisher {
             "database",
             "database maintenance templates"
         ));
-        mcpSyncServer.addTool(domainTemplateQueryTool(
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, domainTemplateQueryTool(
             HTTP_ENDPOINT_TEMPLATE_TOOL_NAME,
             "HTTP endpoint template discovery",
             "Read-only MCP tool for retrieving HTTP endpoint request templates only.",
@@ -68,7 +74,8 @@ public class TemplateDiscoveryMcpToolPublisher {
             "http",
             "HTTP endpoint templates"
         ));
-        mcpSyncServer.addTool(domainTemplateQueryTool(
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, domainTemplateQueryTool(
             DATABASE_QUERY_TEMPLATE_TOOL_NAME,
             "Categorized database query template discovery",
             "Searches published database query templates by data capability category, business intent, "
@@ -103,8 +110,12 @@ public class TemplateDiscoveryMcpToolPublisher {
             .tool(tool)
             .callHandler((exchange, request) -> {
                 try {
-                    Map<String, Object> result = templateDiscoveryService.query(forcedTemplateArguments(
-                        request.arguments(), toolName, assetType, targetKind));
+                    String childToolName = TemplateQueryMcpToolPublisher.childToolName(request.arguments());
+                    Map<String, Object> result = childToolName.isBlank()
+                        ? templateDiscoveryService.query(forcedTemplateArguments(
+                            request.arguments(), toolName, assetType, targetKind))
+                        : dynamicQueryPublisher.getObject().queryFromParent(
+                            childToolName, toolName, request.arguments());
                     return McpSchema.CallToolResult.builder()
                         .addTextContent(domainLabel + " query completed")
                         .structuredContent(result)

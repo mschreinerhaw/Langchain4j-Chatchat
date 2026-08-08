@@ -31,6 +31,7 @@ import com.chatchat.agents.runtime.plan.InterpretationPlanRewriter;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRecord;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
 import com.chatchat.agents.runtime.plan.InterpretationPlanStore;
+import com.chatchat.agents.runtime.plan.InterpretationPlanOptimizer;
 import com.chatchat.agents.runtime.plan.InterpretationPlanValidator;
 import com.chatchat.agents.runtime.plan.RetrievalQualityGate;
 import com.chatchat.agents.tool.ToolRegistry;
@@ -39,6 +40,7 @@ import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
+import com.chatchat.common.tool.ToolParameter;
 import com.chatchat.common.config.ModelsConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
@@ -102,6 +104,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
     private final AgentToolArgumentResolver toolArguments;
     private final AgentWorkflowToolResolver workflowTools;
     private final ModelAssistedRetrievalBridge modelAssistedRetrievalBridge;
+    private final ModelAssistedContextParameterBridge modelAssistedContextParameterBridge;
     private final AnswerCandidateCollector answerCandidateCollector = new AnswerCandidateCollector();
     private final AgentWorkflowStateTracker workflowStateTracker = new AgentWorkflowStateTracker();
     private final AgentAnswerFinalizer answerFinalizer;
@@ -213,6 +216,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
         this.toolArguments = new AgentToolArgumentResolver(this.toolNames, WEB_SEARCH_REFERENCE_LIMIT, this.toolRegistry);
         this.workflowTools = new AgentWorkflowToolResolver(this.toolNames);
         this.modelAssistedRetrievalBridge = new ModelAssistedRetrievalBridge(this.toolRegistry, objectMapper);
+        this.modelAssistedContextParameterBridge =
+            new ModelAssistedContextParameterBridge(this.toolRegistry, objectMapper);
         this.answerFinalizer = new AgentAnswerFinalizer(
             resolvedAnswerReviewer,
             this.runtimeGuard,
@@ -418,6 +423,24 @@ public class AgentOrchestrator implements AgentRunExecutor {
             requestRuntimeAttributes,
             query
         );
+        List<Map<String, Object>> authoritativeWorkflowDag = workflowMandatoryResolution.authoritativeDag().stream()
+            .map(node -> metadataOf(
+                "id", node.id(),
+                "tool", node.toolName(),
+                "dependsOnTools", node.dependsOnTools(),
+                "order", node.order(),
+                "sourceIndex", node.sourceIndex()
+            ))
+            .toList();
+        String authoritativeWorkflowTaskId = firstNonBlank(
+            stringValue(requestRuntimeAttributes.get("__agentTaskId")),
+            firstNonBlank(stringValue(requestRuntimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE)), requestId)
+        );
+        if (!authoritativeWorkflowDag.isEmpty()) {
+            requestRuntimeAttributes.put("authoritativeWorkflowDag", authoritativeWorkflowDag);
+            requestRuntimeAttributes.put("authoritativeWorkflowTaskId", authoritativeWorkflowTaskId);
+            requestRuntimeAttributes.put("authoritativeWorkflowSource", "user_defined_mcp_workflow");
+        }
         List<String> workflowMandatoryTools = workflowMandatoryResolution.tools();
         List<String> mandatoryTools = workflowMandatoryTools.isEmpty()
             ? workflowTools.resolveMandatoryToolCandidates(tools, requiredToolNames)
@@ -463,6 +486,10 @@ public class AgentOrchestrator implements AgentRunExecutor {
         metadata.put("mandatoryToolCall", requireToolBeforeFinal);
         metadata.put("mandatoryTools", mandatoryTools);
         metadata.put("workflowMandatoryTools", workflowMandatoryTools);
+        metadata.put("authoritativeWorkflowDag", authoritativeWorkflowDag);
+        metadata.put("authoritativeWorkflowTaskId", authoritativeWorkflowTaskId);
+        metadata.put("authoritativeWorkflowSource", authoritativeWorkflowDag.isEmpty()
+            ? "none" : "user_defined_mcp_workflow");
         metadata.put("executionPolicy", runtimeExecutionPolicy(requireToolBeforeFinal));
         metadata.put("factGroundingContract", AgentRuntimeFactGroundingContract.metadata());
         metadata.put("requiredToolExecutions", requiredToolExecutionContracts);
@@ -513,7 +540,6 @@ public class AgentOrchestrator implements AgentRunExecutor {
         );
 
         Set<String> completedWorkflowTools = new LinkedHashSet<>();
-        completedWorkflowTools.addAll(workflowMandatoryResolution.skippedTools());
         ToolCallExecution pendingConfirmedExecution = executePendingConfirmedTool(
             query,
             conversationId,
@@ -609,6 +635,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
             plannerStep.put("observationCount", observations.size());
             plannerSteps.add(plannerStep);
             runResultAdapter.recordRuntimeStep(requestRuntimeAttributes, AGENT_RUN_ID_ATTRIBUTE, plannerStep);
+            recordPlannerDagRepairEvent(
+                requestRuntimeAttributes, metadata,
+                decision.executionPlan() == null ? null : decision.executionPlan().get("repairEvent"));
             recordLifecyclePhase(
                 requestRuntimeAttributes,
                 metadata,
@@ -619,7 +648,11 @@ public class AgentOrchestrator implements AgentRunExecutor {
                     "action", decision.action(),
                     "toolName", stringValue(decision.toolName()),
                     "resolvedToolName", plannedToolName,
-                    "plannerProtocol", decision.executionPlan() == null ? null : decision.executionPlan().get("plannerProtocol")
+                    "plannerProtocol", decision.executionPlan() == null ? null : decision.executionPlan().get("plannerProtocol"),
+                    "eventKind", decision.interpretationPlan() == null ? null : "DAG_VALIDATION",
+                    "eventState", decision.interpretationPlan() == null ? null
+                        : (decision.executionPlan() != null
+                            && Boolean.TRUE.equals(decision.executionPlan().get("interpretationPlanValid")) ? "PASSED" : "FAILED")
                 )
             );
 
@@ -939,11 +972,26 @@ public class AgentOrchestrator implements AgentRunExecutor {
                                                                    int maxToolCalls,
                                                                    BooleanSupplier cancellationCheck) {
         runtimeGuard.checkCancelled(cancellationCheck);
+        runtimeAttributes = interpretationPlanInitialAttributes(runtimeAttributes, traces);
         AgentPlanBudgetPolicy.BudgetCaps budgetCaps = AgentPlanBudgetPolicy.fromRuntimeAttributes(runtimeAttributes);
         AgentPlanBudgetPolicy.ApplyResult budgetResult = AgentPlanBudgetPolicy.apply(plan, budgetCaps);
         plan = budgetResult.plan();
+        Object authoritativeWorkflowDag = runtimeAttributes == null
+            ? null : runtimeAttributes.get("authoritativeWorkflowDag");
+        String authoritativeWorkflowTaskId = runtimeAttributes == null
+            ? null : stringValue(runtimeAttributes.get("authoritativeWorkflowTaskId"));
+        boolean hasAuthoritativeWorkflowDag = authoritativeWorkflowDag instanceof Collection<?> collection
+            && !collection.isEmpty();
+        List<String> authoritativeWorkflowDagPasses = List.of();
+        if (hasAuthoritativeWorkflowDag) {
+            InterpretationPlanOptimizer.OptimizationResult workflowDagOptimization =
+                new InterpretationPlanOptimizer().optimize(plan, authoritativeWorkflowDag);
+            plan = workflowDagOptimization.plan() == null ? plan : workflowDagOptimization.plan();
+            authoritativeWorkflowDagPasses = workflowDagOptimization.appliedPasses();
+        }
         metadata.put("interpretationPlanPipeline", true);
         metadata.put("interpretationPlanVersion", plan.version());
+        metadata.put("authoritativeWorkflowDagPasses", authoritativeWorkflowDagPasses);
         if (budgetCaps.configured()) {
             metadata.put("agentBudgetCaps", budgetCaps.metadata());
             metadata.put("agentBudgetAdjusted", budgetResult.adjusted());
@@ -958,19 +1006,24 @@ public class AgentOrchestrator implements AgentRunExecutor {
             runStore,
             request -> reviewInterpretationPlanToolResult(activeChatModel, query, systemPrompt, cancellationCheck, request),
             request -> decideInterpretationPlanDagStep(activeChatModel, query, systemPrompt, cancellationCheck, request),
-            request -> modelAssistedRetrievalBridge.enrichWithGate(
-                activeChatModel,
-                request.step() == null ? null : request.step().toolName(),
-                request.input(),
-                templateRetrievalEvidenceContext(query, request.completed())
-            ).argumentsWithGateMarker()
+            request -> {
+                String stepTool = request.step() == null ? null : request.step().toolName();
+                ModelAssistedRetrievalBridge.RetrievalEvidenceContext evidenceContext =
+                    templateRetrievalEvidenceContext(query, request.completed());
+                Map<String, Object> contextual = modelAssistedContextParameterBridge.propose(
+                    activeChatModel, stepTool, request.input(), evidenceContext);
+                return modelAssistedRetrievalBridge.enrichWithGate(
+                    activeChatModel, stepTool, contextual, evidenceContext).argumentsWithGateMarker();
+            }
         );
         List<InterpretationPlanRuntime.ExecutionResult> planAttemptResults = new ArrayList<>();
         List<Map<String, Object>> evidenceHistory = new ArrayList<>();
         InterpretationPlanValidator.ValidationResult initialEvaluation = validator.validate(
             plan,
             toolRegistry,
-            new LinkedHashSet<>(tools == null ? List.of() : tools)
+            new LinkedHashSet<>(tools == null ? List.of() : tools),
+            authoritativeWorkflowDag,
+            authoritativeWorkflowTaskId
         );
         recordInterpretationPlanEvaluation("initial", initialEvaluation, runtimeAttributes, metadata);
         InterpretationPlanRuntime.ExecutionResult firstResult;
@@ -1021,8 +1074,12 @@ public class AgentOrchestrator implements AgentRunExecutor {
         EvidenceAugmentationPolicy.Outcome latestAugmentationDecision = decideEvidenceAugmentation(
             firstEvidence,
             firstResult,
-            tools != null && !tools.isEmpty()
-                && (configuredMaxRewriteTimes > 0 || augmentationOverrideAvailable),
+            evidenceExplorationAvailable(
+                firstEvidence,
+                firstResult,
+                tools,
+                configuredMaxRewriteTimes > 0 || augmentationOverrideAvailable
+            ),
             false,
             metadata
         );
@@ -1059,12 +1116,25 @@ public class AgentOrchestrator implements AgentRunExecutor {
         InterpretationPlanRewriter rewriter = new InterpretationPlanRewriter(activeChatModel, objectMapper, validator);
         InterpretationPlan currentPlan = plan;
         InterpretationPlanRuntime.ExecutionResult currentResult = firstResult;
-        int maxRewriteTimes = augmentationOverrideAvailable && latestAugmentationDecision.continueLoop()
-            ? 1
-            : configuredMaxRewriteTimes;
+        boolean executionRecoveryRequired = !firstResult.success();
+        int maxRewriteTimes = latestAugmentationDecision.continueLoop()
+            ? (augmentationOverrideAvailable ? 1 : configuredMaxRewriteTimes)
+            : executionRecoveryRequired ? configuredMaxRewriteTimes : 0;
+        int evidenceDrivenRewriteLimit = evidenceDrivenRewriteLimit(
+            configuredMaxRewriteTimes,
+            latestAugmentationDecision,
+            evidenceHistory,
+            tools
+        );
+        if (evidenceDrivenRewriteLimit > maxRewriteTimes) {
+            maxRewriteTimes = evidenceDrivenRewriteLimit;
+            metadata.put("evidenceDrivenRewriteBudgetApplied", true);
+            metadata.put("evidenceDrivenRewriteBudgetReason",
+                "The evidence chain contains an available-tool next action, so refinement remains enabled within the runtime attempt ceiling.");
+        }
         boolean templateExecutionRetryRequested = templateExecutionRetryRequested(firstResult);
         if (templateExecutionRetryRequested && tools != null && !tools.isEmpty()) {
-            maxRewriteTimes = 1;
+            maxRewriteTimes = Math.max(maxRewriteTimes, 1);
             metadata.put("templateExecutionRetryBounded", true);
             metadata.put("templateExecutionRetryLimit", 1);
             metadata.put("templateExecutionRetryStrategy",
@@ -1082,12 +1152,27 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 "A non-empty MCP result had an actionable evidence gap; one bounded refinement round was preserved.");
         }
         for (int rewriteCount = 1; rewriteCount <= maxRewriteTimes; rewriteCount++) {
-            observations.add(planAttemptRewriteSummary(
+            String rewriteSummary = planAttemptRewriteSummary(
                 rewriteCount,
                 currentPlan,
                 currentResult
-            ));
+            );
+            observations.add(rewriteSummary);
             InterpretationPlan.Step failedStep = failedStep(currentPlan, currentResult);
+            String repairReason = evidenceRewriteReason(currentResult, evidenceHistory);
+            boolean dagRepairAttempt = !currentResult.success() || failedStep != null;
+            if (dagRepairAttempt) {
+                recordDagRepairEvent(
+                    runtimeAttributes,
+                    metadata,
+                    "STARTED",
+                    rewriteCount,
+                    repairReason,
+                    failedStep,
+                    List.of(),
+                    null
+                );
+            }
             Set<String> completedTools = completedWorkflowToolsFromEvents(
                 runtimeAttributes,
                 workflowStateTracker.completedToolsFromTraces(traces)
@@ -1107,7 +1192,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
             InterpretationPlanRewriter.RewriteResult rewrite = rewriter.rewrite(new InterpretationPlanRewriter.RewriteRequest(
                 currentPlan,
                 failedStep,
-                evidenceRewriteReason(currentResult, evidenceHistory),
+                repairReason,
                 observations,
                 tools,
                 toolRegistry,
@@ -1129,32 +1214,72 @@ public class AgentOrchestrator implements AgentRunExecutor {
                     )
                     : null
             ));
+            InterpretationPlan rewrittenPlan = rewrite.rewrittenPlan();
+            InterpretationPlanValidator.ValidationResult rewrittenValidation = rewrite.validation();
+            List<String> authoritativeRewritePasses = List.of();
+            Object rewriteWorkflowDag = authoritativeWorkflowDagForContinuation(
+                authoritativeWorkflowDag,
+                rewrittenPlan,
+                completedTools
+            );
+            if (rewrittenPlan != null && hasAuthoritativeWorkflowDag) {
+                InterpretationPlanOptimizer.OptimizationResult authoritativeRewrite =
+                    new InterpretationPlanOptimizer().optimize(rewrittenPlan, rewriteWorkflowDag);
+                rewrittenPlan = authoritativeRewrite.plan() == null ? rewrittenPlan : authoritativeRewrite.plan();
+                authoritativeRewritePasses = authoritativeRewrite.appliedPasses();
+                rewrittenValidation = validator.validate(
+                    rewrittenPlan,
+                    toolRegistry,
+                    new LinkedHashSet<>(tools == null ? List.of() : tools),
+                    rewriteWorkflowDag,
+                    authoritativeWorkflowTaskId
+                );
+            }
+            boolean rewrittenValid = rewrittenPlan != null
+                && rewrittenValidation != null && rewrittenValidation.valid();
             metadata.put("interpretationPlanRewriteAttempted", true);
             metadata.put("interpretationPlanRewriteCount", rewriteCount);
-            metadata.put("interpretationPlanRewriteValid", rewrite.valid());
-            metadata.put("interpretationPlanRewriteExecutable", rewrite.executable());
-            if (rewrite.errorMessage() != null && !rewrite.errorMessage().isBlank()) {
+            metadata.put("interpretationPlanRewriteValid", rewrittenValid);
+            metadata.put("interpretationPlanRewriteExecutable",
+                rewrittenValidation != null && rewrittenValidation.executable());
+            metadata.put("authoritativeWorkflowRewritePasses", authoritativeRewritePasses);
+            if (!rewrittenValid && rewrite.errorMessage() != null && !rewrite.errorMessage().isBlank()) {
                 metadata.put("interpretationPlanRewriteError", rewrite.errorMessage());
             }
             recordPlanEvolution(
                 currentPlan,
-                rewrite.rewrittenPlan(),
+                rewrittenPlan,
                 rewriteCount + 1,
-                rewrite.valid() ? "ACCEPTED" : "REJECTED",
+                rewrittenValid ? "ACCEPTED" : "REJECTED",
                 evidenceHistory,
                 runtimeAttributes,
                 metadata
             );
+            List<Map<String, Object>> repairChanges = rewrittenPlan == null
+                ? List.of()
+                : planChanges(currentPlan, rewrittenPlan);
+            if (dagRepairAttempt) {
+                recordDagRepairEvent(
+                    runtimeAttributes,
+                    metadata,
+                    rewrittenValid ? "APPLIED" : "REJECTED",
+                    rewriteCount,
+                    repairReason,
+                    failedStep,
+                    repairChanges,
+                    rewrittenValidation
+                );
+            }
             runtimeGuard.checkCancelled(cancellationCheck);
 
             String rewriteStage = rewriteCount == 1 ? "rewrite" : "rewrite" + rewriteCount;
             recordInterpretationPlanEvaluation(
                 rewriteStage,
-                rewrite.validation(),
+                rewrittenValidation,
                 runtimeAttributes,
                 metadata
             );
-            if (!rewrite.valid() || rewrite.rewrittenPlan() == null) {
+            if (!rewrittenValid) {
                 String evaluationError = firstNonBlank(
                     rewrite.errorMessage(),
                     "rewriter did not return a valid plan"
@@ -1163,27 +1288,27 @@ public class AgentOrchestrator implements AgentRunExecutor {
                     + " failed plan evaluation and was not executed: " + evaluationError);
                 currentResult = planEvaluationFailure(
                     rewriteStage,
-                    rewrite.validation(),
+                    rewrittenValidation,
                     evaluationError
                 );
-                if (rewrite.rewrittenPlan() != null) {
-                    currentPlan = rewrite.rewrittenPlan();
+                if (rewrittenPlan != null) {
+                    currentPlan = rewrittenPlan;
                 }
                 planAttemptResults.add(currentResult);
                 continue;
             }
 
-            if (ToolCallFingerprint.materiallyEquivalent(currentPlan, rewrite.rewrittenPlan())) {
+            if (ToolCallFingerprint.materiallyEquivalent(currentPlan, rewrittenPlan)) {
                 duplicateToolPlanSuppressed = true;
                 metadata.put("duplicateToolPlanSuppressed", true);
                 metadata.put("duplicateToolPlanStage", rewriteStage);
-                metadata.put("duplicateToolPlanFingerprints", ToolCallFingerprint.forPlan(rewrite.rewrittenPlan()));
+                metadata.put("duplicateToolPlanFingerprints", ToolCallFingerprint.forPlan(rewrittenPlan));
                 observations.add("InterpretationPlan " + rewriteStage
                     + " was not executed because its tool calls have no material input change from the previous evidence round.");
                 break;
             }
 
-            currentPlan = rewrite.rewrittenPlan();
+            currentPlan = rewrittenPlan;
             saveInterpretationPlanSnapshot(
                 rewriteStage,
                 currentPlan,
@@ -1201,7 +1326,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 userId,
                 tools,
                 workflowAttemptAttributes(
-                    workflowStateTracker.attributesWithCompletedTools(runtimeAttributes, completedTools),
+                    workflowStateTracker.attributesWithCompletedWorkflowState(
+                        runtimeAttributes, completedTools, traces),
                     rewriteCount
                 )
             ));
@@ -1252,7 +1378,12 @@ public class AgentOrchestrator implements AgentRunExecutor {
             latestAugmentationDecision = decideEvidenceAugmentation(
                 currentEvidence,
                 currentResult,
-                tools != null && !tools.isEmpty() && rewriteCount < maxRewriteTimes,
+                evidenceExplorationAvailable(
+                    currentEvidence,
+                    currentResult,
+                    tools,
+                    rewriteCount < maxRewriteTimes
+                ),
                 false,
                 metadata
             );
@@ -1654,6 +1785,15 @@ public class AgentOrchestrator implements AgentRunExecutor {
         return attributes;
     }
 
+    Map<String, Object> interpretationPlanInitialAttributes(Map<String, Object> runtimeAttributes,
+                                                             List<InteractionToolTrace> traces) {
+        Set<String> completedTools = completedWorkflowToolsFromEvents(
+            runtimeAttributes,
+            workflowStateTracker.completedToolsFromTraces(traces)
+        );
+        return workflowStateTracker.attributesWithCompletedWorkflowState(runtimeAttributes, completedTools, traces);
+    }
+
     private Map<String, Object> runtimeExecutionPolicy(boolean requireToolBeforeFinal) {
         Map<String, Object> policy = new LinkedHashMap<>();
         policy.put("userSelectedToolsMustRun", requireToolBeforeFinal);
@@ -1753,7 +1893,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
             request.decisionCount(),
             System.currentTimeMillis() - startedAt,
             raw == null ? 0 : raw.length());
-        log.info("agentModelRawOutput phase=interpretation_plan_dag_decision decisionCount={} raw=\n{}",
+        log.debug("agentModelRawOutput phase=interpretation_plan_dag_decision decisionCount={} raw=\n{}",
             request.decisionCount(),
             ModelProtocolJson.prettyJsonForLog(raw));
         Map<String, Object> payload = parseJsonObject(raw);
@@ -1780,7 +1920,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (stepIds.isEmpty() && singleStep != null) {
             stepIds = integerList(List.of(singleStep));
         }
-        String reason = firstNonBlank(
+        String modelReason = firstNonBlank(
             stringValue(firstObject(payload, "reason", "analysis", "rationale")),
             "LLM DAG controller decision."
         );
@@ -1791,8 +1931,10 @@ public class AgentOrchestrator implements AgentRunExecutor {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("raw", preview(raw));
         metadata.put("controllerPhase", "llm_decision");
+        metadata.put("modelReason", modelReason);
+        metadata.put("runtimeStatusGrounded", true);
         if (reviewAnswer != null && !reviewAnswer.isBlank()) {
-            metadata.put("reviewAnswer", reviewAnswer);
+            metadata.put("modelReviewAnswer", reviewAnswer);
         }
         if (firstObject(payload, "final_answer", "finalAnswer") != null) {
             metadata.put("legacyFinalAnswerFieldIgnored", true);
@@ -1805,7 +1947,15 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (parameterProtocols instanceof List<?> protocols) {
             metadata.put("parameterProtocols", protocols);
         }
-        return new InterpretationPlanRuntime.DagDecision(protocolVersion, action, stepIds, reason, null, metadata);
+        String runtimeStatus = runtimeDagExecutionStatus(request);
+        metadata.put("reviewAnswer", runtimeStatus);
+        metadata.put("runtimeExecutionStatus", runtimeStatus);
+        String groundedReason = "Runtime accepted DAG action=" + action
+            + " stepIds=" + stepIds + ". " + runtimeStatus;
+        log.info("agentDagDecisionGrounded decisionCount={} action={} stepIds={} status={}",
+            request.decisionCount(), action, stepIds, runtimeStatus);
+        return new InterpretationPlanRuntime.DagDecision(
+            protocolVersion, action, stepIds, groundedReason, null, metadata);
     }
 
     String buildInterpretationPlanDagDecisionPrompt(String query,
@@ -1858,6 +2008,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("Rules:\n");
         prompt.append("- Select only step ids from remaining_step_ids.\n");
         prompt.append("- completed_step_ids and executionLock are authoritative runtime state. Never re-run or override a completed/locked step, even if you think the state is contradictory.\n");
+        prompt.append("- A completed step record with success=true means the tool execution succeeded. This status is authoritative and may not be rewritten as failed by reason or review_answer.\n");
+        prompt.append("- Keep execution status, result completeness, and evidence sufficiency separate. outputTruncated=true, partialEvidence=true, or evidenceSufficiency=INSUFFICIENT describes incomplete evidence; none of these means the tool call failed.\n");
+        prompt.append("- Describe a step as failed only when its executed record has success=false or a non-empty execution error. Never call a successful truncated result a failed step.\n");
         prompt.append("- Do not select a step until all of its depends_on steps are in completed_step_ids.\n");
         prompt.append("- Use execute_parallel_steps only when execution_policy.allow_parallel is true and every selected step is independently ready.\n");
         prompt.append("- Select the final_answer step only when it is the last remaining executable step and evidence is sufficient.\n");
@@ -1870,6 +2023,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("- Each argument must be evidence-bearing: use {value, source:user_query, evidence:{quote}} for an exact User-query fact, or {value, source:tool_result, evidence:{step_id,output_path}} for an exact value in a successful completed step. Runtime re-reads and compares every cited source before execution.\n");
         prompt.append("- Add analysis_summary to explain the parameter profile. Never use model inference as a source, and never copy parameterSchema, defaults, routing fields, credentials, or an entire template object into arguments. Runtime owns defaults, type compilation, routing and execution.\n");
         prompt.append("- Put parameters that cannot be proven by the User query or a completed tool result in unresolved_parameters. When a required parameter is unresolved, request rewrite_plan instead of executing with an invented or empty value.\n");
+        prompt.append("- Do not put a parameter in unresolved_parameters merely because the user omitted it when the selected template declares a non-empty default for that field. Template defaults are authoritative contract evidence; emit only evidence-backed overrides and let Runtime apply the remaining defaults.\n");
         if (compressionEnabled) {
             prompt.append("- Context compression is active because the complete DAG evidence exceeded its token budget.\n");
             prompt.append("- Compressed tool outputs below are semantic scheduling projections. Full results remain authoritative in Runtime step records and tool traces.\n");
@@ -1929,6 +2083,40 @@ public class AgentOrchestrator implements AgentRunExecutor {
         }
         prompt.append("\nReturn only the decision JSON.");
         return prompt.toString();
+    }
+
+    String runtimeDagExecutionStatus(InterpretationPlanRuntime.DagDecisionRequest request) {
+        List<Integer> succeeded = new ArrayList<>();
+        List<Integer> failed = new ArrayList<>();
+        List<Integer> partialEvidence = new ArrayList<>();
+        if (request != null && request.executions() != null) {
+            for (InterpretationPlanRuntime.StepExecution execution : request.executions()) {
+                if (execution == null || execution.stepId() == null) {
+                    continue;
+                }
+                if (execution.success()) {
+                    succeeded.add(execution.stepId());
+                    Map<String, Object> stepMetadata = execution.metadata() == null
+                        ? Map.of() : execution.metadata();
+                    if (Boolean.TRUE.equals(stepMetadata.get("partialEvidence"))
+                        || "INSUFFICIENT".equals(String.valueOf(stepMetadata.get("evidenceSufficiency")))
+                        || outputIsTruncated(execution.output())) {
+                        partialEvidence.add(execution.stepId());
+                    }
+                } else {
+                    failed.add(execution.stepId());
+                }
+            }
+        }
+        return "Authoritative Runtime state: succeededStepIds=" + succeeded
+            + ", failedStepIds=" + failed
+            + ", partialEvidenceStepIds=" + partialEvidence + ".";
+    }
+
+    private boolean outputIsTruncated(Object output) {
+        Map<String, Object> root = objectMap(output);
+        return Boolean.TRUE.equals(booleanValue(firstObject(root,
+            "outputTruncated", "truncated", "isTruncated")));
     }
 
     Object dagDecisionPromptOutputSnapshot(String toolName, Object output) {
@@ -2044,6 +2232,12 @@ public class AgentOrchestrator implements AgentRunExecutor {
             observations,
             storedObservations
         );
+        String reviewEvidenceContext = interpretationPlanReviewEvidenceContext(prompt);
+        if (metadata != null && !reviewEvidenceContext.isBlank()) {
+            metadata.put("modelAnalysisReviewContext", reviewEvidenceContext);
+            metadata.put("modelEvidenceReviewRewriteAllowed", true);
+            metadata.put("modelAnalysisReviewContractVersion", "model_analysis_repair_v1");
+        }
         String runId = stringValue(runtimeAttributes == null ? null : runtimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE));
         long startedAt = System.currentTimeMillis();
         log.info("agentModelRequest phase=interpretation_plan_summary runId={} stage={} modelClass={} promptChars={} stepCount={} storedObservationCount={}",
@@ -2098,6 +2292,21 @@ public class AgentOrchestrator implements AgentRunExecutor {
         return answer == null || answer.isBlank()
             ? (result == null ? "" : firstNonBlank(result.finalAnswer(), ""))
             : answer;
+    }
+
+    private String interpretationPlanReviewEvidenceContext(String synthesisPrompt) {
+        if (synthesisPrompt == null || synthesisPrompt.isBlank()) {
+            return "";
+        }
+        int start = synthesisPrompt.indexOf("Executed plan attempts (");
+        if (start < 0) {
+            return "";
+        }
+        int end = synthesisPrompt.lastIndexOf("\nReturn only the final user-facing Markdown answer");
+        if (end <= start) {
+            end = synthesisPrompt.length();
+        }
+        return synthesisPrompt.substring(start, end);
     }
 
     private boolean hasBatchExecutionResult(InterpretationPlanRuntime.ExecutionResult result) {
@@ -2156,6 +2365,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("- Use evidence_quality_v1 as independent quality dimensions. Each dimension has value/status/type/reason; UNKNOWN means not assessed and must never be interpreted as 0.5. modelConfidence is MODEL_ESTIMATED and is not an evidence-quality score.\n");
         prompt.append("- Use evidence_graph_v1 as the authoritative Evidence-to-Hypothesis relationship layer. Only ACTIVE SUPPORTS or CONTRADICTS relations with existing Evidence nodes may justify a hypothesis; rejectedRelations are audit findings, not evidence.\n");
         prompt.append("- Use plan_evolution_v1 only to explain why the runtime changed its retrieval or execution path. A plan change is not evidence for the user's factual answer.\n");
+        prompt.append("- Treat template_selection_feedback.v1 and runtimeTemplateCandidateEvaluations as the decision ledger for template changes. When a previously preferred or more precise template was rejected, state its evidence-backed rejection reason; when another template was selected or queried, state the evidence gap it was chosen to close. Do not imply that a service was unavailable when the trace shows a binding, contract, parameter-evidence, policy, or pre-invocation failure.\n");
         prompt.append("- The final answer must be grounded in the cumulative MCP results from every iteration. Do not treat an intermediate model conclusion as evidence unless its referenced evidenceId exists in an executed tool result.\n");
         prompt.append("- Resolve conflicts explicitly. If three iterations still leave a material gap, report that gap instead of filling it with model knowledge.\n");
         prompt.append("- Do not hide earlier partial or failed attempts when they contain usable evidence. State unresolved limitations after considering all attempts.\n");
@@ -2179,12 +2389,14 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("- If the user explicitly asks to generate a SQL/DDL/command draft, provide a clearly labeled non-executed draft for human review instead of refusing solely because execution is not authorized. Separate observed facts from assumptions, and state that Runtime did not execute or approve the statement.\n");
         prompt.append("- Describe the number of plan attempts only from the Executed plan attempts count below. Distinguish BLOCKED before invocation from an actual remote tool execution; do not call a blocked step a completed diagnostic execution.\n");
         prompt.append("- Preserve canonical asset fields exactly: assets[].asset.displayName/name is the asset label, assets[].asset.id/assetId is the asset identifier, and assets[].asset.toolName is the bound tool. Never present toolName as displayName.\n");
-        prompt.append("- Runtime does not shorten tool results in this prompt. Any limit, pagination, or truncation marker must originate from the tool response contract.\n");
+        prompt.append("- Tool evidence may contain a tool_result_summary.v1 wrapper with summaryTruncated=true. That flag means only the inline preview was shortened; it is never evidence that a source field is absent. Do not claim a field is missing from a truncated preview unless Runtime emitted an authoritative contract violation after applying routingProjection and Agent context.\n");
+        prompt.append("- The Agent runtime environment is authoritative for MCP routing. If a structured DAG repair records AGENT_ENVIRONMENT_CONTEXT_APPLIED, treat the environment edge/binding as satisfied and never report an asset-index environment defect.\n");
         prompt.append("- Do not invent facts that are not present in the step outputs or observations.\n");
         prompt.append("- For SQL metadata discovery, cite every recommended table by the exact physical identifier returned by the tool (database/schema/tableName when available). Keep any Chinese business description separate; never use it as a substitute for the physical table name.\n");
         prompt.append("- When returned metadata includes columns, list the exact physical column names under their corresponding physical table and preserve returned type/key/comment details. Never translate, rename, or invent identifiers.\n");
         prompt.append("- If column metadata was not returned for a matched table, say so explicitly instead of presenting illustrative fields as facts.\n\n");
         prompt.append("- For enterprise_metadata_model_context.v1, coverage.inputFieldCount, processedFieldCount, allFieldsProcessed, and fieldsWithCandidates are authoritative. Do not infer that unshown or unprocessed fields were matched. A field may be processed with zero candidates; only returned candidates may support its annotation.\n");
+        prompt.append("- For enterprise_metadata_model_context.v1 and enterprise_metadata_discovery_context.v1, the tool-returned claimCoverage is authoritative and policy-driven. Retrieval success and non-zero candidates support only supportedClaims; they cannot establish claims listed in notAssessedClaims. Use fullTableDesignConformanceSupported exactly as returned and never assume a fixed capability boundary from the schema version or tool name.\n");
         prompt.append("- Review notes and shortened previews are not factual evidence. When they conflict with authoritativeToolResultEvidence, use authoritativeToolResultEvidence and omit the conflicting review claim.\n\n");
         prompt.append("- Mandatory workflow observations are executed after the listed plan attempts. A successful local contract review in those observations is newer authoritative evidence and resolves earlier missing_evidence claims for the same tool result.\n");
         prompt.append("- Database layering labels (for example ADS/DWS/DWD/DIM), table names, schemas, databases, and fields are evidence facts only when the current tool output explicitly returned them. Never infer a layer from a naming convention. Never output 'possible table examples', 'common tables', or supplemental table recommendations that were not retrieved.\n");
@@ -2410,7 +2622,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
             ));
         }
         long startedAt = System.currentTimeMillis();
-        String runId = null;
+        String runId = request.runId();
         log.info("agentModelRequest phase=tool_result_review runId={} stepId={} tool={} attempt={}/{} modelClass={}",
             firstNonBlank(runId, ""),
             request.step() == null ? null : request.step().id(),
@@ -2438,7 +2650,20 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (payload.isEmpty()) {
             return InterpretationPlanRuntime.StepReview.rejected(
                 "Tool result review did not return valid JSON.",
-                metadataOf("toolResultReviewRaw", preview(raw))
+                Map.of(
+                    "toolResultReviewRaw", preview(raw),
+                    "toolResultReviewUnavailable", true
+                )
+            );
+        }
+        if (payload.containsKey("error")
+            && firstObject(payload, "satisfied", "accepted", "sufficient") == null) {
+            return InterpretationPlanRuntime.StepReview.rejected(
+                "Tool result reviewer was unavailable: " + preview(stringify(payload.get("error"))),
+                Map.of(
+                    "toolResultReviewRaw", preview(raw),
+                    "toolResultReviewUnavailable", true
+                )
             );
         }
         boolean satisfied = booleanValue(firstObject(payload, "satisfied", "accepted", "sufficient"));
@@ -2570,6 +2795,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append(AgentRuntimeFactGroundingContract.promptSection());
         prompt.append("- Decide whether this tool output is sufficient for the current plan step and user request.\n");
         prompt.append("- iteration_sufficient evaluates the cumulative user request, not merely whether this one tool call technically succeeded. Set it false when material evidence is still missing and provide evidence_used, missing_evidence, conflicts, and tool-agnostic next_actions.\n");
+        prompt.append("- satisfied and iteration_sufficient describe semantic usefulness and evidence sufficiency; they do not control or rewrite the tool execution status.\n");
+        prompt.append("- outputTruncated=true means result completeness is partial. If the ToolOutput itself succeeded, record the returned evidence and its limits; never describe the tool call or Runtime step as failed solely because content is truncated.\n");
         prompt.append("- next_actions may revise the current tool input, call another available tool, validate a conflict, or retrieve a missing fact. Do not assume any particular tool type.\n");
         prompt.append("- hypotheses must be testable explanations, not facts. Mark each SUPPORTED, CONTRADICTED, or UNRESOLVED and relate it to returned evidence. Runtime will bind the current evidenceId when the model cannot know it yet.\n");
         prompt.append("- Preserve a hypothesis_id when the same hypothesis is refined later; create a new id only for a materially different explanation.\n");
@@ -2586,7 +2813,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("- Treat retrieval score as a weak prior only. Your semantic evidence evaluation must state relevance, answerability, supported aspects, missing aspects, usefulness, and whether another query expansion is needed.\n");
         prompt.append("- For template discovery and API/HTTP requirement analysis, compare title, description, capabilitySpec, outputSchema, dependencySpec and required parameters with the current requirement. Return only ids present in the tool output under selected_template_ids/rejected_template_ids. If candidates do not cover the requirement, set satisfied=false and provide refined_intent.\n");
         prompt.append("- Template retrieval scores and ordering are weak recall priors, never acceptance decisions. Semantically review every returned template candidate.\n");
-        prompt.append("- When multiple templates are returned, selected_template_ids is required when satisfied=true. Order selected_template_ids from highest to lowest semantic fit; Runtime will project that order before binding templates[0].\n");
+        prompt.append("- When governed template discovery returns multiple admitted templates, every template remaining in that discovery result is execution-required. A scalar templates[0] plan binding does not reduce this set: Runtime compiles all admitted templates into a failure-isolated batch and final synthesis must wait for a terminal result from every call. selected_template_ids may order or narrow candidates only during the discovery admission decision; it may never be used after admission to skip physical execution.\n");
         prompt.append("- Put unrelated or materially weaker candidates in rejected_template_ids. Do not select a template merely because Lucene ranked it first or its score ties another candidate.\n");
         prompt.append("- For each returned template candidate, emit template_evaluations with evidence-based relevance, evidence_fit, parameter_readiness, total_score, decision, reasons, and missing_parameters. Scores are 0..1 and must be justified by returned metadata and the current user request.\n");
         prompt.append("- For a template execution tool, set template_execution_satisfied explicitly. If false, list missing_parameters and provide retry_input_changes only for values proven by the user query or completed tool evidence; otherwise leave retry_input_changes empty and set reselect_template=true.\n");
@@ -2602,6 +2829,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("- If sqlMetadataColumnCount > 0, do not claim the SQL metadata step returned no columns/metadata.\n");
         prompt.append("- Runtime must pass the complete tool-returned result. Any limit, pagination, or truncation marker must originate from the tool contract, never from Runtime prompt construction.\n");
         prompt.append("- For enterprise metadata matching, use the formatted authoritative evidence projection when present. Its coverage object distinguishes processed fields from fields with candidates; never treat success=true or explicitTruncation=false as proof that every input field matched a standard.\n");
+        prompt.append("- For enterprise metadata discovery, evaluate semantic answerability against claimCoverage. A successful retrieval with non-zero records is unsatisfied for requested claims listed under notAssessedClaims; do not retain unrelated standards merely to justify another discovery retry.\n");
         prompt.append("Attempt: ").append(request.attempt()).append('/').append(request.maxAttempts()).append("\n");
         prompt.append("Current-turn user query:\n").append(query == null ? "" : query).append("\n\n");
         InterpretationPlan plan = request.plan();
@@ -3062,8 +3290,10 @@ public class AgentOrchestrator implements AgentRunExecutor {
             Map<String, Object> stepMetadata = step == null || step.metadata() == null
                 ? Map.of()
                 : step.metadata();
-            if (Boolean.TRUE.equals(stepMetadata.get("toolResultReviewPartialAccepted"))
-                || Boolean.FALSE.equals(stepMetadata.get("toolResultReviewSatisfied"))) {
+            boolean partialEvidenceAccepted = Boolean.TRUE.equals(
+                stepMetadata.get("toolResultReviewPartialAccepted"));
+            if (!partialEvidenceAccepted
+                && Boolean.FALSE.equals(stepMetadata.get("toolResultReviewSatisfied"))) {
                 reasons.add("step " + step.stepId() + ": " + firstNonBlank(
                     stringValue(stepMetadata.get("toolResultReviewReason")),
                     firstNonBlank(
@@ -3110,6 +3340,59 @@ public class AgentOrchestrator implements AgentRunExecutor {
             return runtimeMaximum;
         }
         return Math.max(0, Math.min(runtimeMaximum, plan.executionPolicy().maxRewriteTimes()));
+    }
+
+    private Object authoritativeWorkflowDagForContinuation(Object rawDag,
+                                                            InterpretationPlan rewrittenPlan,
+                                                            Set<String> completedTools) {
+        if (!(rawDag instanceof Collection<?> nodes) || nodes.isEmpty()
+            || completedTools == null || completedTools.isEmpty()
+            || rewrittenPlan == null || rewrittenPlan.steps() == null) {
+            return rawDag;
+        }
+        Set<String> plannedTools = rewrittenPlan.steps().stream()
+            .filter(Objects::nonNull)
+            .map(InterpretationPlan.Step::toolName)
+            .filter(Objects::nonNull)
+            .map(this::toolSemanticKey)
+            .filter(value -> !value.isBlank())
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        Set<String> omittedCompletedTools = completedTools.stream()
+            .filter(Objects::nonNull)
+            .map(this::toolSemanticKey)
+            .filter(value -> !value.isBlank() && !plannedTools.contains(value))
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        if (omittedCompletedTools.isEmpty()) {
+            return rawDag;
+        }
+        List<Map<String, Object>> continuationDag = new ArrayList<>();
+        for (Object rawNode : nodes) {
+            if (!(rawNode instanceof Map<?, ?> node)) {
+                continue;
+            }
+            String toolName = firstNonBlank(
+                stringValue(node.get("tool")),
+                stringValue(node.get("toolName"))
+            );
+            if (omittedCompletedTools.contains(toolSemanticKey(toolName))) {
+                continue;
+            }
+            Map<String, Object> continuationNode = new LinkedHashMap<>();
+            node.forEach((key, value) -> {
+                if (key != null) {
+                    continuationNode.put(String.valueOf(key), value);
+                }
+            });
+            Object dependencies = node.get("dependsOnTools");
+            if (dependencies instanceof Collection<?> values) {
+                continuationNode.put("dependsOnTools", values.stream()
+                    .filter(Objects::nonNull)
+                    .filter(value -> !omittedCompletedTools.contains(toolSemanticKey(String.valueOf(value))))
+                    .toList());
+            }
+            continuationDag.add(continuationNode);
+        }
+        return continuationDag;
     }
 
     private void recordInterpretationPlanEvaluation(
@@ -3276,7 +3559,6 @@ public class AgentOrchestrator implements AgentRunExecutor {
             }
             addEvidenceAnalysisItems(missingEvidence, item.get("missingEvidence"));
             addEvidenceAnalysisItems(conflicts, item.get("conflicts"));
-            addEvidenceAnalysisItems(nextActions, item.get("nextActions"));
             currentHypotheses.addAll(normalizeHypotheses(
                 item.get("hypotheses"),
                 stringValue(item.get("evidenceId"))
@@ -3290,6 +3572,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 iterationSufficient &= booleanValue(item.get("iterationSufficient"));
             }
         }
+        nextActions.addAll(pendingEvidenceNextActions(toolEvidence));
         analysis.put("sufficient", explicitIterationDecision ? iterationSufficient : fallbackSufficient);
         analysis.put("conclusion", conclusions.isEmpty()
             ? (fallbackSufficient ? "The round returned usable evidence." : "The round did not return sufficient evidence.")
@@ -3520,6 +3803,10 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 : step.metadata().getOrDefault("evidenceConflicts", List.of()));
             item.put("nextActions", step.metadata() == null ? List.of()
                 : step.metadata().getOrDefault("nextActions", List.of()));
+            Map<String, Object> evidenceEvaluation = step.metadata() == null
+                ? Map.of()
+                : asMap(step.metadata().get("evidenceEvaluation"));
+            item.put("shouldExpandQuery", evidenceEvaluation.get("shouldExpandQuery"));
             item.put("hypotheses", step.metadata() == null ? List.of()
                 : step.metadata().getOrDefault("hypotheses", List.of()));
             item.put("templateExecutionReview", step.metadata() == null ? Map.of()
@@ -4134,6 +4421,67 @@ public class AgentOrchestrator implements AgentRunExecutor {
         ));
     }
 
+    boolean evidenceExplorationAvailable(Map<String, Object> snapshot,
+                                         InterpretationPlanRuntime.ExecutionResult result,
+                                         List<String> availableTools,
+                                         boolean budgetAvailable) {
+        if (!budgetAvailable || availableTools == null || availableTools.isEmpty()) {
+            return false;
+        }
+        if (result == null || !result.success()) {
+            return true;
+        }
+        if (snapshot == null) {
+            return false;
+        }
+        return !evidenceRefinementRequiredTools(List.of(snapshot), availableTools).isEmpty();
+    }
+
+    List<Object> pendingEvidenceNextActions(List<Map<String, Object>> toolEvidence) {
+        if (toolEvidence == null || toolEvidence.isEmpty()) {
+            return List.of();
+        }
+        List<Object> pending = new ArrayList<>();
+        for (int index = 0; index < toolEvidence.size(); index++) {
+            Map<String, Object> source = toolEvidence.get(index);
+            if (source == null) {
+                continue;
+            }
+            Object rawActions = source.get("nextActions");
+            if (!(rawActions instanceof Iterable<?> actions)) {
+                continue;
+            }
+            for (Object rawAction : actions) {
+                if (!(rawAction instanceof Map<?, ?> rawActionMap)) {
+                    addEvidenceAnalysisItems(pending, rawAction);
+                    continue;
+                }
+                Map<String, Object> action = asStringObjectMap(rawActionMap);
+                String requestedTool = stringValue(firstObject(action,
+                    "tool", "toolName", "tool_name"));
+                if (requestedTool != null
+                    && Boolean.FALSE.equals(source.get("shouldExpandQuery"))) {
+                    continue;
+                }
+                boolean alreadyExecutedSuccessfully = false;
+                if (requestedTool != null) {
+                    for (Map<String, Object> executed : toolEvidence) {
+                        if (executed != null
+                            && Boolean.TRUE.equals(executed.get("success"))
+                            && toolNames.sameToolName(requestedTool, stringValue(executed.get("tool")))) {
+                            alreadyExecutedSuccessfully = true;
+                            break;
+                        }
+                    }
+                }
+                if (!alreadyExecutedSuccessfully) {
+                    pending.add(action);
+                }
+            }
+        }
+        return List.copyOf(pending);
+    }
+
     private TaskContract.EvidenceRequirement taskEvidenceRequirement(Map<String, Object> metadata) {
         Object contract = metadata == null ? null : metadata.get("taskContract");
         if (contract instanceof TaskContract taskContract) {
@@ -4338,6 +4686,94 @@ public class AgentOrchestrator implements AgentRunExecutor {
         List<String> augmented = new ArrayList<>(current);
         augmented.add(financialDataTool);
         return List.copyOf(augmented);
+    }
+
+    private void recordDagRepairEvent(Map<String, Object> runtimeAttributes,
+                                      Map<String, Object> metadata,
+                                      String eventState,
+                                      int rewriteCount,
+                                      String reason,
+                                      InterpretationPlan.Step failedStep,
+                                      List<Map<String, Object>> changes,
+                                      InterpretationPlanValidator.ValidationResult validation) {
+        String normalizedState = firstNonBlank(eventState, "UNKNOWN").toUpperCase(Locale.ROOT);
+        List<Map<String, Object>> safeChanges = changes == null ? List.of() : List.copyOf(changes);
+        List<InterpretationPlanValidator.ValidationIssue> validationIssues = validation == null
+            ? List.of()
+            : validation.issues();
+        Map<String, Object> repairEvent = metadataOf(
+            "contractVersion", "runtime_dag_governance.v1",
+            "eventKind", "DAG_REPAIR",
+            "eventState", normalizedState,
+            "repairAttempt", rewriteCount,
+            "fromIteration", rewriteCount,
+            "toIteration", rewriteCount + 1,
+            "reason", firstNonBlank(reason, "Runtime detected an evidence or execution gap."),
+            "failedStepId", failedStep == null ? null : failedStep.id(),
+            "failedToolName", failedStep == null ? null : failedStep.toolName(),
+            "changeCount", safeChanges.size(),
+            "changes", safeChanges,
+            "validationIssues", validationIssues,
+            "createdAt", System.currentTimeMillis()
+        );
+        if (metadata != null) {
+            metadataList(metadata, "dagRepairEvents").add(repairEvent);
+        }
+        String content = switch (normalizedState) {
+            case "STARTED" -> "Runtime started DAG repair attempt " + rewriteCount
+                + " after detecting a recoverable plan or execution failure.";
+            case "APPLIED" -> "Runtime applied DAG repair attempt " + rewriteCount
+                + " with " + safeChanges.size() + " audited change(s); validation passed.";
+            case "REJECTED" -> "DAG repair attempt " + rewriteCount
+                + " did not pass runtime validation; the next bounded recovery action will be evaluated.";
+            default -> "Runtime recorded DAG repair attempt " + rewriteCount + ".";
+        };
+        runResultAdapter.recordRuntimeObservation(
+            runtimeAttributes,
+            AGENT_RUN_ID_ATTRIBUTE,
+            content,
+            "interpretation_plan_repair",
+            metadataOf(
+                "type", "repair",
+                "workflow", "interpretation_plan",
+                "lifecyclePhase", "dag_repair",
+                "eventKind", "DAG_REPAIR",
+                "eventState", normalizedState,
+                "repairAttempt", rewriteCount,
+                "repairEvent", repairEvent
+            )
+        );
+    }
+
+    private void recordPlannerDagRepairEvent(Map<String, Object> runtimeAttributes,
+                                             Map<String, Object> metadata,
+                                             Object rawRepairEvent) {
+        Map<String, Object> repairEvent = asMap(rawRepairEvent);
+        if (!"DAG_REPAIR".equalsIgnoreCase(stringValue(repairEvent.get("eventKind")))
+            || repairEvent.isEmpty()) {
+            return;
+        }
+        if (metadata != null) {
+            metadataList(metadata, "dagRepairEvents").add(new LinkedHashMap<>(repairEvent));
+        }
+        String repairCode = firstNonBlank(
+            stringValue(repairEvent.get("repairCode")), "AUTHORITATIVE_DAG_REPAIR");
+        runResultAdapter.recordRuntimeObservation(
+            runtimeAttributes,
+            AGENT_RUN_ID_ATTRIBUTE,
+            "Runtime restored the planner DAG from the authoritative workflow contract ("
+                + repairCode + ").",
+            "interpretation_plan_repair",
+            metadataOf(
+                "type", "repair",
+                "workflow", "interpretation_plan",
+                "lifecyclePhase", "dag_repair",
+                "eventKind", "DAG_REPAIR",
+                "eventState", firstNonBlank(
+                    stringValue(repairEvent.get("eventState")), "APPLIED"),
+                "repairEvent", repairEvent
+            )
+        );
     }
 
     private void recordPlanEvolution(
@@ -4764,13 +5200,23 @@ public class AgentOrchestrator implements AgentRunExecutor {
             + firstNonBlank(step.errorMessage(), "unknown error");
     }
 
-    private String templateSelectionFeedbackObservation(String stage,
-                                                        InterpretationPlanRuntime.StepExecution step) {
+    String templateSelectionFeedbackObservation(String stage,
+                                                InterpretationPlanRuntime.StepExecution step) {
         if (step == null || step.metadata() == null || step.metadata().isEmpty()) {
             return null;
         }
         Map<String, Object> feedback = new LinkedHashMap<>();
-        for (String key : List.of("selectedTemplateIds", "rejectedTemplateIds", "refinedIntent")) {
+        for (String key : List.of(
+            "selectedTemplateIds",
+            "rejectedTemplateIds",
+            "templateEvaluations",
+            "refinedIntent",
+            "runtimeSelectedTemplateIds",
+            "runtimeTemplateCandidateEvaluations",
+            "runtimeTemplateSelectionReason",
+            "templateExecutionReview",
+            "templateReselectionRequired"
+        )) {
             Object value = step.metadata().get(key);
             if (value != null && !String.valueOf(value).isBlank() && !List.of().equals(value)) {
                 feedback.put(key, value);
@@ -4784,6 +5230,28 @@ public class AgentOrchestrator implements AgentRunExecutor {
         feedback.put("stepId", step.stepId());
         feedback.put("toolName", step.toolName());
         return "InterpretationPlan template selection feedback: " + stringify(feedback);
+    }
+
+    /**
+     * Lets evidence, rather than a model's optimistic initial rewrite estimate,
+     * decide whether another bounded refinement round is still useful. An
+     * explicit zero remains the caller's stop decision; positive estimates may
+     * expand only when the latest evidence names a tool that is actually in the
+     * current availability snapshot.
+     */
+    int evidenceDrivenRewriteLimit(int configuredMaxRewriteTimes,
+                                   EvidenceAugmentationPolicy.Outcome outcome,
+                                   List<Map<String, Object>> evidenceHistory,
+                                   List<String> availableTools) {
+        int configured = Math.max(0,
+            Math.min(MAX_INTERPRETATION_PLAN_ATTEMPTS - 1, configuredMaxRewriteTimes));
+        if (configured == 0 || outcome == null || !outcome.continueLoop()) {
+            return 0;
+        }
+        if (evidenceRefinementRequiredTools(evidenceHistory, availableTools).isEmpty()) {
+            return configured;
+        }
+        return MAX_INTERPRETATION_PLAN_ATTEMPTS - 1;
     }
 
     private String canonicalEvidenceObservation(InterpretationPlanRuntime.StepExecution step) {
@@ -4923,6 +5391,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
                                               Map<String, Object> runtimeAttributes) {
         Map<String, Object> safeArguments = new LinkedHashMap<>(
             toolArguments.applyObservedTemplateContract(toolName, arguments, priorTraces));
+        safeArguments = new LinkedHashMap<>(
+            toolArguments.enforceObservedAssetContinuity(toolName, safeArguments, priorTraces));
         Map<String, Object> attributes = new LinkedHashMap<>(runtimeAttributes == null ? Map.of() : runtimeAttributes);
         attributes.put("executionPlan", buildRuntimeExecutionPlan(toolName, safeArguments, plannerExecutionPlan));
         ToolInput toolInput = ToolInput.builder()
@@ -5122,11 +5592,21 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 query,
                 webSearchResultLimit
             );
-            fallbackArguments = toolArguments.applyPublishedDependencyEvidenceContract(
+            fallbackArguments = toolArguments.applyDeterministicDependencyContracts(
                 fallbackTool,
                 fallbackArguments,
-                predecessorTraces
+                predecessorTraces,
+                query
             );
+            List<String> missingRequiredInputs = missingRequiredToolInputs(fallbackTool, fallbackArguments);
+            if (!missingRequiredInputs.isEmpty()) {
+                metadata.put("mandatoryWorkflowStoppedOnFailure", fallbackTool);
+                metadata.put("mandatoryWorkflowMissingRequiredInputs", missingRequiredInputs);
+                observations.add("Mandatory workflow fallback did not invoke " + fallbackTool
+                    + " because required inputs could not be proven from completed predecessor evidence: "
+                    + String.join(", ", missingRequiredInputs) + ".");
+                return;
+            }
             Map<String, Object> originalArguments = new LinkedHashMap<>(fallbackArguments);
             ModelAssistedRetrievalBridge.EnrichmentResult enrichment =
                 modelAssistedRetrievalBridge.enrichWithGate(
@@ -5217,6 +5697,47 @@ public class AgentOrchestrator implements AgentRunExecutor {
         } else {
             metadata.put("mandatoryWorkflowStillMissingAfterFallback", remainingMandatoryTools);
         }
+    }
+
+    private List<String> missingRequiredToolInputs(String toolName, Map<String, Object> arguments) {
+        ToolMetadata toolMetadata = toolRegistry.getToolMetadata(toolName);
+        if (toolMetadata == null || toolMetadata.getParameters() == null) {
+            return List.of();
+        }
+        Map<String, Object> input = arguments == null ? Map.of() : arguments;
+        List<String> missing = new ArrayList<>();
+        for (ToolParameter parameter : toolMetadata.getParameters()) {
+            if (parameter == null || !parameter.isRequired()
+                || parameter.getName() == null || parameter.getName().isBlank()) {
+                continue;
+            }
+            Object value = requiredToolInputValue(input, parameter.getName());
+            if (value == null
+                || value instanceof CharSequence text && text.toString().isBlank()
+                || value instanceof Map<?, ?> map && map.isEmpty()
+                || value instanceof java.util.Collection<?> collection && collection.isEmpty()) {
+                missing.add(parameter.getName());
+            }
+        }
+        return List.copyOf(missing);
+    }
+
+    private Object requiredToolInputValue(Map<String, Object> input, String parameterName) {
+        Object direct = input.get(parameterName);
+        if (direct != null) {
+            return direct;
+        }
+        String normalized = parameterName.trim().toLowerCase(Locale.ROOT).replace("_", "");
+        if ("template".equals(normalized) || "templateid".equals(normalized)) {
+            return firstObject(input, "template", "templateId", "template_id");
+        }
+        if ("executioncontext".equals(normalized) || "mcpexecutioncontext".equals(normalized)) {
+            return firstObject(input, "executionContext", "mcpExecutionContext", "execution_context");
+        }
+        if ("parameters".equals(normalized) || "params".equals(normalized)) {
+            return firstObject(input, "parameters", "params");
+        }
+        return null;
     }
 
     private List<InteractionToolTrace> mandatoryPredecessorTraces(List<String> mandatoryTools,

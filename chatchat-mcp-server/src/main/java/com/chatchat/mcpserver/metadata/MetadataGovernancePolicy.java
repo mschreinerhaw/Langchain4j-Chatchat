@@ -12,6 +12,7 @@ public class MetadataGovernancePolicy {
 
     private String version;
     private MetadataContract metadataContract = new MetadataContract();
+    private ClaimCoverage claimCoverage = new ClaimCoverage();
     private SearchPolicy search = new SearchPolicy();
     private ComparisonPolicy comparison = new ComparisonPolicy();
 
@@ -31,6 +32,28 @@ public class MetadataGovernancePolicy {
         private String abbreviationAttribute;
         private String dictionaryEnglishNameAttribute;
         private String dictionaryIdAttribute;
+    }
+
+    @Data
+    public static class ClaimCoverage {
+        private String contractVersion = "enterprise_metadata_claim_coverage.v1";
+        private String scope = "ENTERPRISE_FIELD_METADATA";
+        private List<String> supportedClaims = new ArrayList<>(List.of(
+            "standard field name and definition alignment",
+            "standard field data-type alignment when the returned record declares a type",
+            "business term/root alignment",
+            "code dictionary alignment"
+        ));
+        private List<String> notAssessedClaims = new ArrayList<>(List.of(
+            "primary or unique key design",
+            "partitioning, bucketing, or indexing design",
+            "storage format or compression",
+            "retention, lifecycle, or TTL policy",
+            "complete table-level enterprise design conformance"
+        ));
+        private boolean fullTableDesignConformanceSupported;
+        private String interpretation =
+            "success=true means retrieval completed, not that every requested governance claim is supported";
     }
 
     @Data

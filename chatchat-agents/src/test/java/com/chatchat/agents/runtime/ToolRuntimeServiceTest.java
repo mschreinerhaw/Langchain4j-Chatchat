@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -149,6 +150,9 @@ class ToolRuntimeServiceTest {
             assertThat(execution.output().getMetadata())
                 .containsEntry("outputTruncated", true)
                 .containsKeys("outputDocumentId", "outputEvidenceId", "outputOriginalBytes");
+            assertThat(service.resolveOutputForEvidenceReview(execution.output()))
+                .isInstanceOfSatisfying(Map.class, resolved ->
+                    assertThat(resolved).containsEntry("rows", "x".repeat(100_000)));
         } finally {
             service.shutdown();
         }
@@ -200,7 +204,7 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
-    void oversizedTemplateDiscoveryPreservesExecutableContractProjection() {
+    void oversizedTemplateDiscoveryPreservesExecutableContractProjection() throws Exception {
         ToolRegistry registry = mock(ToolRegistry.class);
         String toolName = "tenant_database_query_template_query";
         when(registry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
@@ -219,6 +223,9 @@ class ToolRuntimeServiceTest {
         template.put("templateDsl", Map.of("sql", "select secret implementation body"));
         when(registry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.success(Map.of(
             "schemaVersion", "template_query_result.v3",
+            "queryIr", Map.of("asset", Map.of("selected", Map.of(
+                "id", "host-41", "name", "tenant-runtime-host", "environment", "DEV",
+                "password", "must-not-leak"))),
             "templates", List.of(template)
         )));
         ToolRuntimeProperties runtimeProperties = properties();
@@ -242,6 +249,21 @@ class ToolRuntimeServiceTest {
                 assertThat(projected.get("description").toString()).hasSizeLessThan(2_100);
                 assertThat(projected.containsKey("templateDsl")).isFalse();
                 assertThat(projected.containsKey("sql")).isFalse();
+                Map<?, ?> selected = (Map<?, ?>) ((Map<?, ?>) ((Map<?, ?>) projection
+                    .get("queryIr")).get("asset")).get("selected");
+                assertThat(selected.get("id")).isEqualTo("host-41");
+                assertThat(selected.get("name")).isEqualTo("tenant-runtime-host");
+                assertThat(selected.get("environment")).isEqualTo("DEV");
+                assertThat(selected.containsKey("password")).isFalse();
+            });
+            Map<?, ?> traceOutput = new ObjectMapper().readValue(execution.trace().getOutput(), Map.class);
+            assertThat(traceOutput.get("routingProjection")).isInstanceOfSatisfying(Map.class, projection -> {
+                List<?> templates = (List<?>) projection.get("templates");
+                assertThat(templates).singleElement().isInstanceOfSatisfying(Map.class, projected ->
+                    assertThat(projected)
+                        .containsEntry("templateId", "sample_margin_trade_latest")
+                        .containsKey("sqlExecutionBinding")
+                        .doesNotContainKeys("templateDsl", "sql"));
             });
         } finally {
             service.shutdown();
@@ -884,6 +906,58 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
+    void authoritativeDagOverridesStaleSequentialOrderForTemplateProtocol() {
+        String asset = "mcp_chatchat_mcp_server_api_asset_query";
+        String query = "mcp_chatchat_mcp_server_api_template_query";
+        String execute = "mcp_chatchat_mcp_server_api_template_execute";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        for (String tool : List.of(asset, query, execute)) {
+            when(toolRegistry.getToolMetadata(tool)).thenReturn(ToolMetadata.builder()
+                .id(tool).title(tool).build());
+        }
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.success("ok"));
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), properties(), new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of());
+        Map<String, Object> staleWorkflow = Map.of(
+            "enabled", true,
+            "executionStrategy", Map.of("mode", "sequential", "stopOnError", true),
+            "steps", List.of(
+                Map.of("step", 1, "tool", asset, "required", true),
+                Map.of("step", 2, "tool", execute, "required", true),
+                Map.of("step", 3, "tool", query, "required", true)
+            )
+        );
+        List<Map<String, Object>> authoritativeDag = List.of(
+            Map.of("tool", asset, "dependsOnTools", List.of()),
+            Map.of("tool", query, "dependsOnTools", List.of(asset)),
+            Map.of("tool", execute, "dependsOnTools", List.of(query))
+        );
+        java.util.function.Function<String, ToolRuntimeRequest> request = tool -> ToolRuntimeRequest.builder()
+            .toolName(tool)
+            .runtimeMode("interpretation_plan")
+            .requestId("req-authoritative-template-workflow")
+            .conversationId("conv-authoritative-template-workflow")
+            .tenantId("tenant-1")
+            .userId("user-1")
+            .allowedTools(List.of(asset, query, execute))
+            .toolInput(ToolInput.builder().userId("user-1").parameters(Map.of()).build())
+            .attributes(Map.of(
+                "mcpWorkflow", staleWorkflow,
+                "authoritativeWorkflowDag", authoritativeDag
+            ))
+            .build();
+
+        ToolRuntimeExecution assetExecution = service.execute(request.apply(asset));
+        ToolRuntimeExecution queryExecution = service.execute(request.apply(query));
+
+        assertThat(assetExecution.output().isSuccess()).isTrue();
+        assertThat(queryExecution.output().isSuccess()).isTrue();
+        assertThat(queryExecution.audit().get("matchedPolicyRules").toString())
+            .contains("authoritative_workflow_dag." + query + "=[" + asset + "]");
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void agentWorkflowArrayDeniesDatabaseExecuteUntilDependenciesAndConfirmation() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
@@ -1316,6 +1390,42 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
+    void canonicalAssetIdCanContinueAWorkflowWhenDagPreservesTheDiscoveredAlias() {
+        List<String> tools = List.of("generated_asset_search", "generated_template_search");
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        tools.forEach(tool -> when(toolRegistry.getToolMetadata(tool)).thenReturn(ToolMetadata.builder()
+            .id(tool).title(tool).categories(List.of("mcp")).build()));
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.success("ok"));
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), properties(), new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of());
+        Map<String, Object> workflow = Map.of(
+            "enabled", true,
+            "workflow", "generated_diagnostic",
+            "executionStrategy", Map.of("mode", "sequential", "stopOnError", true, "maxSteps", 4),
+            "steps", List.of(
+                Map.of("step", 1, "tool", tools.get(0), "required", true),
+                Map.of("step", 2, "tool", tools.get(1), "required", true)
+            )
+        );
+
+        ToolRuntimeExecution discovered = service.execute(diagnosticAliasRequest(
+            tools.get(0), workflow, tools, 0,
+            Map.of("executionContext", Map.of("assetName", "generated-target-alias")),
+            Map.of()
+        ));
+        ToolRuntimeExecution dependent = service.execute(diagnosticAliasRequest(
+            tools.get(1), workflow, tools, 1,
+            Map.of("executionContext", Map.of("assetId", "generated-canonical-id")),
+            Map.of("workflowContext", Map.of("workflowTargetRef", "generated-target-alias"))
+        ));
+
+        assertThat(discovered.output().isSuccess()).isTrue();
+        assertThat(dependent.output().isSuccess()).isTrue();
+        verify(toolRegistry, times(2)).executeEnhancedTool(any(), any());
+    }
+
+    @Test
     void sequentialBatchPreservesOrderAndContinuesAfterOneFailure() {
         String shortName = "sql_query_execute";
         String fullName = "mcp_chatchat_mcp_server_sql_query_execute";
@@ -1378,6 +1488,92 @@ class ToolRuntimeServiceTest {
             "ORACLE_SYSTEM_EVENTS",
             "ORACLE_TABLESPACE_SIZE"
         );
+    }
+
+    @Test
+    void optionalNonTemplateToolDoesNotInheritUnrelatedMandatorySequence() {
+        String query = "mcp_chatchat_mcp_server_api_template_query";
+        String execute = "mcp_chatchat_mcp_server_api_template_execute";
+        String independent = "mcp_chatchat_mcp_server_financial_data_search";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(independent)).thenReturn(ToolMetadata.builder()
+            .id(independent).title("financial data").categories(List.of("mcp")).build());
+        when(toolRegistry.executeEnhancedTool(eq(independent), any()))
+            .thenReturn(ToolOutput.success(Map.of("records", List.of())));
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), properties(), new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of());
+        Map<String, Object> workflow = Map.of(
+            "enabled", true,
+            "executionStrategy", Map.of("mode", "sequential", "stopOnError", false),
+            "steps", List.of(
+                Map.of("step", 1, "tool", query, "required", true),
+                Map.of("step", 2, "tool", execute, "required", true),
+                Map.of("step", 3, "tool", independent, "required", false)
+            )
+        );
+        List<Map<String, Object>> mandatoryDag = List.of(
+            Map.of("tool", query, "dependsOnTools", List.of()),
+            Map.of("tool", execute, "dependsOnTools", List.of(query))
+        );
+        ToolRuntimeRequest request = ToolRuntimeRequest.builder()
+            .toolName(independent)
+            .runtimeMode("interpretation_plan")
+            .requestId("optional-independent")
+            .conversationId("optional-independent-conversation")
+            .tenantId("tenant-1")
+            .userId("user-1")
+            .allowedTools(List.of(query, execute, independent))
+            .toolInput(ToolInput.builder().parameters(Map.of("query", "market context")).build())
+            .attributes(Map.of("mcpWorkflow", workflow, "authoritativeWorkflowDag", mandatoryDag))
+            .build();
+
+        ToolRuntimeExecution result = service.execute(request);
+
+        assertThat(result.output().isSuccess()).isTrue();
+        assertThat(result.audit().get("matchedPolicyRules")).asString()
+            .contains("authoritative_workflow_dag.optional_tool." + independent);
+        verify(toolRegistry).executeEnhancedTool(eq(independent), any());
+    }
+
+    @Test
+    void preflightBlockedTemplateIsRecordedAndDoesNotStopExecutableTemplates() {
+        String toolName = "api_template_execute";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName).title(toolName).categories(List.of("mcp")).build());
+        List<String> invoked = new ArrayList<>();
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenAnswer(invocation -> {
+            ToolInput input = invocation.getArgument(1);
+            invoked.add(String.valueOf(input.getParameters().get("templateCode")));
+            return ToolOutput.success(Map.of("records", List.of()));
+        });
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), properties(), new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of());
+        Map<String, Object> first = batchCall("orders", toolName, "orders");
+        Map<String, Object> blocked = new LinkedHashMap<>(batchCall("positions", toolName, "positions"));
+        blocked.put("preflightErrorCode", "TEMPLATE_REQUIRED_PARAMETERS_MISSING");
+        blocked.put("preflightMessage", "Required template parameters are unavailable: [accountId]");
+        Map<String, Object> third = batchCall("balance", toolName, "balance");
+
+        ToolRuntimeExecution execution = service.execute(
+            batchRequest(List.of(first, blocked, third), false,
+                Map.of("runtimeOwnedTemplatePreflight", true)));
+        ToolCallBatchResult result = (ToolCallBatchResult) execution.output().getData();
+
+        assertThat(execution.output().isSuccess()).isTrue();
+        assertThat(result.status()).isEqualTo("PARTIAL_SUCCESS");
+        assertThat(result.summary().success()).isEqualTo(2);
+        assertThat(result.summary().blocked()).isEqualTo(1);
+        assertThat(result.summary().remoteToolInvocations()).isEqualTo(2);
+        assertThat(result.results()).extracting(ToolCallResult::callId)
+            .containsExactly("orders", "positions", "balance");
+        assertThat(result.results().get(1).status()).isEqualTo("BLOCKED");
+        assertThat(result.results().get(1).invoked()).isFalse();
+        assertThat(result.results().get(1).error())
+            .containsEntry("code", "TEMPLATE_REQUIRED_PARAMETERS_MISSING");
+        assertThat(invoked).containsExactly("orders", "balance");
     }
 
     @Test
@@ -1561,7 +1757,7 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
-    void sequentialBatchStopsImmediatelyWhenStopOnFailureIsEnabled() {
+    void templateExecutionLayerIgnoresLegacyStopFlagAndReturnsEveryFailure() {
         String toolName = "sql_query_execute";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
@@ -1578,15 +1774,62 @@ class ToolRuntimeServiceTest {
             batchCall("third", toolName, "THREE")
         );
 
-        ToolCallBatchResult result = (ToolCallBatchResult) service.execute(
-            batchRequest(calls, true, Map.of())).output().getData();
+        ToolRuntimeExecution execution = service.execute(batchRequest(calls, true, Map.of()));
+        ToolCallBatchResult result = (ToolCallBatchResult) execution.output().getData();
 
+        assertThat(execution.output().isSuccess()).isTrue();
         assertThat(result.status()).isEqualTo("FAILED");
-        assertThat(result.summary().failed()).isEqualTo(1);
-        assertThat(result.summary().skipped()).isEqualTo(2);
+        assertThat(result.summary().failed()).isEqualTo(3);
+        assertThat(result.summary().skipped()).isZero();
         assertThat(result.results()).extracting(item -> item.status())
-            .containsExactly("FAILED", "NOT_EXECUTED", "NOT_EXECUTED");
-        verify(toolRegistry, times(1)).executeEnhancedTool(any(), any());
+            .containsExactly("FAILED", "FAILED", "FAILED");
+        assertThat(result.results()).allSatisfy(item ->
+            assertThat(item.error()).containsEntry("message", "first failed"));
+        assertThat(execution.audit())
+            .containsEntry("templateExecutionLayer", true)
+            .containsEntry("failureIsolation", true)
+            .containsEntry("requestedStopOnFailureIgnored", true);
+        verify(toolRegistry, times(3)).executeEnhancedTool(any(), any());
+    }
+
+    @Test
+    void batchResolvesSemanticChildToolNameToRegisteredExecutor() {
+        String registeredTool = "mcp_chatchat_mcp_server_api_template_execute";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(registeredTool)).thenReturn(ToolMetadata.builder()
+            .id(registeredTool).title("API template executor").categories(List.of("mcp")).build());
+        when(toolRegistry.executeEnhancedTool(eq(registeredTool), any()))
+            .thenReturn(ToolOutput.success(Map.of("records", List.of())));
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), properties(), new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of());
+        ToolRuntimeRequest request = ToolRuntimeRequest.builder()
+            .toolName(registeredTool)
+            .runtimeMode("interpretation_plan")
+            .requestId("semantic-batch")
+            .conversationId("semantic-conversation")
+            .tenantId("tenant-1")
+            .userId("user-1")
+            .allowedTools(List.of(registeredTool))
+            .toolInput(ToolInput.builder().parameters(Map.of(
+                "executionMode", "SEQUENTIAL",
+                "stopOnFailure", false,
+                "calls", List.of(Map.of(
+                    "callId", "customer-orders",
+                    "toolName", "api_template_execute",
+                    "arguments", Map.of("templateId", "runtime-selected-template", "parameters", Map.of())
+                ))
+            )).build())
+            .build();
+
+        ToolRuntimeExecution execution = service.execute(request);
+        ToolCallBatchResult result = (ToolCallBatchResult) execution.output().getData();
+
+        assertThat(execution.output().isSuccess()).isTrue();
+        assertThat(result.summary().success()).isEqualTo(1);
+        assertThat(result.results()).singleElement().satisfies(child ->
+            assertThat(child.toolName()).isEqualTo(registeredTool));
+        verify(toolRegistry).executeEnhancedTool(eq(registeredTool), any());
     }
 
     @Test
@@ -1855,6 +2098,33 @@ class ToolRuntimeServiceTest {
                 "__agentRunId", "run-diagnostic",
                 "workflowExecutionAttempt", attempt
             ))
+            .build();
+    }
+
+    private ToolRuntimeRequest diagnosticAliasRequest(String toolName,
+                                                      Object workflowConfig,
+                                                      List<String> allowedTools,
+                                                      int attempt,
+                                                      Map<String, Object> parameters,
+                                                      Map<String, Object> additionalAttributes) {
+        Map<String, Object> attributes = new LinkedHashMap<>();
+        attributes.put("mcpWorkflow", workflowConfig);
+        attributes.put("__agentRunId", "run-generated-alias");
+        attributes.put("workflowExecutionAttempt", attempt);
+        attributes.putAll(additionalAttributes);
+        return ToolRuntimeRequest.builder()
+            .toolName(toolName)
+            .runtimeMode("interpretation_plan")
+            .requestId("req-generated-alias-" + attempt)
+            .conversationId("conv-generated-alias")
+            .tenantId("tenant-generated-alias")
+            .userId("user-generated-alias")
+            .allowedTools(allowedTools)
+            .toolInput(ToolInput.builder()
+                .userId("user-generated-alias")
+                .parameters(parameters)
+                .build())
+            .attributes(attributes)
             .build();
     }
 

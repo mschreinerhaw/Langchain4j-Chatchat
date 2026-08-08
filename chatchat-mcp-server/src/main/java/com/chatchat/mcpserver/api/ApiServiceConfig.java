@@ -25,7 +25,7 @@ public class ApiServiceConfig {
     @Column(nullable = false, length = 200)
     private String title;
 
-    @Column(length = 1000)
+    @Column(length = 2000)
     private String description;
 
     @Column(length = 128)

@@ -27,6 +27,7 @@ export default {
       gatewayAssets: [],
       livedataApis: [],
       livedataKeyword: '',
+      livedataStatus: '',
       livedataPage: 1,
       livedataPageSize: 20,
       selectedLivedata: new Set(),
@@ -47,6 +48,14 @@ export default {
         governance: {},
         categoryId: ''
       },
+      enabledListFilters: [
+        {
+          key: 'enabled',
+          label: '启用状态',
+          placeholder: '全部状态',
+          options: boolOptions()
+        }
+      ],
       searchableFields: ['toolName', 'title', 'description', 'businessGroup', 'businessGroupName', 'urlTemplate'],
       columns: [
         { key: 'toolName', label: '工具名称', type: 'code' },
@@ -220,10 +229,14 @@ export default {
     },
     filteredLivedata() {
       const keyword = this.livedataKeyword.toLowerCase();
-      if (!keyword) return this.livedataApis;
-      return this.livedataApis.filter(item => [
-        'name', 'apiName', 'apiId', 'title', 'toolName', 'serviceName', 'methodName', 'namespace'
-      ].some(key => String(item[key] || '').toLowerCase().includes(keyword)));
+      return this.livedataApis.filter(item => {
+        const status = item.registered ? 'registered' : (item.canRegister ? 'available' : 'unavailable');
+        if (this.livedataStatus && status !== this.livedataStatus) return false;
+        if (!keyword) return true;
+        return [
+          'name', 'apiName', 'apiId', 'title', 'toolName', 'serviceName', 'methodName', 'namespace'
+        ].some(key => String(item[key] || '').toLowerCase().includes(keyword));
+      });
     },
     paginatedLivedata() {
       const maxPage = Math.max(1, Math.ceil(this.filteredLivedata.length / this.livedataPageSize));
@@ -268,6 +281,9 @@ export default {
   },
   watch: {
     livedataKeyword() {
+      this.livedataPage = 1;
+    },
+    livedataStatus() {
       this.livedataPage = 1;
     }
   },

@@ -9,6 +9,16 @@ param(
     [string]$NewsBaseUrl,
     [string]$InferenceQuery = "Analyze the latest public market data and provide source-grounded recommendations",
     [string]$InferenceExpectedEvidence = "web_search",
+    [string]$PrePlanWorkflowQuery,
+    [string]$PrePlanSkillId,
+    [string]$PrePlanExpectedTools,
+    [string]$PrePlanExpectedExecutionTemplates,
+    [string]$PrePlanExpectedAnswerEvidence,
+    [string]$PrePlanFailureQuery,
+    [string]$PrePlanFailureTool,
+    [string]$PrePlanFailureBlockedTools,
+    [string]$PrePlanFailureExpectedEvidence,
+    [int]$PrePlanRequestTimeoutMinutes = 15,
     [string]$ApiAuthHeader,
     [string]$McpAuthHeader,
     [string]$NewsAuthHeader,
@@ -52,12 +62,33 @@ try {
             [string]::IsNullOrWhiteSpace($NewsBaseUrl)) {
             throw "Deployed topology E2E requires ApiBaseUrl, McpBaseUrl and NewsBaseUrl."
         }
+        if ([string]::IsNullOrWhiteSpace($PrePlanWorkflowQuery) -or
+            [string]::IsNullOrWhiteSpace($PrePlanSkillId) -or
+            [string]::IsNullOrWhiteSpace($PrePlanExpectedTools) -or
+            [string]::IsNullOrWhiteSpace($PrePlanExpectedExecutionTemplates) -or
+            [string]::IsNullOrWhiteSpace($PrePlanExpectedAnswerEvidence) -or
+            [string]::IsNullOrWhiteSpace($PrePlanFailureQuery) -or
+            [string]::IsNullOrWhiteSpace($PrePlanFailureTool) -or
+            [string]::IsNullOrWhiteSpace($PrePlanFailureBlockedTools) -or
+            [string]::IsNullOrWhiteSpace($PrePlanFailureExpectedEvidence)) {
+            throw "Deployed topology E2E requires all PrePlan success and failure scenario inputs."
+        }
         $mavenArguments += "-Dchatchat.e2e.deployed-topology.live=true"
         $mavenArguments += "-Dchatchat.e2e.api-base-url=$ApiBaseUrl"
         $mavenArguments += "-Dchatchat.e2e.mcp-base-url=$McpBaseUrl"
         $mavenArguments += "-Dchatchat.e2e.news-base-url=$NewsBaseUrl"
         $mavenArguments += "-Dchatchat.e2e.inference-query=$InferenceQuery"
         $mavenArguments += "-Dchatchat.e2e.inference-expected-evidence=$InferenceExpectedEvidence"
+        $mavenArguments += "-Dchatchat.e2e.preplan-workflow-query=$PrePlanWorkflowQuery"
+        $mavenArguments += "-Dchatchat.e2e.preplan-skill-id=$PrePlanSkillId"
+        $mavenArguments += "-Dchatchat.e2e.preplan-expected-tools=$PrePlanExpectedTools"
+        $mavenArguments += "-Dchatchat.e2e.preplan-expected-execution-templates=$PrePlanExpectedExecutionTemplates"
+        $mavenArguments += "-Dchatchat.e2e.preplan-expected-answer-evidence=$PrePlanExpectedAnswerEvidence"
+        $mavenArguments += "-Dchatchat.e2e.preplan-failure-query=$PrePlanFailureQuery"
+        $mavenArguments += "-Dchatchat.e2e.preplan-failure-tool=$PrePlanFailureTool"
+        $mavenArguments += "-Dchatchat.e2e.preplan-failure-blocked-tools=$PrePlanFailureBlockedTools"
+        $mavenArguments += "-Dchatchat.e2e.preplan-failure-expected-evidence=$PrePlanFailureExpectedEvidence"
+        $mavenArguments += "-Dchatchat.e2e.preplan-request-timeout-minutes=$PrePlanRequestTimeoutMinutes"
         if (-not [string]::IsNullOrWhiteSpace($ApiAuthHeader)) {
             $mavenArguments += "-Dchatchat.e2e.api-auth-header=$ApiAuthHeader"
         }

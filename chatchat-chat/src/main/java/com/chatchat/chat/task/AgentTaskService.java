@@ -7,6 +7,8 @@ import com.chatchat.agents.runtime.plan.InterpretationPlanStore;
 import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.chat.interaction.model.InteractionResponse;
 import com.chatchat.chat.interaction.service.InteractionOrchestrationService;
+import com.chatchat.chat.skills.SkillCatalogService;
+import com.chatchat.chat.skills.SkillDefinition;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -16,6 +18,7 @@ import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.PageRequest;
@@ -59,7 +62,6 @@ public class AgentTaskService {
     private static final int MAX_CONFIRMATION_ROUNDS = 20;
     private static final int DEBUG_TEXT_LIMIT = 8000;
     private static final int UI_CITATION_PREMISE_LIMIT = 900;
-    private static final int UI_ANSWER_LIMIT = 6000;
     private static final Pattern JSON_FENCE_PATTERN = Pattern.compile("```json\\s*([\\s\\S]*?)```", Pattern.CASE_INSENSITIVE);
 
     private final AgentEventBus eventBus;
@@ -74,6 +76,9 @@ public class AgentTaskService {
     private final AgentLearningService learningService;
     private final TaskConfirmRepository taskConfirmRepository;
     private final InterpretationPlanStore interpretationPlanStore;
+
+    @Autowired(required = false)
+    private SkillCatalogService skillCatalogService;
 
     @Qualifier("agentTaskExecutor")
     private final ThreadPoolTaskExecutor taskExecutor;
@@ -106,6 +111,7 @@ public class AgentTaskService {
         String taskId = idempotencyKey == null
             ? UUID.randomUUID().toString()
             : idempotentTaskId(normalized.getTenantId(), idempotencyKey);
+        snapshotUserDefinedWorkflow(normalized, taskId);
         AgentTaskLatestEntity latest = new AgentTaskLatestEntity();
         latest.setTaskId(taskId);
         latest.setTenantId(normalized.getTenantId());
@@ -130,6 +136,29 @@ public class AgentTaskService {
 
         queueQuestion(latest, normalized);
         return AgentTaskResponse.from(latest);
+    }
+
+    /** Freezes the user-defined MCP workflow against the task id before the task is persisted. */
+    private void snapshotUserDefinedWorkflow(AgentTaskSubmitRequest request, String taskId) {
+        if (request == null || skillCatalogService == null) {
+            return;
+        }
+        String skillId = firstText(request.getSkillId(), request.getAgentId());
+        SkillDefinition skill = skillCatalogService.resolve(skillId);
+        if (skill == null || skill.workflowConfig() == null || skill.workflowConfig().isEmpty()) {
+            return;
+        }
+        Object configured = skill.workflowConfig().get("mcpWorkflow");
+        Object workflow = configured == null ? skill.workflowConfig() : configured;
+        if (!(workflow instanceof Map<?, ?>) && !(workflow instanceof List<?>)) {
+            return;
+        }
+        Map<String, Object> toolInput = new LinkedHashMap<>(
+            request.getToolInput() == null ? Map.of() : request.getToolInput());
+        toolInput.put("__taskWorkflowDefinition", objectMapper.convertValue(workflow, Object.class));
+        toolInput.put("__taskWorkflowTaskId", taskId);
+        toolInput.put("__taskWorkflowSource", "user_defined_mcp_workflow");
+        request.setToolInput(toolInput);
     }
 
     public Optional<String> finalAnswer(String tenantId, String taskId) {
@@ -1779,9 +1808,26 @@ public class AgentTaskService {
      */
     private AgentEvent findLatestTerminalEvent(List<AgentEvent> events) {
         return events.stream()
-            .filter(event -> TERMINAL_STATUSES.contains(normalizeStatus(event.getStatus())))
+            .filter(this::isTerminalTaskEvent)
             .reduce((previous, current) -> current)
             .orElse(null);
+    }
+
+    /**
+     * Tool failures remain step-level evidence. They must not become task terminal
+     * events merely because their status is FAILED.
+     */
+    private boolean isTerminalTaskEvent(AgentEvent event) {
+        if (event == null) {
+            return false;
+        }
+        String type = normalizeStatus(event.getType());
+        if (List.of("ANSWER", "RESULT", "ERROR", "COMPLETE", "RUNTIME_FAILED", "RUNTIME_CANCELLED")
+            .contains(type)) {
+            return true;
+        }
+        return "STATUS".equals(type)
+            && TERMINAL_STATUSES.contains(normalizeStatus(event.getStatus()));
     }
 
     /**
@@ -2117,12 +2163,17 @@ public class AgentTaskService {
         boolean hasAnswer = !answer.isBlank();
         boolean hasSources = response != null && response.getSources() != null && !response.getSources().isEmpty();
         boolean hasToolOutput = response != null && response.getToolTraces() != null && !response.getToolTraces().isEmpty();
+        boolean hasFailedToolOutput = response != null && response.getToolTraces() != null
+            && response.getToolTraces().stream().anyMatch(trace -> trace != null && !trace.isSuccess());
         boolean hasObservations = metadataList(response == null ? null : response.getMetadata(), "observations");
         boolean hasArtifact = hasAnswer || hasSources || hasToolOutput || hasObservations;
         String explicitTerminalStatus = explicitExecutionTerminalStatus(response, agentMetadata);
         String status = explicitTerminalStatus != null
             ? explicitTerminalStatus
-            : (fatalExecutionBlocked ? "FAILED" : (hasAnswer ? "SUCCESS" : (hasArtifact ? "PARTIAL" : "NO_PRESENTABLE_RESULT")));
+            : ((fatalExecutionBlocked || hasFailedToolOutput) && hasArtifact
+                ? "PARTIAL_SUCCESS"
+                : (fatalExecutionBlocked ? "FAILED"
+                    : (hasAnswer ? "SUCCESS" : (hasArtifact ? "PARTIAL" : "NO_PRESENTABLE_RESULT"))));
         String message = switch (status) {
             case "SUCCESS" -> "Agent task completed";
             case "FAILED" -> "Agent task failed before required tool workflow completed";
@@ -2363,7 +2414,7 @@ public class AgentTaskService {
         }
         String text = JSON_FENCE_PATTERN.matcher(value).replaceAll("").trim();
         text = text.replaceAll("(?is)reasoningPayload:\\s*```json\\s*.*?\\s*```", "").trim();
-        return text.length() <= UI_ANSWER_LIMIT ? text : text.substring(0, UI_ANSWER_LIMIT);
+        return text;
     }
 
     private Map<String, Object> debugPayload(InteractionResponse response, Map<String, Object> reasoningPayload) {

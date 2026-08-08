@@ -5,6 +5,13 @@
 
 This module is the backend production-release gate. It runs after all required application modules and verifies cross-module contracts that unit tests cannot own individually.
 
+测试分为两级：
+
+- 进程内场景测试可使用 mock 或内存存储，用于快速验证跨模块契约；它们属于集成/组件回归，不能单独作为严格 E2E 放行证据。
+- 部署级 E2E 只能通过真实 HTTP 入口访问已经部署的服务，不得在测试 JVM 中实例化或 mock 应用服务。它必须验证最终响应，并通过查询接口回读 Runtime 和会话持久化证据。
+
+当前严格部署链路覆盖 API → Agent → MCP → Runtime 持久化 → Conversation 持久化 → 最终答案。仓库暂未引入浏览器驱动，因此 Web 页面 DOM 渲染不属于当前后端 E2E 的覆盖范围；涉及页面交互或展示的发布必须另行执行浏览器 E2E，不能用本模块结果替代。
+
 Run the complete release gate from the repository root:
 
 ```powershell

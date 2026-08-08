@@ -25,6 +25,7 @@ public class AssetDiscoveryMcpToolPublisher {
     public static final String SQL_DATASOURCE_ASSET_TOOL_NAME = "database_asset_search";
     public static final String LEGACY_SQL_DATASOURCE_ASSET_TOOL_NAME = "sql_datasource_asset_query";
     public static final String HTTP_ENDPOINT_ASSET_TOOL_NAME = "http_endpoint_asset_query";
+    public static final String MICROSERVICE_ASSET_TOOL_NAME = "microservice_asset_query";
 
     private final McpSyncServer mcpSyncServer;
     private final AssetDiscoveryService assetDiscoveryService;
@@ -41,37 +42,55 @@ public class AssetDiscoveryMcpToolPublisher {
         remove(SQL_DATASOURCE_ASSET_TOOL_NAME);
         remove(LEGACY_SQL_DATASOURCE_ASSET_TOOL_NAME);
         remove(HTTP_ENDPOINT_ASSET_TOOL_NAME);
-        mcpSyncServer.addTool(assetQueryTool(
+        remove(MICROSERVICE_ASSET_TOOL_NAME);
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, assetQueryTool(
             SSH_ASSET_TOOL_NAME,
             "SSH asset metadata discovery",
             "Read-only discovery tool for querying redacted SSH host asset metadata and routing hints.",
             "ssh_host",
-            "host"
+            "host",
+            null
         ));
-        mcpSyncServer.addTool(assetQueryTool(
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, assetQueryTool(
             SQL_DATASOURCE_ASSET_TOOL_NAME,
             "Database asset search",
             "Read-only discovery tool for confirming redacted database datasource assets and routing hints.",
             "sql_datasource",
-            "database"
+            "database",
+            null
         ));
-        mcpSyncServer.addTool(assetQueryTool(
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, assetQueryTool(
             HTTP_ENDPOINT_ASSET_TOOL_NAME,
-            "HTTP endpoint asset metadata discovery",
-            "Read-only discovery tool for querying redacted HTTP endpoint asset metadata and routing hints.",
+            "Ordinary HTTP asset search",
+            "Read-only discovery tool exclusively for ordinary HTTP endpoint assets. It never returns microservice assets.",
             "http_endpoint",
-            "http"
+            "http",
+            "HTTP"
+        ));
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, assetQueryTool(
+            MICROSERVICE_ASSET_TOOL_NAME,
+            "Microservice asset search",
+            "Read-only discovery tool exclusively for microservice gateway assets. It never returns ordinary HTTP assets.",
+            "http_endpoint",
+            "http",
+            "MICROSERVICE"
         ));
         mcpSyncServer.notifyToolsListChanged();
-        log.info("Asset discovery MCP tools refreshed: {}, {}, {}",
-            SSH_ASSET_TOOL_NAME, SQL_DATASOURCE_ASSET_TOOL_NAME, HTTP_ENDPOINT_ASSET_TOOL_NAME);
+        log.info("Asset discovery MCP tools refreshed: {}, {}, {}, {}",
+            SSH_ASSET_TOOL_NAME, SQL_DATASOURCE_ASSET_TOOL_NAME,
+            HTTP_ENDPOINT_ASSET_TOOL_NAME, MICROSERVICE_ASSET_TOOL_NAME);
     }
 
     private McpServerFeatures.SyncToolSpecification assetQueryTool(String toolName,
                                                                    String title,
                                                                    String description,
                                                                    String assetType,
-                                                                   String targetKind) {
+                                                                   String targetKind,
+                                                                   String technicalType) {
         McpSchema.Tool tool = McpSchema.Tool.builder()
             .name(toolName)
             .title(title)
@@ -81,14 +100,14 @@ public class AssetDiscoveryMcpToolPublisher {
                 + ", so model mistakes cannot route this request into another asset type. "
                 + "It never returns hostnames, IP addresses, JDBC URLs, or endpoint URLs. The result returns a single canonical redacted assets[] view.")
             .inputSchema(inputSchema(assetType))
-            .meta(meta(toolName, assetType, targetKind))
+            .meta(meta(toolName, assetType, targetKind, technicalType))
             .build();
         return McpServerFeatures.SyncToolSpecification.builder()
             .tool(tool)
             .callHandler((exchange, request) -> {
                 try {
                     Map<String, Object> result = assetDiscoveryService.query(forcedAssetArguments(
-                        request.arguments(), toolName, assetType, targetKind));
+                        request.arguments(), toolName, assetType, targetKind, technicalType));
                     return McpSchema.CallToolResult.builder()
                         .addTextContent("Asset metadata query completed")
                         .structuredContent(result)
@@ -114,13 +133,17 @@ public class AssetDiscoveryMcpToolPublisher {
     private Map<String, Object> forcedAssetArguments(Map<String, Object> arguments,
                                                      String sourceTool,
                                                      String assetType,
-                                                     String targetKind) {
+                                                     String targetKind,
+                                                     String technicalType) {
         Map<String, Object> values = new LinkedHashMap<>();
         if (arguments != null) {
             values.putAll(arguments);
         }
         values.put("assetType", assetType);
         values.put("finalDecision", targetKind);
+        if (technicalType != null) {
+            values.put("technicalType", technicalType);
+        }
         values.putIfAbsent("confidence", 1.0);
         values.putIfAbsent("candidates", List.of(mapOf(
             "targetKind", targetKind,
@@ -129,7 +152,8 @@ public class AssetDiscoveryMcpToolPublisher {
         values.putIfAbsent("trace", mapOf(
             "source", sourceTool,
             "forcedAssetType", assetType,
-            "forcedTargetKind", targetKind
+            "forcedTargetKind", targetKind,
+            "forcedTechnicalType", technicalType
         ));
         return values;
     }
@@ -168,8 +192,9 @@ public class AssetDiscoveryMcpToolPublisher {
         ), List.of("filters", "trace"), false, null, null);
     }
 
-    private Map<String, Object> meta(String toolName, String assetType, String targetKind) {
-        return mapOf(
+    private Map<String, Object> meta(String toolName, String assetType, String targetKind, String technicalType) {
+        String technicalSuffix = technicalType == null ? null : technicalType.toLowerCase(java.util.Locale.ROOT);
+        Map<String, Object> metadata = mapOf(
             "schemaVersion", AssetDiscoveryService.QUERY_SCHEMA_VERSION,
             "kind", "asset_discovery_tool",
             "runtime_action", "read_only",
@@ -181,9 +206,10 @@ public class AssetDiscoveryMcpToolPublisher {
             "confirmation", mapOf("default", "auto_execute", "allow_user_override", false),
             "targetKind", targetKind,
             "assetType", assetType,
+            "technicalType", technicalType,
             McpToolApplicability.META_KEY, McpToolApplicability.of(
-                assetType + ":asset_discovery",
-                "Asset discovery for " + assetType,
+                assetType + (technicalSuffix == null ? "" : ":" + technicalSuffix) + ":asset_discovery",
+                "Asset discovery for " + (technicalSuffix == null ? assetType : technicalSuffix),
                 List.of(assetType),
                 "Find registered " + assetType + " assets and return redacted logical routing metadata.",
                 List.of("Discover an asset before invoking a bound tool that requires a logical execution target."),
@@ -193,6 +219,7 @@ public class AssetDiscoveryMcpToolPublisher {
                 "toolName", toolName,
                 "forcedAssetType", assetType,
                 "forcedTargetKind", targetKind,
+                "forcedTechnicalType", technicalType,
                 "rejectCrossTypeRouting", true
             ),
             "requiresContextFilter", false,
@@ -208,15 +235,16 @@ public class AssetDiscoveryMcpToolPublisher {
             "routingProtocol", mapOf(
                 "forcedTargetKind", targetKind,
                 "forcedAssetType", assetType,
+                "forcedTechnicalType", technicalType,
                 "filtersSchemaVersion", TargetKindRegistry.FILTERS_SCHEMA_VERSION,
                 "allowedFilterFields", List.copyOf(targetKindRegistry.allowedFilterFieldsForTargetKind(targetKind)),
                 "doNotInferFromKeywords", true
             ),
             "indexPolicy", mapOf(
-                "logicalIndex", "asset:" + assetType,
-                "physicalIndex", assetPhysicalIndex(assetType),
+                "logicalIndex", "asset:" + assetType + (technicalSuffix == null ? "" : ":" + technicalSuffix),
+                "physicalIndex", assetPhysicalIndex(assetType, technicalType),
                 "indexBackend", "lucene_typed_asset_index",
-                "filterField", "assetType",
+                "filterField", technicalType == null ? "assetType" : "assetType+technicalType",
                 "isolatedByTool", true
             ),
             "resultShape", mapOf(
@@ -243,10 +271,17 @@ public class AssetDiscoveryMcpToolPublisher {
                 "uri"
             )
         );
+        if (technicalType == null) {
+            metadata.remove("technicalType");
+            ((Map<?, ?>) metadata.get("toolBoundary")).remove("forcedTechnicalType");
+            ((Map<?, ?>) metadata.get("routingProtocol")).remove("forcedTechnicalType");
+        }
+        return metadata;
     }
 
-    private String assetPhysicalIndex(String assetType) {
-        return "assets-" + String.valueOf(assetType).replace('_', '-');
+    private String assetPhysicalIndex(String assetType, String technicalType) {
+        String suffix = technicalType == null ? "" : "-" + technicalType.toLowerCase(java.util.Locale.ROOT);
+        return "assets-" + String.valueOf(assetType).replace('_', '-') + suffix;
     }
 
     private Map<String, Object> errorResult(String message) {

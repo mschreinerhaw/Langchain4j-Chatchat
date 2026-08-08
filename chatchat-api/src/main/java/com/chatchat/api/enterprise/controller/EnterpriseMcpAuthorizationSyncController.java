@@ -9,6 +9,7 @@ import com.chatchat.enterprise.entity.SysRole;
 import com.chatchat.enterprise.repository.McpToolAssetRepository;
 import com.chatchat.enterprise.repository.McpToolPermissionRepository;
 import com.chatchat.enterprise.repository.SysRoleRepository;
+import com.chatchat.enterprise.repository.SysTenantRepository;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,6 +29,7 @@ public class EnterpriseMcpAuthorizationSyncController {
 
     private final EnterpriseAdminService adminService;
     private final SysRoleRepository roleRepository;
+    private final SysTenantRepository tenantRepository;
     private final McpToolAssetRepository toolAssetRepository;
     private final McpToolPermissionRepository toolPermissionRepository;
     private final InternalCredentialProperties internalCredentialProperties;
@@ -44,6 +46,9 @@ public class EnterpriseMcpAuthorizationSyncController {
             roleRepository.findAll().stream()
                 .filter(role -> !isAdminRole(role))
                 .map(this::toRoleView)
+                .toList(),
+            tenantRepository.findAllByOrderByTenantNameAsc().stream()
+                .map(tenant -> new TenantView(tenant.getId(), tenant.getTenantName()))
                 .toList(),
             toolAssetRepository.findAllByOrderByLocalToolNameAsc(),
             toolPermissionRepository.findAll()
@@ -71,9 +76,13 @@ public class EnterpriseMcpAuthorizationSyncController {
         Instant syncedAt,
         List<EnterpriseAdminService.UserView> users,
         List<RoleView> roles,
+        List<TenantView> tenants,
         List<McpToolAsset> tools,
         List<McpToolPermission> permissions
     ) {
+    }
+
+    public record TenantView(String id, String tenantName) {
     }
 
     public record RoleView(

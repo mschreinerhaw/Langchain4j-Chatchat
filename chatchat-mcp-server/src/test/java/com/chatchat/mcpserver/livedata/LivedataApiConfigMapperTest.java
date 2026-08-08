@@ -12,6 +12,41 @@ import static org.assertj.core.api.Assertions.assertThat;
 class LivedataApiConfigMapperTest {
 
     @Test
+    void appendsSourceDescriptionAfterCriticalLivedataMetadata() {
+        LivedataAutoRegistrationProperties properties = new LivedataAutoRegistrationProperties();
+        properties.setServiceBaseUrl("http://localhost:5006");
+        LivedataApiConfigMapper mapper = new LivedataApiConfigMapper(new ObjectMapper(), () -> properties);
+        LivedataApiDefinition definition = new LivedataApiDefinition(
+            "source-1", "AssetAnalysis", "资产分析", "[]", "资产分析接口描述", "ids",
+            "com.apex.livedata.AssetAnalysis", "call", 0, "1", "20240607153710"
+        );
+
+        ApiServiceConfig mapped = mapper.toApiServiceConfig(definition);
+
+        assertThat(mapped.getDescription()).isEqualTo("""
+            LiveData API: AssetAnalysis
+            namespace: ids
+            version: 20240607153710
+            资产分析接口描述""");
+    }
+
+    @Test
+    void omitsMissingSourceDescriptionWithoutRenderingNull() {
+        LivedataAutoRegistrationProperties properties = new LivedataAutoRegistrationProperties();
+        properties.setServiceBaseUrl("http://localhost:5006");
+        LivedataApiConfigMapper mapper = new LivedataApiConfigMapper(new ObjectMapper(), () -> properties);
+        LivedataApiDefinition definition = new LivedataApiDefinition(
+            "source-1", "AssetAnalysis", "资产分析", "[]", null, "ids",
+            "com.apex.livedata.AssetAnalysis", "call", 0, "1", "20240607153710"
+        );
+
+        assertThat(mapper.toApiServiceConfig(definition).getDescription()).isEqualTo("""
+            LiveData API: AssetAnalysis
+            namespace: ids
+            version: 20240607153710""");
+    }
+
+    @Test
     void mapsApiWithoutAmsTokenWhenTokenParameterIsNotExposed() throws Exception {
         LivedataAutoRegistrationProperties properties = new LivedataAutoRegistrationProperties();
         properties.setServiceBaseUrl("http://192.168.195.224:5006");
@@ -60,6 +95,7 @@ class LivedataApiConfigMapperTest {
         assertThat(headers.has("namespace")).isFalse();
         assertThat(headers.path("x-ams-token").asText()).isEqualTo("token-from-gateway");
         assertThat(headers.path("Content-Type").asText()).isEqualTo("application/json;charset=UTF-8");
+        assertThat(mapped.getTechnicalType()).isEqualTo("MICROSERVICE");
     }
 
     @Test
@@ -92,5 +128,46 @@ class LivedataApiConfigMapperTest {
         assertThat(schema.path("properties").path("tab_name").path("description").asText()).isEqualTo("表名");
         assertThat(schema.path("properties").path("tab_name").path("default").asText()).isEqualTo("TJGMXLS");
         assertThat(schema.path("required").isEmpty()).isTrue();
+    }
+
+    @Test
+    void mapsResponseColumnsToApiServiceOutputSchema() throws Exception {
+        LivedataAutoRegistrationProperties properties = new LivedataAutoRegistrationProperties();
+        properties.setServiceBaseUrl("http://localhost:5006");
+        LivedataApiConfigMapper mapper = new LivedataApiConfigMapper(new ObjectMapper(), () -> properties);
+        LivedataApiDefinition definition = new LivedataApiDefinition(
+            "source-1", "orders", "Order query", "[]", null, "livedata",
+            "OrderService", "query", 0, "1", "1",
+            """
+                [{"id":700398516123672576,"name":"etl_date","dataType":"string","description":"交易日期"},
+                 {"id":702086756278935552,"name":"amt_rmb","dataType":"decimal","description":"金额（人民币）"}]
+                """
+        );
+
+        ApiServiceConfig mapped = mapper.toApiServiceConfig(definition);
+
+        var schema = new ObjectMapper().readTree(mapped.getOutputSchemaJson());
+        assertThat(schema.path("properties").path("etl_date").path("type").asText()).isEqualTo("string");
+        assertThat(schema.path("properties").path("etl_date").path("description").asText()).isEqualTo("交易日期");
+        assertThat(schema.path("properties").path("amt_rmb").path("type").asText()).isEqualTo("number");
+        assertThat(schema.path("properties").has("700398516123672576")).isFalse();
+        assertThat(schema.path("required").isEmpty()).isTrue();
+        assertThat(schema.path("additionalProperties").asBoolean()).isFalse();
+    }
+
+    @Test
+    void leavesOutputSchemaEmptyWhenResponseColumnsAreEmptyOrMalformed() {
+        LivedataAutoRegistrationProperties properties = new LivedataAutoRegistrationProperties();
+        properties.setServiceBaseUrl("http://localhost:5006");
+        LivedataApiConfigMapper mapper = new LivedataApiConfigMapper(new ObjectMapper(), () -> properties);
+
+        for (String responseColumns : new String[] { null, "", "not-json", "[]" }) {
+            LivedataApiDefinition definition = new LivedataApiDefinition(
+                "source-1", "orders", "Order query", "[]", null, "livedata",
+                "OrderService", "query", 0, "1", "1", responseColumns
+            );
+
+            assertThat(mapper.toApiServiceConfig(definition).getOutputSchemaJson()).isNull();
+        }
     }
 }

@@ -6,6 +6,7 @@ import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolMetadata;
+import com.chatchat.common.tool.McpToolNamePolicy;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolParameter;
 import com.chatchat.mcpserver.authorization.McpAuthorizationService;
@@ -66,8 +67,18 @@ public class ToolRegistryMcpAdapter {
      * @return the converted tool specifications
      */
     public List<McpServerFeatures.SyncToolSpecification> toToolSpecifications(ToolRegistry toolRegistry) {
-        return toolRegistry.getAllToolNames().stream()
+        List<String> publishableNames = toolRegistry.getAllToolNames().stream()
             .sorted(Comparator.naturalOrder())
+            .filter(name -> !isExcluded(name))
+            .filter(name -> {
+                ToolMetadata metadata = toolRegistry.getToolMetadata(name);
+                return !properties.isExposeAgentCompatibleOnly()
+                    || metadata == null
+                    || metadata.isAgentCompatible();
+            })
+            .toList();
+        McpToolNamePolicy.auditPublicationNames(publishableNames);
+        return publishableNames.stream()
             .map(name -> toToolSpecification(toolRegistry, name))
             .flatMap(List::stream)
             .toList();

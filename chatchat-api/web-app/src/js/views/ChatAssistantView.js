@@ -26,6 +26,8 @@ import {
   mergeChatRuntimeState,
   upsertChatRuntimeState
 } from "../utils/chatRuntimeState";
+import { isTerminalAgentEvent, terminalEventFromEvents } from "../utils/agentTaskTerminalEvents";
+import { runtimeObservationIdentity, runtimeObservationPresentation } from "../utils/runtimeObservationPresentation";
 import {
   boundMessagesForPersistence,
   boundQuestionForPersistence,
@@ -189,12 +191,17 @@ function collapseDuplicateAssistantResults(messages = []) {
     const duplicateAssistant = previous?.role === "assistant"
       && message?.role === "assistant"
       && !!answer
-      && normalizedAnswerContent(previous) === answer;
+      && !!normalizedAnswerContent(previous)
+      && (normalizedAnswerContent(previous) === answer
+        || (!!previous.taskId !== !!message.taskId));
     if (!duplicateAssistant) {
       collapsed.push(message);
       continue;
     }
-    if (assistantPresentationScore(message) > assistantPresentationScore(previous)) {
+    const preferMessage = (!!message.taskId !== !!previous.taskId)
+      ? !!message.taskId
+      : assistantPresentationScore(message) > assistantPresentationScore(previous);
+    if (preferMessage) {
       collapsed[collapsed.length - 1] = {
         ...message,
         id: previous.id || message.id,
@@ -814,7 +821,7 @@ function normalizeExecutionStep(step = {}, index = 0) {
     id: step.id || step.eventId || `step-${index}`,
     title: step.title || step.label || "\u6267\u884c\u6b65\u9aa4",
     detail: step.detail || step.description || step.message || "",
-    status: ["pending", "active", "done", "partial", "empty", "error", "cancelled"].includes(status) ? status : "pending",
+    status: ["pending", "active", "done", "partial", "empty", "error", "cancelled", "warning", "repairing", "repaired"].includes(status) ? status : "pending",
     type: step.type || "",
     toolName: step.toolName || "",
     timestamp: step.timestamp || step.createTime || Date.now(),
@@ -898,37 +905,6 @@ function runtimeToolNameOf(runtimePayload = {}) {
   return runtimePayload.resolvedToolName || runtimePayload.toolName || runtimePayload.source || "";
 }
 
-function isTerminalAgentEvent(event = {}) {
-  const type = normalizeEventType(event);
-  const status = normalizeEventStatus(event);
-  return type === "ANSWER"
-    || type === "RESULT"
-    || type === "ERROR"
-    || type === "NEEDS_CONFIRMATION"
-    || type === "COMPLETE"
-    || status === "SUCCESS"
-    || status === "PARTIAL"
-    || status === "PARTIAL_SUCCESS"
-    || status === "EMPTY"
-    || status === "NO_PRESENTABLE_RESULT"
-    || status === "TIME_BUDGET_EXHAUSTED"
-    || status === "MODEL_BUDGET_EXHAUSTED"
-    || status === "FAILED"
-    || status === "CANCELLED"
-    || status === "WAIT_CONFIRMATION";
-}
-
-function terminalEventFromEvents(events = []) {
-  const terminalEvents = [...(Array.isArray(events) ? events : [])]
-    .filter(isTerminalAgentEvent)
-    .sort((left, right) => (left.createTime || left.timestamp || 0) - (right.createTime || right.timestamp || 0));
-  return terminalEvents
-    .filter((event) => ["ANSWER", "RESULT", "ERROR", "NEEDS_CONFIRMATION"].includes(normalizeEventType(event)))
-    .at(-1)
-    || terminalEvents.at(-1)
-    || null;
-}
-
 function eventOrderValue(event = {}) {
   const sequence = Number(event?.sequence);
   if (Number.isFinite(sequence) && sequence > 0) {
@@ -976,6 +952,10 @@ function eventStepId(event = {}, payload = {}) {
   if (type === "RUNTIME_OBSERVATION") {
     const runtimePayload = runtimePayloadOf(payload);
     const runtimeToolName = runtimeToolNameOf(runtimePayload);
+    const observationIdentity = runtimeObservationIdentity(runtimePayload);
+    if (observationIdentity) {
+      return `runtime-observation:${observationIdentity}`;
+    }
     return runtimeToolName ? `runtime-observation:${runtimeToolName}:${eventOrderValue(event)}` : "analysis";
   }
   if (type === "THINK") {
@@ -1063,14 +1043,16 @@ function agentEventToExecutionStep(event = {}) {
   if (type === "RUNTIME_OBSERVATION") {
     const runtimePayload = runtimePayloadOf(payload);
     const source = runtimeToolNameOf(runtimePayload);
+    const presentation = runtimeObservationPresentation(runtimePayload);
     return {
       ...base,
-      title: source ? "\u5de5\u5177\u8fd4\u56de\u7ed3\u679c" : "\u5206\u6790\u4e2d",
+      title: presentation?.title || (source ? "\u5de5\u5177\u8fd4\u56de\u7ed3\u679c" : "\u5206\u6790\u4e2d"),
+      toolName: presentation?.toolName || source,
       detail: compactText([
-        source,
+        presentation ? "" : source,
         runtimePayload.contentPreview
       ].filter(Boolean).join(" - "), 120),
-      status: "done"
+      status: presentation?.status || "done"
     };
   }
   if (type === "RUNTIME_STARTED") {

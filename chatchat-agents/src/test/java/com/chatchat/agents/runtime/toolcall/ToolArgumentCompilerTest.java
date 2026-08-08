@@ -94,4 +94,32 @@ class ToolArgumentCompilerTest {
             .containsEntry("limit", 50)
             .doesNotContainKey("keywords");
     }
+
+    @Test
+    void invalidOverridesFallBackToDefaultsOrAreOmittedWithoutBlockingExecution() {
+        Map<String, Object> schema = Map.of(
+            "type", "object",
+            "required", List.of("pageSize"),
+            "properties", Map.of(
+                "pageSize", Map.of("type", "integer", "default", 50),
+                "market", Map.of("type", "string", "enum", List.of("SSE", "SZSE")),
+                "enabled", Map.of("type", "boolean", "default", true)
+            )
+        );
+
+        ToolArgumentCompiler.CompilationResult result = compiler.compile(Map.of(
+            "pageSize", "not-a-number",
+            "market", "UNKNOWN",
+            "enabled", "not-a-boolean"
+        ), schema);
+
+        assertThat(result.valid()).isTrue();
+        assertThat(result.parameters())
+            .containsEntry("pageSize", 50)
+            .containsEntry("enabled", true)
+            .doesNotContainKey("market");
+        assertThat(result.repairs()).extracting(ToolArgumentCompiler.Repair::repairCode)
+            .contains("INVALID_OVERRIDE_DROPPED_DEFAULT_APPLIED",
+                "INVALID_OPTIONAL_OVERRIDE_DROPPED");
+    }
 }

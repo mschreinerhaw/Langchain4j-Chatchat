@@ -4,6 +4,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
+import jakarta.persistence.PostLoad;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -14,6 +15,7 @@ import lombok.Setter;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 @Getter
@@ -81,6 +83,9 @@ public class HttpEndpointConfig {
     @Column(nullable = false, length = 32)
     private String environment = "DEV";
 
+    @Column(length = 32)
+    private String technicalType = HttpEndpointTechnicalType.HTTP.name();
+
     @Column(length = 80)
     private String category = "business_api";
 
@@ -126,5 +131,16 @@ public class HttpEndpointConfig {
     @PreUpdate
     public void preUpdate() {
         updatedAt = Instant.now();
+    }
+
+    @PostLoad
+    public void applyTechnicalTypeDefault() {
+        if (technicalType == null || technicalType.isBlank()) {
+            boolean livedata = tags != null && List.of(tags.toLowerCase(Locale.ROOT).split("[,;\\s]+"))
+                .contains("livedata");
+            technicalType = livedata
+                ? HttpEndpointTechnicalType.MICROSERVICE.name()
+                : HttpEndpointTechnicalType.HTTP.name();
+        }
     }
 }

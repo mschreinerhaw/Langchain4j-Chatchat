@@ -1,608 +1,433 @@
 # LangChain4j ChatChat
 
-LangChain4j ChatChat 是一个基于 Spring Boot、LangChain4j、Vue 3 和 MCP 的企业级 AI Chat/RAG/Agent 应用。项目同时提供主应用 `chatchat-api` 和独立 MCP 工具服务 `chatchat-mcp-server`，用于支持大模型对话、知识库检索、Agent 编排、工具调用、MCP 服务管理、企业组织权限和生产环境独立部署。
+LangChain4j ChatChat 是一个基于 Spring Boot、LangChain4j、Vue 3 与 MCP 的企业级 AI Chat、RAG 和 Agent Runtime。项目的核心不是让模型决定流程是否正确，而是让 Runtime 按用户发布的流程定义审核、修复并持续执行 DAG；模型负责理解任务和分析完整工具结果，Runtime 负责流程、契约、证据与交付治理，不生成业务判断。
+
+> 核心目标：**RUN**。单个节点失败、模型计划漂移或某次工具调用异常，不应直接终止整个任务；只要仍存在可执行路径或可用证据，Runtime 就应恢复流程、继续执行并如实交付结果。
+
+## 当前设计基线
+
+### 与旧设计的差异
+
+| 维度 | 旧设计风险 | 当前设计 |
+| --- | --- | --- |
+| 流程标准 | 把 Planner 生成的计划当成事实标准 | 用户发布的工作流快照是唯一业务流程标准；Planner 只提交候选计划 |
+| DAG 审核 | 校验失败后反复要求模型重写，最终可能终止 | Runtime 将候选计划与标准 DAG 对账，确定性恢复节点、边、顺序和失败策略 |
+| 模型漂移 | 不同模型输出结构不同，导致节点缺失、改名或越序 | 依据工作流快照、工具注册表和 Schema 修复，不依赖模型自我纠错 |
+| 节点失败 | 任一工具失败即可把 Agent task 标记为失败 | 节点失败与任务失败分离；独立分支继续，最终聚合为成功、部分成功或失败 |
+| 模板执行 | 发现模板后可能只执行一个，或中途停止 | 已准入模板必须逐个到达终态；批量执行不因单项失败停止 |
+| 参数缺失 | 让模型重新猜测参数，或针对工具写特例 | 从用户输入、Agent 上下文和已验证的上游证据按 Tool Schema 恢复参数 |
+| 环境信息 | 截断摘要缺字段被误判为真实缺失 | Agent 已配置环境和结构化上下文优先；摘要截断不等于字段不存在 |
+| 最终结论 | Runtime 用固定文案修正模型业务结论 | Runtime 提供完整证据，由模型进行二次分析；Runtime 只选择合规候选答案 |
+| MCP 名称 | 依赖前缀裁剪或模糊匹配识别工具 | 规范名、发布名、传输限定名显式映射，审核统一使用规范名 |
+| 可观测性 | 页面只看到“失败”，看不到恢复过程 | 修复以结构化事件展示检测、修复、校验和继续执行的完整链路 |
+
+### 不可变原则
+
+1. **用户流程是唯一业务标准。** Runtime 不得用模型偏好、通用最佳实践或工具返回内容改写用户定义的业务目标与流程语义。
+2. **Planner 输出只是候选。** 模型可以提出节点和参数，但无权删除强制节点、改变依赖关系或提前结束已发布流程。
+3. **自动修复不依赖模型。** 拓扑、名称、Schema、参数来源、失败传播与重试修复必须由确定性契约完成。
+4. **禁止场景硬编码。** 不得按具体表、字段、客户、模型、供应商、工具或业务关键词生成修复分支及业务结论。
+5. **完整执行优先。** 已准入节点必须执行到明确终态；一个工具失败不等于整个任务失败。
+6. **模型负责分析。** 工具原始结果和完整执行证据交给模型分析；Runtime 不输出“符合/不符合”等业务判断。
+7. **事实可追溯。** 最终答案中的关键事实必须能映射到用户输入、工具证据或明确标注的模型推断。
+
+权限、工具 Schema、平台安全策略和执行预算构成用户流程的系统边界；它们不是第二套业务判断标准。
+
+## Runtime 架构
+
+```mermaid
+flowchart LR
+    U[用户任务与已发布流程] --> S[Workflow Snapshot]
+    U --> P[Planner 候选计划]
+    S --> G[DAG Governance Engine]
+    P --> G
+    R[Tool Registry / Schema / Policy] --> G
+    G -->|审核通过或确定性修复| X[DAG Executor]
+    X --> T[MCP / API / DB / 内置工具]
+    T --> E[Evidence Store]
+    E --> X
+    X --> A[Task Result Assessment]
+    E --> M[模型完整结果分析]
+    M --> V[Answer Review / Selection]
+    A --> V
+    V --> O[最终答案与运行状态]
+    G --> B[结构化修复事件]
+    X --> B
+    A --> B
+    B --> UI[Web 执行链路]
+```
+
+Runtime 的权威输入按优先级为：
+
+1. 用户请求与已发布的工作流快照；
+2. 工具注册表、Tool Schema、权限和安全策略；
+3. Agent 结构化上下文与已验证的上游证据；
+4. Planner 产生的候选 DAG 和参数建议；
+5. 用于展示的摘要文本。
+
+低优先级信息不得覆盖高优先级事实。特别是 `summaryTruncated=true` 只说明展示摘要不完整，不能据此判定完整结果缺少字段。
+
+## DAG 审核与自动修复
+
+### 标准处理链
+
+```text
+用户流程快照
+  -> Planner 候选 DAG
+  -> 规范工具名解析
+  -> 节点与边对账
+  -> Schema 与参数来源校验
+  -> 确定性修复
+  -> 修复后重新校验
+  -> 分波次执行
+  -> 失败隔离与证据增广
+  -> Evidence Normalizer / Compression Gate（仅供 DAG rewrite）
+  -> 任务级结果聚合
+  -> 模型基于完整证据分析
+  -> 答案评审与交付
+```
+
+### 通用漂移类型
+
+Runtime 按结构事实识别漂移，而不是按自然语言猜测：
+
+- 强制节点缺失、重复或出现未声明节点；
+- 依赖边缺失、反向、越序或形成环；
+- 工具使用发布名、传输限定名或模型别名，未绑定规范名；
+- 输入字段位于错误层级、类型不符或来源不可追溯；
+- Agent 上下文已有环境信息，但候选计划错误标记为缺失；
+- 已选择模板未全部进入执行终态；
+- 单节点失败被错误传播为任务级失败；
+- 模型提前给出最终答案，跳过工作流强制工具。
+
+### 修复边界
+
+允许 Runtime 自动执行的修复包括：
+
+- 从工作流快照恢复缺失节点、依赖边、执行顺序和失败策略；
+- 通过注册表的显式映射把发布工具名绑定到 `canonicalToolName`；
+- 按 Tool Schema 提升或展开通用参数封装；
+- 从用户输入、Agent 上下文和已完成节点证据中恢复可验证参数；
+- 隔离失败分支并调度仍满足依赖的节点；
+- 对可重试错误执行有预算、可审计且满足幂等约束的重试；
+- 在证据不足时继续执行工作流允许的检索或增广节点。
+
+Runtime 不得：
+
+- 猜测无法从权威上下文验证的业务参数；
+- 为某张表、某个字段或某个工具写专用修复逻辑；
+- 因模型建议而删除用户流程中的强制步骤；
+- 用固定业务文案替换模型分析结果；
+- 把摘要中的字段缺失当作完整结果缺失；
+- 用字符串裁剪或模糊匹配推导 MCP 规范工具名。
+
+## 执行、失败与任务状态
+
+### 节点终态
+
+每个已准入节点都必须到达可解释终态，例如：
+
+- `SUCCEEDED`：调用成功并产出有效证据；
+- `FAILED`：调用真实失败，已记录错误和尝试次数；
+- `BLOCKED`：依赖、权限或安全条件不满足；
+- `SKIPPED`：仅在用户流程明确定义的条件分支中不适用。
+
+已筛选出的模板必须全部执行到终态。批量模板执行采用失败隔离语义，单个模板失败不能阻止其余模板执行。
+
+### 任务级结果
+
+任务状态由执行事实聚合，而不是从某条日志或某个节点直接复制：
+
+- `SUCCESS`：用户流程要求已满足；
+- `PARTIAL_SUCCESS` / `PARTIAL`：存在可交付证据，但部分目标未满足或部分节点失败；
+- `FAILED`：没有可交付结果，且所有允许的恢复路径均已穷尽；
+- `CANCELLED`：收到明确取消信号。
+
+最终答案必须说明已完成内容、失败或缺失内容、证据边界及必要的后续动作。工具失败可以被明确披露，但不得在仍有可用结果时把整项任务错误标为失败。
+
+## 证据与模型二次分析
+
+Runtime 保留完整工具输出、结构化证据对象、来源节点和尝试信息。展示摘要可以截断，但规划、参数恢复、最终综合和答案复核使用完整证据快照。
+
+`InterpretationPlanRewriter` 例外地只读取 `evidence_compression_gate_v1` 生成的有界调度视图。网关确定性保留证据标识、节点/工具状态、错误、缺口、冲突、假设、下一动作和结构化样本，并对重复 observation 去重；完整证据仍留在 Runtime Evidence Store，供最终综合、复核、审计和重放使用。
+
+最终分析采用 `model_analysis_repair_v1` 协议：
+
+1. 首次综合模型读取本次执行的完整证据；
+2. Answer Reviewer 使用同一证据快照审核重要事实、遗漏和矛盾；
+3. 如果初稿错误，Reviewer 模型返回完整修订答案；
+4. Answer Decision Engine 仅在显式修订状态下选择该模型答案；
+5. 临时审阅上下文在本次运行后清理，避免跨请求污染。
+
+这条链路修复的是“分析过程”，不是由 Runtime 预设“正确结论”。因此它对表设计审核、金融数据分析、通用 API 查询等场景使用同一套机制，也能适配不同模型的表达和推理差异。
+
+## MCP 发布命名规范
+
+MCP 发布名称必须与 API 流程审核使用的规范工具名一致。
+
+规范名格式：
+
+```text
+{domain}_{capability}_{action}
+```
+
+要求：
+
+- 只使用小写 ASCII 字母、数字和下划线；
+- 不包含租户、环境、主机、模型、时间戳或部署实例；
+- API 注册表、DAG 节点、权限 Scope、审计记录和 MCP Tool Schema 使用同一个 `canonicalToolName`；
+- 工具重命名必须提供显式别名、迁移期和兼容测试。
+
+示例映射：
+
+```json
+{
+  "canonicalToolName": "api_template_execute",
+  "publishedToolName": "api_template_execute",
+  "transportQualifiedName": "mcp_chatchat_mcp_server_api_template_execute",
+  "capability": "template_execute",
+  "assetType": "api_service"
+}
+```
+
+DAG 审核、权限判断和结果聚合只使用 `canonicalToolName`；调用适配器仅在最后一跳使用 `transportQualifiedName`。
+
+## 可观测性
+
+DAG 修复不是隐藏的内部动作。后端必须发布结构化事件，前端按字段渲染状态，不匹配中英文日志文本：
+
+```json
+{
+  "eventKind": "DAG_REPAIR",
+  "eventState": "STARTED | APPLIED | REJECTED",
+  "repairAttempt": 1,
+  "fromIteration": 1,
+  "toIteration": 2,
+  "reason": "结构化触发原因",
+  "failedStepId": 1,
+  "failedToolName": "canonical_tool_name",
+  "changeCount": 2,
+  "changes": [],
+  "validationIssues": []
+}
+```
+
+页面应展示“检测到问题 → 修复中 → 已修复/修复未通过 → 继续执行”的完整链路。修复事件可以显示告警，但不能直接把整个 Run 标记为失败。
+
+审计记录至少应能回答：用户流程是什么、模型发生了什么漂移、Runtime 修复了什么、每个节点的终态是什么，以及任务为何得到当前聚合状态。
+
+图表和工具结果展示应保留原始数值；例如 Tooltip 显示 `2700`，不把元数据格式化为 `2.7k` 后冒充原始数据。
 
 ## 核心能力
 
-- 对话服务：普通 LLM 对话、流式对话、会话管理、消息明细持久化。
-- RAG 检索：文档上传、内容抽取、分词检索、向量检索接口、知识库问答。
-- Agent 编排：工具规划、工具调用、ReAct 风格执行循环、异步 Agent 任务。
-- MCP 集成：主应用可管理和调用 MCP 服务；独立 MCP Server 可发布工具给外部 MCP Client。
-- 工具体系：内置计算器、Web 搜索、文档搜索、数据库查询、文件系统工具，以及 API 服务转 MCP 工具。
-- 企业治理：租户、组织、角色、权限、用户、工具权限、数据源和审计日志等管理域。
-- 前后端一体化：`chatchat-api/web-app` 使用 Vue 3 + Vite 构建，构建产物打入 Spring Boot jar。
-- 生产发布包：主应用和 MCP Server 都支持独立 zip 发行包，包含 `bin`、`config`、`data`、`logs`、`run`、`lib` 等目录。
+- 对话服务：普通与流式 LLM 对话、会话管理和消息持久化；
+- RAG：文档上传、抽取、分块、关键词/向量检索与知识库问答；
+- Agent Runtime：候选计划、DAG 审核、自动修复、分波执行、证据增广和答案评审；
+- MCP：服务管理、工具发现、规范命名、调用路由和独立 MCP Server；
+- 工具体系：API 模板、数据库查询、文档检索、文件系统、Web 与内置工具；
+- 企业治理：租户、组织、角色、权限、数据源、工具权限和审计；
+- 前后端一体化：Vue 3 + Vite 构建产物随 Spring Boot 应用发布；
+- 生产发布：主应用、MCP Server 和专用 Runtime 模块可独立构建部署。
 
-## 技术栈 
+## 项目结构
 
-- Java 17+
-- Spring Boot 3.5.x
-- Maven 多模块工程
-- LangChain4j 1.14.x
-- Vue 3 + Vite
-- H2 / MySQL / PostgreSQL
-- JPA / Hibernate
-- RocksDB
-- Model Context Protocol SDK
-- Jackson、WebFlux、WebSocket、Springdoc OpenAPI
+| 模块 | 职责 |
+| --- | --- |
+| `chatchat-common` | 公共配置、DTO、工具元数据、响应模型和基础常量 |
+| `chatchat-license` | License 能力与授权支持 |
+| `chatchat-agents` | Agent 编排、DAG Runtime、执行恢复、证据与答案治理 |
+| `chatchat-tools` | Web、数据库、文档、文件系统等内置工具 |
+| `chatchat-runtime-mcp` | 内置 MCP 能力的统一注册、配置和调用路由 |
+| `chatchat-runtime-news` | 新闻采集、规范化、去重、索引和 Agent 检索 Runtime |
+| `chatchat-runtime-market` | MCP Server 内部市场数据能力库 |
+| `chatchat-knowledge-base` | 文档加载、抽取、分块、检索、RAG 与 RocksDB 存储 |
+| `chatchat-chat` | 会话、统一交互、技能目录和异步 Agent 任务 |
+| `chatchat-enterprise` | 租户、组织、角色、权限、用户、数据源和审计 |
+| `chatchat-api` | 主应用入口、REST/WebSocket、Web UI 和发行包 |
+| `chatchat-mcp-server` | 独立 MCP Server、API/数据库工具发布、缓存和调用审计 |
+| `chatchat-integration` | 模型供应商、MCP 和外部服务集成 |
+| `chatchat-e2e-tests` | 跨模块生产级回归与发布门禁 |
 
-## 总体架构
+## 服务拓扑
 
 ```text
-Browser / Web App
+Browser / Vue Web App
         |
         v
-chatchat-api  :8080
-  - REST API / WebSocket / Static Web UI
-  - Chat / Interaction / RAG / Agent / Enterprise / MCP Proxy
+chatchat-api :8080
+  - Chat / RAG / Agent Runtime / Enterprise / MCP Proxy
         |
-        +--> LangChain4j ChatModel / EmbeddingModel
-        |
-        +--> H2 or MySQL / JPA
-        |
-        +--> RocksDB local stores
-        |
+        +--> ChatModel / EmbeddingModel
+        +--> H2 / MySQL / PostgreSQL / RocksDB
         +--> chatchat-mcp-server :8090
                 - MCP endpoint /mcp
                 - Admin UI /admin
-                - API tools / DB query tools / LiveData tools
-                - Invocation audit / cache / service registry
+                - API / DB / LiveData / Market capabilities
+                +--> chatchat-runtime-news :8091
 ```
 
-主应用和 MCP Server 可以同时运行，也可以按需单独部署。主应用默认通过 `chatchat.mcp.center.base-url` 连接 MCP Server，MCP Server 默认监听 `8090`，主应用默认监听 `8080`。
+默认入口：
 
-## 模块说明
-
-| 模块 | 说明 |
+| 服务 | 地址 |
 | --- | --- |
-| `chatchat-common` | 公共配置、通用 DTO、工具元数据、响应模型和基础常量。 |
-| `chatchat-api` | 主应用入口，提供 REST API、WebSocket、静态前端、OpenAPI、生产发行包。 |
-| `chatchat-chat` | 会话、交互编排、技能目录、异步 Agent 任务、聊天明细存储。 |
-| `chatchat-agents` | Agent 编排器、工具注册表、LangChain4j 工具执行适配。 |
-| `chatchat-tools` | 内置工具实现，包括 Web 搜索、数据库查询、文档搜索等。 |
-| `chatchat-knowledge-base` | 文档加载、内容抽取、分块、检索、RAG 服务和 RocksDB 搜索存储。 |
-| `chatchat-integration` | 外部服务、MCP、模型供应商和第三方连接集成。 |
-| `chatchat-enterprise` | 企业治理域：租户、组织、角色、权限、用户、数据源、审计等。 |
-| `chatchat-mcp-server` | 独立 MCP Server，暴露工具、管理 MCP 服务、API 服务和数据库查询工具。 |
-| `packaging` | 主应用生产包的外置配置、启动脚本和发布目录模板。 |
-| `scripts` | 辅助打包脚本。 |
+| Web / Chat API | `http://localhost:8080` |
+| OpenAPI JSON | `http://localhost:8080/api-docs` |
+| MCP Admin | `http://localhost:8090/admin` |
+| MCP Endpoint | `http://localhost:8090/mcp` |
+| News Runtime | `http://localhost:8091`，仅供内部通信 |
 
-## 主应用请求链路
+## 快速开始
 
-```text
-Controller
-  -> Application Service
-  -> Chat / KnowledgeBase / Agent / Enterprise / Integration modules
-  -> Database, RocksDB, Model Provider, MCP Server, External Services
+### 环境要求
+
+- JDK 17+
+- Maven 3.8+
+- Node.js 与 npm
+
+### 一键启动本地完整链路
+
+Windows PowerShell：
+
+```powershell
+.\run-chat-api-mcp.ps1
 ```
 
-主要 API 域：
+或：
 
-- `/api/v1/chat`：聊天、流式聊天、聊天健康检查。
-- `/api/v1/interactions`：统一交互入口，支持 LLM、知识库、Agent、工具直连等模式。
-- `/api/v1/conversations`：会话创建、查询、删除。
-- `/api/v1/search`：文档检索、知识库文件上传、文档下载。
-- `/api/v1/agents/workshop`：Agent 工作台配置和发布。
-- `/api/v1/agent/tasks`：异步 Agent 任务提交、事件和结果查询。
-- `/api/v1/mcp`：MCP 服务管理、工具发现、工具调用、中心同步。
-- `/api/v1/mcp/proxy`：MCP RPC 代理。
-- `/api/v1/enterprise`：企业组织、角色、权限、数据源、审计等管理。
-- `/api/v1/health`、`/api/v1/status`：健康检查。
-
-OpenAPI 文档接口默认地址：
-
-```text
-http://localhost:8080/api-docs
+```cmd
+run-chat-api-mcp.bat
 ```
 
-Swagger UI 页面默认禁用，`http://localhost:8080/swagger-ui.html` 不对外开放。
+脚本会构建并依次启动 MCP Server、News Runtime 和 Chat API。Market 能力作为 MCP Server 内部依赖构建和打包。
 
-## MCP Server
-
-`chatchat-mcp-server` 是一个独立 Spring Boot 应用，默认端口 `8090`，默认 MCP endpoint 为 `/mcp`。
-
-主要能力：
-
-- 管理 MCP 服务注册信息。
-- 将内置工具注册为 MCP tools。
-- 将 HTTP API 配置转换为 MCP tool。
-- 将数据库查询配置转换为 MCP tool。
-- 支持 LiveData API 自动注册。
-- 提供调用审计和 RocksDB 缓存。
-- 提供独立管理页面。
-
-常用入口：
-
-```text
-http://localhost:8090/admin
-http://localhost:8090/mcp
-http://localhost:8090/api/v1/admin/auth/login
-http://localhost:8090/api/v1/mcp-services
-http://localhost:8090/api/v1/api-services
-http://localhost:8090/api/v1/database-query
-http://localhost:8090/api/v1/audit-logs
+```powershell
+.\run-chat-api-mcp.ps1 -Action status
+.\run-chat-api-mcp.ps1 -Action stop
+.\run-chat-api-mcp.ps1 -Action restart -SkipBuild
+.\run-chat-api-mcp.ps1 -Clean
+.\run-chat-api-mcp.ps1 -WithTests
 ```
 
-## 配置说明
+本地日志位于 `logs/local-dev/`，PID 位于 `run/local-dev/`。
 
-主应用生产配置位于：
+### Maven 构建与运行
+
+```bash
+# 构建全部模块
+mvn clean package -DskipTests
+
+# 运行主应用
+mvn -pl chatchat-api -am spring-boot:run
+
+# 运行 MCP Server
+mvn -pl chatchat-mcp-server -am spring-boot:run
+```
+
+构建 `chatchat-api` 时会在 `chatchat-api/web-app` 执行前端安装和构建，并将产物打入 Spring Boot jar。
+
+## 配置
+
+主应用生产配置：
 
 ```text
 packaging/config/application.yml
 packaging/config/application-mysql.yml
 ```
 
-MCP Server 配置位于：
+MCP Server 配置：
 
 ```text
 chatchat-mcp-server/src/main/resources/application.yml
 chatchat-mcp-server/src/main/distribution/config/application.yml
 ```
 
-当前生产模板使用直写配置，便于阅读和维护。常见配置项：
-
-- `spring.datasource.*`：应用数据库，默认 H2 文件库。
-- `spring.jpa.*`：JPA 自动建表和数据库方言。
-- `server.port`：服务端口，主应用默认 `8080`，MCP Server 默认 `8090`。
-- `chatchat.models.*`：模型供应商、默认聊天模型、默认 embedding 模型。
-- `chatchat.models.openai.*`：OpenAI-compatible API Key、Base URL、超时、重试和代理。
-- `chatchat.mcp.center.*`：主应用连接独立 MCP Server 的配置。
-- `chatchat.search.*`：知识库检索和文件存储目录。
-- `chatchat.chat.detail-store.*`：聊天明细存储方式和 RocksDB 路径。
-- `chatchat.agent.task.*`：异步 Agent 任务线程池和事件存储。
-- `chatchat.tools.database-query.driver-lib-path`：外部 JDBC 驱动目录。
-
-生产部署前至少需要修改：
+推荐为每个模型配置独立连接：
 
 ```yaml
 chatchat:
   models:
-    openai:
-      apiKey: replace-with-your-key
-      baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
+    defaultChatModel: qwen-plus
+    chatModels:
+      qwen-plus:
+        apiKey: ${DASHSCOPE_API_KEY:}
+        baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
+        protocol: auto
+        timeout: 180000
+        maxTokens: -1
+        maxRetries: 3
 ```
 
-## 本地开发
+`protocol` 支持 `auto`、`openai`、`dashscope-native`、`dashscope-multimodal` 和 `dashscope-text`。模型名包含 `.` 时，推荐使用带引号的 Spring Map 键，例如 `"[qwen3.8-max]"`。API Key 应由环境变量或密钥服务注入，不得提交到仓库。
 
-### 环境要求
+内部服务口令从各自 YAML 的 `encrypted-secret: ENC(...)` 加载，并通过 `config/internal-credential.key` 解密。生产部署应同步替换各服务密文与密钥文件，并限制密钥读取权限。
 
-- JDK 17 或更高
-- Maven 3.8+
-- Node.js / npm
-
-### 构建全部模块
+## 生产打包
 
 ```bash
-mvn clean package -DskipTests
-```
-
-### 仅构建主应用
-
-```bash
+# 主应用发行包
 mvn -pl chatchat-api -am package -DskipTests
-```
 
-`chatchat-api` 构建时会自动执行：
-
-```bash
-cd chatchat-api/web-app
-npm install
-npm run build
-```
-
-前端构建产物会复制到 `chatchat-api/target/classes/static`，最终打入 Spring Boot jar。
-
-### 运行主应用
-
-```bash
-mvn -pl chatchat-api -am spring-boot:run
-```
-
-访问：
-
-```text
-http://localhost:8080
-```
-
-### 运行 MCP Server
-
-```bash
-mvn -pl chatchat-mcp-server -am spring-boot:run
-```
-
-访问：
-
-```text
-http://localhost:8090/admin
-```
-
-## 生产发行包
-
-### 主应用发行包
-
-推荐使用 Maven 直接生成：
-
-```bash
-mvn -pl chatchat-api -am package -DskipTests
+# MCP Server 发行包
+mvn -pl chatchat-mcp-server -am package -DskipTests
 ```
 
 生成文件：
 
 ```text
 chatchat-api/target/chatchat-api-1.0.0-SNAPSHOT-release.zip
-```
-
-包结构：
-
-```text
-chatchat-1.0.0-SNAPSHOT/
-  bin/
-    start.bat
-    start.ps1
-    start.sh
-    stop.*
-    status.*
-    restart.*
-  config/
-    application.yml
-    application-mysql.yml
-  data/
-  logs/
-  run/
-  lib/
-    app/chatchat.jar
-    drivers/
-```
-
-也可以使用脚本生成 `dist` 目录下的 zip 和 tar.gz：
-
-```powershell
-.\scripts\package-deploy.ps1
-```
-
-复用已有 jar：
-
-```powershell
-.\scripts\package-deploy.ps1 -SkipBuild
-```
-
-复用已有前端构建产物：
-
-```powershell
-.\scripts\package-deploy.ps1 -SkipWebBuild
-```
-
-### MCP Server 发行包
-
-```bash
-mvn -pl chatchat-mcp-server -am package -DskipTests
-```
-
-生成文件：
-
-```text
 chatchat-mcp-server/target/chatchat-mcp-server-1.0.0-SNAPSHOT-release.zip
 ```
 
-包结构：
+主应用也可使用：
 
-```text
-chatchat-mcp-server-1.0.0-SNAPSHOT/
-  bin/
-  config/application.yml
-  logs/
-  lib/app/chatchat-mcp-server.jar
-  lib/drivers/
+```powershell
+.\scripts\package-deploy.ps1
+.\scripts\package-deploy.ps1 -SkipBuild
+.\scripts\package-deploy.ps1 -SkipWebBuild
 ```
 
-## 启停脚本
+发行包包含 `bin`、`config`、`data`、`logs`、`run` 和 `lib`。解压后使用 `bin/start.*`、`status.*`、`stop.*` 与 `restart.*` 管理服务。
 
-解压生产包后，在包根目录执行。
-
-Linux:
+## 测试与发布门禁
 
 ```bash
-chmod +x bin/*.sh
-./bin/start.sh
-./bin/status.sh
-./bin/stop.sh
-./bin/restart.sh
+# Agent Runtime 全量测试
+mvn -pl chatchat-agents -am test
+
+# Runtime 关键契约测试
+mvn -pl chatchat-agents "-Dtest=AgentToolArgumentResolverTest,InterpretationPlanRuntimeTest,DefaultAgentAnswerReviewerTest" test
+
+# 生产级跨模块 E2E
+mvn -pl chatchat-e2e-tests -am test
 ```
 
-Windows:
-
-```powershell
-.\bin\start.bat
-.\bin\status.bat
-.\bin\stop.bat
-.\bin\restart.bat
-```
-
-运行日志默认写入：
-
-```text
-logs/
-```
-
-PID 文件默认写入：
-
-```text
-run/
-```
-
-主应用脚本默认启动：
-
-```text
-lib/app/chatchat.jar
-```
-
-MCP Server 脚本默认启动：
-
-```text
-lib/app/chatchat-mcp-server.jar
-```
-
-## 使用 MySQL
-
-主应用发行包内置 `application-mysql.yml`。修改数据库地址、用户名和密码后，启动时激活 `mysql` profile。
-
-Windows:
-
-```powershell
-$env:APP_ARGS = "--spring.profiles.active=mysql"
-.\bin\start.bat
-```
-
-Linux:
-
-```bash
-APP_ARGS="--spring.profiles.active=mysql" ./bin/start.sh
-```
-
-主应用 jar 已包含 H2、MySQL、PostgreSQL 驱动。数据库查询工具需要额外 JDBC 驱动时，可放入：
-
-```text
-lib/drivers/
-```
-
-## 数据目录
-
-默认运行时数据：
-
-```text
-data/h2/                  H2 文件数据库
-data/search-rocksdb/      知识库检索 RocksDB
-data/search-files/        上传文档文件
-data/chat-rocksdb/        聊天明细 RocksDB
-data/agent-event-rocksdb/ Agent 事件 RocksDB
-```
-
-MCP Server 默认数据：
-
-```text
-data/h2/chatchat-mcp-server.mv.db
-data/mcp-cache-rocksdb/
-```
-
-## 开发注意事项
-
-- `chatchat-api` 是主应用入口，扫描 `com.chatchat` 下的业务组件。
-- `chatchat-mcp-server` 是独立应用，只扫描 MCP Server、工具和工具注册相关组件，避免引入主应用的 `ChatModel` 依赖。
-- 生产配置模板尽量保持直写，便于运维直接修改。
-- 前端代码位于 `chatchat-api/web-app`，由 Maven 构建阶段自动打包。
-- 大模型配置默认使用 OpenAI-compatible 接口，可对接 DashScope、DeepSeek 兼容接口或其他兼容服务。
-- H2 适合本地和轻量部署；生产建议使用 MySQL 或 PostgreSQL，并做好 `data`、`logs` 目录备份。
-- RocksDB 目录不要在服务运行时手动删除或移动。
-
-## 常用命令速查
-
-```bash
-# 编译全部模块
-mvn clean package -DskipTests
-
-# 打包主应用生产 zip
-mvn -pl chatchat-api -am package -DskipTests
-
-# 打包 MCP Server 生产 zip
-mvn -pl chatchat-mcp-server -am package -DskipTests
-
-# 本地运行主应用
-mvn -pl chatchat-api -am spring-boot:run
-
-# 本地运行 MCP Server
-mvn -pl chatchat-mcp-server -am spring-boot:run
-```
-
-## 当前默认端口
-
-| 服务 | 端口 | 入口 |
-| --- | --- | --- |
-| ChatChat 主应用 | `8080` | `http://localhost:8080` |
-| MCP Server | `8090` | `http://localhost:8090/admin` |
-| MCP Endpoint | `8090` | `http://localhost:8090/mcp` |
-| News Runtime | `8091` | MCP Server 内部调用 |
-
-## 测试脚本
-
-已在 Maven 项目根目录加好：
-
-- [run-chat-api-mcp.ps1](D:/IdeaProjects/LangChain4j-AIChat/Langchain4j-Chatchat/run-chat-api-mcp.ps1)
-- [run-chat-api-mcp.bat](D:/IdeaProjects/LangChain4j-AIChat/Langchain4j-Chatchat/run-chat-api-mcp.bat)
-
-默认执行：
-
-```
-.\run-chat-api-mcp.bat
-```
-
-会先停止脚本托管的旧进程，然后构建 `chatchat-api,chatchat-mcp-server,chatchat-runtime-news`；Market 能力作为 MCP Server 的内部依赖同时构建和打包。随后按顺序启动：
-
-1. MCP Server: `http://localhost:8090/admin`（内含 Market 能力）
-2. News Runtime: `http://localhost:8091`（仅供内部通信）
-3. Chat API: `http://localhost:8080`
-
-常用命令：
-
-```
-.\run-chat-api-mcp.bat -Action status
-.\run-chat-api-mcp.bat -Action stop
-.\run-chat-api-mcp.bat -SkipBuild
-.\run-chat-api-mcp.bat -Clean
-.\run-chat-api-mcp.bat -WithTests
-run-chat-api-mcp.bat -Action restart
-run-chat-api-mcp.bat -NewsProfile h2
-run-chat-api-mcp.bat -NewsProfile mysql -NewsPort 8091
-```
-
-API、MCP 与 News Runtime 均从各自 YAML 的 `encrypted-secret: ENC(...)` 加载内部通信口令，
-并通过 `config/internal-credential.key` 解密。一键脚本不会再通过命令行或环境变量传递明文口令。
-生产部署时应同时替换三端密文与密钥文件，并限制密钥文件的读取权限。
-
-三个服务的日志都在 `logs/local-dev/`，PID 在 `run/local-dev/`。`status` 和 `.bat` 包装器可直接查看三项服务状态。
-
-## git自动提交
-
-已加好自动提交脚本：
-
-- [git-auto-commit.ps1](D:/IdeaProjects/LangChain4j-AIChat/Langchain4j-Chatchat/git-auto-commit.ps1)
-- [git-auto-commit.bat](D:/IdeaProjects/LangChain4j-AIChat/Langchain4j-Chatchat/git-auto-commit.bat)
-
-用法：
-
-```
-.\git-auto-commit.bat -DryRun
-.\git-auto-commit.bat -Message "chore: update local scripts"
-.\git-auto-commit.bat -Path .gitignore run-chat-api-mcp.ps1 -Message "chore: update gitignore and scripts"
-.\git-auto-commit.bat -Message "chore: update project" -Push
-```
-
-默认行为是：进入 Git 仓库根目录，`git add -A` 指定路径，生成提交；不传 `-Push` 就只本地提交。`-DryRun` 我已经验证过了，会列出将被考虑提交的文件，不会 stage 或 commit。
-
-## 日志查看
-
-Windows 有很多种方式，取决于你是在 **CMD、PowerShell 还是 Git Bash**。
-
-1. PowerShell（推荐，最接近 `tail -f`）
-
-实时查看日志：
-
-```powershell
-Get-Content .\app.log -Wait
-```
-
-相当于：
-
-```bash
-tail -f app.log
-```
-
-查看最后 100 行并持续跟踪：
-
-```powershell
-Get-Content .\app.log -Tail 100 -Wait
-```
-
-相当于：
-
-```bash
-tail -n 100 -f app.log
-```
-
-------
-
-2. CMD（原生命令没有 tail）
-
-CMD 没有类似 `tail` 的命令。
-
-可以：
-
-```cmd
-type app.log
-```
-
-或者
-
-```cmd
-more app.log
-```
-
-但都不能实时刷新。
-
-------
-
-3. Git Bash（如果安装了 Git for Windows）
-
-直接支持：
-
-```bash
-tail -f app.log
-```
-
-查看最后 200 行：
-
-```bash
-tail -n 200 -f app.log
-```
-
-这是 Linux 的原生命令。
-
-------
-
-4. WSL（Windows Subsystem for Linux）
-
-如果安装了 WSL：
-
-```bash
-tail -f app.log
-```
-
-与 Linux 完全一致。
-
-------
-
-5. 实时过滤日志（PowerShell）
-
-例如只看 ERROR：
-
-```powershell
-Get-Content .\app.log -Wait | Select-String "ERROR"
-```
-
-或者多个关键字：
-
-```powershell
-Get-Content .\app.log -Wait |
-    Select-String "ERROR|WARN|Exception"
-```
-
-------
-
-6. 如果是 Java/Spring Boot 日志（推荐）
-
-例如：
-
-```powershell
-Get-Content .\logs\application.log -Tail 200 -Wait
-```
-
-过滤异常：
-
-```powershell
-Get-Content .\logs\application.log -Tail 200 -Wait |
-    Select-String "Exception|ERROR"
-```
-
-过滤某个类：
-
-```powershell
-Get-Content .\logs\application.log -Wait |
-    Select-String "AgentPlanner"
-```
-
-如果你做 Java 开发（尤其是像你现在在做 MCP、Agent Runtime），最方便的是：
-
-- **PowerShell**：`Get-Content -Tail 200 -Wait`
-- **Git Bash**：直接 `tail -f`
-- **WSL**：直接 `tail -f`
-
-其中 **PowerShell 的 `Get-Content -Tail 200 -Wait`** 就是 Windows 原生环境下最接近 Linux `tail -n 200 -f` 的方案。
+发布前至少覆盖：
+
+- 多模型候选计划发生缺节点、错序、改名和提前结束；
+- 已准入模板包含成功、失败、超时和部分结果的混合批次；
+- 环境来自 Agent 上下文，工具展示摘要被截断；
+- 独立工具参数需要从前序结构化证据恢复；
+- 单节点失败但仍有可交付证据；
+- 完整证据二次分析修订错误初稿；
+- 并发运行下证据和临时审阅上下文不串扰；
+- MCP 规范名、发布名和传输限定名映射一致。
+
+## 设计规范
+
+- [Agent Runtime DAG 审核与自动修复规范](docs/agent-runtime-dag-governance-contract.md)
+- [证据增广契约](docs/agent-runtime-evidence-augmentation-contract.md)
+- [模板候选评定与执行满意度契约](docs/agent-runtime-template-evaluation-contract.md)
+- [模板参数传递契约](docs/agent-runtime-template-argument-contract.md)
+- [事实落地契约](docs/agent-runtime-fact-grounding-contract.md)
+- [最终答案质量评审契约](docs/agent-runtime-answer-quality-review-contract.md)
+- [Runtime 回归测试规范](docs/agent-runtime-regression-tests.md)
+- [Agent Runtime 最低模型性能与部署要求](docs/agent-runtime-minimum-model-requirements.md)
+- [企业元数据治理能力](docs/metadata-governance-capability.md)
+
+## 数据与运维注意事项
+
+- H2 适合本地和轻量部署；生产环境建议使用 MySQL 或 PostgreSQL；
+- 数据库查询工具的额外 JDBC 驱动放入发行包 `lib/drivers/`；
+- 默认运行数据位于 `data/`，日志位于 `logs/`，运行时不要手动移动或删除正在使用的 RocksDB 目录；
+- `chatchat-api` 扫描主应用业务组件；`chatchat-mcp-server` 保持独立扫描范围，避免引入主应用模型依赖；
+- 生产部署应备份数据库、RocksDB、配置和密钥，并对审计事件设置保留策略。

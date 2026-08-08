@@ -231,6 +231,13 @@ class EnterpriseMetadataMcpToolPublisherTest {
         verify(server).addTool(tool.capture());
         assertThat(tool.getValue().tool().name())
             .isEqualTo(EnterpriseMetadataMcpToolPublisher.TOOL_NAME);
+        Map<String, Object> properties = tool.getValue().tool().inputSchema().properties();
+        assertThat((Map<String, Object>) properties.get("limit"))
+            .containsEntry("minimum", 1)
+            .doesNotContainKey("maximum");
+        assertThat((Map<String, Object>) properties.get("candidateLimitPerType"))
+            .containsEntry("minimum", 1)
+            .doesNotContainKey("maximum");
         verify(server).notifyToolsListChanged();
     }
 

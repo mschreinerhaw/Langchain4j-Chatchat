@@ -58,4 +58,17 @@ public class McpAuthorizationAdminController {
         authorizationService.deleteRolePermission(id);
         return ApiResponse.success(null, "role permission deleted");
     }
+
+    @PostMapping("/role-permissions/batch-delete")
+    public ApiResponse<RolePermissionBatchDeleteResult> deleteRolePermissions(
+        @RequestBody RolePermissionBatchDeleteRequest request) {
+        int deleted = authorizationService.deleteRolePermissions(request == null ? null : request.ids());
+        return ApiResponse.success(new RolePermissionBatchDeleteResult(deleted), "role permissions deleted");
+    }
+
+    public record RolePermissionBatchDeleteRequest(List<String> ids) {
+    }
+
+    public record RolePermissionBatchDeleteResult(int deleted) {
+    }
 }

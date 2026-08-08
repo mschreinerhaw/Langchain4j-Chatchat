@@ -137,10 +137,43 @@
               <el-icon><Refresh /></el-icon>
               <span>刷新授权明细</span>
             </el-button>
+            <el-button plain :disabled="!filteredPermissions.length" @click="selectFilteredPermissions">
+              全选匹配项
+            </el-button>
+            <el-button plain :disabled="!selectedPermissionCount" @click="clearSelectedPermissions">
+              清空选择
+            </el-button>
+            <el-button
+              type="danger"
+              :disabled="!selectedPermissionCount"
+              :loading="permissionDeleting"
+              @click="batchRemoveRolePermissions"
+            >
+              批量解除授权（{{ selectedPermissionCount }}）
+            </el-button>
           </div>
         </div>
 
         <el-table class="settings-table" :data="pagedPermissions" border stripe empty-text="请选择角色或暂无匹配权限">
+          <el-table-column width="54" align="center">
+            <template #header>
+              <el-checkbox
+                :model-value="allPagedPermissionsSelected"
+                :indeterminate="somePagedPermissionsSelected"
+                :disabled="!pagedPermissions.length"
+                aria-label="选择当前页授权"
+                @change="togglePagedPermissions"
+              />
+            </template>
+            <template #default="{ row }">
+              <el-checkbox
+                :model-value="isPermissionSelected(row)"
+                :disabled="!row.id"
+                :aria-label="`选择权限 ${row.id || ''}`"
+                @change="checked => togglePermission(row, checked)"
+              />
+            </template>
+          </el-table-column>
           <el-table-column prop="id" label="权限 ID" min-width="220">
             <template #default="{ row }"><code>{{ row.id }}</code></template>
           </el-table-column>
@@ -164,7 +197,7 @@
         </el-table>
 
         <footer v-if="permissions.length" class="pagination-row">
-          <el-text type="info">共 {{ permissions.length }} 条，匹配 {{ filteredPermissions.length }} 条</el-text>
+          <el-text type="info">共 {{ permissions.length }} 条，匹配 {{ filteredPermissions.length }} 条，已选 {{ selectedPermissionCount }} 条</el-text>
           <el-pagination
             background
             layout="sizes, prev, pager, next, jumper"

@@ -48,6 +48,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -884,6 +885,34 @@ public class EnterpriseAdminService implements ApplicationRunner {
         audit(saved.getTenantId(), null, "system", "tool_permission", input.getId() == null ? "grant" : "update",
             "mcp_tool_permission", saved.getId(), saved.getTargetType() + ":" + saved.getTargetId());
         return saved;
+    }
+
+    /**
+     * Deletes tool permissions in one transaction.
+     *
+     * @param ids permission ids
+     * @return number of existing permissions deleted
+     */
+    @Transactional
+    public int deleteToolPermissions(List<String> ids) {
+        LinkedHashSet<String> normalizedIds = ids == null ? new LinkedHashSet<>() : ids.stream()
+            .map(this::trimToNull)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (normalizedIds.isEmpty()) {
+            throw new IllegalArgumentException("permission ids must not be empty");
+        }
+        if (normalizedIds.size() > 500) {
+            throw new IllegalArgumentException("at most 500 permissions can be deleted at once");
+        }
+
+        List<McpToolPermission> permissions = toolPermissionRepository.findAllById(normalizedIds);
+        if (!permissions.isEmpty()) {
+            toolPermissionRepository.deleteAllInBatch(permissions);
+            audit(null, null, "system", "tool_permission", "batch_delete", "mcp_tool_permission", null,
+                "deleted tool permissions: " + permissions.size());
+        }
+        return permissions.size();
     }
 
     /**

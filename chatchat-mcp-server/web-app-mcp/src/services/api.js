@@ -229,7 +229,11 @@ export const authorizationApi = {
     return apiFetch(`${API_BASE}/mcp-authorization/role-permissions?${query}`);
   },
   createRolePermission: payload => apiFetch(`${API_BASE}/mcp-authorization/role-permissions`, { method: 'POST', body: JSON.stringify(payload) }),
-  deleteRolePermission: id => apiFetch(`${API_BASE}/mcp-authorization/role-permissions/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  deleteRolePermission: id => apiFetch(`${API_BASE}/mcp-authorization/role-permissions/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  deleteRolePermissions: ids => apiFetch(`${API_BASE}/mcp-authorization/role-permissions/batch-delete`, {
+    method: 'POST',
+    body: JSON.stringify({ ids })
+  })
 };
 
 export const licenseApi = {

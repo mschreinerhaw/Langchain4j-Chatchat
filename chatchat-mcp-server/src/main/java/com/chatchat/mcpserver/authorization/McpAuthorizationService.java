@@ -27,8 +27,10 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import static com.chatchat.common.constants.TenantConstants.PLATFORM_TENANT_NO;
 
@@ -457,6 +459,27 @@ public class McpAuthorizationService {
             refreshSafely();
         } catch (Exception ex) {
             throw new IllegalStateException("failed to delete role permission: " + ex.getMessage(), ex);
+        }
+    }
+
+    public int deleteRolePermissions(List<String> ids) {
+        LinkedHashSet<String> normalizedIds = ids == null ? new LinkedHashSet<>() : ids.stream()
+            .map(this::blankToNull)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (normalizedIds.isEmpty()) {
+            throw new IllegalArgumentException("permission ids must not be empty");
+        }
+        if (normalizedIds.size() > 500) {
+            throw new IllegalArgumentException("at most 500 permissions can be deleted at once");
+        }
+        try {
+            JsonNode result = apiJson("POST", "/api/v1/enterprise/tool-permissions/batch-delete",
+                objectMapper.writeValueAsString(Map.of("ids", normalizedIds)));
+            refreshSafely();
+            return result.path("deleted").asInt();
+        } catch (Exception ex) {
+            throw new IllegalStateException("failed to delete role permissions: " + ex.getMessage(), ex);
         }
     }
 

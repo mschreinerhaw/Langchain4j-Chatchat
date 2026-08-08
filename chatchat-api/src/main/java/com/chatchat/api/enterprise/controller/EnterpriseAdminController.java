@@ -622,6 +622,19 @@ public class EnterpriseAdminController {
     }
 
     /**
+     * Deletes multiple tool permissions in one transaction.
+     *
+     * @param request permission ids
+     * @return number of deleted permissions
+     */
+    @PostMapping("/tool-permissions/batch-delete")
+    public ApiResponse<ToolPermissionBatchDeleteResult> deleteToolPermissions(
+        @RequestBody ToolPermissionBatchDeleteRequest request) {
+        int deleted = adminService.deleteToolPermissions(request == null ? null : request.ids());
+        return ApiResponse.success(new ToolPermissionBatchDeleteResult(deleted), "tool permissions deleted");
+    }
+
+    /**
      * Lists the data sources.
      *
      * @param tenantId the tenant id value
@@ -711,6 +724,12 @@ public class EnterpriseAdminController {
     }
 
     public record AdminPasswordChangeRequest(String currentPassword, String newPassword, String confirmPassword) {
+    }
+
+    public record ToolPermissionBatchDeleteRequest(List<String> ids) {
+    }
+
+    public record ToolPermissionBatchDeleteResult(int deleted) {
     }
 
     public record MenuGroup(String id, String title, List<MenuItem> children) {

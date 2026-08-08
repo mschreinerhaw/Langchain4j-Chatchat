@@ -24,6 +24,8 @@ export default {
       permissionKeyword: '',
       permissionPage: 1,
       permissionPageSize: 10,
+      selectedPermissionIds: [],
+      permissionDeleting: false,
       selectedManagedUser: null,
       userPasswordDialogVisible: false,
       passwordSaving: false,
@@ -84,6 +86,18 @@ export default {
     pagedPermissions() {
       const start = (this.permissionPage - 1) * this.permissionPageSize;
       return this.filteredPermissions.slice(start, start + this.permissionPageSize);
+    },
+    selectedPermissionCount() {
+      return this.selectedPermissionIds.length;
+    },
+    allPagedPermissionsSelected() {
+      const ids = this.pagedPermissions.map(item => item.id).filter(Boolean);
+      return ids.length > 0 && ids.every(id => this.selectedPermissionIds.includes(id));
+    },
+    somePagedPermissionsSelected() {
+      const ids = this.pagedPermissions.map(item => item.id).filter(Boolean);
+      const selectedCount = ids.filter(id => this.selectedPermissionIds.includes(id)).length;
+      return selectedCount > 0 && selectedCount < ids.length;
     },
     loginAuditRows() {
       return this.loginAudits.map(item => {
@@ -321,6 +335,7 @@ export default {
       this.permissions = [];
       this.permissionKeyword = '';
       this.permissionPage = 1;
+      this.selectedPermissionIds = [];
       if (this.isSuperAdmin(role)) {
         this.$emit('notify', { title: 'SUPER_ADMIN 默认拥有全部访问权限' });
         return;
@@ -434,6 +449,7 @@ export default {
       await this.run(async () => {
         this.permissions = await authorizationApi.rolePermissions(this.selectedRole.id, this.selectedRole.tenantId) || [];
         this.permissionPage = 1;
+        this.selectedPermissionIds = [];
       }, '角色权限已加载', false);
     },
     resetPermissionPage() {
@@ -445,6 +461,35 @@ export default {
     changePermissionPageSize(size) {
       this.permissionPageSize = size;
       this.permissionPage = 1;
+    },
+    isPermissionSelected(permission) {
+      return Boolean(permission?.id) && this.selectedPermissionIds.includes(permission.id);
+    },
+    togglePermission(permission, checked) {
+      if (!permission?.id) return;
+      const values = new Set(this.selectedPermissionIds);
+      if (checked) {
+        values.add(permission.id);
+      } else {
+        values.delete(permission.id);
+      }
+      this.selectedPermissionIds = Array.from(values);
+    },
+    togglePagedPermissions(checked) {
+      const values = new Set(this.selectedPermissionIds);
+      this.pagedPermissions.map(item => item.id).filter(Boolean).forEach(id => {
+        if (checked) values.add(id);
+        else values.delete(id);
+      });
+      this.selectedPermissionIds = Array.from(values);
+    },
+    selectFilteredPermissions() {
+      const values = new Set(this.selectedPermissionIds);
+      this.filteredPermissions.map(item => item.id).filter(Boolean).forEach(id => values.add(id));
+      this.selectedPermissionIds = Array.from(values);
+    },
+    clearSelectedPermissions() {
+      this.selectedPermissionIds = [];
     },
     isSuperAdmin(role) {
       return String(role?.roleCode || '').toUpperCase() === 'SUPER_ADMIN';
@@ -537,8 +582,8 @@ export default {
             remark: 'MCP admin asset authorization'
           });
         }
-        for (const permission of toDelete) {
-          await authorizationApi.deleteRolePermission(permission.id);
+        if (toDelete.length) {
+          await authorizationApi.deleteRolePermissions(toDelete.map(permission => permission.id));
         }
 
         this.permissions = await authorizationApi.rolePermissions(this.selectedRole.id, this.selectedRole.tenantId) || [];
@@ -557,6 +602,26 @@ export default {
       if (!confirmed) return;
       await this.run(() => authorizationApi.deleteRolePermission(permission.id), '角色权限已删除');
       await this.loadRolePermissions();
+    },
+    async batchRemoveRolePermissions() {
+      const availableIds = new Set(this.permissions.map(item => item.id).filter(Boolean));
+      const ids = this.selectedPermissionIds.filter(id => availableIds.has(id));
+      if (!ids.length) return;
+      const roleName = this.selectedRole?.roleName || this.selectedRole?.roleCode || this.selectedRole?.id || '当前角色';
+      const confirmed = await this.confirm(`确定解除“${roleName}”选中的 ${ids.length} 条授权吗？此操作不可撤销。`);
+      if (!confirmed) return;
+
+      this.permissionDeleting = true;
+      try {
+        const result = await authorizationApi.deleteRolePermissions(ids);
+        const deleted = Number(result?.deleted ?? ids.length);
+        await this.loadRolePermissions();
+        this.$emit('notify', { title: `已解除 ${deleted} 条角色授权` });
+      } catch (error) {
+        this.$emit('error', error);
+      } finally {
+        this.permissionDeleting = false;
+      }
     },
     async confirm(message) {
       try {

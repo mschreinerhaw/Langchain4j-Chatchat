@@ -124,6 +124,23 @@ class EnterpriseAdminServiceIntegrationTest {
             .containsEntry("toolPermissionCount", initialToolPermissions);
     }
 
+    @Test
+    void deletesToolPermissionsInOneBatchAndIgnoresDuplicatesAndMissingIds() {
+        long initialToolPermissions = ((Number) service.summary().get("toolPermissionCount")).longValue();
+        SysTenant tenant = service.saveTenant(tenant("release-batch-permissions"));
+        McpToolPermission first = service.saveToolPermission(toolPermission(tenant.getId(), "batch_tool_1"));
+        McpToolPermission second = service.saveToolPermission(toolPermission(tenant.getId(), "batch_tool_2"));
+        service.saveToolPermission(toolPermission(tenant.getId(), "batch_tool_3"));
+
+        int deleted = service.deleteToolPermissions(List.of(first.getId(), second.getId(), first.getId(), "missing-id"));
+
+        assertThat(deleted).isEqualTo(2);
+        assertThat(service.summary()).containsEntry("toolPermissionCount", initialToolPermissions + 1L);
+        assertThatThrownBy(() -> service.deleteToolPermissions(List.of(" ")))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("must not be empty");
+    }
+
     private SysTenant tenant(String code) {
         SysTenant value = new SysTenant();
         value.setTenantCode(code);
@@ -158,6 +175,17 @@ class EnterpriseAdminServiceIntegrationTest {
         value.setDisplayName(username);
         value.setPasswordHash("release-password");
         value.setStatus("enabled");
+        return value;
+    }
+
+    private McpToolPermission toolPermission(String tenantId, String toolName) {
+        McpToolPermission value = new McpToolPermission();
+        value.setTenantId(tenantId);
+        value.setTargetType("role");
+        value.setTargetId("batch-role");
+        value.setLocalToolName(toolName);
+        value.setEffect("allow");
+        value.setEnabled(true);
         return value;
     }
 

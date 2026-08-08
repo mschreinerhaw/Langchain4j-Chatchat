@@ -1,6 +1,6 @@
 #FileLock
-#Sun Aug 02 16:36:29 CST 2026
-server=192.168.96.1\:65090
+#Sun Aug 02 18:13:26 CST 2026
+server=192.168.96.1\:52407
 hostName=123321123321111
 method=file
-id=19fc19e07e7ab5ee5dccfcf2dfe4bdbac20486eb3eb
+id=19fc1f6ca9018ece773ff1958999d7a1635ea914768

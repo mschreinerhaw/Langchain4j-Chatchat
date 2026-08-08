@@ -2317,7 +2317,7 @@ public class InterpretationPlanRuntime {
         Map<Integer, StepExecution> contractContext = resolveTemplateContractFromMcp(step, request, completed, input);
         bridgeTemplateInvocation(step, request, contractContext, input);
         validateTemplateExecutionArgumentContract(step, input);
-        hydrateExecutionContextFromTemplate(step, contractContext, input);
+        hydrateExecutionContextFromTemplateMetadata(step, contractContext, input);
         hydrateSqlMetadataParametersFromMetadataSearch(step, contractContext, input);
         repairTableScopedSqlTemplate(step, contractContext, input);
         enforceAgentRuntimeEnvironment(step, request, input);
@@ -3139,20 +3139,17 @@ public class InterpretationPlanRuntime {
     }
 
     @SuppressWarnings("unchecked")
-    private void hydrateExecutionContextFromTemplate(InterpretationPlan.Step step,
-                                                     Map<Integer, StepExecution> completed,
-                                                     Map<String, Object> input) {
+    private void hydrateExecutionContextFromTemplateMetadata(InterpretationPlan.Step step,
+                                                              Map<Integer, StepExecution> completed,
+                                                              Map<String, Object> input) {
         if (step == null || input == null || completed == null || completed.isEmpty()
-            || !isSqlQueryExecuteTool(step.toolName())) {
+            || !isTemplateExecutionTool(step.toolName())) {
             return;
         }
         Object existing = firstMapValue(input, "executionContext", "mcpExecutionContext");
         Map<String, Object> executionContext = existing instanceof Map<?, ?> map
             ? new LinkedHashMap<>((Map<String, Object>) map)
             : new LinkedHashMap<>();
-        if (hasConcreteExecutionContext(executionContext)) {
-            return;
-        }
         Object templateIdValue = firstValueAtAnyPath(input, "$.templateId", "$.template", "$.template_id");
         if (templateIdValue == null || String.valueOf(templateIdValue).isBlank()) {
             return;
@@ -3160,6 +3157,7 @@ public class InterpretationPlanRuntime {
         Map<String, Object> template = completedTemplateMetadata(completed, String.valueOf(templateIdValue));
         Object contextValue = firstValueAtAnyPath(template,
             "$.sqlExecutionBinding.executionContext",
+            "$.executionBinding.executionContext",
             "$.executionContext",
             "$.execution.executionContext");
         if (!(contextValue instanceof Map<?, ?> contextMap) || contextMap.isEmpty()) {
@@ -3167,26 +3165,15 @@ public class InterpretationPlanRuntime {
         }
         contextMap.forEach((key, value) -> {
             if (key != null && value != null && !String.valueOf(value).isBlank()) {
-                executionContext.putIfAbsent(String.valueOf(key), value);
+                // Discovery metadata is the authorized routing contract. It must fill or
+                // replace partial model context (for example env-only input) for every
+                // template executor, independent of the business protocol behind it.
+                executionContext.put(String.valueOf(key), value);
             }
         });
         if (!executionContext.isEmpty()) {
             input.put("executionContext", executionContext);
         }
-    }
-
-    private boolean hasConcreteExecutionContext(Map<String, Object> executionContext) {
-        if (executionContext == null || executionContext.isEmpty()) {
-            return false;
-        }
-        for (String key : List.of("assetName", "asset_name", "name", "env", "environment", "cluster", "service",
-            "target", "database", "databaseType", "dbType", "dialect", "databaseRole", "database_role", "labels")) {
-            Object value = executionContext.get(key);
-            if (value != null && !String.valueOf(value).isBlank()) {
-                return true;
-            }
-        }
-        return false;
     }
 
     @SuppressWarnings("unchecked")
@@ -3287,14 +3274,6 @@ public class InterpretationPlanRuntime {
             return null;
         }
 
-        Map<String, Object> batchInput = new LinkedHashMap<>(input == null ? Map.of() : input);
-        hydrateDiagnosticBatchAssetContext(completed, batchInput);
-        String targetAssetId = contextText(batchInput, "assetId", "asset_id");
-        if (targetAssetId == null || targetAssetId.isBlank()) {
-            throw new IllegalStateException(
-                "DIAGNOSTIC_CANONICAL_ASSET_ID_REQUIRED: authorized diagnostic batch compilation "
-                    + "requires the canonical asset id returned by asset or template discovery");
-        }
         List<Map<String, Object>> templates = new ArrayList<>();
         for (StepExecution execution : completed.values()) {
             if (execution == null || !execution.success() || !isTemplateDiscoveryTool(execution.toolName())) {
@@ -3307,20 +3286,39 @@ public class InterpretationPlanRuntime {
                 Map<String, Object> template = new LinkedHashMap<>((Map<String, Object>) map);
                 String executor = templateExecutorTool(template);
                 String resolvedExecutor = resolveExecutionToolName(executor, allowedTools);
-                String templateAssetId = templateAssetId(template);
-                boolean sameAsset = targetAssetId == null
-                    || templateAssetId == null
-                    || targetAssetId.equals(templateAssetId);
-                if (sameAsset && resolvedExecutor != null && ToolCallBatchSchema.supports(resolvedExecutor)) {
+                if (resolvedExecutor != null && ToolCallBatchSchema.supports(resolvedExecutor)) {
                     templates.add(template);
                 }
             }
         }
-        if (templates.size() < 2) {
+        // A diagnostic profile describes evidence coverage; it does not imply that one
+        // executor step must become a batch. Compile a batch only when discovery supplied
+        // enough authorized contracts to represent every required check. Otherwise keep the
+        // normal scalar template invocation selected by the plan binding.
+        if (templates.size() < checks.size()) {
+            return null;
+        }
+
+        Map<String, Object> batchInput = new LinkedHashMap<>(input == null ? Map.of() : input);
+        hydrateDiagnosticBatchAssetContext(completed, batchInput);
+        String targetAssetId = contextText(batchInput, "assetId", "asset_id");
+        if (targetAssetId == null || targetAssetId.isBlank()) {
+            throw new IllegalStateException(
+                "DIAGNOSTIC_CANONICAL_ASSET_ID_REQUIRED: authorized diagnostic batch compilation "
+                    + "requires the canonical asset id returned by asset or template discovery");
+        }
+        templates.removeIf(template -> {
+            String templateAssetId = templateAssetId(template);
+            return templateAssetId != null && !targetAssetId.equals(templateAssetId);
+        });
+        if (templates.size() < checks.size()) {
             return null;
         }
 
         Map<Integer, Integer> templateAssignments = diagnosticTemplateAssignments(checks, templates);
+        if (templateAssignments.size() != checks.size()) {
+            return null;
+        }
         List<Map<String, Object>> calls = new ArrayList<>();
         String outerTool = null;
         for (int checkIndex = 0; checkIndex < checks.size(); checkIndex++) {
@@ -3414,7 +3412,7 @@ public class InterpretationPlanRuntime {
             }
             calls.add(call);
         }
-        if (calls.size() < 2 || outerTool == null) {
+        if (calls.size() != checks.size() || outerTool == null) {
             return null;
         }
         Map<String, Object> batch = new LinkedHashMap<>();
@@ -3578,7 +3576,6 @@ public class InterpretationPlanRuntime {
                     diagnosticTemplateIdentity(templates.get(templateIndex))
                 );
                 if (score > 0) {
-                    score += diagnosticHealthCapabilityBonus(templates.get(templateIndex));
                     candidates.add(new DiagnosticTemplateMatch(checkIndex, templateIndex, score));
                 }
             }
@@ -3641,29 +3638,12 @@ public class InterpretationPlanRuntime {
         return score;
     }
 
-    private int diagnosticHealthCapabilityBonus(Map<String, Object> template) {
-        Boolean healthCapability = booleanObject(firstValueAtAnyPath(template,
-            "$.healthCapability",
-            "$.health_capability",
-            "$.evidencePolicy.healthCapability",
-            "$.qualityPolicy.healthCapability"));
-        if (Boolean.TRUE.equals(healthCapability)) {
-            return 1000;
-        }
-        String purpose = stringValue(firstValueAtAnyPath(template,
-            "$.purpose",
-            "$.diagnosticPurpose",
-            "$.evidencePolicy.purpose",
-            "$.qualityPolicy.purpose"));
-        return purpose != null && purpose.toLowerCase(Locale.ROOT).contains("health") ? 500 : 0;
-    }
-
     private Set<String> diagnosticTokens(String value) {
         if (value == null || value.isBlank()) {
             return Set.of();
         }
         Set<String> ignored = Set.of(
-            "oracle", "database", "query", "execute", "template", "diagnostic", "health", "check"
+            "database", "query", "execute", "template", "diagnostic", "check"
         );
         Set<String> tokens = new LinkedHashSet<>();
         for (String raw : value.toLowerCase(Locale.ROOT).split("[^a-z0-9]+")) {

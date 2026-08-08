@@ -6942,6 +6942,113 @@ class InterpretationPlanRuntimeTest {
             });
     }
 
+    @Test
+    void executesSingleDiscoveredTemplateWhenSeveralDiagnosticChecksShareTheStep() {
+        String discoveryTool = "tenant_http_template_query";
+        String executorTool = "tenant_http_request_execute";
+        String templateId = "tenant_node_metrics_" + System.nanoTime();
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(any())).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenAnswer(invocation ->
+            ToolMetadata.builder().id(invocation.getArgument(0)).riskLevel("low").build());
+
+        AtomicReference<ToolRuntimeRequest> executionRequest = new AtomicReference<>();
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest request = invocation.getArgument(0);
+            if (discoveryTool.equals(request.getToolName())) {
+                return new ToolRuntimeExecution(
+                    ToolOutput.success(Map.of(
+                        "queryIr", Map.of("asset", Map.of("selected", Map.of(
+                            "id", "asset-node-metrics",
+                            "name", "node-metrics",
+                            "environment", "PROD"
+                        ))),
+                        "templates", List.of(Map.of(
+                            "templateId", templateId,
+                            "capability", "node_resource_metrics",
+                            "parameterSchema", Map.of("type", "object", "required", List.of()),
+                            "parameterContract", Map.of("executionTool", executorTool),
+                            "executionBinding", Map.of(
+                                "toolName", executorTool,
+                                "templateId", templateId,
+                                "executionContext", Map.of(
+                                    "assetId", "asset-node-metrics",
+                                    "assetName", "node-metrics",
+                                    "env", "PROD"
+                                )
+                            )
+                        ))
+                    )),
+                    ToolMetadata.builder().id(discoveryTool).build(), null, "success", Map.of()
+                );
+            }
+            executionRequest.set(request);
+            return new ToolRuntimeExecution(
+                ToolOutput.success(Map.of("nodes", List.of())),
+                ToolMetadata.builder().id(executorTool).build(), null, "success", Map.of()
+            );
+        });
+
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("tool_chain", "inspect node resources", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", discoveryTool,
+                        Map.of("filters", Map.of("intent", "node resources")), List.of(), null, null),
+                    new InterpretationPlan.Step(2, "mcp_tool", executorTool,
+                        Map.of(
+                            "parameters", Map.of(),
+                            "executionContext", Map.of("env", "PROD", "service", "nodes")
+                        ), List.of(1), null, null),
+                    new InterpretationPlan.Step(3, "final_answer", "",
+                        Map.of("answer", "done"), List.of(2), null, null)
+                ),
+                List.of(),
+                List.of(),
+                List.of(new InterpretationPlan.Binding(
+                    1, "$.templates[0].templateId", 2, "template", "jsonpath", true
+                )),
+                null,
+                new InterpretationPlan.DiagnosticProfile("node_resources", "http", List.of(
+                    new InterpretationPlan.DiagnosticCheck(
+                        "node_count", "node_resource_metrics", "capacity", true, 1, List.of(2)),
+                    new InterpretationPlan.DiagnosticCheck(
+                        "node_health", "node_resource_metrics", "availability", true, 2, List.of(2))
+                ))
+            ),
+            new InterpretationPlan.ExecutionPolicy(
+                3, false, List.of(discoveryTool, executorTool), List.of(), 30_000
+            ),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, toolRegistry, List.of(discoveryTool, executorTool),
+                "tenant", "request", "conversation", "user", Map.of()
+            )
+        );
+
+        assertThat(result.success()).as(result.errorMessage()).isTrue();
+        assertThat(executionRequest.get()).isNotNull();
+        assertThat(executionRequest.get().getToolInput().getParameters())
+            .containsEntry("template", templateId)
+            .containsEntry("templateId", templateId)
+            .doesNotContainKeys("calls", "executionMode");
+        assertThat((Map<String, Object>) executionRequest.get().getToolInput().getParameters().get("executionContext"))
+            .containsEntry("assetId", "asset-node-metrics")
+            .containsEntry("assetName", "node-metrics")
+            .containsEntry("env", "PROD");
+    }
+
     private static Map<String, Object> userQueryParameterProtocol(Integer stepId,
                                                                   String templateId,
                                                                   String evidenceQuote,

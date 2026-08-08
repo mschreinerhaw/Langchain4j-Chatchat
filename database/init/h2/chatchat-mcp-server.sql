@@ -367,6 +367,26 @@
         primary key (id)
     );
 
+    create table mcp_ops_jmx_template (
+        enabled boolean not null,
+        timeout_ms integer not null,
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        risk_level varchar(32) not null,
+        runtime_action varchar(32) not null,
+        id varchar(64) not null,
+        category varchar(100) not null,
+        code varchar(128) not null unique,
+        username varchar(200),
+        title varchar(200) not null,
+        description varchar(1000),
+        password varchar(1000),
+        service_url varchar(1000) not null,
+        intent_signals_json longtext,
+        queries_json longtext not null,
+        primary key (id)
+    );
+
     create table mcp_ops_http_endpoint (
         enabled boolean not null,
         timeout_ms integer not null,

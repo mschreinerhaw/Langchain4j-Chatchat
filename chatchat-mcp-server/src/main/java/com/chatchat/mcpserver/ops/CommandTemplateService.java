@@ -113,7 +113,7 @@ public class CommandTemplateService {
         config.setParameterSchemaJson(writeJson(template.schema()));
         config.setRiskLevel("LOW");
         config.setCategory(categoryFromCode(template.code()));
-        config.setIntentSignalsJson(writeJson(List.of(template.code(), template.title(), template.description())));
+        config.setIntentSignalsJson(writeJson(intentSignals(template)));
         config.setRuntimeAction("confirm_required");
         config.setEnabled(true);
         repository.save(config);
@@ -122,7 +122,7 @@ public class CommandTemplateService {
     private void refreshDefaultTemplate(CommandTemplateConfig existing, DefaultTemplate template) {
         String parameterSchema = writeJson(template.schema());
         String category = categoryFromCode(template.code());
-        String intentSignals = writeJson(List.of(template.code(), template.title(), template.description()));
+        String intentSignals = writeJson(intentSignals(template));
         if (Objects.equals(existing.getTitle(), template.title())
             && Objects.equals(existing.getDescription(), template.description())
             && Objects.equals(existing.getCommandTemplate(), template.command())
@@ -264,6 +264,33 @@ public class CommandTemplateService {
             "properties", Map.of("pid", Map.of("type", "integer", "minimum", 1, "maximum", 9999999)),
             "required", List.of("pid")
         );
+        Map<String, Object> namespaceSchema = Map.of(
+            "type", "object",
+            "properties", Map.of("namespace", Map.of("type", "string", "pattern", "^[a-z0-9]([a-z0-9.-]{0,61}[a-z0-9])?$")),
+            "required", List.of("namespace")
+        );
+        Map<String, Object> podSchema = Map.of(
+            "type", "object",
+            "properties", Map.of(
+                "namespace", Map.of("type", "string", "pattern", "^[a-z0-9]([a-z0-9.-]{0,61}[a-z0-9])?$"),
+                "pod", Map.of("type", "string", "pattern", "^[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?$")
+            ),
+            "required", List.of("namespace", "pod")
+        );
+        Map<String, Object> nodeSchema = Map.of(
+            "type", "object",
+            "properties", Map.of("node", Map.of("type", "string", "pattern", "^[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?$")),
+            "required", List.of("node")
+        );
+        Map<String, Object> workloadSchema = Map.of(
+            "type", "object",
+            "properties", Map.of(
+                "kind", Map.of("type", "string", "enum", List.of("deployment", "statefulset", "daemonset")),
+                "name", Map.of("type", "string", "pattern", "^[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?$"),
+                "namespace", Map.of("type", "string", "pattern", "^[a-z0-9]([a-z0-9.-]{0,61}[a-z0-9])?$")
+            ),
+            "required", List.of("namespace", "kind", "name")
+        );
         Map<String, Object> logSchema = Map.of(
             "type", "object",
             "properties", Map.of(
@@ -339,6 +366,48 @@ public class CommandTemplateService {
                     "echo '=== jstack top: {{pid}} ==='; if command -v jstack >/dev/null 2>&1; then jstack {{pid}} 2>&1 | head -200 || true; else echo 'jstack not found'; fi"
                 )),
                 pidSchema),
+            new DefaultTemplate("CHECK_JVM_RUNTIME", "JVM runtime configuration",
+                "Read JVM version, startup command, flags and uptime without changing runtime state.",
+                writeJson(List.of(
+                    "echo '=== JVM version: {{pid}} ==='; if command -v jcmd >/dev/null 2>&1; then jcmd {{pid}} VM.version 2>&1 || true; else echo 'jcmd not found'; fi",
+                    "echo '=== JVM command line: {{pid}} ==='; if command -v jcmd >/dev/null 2>&1; then jcmd {{pid}} VM.command_line 2>&1 || true; else tr '\\0' ' ' </proc/{{pid}}/cmdline 2>/dev/null || true; echo; fi",
+                    "echo '=== JVM flags and uptime: {{pid}} ==='; if command -v jcmd >/dev/null 2>&1; then jcmd {{pid}} VM.flags 2>&1 || true; jcmd {{pid}} VM.uptime 2>&1 || true; else echo 'jcmd not found'; fi"
+                )),
+                pidSchema,
+                List.of("Java 启动参数", "JVM 参数", "JDK 版本", "Java 运行时", "JVM uptime")),
+            new DefaultTemplate("CHECK_JVM_GC", "JVM GC analysis",
+                "Read GC utilization, last GC cause and heap summary for a Java process.",
+                writeJson(List.of(
+                    "echo '=== GC utilization: {{pid}} ==='; if command -v jstat >/dev/null 2>&1; then jstat -gcutil {{pid}} 1s 5 2>&1 || true; else echo 'jstat not found'; fi",
+                    "echo '=== GC cause: {{pid}} ==='; if command -v jstat >/dev/null 2>&1; then jstat -gccause {{pid}} 1s 3 2>&1 || true; else echo 'jstat not found'; fi",
+                    "echo '=== heap info: {{pid}} ==='; if command -v jcmd >/dev/null 2>&1; then jcmd {{pid}} GC.heap_info 2>&1 || true; else echo 'jcmd not found'; fi"
+                )),
+                pidSchema,
+                List.of("频繁 GC", "Full GC", "内存抖动", "堆内存", "GC 原因", "Java 内存高")),
+            new DefaultTemplate("CHECK_JVM_THREADS", "JVM thread analysis",
+                "Read hot operating-system threads and a bounded Java thread dump for deadlock and CPU analysis.",
+                writeJson(List.of(
+                    "echo '=== hot threads: {{pid}} ==='; if command -v top >/dev/null 2>&1; then top -H -b -n 1 -p {{pid}} 2>&1 | head -80 || true; else ps -L -p {{pid}} -o pid,tid,stat,pcpu,pmem,comm --sort=-pcpu 2>&1 | head -80 || true; fi",
+                    "echo '=== Java thread dump: {{pid}} ==='; if command -v jcmd >/dev/null 2>&1; then jcmd {{pid}} Thread.print -l 2>&1 | head -500 || true; elif command -v jstack >/dev/null 2>&1; then jstack -l {{pid}} 2>&1 | head -500 || true; else echo 'jcmd and jstack not found'; fi"
+                )),
+                pidSchema,
+                List.of("Java CPU 高", "线程阻塞", "线程死锁", "线程池耗尽", "hot thread", "thread dump")),
+            new DefaultTemplate("CHECK_JAVA_NETWORK", "Java process network",
+                "Read listening ports and TCP connections owned by a Java process.",
+                writeJson(List.of(
+                    "echo '=== process sockets: {{pid}} ==='; if command -v lsof >/dev/null 2>&1; then lsof -Pan -p {{pid}} -i 2>/dev/null | head -200 || true; else echo 'lsof not found'; fi",
+                    "echo '=== socket attribution: {{pid}} ==='; if command -v ss >/dev/null 2>&1; then ss -tpna 2>/dev/null | awk 'NR==1 || index($0,\"pid={{pid}},\")>0' | head -200 || true; else echo 'ss not found'; fi"
+                )),
+                pidSchema,
+                List.of("Java 端口", "连接数高", "TCP 连接", "端口未监听", "连接泄漏")),
+            new DefaultTemplate("CHECK_JAVA_LOG_ERRORS", "Java error log analysis",
+                "Read a bounded application log tail and extract common Java error, exception, OOM and timeout signals.",
+                writeJson(List.of(
+                    "echo '=== Java error signals: {{path}} ==='; tail -n {{lines}} {{path}} 2>&1 | grep -Eai 'exception|error|caused by|outofmemory|oomkilled|deadlock|timeout|connection refused|too many open files' | tail -200 || true",
+                    "echo '=== recent log context: {{path}} ==='; tail -n {{lines}} {{path}} 2>&1 | tail -200 || true"
+                )),
+                logSchema,
+                List.of("Java 异常", "应用报错", "OOM", "超时", "连接拒绝", "日志分析", "Too many open files")),
             new DefaultTemplate("CHECK_SERVICE_STATUS", "Service status", "Read systemd service status.", "systemctl status {{service}}", serviceSchema),
             new DefaultTemplate("CHECK_SERVICE_INFO", "Service information",
                 "Read running service information by serviceName for nginx, Java, Redis and other Linux services.",
@@ -426,6 +495,59 @@ public class CommandTemplateService {
                     "echo '=== ingress ==='; if command -v kubectl >/dev/null 2>&1; then kubectl get ingress -A 2>&1 | head -200 || true; else echo 'kubectl not found'; fi"
                 )),
                 empty),
+            new DefaultTemplate("CHECK_K8S_NODE_DETAIL", "Kubernetes node detail",
+                "Read node conditions, taints, capacity, allocatable resources and recent node events.",
+                writeJson(List.of(
+                    "echo '=== node describe: {{node}} ==='; if command -v kubectl >/dev/null 2>&1; then kubectl describe node {{node}} 2>&1 | head -500 || true; else echo 'kubectl not found'; fi",
+                    "echo '=== node usage: {{node}} ==='; if command -v kubectl >/dev/null 2>&1; then kubectl top node {{node}} 2>&1 || true; else echo 'kubectl not found'; fi",
+                    "echo '=== node events: {{node}} ==='; if command -v kubectl >/dev/null 2>&1; then kubectl get events -A --field-selector involvedObject.kind=Node,involvedObject.name={{node}} --sort-by=.metadata.creationTimestamp 2>&1 | tail -120 || true; else echo 'kubectl not found'; fi"
+                )),
+                nodeSchema,
+                List.of("节点 NotReady", "NodePressure", "MemoryPressure", "DiskPressure", "节点污点", "节点资源不足", "Kubernetes 节点异常")),
+            new DefaultTemplate("CHECK_K8S_EVENTS", "Kubernetes namespace events",
+                "Read namespace events ordered by time to locate scheduling, image, probe and volume failures.",
+                writeJson(List.of(
+                    "echo '=== recent events: {{namespace}} ==='; if command -v kubectl >/dev/null 2>&1; then kubectl get events -n {{namespace}} --sort-by=.metadata.creationTimestamp 2>&1 | tail -200 || true; else echo 'kubectl not found'; fi",
+                    "echo '=== warning events: {{namespace}} ==='; if command -v kubectl >/dev/null 2>&1; then kubectl get events -n {{namespace}} --field-selector type=Warning --sort-by=.metadata.creationTimestamp 2>&1 | tail -120 || true; else echo 'kubectl not found'; fi"
+                )),
+                namespaceSchema,
+                List.of("Kubernetes 事件", "Pod 调度失败", "拉取镜像失败", "探针失败", "挂载失败", "Warning event")),
+            new DefaultTemplate("CHECK_K8S_POD_DETAIL", "Kubernetes pod detail",
+                "Read pod state, conditions, events, current logs and previous-container logs.",
+                writeJson(List.of(
+                    "echo '=== pod describe: {{namespace}}/{{pod}} ==='; if command -v kubectl >/dev/null 2>&1; then kubectl describe pod {{pod}} -n {{namespace}} 2>&1 | head -500 || true; else echo 'kubectl not found'; fi",
+                    "echo '=== current logs: {{namespace}}/{{pod}} ==='; if command -v kubectl >/dev/null 2>&1; then kubectl logs {{pod}} -n {{namespace}} --all-containers=true --tail=300 --timestamps 2>&1 || true; else echo 'kubectl not found'; fi",
+                    "echo '=== previous logs: {{namespace}}/{{pod}} ==='; if command -v kubectl >/dev/null 2>&1; then kubectl logs {{pod}} -n {{namespace}} --all-containers=true --previous --tail=200 --timestamps 2>&1 || true; else echo 'kubectl not found'; fi"
+                )),
+                podSchema,
+                List.of("Pod 启动失败", "CrashLoopBackOff", "OOMKilled", "Pod 日志", "容器重启", "Readiness probe")),
+            new DefaultTemplate("CHECK_K8S_RESOURCES", "Kubernetes resource pressure",
+                "Read node and pod CPU/memory usage plus namespace resource requests and limits.",
+                writeJson(List.of(
+                    "echo '=== node usage ==='; if command -v kubectl >/dev/null 2>&1; then kubectl top nodes 2>&1 || true; else echo 'kubectl not found'; fi",
+                    "echo '=== pod usage: {{namespace}} ==='; if command -v kubectl >/dev/null 2>&1; then kubectl top pods -n {{namespace}} --containers 2>&1 | head -250 || true; else echo 'kubectl not found'; fi",
+                    "echo '=== requests and limits: {{namespace}} ==='; if command -v kubectl >/dev/null 2>&1; then kubectl get pods -n {{namespace}} -o custom-columns='POD:.metadata.name,CONTAINER:.spec.containers[*].name,CPU_REQ:.spec.containers[*].resources.requests.cpu,CPU_LIMIT:.spec.containers[*].resources.limits.cpu,MEM_REQ:.spec.containers[*].resources.requests.memory,MEM_LIMIT:.spec.containers[*].resources.limits.memory' 2>&1 | head -250 || true; else echo 'kubectl not found'; fi"
+                )),
+                namespaceSchema,
+                List.of("Kubernetes CPU 高", "Kubernetes 内存高", "资源不足", "Pod 资源", "requests limits", "节点压力")),
+            new DefaultTemplate("CHECK_K8S_NETWORK", "Kubernetes service network",
+                "Read services, endpoint slices, ingress and network policies for namespace network diagnosis.",
+                writeJson(List.of(
+                    "echo '=== services and endpoints: {{namespace}} ==='; if command -v kubectl >/dev/null 2>&1; then kubectl get svc,endpoints,endpointslices -n {{namespace}} -o wide 2>&1 | head -250 || true; else echo 'kubectl not found'; fi",
+                    "echo '=== ingress: {{namespace}} ==='; if command -v kubectl >/dev/null 2>&1; then kubectl get ingress -n {{namespace}} -o wide 2>&1 | head -150 || true; else echo 'kubectl not found'; fi",
+                    "echo '=== network policies: {{namespace}} ==='; if command -v kubectl >/dev/null 2>&1; then kubectl get networkpolicy -n {{namespace}} -o wide 2>&1 | head -150 || true; else echo 'kubectl not found'; fi"
+                )),
+                namespaceSchema,
+                List.of("Service 不通", "Kubernetes 网络", "Endpoint 为空", "Ingress 访问失败", "NetworkPolicy", "服务发现")),
+            new DefaultTemplate("CHECK_K8S_ROLLOUT", "Kubernetes rollout status",
+                "Read rollout state, workload details and revision history without changing the workload.",
+                writeJson(List.of(
+                    "echo '=== rollout status: {{kind}}/{{name}} ==='; if command -v kubectl >/dev/null 2>&1; then kubectl rollout status {{kind}}/{{name}} -n {{namespace}} --timeout=10s 2>&1 || true; else echo 'kubectl not found'; fi",
+                    "echo '=== workload describe: {{kind}}/{{name}} ==='; if command -v kubectl >/dev/null 2>&1; then kubectl describe {{kind}} {{name}} -n {{namespace}} 2>&1 | head -400 || true; else echo 'kubectl not found'; fi",
+                    "echo '=== rollout history: {{kind}}/{{name}} ==='; if command -v kubectl >/dev/null 2>&1; then kubectl rollout history {{kind}}/{{name}} -n {{namespace}} 2>&1 | head -120 || true; else echo 'kubectl not found'; fi"
+                )),
+                workloadSchema,
+                List.of("发布失败", "滚动更新卡住", "Deployment 不可用", "StatefulSet 异常", "rollout status", "版本历史")),
             new DefaultTemplate("CHECK_MOUNT_DISK_USAGE", "Mounted filesystem usage",
                 "Read mounted filesystems, filesystem type and disk usage for capacity inspection.",
                 writeJson(List.of(
@@ -464,6 +586,15 @@ public class CommandTemplateService {
         }
     }
 
+    private List<String> intentSignals(DefaultTemplate template) {
+        java.util.LinkedHashSet<String> signals = new java.util.LinkedHashSet<>();
+        signals.add(template.code());
+        signals.add(template.title());
+        signals.add(template.description());
+        signals.addAll(template.intentSignals());
+        return List.copyOf(signals);
+    }
+
     private String requireText(String value, String message) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(message);
@@ -475,6 +606,10 @@ public class CommandTemplateService {
         return value == null || value.isBlank() ? fallback : value.trim();
     }
 
-    private record DefaultTemplate(String code, String title, String description, String command, Map<String, Object> schema) {
+    private record DefaultTemplate(String code, String title, String description, String command,
+                                   Map<String, Object> schema, List<String> intentSignals) {
+        private DefaultTemplate(String code, String title, String description, String command, Map<String, Object> schema) {
+            this(code, title, description, command, schema, List.of());
+        }
     }
 }

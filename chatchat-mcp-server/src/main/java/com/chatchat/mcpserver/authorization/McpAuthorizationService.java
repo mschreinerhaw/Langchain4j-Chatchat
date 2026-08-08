@@ -802,6 +802,7 @@ public class McpAuthorizationService {
             case "database_query" -> new ToolScope("database_query", "execute", "query");
             case "linux_command_execute" -> new ToolScope("ssh_host", "execute", "command");
             case "http_request_execute" -> new ToolScope("http_endpoint", "execute", "request");
+            case "jmx_monitor_execute" -> new ToolScope("jmx_endpoint", "execute", "monitor");
             case "http_requirement_analyze" -> new ToolScope("http_endpoint", "requirement", "query");
             case "sql_query_execute" -> new ToolScope("sql_datasource", "execute", "query");
             case "sql_script_execute" -> new ToolScope("sql_datasource", "execute", "script");
@@ -837,6 +838,9 @@ public class McpAuthorizationService {
         }
         if ("ssh".equals(normalized)) {
             return "ssh_host";
+        }
+        if ("jmx".equals(normalized) || "java".equals(normalized) || "jvm".equals(normalized)) {
+            return "jmx_endpoint";
         }
         return normalized;
     }

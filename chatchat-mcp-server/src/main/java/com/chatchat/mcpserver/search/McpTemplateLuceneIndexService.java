@@ -9,6 +9,8 @@ import com.chatchat.mcpserver.ops.CommandTemplateConfig;
 import com.chatchat.mcpserver.ops.CommandTemplateService;
 import com.chatchat.mcpserver.ops.HttpEndpointConfig;
 import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
+import com.chatchat.mcpserver.ops.JmxTemplateConfig;
+import com.chatchat.mcpserver.ops.JmxTemplateService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlTemplateConfig;
@@ -49,6 +51,7 @@ public class McpTemplateLuceneIndexService {
     private final LuceneMcpSearchService luceneSearchService;
     private final CommandTemplateService commandTemplateService;
     private final SqlTemplateService sqlTemplateService;
+    private final JmxTemplateService jmxTemplateService;
     private final HttpEndpointConfigService httpEndpointConfigService;
     private final ApiServiceConfigService apiServiceConfigService;
     private final DatabaseQueryConfigService databaseQueryConfigService;
@@ -104,6 +107,9 @@ public class McpTemplateLuceneIndexService {
             .filter(template -> !isRetiredSqlMetadataTemplate(template))
             .map(this::sqlTemplateDoc)
             .forEach(docs::add);
+        safe(jmxTemplateService == null ? List.of() : jmxTemplateService.listEnabled()).stream()
+            .map(this::jmxTemplateDoc)
+            .forEach(docs::add);
         safe(httpEndpointConfigService.listEnabled()).stream()
             .map(this::httpTemplateDoc)
             .forEach(docs::add);
@@ -145,6 +151,10 @@ public class McpTemplateLuceneIndexService {
             .toList());
     }
 
+    public void upsertJmxTemplates(List<JmxTemplateConfig> templates) {
+        luceneSearchService.upsertTemplates(safe(templates).stream().map(this::jmxTemplateDoc).toList());
+    }
+
     public synchronized Map<String, Object> rebuildCommandTemplates(List<String> templateIds) {
         List<String> ids = selectedIds(templateIds, "SSH command template");
         List<CommandTemplateConfig> templates = ids.stream()
@@ -164,6 +174,16 @@ public class McpTemplateLuceneIndexService {
             .toList();
         upsertSqlTemplates(templates);
         return selectedTemplateSummary("sql", ids.size(), templates.size());
+    }
+
+    public synchronized Map<String, Object> rebuildJmxTemplates(List<String> templateIds) {
+        List<String> ids = selectedIds(templateIds, "JMX template");
+        List<JmxTemplateConfig> templates = ids.stream()
+            .map(jmxTemplateService::getById)
+            .peek(template -> requireEnabled(template.isEnabled(), "JMX template", template.getId()))
+            .toList();
+        upsertJmxTemplates(templates);
+        return selectedTemplateSummary("jmx", ids.size(), templates.size());
     }
 
     private List<String> selectedIds(List<String> values, String templateLabel) {
@@ -330,6 +350,24 @@ public class McpTemplateLuceneIndexService {
             firstText(template.getRiskLevel(), "MEDIUM"),
             distinct(signals),
             "sql_template"
+        );
+    }
+
+    private LuceneMcpSearchService.TemplateDoc jmxTemplateDoc(JmxTemplateConfig template) {
+        List<String> signals = new ArrayList<>(readStringArray(template.getIntentSignalsJson()));
+        addTerms(signals, template.getCode(), template.getTitle(), template.getDescription(), template.getCategory(),
+            template.getQueriesJson());
+        return new LuceneMcpSearchService.TemplateDoc(
+            template.getCode(),
+            "jmx_endpoint",
+            template.getTitle(),
+            template.getDescription(),
+            template.getCategory(),
+            "java",
+            String.join(" ", signals),
+            template.getRiskLevel(),
+            signals,
+            "jmx_template"
         );
     }
 

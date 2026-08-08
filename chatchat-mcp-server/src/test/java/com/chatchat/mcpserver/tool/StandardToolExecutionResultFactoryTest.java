@@ -3,6 +3,7 @@ package com.chatchat.mcpserver.tool;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.mcpserver.database.DatabaseQueryConfig;
 import com.chatchat.mcpserver.ops.HttpRequestToolResult;
+import com.chatchat.mcpserver.ops.JmxMonitorResult;
 import com.chatchat.mcpserver.ops.LinuxCommandResult;
 import com.chatchat.mcpserver.ops.LinuxCommandStepResult;
 import com.chatchat.mcpserver.sql.SqlQueryResult;
@@ -19,6 +20,31 @@ class StandardToolExecutionResultFactoryTest {
 
     private final DatabaseToolProperties databaseToolProperties = databaseToolProperties();
     private final StandardToolExecutionResultFactory factory = new StandardToolExecutionResultFactory(databaseToolProperties);
+
+    @Test
+    void jmxResultUsesStandardEnvelopeWithoutExposingConfiguredServiceUrl() {
+        JmxMonitorResult result = new JmxMonitorResult(
+            true,
+            "JMX_KAFKA_BROKER_OVERVIEW",
+            "service:jmx:rmi:///jndi/rmi://10.20.30.40:9999/jmxrmi",
+            List.of(Map.of(
+                "name", "heap",
+                "objectName", "java.lang:type=Memory",
+                "attributes", Map.of("HeapMemoryUsage", Map.of("used", 42L))
+            )),
+            List.of(),
+            15L,
+            null
+        );
+
+        Map<String, Object> envelope = factory.fromJmx(result);
+
+        assertThat(envelope.get("schemaVersion")).isEqualTo(StandardToolExecutionResultFactory.SCHEMA_VERSION);
+        assertThat(envelope.get("kind")).isEqualTo("jmx_monitor");
+        assertThat(String.valueOf(envelope)).doesNotContain("10.20.30.40").doesNotContain("service:jmx");
+        assertThat(((Map<?, ?>) envelope.get("target")).get("templateId"))
+            .isEqualTo("JMX_KAFKA_BROKER_OVERVIEW");
+    }
 
     @Test
     void sqlResultUsesStandardEnvelopeAndLimitsRowsForModel() {

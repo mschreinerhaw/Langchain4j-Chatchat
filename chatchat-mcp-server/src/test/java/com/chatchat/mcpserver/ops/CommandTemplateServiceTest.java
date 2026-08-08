@@ -51,6 +51,11 @@ class CommandTemplateServiceTest {
                 "CHECK_PROCESS_NETWORK",
                 "CHECK_JAVA_PROCESS",
                 "CHECK_JVM_DETAIL",
+                "CHECK_JVM_RUNTIME",
+                "CHECK_JVM_GC",
+                "CHECK_JVM_THREADS",
+                "CHECK_JAVA_NETWORK",
+                "CHECK_JAVA_LOG_ERRORS",
                 "CHECK_IO_STATUS",
                 "CHECK_PORT_BINDING",
                 "CHECK_SYSTEM_LOAD",
@@ -62,9 +67,19 @@ class CommandTemplateServiceTest {
                 "CHECK_DOCKER_CONTAINERS",
                 "CHECK_CONTAINER_RUNTIME_OVERVIEW",
                 "CHECK_K8S_NODE_OVERVIEW",
+                "CHECK_K8S_NODE_DETAIL",
                 "CHECK_K8S_WORKLOAD_OVERVIEW",
+                "CHECK_K8S_EVENTS",
+                "CHECK_K8S_POD_DETAIL",
+                "CHECK_K8S_RESOURCES",
+                "CHECK_K8S_NETWORK",
+                "CHECK_K8S_ROLLOUT",
                 "CHECK_MOUNT_DISK_USAGE"
             );
+        assertThat(saved)
+            .allSatisfy(template -> assertThat(template.getCommandTemplate().length())
+                .as("command template length for %s", template.getCode())
+                .isLessThanOrEqualTo(2000));
         assertThat(saved)
             .filteredOn(template -> "CHECK_PROCESS_INFO".equals(template.getCode()))
             .singleElement()
@@ -109,6 +124,33 @@ class CommandTemplateServiceTest {
                     .contains("jstack {{pid}}")
                     .contains("jps -lv");
                 assertThat(template.getParameterSchemaJson()).contains("pid");
+            });
+        assertThat(saved)
+            .filteredOn(template -> "CHECK_JVM_GC".equals(template.getCode()))
+            .singleElement()
+            .satisfies(template -> {
+                assertThat(template.getCommandTemplate())
+                    .contains("jstat -gcutil {{pid}} 1s 5")
+                    .contains("jstat -gccause {{pid}}")
+                    .contains("jcmd {{pid}} GC.heap_info");
+                assertThat(template.getIntentSignalsJson()).contains("频繁 GC").contains("Java 内存高");
+            });
+        assertThat(saved)
+            .filteredOn(template -> "CHECK_JVM_THREADS".equals(template.getCode()))
+            .singleElement()
+            .satisfies(template -> assertThat(template.getCommandTemplate())
+                .contains("top -H -b -n 1 -p {{pid}}")
+                .contains("Thread.print -l")
+                .contains("head -500"));
+        assertThat(saved)
+            .filteredOn(template -> "CHECK_JAVA_LOG_ERRORS".equals(template.getCode()))
+            .singleElement()
+            .satisfies(template -> {
+                assertThat(template.getCommandTemplate())
+                    .contains("tail -n {{lines}} {{path}}")
+                    .contains("outofmemory")
+                    .contains("too many open files");
+                assertThat(template.getParameterSchemaJson()).contains("lines").contains("path");
             });
         assertThat(saved)
             .filteredOn(template -> "CHECK_IO_STATUS".equals(template.getCode()))
@@ -172,6 +214,40 @@ class CommandTemplateServiceTest {
                     .contains("kubectl get nodes")
                     .contains("kubectl get pods -A");
                 assertThat(template.getCategory()).isEqualTo("k8s_diagnostic");
+            });
+        assertThat(saved)
+            .filteredOn(template -> "CHECK_K8S_POD_DETAIL".equals(template.getCode()))
+            .singleElement()
+            .satisfies(template -> {
+                assertThat(template.getCommandTemplate())
+                    .contains("kubectl describe pod {{pod}} -n {{namespace}}")
+                    .contains("--all-containers=true")
+                    .contains("--previous");
+                assertThat(template.getParameterSchemaJson()).contains("namespace").contains("pod");
+                assertThat(template.getIntentSignalsJson()).contains("CrashLoopBackOff").contains("OOMKilled");
+            });
+        assertThat(saved)
+            .filteredOn(template -> "CHECK_K8S_NODE_DETAIL".equals(template.getCode()))
+            .singleElement()
+            .satisfies(template -> {
+                assertThat(template.getCommandTemplate())
+                    .contains("kubectl describe node {{node}}")
+                    .contains("kubectl top node {{node}}")
+                    .contains("involvedObject.name={{node}}");
+                assertThat(template.getIntentSignalsJson()).contains("NotReady").contains("DiskPressure");
+            });
+        assertThat(saved)
+            .filteredOn(template -> "CHECK_K8S_ROLLOUT".equals(template.getCode()))
+            .singleElement()
+            .satisfies(template -> {
+                assertThat(template.getCommandTemplate())
+                    .contains("kubectl rollout status {{kind}}/{{name}}")
+                    .contains("kubectl rollout history {{kind}}/{{name}}")
+                    .contains("--timeout=10s");
+                assertThat(template.getParameterSchemaJson())
+                    .contains("deployment")
+                    .contains("statefulset")
+                    .contains("daemonset");
             });
         assertThat(saved)
             .filteredOn(template -> "CHECK_MOUNT_DISK_USAGE".equals(template.getCode()))

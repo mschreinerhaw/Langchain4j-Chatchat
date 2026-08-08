@@ -24,6 +24,8 @@ public class OpsAdminController {
     private final SshHostConfigService hostConfigService;
     private final HttpEndpointConfigService httpEndpointConfigService;
     private final CommandTemplateService templateService;
+    private final JmxTemplateService jmxTemplateService;
+    private final JmxMonitorService jmxMonitorService;
     private final OpsMcpToolPublisher publisher;
     private final LinuxCommandService linuxCommandService;
     private final HttpRequestToolService httpRequestToolService;
@@ -133,6 +135,39 @@ public class OpsAdminController {
     public ApiResponse<Void> deleteTemplate(@PathVariable("id") String id) {
         templateService.delete(id);
         return ApiResponse.success(null, "Command template deleted");
+    }
+
+    @GetMapping("/jmx-templates")
+    public ApiResponse<List<JmxTemplateConfig>> listJmxTemplates() {
+        return ApiResponse.success(jmxTemplateService.listAll());
+    }
+
+    @PostMapping("/jmx-templates")
+    public ApiResponse<JmxTemplateConfig> createJmxTemplate(@RequestBody JmxTemplateConfig request) {
+        JmxTemplateConfig saved = jmxTemplateService.save(request);
+        publisher.refresh();
+        return ApiResponse.success(saved, "JMX template created");
+    }
+
+    @PutMapping("/jmx-templates/{id}")
+    public ApiResponse<JmxTemplateConfig> updateJmxTemplate(@PathVariable("id") String id,
+                                                            @RequestBody JmxTemplateConfig request) {
+        JmxTemplateConfig saved = jmxTemplateService.update(id, request);
+        publisher.refresh();
+        return ApiResponse.success(saved, "JMX template updated");
+    }
+
+    @DeleteMapping("/jmx-templates/{id}")
+    public ApiResponse<Void> deleteJmxTemplate(@PathVariable("id") String id) {
+        jmxTemplateService.delete(id);
+        publisher.refresh();
+        return ApiResponse.success(null, "JMX template deleted");
+    }
+
+    @PostMapping("/jmx-templates/test")
+    public ApiResponse<JmxMonitorResult> testJmxTemplate(@RequestBody JmxTemplateConfig request) {
+        JmxTemplateConfig normalized = jmxTemplateService.saveTransient(request);
+        return ApiResponse.success(jmxMonitorService.test(normalized), "JMX template tested");
     }
 
     @PostMapping("/refresh-tools")

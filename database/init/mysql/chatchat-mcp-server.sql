@@ -364,6 +364,26 @@
         primary key (id)
     ) engine=InnoDB;
 
+    create table mcp_ops_jmx_template (
+        enabled bit not null,
+        timeout_ms integer not null,
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        risk_level varchar(32) not null,
+        runtime_action varchar(32) not null,
+        id varchar(64) not null,
+        category varchar(100) not null,
+        code varchar(128) not null,
+        username varchar(200),
+        title varchar(200) not null,
+        description varchar(1000),
+        password varchar(1000),
+        service_url varchar(1000) not null,
+        intent_signals_json longtext,
+        queries_json longtext not null,
+        primary key (id)
+    ) engine=InnoDB;
+
     create table mcp_ops_http_endpoint (
         enabled bit not null,
         timeout_ms integer not null,
@@ -651,6 +671,9 @@
 
     alter table mcp_ops_command_template 
        add constraint UKp13u3bdaj5m7326vefdr6ovsv unique (code);
+
+    alter table mcp_ops_jmx_template
+       add constraint uk_mcp_ops_jmx_template_code unique (code);
 
     alter table mcp_ops_http_endpoint 
        add constraint UKr9up9dyfyjgefep3o5q72f7a8 unique (tool_name);

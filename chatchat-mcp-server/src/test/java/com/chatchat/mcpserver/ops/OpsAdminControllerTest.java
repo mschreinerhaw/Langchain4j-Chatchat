@@ -21,6 +21,8 @@ class OpsAdminControllerTest {
             mock(SshHostConfigService.class),
             mock(HttpEndpointConfigService.class),
             mock(CommandTemplateService.class),
+            mock(JmxTemplateService.class),
+            mock(JmxMonitorService.class),
             mock(OpsMcpToolPublisher.class),
             mock(LinuxCommandService.class),
             httpRequestToolService,

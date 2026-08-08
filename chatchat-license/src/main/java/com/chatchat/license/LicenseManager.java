@@ -119,6 +119,7 @@ public class LicenseManager {
         if (payload.expireTime() == null) throw new LicenseException("授权到期日不能为空");
         if (payload.modules() == null || payload.modules().isEmpty()) throw new LicenseException("至少选择一个授权模块");
         if (payload.maxUsers() != null && payload.maxUsers() <= 0) throw new LicenseException("最大用户数必须大于 0");
+        if (payload.maxAgents() != null && payload.maxAgents() <= 0) throw new LicenseException("最大 Agent 发布数必须大于 0");
         if (payload.issuedTime() != null && payload.expireTime().isBefore(payload.issuedTime())) {
             throw new LicenseException("授权到期日不能早于签发日");
         }

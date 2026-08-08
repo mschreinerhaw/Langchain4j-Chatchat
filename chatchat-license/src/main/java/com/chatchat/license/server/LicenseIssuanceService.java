@@ -45,7 +45,7 @@ public class LicenseIssuanceService {
         if (mac == null) throw new LicenseException("请输入有效的客户服务器 MAC 地址");
         LicensePayload payload = new LicensePayload(
             requested.licenseNo(), requested.customer(), requested.customerCode(), requested.product(),
-            requested.edition(), requested.modules(), requested.maxUsers(), mac, requested.expireTime(),
+            requested.edition(), requested.modules(), requested.maxUsers(), requested.maxAgents(), mac, requested.expireTime(),
             requested.features(), requested.issuedTime());
         validate(payload);
         try {
@@ -121,6 +121,7 @@ public class LicenseIssuanceService {
             throw new LicenseException("授权到期日不能早于签发日");
         }
         if (payload.maxUsers() != null && payload.maxUsers() <= 0) throw new LicenseException("最大用户数必须大于 0");
+        if (payload.maxAgents() != null && payload.maxAgents() <= 0) throw new LicenseException("最大 Agent 发布数必须大于 0");
         if (menuCatalogClient != null) {
             Set<String> available = menuCatalogClient.load().stream()
                 .map(McpMenuCatalogClient.MenuModule::key)

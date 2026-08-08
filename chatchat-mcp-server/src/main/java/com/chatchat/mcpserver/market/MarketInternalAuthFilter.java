@@ -24,7 +24,8 @@ public class MarketInternalAuthFilter extends OncePerRequestFilter {
     }
 
     @Override protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !request.getRequestURI().startsWith("/internal/v1/market/");
+        String path = request.getRequestURI();
+        return !path.startsWith("/internal/v1/market/") && !path.startsWith("/internal/v1/license/");
     }
 
     @Override protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,

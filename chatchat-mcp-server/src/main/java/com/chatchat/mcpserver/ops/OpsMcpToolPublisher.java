@@ -35,6 +35,8 @@ public class OpsMcpToolPublisher {
     private final HttpRequestToolService httpRequestToolService;
     private final LinuxCommandService linuxCommandService;
     private final CommandTemplateService commandTemplateService;
+    private final JmxTemplateService jmxTemplateService;
+    private final JmxMonitorService jmxMonitorService;
     private final ExecutionTargetRouter executionTargetRouter;
     private final AssetMetadataFactory assetMetadataFactory;
     private final AgentRuntimeGovernanceFactory governanceFactory;
@@ -53,6 +55,7 @@ public class OpsMcpToolPublisher {
     public synchronized void refresh() {
         remove("linux_command_execute");
         remove("http_request_execute");
+        remove("jmx_monitor_execute");
         httpEndpointConfigService.listAll().forEach(endpoint -> remove(endpoint.getToolName()));
         hostConfigService.listAll().forEach(host -> remove(host.getToolName()));
         managedHttpToolNames.forEach(this::remove);
@@ -64,8 +67,74 @@ public class OpsMcpToolPublisher {
             mcpSyncServer, linuxCommandGatewayTool());
         com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
             mcpSyncServer, httpRequestGatewayTool());
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, jmxMonitorTool());
         mcpSyncServer.notifyToolsListChanged();
-        log.info("Ops MCP gateway tools refreshed: linux_command_execute, http_request_execute");
+        log.info("Ops MCP gateway tools refreshed: linux_command_execute, http_request_execute, jmx_monitor_execute");
+    }
+
+    private McpServerFeatures.SyncToolSpecification jmxMonitorTool() {
+        McpSchema.Tool tool = McpSchema.Tool.builder()
+            .name("jmx_monitor_execute")
+            .title("JMX monitoring template execution")
+            .description("Execute an enabled, administrator-maintained read-only JMX monitoring template. "
+                + "Use a template code returned by the JMX template registry; server URLs and credentials are never accepted as tool arguments.")
+            .inputSchema(new McpSchema.JsonSchema("object", Map.of(
+                "template", Map.of("type", "string", "description", "Enabled JMX template code"),
+                "reason", Map.of("type", "string", "description", "Monitoring and analysis reason"),
+                "sourceTaskId", Map.of("type", "string")
+            ), List.of("template"), false, null, null))
+            .meta(jmxMonitorMeta())
+            .build();
+        return McpServerFeatures.SyncToolSpecification.builder()
+            .tool(tool)
+            .callHandler((exchange, request) -> concurrencyManager.execute(
+                "jmx_monitor_execute", "jmx", request.arguments(),
+                () -> toCallToolResult(jmxMonitorService.execute(String.valueOf(request.arguments().get("template"))))))
+            .build();
+    }
+
+    private Map<String, Object> jmxMonitorMeta() {
+        Map<String, Object> governance = new LinkedHashMap<>();
+        governance.put("category", "jmx_monitoring");
+        governance.put("operation_type", "read_metrics");
+        governance.put("risk_level", "low");
+        governance.put("data_scope", "jmx:configured_templates");
+        governance.put("user_visible", true);
+        governance.put("confirmation", mutableMap("default", "auto_execute", "allow_user_override", true));
+        governance.put("input_policy", mutableMap(
+            "must_show_parameters", true,
+            "required_preview_params", List.of("template", "reason", "sourceTaskId")
+        ));
+        governance.put("output_policy", mutableMap(
+            "mask_fields", List.of("serviceUrl", "username", "password", "credentials"),
+            "max_collection_items", StandardToolExecutionResultFactory.MODEL_SAFE_COLLECTION_LIMIT,
+            "truncate_oversized_values", true
+        ));
+        governance.put("audit", mutableMap("enabled", true, "log_params", true, "log_result_summary", true));
+        Map<String, Object> meta = new LinkedHashMap<>(
+            governanceFactory.toMeta("jmx_monitoring", "jmx_monitor_execute", governance, null));
+        meta.put("runtime_action", "readonly");
+        meta.put("runtimeAction", "readonly");
+        meta.put("readOnly", true);
+        meta.put("templateRegistryRequired", true);
+        meta.put("templateSelectionPolicy", mutableMap(
+            "source", "jmx_template_query.templates[].templateId",
+            "mustUseDiscoveredTemplate", true,
+            "doNotInventTemplateNames", true,
+            "onNoMatch", "call jmx_template_query; if no enabled template is returned, explain that no governed JMX template can satisfy the request"
+        ));
+        meta.put("templates", jmxTemplateService.listEnabled().stream().map(template -> mutableMap(
+            "templateId", template.getCode(),
+            "name", template.getTitle(),
+            "description", template.getDescription(),
+            "category", template.getCategory(),
+            "intentSignals", readStringList(template.getIntentSignalsJson())
+        )).toList());
+        meta.put("forbiddenTargetFields", List.of("serviceUrl", "url", "host", "hostname", "ip", "address", "username", "password"));
+        meta.put("rawConnectionSpecReturned", false);
+        meta.put("mcp_tool_limit", concurrencyManager.limitMeta("jmx_monitor_execute", "jmx"));
+        return meta;
     }
 
     private McpServerFeatures.SyncToolSpecification httpEndpointTool(HttpEndpointConfig endpoint) {
@@ -353,6 +422,9 @@ public class OpsMcpToolPublisher {
         } else if (result instanceof LinuxCommandResult linux) {
             success = linux.success();
             structured = standardResultFactory.fromLinuxCommand(linux);
+        } else if (result instanceof JmxMonitorResult jmx) {
+            success = jmx.success();
+            structured = standardResultFactory.fromJmx(jmx);
         }
         return McpSchema.CallToolResult.builder()
             .addTextContent(success ? "Operation completed" : "Operation failed")

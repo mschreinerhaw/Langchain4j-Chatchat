@@ -26,6 +26,44 @@ import static org.mockito.Mockito.when;
 class CommandTemplateDiscoveryServiceTest {
 
     @Test
+    void discoversEnabledJmxTemplateWithoutReturningConnectionDetails() {
+        JmxTemplateService jmxTemplateService = mock(JmxTemplateService.class);
+        JmxTemplateConfig kafka = new JmxTemplateConfig();
+        kafka.setId("jmx-kafka");
+        kafka.setCode("JMX_KAFKA_BROKER_OVERVIEW");
+        kafka.setTitle("Kafka Broker JMX overview");
+        kafka.setDescription("Kafka replica and JVM monitoring metrics");
+        kafka.setCategory("kafka_monitoring");
+        kafka.setRiskLevel("LOW");
+        kafka.setRuntimeAction("readonly");
+        kafka.setServiceUrl("service:jmx:rmi:///jndi/rmi://10.20.30.40:9999/jmxrmi");
+        kafka.setQueriesJson("[{\"name\":\"memory\",\"objectName\":\"java.lang:type=Memory\",\"attributes\":[\"HeapMemoryUsage\"]}]");
+        kafka.setIntentSignalsJson("[\"kafka\",\"replica\",\"jvm\"]");
+        kafka.setEnabled(true);
+        when(jmxTemplateService.listEnabled()).thenReturn(List.of(kafka));
+        CommandTemplateDiscoveryService service = new CommandTemplateDiscoveryService(
+            mock(CommandTemplateService.class), mock(SshHostConfigService.class),
+            mock(SqlTemplateService.class), mock(SqlDatasourceConfigService.class),
+            mock(HttpEndpointConfigService.class), jmxTemplateService,
+            mock(DatabaseQueryConfigService.class), null, new ObjectMapper(),
+            new TemplateDiscoveryProperties(), null, new TargetKindRegistry()
+        );
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "java",
+            "confidence", 0.95,
+            "filters", Map.of("intent", "kafka replica jvm"),
+            "trace", trace(),
+            "limit", 10
+        ));
+
+        assertThat(result).containsEntry("assetType", "jmx_endpoint").containsEntry("returnedCount", 1);
+        assertThat(result.toString())
+            .contains("JMX_KAFKA_BROKER_OVERVIEW", "jmx_monitor_execute")
+            .doesNotContain("10.20.30.40", "service:jmx", "queriesJson");
+    }
+
+    @Test
     void rejectsUnresolvedAgentRuntimeBindingPlaceholder() {
         CommandTemplateDiscoveryService service = service(
             mock(CommandTemplateService.class),

@@ -105,7 +105,14 @@ class TemplateDiscoveryMcpToolPublisherTest {
 
         ArgumentCaptor<McpServerFeatures.SyncToolSpecification> tools =
             ArgumentCaptor.forClass(McpServerFeatures.SyncToolSpecification.class);
-        verify(server, times(4)).addTool(tools.capture());
+        verify(server, times(5)).addTool(tools.capture());
+        McpSchema.Tool jmxTool = tools.getAllValues().stream()
+            .map(McpServerFeatures.SyncToolSpecification::tool)
+            .filter(tool -> TemplateDiscoveryMcpToolPublisher.JMX_TEMPLATE_TOOL_NAME.equals(tool.name()))
+            .findFirst()
+            .orElseThrow();
+        assertThat(jmxTool.meta().toString())
+            .contains("jmx_endpoint", "java", "read_only", "rawExecutionSpecReturned=false");
         McpSchema.Tool databaseQueryTool = tools.getAllValues().stream()
             .map(McpServerFeatures.SyncToolSpecification::tool)
             .filter(tool -> TemplateDiscoveryMcpToolPublisher.DATABASE_QUERY_TEMPLATE_TOOL_NAME.equals(tool.name()))

@@ -280,7 +280,7 @@ class McpParamBindingResolver {
         if (targetKind == null && !hasText(values.get("assetType"))) {
             return denied(values, (templateQuery ? "template_query" : "asset_query")
                 + " requires explicit finalDecision/targetKind/assetType. Use finalDecision="
-                + (templateQuery ? "host, database, http, or business_database_query" : "host, database, or http")
+                + (templateQuery ? "host, database, http, java, or business_database_query" : "host, database, or http")
                 + "; use document_search for targetKind=document.");
         }
         Map<String, Object> filters = filters(values);
@@ -332,12 +332,12 @@ class McpParamBindingResolver {
             } else if (hasText(targetKind)) {
                 return denied(values, "Unsupported targetKind for " + (templateQuery ? "template_query" : "asset_query")
                     + ": " + targetKind + ". Allowed targetKind values are "
-                    + (templateQuery ? "host, database, http, business_database_query" : "host, database, http")
+                    + (templateQuery ? "host, database, http, java, business_database_query" : "host, database, http")
                     + "; use document_search for targetKind=document.");
             } else {
                 return denied(values, (templateQuery ? "template_query" : "asset_query")
                     + " requires explicit finalDecision/targetKind/assetType. Use finalDecision="
-                    + (templateQuery ? "host, database, http, or business_database_query" : "host, database, or http")
+                    + (templateQuery ? "host, database, http, java, or business_database_query" : "host, database, or http")
                     + "; use document_search for targetKind=document.");
             }
         } else if (targetKind != null) {
@@ -346,7 +346,7 @@ class McpParamBindingResolver {
             if (expectedAssetType == null) {
                 return denied(values, "Unsupported targetKind for " + (templateQuery ? "template_query" : "asset_query")
                     + ": " + targetKind + ". Allowed targetKind values are "
-                    + (templateQuery ? "host, database, http, business_database_query" : "host, database, http")
+                    + (templateQuery ? "host, database, http, java, business_database_query" : "host, database, http")
                     + "; use document_search for targetKind=document.");
             }
             String providedAssetType = normalizeAssetType(values.get("assetType") == null ? null : String.valueOf(values.get("assetType")));
@@ -919,6 +919,7 @@ class McpParamBindingResolver {
             case "host" -> "ssh_host";
             case "database" -> "sql_datasource";
             case "http" -> "http_endpoint";
+            case "java" -> "jmx_endpoint";
             case "business_database_query" -> "database_query";
             default -> null;
         };
@@ -933,6 +934,7 @@ class McpParamBindingResolver {
             case "host", "ssh", "sshhost" -> "ssh_host";
             case "database", "db", "sql", "sqldatasource", "datasource" -> "sql_datasource";
             case "http", "api", "endpoint", "httpendpoint" -> "http_endpoint";
+            case "jmx", "java", "jvm", "jmxendpoint" -> "jmx_endpoint";
             case "businessdatabasequery", "business_database_query", "business_db_query", "sqltemplateregistry",
                 "sql_template_registry" -> "database_query";
             default -> normalized;
@@ -948,6 +950,7 @@ class McpParamBindingResolver {
             case "host", "ssh", "ssh_host", "server", "machine", "linux" -> "host";
             case "database", "db", "sql", "sql_datasource", "datasource" -> "database";
             case "http", "api", "endpoint", "http_endpoint" -> "http";
+            case "jmx", "java", "jvm", "jmx_endpoint" -> "java";
             case "business_database_query", "database_query", "business_db_query" -> "business_database_query";
             case "document", "doc", "knowledge", "file" -> "document";
             default -> normalized;

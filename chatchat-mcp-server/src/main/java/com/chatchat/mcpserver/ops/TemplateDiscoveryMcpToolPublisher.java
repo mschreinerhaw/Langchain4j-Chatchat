@@ -28,6 +28,7 @@ public class TemplateDiscoveryMcpToolPublisher {
     public static final String SQL_DATASOURCE_TEMPLATE_TOOL_NAME = "database_ops_template_search";
     public static final String LEGACY_SQL_DATASOURCE_TEMPLATE_TOOL_NAME = "sql_datasource_template_query";
     public static final String HTTP_ENDPOINT_TEMPLATE_TOOL_NAME = "http_endpoint_template_query";
+    public static final String JMX_TEMPLATE_TOOL_NAME = "jmx_template_query";
     public static final String DATABASE_QUERY_TEMPLATE_TOOL_NAME = "database_query_template_query";
 
     private final McpSyncServer mcpSyncServer;
@@ -46,6 +47,7 @@ public class TemplateDiscoveryMcpToolPublisher {
         remove(SQL_DATASOURCE_TEMPLATE_TOOL_NAME);
         remove(LEGACY_SQL_DATASOURCE_TEMPLATE_TOOL_NAME);
         remove(HTTP_ENDPOINT_TEMPLATE_TOOL_NAME);
+        remove(JMX_TEMPLATE_TOOL_NAME);
         remove(DATABASE_QUERY_TEMPLATE_TOOL_NAME);
         com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
             mcpSyncServer, domainTemplateQueryTool(
@@ -76,6 +78,15 @@ public class TemplateDiscoveryMcpToolPublisher {
         ));
         com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
             mcpSyncServer, domainTemplateQueryTool(
+            JMX_TEMPLATE_TOOL_NAME,
+            "JMX monitoring template discovery",
+            "Read-only MCP tool for retrieving governed Java and Kafka JMX monitoring templates only.",
+            "jmx_endpoint",
+            "java",
+            "JMX monitoring templates"
+        ));
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, domainTemplateQueryTool(
             DATABASE_QUERY_TEMPLATE_TOOL_NAME,
             "Categorized database query template discovery",
             "Searches published database query templates by data capability category, business intent, "
@@ -86,9 +97,9 @@ public class TemplateDiscoveryMcpToolPublisher {
             "categorized database query template"
         ));
         mcpSyncServer.notifyToolsListChanged();
-        log.info("Template discovery MCP tools refreshed: {}, {}, {}, {}",
+        log.info("Template discovery MCP tools refreshed: {}, {}, {}, {}, {}",
             SSH_TEMPLATE_TOOL_NAME, SQL_DATASOURCE_TEMPLATE_TOOL_NAME,
-            HTTP_ENDPOINT_TEMPLATE_TOOL_NAME, DATABASE_QUERY_TEMPLATE_TOOL_NAME);
+            HTTP_ENDPOINT_TEMPLATE_TOOL_NAME, JMX_TEMPLATE_TOOL_NAME, DATABASE_QUERY_TEMPLATE_TOOL_NAME);
     }
 
     private McpServerFeatures.SyncToolSpecification domainTemplateQueryTool(String toolName,
@@ -212,7 +223,7 @@ public class TemplateDiscoveryMcpToolPublisher {
             "schemaVersion", Map.of("type", "string", "description", CommandTemplateDiscoveryService.QUERY_SCHEMA_VERSION),
             "assetType", Map.of(
                 "type", "string",
-                "description", "Template target asset type derived from targetKind: ssh_host, sql_datasource, http_endpoint, or database_query."
+                "description", "Template target asset type derived from targetKind: ssh_host, sql_datasource, http_endpoint, jmx_endpoint, or database_query."
             ),
             "targetKind", Map.of(
                 "type", "string",
@@ -220,7 +231,7 @@ public class TemplateDiscoveryMcpToolPublisher {
             ),
             "finalDecision", Map.of(
                 "type", "string",
-                "description", "Runtime-selected targetKind from candidates[]: host, database, http, business_database_query, or document. document must use document_search instead of template_query."
+                "description", "Runtime-selected targetKind from candidates[]: host, database, http, java, business_database_query, or document. document must use document_search instead of template_query."
             ),
             "candidates", Map.of(
                 "type", "array",
@@ -397,11 +408,12 @@ public class TemplateDiscoveryMcpToolPublisher {
                     "feasibilityLayer", List.of("schema_match", "tool_permission"),
                     "scoringLayer", List.of("confidence", "latency_estimate", "historical_success_rate")
                 ),
-                "allowedTargetKinds", List.of("host", "database", "http", "business_database_query"),
+                "allowedTargetKinds", List.of("host", "database", "http", "java", "business_database_query"),
                 "targetKindToAssetType", mapOf(
                     "host", "ssh_host",
                     "database", "sql_datasource",
                     "http", "http_endpoint",
+                    "java", "jmx_endpoint",
                     "business_database_query", "database_query",
                     "document", "document_search"
                 ),

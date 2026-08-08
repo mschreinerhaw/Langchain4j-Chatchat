@@ -168,6 +168,18 @@ export default {
         routingLabelsJson: '[]',
         intentSignalsJson: '[]'
       },
+      jmxTemplateDefaults: {
+        enabled: false,
+        serviceUrl: 'service:jmx:rmi:///jndi/rmi://127.0.0.1:9999/jmxrmi',
+        username: '',
+        password: '',
+        category: 'java_monitoring',
+        riskLevel: 'LOW',
+        runtimeAction: 'readonly',
+        timeoutMs: 10000,
+        queriesJson: '[]',
+        intentSignalsJson: '[]'
+      },
       sshColumns: [
         { key: 'name', label: '资产名称' },
         { key: 'categoryId', label: '业务分类', formatter: value => this.categoryLabel(value) },
@@ -207,6 +219,14 @@ export default {
         { key: 'title', label: '模板名称' },
         { key: 'sqlTemplate', label: 'SQL 内容', formatter: value => previewText(value, 96) },
         { key: 'databaseType', label: '数据库类型' },
+        { key: 'riskLevel', label: '风险' },
+        { key: 'enabled', label: '状态', type: 'badge', formatter: value => value === false ? '停用' : '启用' }
+      ],
+      jmxTemplateColumns: [
+        { key: 'code', label: '模板编号', type: 'code' },
+        { key: 'title', label: '模板名称' },
+        { key: 'serviceUrl', label: 'JMX 服务器地址', formatter: value => previewText(value, 72) },
+        { key: 'category', label: '分类' },
         { key: 'riskLevel', label: '风险' },
         { key: 'enabled', label: '状态', type: 'badge', formatter: value => value === false ? '停用' : '启用' }
       ]
@@ -460,6 +480,60 @@ export default {
           help: '用于提升自然语言检索命中率，保存时自动生成 JSON。'
         }
       ];
+    },
+    jmxTemplateListFilters() {
+      return [
+        {
+          key: 'category',
+          label: '监控分类',
+          placeholder: '按分类筛选',
+          options: jmxTemplateCategoryOptions()
+        },
+        {
+          key: 'enabled',
+          label: '启用状态',
+          placeholder: '全部状态',
+          options: boolOptions()
+        }
+      ];
+    },
+    jmxTemplateFields() {
+      return [
+        { key: 'code', label: '模板编号', required: true, placeholder: '如 JMX_KAFKA_BROKER_OVERVIEW' },
+        { key: 'title', label: '模板名称', required: true },
+        { key: 'enabled', label: '状态', type: 'select', options: boolOptions() },
+        { key: 'category', label: '分类', type: 'select', options: jmxTemplateCategoryOptions() },
+        { key: 'riskLevel', label: '风险等级', type: 'select', options: riskLevelOptions(), disabled: true },
+        { key: 'runtimeAction', label: '运行策略', type: 'select', options: [{ value: 'readonly', label: '只读' }], disabled: true },
+        { key: 'description', label: '描述', type: 'textarea', span: 'col-12' },
+        {
+          key: 'serviceUrl',
+          label: 'JMX 服务器地址',
+          required: true,
+          span: 'col-12',
+          placeholder: 'service:jmx:rmi:///jndi/rmi://127.0.0.1:9999/jmxrmi',
+          help: '默认 Kafka 地址仅为占位值；请修改为实际 Broker 可访问的 JMX Service URL 后再启用。'
+        },
+        { key: 'username', label: 'JMX 用户名', placeholder: '未启用认证时留空' },
+        { key: 'password', label: 'JMX 密码', type: 'password', placeholder: '留空表示不修改已保存密码' },
+        { key: 'timeoutMs', label: '超时毫秒', type: 'number', min: 1000, step: 1000, placeholder: '10000' },
+        {
+          key: 'queriesJson',
+          label: 'MBean 查询清单',
+          type: 'textarea',
+          required: true,
+          rows: 14,
+          span: 'col-12',
+          help: 'JSON 数组；每项包含 name、objectName、attributes。objectName 支持 JMX 通配符。只执行属性读取，不调用 MBean 操作。'
+        },
+        {
+          key: 'intentSignalsJson',
+          label: '监控意图',
+          type: 'jsonStringList',
+          span: 'col-12',
+          placeholder: '输入 Kafka 监控、副本不同步、分区离线等意图词'
+        }
+      ];
     }
   },
   mounted() {
@@ -511,6 +585,9 @@ export default {
     },
     testSsh(item) {
       return api.testSsh(item);
+    },
+    testJmxTemplate(item) {
+      return api.testJmxTemplate(item);
     },
     async refreshOpsTools() {
       await this.runAction('ops', () => api.refreshOps(), '运维/API网关工具已刷新');
@@ -912,6 +989,15 @@ function sqlTemplateCategoryOptions() {
     { value: 'performance', label: '性能分析' },
     { value: 'capacity', label: '容量分析', matches: ['storage', 'capacity'] },
     { value: 'business_check', label: '业务核查' },
+    { value: 'other', label: '其他' }
+  ];
+}
+
+function jmxTemplateCategoryOptions() {
+  return [
+    { value: 'java_monitoring', label: 'Java/JVM 监控' },
+    { value: 'kafka_monitoring', label: 'Kafka 监控' },
+    { value: 'middleware_monitoring', label: '中间件监控' },
     { value: 'other', label: '其他' }
   ];
 }

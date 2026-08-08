@@ -7,6 +7,8 @@ import com.chatchat.mcpserver.database.DatabaseQueryConfigService;
 import com.chatchat.mcpserver.ops.CommandTemplateConfig;
 import com.chatchat.mcpserver.ops.CommandTemplateService;
 import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
+import com.chatchat.mcpserver.ops.JmxTemplateConfig;
+import com.chatchat.mcpserver.ops.JmxTemplateService;
 import com.chatchat.mcpserver.sql.SqlTemplateConfig;
 import com.chatchat.mcpserver.sql.SqlTemplateService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
@@ -28,22 +30,52 @@ class McpTemplateLuceneIndexServiceTest {
     Path tempDir;
 
     @Test
+    void rebuildsSelectedEnabledJmxTemplateIndex() {
+        LuceneMcpSearchService lucene = lucene();
+        JmxTemplateService jmxTemplateService = mock(JmxTemplateService.class);
+        JmxTemplateConfig template = jmxTemplate();
+        when(jmxTemplateService.getById("jmx-kafka")).thenReturn(template);
+        McpTemplateLuceneIndexService indexService = new McpTemplateLuceneIndexService(
+            lucene,
+            mock(CommandTemplateService.class),
+            mock(SqlTemplateService.class),
+            jmxTemplateService,
+            mock(HttpEndpointConfigService.class),
+            mock(ApiServiceConfigService.class),
+            mock(DatabaseQueryConfigService.class),
+            mock(SqlDatasourceConfigService.class),
+            new ObjectMapper()
+        );
+
+        assertThat(indexService.rebuildJmxTemplates(List.of("jmx-kafka")))
+            .containsEntry("templateType", "jmx")
+            .containsEntry("indexed", 1);
+        assertThat(lucene.searchTemplates(new LuceneMcpSearchService.TemplateSearchRequest(
+            "jmx_endpoint", "java", "kafka jvm", 10
+        ))).extracting(LuceneMcpSearchService.SearchHit::id)
+            .contains("JMX_KAFKA_BROKER_OVERVIEW");
+    }
+
+    @Test
     void indexesDefaultSystemTemplatesIntoLuceneOnRefresh() {
         LuceneMcpSearchService lucene = lucene();
         CommandTemplateService commandTemplateService = mock(CommandTemplateService.class);
         SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
         HttpEndpointConfigService httpEndpointConfigService = mock(HttpEndpointConfigService.class);
+        JmxTemplateService jmxTemplateService = mock(JmxTemplateService.class);
         ApiServiceConfigService apiServiceConfigService = mock(ApiServiceConfigService.class);
         DatabaseQueryConfigService databaseQueryConfigService = mock(DatabaseQueryConfigService.class);
         when(commandTemplateService.listEnabled()).thenReturn(List.of(commandTemplate()));
         when(sqlTemplateService.listEnabled()).thenReturn(List.of(sqlTemplate()));
         when(httpEndpointConfigService.listEnabled()).thenReturn(List.of());
+        when(jmxTemplateService.listEnabled()).thenReturn(List.of(jmxTemplate()));
         when(apiServiceConfigService.listAll()).thenReturn(List.of());
         when(databaseQueryConfigService.listAll()).thenReturn(List.of());
         McpTemplateLuceneIndexService indexService = new McpTemplateLuceneIndexService(
             lucene,
             commandTemplateService,
             sqlTemplateService,
+            jmxTemplateService,
             httpEndpointConfigService,
             apiServiceConfigService,
             databaseQueryConfigService,
@@ -61,6 +93,10 @@ class McpTemplateLuceneIndexServiceTest {
             "sql_datasource", "mysql", "database status health", 10
         ))).extracting(LuceneMcpSearchService.SearchHit::id)
             .contains("MYSQL_SHOW_STATUS");
+        assertThat(lucene.searchTemplates(new LuceneMcpSearchService.TemplateSearchRequest(
+            "jmx_endpoint", "java", "kafka replica jvm monitoring", 10
+        ))).extracting(LuceneMcpSearchService.SearchHit::id)
+            .contains("JMX_KAFKA_BROKER_OVERVIEW");
     }
 
     @Test
@@ -69,6 +105,7 @@ class McpTemplateLuceneIndexServiceTest {
         CommandTemplateService commandTemplateService = mock(CommandTemplateService.class);
         SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
         HttpEndpointConfigService httpEndpointConfigService = mock(HttpEndpointConfigService.class);
+        JmxTemplateService jmxTemplateService = mock(JmxTemplateService.class);
         ApiServiceConfigService apiServiceConfigService = mock(ApiServiceConfigService.class);
         DatabaseQueryConfigService databaseQueryConfigService = mock(DatabaseQueryConfigService.class);
         CommandTemplateConfig commandTemplate = commandTemplate();
@@ -103,12 +140,14 @@ class McpTemplateLuceneIndexServiceTest {
         when(commandTemplateService.listEnabled()).thenReturn(List.of(commandTemplate));
         when(sqlTemplateService.listEnabled()).thenReturn(List.of());
         when(httpEndpointConfigService.listEnabled()).thenReturn(List.of());
+        when(jmxTemplateService.listEnabled()).thenReturn(List.of());
         when(apiServiceConfigService.listAll()).thenReturn(List.of());
         when(databaseQueryConfigService.listAll()).thenReturn(List.of());
         McpTemplateLuceneIndexService indexService = new McpTemplateLuceneIndexService(
             lucene,
             commandTemplateService,
             sqlTemplateService,
+            jmxTemplateService,
             httpEndpointConfigService,
             apiServiceConfigService,
             databaseQueryConfigService,
@@ -130,11 +169,13 @@ class McpTemplateLuceneIndexServiceTest {
         CommandTemplateService commandTemplateService = mock(CommandTemplateService.class);
         SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
         HttpEndpointConfigService httpEndpointConfigService = mock(HttpEndpointConfigService.class);
+        JmxTemplateService jmxTemplateService = mock(JmxTemplateService.class);
         ApiServiceConfigService apiServiceConfigService = mock(ApiServiceConfigService.class);
         DatabaseQueryConfigService databaseQueryConfigService = mock(DatabaseQueryConfigService.class);
         when(commandTemplateService.listEnabled()).thenReturn(List.of());
         when(sqlTemplateService.listEnabled()).thenReturn(List.of());
         when(httpEndpointConfigService.listEnabled()).thenReturn(List.of());
+        when(jmxTemplateService.listEnabled()).thenReturn(List.of());
         when(apiServiceConfigService.listAll()).thenReturn(List.of());
         when(databaseQueryConfigService.listAll()).thenReturn(List.of(databaseQuery()));
         SqlDatasourceConfigService datasourceConfigService = mock(SqlDatasourceConfigService.class);
@@ -143,6 +184,7 @@ class McpTemplateLuceneIndexServiceTest {
             lucene,
             commandTemplateService,
             sqlTemplateService,
+            jmxTemplateService,
             httpEndpointConfigService,
             apiServiceConfigService,
             databaseQueryConfigService,
@@ -170,17 +212,20 @@ class McpTemplateLuceneIndexServiceTest {
         CommandTemplateService commandTemplateService = mock(CommandTemplateService.class);
         SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
         HttpEndpointConfigService httpEndpointConfigService = mock(HttpEndpointConfigService.class);
+        JmxTemplateService jmxTemplateService = mock(JmxTemplateService.class);
         ApiServiceConfigService apiServiceConfigService = mock(ApiServiceConfigService.class);
         DatabaseQueryConfigService databaseQueryConfigService = mock(DatabaseQueryConfigService.class);
         when(commandTemplateService.listEnabled()).thenReturn(List.of());
         when(sqlTemplateService.listEnabled()).thenReturn(List.of());
         when(httpEndpointConfigService.listEnabled()).thenReturn(List.of());
+        when(jmxTemplateService.listEnabled()).thenReturn(List.of());
         when(apiServiceConfigService.listAll()).thenReturn(List.of(apiService()));
         when(databaseQueryConfigService.listAll()).thenReturn(List.of());
         McpTemplateLuceneIndexService indexService = new McpTemplateLuceneIndexService(
             lucene,
             commandTemplateService,
             sqlTemplateService,
+            jmxTemplateService,
             httpEndpointConfigService,
             apiServiceConfigService,
             databaseQueryConfigService,
@@ -223,6 +268,20 @@ class McpTemplateLuceneIndexServiceTest {
         config.setRiskLevel("LOW");
         config.setSqlTemplate("SHOW STATUS");
         config.setIntentSignalsJson("[\"db_status\",\"status\",\"health\",\"instance\"]");
+        config.setEnabled(true);
+        return config;
+    }
+
+    private JmxTemplateConfig jmxTemplate() {
+        JmxTemplateConfig config = new JmxTemplateConfig();
+        config.setId("jmx-kafka");
+        config.setCode("JMX_KAFKA_BROKER_OVERVIEW");
+        config.setTitle("Kafka Broker JMX overview");
+        config.setDescription("Kafka replica, request and JVM monitoring metrics.");
+        config.setCategory("kafka_monitoring");
+        config.setRiskLevel("LOW");
+        config.setIntentSignalsJson("[\"kafka\",\"replica\",\"jvm\",\"monitoring\"]");
+        config.setQueriesJson("[{\"name\":\"memory\",\"objectName\":\"java.lang:type=Memory\",\"attributes\":[\"HeapMemoryUsage\"]}]");
         config.setEnabled(true);
         return config;
     }

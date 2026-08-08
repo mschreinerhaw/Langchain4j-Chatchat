@@ -9,6 +9,7 @@ const preview = {
   mac: document.querySelector('#previewMac'),
   modules: document.querySelector('#previewModules'),
   users: document.querySelector('#previewUsers'),
+  agents: document.querySelector('#previewAgents'),
   expiry: document.querySelector('#previewExpiry')
 };
 
@@ -40,6 +41,7 @@ function updatePreview() {
   preview.mac.textContent = normalizeMac(form.elements.serverId.value.trim());
   preview.modules.textContent = modules.length ? modules.map(item => moduleLabels[item]).join('、') : '未选择';
   preview.users.textContent = form.elements.maxUsers.value || '-';
+  preview.agents.textContent = form.elements.maxAgents.value || '-';
   preview.expiry.textContent = form.elements.expireTime.value || '-';
 }
 
@@ -96,6 +98,7 @@ form.addEventListener('submit', async event => {
     edition: data.get('edition'),
     modules: data.getAll('modules'),
     maxUsers: Number(data.get('maxUsers')),
+    maxAgents: Number(data.get('maxAgents')),
     serverId: data.get('serverId'),
     issuedTime: data.get('issuedTime'),
     expireTime: data.get('expireTime'),

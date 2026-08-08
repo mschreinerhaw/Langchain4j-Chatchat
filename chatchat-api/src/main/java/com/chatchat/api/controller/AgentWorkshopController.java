@@ -13,6 +13,7 @@ import com.chatchat.common.response.ApiResponse;
 import com.chatchat.common.config.ModelsConfig;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.api.security.ApiAuthenticationFilter;
+import com.chatchat.api.license.AgentPublicationLicenseService;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -53,6 +54,7 @@ public class AgentWorkshopController {
     private final ModelsConfig modelsConfig;
     private final SearchService searchService;
     private final EnterpriseAdminService enterpriseAdminService;
+    private final AgentPublicationLicenseService agentPublicationLicenseService;
 
     /**
      * Returns the workshop.
@@ -188,7 +190,7 @@ public class AgentWorkshopController {
     @PostMapping("/{agentId}/publish")
     @Operation(summary = "Publish one Agent to capability market")
     public ApiResponse<AgentCard> publishAgent(@PathVariable("agentId") String agentId) {
-        SkillDefinition saved = skillCatalogService.publishToMarket(agentId);
+        SkillDefinition saved = agentPublicationLicenseService.publish(agentId);
         return ApiResponse.success(toAgentCard(saved, availableTools(), mcpToolsByServiceId()), "Agent published");
     }
 

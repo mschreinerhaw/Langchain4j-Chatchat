@@ -227,6 +227,7 @@ public class TargetKindRegistry {
             case "host", "ssh", "ssh_host", "server", "machine", "linux" -> "host";
             case "database", "db", "sql", "sql_datasource", "datasource" -> "database";
             case "http", "api", "endpoint", "http_endpoint" -> "http";
+            case "jmx", "java", "jvm", "jmx_endpoint" -> "java";
             case "business_database_query", "database_query", "business_db_query", "sql_template_registry" -> "business_database_query";
             case "document", "doc", "knowledge", "file" -> "document";
             default -> normalized;
@@ -416,6 +417,7 @@ public class TargetKindRegistry {
             case "http" -> 60L;
             case "business_database_query" -> 80L;
             case "database" -> 120L;
+            case "java" -> 100L;
             case "host" -> 150L;
             default -> 200L;
         };
@@ -427,6 +429,7 @@ public class TargetKindRegistry {
             case "http" -> 0.82;
             case "business_database_query" -> 0.88;
             case "host" -> 0.80;
+            case "java" -> 0.84;
             default -> 0.50;
         };
     }
@@ -487,6 +490,14 @@ public class TargetKindRegistry {
             "view", "language", "querylanguage", "locale"
         ));
         add(definitions, "http", "http_endpoint", Set.of("asset_query", "template_query"), Set.of(
+            "assetname", "asset_name", "name", "env", "environment", "cluster", "namespace",
+            "service", "target", "labels", "intent", "goal", "category", "template",
+            "templateid", "template_id", "bilingualintent", "bilingualquery", "bilingualsearch",
+            "intentzh", "intenten", "intentaliases", "keywords", "keyword", "queryterms",
+            "searchterms", "retrievalsignals", "intentcandidates", "intent_candidates",
+            "queries", "expandedqueries", "expanded_queries", "view", "language", "querylanguage", "locale"
+        ));
+        add(definitions, "java", "jmx_endpoint", Set.of("template_query"), Set.of(
             "assetname", "asset_name", "name", "env", "environment", "cluster", "namespace",
             "service", "target", "labels", "intent", "goal", "category", "template",
             "templateid", "template_id", "bilingualintent", "bilingualquery", "bilingualsearch",
@@ -587,6 +598,7 @@ public class TargetKindRegistry {
             case "host", "ssh", "sshhost" -> "ssh_host";
             case "database", "db", "sql", "sqldatasource", "datasource" -> "sql_datasource";
             case "http", "api", "endpoint", "httpendpoint" -> "http_endpoint";
+            case "jmx", "java", "jvm", "jmxendpoint" -> "jmx_endpoint";
             case "businessdatabasequery", "business_database_query", "business_db_query", "sqltemplateregistry",
                 "sql_template_registry" -> "database_query";
             default -> normalized;

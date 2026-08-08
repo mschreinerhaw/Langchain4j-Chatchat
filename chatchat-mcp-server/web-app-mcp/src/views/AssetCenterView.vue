@@ -103,7 +103,7 @@
       <header class="panel-heading">
         <div>
           <h2>执行模板</h2>
-          <p>统一维护 SSH 命令模板和 SQL 运维模板。</p>
+          <p>统一维护 SSH 命令模板、SQL 运维模板和 JMX 协议监控模板。</p>
         </div>
         <div class="panel-actions">
           <el-button plain :loading="busyAction === 'template-index'" @click="rebuildTemplateIndex">重建模板索引</el-button>
@@ -156,6 +156,32 @@
             rebuild-label="重建模板索引"
             @notify="$emit('notify', $event)"
             @error="$emit('error', $event)"
+          />
+        </el-tab-pane>
+        <el-tab-pane label="JMX 协议模板" name="jmx-template" lazy>
+          <CrudCatalog
+            v-if="activeTemplateTab === 'jmx-template'"
+            key="jmx-template-catalog"
+            title="JMX 协议模板"
+            subtitle="维护 Java/Kafka 的只读 JMX 连接地址、MBean 属性清单和监控意图。"
+            search-placeholder="搜索模板编号、名称、服务器地址、分类或监控意图"
+            :columns="jmxTemplateColumns"
+            :form-fields="jmxTemplateFields"
+            :defaults="jmxTemplateDefaults"
+            :list-filters="jmxTemplateListFilters"
+            :searchable-fields="['code', 'title', 'description', 'serviceUrl', 'category', 'intentSignalsJson']"
+            :list-action="api.listJmxTemplates"
+            :save-action="api.saveJmxTemplate"
+            :remove-action="api.deleteJmxTemplate"
+            :rebuild-action="api.rebuildSelectedJmxTemplateIndexes"
+            rebuild-requires-selection
+            rebuild-label="重建模板索引"
+            :test-action="testJmxTemplate"
+            :form-test-action="testJmxTemplate"
+            form-test-label="测试 JMX 连接"
+            @notify="$emit('notify', $event)"
+            @error="$emit('error', $event)"
+            @result="$emit('result', $event)"
           />
         </el-tab-pane>
       </el-tabs>
@@ -216,6 +242,7 @@
                 <el-option label="sql_datasource" value="sql_datasource" />
                 <el-option label="ssh_host" value="ssh_host" />
                 <el-option label="http_endpoint" value="http_endpoint" />
+                <el-option label="jmx_endpoint" value="jmx_endpoint" />
                 <el-option label="api_service" value="api_service" />
               </el-select>
             </el-form-item>

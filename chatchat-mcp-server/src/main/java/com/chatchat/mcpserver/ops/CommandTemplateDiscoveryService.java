@@ -88,6 +88,7 @@ public class CommandTemplateDiscoveryService {
     private final SqlTemplateService sqlTemplateService;
     private final SqlDatasourceConfigService datasourceConfigService;
     private final HttpEndpointConfigService httpEndpointConfigService;
+    private final JmxTemplateService jmxTemplateService;
     private final DatabaseQueryConfigService databaseQueryConfigService;
     private final DataQueryCategoryService dataQueryCategoryService;
     private final ObjectMapper objectMapper;
@@ -103,7 +104,7 @@ public class CommandTemplateDiscoveryService {
                                            ObjectMapper objectMapper,
                                            TemplateDiscoveryProperties properties) {
         this(templateService, hostConfigService, sqlTemplateService, datasourceConfigService,
-            httpEndpointConfigService, null, null, objectMapper, properties, null, new TargetKindRegistry());
+            httpEndpointConfigService, null, null, null, objectMapper, properties, null, new TargetKindRegistry());
     }
 
     public CommandTemplateDiscoveryService(CommandTemplateService templateService,
@@ -115,7 +116,7 @@ public class CommandTemplateDiscoveryService {
                                            TemplateDiscoveryProperties properties,
                                            LuceneMcpSearchService luceneSearchService) {
         this(templateService, hostConfigService, sqlTemplateService, datasourceConfigService,
-            httpEndpointConfigService, null, null, objectMapper, properties, luceneSearchService, new TargetKindRegistry());
+            httpEndpointConfigService, null, null, null, objectMapper, properties, luceneSearchService, new TargetKindRegistry());
     }
 
     public CommandTemplateDiscoveryService(CommandTemplateService templateService,
@@ -128,7 +129,7 @@ public class CommandTemplateDiscoveryService {
                                            TemplateDiscoveryProperties properties,
                                            LuceneMcpSearchService luceneSearchService) {
         this(templateService, hostConfigService, sqlTemplateService, datasourceConfigService,
-            httpEndpointConfigService, databaseQueryConfigService, null, objectMapper, properties,
+            httpEndpointConfigService, null, databaseQueryConfigService, null, objectMapper, properties,
             luceneSearchService, new TargetKindRegistry());
     }
 
@@ -143,11 +144,10 @@ public class CommandTemplateDiscoveryService {
                                            LuceneMcpSearchService luceneSearchService,
                                            TargetKindRegistry targetKindRegistry) {
         this(templateService, hostConfigService, sqlTemplateService, datasourceConfigService,
-            httpEndpointConfigService, databaseQueryConfigService, null, objectMapper, properties,
+            httpEndpointConfigService, null, databaseQueryConfigService, null, objectMapper, properties,
             luceneSearchService, targetKindRegistry);
     }
 
-    @Autowired
     public CommandTemplateDiscoveryService(CommandTemplateService templateService,
                                            SshHostConfigService hostConfigService,
                                            SqlTemplateService sqlTemplateService,
@@ -159,11 +159,30 @@ public class CommandTemplateDiscoveryService {
                                            TemplateDiscoveryProperties properties,
                                            LuceneMcpSearchService luceneSearchService,
                                            TargetKindRegistry targetKindRegistry) {
+        this(templateService, hostConfigService, sqlTemplateService, datasourceConfigService,
+            httpEndpointConfigService, null, databaseQueryConfigService, dataQueryCategoryService,
+            objectMapper, properties, luceneSearchService, targetKindRegistry);
+    }
+
+    @Autowired
+    public CommandTemplateDiscoveryService(CommandTemplateService templateService,
+                                           SshHostConfigService hostConfigService,
+                                           SqlTemplateService sqlTemplateService,
+                                           SqlDatasourceConfigService datasourceConfigService,
+                                           HttpEndpointConfigService httpEndpointConfigService,
+                                           JmxTemplateService jmxTemplateService,
+                                           DatabaseQueryConfigService databaseQueryConfigService,
+                                           DataQueryCategoryService dataQueryCategoryService,
+                                           ObjectMapper objectMapper,
+                                           TemplateDiscoveryProperties properties,
+                                           LuceneMcpSearchService luceneSearchService,
+                                           TargetKindRegistry targetKindRegistry) {
         this.templateService = templateService;
         this.hostConfigService = hostConfigService;
         this.sqlTemplateService = sqlTemplateService;
         this.datasourceConfigService = datasourceConfigService;
         this.httpEndpointConfigService = httpEndpointConfigService;
+        this.jmxTemplateService = jmxTemplateService;
         this.databaseQueryConfigService = databaseQueryConfigService;
         this.dataQueryCategoryService = dataQueryCategoryService;
         this.objectMapper = objectMapper;
@@ -199,6 +218,8 @@ public class CommandTemplateDiscoveryService {
         Map<String, Object> result;
         if ("sql_datasource".equals(assetType)) {
             result = querySqlTemplates(assetType, filters, retrievalFilters, intent, limit, allowedTemplateIds);
+        } else if ("jmx_endpoint".equals(assetType)) {
+            result = queryJmxTemplates(assetType, filters, retrievalFilters, intent, limit, allowedTemplateIds);
         } else if ("http_endpoint".equals(assetType)) {
             result = queryHttpTemplates(assetType, filters, retrievalFilters, intent, limit, allowedTemplateIds);
         } else if ("database_query".equals(assetType)) {
@@ -210,6 +231,31 @@ public class CommandTemplateDiscoveryService {
         }
         result.put("routingDecision", routingDecision(target, startedAt));
         return result;
+    }
+
+    private Map<String, Object> queryJmxTemplates(String assetType,
+                                                   Map<String, Object> filters,
+                                                   Map<String, Object> retrievalFilters,
+                                                   NormalizedIntent intent,
+                                                   int limit,
+                                                   Set<String> allowedTemplateIds) {
+        List<JmxTemplateConfig> templates = jmxTemplateService == null ? List.of() : jmxTemplateService.listEnabled();
+        Map<String, LuceneMcpSearchService.SearchHit> luceneHits = luceneTemplateHits(
+            templates.stream().map(this::templateDoc).toList(), assetType, "java", retrievalFilters,
+            intent, Math.max(limit, MAX_LIMIT));
+        List<ScoredTemplate<JmxTemplateConfig>> matched = templates.stream()
+            .filter(template -> allowedTemplateIds.isEmpty() || allowedTemplateIds.contains(normalize(template.getCode())))
+            .filter(template -> !excludedTemplateIds(filters).contains(normalize(template.getCode())))
+            .map(template -> new ScoredTemplate<>(template,
+                decision(luceneAdjusted(relevance(template, retrievalFilters), templateSearchHit(luceneHits, template.getCode())),
+                    intent, "java", "java", riskLevel(template))))
+            .sorted(scoredComparator(scored -> scored.template().getCode()))
+            .toList();
+        boolean fallbackUsed = luceneHits.isEmpty() && !matched.isEmpty();
+        log.info("template_query jmx search assetType={} filters={} registryTemplates={} luceneHits={} returned={} fallbackUsed={}",
+            assetType, compactFilters(filters), templates.size(), luceneHits.size(), Math.min(matched.size(), limit), fallbackUsed);
+        return result(assetType, filters, intent, List.of(), limit,
+            jmxTemplateMetadata(matched, assetType, limit), matched.size() > limit, fallbackUsed, templateSignal(luceneHits));
     }
 
     private Map<String, Object> querySshTemplates(String assetType,
@@ -859,6 +905,21 @@ public class CommandTemplateDiscoveryService {
         );
     }
 
+    private LuceneMcpSearchService.TemplateDoc templateDoc(JmxTemplateConfig template) {
+        return new LuceneMcpSearchService.TemplateDoc(
+            template.getCode(),
+            "jmx_endpoint",
+            firstText(template.getTitle(), template.getCode()),
+            firstText(template.getDescription(), ""),
+            firstText(template.getCategory(), "java_monitoring"),
+            "java",
+            String.join(" ", intentSignals(template)),
+            riskLevel(template),
+            intentSignals(template),
+            "jmx_template"
+        );
+    }
+
     private LuceneMcpSearchService.TemplateDoc templateDoc(HttpEndpointConfig endpoint) {
         String templateId = firstText(endpoint.getToolName(), endpoint.getName());
         return new LuceneMcpSearchService.TemplateDoc(
@@ -972,6 +1033,17 @@ public class CommandTemplateDiscoveryService {
         List<Map<String, Object>> metadata = new ArrayList<>();
         for (int index = 0; index < Math.min(limit, scored.size()); index++) {
             ScoredTemplate<SqlTemplateConfig> item = scored.get(index);
+            metadata.add(templateMetadata(item.template(), assetType, item.relevance(), index + 1));
+        }
+        return metadata;
+    }
+
+    private List<Map<String, Object>> jmxTemplateMetadata(List<ScoredTemplate<JmxTemplateConfig>> scored,
+                                                           String assetType,
+                                                           int limit) {
+        List<Map<String, Object>> metadata = new ArrayList<>();
+        for (int index = 0; index < Math.min(limit, scored.size()); index++) {
+            ScoredTemplate<JmxTemplateConfig> item = scored.get(index);
             metadata.add(templateMetadata(item.template(), assetType, item.relevance(), index + 1));
         }
         return metadata;
@@ -1097,6 +1169,47 @@ public class CommandTemplateDiscoveryService {
             "requiredParameters", requiredParameters,
             "parameterContract", parameterContract(template.getCode(), parameterSchema, "sql_query_execute.parameters", "sql_query_execute"),
             "invocationExample", invocationExample(template.getCode(), parameterSchema, "sql_query_execute", "<logical datasource assetName from user context or template routing>", "<env>"),
+            "enabled", template.isEnabled()
+        );
+    }
+
+    private Map<String, Object> templateMetadata(JmxTemplateConfig template,
+                                                 String assetType,
+                                                 Relevance relevance,
+                                                 int rank) {
+        List<String> signals = intentSignals(template);
+        Map<String, Object> emptySchema = Map.of("type", "object", "properties", Map.of(), "required", List.of());
+        return mapOf(
+            "schemaVersion", TEMPLATE_SCHEMA_VERSION,
+            "id", template.getCode(),
+            "templateId", template.getCode(),
+            "name", firstText(template.getTitle(), template.getCode()),
+            "description", firstText(template.getDescription(), ""),
+            "rank", rank,
+            "relevanceScore", relevance.score(),
+            "decisionScore", relevance.finalScore(),
+            "rankingFeatures", relevance.features(),
+            "mcpDecision", decisionMetadata(relevance),
+            "matchReasons", relevance.reasons(),
+            "category", firstText(template.getCategory(), "java_monitoring"),
+            "riskLevel", riskLevel(template),
+            "runtimeAction", "readonly",
+            "supportedAssetTypes", List.of(assetType),
+            "intentSignals", signals,
+            "routingHints", mapOf(
+                "strongSignals", signals.stream().limit(5).toList(),
+                "contextKeys", List.of("intent", "category", "service", "cluster", "labels")
+            ),
+            "parameterSchema", emptySchema,
+            "requiredParameters", List.of(),
+            "parameterContract", parameterContract(template.getCode(), emptySchema,
+                "jmx_monitor_execute", "jmx_monitor_execute"),
+            "invocationExample", mapOf(
+                "tool", "jmx_monitor_execute",
+                "template", template.getCode(),
+                "reason", "<monitoring reason>"
+            ),
+            "rawConnectionSpecReturned", false,
             "enabled", template.isEnabled()
         );
     }
@@ -1788,6 +1901,13 @@ public class CommandTemplateDiscoveryService {
             firstText(endpoint.getCategory(), "http_request"),
             intentSignals(endpoint),
             filters
+        );
+    }
+
+    private Relevance relevance(JmxTemplateConfig template, Map<String, Object> filters) {
+        return relevanceText(
+            template.getCode(), template.getTitle(), template.getDescription(),
+            firstText(template.getCategory(), "java_monitoring"), intentSignals(template), filters
         );
     }
 
@@ -2909,6 +3029,17 @@ public class CommandTemplateDiscoveryService {
         return signals.stream().limit(12).toList();
     }
 
+    private List<String> intentSignals(JmxTemplateConfig template) {
+        Set<String> signals = new LinkedHashSet<>();
+        readStringArray(template.getIntentSignalsJson()).forEach(signal -> addWords(signals, signal));
+        addWords(signals, template.getCode());
+        addWords(signals, template.getTitle());
+        addWords(signals, template.getDescription());
+        addWords(signals, template.getCategory());
+        addWords(signals, template.getQueriesJson());
+        return signals.stream().limit(16).toList();
+    }
+
     private List<String> intentSignals(DatabaseQueryConfig config) {
         Set<String> signals = new LinkedHashSet<>();
         addWords(signals, config.getToolName());
@@ -3009,6 +3140,11 @@ public class CommandTemplateDiscoveryService {
             return configured.toUpperCase(Locale.ROOT);
         }
         return "MEDIUM";
+    }
+
+    private String riskLevel(JmxTemplateConfig template) {
+        String configured = normalize(template.getRiskLevel());
+        return configured == null ? "LOW" : configured.toUpperCase(Locale.ROOT);
     }
 
     private String httpRiskLevel(HttpEndpointConfig endpoint) {

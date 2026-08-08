@@ -44,6 +44,7 @@
             <label><span>产品 <em>*</em></span><input name="product" value="LiveMCP" required></label>
             <label><span>产品版本</span><select name="edition"><option value="enterprise">Enterprise</option><option value="professional">Professional</option><option value="standard">Standard</option></select></label>
             <label><span>最大用户数 <em>*</em></span><input name="maxUsers" type="number" min="1" value="100" required></label>
+            <label><span>最大 Agent 发布数 <em>*</em></span><input name="maxAgents" type="number" min="1" value="10" required></label>
           </div>
         </section>
 
@@ -81,6 +82,7 @@
           <div><dt>绑定 MAC</dt><dd id="previewMac">尚未填写</dd></div>
           <div><dt>授权模块</dt><dd id="previewModules">MCP 服务</dd></div>
           <div><dt>最大用户</dt><dd id="previewUsers">100</dd></div>
+          <div><dt>最大已发布 Agent</dt><dd id="previewAgents">10</dd></div>
           <div><dt>有效期至</dt><dd id="previewExpiry">-</dd></div>
         </dl>
         <div class="signing-info"><span class="shield">✓</span><div><b>RSA 数字签名</b><small>授权内容防篡改，私钥不会离开服务器</small></div></div>

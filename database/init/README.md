@@ -5,7 +5,7 @@ The project uses two independent database boundaries. Choose the script matching
 | Application | MySQL 8+ | H2 2.x | Tables |
 | --- | --- | --- | ---: |
 | ChatChat API | `mysql/chatchat-api.sql` | `h2/chatchat-api.sql` | 46 |
-| Standalone MCP Server | `mysql/chatchat-mcp-server.sql` | `h2/chatchat-mcp-server.sql` | 24 |
+| Standalone MCP Server | `mysql/chatchat-mcp-server.sql` | `h2/chatchat-mcp-server.sql` | 25 |
 
 Run these scripts only against a new, empty database. They contain the complete current JPA schema, including indexes and unique constraints, and intentionally do not drop existing objects.
 

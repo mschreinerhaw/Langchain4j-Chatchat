@@ -111,6 +111,14 @@ public class McpSearchIndexAdminController {
         );
     }
 
+    @PostMapping("/templates/jmx/rebuild-selected")
+    public ApiResponse<Map<String, Object>> rebuildSelectedJmxTemplateIndexes(@RequestBody SelectedAssetIndexRequest request) {
+        return ApiResponse.success(
+            templateLuceneIndexService.rebuildJmxTemplates(request == null ? List.of() : request.ids()),
+            "Selected JMX template indexes rebuilt"
+        );
+    }
+
     @PostMapping("/database-queries/rebuild")
     public ApiResponse<Map<String, Object>> rebuildDatabaseQueryIndex() {
         templateLuceneIndexService.refreshDatabaseQueryTemplateIndex();

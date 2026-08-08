@@ -5,6 +5,7 @@ import com.chatchat.mcpserver.database.DatabaseQueryConfig;
 import com.chatchat.mcpserver.ops.HttpRequestToolResult;
 import com.chatchat.mcpserver.ops.LinuxCommandResult;
 import com.chatchat.mcpserver.ops.LinuxCommandStepResult;
+import com.chatchat.mcpserver.ops.JmxMonitorResult;
 import com.chatchat.mcpserver.sql.SqlQueryResult;
 import com.chatchat.mcpserver.sql.SqlScriptResult;
 import com.chatchat.mcpserver.sql.SqlScriptStatementResult;
@@ -31,9 +32,55 @@ public class StandardToolExecutionResultFactory {
     static final int LINUX_AGGREGATE_STREAM_LIMIT = 24_000;
     static final int LINUX_STEP_STREAM_TOTAL_BUDGET = 100_000;
     static final int MODEL_SAFE_TEXT_LIMIT = 4_000;
-    static final int MODEL_SAFE_COLLECTION_LIMIT = 200;
+    public static final int MODEL_SAFE_COLLECTION_LIMIT = 200;
 
     private final DatabaseToolProperties databaseToolProperties;
+
+    public Map<String, Object> fromJmx(JmxMonitorResult result) {
+        Map<String, Object> payload = base(
+            "jmx_monitor", "jmx_monitor_result.v1", "structured",
+            result.success(), result.durationMs(), result.errorMessage());
+        payload.put("target", mapOf(
+            "type", "jmx_endpoint",
+            "templateId", result.template()
+        ));
+        payload.put("sourceMetadata", sourceMetadata(
+            "JMX_MONITOR", "jmx_template", "jmx_monitor_execute",
+            mapOf("type", "jmx_endpoint", "templateId", result.template()),
+            mapOf("template", result.template()),
+            firstText(result.template(), "JMX monitoring"),
+            "Read-only metrics collected from an administrator-maintained JMX template",
+            "jmx_monitoring"
+        ));
+        List<Map<String, Object>> metrics = result.metrics() == null ? List.of() : result.metrics().stream()
+            .limit(MODEL_SAFE_COLLECTION_LIMIT)
+            .map(this::modelSafeMap)
+            .toList();
+        List<Map<String, Object>> errors = result.errors() == null ? List.of() : result.errors().stream()
+            .limit(MODEL_SAFE_COLLECTION_LIMIT)
+            .map(this::modelSafeMap)
+            .toList();
+        Map<String, Object> data = mapOf(
+            "metrics", metrics,
+            "metricCount", result.metrics() == null ? 0 : result.metrics().size(),
+            "errors", errors,
+            "errorCount", result.errors() == null ? 0 : result.errors().size(),
+            "possiblyTruncated", (result.metrics() != null && result.metrics().size() > metrics.size())
+                || (result.errors() != null && result.errors().size() > errors.size())
+        );
+        payload.put("data", data);
+        payload.put("execution", execution(
+            "jmx_monitor_execute", result.durationMs(),
+            List.of(step(1, "jmx", mapOf("template", result.template()), data,
+                result.success(), result.durationMs(), result.errorMessage(),
+                mapOf("metricCount", data.get("metricCount"), "errorCount", data.get("errorCount"))))
+        ));
+        payload.put("executionGraph", graph(
+            List.of(graphNode("jmx_monitor", "jmx.read_metrics", result.success(), result.durationMs())),
+            List.of()
+        ));
+        return payload;
+    }
 
     public Map<String, Object> fromSql(SqlQueryResult result) {
         Map<String, Object> safeDiagnostics = modelSafeMap(result.diagnostics());

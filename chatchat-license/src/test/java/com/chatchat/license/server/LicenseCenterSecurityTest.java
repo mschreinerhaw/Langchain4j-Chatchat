@@ -11,7 +11,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(properties = "chatchat.license-center.password=test-only-password")
+@SpringBootTest(properties = {
+    "chatchat.license-center.password=test-only-password",
+    "spring.datasource.url=jdbc:h2:mem:license_security_test;MODE=MySQL;DB_CLOSE_DELAY=-1",
+    "spring.datasource.password=Test-H2_Audit#2026!Secure"
+})
 @AutoConfigureMockMvc
 class LicenseCenterSecurityTest {
 
@@ -37,5 +41,13 @@ class LicenseCenterSecurityTest {
         mockMvc.perform(get("/index.html"))
             .andExpect(status().isOk())
             .andExpect(content().string(org.hamcrest.Matchers.containsString("License Center")));
+    }
+
+    @Test
+    @WithMockUser(roles = "LICENSE_ADMIN")
+    void authenticatedLicenseAdminCanReadAuditRecords() throws Exception {
+        mockMvc.perform(get("/api/licenses/audits"))
+            .andExpect(status().isOk())
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("\"content\":[]")));
     }
 }

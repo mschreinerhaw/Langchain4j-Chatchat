@@ -22,7 +22,7 @@ public class LicenseAdminController {
 
     @GetMapping("/menu-catalog")
     public ApiResponse<java.util.List<McpAdminMenuCatalog.MenuDefinition>> menuCatalog() {
-        return ApiResponse.success(menuCatalog.menus());
+        return ApiResponse.success(menuCatalog.licenseModules());
     }
 
     @GetMapping("/menus")

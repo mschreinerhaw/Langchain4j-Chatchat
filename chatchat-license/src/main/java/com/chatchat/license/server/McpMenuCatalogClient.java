@@ -41,7 +41,12 @@ public class McpMenuCatalogClient {
                 String key = item.path("key").asText("").trim();
                 String label = item.path("label").asText("").trim();
                 String icon = item.path("icon").asText("").trim();
-                if (!key.isEmpty() && !label.isEmpty()) menus.add(new MenuModule(key, label, icon));
+                boolean navigation = item.path("navigation").asBoolean(true);
+                String parentKey = item.path("parentKey").asText("").trim();
+                String description = item.path("description").asText("").trim();
+                if (!key.isEmpty() && !label.isEmpty()) {
+                    menus.add(new MenuModule(key, label, icon, navigation, parentKey, description));
+                }
             }
             if (menus.isEmpty()) throw new LicenseException("MCP 服务未发布可授权菜单");
             return List.copyOf(menus);
@@ -52,7 +57,12 @@ public class McpMenuCatalogClient {
         }
     }
 
-    public record MenuModule(String key, String label, String icon) { }
+    public record MenuModule(String key, String label, String icon, boolean navigation,
+                             String parentKey, String description) {
+        public MenuModule(String key, String label, String icon) {
+            this(key, label, icon, true, "", "");
+        }
+    }
 
     private static RestClient client(LicenseCenterProperties properties) {
         int timeout = Math.max(100, properties.getMcpMenuCatalogTimeoutMs());

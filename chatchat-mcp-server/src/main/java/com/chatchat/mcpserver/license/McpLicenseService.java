@@ -63,6 +63,10 @@ public class McpLicenseService {
                 default -> "License 无效，不能调用 MCP 工具: " + status.message();
             };
         }
+        var toolModule = menuCatalog.moduleForTool(toolName);
+        if (toolModule.isPresent() && !menuCatalog.authorized(status, toolModule.get().key())) {
+            return "License 未授权 MCP 功能模块: " + toolModule.get().label();
+        }
         return hasAnyMcpMenuEntitlement(status) ? null : "License 未授权任何 MCP 菜单模块";
     }
 

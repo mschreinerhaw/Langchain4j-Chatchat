@@ -59,6 +59,38 @@ resolve_jar() {
   [ -n "${APP_JAR:-}" ] && [ -f "$APP_JAR" ] || fail "Executable jar not found. Deploy it as $APP_HOME/chatchat-license.jar or set CHATCHAT_LICENSE_JAR."
 }
 
+strong_password() {
+  value=$1
+  [ "${#value}" -ge 20 ] || return 1
+  case "$value" in *[A-Z]*) ;; *) return 1 ;; esac
+  case "$value" in *[a-z]*) ;; *) return 1 ;; esac
+  case "$value" in *[0-9]*) ;; *) return 1 ;; esac
+  case "$value" in *[!A-Za-z0-9]*) ;; *) return 1 ;; esac
+  return 0
+}
+
+ensure_database_password() {
+  if [ -n "${CHATCHAT_LICENSE_DB_PASSWORD:-}" ]; then
+    strong_password "$CHATCHAT_LICENSE_DB_PASSWORD" \
+      || fail "CHATCHAT_LICENSE_DB_PASSWORD must be 20+ characters with upper/lowercase letters, digits and symbols."
+    return 0
+  fi
+  [ -f "$ENV_FILE" ] || fail "Create $ENV_FILE before generating the H2 database password."
+  command -v openssl >/dev/null 2>&1 || fail "Configure a complex CHATCHAT_LICENSE_DB_PASSWORD, or install openssl for automatic generation."
+  GENERATED_DB_PASSWORD=
+  ATTEMPTS=0
+  while ! strong_password "$GENERATED_DB_PASSWORD" && [ "$ATTEMPTS" -lt 10 ]; do
+    GENERATED_DB_PASSWORD=$(openssl rand -base64 36 | tr -d '\r\n')
+    ATTEMPTS=$((ATTEMPTS + 1))
+  done
+  strong_password "$GENERATED_DB_PASSWORD" || fail "Unable to generate a compliant H2 database password."
+  printf '\n# Automatically generated for this deployment. Do not share or rotate without migrating the H2 user.\nCHATCHAT_LICENSE_DB_PASSWORD=%s\n' \
+    "$GENERATED_DB_PASSWORD" >> "$ENV_FILE"
+  chmod 600 "$ENV_FILE" 2>/dev/null || true
+  export CHATCHAT_LICENSE_DB_PASSWORD=$GENERATED_DB_PASSWORD
+  log "Generated a unique H2 database password in $ENV_FILE"
+}
+
 read_pid() {
   PID=
   if [ -f "$PID_FILE" ]; then
@@ -80,6 +112,7 @@ start_service() {
   resolve_jar
 
   [ -n "${CHATCHAT_LICENSE_CENTER_PASSWORD:-}" ] || fail "Set CHATCHAT_LICENSE_CENTER_PASSWORD in $ENV_FILE before starting."
+  ensure_database_password
   mkdir -p "$RUN_DIR" "$LOG_DIR" "$DATA_DIR"
 
   if is_running; then

@@ -10,87 +10,193 @@
   <header class="topbar">
     <a class="brand" href="/">
       <span class="brand-mark">L</span>
-      <span><strong>LiveMCP</strong><small>License Center</small></span>
+      <span><strong>LiveMCP</strong><small>Commercial License Center</small></span>
     </a>
+    <nav class="topbar-nav" aria-label="License Center 导航">
+      <button type="button" id="showIssuer" class="active">授权签发</button>
+      <button type="button" id="showAudit">授权审计</button>
+    </nav>
     <div class="topbar-meta">
       <span class="environment"><i></i>企业内部环境</span>
-      <span class="security-badge">私钥服务端托管</span>
+      <span class="security-badge">商业授权签发平台</span>
     </div>
   </header>
 
-  <main class="page-shell">
+  <main class="page-shell" id="issuerView">
     <section class="hero">
       <div>
-        <span class="eyebrow">LICENSE ISSUANCE</span>
-        <h1>新建客户授权</h1>
-        <p>根据客户服务器 MAC 地址签发离线 License，控制产品模块、功能范围和使用期限。</p>
+        <span class="eyebrow">COMMERCIAL LICENSING</span>
+        <h1>创建 LiveMCP 商业授权</h1>
+        <p>配置产品方案、功能权益、容量配额与授权周期，签发可审计的离线商业 License。</p>
       </div>
       <ol class="steps" aria-label="授权签发流程">
-        <li><b>1</b><span>录入客户</span></li>
-        <li><b>2</b><span>绑定 MAC</span></li>
-        <li><b>3</b><span>配置权限</span></li>
-        <li><b>4</b><span>签发文件</span></li>
+        <li><b>1</b><span>选择方案</span></li>
+        <li><b>2</b><span>绑定部署</span></li>
+        <li><b>3</b><span>配置权益</span></li>
+        <li><b>4</b><span>签发交付</span></li>
       </ol>
+    </section>
+
+    <section class="commercial-strip" aria-label="商业授权能力">
+      <div><b>离线私有化</b><span>无需连接公网授权服务</span></div>
+      <div><b>功能权益控制</b><span>菜单、模块与 MCP 工具三级约束</span></div>
+      <div><b>容量配额控制</b><span>用户数量与 Agent 发布额度</span></div>
+      <div><b>授权生命周期</b><span>到期自动进入安全受限模式</span></div>
     </section>
 
     <form id="licenseForm" class="workspace">
       <div class="form-column">
         <section class="form-card">
-          <div class="section-heading"><span class="section-icon">01</span><div><h2>客户与产品</h2><p>记录授权归属及产品版本信息</p></div></div>
+          <div class="section-heading"><span class="section-icon">01</span><div><h2>商业授权方案</h2><p>选择标准商品方案，可继续按合同调整功能权益与容量配额</p></div></div>
+          <div class="plan-selector" role="radiogroup" aria-label="产品版本">
+            <label class="plan-card">
+              <input type="radio" name="edition" value="standard">
+              <span class="plan-check">✓</span><strong>Standard</strong><small>标准版</small>
+              <p>适用于基础 MCP 接入与服务管理</p><em>基础商业授权</em>
+            </label>
+            <label class="plan-card">
+              <input type="radio" name="edition" value="professional">
+              <span class="plan-check">✓</span><strong>Professional</strong><small>专业版</small>
+              <p>适用于多类型资产与日常运维治理</p><em>完整运维能力</em>
+            </label>
+            <label class="plan-card featured">
+              <input type="radio" name="edition" value="enterprise" checked>
+              <span class="plan-ribbon">推荐</span><span class="plan-check">✓</span><strong>Enterprise</strong><small>企业版</small>
+              <p>适用于企业级全模块与精细化授权</p><em>全量功能权益</em>
+            </label>
+          </div>
           <div class="field-grid three-columns">
-            <label><span>License 编号 <em>*</em></span><input name="licenseNo" required></label>
-            <label><span>客户名称 <em>*</em></span><input name="customer" required placeholder="例如：国都证券"></label>
-            <label><span>客户编码</span><input name="customerCode" placeholder="例如：GDS"></label>
-            <label><span>产品 <em>*</em></span><input name="product" value="LiveMCP" required></label>
-            <label><span>产品版本</span><select name="edition"><option value="enterprise">Enterprise</option><option value="professional">Professional</option><option value="standard">Standard</option></select></label>
-            <label><span>最大用户数 <em>*</em></span><input name="maxUsers" type="number" min="1" value="100" required></label>
-            <label><span>最大 Agent 发布数 <em>*</em></span><input name="maxAgents" type="number" min="1" value="10" required></label>
+            <label><span>License 编号 <em>*</em></span><input name="licenseNo" required><small class="field-help">商业授权唯一凭证编号</small></label>
+            <label><span>授权对象编码</span><input name="customerCode" placeholder="例如：ORG-0001"><small class="field-help">使用内部编码，不展示客户名称</small></label>
+            <label><span>授权产品</span><input name="product" value="LiveMCP" readonly><small class="field-help">LiveMCP 企业智能服务平台</small></label>
+            <label><span>用户授权数 <em>*</em></span><input name="maxUsers" type="number" min="1" value="500" required><small class="field-help">允许纳入授权的最大用户数量</small></label>
+            <label><span>Agent 发布授权数 <em>*</em></span><input name="maxAgents" type="number" min="1" value="100" required><small class="field-help">控制可同时发布的 Agent 数量</small></label>
+            <div class="quota-policy"><span>配额执行策略</span><strong>达到上限后限制新增发布</strong><small>已发布服务与已创建草稿不受影响</small></div>
           </div>
         </section>
 
         <section class="form-card">
-          <div class="section-heading"><span class="section-icon">02</span><div><h2>服务器绑定</h2><p>License 仅允许绑定网卡所在服务器使用</p></div></div>
-          <label class="mac-field"><span>客户服务器 MAC 地址 <em>*</em></span><div class="input-prefix"><b>MAC</b><input name="serverId" required placeholder="AA:BB:CC:DD:EE:FF"></div></label>
+          <div class="section-heading"><span class="section-icon">02</span><div><h2>私有化部署绑定</h2><p>商业 License 与目标服务器物理网卡绑定，不依赖公网在线激活</p></div></div>
+          <label class="mac-field"><span>目标服务器 MAC 地址 <em>*</em></span><div class="input-prefix"><b>MAC</b><input name="serverId" required placeholder="AA:BB:CC:DD:EE:FF"></div></label>
           <div class="hint"><span>i</span>支持冒号、短横线或连续 12 位十六进制格式，文件中将标准化为 <code>MAC-AABBCCDDEEFF</code>。</div>
         </section>
 
         <section class="form-card">
-          <div class="section-heading"><span class="section-icon">03</span><div><h2>授权范围</h2><p>菜单从目标 MCP 服务实时同步</p></div></div>
+          <div class="section-heading permission-heading">
+            <span class="section-icon">03</span>
+            <div><h2>产品功能权益</h2><p>权益目录从目标 MCP 服务实时同步，并在管理接口和工具调用链路强制执行</p></div>
+            <div class="permission-actions"><button type="button" id="selectAllModules">全部选择</button><button type="button" id="clearAllModules">清空</button></div>
+          </div>
           <div class="permission-grid">
-            <fieldset><legend>MCP 菜单模块</legend>
-              <div id="mcpMenuModules"><span>正在同步 MCP 菜单...</span></div>
+            <fieldset><legend>管理菜单</legend>
+              <p class="fieldset-help">控制管理端导航和对应管理接口。</p>
+              <div id="mcpMenuModules" class="module-list"><span>正在同步 MCP 授权目录...</span></div>
+            </fieldset>
+            <fieldset><legend>MCP 功能模块</legend>
+              <p class="fieldset-help">控制资产类型、模板管理以及 MCP 工具调用。</p>
+              <div id="mcpCapabilityModules" class="module-list"><span>正在同步 MCP 授权目录...</span></div>
             </fieldset>
           </div>
         </section>
 
         <section class="form-card">
-          <div class="section-heading"><span class="section-icon">04</span><div><h2>授权期限</h2><p>过期后客户服务进入受限模式</p></div></div>
+          <div class="section-heading"><span class="section-icon">04</span><div><h2>授权周期与交付</h2><p>按商业合同设置许可周期，到期后自动执行受限策略</p></div></div>
+          <div class="term-selector" aria-label="快捷授权周期">
+            <button type="button" data-months="12">1 年</button>
+            <button type="button" data-months="24">2 年</button>
+            <button type="button" data-months="36">3 年</button>
+            <button type="button" data-months="60">5 年</button>
+            <span>也可直接修改到期日期</span>
+          </div>
           <div class="field-grid two-columns">
             <label><span>签发日期 <em>*</em></span><input name="issuedTime" type="date" required></label>
             <label><span>到期日期 <em>*</em></span><input name="expireTime" type="date" required></label>
           </div>
-          <div class="expiry-note"><b>到期行为</b><span>停止接受新的 MCP 工具调用，保留授权状态页面，便于客户查看原因并续期。</span></div>
+          <div class="expiry-note"><b>商业授权到期策略</b><span>停止接受新的 MCP 工具调用和 Agent 发布，保留管理端与授权状态页面，确保客户能够查看原因并完成续期。</span></div>
         </section>
       </div>
 
       <aside class="summary-card">
-        <div class="summary-title"><span>授权预览</span><i>待签发</i></div>
-        <div class="customer-avatar" id="customerAvatar">L</div>
-        <h3 id="previewCustomer">未填写客户</h3>
-        <p id="previewProduct">LiveMCP · Enterprise</p>
+        <div class="summary-title"><span>商业授权摘要</span><i>待签发</i></div>
+        <div class="customer-avatar">L</div>
+        <h3 id="previewPlan">LiveMCP 企业版</h3>
+        <p id="previewProduct">Enterprise Commercial License</p>
+        <div class="summary-entitlement"><b id="previewModuleCount">0</b><span>项产品权益</span></div>
         <dl>
+          <div><dt>License 编号</dt><dd id="previewLicenseNo">-</dd></div>
           <div><dt>绑定 MAC</dt><dd id="previewMac">尚未填写</dd></div>
-          <div><dt>授权模块</dt><dd id="previewModules">MCP 服务</dd></div>
-          <div><dt>最大用户</dt><dd id="previewUsers">100</dd></div>
-          <div><dt>最大已发布 Agent</dt><dd id="previewAgents">10</dd></div>
+          <div><dt>功能权益</dt><dd id="previewModules">尚未选择</dd></div>
+          <div><dt>用户授权</dt><dd><span id="previewUsers">500</span> 席</dd></div>
+          <div><dt>Agent 发布</dt><dd><span id="previewAgents">100</span> 个</dd></div>
           <div><dt>有效期至</dt><dd id="previewExpiry">-</dd></div>
         </dl>
-        <div class="signing-info"><span class="shield">✓</span><div><b>RSA 数字签名</b><small>授权内容防篡改，私钥不会离开服务器</small></div></div>
-        <button id="submitButton" type="submit"><span>生成并下载 License</span><b>→</b></button>
+        <div class="commercial-assurance"><span>✓ 离线交付</span><span>✓ 防篡改</span><span>✓ 到期治理</span></div>
+        <div class="signing-info"><span class="shield">✓</span><div><b>RSA-3072 数字签名</b><small>授权内容、功能权益与容量配额签名固化，私钥不离开签发服务器</small></div></div>
+        <button id="submitButton" type="submit"><span>签发并下载授权交付包</span><b>→</b></button>
         <p id="message" role="status"></p>
       </aside>
     </form>
   </main>
+
+  <main class="page-shell audit-view" id="auditView" hidden>
+    <section class="audit-hero">
+      <div><span class="eyebrow">LICENSE AUDIT TRAIL</span><h1>商业授权审计</h1><p>追踪每一份 License 的签发、交付和下载记录，形成可检索、可核验的授权台账。</p></div>
+      <button type="button" id="refreshAudits">刷新记录</button>
+    </section>
+
+    <section class="audit-stat-grid">
+      <div><span>累计签发</span><strong id="auditTotal">0</strong><small>份商业 License</small></div>
+      <div><span>已完成交付</span><strong id="auditDelivered">0</strong><small>至少下载过一次</small></div>
+      <div><span>待交付</span><strong id="auditPending">0</strong><small>已签发尚未下载</small></div>
+      <div><span>累计下载</span><strong id="auditDownloads">0</strong><small>次授权文件下载</small></div>
+    </section>
+
+    <section class="audit-panel">
+      <div class="audit-panel-heading">
+        <div><h2>授权发放记录</h2><p>数据持久化存储于 License Center 本地 H2 数据库。</p></div>
+        <div class="audit-filters">
+          <input id="auditKeyword" type="search" placeholder="搜索 License 编号、对象编码、MAC 或签发人">
+          <select id="auditStatus"><option value="">全部状态</option><option value="DELIVERED">已交付</option><option value="ISSUED">待交付</option></select>
+          <select id="auditEdition"><option value="">全部商品版本</option><option value="standard">Standard</option><option value="professional">Professional</option><option value="enterprise">Enterprise</option></select>
+          <select id="auditModule"><option value="">全部功能模块</option></select>
+          <input id="auditDateFrom" type="date" title="签发开始日期">
+          <input id="auditDateTo" type="date" title="签发结束日期">
+          <button type="button" id="searchAudits">查询</button>
+        </div>
+      </div>
+      <div class="audit-table-wrap">
+        <table class="audit-table">
+          <thead><tr><th>License</th><th>商品方案</th><th>授权对象</th><th>容量配额</th><th>授权期限</th><th>签发信息</th><th>交付状态</th><th>操作</th></tr></thead>
+          <tbody id="auditRows"></tbody>
+        </table>
+        <div id="auditEmpty" class="audit-empty" hidden><b>暂无授权记录</b><span>完成第一份商业 License 签发后，记录会显示在这里。</span></div>
+      </div>
+      <div class="audit-pagination">
+        <span id="auditPageSummary">共 0 条</span>
+        <label>每页<select id="auditPageSize"><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option><option value="100">100</option></select>条</label>
+        <button type="button" id="auditPrevious">上一页</button>
+        <strong id="auditPageNumber">第 1 / 1 页</strong>
+        <button type="button" id="auditNext">下一页</button>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="auditDetail" class="audit-dialog">
+    <div class="audit-dialog-heading"><div><span>授权审计详情</span><h2 id="detailLicenseNo">-</h2></div><button type="button" id="closeAuditDetail" aria-label="关闭">×</button></div>
+    <div class="audit-detail-status"><span id="detailStatus">-</span><small id="detailIssuedAt">-</small></div>
+    <dl class="audit-detail-grid">
+      <div><dt>商品方案</dt><dd id="detailEdition">-</dd></div>
+      <div><dt>授权对象编码</dt><dd id="detailCustomerCode">-</dd></div>
+      <div><dt>绑定服务器</dt><dd id="detailServerId">-</dd></div>
+      <div><dt>用户 / Agent 配额</dt><dd id="detailQuota">-</dd></div>
+      <div><dt>授权周期</dt><dd id="detailTerm">-</dd></div>
+      <div><dt>签发人</dt><dd id="detailOperator">-</dd></div>
+      <div><dt>下载记录</dt><dd id="detailDownloads">-</dd></div>
+      <div><dt>签名密钥</dt><dd id="detailKeyId">-</dd></div>
+    </dl>
+    <div class="audit-detail-modules"><span>功能权益</span><div id="detailModules"></div></div>
+    <div class="audit-hash"><span>文件 SHA-256</span><code id="detailHash">-</code></div>
+  </dialog>
   <script src="/license-center.js"></script>
 </body>
 </html>

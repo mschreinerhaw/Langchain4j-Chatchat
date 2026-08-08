@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
@@ -29,7 +30,7 @@ class LicenseIssuanceServiceTest {
     Path tempDir;
 
     @Test
-    void normalizesCustomerMacAndSignsDownload() throws Exception {
+    void signsLicenseWithoutCustomerNameAndNormalizesMac() throws Exception {
         KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
         generator.initialize(2048);
         KeyPair pair = generator.generateKeyPair();
@@ -40,12 +41,13 @@ class LicenseIssuanceServiceTest {
         properties.setKeyId("internal-2026");
         ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule());
         LicenseIssuanceService service = new LicenseIssuanceService(properties, mapper);
-        LicensePayload request = new LicensePayload("LIC-1", "客户", "C1", "LiveMCP", "enterprise",
+        LicensePayload request = new LicensePayload("LIC-1", null, "C1", "LiveMCP", "enterprise",
             List.of("mcp"), 20, "aa:bb:cc:dd:ee:ff", LocalDate.now().plusYears(1),
             Map.of("sql_query", true), LocalDate.now());
 
         LicenseDocument issued = mapper.readValue(service.issue(request), LicenseDocument.class);
 
+        assertNull(issued.payload().customer());
         assertEquals("MAC-AABBCCDDEEFF", issued.payload().serverId());
         assertEquals("internal-2026", issued.keyId());
         assertTrue(new LicenseCrypto(mapper).verify(issued, pem("PUBLIC KEY", pair.getPublic().getEncoded())));

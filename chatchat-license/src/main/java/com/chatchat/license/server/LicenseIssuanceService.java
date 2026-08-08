@@ -74,6 +74,23 @@ public class LicenseIssuanceService {
         }
     }
 
+    public synchronized String publicKeyContent() {
+        try {
+            String configured = properties.getPublicKeyPath();
+            Path publicKey = configured == null || configured.isBlank()
+                ? Path.of(properties.getPrivateKeyPath()).toAbsolutePath().normalize().resolveSibling("license-public.pem")
+                : Path.of(configured).toAbsolutePath().normalize();
+            if (!Files.isRegularFile(publicKey)) {
+                throw new LicenseException("签发公钥不存在，无法生成客户授权包: " + publicKey);
+            }
+            return Files.readString(publicKey);
+        } catch (LicenseException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new LicenseException("无法读取签发公钥", ex);
+        }
+    }
+
     private void generateKeyPair(Path privateKey) throws Exception {
         if (!properties.isAutoGenerateKeys()) {
             throw new LicenseException("未配置 License Center 签发私钥");
@@ -113,7 +130,6 @@ public class LicenseIssuanceService {
     }
 
     private void validate(LicensePayload payload) {
-        if (payload.customer() == null || payload.customer().isBlank()) throw new LicenseException("客户名称不能为空");
         if (payload.product() == null || payload.product().isBlank()) throw new LicenseException("产品不能为空");
         if (payload.modules() == null || payload.modules().isEmpty()) throw new LicenseException("至少选择一个授权模块");
         if (payload.expireTime() == null) throw new LicenseException("授权到期日不能为空");

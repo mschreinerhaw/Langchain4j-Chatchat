@@ -113,7 +113,6 @@ public class LicenseManager {
 
     private void validatePayload(LicensePayload payload) {
         if (payload == null) throw new LicenseException("License 内容不能为空");
-        if (payload.customer() == null || payload.customer().isBlank()) throw new LicenseException("客户名称不能为空");
         if (payload.product() == null || payload.product().isBlank()) throw new LicenseException("产品不能为空");
         if (payload.serverId() == null || payload.serverId().isBlank()) throw new LicenseException("服务器机器码不能为空");
         if (payload.expireTime() == null) throw new LicenseException("授权到期日不能为空");

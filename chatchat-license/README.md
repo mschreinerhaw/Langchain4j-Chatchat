@@ -8,8 +8,10 @@ Center 管理服务。客户的 `chatchat-mcp-server` 只依赖验签核心，�
 
 1. 客户在 MCP 管理端的“License 授权信息”页面复制目标服务器 MAC 地址。
 2. 企业授权人员登录独立 License Center，填写客户、MAC、模块、功能和有效期。
-3. License Center 使用 RSA 私钥生成并下载 `license.dat`。
-4. 将授权文件交付客户，部署到 MCP Server 配置的 `CHATCHAT_LICENSE_FILE` 路径。
+3. License Center 使用 RSA 私钥生成 ZIP 授权交付包，内含 `license.dat`、
+   `license-public.pem` 和安装说明。
+4. 将交付包提供给客户，把授权文件和验签公钥分别部署到 MCP Server 配置的
+   `CHATCHAT_LICENSE_FILE`、`CHATCHAT_LICENSE_PUBLIC_KEY_PATH` 路径。
 5. MCP Server 使用公钥验签，并检查本机网卡是否包含 License 绑定的 MAC。
 
 ## 生成密钥
@@ -19,7 +21,9 @@ openssl genpkey -algorithm RSA -out license-private.pem -pkeyopt rsa_keygen_bits
 openssl pkey -in license-private.pem -pubout -out license-public.pem
 ```
 
-私钥只部署在企业内部 License Center。客户环境只交付公钥。
+私钥只部署在企业内部 License Center。客户环境只交付公钥。每次签发时，License Center
+会先使用待交付的 `license-public.pem` 验证刚生成的 `license.dat`；公钥不匹配时授权包
+生成会立即失败，避免把无法验签的文件交付客户。
 
 ## 启动企业内部 License Center
 
@@ -83,6 +87,28 @@ bin/chatchat-license.sh stop
 ```shell
 bin/chatchat-license.sh start --server.port=18092
 ```
+
+### 授权审计数据库
+
+License Center 使用独立 H2 文件数据库保存授权签发与下载审计，默认文件位于
+`./data/license-center/license-audit.mv.db`。可通过以下环境变量修改连接信息：
+
+```text
+CHATCHAT_LICENSE_DB_URL=jdbc:h2:file:./data/license-center/license-audit;MODE=MySQL;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE
+CHATCHAT_LICENSE_DB_USERNAME=sa
+CHATCHAT_LICENSE_DB_PASSWORD=LiveMCP_H2#Audit@2026!Secure
+```
+
+系统内置默认 H2 密码 `LiveMCP_H2#Audit@2026!Secure`，直接运行 JAR 或使用随包配置均可首次启动。
+生产部署必须通过 `CHATCHAT_LICENSE_DB_PASSWORD` 替换为当前环境唯一的强密码；密码至少 20 位，
+且必须同时包含大小写字母、数字和特殊字符。若部署配置将密码显式留空，启动脚本会调用 OpenSSL
+生成随机强密码，写入 `config/license-center.env` 并将权限收紧为 `600`。已经使用其他密码创建过
+H2 数据库时，修改连接密码前应先通过 H2 的 `ALTER USER SA SET PASSWORD` 完成密码迁移。
+
+审计记录包含 License 编号、授权对象编码、产品版本、模块权益、用户和 Agent 配额、绑定
+MAC、授权周期、签发人、签发时间、下载次数、最后下载时间以及文件 SHA-256 摘要。数据库
+不保存签发私钥。生产环境应将 `data/license-center` 纳入定期备份，并与私钥采用不同的备份
+权限和保管策略。
 
 ## 客户 MCP Server 配置
 

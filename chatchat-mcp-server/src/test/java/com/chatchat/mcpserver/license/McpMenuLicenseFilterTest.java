@@ -70,6 +70,48 @@ class McpMenuLicenseFilterTest {
         assertThat(catalog.menuForPath("/api/v1/mcp-search-index/database-queries/rebuild"))
             .get().extracting(McpAdminMenuCatalog.MenuDefinition::key)
             .isEqualTo("databaseMcp");
+        assertThat(catalog.menuForPath("/api/v1/ops/jmx-templates/test"))
+            .get().extracting(McpAdminMenuCatalog.MenuDefinition::key)
+            .isEqualTo("assetJmx");
+    }
+
+    @Test
+    void granularCapabilityExposesParentNavigationAndMapsRuntimeTools() {
+        var status = valid(List.of("assetJmx"));
+
+        assertThat(catalog.access(status)).filteredOn(McpAdminMenuCatalog.MenuAccess::authorized)
+            .extracting(McpAdminMenuCatalog.MenuAccess::key)
+            .containsExactly("assetCenter");
+        assertThat(catalog.authorized(status, "assetJmx")).isTrue();
+        assertThat(catalog.authorized(status, "assetSsh")).isFalse();
+        assertThat(catalog.moduleForTool("jmx_monitor_execute"))
+            .get().extracting(McpAdminMenuCatalog.MenuDefinition::key)
+            .isEqualTo("assetJmx");
+        assertThat(catalog.moduleForTool("linux_command_execute"))
+            .get().extracting(McpAdminMenuCatalog.MenuDefinition::key)
+            .isEqualTo("assetSsh");
+    }
+
+    @Test
+    void issuanceCatalogUsesGranularChildrenInsteadOfAggregateParent() {
+        assertThat(catalog.licenseModules()).extracting(McpAdminMenuCatalog.MenuDefinition::key)
+            .contains("assetSsh", "assetSql", "assetHttp", "assetJmx", "assetSearchIndex", "enterpriseMetadata")
+            .doesNotContain("assetCenter");
+    }
+
+    @Test
+    void granularCapabilityCannotAccessSiblingManagementApi() throws Exception {
+        McpLicenseService licenses = mock(McpLicenseService.class);
+        when(licenses.status()).thenReturn(valid(List.of("assetJmx")));
+        McpMenuLicenseFilter filter = new McpMenuLicenseFilter(licenses, catalog, objectMapper);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        AtomicInteger calls = new AtomicInteger();
+
+        filter.doFilter(request("/api/v1/ops/ssh-hosts", "tenant-a"), response, countingChain(calls));
+
+        assertThat(response.getStatus()).isEqualTo(403);
+        assertThat(response.getContentAsString()).contains("assetSsh");
+        assertThat(calls).hasValue(0);
     }
 
     @Test

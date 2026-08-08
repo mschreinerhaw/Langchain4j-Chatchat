@@ -92,7 +92,7 @@ class LicenseManagerTest {
     }
 
     private LicensePayload payload(String serverId, LocalDate expiry) {
-        return new LicensePayload("LIC-TEST", "测试客户", "TEST", "LiveMCP", "enterprise",
+        return new LicensePayload("LIC-TEST", null, "TEST", "LiveMCP", "enterprise",
             List.of("mcp", "news"), 100, serverId, expiry,
             Map.of("sql_query", true, "news_collect", true), LocalDate.now().minusDays(1));
     }

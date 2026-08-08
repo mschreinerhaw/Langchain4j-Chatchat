@@ -40,6 +40,50 @@ java -jar chatchat-license-1.0.0-SNAPSHOT-server.jar
 访问 `http://localhost:8092/`，登录后即可根据客户 MAC 生成授权文件。服务未配置管理密码
 时会拒绝启动。
 
+### Linux 部署启动脚本
+
+可执行部署包必须使用带 `server` 分类器的 JAR。建议部署时将其重命名为
+`chatchat-license.jar`，目录结构如下：
+
+可在项目根目录直接生成完整发布包：
+
+```shell
+mvn -pl chatchat-license -am clean package -DskipTests
+```
+
+产物为 `chatchat-license/target/chatchat-license-<version>-release.zip` 和同名
+`tar.gz`，解压后的目录结构如下：
+
+```text
+/opt/chatchat-license/
+├── chatchat-license.jar
+├── bin/chatchat-license.sh
+├── config/license-center.env
+├── data/license-center/
+├── logs/
+└── run/
+```
+
+将 `src/main/scripts/chatchat-license.sh` 放入 `bin/`，将
+`license-center.env.example` 复制到 `config/license-center.env`，修改管理密码后启动：
+
+```shell
+chmod 750 bin/chatchat-license.sh
+chmod 600 config/license-center.env
+bin/chatchat-license.sh start
+bin/chatchat-license.sh status
+bin/chatchat-license.sh restart
+bin/chatchat-license.sh stop
+```
+
+脚本要求 Java 17 及以上，默认将 PID 写入 `run/chatchat-license.pid`，标准输出写入
+`logs/chatchat-license.out`。可通过 `JAVA_OPTS` 调整 JVM 参数，通过
+`CHATCHAT_LICENSE_JAR` 指定其他 JAR 路径，也可以在启动命令末尾追加 Spring Boot 参数：
+
+```shell
+bin/chatchat-license.sh start --server.port=18092
+```
+
 ## 客户 MCP Server 配置
 
 ```text

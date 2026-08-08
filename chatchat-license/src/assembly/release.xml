@@ -1,0 +1,40 @@
+<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.1.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.1.0 https://maven.apache.org/xsd/assembly-2.1.0.xsd">
+    <id>release</id>
+    <formats>
+        <format>zip</format>
+        <format>tar.gz</format>
+    </formats>
+    <includeBaseDirectory>true</includeBaseDirectory>
+    <baseDirectory>${project.artifactId}-${project.version}</baseDirectory>
+
+    <files>
+        <file>
+            <source>${project.build.directory}/${project.build.finalName}-server.jar</source>
+            <outputDirectory>/</outputDirectory>
+            <destName>chatchat-license.jar</destName>
+        </file>
+        <file>
+            <source>${project.basedir}/README.md</source>
+            <outputDirectory>/</outputDirectory>
+            <destName>README.md</destName>
+        </file>
+        <file>
+            <source>${project.basedir}/src/main/scripts/license-center.env.example</source>
+            <outputDirectory>/config</outputDirectory>
+            <destName>license-center.env.example</destName>
+        </file>
+    </files>
+
+    <fileSets>
+        <fileSet>
+            <directory>${project.basedir}/src/main/scripts</directory>
+            <outputDirectory>/bin</outputDirectory>
+            <fileMode>0755</fileMode>
+            <includes>
+                <include>*.sh</include>
+            </includes>
+        </fileSet>
+    </fileSets>
+</assembly>

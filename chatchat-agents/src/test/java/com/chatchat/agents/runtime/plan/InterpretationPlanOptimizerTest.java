@@ -101,6 +101,57 @@ class InterpretationPlanOptimizerTest {
             });
     }
 
+    @Test
+    void materializesLockedEdgeContractsForEveryRequiredBindingOnAuthorizedEdge() {
+        String assetTool = "mcp_chatchat_mcp_server_ssh_asset_query";
+        String templateTool = "mcp_chatchat_mcp_server_ssh_template_query";
+        String executeTool = "mcp_chatchat_mcp_server_linux_command_execute";
+        List<InterpretationPlan.Binding> bindings = List.of(
+            new InterpretationPlan.Binding(2, "$.templates[0].templateId", 3,
+                "$.calls[0].arguments.template", "jsonpath", true),
+            new InterpretationPlan.Binding(2, "$.templates[1].templateId", 3,
+                "$.calls[1].arguments.template", "jsonpath", true),
+            new InterpretationPlan.Binding(2, "$.templates[2].templateId", 3,
+                "$.calls[2].arguments.template", "jsonpath", true)
+        );
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("system_operation", "Run discovered diagnostics", "medium"),
+            new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", assetTool,
+                        Map.of("filters", Map.of("assetName", "host-alias")), List.of(), null, null),
+                    new InterpretationPlan.Step(2, "mcp_tool", templateTool,
+                        Map.of("filters", Map.of("assetName", "host-alias")), List.of(1), null, null),
+                    new InterpretationPlan.Step(3, "mcp_tool", executeTool,
+                        Map.of("calls", List.of()), List.of(2), null, null)
+                ),
+                List.of(new InterpretationPlan.EdgeContract(
+                    2, 3, "$.templates[*].templateId", "array", true)),
+                List.of(),
+                bindings,
+                new InterpretationPlan.Stability(List.of(1, 2, 3),
+                    List.of(assetTool, templateTool, executeTool), true, List.of()),
+                null
+            ),
+            new InterpretationPlan.ExecutionPolicy(
+                3, false, List.of(assetTool, templateTool, executeTool), List.of(), 30000),
+            new InterpretationPlan.Review(
+                new InterpretationPlan.SelfCheck(0.8, 0.1, true, List.of()), List.of())
+        );
+
+        InterpretationPlanOptimizer.OptimizationResult result = new InterpretationPlanOptimizer().optimize(plan);
+
+        assertThat(result.appliedPasses()).contains("LockedBindingEdgeContractRepairPass");
+        assertThat(result.plan().plan().edgeContracts())
+            .extracting(InterpretationPlan.EdgeContract::field)
+            .contains("$.templates[0].templateId", "$.templates[1].templateId", "$.templates[2].templateId");
+        assertThat(new InterpretationPlanValidator().validate(result.plan(), null,
+            java.util.Set.of(assetTool, templateTool, executeTool)).issues())
+            .noneMatch(issue -> issue.message().contains("matching edge_contract"));
+    }
+
     private InterpretationPlan.Step stepByTool(InterpretationPlan plan, String toolName) {
         return plan.steps().stream()
             .filter(step -> toolName.equals(step.toolName()))

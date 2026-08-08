@@ -49,6 +49,14 @@
   flex: 1;
 }
 
+.settings-role-table .el-table__row {
+  cursor: pointer;
+}
+
+.settings-role-table .el-table__row.selected-role-row > .el-table__cell {
+  background: var(--el-color-primary-light-9);
+}
+
 .login-audit-filters {
   flex: 1;
 }

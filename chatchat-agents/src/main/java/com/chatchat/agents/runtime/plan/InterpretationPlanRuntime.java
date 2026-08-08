@@ -5202,8 +5202,7 @@ public class InterpretationPlanRuntime {
             : new LinkedHashMap<>();
         assertSameCanonicalAsset("assetId", canonical.get("assetId"),
             firstNonBlankObject(target.get("assetId"), target.get("asset_id")), step);
-        assertSameCanonicalAsset("assetName", canonical.get("assetName"),
-            firstNonBlankObject(target.get("assetName"), target.get("asset_name"), target.get("name")), step);
+        reconcileCanonicalAssetName(canonical, target, completed, step);
         assertSameCanonicalEnvironment(canonical.get("env"),
             firstNonBlankObject(target.get("env"), target.get("environment")), step);
         if (isTemplateDiscoveryTool(step.toolName())) {
@@ -5213,6 +5212,75 @@ public class InterpretationPlanRuntime {
             canonical.forEach((key, value) -> putIfAbsentOrPlaceholder(target, key, value));
         }
         input.put(envelopeKey, target);
+    }
+
+    private void reconcileCanonicalAssetName(Map<String, Object> canonical,
+                                             Map<String, Object> target,
+                                             Map<Integer, StepExecution> completed,
+                                             InterpretationPlan.Step step) {
+        Object canonicalValue = canonical == null ? null : canonical.get("assetName");
+        Object suppliedValue = firstNonBlankObject(
+            target.get("assetName"), target.get("asset_name"), target.get("name"));
+        if (canonicalValue == null || suppliedValue == null) {
+            return;
+        }
+        String canonicalName = String.valueOf(canonicalValue);
+        String suppliedName = String.valueOf(suppliedValue);
+        if (!sameAssetIdentityText(canonicalName, suppliedName)) {
+            if (!verifiedAssetDiscoveryAlias(canonical, suppliedName, completed)) {
+                throw new IllegalStateException("ASSET_CONTEXT_MISMATCH: step " + step.id() + " ("
+                    + step.toolName() + ") supplied assetName=" + suppliedValue
+                    + " but asset discovery established assetName=" + canonicalValue);
+            }
+            log.info("InterpretationPlan canonicalized verified asset discovery alias: stepId={}, "
+                    + "tool={}, suppliedAssetName={}, canonicalAssetName={}",
+                step.id(), step.toolName(), suppliedName, canonicalName);
+        }
+        target.put("assetName", canonicalName);
+        target.remove("asset_name");
+        Object alternateName = target.get("name");
+        if (alternateName != null && sameAssetIdentityText(String.valueOf(alternateName), suppliedName)) {
+            target.remove("name");
+        }
+    }
+
+    private boolean verifiedAssetDiscoveryAlias(Map<String, Object> canonical,
+                                                String suppliedName,
+                                                Map<Integer, StepExecution> completed) {
+        if (suppliedName == null || suppliedName.isBlank() || completed == null) {
+            return false;
+        }
+        for (StepExecution execution : completed.values()) {
+            if (execution == null || !execution.success() || !isAssetDiscoveryTool(execution.toolName())
+                || discoveredAssetCount(execution.output(), "assets") != 1) {
+                continue;
+            }
+            Map<String, Object> candidate = assetExecutionContext(execution.output());
+            if (candidate.isEmpty() || !sameCanonicalAsset(canonical, candidate)) {
+                continue;
+            }
+            for (Object identity : new Object[] {
+                candidate.get("assetName"),
+                candidate.get("assetDisplayName"),
+                candidate.get("assetToolName"),
+                candidate.get("assetId"),
+                firstValueAtAnyPath(execution.metadata(),
+                    "$.resolvedInput.filters.assetName",
+                    "$.resolvedInput.filters.asset_name",
+                    "$.resolvedInput.filters.name"),
+                firstValueAtAnyPath(execution.output(),
+                    "$.filters.assetName", "$.filters.asset_name", "$.filters.name")
+            }) {
+                if (identity != null && sameAssetIdentityText(String.valueOf(identity), suppliedName)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean sameAssetIdentityText(String left, String right) {
+        return left != null && right != null && left.trim().equalsIgnoreCase(right.trim());
     }
 
     private Map<String, Object> uniqueCompletedAssetExecutionContext(Map<Integer, StepExecution> completed) {

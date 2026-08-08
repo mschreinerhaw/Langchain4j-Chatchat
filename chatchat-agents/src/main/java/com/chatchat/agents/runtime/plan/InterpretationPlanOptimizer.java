@@ -81,6 +81,13 @@ public class InterpretationPlanOptimizer {
             passes.add("TemplateExecutionDagRepairPass");
         }
 
+        EdgeContractRepairResult bindingEdges = repairLockedBindingEdgeContracts(
+            edgeContracts, bindings, lockedEdges);
+        edgeContracts = bindingEdges.edgeContracts();
+        if (bindingEdges.changed()) {
+            passes.add("LockedBindingEdgeContractRepairPass");
+        }
+
         OrderingResult ordering = policyAwareOrdering(plan, steps);
         steps = ordering.steps();
         if (ordering.changed()) {
@@ -412,6 +419,49 @@ public class InterpretationPlanOptimizer {
             .anyMatch(edge -> Objects.equals(from, edge.from())
                 && Objects.equals(to, edge.to())
                 && normalizeField(field).equals(normalizeField(edge.field())));
+    }
+
+    /**
+     * Materializes exact source-field contracts for required bindings only when
+     * the locked DAG already authorizes the same source-to-target edge. This
+     * repairs a coarse collection contract without inventing a workflow edge.
+     */
+    private EdgeContractRepairResult repairLockedBindingEdgeContracts(
+        List<InterpretationPlan.EdgeContract> sourceEdges,
+        List<InterpretationPlan.Binding> bindings,
+        boolean lockedEdges
+    ) {
+        List<InterpretationPlan.EdgeContract> edges = new ArrayList<>(
+            sourceEdges == null ? List.of() : sourceEdges);
+        if (!lockedEdges || bindings == null || bindings.isEmpty()) {
+            return new EdgeContractRepairResult(edges, false);
+        }
+        boolean changed = false;
+        for (InterpretationPlan.Binding binding : bindings) {
+            if (binding == null || Boolean.FALSE.equals(binding.required())
+                || binding.from() == null || binding.to() == null
+                || binding.outputPath() == null || binding.outputPath().isBlank()
+                || hasEdgeContract(edges, binding.from(), binding.to(), binding.outputPath())) {
+                continue;
+            }
+            InterpretationPlan.EdgeContract authorizedEdge = edges.stream()
+                .filter(Objects::nonNull)
+                .filter(edge -> Objects.equals(edge.from(), binding.from())
+                    && Objects.equals(edge.to(), binding.to()))
+                .findFirst()
+                .orElse(null);
+            if (authorizedEdge == null) {
+                continue;
+            }
+            String type = normalizeField(binding.outputPath()).endsWith("templateid")
+                ? "string"
+                : authorizedEdge.type();
+            edges.add(new InterpretationPlan.EdgeContract(
+                binding.from(), binding.to(), binding.outputPath(),
+                type == null || type.isBlank() ? "any" : type, true));
+            changed = true;
+        }
+        return new EdgeContractRepairResult(edges, changed);
     }
 
     private InterpretationPlan.Step bestProtocolPredecessor(InterpretationPlan.Step target,
@@ -1012,6 +1062,12 @@ public class InterpretationPlanOptimizer {
         List<InterpretationPlan.EdgeContract> edgeContracts,
         List<InterpretationPlan.DependencyContract> dependencyContracts,
         List<InterpretationPlan.Binding> bindings,
+        boolean changed
+    ) {
+    }
+
+    private record EdgeContractRepairResult(
+        List<InterpretationPlan.EdgeContract> edgeContracts,
         boolean changed
     ) {
     }

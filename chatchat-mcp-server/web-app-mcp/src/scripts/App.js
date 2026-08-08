@@ -18,7 +18,13 @@ import { ElNotification } from 'element-plus';
 import { MCP_ENDPOINT } from '../services/config';
 import { UnauthorizedError } from '../services/http';
 import { licenseApi } from '../services/api';
-import { getToken, getUser, logout } from '../services/session';
+import {
+  getSessionIdleRemainingMs,
+  getToken,
+  getUser,
+  logout,
+  markSessionActivity
+} from '../services/session';
 import '../styles/layout.css';
 
 const menuComponents = {
@@ -36,6 +42,8 @@ const menuComponents = {
   settings: SettingsView
 };
 const licenseMenu = { key: 'license', label: 'License 授权', icon: 'Key', component: LicenseView };
+const activityEvents = ['pointerdown', 'pointermove', 'keydown', 'scroll', 'touchstart'];
+const activityWriteThrottleMs = 1000;
 
 export default {
   name: 'App',
@@ -53,7 +61,10 @@ export default {
       resultOpen: false,
       resultTitle: '',
       resultValue: null,
-      navItems: [licenseMenu]
+      navItems: [licenseMenu],
+      idleTimer: null,
+      lastActivityRecordedAt: 0,
+      idleLogoutInProgress: false
     };
   },
   computed: {
@@ -62,12 +73,19 @@ export default {
     }
   },
   mounted() {
-    if (this.authenticated) this.loadLicensedMenus();
+    if (this.authenticated) {
+      this.startIdleMonitoring();
+      this.loadLicensedMenus();
+    }
+  },
+  beforeUnmount() {
+    this.stopIdleMonitoring();
   },
   methods: {
     async handleAuthenticated(user) {
       this.authenticated = true;
       this.user = user?.username || getUser();
+      this.startIdleMonitoring(true);
       await this.loadLicensedMenus();
       this.notify({ title: '登录成功' });
     },
@@ -84,18 +102,78 @@ export default {
       } catch (error) {
         this.navItems = [licenseMenu];
         this.activeView = 'license';
-        if (error instanceof UnauthorizedError) this.authenticated = false;
+        if (error instanceof UnauthorizedError) {
+          this.authenticated = false;
+          this.user = '';
+          this.stopIdleMonitoring();
+        }
         else this.handleError(error);
       }
     },
     async handleLogout() {
-      await logout();
+      this.stopIdleMonitoring();
       this.authenticated = false;
       this.user = '';
+      await logout();
     },
     forceRelogin() {
       this.notify({ title: '请使用新密码重新登录' });
       this.handleLogout();
+    },
+    startIdleMonitoring(resetActivity = false) {
+      this.stopIdleMonitoring();
+      if (!this.authenticated) return;
+      if (resetActivity) markSessionActivity();
+      activityEvents.forEach(eventName => window.addEventListener(eventName, this.handleSessionActivity, { passive: true }));
+      document.addEventListener('visibilitychange', this.handleVisibilityChange);
+      this.lastActivityRecordedAt = Date.now();
+      this.scheduleIdleLogout();
+    },
+    stopIdleMonitoring() {
+      if (this.idleTimer) {
+        window.clearTimeout(this.idleTimer);
+        this.idleTimer = null;
+      }
+      activityEvents.forEach(eventName => window.removeEventListener(eventName, this.handleSessionActivity));
+      document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    },
+    handleSessionActivity() {
+      if (!this.authenticated || this.idleLogoutInProgress) return;
+      const now = Date.now();
+      if (now - this.lastActivityRecordedAt < activityWriteThrottleMs) return;
+      this.lastActivityRecordedAt = now;
+      markSessionActivity(now);
+      this.scheduleIdleLogout(now);
+    },
+    handleVisibilityChange() {
+      if (document.visibilityState !== 'visible' || !this.authenticated) return;
+      if (getSessionIdleRemainingMs() <= 0) {
+        this.expireIdleSession();
+        return;
+      }
+      this.handleSessionActivity();
+    },
+    scheduleIdleLogout(now = Date.now()) {
+      if (this.idleTimer) window.clearTimeout(this.idleTimer);
+      const remaining = getSessionIdleRemainingMs(now);
+      if (remaining <= 0) {
+        this.expireIdleSession();
+        return;
+      }
+      this.idleTimer = window.setTimeout(() => this.expireIdleSession(), remaining);
+    },
+    async expireIdleSession() {
+      if (!this.authenticated || this.idleLogoutInProgress) return;
+      this.idleLogoutInProgress = true;
+      this.stopIdleMonitoring();
+      this.authenticated = false;
+      this.user = '';
+      this.notify({ type: 'warning', title: '登录已过期', message: '页面已连续 30 分钟无操作，请重新登录。' });
+      try {
+        await logout();
+      } finally {
+        this.idleLogoutInProgress = false;
+      }
     },
     notify(toast) {
       ElNotification({
@@ -111,6 +189,8 @@ export default {
     handleError(error) {
       if (error instanceof UnauthorizedError) {
         this.authenticated = false;
+        this.user = '';
+        this.stopIdleMonitoring();
       }
       this.notify({ type: 'danger', title: '操作失败', message: error.message || '请求失败' });
     },

@@ -5251,7 +5251,7 @@ class InterpretationPlanRuntimeTest {
                         "returnedCount", 1,
                         "assets", List.of(Map.of(
                             "asset", Map.of(
-                                "name", "docker_service",
+                                "name", "Docker Service Host",
                                 "environment", "DEV",
                                 "toolName", "ssh_docker_service"
                             ),
@@ -5292,13 +5292,14 @@ class InterpretationPlanRuntimeTest {
                     new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_ssh_asset_query",
                         Map.of("filters", Map.of("assetName", "docker_service"), "limit", 10), List.of(), null, null),
                     new InterpretationPlan.Step(2, "mcp_tool", "mcp_chatchat_mcp_server_linux_command_execute",
-                        Map.of("template", "CHECK_SYSTEM_OVERVIEW", "executionContext", Map.of()), List.of(1), null, null),
+                        Map.of("template", "CHECK_SYSTEM_OVERVIEW", "executionContext",
+                            Map.of("assetName", "docker_service")), List.of(1), null, null),
                     new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
                 ),
                 List.of(),
                 List.of(
-                    new InterpretationPlan.Binding(1, "$.assets[0].asset.environment", 2, "executionContext.env", "jsonpath", true),
-                    new InterpretationPlan.Binding(1, "$.assets[0].asset.name", 2, "executionContext.assetName", "jsonpath", true)
+                    new InterpretationPlan.Binding(1, "$.assets[0].asset.environment", 2,
+                        "executionContext.env", "jsonpath", true)
                 ),
                 null
             ),
@@ -5344,7 +5345,7 @@ class InterpretationPlanRuntimeTest {
             .containsEntry("toolResultReviewSkipped", true);
         assertThat(captor.getAllValues().get(1).getToolName()).isEqualTo("mcp_chatchat_mcp_server_linux_command_execute");
         assertThat(linuxParameters.get("template")).isEqualTo("CHECK_SYSTEM_OVERVIEW");
-        assertThat(executionContext.get("assetName")).isEqualTo("docker_service");
+        assertThat(executionContext.get("assetName")).isEqualTo("Docker Service Host");
         assertThat(executionContext.get("env")).isEqualTo("DEV");
     }
 

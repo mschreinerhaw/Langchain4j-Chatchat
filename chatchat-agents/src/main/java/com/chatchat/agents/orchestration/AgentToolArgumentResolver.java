@@ -250,7 +250,7 @@ class AgentToolArgumentResolver {
         String envelopeKey = templateDiscovery ? "filters" : "executionContext";
         Map<String, Object> target = mutableMap(firstPresent(values, envelopeKey,
             templateDiscovery ? "executionContext" : "mcpExecutionContext"));
-        String mismatch = assetMismatch(canonical, target);
+        String mismatch = assetMismatch(canonical, target, traces);
         if (mismatch != null) {
             values.put(McpParamBindingResolver.STATUS_KEY, "DENIED");
             values.put(McpParamBindingResolver.CODE_KEY, "ASSET_CONTEXT_MISMATCH");
@@ -341,7 +341,9 @@ class AgentToolArgumentResolver {
         );
     }
 
-    private String assetMismatch(Map<String, Object> canonical, Map<String, Object> supplied) {
+    private String assetMismatch(Map<String, Object> canonical,
+                                 Map<String, Object> supplied,
+                                 List<InteractionToolTrace> traces) {
         String canonicalId = scalarText(firstPresent(canonical, "id", "assetId", "asset_id"));
         String suppliedId = scalarText(firstPresent(supplied, "assetId", "asset_id"));
         if (canonicalId != null && suppliedId != null && !canonicalId.equals(suppliedId)) {
@@ -350,7 +352,9 @@ class AgentToolArgumentResolver {
         }
         String canonicalName = scalarText(firstPresent(canonical, "name", "assetName", "asset_name"));
         String suppliedName = scalarText(firstPresent(supplied, "assetName", "asset_name", "name"));
-        if (canonicalName != null && suppliedName != null && !canonicalName.equals(suppliedName)) {
+        if (canonicalName != null && suppliedName != null
+            && !sameAssetIdentityText(canonicalName, suppliedName)
+            && !verifiedObservedAssetAlias(canonical, suppliedName, traces)) {
             return "Asset continuation supplied assetName=" + suppliedName
                 + " but prior unique discovery established assetName=" + canonicalName;
         }
@@ -361,6 +365,50 @@ class AgentToolArgumentResolver {
                 + " but prior unique discovery established env=" + canonicalEnv;
         }
         return null;
+    }
+
+    private boolean verifiedObservedAssetAlias(Map<String, Object> canonical,
+                                               String suppliedName,
+                                               List<InteractionToolTrace> traces) {
+        if (suppliedName == null || traces == null) {
+            return false;
+        }
+        for (Object identity : new Object[] {
+            firstPresent(canonical, "name", "assetName", "asset_name"),
+            firstPresent(canonical, "displayName", "display_name"),
+            firstPresent(canonical, "toolName", "tool_name"),
+            firstPresent(canonical, "id", "assetId", "asset_id")
+        }) {
+            if (identity != null && sameAssetIdentityText(String.valueOf(identity), suppliedName)) {
+                return true;
+            }
+        }
+        for (InteractionToolTrace trace : traces) {
+            if (trace == null || !trace.isSuccess() || !assetDiscoveryTool(trace.getToolName())) {
+                continue;
+            }
+            Object output = parseJson(trace.getOutput());
+            List<Map<String, Object>> assets = discoveredAssets(output);
+            if (assets.size() != 1 || !sameObservedAsset(canonical, assets.get(0))
+                || !(output instanceof Map<?, ?> rawOutput)) {
+                continue;
+            }
+            @SuppressWarnings("unchecked")
+            Map<String, Object> outputMap = (Map<String, Object>) rawOutput;
+            Object rawFilters = firstPresent(outputMap, "filters", "queryFilters", "query_filters");
+            if (!(rawFilters instanceof Map<?, ?> filters)) {
+                continue;
+            }
+            String queryName = scalarText(firstPresent(filters, "assetName", "asset_name", "name"));
+            if (sameAssetIdentityText(queryName, suppliedName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean sameAssetIdentityText(String left, String right) {
+        return left != null && right != null && left.trim().equalsIgnoreCase(right.trim());
     }
 
     private boolean assetScopedContinuationTool(String toolName, Map<String, Object> arguments) {
@@ -808,7 +856,7 @@ class AgentToolArgumentResolver {
         return false;
     }
 
-    private Object firstPresent(Map<String, Object> values, String... keys) {
+    private Object firstPresent(Map<?, ?> values, String... keys) {
         if (values == null) {
             return null;
         }

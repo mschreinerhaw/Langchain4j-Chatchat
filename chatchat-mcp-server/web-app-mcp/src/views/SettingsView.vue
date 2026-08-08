@@ -81,7 +81,7 @@
         <div class="settings-section-head">
           <div>
             <h3>已同步角色</h3>
-            <p>来自远端的角色信息会同步到 MCP server 本地角色表。</p>
+            <p>来自远端的角色信息会同步到 MCP server 本地角色表；单击角色行查看授权明细。</p>
           </div>
           <el-button plain :loading="busy" @click="loadRoles">
             <el-icon><Refresh /></el-icon>
@@ -89,7 +89,15 @@
           </el-button>
         </div>
 
-        <el-table class="settings-table" :data="roles" border stripe empty-text="暂无同步角色，请点击同步授权">
+        <el-table
+          class="settings-table settings-role-table"
+          :data="roles"
+          :row-class-name="roleRowClassName"
+          border
+          stripe
+          empty-text="暂无同步角色，请点击同步授权"
+          @row-click="selectRole"
+        >
           <el-table-column prop="roleName" label="角色" min-width="180">
             <template #default="{ row }">
               <strong>{{ row.roleName || row.roleCode || row.id }}</strong>
@@ -108,7 +116,7 @@
           <el-table-column fixed="right" label="操作" width="150">
             <template #default="{ row }">
               <el-tag v-if="isSuperAdmin(row)" type="success" effect="light">默认全权限</el-tag>
-              <el-button v-else link type="primary" @click="openAuthorizationDialog(row)">管理授权</el-button>
+              <el-button v-else link type="primary" @click.stop="openAuthorizationDialog(row)">管理授权</el-button>
             </template>
           </el-table-column>
         </el-table>

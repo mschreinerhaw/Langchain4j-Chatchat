@@ -330,12 +330,24 @@ export default {
         return {};
       }
     },
-    async openAuthorizationDialog(role) {
+    resetRolePermissionView(role) {
       this.selectedRole = role;
       this.permissions = [];
       this.permissionKeyword = '';
       this.permissionPage = 1;
       this.selectedPermissionIds = [];
+    },
+    async selectRole(role) {
+      if (!role?.id) return;
+      this.resetRolePermissionView(role);
+      if (this.isSuperAdmin(role)) return;
+      await this.loadRolePermissions();
+    },
+    roleRowClassName({ row }) {
+      return row?.id && row.id === this.selectedRole?.id ? 'selected-role-row' : '';
+    },
+    async openAuthorizationDialog(role) {
+      this.resetRolePermissionView(role);
       if (this.isSuperAdmin(role)) {
         this.$emit('notify', { title: 'SUPER_ADMIN 默认拥有全部访问权限' });
         return;
@@ -446,8 +458,11 @@ export default {
     },
     async loadRolePermissions() {
       if (!this.selectedRole || this.isSuperAdmin(this.selectedRole)) return;
+      const role = this.selectedRole;
       await this.run(async () => {
-        this.permissions = await authorizationApi.rolePermissions(this.selectedRole.id, this.selectedRole.tenantId) || [];
+        const permissions = await authorizationApi.rolePermissions(role.id, role.tenantId) || [];
+        if (this.selectedRole?.id !== role.id) return;
+        this.permissions = permissions;
         this.permissionPage = 1;
         this.selectedPermissionIds = [];
       }, '角色权限已加载', false);

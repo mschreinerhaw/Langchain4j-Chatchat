@@ -43,6 +43,30 @@ class AgentToolArgumentResolverTest {
     }
 
     @Test
+    void canonicalizesVerifiedDiscoveryQueryAliasForFallbackContinuation() {
+        InteractionToolTrace assetDiscovery = InteractionToolTrace.builder()
+            .toolName("mcp_chatchat_mcp_server_ssh_asset_query")
+            .success(true)
+            .output("""
+                {"filters":{"assetName":"worker11"},"assets":[{"asset":{"id":"worker11-id",
+                "name":"CDH DataNode Node worker11","environment":"DEV",
+                "toolName":"ssh_cdh_worker11_datanode"}}]}
+                """)
+            .build();
+
+        Map<String, Object> result = resolver.enforceObservedAssetContinuity(
+            "mcp_chatchat_mcp_server_ssh_template_query",
+            Map.of("filters", Map.of("assetName", "worker11", "intent", "health")),
+            List.of(assetDiscovery)
+        );
+
+        assertThat(result).doesNotContainKey("__runtimeParamBindingStatus");
+        Map<?, ?> filters = (Map<?, ?>) result.get("filters");
+        assertThat(filters.get("assetName")).isEqualTo("CDH DataNode Node worker11");
+        assertThat(filters.get("env")).isEqualTo("DEV");
+    }
+
+    @Test
     void deniesFallbackExecutorWhenTemplateDiscoveryDriftsFromUniqueObservedAsset() {
         InteractionToolTrace assetDiscovery = InteractionToolTrace.builder()
             .toolName("mcp_chatchat_mcp_server_ssh_asset_query")

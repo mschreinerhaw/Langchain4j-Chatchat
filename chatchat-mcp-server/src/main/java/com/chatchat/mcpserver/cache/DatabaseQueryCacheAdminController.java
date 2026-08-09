@@ -60,9 +60,17 @@ public class DatabaseQueryCacheAdminController {
             cacheEnabled,
             stats.entries(),
             stats.expiredEntries(),
+            stats.hitCount(),
             stats.bytes(),
             stats.measuredAt()
         ));
+    }
+
+    @GetMapping("/entries")
+    public ApiResponse<DatabaseQueryCacheService.CacheOverview> entries(
+        @RequestParam(value = "limit", defaultValue = "200") int limit
+    ) {
+        return ApiResponse.success(cacheService.overview(limit));
     }
 
     @GetMapping("/templates")
@@ -265,6 +273,7 @@ public class DatabaseQueryCacheAdminController {
         boolean cacheEnabled,
         int entries,
         int expiredEntries,
+        long hitCount,
         long bytes,
         long measuredAt
     ) {

@@ -367,6 +367,18 @@
         primary key (id)
     );
 
+    create table mcp_financial_query_cache_config (
+        enabled boolean not null,
+        fallback_to_rocks_db boolean not null,
+        max_entry_kb integer not null,
+        single_flight_grace_ms bigint not null,
+        ttl_seconds bigint not null,
+        updated_at timestamp(6) with time zone not null,
+        id varchar(64) not null,
+        storage varchar(16) not null,
+        primary key (id)
+    );
+
     create table mcp_ops_jmx_template (
         enabled boolean not null,
         timeout_ms integer not null,

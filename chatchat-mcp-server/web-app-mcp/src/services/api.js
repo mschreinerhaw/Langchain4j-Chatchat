@@ -153,6 +153,7 @@ export const cacheApi = {
   getConfig: () => apiFetch(`${API_BASE}/cache/database-query/config`),
   saveConfig: config => apiFetch(`${API_BASE}/cache/database-query/config`, { method: 'PUT', body: JSON.stringify(config) }),
   getStats: () => apiFetch(`${API_BASE}/cache/database-query/stats`),
+  getDatabaseEntries: () => apiFetch(`${API_BASE}/cache/database-query/entries?limit=200`),
   listTemplates: (filters = {}) => {
     const params = new URLSearchParams();
     if (filters.keyword) params.set('keyword', filters.keyword);
@@ -165,7 +166,12 @@ export const cacheApi = {
   saveRedisConfig: config => apiFetch(`${API_BASE}/cache/database-query/storage/redis`, { method: 'PUT', body: JSON.stringify(config) }),
   testRedisConfig: config => apiFetch(`${API_BASE}/cache/database-query/storage/redis/test`, { method: 'POST', body: JSON.stringify(config) }),
   cleanupExpired: () => apiFetch(`${API_BASE}/cache/database-query/cleanup-expired`, { method: 'POST' }),
-  evictAll: () => apiFetch(`${API_BASE}/cache/database-query/evict`, { method: 'POST' })
+  evictAll: () => apiFetch(`${API_BASE}/cache/database-query/evict`, { method: 'POST' }),
+  getFinancialConfig: () => apiFetch(`${API_BASE}/cache/financial-query/config`),
+  saveFinancialConfig: config => apiFetch(`${API_BASE}/cache/financial-query/config`, { method: 'PUT', body: JSON.stringify(config) }),
+  getFinancialEntries: (limit = 200) => apiFetch(`${API_BASE}/cache/financial-query/entries?limit=${encodeURIComponent(limit)}`),
+  cleanupFinancialExpired: () => apiFetch(`${API_BASE}/cache/financial-query/cleanup-expired`, { method: 'POST' }),
+  evictFinancialAll: () => apiFetch(`${API_BASE}/cache/financial-query/evict`, { method: 'POST' })
 };
 
 export const notificationApi = {

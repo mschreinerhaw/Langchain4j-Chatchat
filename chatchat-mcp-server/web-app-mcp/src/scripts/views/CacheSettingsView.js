@@ -21,6 +21,16 @@ export default {
         cacheErrorResults: false
       },
       stats: {},
+      databaseOverview: { items: [], entries: 0, expiredEntries: 0, hitCount: 0, bytes: 0 },
+      financialConfig: {
+        enabled: true,
+        storage: 'ROCKSDB',
+        ttlSeconds: 1800,
+        fallbackToRocksDb: true,
+        maxEntryKb: 2048,
+        singleFlightGraceMs: 500
+      },
+      financialOverview: { items: [], entries: 0, expiredEntries: 0, hitCount: 0, bytes: 0 },
       templates: [],
       templatePickerOpen: false,
       templatePickerKeyword: '',
@@ -58,6 +68,12 @@ export default {
     },
     bytes() {
       return formatBytes(this.stats.bytes || 0);
+    },
+    financialStatus() {
+      return this.financialConfig.enabled ? '运行中' : '未启用';
+    },
+    financialBytes() {
+      return formatBytes(this.financialOverview.bytes || 0);
     },
     cachedTemplates() {
       return this.templates.filter(item => item.cacheEnabled);
@@ -114,15 +130,21 @@ export default {
     async load() {
       this.busy = true;
       try {
-        const [config, stats, templates, redis] = await Promise.all([
+        const [config, stats, databaseOverview, templates, redis, financialConfig, financialOverview] = await Promise.all([
           cacheApi.getConfig(),
           cacheApi.getStats(),
+          cacheApi.getDatabaseEntries(),
           cacheApi.listTemplates(),
-          cacheApi.getRedisConfig()
+          cacheApi.getRedisConfig(),
+          cacheApi.getFinancialConfig(),
+          cacheApi.getFinancialEntries()
         ]);
         this.config = { ...this.config, ...(config || {}) };
         this.stats = stats || {};
+        this.databaseOverview = { ...this.databaseOverview, ...(databaseOverview || {}) };
         this.templates = (templates || []).map(item => ({ ...item }));
+        this.financialConfig = { ...this.financialConfig, ...(financialConfig || {}) };
+        this.financialOverview = { ...this.financialOverview, ...(financialOverview || {}) };
         this.redis = {
           ...this.redis,
           ...(redis || {}),
@@ -139,6 +161,10 @@ export default {
     async save() {
       if (this.activeTab === 'storage') {
         await this.saveRedis();
+        return;
+      }
+      if (this.activeTab === 'financial') {
+        await this.saveFinancial();
         return;
       }
       if (this.templates.some(item => item.cacheEnabled && (!item.cacheTtlSeconds || item.cacheTtlSeconds < 1))) {
@@ -250,6 +276,42 @@ export default {
         return;
       }
       await this.run(() => cacheApi.saveRedisConfig(payload), 'Redis 缓存存储配置已保存');
+      await this.load();
+    },
+    async saveFinancial() {
+      if (this.financialConfig.storage === 'REDIS' && !this.redis.enabled) {
+        this.$emit('error', new Error('请先启用并配置 Redis 缓存存储'));
+        return;
+      }
+      await this.run(() => cacheApi.saveFinancialConfig(this.financialConfig), '金融数据缓存策略已保存');
+      await this.load();
+    },
+    formatFinancialFilters(filters) {
+      const entries = Object.entries(filters || {});
+      return entries.length ? entries.map(([key, value]) => {
+        const rendered = value && typeof value === 'object' ? JSON.stringify(value) : value;
+        return `${key}=${rendered}`;
+      }).join('，') : '无';
+    },
+    formatDatabaseParameters(parameters) {
+      const entries = Object.entries(parameters || {});
+      return entries.length ? entries.map(([key, value]) => {
+        const rendered = value && typeof value === 'object' ? JSON.stringify(value) : value;
+        return `${key}=${rendered}`;
+      }).join('，') : '无参数';
+    },
+    formatTime(value) {
+      if (!value) return '-';
+      return new Date(value).toLocaleString('zh-CN', { hour12: false });
+    },
+    async cleanupFinancialExpired() {
+      if (!window.confirm('确定清理已过期的金融数据缓存吗？')) return;
+      await this.run(cacheApi.cleanupFinancialExpired, '过期金融缓存已清理');
+      await this.load();
+    },
+    async evictFinancialAll() {
+      if (!window.confirm('确定清理全部 financial_data_search 金融缓存吗？')) return;
+      await this.run(cacheApi.evictFinancialAll, '全部金融缓存已清理');
       await this.load();
     },
     async testRedis() {

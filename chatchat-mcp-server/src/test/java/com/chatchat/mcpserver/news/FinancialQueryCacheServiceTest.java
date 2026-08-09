@@ -47,11 +47,15 @@ class FinancialQueryCacheServiceTest {
 
         Map<String, Object> first;
         Map<String, Object> second;
+        Map<String, Object> third;
         try (McpInvocationContext.Scope ignored = McpInvocationContext.open(context("tenant-a"))) {
             first = cache.getOrLoad("runtime_dataset", Map.of("code", "000001"),
                 LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 2), 20, "auto",
                 () -> { loads.incrementAndGet(); return Map.of("rows", java.util.List.of(Map.of("value", 1))); });
             second = cache.getOrLoad("runtime_dataset", Map.of("code", "000001"),
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 2), 20, "auto",
+                () -> { loads.incrementAndGet(); return Map.of("rows", java.util.List.of()); });
+            third = cache.getOrLoad("runtime_dataset", Map.of("code", "000001"),
                 LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 2), 20, "auto",
                 () -> { loads.incrementAndGet(); return Map.of("rows", java.util.List.of()); });
         }
@@ -63,7 +67,10 @@ class FinancialQueryCacheServiceTest {
             .containsEntry("queryCacheStorage", "ROCKSDB")
             .containsEntry("queryCacheTtlSeconds", 1800L);
         assertThat(second).containsEntry("queryCacheHit", true)
-            .containsEntry("queryCacheStorage", "ROCKSDB");
+            .containsEntry("queryCacheStorage", "ROCKSDB")
+            .containsEntry("queryCacheHitCount", 1L);
+        assertThat(third).containsEntry("queryCacheHit", true)
+            .containsEntry("queryCacheHitCount", 2L);
     }
 
     @Test

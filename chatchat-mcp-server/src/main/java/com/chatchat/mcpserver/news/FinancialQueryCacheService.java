@@ -9,6 +9,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -37,18 +38,31 @@ public class FinancialQueryCacheService {
     private final McpRocksDbStore rocksDb;
     private final RedisCacheStore redis;
     private final ObjectMapper mapper;
+    private final FinancialQueryCacheConfigService configService;
     private final Map<String, CompletableFuture<Map<String, Object>>> inFlight = new ConcurrentHashMap<>();
+    private final Map<String, Object> hitLocks = new ConcurrentHashMap<>();
 
+    @Autowired
     public FinancialQueryCacheService(MarketModuleProperties properties,
                                       McpCacheProperties cacheProperties,
                                       McpRocksDbStore rocksDb,
                                       RedisCacheStore redis,
-                                      ObjectMapper mapper) {
+                                      ObjectMapper mapper,
+                                      FinancialQueryCacheConfigService configService) {
         this.properties = properties;
         this.cacheProperties = cacheProperties;
         this.rocksDb = rocksDb;
         this.redis = redis;
         this.mapper = mapper;
+        this.configService = configService;
+    }
+
+    FinancialQueryCacheService(MarketModuleProperties properties,
+                               McpCacheProperties cacheProperties,
+                               McpRocksDbStore rocksDb,
+                               RedisCacheStore redis,
+                               ObjectMapper mapper) {
+        this(properties, cacheProperties, rocksDb, redis, mapper, null);
     }
 
     public Map<String, Object> getOrLoad(String dataset, Map<String, Object> filters,
@@ -78,8 +92,12 @@ public class FinancialQueryCacheService {
                 return result;
             }
             Map<String, Object> loaded = loader.get();
-            String writtenStorage = put(key, loaded, policy);
-            Map<String, Object> result = observed(loaded, false, writtenStorage, 0L, policy.getTtlSeconds());
+            CacheDescriptor descriptor = new CacheDescriptor(tenantId(), dataset,
+                copy(filters == null ? Map.of() : filters), text(startDate), text(endDate), limit,
+                historyMode == null ? "" : historyMode);
+            String writtenStorage = put(key, loaded, descriptor, policy);
+            Map<String, Object> result = observed(loaded, false, writtenStorage, 0L,
+                policy.getTtlSeconds(), 0L, 0L);
             own.complete(result);
             return result;
         } catch (RuntimeException ex) {
@@ -106,8 +124,11 @@ public class FinancialQueryCacheService {
                 delete(read.storage(), key);
                 return Optional.empty();
             }
-            return Optional.of(observed(entry.result(), true, read.storage(),
-                Math.max(0L, (now - entry.createdAt()) / 1000L), policy.getTtlSeconds()));
+            CacheEntry updated = recordHit(read.storage(), key, entry, now);
+            return Optional.of(observed(updated.result(), true, read.storage(),
+                Math.max(0L, (now - updated.createdAt()) / 1000L),
+                Math.max(1L, (updated.expiresAt() - updated.createdAt()) / 1000L),
+                updated.hitCount(), updated.lastHitAt()));
         } catch (Exception ex) {
             delete(read.storage(), key);
             log.warn("Financial query cache entry ignored key={} error={}", key, ex.getMessage());
@@ -135,13 +156,14 @@ public class FinancialQueryCacheService {
         }
     }
 
-    private String put(String key, Map<String, Object> result, MarketModuleProperties.QueryCache policy) {
+    private String put(String key, Map<String, Object> result, CacheDescriptor descriptor,
+                       MarketModuleProperties.QueryCache policy) {
         String preferred = effectiveStorage(policy);
         if (result == null) return preferred;
         long now = System.currentTimeMillis();
         try {
             byte[] payload = mapper.writeValueAsBytes(new CacheEntry(copy(result), now,
-                now + Math.max(1L, policy.getTtlSeconds()) * 1000L));
+                now + Math.max(1L, policy.getTtlSeconds()) * 1000L, descriptor, 0L, 0L));
             if (payload.length > Math.max(1, policy.getMaxEntryKb()) * 1024L) return preferred;
             if ("REDIS".equals(preferred)) {
                 try {
@@ -184,30 +206,133 @@ public class FinancialQueryCacheService {
 
     @Scheduled(fixedDelayString = "${chatchat.mcp.cache.cleanup-interval-ms:60000}")
     public int cleanupExpired() {
-        if (!rocksDb.isUsable()) return 0;
         int removed = 0;
         long now = System.currentTimeMillis();
-        for (McpRocksDbStore.KeyValue item : rocksDb.scan(
-            KEY_PREFIX, Math.max(1, cacheProperties.getCleanupBatchSize()))) {
+        int limit = Math.max(1, cacheProperties.getCleanupBatchSize());
+        if (rocksDb.isUsable()) removed += cleanupStorage("ROCKSDB", rocksDb.scan(KEY_PREFIX, limit), now);
+        if (redis.isUsable()) removed += cleanupStorage("REDIS", redis.scan(KEY_PREFIX, limit), now);
+        return removed;
+    }
+
+    public int evictAll() {
+        int limit = Math.max(1, cacheProperties.getCleanupBatchSize());
+        int removed = 0;
+        if (rocksDb.isUsable()) removed += evictAllFromStorage("ROCKSDB", limit);
+        if (redis.isUsable()) removed += evictAllFromStorage("REDIS", limit);
+        return removed;
+    }
+
+    public CacheOverview overview(int requestedLimit) {
+        int displayLimit = Math.max(1, Math.min(requestedLimit, 1000));
+        int aggregationLimit = 100_000;
+        List<CacheItem> allItems = new java.util.ArrayList<>();
+        boolean truncated = false;
+        if (rocksDb.isUsable()) {
+            List<McpRocksDbStore.KeyValue> values = rocksDb.scan(KEY_PREFIX, aggregationLimit);
+            truncated = values.size() == aggregationLimit;
+            collect(allItems, "ROCKSDB", values, aggregationLimit);
+        }
+        if (redis.isUsable()) {
+            List<McpRocksDbStore.KeyValue> values = redis.scan(KEY_PREFIX, aggregationLimit);
+            truncated = truncated || values.size() == aggregationLimit;
+            collect(allItems, "REDIS", values, Integer.MAX_VALUE);
+        }
+        allItems.sort(java.util.Comparator.comparingLong(CacheItem::lastHitAt).reversed()
+            .thenComparing(java.util.Comparator.comparingLong(CacheItem::createdAt).reversed()));
+        long hits = allItems.stream().mapToLong(CacheItem::hitCount).sum();
+        long bytes = allItems.stream().mapToLong(CacheItem::bytes).sum();
+        long now = System.currentTimeMillis();
+        long expired = allItems.stream().filter(item -> item.expiresAt() <= now).count();
+        List<CacheItem> visibleItems = allItems.size() <= displayLimit
+            ? List.copyOf(allItems) : List.copyOf(allItems.subList(0, displayLimit));
+        return new CacheOverview(visibleItems, allItems.size(), expired, hits, bytes, truncated, now);
+    }
+
+    private void collect(List<CacheItem> target, String storage,
+                         List<McpRocksDbStore.KeyValue> values, int limit) {
+        for (McpRocksDbStore.KeyValue item : values) {
+            if (target.size() >= limit) break;
             try {
                 CacheEntry entry = mapper.readValue(item.value(), CacheEntry.class);
-                if (entry.expiresAt() > now) continue;
-            } catch (Exception ignored) { }
-            try {
-                rocksDb.delete(item.key());
-                removed++;
+                CacheDescriptor descriptor = entry.descriptor() == null
+                    ? new CacheDescriptor("", "legacy-entry", Map.of(), "", "", 0, "")
+                    : entry.descriptor();
+                target.add(new CacheItem(new String(item.key(), StandardCharsets.UTF_8), storage,
+                    descriptor.tenantId(), descriptor.dataset(), descriptor.filters(),
+                    descriptor.startDate(), descriptor.endDate(), descriptor.limit(), descriptor.historyMode(),
+                    entry.createdAt(), entry.expiresAt(), entry.hitCount(), entry.lastHitAt(), item.value().length));
             } catch (Exception ex) {
-                log.warn("Financial query cache cleanup failed: {}", ex.getMessage());
+                log.warn("Financial query cache entry listing failed: {}", ex.getMessage());
             }
+        }
+    }
+
+    private int cleanupStorage(String storage, List<McpRocksDbStore.KeyValue> values, long now) {
+        int removed = 0;
+        for (McpRocksDbStore.KeyValue item : values) {
+            boolean expired = true;
+            try { expired = mapper.readValue(item.value(), CacheEntry.class).expiresAt() <= now; }
+            catch (Exception ignored) { }
+            if (!expired) continue;
+            if (delete(storage, new String(item.key(), StandardCharsets.UTF_8))) removed++;
         }
         return removed;
     }
 
-    private void delete(String storage, String key) {
+    private int evictStorage(String storage, List<McpRocksDbStore.KeyValue> values) {
+        int removed = 0;
+        for (McpRocksDbStore.KeyValue item : values) {
+            if (delete(storage, new String(item.key(), StandardCharsets.UTF_8))) removed++;
+        }
+        return removed;
+    }
+
+    private int evictAllFromStorage(String storage, int batchSize) {
+        int removed = 0;
+        while (true) {
+            List<McpRocksDbStore.KeyValue> batch = "REDIS".equals(storage)
+                ? redis.scan(KEY_PREFIX, batchSize) : rocksDb.scan(KEY_PREFIX, batchSize);
+            if (batch.isEmpty()) return removed;
+            int batchRemoved = evictStorage(storage, batch);
+            removed += batchRemoved;
+            if (batchRemoved == 0 || batch.size() < batchSize) return removed;
+        }
+    }
+
+    private CacheEntry recordHit(String storage, String key, CacheEntry original, long now) {
+        Object lock = hitLocks.computeIfAbsent(key, ignored -> new Object());
+        synchronized (lock) {
+            try {
+                byte[] latestPayload = "REDIS".equals(storage) ? redis.get(key) : rocksDb.get(key);
+                CacheEntry latest = latestPayload == null ? original : mapper.readValue(latestPayload, CacheEntry.class);
+                CacheEntry updated = new CacheEntry(latest.result(), latest.createdAt(), latest.expiresAt(),
+                    latest.descriptor(), Math.max(0L, latest.hitCount()) + 1L, now);
+                byte[] payload = mapper.writeValueAsBytes(updated);
+                if ("REDIS".equals(storage)) {
+                    redis.put(key, payload, Math.max(1L, (updated.expiresAt() - now + 999L) / 1000L));
+                } else {
+                    rocksDb.put(key, payload);
+                }
+                return updated;
+            } catch (Exception ex) {
+                log.warn("Financial query cache hit counter update failed: {}", ex.getMessage());
+                return new CacheEntry(original.result(), original.createdAt(), original.expiresAt(),
+                    original.descriptor(), Math.max(0L, original.hitCount()) + 1L, now);
+            }
+        }
+    }
+
+    private boolean delete(String storage, String key) {
         try {
             if ("REDIS".equals(storage)) redis.delete(key);
             else if (rocksDb.isUsable()) rocksDb.delete(key);
-        } catch (Exception ignored) { }
+            else return false;
+            hitLocks.remove(key);
+            return true;
+        } catch (Exception ex) {
+            log.warn("Financial query cache delete failed storage={} error={}", storage, ex.getMessage());
+            return false;
+        }
     }
 
     private String effectiveStorage(MarketModuleProperties.QueryCache policy) {
@@ -215,6 +340,7 @@ public class FinancialQueryCacheService {
     }
 
     private MarketModuleProperties.QueryCache policy() {
+        if (configService != null) return configService.currentPolicy();
         return properties.getQueryCache() == null
             ? new MarketModuleProperties.QueryCache() : properties.getQueryCache();
     }
@@ -244,12 +370,14 @@ public class FinancialQueryCacheService {
     }
 
     private Map<String, Object> observed(Map<String, Object> source, boolean hit, String storage,
-                                         long ageSeconds, long ttlSeconds) {
+                                         long ageSeconds, long ttlSeconds, long hitCount, long lastHitAt) {
         Map<String, Object> result = copy(source);
         result.put("queryCacheHit", hit);
         result.put("queryCacheStorage", storage);
         result.put("queryCacheAgeSeconds", ageSeconds);
         result.put("queryCacheTtlSeconds", ttlSeconds);
+        result.put("queryCacheHitCount", hitCount);
+        result.put("queryCacheLastHitAt", lastHitAt);
         return java.util.Collections.unmodifiableMap(result);
     }
 
@@ -257,6 +385,17 @@ public class FinancialQueryCacheService {
         return source == null ? Map.of() : mapper.convertValue(source, new TypeReference<>() { });
     }
 
-    private record CacheEntry(Map<String, Object> result, long createdAt, long expiresAt) { }
+    private String text(LocalDate date) { return date == null ? "" : date.toString(); }
+
+    private record CacheEntry(Map<String, Object> result, long createdAt, long expiresAt,
+                              CacheDescriptor descriptor, long hitCount, long lastHitAt) { }
+    private record CacheDescriptor(String tenantId, String dataset, Map<String, Object> filters,
+                                   String startDate, String endDate, int limit, String historyMode) { }
     private record StorageRead(String storage, byte[] payload) { }
+    public record CacheItem(String key, String storage, String tenantId, String dataset,
+                            Map<String, Object> filters, String startDate, String endDate, int limit,
+                            String historyMode, long createdAt, long expiresAt, long hitCount,
+                            long lastHitAt, long bytes) { }
+    public record CacheOverview(List<CacheItem> items, int entries, long expiredEntries,
+                                long hitCount, long bytes, boolean truncated, long measuredAt) { }
 }

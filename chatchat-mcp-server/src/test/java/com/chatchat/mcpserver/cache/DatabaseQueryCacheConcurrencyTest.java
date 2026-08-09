@@ -86,6 +86,10 @@ class DatabaseQueryCacheConcurrencyTest {
             assertThat(outputs.stream()
                 .filter(output -> Boolean.TRUE.equals(output.getMetadata().get("cacheHit")))
                 .count()).isEqualTo(requestCount - 1L);
+            assertThat(outputs.stream()
+                .filter(output -> Boolean.TRUE.equals(output.getMetadata().get("cacheHit")))
+                .mapToLong(output -> ((Number) output.getMetadata().get("cacheHitCount")).longValue())
+                .max()).hasValue(requestCount - 1L);
         } finally {
             releaseLoader.countDown();
             executor.shutdownNow();

@@ -39,6 +39,12 @@ public class NewsRuntimeProperties {
         private int timeoutMillis = 10_000;
         private int hotspotLookbackDays = 7;
         private int maxSnippetChars = 1_200;
+        /**
+         * Minimum local news-index hits that make a paid external request unnecessary.
+         * The requested result limit remains the upper bound, so a one-result request
+         * is satisfied by one local hit.
+         */
+        private int minimumLocalResults = 3;
         private Cache cache = new Cache();
     }
 

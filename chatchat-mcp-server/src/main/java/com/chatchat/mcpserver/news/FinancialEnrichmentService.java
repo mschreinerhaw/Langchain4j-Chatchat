@@ -55,11 +55,8 @@ public class FinancialEnrichmentService {
             warnings.add("market: " + safe(ex.getMessage()));
             assets = List.of();
         }
-        boolean dataRequired = input != null
-            && input.getParameterAsBoolean("financial_data_required", false);
-        if (!dataRequired || assets.isEmpty()) {
-            return new EnrichmentResult(assetQuery, assets, List.of(), List.copyOf(warnings),
-                assets.isEmpty() ? null : "explicit_dataset_required");
+        if (assets.isEmpty()) {
+            return new EnrichmentResult(assetQuery, assets, List.of(), List.copyOf(warnings), null);
         }
 
         int datasetLimit = bounded(input.getParameterAsNumber("financial_dataset_limit"), 2, 1, 3);

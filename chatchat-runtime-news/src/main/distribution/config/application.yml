@@ -72,6 +72,8 @@ chatchat:
         timeout-millis: 10000
         hotspot-lookback-days: 7
         max-snippet-chars: 1200
+        # 联网 API 仅作补充；本地新闻索引达到该数量时不再发起付费联网请求。
+        minimum-local-results: 3
         # Dedicated OpenSearch cache for paid web-search responses.
         cache:
           enabled: true

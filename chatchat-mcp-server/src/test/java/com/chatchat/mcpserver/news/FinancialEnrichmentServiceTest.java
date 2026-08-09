@@ -40,27 +40,27 @@ class FinancialEnrichmentServiceTest {
     }
 
     @Test
-    void ordinarySearchDiscoversAssetsButNeverReadsFinancialRowsImplicitly() {
+    void ordinarySearchDynamicallyReadsMatchedLocalFinancialRows() {
         FinancialAssetCatalogService catalog = mock(FinancialAssetCatalogService.class);
         FinancialDataStore store = mock(FinancialDataStore.class);
         when(store.assetSearchQuery("company quote", 10)).thenReturn("company quote");
         when(catalog.search("company quote", 6)).thenReturn(java.util.List.of(
             Map.of("dataset_code", "dynamic_dataset")));
+        when(store.resolveEntityFilters("dynamic_dataset", "company quote", 5)).thenReturn(List.of());
+        when(store.query("dynamic_dataset", Map.of(), null, null, 20, "auto"))
+            .thenReturn(Map.of("rows", List.of(Map.of("symbol", "000001", "close", 10.98))));
         FinancialEnrichmentService service = new FinancialEnrichmentService(catalog, store);
 
         FinancialEnrichmentService.EnrichmentResult result = service.enrich(
             "company quote", ToolInput.builder().build(), 6);
 
-        assertThat(result.skippedReason()).isEqualTo("explicit_dataset_required");
+        assertThat(result.skippedReason()).isNull();
         assertThat(result.assets()).singleElement().satisfies(asset ->
                 assertThat(asset).containsEntry("dataset_code", "dynamic_dataset"));
-        assertThat(result.financialData()).isEmpty();
-        verify(store, never()).resolveEntityFilters(
-            org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyInt());
-        verify(store, never()).query(
-            org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
-            org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
-            org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.any());
+        assertThat(result.financialData()).singleElement().satisfies(data ->
+            assertThat(data).containsEntry("dataset", "dynamic_dataset")
+                .containsEntry("retrievalSource", "governed_financial_store"));
+        verify(store).query("dynamic_dataset", Map.of(), null, null, 20, "auto");
     }
 
     @Test

@@ -6,6 +6,7 @@ import com.chatchat.common.tool.ToolOutput;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /** Isolates the remote news runtime from MCP protocol adaptation and optional enrichers. */
@@ -18,8 +19,24 @@ public class NewsSearchService {
     }
 
     public SearchResult search(ToolInput input) {
+        return search(input, 0);
+    }
+
+    public SearchResult search(ToolInput input, int upstreamLocalEvidenceCount) {
         try {
-            ToolOutput output = client.invoke("web_search", input);
+            Map<String, Object> context = new LinkedHashMap<>(
+                input == null || input.getContext() == null ? Map.of() : input.getContext());
+            context.put("upstreamLocalEvidenceCount", Math.max(0, upstreamLocalEvidenceCount));
+            ToolInput routedInput = input == null ? ToolInput.builder().context(context).build()
+                : ToolInput.builder()
+                    .rawInput(input.getRawInput())
+                    .parameters(input.getParameters())
+                    .requestId(input.getRequestId())
+                    .userId(input.getUserId())
+                    .conversationId(input.getConversationId())
+                    .context(context)
+                    .build();
+            ToolOutput output = client.invoke("web_search", routedInput);
             if (output.isSuccess()) return new SearchResult(results(output.getData()), null);
             return new SearchResult(List.of(), "news: " + safe(output.getErrorMessage()));
         } catch (Exception ex) {

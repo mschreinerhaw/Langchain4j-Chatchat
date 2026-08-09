@@ -76,12 +76,23 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
         }
         CancellationSupport.throwIfCancelled("web_search");
         boolean forceExternal = properties.getWebSearch().getCache().isForceExternal();
+        int requiredLocalResults = Math.min(size,
+            Math.max(1, properties.getWebSearch().getMinimumLocalResults()));
+        int upstreamLocalEvidenceCount = upstreamLocalEvidenceCount(input);
+        int totalLocalEvidenceCount = local.size() + upstreamLocalEvidenceCount;
+        boolean localSufficient = (localSucceeded || upstreamLocalEvidenceCount > 0)
+            && totalLocalEvidenceCount >= requiredLocalResults;
+        boolean externalSupplementRequired = forceExternal || !localSufficient;
         log.info(
             "webSearchRetrievalRoute query=\"{}\" requested={} localEnabled={} tencentWsaEnabled={} "
-                + "cacheEnabled={} forceExternal={}",
-            auditQuery(query), size, localEnabled, externalEnabled, cacheEnabled, forceExternal
+                + "cacheEnabled={} forceExternal={} localNewsCount={} upstreamLocalEvidenceCount={} "
+                + "totalLocalEvidenceCount={} requiredLocalCount={} "
+                + "externalSupplementRequired={}",
+            auditQuery(query), size, localEnabled, externalEnabled, cacheEnabled, forceExternal,
+            local.size(), upstreamLocalEvidenceCount, totalLocalEvidenceCount, requiredLocalResults,
+            externalSupplementRequired
         );
-        if (cacheEnabled && !forceExternal) {
+        if (externalSupplementRequired && cacheEnabled && !forceExternal) {
             try {
                 cachedSearch = cache.findHighlyRelated(query).orElse(null);
             } catch (Exception ex) {
@@ -100,7 +111,7 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
                 auditQuery(query), auditQuery(cachedSearch.originalQuery()), cachedSearch.similarity(),
                 externalResponse.pages().size()
             );
-        } else if (externalEnabled) {
+        } else if (externalSupplementRequired && externalEnabled) {
             try {
                 CancellationSupport.throwIfCancelled("web_search external retrieval");
                 log.info(
@@ -126,6 +137,12 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
                 warnings.add("tencent_wsa: " + safe(ex));
                 log.warn("tencentWsaRetrievalFailed query=\"{}\" error={}", auditQuery(query), safe(ex));
             }
+        } else if (!externalSupplementRequired) {
+            log.info(
+                "tencentWsaHttpCallSkipped query=\"{}\" reason=local_evidence_sufficient "
+                    + "localNewsCount={} upstreamLocalEvidenceCount={} requiredLocalCount={}",
+                auditQuery(query), local.size(), upstreamLocalEvidenceCount, requiredLocalResults
+            );
         } else {
             log.info(
                 "tencentWsaHttpCallSkipped query=\"{}\" reason=provider_disabled_or_credentials_missing",
@@ -149,6 +166,12 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
         data.put("webSearchCacheEnabled", cacheEnabled);
         data.put("webSearchCacheHit", cachedSearch != null);
         data.put("forcedExternalSearch", properties.getWebSearch().getCache().isForceExternal());
+        data.put("localEvidenceSufficient", localSufficient);
+        data.put("upstreamLocalEvidenceCount", upstreamLocalEvidenceCount);
+        data.put("totalLocalEvidenceCount", totalLocalEvidenceCount);
+        data.put("minimumLocalResults", requiredLocalResults);
+        data.put("externalSearchRole", "supplementary_fallback");
+        data.put("externalSearchRequired", externalSupplementRequired);
         if (cachedSearch != null) {
             data.put("cachedQuery", cachedSearch.originalQuery());
             data.put("cacheSimilarity", cachedSearch.similarity());
@@ -162,6 +185,17 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
         }
         if (!warnings.isEmpty()) data.put("warnings", warnings);
         return ToolOutput.success(data, "Internal news and external web retrieval completed");
+    }
+
+    private int upstreamLocalEvidenceCount(ToolInput input) {
+        if (input == null || input.getContext() == null) return 0;
+        Object raw = input.getContext().get("upstreamLocalEvidenceCount");
+        if (raw instanceof Number number) return Math.max(0, number.intValue());
+        try {
+            return raw == null ? 0 : Math.max(0, Integer.parseInt(String.valueOf(raw)));
+        } catch (NumberFormatException ignored) {
+            return 0;
+        }
     }
 
     private String auditQuery(String query) {

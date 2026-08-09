@@ -2,11 +2,15 @@ package com.chatchat.runtime.news.tool;
 
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.runtime.news.config.NewsRuntimeProperties;
+import com.chatchat.runtime.news.model.NewsAnalysisStatus;
+import com.chatchat.runtime.news.model.NewsDocument;
+import com.chatchat.runtime.news.model.NewsSourceType;
 import com.chatchat.runtime.news.search.TencentWebSearchClient;
 import com.chatchat.runtime.news.search.WebSearchCache;
 import com.chatchat.runtime.news.store.NewsDocumentStore;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
@@ -19,6 +23,58 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class WebSearchToolExecutorTest {
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void sufficientLocalEvidenceSkipsCacheAndPaidExternalApi() throws Exception {
+        NewsRuntimeProperties properties = new NewsRuntimeProperties();
+        properties.getOpenSearch().setEnabled(true);
+        properties.getWebSearch().setMinimumLocalResults(3);
+        NewsDocumentStore store = mock(NewsDocumentStore.class);
+        when(store.search(any())).thenReturn(List.of(
+            document("local-1"), document("local-2"), document("local-3")));
+        TencentWebSearchClient external = mock(TencentWebSearchClient.class);
+        when(external.enabled()).thenReturn(true);
+        WebSearchCache cache = mock(WebSearchCache.class);
+        when(cache.enabled()).thenReturn(true);
+
+        var output = new WebSearchToolExecutor(store, properties, external, cache).execute(
+            ToolInput.builder().parameters(Map.of("query", "market hotspots", "num_results", 10)).build());
+
+        assertThat(output.isSuccess()).isTrue();
+        Map<String, Object> data = (Map<String, Object>) output.getData();
+        assertThat(data).containsEntry("mode", "news_index")
+            .containsEntry("localEvidenceSufficient", true)
+            .containsEntry("externalSearchRequired", false)
+            .containsEntry("externalSearchRole", "supplementary_fallback")
+            .containsEntry("externalWebCount", 0);
+        verify(cache, never()).findHighlyRelated(any());
+        verify(external, never()).search(any(), any(Integer.class));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void sufficientUpstreamLocalEvidenceAlsoSkipsPaidExternalApi() throws Exception {
+        NewsRuntimeProperties properties = new NewsRuntimeProperties();
+        properties.getOpenSearch().setEnabled(true);
+        NewsDocumentStore store = mock(NewsDocumentStore.class);
+        when(store.search(any())).thenReturn(List.of());
+        TencentWebSearchClient external = mock(TencentWebSearchClient.class);
+        when(external.enabled()).thenReturn(true);
+
+        var output = new WebSearchToolExecutor(store, properties, external).execute(
+            ToolInput.builder()
+                .parameters(Map.of("query", "market quote"))
+                .context(Map.of("upstreamLocalEvidenceCount", 3))
+                .build());
+
+        assertThat(output.isSuccess()).isTrue();
+        assertThat((Map<String, Object>) output.getData())
+            .containsEntry("localEvidenceSufficient", true)
+            .containsEntry("upstreamLocalEvidenceCount", 3)
+            .containsEntry("externalSearchRequired", false);
+        verify(external, never()).search(any(), any(Integer.class));
+    }
 
     @Test
     void cancellationDuringLocalRecallStopsExternalAndCacheWork() throws Exception {
@@ -162,5 +218,13 @@ class WebSearchToolExecutorTest {
             new TencentWebSearchClient.SearchPage("Title", "https://example.com/page",
                 "2026-07-31", "Current information", "Example", 0.95D)
         ), requestId, "standard");
+    }
+
+    private NewsDocument document(String id) {
+        return new NewsDocument(id, 1L, "local source", NewsSourceType.RSS,
+            "Local title " + id, "Local content " + id, "Local summary " + id, "author",
+            "https://example.com/" + id, Instant.parse("2026-08-09T00:00:00Z"),
+            Instant.parse("2026-08-09T00:01:00Z"), "en", List.of("market"), List.of(),
+            "hash-" + id, NewsAnalysisStatus.COMPLETED, Map.of());
     }
 }

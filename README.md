@@ -161,6 +161,18 @@ Runtime 保留完整工具输出、结构化证据对象、来源节点和尝试
 
 这条链路修复的是“分析过程”，不是由 Runtime 预设“正确结论”。因此它对表设计审核、金融数据分析、通用 API 查询等场景使用同一套机制，也能适配不同模型的表达和推理差异。
 
+## `web_search` 本地优先策略
+
+`web_search` 的来源优先级由搜索处理层保证，不依赖模型规划，也不在 Agent Runtime 中硬编码金融业务规则。一次统一检索按以下顺序执行：
+
+1. 本地新闻索引；
+2. 本地受治理的金融资产索引，以及从动态匹配数据集中读取的已采集金融数据；
+3. 联网搜索缓存或外部联网 API，仅用于补充本地证据缺口。
+
+前两项同属本地主来源，执行时金融资产与数据检索先完成，以便其证据量参与是否需要联网的判定；这不表示金融数据高于本地新闻。金融数据集完全通过资产索引动态匹配，不依赖模型传入 `financial_data_required`，也不硬编码业务关键词或数据集名称。
+
+本地金融数据记录与本地新闻命中的合计证据量达到 `chatchat.runtime.news.web-search.minimum-local-results`（默认 `3`）时，不调用付费联网 API。`force-external` 仅作为显式运维覆盖开关，并通过 `retrievalOrder`、`externalSearchRole`、`localEvidenceSufficient` 和 `externalSearchRequired` 返回实际路由信息，便于审计。
+
 ## MCP 发布命名规范
 
 MCP 发布名称必须与 API 流程审核使用的规范工具名一致。

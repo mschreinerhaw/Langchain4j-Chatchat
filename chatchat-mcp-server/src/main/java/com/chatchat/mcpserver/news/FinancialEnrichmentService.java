@@ -76,7 +76,7 @@ public class FinancialEnrichmentService {
                 List<Map<String, Object>> resolved = store.resolveEntityFilters(dataset, query, 5);
                 Map<String, Object> filters = resolved.isEmpty() ? Map.of() : resolved.get(0);
                 Map<String, Object> result = new java.util.LinkedHashMap<>(cachedQuery(
-                    dataset, filters, startDate, endDate, rowLimit, historyMode));
+                    dataset, filters, startDate, endDate, rowLimit, historyMode, input));
                 result.put("dataset", dataset);
                 result.put("resultType", "financial_dataset_query");
                 result.put("retrievalSource", "governed_financial_store");
@@ -103,17 +103,41 @@ public class FinancialEnrichmentService {
         LocalDate endDate = date(input.getParameterAsString("endDate", ""));
         String historyMode = input.getParameterAsString("historyMode", "auto");
         int rowLimit = bounded(input.getParameterAsNumber("limit"), 50, 1, 200);
-        return cachedQuery(dataset, filters, startDate, endDate, rowLimit, historyMode);
+        return cachedQuery(dataset, filters, startDate, endDate, rowLimit, historyMode, input);
     }
 
     private Map<String, Object> cachedQuery(String dataset, Map<String, Object> filters,
                                             LocalDate startDate, LocalDate endDate, int rowLimit,
-                                            String historyMode) {
+                                            String historyMode, ToolInput input) {
         if (queryCache == null) {
             return store.query(dataset, filters, startDate, endDate, rowLimit, historyMode);
         }
         return queryCache.getOrLoad(dataset, filters, startDate, endDate, rowLimit, historyMode,
+            tenantScope(input),
             () -> store.query(dataset, filters, startDate, endDate, rowLimit, historyMode));
+    }
+
+    private String tenantScope(ToolInput input) {
+        if (input == null) return "";
+        String direct = textValue(input.getParameter("tenantId"));
+        if (!direct.isBlank()) return direct;
+        direct = textValue(input.getContext() == null ? null : input.getContext().get("tenantId"));
+        if (!direct.isBlank()) return direct;
+        Object mcpContext = input.getParameter("mcpContext");
+        if (mcpContext instanceof Map<?, ?> context) {
+            direct = textValue(context.get("tenantId"));
+            if (!direct.isBlank()) return direct;
+            Object tenant = context.get("tenant");
+            if (tenant instanceof Map<?, ?> tenantMap) {
+                direct = textValue(tenantMap.get("tenantId"));
+                if (!direct.isBlank()) return direct;
+            }
+        }
+        return "";
+    }
+
+    private String textValue(Object value) {
+        return value == null ? "" : String.valueOf(value).trim();
     }
 
     boolean needsFinancialEnrichment(ToolInput input) {

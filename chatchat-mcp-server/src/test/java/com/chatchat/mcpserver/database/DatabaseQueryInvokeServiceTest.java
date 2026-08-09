@@ -48,10 +48,11 @@ class DatabaseQueryInvokeServiceTest {
 
     @BeforeEach
     void setUpCache() {
-        when(cacheService.getOrLoad(any(DatabaseQueryConfig.class), anyMap(), any()))
+        when(cacheService.getOrLoad(any(DatabaseQueryConfig.class), anyMap(),
+            any(DatabaseQueryCacheService.CacheScope.class), any()))
             .thenAnswer(invocation -> {
                 @SuppressWarnings("unchecked")
-                Supplier<ToolOutput> loader = invocation.getArgument(2);
+                Supplier<ToolOutput> loader = invocation.getArgument(3);
                 return loader.get();
             });
     }
@@ -89,9 +90,15 @@ class DatabaseQueryInvokeServiceTest {
     void executesBuiltInFinancialSampleWithoutExternalDatasourceCredentials() {
         FinancialMarketQueryExecutor executor = mock(FinancialMarketQueryExecutor.class);
         service.setFinancialMarketQueryExecutor(executor);
+        Map<String, Object> arguments = Map.of(
+            "mcpContext", Map.of(
+                "tenant", Map.of("tenantId", "tenant-a"),
+                "user", Map.of("userId", "user-a")
+            )
+        );
         when(executor.execute(
             eq("SELECT dataset_code FROM market_asset_catalog"),
-            eq(Map.of()), eq(25), eq(30)
+            eq(arguments), eq(25), eq(30)
         )).thenReturn(new FinancialMarketQueryExecutor.QueryResult(
             "SELECT dataset_code FROM market_asset_catalog",
             List.of("dataset_code"),
@@ -108,7 +115,7 @@ class DatabaseQueryInvokeServiceTest {
         config.setMaxRows(25);
         config.setTimeoutSeconds(30);
 
-        ToolOutput output = service.invoke(config, Map.of());
+        ToolOutput output = service.invoke(config, arguments);
 
         assertThat(output.isSuccess()).isTrue();
         assertThat(output.getData()).asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
@@ -116,7 +123,9 @@ class DatabaseQueryInvokeServiceTest {
             .containsEntry("rowCount", 1)
             .containsEntry("governedFinancialTablesOnly", true);
         verify(executor).execute(
-            "SELECT dataset_code FROM market_asset_catalog", Map.of(), 25, 30);
+            "SELECT dataset_code FROM market_asset_catalog", arguments, 25, 30);
+        verify(cacheService).getOrLoad(eq(config), eq(Map.of()),
+            eq(new DatabaseQueryCacheService.CacheScope("tenant-a", "user-a")), any());
     }
 
     @Test

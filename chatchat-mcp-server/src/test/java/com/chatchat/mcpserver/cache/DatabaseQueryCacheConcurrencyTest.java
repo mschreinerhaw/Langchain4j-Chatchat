@@ -6,6 +6,7 @@ import com.chatchat.mcpserver.mcp.McpInvocationContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,45 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class DatabaseQueryCacheConcurrencyTest {
+
+    @Test
+    void missingTenantFailsClosedAndDoesNotCreateSharedFallbackCache() {
+        CacheFixture fixture = fixture("TEMPLATE_ID_PARAMS_DATASOURCE", "ROCKSDB");
+        AtomicInteger loads = new AtomicInteger();
+
+        ToolOutput first = fixture.service().getOrLoad(fixture.template(), Map.of("market", "SH"),
+            () -> result("load-" + loads.incrementAndGet()));
+        ToolOutput second = fixture.service().getOrLoad(fixture.template(), Map.of("market", "SH"),
+            () -> result("load-" + loads.incrementAndGet()));
+
+        assertThat(loads).hasValue(2);
+        assertThat(first.getMetadata()).containsEntry("cacheStored", false)
+            .containsEntry("cacheBypassReason", "tenant_context_unavailable");
+        assertThat(second.getMetadata()).containsEntry("cacheHit", false);
+    }
+
+    @Test
+    void explicitMcpScopeCachesWithoutWorkerThreadContextAndSeparatesTenants() {
+        CacheFixture fixture = fixture("TEMPLATE_ID_PARAMS_DATASOURCE", "ROCKSDB");
+        AtomicInteger loads = new AtomicInteger();
+        DatabaseQueryCacheService.CacheScope tenantA =
+            new DatabaseQueryCacheService.CacheScope("tenant-a", "user-a");
+        DatabaseQueryCacheService.CacheScope tenantB =
+            new DatabaseQueryCacheService.CacheScope("tenant-b", "user-b");
+
+        ToolOutput first = fixture.service().getOrLoad(fixture.template(), Map.of("market", "SH"), tenantA,
+            () -> result("load-" + loads.incrementAndGet()));
+        ToolOutput hit = fixture.service().getOrLoad(fixture.template(), Map.of("market", "SH"), tenantA,
+            () -> result("load-" + loads.incrementAndGet()));
+        ToolOutput otherTenant = fixture.service().getOrLoad(fixture.template(), Map.of("market", "SH"), tenantB,
+            () -> result("load-" + loads.incrementAndGet()));
+
+        assertThat(loads).hasValue(2);
+        assertThat(first.getMetadata()).containsEntry("cacheHit", false);
+        assertThat(hit.getMetadata()).containsEntry("cacheHit", true)
+            .containsEntry("cacheHitCount", 1L);
+        assertThat(otherTenant.getMetadata()).containsEntry("cacheHit", false);
+    }
 
     @ParameterizedTest
     @ValueSource(strings = {"ROCKSDB", "REDIS"})

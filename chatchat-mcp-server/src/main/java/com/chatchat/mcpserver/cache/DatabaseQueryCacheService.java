@@ -24,6 +24,7 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
 @Slf4j
@@ -41,22 +42,39 @@ public class DatabaseQueryCacheService {
     private final DatabaseQueryCacheConfigService configService;
     private final Map<String, CompletableFuture<Void>> inFlightLoads = new ConcurrentHashMap<>();
     private final Map<String, Object> hitLocks = new ConcurrentHashMap<>();
+    private final AtomicLong bypassNoTenantCount = new AtomicLong();
 
     public ToolOutput getOrLoad(DatabaseQueryConfig config,
                                 Map<String, Object> parameters,
                                 Supplier<ToolOutput> loader) {
+        return getOrLoad(config, parameters, invocationScope(), loader);
+    }
+
+    public ToolOutput getOrLoad(DatabaseQueryConfig config,
+                                Map<String, Object> parameters,
+                                CacheScope requestedScope,
+                                Supplier<ToolOutput> loader) {
         if (loader == null) {
             throw new IllegalArgumentException("Database query cache loader is required");
         }
-        Optional<ToolOutput> cached = get(config, parameters);
-        if (cached.isPresent()) {
-            return cached.get();
-        }
+        CacheScope scope = normalizeScope(requestedScope);
         DatabaseQueryCacheConfig cacheConfig = configService.current();
         if (!isUsable(config, cacheConfig)) {
             return loader.get();
         }
-        String key = key(config, parameters);
+        if (!scope.hasTenant()) {
+            bypassNoTenantCount.incrementAndGet();
+            ToolOutput loaded = loader.get();
+            markCacheBypass(loaded, "tenant_context_unavailable");
+            log.warn("Database query cache bypassed because tenant context is unavailable templateId={} tool={}",
+                config.getId(), config.getToolName());
+            return loaded;
+        }
+        Optional<ToolOutput> cached = get(config, parameters, scope);
+        if (cached.isPresent()) {
+            return cached.get();
+        }
+        String key = key(config, parameters, scope);
         CompletableFuture<Void> ownLoad = new CompletableFuture<>();
         CompletableFuture<Void> activeLoad = inFlightLoads.putIfAbsent(key, ownLoad);
         if (activeLoad != null) {
@@ -65,18 +83,18 @@ public class DatabaseQueryCacheService {
             } catch (CompletionException ignored) {
                 // The failed leader did not publish a cache entry. This caller may retry normally.
             }
-            return get(config, parameters).orElseGet(loader);
+            return get(config, parameters, scope).orElseGet(loader);
         }
         try {
             // A previous leader may have completed between the initial cache read and
             // this request acquiring leadership. Recheck before invoking the loader.
-            Optional<ToolOutput> filledByPreviousLoad = get(config, parameters);
+            Optional<ToolOutput> filledByPreviousLoad = get(config, parameters, scope);
             if (filledByPreviousLoad.isPresent()) {
                 ownLoad.complete(null);
                 return filledByPreviousLoad.get();
             }
             ToolOutput loaded = loader.get();
-            put(config, parameters, loaded);
+            put(config, parameters, scope, loaded);
             ownLoad.complete(null);
             return loaded;
         } catch (RuntimeException ex) {
@@ -88,11 +106,16 @@ public class DatabaseQueryCacheService {
     }
 
     public Optional<ToolOutput> get(DatabaseQueryConfig config, Map<String, Object> parameters) {
+        return get(config, parameters, invocationScope());
+    }
+
+    private Optional<ToolOutput> get(DatabaseQueryConfig config, Map<String, Object> parameters,
+                                     CacheScope scope) {
         DatabaseQueryCacheConfig cacheConfig = configService.current();
-        if (!isUsable(config, cacheConfig)) {
+        if (!isUsable(config, cacheConfig) || !scope.hasTenant()) {
             return Optional.empty();
         }
-        String key = key(config, parameters);
+        String key = key(config, parameters, scope);
         try {
             byte[] raw = useRedis(config) ? redisCacheStore.get(key) : rocksDbStore.get(key);
             if (raw == null) {
@@ -104,7 +127,7 @@ public class DatabaseQueryCacheService {
                 delete(config, key);
                 return Optional.empty();
             }
-            DatabaseQueryCacheEntry updated = recordHit(config, parameters, key, entry, now);
+            DatabaseQueryCacheEntry updated = recordHit(config, parameters, scope, key, entry, now);
             ToolOutput output = updated.result();
             if (output.getMetadata() == null) {
                 output.setMetadata(new LinkedHashMap<>());
@@ -124,8 +147,13 @@ public class DatabaseQueryCacheService {
     }
 
     public void put(DatabaseQueryConfig config, Map<String, Object> parameters, ToolOutput result) {
+        put(config, parameters, invocationScope(), result);
+    }
+
+    private void put(DatabaseQueryConfig config, Map<String, Object> parameters,
+                     CacheScope scope, ToolOutput result) {
         DatabaseQueryCacheConfig cacheConfig = configService.current();
-        if (!isUsable(config, cacheConfig) || result == null) {
+        if (!isUsable(config, cacheConfig) || !scope.hasTenant() || result == null) {
             return;
         }
         if (!shouldCache(cacheConfig, result)) {
@@ -140,7 +168,7 @@ public class DatabaseQueryCacheService {
         cached.getMetadata().put("cacheKeySchemaVersion", KEY_SCHEMA_VERSION);
         cached.getMetadata().put("cacheHitCount", 0L);
         cached.getMetadata().put("cacheLastHitAt", 0L);
-        DatabaseQueryCacheEntry.Descriptor descriptor = descriptor(config, parameters);
+        DatabaseQueryCacheEntry.Descriptor descriptor = descriptor(config, parameters, scope);
         DatabaseQueryCacheEntry entry = new DatabaseQueryCacheEntry(cached, now, expiresAt,
             descriptor, 0L, 0L);
         try {
@@ -148,7 +176,7 @@ public class DatabaseQueryCacheService {
             if (payload.length > Math.max(1, cacheConfig.getMaxEntryKb()) * 1024L) {
                 return;
             }
-            String key = key(config, parameters);
+            String key = key(config, parameters, scope);
             if (useRedis(config)) {
                 redisCacheStore.put(key, payload, config.getCacheTtlSeconds());
             } else {
@@ -229,12 +257,13 @@ public class DatabaseQueryCacheService {
     public CacheStats stats() {
         CacheOverview overview = overview(1);
         return new CacheStats(overview.available(), overview.entries(), overview.expiredEntries(),
-            overview.hitCount(), overview.bytes(), overview.measuredAt());
+            overview.hitCount(), overview.bytes(), overview.bypassNoTenantCount(), overview.measuredAt());
     }
 
     public CacheOverview overview(int requestedLimit) {
         if (!rocksDbStore.isUsable() && !redisCacheStore.isUsable()) {
-            return new CacheOverview(false, List.of(), 0, 0, 0, 0, false, System.currentTimeMillis());
+            return new CacheOverview(false, List.of(), 0, 0, 0, 0,
+                bypassNoTenantCount.get(), false, System.currentTimeMillis());
         }
         long now = System.currentTimeMillis();
         int displayLimit = Math.max(1, Math.min(requestedLimit, 1000));
@@ -274,7 +303,7 @@ public class DatabaseQueryCacheService {
         List<CacheItem> visible = items.size() <= displayLimit
             ? List.copyOf(items) : List.copyOf(items.subList(0, displayLimit));
         return new CacheOverview(true, visible, allEntries.size(), expiredEntries,
-            hitCount, bytes, truncated, now);
+            hitCount, bytes, bypassNoTenantCount.get(), truncated, now);
     }
 
     private CacheItem cacheItem(String storage, McpRocksDbStore.KeyValue value, long now) {
@@ -295,7 +324,8 @@ public class DatabaseQueryCacheService {
         }
     }
 
-    private DatabaseQueryCacheEntry recordHit(DatabaseQueryConfig config, Map<String, Object> parameters, String key,
+    private DatabaseQueryCacheEntry recordHit(DatabaseQueryConfig config, Map<String, Object> parameters,
+                                               CacheScope scope, String key,
                                                DatabaseQueryCacheEntry original, long now) {
         Object lock = hitLocks.computeIfAbsent(key, ignored -> new Object());
         synchronized (lock) {
@@ -308,7 +338,7 @@ public class DatabaseQueryCacheService {
                 result.getMetadata().put("cacheHitCount", nextHitCount);
                 result.getMetadata().put("cacheLastHitAt", now);
                 DatabaseQueryCacheEntry.Descriptor descriptor = latest.descriptor() == null
-                    ? descriptor(config, parameters) : latest.descriptor();
+                    ? descriptor(config, parameters, scope) : latest.descriptor();
                 DatabaseQueryCacheEntry updated = new DatabaseQueryCacheEntry(result, latest.createdAt(),
                     latest.expiresAt(), descriptor, nextHitCount, now);
                 byte[] payload = objectMapper.writeValueAsBytes(updated);
@@ -366,16 +396,20 @@ public class DatabaseQueryCacheService {
     }
 
     String key(DatabaseQueryConfig config, Map<String, Object> parameters) {
+        return key(config, parameters, invocationScope());
+    }
+
+    private String key(DatabaseQueryConfig config, Map<String, Object> parameters, CacheScope scope) {
         try {
             Map<String, Object> identity = new LinkedHashMap<>();
             identity.put("schemaVersion", KEY_SCHEMA_VERSION);
             identity.put("templateId", config.getId());
             identity.put("templateRevision", config.getUpdatedAt() == null ? null : config.getUpdatedAt().toEpochMilli());
             identity.put("datasourceId", config.getDatasourceId());
-            identity.put("tenantId", invocationTenant());
+            identity.put("tenantId", scope.tenantId());
             identity.put("parameters", normalize(parameters == null ? Map.of() : parameters));
             if ("TEMPLATE_ID_PARAMS_DATASOURCE_USER".equals(configService.current().getKeyStrategy())) {
-                identity.put("user", invocationUser());
+                identity.put("user", scope.userId());
             }
             String canonicalJson = ModelProtocolJson.compact(identity);
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -392,24 +426,19 @@ public class DatabaseQueryCacheService {
 
     private String invocationTenant() {
         McpInvocationContext.Context context = McpInvocationContext.current();
-        if (context == null || context.tenantId() == null || context.tenantId().isBlank()) {
-            return "tenant-unspecified";
-        }
-        return context.tenantId().trim();
+        return context == null || context.tenantId() == null ? "" : context.tenantId().trim();
     }
 
     private String invocationUser() {
         McpInvocationContext.Context context = McpInvocationContext.current();
-        if (context == null) {
-            return "anonymous";
-        }
+        if (context == null) return "";
         if (context.userId() != null && !context.userId().isBlank()) {
             return context.userId().trim();
         }
         if (context.username() != null && !context.username().isBlank()) {
             return context.username().trim();
         }
-        return "anonymous";
+        return "";
     }
 
     private ToolOutput copyForCache(ToolOutput source) {
@@ -456,10 +485,29 @@ public class DatabaseQueryCacheService {
     }
 
     private DatabaseQueryCacheEntry.Descriptor descriptor(DatabaseQueryConfig config,
-                                                           Map<String, Object> parameters) {
-        return new DatabaseQueryCacheEntry.Descriptor(invocationTenant(),
-            userScoped(config) ? invocationUser() : "", config.getId(), config.getToolName(),
+                                                           Map<String, Object> parameters,
+                                                           CacheScope scope) {
+        return new DatabaseQueryCacheEntry.Descriptor(scope.tenantId(),
+            userScoped(config) ? scope.userId() : "", config.getId(), config.getToolName(),
             config.getTitle(), config.getDatasourceId(), normalizedParameters(parameters));
+    }
+
+    private CacheScope invocationScope() {
+        return new CacheScope(invocationTenant(), invocationUser());
+    }
+
+    private CacheScope normalizeScope(CacheScope scope) {
+        if (scope == null) return new CacheScope("", "");
+        return new CacheScope(scope.tenantId() == null ? "" : scope.tenantId().trim(),
+            scope.userId() == null ? "" : scope.userId().trim());
+    }
+
+    private void markCacheBypass(ToolOutput output, String reason) {
+        if (output == null) return;
+        if (output.getMetadata() == null) output.setMetadata(new LinkedHashMap<>());
+        output.getMetadata().put("cacheHit", false);
+        output.getMetadata().put("cacheStored", false);
+        output.getMetadata().put("cacheBypassReason", reason);
     }
 
     private String sanitize(String value) {
@@ -513,6 +561,7 @@ public class DatabaseQueryCacheService {
         int expiredEntries,
         long hitCount,
         long bytes,
+        long bypassNoTenantCount,
         long measuredAt
     ) {
     }
@@ -524,5 +573,9 @@ public class DatabaseQueryCacheService {
 
     public record CacheOverview(boolean available, List<CacheItem> items, int entries,
                                 int expiredEntries, long hitCount, long bytes,
-                                boolean truncated, long measuredAt) { }
+                                long bypassNoTenantCount, boolean truncated, long measuredAt) { }
+
+    public record CacheScope(String tenantId, String userId) {
+        public boolean hasTenant() { return tenantId != null && !tenantId.isBlank(); }
+    }
 }

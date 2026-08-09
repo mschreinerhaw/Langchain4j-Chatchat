@@ -12,7 +12,7 @@ export default {
       busy: false,
       activeTab: 'templates',
       config: {
-        enabled: false,
+        enabled: true,
         defaultTtlSeconds: 300,
         maxRows: 1000,
         maxEntryKb: 512,
@@ -21,7 +21,7 @@ export default {
         cacheErrorResults: false
       },
       stats: {},
-      databaseOverview: { items: [], entries: 0, expiredEntries: 0, hitCount: 0, bytes: 0 },
+      databaseOverview: { items: [], entries: 0, expiredEntries: 0, hitCount: 0, bytes: 0, bypassNoTenantCount: 0 },
       financialConfig: {
         enabled: true,
         storage: 'ROCKSDB',
@@ -30,7 +30,11 @@ export default {
         maxEntryKb: 2048,
         singleFlightGraceMs: 500
       },
-      financialOverview: { items: [], entries: 0, expiredEntries: 0, hitCount: 0, bytes: 0 },
+      financialOverview: {
+        items: [], entries: 0, expiredEntries: 0, hitCount: 0, bytes: 0,
+        selectedStorageAvailable: true, bypassNoTenantCount: 0, writeFailureCount: 0,
+        oversizedSkipCount: 0, lastWriteFailure: ''
+      },
       templates: [],
       templatePickerOpen: false,
       templatePickerKeyword: '',
@@ -60,23 +64,79 @@ export default {
     };
   },
   computed: {
-    status() {
-      if (!this.config.enabled) {
-        return '未启用';
+    cacheModuleEnabled: {
+      get() {
+        return this.config.enabled && this.financialConfig.enabled;
+      },
+      set(enabled) {
+        this.config.enabled = enabled;
+        this.financialConfig.enabled = enabled;
       }
-      return this.stats.storeAvailable ? '运行中' : '存储不可用';
+    },
+    status() {
+      if (!this.config.enabled && !this.financialConfig.enabled) return '未启用';
+      const databaseUnavailable = this.config.enabled && !this.stats.storeAvailable;
+      const financialUnavailable = this.financialConfig.enabled
+        && this.financialOverview.selectedStorageAvailable === false;
+      return databaseUnavailable || financialUnavailable ? '部分存储不可用' : '运行中';
     },
     bytes() {
-      return formatBytes(this.stats.bytes || 0);
+      return formatBytes(Number(this.stats.bytes || 0) + Number(this.financialOverview.bytes || 0));
     },
-    financialStatus() {
-      return this.financialConfig.enabled ? '运行中' : '未启用';
+    unifiedStats() {
+      return {
+        entries: Number(this.stats.entries || 0) + Number(this.financialOverview.entries || 0),
+        expiredEntries: Number(this.stats.expiredEntries || 0) + Number(this.financialOverview.expiredEntries || 0),
+        hitCount: Number(this.stats.hitCount || 0) + Number(this.financialOverview.hitCount || 0)
+      };
     },
-    financialBytes() {
-      return formatBytes(this.financialOverview.bytes || 0);
+    databaseCacheWarning() {
+      if (!this.config.enabled || !(this.stats.bypassNoTenantCount > 0)) return '';
+      return `有 ${this.stats.bypassNoTenantCount} 次能力中心查询因缺少租户上下文而未写入缓存；已安全绕过，未使用共享租户缓存。`;
+    },
+    financialCacheWarning() {
+      if (!this.financialConfig.enabled) return '';
+      if (this.financialOverview.selectedStorageAvailable === false) {
+        return `当前选择的 ${this.financialConfig.storage} 缓存存储不可用，查询结果不会写入缓存。`;
+      }
+      const reasons = [];
+      if (this.financialOverview.bypassNoTenantCount > 0) {
+        reasons.push(`缺少租户上下文而绕过 ${this.financialOverview.bypassNoTenantCount} 次`);
+      }
+      if (this.financialOverview.writeFailureCount > 0) {
+        reasons.push(`写入失败 ${this.financialOverview.writeFailureCount} 次`);
+      }
+      if (this.financialOverview.oversizedSkipCount > 0) {
+        reasons.push(`结果超出大小限制 ${this.financialOverview.oversizedSkipCount} 次`);
+      }
+      const detail = this.financialOverview.lastWriteFailure ? `；最近原因：${this.financialOverview.lastWriteFailure}` : '';
+      return reasons.length ? `存在未缓存查询：${reasons.join('，')}${detail}` : '';
+    },
+    cacheWarnings() {
+      return [this.databaseCacheWarning, this.financialCacheWarning].filter(Boolean);
     },
     cachedTemplates() {
       return this.templates.filter(item => item.cacheEnabled);
+    },
+    unifiedCacheRows() {
+      const entriesByTemplate = new Map();
+      (this.databaseOverview.items || []).forEach(item => {
+        const templateId = item.templateId || 'legacy-entry';
+        if (!entriesByTemplate.has(templateId)) entriesByTemplate.set(templateId, []);
+        entriesByTemplate.get(templateId).push(item);
+      });
+      const configuredIds = new Set(this.cachedTemplates.map(item => item.id));
+      const rows = this.cachedTemplates.map(template => {
+        const cacheItems = entriesByTemplate.get(template.id) || [];
+        return this.databaseCacheRow(template.id, 'CAPABILITY_CENTER', template, cacheItems);
+      });
+      entriesByTemplate.forEach((cacheItems, templateId) => {
+        if (configuredIds.has(templateId)) return;
+        const template = this.templates.find(item => item.id === templateId) || null;
+        rows.push(this.databaseCacheRow(templateId, 'EXISTING_CACHE', template, cacheItems));
+      });
+      rows.push(this.financialCacheRow());
+      return rows;
     },
     templateCategories() {
       const categories = new Map();
@@ -127,6 +187,40 @@ export default {
     }
   },
   methods: {
+    databaseCacheRow(templateId, source, template, cacheItems) {
+      const items = cacheItems || [];
+      return {
+        key: `${source}:${templateId}`,
+        source,
+        template,
+        templateId,
+        title: template?.title || items[0]?.title || items[0]?.toolName || templateId,
+        toolName: template?.toolName || items[0]?.toolName || '',
+        datasourceId: template?.datasourceId || items[0]?.datasourceId || '',
+        category: template?.categoryName || template?.category || 'default',
+        cacheItems: items,
+        entryCount: items.length,
+        hitCount: items.reduce((total, item) => total + Number(item.hitCount || 0), 0),
+        lastHitAt: items.reduce((latest, item) => Math.max(latest, Number(item.lastHitAt || 0)), 0)
+      };
+    },
+    financialCacheRow() {
+      const items = this.financialOverview.items || [];
+      return {
+        key: 'BUILT_IN:financial_data_search',
+        source: 'BUILT_IN',
+        template: null,
+        templateId: 'financial_data_search',
+        title: '内置金融数据查询',
+        toolName: 'financial_data_search',
+        datasourceId: '内置金融数据源',
+        category: '内置数据源',
+        cacheItems: items,
+        entryCount: Number(this.financialOverview.entries || 0),
+        hitCount: Number(this.financialOverview.hitCount || 0),
+        lastHitAt: items.reduce((latest, item) => Math.max(latest, Number(item.lastHitAt || 0)), 0)
+      };
+    },
     async load() {
       this.busy = true;
       try {
@@ -163,22 +257,23 @@ export default {
         await this.saveRedis();
         return;
       }
-      if (this.activeTab === 'financial') {
-        await this.saveFinancial();
-        return;
-      }
       if (this.templates.some(item => item.cacheEnabled && (!item.cacheTtlSeconds || item.cacheTtlSeconds < 1))) {
         this.$emit('error', new Error('已启用缓存的 SQL 模板必须填写有效 TTL'));
         return;
       }
+      if (this.financialConfig.enabled && this.financialConfig.storage === 'REDIS' && !this.redis.enabled) {
+        this.$emit('error', new Error('请先启用并配置 Redis 缓存存储'));
+        return;
+      }
       await this.run(async () => {
         await cacheApi.saveConfig(this.config);
+        await cacheApi.saveFinancialConfig(this.financialConfig);
         await Promise.all(this.templates.map(item => cacheApi.saveTemplate(item.id, {
           cacheEnabled: item.cacheEnabled,
           cacheTtlSeconds: item.cacheTtlSeconds,
           cacheStorage: item.cacheStorage || 'ROCKSDB'
         })));
-      }, '模板缓存策略已保存');
+      }, '缓存策略已保存');
       await this.load();
     },
     openTemplatePicker() {
@@ -278,14 +373,6 @@ export default {
       await this.run(() => cacheApi.saveRedisConfig(payload), 'Redis 缓存存储配置已保存');
       await this.load();
     },
-    async saveFinancial() {
-      if (this.financialConfig.storage === 'REDIS' && !this.redis.enabled) {
-        this.$emit('error', new Error('请先启用并配置 Redis 缓存存储'));
-        return;
-      }
-      await this.run(() => cacheApi.saveFinancialConfig(this.financialConfig), '金融数据缓存策略已保存');
-      await this.load();
-    },
     formatFinancialFilters(filters) {
       const entries = Object.entries(filters || {});
       return entries.length ? entries.map(([key, value]) => {
@@ -304,14 +391,20 @@ export default {
       if (!value) return '-';
       return new Date(value).toLocaleString('zh-CN', { hour12: false });
     },
-    async cleanupFinancialExpired() {
-      if (!window.confirm('确定清理已过期的金融数据缓存吗？')) return;
-      await this.run(cacheApi.cleanupFinancialExpired, '过期金融缓存已清理');
+    async cleanupAllExpired() {
+      if (!window.confirm('确定清理全部来源的过期查询缓存吗？')) return;
+      await this.run(() => Promise.all([
+        cacheApi.cleanupExpired(),
+        cacheApi.cleanupFinancialExpired()
+      ]), '全部来源的过期缓存已清理');
       await this.load();
     },
-    async evictFinancialAll() {
-      if (!window.confirm('确定清理全部 financial_data_search 金融缓存吗？')) return;
-      await this.run(cacheApi.evictFinancialAll, '全部金融缓存已清理');
+    async evictAllCaches() {
+      if (!window.confirm('确定清理能力中心和内置数据源的全部查询缓存吗？')) return;
+      await this.run(() => Promise.all([
+        cacheApi.evictAll(),
+        cacheApi.evictFinancialAll()
+      ]), '全部查询缓存已清理');
       await this.load();
     },
     async testRedis() {
@@ -326,16 +419,6 @@ export default {
         successTitle: 'Redis 连接测试成功',
         failureTitle: 'Redis 连接测试失败'
       });
-    },
-    async cleanupExpired() {
-      if (!window.confirm('确定清理已过期的数据库查询缓存吗？')) return;
-      await this.run(cacheApi.cleanupExpired, '过期缓存已清理');
-      await this.load();
-    },
-    async evictAll() {
-      if (!window.confirm('确定清理全部数据库查询缓存吗？')) return;
-      await this.run(cacheApi.evictAll, '全部缓存已清理');
-      await this.load();
     },
     async run(action, title) {
       this.busy = true;

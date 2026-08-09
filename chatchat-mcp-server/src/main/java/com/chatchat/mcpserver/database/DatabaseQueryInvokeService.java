@@ -88,12 +88,16 @@ public class DatabaseQueryInvokeService {
                 config.getMaxRows(),
                 config.getSqlTemplate(),
                 ToolLogSummarizer.summarize(arguments));
+            DatabaseQueryCacheService.CacheScope cacheScope = cacheScope(auditArgs);
             if (isInternalFinancialMarketQuery(config)) {
-                output = invokeInternalFinancialMarket(config, auditArgs, startedAt);
+                Map<String, Object> cacheParameters = cacheIdentityArguments(auditArgs);
+                if (administrationPreview) cacheParameters.put("administration_preview", true);
+                output = cacheService.getOrLoad(config, cacheParameters, cacheScope,
+                    () -> invokeInternalFinancialMarket(config, auditArgs, startedAt));
             } else {
                 Map<String, Object> parameters = toParameters(config, auditArgs);
                 if (administrationPreview) parameters.put("administration_preview", true);
-                output = cacheService.getOrLoad(config, parameters, () -> {
+                output = cacheService.getOrLoad(config, parameters, cacheScope, () -> {
                     ToolOutput loaded = hasSqlSteps(config)
                         ? invokeConfiguredSqlSteps(config, parameters, startedAt)
                         : invoke(parameters);
@@ -102,14 +106,14 @@ public class DatabaseQueryInvokeService {
                     }
                     return loaded;
                 });
-                if (output.getMetadata() != null
-                    && Boolean.TRUE.equals(output.getMetadata().get("cacheHit"))) {
-                    output.setExecutionTimeMs(Math.max(0L, System.currentTimeMillis() - startedAt));
-                    log.info("Database query invoke cache hit databaseQueryId={} tool={} durationMs={}",
-                        config.getId(),
-                        config.getToolName(),
-                        Math.max(0L, System.currentTimeMillis() - startedAt));
-                }
+            }
+            if (output.getMetadata() != null
+                && Boolean.TRUE.equals(output.getMetadata().get("cacheHit"))) {
+                output.setExecutionTimeMs(Math.max(0L, System.currentTimeMillis() - startedAt));
+                log.info("Database query invoke cache hit databaseQueryId={} tool={} durationMs={}",
+                    config.getId(),
+                    config.getToolName(),
+                    Math.max(0L, System.currentTimeMillis() - startedAt));
             }
         } catch (Exception ex) {
             log.warn("Database query invoke failed databaseQueryId={} tool={} error={}",
@@ -786,6 +790,50 @@ public class DatabaseQueryInvokeService {
             text(nested, "username"),
             "mcp-tool"
         );
+    }
+
+    private DatabaseQueryCacheService.CacheScope cacheScope(Map<String, Object> arguments) {
+        McpInvocationContext.Context context = McpInvocationContext.current();
+        Map<String, Object> mcpContext = mapValue(arguments == null ? null : arguments.get("mcpContext"));
+        Map<String, Object> tenant = mapValue(mcpContext.get("tenant"));
+        Map<String, Object> identity = mapValue(mcpContext.get("identity"));
+        Map<String, Object> user = mapValue(mcpContext.get("user"));
+        String tenantId = firstText(
+            context == null ? null : context.tenantId(),
+            text(arguments, "tenantId"),
+            text(arguments, "tenant_id"),
+            text(mcpContext, "tenantId"),
+            text(tenant, "tenantId"),
+            text(tenant, "tenant_id")
+        );
+        String userId = firstText(
+            context == null ? null : context.userId(),
+            context == null ? null : context.username(),
+            text(arguments, "userId"),
+            text(arguments, "username"),
+            text(mcpContext, "userId"),
+            text(identity, "userId"),
+            text(identity, "username"),
+            text(user, "userId"),
+            text(user, "username")
+        );
+        return new DatabaseQueryCacheService.CacheScope(
+            tenantId == null ? "" : tenantId,
+            userId == null ? "" : userId
+        );
+    }
+
+    private Map<String, Object> cacheIdentityArguments(Map<String, Object> arguments) {
+        if (arguments == null || arguments.isEmpty()) return new LinkedHashMap<>();
+        Set<String> envelopeFields = Set.of(
+            "tenantId", "tenant_id", "userId", "user_id", "username", "roles", "roleIds",
+            "requestId", "conversationId", "traceId", "workspaceId", "mcpContext", "mcpExecutionContext"
+        );
+        Map<String, Object> result = new LinkedHashMap<>();
+        arguments.forEach((key, value) -> {
+            if (key != null && !envelopeFields.contains(key)) result.put(key, value);
+        });
+        return result;
     }
 
     /**

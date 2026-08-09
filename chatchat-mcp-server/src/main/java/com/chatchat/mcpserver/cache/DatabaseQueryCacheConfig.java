@@ -20,7 +20,7 @@ public class DatabaseQueryCacheConfig {
     private String id = DEFAULT_ID;
 
     @Column(nullable = false)
-    private boolean enabled = false;
+    private boolean enabled = true;
 
     @Column(nullable = false)
     private int defaultTtlSeconds = 300;

@@ -13,6 +13,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 
 class FinancialEnrichmentServiceTest {
 
@@ -124,5 +126,24 @@ class FinancialEnrichmentServiceTest {
             assertThat(data).containsEntry("dataset", "runtime_market_dataset"));
         assertThat(result.warnings()).anyMatch(value -> value.contains("no matching observations"));
         verify(store, never()).query("unused_candidate", Map.of(), null, null, 20, "auto");
+    }
+
+    @Test
+    void propagatesTenantFromMcpArgumentsIntoFinancialCacheScope() {
+        FinancialAssetCatalogService catalog = mock(FinancialAssetCatalogService.class);
+        FinancialDataStore store = mock(FinancialDataStore.class);
+        FinancialQueryCacheService cache = mock(FinancialQueryCacheService.class);
+        when(cache.getOrLoad(eq("fund_scale"), eq(Map.of()), eq(null), eq(null), eq(50), eq("auto"),
+            eq("tenant-9001"), any())).thenReturn(Map.of("rows", List.of(Map.of("fund", "ETF"))));
+        FinancialEnrichmentService service = new FinancialEnrichmentService(catalog, store, cache);
+        ToolInput input = ToolInput.builder().parameters(Map.of(
+            "dataset", "fund_scale",
+            "mcpContext", Map.of("tenant", Map.of("tenantId", "tenant-9001")))).build();
+
+        Map<String, Object> result = service.queryDataset("fund_scale", input);
+
+        assertThat(result).containsKey("rows");
+        verify(cache).getOrLoad(eq("fund_scale"), eq(Map.of()), eq(null), eq(null), eq(50), eq("auto"),
+            eq("tenant-9001"), any());
     }
 }

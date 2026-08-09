@@ -178,6 +178,31 @@ class FinancialQueryCacheServiceTest {
         verify(rocks, org.mockito.Mockito.never()).put(anyString(), any(byte[].class));
     }
 
+    @Test
+    void explicitMcpTenantScopeCachesWhenWorkerThreadContextIsUnavailable() throws Exception {
+        MarketModuleProperties properties = new MarketModuleProperties();
+        McpRocksDbStore rocks = mock(McpRocksDbStore.class);
+        AtomicReference<byte[]> stored = new AtomicReference<>();
+        when(rocks.isUsable()).thenReturn(true);
+        when(rocks.get(anyString())).thenAnswer(invocation -> stored.get());
+        doAnswer(invocation -> { stored.set(invocation.getArgument(1)); return null; })
+            .when(rocks).put(anyString(), any(byte[].class));
+        FinancialQueryCacheService cache = service(properties, rocks, mock(RedisCacheStore.class));
+        AtomicInteger loads = new AtomicInteger();
+
+        Map<String, Object> first = cache.getOrLoad("fund_scale", Map.of("market", "ETF"),
+            null, null, 100, "auto", "tenant-from-mcp-arguments",
+            () -> Map.of("rows", List.of(Map.of("value", loads.incrementAndGet()))));
+        Map<String, Object> second = cache.getOrLoad("fund_scale", Map.of("market", "ETF"),
+            null, null, 100, "auto", "tenant-from-mcp-arguments",
+            () -> Map.of("rows", List.of(Map.of("value", loads.incrementAndGet()))));
+
+        assertThat(loads).hasValue(1);
+        assertThat(first).containsEntry("queryCacheHit", false);
+        assertThat(second).containsEntry("queryCacheHit", true)
+            .containsEntry("queryCacheHitCount", 1L);
+    }
+
     private FinancialQueryCacheService service(MarketModuleProperties properties,
                                                 McpRocksDbStore rocks,
                                                 RedisCacheStore redis) {

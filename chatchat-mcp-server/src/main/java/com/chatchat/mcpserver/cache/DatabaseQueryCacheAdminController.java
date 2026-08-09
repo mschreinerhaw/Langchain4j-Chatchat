@@ -62,6 +62,7 @@ public class DatabaseQueryCacheAdminController {
             stats.expiredEntries(),
             stats.hitCount(),
             stats.bytes(),
+            stats.bypassNoTenantCount(),
             stats.measuredAt()
         ));
     }
@@ -275,6 +276,7 @@ public class DatabaseQueryCacheAdminController {
         int expiredEntries,
         long hitCount,
         long bytes,
+        long bypassNoTenantCount,
         long measuredAt
     ) {
     }

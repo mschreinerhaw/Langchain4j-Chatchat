@@ -25,6 +25,7 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
 /** Bounded, tenant-aware cache for governed financial query results. */
@@ -41,6 +42,10 @@ public class FinancialQueryCacheService {
     private final FinancialQueryCacheConfigService configService;
     private final Map<String, CompletableFuture<Map<String, Object>>> inFlight = new ConcurrentHashMap<>();
     private final Map<String, Object> hitLocks = new ConcurrentHashMap<>();
+    private final AtomicLong bypassNoTenantCount = new AtomicLong();
+    private final AtomicLong writeFailureCount = new AtomicLong();
+    private final AtomicLong oversizedSkipCount = new AtomicLong();
+    private volatile String lastWriteFailure = "";
 
     @Autowired
     public FinancialQueryCacheService(MarketModuleProperties properties,
@@ -68,14 +73,23 @@ public class FinancialQueryCacheService {
     public Map<String, Object> getOrLoad(String dataset, Map<String, Object> filters,
                                          LocalDate startDate, LocalDate endDate, int limit,
                                          String historyMode, Supplier<Map<String, Object>> loader) {
+        return getOrLoad(dataset, filters, startDate, endDate, limit, historyMode, tenantId(), loader);
+    }
+
+    public Map<String, Object> getOrLoad(String dataset, Map<String, Object> filters,
+                                         LocalDate startDate, LocalDate endDate, int limit,
+                                         String historyMode, String explicitTenantId,
+                                         Supplier<Map<String, Object>> loader) {
         if (loader == null) throw new IllegalArgumentException("Financial query cache loader is required");
         MarketModuleProperties.QueryCache policy = policy();
         if (!policy.isEnabled() || policy.getTtlSeconds() <= 0L) return loader.get();
-        if (!hasTenantContext()) {
+        String tenantScope = tenantId(explicitTenantId);
+        if (tenantScope.isBlank()) {
+            bypassNoTenantCount.incrementAndGet();
             log.debug("Financial query cache bypassed because tenant context is unavailable");
             return loader.get();
         }
-        String key = key(dataset, filters, startDate, endDate, limit, historyMode);
+        String key = key(dataset, filters, startDate, endDate, limit, historyMode, tenantScope);
         Optional<Map<String, Object>> cached = get(key, policy);
         if (cached.isPresent()) return cached.get();
 
@@ -92,12 +106,13 @@ public class FinancialQueryCacheService {
                 return result;
             }
             Map<String, Object> loaded = loader.get();
-            CacheDescriptor descriptor = new CacheDescriptor(tenantId(), dataset,
+            CacheDescriptor descriptor = new CacheDescriptor(tenantScope, dataset,
                 copy(filters == null ? Map.of() : filters), text(startDate), text(endDate), limit,
                 historyMode == null ? "" : historyMode);
             String writtenStorage = put(key, loaded, descriptor, policy);
-            Map<String, Object> result = observed(loaded, false, writtenStorage, 0L,
-                policy.getTtlSeconds(), 0L, 0L);
+            Map<String, Object> result = observed(loaded, false,
+                writtenStorage == null ? effectiveStorage(policy) : writtenStorage,
+                writtenStorage != null, 0L, policy.getTtlSeconds(), 0L, 0L);
             own.complete(result);
             return result;
         } catch (RuntimeException ex) {
@@ -125,7 +140,7 @@ public class FinancialQueryCacheService {
                 return Optional.empty();
             }
             CacheEntry updated = recordHit(read.storage(), key, entry, now);
-            return Optional.of(observed(updated.result(), true, read.storage(),
+            return Optional.of(observed(updated.result(), true, read.storage(), true,
                 Math.max(0L, (now - updated.createdAt()) / 1000L),
                 Math.max(1L, (updated.expiresAt() - updated.createdAt()) / 1000L),
                 updated.hitCount(), updated.lastHitAt()));
@@ -159,12 +174,16 @@ public class FinancialQueryCacheService {
     private String put(String key, Map<String, Object> result, CacheDescriptor descriptor,
                        MarketModuleProperties.QueryCache policy) {
         String preferred = effectiveStorage(policy);
-        if (result == null) return preferred;
+        if (result == null) return null;
         long now = System.currentTimeMillis();
         try {
             byte[] payload = mapper.writeValueAsBytes(new CacheEntry(copy(result), now,
                 now + Math.max(1L, policy.getTtlSeconds()) * 1000L, descriptor, 0L, 0L));
-            if (payload.length > Math.max(1, policy.getMaxEntryKb()) * 1024L) return preferred;
+            if (payload.length > Math.max(1, policy.getMaxEntryKb()) * 1024L) {
+                oversizedSkipCount.incrementAndGet();
+                lastWriteFailure = "cache entry exceeded maxEntryKb";
+                return null;
+            }
             if ("REDIS".equals(preferred)) {
                 try {
                     redis.put(key, payload, policy.getTtlSeconds());
@@ -172,24 +191,34 @@ public class FinancialQueryCacheService {
                 } catch (Exception ex) {
                     log.warn("Redis financial query cache write failed; fallbackToRocksDb={} error={}",
                         policy.isFallbackToRocksDb(), ex.getMessage());
-                    if (!policy.isFallbackToRocksDb()) return "REDIS";
+                    if (!policy.isFallbackToRocksDb()) {
+                        recordWriteFailure("Redis write failed: " + ex.getMessage());
+                        return null;
+                    }
                 }
             }
             if (rocksDb.isUsable()) {
                 rocksDb.put(key, payload);
                 return "ROCKSDB";
             }
+            recordWriteFailure("RocksDB storage is unavailable");
         } catch (Exception ex) {
+            recordWriteFailure(ex.getMessage());
             log.warn("Financial query cache write skipped: {}", ex.getMessage());
         }
-        return preferred;
+        return null;
     }
 
     String key(String dataset, Map<String, Object> filters, LocalDate startDate,
                LocalDate endDate, int limit, String historyMode) {
+        return key(dataset, filters, startDate, endDate, limit, historyMode, tenantId());
+    }
+
+    private String key(String dataset, Map<String, Object> filters, LocalDate startDate,
+                       LocalDate endDate, int limit, String historyMode, String tenantScope) {
         try {
             Map<String, Object> identity = new TreeMap<>();
-            identity.put("tenantId", tenantId());
+            identity.put("tenantId", tenantScope);
             identity.put("dataset", dataset == null ? "" : dataset.trim());
             identity.put("filters", normalize(filters == null ? Map.of() : filters));
             identity.put("startDate", startDate == null ? "" : startDate.toString());
@@ -223,6 +252,13 @@ public class FinancialQueryCacheService {
     }
 
     public CacheOverview overview(int requestedLimit) {
+        MarketModuleProperties.QueryCache policy = policy();
+        String selectedStorage = effectiveStorage(policy);
+        boolean rocksDbAvailable = rocksDb.isUsable();
+        boolean redisAvailable = redis.isConnected();
+        boolean selectedStorageAvailable = "REDIS".equals(selectedStorage)
+            ? redisAvailable || policy.isFallbackToRocksDb() && rocksDbAvailable
+            : rocksDbAvailable;
         int displayLimit = Math.max(1, Math.min(requestedLimit, 1000));
         int aggregationLimit = 100_000;
         List<CacheItem> allItems = new java.util.ArrayList<>();
@@ -232,7 +268,7 @@ public class FinancialQueryCacheService {
             truncated = values.size() == aggregationLimit;
             collect(allItems, "ROCKSDB", values, aggregationLimit);
         }
-        if (redis.isUsable()) {
+        if (redisAvailable) {
             List<McpRocksDbStore.KeyValue> values = redis.scan(KEY_PREFIX, aggregationLimit);
             truncated = truncated || values.size() == aggregationLimit;
             collect(allItems, "REDIS", values, Integer.MAX_VALUE);
@@ -245,7 +281,10 @@ public class FinancialQueryCacheService {
         long expired = allItems.stream().filter(item -> item.expiresAt() <= now).count();
         List<CacheItem> visibleItems = allItems.size() <= displayLimit
             ? List.copyOf(allItems) : List.copyOf(allItems.subList(0, displayLimit));
-        return new CacheOverview(visibleItems, allItems.size(), expired, hits, bytes, truncated, now);
+        return new CacheOverview(visibleItems, allItems.size(), expired, hits, bytes, truncated,
+            selectedStorage, selectedStorageAvailable, rocksDbAvailable, redisAvailable,
+            bypassNoTenantCount.get(), writeFailureCount.get(), oversizedSkipCount.get(),
+            lastWriteFailure, now);
     }
 
     private void collect(List<CacheItem> target, String storage,
@@ -339,6 +378,11 @@ public class FinancialQueryCacheService {
         return "REDIS".equalsIgnoreCase(policy.getStorage()) ? "REDIS" : "ROCKSDB";
     }
 
+    private void recordWriteFailure(String reason) {
+        writeFailureCount.incrementAndGet();
+        lastWriteFailure = reason == null || reason.isBlank() ? "unknown cache write failure" : reason;
+    }
+
     private MarketModuleProperties.QueryCache policy() {
         if (configService != null) return configService.currentPolicy();
         return properties.getQueryCache() == null
@@ -347,12 +391,12 @@ public class FinancialQueryCacheService {
 
     private String tenantId() {
         McpInvocationContext.Context context = McpInvocationContext.current();
-        return context.tenantId().trim();
+        return context == null || context.tenantId() == null ? "" : context.tenantId().trim();
     }
 
-    private boolean hasTenantContext() {
-        McpInvocationContext.Context context = McpInvocationContext.current();
-        return context != null && context.tenantId() != null && !context.tenantId().isBlank();
+    private String tenantId(String explicitTenantId) {
+        if (explicitTenantId != null && !explicitTenantId.isBlank()) return explicitTenantId.trim();
+        return tenantId();
     }
 
     private Object normalize(Object value) {
@@ -370,9 +414,11 @@ public class FinancialQueryCacheService {
     }
 
     private Map<String, Object> observed(Map<String, Object> source, boolean hit, String storage,
-                                         long ageSeconds, long ttlSeconds, long hitCount, long lastHitAt) {
+                                         boolean stored, long ageSeconds, long ttlSeconds,
+                                         long hitCount, long lastHitAt) {
         Map<String, Object> result = copy(source);
         result.put("queryCacheHit", hit);
+        result.put("queryCacheStored", stored);
         result.put("queryCacheStorage", storage);
         result.put("queryCacheAgeSeconds", ageSeconds);
         result.put("queryCacheTtlSeconds", ttlSeconds);
@@ -397,5 +443,9 @@ public class FinancialQueryCacheService {
                             String historyMode, long createdAt, long expiresAt, long hitCount,
                             long lastHitAt, long bytes) { }
     public record CacheOverview(List<CacheItem> items, int entries, long expiredEntries,
-                                long hitCount, long bytes, boolean truncated, long measuredAt) { }
+                                long hitCount, long bytes, boolean truncated, String selectedStorage,
+                                boolean selectedStorageAvailable, boolean rocksDbAvailable,
+                                boolean redisAvailable, long bypassNoTenantCount,
+                                long writeFailureCount, long oversizedSkipCount,
+                                String lastWriteFailure, long measuredAt) { }
 }

@@ -3,7 +3,7 @@
     <header class="panel-heading">
       <div>
         <h2>缓存设置</h2>
-        <p>统一管理能力中心数据库查询缓存、financial_data_search 金融数据缓存及存储服务。</p>
+        <p>统一管理查询缓存、内置数据源自动缓存及底层存储服务。</p>
       </div>
       <div class="panel-actions">
         <el-button plain :loading="busy" @click="load">
@@ -12,80 +12,178 @@
         </el-button>
         <el-button type="primary" :loading="busy" @click="save">
           <el-icon><Setting /></el-icon>
-          <span>{{ activeTab === 'storage' ? '保存存储配置' : (activeTab === 'financial' ? '保存金融缓存策略' : '保存模板策略') }}</span>
+          <span>{{ activeTab === 'storage' ? '保存存储配置' : '保存缓存策略' }}</span>
         </el-button>
       </div>
     </header>
 
     <el-tabs v-model="activeTab" class="workspace-tabs">
-      <el-tab-pane label="数据库查询缓存" name="templates">
+      <el-tab-pane label="缓存管理" name="templates">
     <section class="cache-section">
       <div class="cache-section-head">
         <div>
           <h3>运行统计</h3>
-          <p>查看缓存当前状态、条目数量和存储占用。</p>
-        </div>
-        <div class="cache-service-switch">
-          <span>启用缓存服务</span>
-          <el-switch v-model="config.enabled" />
+          <p>汇总能力中心和内置数据源的缓存状态、条目数量、命中次数与存储占用。</p>
         </div>
       </div>
       <div class="metric-grid">
         <div class="metric-card"><span>状态</span><strong>{{ status }}</strong></div>
-        <div class="metric-card"><span>缓存条目</span><strong>{{ stats.entries ?? 0 }}</strong></div>
-        <div class="metric-card"><span>过期条目</span><strong>{{ stats.expiredEntries ?? 0 }}</strong></div>
-        <div class="metric-card"><span>命中查询次数</span><strong>{{ stats.hitCount ?? 0 }}</strong></div>
+        <div class="metric-card"><span>缓存条目</span><strong>{{ unifiedStats.entries }}</strong></div>
+        <div class="metric-card"><span>过期条目</span><strong>{{ unifiedStats.expiredEntries }}</strong></div>
+        <div class="metric-card"><span>命中查询次数</span><strong>{{ unifiedStats.hitCount }}</strong></div>
         <div class="metric-card"><span>占用空间</span><strong>{{ bytes }}</strong></div>
       </div>
+      <el-alert
+        v-for="warning in cacheWarnings"
+        :key="warning"
+        class="mt-3"
+        type="warning"
+        :title="warning"
+        show-icon
+        :closable="false"
+      />
     </section>
 
     <section class="cache-section">
       <div class="cache-section-head">
         <div>
-          <h3>SQL 模板缓存</h3>
-          <p>缓存以整个查询模板为单位；包含多条 SQL 时，会缓存这组 SQL 的完整结果集合。</p>
+          <h3>查询缓存</h3>
+          <p>能力中心和内置数据源在同一列表管理，通过来源标识区分；展开行查看实际缓存明细和来源专属策略。</p>
         </div>
-        <el-button type="primary" plain @click="openTemplatePicker">选择缓存模板</el-button>
+        <div class="cache-maintenance-actions">
+          <el-button type="primary" plain @click="openTemplatePicker">选择缓存模板</el-button>
+          <el-button plain type="danger" :loading="busy" @click="cleanupAllExpired">清理过期缓存</el-button>
+          <el-button type="danger" :loading="busy" @click="evictAllCaches">清理全部缓存</el-button>
+        </div>
       </div>
-      <el-table :data="cachedTemplates" border stripe empty-text="尚未选择启用缓存的 SQL 模板">
-        <el-table-column prop="title" label="模板名称" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="toolName" label="工具名称" min-width="180" show-overflow-tooltip>
-          <template #default="{ row }"><code>{{ row.toolName }}</code></template>
+      <el-table row-key="key" :data="unifiedCacheRows" border stripe empty-text="尚未配置或生成查询缓存">
+        <el-table-column type="expand" width="48">
+          <template #default="{ row }">
+            <div class="cache-entry-details">
+              <el-form v-if="row.source === 'BUILT_IN'" class="cache-form" label-position="top">
+                <el-row :gutter="14">
+                  <el-col :xs="24" :md="8">
+                    <el-form-item label="单条最大大小（KB）">
+                      <el-input-number v-model="financialConfig.maxEntryKb" class="w-100" :min="1" :max="102400" :step="128" controls-position="right" :disabled="!financialConfig.enabled" />
+                    </el-form-item>
+                  </el-col>
+                  <el-col :xs="24" :md="8">
+                    <el-form-item label="Redis 不可用时">
+                      <el-select v-model="financialConfig.fallbackToRocksDb" class="w-100" :disabled="!financialConfig.enabled || financialConfig.storage !== 'REDIS'">
+                        <el-option label="回退 RocksDB" :value="true" />
+                        <el-option label="不写入缓存" :value="false" />
+                      </el-select>
+                    </el-form-item>
+                  </el-col>
+                  <el-col :xs="24" :md="8">
+                    <el-form-item label="并发结果共享窗口（毫秒）">
+                      <el-input-number v-model="financialConfig.singleFlightGraceMs" class="w-100" :min="0" :max="5000" :step="100" controls-position="right" :disabled="!financialConfig.enabled" />
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+              </el-form>
+              <el-table v-if="row.source === 'BUILT_IN'" :data="row.cacheItems" size="small" border empty-text="该数据源尚未产生实际缓存；首次查询会创建缓存">
+                <el-table-column prop="dataset" label="数据集" min-width="180" show-overflow-tooltip>
+                  <template #default="{ row: item }"><code>{{ item.dataset }}</code></template>
+                </el-table-column>
+                <el-table-column label="查询条件" min-width="240" show-overflow-tooltip>
+                  <template #default="{ row: item }">{{ formatFinancialFilters(item.filters) }}</template>
+                </el-table-column>
+                <el-table-column label="日期范围" min-width="180">
+                  <template #default="{ row: item }">{{ item.startDate || '不限' }} ～ {{ item.endDate || '不限' }}</template>
+                </el-table-column>
+                <el-table-column prop="tenantId" label="租户" min-width="120" show-overflow-tooltip />
+                <el-table-column prop="storage" label="存储" width="100" align="center" />
+                <el-table-column prop="hitCount" label="命中查询次数" width="130" align="center" sortable />
+                <el-table-column label="最后命中" min-width="170">
+                  <template #default="{ row: item }">{{ formatTime(item.lastHitAt) }}</template>
+                </el-table-column>
+                <el-table-column label="过期时间" min-width="170">
+                  <template #default="{ row: item }">{{ formatTime(item.expiresAt) }}</template>
+                </el-table-column>
+              </el-table>
+              <el-table v-else :data="row.cacheItems" size="small" border empty-text="该模板尚未产生实际缓存；首次查询会创建缓存">
+                <el-table-column label="查询参数" min-width="240" show-overflow-tooltip>
+                  <template #default="{ row: item }">{{ formatDatabaseParameters(item.parameters) }}</template>
+                </el-table-column>
+                <el-table-column prop="tenantId" label="租户" min-width="120" show-overflow-tooltip />
+                <el-table-column prop="storage" label="存储" width="100" align="center" />
+                <el-table-column prop="hitCount" label="命中查询次数" width="130" align="center" sortable />
+                <el-table-column label="最后命中" min-width="170">
+                  <template #default="{ row: item }">{{ formatTime(item.lastHitAt) }}</template>
+                </el-table-column>
+                <el-table-column label="过期时间" min-width="170">
+                  <template #default="{ row: item }">{{ formatTime(item.expiresAt) }}</template>
+                </el-table-column>
+              </el-table>
+            </div>
+          </template>
         </el-table-column>
-        <el-table-column prop="datasourceId" label="数据源" min-width="180" show-overflow-tooltip />
+        <el-table-column label="来源" width="110" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.source === 'CAPABILITY_CENTER' ? 'primary' : row.source === 'BUILT_IN' ? 'success' : 'info'">
+              {{ row.source === 'CAPABILITY_CENTER' ? '能力中心' : row.source === 'BUILT_IN' ? '内置数据源' : '已有缓存' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="查询模板" min-width="190" show-overflow-tooltip>
+          <template #default="{ row }">
+            <div>{{ row.title }}</div>
+            <code>{{ row.toolName }}</code>
+          </template>
+        </el-table-column>
+        <el-table-column prop="datasourceId" label="数据源" min-width="170" show-overflow-tooltip />
         <el-table-column label="分类" min-width="130" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.categoryName || row.category || 'default' }}</template>
+          <template #default="{ row }">{{ row.category }}</template>
         </el-table-column>
-        <el-table-column prop="sqlCount" label="SQL 数量" width="100" align="center" />
-        <el-table-column label="模板状态" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag :type="row.enabled ? 'success' : 'info'">{{ row.enabled ? '启用' : '停用' }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="90" align="center">
-          <template #default="{ row }">
-            <el-button link type="danger" @click="row.cacheEnabled = false">移除</el-button>
-          </template>
+        <el-table-column prop="entryCount" label="缓存条目" width="100" align="center" sortable />
+        <el-table-column prop="hitCount" label="命中查询次数" width="130" align="center" sortable />
+        <el-table-column label="最后命中" min-width="170">
+          <template #default="{ row }">{{ formatTime(row.lastHitAt) }}</template>
         </el-table-column>
         <el-table-column label="存储服务" width="150">
           <template #default="{ row }">
-            <el-select v-model="row.cacheStorage" :disabled="!row.cacheEnabled || !row.enabled">
+            <el-select v-if="row.source === 'BUILT_IN'" v-model="financialConfig.storage" :disabled="!financialConfig.enabled">
               <el-option label="本地 RocksDB" value="ROCKSDB" />
               <el-option label="Redis" value="REDIS" :disabled="!redis.enabled" />
             </el-select>
+            <el-select v-else-if="row.template?.cacheEnabled" v-model="row.template.cacheStorage" :disabled="!row.template.enabled">
+              <el-option label="本地 RocksDB" value="ROCKSDB" />
+              <el-option label="Redis" value="REDIS" :disabled="!redis.enabled" />
+            </el-select>
+            <span v-else>{{ row.cacheItems[0]?.storage || '-' }}</span>
           </template>
         </el-table-column>
         <el-table-column label="TTL（秒）" width="180">
           <template #default="{ row }">
             <el-input-number
-              v-model="row.cacheTtlSeconds"
+              v-if="row.source === 'BUILT_IN'"
+              v-model="financialConfig.ttlSeconds"
               class="w-100"
-              :disabled="!row.cacheEnabled || !row.enabled"
+              :disabled="!financialConfig.enabled"
+              :min="1"
+              :max="604800"
+              :step="300"
+              controls-position="right"
+            />
+            <el-input-number
+              v-else-if="row.template?.cacheEnabled"
+              v-model="row.template.cacheTtlSeconds"
+              class="w-100"
+              :disabled="!row.template.enabled"
               :min="1"
               :max="86400"
               :step="60"
               controls-position="right"
             />
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="启用" width="90" align="center">
+          <template #default="{ row }">
+            <el-switch v-if="row.source === 'BUILT_IN'" v-model="financialConfig.enabled" />
+            <el-button v-else-if="row.template?.cacheEnabled" link type="danger" @click="row.template.cacheEnabled = false">移除</el-button>
+            <span v-else>-</span>
           </template>
         </el-table-column>
       </el-table>
@@ -95,7 +193,7 @@
       <div class="cache-section-head">
         <div>
           <h3>存储保护策略</h3>
-          <p>这些限制只约束已单独开启缓存的模板，不会为任何模板全局开启缓存。</p>
+          <p>这些限制只约束能力中心中已单独开启缓存的模板，不影响内置数据源行的缓存策略。</p>
         </div>
       </div>
       <el-form class="cache-form" label-position="top">
@@ -126,7 +224,7 @@
       <div class="cache-section-head">
         <div>
           <h3>结果缓存范围</h3>
-          <p>设置空结果和错误结果是否进入缓存，避免不必要的重复查询。</p>
+          <p>设置能力中心模板的空结果和错误结果是否进入缓存，避免不必要的重复查询。</p>
         </div>
       </div>
       <el-form class="cache-form" label-position="top">
@@ -151,147 +249,19 @@
       </el-form>
     </section>
 
-    <section class="cache-section">
-      <div class="cache-section-head">
-        <div>
-          <h3>当前数据库查询缓存</h3>
-          <p>展示能力中心数据库查询实际生成的缓存；命中次数表示避免执行底层 SQL 的累计次数。</p>
-        </div>
-      </div>
-      <el-table :data="databaseOverview.items || []" border stripe empty-text="当前没有能力中心数据库查询缓存">
-        <el-table-column label="查询模板" min-width="190" show-overflow-tooltip>
-          <template #default="{ row }">
-            <div>{{ row.title || row.toolName }}</div>
-            <code>{{ row.toolName }}</code>
-          </template>
-        </el-table-column>
-        <el-table-column prop="datasourceId" label="数据源" min-width="170" show-overflow-tooltip />
-        <el-table-column label="查询参数" min-width="240" show-overflow-tooltip>
-          <template #default="{ row }">{{ formatDatabaseParameters(row.parameters) }}</template>
-        </el-table-column>
-        <el-table-column prop="tenantId" label="租户" min-width="120" show-overflow-tooltip />
-        <el-table-column prop="storage" label="存储" width="100" align="center" />
-        <el-table-column prop="hitCount" label="命中查询次数" width="130" align="center" sortable />
-        <el-table-column label="最后命中" min-width="170">
-          <template #default="{ row }">{{ formatTime(row.lastHitAt) }}</template>
-        </el-table-column>
-        <el-table-column label="过期时间" min-width="170">
-          <template #default="{ row }">{{ formatTime(row.expiresAt) }}</template>
-        </el-table-column>
-      </el-table>
-    </section>
-
     <section class="cache-section cache-maintenance">
       <div class="cache-section-head">
         <div>
-          <h3>缓存维护</h3>
-          <p>清理无效缓存或在策略调整后重置全部缓存数据。</p>
+          <h3>缓存服务模块</h3>
+          <p>统一控制能力中心模板缓存和内置数据源缓存；各来源仍可在上方列表中维护具体策略。</p>
         </div>
-        <div class="cache-maintenance-actions">
-          <el-button plain type="danger" :loading="busy" @click="cleanupExpired">清理过期缓存</el-button>
-          <el-button type="danger" :loading="busy" @click="evictAll">清理全部缓存</el-button>
+        <div class="cache-service-switch">
+          <span>缓存服务模块开启</span>
+          <el-switch v-model="cacheModuleEnabled" />
         </div>
       </div>
     </section>
-      </el-tab-pane>
 
-      <el-tab-pane label="金融数据缓存" name="financial">
-        <section class="cache-section">
-          <div class="cache-section-head">
-            <div>
-              <h3>financial_data_search 主动缓存</h3>
-              <p>展示本地金融数据查询产生的缓存、查询条件以及累计缓存命中次数。</p>
-            </div>
-            <div class="cache-service-switch">
-              <span>启用金融缓存</span>
-              <el-switch v-model="financialConfig.enabled" />
-            </div>
-          </div>
-          <div class="metric-grid">
-            <div class="metric-card"><span>状态</span><strong>{{ financialStatus }}</strong></div>
-            <div class="metric-card"><span>当前缓存</span><strong>{{ financialOverview.entries ?? 0 }}</strong></div>
-            <div class="metric-card"><span>命中查询次数</span><strong>{{ financialOverview.hitCount ?? 0 }}</strong></div>
-            <div class="metric-card"><span>占用空间</span><strong>{{ financialBytes }}</strong></div>
-          </div>
-        </section>
-
-        <section class="cache-section">
-          <div class="cache-section-head">
-            <div>
-              <h3>缓存方式</h3>
-              <p>修改后对新写入和后续读取生效；已有缓存保留在原存储中直至过期或手动清理。</p>
-            </div>
-          </div>
-          <el-form class="cache-form" label-position="top">
-            <el-row :gutter="14">
-              <el-col :xs="24" :md="8">
-                <el-form-item label="存储方式">
-                  <el-select v-model="financialConfig.storage" class="w-100" :disabled="!financialConfig.enabled">
-                    <el-option label="本地 RocksDB" value="ROCKSDB" />
-                    <el-option label="Redis" value="REDIS" :disabled="!redis.enabled" />
-                  </el-select>
-                </el-form-item>
-              </el-col>
-              <el-col :xs="24" :md="8">
-                <el-form-item label="TTL（秒）">
-                  <el-input-number v-model="financialConfig.ttlSeconds" class="w-100" :min="1" :max="604800" :step="300" controls-position="right" :disabled="!financialConfig.enabled" />
-                </el-form-item>
-              </el-col>
-              <el-col :xs="24" :md="8">
-                <el-form-item label="单条最大大小（KB）">
-                  <el-input-number v-model="financialConfig.maxEntryKb" class="w-100" :min="1" :max="102400" :step="128" controls-position="right" :disabled="!financialConfig.enabled" />
-                </el-form-item>
-              </el-col>
-              <el-col :xs="24" :md="8">
-                <el-form-item label="Redis 不可用时">
-                  <el-select v-model="financialConfig.fallbackToRocksDb" class="w-100" :disabled="!financialConfig.enabled || financialConfig.storage !== 'REDIS'">
-                    <el-option label="回退 RocksDB" :value="true" />
-                    <el-option label="不写入缓存" :value="false" />
-                  </el-select>
-                </el-form-item>
-              </el-col>
-              <el-col :xs="24" :md="8">
-                <el-form-item label="并发结果共享窗口（毫秒）">
-                  <el-input-number v-model="financialConfig.singleFlightGraceMs" class="w-100" :min="0" :max="5000" :step="100" controls-position="right" :disabled="!financialConfig.enabled" />
-                </el-form-item>
-              </el-col>
-            </el-row>
-          </el-form>
-        </section>
-
-        <section class="cache-section">
-          <div class="cache-section-head">
-            <div>
-              <h3>当前金融缓存</h3>
-              <p>命中次数表示缓存创建后实际避免底层金融数据查询的次数。</p>
-            </div>
-            <div class="cache-maintenance-actions">
-              <el-button plain type="danger" :loading="busy" @click="cleanupFinancialExpired">清理过期缓存</el-button>
-              <el-button type="danger" :loading="busy" @click="evictFinancialAll">清理全部金融缓存</el-button>
-            </div>
-          </div>
-          <el-table :data="financialOverview.items || []" border stripe empty-text="当前没有 financial_data_search 金融缓存">
-            <el-table-column prop="dataset" label="金融数据集" min-width="180" show-overflow-tooltip>
-              <template #default="{ row }"><code>{{ row.dataset }}</code></template>
-            </el-table-column>
-            <el-table-column label="查询条件" min-width="240" show-overflow-tooltip>
-              <template #default="{ row }">{{ formatFinancialFilters(row.filters) }}</template>
-            </el-table-column>
-            <el-table-column label="日期范围" min-width="180">
-              <template #default="{ row }">{{ row.startDate || '不限' }} ～ {{ row.endDate || '不限' }}</template>
-            </el-table-column>
-            <el-table-column prop="historyMode" label="历史方式" width="110" />
-            <el-table-column prop="limit" label="行数" width="80" align="center" />
-            <el-table-column prop="storage" label="存储" width="100" align="center" />
-            <el-table-column prop="hitCount" label="命中查询次数" width="130" align="center" sortable />
-            <el-table-column label="最后命中" min-width="170">
-              <template #default="{ row }">{{ formatTime(row.lastHitAt) }}</template>
-            </el-table-column>
-            <el-table-column label="过期时间" min-width="170">
-              <template #default="{ row }">{{ formatTime(row.expiresAt) }}</template>
-            </el-table-column>
-          </el-table>
-        </section>
       </el-tab-pane>
 
       <el-tab-pane label="缓存存储服务设置" name="storage">
@@ -299,7 +269,7 @@
           <div class="cache-section-head">
             <div>
               <h3>存储服务状态</h3>
-              <p>RocksDB 是默认本地存储；启用并验证 Redis 后，可在模板缓存策略中逐个选择存储位置。</p>
+              <p>RocksDB 是默认本地存储；启用并验证 Redis 后，可供数据库查询缓存和内置数据源缓存选择。</p>
             </div>
           </div>
           <div class="metric-grid">

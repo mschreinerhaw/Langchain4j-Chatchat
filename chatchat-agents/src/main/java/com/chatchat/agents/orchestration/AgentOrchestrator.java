@@ -71,6 +71,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
     private static final int MAX_INTERPRETATION_PLAN_ATTEMPTS = 3;
     private static final int WEB_SEARCH_REFERENCE_LIMIT = 10;
     private static final int DAG_DECISION_OUTPUT_SUMMARY_CHARS = 64_000;
+    private static final int DAG_DECISION_EVIDENCE_TOKEN_BUDGET = 12_000;
     private static final int SUMMARY_OBSERVATION_METADATA_CHARS = 16_000;
     private static final int SUMMARY_EVIDENCE_TOKEN_BUDGET = 24_000;
     private static final int SUMMARY_COMPRESSED_OBSERVATION_CHARS = 4_000;
@@ -1984,7 +1985,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
                                                     String systemPrompt,
                                                     InterpretationPlanRuntime.DagDecisionRequest request) {
         ContextTokenEstimator.Size evidenceSize = estimateDagDecisionEvidenceSize(request);
-        boolean compressionEnabled = evidenceSize.tokens() > contextBudget.availableEvidenceTokens();
+        int dagEvidenceTokenBudget = dagDecisionEvidenceTokenBudget();
+        boolean compressionEnabled = evidenceSize.tokens() > dagEvidenceTokenBudget;
         String prompt = renderInterpretationPlanDagDecisionPrompt(
             query,
             systemPrompt,
@@ -1995,7 +1997,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (compressionEnabled) {
             ContextTokenEstimator.Size compressedSize = contextTokenEstimator.estimate(prompt);
             log.warn("agentContextCompression phase=interpretation_plan_dag_decision enabled=true evidenceBudgetTokens={} originalEvidenceTokens={} originalEvidenceChars={} compressedContextTokens={} compressedContextChars={} executionCount={}",
-                contextBudget.availableEvidenceTokens(),
+                dagEvidenceTokenBudget,
                 evidenceSize.tokens(),
                 evidenceSize.chars(),
                 compressedSize.tokens(),
@@ -2067,7 +2069,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 "reservedSystemTokens", contextBudget.reservedSystemTokens(),
                 "reservedHistoryTokens", contextBudget.reservedHistoryTokens(),
                 "reservedOutputTokens", contextBudget.reservedOutputTokens(),
-                "availableEvidenceTokens", contextBudget.availableEvidenceTokens(),
+                "availableEvidenceTokens", dagDecisionEvidenceTokenBudget(),
                 "evidenceTokens", evidenceSize.tokens(),
                 "evidenceChars", evidenceSize.chars()
             ))
@@ -2091,7 +2093,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
                     .append(stringify(compressionEnabled
                         ? dagDecisionModelOutputSnapshot(
                             execution,
-                            Math.max(1, request.executions().size())
+                            Math.max(1, request.executions().size()),
+                            dagDecisionEvidenceTokenBudget()
                         )
                         : execution.output()))
                     .append("\n");
@@ -2633,6 +2636,10 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 .plus(contextTokenEstimator.estimate(execution.metadata()));
         }
         return size;
+    }
+
+    private int dagDecisionEvidenceTokenBudget() {
+        return Math.min(contextBudget.availableEvidenceTokens(), DAG_DECISION_EVIDENCE_TOKEN_BUDGET);
     }
 
     Map<String, Object> dagDecisionModelOutputSnapshot(InterpretationPlanRuntime.StepExecution execution) {

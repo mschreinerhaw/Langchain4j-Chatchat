@@ -224,6 +224,7 @@ class AgentOrchestratorTest {
             Map.of("nextActions", List.of(Map.of("tool", "generic_search"))),
             success, List.of("generic_search"), true))
             .isTrue();
+
     }
 
     @Test
@@ -485,6 +486,34 @@ class AgentOrchestratorTest {
             .contains("none of these means the tool call failed")
             .contains("Never require an indexed child")
             .contains("Never call a successful truncated result a failed step");
+    }
+
+    @Test
+    void dagDecisionUsesItsOwnBoundedEvidenceBudget() {
+        String repeatedPayload = "enterprise-evidence-".repeat(8_000);
+        InterpretationPlanRuntime.StepExecution evidenceStep =
+            new InterpretationPlanRuntime.StepExecution(
+                1, "mcp_tool", "generic_metadata_search", true,
+                Map.of(
+                    "count", 1,
+                    "results", List.of(Map.of("name", "candidate", "details", repeatedPayload))
+                ),
+                null, null, null, 5L,
+                Map.of("partialEvidence", true, "evidenceSufficiency", "INSUFFICIENT")
+            );
+        InterpretationPlanRuntime.DagDecisionRequest request =
+            new InterpretationPlanRuntime.DagDecisionRequest(
+                null, Set.of(2), Map.of(1, evidenceStep), List.of(evidenceStep), Set.of(1),
+                2, InterpretationExecutionProtocol.VERSION, "trace", ""
+            );
+
+        String prompt = newOrchestrator(mock(ChatModel.class))
+            .buildInterpretationPlanDagDecisionPrompt("review evidence", null, request);
+
+        assertThat(prompt)
+            .contains("context_compression: {", "enabled=true")
+            .doesNotContain(repeatedPayload)
+            .hasSizeLessThan(100_000);
     }
 
     @Test

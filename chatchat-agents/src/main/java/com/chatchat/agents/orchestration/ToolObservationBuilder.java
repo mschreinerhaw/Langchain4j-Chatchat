@@ -360,7 +360,7 @@ class ToolObservationBuilder {
             "allFieldsProcessed", allFieldsProcessed,
             "fieldsWithCandidates", fieldsWithCandidates
         ));
-        context.put("claimCoverage", asMap(payload.get("claimCoverage")));
+        context.put("claimCoverage", modelClaimCoverageProjection(payload.get("claimCoverage")));
         if (!asMap(payload.get("fieldConformanceAssessment")).isEmpty()) {
             context.put("fieldConformanceAssessment",
                 asMap(payload.get("fieldConformanceAssessment")));
@@ -383,9 +383,12 @@ class ToolObservationBuilder {
     private String buildEnterpriseMetadataDiscoveryObservation(String toolName,
                                                                 ToolOutput output,
                                                                 Map<String, Object> payload) {
-        List<Map<String, Object>> candidates = mapList(payload.get("results")).stream()
-            .map(this::enterpriseMetadataDiscoveryCandidate)
-            .toList();
+        Map<String, Object> evidenceBundle = asMap(payload.get("evidenceBundle"));
+        List<Map<String, Object>> candidates = evidenceBundle.isEmpty()
+            ? mapList(payload.get("results")).stream()
+                .map(this::enterpriseMetadataDiscoveryCandidate)
+                .toList()
+            : List.of();
         Map<String, Object> context = new LinkedHashMap<>();
         context.put("schemaVersion", "enterprise_metadata_discovery_context.v1");
         context.put("sourceSchemaVersion", payload.get("schemaVersion"));
@@ -398,12 +401,18 @@ class ToolObservationBuilder {
             "countsByType", payload.get("countsByType"),
             "requiredRetrieval", payload.get("requiredRetrieval")
         ));
-        context.put("claimCoverage", asMap(payload.get("claimCoverage")));
-        context.put("candidates", candidates);
+        context.put("claimCoverage", modelClaimCoverageProjection(payload.get("claimCoverage")));
+        if (evidenceBundle.isEmpty()) {
+            context.put("candidates", candidates);
+        } else {
+            context.put("evidenceBundle", evidenceBundle);
+        }
         context.put("interpretationRules", List.of(
-            "Retrieval success is not evidence that the returned records answer the user's requested claim.",
-            "Use candidates only for the claim types declared in claimCoverage.supportedClaims.",
-            "Claims listed in claimCoverage.notAssessedClaims remain unsupported even when candidate count is greater than zero."
+            "Read evidenceBundle by role: factEvidence, standardEvidence, and inferenceEvidence are not interchangeable.",
+            "Retrieval success is not evidence that the returned records describe the target object's physical schema.",
+            "Use standardEvidence only for the claim types declared in claimCoverage.supportedClaims.",
+            "Inference guidance may support clearly labeled checkpoints or recommendations, never observed target facts.",
+            "Claims listed in claimCoverage.notAssessedClaims remain unsupported when explicitly requested, but unrelated exclusions must not expand task scope."
         ));
         return ModelProtocolJson.compact(context);
     }
@@ -420,6 +429,29 @@ class ToolObservationBuilder {
             "source", source.get("source"),
             "relevanceScore", source.get("relevanceScore")
         );
+    }
+
+    private Map<String, Object> modelClaimCoverageProjection(Object value) {
+        Map<String, Object> coverage = asMap(value);
+        if (coverage.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> projection = new LinkedHashMap<>();
+        for (String key : List.of(
+            "contractVersion", "scope", "supportedClaims",
+            "fullTableDesignConformanceSupported", "interpretation",
+            "declarationSource", "policyVersion"
+        )) {
+            putIfPresent(projection, key, coverage.get(key));
+        }
+        List<?> notAssessed = coverage.get("notAssessedClaims") instanceof List<?> list
+            ? list
+            : List.of();
+        projection.put("notAssessedClaimsPresent", !notAssessed.isEmpty());
+        projection.put("notAssessedClaimCount", notAssessed.size());
+        projection.put("notAssessedClaimDetailsLocation", "toolTrace");
+        projection.put("usage", "CAPABILITY_GUARD_NOT_TASK_CHECKLIST");
+        return Map.copyOf(projection);
     }
 
     private int intValue(Object value, int fallback) {

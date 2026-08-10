@@ -69,7 +69,8 @@ public class EnterpriseMetadataMcpToolPublisher {
                 + "data types, standard definitions or business-term mapping. It does not create tables, "
                 + "generate SQL or execute a workflow. The returned claimCoverage is the authoritative, governance-policy-driven "
                 + "declaration of supported and unassessed claims; callers must not assume a fixed table-design scope from the tool name. "
-                + "Treat results and evidenceObjects as the factual boundary; "
+                + "Read evidenceBundle first: it separates target facts, enterprise-standard references, and model inference guidance. "
+                + "Treat results and evidenceObjects as retrieval provenance; "
                 + "never invent fields that were not returned.")
             .inputSchema(inputSchema())
             .meta(meta())
@@ -428,6 +429,8 @@ public class EnterpriseMetadataMcpToolPublisher {
             "physicalIndex", properties.getIndexName(),
             "evidenceContract", mapOf(
                 "resultPath", "evidenceObjects[]",
+                "reasoningBundlePath", "evidenceBundle",
+                "reasoningBundleVersion", "enterprise_metadata_evidence_bundle.v1",
                 "types", policyService.current().getMetadataContract().getRequiredBundle(),
                 "factBoundary", "returned_records_only",
                 "requiredRetrieval", String.join("+",

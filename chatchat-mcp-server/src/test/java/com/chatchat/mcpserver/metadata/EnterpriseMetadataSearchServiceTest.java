@@ -70,7 +70,23 @@ class EnterpriseMetadataSearchServiceTest {
         assertThat(evidence).hasSize(1);
         assertThat(evidence.get(0))
             .containsEntry("type", "metadata_field")
+            .containsEntry("evidenceType", "STANDARD_FIELD_REFERENCE")
+            .containsEntry("evidenceRole", "STANDARD_EVIDENCE")
+            .containsKey("targetConcept")
             .containsEntry("source", "enterprise_field_catalog");
+        Map<String, Object> evidenceBundle = (Map<String, Object>) response.get("evidenceBundle");
+        assertThat(evidenceBundle)
+            .containsEntry("contractVersion", "enterprise_metadata_evidence_bundle.v1")
+            .containsKey("factEvidence")
+            .containsKey("standardEvidence")
+            .containsKey("inferenceEvidence")
+            .containsKey("reasoningContract");
+        assertThat((Map<String, Object>) evidenceBundle.get("factEvidence"))
+            .containsEntry("status", "NOT_PROVIDED_BY_THIS_TOOL")
+            .containsEntry("items", List.of());
+        assertThat((Map<String, Object>) evidenceBundle.get("standardEvidence"))
+            .containsEntry("status", "DATA_RETURNED")
+            .containsEntry("count", 1);
     }
 
     @Test

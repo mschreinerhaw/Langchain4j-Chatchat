@@ -24,6 +24,8 @@ public final class AgentRuntimeFactGroundingContract {
             "Identifiers, counts, statuses, completeness flags, database layers, schemas, tables, fields, and execution results remain exact.",
             "Inferences and recommendations must be explicitly separated from observed facts and must never be presented as retrieved objects.",
             "Missing evidence must be reported as missing; it must not be filled with examples, conventions, or model knowledge.",
+            "Missing evidence and capability limits are relevant only when they block an explicitly requested deliverable; they must never expand the task scope.",
+            "A tool contract's unsupported or not-assessed claims describe its capability boundary, not additional user requirements or automatic follow-up work.",
             "Partial data is a normal result: analyze every returned dataset first and report unavailable dimensions separately.",
             "Successful empty results, unexecuted calls, blocked calls, and failed calls are distinct states and must never be collapsed into an error or into one another.",
             "Template execution is failure-isolated: one child error must be reported on that child and must not erase, stop, or downgrade successfully returned sibling template data.",
@@ -51,6 +53,8 @@ public final class AgentRuntimeFactGroundingContract {
             - Preserve exact identifiers, counts, statuses, completeness/truncation flags, database layers, schemas, tables, fields, and execution outcomes.
             - Keep explicit inference/recommendation separate from observed facts. Never present inferred examples or naming conventions as retrieved results.
             - When evidence is missing, state the missing evidence; do not fill the gap with model knowledge.
+            - Scope is defined by the current user request. Mention missing evidence or capability limits only when they materially block an explicitly requested deliverable; never expand the answer, hypothesis set, or follow-up plan merely because a tool advertises additional unsupported dimensions.
+            - Tool fields such as unsupportedClaims, notAssessedClaims, capability limits, and coverage exclusions are guardrails, not a task checklist. Do not copy them into missing evidence, limitations, hypotheses, recommendations, or next actions unless the current user request explicitly requires that claim.
             - Partial-result presentation contract: analyze every successfully returned dataset first. Put missing dimensions in a short coverage/limitation section after the available-data analysis; do not replace the requested report with an API inventory or capability analysis.
             - Keep these states distinct: DATA_RETURNED, EMPTY_RESULT, NOT_EXECUTED, BLOCKED, and FAILED. A successful empty result is a valid observation for the exact executed parameters, not a system error; do not invent a business cause for the empty result.
             - Template child failures are isolated execution results. Continue analyzing successful and empty sibling results, and list each failed child's returned error compactly instead of declaring the whole report unavailable.

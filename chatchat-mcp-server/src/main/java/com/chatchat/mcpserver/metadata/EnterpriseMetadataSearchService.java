@@ -101,6 +101,7 @@ public class EnterpriseMetadataSearchService {
             ? bucketCountsByType(buckets, requiredTypes)
             : countsByType;
 
+        List<String> detectedScenarios = scenarioClassifier.classifyQuery(query);
         List<Map<String, Object>> evidence = results.stream()
             .map(this::evidenceObject)
             .toList();
@@ -115,7 +116,7 @@ public class EnterpriseMetadataSearchService {
         if (requiredBundle) {
             response.put("requiredTypes", requiredTypes);
         }
-        response.put("detectedScenarios", scenarioClassifier.classifyQuery(query));
+        response.put("detectedScenarios", detectedScenarios);
         response.put("backend", backend);
         response.put("retrievalMode", aggregateRetrievalMode(results, backend));
         response.put("count", results.size());
@@ -142,6 +143,13 @@ public class EnterpriseMetadataSearchService {
         }
         response.put("results", results);
         response.put("evidenceObjects", evidence);
+        response.put("evidenceBundle", evidenceBundle(
+            query,
+            detectedScenarios,
+            evidence,
+            countsByType,
+            response.get("requiredRetrieval")
+        ));
         response.put("evidencePolicy", Map.of(
             "factBoundary", "Only returned enterprise metadata records may be used as factual field or term definitions",
             "sampleValuesIncluded", false,
@@ -396,19 +404,117 @@ public class EnterpriseMetadataSearchService {
         Map<String, Object> content = new LinkedHashMap<>(result);
         content.remove("relevanceScore");
         content.remove("physicalIndex");
-        return Map.of(
-            "contractVersion", "evidence_object_v1",
-            "evidenceId", "EM-" + digest(metadataType + ":" + id),
-            "type", metadataType,
-            "source", String.valueOf(result.getOrDefault("logicalIndex", properties.getIndexName())),
-            "content", Map.copyOf(content),
-            "confidence", confidence(score),
-            "quality", Map.of(
+        Map<String, Object> evidence = new LinkedHashMap<>();
+        evidence.put("contractVersion", "evidence_object_v1");
+        evidence.put("evidenceId", "EM-" + digest(metadataType + ":" + id));
+        evidence.put("type", metadataType);
+        evidence.put("evidenceType", standardEvidenceType(metadataType));
+        evidence.put("evidenceRole", "STANDARD_EVIDENCE");
+        evidence.put("source", String.valueOf(result.getOrDefault("logicalIndex", properties.getIndexName())));
+        evidence.put("targetConcept", firstPresentText(result.get("name"), result.get("technicalName")));
+        evidence.put("facts", standardEvidenceFacts(result));
+        evidence.put("content", Map.copyOf(content));
+        evidence.put("confidence", confidence(score));
+        evidence.put("assumptions", List.of());
+        evidence.put("constraints", List.of(
+            "Describes an enterprise standard reference, not the target object's physical schema",
+            "May support only the claim types declared by claimCoverage"
+        ));
+        evidence.put("quality", Map.of(
                 "sourceAuthority", "enterprise_standard",
                 "traceable", true,
                 "containsSampleValue", false
+            ));
+        return Map.copyOf(evidence);
+    }
+
+    private Map<String, Object> evidenceBundle(String query,
+                                               List<String> detectedScenarios,
+                                               List<Map<String, Object>> evidence,
+                                               Map<String, Object> countsByType,
+                                               Object requiredRetrieval) {
+        List<Map<String, Object>> standardReferences = evidence.stream()
+            .map(item -> {
+                Map<String, Object> reference = new LinkedHashMap<>();
+                copyPresent(reference, item, "evidenceId", "evidenceType", "source",
+                    "targetConcept", "facts", "confidence", "constraints");
+                return Map.copyOf(reference);
+            })
+            .toList();
+        Map<String, Object> bundle = new LinkedHashMap<>();
+        bundle.put("contractVersion", "enterprise_metadata_evidence_bundle.v1");
+        bundle.put("targetContext", Map.of(
+            "query", query,
+            "detectedScenarioCandidates", detectedScenarios == null ? List.of() : detectedScenarios
+        ));
+        bundle.put("factEvidence", Map.of(
+            "status", "NOT_PROVIDED_BY_THIS_TOOL",
+            "items", List.of(),
+            "meaning", "No target database/table/column fact is established by enterprise-standard retrieval"
+        ));
+        bundle.put("standardEvidence", Map.of(
+            "status", standardReferences.isEmpty() ? "EMPTY_RESULT" : "DATA_RETURNED",
+            "count", standardReferences.size(),
+            "countsByType", countsByType == null ? Map.of() : countsByType,
+            "items", standardReferences
+        ));
+        bundle.put("inferenceEvidence", Map.of(
+            "status", "MODEL_REASONING_REQUIRED",
+            "items", List.of(),
+            "guidance", List.of(
+                "Use standard-field references as comparison candidates, never as observed target columns",
+                "Use term references to interpret business meaning without asserting the target entity",
+                "Use dictionary references to propose a validation checkpoint, not to assert target code values",
+                "Label every domain interpretation or design recommendation as inference until target facts are available"
             )
-        );
+        ));
+        bundle.put("retrievalCoverage", requiredRetrieval == null ? Map.of() : requiredRetrieval);
+        bundle.put("reasoningContract", Map.of(
+            "factAndStandardEvidenceSeparated", true,
+            "inferenceMustBeLabeled", true,
+            "rawResultsAreRetrievalCandidates", true,
+            "standardReferencesDoNotProveTargetSchema", true
+        ));
+        return Map.copyOf(bundle);
+    }
+
+    private Map<String, Object> standardEvidenceFacts(Map<String, Object> result) {
+        Map<String, Object> facts = new LinkedHashMap<>();
+        copyPresent(facts, result, "id", "metadataType", "name", "technicalName",
+            "description", "dataType", "status", "source", "logicalIndex");
+        return Map.copyOf(facts);
+    }
+
+    private String standardEvidenceType(String metadataType) {
+        return switch (normalize(metadataType)) {
+            case "metadata_field" -> "STANDARD_FIELD_REFERENCE";
+            case "metadata_term" -> "BUSINESS_TERM_REFERENCE";
+            case "metadata_dictionary" -> "CODE_DICTIONARY_REFERENCE";
+            default -> "ENTERPRISE_METADATA_REFERENCE";
+        };
+    }
+
+    private void copyPresent(Map<String, Object> target,
+                             Map<String, Object> source,
+                             String... keys) {
+        if (target == null || source == null || keys == null) {
+            return;
+        }
+        for (String key : keys) {
+            Object value = source.get(key);
+            if (value != null && (!(value instanceof String text) || !text.isBlank())) {
+                target.put(key, value);
+            }
+        }
+    }
+
+    private String firstPresentText(Object first, Object second) {
+        String firstText = first == null ? null : String.valueOf(first).trim();
+        if (firstText != null && !firstText.isBlank()) {
+            return firstText;
+        }
+        String secondText = second == null ? null : String.valueOf(second).trim();
+        return secondText == null ? "" : secondText;
     }
 
     private List<String> flattenedValues(EnterpriseMetadataRecord record) {

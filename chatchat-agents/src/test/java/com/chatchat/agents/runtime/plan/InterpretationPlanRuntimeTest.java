@@ -36,6 +36,67 @@ import static org.mockito.Mockito.when;
 class InterpretationPlanRuntimeTest {
 
     @Test
+    void emptyToolResultDoesNotFailModelDataEdgeIntoFinalAnswer() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("metadata_search")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("metadata_search"))
+            .thenReturn(ToolMetadata.builder().id("metadata_search").riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of(
+                "totalMatched", 0,
+                "tableCatalog", List.of(),
+                "results", List.of()
+            )),
+            ToolMetadata.builder().id("metadata_search").build(),
+            null,
+            "success",
+            Map.of()
+        ));
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("review", "review available metadata", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", "metadata_search",
+                        Map.of(), List.of(), null, null),
+                    new InterpretationPlan.Step(2, "final_answer", "",
+                        Map.of("answer", "report the evidence gap"), List.of(1), null, null)
+                ),
+                List.of(new InterpretationPlan.EdgeContract(
+                    1, 2, "tables[0]", "object", true)),
+                List.of(),
+                List.of(),
+                null,
+                null
+            ),
+            new InterpretationPlan.ExecutionPolicy(
+                2, false, List.of("metadata_search"), List.of(), 10_000),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, toolRegistry, List.of("metadata_search"),
+                "tenant", "request", "conversation", "user", Map.of()
+            ));
+
+        assertThat(result.success())
+            .withFailMessage("status=%s error=%s metadata=%s", result.status(), result.errorMessage(), result.metadata())
+            .isTrue();
+        assertThat(result.status()).isEqualTo("completed");
+        assertThat(result.finalAnswer()).isEqualTo("report the evidence gap");
+        assertThat(result.steps()).noneMatch(step -> step.errorMessage() != null
+            && step.errorMessage().contains("EDGE_CONTRACT_FAILED"));
+    }
+
+    @Test
     void recoversMissingDirectToolArgumentFromCompletedEvidenceAndPublishesRepair() {
         String sourceTool = "portfolio_snapshot_query";
         String targetTool = "market_observation_query";

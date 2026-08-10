@@ -156,6 +156,9 @@ public class InterpretationPlanRewriter {
         prompt.append("Output exactly one valid InterpretationPlan JSON object. No markdown, comments, code fences, or natural language.\n");
         prompt.append("Rewrite rules:\n");
         prompt.append("- Preserve the user's original goal and already successful evidence.\n");
+        prompt.append("- Evidence gaps are rewrite targets only when they block the current user request. Tool capability exclusions, unsupportedClaims, and notAssessedClaims are guardrails, not additional requirements; never add steps solely to investigate an out-of-scope excluded claim.\n");
+        prompt.append("- When an exact metadata lookup succeeds with an empty collection, do not preserve an indexed output binding such as tables[0] or results[0]. Remove that binding and either add one bounded semantic/variant lookup with materially revised inputs or proceed to a partial final answer when the retrieval budget is exhausted.\n");
+        prompt.append("- A recovery lookup may derive separator/case variants and semantic tokens from the current user query or observed identifiers, but those variants are search hypotheses only and must never be reported as existing objects.\n");
         prompt.append("- Treat completed steps and evidence_execution_lock_v1 observations as immutable execution state; do not re-add them as runnable tool steps.\n");
         prompt.append("- Do not repeat a failed MCP tool step unless the failure reason is transient and no safer alternative exists.\n");
         prompt.append("- Evidence refinement is tool-agnostic: when evidenceHistory marks a round insufficient, use nextActions to revise inputs, repeat a suitable tool, or select another available tool that can close the recorded evidence gap.\n");

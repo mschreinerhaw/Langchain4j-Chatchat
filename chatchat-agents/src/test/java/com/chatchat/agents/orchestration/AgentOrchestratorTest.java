@@ -175,6 +175,10 @@ class AgentOrchestratorTest {
             .contains("Do not claim that enterprise standards, terms, dictionaries, or other governed metadata do not exist")
             .contains("state its evidence-backed rejection reason")
             .contains("Do not imply that a service was unavailable")
+            .contains("never enumerate unrelated notAssessedClaims")
+            .contains("not a task checklist")
+            .contains("Do not turn the final answer into a tool trace")
+            .contains("clearly labeled possible business interpretation")
             .contains("Never present toolName as displayName");
     }
 
@@ -479,6 +483,7 @@ class AgentOrchestratorTest {
         assertThat(orchestrator.buildInterpretationPlanDagDecisionPrompt("query", null, request))
             .contains("outputTruncated=true")
             .contains("none of these means the tool call failed")
+            .contains("Never require an indexed child")
             .contains("Never call a successful truncated result a failed step");
     }
 
@@ -1244,6 +1249,10 @@ class AgentOrchestratorTest {
 
         assertThat(prompt)
             .contains("Authoritative tool result evidence")
+            .contains("only for claims explicitly required by the current user request")
+            .contains("never copy unrelated exclusions into missing_evidence")
+            .contains("removes the exact tableName filter")
+            .contains("Never propose a downstream binding such as tables[0]")
             .contains("\"englishName\":\"field_1\"")
             .contains("\"englishName\":\"field_12\"")
             .contains("\"englishName\":\"STD_FIELD_12\"")

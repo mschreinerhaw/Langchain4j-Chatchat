@@ -932,6 +932,9 @@ public class InterpretationPlanRuntime {
                 if (contract == null || !Objects.equals(step.id(), contract.from())) {
                     continue;
                 }
+                if (indexedEdgeTargetsFinalAnswer(plan, contract)) {
+                    continue;
+                }
                 if (runtimeOwnsDiagnosticTemplateTransport(
                     plan, contract.from(), contract.to(), contract.field(), validationState
                 )) {
@@ -6632,6 +6635,11 @@ public class InterpretationPlanRuntime {
             if (contract == null || !completedNow.contains(contract.from())) {
                 continue;
             }
+            if (indexedEdgeTargetsFinalAnswer(plan, contract)) {
+                log.info("InterpretationPlan ignored model data edge into final_answer; final synthesis reads cumulative Runtime evidence directly: fromStep={}, toStep={}, field={}",
+                    contract.from(), contract.to(), contract.field());
+                continue;
+            }
             if (runtimeOwnsDiagnosticTemplateTransport(
                 plan, contract.from(), contract.to(), contract.field(), completed
             )) {
@@ -6657,6 +6665,18 @@ public class InterpretationPlanRuntime {
             }
         }
         return null;
+    }
+
+    private boolean indexedEdgeTargetsFinalAnswer(InterpretationPlan plan,
+                                                  InterpretationPlan.EdgeContract contract) {
+        if (plan == null || contract == null || contract.to() == null
+            || contract.field() == null
+            || !contract.field().matches(".*\\[\\d+\\].*")) {
+            return false;
+        }
+        return plan.steps().stream()
+            .filter(Objects::nonNull)
+            .anyMatch(step -> Objects.equals(step.id(), contract.to()) && step.finalAnswerAction());
     }
 
     private boolean runtimeOwnsDiagnosticTemplateTransport(InterpretationPlan plan,

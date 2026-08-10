@@ -47,11 +47,58 @@ class ToolObservationBuilderEvidenceTest {
         assertThat(observation)
             .contains("\"schemaVersion\":\"enterprise_metadata_discovery_context.v1\"")
             .contains("\"fullTableDesignConformanceSupported\":false")
-            .contains("complete table-level enterprise design conformance")
+            .contains("\"usage\":\"CAPABILITY_GUARD_NOT_TASK_CHECKLIST\"")
+            .contains("\"notAssessedClaimCount\":1")
             .contains("Retrieval success is not evidence")
             .contains("\"technicalName\":\"biz_date\"")
+            .doesNotContain("complete table-level enterprise design conformance")
             .doesNotContain("internalPayload", "evidenceObjects", "x".repeat(100));
         assertThat(observation.length()).isLessThan(10_000);
+    }
+
+    @Test
+    void enterpriseMetadataDiscoveryPrefersReasoningBundleOverRawRetrievalRecords() {
+        Map<String, Object> discovery = Map.of(
+            "schemaVersion", "enterprise_metadata_search_result.v3",
+            "success", true,
+            "count", 1,
+            "claimCoverage", Map.of(
+                "supportedClaims", List.of("standard field alignment"),
+                "notAssessedClaims", List.of("unrequested physical design detail"),
+                "fullTableDesignConformanceSupported", false
+            ),
+            "evidenceBundle", Map.of(
+                "contractVersion", "enterprise_metadata_evidence_bundle.v1",
+                "factEvidence", Map.of("status", "NOT_PROVIDED_BY_THIS_TOOL", "items", List.of()),
+                "standardEvidence", Map.of(
+                    "status", "DATA_RETURNED",
+                    "items", List.of(Map.of(
+                        "evidenceId", "EM-1",
+                        "evidenceType", "STANDARD_FIELD_REFERENCE",
+                        "facts", Map.of("technicalName", "RATING_CODE")
+                    ))
+                ),
+                "inferenceEvidence", Map.of(
+                    "status", "MODEL_REASONING_REQUIRED",
+                    "items", List.of()
+                ),
+                "reasoningContract", Map.of("standardReferencesDoNotProveTargetSchema", true)
+            ),
+            "results", List.of(Map.of(
+                "technicalName", "raw-record-must-not-enter-model-context",
+                "internalPayload", "x".repeat(100_000)
+            ))
+        );
+
+        String observation = builder.buildAuthoritativeExecutionEvidence(
+            "mcp_chatchat_mcp_server_enterprise_metadata_search", discovery);
+
+        assertThat(observation)
+            .contains("enterprise_metadata_evidence_bundle.v1")
+            .contains("STANDARD_FIELD_REFERENCE", "RATING_CODE")
+            .contains("standardReferencesDoNotProveTargetSchema")
+            .doesNotContain("raw-record-must-not-enter-model-context", "internalPayload")
+            .doesNotContain("unrequested physical design detail");
     }
 
     @Test

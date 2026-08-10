@@ -2694,6 +2694,15 @@ public class AgentOrchestrator implements AgentRunExecutor {
             strategy = "STRUCTURED_AGGREGATION";
             lossLevel = "MEDIUM";
         }
+        int boundedChars = Math.max(2_000, perEvidenceBudget * 2);
+        Object boundedContent = ToolLogSummarizer.summarize(content, boundedChars);
+        if (boundedContent instanceof Map<?, ?> boundedMap) {
+            content = asStringObjectMap(boundedMap);
+        } else {
+            content = new LinkedHashMap<>(Map.of(
+                "summary", boundedContent == null ? "" : boundedContent));
+        }
+        strategy = strategy + "_BOUNDED";
         ContextTokenEstimator.Size after = contextTokenEstimator.estimate(content);
         String evidenceId = "step:" + execution.stepId() + ":tool:"
             + firstNonBlank(execution.toolName(), execution.actionType());
@@ -2915,6 +2924,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("- satisfied and iteration_sufficient describe semantic usefulness and evidence sufficiency; they do not control or rewrite the tool execution status.\n");
         prompt.append("- outputTruncated=true means result completeness is partial. If the ToolOutput itself succeeded, record the returned evidence and its limits; never describe the tool call or Runtime step as failed solely because content is truncated.\n");
         prompt.append("- next_actions may revise the current tool input, call another available tool, validate a conflict, or retrieve a missing fact. Do not assume any particular tool type.\n");
+        prompt.append("- A revised query cannot expand a tool's declared capability. Never propose a next_action using a tool whose returned capability/claim-coverage contract explicitly marks the requested evidence as unsupported or not provided. Use another available capability that explicitly covers the gap; if none exists, set shouldExpandQuery=false and preserve the gap for a bounded final answer.\n");
         prompt.append("- hypotheses must be testable explanations, not facts. Mark each SUPPORTED, CONTRADICTED, or UNRESOLVED and relate it to returned evidence. Runtime will bind the current evidenceId when the model cannot know it yet.\n");
         prompt.append("- Preserve a hypothesis_id when the same hypothesis is refined later; create a new id only for a materially different explanation.\n");
         prompt.append("- Use parent_hypothesis_id to decompose a broad hypothesis into independently testable child hypotheses. Do not create cycles or make a hypothesis its own parent.\n");

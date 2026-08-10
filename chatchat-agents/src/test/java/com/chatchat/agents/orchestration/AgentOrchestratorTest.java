@@ -513,9 +513,10 @@ class AgentOrchestratorTest {
 
         assertThat(prompt)
             .contains("context_compression: {", "enabled=true")
+            .contains("_BOUNDED")
             .doesNotContain(repeatedPayload)
             .doesNotContain("DAG_SYSTEM_SENTINEL")
-            .hasSizeLessThan(100_000);
+            .hasSizeLessThan(50_000);
     }
 
     @Test
@@ -1283,6 +1284,7 @@ class AgentOrchestratorTest {
             .contains("Authoritative tool result evidence")
             .contains("only for claims explicitly required by the current user request")
             .contains("never copy unrelated exclusions into missing_evidence")
+            .contains("A revised query cannot expand a tool's declared capability")
             .contains("relaxes the blocking exact filter")
             .contains("Never propose a downstream binding such as tables[0]")
             .contains("\"englishName\":\"field_1\"")

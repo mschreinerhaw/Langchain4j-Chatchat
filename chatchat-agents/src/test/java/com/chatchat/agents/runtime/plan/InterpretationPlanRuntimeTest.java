@@ -7082,12 +7082,7 @@ class InterpretationPlanRuntimeTest {
             ToolMetadata.builder().riskLevel("low").build());
         ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
         when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
-            ToolOutput.success(Map.of(
-                "success", true,
-                "count", 0,
-                "results", List.of(),
-                "diagnostics", Map.of("mode", "exact_not_found")
-            )),
+            ToolOutput.success("opaque partial-evidence reference"),
             ToolMetadata.builder().id("metadata_search").build(),
             null,
             "success",

@@ -1663,7 +1663,8 @@ public class InterpretationPlanRuntime {
         String reason = lastReview == null || lastReview.reason() == null || lastReview.reason().isBlank()
             ? "Tool result did not satisfy the plan step after model review."
             : lastReview.reason();
-        if (shouldPreservePartialToolResult(execution)) {
+        if (shouldPreservePartialToolResult(execution)
+            || reviewRequestsEvidenceRecovery(lastReview)) {
             metadata.put("toolResultReviewPartialAccepted", true);
             metadata.put("toolResultReviewPartialReason", reason);
             metadata.put("toolResultReviewReason",
@@ -1921,6 +1922,34 @@ public class InterpretationPlanRuntime {
             return false;
         }
         return hasStructuredToolEvidence(execution.output(), 0);
+    }
+
+    private boolean reviewRequestsEvidenceRecovery(StepReview review) {
+        if (review == null || review.metadata() == null || review.metadata().isEmpty()) {
+            return false;
+        }
+        Map<String, Object> metadata = review.metadata();
+        Map<String, Object> evaluation = asStringMap(metadata.get("evidenceEvaluation"));
+        boolean expansionRequested = Boolean.TRUE.equals(booleanValue(firstPresent(
+            metadata, "shouldExpandQuery", "should_expand_query")))
+            || Boolean.TRUE.equals(booleanValue(firstPresent(
+                evaluation, "shouldExpandQuery", "should_expand_query")));
+        if (!expansionRequested
+            || !(metadata.get("nextActions") instanceof Iterable<?> actions)) {
+            return false;
+        }
+        for (Object item : actions) {
+            Map<String, Object> action = asStringMap(item);
+            String requestedTool = stringValue(firstPresent(
+                action, "tool", "toolName", "tool_name"));
+            Map<String, Object> inputChanges = asStringMap(firstPresent(
+                action, "input_changes", "inputChanges",
+                "retry_input_changes", "retryInputChanges"));
+            if (requestedTool != null && !requestedTool.isBlank() && !inputChanges.isEmpty()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean hasStructuredToolEvidence(Object output, int depth) {

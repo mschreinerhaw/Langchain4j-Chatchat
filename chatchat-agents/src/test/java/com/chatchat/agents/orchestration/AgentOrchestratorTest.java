@@ -260,6 +260,23 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void pendingEvidenceActionsPreserveMaterialRevisionForPreviouslyExecutedTool() {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        Map<String, Object> revisedAction = Map.of(
+            "tool", "metadata_search",
+            "intent", "broaden the lookup after an exact miss",
+            "input_changes", Map.of("queryTerms", List.of("broader alias"))
+        );
+
+        assertThat(orchestrator.pendingEvidenceNextActions(List.of(Map.of(
+            "tool", "metadata_search",
+            "success", true,
+            "shouldExpandQuery", true,
+            "nextActions", List.of(revisedAction)
+        )))).containsExactly(revisedAction);
+    }
+
+    @Test
     void templateSelectionFeedbackPreservesCandidateReasonsForFinalAnswer() {
         AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
         InterpretationPlanRuntime.StepExecution step = new InterpretationPlanRuntime.StepExecution(
@@ -1126,6 +1143,36 @@ class AgentOrchestratorTest {
             .contains("TRANSACTIONS", "FILE I/O", "BUFFER POOL AND MEMORY")
             .contains("promptPreviewTruncated=false")
             .doesNotContain("SHOW ENGINE INNODB STATUS");
+    }
+
+    @Test
+    void finalSynthesisCompressesOversizedCumulativeEvidence() {
+        String repeatedPayload = "provider-noise-".repeat(12_000);
+        Map<String, Object> output = Map.of(
+            "success", true,
+            "status", "completed_with_partial_evidence",
+            "records", List.of(Map.of("payload", repeatedPayload))
+        );
+        InterpretationPlanRuntime.StepExecution step = new InterpretationPlanRuntime.StepExecution(
+            1, "mcp_tool", "future_dynamic_tool", true, output,
+            null, null, null, 10L
+        );
+        InterpretationPlanRuntime.ExecutionResult result =
+            new InterpretationPlanRuntime.ExecutionResult(
+                "completed_with_partial_evidence", true, false, null, null,
+                List.of(step), Map.of(), 10L
+            );
+
+        String prompt = newOrchestrator(mock(ChatModel.class)).buildInterpretationPlanSummaryPrompt(
+            "analyze the available evidence", null, result, List.of(), List.of()
+        );
+
+        assertThat(prompt)
+            .contains("context_compression:", "enabled=true")
+            .contains("compressedEvidence (runtime semantic projection)")
+            .contains("completed_with_partial_evidence")
+            .doesNotContain(repeatedPayload)
+            .hasSizeLessThan(100_000);
     }
 
     @Test

@@ -72,6 +72,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
     private static final int WEB_SEARCH_REFERENCE_LIMIT = 10;
     private static final int DAG_DECISION_OUTPUT_SUMMARY_CHARS = 64_000;
     private static final int SUMMARY_OBSERVATION_METADATA_CHARS = 16_000;
+    private static final int SUMMARY_EVIDENCE_TOKEN_BUDGET = 24_000;
+    private static final int SUMMARY_COMPRESSED_OBSERVATION_CHARS = 4_000;
     private static final String AGENT_CANCELLATION_ATTRIBUTE = "__agentCancellation";
     private static final String AGENT_MAX_STEPS_ATTRIBUTE = "__agentMaxSteps";
     private static final String AGENT_MAX_TOOL_CALLS_ATTRIBUTE = "__agentMaxToolCalls";
@@ -2340,6 +2342,20 @@ public class AgentOrchestrator implements AgentRunExecutor {
                                                 List<InterpretationPlanRuntime.ExecutionResult> attemptResults,
                                                 List<String> observations,
                                                 List<AgentObservation> storedObservations) {
+        List<InterpretationPlanRuntime.ExecutionResult> results = attemptResults == null || attemptResults.isEmpty()
+            ? (result == null ? List.of() : List.of(result))
+            : attemptResults;
+        ContextTokenEstimator.Size evidenceSize = estimateSummaryEvidenceSize(
+            results, observations, storedObservations);
+        int summaryEvidenceBudget = Math.min(
+            contextBudget.availableEvidenceTokens(), SUMMARY_EVIDENCE_TOKEN_BUDGET);
+        boolean compressionEnabled = evidenceSize.tokens() > summaryEvidenceBudget;
+        int executionCount = Math.max(1, results.stream()
+            .filter(Objects::nonNull)
+            .map(InterpretationPlanRuntime.ExecutionResult::steps)
+            .filter(Objects::nonNull)
+            .mapToInt(List::size)
+            .sum());
         StringBuilder prompt = new StringBuilder();
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             prompt.append("System instruction:\n").append(systemPrompt).append("\n\n");
@@ -2398,18 +2414,26 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("- For enterprise_metadata_model_context.v1, coverage.inputFieldCount, processedFieldCount, allFieldsProcessed, and fieldsWithCandidates are authoritative. Do not infer that unshown or unprocessed fields were matched. A field may be processed with zero candidates; only returned candidates may support its annotation.\n");
         prompt.append("- For enterprise_metadata_model_context.v1 and enterprise_metadata_discovery_context.v1, the tool-returned claimCoverage is authoritative and policy-driven. Retrieval success and non-zero candidates support only supportedClaims; they cannot establish claims listed in notAssessedClaims. Use fullTableDesignConformanceSupported exactly as returned and never assume a fixed capability boundary from the schema version or tool name.\n");
         prompt.append("- Review notes and shortened previews are not factual evidence. When they conflict with authoritativeToolResultEvidence, use authoritativeToolResultEvidence and omit the conflicting review claim.\n\n");
+        if (compressionEnabled) {
+            prompt.append("- Context compression is active because cumulative evidence exceeded the final-synthesis quality budget. Compressed evidence is a semantic projection of authoritative Runtime records, not proof that omitted details were absent.\n");
+        }
         prompt.append("- Mandatory workflow observations are executed after the listed plan attempts. A successful local contract review in those observations is newer authoritative evidence and resolves earlier missing_evidence claims for the same tool result.\n");
         prompt.append("- Database layering labels (for example ADS/DWS/DWD/DIM), table names, schemas, databases, and fields are evidence facts only when the current tool output explicitly returned them. Never infer a layer from a naming convention. Never output 'possible table examples', 'common tables', or supplemental table recommendations that were not retrieved.\n");
         prompt.append(AgentRuntimeFactGroundingContract.promptSection());
         prompt.append("User query:\n").append(query == null ? "" : query).append("\n\n");
+        prompt.append("context_compression: ")
+            .append(Map.of(
+                "enabled", compressionEnabled,
+                "availableEvidenceTokens", summaryEvidenceBudget,
+                "evidenceTokens", evidenceSize.tokens(),
+                "evidenceChars", evidenceSize.chars()
+            ))
+            .append("\n\n");
         if (result != null && result.finalAnswer() != null && !result.finalAnswer().isBlank()) {
             prompt.append("Plan final answer hint, not authoritative evidence:\n")
                 .append(result.finalAnswer())
                 .append("\n\n");
         }
-        List<InterpretationPlanRuntime.ExecutionResult> results = attemptResults == null || attemptResults.isEmpty()
-            ? (result == null ? List.of() : List.of(result))
-            : attemptResults;
         prompt.append("Executed plan attempts (").append(results.size()).append("):\n");
         if (results.isEmpty()) {
             prompt.append("- (none)\n");
@@ -2456,30 +2480,37 @@ public class AgentOrchestrator implements AgentRunExecutor {
                         .append(stepMetadata.get("toolResultReviewReason"))
                         .append("\n");
                 }
-                Map<String, Object> outputFacts = structuredOutputFacts(step.output());
-                if (!outputFacts.isEmpty()) {
-                    prompt.append("  outputFacts: ")
-                        .append(shortObservationText(stringify(outputFacts), 1800))
+                if (compressionEnabled) {
+                    prompt.append("  compressedEvidence (runtime semantic projection):\n")
+                        .append(stringify(dagDecisionModelOutputSnapshot(
+                            step, executionCount, summaryEvidenceBudget)))
                         .append("\n");
-                }
-                Map<String, Object> rawOutputMap = objectMap(step.output());
-                if (rawOutputMap.get("results") instanceof List<?>) {
-                    prompt.append("  batchChildEvidence (complete tool-returned structure):\n")
-                        .append(stringify(step.output()))
-                        .append("\n");
-                }
-                String executionEvidence = step.success()
-                    ? toolObservationBuilder.buildAuthoritativeExecutionEvidence(step.toolName(), step.output())
-                    : null;
-                if (executionEvidence != null && !executionEvidence.isBlank()) {
-                    prompt.append("  authoritativeToolResultEvidence (runtime evidence projection; operation inputs omitted):\n")
-                        .append(executionEvidence)
-                        .append("\n  promptPreviewTruncated=false\n");
                 } else {
-                    String serializedOutput = stringify(redactExecutionStatementText(step.output()));
-                    prompt.append("  toolResult (complete Runtime input): ")
-                        .append(serializedOutput)
-                        .append("\n");
+                    Map<String, Object> outputFacts = structuredOutputFacts(step.output());
+                    if (!outputFacts.isEmpty()) {
+                        prompt.append("  outputFacts: ")
+                            .append(shortObservationText(stringify(outputFacts), 1800))
+                            .append("\n");
+                    }
+                    Map<String, Object> rawOutputMap = objectMap(step.output());
+                    if (rawOutputMap.get("results") instanceof List<?>) {
+                        prompt.append("  batchChildEvidence (complete tool-returned structure):\n")
+                            .append(stringify(step.output()))
+                            .append("\n");
+                    }
+                    String executionEvidence = step.success()
+                        ? toolObservationBuilder.buildAuthoritativeExecutionEvidence(step.toolName(), step.output())
+                        : null;
+                    if (executionEvidence != null && !executionEvidence.isBlank()) {
+                        prompt.append("  authoritativeToolResultEvidence (runtime evidence projection; operation inputs omitted):\n")
+                            .append(executionEvidence)
+                            .append("\n  promptPreviewTruncated=false\n");
+                    } else {
+                        String serializedOutput = stringify(redactExecutionStatementText(step.output()));
+                        prompt.append("  toolResult (complete Runtime input): ")
+                            .append(serializedOutput)
+                            .append("\n");
+                    }
                 }
             }
             }
@@ -2491,7 +2522,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
             for (AgentObservation observation : storedObservations) {
                 prompt.append("- type=").append(observation.type())
                     .append(", source=").append(observation.source())
-                    .append(", content=").append(observation.content())
+                    .append(", content=").append(compressionEnabled
+                        ? shortObservationText(observation.content(), SUMMARY_COMPRESSED_OBSERVATION_CHARS)
+                        : observation.content())
                     .append("\n");
                 if (observation.metadata() != null && !observation.metadata().isEmpty()) {
                     prompt.append("  metadata: ")
@@ -2502,10 +2535,50 @@ public class AgentOrchestrator implements AgentRunExecutor {
         }
         if (observations != null && !observations.isEmpty()) {
             prompt.append("\nIn-memory observations:\n");
-            observations.forEach(observation -> prompt.append("- ").append(observation).append("\n"));
+            observations.forEach(observation -> prompt.append("- ")
+                .append(compressionEnabled
+                    ? shortObservationText(observation, SUMMARY_COMPRESSED_OBSERVATION_CHARS)
+                    : observation)
+                .append("\n"));
         }
         prompt.append("\nReturn only the final user-facing Markdown answer, no JSON.");
         return prompt.toString();
+    }
+
+    private ContextTokenEstimator.Size estimateSummaryEvidenceSize(
+        List<InterpretationPlanRuntime.ExecutionResult> results,
+        List<String> observations,
+        List<AgentObservation> storedObservations
+    ) {
+        ContextTokenEstimator.Size size = new ContextTokenEstimator.Size(0, 0);
+        if (results != null) {
+            for (InterpretationPlanRuntime.ExecutionResult attempt : results) {
+                if (attempt == null) {
+                    continue;
+                }
+                size = size.plus(contextTokenEstimator.estimate(attempt.metadata()))
+                    .plus(contextTokenEstimator.estimate(attempt.finalAnswer()));
+                if (attempt.steps() != null) {
+                    for (InterpretationPlanRuntime.StepExecution step : attempt.steps()) {
+                        if (step != null) {
+                            size = size.plus(contextTokenEstimator.estimate(step.output()))
+                                .plus(contextTokenEstimator.estimate(step.metadata()));
+                        }
+                    }
+                }
+            }
+        }
+        size = size.plus(contextTokenEstimator.estimate(observations));
+        if (storedObservations != null) {
+            for (AgentObservation observation : storedObservations) {
+                if (observation != null) {
+                    size = size.plus(contextTokenEstimator.estimate(observation.content()))
+                        .plus(contextTokenEstimator.estimate(
+                            summaryObservationMetadata(observation.metadata())));
+                }
+            }
+        }
+        return size;
     }
 
     private Object summaryObservationMetadata(Map<String, Object> metadata) {
@@ -2546,11 +2619,20 @@ public class AgentOrchestrator implements AgentRunExecutor {
         InterpretationPlanRuntime.StepExecution execution,
         int executionCount
     ) {
+        return dagDecisionModelOutputSnapshot(
+            execution, executionCount, contextBudget.availableEvidenceTokens());
+    }
+
+    private Map<String, Object> dagDecisionModelOutputSnapshot(
+        InterpretationPlanRuntime.StepExecution execution,
+        int executionCount,
+        int totalEvidenceBudgetTokens
+    ) {
         if (execution == null) {
             return Map.of();
         }
         int perEvidenceBudget = Math.max(1_000,
-            contextBudget.availableEvidenceTokens() / Math.max(1, executionCount));
+            totalEvidenceBudgetTokens / Math.max(1, executionCount));
         ContextTokenEstimator.Size before = contextTokenEstimator.estimate(execution.output())
             .plus(contextTokenEstimator.estimate(execution.metadata()));
         Map<String, Object> content = new LinkedHashMap<>();
@@ -4493,12 +4575,29 @@ public class AgentOrchestrator implements AgentRunExecutor {
                         }
                     }
                 }
-                if (!alreadyExecutedSuccessfully) {
+                boolean evidenceBackedRevision = Boolean.TRUE.equals(source.get("shouldExpandQuery"))
+                    && hasMaterialEvidenceActionRevision(action);
+                if (!alreadyExecutedSuccessfully || evidenceBackedRevision) {
                     pending.add(action);
                 }
             }
         }
         return List.copyOf(pending);
+    }
+
+    private boolean hasMaterialEvidenceActionRevision(Map<String, Object> action) {
+        if (action == null || action.isEmpty()) {
+            return false;
+        }
+        Object changes = firstObject(action,
+            "input_changes", "inputChanges", "retry_input_changes", "retryInputChanges");
+        if (changes instanceof Map<?, ?> map) {
+            return !map.isEmpty();
+        }
+        if (changes instanceof Collection<?> collection) {
+            return !collection.isEmpty();
+        }
+        return changes != null && !String.valueOf(changes).isBlank();
     }
 
     private TaskContract.EvidenceRequirement taskEvidenceRequirement(Map<String, Object> metadata) {

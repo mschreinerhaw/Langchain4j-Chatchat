@@ -106,6 +106,7 @@ class EnterpriseMetadataSearchBridgeTest {
             model,
             "enterprise_metadata_search",
             Map.of(
+                "purpose", "CREATE_TABLE_FIELD_MAPPING",
                 "query", "创建客户信息表",
                 "queryTerms", List.of("客户", "客户名称", "证件", "状态"),
                 "targetObject", Map.of("type", "TABLE", "name", "customer_profile_new")
@@ -120,6 +121,37 @@ class EnterpriseMetadataSearchBridgeTest {
             .containsEntry("mode", "MODEL_ASSISTED_CREATE_TABLE_PROJECTION")
             .containsEntry("sourceFieldCount", 0)
             .containsEntry("projectedFieldCount", 2);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void doesNotInventCreateTableFieldsForDiscoveryWithoutPhysicalMetadata() {
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(anyString())).thenReturn("""
+            {
+              "searchIntent":"verify an existing object against governed metadata",
+              "queryTerms":["existing object","metadata verification","field standard"],
+              "fields":[
+                {"fieldName":"invented_id","fieldCnName":"虚构编号"}
+              ]
+            }
+            """);
+
+        Map<String, Object> result = bridge.enrich(
+            model,
+            "enterprise_metadata_search",
+            Map.of(
+                "query", "评估现有对象是否符合标准",
+                "queryTerms", List.of("existing_object", "标准核验")
+            )
+        );
+
+        assertThat(result).doesNotContainKeys("fields", "purpose");
+        assertThat((List<String>) result.get("queryTerms")).hasSizeLessThanOrEqualTo(32);
+        assertThat((Map<String, Object>) result.get("schemaEvidence"))
+            .containsEntry("mode", "MODEL_ASSISTED_DISCOVERY_TERMS")
+            .containsEntry("sourceFieldCount", 0)
+            .containsEntry("projectedFieldCount", 0);
     }
 
     @Test

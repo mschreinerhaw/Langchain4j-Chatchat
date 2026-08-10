@@ -27,6 +27,7 @@ class EnterpriseMetadataSearchBridge {
     private static final int MAX_EVIDENCE_FIELDS = 80;
     private static final int MAX_PROFILE_FIELDS = 60;
     private static final int MAX_TERMS = 120;
+    private static final int MAX_DISCOVERY_TERMS_WITHOUT_PHYSICAL_SCHEMA = 32;
 
     private final ObjectMapper objectMapper;
 
@@ -44,7 +45,8 @@ class EnterpriseMetadataSearchBridge {
         }
         try {
             EvidenceProjection evidence = evidenceProjection(original.get("sourceEvidence"));
-            String prompt = buildPrompt(original, evidence);
+            boolean createProjectionRequested = explicitCreateProjectionRequested(original);
+            String prompt = buildPrompt(original, evidence, createProjectionRequested);
             Map<String, Object> profile = parseProfile(chatModel.chat(prompt));
             if (text(profile.get("searchIntent")) == null
                 && stringValues(profile.get("queryTerms")).isEmpty()
@@ -54,8 +56,13 @@ class EnterpriseMetadataSearchBridge {
             List<Map<String, Object>> fields = normalizedFields(profile.get("fields"));
             if (evidence.fieldCount() > 0) {
                 fields = constrainToPhysicalEvidence(fields, evidence);
+            } else if (!createProjectionRequested) {
+                fields = List.of();
             }
-            List<String> terms = mergedTerms(original, profile, fields);
+            int termLimit = evidence.fieldCount() > 0 || createProjectionRequested
+                ? MAX_TERMS
+                : MAX_DISCOVERY_TERMS_WITHOUT_PHYSICAL_SCHEMA;
+            List<String> terms = mergedTerms(original, profile, fields, termLimit);
             if (fields.isEmpty() && terms.isEmpty()) {
                 return original;
             }
@@ -72,7 +79,9 @@ class EnterpriseMetadataSearchBridge {
             original.put("schemaEvidence", mapOf(
                 "mode", evidence.fieldCount() > 0
                     ? "MODEL_ASSISTED_SQL_METADATA_PROJECTION"
-                    : "MODEL_ASSISTED_CREATE_TABLE_PROJECTION",
+                    : createProjectionRequested
+                        ? "MODEL_ASSISTED_CREATE_TABLE_PROJECTION"
+                        : "MODEL_ASSISTED_DISCOVERY_TERMS",
                 "profileVersion", PROFILE_VERSION,
                 "executionStatus", "NOT_EXECUTED",
                 "modelOutputIsSearchProjection", true,
@@ -83,7 +92,9 @@ class EnterpriseMetadataSearchBridge {
             ));
             original.put("modelSearchProfile", mapOf(
                 "schemaVersion", PROFILE_VERSION,
-                "mode", evidence.fieldCount() > 0 ? "SQL_METADATA_ASSISTED" : "CREATE_TABLE_ASSISTED",
+                "mode", evidence.fieldCount() > 0
+                    ? "SQL_METADATA_ASSISTED"
+                    : createProjectionRequested ? "CREATE_TABLE_ASSISTED" : "DISCOVERY_TERMS_ONLY",
                 "searchIntent", text(profile.get("searchIntent")),
                 "fieldCount", fields.size(),
                 "termCount", terms.size()
@@ -99,12 +110,15 @@ class EnterpriseMetadataSearchBridge {
         }
     }
 
-    private String buildPrompt(Map<String, Object> arguments, EvidenceProjection evidence) throws Exception {
+    private String buildPrompt(Map<String, Object> arguments,
+                               EvidenceProjection evidence,
+                               boolean createProjectionRequested) throws Exception {
         Map<String, Object> context = new LinkedHashMap<>();
         context.put("query", arguments.get("query"));
         context.put("queryTerms", stringValues(arguments.get("queryTerms")));
         context.put("targetObject", map(arguments.get("targetObject")));
         context.put("sqlMetadata", evidence.tables());
+        context.put("createProjectionRequested", createProjectionRequested);
         return """
             You build a search profile for enterprise metadata verification.
             Return JSON only, without markdown:
@@ -123,15 +137,21 @@ class EnterpriseMetadataSearchBridge {
             Rules:
             1. If sqlMetadata contains columns, select and normalize the columns relevant to the query.
                Never invent a physical column or physical data type. Copy technical names and types exactly.
-            2. If sqlMetadata is empty, this is a possible CREATE TABLE request. Infer a practical draft
-               field search profile from the query and queryTerms. These are candidates for metadata
-               retrieval, not confirmed enterprise facts.
-            3. Include aliases and Chinese/English synonyms in queryTerms, but do not include explanations.
-            4. Keep no more than %d fields and %d terms. Do not make reuse/compliance decisions.
+            2. If sqlMetadata is empty and createProjectionRequested is false, return no fields. Expand
+               only precise discovery queryTerms; never turn verification, assessment, lookup, or missing
+               evidence into a CREATE TABLE field draft.
+            3. If sqlMetadata is empty and createProjectionRequested is true, infer a practical draft
+               field search profile. These are retrieval candidates, not confirmed enterprise facts.
+            4. Include aliases and Chinese/English synonyms in queryTerms, but do not include explanations.
+            5. Keep no more than %d fields and %d terms. Do not make reuse/compliance decisions.
 
             Input:
             %s
-            """.formatted(MAX_PROFILE_FIELDS, MAX_TERMS, objectMapper.writeValueAsString(context));
+            """.formatted(
+                createProjectionRequested || evidence.fieldCount() > 0 ? MAX_PROFILE_FIELDS : 0,
+                createProjectionRequested || evidence.fieldCount() > 0
+                    ? MAX_TERMS : MAX_DISCOVERY_TERMS_WITHOUT_PHYSICAL_SCHEMA,
+                objectMapper.writeValueAsString(context));
     }
 
     private Map<String, Object> parseProfile(String raw) throws Exception {
@@ -225,7 +245,8 @@ class EnterpriseMetadataSearchBridge {
 
     private List<String> mergedTerms(Map<String, Object> original,
                                      Map<String, Object> profile,
-                                     List<Map<String, Object>> fields) {
+                                     List<Map<String, Object>> fields,
+                                     int limit) {
         Set<String> terms = new LinkedHashSet<>();
         addTexts(terms, original.get("queryTerms"));
         addTexts(terms, profile.get("queryTerms"));
@@ -235,7 +256,16 @@ class EnterpriseMetadataSearchBridge {
             addText(terms, field.get("fieldCnName"));
             addText(terms, field.get("description"));
         }
-        return terms.stream().limit(MAX_TERMS).toList();
+        return terms.stream().limit(Math.max(1, limit)).toList();
+    }
+
+    private boolean explicitCreateProjectionRequested(Map<String, Object> arguments) {
+        String purpose = firstText(arguments, "purpose", "operationMode", "operation_mode");
+        return purpose != null && Set.of(
+            "CREATE_TABLE_FIELD_MAPPING",
+            "CREATE_TABLE",
+            "TABLE_DESIGN_DRAFT"
+        ).contains(purpose.trim().toUpperCase(Locale.ROOT));
     }
 
     private EvidenceProjection evidenceProjection(Object sourceEvidence) {

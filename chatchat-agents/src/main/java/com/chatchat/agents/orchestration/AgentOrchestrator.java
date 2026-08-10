@@ -2015,9 +2015,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
         ContextTokenEstimator.Size evidenceSize
     ) {
         StringBuilder prompt = new StringBuilder();
-        if (systemPrompt != null && !systemPrompt.isBlank()) {
-            prompt.append("System instruction:\n").append(systemPrompt).append("\n\n");
-        }
+        prompt.append("System policy inheritance: the validated plan already carries the user intent, scope, "
+            + "constraints, and approved tools. This controller may narrow execution but must not expand that scope.\n\n");
         prompt.append("You are the responsible Agent Runtime DAG execution controller.\n");
         prompt.append("You, not Java code, decide which DAG node should run next.\n");
         prompt.append("Decision protocol:\n")
@@ -2904,9 +2903,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
                                                String systemPrompt,
                                                InterpretationPlanRuntime.StepReviewRequest request) {
         StringBuilder prompt = new StringBuilder();
-        if (systemPrompt != null && !systemPrompt.isBlank()) {
-            prompt.append("System instruction:\n").append(systemPrompt).append("\n\n");
-        }
+        prompt.append("System policy inheritance: the validated step already carries the user intent, scope, "
+            + "constraints, and approved tool. Review only this execution and do not expand that scope.\n\n");
         prompt.append("You are the runtime reviewer for one completed MCP tool call.\n");
         prompt.append("Return strict JSON only with this shape:\n");
         prompt.append("{\"satisfied\":true|false,\"iteration_sufficient\":true|false,\"reason\":\"short reason\",\"review_answer\":\"optional audit note, not user-facing final answer\",\"evidence_used\":[{\"basis\":\"returned fact\"}],\"missing_evidence\":[\"material gap\"],\"conflicts\":[\"conflict\"],\"hypotheses\":[{\"hypothesis_id\":\"H1\",\"parent_hypothesis_id\":null,\"statement\":\"testable explanation\",\"support_evidence_ids\":[],\"contradict_evidence_ids\":[],\"confidence\":0.0,\"status\":\"SUPPORTED|CONTRADICTED|UNRESOLVED\"}],\"next_actions\":[{\"tool\":\"available_tool_name\",\"intent\":\"evidence gap to close or hypothesis to test\",\"input_changes\":{\"parameter\":\"revised value\"},\"reason\":\"why this action is needed\",\"based_on\":[\"evidenceId\",\"hypothesisId\"]}],\"selected_urls\":[\"https://...\"],\"useful_refs\":[\"doc://...#chunk=0\"],\"rejected_refs\":[\"doc://...#chunk=1\"],\"selected_asset_ids\":[\"asset-id\"],\"rejected_asset_ids\":[\"asset-id\"],\"asset_evaluations\":[{\"asset_id\":\"asset-id\",\"relevance\":0.0,\"decision\":\"accept|reject\",\"reasons\":[\"evidence-based reason\"]}],\"selected_template_ids\":[\"template-id\"],\"rejected_template_ids\":[\"template-id\"],\"template_evaluations\":[{\"template_id\":\"template-id\",\"relevance\":0.0,\"evidence_fit\":0.0,\"parameter_readiness\":0.0,\"total_score\":0.0,\"decision\":\"accept|reject\",\"reasons\":[\"evidence-based reason\"],\"missing_parameters\":[]}],\"template_execution_satisfied\":true|false,\"missing_parameters\":[\"parameter\"],\"retry_input_changes\":{\"parameters\":{\"parameter\":\"value proven by user/tool evidence\"}},\"reselect_template\":true|false,\"refined_intent\":\"optional refined retrieval intent\",\"relevance\":0.0,\"answerability\":0.0,\"supportsQuestionAspect\":[\"process\"],\"missingAspects\":[\"constraints\"],\"usefulness\":\"HIGH|MEDIUM|LOW\",\"shouldExpandQuery\":true|false,\"confidence\":0.0}\n");
@@ -2922,7 +2920,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("- Use parent_hypothesis_id to decompose a broad hypothesis into independently testable child hypotheses. Do not create cycles or make a hypothesis its own parent.\n");
         prompt.append("- If satisfied=false, explain missing aspects, but never discard succeeded SQL/database rows merely because they are partial or imperfect.\n");
         prompt.append("- For SQL/database outputs, any returned rows, columns, metrics, or result sets are usable partial evidence. Mark them satisfied=true when they can support any part of the answer, and list gaps in missingAspects.\n");
-        prompt.append("- For an exact SQL metadata lookup that returns an empty catalog, keep execution success distinct from answerability. If target discovery is still required and budget remains, set shouldExpandQuery=true and propose one materially revised metadata search that removes the exact tableName filter and uses bounded identifier tokens, separator/case variants, or business terms from the current user query. Candidate variants are retrieval inputs, never facts that a table exists.\n");
+        prompt.append("- For any exact lookup that returns a structurally successful empty result, keep execution success distinct from answerability. If discovery is still required and budget remains, set shouldExpandQuery=true and propose one materially revised available-tool call that relaxes the blocking exact filter and uses bounded alternative tokens derived from the user request or returned diagnostics. Candidate variants are retrieval inputs, never facts that an object exists.\n");
         prompt.append("- Never propose a downstream binding such as tables[0], results[0], or another indexed element when the returned collection is empty. Route to evidence recovery or a bounded partial answer instead.\n");
         prompt.append("- For web discovery tools (web_search, web_page_analyze, site_intelligence_resolver, *_site_search), judge candidate URLs/snippets only. Do not require full article content from these tools.\n");
         prompt.append("- If a web discovery tool returns useful URLs for follow-up crawling or page analysis, set satisfied=true and put those URLs in selected_urls.\n");

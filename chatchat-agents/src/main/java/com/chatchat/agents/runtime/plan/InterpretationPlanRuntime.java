@@ -286,15 +286,26 @@ public class InterpretationPlanRuntime {
                 break;
             }
             int currentDecisionCount = ++decisionCount;
-            DagDecision decision = deterministicReadyToolDecision(
+            DagDecision decision = deterministicEvidenceRecoveryDecision(
                 executablePlan,
                 remaining,
                 stepsById,
                 completed,
-                completedStepIds,
+                executableRequest,
                 currentDecisionCount,
                 executionTraceId
             );
+            if (decision == null) {
+                decision = deterministicReadyToolDecision(
+                    executablePlan,
+                    remaining,
+                    stepsById,
+                    completed,
+                    completedStepIds,
+                    currentDecisionCount,
+                    executionTraceId
+                );
+            }
             if (decision == null) {
                 decision = dagExecutionController.decide(new DagDecisionRequest(
                     executablePlan,
@@ -597,6 +608,93 @@ public class InterpretationPlanRuntime {
                 "executionTraceId", executionTraceId
             )
         );
+    }
+
+    /**
+     * Gives an evidence-backed recovery action precedence over unrelated downstream
+     * work. The decision is derived only from the review contract, published tool
+     * availability and a material input change; it contains no capability-specific
+     * or business-specific rules.
+     */
+    private DagDecision deterministicEvidenceRecoveryDecision(
+        InterpretationPlan plan,
+        Set<Integer> remaining,
+        Map<Integer, InterpretationPlan.Step> stepsById,
+        Map<Integer, StepExecution> completed,
+        ExecutionRequest request,
+        int decisionCount,
+        String executionTraceId
+    ) {
+        if (plan == null || plan.executionPolicy() == null
+            || Integer.valueOf(0).equals(plan.executionPolicy().maxRewriteTimes())
+            || completed == null || completed.isEmpty()) {
+            return null;
+        }
+        Set<String> remainingTools = remaining == null ? Set.of() : remaining.stream()
+            .map(stepsById::get)
+            .filter(Objects::nonNull)
+            .filter(InterpretationPlan.Step::mcpToolAction)
+            .map(InterpretationPlan.Step::toolName)
+            .map(this::toolSemanticKey)
+            .filter(value -> !value.isBlank())
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+        Set<String> allowedTools = safeList(request == null ? null : request.allowedTools()).stream()
+            .map(this::toolSemanticKey)
+            .filter(value -> !value.isBlank())
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+        List<StepExecution> completedInReverseOrder = new ArrayList<>(completed.values());
+        java.util.Collections.reverse(completedInReverseOrder);
+        for (StepExecution execution : completedInReverseOrder) {
+            if (execution == null) {
+                continue;
+            }
+            Map<String, Object> metadata = execution.metadata() == null
+                ? Map.of() : execution.metadata();
+            Map<String, Object> evaluation = asStringMap(metadata.get("evidenceEvaluation"));
+            boolean expansionRequested = Boolean.TRUE.equals(booleanValue(firstPresent(
+                metadata, "shouldExpandQuery", "should_expand_query")))
+                || Boolean.TRUE.equals(booleanValue(firstPresent(
+                    evaluation, "shouldExpandQuery", "should_expand_query")));
+            if (!execution.success() || !expansionRequested
+                || !(metadata.get("nextActions") instanceof Iterable<?> actions)) {
+                continue;
+            }
+            for (Object item : actions) {
+                Map<String, Object> action = asStringMap(item);
+                String requestedTool = stringValue(firstPresent(
+                    action, "tool", "toolName", "tool_name"));
+                String semanticTool = toolSemanticKey(requestedTool);
+                Map<String, Object> inputChanges = asStringMap(firstPresent(
+                    action, "input_changes", "inputChanges",
+                    "retry_input_changes", "retryInputChanges"));
+                if (semanticTool.isBlank() || inputChanges.isEmpty()
+                    || (!allowedTools.isEmpty() && !allowedTools.contains(semanticTool))
+                    || remainingTools.contains(semanticTool)) {
+                    continue;
+                }
+                log.info("InterpretationPlan prioritized evidence recovery before downstream execution: "
+                        + "traceId={}, decisionCount={}, sourceStepId={}, recoveryTool={}, remainingStepIds={}",
+                    executionTraceId, decisionCount, execution.stepId(), requestedTool,
+                    remaining == null ? List.of() : new ArrayList<>(remaining));
+                return new DagDecision(
+                    InterpretationExecutionProtocol.VERSION,
+                    "rewrite_plan",
+                    List.of(),
+                    "A completed partial-evidence step supplied an available recovery tool with a material input revision; "
+                        + "Runtime must replan before executing unrelated downstream steps.",
+                    null,
+                    mapOf(
+                        "runtimeDeterministicEvidenceRecovery", true,
+                        "sourceStepId", execution.stepId(),
+                        "recoveryTool", requestedTool,
+                        "inputChanges", inputChanges,
+                        "decisionCount", decisionCount,
+                        "executionTraceId", executionTraceId
+                    )
+                );
+            }
+        }
+        return null;
     }
 
     private List<StepExecution> executeWave(List<InterpretationPlan.Step> ready,

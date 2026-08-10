@@ -7073,6 +7073,83 @@ class InterpretationPlanRuntimeTest {
         verify(toolRuntimeService).execute(any());
     }
 
+    @Test
+    void prioritizesMaterialEvidenceRecoveryBeforeUnrelatedDownstreamStep() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("metadata_search")).thenReturn(true);
+        when(toolRegistry.hasTool("standards_search")).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenReturn(
+            ToolMetadata.builder().riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of(
+                "success", true,
+                "count", 0,
+                "results", List.of(),
+                "diagnostics", Map.of("mode", "exact_not_found")
+            )),
+            ToolMetadata.builder().id("metadata_search").build(),
+            null,
+            "success",
+            Map.of()
+        ));
+        InterpretationPlanRuntime.StepResultReviewer reviewer = request ->
+            InterpretationPlanRuntime.StepReview.rejected(
+                "exact lookup returned no candidates",
+                Map.of(
+                    "partialEvidence", true,
+                    "evidenceEvaluation", Map.of("shouldExpandQuery", true),
+                    "nextActions", List.of(Map.of(
+                        "tool", "metadata_search",
+                        "input_changes", Map.of("query", "broadened tokens")
+                    ))
+                )
+            );
+        InterpretationPlanRuntime.DagExecutionController controller =
+            mock(InterpretationPlanRuntime.DagExecutionController.class);
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("evidence_review", "find comparable evidence", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(
+                    1, "mcp_tool", "metadata_search", Map.of("query", "exact"),
+                    List.of(), null, null),
+                new InterpretationPlan.Step(
+                    2, "mcp_tool", "standards_search", Map.of("query", "standards"),
+                    List.of(1), null, null),
+                new InterpretationPlan.Step(
+                    3, "final_answer", "", Map.of("answer", "bounded"),
+                    List.of(2), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                3, false, List.of("metadata_search", "standards_search"), List.of(),
+                30000, 1, "partial_result", Map.of(), null, null, null),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            null,
+            reviewer,
+            controller
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, toolRegistry, List.of("metadata_search", "standards_search"),
+                "tenant-1", "req-recovery-first", "conv-recovery-first", "user-1", Map.of()
+            ));
+
+        assertThat(result.status()).isEqualTo("DAG_REWRITE_REQUESTED");
+        assertThat(result.steps()).extracting(InterpretationPlanRuntime.StepExecution::stepId)
+            .containsExactly(1);
+        Map<?, ?> controllerDecision = (Map<?, ?>) result.metadata().get("controllerDecision");
+        assertThat(controllerDecision.get("action")).isEqualTo("rewrite_plan");
+        verify(toolRuntimeService, times(1)).execute(any());
+        verify(controller, never()).decide(any());
+    }
+
     private InterpretationPlan rewrittenPlanWithRepeatedSearch() {
         return new InterpretationPlan(
             "1.0",

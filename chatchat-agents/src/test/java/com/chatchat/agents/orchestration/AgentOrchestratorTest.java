@@ -491,6 +491,7 @@ class AgentOrchestratorTest {
     @Test
     void dagDecisionUsesItsOwnBoundedEvidenceBudget() {
         String repeatedPayload = "enterprise-evidence-".repeat(8_000);
+        String oversizedSystemPrompt = "DAG_SYSTEM_SENTINEL-".repeat(8_000);
         InterpretationPlanRuntime.StepExecution evidenceStep =
             new InterpretationPlanRuntime.StepExecution(
                 1, "mcp_tool", "generic_metadata_search", true,
@@ -508,11 +509,12 @@ class AgentOrchestratorTest {
             );
 
         String prompt = newOrchestrator(mock(ChatModel.class))
-            .buildInterpretationPlanDagDecisionPrompt("review evidence", null, request);
+            .buildInterpretationPlanDagDecisionPrompt("review evidence", oversizedSystemPrompt, request);
 
         assertThat(prompt)
             .contains("context_compression: {", "enabled=true")
             .doesNotContain(repeatedPayload)
+            .doesNotContain("DAG_SYSTEM_SENTINEL")
             .hasSizeLessThan(100_000);
     }
 
@@ -1274,13 +1276,14 @@ class AgentOrchestratorTest {
         );
         method.setAccessible(true);
 
-        String prompt = (String) method.invoke(orchestrator, "补全字段注释", null, request);
+        String prompt = (String) method.invoke(
+            orchestrator, "补全字段注释", "REVIEW_SYSTEM_SENTINEL-".repeat(8_000), request);
 
         assertThat(prompt)
             .contains("Authoritative tool result evidence")
             .contains("only for claims explicitly required by the current user request")
             .contains("never copy unrelated exclusions into missing_evidence")
-            .contains("removes the exact tableName filter")
+            .contains("relaxes the blocking exact filter")
             .contains("Never propose a downstream binding such as tables[0]")
             .contains("\"englishName\":\"field_1\"")
             .contains("\"englishName\":\"field_12\"")
@@ -1288,6 +1291,7 @@ class AgentOrchestratorTest {
             .contains("\"inputFieldCount\":12")
             .contains("\"processedFieldCount\":12")
             .contains("Prompt preview truncated: false")
+            .doesNotContain("REVIEW_SYSTEM_SENTINEL")
             .doesNotContain("Tool output preview, shortened only")
             .doesNotContain("rawInternalPayload")
             .doesNotContain("z".repeat(100));

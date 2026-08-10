@@ -1018,6 +1018,58 @@ class AgentOrchestratorTest {
         assertThat((List<String>) continuationDag.get(0).get("dependsOnTools")).isEmpty();
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void continuationWorkflowDagDoesNotConstrainRepeatedEvidenceRefinementTool() throws Exception {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        String discoveryTool = "mcp_runtime_template_query";
+        String executionTool = "mcp_runtime_template_execute";
+        InterpretationPlan rewrittenPlan = new InterpretationPlan(
+            "1.0",
+            null,
+            null,
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(
+                    1, "mcp_tool", discoveryTool,
+                    Map.of("query", "initial evidence"), List.of(), null, null),
+                new InterpretationPlan.Step(
+                    2, "mcp_tool", executionTool,
+                    Map.of(), List.of(1), null, null),
+                new InterpretationPlan.Step(
+                    3, "mcp_tool", discoveryTool,
+                    Map.of("query", "refined evidence"), List.of(1, 2), null, null),
+                new InterpretationPlan.Step(
+                    4, "mcp_tool", executionTool,
+                    Map.of(), List.of(3), null, null),
+                new InterpretationPlan.Step(
+                    5, "final_answer", "final_answer",
+                    Map.of("answer", "synthesize all evidence"), List.of(2, 4), null, null)
+            )),
+            null,
+            null
+        );
+        List<Map<String, Object>> authoritativeDag = List.of(
+            Map.of("tool", discoveryTool, "dependsOnTools", List.of()),
+            Map.of("tool", executionTool, "dependsOnTools", List.of(discoveryTool))
+        );
+        Method method = AgentOrchestrator.class.getDeclaredMethod(
+            "authoritativeWorkflowDagForContinuation",
+            Object.class,
+            InterpretationPlan.class,
+            Set.class
+        );
+        method.setAccessible(true);
+
+        Object result = method.invoke(
+            orchestrator,
+            authoritativeDag,
+            rewrittenPlan,
+            Set.of(discoveryTool, executionTool)
+        );
+
+        assertThat((List<Map<String, Object>>) result).isEmpty();
+    }
+
     private static InterpretationPlanRuntime.ExecutionResult attemptResult(String status,
                                                                             boolean success,
                                                                             String evidence,

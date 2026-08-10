@@ -3357,12 +3357,30 @@ public class AgentOrchestrator implements AgentRunExecutor {
             .map(this::toolSemanticKey)
             .filter(value -> !value.isBlank())
             .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
-        Set<String> omittedCompletedTools = completedTools.stream()
+        Map<String, Long> plannedToolCounts = rewrittenPlan.steps().stream()
+            .filter(Objects::nonNull)
+            .map(InterpretationPlan.Step::toolName)
             .filter(Objects::nonNull)
             .map(this::toolSemanticKey)
-            .filter(value -> !value.isBlank() && !plannedTools.contains(value))
+            .filter(value -> !value.isBlank())
+            .collect(java.util.stream.Collectors.groupingBy(
+                value -> value,
+                LinkedHashMap::new,
+                java.util.stream.Collectors.counting()
+            ));
+        Set<String> completedWorkflowTools = completedTools.stream()
+            .filter(Objects::nonNull)
+            .map(this::toolSemanticKey)
+            .filter(value -> !value.isBlank())
             .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
-        if (omittedCompletedTools.isEmpty()) {
+        // A repeated tool represents a completed historical call plus a new refinement call.
+        // The original workflow's exactly-once contract has already been satisfied and must not
+        // reject the continuation merely because it reuses the same capability with new input.
+        Set<String> completedToolsOutsideContinuationContract = completedWorkflowTools.stream()
+            .filter(value -> !plannedTools.contains(value)
+                || plannedToolCounts.getOrDefault(value, 0L) > 1L)
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        if (completedToolsOutsideContinuationContract.isEmpty()) {
             return rawDag;
         }
         List<Map<String, Object>> continuationDag = new ArrayList<>();
@@ -3374,7 +3392,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 stringValue(node.get("tool")),
                 stringValue(node.get("toolName"))
             );
-            if (omittedCompletedTools.contains(toolSemanticKey(toolName))) {
+            if (completedToolsOutsideContinuationContract.contains(toolSemanticKey(toolName))) {
                 continue;
             }
             Map<String, Object> continuationNode = new LinkedHashMap<>();
@@ -3387,7 +3405,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
             if (dependencies instanceof Collection<?> values) {
                 continuationNode.put("dependsOnTools", values.stream()
                     .filter(Objects::nonNull)
-                    .filter(value -> !omittedCompletedTools.contains(toolSemanticKey(String.valueOf(value))))
+                    .filter(value -> !completedToolsOutsideContinuationContract.contains(
+                        toolSemanticKey(String.valueOf(value))))
                     .toList());
             }
             continuationDag.add(continuationNode);

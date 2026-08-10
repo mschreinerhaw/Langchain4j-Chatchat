@@ -1273,7 +1273,7 @@ export default {
         : 10;
       const configuredLatencyBudgetMs = Number(base.executionStrategy.latencyBudgetMs);
       base.executionStrategy.latencyBudgetMs = Number.isFinite(configuredLatencyBudgetMs) && configuredLatencyBudgetMs > 0
-        ? Math.max(1, Math.min(3600000, Math.trunc(configuredLatencyBudgetMs)))
+        ? Math.max(1000, Math.min(3600000, Math.floor(configuredLatencyBudgetMs / 1000) * 1000))
         : 1800000;
       base.executionStrategy.toolRetryAttempts = Math.max(
         0,

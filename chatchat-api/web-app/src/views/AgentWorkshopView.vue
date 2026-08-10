@@ -533,7 +533,7 @@
                 <input
                   v-model.number="form.workflowConfig.executionStrategy.latencyBudgetMs"
                   type="number"
-                  min="1"
+                  min="1000"
                   max="3600000"
                   step="1000"
                 >

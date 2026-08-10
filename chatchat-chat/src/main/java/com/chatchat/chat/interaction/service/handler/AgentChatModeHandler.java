@@ -423,7 +423,20 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             attributes.put("mcpWorkflow", taskWorkflowDefinition);
         } else if (skill != null && skill.workflowConfig() != null && !skill.workflowConfig().isEmpty()) {
             Object explicitWorkflow = skill.workflowConfig().get("mcpWorkflow");
-            attributes.put("mcpWorkflow", explicitWorkflow == null ? skill.workflowConfig() : explicitWorkflow);
+            if (explicitWorkflow instanceof Map<?, ?> || explicitWorkflow instanceof List<?>) {
+                attributes.put("mcpWorkflow", explicitWorkflow);
+            } else if (containsExecutableWorkflow(skill.workflowConfig())) {
+                attributes.put("mcpWorkflow", skill.workflowConfig());
+            }
+        }
+        if (skill != null && skill.workflowConfig() != null) {
+            Object resultHandlingPolicy = firstPresent(
+                skill.workflowConfig().get("resultHandlingPolicy"),
+                skill.workflowConfig().get("result_handling_policy")
+            );
+            if (resultHandlingPolicy instanceof Map<?, ?>) {
+                attributes.put("resultHandlingPolicy", resultHandlingPolicy);
+            }
         }
         boolean forceStructuredFinancialData = forceStructuredFinancialData(skill);
         if (forceStructuredFinancialData) {
@@ -450,6 +463,16 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             attributes.put("mcpToolConfigs", toolConfigs);
         }
         return attributes.isEmpty() ? Map.of() : attributes;
+    }
+
+    private boolean containsExecutableWorkflow(Map<String, Object> workflowConfig) {
+        if (workflowConfig == null || workflowConfig.isEmpty()) {
+            return false;
+        }
+        return workflowConfig.get("steps") instanceof List<?>
+            || workflowConfig.get("workflow") != null
+            || workflowConfig.get("toolDependencies") instanceof Map<?, ?>
+            || workflowConfig.get("parallelSteps") instanceof List<?>;
     }
 
     private boolean forceStructuredFinancialData(SkillDefinition skill) {

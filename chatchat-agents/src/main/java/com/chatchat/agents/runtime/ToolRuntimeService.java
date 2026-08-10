@@ -478,11 +478,13 @@ public class ToolRuntimeService {
         long startedAt = System.currentTimeMillis();
         ToolCallBatchResult result = executeBatch(batch, request);
         long finishedAt = System.currentTimeMillis();
+        boolean summarizeAvailable = summarizeAvailableResults(request);
         boolean successful = DiagnosticRunStateMachine.Outcome.SUCCESS.wireValue().equals(result.status())
-            || DiagnosticRunStateMachine.Outcome.PARTIAL_SUCCESS.wireValue().equals(result.status())
-            || "BATCH_COMPILATION_INCOMPLETE".equals(result.status())
-            || "BATCH_RESULT_INCONSISTENT".equals(result.status())
-            || failureIsolatedBatchCompleted(result);
+            || summarizeAvailable && (
+                DiagnosticRunStateMachine.Outcome.PARTIAL_SUCCESS.wireValue().equals(result.status())
+                    || "BATCH_COMPILATION_INCOMPLETE".equals(result.status())
+                    || "BATCH_RESULT_INCONSISTENT".equals(result.status())
+                    || failureIsolatedBatchCompleted(result));
         ToolOutput output = ToolOutput.builder()
             .success(successful)
             .data(result)
@@ -503,6 +505,8 @@ public class ToolRuntimeService {
         runtimeMetadata.put("batchExecution", true);
         runtimeMetadata.put("templateExecutionLayer", true);
         runtimeMetadata.put("failureIsolation", true);
+        runtimeMetadata.put("resultHandlingPolicy", summarizeAvailable
+            ? "SUMMARIZE_AVAILABLE" : "STRICT_BATCH_SUCCESS");
         runtimeMetadata.put("requestedStopOnFailureIgnored", batch != null && batch.stopOnFailure());
         runtimeMetadata.put("batchId", result.batchId());
         runtimeMetadata.put("declaredCheckCount", result.cardinality().declaredCheckCount());
@@ -2656,6 +2660,22 @@ public class ToolRuntimeService {
             .filter(Collection.class::isInstance)
             .map(Collection.class::cast)
             .anyMatch(dependencies -> !dependencies.isEmpty());
+    }
+
+    private boolean summarizeAvailableResults(ToolRuntimeRequest request) {
+        Map<String, Object> attributes = request == null || request.getAttributes() == null
+            ? Map.of() : request.getAttributes();
+        Map<String, Object> policy = asMap(attributes.get("resultHandlingPolicy"));
+        if (policy.isEmpty()) {
+            return true;
+        }
+        boolean failOnChild = Boolean.TRUE.equals(booleanValue(firstPresent(
+            policy.get("failRunWhenAnyChildFails"), policy.get("fail_run_when_any_child_fails"))));
+        Object continueValue = firstPresent(
+            policy.get("continueOnPartialSuccess"), policy.get("continue_on_partial_success"));
+        boolean continueOnPartial = continueValue == null
+            || Boolean.TRUE.equals(booleanValue(continueValue));
+        return !failOnChild && continueOnPartial;
     }
 
     private boolean authoritativeWorkflowConfigured(ToolRuntimeRequest request) {

@@ -1793,6 +1793,35 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
+    void explicitUnlockedStrictPolicyCanRejectACompletedFailedBatch() {
+        String toolName = "sql_query_execute";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName).title(toolName).categories(List.of("mcp")).build());
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.failure("child failed"));
+        ToolRuntimeProperties runtimeProperties = properties();
+        runtimeProperties.setDefaultRetryAttempts(0);
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), runtimeProperties, new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of());
+        Map<String, Object> strictPolicy = Map.of(
+            "resultHandlingPolicy", Map.of(
+                "overrideAllowed", true,
+                "mode", "STRICT_BATCH_SUCCESS",
+                "continueOnPartialSuccess", false,
+                "failRunWhenAnyChildFails", true
+            )
+        );
+
+        ToolRuntimeExecution execution = service.execute(batchRequest(
+            List.of(batchCall("first", toolName, "ONE")), false, strictPolicy));
+
+        assertThat(execution.output().isSuccess()).isFalse();
+        assertThat(execution.output().getExceptionType()).isEqualTo("FAILED");
+        assertThat(execution.audit()).containsEntry("resultHandlingPolicy", "STRICT_BATCH_SUCCESS");
+    }
+
+    @Test
     void batchResolvesSemanticChildToolNameToRegisteredExecutor() {
         String registeredTool = "mcp_chatchat_mcp_server_api_template_execute";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);

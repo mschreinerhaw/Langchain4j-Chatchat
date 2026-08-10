@@ -30,6 +30,8 @@ import java.util.regex.Pattern;
 public class SkillCatalogService {
 
     private static final String DEFAULT_SKILL_ID = "general";
+    public static final String RESULT_HANDLING_POLICY = "resultHandlingPolicy";
+    public static final String SUMMARIZE_AVAILABLE = "SUMMARIZE_AVAILABLE";
     public static final String MARKET_STATUS_DRAFT = "draft";
     public static final String MARKET_STATUS_PUBLISHED = "published";
     public static final String MARKET_STATUS_RECALLED = "recalled";
@@ -66,6 +68,7 @@ public class SkillCatalogService {
     public void initializeDefaults() {
         ensureSkillSchemaCompatibility();
         ensureDefaultAgentPresent();
+        ensureResultHandlingPolicyPersisted();
     }
 
     /**
@@ -600,6 +603,25 @@ public class SkillCatalogService {
         repository.save(fallback);
     }
 
+    /** Persists the locked default result policy for existing Agent records. */
+    void ensureResultHandlingPolicyPersisted() {
+        List<SkillConfigEntity> changed = new ArrayList<>();
+        for (SkillConfigEntity entity : repository.findAll()) {
+            Map<String, Object> raw = readRawWorkflowConfigJson(entity.getWorkflowConfigJson());
+            Map<String, Object> updated = new LinkedHashMap<>(raw);
+            updated.remove("result_handling_policy");
+            updated.put(RESULT_HANDLING_POLICY, normalizeResultHandlingPolicy(firstObject(
+                raw, RESULT_HANDLING_POLICY, "result_handling_policy")));
+            if (!raw.equals(updated)) {
+                entity.setWorkflowConfigJson(writeRawWorkflowConfigJson(updated));
+                changed.add(entity);
+            }
+        }
+        if (!changed.isEmpty()) {
+            repository.saveAll(changed);
+        }
+    }
+
     /**
      * Clears default Agent flags from all skills except the provided id.
      *
@@ -896,29 +918,27 @@ public class SkillCatalogService {
      */
     @SuppressWarnings("unchecked")
     private Map<String, Object> normalizeWorkflowConfig(Map<String, Object> config) {
-        if (config == null || config.isEmpty()) {
-            return Map.of();
-        }
+        Map<String, Object> source = config == null ? Map.of() : config;
         Map<String, Object> normalized = new LinkedHashMap<>();
-        Object enabled = config.get("enabled");
+        Object enabled = source.get("enabled");
         normalized.put("enabled", !(enabled instanceof Boolean bool) || bool);
-        Object configuredEnvironment = firstObject(config, "runtimeEnvironment", "runtime_environment");
+        Object configuredEnvironment = firstObject(source, "runtimeEnvironment", "runtime_environment");
         String runtimeEnvironment = normalizeRuntimeEnvironment(configuredEnvironment);
         if (runtimeEnvironment != null) {
             normalized.put("runtimeEnvironment", runtimeEnvironment);
         }
         Object forceStructuredFinancialData = firstObject(
-            config,
+            source,
             "forceStructuredFinancialData",
             "force_structured_financial_data"
         );
         normalized.put("forceStructuredFinancialData", booleanValue(forceStructuredFinancialData));
-        putText(normalized, "workflow", firstObject(config, "workflow", "workflowId", "id", "name"));
-        Object mcpWorkflow = config.get("mcpWorkflow");
+        putText(normalized, "workflow", firstObject(source, "workflow", "workflowId", "id", "name"));
+        Object mcpWorkflow = source.get("mcpWorkflow");
         if (mcpWorkflow instanceof List<?> || mcpWorkflow instanceof Map<?, ?>) {
             normalized.put("mcpWorkflow", mcpWorkflow);
         }
-        Object strategy = firstObject(config, "executionStrategy", "execution_strategy");
+        Object strategy = firstObject(source, "executionStrategy", "execution_strategy");
         if (strategy instanceof Map<?, ?> strategyMap) {
             Map<String, Object> normalizedStrategy = new LinkedHashMap<>((Map<String, Object>) strategyMap);
             Object configuredMaxSteps = firstObjectFromMap(strategyMap, "maxSteps", "max_steps");
@@ -933,7 +953,7 @@ public class SkillCatalogService {
             normalized.put("executionStrategy", normalizedStrategy);
         }
         Map<String, Object> configuredDependencies = new LinkedHashMap<>();
-        Object dependencies = firstObject(config, "toolDependencies", "tool_dependencies");
+        Object dependencies = firstObject(source, "toolDependencies", "tool_dependencies");
         if (dependencies instanceof Map<?, ?> dependencyMap) {
             dependencyMap.forEach((key, value) -> {
                 String toolName = normalizeText(String.valueOf(key));
@@ -942,7 +962,7 @@ public class SkillCatalogService {
                 }
             });
         }
-        Object steps = config.get("steps");
+        Object steps = source.get("steps");
         if (steps instanceof List<?> list) {
             List<Map<String, Object>> normalizedSteps = new ArrayList<>();
             Map<String, Object> normalizedDependencies = new LinkedHashMap<>();
@@ -1002,12 +1022,68 @@ public class SkillCatalogService {
                 normalized.put("toolDependencies", normalizedDependencies);
             }
         }
-        Object parallelSteps = firstObject(config, "parallelSteps", "parallel_steps");
+        Object parallelSteps = firstObject(source, "parallelSteps", "parallel_steps");
         List<String> normalizedParallelSteps = stringValues(parallelSteps);
         if (!normalizedParallelSteps.isEmpty()) {
             normalized.put("parallelSteps", normalizedParallelSteps);
         }
+        normalized.put(RESULT_HANDLING_POLICY, normalizeResultHandlingPolicy(firstObject(
+            source, RESULT_HANDLING_POLICY, "result_handling_policy")));
         return normalized;
+    }
+
+    private Map<String, Object> normalizeResultHandlingPolicy(Object rawPolicy) {
+        Map<?, ?> configured = rawPolicy instanceof Map<?, ?> map ? map : Map.of();
+        boolean overrideAllowed = booleanValue(firstObjectFromMap(
+            configured, "overrideAllowed", "override_allowed"));
+        if (!overrideAllowed) {
+            return defaultResultHandlingPolicy();
+        }
+        String mode = normalizeText(String.valueOf(firstObjectFromMap(configured, "mode")));
+        if (mode == null || "null".equalsIgnoreCase(mode)) {
+            mode = SUMMARIZE_AVAILABLE;
+        }
+        Map<String, Object> policy = new LinkedHashMap<>();
+        policy.put("mode", mode.toUpperCase(Locale.ROOT));
+        policy.put("continueOnPartialSuccess", booleanValueOrDefault(firstObjectFromMap(
+            configured, "continueOnPartialSuccess", "continue_on_partial_success"), true));
+        policy.put("summarizeSuccessfulResults", booleanValueOrDefault(firstObjectFromMap(
+            configured, "summarizeSuccessfulResults", "summarize_successful_results"), true));
+        policy.put("includeFailedResultReasons", booleanValueOrDefault(firstObjectFromMap(
+            configured, "includeFailedResultReasons", "include_failed_result_reasons"), true));
+        policy.put("failRunWhenAnyChildFails", booleanValue(firstObjectFromMap(
+            configured, "failRunWhenAnyChildFails", "fail_run_when_any_child_fails")));
+        policy.put("recordAnalysisPolicy", immutableRecordAnalysisPolicy());
+        policy.put("overrideAllowed", true);
+        return Map.copyOf(policy);
+    }
+
+    private Map<String, Object> defaultResultHandlingPolicy() {
+        Map<String, Object> policy = new LinkedHashMap<>();
+        policy.put("mode", SUMMARIZE_AVAILABLE);
+        policy.put("continueOnPartialSuccess", true);
+        policy.put("summarizeSuccessfulResults", true);
+        policy.put("includeFailedResultReasons", true);
+        policy.put("failRunWhenAnyChildFails", false);
+        policy.put("recordAnalysisPolicy", immutableRecordAnalysisPolicy());
+        policy.put("overrideAllowed", false);
+        return Map.copyOf(policy);
+    }
+
+    private Map<String, Object> immutableRecordAnalysisPolicy() {
+        return Map.of(
+            "contractVersion", "record_grounded_analysis.v1",
+            "requireRecordGroundedAnalysis", true,
+            "requireCompleteRecordCoverage", true,
+            "iterativeSummarizationWhenOversized", true,
+            "allowExecutionMetadataOnlyAnswer", false,
+            "completionCondition", "PROCESSED_RECORD_COUNT_EQUALS_RETURNED_RECORD_COUNT",
+            "immutable", true
+        );
+    }
+
+    private boolean booleanValueOrDefault(Object value, boolean fallback) {
+        return value == null ? fallback : booleanValue(value);
     }
 
     private boolean booleanValue(Object value) {
@@ -1286,14 +1362,34 @@ public class SkillCatalogService {
      */
     private Map<String, Object> readWorkflowConfigJson(String json) {
         if (json == null || json.isBlank()) {
-            return Map.of();
+            return normalizeWorkflowConfig(Map.of());
         }
         try {
             Map<String, Object> values = objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {
             });
             return normalizeWorkflowConfig(values);
         } catch (Exception ignored) {
+            return normalizeWorkflowConfig(Map.of());
+        }
+    }
+
+    private Map<String, Object> readRawWorkflowConfigJson(String json) {
+        if (json == null || json.isBlank()) {
             return Map.of();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {
+            });
+        } catch (Exception ignored) {
+            return Map.of();
+        }
+    }
+
+    private String writeRawWorkflowConfigJson(Map<String, Object> workflowConfig) {
+        try {
+            return objectMapper.writeValueAsString(workflowConfig == null ? Map.of() : workflowConfig);
+        } catch (JsonProcessingException ex) {
+            throw new IllegalArgumentException("failed to persist Agent result handling policy", ex);
         }
     }
 

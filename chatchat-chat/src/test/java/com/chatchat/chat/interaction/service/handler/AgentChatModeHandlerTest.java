@@ -45,7 +45,7 @@ class AgentChatModeHandlerTest {
             skillCatalogService,
             new AgentToolPolicyResolver(toolRegistry, skillCatalogService, bridge)
         );
-        when(skillCatalogService.resolve("ops")).thenReturn(skillWithoutWebSearch());
+        when(skillCatalogService.resolve("ops")).thenReturn(skillWithResultHandlingPolicy());
         when(bridge.listRegisteredTools()).thenReturn(List.of());
         when(orchestrator.executeAgent(
             anyString(), isNull(), anyList(), anyString(), isNull(), anyList(), anyList(),
@@ -78,7 +78,13 @@ class AgentChatModeHandlerTest {
         assertThat(attributes.getValue())
             .containsEntry("mcpWorkflow", snapshot)
             .containsEntry("authoritativeWorkflowTaskId", "task-100")
-            .containsEntry("authoritativeWorkflowSource", "user_defined_mcp_workflow");
+            .containsEntry("authoritativeWorkflowSource", "user_defined_mcp_workflow")
+            .containsEntry("resultHandlingPolicy", Map.of(
+                "mode", "SUMMARIZE_AVAILABLE",
+                "continueOnPartialSuccess", true,
+                "failRunWhenAnyChildFails", false,
+                "overrideAllowed", false
+            ));
     }
 
     @Test
@@ -941,6 +947,24 @@ class AgentChatModeHandlerTest {
 
     private SkillDefinition skillWithoutWebSearch() {
         return skill(List.of());
+    }
+
+    private SkillDefinition skillWithResultHandlingPolicy() {
+        SkillDefinition base = skill(List.of());
+        return new SkillDefinition(
+            base.id(), base.label(), base.description(), base.usageScenarios(), base.skillTags(),
+            base.defaultMode(), base.modelName(), base.systemPrompt(), base.firstUseGreeting(),
+            base.preferredToolPrefixes(), base.boundMcpServiceIds(), base.boundMcpToolNames(),
+            base.boundDocumentIds(), base.boundDocumentTags(), base.toolConfigs(), base.routingSettings(),
+            Map.of("resultHandlingPolicy", Map.of(
+                "mode", "SUMMARIZE_AVAILABLE",
+                "continueOnPartialSuccess", true,
+                "failRunWhenAnyChildFails", false,
+                "overrideAllowed", false
+            )),
+            base.defaultDataAsset(), base.assetSelectionPolicy(), base.quickQuestions(),
+            base.marketStatus(), base.defaultAgent()
+        );
     }
 
     private SkillDefinition skillWithRuntimeEnvironment(String environment) {

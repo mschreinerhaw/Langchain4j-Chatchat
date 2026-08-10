@@ -1538,6 +1538,17 @@ public class InterpretationPlanRuntime {
                 }
             }
         }
+        if (!compiled.isEmpty() && !declared.containsAll(compiled)) {
+            attributes.remove("diagnosticRunId");
+            attributes.remove("diagnosticDeclaredCheckIds");
+            attributes.remove("diagnosticDeclaredCheckCount");
+            attributes.remove("diagnosticCompiledCallCount");
+            attributes.remove("diagnosticMissingAuthorizedCheckIds");
+            attributes.put("diagnosticBatchMappingIgnored", true);
+            attributes.put("diagnosticBatchMappingReason",
+                "Compiled call identifiers are governed template executions rather than diagnostic check identifiers");
+            return;
+        }
         List<String> missing = declared.stream().filter(id -> !compiled.contains(id)).toList();
         attributes.put("diagnosticRunId", firstText(
             stringValue(attributes.get(AGENT_RUN_ID_ATTRIBUTE)),

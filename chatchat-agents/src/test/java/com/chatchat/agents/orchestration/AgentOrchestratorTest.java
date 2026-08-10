@@ -477,6 +477,161 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void deterministicSummaryKeepsSuccessfulChildrenWhenSiblingFails() {
+        ToolCallResult success = new ToolCallResult(
+            "asset", "api_template_execute", "asset-template", "asset-1",
+            "SUCCESS", 10L, "evidence-1",
+            Map.of(
+                "data", Map.of("body", Map.of("records", List.of(Map.of(
+                    "CUSTOMER_ID", "070200046604", "BALANCE", "912.05"
+                ))))
+            ),
+            Map.of()
+        );
+        ToolCallResult failed = new ToolCallResult(
+            "orders", "api_template_execute", "orders-template", "asset-1",
+            "FAILED", 10L, "evidence-2", null,
+            Map.of("code", "UPSTREAM_FAILED", "message", "orders unavailable")
+        );
+        ToolCallBatchResult batch = new ToolCallBatchResult(
+            "batch-1", "SEQUENTIAL", "start", "end", "PARTIAL_SUCCESS",
+            new ToolCallBatchResult.Summary(2, 1, 1, 0, 0, 2), List.of(success, failed)
+        );
+        InterpretationPlanRuntime.StepExecution step = new InterpretationPlanRuntime.StepExecution(
+            3, "mcp_tool", "mcp_chatchat_mcp_server_api_template_execute", true,
+            batch, null, null, null, 20L, Map.of("batchExecution", true)
+        );
+        InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
+            "completed_with_partial_evidence", true, false, null, null,
+            List.of(step), Map.of(), 20L
+        );
+
+        String answer = newOrchestrator(mock(ChatModel.class))
+            .buildDeterministicAvailableResultAnswer(result);
+
+        assertThat(answer)
+            .contains("asset-template", "070200046604", "912.05")
+            .contains("orders-template", "UPSTREAM_FAILED", "orders unavailable")
+            .contains("\u6210\u529f\u5b50\u9879\uff1a1", "\u672a\u6210\u529f\u5b50\u9879\uff1a1"); /*
+            .contains("成功子项：1", "未成功子项：1");
+        */
+    }
+
+    @Test
+    void appendsConcreteRowsWhenModelOnlyReportsTemplateExecution() {
+        ToolCallResult success = new ToolCallResult(
+            "asset", "api_template_execute", "asset-template", "asset-1",
+            "SUCCESS", 10L, "evidence-1",
+            Map.of("data", Map.of("body", Map.of("records", List.of(Map.of(
+                "CUSTOMER_ID", "070200046604",
+                "TOTAL_ASSET", "847174.25",
+                "DAILY_PROFIT", "42263.81"
+            ))))),
+            Map.of()
+        );
+        ToolCallBatchResult batch = new ToolCallBatchResult(
+            "batch-1", "SEQUENTIAL", "start", "end", "SUCCESS",
+            new ToolCallBatchResult.Summary(1, 1, 0, 0, 0, 1), List.of(success)
+        );
+        InterpretationPlanRuntime.StepExecution step = new InterpretationPlanRuntime.StepExecution(
+            3, "mcp_tool", "mcp_chatchat_mcp_server_api_template_execute", true,
+            batch, null, null, null, 10L, Map.of("batchExecution", true)
+        );
+        InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
+            "success", true, false, null, null, List.of(step), Map.of(), 10L
+        );
+        Map<String, Object> metadata = new LinkedHashMap<>();
+
+        String answer = newOrchestrator(mock(ChatModel.class)).ensureConcreteBatchEvidencePresented(
+            "1/1 templates succeeded; asset data can be returned.",
+            "query customer 070200046604 assets",
+            result,
+            metadata
+        );
+
+        assertThat(answer)
+            .contains("847174.25", "42263.81", "asset-template")
+            .contains("\u5b9e\u9645\u8fd4\u56de\u6570\u636e");
+        assertThat(metadata).containsEntry("concreteBatchEvidencePresentationFallback", true);
+    }
+
+    @Test
+    void iteratesUntilEveryOversizedReturnedRecordIsCovered() {
+        List<Map<String, Object>> records = new ArrayList<>();
+        for (int index = 0; index < 60; index++) {
+            records.add(Map.of(
+                "ROW_ID", "row-" + index,
+                "VALUE", "value-" + index + "-" + "x".repeat(300)
+            ));
+        }
+        ToolCallResult success = new ToolCallResult(
+            "records", "api_template_execute", "records-template", "asset-1",
+            "SUCCESS", 10L, "evidence-1",
+            Map.of("data", Map.of("body", Map.of("records", records))), Map.of()
+        );
+        ToolCallBatchResult batch = new ToolCallBatchResult(
+            "batch-1", "SEQUENTIAL", "start", "end", "SUCCESS",
+            new ToolCallBatchResult.Summary(1, 1, 0, 0, 0, 1), List.of(success)
+        );
+        InterpretationPlanRuntime.StepExecution step = new InterpretationPlanRuntime.StepExecution(
+            3, "mcp_tool", "mcp_chatchat_mcp_server_api_template_execute", true,
+            batch, null, null, null, 10L, Map.of("batchExecution", true)
+        );
+        InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
+            "success", true, false, null, null, List.of(step), Map.of(), 10L
+        );
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(any(String.class))).thenReturn("chunk evidence summary");
+        AgentOrchestrator orchestrator = newOrchestrator(model);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+
+        AgentOrchestrator.RecordCoverageBundle coverage = orchestrator.buildRecordCoverageBundle(
+            model, "analyze returned records", result, Map.of(), metadata, () -> false);
+        String answer = orchestrator.ensureCompleteRecordCoveragePresented(
+            "all templates succeeded", coverage, metadata);
+
+        assertThat(coverage.returnedRecordCount()).isEqualTo(60);
+        assertThat(coverage.processedRecordCount()).isEqualTo(60);
+        assertThat(coverage.coverageComplete()).isTrue();
+        assertThat(coverage.iterative()).isTrue();
+        assertThat(coverage.iterations()).isGreaterThan(1);
+        assertThat(answer)
+            .contains("chunk evidence summary")
+            .contains("60/60")
+            .contains("\u5168\u91cf\u8bb0\u5f55\u8986\u76d6\u5206\u6790");
+        assertThat(metadata)
+            .containsEntry("recordAnalysisCoverageComplete", true)
+            .containsEntry("recordAnalysisReturnedRecordCount", 60)
+            .containsEntry("recordAnalysisProcessedRecordCount", 60);
+        verify(model, times(coverage.iterations())).chat(any(String.class));
+    }
+
+    @Test
+    void appliesCompleteRecordCoverageToNonBatchProtocolRows() {
+        InterpretationPlanRuntime.StepExecution step = new InterpretationPlanRuntime.StepExecution(
+            1, "mcp_tool", "sql_metadata_search", true,
+            Map.of("data", Map.of("rows", List.of(
+                Map.of("TABLE_NAME", "orders", "ROW_COUNT", 10),
+                Map.of("TABLE_NAME", "assets", "ROW_COUNT", 20)
+            ))),
+            null, null, null, 10L, Map.of()
+        );
+        InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
+            "success", true, false, null, null, List.of(step), Map.of(), 10L
+        );
+        ChatModel model = mock(ChatModel.class);
+        AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
+            .buildRecordCoverageBundle(model, "analyze metadata", result, Map.of(),
+                new LinkedHashMap<>(), () -> false);
+
+        assertThat(coverage.returnedRecordCount()).isEqualTo(2);
+        assertThat(coverage.processedRecordCount()).isEqualTo(2);
+        assertThat(coverage.coverageComplete()).isTrue();
+        assertThat(coverage.promptEvidence()).contains("orders", "assets");
+        verify(model, never()).chat(any(String.class));
+    }
+
+    @Test
     void dagControllerFailureStillSelectsSoleReadyFinalAnswerStep() {
         InterpretationPlan.Step finalStep = new InterpretationPlan.Step(
             3,

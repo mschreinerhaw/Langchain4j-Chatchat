@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -13,6 +14,29 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class MetadataGovernancePolicyServiceTest {
+
+    @Test
+    void readsLegacyClaimCoverageWithoutReEmittingItsConformanceVerdicts() throws Exception {
+        MetadataGovernancePolicy policy = new ObjectMapper().readValue("""
+            {
+              "version":"legacy-policy",
+              "claimCoverage":{
+                "scope":"ENTERPRISE_FIELD_METADATA",
+                "supportedClaims":["legacy claim"],
+                "notAssessedClaims":["complete table conformance"],
+                "fullTableDesignConformanceSupported":false
+              }
+            }
+            """, MetadataGovernancePolicy.class);
+
+        Map<String, Object> coverage = MetadataGovernancePolicyService.evidenceCoverage(
+            policy.getEvidenceCoverage(), policy.getVersion());
+
+        assertThat(coverage)
+            .containsEntry("contractVersion", "enterprise_metadata_evidence_coverage.v2")
+            .containsEntry("evidenceRole", "STANDARD_REFERENCE_DATA")
+            .doesNotContainKeys("supportedClaims", "notAssessedClaims", "fullTableDesignConformanceSupported");
+    }
 
     @Test
     void dynamicallyReloadsSavedDatabasePolicyAndEnforcesRevision() throws Exception {
@@ -37,11 +61,9 @@ class MetadataGovernancePolicyServiceTest {
         assertThat(service.refresh().revision()).isEqualTo(3);
         MetadataGovernancePolicy changed = EnterpriseMetadataTestProperties.policy();
         changed.getComparison().setMinimumFieldScore(0.72D);
-        changed.getClaimCoverage().setScope("ENTERPRISE_TABLE_DESIGN_METADATA");
-        changed.getClaimCoverage().setSupportedClaims(java.util.List.of(
-            "complete table-level enterprise design conformance"));
-        changed.getClaimCoverage().setNotAssessedClaims(java.util.List.of());
-        changed.getClaimCoverage().setFullTableDesignConformanceSupported(true);
+        changed.getEvidenceCoverage().setScope("ENTERPRISE_FIELD_METADATA");
+        changed.getEvidenceCoverage().setReturnedEvidenceTypes(java.util.List.of(
+            "custom standard field metadata"));
 
         MetadataGovernancePolicy saved = service.save(changed, 3L);
 
@@ -49,16 +71,16 @@ class MetadataGovernancePolicyServiceTest {
         assertThat(service.status())
             .containsEntry("revision", 4L)
             .containsEntry("source", "database");
-        assertThat(service.claimCoverage())
-            .containsEntry("contractVersion", "enterprise_metadata_claim_coverage.v1")
-            .containsEntry("scope", "ENTERPRISE_TABLE_DESIGN_METADATA")
-            .containsEntry("fullTableDesignConformanceSupported", true)
+        assertThat(service.evidenceCoverage())
+            .containsEntry("contractVersion", "enterprise_metadata_evidence_coverage.v2")
+            .containsEntry("scope", "ENTERPRISE_FIELD_METADATA")
+            .containsEntry("evidenceRole", "STANDARD_REFERENCE_DATA")
             .containsEntry("declarationSource", "metadata_governance_policy")
             .containsEntry("policyVersion", "test-policy-v1");
-        assertThat((java.util.List<String>) service.claimCoverage().get("supportedClaims"))
-            .containsExactly("complete table-level enterprise design conformance");
-        assertThat((java.util.List<String>) service.claimCoverage().get("notAssessedClaims"))
-            .isEmpty();
+        assertThat((java.util.List<String>) service.evidenceCoverage().get("returnedEvidenceTypes"))
+            .containsExactly("custom standard field metadata");
+        assertThat(service.evidenceCoverage())
+            .doesNotContainKeys("supportedClaims", "notAssessedClaims", "fullTableDesignConformanceSupported");
         assertThatThrownBy(() -> service.save(changed, 3L))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("revision conflict");

@@ -58,23 +58,21 @@ public class MetadataGovernancePolicyService {
         return current.policy();
     }
 
-    public Map<String, Object> claimCoverage() {
+    public Map<String, Object> evidenceCoverage() {
         MetadataGovernancePolicy policy = current();
-        return claimCoverage(policy.getClaimCoverage(), policy.getVersion());
+        return evidenceCoverage(policy.getEvidenceCoverage(), policy.getVersion());
     }
 
-    static Map<String, Object> claimCoverage(MetadataGovernancePolicy.ClaimCoverage configured,
-                                             String policyVersion) {
-        MetadataGovernancePolicy.ClaimCoverage coverage = configured == null
-            ? new MetadataGovernancePolicy.ClaimCoverage()
+    static Map<String, Object> evidenceCoverage(MetadataGovernancePolicy.EvidenceCoverage configured,
+                                                String policyVersion) {
+        MetadataGovernancePolicy.EvidenceCoverage coverage = configured == null
+            ? new MetadataGovernancePolicy.EvidenceCoverage()
             : configured;
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("contractVersion", coverage.getContractVersion());
         result.put("scope", coverage.getScope());
-        result.put("supportedClaims", normalizedClaims(coverage.getSupportedClaims()));
-        result.put("notAssessedClaims", normalizedClaims(coverage.getNotAssessedClaims()));
-        result.put("fullTableDesignConformanceSupported",
-            coverage.isFullTableDesignConformanceSupported());
+        result.put("evidenceRole", coverage.getEvidenceRole());
+        result.put("returnedEvidenceTypes", normalizedClaims(coverage.getReturnedEvidenceTypes()));
         result.put("interpretation", coverage.getInterpretation());
         result.put("declarationSource", "metadata_governance_policy");
         result.put("policyVersion", policyVersion);
@@ -177,15 +175,16 @@ public class MetadataGovernancePolicyService {
         if (contract.getRequiredBundle() == null || contract.getRequiredBundle().isEmpty()) {
             throw new IllegalArgumentException("metadataContract.requiredBundle is required");
         }
-        MetadataGovernancePolicy.ClaimCoverage claimCoverage = policy.getClaimCoverage();
-        if (claimCoverage == null) {
-            throw new IllegalArgumentException("claimCoverage is required");
+        MetadataGovernancePolicy.EvidenceCoverage evidenceCoverage = policy.getEvidenceCoverage();
+        if (evidenceCoverage == null) {
+            throw new IllegalArgumentException("evidenceCoverage is required");
         }
-        required(claimCoverage.getContractVersion(), "claimCoverage.contractVersion");
-        required(claimCoverage.getScope(), "claimCoverage.scope");
-        required(claimCoverage.getInterpretation(), "claimCoverage.interpretation");
-        if (normalizedClaims(claimCoverage.getSupportedClaims()).isEmpty()) {
-            throw new IllegalArgumentException("claimCoverage.supportedClaims is required");
+        required(evidenceCoverage.getContractVersion(), "evidenceCoverage.contractVersion");
+        required(evidenceCoverage.getScope(), "evidenceCoverage.scope");
+        required(evidenceCoverage.getEvidenceRole(), "evidenceCoverage.evidenceRole");
+        required(evidenceCoverage.getInterpretation(), "evidenceCoverage.interpretation");
+        if (normalizedClaims(evidenceCoverage.getReturnedEvidenceTypes()).isEmpty()) {
+            throw new IllegalArgumentException("evidenceCoverage.returnedEvidenceTypes is required");
         }
         MetadataGovernancePolicy.SearchPolicy search = policy.getSearch();
         if (search == null || search.getTermExpansionLimit() < 1

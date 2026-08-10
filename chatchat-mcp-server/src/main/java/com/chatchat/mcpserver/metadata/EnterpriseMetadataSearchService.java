@@ -155,7 +155,7 @@ public class EnterpriseMetadataSearchService {
             "sampleValuesIncluded", false,
             "sourceAuthority", "configured_enterprise_metadata_catalog"
         ));
-        response.put("claimCoverage", policyService.claimCoverage());
+        response.put("evidenceCoverage", policyService.evidenceCoverage());
         return response;
     }
 
@@ -418,7 +418,7 @@ public class EnterpriseMetadataSearchService {
         evidence.put("assumptions", List.of());
         evidence.put("constraints", List.of(
             "Describes an enterprise standard reference, not the target object's physical schema",
-            "May support only the claim types declared by claimCoverage"
+            "Returned enterprise metadata is standard reference data; the model determines conclusions from all available evidence"
         ));
         evidence.put("quality", Map.of(
                 "sourceAuthority", "enterprise_standard",

@@ -27,8 +27,8 @@ class EnterpriseMetadataMatchingServiceTest {
             mock(MetadataGovernancePolicyService.class);
         MetadataGovernancePolicy policy = policy();
         when(policyService.current()).thenReturn(policy);
-        when(policyService.claimCoverage()).thenReturn(MetadataGovernancePolicyService.claimCoverage(
-            policy.getClaimCoverage(), policy.getVersion()));
+        when(policyService.evidenceCoverage()).thenReturn(MetadataGovernancePolicyService.evidenceCoverage(
+            policy.getEvidenceCoverage(), policy.getVersion()));
         when(searchService.search(any())).thenAnswer(invocation ->
             searchResult(invocation.getArgument(0)));
         EnterpriseMetadataCatalog catalog = mock(EnterpriseMetadataCatalog.class);
@@ -186,16 +186,15 @@ class EnterpriseMetadataMatchingServiceTest {
             .containsEntry("table", "customer_profile")
             .containsEntry("fieldCount", 2);
         assertThat(maps(result.get("fieldMatches"))).hasSize(2);
-        assertThat(map(result.get("claimCoverage")))
-            .containsEntry("contractVersion", "enterprise_metadata_claim_coverage.v1")
-            .containsEntry("fullTableDesignConformanceSupported", false)
+        assertThat(map(result.get("evidenceCoverage")))
+            .containsEntry("contractVersion", "enterprise_metadata_evidence_coverage.v2")
+            .containsEntry("evidenceRole", "STANDARD_REFERENCE_DATA")
             .containsEntry("declarationSource", "metadata_governance_policy")
             .containsEntry("policyVersion", "test-policy-v1");
-        assertThat(map(result.get("fieldConformanceAssessment")))
-            .containsEntry("scope", "FIELD_METADATA_CONFORMANCE")
-            .containsEntry("conformsWithinScope", false)
+        assertThat(map(result.get("fieldComparisonEvidence")))
+            .containsEntry("scope", "FIELD_METADATA_COMPARISON")
             .containsEntry("differenceCount", 1)
-            .containsEntry("fullTableDesignConformance", "NOT_ASSESSED");
+            .doesNotContainKeys("conformsWithinScope", "fullTableDesignConformance");
         verify(searchService, org.mockito.Mockito.times(6)).search(any());
     }
 

@@ -54,8 +54,9 @@ class StructuredReasoningEvidenceAdapterRegistryTest {
         assertThat(projection.get("assessmentCapability")).isEqualTo("FIELD_SEMANTIC_ANNOTATION_ONLY");
         assertThat(projection.get("reasoningRules").toString())
             .contains("not enterprise-design compliance", "not proof of deployed database state");
-        assertThat(projection.get("claimCoverage").toString())
-            .contains("scopeRule", "primary_key_design");
+        assertThat(projection.get("evidenceCoverage").toString())
+            .contains("SOURCE_FACTS_AND_STANDARD_REFERENCES", "field-standard candidate metadata")
+            .doesNotContain("primary_key_design", "notAssessedClaims");
     }
 
     @Test

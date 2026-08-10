@@ -67,8 +67,8 @@ public class EnterpriseMetadataMcpToolPublisher {
                 + "A downstream reasoning/script step must review the returned evidence before producing DDL. "
                 + "Use this read-only capability when a task needs enterprise field meaning, technical names, "
                 + "data types, standard definitions or business-term mapping. It does not create tables, "
-                + "generate SQL or execute a workflow. The returned claimCoverage is the authoritative, governance-policy-driven "
-                + "declaration of supported and unassessed claims; callers must not assume a fixed table-design scope from the tool name. "
+                + "generate SQL or execute a workflow. The returned evidenceCoverage describes which field-standard reference data "
+                + "was returned; it does not decide whether the user's broader design conclusion is true or false. "
                 + "Read evidenceBundle first: it separates target facts, enterprise-standard references, and model inference guidance. "
                 + "Treat results and evidenceObjects as retrieval provenance; "
                 + "never invent fields that were not returned.")

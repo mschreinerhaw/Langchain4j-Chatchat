@@ -175,8 +175,8 @@ class AgentOrchestratorTest {
             .contains("Do not claim that enterprise standards, terms, dictionaries, or other governed metadata do not exist")
             .contains("state its evidence-backed rejection reason")
             .contains("Do not imply that a service was unavailable")
-            .contains("never enumerate unrelated notAssessedClaims")
-            .contains("not a task checklist")
+            .contains("evidenceCoverage is descriptive only")
+            .contains("never pre-decides whether a table or design conforms")
             .contains("Do not turn the final answer into a tool trace")
             .contains("clearly labeled possible business interpretation")
             .contains("Never present toolName as displayName");
@@ -1282,8 +1282,8 @@ class AgentOrchestratorTest {
 
         assertThat(prompt)
             .contains("Authoritative tool result evidence")
-            .contains("only for claims explicitly required by the current user request")
-            .contains("never copy unrelated exclusions into missing_evidence")
+            .contains("evidenceCoverage as a description of returned standard-reference data")
+            .contains("do not manufacture unsupported/missing claim lists")
             .contains("A revised query cannot expand a tool's declared capability")
             .contains("relaxes the blocking exact filter")
             .contains("Never propose a downstream binding such as tables[0]")

@@ -14,7 +14,7 @@ class ToolObservationBuilderEvidenceTest {
     private final ToolObservationBuilder builder = new ToolObservationBuilder(new EvidenceTrustEvaluator());
 
     @Test
-    void enterpriseMetadataDiscoverySeparatesRetrievalSuccessFromClaimCoverage() {
+    void enterpriseMetadataDiscoveryExposesDescriptiveEvidenceCoverageWithoutConformanceVerdict() {
         Map<String, Object> discovery = Map.of(
             "schemaVersion", "enterprise_metadata_search_result.v3",
             "success", true,
@@ -23,11 +23,11 @@ class ToolObservationBuilderEvidenceTest {
             "retrievalMode", "mixed",
             "count", 1,
             "countsByType", Map.of("metadata_field", 1),
-            "claimCoverage", Map.of(
+            "evidenceCoverage", Map.of(
+                "contractVersion", "enterprise_metadata_evidence_coverage.v2",
                 "scope", "ENTERPRISE_FIELD_METADATA",
-                "supportedClaims", List.of("standard field name and definition alignment"),
-                "notAssessedClaims", List.of("complete table-level enterprise design conformance"),
-                "fullTableDesignConformanceSupported", false
+                "evidenceRole", "STANDARD_REFERENCE_DATA",
+                "returnedEvidenceTypes", List.of("standard field metadata")
             ),
             "results", List.of(Map.of(
                 "metadataType", "metadata_field",
@@ -46,12 +46,13 @@ class ToolObservationBuilderEvidenceTest {
 
         assertThat(observation)
             .contains("\"schemaVersion\":\"enterprise_metadata_discovery_context.v1\"")
-            .contains("\"fullTableDesignConformanceSupported\":false")
-            .contains("\"usage\":\"CAPABILITY_GUARD_NOT_TASK_CHECKLIST\"")
-            .contains("\"notAssessedClaimCount\":1")
+            .contains("\"contractVersion\":\"enterprise_metadata_evidence_coverage.v2\"")
+            .contains("\"evidenceRole\":\"STANDARD_REFERENCE_DATA\"")
+            .contains("\"returnedEvidenceTypes\":[\"standard field metadata\"]")
+            .contains("\"usage\":\"DESCRIPTIVE_REFERENCE_DATA_ONLY\"")
             .contains("Retrieval success is not evidence")
             .contains("\"technicalName\":\"biz_date\"")
-            .doesNotContain("complete table-level enterprise design conformance")
+            .doesNotContain("fullTableDesignConformanceSupported", "notAssessedClaims", "supportedClaims")
             .doesNotContain("internalPayload", "evidenceObjects", "x".repeat(100));
         assertThat(observation.length()).isLessThan(10_000);
     }
@@ -62,10 +63,10 @@ class ToolObservationBuilderEvidenceTest {
             "schemaVersion", "enterprise_metadata_search_result.v3",
             "success", true,
             "count", 1,
-            "claimCoverage", Map.of(
-                "supportedClaims", List.of("standard field alignment"),
-                "notAssessedClaims", List.of("unrequested physical design detail"),
-                "fullTableDesignConformanceSupported", false
+            "evidenceCoverage", Map.of(
+                "contractVersion", "enterprise_metadata_evidence_coverage.v2",
+                "evidenceRole", "STANDARD_REFERENCE_DATA",
+                "returnedEvidenceTypes", List.of("standard field metadata")
             ),
             "evidenceBundle", Map.of(
                 "contractVersion", "enterprise_metadata_evidence_bundle.v1",
@@ -98,7 +99,7 @@ class ToolObservationBuilderEvidenceTest {
             .contains("STANDARD_FIELD_REFERENCE", "RATING_CODE")
             .contains("standardReferencesDoNotProveTargetSchema")
             .doesNotContain("raw-record-must-not-enter-model-context", "internalPayload")
-            .doesNotContain("unrequested physical design detail");
+            .doesNotContain("fullTableDesignConformanceSupported", "notAssessedClaims", "supportedClaims");
     }
 
     @Test

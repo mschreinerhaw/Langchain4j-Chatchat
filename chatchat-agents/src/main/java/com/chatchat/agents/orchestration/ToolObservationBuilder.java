@@ -313,7 +313,7 @@ class ToolObservationBuilder {
         StringBuilder observation = successObservationHeader(toolName, output);
         observation.append("\nStructured reasoning evidence (authoritative runtime projection):\n")
             .append(protocolEvidence)
-            .append("\nEvidence boundary: preserve evidenceRole, claimCoverage, completeness, and entity associations. ")
+            .append("\nEvidence boundary: preserve evidenceRole, evidenceCoverage, completeness, and entity associations. ")
             .append("Candidate/reference evidence is never an observed fact; model inference must remain explicitly separate.");
         return observation.toString();
     }
@@ -379,10 +379,10 @@ class ToolObservationBuilder {
             "allFieldsProcessed", allFieldsProcessed,
             "fieldsWithCandidates", fieldsWithCandidates
         ));
-        context.put("claimCoverage", modelClaimCoverageProjection(payload.get("claimCoverage")));
-        if (!asMap(payload.get("fieldConformanceAssessment")).isEmpty()) {
-            context.put("fieldConformanceAssessment",
-                asMap(payload.get("fieldConformanceAssessment")));
+        context.put("evidenceCoverage", modelEvidenceCoverageProjection(payload.get("evidenceCoverage")));
+        if (!asMap(payload.get("fieldComparisonEvidence")).isEmpty()) {
+            context.put("fieldComparisonEvidence",
+                asMap(payload.get("fieldComparisonEvidence")));
         }
         context.put("fields", List.copyOf(formattedFields));
         context.put("projection", Map.of(
@@ -420,7 +420,7 @@ class ToolObservationBuilder {
             "countsByType", payload.get("countsByType"),
             "requiredRetrieval", payload.get("requiredRetrieval")
         ));
-        context.put("claimCoverage", modelClaimCoverageProjection(payload.get("claimCoverage")));
+        context.put("evidenceCoverage", modelEvidenceCoverageProjection(payload.get("evidenceCoverage")));
         if (evidenceBundle.isEmpty()) {
             context.put("candidates", candidates);
         } else {
@@ -429,9 +429,9 @@ class ToolObservationBuilder {
         context.put("interpretationRules", List.of(
             "Read evidenceBundle by role: factEvidence, standardEvidence, and inferenceEvidence are not interchangeable.",
             "Retrieval success is not evidence that the returned records describe the target object's physical schema.",
-            "Use standardEvidence only for the claim types declared in claimCoverage.supportedClaims.",
+            "Use returned standard metadata as reference evidence and let the model determine what conclusions it supports together with target facts.",
             "Inference guidance may support clearly labeled checkpoints or recommendations, never observed target facts.",
-            "Claims listed in claimCoverage.notAssessedClaims remain unsupported when explicitly requested, but unrelated exclusions must not expand task scope."
+            "Evidence coverage describes returned data; it does not pre-decide enterprise-design conformance."
         ));
         return ModelProtocolJson.compact(context);
     }
@@ -450,26 +450,19 @@ class ToolObservationBuilder {
         );
     }
 
-    private Map<String, Object> modelClaimCoverageProjection(Object value) {
+    private Map<String, Object> modelEvidenceCoverageProjection(Object value) {
         Map<String, Object> coverage = asMap(value);
         if (coverage.isEmpty()) {
             return Map.of();
         }
         Map<String, Object> projection = new LinkedHashMap<>();
         for (String key : List.of(
-            "contractVersion", "scope", "supportedClaims",
-            "fullTableDesignConformanceSupported", "interpretation",
+            "contractVersion", "scope", "evidenceRole", "returnedEvidenceTypes", "interpretation",
             "declarationSource", "policyVersion"
         )) {
             putIfPresent(projection, key, coverage.get(key));
         }
-        List<?> notAssessed = coverage.get("notAssessedClaims") instanceof List<?> list
-            ? list
-            : List.of();
-        projection.put("notAssessedClaimsPresent", !notAssessed.isEmpty());
-        projection.put("notAssessedClaimCount", notAssessed.size());
-        projection.put("notAssessedClaimDetailsLocation", "toolTrace");
-        projection.put("usage", "CAPABILITY_GUARD_NOT_TASK_CHECKLIST");
+        projection.put("usage", "DESCRIPTIVE_REFERENCE_DATA_ONLY");
         return Map.copyOf(projection);
     }
 

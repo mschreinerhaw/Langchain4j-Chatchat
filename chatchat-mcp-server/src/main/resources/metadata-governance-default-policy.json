@@ -28,24 +28,16 @@
     "dictionaryEnglishNameAttribute": "dictionaryEnglishName",
     "dictionaryIdAttribute": "dictionaryId"
   },
-  "claimCoverage": {
-    "contractVersion": "enterprise_metadata_claim_coverage.v1",
+  "evidenceCoverage": {
+    "contractVersion": "enterprise_metadata_evidence_coverage.v2",
     "scope": "ENTERPRISE_FIELD_METADATA",
-    "supportedClaims": [
-      "standard field name and definition alignment",
-      "standard field data-type alignment when the returned record declares a type",
-      "business term/root alignment",
-      "code dictionary alignment"
+    "evidenceRole": "STANDARD_REFERENCE_DATA",
+    "returnedEvidenceTypes": [
+      "standard field metadata",
+      "business term and root metadata",
+      "code dictionary metadata"
     ],
-    "notAssessedClaims": [
-      "primary or unique key design",
-      "partitioning, bucketing, or indexing design",
-      "storage format or compression",
-      "retention, lifecycle, or TTL policy",
-      "complete table-level enterprise design conformance"
-    ],
-    "fullTableDesignConformanceSupported": false,
-    "interpretation": "success=true means retrieval completed, not that every requested governance claim is supported"
+    "interpretation": "Describes enterprise field metadata returned as standard reference data; conclusions are produced by the model from all available evidence"
   },
   "search": {
     "exactWeight": 1.0,

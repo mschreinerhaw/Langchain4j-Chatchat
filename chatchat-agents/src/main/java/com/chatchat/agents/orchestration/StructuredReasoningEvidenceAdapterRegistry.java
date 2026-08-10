@@ -135,11 +135,12 @@ final class StructuredReasoningEvidenceAdapterRegistry {
         Map<String, Object> projection = base(root, "SOURCE_FACTS_AND_STANDARD_REFERENCES", "FIELD_SEMANTIC_ANNOTATION_ONLY");
         projection.put("factEvidence", List.copyOf(facts));
         projection.put("standardEvidence", List.copyOf(standards));
-        projection.put("claimCoverage", mapOf(
-            "supportedClaims", List.of("source_ddl_physical_columns_parsed", "field_standard_candidates_retrieved"),
-            "notAssessedClaims", List.of("deployed_table_state", "primary_key_design", "index_design",
-                "partition_design", "storage_format", "lifecycle_policy"),
-            "scopeRule", "Only mention a notAssessedClaim when the current user request explicitly requires that claim"
+        projection.put("evidenceCoverage", mapOf(
+            "evidenceRole", "SOURCE_FACTS_AND_STANDARD_REFERENCES",
+            "returnedEvidenceTypes", List.of(
+                "source DDL physical column definitions",
+                "enterprise field-standard candidate metadata"),
+            "interpretation", "Describes returned evidence only; the model determines design conclusions"
         ));
         projection.put("reasoningRules", List.of(
             "Physical definitions came from supplied DDL and are not proof of deployed database state.",

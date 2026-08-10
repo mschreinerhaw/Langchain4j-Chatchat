@@ -16,8 +16,8 @@ final class EnterpriseMetadataTestProperties {
         MetadataGovernancePolicyService service = mock(MetadataGovernancePolicyService.class);
         MetadataGovernancePolicy policy = policy();
         when(service.current()).thenReturn(policy);
-        when(service.claimCoverage()).thenReturn(MetadataGovernancePolicyService.claimCoverage(
-            policy.getClaimCoverage(), policy.getVersion()));
+        when(service.evidenceCoverage()).thenReturn(MetadataGovernancePolicyService.evidenceCoverage(
+            policy.getEvidenceCoverage(), policy.getVersion()));
         return service;
     }
 

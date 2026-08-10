@@ -121,9 +121,9 @@ public class EnterpriseMetadataMatchingService {
             "requiredMetadataTypes", requiredTypes(),
             "perFieldTypeRetrieval", true
         ));
-        response.put("claimCoverage", policyService.claimCoverage());
-        if (!schema.governanceAssessment().isEmpty()) {
-            response.put("fieldConformanceAssessment", schema.governanceAssessment());
+        response.put("evidenceCoverage", policyService.evidenceCoverage());
+        if (!schema.comparisonEvidence().isEmpty()) {
+            response.put("fieldComparisonEvidence", schema.comparisonEvidence());
         }
         response.put("reviewContract", mapOf(
             "reviewRequired", true,
@@ -370,23 +370,21 @@ public class EnterpriseMetadataMatchingService {
                 "analysisSource", governance.get("analysisSource"),
                 "sourceEvidence", governance.get("sourceEvidence")
             ),
-            governanceAssessment(governance)
+            comparisonEvidence(governance)
         );
     }
 
-    private Map<String, Object> governanceAssessment(Map<String, Object> governance) {
+    private Map<String, Object> comparisonEvidence(Map<String, Object> governance) {
         if (governance == null || governance.isEmpty()
             || governance.get("conforms") == null) {
             return Map.of();
         }
         return mapOf(
-            "scope", "FIELD_METADATA_CONFORMANCE",
-            "conformsWithinScope", governance.get("conforms"),
+            "scope", "FIELD_METADATA_COMPARISON",
             "differenceCount", governance.get("differenceCount"),
             "severityCounts", governance.get("severityCounts"),
             "differences", governance.get("differences"),
-            "factBoundary", governance.get("factBoundary"),
-            "fullTableDesignConformance", "NOT_ASSESSED"
+            "factBoundary", governance.get("factBoundary")
         );
     }
 
@@ -734,7 +732,7 @@ public class EnterpriseMetadataMatchingService {
         String table,
         List<ResolvedField> fields,
         Map<String, Object> sourceEvidence,
-        Map<String, Object> governanceAssessment
+        Map<String, Object> comparisonEvidence
     ) {
     }
 

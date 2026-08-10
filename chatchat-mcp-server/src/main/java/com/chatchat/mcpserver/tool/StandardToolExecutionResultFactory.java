@@ -1,7 +1,10 @@
 package com.chatchat.mcpserver.tool;
 
 import com.chatchat.common.tool.ToolOutput;
+import com.chatchat.mcpserver.api.ApiInvokeResult;
+import com.chatchat.mcpserver.api.ApiServiceConfig;
 import com.chatchat.mcpserver.database.DatabaseQueryConfig;
+import com.chatchat.mcpserver.notification.NotificationSendResult;
 import com.chatchat.mcpserver.ops.HttpRequestToolResult;
 import com.chatchat.mcpserver.ops.LinuxCommandResult;
 import com.chatchat.mcpserver.ops.LinuxCommandStepResult;
@@ -380,7 +383,8 @@ public class StandardToolExecutionResultFactory {
             "statusCode", result.statusCode(),
             "headers", result.headers(),
             "body", result.body(),
-            "rawBody", result.rawBody()
+            "rawBody", result.rawBody(),
+            "bodyCompleteness", httpBodyCompleteness(result.body(), result.rawBody())
         );
         payload.put("data", data);
         payload.put("execution", execution(
@@ -405,6 +409,87 @@ public class StandardToolExecutionResultFactory {
             List.of()
         ));
         return payload;
+    }
+
+    /**
+     * Normalizes governed API-template execution into the same runtime contract as
+     * the other execution gateways. HTTP success is intentionally kept separate
+     * from source-level pagination or completeness, which the gateway cannot infer.
+     */
+    public Map<String, Object> fromApi(ApiServiceConfig config, ApiInvokeResult result) {
+        Map<String, Object> payload = base(
+            "api_request", "api_response.v1",
+            result.body() instanceof Map<?, ?> || result.body() instanceof List<?> ? "structured" : "semi_raw",
+            result.success(), 0L, result.errorMessage());
+        payload.put("target", mapOf(
+            "type", "api_service",
+            "id", config == null ? null : config.getId(),
+            "name", config == null ? null : config.getTitle(),
+            "toolName", config == null ? null : config.getToolName(),
+            "environment", null
+        ));
+        payload.put("sourceMetadata", sourceMetadata(
+            "HTTP_REQUEST", "external_api", config == null ? null : config.getToolName(),
+            mapOf("type", "api_service", "id", config == null ? null : config.getId(),
+                "name", config == null ? null : config.getTitle()),
+            mapOf("method", config == null ? null : config.getMethod(),
+                "gatewayId", config == null ? null : config.getGatewayId()),
+            config == null ? null : firstText(config.getBusinessGroupName(), config.getTitle()),
+            config == null ? null : firstText(config.getBusinessGroupDescription(), config.getDescription()),
+            config == null ? null : config.getBusinessGroup()
+        ));
+        payload.put("operation", mapOf(
+            "type", "api.template_request",
+            "method", config == null ? null : config.getMethod(),
+            "cacheHit", result.cacheHit()
+        ));
+        payload.put("data", mapOf(
+            "statusCode", result.statusCode(),
+            "headers", result.headers(),
+            "body", result.body(),
+            "rawBody", result.rawBody(),
+            "cacheHit", result.cacheHit(),
+            "bodyCompleteness", httpBodyCompleteness(result.body(), result.rawBody())
+        ));
+        return payload;
+    }
+
+    /** Creates an operation receipt; notification response text is not business evidence. */
+    public Map<String, Object> fromNotification(NotificationSendResult result) {
+        Map<String, Object> payload = base(
+            "notification_receipt", "notification_receipt.v1", "structured",
+            result.success(), 0L, result.errorMessage());
+        payload.put("target", mapOf(
+            "type", "notification_channel",
+            "name", result.channel() == null ? null : result.channel().name(),
+            "toolName", result.toolName()
+        ));
+        payload.put("operation", mapOf(
+            "type", "notification.send",
+            "attempts", result.attempts()
+        ));
+        payload.put("data", mapOf(
+            "statusCode", result.statusCode(),
+            "attempts", result.attempts(),
+            "notification", result.notification(),
+            "responseBody", result.responseBody(),
+            "rawResponse", result.rawResponse(),
+            "evidenceRole", "OPERATION_RECEIPT",
+            "businessEvidence", false
+        ));
+        return payload;
+    }
+
+    private Map<String, Object> httpBodyCompleteness(Object body, String rawBody) {
+        Integer recordCount = body instanceof List<?> list ? list.size() : null;
+        return mapOf(
+            "gatewayTruncated", false,
+            "upstreamCompleteness", "UNKNOWN",
+            "paginationAssessed", false,
+            "rawBodyChars", rawBody == null ? null : rawBody.length(),
+            "topLevelRecordCount", recordCount,
+            "rule", "gatewayTruncated describes this gateway only; upstream pagination/completeness requires explicit source fields"
+        );
     }
 
     @SuppressWarnings("unchecked")

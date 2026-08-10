@@ -1330,7 +1330,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 workflowAttemptAttributes(
                     workflowStateTracker.attributesWithCompletedWorkflowState(
                         runtimeAttributes, completedTools, traces),
-                    rewriteCount
+                    rewriteCount,
+                    rewriteWorkflowDag
                 )
             ));
             recordPlanRuntimeResult(rewriteStage, currentResult, traces, observations, metadata);
@@ -1391,6 +1392,15 @@ public class AgentOrchestrator implements AgentRunExecutor {
             );
             recordEvidenceAugmentationDecision(
                 latestAugmentationDecision, rewriteCount + 1, runtimeAttributes, metadata);
+            if ("DAG_NO_PROGRESS".equals(currentResult.status())) {
+                usablePartialAnalysis = evidenceHistory.stream().anyMatch(this::usableEvidenceAvailable);
+                metadata.put("interpretationPlanNoProgressStopped", true);
+                metadata.put("interpretationPlanNoProgressStage",
+                    rewriteCount == 1 ? "rewrite" : "rewrite" + rewriteCount);
+                observations.add("InterpretationPlan stopped after a rewritten DAG made no execution progress; "
+                    + "the persisted evidence chain will be synthesized without another unchanged rewrite.");
+                break;
+            }
             if (latestAugmentationDecision.decision() == EvidenceAugmentationPolicy.Decision.COMPLETE) {
                 recordEvidenceStopState(metadata, currentEvidence, "evidence_sufficient", rewriteCount + 1);
                 recordMandatoryWorkflowCompletion(traces, metadata, runtimeAttributes);
@@ -1784,6 +1794,16 @@ public class AgentOrchestrator implements AgentRunExecutor {
         Map<String, Object> attributes = new LinkedHashMap<>(runtimeAttributes == null ? Map.of() : runtimeAttributes);
         attributes.put("workflowExecutionAttempt", Math.max(0, attempt));
         attributes.put("toolResultReviewMaxAttempts", 1);
+        return attributes;
+    }
+
+    private Map<String, Object> workflowAttemptAttributes(Map<String, Object> runtimeAttributes,
+                                                          int attempt,
+                                                          Object authoritativeWorkflowDag) {
+        Map<String, Object> attributes = workflowAttemptAttributes(runtimeAttributes, attempt);
+        if (authoritativeWorkflowDag != null) {
+            attributes.put("authoritativeWorkflowDag", authoritativeWorkflowDag);
+        }
         return attributes;
     }
 
@@ -2781,6 +2801,12 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (!rejectedRefs.isEmpty()) {
             metadata.put("rejectedEvidenceRefs", rejectedRefs);
         }
+        List<String> selectedAssetIds = stringList(firstObject(payload, "selected_asset_ids", "selectedAssetIds"));
+        if (!selectedAssetIds.isEmpty()) metadata.put("selectedAssetIds", selectedAssetIds);
+        List<String> rejectedAssetIds = stringList(firstObject(payload, "rejected_asset_ids", "rejectedAssetIds"));
+        if (!rejectedAssetIds.isEmpty()) metadata.put("rejectedAssetIds", rejectedAssetIds);
+        Object assetEvaluations = firstObject(payload, "asset_evaluations", "assetEvaluations");
+        if (assetEvaluations instanceof Iterable<?>) metadata.put("assetEvaluations", assetEvaluations);
         List<String> selectedTemplateIds = stringList(firstObject(payload, "selected_template_ids", "selectedTemplateIds"));
         if (!selectedTemplateIds.isEmpty()) {
             metadata.put("selectedTemplateIds", selectedTemplateIds);
@@ -2876,7 +2902,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         }
         prompt.append("You are the runtime reviewer for one completed MCP tool call.\n");
         prompt.append("Return strict JSON only with this shape:\n");
-        prompt.append("{\"satisfied\":true|false,\"iteration_sufficient\":true|false,\"reason\":\"short reason\",\"review_answer\":\"optional audit note, not user-facing final answer\",\"evidence_used\":[{\"basis\":\"returned fact\"}],\"missing_evidence\":[\"material gap\"],\"conflicts\":[\"conflict\"],\"hypotheses\":[{\"hypothesis_id\":\"H1\",\"parent_hypothesis_id\":null,\"statement\":\"testable explanation\",\"support_evidence_ids\":[],\"contradict_evidence_ids\":[],\"confidence\":0.0,\"status\":\"SUPPORTED|CONTRADICTED|UNRESOLVED\"}],\"next_actions\":[{\"tool\":\"available_tool_name\",\"intent\":\"evidence gap to close or hypothesis to test\",\"input_changes\":{\"parameter\":\"revised value\"},\"reason\":\"why this action is needed\",\"based_on\":[\"evidenceId\",\"hypothesisId\"]}],\"selected_urls\":[\"https://...\"],\"useful_refs\":[\"doc://...#chunk=0\"],\"rejected_refs\":[\"doc://...#chunk=1\"],\"selected_template_ids\":[\"template-id\"],\"rejected_template_ids\":[\"template-id\"],\"template_evaluations\":[{\"template_id\":\"template-id\",\"relevance\":0.0,\"evidence_fit\":0.0,\"parameter_readiness\":0.0,\"total_score\":0.0,\"decision\":\"accept|reject\",\"reasons\":[\"evidence-based reason\"],\"missing_parameters\":[]}],\"template_execution_satisfied\":true|false,\"missing_parameters\":[\"parameter\"],\"retry_input_changes\":{\"parameters\":{\"parameter\":\"value proven by user/tool evidence\"}},\"reselect_template\":true|false,\"refined_intent\":\"optional refined retrieval intent\",\"relevance\":0.0,\"answerability\":0.0,\"supportsQuestionAspect\":[\"process\"],\"missingAspects\":[\"constraints\"],\"usefulness\":\"HIGH|MEDIUM|LOW\",\"shouldExpandQuery\":true|false,\"confidence\":0.0}\n");
+        prompt.append("{\"satisfied\":true|false,\"iteration_sufficient\":true|false,\"reason\":\"short reason\",\"review_answer\":\"optional audit note, not user-facing final answer\",\"evidence_used\":[{\"basis\":\"returned fact\"}],\"missing_evidence\":[\"material gap\"],\"conflicts\":[\"conflict\"],\"hypotheses\":[{\"hypothesis_id\":\"H1\",\"parent_hypothesis_id\":null,\"statement\":\"testable explanation\",\"support_evidence_ids\":[],\"contradict_evidence_ids\":[],\"confidence\":0.0,\"status\":\"SUPPORTED|CONTRADICTED|UNRESOLVED\"}],\"next_actions\":[{\"tool\":\"available_tool_name\",\"intent\":\"evidence gap to close or hypothesis to test\",\"input_changes\":{\"parameter\":\"revised value\"},\"reason\":\"why this action is needed\",\"based_on\":[\"evidenceId\",\"hypothesisId\"]}],\"selected_urls\":[\"https://...\"],\"useful_refs\":[\"doc://...#chunk=0\"],\"rejected_refs\":[\"doc://...#chunk=1\"],\"selected_asset_ids\":[\"asset-id\"],\"rejected_asset_ids\":[\"asset-id\"],\"asset_evaluations\":[{\"asset_id\":\"asset-id\",\"relevance\":0.0,\"decision\":\"accept|reject\",\"reasons\":[\"evidence-based reason\"]}],\"selected_template_ids\":[\"template-id\"],\"rejected_template_ids\":[\"template-id\"],\"template_evaluations\":[{\"template_id\":\"template-id\",\"relevance\":0.0,\"evidence_fit\":0.0,\"parameter_readiness\":0.0,\"total_score\":0.0,\"decision\":\"accept|reject\",\"reasons\":[\"evidence-based reason\"],\"missing_parameters\":[]}],\"template_execution_satisfied\":true|false,\"missing_parameters\":[\"parameter\"],\"retry_input_changes\":{\"parameters\":{\"parameter\":\"value proven by user/tool evidence\"}},\"reselect_template\":true|false,\"refined_intent\":\"optional refined retrieval intent\",\"relevance\":0.0,\"answerability\":0.0,\"supportsQuestionAspect\":[\"process\"],\"missingAspects\":[\"constraints\"],\"usefulness\":\"HIGH|MEDIUM|LOW\",\"shouldExpandQuery\":true|false,\"confidence\":0.0}\n");
         prompt.append("Rules:\n");
         prompt.append(AgentRuntimeFactGroundingContract.promptSection());
         prompt.append("- Decide whether this tool output is sufficient for the current plan step and user request.\n");
@@ -2900,6 +2926,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("- For document_search, evaluate each returned document/chunk against the current user request. Put useful doc:// refs in useful_refs and unrelated or misleading refs in rejected_refs. Do not infer usefulness from retrieval rank alone.\n");
         prompt.append("- Treat retrieval score as a weak prior only. Your semantic evidence evaluation must state relevance, answerability, supported aspects, missing aspects, usefulness, and whether another query expansion is needed.\n");
         prompt.append("- For template discovery and API/HTTP requirement analysis, compare title, description, capabilitySpec, outputSchema, dependencySpec and required parameters with the current requirement. Return only ids present in the tool output under selected_template_ids/rejected_template_ids. If candidates do not cover the requirement, set satisfied=false and provide refined_intent.\n");
+        prompt.append("- For asset discovery with multiple candidates, compare only returned routing metadata with the current target. Return selected_asset_ids/rejected_asset_ids and one asset_evaluations entry per candidate. Asset discovery proves routing eligibility, never target health or business state.\n");
         prompt.append("- Template retrieval scores and ordering are weak recall priors, never acceptance decisions. Semantically review every returned template candidate.\n");
         prompt.append("- When governed template discovery returns multiple admitted templates, every template remaining in that discovery result is execution-required. A scalar templates[0] plan binding does not reduce this set: Runtime compiles all admitted templates into a failure-isolated batch and final synthesis must wait for a terminal result from every call. selected_template_ids may order or narrow candidates only during the discovery admission decision; it may never be used after admission to skip physical execution.\n");
         prompt.append("- Put unrelated or materially weaker candidates in rejected_template_ids. Do not select a template merely because Lucene ranked it first or its score ties another candidate.\n");

@@ -1,7 +1,11 @@
 package com.chatchat.mcpserver.tool;
 
 import com.chatchat.common.tool.ToolOutput;
+import com.chatchat.mcpserver.api.ApiInvokeResult;
+import com.chatchat.mcpserver.api.ApiServiceConfig;
 import com.chatchat.mcpserver.database.DatabaseQueryConfig;
+import com.chatchat.mcpserver.notification.NotificationChannel;
+import com.chatchat.mcpserver.notification.NotificationSendResult;
 import com.chatchat.mcpserver.ops.HttpRequestToolResult;
 import com.chatchat.mcpserver.ops.JmxMonitorResult;
 import com.chatchat.mcpserver.ops.LinuxCommandResult;
@@ -20,6 +24,43 @@ class StandardToolExecutionResultFactoryTest {
 
     private final DatabaseToolProperties databaseToolProperties = databaseToolProperties();
     private final StandardToolExecutionResultFactory factory = new StandardToolExecutionResultFactory(databaseToolProperties);
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void apiExecutionUsesStandardEnvelopeAndKeepsUpstreamCompletenessUnknown() {
+        ApiServiceConfig config = new ApiServiceConfig();
+        config.setId("api-1");
+        config.setToolName("api_template_execute");
+        config.setTitle("Governed API");
+        config.setMethod("GET");
+        Map<String, Object> envelope = factory.fromApi(config, new ApiInvokeResult(
+            true, 200, Map.of(), List.of(Map.of("id", 1)), "[{\"id\":1}]", null, false));
+
+        assertThat(envelope)
+            .containsEntry("schemaVersion", StandardToolExecutionResultFactory.SCHEMA_VERSION)
+            .containsEntry("kind", "api_request")
+            .containsEntry("success", true);
+        Map<String, Object> data = (Map<String, Object>) envelope.get("data");
+        Map<String, Object> completeness = (Map<String, Object>) data.get("bodyCompleteness");
+        assertThat(completeness)
+            .containsEntry("gatewayTruncated", false)
+            .containsEntry("upstreamCompleteness", "UNKNOWN")
+            .containsEntry("topLevelRecordCount", 1);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void notificationIsAnOperationReceiptNotBusinessEvidence() {
+        Map<String, Object> envelope = factory.fromNotification(new NotificationSendResult(
+            true, NotificationChannel.EMAIL, "send_alert", 202, 1,
+            Map.of("accepted", true), "accepted", null, Map.of("subject", "alert")));
+
+        assertThat(envelope).containsEntry("kind", "notification_receipt");
+        Map<String, Object> data = (Map<String, Object>) envelope.get("data");
+        assertThat(data)
+            .containsEntry("evidenceRole", "OPERATION_RECEIPT")
+            .containsEntry("businessEvidence", false);
+    }
 
     @Test
     void jmxResultUsesStandardEnvelopeWithoutExposingConfiguredServiceUrl() {

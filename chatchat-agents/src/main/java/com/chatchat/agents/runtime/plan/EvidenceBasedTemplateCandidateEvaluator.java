@@ -65,7 +65,31 @@ final class EvidenceBasedTemplateCandidateEvaluator {
                                List<String> rejectedIds,
                                List<Map<String, Object>> evaluations,
                                int depth) {
-        if (!(output instanceof Map<?, ?> raw) || depth > 6) {
+        if (depth > 8) {
+            return Projection.notApplied(output);
+        }
+        if (output instanceof List<?> list) {
+            List<Object> projectedItems = new ArrayList<>();
+            int originalCount = 0;
+            int selectedCount = 0;
+            List<String> projectedIds = new ArrayList<>();
+            boolean applied = false;
+            for (Object item : list) {
+                Projection nested = project(item, selectedIds, rejectedIds, evaluations, depth + 1);
+                projectedItems.add(nested.output());
+                if (nested.applied()) {
+                    applied = true;
+                    originalCount += nested.originalCount();
+                    selectedCount += nested.selectedCount();
+                    projectedIds.addAll(nested.selectedIds());
+                }
+            }
+            return applied
+                ? new Projection(List.copyOf(projectedItems), originalCount, selectedCount,
+                    List.copyOf(new LinkedHashSet<>(projectedIds)), true)
+                : Projection.notApplied(output);
+        }
+        if (!(output instanceof Map<?, ?> raw)) {
             return Projection.notApplied(output);
         }
         Map<String, Object> map = new LinkedHashMap<>((Map<String, Object>) raw);
@@ -101,7 +125,24 @@ final class EvidenceBasedTemplateCandidateEvaluator {
                 });
             }
             if (selected.isEmpty()) {
-                return new Projection(output, templates.size(), 0, List.of(), false);
+                boolean reviewedAndRejectedAll = !byId.isEmpty()
+                    && byId.keySet().stream().allMatch(rejected::contains);
+                if (!reviewedAndRejectedAll) {
+                    return new Projection(output, templates.size(), 0, List.of(), false);
+                }
+                map.put("templates", List.of());
+                map.put("returnedCount", 0);
+                map.put("runtimeTemplateSelection", Map.of(
+                    "schemaVersion", "runtime_template_selection.v2",
+                    "candidateCount", templates.size(),
+                    "selectedCount", 0,
+                    "selectedTemplateIds", List.of(),
+                    "rejectedTemplateIds", rejectedIds,
+                    "candidateEvaluations", evaluations,
+                    "selectionAuthority", "runtime_evidence_model_review",
+                    "mcpScoresAreWeakPriors", true
+                ));
+                return new Projection(map, templates.size(), 0, List.of(), true);
             }
             List<String> projectedIds = selected.stream()
                 .map(this::templateId)
@@ -123,7 +164,7 @@ final class EvidenceBasedTemplateCandidateEvaluator {
         }
         for (String key : List.of(
             "structuredContent", "structured_content", "data", "result", "payload", "body", "output",
-            "routingProjection"
+            "routingProjection", "coverage"
         )) {
             Projection nested = project(map.get(key), selectedIds, rejectedIds, evaluations, depth + 1);
             if (nested.applied()) {

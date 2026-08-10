@@ -57,6 +57,8 @@ public class InterpretationPlanRuntime {
     private static final String CONTEXT_PARAMETER_RECOVERY_KEY = "__runtimeContextParameterRecovery";
     private static final EvidenceBasedTemplateCandidateEvaluator TEMPLATE_CANDIDATE_EVALUATOR =
         new EvidenceBasedTemplateCandidateEvaluator();
+    private static final EvidenceBasedAssetCandidateEvaluator ASSET_CANDIDATE_EVALUATOR =
+        new EvidenceBasedAssetCandidateEvaluator();
     private static final Pattern EXPLICIT_ENV_ASSIGNMENT_PATTERN = Pattern.compile(
         "(?iu)(?:\\benv(?:ironment)?\\b|\\u73af\\u5883)\\s*(?:[:=]|\\u4e3a|\\u662f)\\s*"
             + "(DEV|TEST|UAT|PROD|\\u5f00\\u53d1|\\u6d4b\\u8bd5|\\u9884\\u53d1|\\u751f\\u4ea7)"
@@ -434,6 +436,27 @@ public class InterpretationPlanRuntime {
                     elapsed(startedAt)
                 ), executableRequest, remaining);
             }
+        }
+
+        if (executions.isEmpty() && !stepsById.isEmpty()) {
+            log.warn("InterpretationPlan made no execution progress: traceId={}, attempt={}, scope={}, plannedStepIds={}",
+                executionTraceId, workflowExecutionAttempt(executableRequest),
+                planExecutionScope(executableRequest), new ArrayList<>(stepsById.keySet()));
+            return withDiagnosticRun(ExecutionResult.failed(
+                "DAG_NO_PROGRESS",
+                "Validated InterpretationPlan completed without executing or restoring any current-scope step",
+                List.of(),
+                Map.of(
+                    "protocolVersion", InterpretationExecutionProtocol.VERSION,
+                    "executionTraceId", executionTraceId,
+                    "workflowExecutionAttempt", workflowExecutionAttempt(executableRequest),
+                    "planExecutionScope", planExecutionScope(executableRequest),
+                    "requiredPlanStepIds", new ArrayList<>(stepsById.keySet()),
+                    "decisionCount", decisionCount
+                ),
+                finalAnswer,
+                elapsed(startedAt)
+            ), executableRequest, remaining);
         }
 
         String completionStatus = toleratedFailures.isEmpty()
@@ -1243,7 +1266,8 @@ public class InterpretationPlanRuntime {
             );
         }
         return InterpretationPlanEventState.from(
-            runStore.events(runId), fallbackCompletedStepIds, workflowExecutionAttempt(request));
+            runStore.events(runId), fallbackCompletedStepIds,
+            workflowExecutionAttempt(request), planExecutionScope(request));
     }
 
     private Map<String, Object> attributesForStep(ExecutionRequest request,
@@ -1520,6 +1544,7 @@ public class InterpretationPlanRuntime {
                 }
                 appendTemplateExecutionReviewContract(execution, lastReview, metadata);
                 if (lastReview.satisfied()) {
+                    execution = applyRuntimeAssetSelection(execution, lastReview, metadata, startedAt);
                     execution = applyRuntimeTemplateSelection(execution, lastReview, metadata, startedAt);
                     Map<String, Object> lock = executionLock(step, lastReview);
                     if (!lock.isEmpty()) {
@@ -1555,6 +1580,9 @@ public class InterpretationPlanRuntime {
                 executionTraceId(request), execution.stepId(), execution.toolName(), reason);
             if (isTemplateDiscoveryTool(execution.toolName()) && lastReview != null) {
                 execution = applyRuntimeTemplateSelection(execution, lastReview, metadata, startedAt);
+            }
+            if (isAssetDiscoveryTool(execution.toolName()) && lastReview != null) {
+                execution = applyRuntimeAssetSelection(execution, lastReview, metadata, startedAt);
             }
             return execution.withMetadata(metadata, elapsed(startedAt));
         }
@@ -2517,8 +2545,7 @@ public class InterpretationPlanRuntime {
             }
             Map<String, Object> payload = asStringMap(event.payload());
             Map<String, Object> eventMetadata = asStringMap(payload.get("metadata"));
-            if (!sameWorkflowExecutionAttempt(
-                eventMetadata.get("workflowExecutionAttempt"), workflowExecutionAttempt(request))) {
+            if (!samePlanExecutionScope(eventMetadata, request)) {
                 continue;
             }
             Integer stepId = integerValue(firstPresent(
@@ -2644,8 +2671,7 @@ public class InterpretationPlanRuntime {
             if (observation == null || observation.metadata() == null) {
                 continue;
             }
-            if (!sameWorkflowExecutionAttempt(
-                observation.metadata().get("workflowExecutionAttempt"), workflowExecutionAttempt(request))) {
+            if (!samePlanExecutionScope(observation.metadata(), request)) {
                 continue;
             }
             Integer stepId = integerValue(firstPresent(
@@ -3341,6 +3367,21 @@ public class InterpretationPlanRuntime {
             || !(schema.get("properties") instanceof Map<?, ?> rawProperties)) {
             return List.of();
         }
+        Map<String, String> publishedSources = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> propertyEntry : rawProperties.entrySet()) {
+            if (propertyEntry.getKey() == null) {
+                continue;
+            }
+            String propertyName = String.valueOf(propertyEntry.getKey());
+            publishedSources.putIfAbsent(canonicalParameterKey(propertyName), propertyName);
+            Map<String, Object> property = asStringMap(propertyEntry.getValue());
+            for (String source : stringValues(property.get("aliases"))) {
+                publishedSources.putIfAbsent(canonicalParameterKey(source), propertyName);
+            }
+            for (String source : stringValues(property.get("acceptedSources"))) {
+                publishedSources.putIfAbsent(canonicalParameterKey(source), propertyName);
+            }
+        }
         Set<String> publishedFields = rawProperties.keySet().stream()
             .filter(Objects::nonNull)
             .map(String::valueOf)
@@ -3364,12 +3405,14 @@ public class InterpretationPlanRuntime {
                 }
                 String nestedKey = String.valueOf(nestedEntry.getKey());
                 String canonicalNestedKey = canonicalParameterKey(nestedKey);
-                if (!publishedFields.contains(canonicalNestedKey)) {
+                String targetField = publishedSources.get(canonicalNestedKey);
+                if (targetField == null) {
                     continue;
                 }
                 schemaFieldFound = true;
-                if (topLevelFields.add(canonicalNestedKey)) {
-                    semantic.put(nestedKey, nestedEntry.getValue());
+                String canonicalTarget = canonicalParameterKey(targetField);
+                if (topLevelFields.add(canonicalTarget)) {
+                    semantic.put(targetField, nestedEntry.getValue());
                 }
             }
             if (schemaFieldFound) {
@@ -6665,6 +6708,41 @@ public class InterpretationPlanRuntime {
             }
         }
         return null;
+    }
+
+    private boolean samePlanExecutionScope(Map<String, Object> metadata, ExecutionRequest request) {
+        if (metadata == null || !sameWorkflowExecutionAttempt(
+            metadata.get("workflowExecutionAttempt"), workflowExecutionAttempt(request))) {
+            return false;
+        }
+        String currentScope = planExecutionScope(request);
+        String storedScope = stringValue(metadata.get("planExecutionScope"));
+        if (storedScope != null && !storedScope.isBlank()) {
+            return currentScope.equals(storedScope);
+        }
+        return "0".equals(normalizedWorkflowExecutionAttempt(workflowExecutionAttempt(request)));
+    }
+
+    private StepExecution applyRuntimeAssetSelection(StepExecution execution,
+                                                     StepReview review,
+                                                     Map<String, Object> metadata,
+                                                     long startedAt) {
+        if (execution == null || review == null || !isAssetDiscoveryTool(execution.toolName())) {
+            return execution;
+        }
+        EvidenceBasedAssetCandidateEvaluator.Evaluation evaluation =
+            ASSET_CANDIDATE_EVALUATOR.evaluate(execution.output(), review.metadata());
+        metadata.put("runtimeAssetSelectionApplied", evaluation.applied());
+        metadata.put("runtimeAssetCandidateCount", evaluation.candidateCount());
+        metadata.put("runtimeAssetSelectedCount", evaluation.selectedCount());
+        metadata.put("runtimeSelectedAssetIds", evaluation.selectedIds());
+        metadata.put("runtimeAssetCandidateEvaluations", evaluation.candidateEvaluations());
+        metadata.put("runtimeAssetSelectionReason", evaluation.reason());
+        if (!evaluation.applied()) return execution;
+        return new StepExecution(
+            execution.stepId(), execution.actionType(), execution.toolName(), execution.success(),
+            evaluation.output(), execution.errorMessage(), execution.toolExecution(), execution.finalAnswer(),
+            elapsed(startedAt), metadata);
     }
 
     private boolean indexedEdgeTargetsFinalAnswer(InterpretationPlan plan,

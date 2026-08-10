@@ -813,4 +813,39 @@ class ToolObservationBuilderEvidenceTest {
             .contains("visible selected document evidence")
             .contains("super admin can inspect unselected document evidence");
     }
+
+    @Test
+    void formatsSchemaRegisteredFinancialDataAsReasoningEvidence() {
+        ToolOutput output = ToolOutput.success(Map.of(
+            "schemaVersion", "financial_data_search_result.v1",
+            "datasetCount", 1,
+            "observationCount", 1,
+            "coverageComplete", true,
+            "financialData", List.of(Map.of("dataset", "quotes", "count", 1,
+                "rows", List.of(Map.of("security", "600000", "price", 10.2))))
+        ), "ok");
+
+        String observation = builder.buildSuccessObservation("financial_data_search", output, "");
+
+        assertThat(observation)
+            .contains("Structured reasoning evidence")
+            .contains("STRUCTURED_DATA_FACTS", "600000", "Candidate/reference evidence is never an observed fact");
+    }
+
+    @Test
+    void exposesAssetDiscoveryOnlyAsRoutingCandidates() {
+        ToolOutput output = ToolOutput.success(Map.of(
+            "schemaVersion", "asset_query_result.v1",
+            "success", true,
+            "returnedCount", 1,
+            "possiblyTruncated", false,
+            "assets", List.of(Map.of("asset", Map.of("id", "rm-1", "name", "RM")))
+        ), "ok");
+
+        String observation = builder.buildSuccessObservation("database_asset_search", output, "");
+
+        assertThat(observation)
+            .contains("ROUTING_CANDIDATES", "ASSET_ROUTING_ONLY")
+            .contains("not observations about target health or business state");
+    }
 }

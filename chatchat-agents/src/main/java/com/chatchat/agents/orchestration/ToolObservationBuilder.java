@@ -49,6 +49,8 @@ class ToolObservationBuilder {
     private final EvidenceExecutionContractCompiler evidenceExecutionContractCompiler = new EvidenceExecutionContractCompiler();
     private final DeterministicAnswerCompiler deterministicAnswerCompiler = new DeterministicAnswerCompiler();
     private final IndirectPromptInjectionDetector promptInjectionDetector = new IndirectPromptInjectionDetector();
+    private final StructuredReasoningEvidenceAdapterRegistry structuredEvidenceAdapters =
+        new StructuredReasoningEvidenceAdapterRegistry();
 
     ToolObservationBuilder(EvidenceTrustEvaluator evidenceTrustEvaluator) {
         this.evidenceTrustEvaluator = evidenceTrustEvaluator == null ? new EvidenceTrustEvaluator() : evidenceTrustEvaluator;
@@ -78,6 +80,10 @@ class ToolObservationBuilder {
         }
         if (isStandardExecutionResult(data)) {
             return buildStandardExecutionObservation(toolName, output, data);
+        }
+        String protocolEvidence = structuredEvidenceAdapters.format(data);
+        if (protocolEvidence != null) {
+            return buildStructuredProtocolObservation(toolName, output, protocolEvidence);
         }
 
         StringBuilder observation = new StringBuilder("Tool ")
@@ -296,7 +302,20 @@ class ToolObservationBuilder {
         if (isLinuxExecutionResult(toolName, data)) {
             return buildLinuxCommandObservation(toolName, null, data);
         }
+        String protocolEvidence = structuredEvidenceAdapters.format(data);
+        if (protocolEvidence != null) {
+            return buildStructuredProtocolObservation(toolName, null, protocolEvidence);
+        }
         return null;
+    }
+
+    private String buildStructuredProtocolObservation(String toolName, ToolOutput output, String protocolEvidence) {
+        StringBuilder observation = successObservationHeader(toolName, output);
+        observation.append("\nStructured reasoning evidence (authoritative runtime projection):\n")
+            .append(protocolEvidence)
+            .append("\nEvidence boundary: preserve evidenceRole, claimCoverage, completeness, and entity associations. ")
+            .append("Candidate/reference evidence is never an observed fact; model inference must remain explicitly separate.");
+        return observation.toString();
     }
 
     /**

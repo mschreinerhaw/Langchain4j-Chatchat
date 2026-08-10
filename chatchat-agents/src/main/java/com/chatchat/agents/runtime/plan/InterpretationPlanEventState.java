@@ -19,7 +19,8 @@ record InterpretationPlanEventState(
 
     static InterpretationPlanEventState from(List<AgentRunEvent> events,
                                              Set<Integer> fallbackCompletedStepIds,
-                                             Object workflowExecutionAttempt) {
+                                             Object workflowExecutionAttempt,
+                                             String planExecutionScope) {
         Set<Integer> completed = new LinkedHashSet<>(fallbackCompletedStepIds == null ? Set.of() : fallbackCompletedStepIds);
         Set<Integer> failed = new LinkedHashSet<>();
         Set<Integer> immutableSteps = new LinkedHashSet<>();
@@ -31,8 +32,7 @@ record InterpretationPlanEventState(
                     continue;
                 }
                 Map<String, Object> metadata = asMap(event.payload() == null ? null : event.payload().get("metadata"));
-                if (!sameWorkflowExecutionAttempt(
-                    metadata.get("workflowExecutionAttempt"), workflowExecutionAttempt)) {
+                if (!sameExecutionScope(metadata, workflowExecutionAttempt, planExecutionScope)) {
                     continue;
                 }
                 Integer stepId = integerValue(firstPresent(metadata, "interpretationPlanStepId", "workflowStepId", "stepId"));
@@ -76,6 +76,25 @@ record InterpretationPlanEventState(
     private static boolean sameWorkflowExecutionAttempt(Object storedAttempt, Object currentAttempt) {
         return normalizedWorkflowExecutionAttempt(storedAttempt)
             .equals(normalizedWorkflowExecutionAttempt(currentAttempt));
+    }
+
+    private static boolean sameExecutionScope(Map<String, Object> metadata,
+                                              Object workflowExecutionAttempt,
+                                              String planExecutionScope) {
+        if (!sameWorkflowExecutionAttempt(
+            metadata.get("workflowExecutionAttempt"), workflowExecutionAttempt)) {
+            return false;
+        }
+        String currentScope = stringValue(planExecutionScope);
+        String storedScope = stringValue(metadata.get("planExecutionScope"));
+        if (currentScope == null || currentScope.isBlank()) {
+            return true;
+        }
+        if (storedScope != null && !storedScope.isBlank()) {
+            return currentScope.equals(storedScope);
+        }
+        // Legacy events without a scope are safe only for the initial plan attempt.
+        return "0".equals(normalizedWorkflowExecutionAttempt(workflowExecutionAttempt));
     }
 
     private static String normalizedWorkflowExecutionAttempt(Object value) {

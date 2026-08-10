@@ -33,6 +33,11 @@ class ContextEvidenceAggregatorTest {
             (Map<String, Object>) fieldProfiles.get("event");
 
         assertThat(collection).containsEntry("count", 3);
+        assertThat(aggregated)
+            .containsEntry("_assessmentCapability", "LIMITED_UNKNOWN_CONTRACT")
+            .containsKey("_lossNotice");
+        assertThat(collection.get("representativeRows").toString())
+            .contains("db file async I/O submit", "wait_time");
         assertThat(waitTime)
             .containsEntry("min", 5000.0)
             .containsEntry("max", 271713.0)
@@ -44,6 +49,21 @@ class ContextEvidenceAggregatorTest {
             .containsEntry("count", 2L);
         assertThat(rawRows).hasSize(3);
         assertThat(rawRows.get(0)).containsEntry("wait_time", 271713);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void preservesShortTextAndBoundsLongTextWithSemanticEdges() {
+        ContextEvidenceAggregator aggregator = new ContextEvidenceAggregator();
+        Map<String, Object> aggregated = (Map<String, Object>) aggregator.aggregate(Map.of(
+            "short", "business status is active",
+            "long", "A".repeat(1200) + "TAIL_MARKER"
+        ));
+
+        assertThat(aggregated.get("short")).isEqualTo("business status is active");
+        Map<String, Object> longText = (Map<String, Object>) aggregated.get("long");
+        assertThat(longText).containsEntry("truncated", true);
+        assertThat(longText.get("tail").toString()).endsWith("TAIL_MARKER");
     }
 
     @Test

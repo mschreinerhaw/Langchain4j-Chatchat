@@ -2,6 +2,7 @@ package com.chatchat.mcpserver.notification;
 
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
+import com.chatchat.mcpserver.tool.StandardToolExecutionResultFactory;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.spec.McpSchema;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ public class NotificationToolSpecFactory {
     private final NotificationSendService sendService;
     private final AgentRuntimeGovernanceFactory governanceFactory;
     private final McpToolConcurrencyManager concurrencyManager;
+    private final StandardToolExecutionResultFactory standardResultFactory;
 
     public McpServerFeatures.SyncToolSpecification toToolSpecification(NotificationChannelConfig config) {
         McpSchema.Tool tool = McpSchema.Tool.builder()
@@ -119,15 +121,7 @@ public class NotificationToolSpecFactory {
     }
 
     private McpSchema.CallToolResult toCallToolResult(NotificationSendResult result) {
-        Map<String, Object> structured = new LinkedHashMap<>();
-        structured.put("success", result.success());
-        structured.put("channel", result.channel());
-        structured.put("toolName", result.toolName());
-        structured.put("statusCode", result.statusCode());
-        structured.put("attempts", result.attempts());
-        structured.put("notification", result.notification());
-        structured.put("responseBody", result.responseBody());
-        structured.put("errorMessage", result.errorMessage());
+        Map<String, Object> structured = standardResultFactory.fromNotification(result);
         String text = result.success()
             ? "Notification sent"
             : firstText(result.errorMessage(), "Notification failed");

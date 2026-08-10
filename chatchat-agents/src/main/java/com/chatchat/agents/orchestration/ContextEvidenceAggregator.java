@@ -15,6 +15,9 @@ final class ContextEvidenceAggregator {
 
     private static final int MAX_DEPTH = 6;
     private static final int TOP_VALUES = 10;
+    private static final int REPRESENTATIVE_ROWS = 5;
+    private static final int INLINE_TEXT_CHARS = 1_000;
+    private static final int TEXT_EDGE_CHARS = 400;
 
     Object aggregate(Object value) {
         return aggregate(value, 0);
@@ -34,6 +37,8 @@ final class ContextEvidenceAggregator {
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("_aggregation", "STRUCTURED_MAP");
             result.put("_fieldCount", map.size());
+            result.put("_assessmentCapability", "LIMITED_UNKNOWN_CONTRACT");
+            result.put("_lossNotice", "Generic aggregation preserves bounded semantic samples but is not a schema-aware completeness projection.");
             for (Map.Entry<?, ?> entry : map.entrySet()) {
                 result.put(String.valueOf(entry.getKey()), aggregate(entry.getValue(), depth + 1));
             }
@@ -61,6 +66,10 @@ final class ContextEvidenceAggregator {
         }
         if (rows.size() == values.size()) {
             result.put("rowShape", aggregateRows(rows, depth + 1));
+            result.put("representativeRows", rows.stream()
+                .limit(REPRESENTATIVE_ROWS)
+                .map(row -> aggregate(row, depth + 1))
+                .toList());
             return result;
         }
         result.put("valueProfile", scalarProfile(values));
@@ -138,12 +147,18 @@ final class ContextEvidenceAggregator {
         return result;
     }
 
-    private Map<String, Object> aggregateText(String text) {
+    private Object aggregateText(String text) {
+        if (text.length() <= INLINE_TEXT_CHARS) {
+            return text;
+        }
         return Map.of(
             "_aggregation", "TEXT_PROFILE",
             "chars", text.length(),
             "lines", text.isEmpty() ? 0 : text.lines().count(),
-            "blank", text.isBlank()
+            "blank", text.isBlank(),
+            "truncated", true,
+            "head", text.substring(0, Math.min(TEXT_EDGE_CHARS, text.length())),
+            "tail", text.substring(Math.max(0, text.length() - TEXT_EDGE_CHARS))
         );
     }
 

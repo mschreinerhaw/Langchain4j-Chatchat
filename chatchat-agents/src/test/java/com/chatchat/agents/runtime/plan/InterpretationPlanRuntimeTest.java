@@ -2183,6 +2183,70 @@ class InterpretationPlanRuntimeTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void promotesNestedPublishedAliasesWithoutToolSpecificRules() throws Exception {
+        String toolName = "mcp_example_evidence_search";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName)
+            .metadata(Map.of(
+                "inputSchema", Map.of(
+                    "type", "object",
+                    "properties", Map.of(
+                        "queryTerms", Map.of(
+                            "type", "array",
+                            "aliases", List.of("keywords", "keyword"),
+                            "acceptedSources", List.of("searchTerms")
+                        ),
+                        "limit", Map.of("type", "integer")
+                    ),
+                    "additionalProperties", false
+                )
+            ))
+            .build());
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            1,
+            "mcp_tool",
+            toolName,
+            Map.of("filters", Map.of(
+                "keywords", List.of("credit rating", "rating date"),
+                "limit", 25,
+                "unknown", "discard-me"
+            )),
+            List.of(),
+            null,
+            null
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedStepInput",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class,
+            Map.class
+        );
+        method.setAccessible(true);
+
+        Map<String, Object> resolved = (Map<String, Object>) method.invoke(
+            runtime,
+            step,
+            new InterpretationPlanRuntime.ExecutionRequest(
+                minimalPlan(step), toolRegistry, List.of(toolName),
+                "tenant-1", "req-alias-envelope", "conv-alias-envelope", "user-1", Map.of()
+            ),
+            Map.of()
+        );
+
+        assertThat(resolved)
+            .containsEntry("queryTerms", List.of("credit rating", "rating date"))
+            .containsEntry("limit", 25)
+            .doesNotContainKeys("filters", "keywords", "unknown");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void preservesEnvelopeWhenToolPublishesItAsPartOfItsContract() throws Exception {
         String toolName = "mcp_example_routed_lookup";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
@@ -6955,6 +7019,58 @@ class InterpretationPlanRuntimeTest {
         assertThat(second.steps()).extracting(InterpretationPlanRuntime.StepExecution::stepId)
             .containsExactly(1, 2);
         verify(toolRuntimeService, times(2)).execute(any());
+    }
+
+    @Test
+    void ignoresStaleStepEventWhenAttemptNumberMatchesButPlanScopeDoesNot() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("document_search")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("document_search"))
+            .thenReturn(ToolMetadata.builder().riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of("results", List.of("fresh evidence"))),
+            ToolMetadata.builder().id("document_search").build(),
+            null,
+            "success",
+            Map.of()
+        ));
+        InMemoryAgentRunStore runStore = new InMemoryAgentRunStore();
+        String runId = "run-plan-scope";
+        runStore.recordObservation(runId, AgentObservation.builder()
+            .type("tool")
+            .source("document_search")
+            .content("stale observation")
+            .metadata(Map.of(
+                "interpretationPlanStepId", 1,
+                "interpretationPlanActionType", "mcp_tool",
+                "toolName", "document_search",
+                "success", true,
+                "workflowExecutionAttempt", 1,
+                "planExecutionScope", runId + "::attempt:0",
+                "stepOutput", Map.of("results", List.of("stale evidence"))
+            ))
+            .build());
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            runStore,
+            request -> InterpretationPlanRuntime.StepReview.accepted("usable", Map.of()),
+            request -> InterpretationPlanRuntime.DagDecision.finalAnswer(
+                2, "done", "current scoped DAG completed")
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                serialPlan(), toolRegistry, List.of("document_search"),
+                "tenant-1", "req-plan-scope", "conv-plan-scope", "user-1",
+                Map.of("__agentRunId", runId, "workflowExecutionAttempt", 1)
+            ));
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.steps()).extracting(InterpretationPlanRuntime.StepExecution::stepId)
+            .containsExactly(1, 2);
+        verify(toolRuntimeService).execute(any());
     }
 
     private InterpretationPlan rewrittenPlanWithRepeatedSearch() {

@@ -7,6 +7,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
+import com.chatchat.mcpserver.tool.StandardToolExecutionResultFactory;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.spec.McpSchema;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,7 @@ public class ApiToolSpecFactory {
     private final ObjectMapper objectMapper;
     private final AgentRuntimeGovernanceFactory governanceFactory;
     private final McpToolConcurrencyManager concurrencyManager;
+    private final StandardToolExecutionResultFactory standardResultFactory;
 
     public McpServerFeatures.SyncToolSpecification toGatewayToolSpecification() {
         McpSchema.Tool tool = McpSchema.Tool.builder()
@@ -135,31 +137,7 @@ public class ApiToolSpecFactory {
      * @return the converted call tool result
      */
     private McpSchema.CallToolResult toCallToolResult(ApiServiceConfig config, ApiInvokeResult result) {
-        Map<String, Object> structured = new LinkedHashMap<>();
-        structured.put("statusCode", result.statusCode());
-        structured.put("headers", result.headers());
-        structured.put("body", result.body());
-        structured.put("sourceMetadata", Map.of(
-            "schemaVersion", "execution_source.v1",
-            "executionType", "HTTP_REQUEST",
-            "sourceType", "external_api",
-            "toolName", config.getToolName(),
-            "asset", nullableMap(
-                "type", "api_service",
-                "id", config.getId(),
-                "name", config.getTitle(),
-                "environment", null
-            ),
-            "operation", nullableMap(
-                "method", config.getMethod(),
-                "gatewayId", config.getGatewayId()
-            ),
-            "business", nullableMap(
-                "name", firstText(config.getBusinessGroupName(), config.getTitle()),
-                "description", firstText(config.getBusinessGroupDescription(), config.getDescription()),
-                "category", config.getBusinessGroup()
-            )
-        ));
+        Map<String, Object> structured = standardResultFactory.fromApi(config, result);
 
         String text = result.success()
             ? summarizeBody(result.body(), result.rawBody())
@@ -170,14 +148,6 @@ public class ApiToolSpecFactory {
             .structuredContent(structured)
             .isError(!result.success())
             .build();
-    }
-
-    private Map<String, Object> nullableMap(Object... values) {
-        Map<String, Object> result = new LinkedHashMap<>();
-        for (int index = 0; index + 1 < values.length; index += 2) {
-            result.put(String.valueOf(values[index]), values[index + 1]);
-        }
-        return result;
     }
 
     private String firstText(String... values) {

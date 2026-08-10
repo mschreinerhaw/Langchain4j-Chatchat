@@ -91,4 +91,28 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
             .contains("sample_margin_trade_latest")
             .doesNotContain("OTHER");
     }
+
+    @Test
+    void projectsCandidatesInsideRequirementCoverageGroupsAndCanRejectWholeGroup() {
+        EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
+            new EvidenceBasedTemplateCandidateEvaluator().evaluate(
+                Map.of("coverage", List.of(
+                    Map.of("requirement", Map.of("id", "r1"), "templates", List.of(
+                        Map.of("templateId", "R1_SELECTED"), Map.of("templateId", "R1_REJECTED"))),
+                    Map.of("requirement", Map.of("id", "r2"), "templates", List.of(
+                        Map.of("templateId", "R2_REJECTED")))
+                )),
+                Map.of(
+                    "selectedTemplateIds", List.of("R1_SELECTED"),
+                    "rejectedTemplateIds", List.of("R1_REJECTED", "R2_REJECTED")
+                )
+            );
+
+        assertThat(evaluation.applied()).isTrue();
+        assertThat(evaluation.candidateCount()).isEqualTo(3);
+        assertThat(evaluation.selectedIds()).containsExactly("R1_SELECTED");
+        assertThat(evaluation.output().toString())
+            .contains("R1_SELECTED", "selectedCount=0")
+            .doesNotContain("templateId=R1_REJECTED", "templateId=R2_REJECTED");
+    }
 }

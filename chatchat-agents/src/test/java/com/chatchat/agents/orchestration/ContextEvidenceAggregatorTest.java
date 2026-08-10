@@ -9,6 +9,29 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ContextEvidenceAggregatorTest {
 
+    private record BatchEnvelope(String status, List<RowEvidence> results) {
+    }
+
+    private record RowEvidence(String callId, Map<String, Object> output) {
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void aggregatesJavaRecordsStructurallyInsteadOfUsingToString() {
+        BatchEnvelope batch = new BatchEnvelope("SUCCESS", List.of(
+            new RowEvidence("asset", Map.of(
+                "records", List.of(Map.of("assetValue", 125000.50, "profit", 3200.25))))
+        ));
+
+        Map<String, Object> aggregated =
+            (Map<String, Object>) new ContextEvidenceAggregator().aggregate(batch);
+
+        assertThat(aggregated).containsEntry("status", "SUCCESS");
+        assertThat(aggregated.toString())
+            .contains("assetValue", "125000.5", "profit", "3200.25")
+            .doesNotContain("BatchEnvelope[", "RowEvidence[");
+    }
+
     @Test
     @SuppressWarnings("unchecked")
     void aggregatesRowsIntoDistributionsAndNumericStatisticsWithoutMutatingRawRows() {

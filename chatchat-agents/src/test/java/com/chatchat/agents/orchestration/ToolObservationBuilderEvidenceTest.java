@@ -1,5 +1,7 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
+import com.chatchat.agents.runtime.batch.ToolCallResult;
 import com.chatchat.common.tool.ToolOutput;
 import org.junit.jupiter.api.Test;
 
@@ -12,6 +14,55 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ToolObservationBuilderEvidenceTest {
 
     private final ToolObservationBuilder builder = new ToolObservationBuilder(new EvidenceTrustEvaluator());
+
+    @Test
+    void batchExecutionEvidencePreservesConcreteRowsAndProfilesForFinalSynthesis() {
+        ToolCallBatchResult batch = new ToolCallBatchResult(
+            "reviewed-template-step-3",
+            "SEQUENTIAL",
+            "start",
+            "end",
+            "SUCCESS",
+            new ToolCallBatchResult.Summary(1, 1, 0, 0, 0, 1),
+            List.of(new ToolCallResult(
+                "orders", "api_template_execute", "orders-template", "asset-1",
+                "SUCCESS", 20L, "evidence-orders",
+                Map.of(
+                    "schemaVersion", "tool_execution_result.v1",
+                    "target", Map.of("name", "order details"),
+                    "data", Map.of(
+                        "statusCode", 200,
+                        "body", Map.of(
+                            "retu_code", 0,
+                            "records", List.of(
+                                Map.of("KHH", "070200046604", "ZQDM", "300805", "WTSL", 2000, "CJJG", 7.89),
+                                Map.of("KHH", "070200046604", "ZQDM", "600519", "WTSL", 1500, "CJJG", 8.25),
+                                Map.of("KHH", "070200046604", "ZQDM", "000001", "WTSL", 500, "CJJG", 9.10)
+                            ),
+                            "rawBody", "RAW_BODY_MUST_NOT_BE_DUPLICATED"
+                        )
+                    )
+                ),
+                Map.of()
+            ))
+        );
+
+        String evidence = builder.buildAuthoritativeExecutionEvidence(
+            "mcp_chatchat_mcp_server_api_template_execute", batch);
+
+        assertThat(evidence)
+            .contains("\"schemaVersion\":\"batch_execution_evidence.v1\"")
+            .contains("\"batchId\":\"reviewed-template-step-3\"")
+            .contains("\"recordCount\":3")
+            .contains("\"omittedRecordCount\":2")
+            .contains("\"KHH\":\"070200046604\"")
+            .contains("\"ZQDM\":\"300805\"")
+            .contains("\"WTSL\":2000")
+            .contains("\"numericProfiles\"")
+            .contains("\"numericProfileSemantics\":\"MECHANICAL_NO_ADDITIVITY_INFERENCE\"")
+            .contains("\"sum\":4000.0")
+            .doesNotContain("RAW_BODY_MUST_NOT_BE_DUPLICATED", "ToolCallBatchResult[");
+    }
 
     @Test
     void enterpriseMetadataDiscoveryExposesDescriptiveEvidenceCoverageWithoutConformanceVerdict() {
@@ -103,7 +154,7 @@ class ToolObservationBuilderEvidenceTest {
     }
 
     @Test
-    void enterpriseMetadataEvidenceExtractsOnlyFieldEnglishNameAndCommentForEveryReturnedCandidate() {
+    void enterpriseMetadataEvidenceSelectsOnlyHighestScoredCandidatePerFieldAndType() {
         List<Map<String, Object>> candidates = java.util.stream.IntStream.rangeClosed(1, 5)
             .mapToObj(index -> Map.<String, Object>of(
                 "metadataType", "metadata_field",
@@ -178,8 +229,8 @@ class ToolObservationBuilderEvidenceTest {
             .contains("\"englishName\":\"acc_clas_code\"")
             .contains("\"comment\":\"账户类别代码\"")
             .contains("\"field\":\"标准字段1\"")
-            .contains("\"englishName\":\"STANDARD_FIELD_5\"")
-            .contains("\"comment\":\"标准注释5\"")
+            .contains("\"englishName\":\"STANDARD_FIELD_1\"")
+            .contains("\"comment\":\"标准注释1\"")
             .contains("\"field\":\"账户\"", "\"englishName\":\"ACCOUNT\"", "\"comment\":\"账户业务词根\"")
             .contains("\"field\":\"账户类别\"", "\"englishName\":\"ACCOUNT_CLASS\"", "\"comment\":\"账户类别代码字典\"")
             .contains("\"sourceFields\":[")
@@ -187,7 +238,12 @@ class ToolObservationBuilderEvidenceTest {
             .contains("\"processedFieldCount\":1")
             .contains("\"allFieldsProcessed\":true")
             .contains("\"fieldsWithCandidates\":1")
-            .contains("\"allReturnedCandidatesIncluded\":true")
+            .contains("\"returnedCandidateCounts\":{", "\"standardFields\":5",
+                "\"termRoots\":1", "\"dictionaries\":1")
+            .contains("\"candidateReturnPolicy\":\"ALL_RETRIEVED_CANDIDATES_IN_TOOL_RESULT\"")
+            .contains("\"reasoningSelectionPolicy\":\"HIGHEST_SCORE_ONE_PER_FIELD_AND_METADATA_TYPE\"")
+            .contains("\"allReturnedCandidatesIncluded\":false")
+            .doesNotContain("STANDARD_FIELD_2", "STANDARD_FIELD_5", "标准注释5")
             .doesNotContain("searchPlan", "\"score\"", "matchLevel", "providerExchange",
                 "evidenceObjects", "largeInternalPayload", "internal reason", "unused raw output");
         assertThat(observation.length()).isLessThan(10_000);

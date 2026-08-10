@@ -1,6 +1,7 @@
 package com.chatchat.agents.orchestration;
 
 import java.lang.reflect.Array;
+import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -13,7 +14,7 @@ import java.util.TreeMap;
  */
 final class ContextEvidenceAggregator {
 
-    private static final int MAX_DEPTH = 6;
+    private static final int MAX_DEPTH = 10;
     private static final int TOP_VALUES = 10;
     private static final int REPRESENTATIVE_ROWS = 5;
     private static final int INLINE_TEXT_CHARS = 1_000;
@@ -29,6 +30,9 @@ final class ContextEvidenceAggregator {
         }
         if (value instanceof CharSequence text) {
             return aggregateText(text.toString());
+        }
+        if (value.getClass().isRecord()) {
+            return aggregate(recordMap(value), depth);
         }
         if (depth >= MAX_DEPTH) {
             return shape(value);
@@ -62,6 +66,8 @@ final class ContextEvidenceAggregator {
         for (Object value : values) {
             if (value instanceof Map<?, ?> row) {
                 rows.add(row);
+            } else if (value != null && value.getClass().isRecord()) {
+                rows.add(recordMap(value));
             }
         }
         if (rows.size() == values.size()) {
@@ -199,5 +205,20 @@ final class ContextEvidenceAggregator {
             return Map.of("_aggregation", "NESTED_COLLECTION_SHAPE", "count", values.size());
         }
         return aggregateText(String.valueOf(value));
+    }
+
+    private Map<String, Object> recordMap(Object value) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        if (value == null || !value.getClass().isRecord()) {
+            return result;
+        }
+        for (RecordComponent component : value.getClass().getRecordComponents()) {
+            try {
+                result.put(component.getName(), component.getAccessor().invoke(value));
+            } catch (ReflectiveOperationException ignored) {
+                result.put(component.getName(), "[unavailable]");
+            }
+        }
+        return result;
     }
 }

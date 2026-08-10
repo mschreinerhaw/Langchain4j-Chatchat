@@ -2412,6 +2412,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("- When diagnosticRun is present, report required/completed/failed/missing counts and the coverage ratio. List missing checks with their exact runtime reason.\n");
         prompt.append("- A missing diagnostic child with no ToolCallResult is NOT_EXECUTED. Do not speculate that it timed out, hit resource contention, lacked permissions, or failed remotely unless a child result explicitly records that status/reason.\n");
         prompt.append("- Do not recommend manual one-by-one execution as the product solution when an ordered runtime batch is expected. Report the missing batch dispatch/evidence and recommend repairing or retrying the batch workflow.\n");
+        prompt.append("- For batch_execution_evidence.v1, results[].dataset.representativeRows and numericProfiles are authoritative returned business data. Analyze and report their concrete values. recordCount and omittedRecordCount describe model projection coverage; omitted rows remain in the tool trace. numericProfiles are mechanical statistics: use sum only when the field semantics prove additivity, and never sum identifiers, dates, prices, rates, or categorical codes merely because they are numeric. Never reduce a successful non-empty batch to execution metadata or claim that concrete values are unavailable when these dataset fields are present.\n");
         prompt.append("- diagnosticRun assessment scores are authoritative only when non-null. Never convert tool success, OPEN/running state, capacity size, or coverage ratio into a missing health score.\n");
         prompt.append("- Keep execution coverage and evidence quality separate. A successful query with incomplete requiredMetrics remains executed and covered, but its health assessment capability is LIMITED; never reduce coverage merely because quality is incomplete.\n");
         prompt.append("- Respect diagnostic_evidence_quality_v1 purpose and healthCapability. Inventory evidence may be displayed but must not be presented as a complete health assessment.\n");
@@ -2676,12 +2677,18 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 execution.output()
             )
             : null;
+        boolean preserveStructuredBatchEvidence = false;
         String strategy;
         String lossLevel;
         if (authoritativeEvidence != null
             && !authoritativeEvidence.isBlank()
             && contextTokenEstimator.estimate(authoritativeEvidence).tokens() <= perEvidenceBudget) {
-            content.put("semanticEvidence", authoritativeEvidence);
+            Map<String, Object> structuredAuthoritativeEvidence = asMap(authoritativeEvidence);
+            preserveStructuredBatchEvidence = "batch_execution_evidence.v1".equals(
+                stringValue(structuredAuthoritativeEvidence.get("schemaVersion")));
+            content.put("semanticEvidence", structuredAuthoritativeEvidence.isEmpty()
+                ? authoritativeEvidence
+                : structuredAuthoritativeEvidence);
             content.put("metadata", contextEvidenceAggregator.aggregate(execution.metadata()));
             strategy = "TOOL_SEMANTIC_PROJECTION";
             lossLevel = "LOW";
@@ -2695,7 +2702,11 @@ public class AgentOrchestrator implements AgentRunExecutor {
             lossLevel = "MEDIUM";
         }
         int boundedChars = Math.max(2_000, perEvidenceBudget * 2);
-        Object boundedContent = ToolLogSummarizer.summarize(content, boundedChars);
+        int contentBudget = Math.max(1_000, perEvidenceBudget - 1_000);
+        Object boundedContent = preserveStructuredBatchEvidence
+            && contextTokenEstimator.estimate(content).tokens() <= contentBudget
+            ? content
+            : ToolLogSummarizer.summarize(content, boundedChars);
         if (boundedContent instanceof Map<?, ?> boundedMap) {
             content = asStringObjectMap(boundedMap);
         } else {
@@ -2916,7 +2927,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
             + "constraints, and approved tool. Review only this execution and do not expand that scope.\n\n");
         prompt.append("You are the runtime reviewer for one completed MCP tool call.\n");
         prompt.append("Return strict JSON only with this shape:\n");
-        prompt.append("{\"satisfied\":true|false,\"iteration_sufficient\":true|false,\"reason\":\"short reason\",\"review_answer\":\"optional audit note, not user-facing final answer\",\"evidence_used\":[{\"basis\":\"returned fact\"}],\"missing_evidence\":[\"material gap\"],\"conflicts\":[\"conflict\"],\"hypotheses\":[{\"hypothesis_id\":\"H1\",\"parent_hypothesis_id\":null,\"statement\":\"testable explanation\",\"support_evidence_ids\":[],\"contradict_evidence_ids\":[],\"confidence\":0.0,\"status\":\"SUPPORTED|CONTRADICTED|UNRESOLVED\"}],\"next_actions\":[{\"tool\":\"available_tool_name\",\"intent\":\"evidence gap to close or hypothesis to test\",\"input_changes\":{\"parameter\":\"revised value\"},\"reason\":\"why this action is needed\",\"based_on\":[\"evidenceId\",\"hypothesisId\"]}],\"selected_urls\":[\"https://...\"],\"useful_refs\":[\"doc://...#chunk=0\"],\"rejected_refs\":[\"doc://...#chunk=1\"],\"selected_asset_ids\":[\"asset-id\"],\"rejected_asset_ids\":[\"asset-id\"],\"asset_evaluations\":[{\"asset_id\":\"asset-id\",\"relevance\":0.0,\"decision\":\"accept|reject\",\"reasons\":[\"evidence-based reason\"]}],\"selected_template_ids\":[\"template-id\"],\"rejected_template_ids\":[\"template-id\"],\"template_evaluations\":[{\"template_id\":\"template-id\",\"relevance\":0.0,\"evidence_fit\":0.0,\"parameter_readiness\":0.0,\"total_score\":0.0,\"decision\":\"accept|reject\",\"reasons\":[\"evidence-based reason\"],\"missing_parameters\":[]}],\"template_execution_satisfied\":true|false,\"missing_parameters\":[\"parameter\"],\"retry_input_changes\":{\"parameters\":{\"parameter\":\"value proven by user/tool evidence\"}},\"reselect_template\":true|false,\"refined_intent\":\"optional refined retrieval intent\",\"relevance\":0.0,\"answerability\":0.0,\"supportsQuestionAspect\":[\"process\"],\"missingAspects\":[\"constraints\"],\"usefulness\":\"HIGH|MEDIUM|LOW\",\"shouldExpandQuery\":true|false,\"confidence\":0.0}\n");
+        prompt.append("{\"satisfied\":true|false,\"iteration_sufficient\":true|false,\"reason\":\"short reason\",\"review_answer\":\"optional audit note, not user-facing final answer\",\"evidence_used\":[{\"basis\":\"returned fact\"}],\"missing_evidence\":[\"material gap\"],\"conflicts\":[\"conflict\"],\"hypotheses\":[{\"hypothesis_id\":\"H1\",\"parent_hypothesis_id\":null,\"statement\":\"testable explanation\",\"support_evidence_ids\":[],\"contradict_evidence_ids\":[],\"confidence\":0.0,\"status\":\"SUPPORTED|CONTRADICTED|UNRESOLVED\"}],\"next_actions\":[{\"tool\":\"available_tool_name\",\"intent\":\"evidence gap to close or hypothesis to test\",\"input_changes\":{\"parameter\":\"revised value\"},\"reason\":\"why this action is needed\",\"based_on\":[\"evidenceId\",\"hypothesisId\"],\"scope_basis\":{\"source\":\"user_query|tool_result\",\"reference\":\"exact user quote or returned JSON path\"},\"capability_basis\":{\"source\":\"tool_result|tool_metadata\",\"reference\":\"returned capability JSON path or declared tool capability\"},\"expected_evidence_types\":[\"specific evidence type\"]}],\"selected_urls\":[\"https://...\"],\"useful_refs\":[\"doc://...#chunk=0\"],\"rejected_refs\":[\"doc://...#chunk=1\"],\"selected_asset_ids\":[\"asset-id\"],\"rejected_asset_ids\":[\"asset-id\"],\"asset_evaluations\":[{\"asset_id\":\"asset-id\",\"relevance\":0.0,\"decision\":\"accept|reject\",\"reasons\":[\"evidence-based reason\"]}],\"selected_template_ids\":[\"template-id\"],\"rejected_template_ids\":[\"template-id\"],\"template_evaluations\":[{\"template_id\":\"template-id\",\"relevance\":0.0,\"evidence_fit\":0.0,\"parameter_readiness\":0.0,\"total_score\":0.0,\"decision\":\"accept|reject\",\"reasons\":[\"evidence-based reason\"],\"missing_parameters\":[]}],\"template_execution_satisfied\":true|false,\"missing_parameters\":[\"parameter\"],\"retry_input_changes\":{\"parameters\":{\"parameter\":\"value proven by user/tool evidence\"}},\"reselect_template\":true|false,\"refined_intent\":\"optional refined retrieval intent\",\"relevance\":0.0,\"answerability\":0.0,\"supportsQuestionAspect\":[\"process\"],\"missingAspects\":[\"constraints\"],\"usefulness\":\"HIGH|MEDIUM|LOW\",\"shouldExpandQuery\":true|false,\"confidence\":0.0}\n");
         prompt.append("Rules:\n");
         prompt.append(AgentRuntimeFactGroundingContract.promptSection());
         prompt.append("- Decide whether this tool output is sufficient for the current plan step and user request.\n");
@@ -2924,6 +2935,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("- satisfied and iteration_sufficient describe semantic usefulness and evidence sufficiency; they do not control or rewrite the tool execution status.\n");
         prompt.append("- outputTruncated=true means result completeness is partial. If the ToolOutput itself succeeded, record the returned evidence and its limits; never describe the tool call or Runtime step as failed solely because content is truncated.\n");
         prompt.append("- next_actions may revise the current tool input, call another available tool, validate a conflict, or retrieve a missing fact. Do not assume any particular tool type.\n");
+        prompt.append("- A broad category phrase in the user query is not permission to invent a conventional checklist. Every missing_evidence, missingAspects, refined_intent expansion, hypothesis, and next_action must be traceable either to exact current-turn user wording or to a criterion explicitly present in returned evidence.\n");
+        prompt.append("- Every next_action must include scope_basis, capability_basis, and expected_evidence_types. scope_basis must quote exact current-turn user text or name a returned JSON path that establishes the gap. capability_basis must identify returned or declared tool capability that can produce the expected evidence. If either basis is unavailable, omit the action and set shouldExpandQuery=false.\n");
         prompt.append("- A revised query cannot expand a tool's declared capability. Never propose a next_action using a tool whose returned capability/claim-coverage contract explicitly marks the requested evidence as unsupported or not provided. Use another available capability that explicitly covers the gap; if none exists, set shouldExpandQuery=false and preserve the gap for a bounded final answer.\n");
         prompt.append("- hypotheses must be testable explanations, not facts. Mark each SUPPORTED, CONTRADICTED, or UNRESOLVED and relate it to returned evidence. Runtime will bind the current evidenceId when the model cannot know it yet.\n");
         prompt.append("- Preserve a hypothesis_id when the same hypothesis is refined later; create a new id only for a materially different explanation.\n");
@@ -2960,6 +2973,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("- Runtime must pass the complete tool-returned result. Any limit, pagination, or truncation marker must originate from the tool contract, never from Runtime prompt construction.\n");
         prompt.append("- For enterprise metadata matching, use the formatted authoritative evidence projection when present. Its coverage object distinguishes processed fields from fields with candidates; never treat success=true or explicitTruncation=false as proof that every input field matched a standard.\n");
         prompt.append("- For enterprise metadata discovery, treat evidenceCoverage as a description of returned standard-reference data, not as an answerability or conformance verdict. Evaluate semantic usefulness from the returned records and current user request; do not manufacture unsupported/missing claim lists from the coverage descriptor.\n");
+        prompt.append("- Enterprise metadata records describe fields, terms, roots, and dictionaries. Do not reinterpret a generic request for enterprise standards as a request for unrelated design dimensions unless those dimensions occur verbatim in the user query or as explicit criteria in returned records.\n");
         prompt.append("Attempt: ").append(request.attempt()).append('/').append(request.maxAttempts()).append("\n");
         prompt.append("Current-turn user query:\n").append(query == null ? "" : query).append("\n\n");
         InterpretationPlan plan = request.plan();
@@ -2984,7 +2998,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         String authoritativeEvidence = toolObservationBuilder.buildAuthoritativeExecutionEvidence(
             request.execution().toolName(), request.execution().output());
         if (authoritativeEvidence != null && !authoritativeEvidence.isBlank()) {
-            prompt.append("Authoritative tool result evidence (formatted for model review; all returned candidates preserved):\n")
+            prompt.append("Authoritative tool result evidence (formatted under the tool's reasoning-selection contract; complete raw results remain in the tool trace):\n")
                 .append(authoritativeEvidence)
                 .append("\nPrompt preview truncated: false");
         } else {

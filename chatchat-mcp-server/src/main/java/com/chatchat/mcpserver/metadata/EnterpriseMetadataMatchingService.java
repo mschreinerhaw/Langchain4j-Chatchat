@@ -128,6 +128,12 @@ public class EnterpriseMetadataMatchingService {
         response.put("reviewContract", mapOf(
             "reviewRequired", true,
             "decisionScope", "PER_FIELD",
+            "candidateReturnPolicy", "ALL_RETRIEVED_CANDIDATES",
+            "reasoningCandidateSelection", mapOf(
+                "strategy", "HIGHEST_SCORE",
+                "maximumSelectedPerFieldAndMetadataType", 1,
+                "tieBreaker", "PROVIDER_ORDER"
+            ),
             "allowedDecisions", List.of(
                 "REUSE", "REVIEW", "CREATE_STANDARD_CANDIDATE", "REJECT"),
             "evidenceContract", "evidence_object_v1",

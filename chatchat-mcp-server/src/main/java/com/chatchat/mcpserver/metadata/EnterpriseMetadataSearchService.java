@@ -441,6 +441,8 @@ public class EnterpriseMetadataSearchService {
                 return Map.copyOf(reference);
             })
             .toList();
+        List<Map<String, Object>> selectedStandardReferences =
+            highestConfidenceReference(standardReferences);
         Map<String, Object> bundle = new LinkedHashMap<>();
         bundle.put("contractVersion", "enterprise_metadata_evidence_bundle.v1");
         bundle.put("targetContext", Map.of(
@@ -455,8 +457,9 @@ public class EnterpriseMetadataSearchService {
         bundle.put("standardEvidence", Map.of(
             "status", standardReferences.isEmpty() ? "EMPTY_RESULT" : "DATA_RETURNED",
             "count", standardReferences.size(),
+            "selectedCount", selectedStandardReferences.size(),
             "countsByType", countsByType == null ? Map.of() : countsByType,
-            "items", standardReferences
+            "items", selectedStandardReferences
         ));
         bundle.put("inferenceEvidence", Map.of(
             "status", "MODEL_REASONING_REQUIRED",
@@ -473,9 +476,42 @@ public class EnterpriseMetadataSearchService {
             "factAndStandardEvidenceSeparated", true,
             "inferenceMustBeLabeled", true,
             "rawResultsAreRetrievalCandidates", true,
-            "standardReferencesDoNotProveTargetSchema", true
+            "standardReferencesDoNotProveTargetSchema", true,
+            "candidateReturnPolicy", "ALL_RETRIEVED_CANDIDATES_IN_RESULTS",
+            "reasoningSelectionPolicy", "HIGHEST_CONFIDENCE_ONE"
         ));
         return Map.copyOf(bundle);
+    }
+
+    private List<Map<String, Object>> highestConfidenceReference(
+        List<Map<String, Object>> references
+    ) {
+        if (references == null || references.isEmpty()) {
+            return List.of();
+        }
+        Map<String, Object> selected = references.get(0);
+        double highest = numericScore(selected.get("confidence"));
+        for (int index = 1; index < references.size(); index++) {
+            Map<String, Object> candidate = references.get(index);
+            double score = numericScore(candidate.get("confidence"));
+            if (score > highest) {
+                selected = candidate;
+                highest = score;
+            }
+        }
+        return List.of(selected);
+    }
+
+    private double numericScore(Object value) {
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        try {
+            return value == null ? Double.NEGATIVE_INFINITY
+                : Double.parseDouble(String.valueOf(value));
+        } catch (NumberFormatException ignored) {
+            return Double.NEGATIVE_INFINITY;
+        }
     }
 
     private Map<String, Object> standardEvidenceFacts(Map<String, Object> result) {

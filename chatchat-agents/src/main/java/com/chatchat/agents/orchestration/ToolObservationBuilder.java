@@ -18,6 +18,8 @@ import com.chatchat.agents.evidence.EvidenceOsV2Formatter;
 import com.chatchat.agents.evidence.EvidencePathExecutor;
 import com.chatchat.agents.evidence.IndirectPromptInjectionDetector;
 import com.chatchat.agents.protocol.ModelProtocolJson;
+import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
+import com.chatchat.agents.runtime.batch.ToolCallResult;
 import com.chatchat.common.tool.ToolOutput;
 
 import java.util.ArrayList;
@@ -27,6 +29,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * Builds compact, evidence-aware observations from tool output.
@@ -36,6 +39,8 @@ class ToolObservationBuilder {
     private static final String DOCUMENT_SEARCH_TOOL = "document_search";
     private static final String WEB_SEARCH_TOOL = "web_search";
     private static final String SEARCH_AND_EXTRACT_TOOL = "search_and_extract";
+    private static final int BATCH_REPRESENTATIVE_ROWS_PER_CHILD = 1;
+    private static final int BATCH_NUMERIC_PROFILE_COLUMNS_PER_CHILD = 12;
 
     private final EvidenceTrustEvaluator evidenceTrustEvaluator;
     private final EvidenceNormalizer evidenceNormalizer = new EvidenceNormalizer();
@@ -62,6 +67,9 @@ class ToolObservationBuilder {
 
     String buildSuccessObservation(String toolName, ToolOutput output, String outputText, Map<String, Object> reviewMetadata) {
         Object data = output == null ? null : output.getData();
+        if (data instanceof ToolCallBatchResult batchResult) {
+            return buildBatchExecutionObservation(toolName, output, batchResult);
+        }
         Map<String, Object> enterpriseMetadata = enterpriseMetadataPayload(data);
         if (!enterpriseMetadata.isEmpty()) {
             return buildEnterpriseMetadataObservation(toolName, output, enterpriseMetadata);
@@ -289,6 +297,9 @@ class ToolObservationBuilder {
      * Legacy payloads retain semantic fallbacks for compatibility.
      */
     String buildAuthoritativeExecutionEvidence(String toolName, Object data) {
+        if (data instanceof ToolCallBatchResult batchResult) {
+            return buildBatchExecutionObservation(toolName, null, batchResult);
+        }
         Map<String, Object> enterpriseMetadata = enterpriseMetadataPayload(data);
         if (!enterpriseMetadata.isEmpty()) {
             return buildEnterpriseMetadataObservation(toolName, null, enterpriseMetadata);
@@ -309,6 +320,127 @@ class ToolObservationBuilder {
         return null;
     }
 
+    private String buildBatchExecutionObservation(String toolName,
+                                                  ToolOutput output,
+                                                  ToolCallBatchResult batch) {
+        List<Map<String, Object>> children = new ArrayList<>();
+        for (ToolCallResult result : batch.results()) {
+            children.add(batchChildProjection(result));
+        }
+        Map<String, Object> projection = new LinkedHashMap<>();
+        projection.put("schemaVersion", "batch_execution_evidence.v1");
+        projection.put("evidenceRole", "EXECUTED_TOOL_RESULT_FACTS");
+        projection.put("tool", toolName);
+        projection.put("batch", mapOfNonNull(
+            "batchId", batch.batchId(),
+            "executionMode", batch.executionMode(),
+            "startedAt", batch.startedAt(),
+            "completedAt", batch.completedAt(),
+            "status", batch.status(),
+            "cardinality", batch.cardinality(),
+            "summary", batch.summary()
+        ));
+        projection.put("results", List.copyOf(children));
+        projection.put("projection", Map.of(
+            "completeChildSetIncluded", true,
+            "representativeRowsPerChild", BATCH_REPRESENTATIVE_ROWS_PER_CHILD,
+            "maximumNumericProfileColumnsPerChild", BATCH_NUMERIC_PROFILE_COLUMNS_PER_CHILD,
+            "allRawRowsLocation", "toolTrace",
+            "numericProfilesUseAllReturnedRows", true,
+            "numericProfileSemantics", "MECHANICAL_NO_ADDITIVITY_INFERENCE"
+        ));
+        return ModelProtocolJson.compact(projection);
+    }
+
+    private Map<String, Object> batchChildProjection(ToolCallResult result) {
+        Map<String, Object> projection = new LinkedHashMap<>();
+        projection.put("callId", result.callId());
+        projection.put("templateId", firstNonBlank(result.templateId(), result.templateCode()));
+        projection.put("toolName", firstNonBlank(result.normalizedToolName(), result.toolName()));
+        projection.put("status", result.status());
+        projection.put("evidenceUsable", result.evidenceUsable());
+        projection.put("durationMs", result.durationMs());
+        putIfPresent(projection, "evidenceId", result.evidenceId());
+        if (result.error() != null && !result.error().isEmpty()) {
+            projection.put("error", result.error());
+        }
+        Map<String, Object> output = asMap(result.output());
+        if (output.isEmpty()) {
+            putIfPresent(projection, "output", result.output());
+            return Map.copyOf(projection);
+        }
+        putIfPresent(projection, "sourceSchemaVersion", output.get("schemaVersion"));
+        putIfPresent(projection, "target", output.get("target"));
+        Map<String, Object> data = asMap(output.get("data"));
+        putIfPresent(projection, "statusCode", data.get("statusCode"));
+        Map<String, Object> body = asMap(data.get("body"));
+        List<Map<String, Object>> records = mapList(body.get("records"));
+        if (!records.isEmpty()) {
+            projection.put("dataset", batchDatasetProjection(records, body));
+        } else if (!body.isEmpty()) {
+            Map<String, Object> returnedBody = new LinkedHashMap<>(body);
+            returnedBody.remove("rawBody");
+            projection.put("returnedBody", returnedBody);
+        } else {
+            Map<String, Object> returnedOutput = new LinkedHashMap<>(output);
+            returnedOutput.remove("rawBody");
+            projection.put("returnedOutput", returnedOutput);
+        }
+        return Map.copyOf(projection);
+    }
+
+    private Map<String, Object> batchDatasetProjection(List<Map<String, Object>> records,
+                                                       Map<String, Object> body) {
+        Set<String> columns = new TreeSet<>();
+        records.forEach(record -> columns.addAll(record.keySet()));
+        Map<String, Object> dataset = new LinkedHashMap<>();
+        dataset.put("recordCount", records.size());
+        dataset.put("columns", List.copyOf(columns));
+        dataset.put("representativeRows", records.stream()
+            .limit(BATCH_REPRESENTATIVE_ROWS_PER_CHILD)
+            .toList());
+        dataset.put("omittedRecordCount",
+            Math.max(0, records.size() - BATCH_REPRESENTATIVE_ROWS_PER_CHILD));
+        Map<String, Object> responseMetadata = new LinkedHashMap<>(body);
+        responseMetadata.remove("records");
+        responseMetadata.remove("rawBody");
+        if (!responseMetadata.isEmpty()) {
+            dataset.put("responseMetadata", responseMetadata);
+        }
+        Map<String, Object> numericProfiles = numericProfiles(records, columns);
+        if (!numericProfiles.isEmpty()) {
+            dataset.put("numericProfiles", numericProfiles);
+        }
+        return Map.copyOf(dataset);
+    }
+
+    private Map<String, Object> numericProfiles(List<Map<String, Object>> records,
+                                                Set<String> columns) {
+        Map<String, Object> profiles = new LinkedHashMap<>();
+        for (String column : columns) {
+            if (profiles.size() >= BATCH_NUMERIC_PROFILE_COLUMNS_PER_CHILD) {
+                break;
+            }
+            List<Double> values = records.stream()
+                .map(record -> record.get(column))
+                .filter(Number.class::isInstance)
+                .map(Number.class::cast)
+                .map(Number::doubleValue)
+                .toList();
+            if (values.isEmpty()) {
+                continue;
+            }
+            double sum = values.stream().mapToDouble(Double::doubleValue).sum();
+            profiles.put(column, Map.of(
+                "observedCount", values.size(),
+                "min", values.stream().min(Double::compareTo).orElse(0D),
+                "max", values.stream().max(Double::compareTo).orElse(0D),
+                "sum", sum
+            ));
+        }
+        return Map.copyOf(profiles);
+    }
+
     private String buildStructuredProtocolObservation(String toolName, ToolOutput output, String protocolEvidence) {
         StringBuilder observation = successObservationHeader(toolName, output);
         observation.append("\nStructured reasoning evidence (authoritative runtime projection):\n")
@@ -319,10 +451,9 @@ class ToolObservationBuilder {
     }
 
     /**
-     * Formats the unified metadata protocol for model review. Retrieval already applies
-     * its configured result limits, so this projection keeps every returned field and
-     * candidate while extracting only names and comments. The provider exchange,
-     * tokenization plan, scores and duplicate evidence objects remain in the tool trace.
+     * Formats the unified metadata protocol for model review. The MCP result retains all
+     * retrieved candidates. This reasoning projection selects only the highest-scored
+     * candidate for each field and metadata type while preserving returned counts.
      */
     private String buildEnterpriseMetadataObservation(String toolName,
                                                       ToolOutput output,
@@ -342,15 +473,26 @@ class ToolObservationBuilder {
             Map<String, Object> formattedField = new LinkedHashMap<>();
             putIfPresent(formattedField, "fieldRef", fieldMatch.get("fieldRef"));
             formattedField.put("source", sourceFieldProjection(asMap(fieldMatch.get("input"))));
+            List<Map<String, Object>> returnedStandardFields =
+                mapList(fieldMatch.get("standardFields"));
+            List<Map<String, Object>> returnedTermRoots =
+                mapList(fieldMatch.get("termRoots"));
+            List<Map<String, Object>> returnedDictionaries =
+                mapList(fieldMatch.get("dictionaries"));
             List<Map<String, Object>> standardFields =
-                metadataCandidateProjections(mapList(fieldMatch.get("standardFields")));
+                highestScoredMetadataCandidateProjection(returnedStandardFields);
             List<Map<String, Object>> termRoots =
-                metadataCandidateProjections(mapList(fieldMatch.get("termRoots")));
+                highestScoredMetadataCandidateProjection(returnedTermRoots);
             List<Map<String, Object>> dictionaries =
-                metadataCandidateProjections(mapList(fieldMatch.get("dictionaries")));
+                highestScoredMetadataCandidateProjection(returnedDictionaries);
             formattedField.put("standardFields", standardFields);
             formattedField.put("termRoots", termRoots);
             formattedField.put("dictionaries", dictionaries);
+            formattedField.put("returnedCandidateCounts", Map.of(
+                "standardFields", returnedStandardFields.size(),
+                "termRoots", returnedTermRoots.size(),
+                "dictionaries", returnedDictionaries.size()
+            ));
             if (!standardFields.isEmpty() || !termRoots.isEmpty() || !dictionaries.isEmpty()) {
                 fieldsWithCandidates++;
             }
@@ -387,7 +529,9 @@ class ToolObservationBuilder {
         context.put("fields", List.copyOf(formattedFields));
         context.put("projection", Map.of(
             "includedCandidateProperties", List.of("field", "englishName", "comment"),
-            "allReturnedCandidatesIncluded", true,
+            "candidateReturnPolicy", "ALL_RETRIEVED_CANDIDATES_IN_TOOL_RESULT",
+            "reasoningSelectionPolicy", "HIGHEST_SCORE_ONE_PER_FIELD_AND_METADATA_TYPE",
+            "allReturnedCandidatesIncluded", false,
             "fullProtocolEvidenceLocation", "toolTrace"
         ));
         if (payload.get("errorCode") != null) {
@@ -477,10 +621,42 @@ class ToolObservationBuilder {
         }
     }
 
-    private List<Map<String, Object>> metadataCandidateProjections(List<Map<String, Object>> candidates) {
-        return candidates.stream()
-            .map(this::metadataCandidateProjection)
-            .toList();
+    private List<Map<String, Object>> highestScoredMetadataCandidateProjection(
+        List<Map<String, Object>> candidates
+    ) {
+        if (candidates == null || candidates.isEmpty()) {
+            return List.of();
+        }
+        Map<String, Object> selected = candidates.get(0);
+        double highestScore = metadataCandidateScore(selected);
+        for (int index = 1; index < candidates.size(); index++) {
+            Map<String, Object> candidate = candidates.get(index);
+            double score = metadataCandidateScore(candidate);
+            if (score > highestScore) {
+                selected = candidate;
+                highestScore = score;
+            }
+        }
+        return List.of(metadataCandidateProjection(selected));
+    }
+
+    private double metadataCandidateScore(Map<String, Object> candidate) {
+        Object value = candidate == null ? null : candidate.get("score");
+        if (!(value instanceof Number)) {
+            value = candidate == null ? null : candidate.get("relevanceScore");
+        }
+        if (!(value instanceof Number) && candidate != null) {
+            value = asMap(candidate.get("metadata")).get("relevanceScore");
+        }
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        try {
+            return value == null ? Double.NEGATIVE_INFINITY
+                : Double.parseDouble(String.valueOf(value));
+        } catch (NumberFormatException ignored) {
+            return Double.NEGATIVE_INFINITY;
+        }
     }
 
     private Map<String, Object> sourceFieldProjection(Map<String, Object> input) {

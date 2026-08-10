@@ -149,6 +149,17 @@ class EnterpriseMetadataSearchServiceTest {
         assertThat(response)
             .containsEntry("schemaVersion", EnterpriseMetadataSearchService.REQUIRED_BUNDLE_SCHEMA_VERSION)
             .containsEntry("count", 3);
+        assertThat((List<Map<String, Object>>) response.get("results")).hasSize(3);
+        Map<String, Object> evidenceBundle = (Map<String, Object>) response.get("evidenceBundle");
+        Map<String, Object> standardEvidence =
+            (Map<String, Object>) evidenceBundle.get("standardEvidence");
+        assertThat(standardEvidence)
+            .containsEntry("count", 3)
+            .containsEntry("selectedCount", 1);
+        assertThat((List<Map<String, Object>>) standardEvidence.get("items")).hasSize(1);
+        assertThat((Map<String, Object>) evidenceBundle.get("reasoningContract"))
+            .containsEntry("candidateReturnPolicy", "ALL_RETRIEVED_CANDIDATES_IN_RESULTS")
+            .containsEntry("reasoningSelectionPolicy", "HIGHEST_CONFIDENCE_ONE");
         assertThat((Map<String, Object>) response.get("evidenceCoverage"))
             .containsEntry("contractVersion", "enterprise_metadata_evidence_coverage.v2")
             .containsEntry("scope", "ENTERPRISE_FIELD_METADATA")

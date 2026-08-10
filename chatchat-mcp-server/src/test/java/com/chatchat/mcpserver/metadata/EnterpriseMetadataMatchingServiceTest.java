@@ -89,6 +89,13 @@ class EnterpriseMetadataMatchingServiceTest {
             .containsEntry("processedFieldCount", 2)
             .containsEntry("allFieldsProcessed", true)
             .containsEntry("perFieldTypeRetrieval", true);
+        Map<String, Object> reviewContract = map(result.get("reviewContract"));
+        assertThat(reviewContract)
+            .containsEntry("candidateReturnPolicy", "ALL_RETRIEVED_CANDIDATES");
+        assertThat(map(reviewContract.get("reasoningCandidateSelection")))
+            .containsEntry("strategy", "HIGHEST_SCORE")
+            .containsEntry("maximumSelectedPerFieldAndMetadataType", 1)
+            .containsEntry("tieBreaker", "PROVIDER_ORDER");
 
         List<Map<String, Object>> fields = maps(result.get("fieldMatches"));
         assertThat(fields).hasSize(2);

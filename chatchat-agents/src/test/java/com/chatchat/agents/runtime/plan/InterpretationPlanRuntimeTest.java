@@ -7079,7 +7079,10 @@ class InterpretationPlanRuntimeTest {
         when(toolRegistry.hasTool("metadata_search")).thenReturn(true);
         when(toolRegistry.hasTool("standards_search")).thenReturn(true);
         when(toolRegistry.getToolMetadata(any())).thenReturn(
-            ToolMetadata.builder().riskLevel("low").build());
+            ToolMetadata.builder()
+                .riskLevel("low")
+                .description("Search metadata candidates")
+                .build());
         ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
         when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
             ToolOutput.success("opaque partial-evidence reference"),
@@ -7096,7 +7099,14 @@ class InterpretationPlanRuntimeTest {
                     "evidenceEvaluation", Map.of("shouldExpandQuery", true),
                     "nextActions", List.of(Map.of(
                         "tool", "metadata_search",
-                        "input_changes", Map.of("query", "broadened tokens")
+                        "input_changes", Map.of("query", "broadened tokens"),
+                        "scope_basis", Map.of(
+                            "source", "user_query",
+                            "reference", "find comparable evidence"),
+                        "capability_basis", Map.of(
+                            "source", "tool_metadata",
+                            "reference", "Search metadata candidates"),
+                        "expected_evidence_types", List.of("metadata candidates")
                     ))
                 )
             );
@@ -7133,7 +7143,8 @@ class InterpretationPlanRuntimeTest {
         InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
             new InterpretationPlanRuntime.ExecutionRequest(
                 plan, toolRegistry, List.of("metadata_search", "standards_search"),
-                "tenant-1", "req-recovery-first", "conv-recovery-first", "user-1", Map.of()
+                "tenant-1", "req-recovery-first", "conv-recovery-first", "user-1",
+                Map.of("originalUserQuery", "find comparable evidence")
             ));
 
         assertThat(result.status()).isEqualTo("DAG_REWRITE_REQUESTED");
@@ -7143,6 +7154,83 @@ class InterpretationPlanRuntimeTest {
         assertThat(controllerDecision.get("action")).isEqualTo("rewrite_plan");
         verify(toolRuntimeService, times(1)).execute(any());
         verify(controller, never()).decide(any());
+    }
+
+    @Test
+    void ignoresUngroundedEvidenceExpansionWithoutRecoveryContract() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("metadata_search")).thenReturn(true);
+        when(toolRegistry.hasTool("standards_search")).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenReturn(
+            ToolMetadata.builder().riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
+            String toolName = invocation.<ToolRuntimeRequest>getArgument(0)
+                .getToolName();
+            return new ToolRuntimeExecution(
+                ToolOutput.success(Map.of("results", List.of(toolName + " evidence"))),
+                ToolMetadata.builder().id(toolName).build(),
+                null,
+                "success",
+                Map.of()
+            );
+        });
+        InterpretationPlanRuntime.StepResultReviewer reviewer = request -> {
+            if (!"metadata_search".equals(request.execution().toolName())) {
+                return InterpretationPlanRuntime.StepReview.accepted("usable", Map.of());
+            }
+            return InterpretationPlanRuntime.StepReview.accepted(
+                "returned evidence is useful",
+                Map.of(
+                    "evidenceEvaluation", Map.of("shouldExpandQuery", true),
+                    "nextActions", List.of(Map.of(
+                        "tool", "metadata_search",
+                        "input_changes", Map.of(
+                            "query", "invented conventional design checklist")
+                    ))
+                )
+            );
+        };
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("evidence_review", "review returned evidence", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(
+                    1, "mcp_tool", "metadata_search", Map.of("query", "exact"),
+                    List.of(), null, null),
+                new InterpretationPlan.Step(
+                    2, "mcp_tool", "standards_search", Map.of("query", "standards"),
+                    List.of(1), null, null),
+                new InterpretationPlan.Step(
+                    3, "final_answer", "", Map.of("answer", "bounded"),
+                    List.of(2), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                3, false, List.of("metadata_search", "standards_search"), List.of(),
+                30000, 1, "partial_result", Map.of(), null, null, null),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            null,
+            reviewer,
+            request -> InterpretationPlanRuntime.DagDecision.finalAnswer(
+                3, "bounded", "all planned evidence steps completed")
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, toolRegistry, List.of("metadata_search", "standards_search"),
+                "tenant-1", "req-grounded-recovery", "conv-grounded-recovery", "user-1", Map.of()
+            ));
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.status()).isEqualTo("completed");
+        assertThat(result.steps()).extracting(InterpretationPlanRuntime.StepExecution::stepId)
+            .containsExactly(1, 2, 3);
+        verify(toolRuntimeService, times(2)).execute(any());
     }
 
     private InterpretationPlan rewrittenPlanWithRepeatedSearch() {

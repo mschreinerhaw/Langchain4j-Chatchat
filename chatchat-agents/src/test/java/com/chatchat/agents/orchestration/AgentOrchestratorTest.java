@@ -4,6 +4,8 @@ import com.chatchat.agents.assessment.EvidenceAugmentationPolicy;
 import com.chatchat.agents.runtime.ToolRuntimeService;
 import com.chatchat.agents.runtime.ToolRuntimeProperties;
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
+import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
+import com.chatchat.agents.runtime.batch.ToolCallResult;
 import com.chatchat.agents.runtime.AgentObservation;
 import com.chatchat.agents.runtime.AgentRunRequest;
 import com.chatchat.agents.runtime.AgentRunResult;
@@ -398,6 +400,80 @@ class AgentOrchestratorTest {
             .contains("stepOutputLocation")
             .doesNotContain(rawMarker)
             .hasSizeLessThan(100_000);
+    }
+
+    @Test
+    void compressedFinalSynthesisRetainsConcreteBusinessValuesFromEveryBatchChild() {
+        List<ToolCallResult> childResults = new ArrayList<>();
+        for (int index = 1; index <= 5; index++) {
+            childResults.add(new ToolCallResult(
+                "query-" + index,
+                "api_template_execute",
+                "customer-template-" + index,
+                "asset-1",
+                "SUCCESS",
+                20L,
+                "evidence-" + index,
+                Map.of(
+                    "schemaVersion", "tool_execution_result.v1",
+                    "target", Map.of("name", "customer-analysis-" + index),
+                    "data", Map.of(
+                        "statusCode", 200,
+                        "body", Map.of(
+                            "records", List.of(Map.of(
+                                "CUSTOMER_ID", "070200046604",
+                                "BUSINESS_MARKER", "returned-value-" + index,
+                                "AMOUNT", index * 100
+                            )),
+                            "rawBody", "unbounded-raw-body-" + "x".repeat(10_000)
+                        )
+                    )
+                ),
+                Map.of()
+            ));
+        }
+        ToolCallBatchResult batch = new ToolCallBatchResult(
+            "reviewed-template-step-3",
+            "SEQUENTIAL",
+            "start",
+            "end",
+            "SUCCESS",
+            new ToolCallBatchResult.Summary(5, 5, 0, 0, 0, 5),
+            childResults
+        );
+        InterpretationPlanRuntime.StepExecution step = new InterpretationPlanRuntime.StepExecution(
+            3,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_api_template_execute",
+            true,
+            batch,
+            null,
+            null,
+            null,
+            100L,
+            Map.of("batchExecution", true)
+        );
+        InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
+            "success", true, false, null, null, List.of(step), Map.of(), 100L
+        );
+
+        String prompt = newOrchestrator(mock(ChatModel.class)).buildInterpretationPlanSummaryPrompt(
+            "summarize customer transactions, assets, and profit and loss",
+            null,
+            result,
+            List.of(result),
+            List.of("force-compression-" + "z".repeat(100_000)),
+            List.of()
+        );
+
+        assertThat(prompt)
+            .contains("enabled=true")
+            .contains("batch_execution_evidence.v1")
+            .contains("070200046604")
+            .contains("returned-value-1", "returned-value-2", "returned-value-3",
+                "returned-value-4", "returned-value-5")
+            .contains("numericProfiles")
+            .doesNotContain("ToolCallBatchResult[", "unbounded-raw-body");
     }
 
     @Test
@@ -1285,6 +1361,11 @@ class AgentOrchestratorTest {
             .contains("evidenceCoverage as a description of returned standard-reference data")
             .contains("do not manufacture unsupported/missing claim lists")
             .contains("A revised query cannot expand a tool's declared capability")
+            .contains("scope_basis")
+            .contains("capability_basis")
+            .contains("expected_evidence_types")
+            .contains("A broad category phrase in the user query is not permission")
+            .contains("Do not reinterpret a generic request for enterprise standards")
             .contains("relaxes the blocking exact filter")
             .contains("Never propose a downstream binding such as tables[0]")
             .contains("\"englishName\":\"field_1\"")

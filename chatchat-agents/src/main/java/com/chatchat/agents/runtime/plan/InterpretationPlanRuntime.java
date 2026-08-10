@@ -668,6 +668,7 @@ public class InterpretationPlanRuntime {
                     action, "input_changes", "inputChanges",
                     "retry_input_changes", "retryInputChanges"));
                 if (semanticTool.isBlank() || inputChanges.isEmpty()
+                    || !validRecoveryActionContract(action, request, execution)
                     || (!allowedTools.isEmpty() && !allowedTools.contains(semanticTool))
                     || remainingTools.contains(semanticTool)) {
                     continue;
@@ -1945,11 +1946,92 @@ public class InterpretationPlanRuntime {
             Map<String, Object> inputChanges = asStringMap(firstPresent(
                 action, "input_changes", "inputChanges",
                 "retry_input_changes", "retryInputChanges"));
-            if (requestedTool != null && !requestedTool.isBlank() && !inputChanges.isEmpty()) {
+            if (requestedTool != null && !requestedTool.isBlank() && !inputChanges.isEmpty()
+                && validRecoveryActionContract(action)) {
                 return true;
             }
         }
         return false;
+    }
+
+    private boolean validRecoveryActionContract(Map<String, Object> action) {
+        if (action == null || action.isEmpty()) {
+            return false;
+        }
+        Map<String, Object> scopeBasis = asStringMap(firstPresent(
+            action, "scope_basis", "scopeBasis"));
+        Map<String, Object> capabilityBasis = asStringMap(firstPresent(
+            action, "capability_basis", "capabilityBasis"));
+        List<String> expectedEvidenceTypes = stringValues(firstPresent(
+            action, "expected_evidence_types", "expectedEvidenceTypes"));
+        String scopeSource = stringValue(firstPresent(scopeBasis, "source"));
+        String scopeReference = stringValue(firstPresent(
+            scopeBasis, "reference", "quote", "path"));
+        String capabilitySource = stringValue(firstPresent(capabilityBasis, "source"));
+        String capabilityReference = stringValue(firstPresent(
+            capabilityBasis, "reference", "quote", "path"));
+        return Set.of("user_query", "tool_result").contains(normalize(scopeSource))
+            && scopeReference != null && !scopeReference.isBlank()
+            && Set.of("tool_result", "tool_metadata").contains(normalize(capabilitySource))
+            && capabilityReference != null && !capabilityReference.isBlank()
+            && !expectedEvidenceTypes.isEmpty();
+    }
+
+    private boolean validRecoveryActionContract(Map<String, Object> action,
+                                                ExecutionRequest request,
+                                                StepExecution execution) {
+        if (!validRecoveryActionContract(action)) {
+            return false;
+        }
+        Map<String, Object> scopeBasis = asStringMap(firstPresent(
+            action, "scope_basis", "scopeBasis"));
+        Map<String, Object> capabilityBasis = asStringMap(firstPresent(
+            action, "capability_basis", "capabilityBasis"));
+        String scopeSource = normalize(stringValue(firstPresent(scopeBasis, "source")));
+        String scopeReference = stringValue(firstPresent(
+            scopeBasis, "reference", "quote", "path"));
+        String capabilitySource = normalize(stringValue(firstPresent(
+            capabilityBasis, "source")));
+        String capabilityReference = stringValue(firstPresent(
+            capabilityBasis, "reference", "quote", "path"));
+        boolean scopeGrounded = "user_query".equals(scopeSource)
+            ? containsIgnoreCase(originalUserQuery(request), scopeReference)
+            : evidenceReferenceExists(execution == null ? null : execution.output(), scopeReference);
+        boolean capabilityGrounded;
+        if ("tool_result".equals(capabilitySource)) {
+            capabilityGrounded = evidenceReferenceExists(
+                execution == null ? null : execution.output(), capabilityReference);
+        } else {
+            String requestedTool = stringValue(firstPresent(
+                action, "tool", "toolName", "tool_name"));
+            ToolMetadata metadata = request == null || request.toolRegistry() == null
+                ? null : request.toolRegistry().getToolMetadata(requestedTool);
+            String declaredCapability = metadata == null ? null : String.join(" ",
+                safeString(metadata.getId()), safeString(metadata.getTitle()),
+                safeString(metadata.getDescription()), safeString(metadata.getCategory()),
+                safeString(metadata.getOutputType()), String.valueOf(metadata.getCategories()));
+            capabilityGrounded = containsIgnoreCase(declaredCapability, capabilityReference);
+        }
+        return scopeGrounded && capabilityGrounded;
+    }
+
+    private boolean evidenceReferenceExists(Object evidence, String reference) {
+        if (evidence == null || reference == null || reference.isBlank()) {
+            return false;
+        }
+        if (reference.startsWith("$.")) {
+            return firstValueAtAnyPath(evidence, reference) != null;
+        }
+        return containsIgnoreCase(String.valueOf(evidence), reference);
+    }
+
+    private boolean containsIgnoreCase(String value, String expected) {
+        return value != null && expected != null && !expected.isBlank()
+            && value.toLowerCase(Locale.ROOT).contains(expected.toLowerCase(Locale.ROOT));
+    }
+
+    private String safeString(Object value) {
+        return value == null ? "" : String.valueOf(value);
     }
 
     private boolean hasStructuredToolEvidence(Object output, int depth) {

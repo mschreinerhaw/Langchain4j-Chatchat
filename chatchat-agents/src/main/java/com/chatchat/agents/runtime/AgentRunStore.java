@@ -1,5 +1,7 @@
 package com.chatchat.agents.runtime;
 
+import com.chatchat.agents.runtime.plan.PlanStepCheckpoint;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -37,6 +39,19 @@ public interface AgentRunStore {
 
     default Optional<Object> evidence(String documentId) {
         return Optional.empty();
+    }
+
+    /** Saves or replaces the durable materialization for one plan node. */
+    default void savePlanStepCheckpoint(PlanStepCheckpoint checkpoint) {
+    }
+
+    /** Returns all durable plan-node materializations for a run. */
+    default List<PlanStepCheckpoint> planStepCheckpoints(String runId) {
+        return List.of();
+    }
+
+    /** Removes all durable plan-node materializations for a run. */
+    default void deletePlanStepCheckpoints(String runId) {
     }
 
     /**

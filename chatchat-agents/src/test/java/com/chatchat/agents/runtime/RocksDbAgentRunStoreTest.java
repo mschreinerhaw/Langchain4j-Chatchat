@@ -1,6 +1,8 @@
 package com.chatchat.agents.runtime;
 
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
+import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
+import com.chatchat.agents.runtime.plan.PlanStepCheckpoint;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -18,6 +20,41 @@ class RocksDbAgentRunStoreTest {
 
     @TempDir
     Path tempDir;
+
+    @Test
+    void persistsAndReadsPlanStepCheckpointFromRocksDb() {
+        AgentRuntimeProperties properties = properties(tempDir);
+        ObjectMapper objectMapper = new ObjectMapper();
+        RocksDbAgentRunStore store = new RocksDbAgentRunStore(
+            new NoopAgentRunEventPublisher(), properties, objectMapper);
+        store.open();
+        InterpretationPlanRuntime.StepExecution materialized = new InterpretationPlanRuntime.StepExecution(
+            3, "mcp_tool", "metadata_search", true,
+            Map.of("tables", List.of(Map.of("name", "orders"))), null, null, null, 12L,
+            Map.of("reviewed", true));
+        store.savePlanStepCheckpoint(new PlanStepCheckpoint(
+            PlanStepCheckpoint.SCHEMA_VERSION,
+            "checkpoint-run-1",
+            3,
+            "definition-sha",
+            Map.of(1, "upstream-sha"),
+            "result-sha",
+            materialized,
+            100L,
+            200L
+        ));
+        assertThat(store.planStepCheckpoints("checkpoint-run-1"))
+            .singleElement()
+            .satisfies(checkpoint -> {
+                assertThat(checkpoint.definitionFingerprint()).isEqualTo("definition-sha");
+                assertThat(checkpoint.dependencyResultFingerprints()).containsEntry(1, "upstream-sha");
+                assertThat(checkpoint.materializedResult().output())
+                    .isEqualTo(Map.of("tables", List.of(Map.of("name", "orders"))));
+            });
+        store.deletePlanStepCheckpoints("checkpoint-run-1");
+        assertThat(store.planStepCheckpoints("checkpoint-run-1")).isEmpty();
+        store.close();
+    }
 
     @Test
     void persistsRunLifecycleAndRestoresAfterReopen() {

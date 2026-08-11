@@ -4,6 +4,7 @@ import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.agents.runtime.plan.InterpretationPlanDagConverter;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRecord;
 import com.chatchat.agents.runtime.plan.InterpretationPlanStore;
+import com.chatchat.agents.runtime.plan.PlanStepCheckpoint;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,6 +33,7 @@ public class InMemoryAgentRunStore implements AgentRunStore, InterpretationPlanS
     protected final Map<String, List<InterpretationPlanRecord>> planVersions = new ConcurrentHashMap<>();
     protected final Map<String, String> planDags = new ConcurrentHashMap<>();
     protected final Map<String, String> planIdIndex = new ConcurrentHashMap<>();
+    protected final Map<String, Map<Integer, PlanStepCheckpoint>> planStepCheckpoints = new ConcurrentHashMap<>();
     private final AgentRunEventPublisher eventPublisher;
     private final AgentRuntimeProperties properties;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -450,6 +452,37 @@ public class InMemoryAgentRunStore implements AgentRunStore, InterpretationPlanS
     }
 
     @Override
+    public void savePlanStepCheckpoint(PlanStepCheckpoint checkpoint) {
+        if (checkpoint == null || checkpoint.runId() == null || checkpoint.runId().isBlank()
+            || checkpoint.stepId() == null || checkpoint.materializedResult() == null) {
+            return;
+        }
+        planStepCheckpoints.compute(checkpoint.runId(), (runId, current) -> {
+            Map<Integer, PlanStepCheckpoint> values = current == null
+                ? new ConcurrentHashMap<>() : current;
+            values.put(checkpoint.stepId(), checkpoint);
+            return values;
+        });
+    }
+
+    @Override
+    public List<PlanStepCheckpoint> planStepCheckpoints(String runId) {
+        if (runId == null || runId.isBlank()) {
+            return List.of();
+        }
+        return planStepCheckpoints.getOrDefault(runId, Map.of()).values().stream()
+            .sorted(Comparator.comparing(PlanStepCheckpoint::stepId))
+            .toList();
+    }
+
+    @Override
+    public void deletePlanStepCheckpoints(String runId) {
+        if (runId != null) {
+            planStepCheckpoints.remove(runId);
+        }
+    }
+
+    @Override
     public AgentRuntimeSnapshot snapshot() {
         return AgentRuntimeSnapshot.fromRuns(runs.values());
     }
@@ -588,6 +621,7 @@ public class InMemoryAgentRunStore implements AgentRunStore, InterpretationPlanS
                 .filter(run -> run.finishedAt() != null && now - run.finishedAt() >= ttlMs)
                 .forEach(run -> {
                     if (runs.remove(run.runId(), run)) {
+                        deletePlanStepCheckpoints(run.runId());
                         removedRunIds.add(run.runId());
                     }
                 });
@@ -603,6 +637,7 @@ public class InMemoryAgentRunStore implements AgentRunStore, InterpretationPlanS
                 .thenComparing(AgentRun::runId))
             .forEach(run -> {
                 if (runs.size() > maxRuns && runs.remove(run.runId(), run)) {
+                    deletePlanStepCheckpoints(run.runId());
                     removedRunIds.add(run.runId());
                 }
             });

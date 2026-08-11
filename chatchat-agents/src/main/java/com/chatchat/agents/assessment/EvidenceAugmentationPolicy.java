@@ -1,8 +1,9 @@
 package com.chatchat.agents.assessment;
 
 /**
- * Deterministic Agent Loop policy. Evidence gaps are an exploration signal,
- * not an answer gate.
+ * Deterministic Agent Loop policy. Usable partial evidence terminates exploration
+ * with explicit limitations; only the absence of usable evidence justifies another
+ * retrieval attempt. Evidence gaps are not an answer gate.
  */
 public final class EvidenceAugmentationPolicy {
 
@@ -18,13 +19,13 @@ public final class EvidenceAugmentationPolicy {
             return outcome(Decision.COMPLETE, true, false,
                 "The current evidence supports completion.");
         }
-        if (resolved.materialGap() && resolved.explorationAvailable()) {
-            return outcome(Decision.RETRIEVE_MORE, true, true,
-                "An actionable evidence gap remains, so the loop should retrieve or verify more information.");
-        }
         if (resolved.evidenceAvailable()) {
             return outcome(Decision.ANALYZE_WITH_LIMITATIONS, true, false,
                 "Usable evidence exists; remaining gaps affect confidence and limitations, not answer permission.");
+        }
+        if (resolved.materialGap() && resolved.explorationAvailable()) {
+            return outcome(Decision.RETRIEVE_MORE, true, true,
+                "No usable evidence is available and an actionable retrieval path remains.");
         }
         if (resolved.evidenceRequirement() == TaskContract.EvidenceRequirement.OPTIONAL) {
             return outcome(Decision.ANALYZE_WITH_LIMITATIONS, true, false,

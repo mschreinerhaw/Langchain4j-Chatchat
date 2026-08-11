@@ -2,6 +2,7 @@ package com.chatchat.agents.runtime;
 
 import com.chatchat.agents.runtime.plan.InterpretationPlanRecord;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
+import com.chatchat.agents.runtime.plan.PlanStepCheckpoint;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,6 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +45,7 @@ public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
     private static final String PLAN_VERSION_KEY_PREFIX = "plan:version:";
     private static final String PLAN_DAG_KEY_PREFIX = "plan:dag:";
     private static final String PLAN_INDEX_KEY_PREFIX = "plan:index:planId:";
+    private static final String PLAN_STEP_CHECKPOINT_KEY_PREFIX = "checkpoint:plan-step:";
     private static final String AGENT_CANCELLATION_ATTRIBUTE = "__agentCancellation";
     private static final String INTERRUPTED_BY_RESTART = "Agent run interrupted by runtime restart";
 
@@ -98,6 +101,62 @@ public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
         AgentRun run = super.start(request);
         persistRun(run);
         return run;
+    }
+
+    @Override
+    public void savePlanStepCheckpoint(PlanStepCheckpoint checkpoint) {
+        super.savePlanStepCheckpoint(checkpoint);
+        if (checkpoint == null || checkpoint.runId() == null || checkpoint.runId().isBlank()
+            || checkpoint.stepId() == null) {
+            return;
+        }
+        ensureOpen();
+        try {
+            db.put(bytes(planStepCheckpointKey(checkpoint.runId(), checkpoint.stepId())),
+                objectMapper.writeValueAsBytes(checkpoint));
+        } catch (JsonProcessingException | RocksDBException ex) {
+            throw new IllegalStateException("Failed to persist plan step checkpoint "
+                + checkpoint.runId() + ":" + checkpoint.stepId(), ex);
+        }
+    }
+
+    @Override
+    public List<PlanStepCheckpoint> planStepCheckpoints(String runId) {
+        if (db == null || runId == null || runId.isBlank()) {
+            return List.of();
+        }
+        List<PlanStepCheckpoint> checkpoints = new ArrayList<>();
+        String prefix = planStepCheckpointPrefix(runId);
+        try (PrefixIterator prefixIterator = prefixIterator(prefix)) {
+            RocksIterator iterator = prefixIterator.iterator();
+            while (iterator.isValid() && startsWith(iterator.key(), prefix)) {
+                checkpoints.add(objectMapper.readValue(iterator.value(), PlanStepCheckpoint.class));
+                iterator.next();
+            }
+            return checkpoints;
+        } catch (IOException ex) {
+            throw new IllegalStateException("Failed to read plan step checkpoints " + runId, ex);
+        }
+    }
+
+    @Override
+    public void deletePlanStepCheckpoints(String runId) {
+        super.deletePlanStepCheckpoints(runId);
+        if (db == null || runId == null || runId.isBlank()) {
+            return;
+        }
+        List<byte[]> keys = new ArrayList<>();
+        collectPrefixKeys(planStepCheckpointPrefix(runId), keys);
+        try (WriteBatch batch = new WriteBatch(); WriteOptions writeOptions = new WriteOptions()) {
+            for (byte[] key : keys) {
+                batch.delete(key);
+            }
+            if (!keys.isEmpty()) {
+                db.write(writeOptions, batch);
+            }
+        } catch (RocksDBException ex) {
+            throw new IllegalStateException("Failed to delete plan step checkpoints " + runId, ex);
+        }
     }
 
     @Override
@@ -543,6 +602,7 @@ public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
             return;
         }
         deleteExternalEvidence(runId);
+        deletePlanStepCheckpoints(runId);
         try {
             db.delete(bytes(runKey(runId)));
             deletePersistedIndexes(runId);
@@ -1117,6 +1177,16 @@ public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
 
     private String observationPrefix(String runId) {
         return OBSERVATION_KEY_PREFIX + runId + ":";
+    }
+
+    private String planStepCheckpointPrefix(String runId) {
+        String encodedRunId = Base64.getUrlEncoder().withoutPadding()
+            .encodeToString(bytes(runId));
+        return PLAN_STEP_CHECKPOINT_KEY_PREFIX + encodedRunId + ":";
+    }
+
+    private String planStepCheckpointKey(String runId, Integer stepId) {
+        return planStepCheckpointPrefix(runId) + String.format("%010d", stepId);
     }
 
     private String eventKey(AgentRunEvent event, int index) {

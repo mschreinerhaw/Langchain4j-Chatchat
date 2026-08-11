@@ -37,6 +37,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.security.MessageDigest;
+import java.util.Base64;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -264,9 +266,13 @@ public class InterpretationPlanRuntime {
         Map<Integer, StepExecution> completed = new LinkedHashMap<>();
         Set<Integer> remaining = new LinkedHashSet<>(stepsById.keySet());
         List<StepExecution> executions = new ArrayList<>();
+        String runId = runId(executableRequest);
+        Set<Integer> reusedPlanStepIds = seedReusableStepExecutions(
+            executableRequest, stepsById, completed, executions);
+        reusedPlanStepIds.addAll(seedPersistedStepCheckpoints(
+            runId, stepsById, completed, executions));
         List<StepExecution> toleratedFailures = new ArrayList<>();
         String finalAnswer = null;
-        String runId = runId(executableRequest);
         int decisionCount = 0;
 
         while (!remaining.isEmpty()) {
@@ -412,6 +418,7 @@ public class InterpretationPlanRuntime {
                     elapsed(startedAt)
                 ), executableRequest, remaining);
             }
+            persistSuccessfulStepCheckpoints(runId, stepsById, completed, waveResults);
             StepExecution failed = waveResults.stream()
                 .filter(step -> !step.success())
                 .findFirst()
@@ -487,6 +494,7 @@ public class InterpretationPlanRuntime {
                 "stepCount", executions.size(),
                 "requiredPlanStepIds", new ArrayList<>(stepsById.keySet()),
                 "completedPlanStepIds", new ArrayList<>(completed.keySet()),
+                "reusedPlanStepIds", new ArrayList<>(reusedPlanStepIds),
                 "remainingPlanStepIds", new ArrayList<>(remaining),
                 "parallel", allowParallel(executablePlan),
                 "decisionCount", decisionCount,
@@ -497,6 +505,217 @@ public class InterpretationPlanRuntime {
             ),
             elapsed(startedAt)
         ), executableRequest, remaining);
+    }
+
+    private Set<Integer> seedReusableStepExecutions(ExecutionRequest request,
+                                                    Map<Integer, InterpretationPlan.Step> stepsById,
+                                                    Map<Integer, StepExecution> completed,
+                                                    List<StepExecution> executions) {
+        Set<Integer> reusedStepIds = new LinkedHashSet<>();
+        if (request == null || request.attributes() == null) {
+            return reusedStepIds;
+        }
+        Object raw = request.attributes().get("reusablePlanSteps");
+        if (!(raw instanceof Iterable<?> reusableSteps)) {
+            return reusedStepIds;
+        }
+        for (Object value : reusableSteps) {
+            if (!(value instanceof ReusableStep reusable) || reusable.step() == null
+                || reusable.execution() == null || !reusable.execution().success()
+                || reusable.step().id() == null
+                || !Objects.equals(reusable.step(), stepsById.get(reusable.step().id()))) {
+                continue;
+            }
+            Map<String, Object> metadata = new LinkedHashMap<>(reusable.execution().metadata());
+            metadata.put("reusedFromPlanRevision", true);
+            StepExecution restored = new StepExecution(
+                reusable.execution().stepId(), reusable.execution().actionType(),
+                reusable.execution().toolName(), true, reusable.execution().output(), null,
+                reusable.execution().toolExecution(), reusable.execution().finalAnswer(), 0L,
+                Map.copyOf(metadata)
+            );
+            completed.put(restored.stepId(), restored);
+            executions.add(restored);
+            reusedStepIds.add(restored.stepId());
+        }
+        return reusedStepIds;
+    }
+
+    private Set<Integer> seedPersistedStepCheckpoints(String runId,
+                                                      Map<Integer, InterpretationPlan.Step> stepsById,
+                                                      Map<Integer, StepExecution> completed,
+                                                      List<StepExecution> executions) {
+        Set<Integer> reusedStepIds = new LinkedHashSet<>();
+        if (runStore == null || runId == null || runId.isBlank() || stepsById.isEmpty()) {
+            return reusedStepIds;
+        }
+        List<PlanStepCheckpoint> stored;
+        try {
+            stored = runStore.planStepCheckpoints(runId);
+        } catch (RuntimeException ex) {
+            log.warn("Failed to load persisted plan checkpoints. runId={} error={}", runId, ex.getMessage());
+            return reusedStepIds;
+        }
+        Map<Integer, PlanStepCheckpoint> byStepId = stored.stream()
+            .filter(Objects::nonNull)
+            .filter(checkpoint -> checkpoint.stepId() != null)
+            .collect(Collectors.toMap(
+                PlanStepCheckpoint::stepId,
+                checkpoint -> checkpoint,
+                (left, right) -> left.updatedAt() >= right.updatedAt() ? left : right,
+                LinkedHashMap::new
+            ));
+        boolean progressed;
+        do {
+            progressed = false;
+            for (InterpretationPlan.Step step : stepsById.values()) {
+                if (completed.containsKey(step.id())) {
+                    continue;
+                }
+                PlanStepCheckpoint checkpoint = byStepId.get(step.id());
+                if (!validCheckpoint(checkpoint, step, completed)) {
+                    continue;
+                }
+                StepExecution materialized = checkpoint.materializedResult();
+                Map<String, Object> metadata = new LinkedHashMap<>(materialized.metadata());
+                metadata.put("reusedFromCheckpoint", true);
+                metadata.put("checkpointSchemaVersion", checkpoint.schemaVersion());
+                metadata.put("checkpointUpdatedAt", checkpoint.updatedAt());
+                StepExecution restored = new StepExecution(
+                    materialized.stepId(), materialized.actionType(), materialized.toolName(), true,
+                    materialized.output(), null, materialized.toolExecution(), materialized.finalAnswer(),
+                    0L, Map.copyOf(metadata)
+                );
+                completed.put(restored.stepId(), restored);
+                executions.add(restored);
+                reusedStepIds.add(restored.stepId());
+                progressed = true;
+            }
+        } while (progressed);
+        if (!reusedStepIds.isEmpty()) {
+            log.info("Restored plan node materializations from checkpoint. runId={} stepIds={}",
+                runId, reusedStepIds);
+        }
+        return reusedStepIds;
+    }
+
+    private boolean validCheckpoint(PlanStepCheckpoint checkpoint,
+                                    InterpretationPlan.Step step,
+                                    Map<Integer, StepExecution> completed) {
+        try {
+            if (checkpoint == null || step == null || checkpoint.materializedResult() == null
+                || !checkpoint.materializedResult().success()
+                || !PlanStepCheckpoint.SCHEMA_VERSION.equals(checkpoint.schemaVersion())
+                || !Objects.equals(step.id(), checkpoint.stepId())
+                || !Objects.equals(stepFingerprint(step), checkpoint.definitionFingerprint())
+                || !Objects.equals(resultFingerprint(checkpoint.materializedResult()), checkpoint.resultFingerprint())) {
+                return false;
+            }
+            for (Integer dependencyId : step.dependsOn() == null ? List.<Integer>of() : step.dependsOn()) {
+                StepExecution dependency = completed.get(dependencyId);
+                String expected = checkpoint.dependencyResultFingerprints().get(dependencyId);
+                if (dependency == null || expected == null
+                    || !Objects.equals(expected, resultFingerprint(dependency))) {
+                    return false;
+                }
+            }
+            return true;
+        } catch (RuntimeException ex) {
+            log.warn("Ignored unreadable plan checkpoint. stepId={} error={}",
+                step == null ? null : step.id(), ex.getMessage());
+            return false;
+        }
+    }
+
+    private void persistSuccessfulStepCheckpoints(String runId,
+                                                  Map<Integer, InterpretationPlan.Step> stepsById,
+                                                  Map<Integer, StepExecution> completed,
+                                                  List<StepExecution> waveResults) {
+        if (runStore == null || runId == null || runId.isBlank() || waveResults == null) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        for (StepExecution execution : waveResults) {
+            InterpretationPlan.Step step = execution == null ? null : stepsById.get(execution.stepId());
+            if (step == null || !execution.success()) {
+                continue;
+            }
+            try {
+                Map<Integer, String> dependencyFingerprints = new LinkedHashMap<>();
+                boolean dependenciesMaterialized = true;
+                for (Integer dependencyId : step.dependsOn() == null ? List.<Integer>of() : step.dependsOn()) {
+                    StepExecution dependency = completed.get(dependencyId);
+                    if (dependency == null || !dependency.success()) {
+                        dependenciesMaterialized = false;
+                        break;
+                    }
+                    dependencyFingerprints.put(dependencyId, resultFingerprint(dependency));
+                }
+                if (!dependenciesMaterialized) {
+                    continue;
+                }
+                PlanStepCheckpoint checkpoint = new PlanStepCheckpoint(
+                    PlanStepCheckpoint.SCHEMA_VERSION,
+                    runId,
+                    step.id(),
+                    stepFingerprint(step),
+                    dependencyFingerprints,
+                    resultFingerprint(execution),
+                    execution,
+                    now,
+                    now
+                );
+                runStore.savePlanStepCheckpoint(checkpoint);
+            } catch (RuntimeException ex) {
+                log.warn("Failed to persist plan step checkpoint. runId={} stepId={} error={}",
+                    runId, step.id(), ex.getMessage());
+            }
+        }
+    }
+
+    private String stepFingerprint(InterpretationPlan.Step step) {
+        return sha256(step);
+    }
+
+    private String resultFingerprint(StepExecution execution) {
+        if (execution == null) {
+            return null;
+        }
+        return sha256(mapOf(
+            "stepId", execution.stepId(),
+            "actionType", execution.actionType(),
+            "toolName", execution.toolName(),
+            "output", execution.output(),
+            "finalAnswer", execution.finalAnswer()
+        ));
+    }
+
+    private String sha256(Object value) {
+        try {
+            Object normalized = normalizeFingerprintValue(value);
+            byte[] serialized = RESULT_OBJECT_MAPPER.writeValueAsBytes(normalized);
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(serialized);
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
+        } catch (Exception ex) {
+            throw new IllegalStateException("Failed to fingerprint plan checkpoint value", ex);
+        }
+    }
+
+    private Object normalizeFingerprintValue(Object value) {
+        Object generic = RESULT_OBJECT_MAPPER.convertValue(value, Object.class);
+        return sortFingerprintValue(generic);
+    }
+
+    private Object sortFingerprintValue(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            Map<String, Object> sorted = new java.util.TreeMap<>();
+            map.forEach((key, item) -> sorted.put(String.valueOf(key), sortFingerprintValue(item)));
+            return sorted;
+        }
+        if (value instanceof List<?> list) {
+            return list.stream().map(this::sortFingerprintValue).toList();
+        }
+        return value;
     }
 
     private String dependencyFailurePolicy(InterpretationPlan plan, Integer failedStepId) {
@@ -1249,6 +1468,13 @@ public class InterpretationPlanRuntime {
         metadata.put("evidenceId", evidenceId(request, step));
         metadata.put("interpretationPlanActionType", step.actionType());
         metadata.put("toolName", step.toolName());
+        InterpretationPlan.Step definition = request.plan().steps().stream()
+            .filter(candidate -> candidate != null && Objects.equals(candidate.id(), step.stepId()))
+            .findFirst()
+            .orElse(null);
+        if (definition != null) {
+            metadata.put("planStepDefinitionFingerprint", stepFingerprint(definition));
+        }
         metadata.put("success", step.success());
         metadata.put("durationMs", step.durationMs());
         metadata.put("type", step.success() ? "tool" : "tool_failure");
@@ -1880,10 +2106,6 @@ public class InterpretationPlanRuntime {
             return false;
         }
         String evidenceType = stringValue(metadata.get("localFactCheckEvidenceType"));
-        if ("financial_data_observations".equals(evidenceType)) {
-            Integer returnedCount = integerValue(metadata.get("financialObservationCount"));
-            return returnedCount != null && returnedCount > 0;
-        }
         if ("asset_discovery".equals(evidenceType)) {
             Integer returnedCount = integerValue(metadata.get("assetDiscoveryReturnedCount"));
             // A configured workflow owns both candidate fan-out and the downstream
@@ -1892,12 +2114,17 @@ public class InterpretationPlanRuntime {
             return returnedCount != null && returnedCount > 0
                 && (returnedCount == 1 || authoritativeWorkflowGoverns(request, step));
         }
-        if (!"template_discovery".equals(evidenceType)) {
-            return false;
+        if ("template_discovery".equals(evidenceType)) {
+            Integer returnedCount = integerValue(metadata.get("templateDiscoveryReturnedCount"));
+            return returnedCount != null && returnedCount > 0
+                && (returnedCount == 1 || authoritativeWorkflowGoverns(request, step));
         }
-        Integer returnedCount = integerValue(metadata.get("templateDiscoveryReturnedCount"));
-        return returnedCount != null && returnedCount > 0
-            && (returnedCount == 1 || authoritativeWorkflowGoverns(request, step));
+        // The local check only accepts a successful, non-empty typed result. Once
+        // that contract is satisfied, semantic completeness belongs to the final
+        // evidence synthesis. Re-reviewing every accepted result with an LLM turns
+        // ordinary evidence gaps into latency and retry loops. Candidate discovery
+        // is the sole exception because ambiguous candidates still need selection.
+        return evidenceType != null && !evidenceType.isBlank();
     }
 
     // Retained for compatibility with focused contract tests and legacy reflective
@@ -2758,6 +2985,7 @@ public class InterpretationPlanRuntime {
             return List.of();
         }
         Map<Integer, AgentObservation> rawObservations = rawObservationsByStep(runId, request);
+        Map<Integer, PlanStepCheckpoint> checkpoints = persistedCheckpointMap(runId);
         List<StepExecution> hydrated = new ArrayList<>();
         for (AgentRunEvent event : runStore.events(runId)) {
             if (event == null || event.type() != AgentRunEventType.OBSERVATION_RECORDED) {
@@ -2783,8 +3011,11 @@ public class InterpretationPlanRuntime {
             String actionType = stringValue(firstPresent(
                 metadata, "interpretationPlanActionType", "actionType"));
             String toolName = stringValue(firstPresent(metadata, "toolName", "source"));
+            String storedDefinitionFingerprint = stringValue(firstPresent(
+                metadata, "planStepDefinitionFingerprint", "definitionFingerprint"));
             InterpretationPlan.Step plannedStep = plannedSteps.get(stepId);
-            if (!matchesStoredStepIdentity(plannedStep, actionType, toolName)) {
+            if (!matchesStoredStepIdentity(
+                plannedStep, actionType, toolName, storedDefinitionFingerprint)) {
                 log.info("Ignored stale completed plan step after rewrite stepId={} storedAction={} "
                         + "storedTool={} plannedAction={} plannedTool={}",
                     stepId,
@@ -2792,6 +3023,12 @@ public class InterpretationPlanRuntime {
                     toolName,
                     plannedStep == null ? null : plannedStep.actionType(),
                     plannedStep == null ? null : plannedStep.toolName());
+                continue;
+            }
+            PlanStepCheckpoint checkpoint = checkpoints.get(stepId);
+            if (checkpoint != null && !validCheckpoint(checkpoint, plannedStep, completed)) {
+                log.info("Ignored stale completed plan step because its checkpoint dependency chain changed. "
+                        + "runId={} stepId={}", runId, stepId);
                 continue;
             }
             Object output = outputFromObservationMetadata(metadata);
@@ -2817,11 +3054,37 @@ public class InterpretationPlanRuntime {
         return List.copyOf(hydrated);
     }
 
+    private Map<Integer, PlanStepCheckpoint> persistedCheckpointMap(String runId) {
+        if (runStore == null || runId == null || runId.isBlank()) {
+            return Map.of();
+        }
+        try {
+            return runStore.planStepCheckpoints(runId).stream()
+                .filter(Objects::nonNull)
+                .filter(checkpoint -> checkpoint.stepId() != null)
+                .collect(Collectors.toMap(
+                    PlanStepCheckpoint::stepId,
+                    checkpoint -> checkpoint,
+                    (left, right) -> left.updatedAt() >= right.updatedAt() ? left : right,
+                    LinkedHashMap::new
+                ));
+        } catch (RuntimeException ex) {
+            log.warn("Failed to read plan checkpoints while hydrating observations. runId={} error={}",
+                runId, ex.getMessage());
+            return Map.of();
+        }
+    }
+
     private boolean matchesStoredStepIdentity(InterpretationPlan.Step plannedStep,
                                               String storedActionType,
-                                              String storedToolName) {
+                                              String storedToolName,
+                                              String storedDefinitionFingerprint) {
         if (plannedStep == null || storedActionType == null
             || !storedActionType.equals(plannedStep.actionType())) {
+            return false;
+        }
+        if (storedDefinitionFingerprint != null && !storedDefinitionFingerprint.isBlank()
+            && !Objects.equals(storedDefinitionFingerprint, stepFingerprint(plannedStep))) {
             return false;
         }
         // A final answer belongs to the current plan revision. Reusing a terminal event from
@@ -7738,6 +8001,10 @@ public class InterpretationPlanRuntime {
                 nextMetadata
             );
         }
+    }
+
+    /** A materialized node result that may be reused only when its step is unchanged. */
+    public record ReusableStep(InterpretationPlan.Step step, StepExecution execution) {
     }
 
     public interface DagExecutionController {

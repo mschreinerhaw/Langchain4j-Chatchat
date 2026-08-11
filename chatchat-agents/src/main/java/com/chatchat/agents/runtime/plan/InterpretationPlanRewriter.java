@@ -27,6 +27,8 @@ public class InterpretationPlanRewriter {
     private final ObjectMapper objectMapper;
     private final InterpretationPlanValidator validator;
     private final EvidenceCompressionGate evidenceCompressionGate;
+    private final InterpretationPlanIncrementalRepair incrementalRepair =
+        new InterpretationPlanIncrementalRepair();
 
     public InterpretationPlanRewriter(ChatModel chatModel,
                                       ObjectMapper objectMapper,
@@ -89,6 +91,14 @@ public class InterpretationPlanRewriter {
             InterpretationPlan rewrittenPlan = objectMapper.readValue(extractJson(raw), InterpretationPlan.class);
             rewrittenPlan = normalizeRewritePlan(
                 request.originalPlan(), rewrittenPlan, request.availableTools());
+            InterpretationPlanIncrementalRepair.RepairRegion repairRegion =
+                incrementalRepair.region(request.originalPlan(), request.failedStep());
+            rewrittenPlan = incrementalRepair.apply(
+                request.originalPlan(), rewrittenPlan, request.failedStep());
+            if (repairRegion.bounded()) {
+                log.info("InterpretationPlan incremental repair applied affectedStepIds={} frozenStepIds={} mergedStepCount={}",
+                    repairRegion.affectedStepIds(), repairRegion.frozenStepIds(), rewrittenPlan.steps().size());
+            }
             rewrittenPlan = preserveBudgetCeilings(request.budgetCeilings(), rewrittenPlan);
             InterpretationPlanValidator.ValidationResult validation = validator.validate(
                 rewrittenPlan,
@@ -108,6 +118,10 @@ public class InterpretationPlanRewriter {
                 InterpretationPlanOptimizer.OptimizationResult optimizedRepair =
                     new InterpretationPlanOptimizer().optimize(repairedPlan);
                 repairedPlan = optimizedRepair.plan() == null ? repairedPlan : optimizedRepair.plan();
+                repairedPlan = repairExecutionPolicyStepLimit(
+                    repairedPlan,
+                    request.budgetCeilings() == null ? null : request.budgetCeilings().maxSteps()
+                );
                 if (repairedPlan != rewrittenPlan) {
                     InterpretationPlanValidator.ValidationResult repairedValidation = validator.validate(
                         repairedPlan,
@@ -154,8 +168,18 @@ public class InterpretationPlanRewriter {
         prompt.append("You are an MCP plan rewriter.\n");
         prompt.append("Your job is to repair a failed InterpretationPlan without executing tools.\n");
         prompt.append("Output exactly one valid InterpretationPlan JSON object. No markdown, comments, code fences, or natural language.\n");
+        prompt.append("For incremental repair, include only mutable-region and new steps; Runtime restores frozen nodes before validation.\n");
         prompt.append("Rewrite rules:\n");
         prompt.append("- Preserve the user's original goal and already successful evidence.\n");
+        InterpretationPlanIncrementalRepair.RepairRegion repairRegion =
+            incrementalRepair.region(request.originalPlan(), request.failedStep());
+        if (repairRegion.bounded()) {
+            prompt.append("- This is an incremental region repair. Only affected_step_ids may change; frozen_step_ids are immutable and Runtime restores them verbatim.\n");
+            prompt.append("repairRegion: ").append(toJson(Map.of(
+                "affected_step_ids", repairRegion.affectedStepIds(),
+                "frozen_step_ids", repairRegion.frozenStepIds()
+            ))).append("\n");
+        }
         prompt.append("- Evidence gaps are rewrite targets only when they block the current user request. Tool capability exclusions, unsupportedClaims, and notAssessedClaims are guardrails, not additional requirements; never add steps solely to investigate an out-of-scope excluded claim.\n");
         prompt.append("- When an exact metadata lookup succeeds with an empty collection, do not preserve an indexed output binding such as tables[0] or results[0]. Remove that binding and either add one bounded semantic/variant lookup with materially revised inputs or proceed to a partial final answer when the retrieval budget is exhausted.\n");
         prompt.append("- A recovery lookup may derive separator/case variants and semantic tokens from the current user query or observed identifiers, but those variants are search hypotheses only and must never be reported as existing objects.\n");
@@ -272,8 +296,59 @@ public class InterpretationPlanRewriter {
         prompt.append("Evidence iteration history (authoritative basis for plan revision):\n")
             .append(compressedEvidence.evidenceHistory())
             .append("\n");
-        prompt.append("Original plan:\n").append(toJson(request.originalPlan()));
+        prompt.append(repairRegion.bounded() ? "Original plan incremental repair projection:\n" : "Original plan:\n")
+            .append(toJson(rewritePlanProjection(request.originalPlan(), repairRegion)));
         return prompt.toString();
+    }
+
+    private Object rewritePlanProjection(InterpretationPlan original,
+                                         InterpretationPlanIncrementalRepair.RepairRegion region) {
+        if (original == null || region == null || !region.bounded() || original.plan() == null) {
+            return original;
+        }
+        List<InterpretationPlan.Step> mutableSteps = original.steps().stream()
+            .filter(Objects::nonNull)
+            .filter(step -> region.affectedStepIds().contains(step.id()))
+            .toList();
+        List<Map<String, Object>> frozenBoundary = original.steps().stream()
+            .filter(Objects::nonNull)
+            .filter(step -> region.frozenStepIds().contains(step.id()))
+            .map(step -> Map.<String, Object>of(
+                "id", step.id(),
+                "action_type", step.actionType() == null ? "" : step.actionType(),
+                "tool_name", step.toolName() == null ? "" : step.toolName(),
+                "depends_on", step.dependsOn() == null ? List.of() : step.dependsOn()
+            ))
+            .toList();
+        Map<String, Object> projection = new LinkedHashMap<>();
+        projection.put("version", original.version());
+        projection.put("intent", original.intent());
+        projection.put("context", original.context());
+        projection.put("mutable_steps", mutableSteps);
+        projection.put("frozen_boundary", frozenBoundary);
+        projection.put("edge_contracts", original.plan().edgeContracts() == null ? List.of()
+            : original.plan().edgeContracts().stream()
+                .filter(Objects::nonNull)
+                .filter(edge -> region.affectedStepIds().contains(edge.from())
+                    || region.affectedStepIds().contains(edge.to()))
+                .toList());
+        projection.put("dependency_contracts", original.plan().dependencyContracts() == null ? List.of()
+            : original.plan().dependencyContracts().stream()
+                .filter(Objects::nonNull)
+                .filter(contract -> region.affectedStepIds().contains(contract.from())
+                    || region.affectedStepIds().contains(contract.to()))
+                .toList());
+        projection.put("bindings", original.plan().bindings() == null ? List.of()
+            : original.plan().bindings().stream()
+                .filter(Objects::nonNull)
+                .filter(binding -> region.affectedStepIds().contains(binding.from())
+                    || region.affectedStepIds().contains(binding.to()))
+                .toList());
+        projection.put("affected_step_ids", region.affectedStepIds());
+        projection.put("frozen_step_ids", region.frozenStepIds());
+        projection.put("execution_policy", original.executionPolicy());
+        projection.put("review", original.review());
+        return projection;
     }
 
     private boolean hasAvailableSemanticTool(List<String> availableTools, String semanticToolName) {
@@ -762,12 +837,12 @@ public class InterpretationPlanRewriter {
         }
         int stepCount = plan.steps() == null ? 0 : plan.steps().size();
         Integer maxSteps = plan.executionPolicy().maxSteps();
-        if (maxSteps == null || maxSteps >= stepCount) {
-            return plan;
-        }
         int repairedMaxSteps = maxStepsCeiling == null
             ? stepCount
             : Math.min(stepCount, maxStepsCeiling);
+        if (Objects.equals(maxSteps, repairedMaxSteps)) {
+            return plan;
+        }
         InterpretationPlan.ExecutionPolicy policy = plan.executionPolicy();
         InterpretationPlan.ExecutionPolicy repairedPolicy = new InterpretationPlan.ExecutionPolicy(
             repairedMaxSteps,

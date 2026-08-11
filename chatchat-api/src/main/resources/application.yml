@@ -5,3 +5,14 @@
 chatchat:
   audit:
     default-query-window-days: ${CHATCHAT_AUDIT_DEFAULT_QUERY_WINDOW_DAYS:7}
+  ui-artifact:
+    enabled: ${CHATCHAT_UI_ARTIFACT_ENABLED:true}
+    # local and shared both use Java NIO. For shared mode, storage-path must be an OS-mounted NFSv4/SMB3/CephFS path.
+    store-type: ${CHATCHAT_UI_ARTIFACT_STORE_TYPE:local}
+    storage-path: ${CHATCHAT_UI_ARTIFACT_STORAGE_PATH:./data/ui-artifacts}
+    shared-marker-file: ${CHATCHAT_UI_ARTIFACT_SHARED_MARKER:.chatchat-artifact-store}
+    migrate-legacy-on-read: ${CHATCHAT_UI_ARTIFACT_MIGRATE_LEGACY_ON_READ:true}
+    externalize-threshold-bytes: ${CHATCHAT_UI_ARTIFACT_THRESHOLD_BYTES:131072}
+    answer-preview-characters: ${CHATCHAT_UI_ARTIFACT_PREVIEW_CHARACTERS:4000}
+    ttl-seconds: ${CHATCHAT_UI_ARTIFACT_TTL_SECONDS:2592000}
+    cleanup-interval-ms: ${CHATCHAT_UI_ARTIFACT_CLEANUP_INTERVAL_MS:3600000}

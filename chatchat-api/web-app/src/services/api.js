@@ -63,6 +63,16 @@ export function sendInteractionMessageStream(payload, handlers = {}) {
   return fetchEventStream("/interactions/chat/stream", payload, handlers);
 }
 
+export function fetchUiArtifact(artifactId) {
+  return apiRequest(`/ui-artifacts/${encodeURIComponent(artifactId)}`);
+}
+
+export function fetchUiArtifactResource(artifactId, resourceId) {
+  return apiRequest(
+    `/ui-artifacts/${encodeURIComponent(artifactId)}/resources/${encodeURIComponent(resourceId)}`
+  );
+}
+
 export function submitAgentTask(payload) {
   return apiRequest("/agent/tasks", {
     method: "POST",

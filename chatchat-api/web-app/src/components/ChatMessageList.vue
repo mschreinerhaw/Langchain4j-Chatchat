@@ -122,8 +122,13 @@
             </li>
           </ol>
         </section>
+        <EnterpriseUiArtifactRenderer
+          v-if="message.role === 'assistant' && !message.streaming && messageUiArtifact(message)"
+          :artifact="messageUiArtifact(message)"
+          @drill-down="handleVisualizationDrillDown(message, $event)"
+        />
         <div
-          v-if="messageHasRenderableContent(message)"
+          v-else-if="messageHasRenderableContent(message)"
           class="message-markdown"
           v-html="renderMarkdown(message.content, message)"
           @click="handleMarkdownClick"
@@ -218,7 +223,7 @@
           </section>
         </div>
         <VisualizationRenderer
-          v-if="message.role === 'assistant' && message.visualizationSpec && !message.streaming"
+          v-if="message.role === 'assistant' && message.visualizationSpec && !message.streaming && !messageUiArtifact(message)"
           :spec="message.visualizationSpec"
           @drill-down="handleVisualizationDrillDown(message, $event)"
         />

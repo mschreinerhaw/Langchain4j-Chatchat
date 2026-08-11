@@ -1,6 +1,7 @@
 import MarkdownIt from "markdown-it";
 import { Check, ChevronDown, ChevronRight, CircleCheck, CircleX, Copy, FileDown, RefreshCw, TriangleAlert, Wrench } from "@lucide/vue";
 import ResponseReferences from "../../components/ResponseReferences.vue";
+import EnterpriseUiArtifactRenderer from "../../components/EnterpriseUiArtifactRenderer.vue";
 import chartAnalysisMixin from "./ChatMessageListChartAnalysis.js";
 import {
   extractDocumentSearchPagesFromTraces,
@@ -109,7 +110,8 @@ export default {
     RefreshCw,
     TriangleAlert,
     Wrench,
-    ResponseReferences
+    ResponseReferences,
+    EnterpriseUiArtifactRenderer
   },
   emits: ["feedback", "visualization-drill-down"],
   props: {
@@ -220,6 +222,11 @@ export default {
     },
     messageHasRenderableContent(message = {}) {
       return !!String(message.content || "").trim() || !!this.extractUiResponse(message)?.answer;
+    },
+    messageUiArtifact(message = {}) {
+      const uiResponse = this.extractUiResponse(message) || {};
+      const artifact = uiResponse.uiArtifact || message.uiArtifact || message.metadata?.uiArtifact;
+      return artifact && typeof artifact === "object" && artifact.artifactId ? artifact : null;
     },
     isExecutionRunning(message = {}) {
       const status = String(message.status || "").toLowerCase();

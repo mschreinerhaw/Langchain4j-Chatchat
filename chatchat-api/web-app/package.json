@@ -9,6 +9,8 @@
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
+    "@json-render/core": "^0.19.0",
+    "@json-render/vue": "^0.19.0",
     "@lucide/vue": "^1.17.0",
     "docx-preview": "^0.3.7",
     "echarts": "^6.1.0",
@@ -17,7 +19,8 @@
     "markdown-it": "^14.2.0",
     "pdfjs-dist": "^6.0.227",
     "vue": "^3.5.22",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.1",

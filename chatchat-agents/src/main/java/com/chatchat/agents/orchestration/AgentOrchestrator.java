@@ -1125,6 +1125,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
         InterpretationPlanRewriter rewriter = new InterpretationPlanRewriter(activeChatModel, objectMapper, validator);
         InterpretationPlan currentPlan = plan;
         InterpretationPlanRuntime.ExecutionResult currentResult = firstResult;
+        Map<Integer, InterpretationPlanRuntime.ReusableStep> reusablePlanSteps =
+            reusablePlanSteps(Map.of(), currentPlan, currentResult);
         boolean executionRecoveryRequired = !firstResult.success();
         int maxRewriteTimes = latestAugmentationDecision.continueLoop()
             ? (augmentationOverrideAvailable ? 1 : configuredMaxRewriteTimes)
@@ -1167,7 +1169,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 currentResult
             );
             observations.add(rewriteSummary);
-            InterpretationPlan.Step failedStep = failedStep(currentPlan, currentResult);
+            InterpretationPlan.Step failedStep = repairRootStep(currentPlan, currentResult);
             String repairReason = evidenceRewriteReason(currentResult, evidenceHistory);
             boolean dagRepairAttempt = !currentResult.success() || failedStep != null;
             if (dagRepairAttempt) {
@@ -1327,6 +1329,13 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 metadata
             );
             recordInterpretationPlanExecutionStarted(rewriteStage, currentPlan, runtimeAttributes, metadata);
+            Map<String, Object> rewriteExecutionAttributes = workflowAttemptAttributes(
+                workflowStateTracker.attributesWithCompletedWorkflowState(
+                    runtimeAttributes, completedTools, traces),
+                rewriteCount,
+                rewriteWorkflowDag
+            );
+            rewriteExecutionAttributes.put("reusablePlanSteps", List.copyOf(reusablePlanSteps.values()));
             currentResult = runtime.execute(planExecutionRequest(
                 currentPlan,
                 tenantId,
@@ -1334,13 +1343,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 conversationId,
                 userId,
                 tools,
-                workflowAttemptAttributes(
-                    workflowStateTracker.attributesWithCompletedWorkflowState(
-                        runtimeAttributes, completedTools, traces),
-                    rewriteCount,
-                    rewriteWorkflowDag
-                )
+                rewriteExecutionAttributes
             ));
+            reusablePlanSteps = reusablePlanSteps(reusablePlanSteps, currentPlan, currentResult);
             recordPlanRuntimeResult(rewriteStage, currentResult, traces, observations, metadata);
             saveInterpretationPlanSnapshot(
                 rewriteStage + "_result",
@@ -6044,6 +6049,53 @@ public class AgentOrchestrator implements AgentRunExecutor {
             .filter(step -> failedStepId.equals(step.id()))
             .findFirst()
             .orElse(null);
+    }
+
+    private InterpretationPlan.Step repairRootStep(InterpretationPlan plan,
+                                                   InterpretationPlanRuntime.ExecutionResult result) {
+        InterpretationPlan.Step failed = failedStep(plan, result);
+        if (failed != null || plan == null || result == null || result.metadata() == null) {
+            return failed;
+        }
+        Integer rootId = integerValue(result.metadata().get("failedStepId"));
+        if (rootId == null) {
+            List<Integer> remaining = integerList(result.metadata().get("remainingStepIds"));
+            rootId = remaining.isEmpty() ? null : remaining.get(0);
+        }
+        if (rootId == null) {
+            return null;
+        }
+        Integer selectedId = rootId;
+        return plan.steps().stream()
+            .filter(Objects::nonNull)
+            .filter(step -> Objects.equals(step.id(), selectedId))
+            .findFirst()
+            .orElse(null);
+    }
+
+    private Map<Integer, InterpretationPlanRuntime.ReusableStep> reusablePlanSteps(
+        Map<Integer, InterpretationPlanRuntime.ReusableStep> existing,
+        InterpretationPlan plan,
+        InterpretationPlanRuntime.ExecutionResult result
+    ) {
+        Map<Integer, InterpretationPlanRuntime.ReusableStep> reusable = new LinkedHashMap<>(
+            existing == null ? Map.of() : existing);
+        if (plan == null || result == null || result.steps() == null) {
+            return reusable;
+        }
+        Map<Integer, InterpretationPlan.Step> definitions = new LinkedHashMap<>();
+        for (InterpretationPlan.Step step : plan.steps()) {
+            if (step != null && step.id() != null) {
+                definitions.putIfAbsent(step.id(), step);
+            }
+        }
+        for (InterpretationPlanRuntime.StepExecution execution : result.steps()) {
+            InterpretationPlan.Step definition = execution == null ? null : definitions.get(execution.stepId());
+            if (definition != null && execution.success()) {
+                reusable.put(definition.id(), new InterpretationPlanRuntime.ReusableStep(definition, execution));
+            }
+        }
+        return reusable;
     }
 
     private String capitalize(String value) {

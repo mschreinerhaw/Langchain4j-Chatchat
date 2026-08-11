@@ -28,13 +28,24 @@ class EvidenceAugmentationPolicyTest {
     }
 
     @Test
-    void retrievesMoreWhenAnActionableGapHasBudget() {
+    void retrievesMoreWhenNoUsableEvidenceExistsAndAnActionableGapHasBudget() {
         EvidenceAugmentationPolicy.Outcome outcome = policy.decide(new EvidenceAugmentationPolicy.Context(
-            true, false, true, true, false, TaskContract.EvidenceRequirement.REQUIRED));
+            false, false, true, true, false, TaskContract.EvidenceRequirement.REQUIRED));
 
         assertThat(outcome.decision()).isEqualTo(EvidenceAugmentationPolicy.Decision.RETRIEVE_MORE);
         assertThat(outcome.continueLoop()).isTrue();
         assertThat(outcome.answerAllowed()).isTrue();
+    }
+
+    @Test
+    void partialEvidenceStopsExplorationAndAnswersWithLimitations() {
+        EvidenceAugmentationPolicy.Outcome outcome = policy.decide(new EvidenceAugmentationPolicy.Context(
+            true, false, true, true, false, TaskContract.EvidenceRequirement.REQUIRED));
+
+        assertThat(outcome.decision())
+            .isEqualTo(EvidenceAugmentationPolicy.Decision.ANALYZE_WITH_LIMITATIONS);
+        assertThat(outcome.answerAllowed()).isTrue();
+        assertThat(outcome.continueLoop()).isFalse();
     }
 
     @Test

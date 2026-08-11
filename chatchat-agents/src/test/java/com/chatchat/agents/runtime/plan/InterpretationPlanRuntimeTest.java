@@ -1290,6 +1290,13 @@ class InterpretationPlanRuntimeTest {
             .containsEntry("sqlMetadataFactChecked", true)
             .containsEntry("sqlMetadataColumnCount", 2)
             .containsEntry("sqlMetadataStepId", 2);
+
+        Method skipReviewMethod = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "shouldSkipModelReviewAfterLocalFactCheck",
+            Map.class
+        );
+        skipReviewMethod.setAccessible(true);
+        assertThat((boolean) skipReviewMethod.invoke(runtime, review.metadata())).isTrue();
     }
 
     @Test

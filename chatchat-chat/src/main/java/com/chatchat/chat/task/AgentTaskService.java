@@ -9,6 +9,7 @@ import com.chatchat.chat.interaction.model.InteractionResponse;
 import com.chatchat.chat.interaction.service.InteractionOrchestrationService;
 import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.chat.skills.SkillDefinition;
+import com.chatchat.chat.uiartifact.UiArtifactService;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -79,6 +80,9 @@ public class AgentTaskService {
 
     @Autowired(required = false)
     private SkillCatalogService skillCatalogService;
+
+    @Autowired(required = false)
+    private UiArtifactService uiArtifactService;
 
     @Qualifier("agentTaskExecutor")
     private final ThreadPoolTaskExecutor taskExecutor;
@@ -991,7 +995,10 @@ public class AgentTaskService {
                 }
 
                 ExecutionResultContract resultContract = compileExecutionResult(response);
-                AgentEvent resultEvent = copyEvent(question, resultContract.eventType(), resultContract.status(), writePayload(resultContract.payload(response)));
+                UiArtifactService.Presentation artifactPresentation = uiArtifactPresentation(question, resultContract);
+                Map<String, Object> resultPayload = new LinkedHashMap<>(resultContract.payload(response));
+                applyArtifactPresentation(resultPayload, artifactPresentation);
+                AgentEvent resultEvent = copyEvent(question, resultContract.eventType(), resultContract.status(), writePayload(resultPayload));
                 resultEvent.setSequence(nextSequence(question));
                 resultEvent.setParentEventId(question.getEventId());
                 resultEvent.setLatencyMs(response.getLatencyMs());
@@ -1005,15 +1012,23 @@ public class AgentTaskService {
                 completePayload.put("toolTraceCount", response.getToolTraces() == null ? 0 : response.getToolTraces().size());
                 completePayload.put("contractVersion", resultContract.contractVersion());
                 completePayload.put("status", resultContract.status());
-                completePayload.put("answer", resultContract.answerSummary());
-                completePayload.put("citations", resultContract.citations());
-                completePayload.put("evidencePremises", resultContract.evidencePremises());
+                completePayload.put("answer", presentedAnswer(resultContract, artifactPresentation));
+                completePayload.put("citations", artifactPresentation.externalized() ? List.of() : resultContract.citations());
+                completePayload.put("evidencePremises", artifactPresentation.externalized() ? List.of() : resultContract.evidencePremises());
                 completePayload.put("confidence", resultContract.confidence());
                 completePayload.put("evidenceSummary", resultContract.evidenceSummary());
-                completePayload.put("visualization", resultContract.visualization());
-                completePayload.put("uiResponse", resultContract.uiResponseView());
+                completePayload.put("visualization", artifactPresentation.externalized()
+                    ? Map.of("type", "artifact") : resultContract.visualization());
+                completePayload.put("uiResponse", artifactPresentation.uiResponse());
+                if (artifactPresentation.externalized()) {
+                    completePayload.put("uiArtifact", artifactPresentation.reference());
+                }
                 completePayload.put("debug", resultContract.debugView());
-                completePayload.put("executionResult", resultContract.asMap(response));
+                Map<String, Object> completeExecutionResult = new LinkedHashMap<>(resultContract.asMap(response));
+                if (artifactPresentation.externalized()) {
+                    completeExecutionResult.put("uiResponse", artifactPresentation.uiResponse());
+                }
+                completePayload.put("executionResult", completeExecutionResult);
                 AgentEvent completeEvent = copyEvent(question, "COMPLETE", resultContract.status(), writePayload(completePayload));
                 completeEvent.setSequence(nextSequence(question));
                 completeEvent.setParentEventId(resultEvent.getEventId());
@@ -2314,6 +2329,49 @@ public class AgentTaskService {
             visualization,
             visualizationSpec
         );
+    }
+
+    private UiArtifactService.Presentation uiArtifactPresentation(AgentEvent question,
+                                                                  ExecutionResultContract resultContract) {
+        Map<String, Object> uiResponse = resultContract.uiResponseView();
+        if (uiArtifactService == null) {
+            return new UiArtifactService.Presentation(uiResponse, null, false);
+        }
+        return uiArtifactService.externalizeIfNeeded(
+            question == null ? "default" : question.getTenantId(),
+            question == null ? "" : question.getTaskId(),
+            uiResponse
+        );
+    }
+
+    private void applyArtifactPresentation(Map<String, Object> payload,
+                                           UiArtifactService.Presentation presentation) {
+        if (payload == null || presentation == null || !presentation.externalized()) {
+            return;
+        }
+        Map<String, Object> uiResponse = presentation.uiResponse();
+        payload.put("contractVersion", "ui_response_v2");
+        payload.put("answer", stringValue(uiResponse.get("answer")));
+        payload.put("citations", List.of());
+        payload.put("evidencePremises", List.of());
+        payload.put("evidenceSummary", "");
+        payload.put("visualization", Map.of("type", "artifact"));
+        payload.remove("visualizationSpec");
+        payload.put("uiResponse", uiResponse);
+        payload.put("uiArtifact", presentation.reference());
+        Map<String, Object> executionResult = asStringMap(payload.get("executionResult"));
+        if (!executionResult.isEmpty()) {
+            executionResult.put("uiResponse", uiResponse);
+            payload.put("executionResult", executionResult);
+        }
+    }
+
+    private String presentedAnswer(ExecutionResultContract resultContract,
+                                   UiArtifactService.Presentation presentation) {
+        if (presentation == null || !presentation.externalized()) {
+            return resultContract.answerSummary();
+        }
+        return stringValue(presentation.uiResponse().get("answer"));
     }
 
     private List<Map<String, Object>> evidencePremises(List<Map<String, Object>> citations) {

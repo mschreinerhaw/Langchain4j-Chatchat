@@ -10,8 +10,6 @@ public class LicenseCenterProperties {
     private String keyId = "default";
     private String username = "license-admin";
     private String password = "";
-    private String mcpMenuCatalogUrl = "http://localhost:8090/api/v1/license/menu-catalog";
-    private int mcpMenuCatalogTimeoutMs = 5000;
 
     public String getPrivateKeyPath() { return privateKeyPath; }
     public void setPrivateKeyPath(String value) { this.privateKeyPath = value; }
@@ -25,8 +23,4 @@ public class LicenseCenterProperties {
     public void setUsername(String value) { this.username = value; }
     public String getPassword() { return password; }
     public void setPassword(String value) { this.password = value; }
-    public String getMcpMenuCatalogUrl() { return mcpMenuCatalogUrl; }
-    public void setMcpMenuCatalogUrl(String value) { this.mcpMenuCatalogUrl = value; }
-    public int getMcpMenuCatalogTimeoutMs() { return mcpMenuCatalogTimeoutMs; }
-    public void setMcpMenuCatalogTimeoutMs(int value) { this.mcpMenuCatalogTimeoutMs = value; }
 }

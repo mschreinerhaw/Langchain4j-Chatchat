@@ -1,0 +1,19 @@
+[
+  {"key":"apiServices","label":"API 服务","icon":"Connection","navigation":true,"parentKey":"","description":"API 服务资产、模板发现与执行","enabled":true,"catalogVersion":"2026.08"},
+  {"key":"mcpServices","label":"MCP 服务","icon":"Cpu","navigation":true,"parentKey":"","description":"MCP 服务注册、发布与运行管理","enabled":true,"catalogVersion":"2026.08"},
+  {"key":"templateQueryPublications","label":"模板工具发布","icon":"Share","navigation":true,"parentKey":"","description":"模板查询工具及子工具发布","enabled":true,"catalogVersion":"2026.08"},
+  {"key":"newsCollection","label":"资讯采集","icon":"Tickets","navigation":true,"parentKey":"","description":"新闻采集、检索及金融数据查询","enabled":true,"catalogVersion":"2026.08"},
+  {"key":"businessCategories","label":"业务分类维护","icon":"CollectionTag","navigation":true,"parentKey":"","description":"跨资产统一业务分类主数据","enabled":true,"catalogVersion":"2026.08"},
+  {"key":"databaseMcp","label":"数据能力中心","icon":"Coin","navigation":true,"parentKey":"","description":"业务查询定义、发布与执行","enabled":true,"catalogVersion":"2026.08"},
+  {"key":"cacheSettings","label":"缓存设置","icon":"DataLine","navigation":true,"parentKey":"","description":"业务查询缓存与 Redis 存储治理","enabled":true,"catalogVersion":"2026.08"},
+  {"key":"notificationChannels","label":"通知告警","icon":"Bell","navigation":true,"parentKey":"","description":"通知通道、模板与告警策略","enabled":true,"catalogVersion":"2026.08"},
+  {"key":"auditLogs","label":"调用审计","icon":"Tickets","navigation":true,"parentKey":"","description":"MCP 调用记录与审计检索","enabled":true,"catalogVersion":"2026.08"},
+  {"key":"commandAuditLogs","label":"命令审计","icon":"Tickets","navigation":true,"parentKey":"","description":"SSH、SQL、HTTP 与 JMX 执行审计","enabled":true,"catalogVersion":"2026.08"},
+  {"key":"settings","label":"系统设置","icon":"Setting","navigation":true,"parentKey":"","description":"授权、用户、目标与系统参数配置","enabled":true,"catalogVersion":"2026.08"},
+  {"key":"assetSsh","label":"SSH 运维","icon":"Cpu","navigation":false,"parentKey":"assetCenter","description":"服务器资产、SSH 命令模板与命令执行","enabled":true,"catalogVersion":"2026.08"},
+  {"key":"assetSql","label":"SQL 运维","icon":"Coin","navigation":false,"parentKey":"assetCenter","description":"数据库资产、SQL 模板及受控查询执行","enabled":true,"catalogVersion":"2026.08"},
+  {"key":"assetHttp","label":"HTTP 运维","icon":"Connection","navigation":false,"parentKey":"assetCenter","description":"HTTP/API 网关资产、模板与请求执行","enabled":true,"catalogVersion":"2026.08"},
+  {"key":"assetJmx","label":"JMX 监控","icon":"DataLine","navigation":false,"parentKey":"assetCenter","description":"JMX 模板发现与 Java 进程监控","enabled":true,"catalogVersion":"2026.08"},
+  {"key":"assetSearchIndex","label":"检索索引","icon":"Search","navigation":false,"parentKey":"assetCenter","description":"资产、模板和业务查询索引治理","enabled":true,"catalogVersion":"2026.08"},
+  {"key":"enterpriseMetadata","label":"企业元数据","icon":"CollectionTag","navigation":false,"parentKey":"assetCenter","description":"企业数据标准、词根与治理策略","enabled":true,"catalogVersion":"2026.08"}
+]

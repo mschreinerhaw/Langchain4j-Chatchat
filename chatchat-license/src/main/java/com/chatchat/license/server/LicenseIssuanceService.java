@@ -22,22 +22,22 @@ public class LicenseIssuanceService {
     private final LicenseCenterProperties properties;
     private final ObjectMapper objectMapper;
     private final LicenseCrypto crypto;
-    private final McpMenuCatalogClient menuCatalogClient;
+    private final LicenseModuleCatalogService moduleCatalogService;
 
     @Autowired
     public LicenseIssuanceService(LicenseCenterProperties properties, ObjectMapper objectMapper,
-                                  McpMenuCatalogClient menuCatalogClient) {
+                                  LicenseModuleCatalogService moduleCatalogService) {
         this.properties = properties;
         this.objectMapper = objectMapper;
         this.crypto = new LicenseCrypto(objectMapper);
-        this.menuCatalogClient = menuCatalogClient;
+        this.moduleCatalogService = moduleCatalogService;
     }
 
     public LicenseIssuanceService(LicenseCenterProperties properties, ObjectMapper objectMapper) {
         this.properties = properties;
         this.objectMapper = objectMapper;
         this.crypto = new LicenseCrypto(objectMapper);
-        this.menuCatalogClient = null;
+        this.moduleCatalogService = null;
     }
 
     public byte[] issue(LicensePayload requested) {
@@ -138,10 +138,8 @@ public class LicenseIssuanceService {
         }
         if (payload.maxUsers() != null && payload.maxUsers() <= 0) throw new LicenseException("最大用户数必须大于 0");
         if (payload.maxAgents() != null && payload.maxAgents() <= 0) throw new LicenseException("最大 Agent 发布数必须大于 0");
-        if (menuCatalogClient != null) {
-            Set<String> available = menuCatalogClient.load().stream()
-                .map(McpMenuCatalogClient.MenuModule::key)
-                .collect(java.util.stream.Collectors.toSet());
+        if (moduleCatalogService != null) {
+            Set<String> available = moduleCatalogService.enabledKeys();
             java.util.List<String> unknown = payload.modules().stream()
                 .filter(module -> !"mcp".equalsIgnoreCase(module) && !available.contains(module))
                 .toList();

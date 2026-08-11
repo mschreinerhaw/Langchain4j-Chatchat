@@ -21,15 +21,16 @@ import java.util.Map;
 @RequestMapping("/api/licenses")
 public class LicenseCenterController {
     private final LicenseIssuanceService issuanceService;
-    private final McpMenuCatalogClient menuCatalogClient;
+    private final LicenseModuleCatalogService moduleCatalogService;
     private final LicenseAuditService auditService;
     private final LicenseDeliveryPackageService deliveryPackageService;
 
-    public LicenseCenterController(LicenseIssuanceService issuanceService, McpMenuCatalogClient menuCatalogClient,
+    public LicenseCenterController(LicenseIssuanceService issuanceService,
+                                   LicenseModuleCatalogService moduleCatalogService,
                                    LicenseAuditService auditService,
                                    LicenseDeliveryPackageService deliveryPackageService) {
         this.issuanceService = issuanceService;
-        this.menuCatalogClient = menuCatalogClient;
+        this.moduleCatalogService = moduleCatalogService;
         this.auditService = auditService;
         this.deliveryPackageService = deliveryPackageService;
     }
@@ -62,8 +63,14 @@ public class LicenseCenterController {
     }
 
     @GetMapping("/mcp-menus")
-    public java.util.List<McpMenuCatalogClient.MenuModule> mcpMenus() {
-        return menuCatalogClient.load();
+    public java.util.List<LicenseModuleCatalogService.MenuModule> mcpMenus() {
+        return moduleCatalogService.listEnabled();
+    }
+
+    @PostMapping("/mcp-menus")
+    public LicenseModuleCatalogService.MenuModule saveMcpMenu(
+        @RequestBody LicenseModuleCatalogService.MenuModule module) {
+        return moduleCatalogService.save(module);
     }
 
     @ExceptionHandler(LicenseException.class)

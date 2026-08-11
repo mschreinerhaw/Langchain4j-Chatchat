@@ -16,6 +16,7 @@ import java.time.LocalDate;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -75,12 +76,11 @@ class LicenseIssuanceServiceTest {
     }
 
     @Test
-    void rejectsMenuThatTargetMcpServiceDoesNotPublish() {
+    void rejectsMenuThatLocalCatalogDoesNotAuthorize() {
         LicenseCenterProperties properties = new LicenseCenterProperties();
         ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule());
-        McpMenuCatalogClient catalog = mock(McpMenuCatalogClient.class);
-        when(catalog.load()).thenReturn(List.of(
-            new McpMenuCatalogClient.MenuModule("databaseMcp", "数据能力中心", "Coin")));
+        LicenseModuleCatalogService catalog = mock(LicenseModuleCatalogService.class);
+        when(catalog.enabledKeys()).thenReturn(Set.of("databaseMcp"));
         LicenseIssuanceService service = new LicenseIssuanceService(properties, mapper, catalog);
         LicensePayload request = new LicensePayload("LIC-INVALID-MENU", "Customer", "C1", "LiveMCP", "enterprise",
             List.of("cacheSettings"), 10, "18:3d:2d:68:d9:b6", LocalDate.now().plusYears(1),

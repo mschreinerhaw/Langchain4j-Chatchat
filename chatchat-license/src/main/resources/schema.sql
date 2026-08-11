@@ -22,3 +22,18 @@ CREATE TABLE IF NOT EXISTS license_issue_audit (
 CREATE INDEX IF NOT EXISTS idx_license_audit_issued_at ON license_issue_audit (issued_at);
 CREATE INDEX IF NOT EXISTS idx_license_audit_license_no ON license_issue_audit (license_no);
 CREATE INDEX IF NOT EXISTS idx_license_audit_status ON license_issue_audit (status);
+
+CREATE TABLE IF NOT EXISTS license_module_catalog (
+    module_key VARCHAR(128) PRIMARY KEY,
+    label VARCHAR(256) NOT NULL,
+    icon VARCHAR(128),
+    navigation BOOLEAN NOT NULL DEFAULT TRUE,
+    parent_key VARCHAR(128),
+    description VARCHAR(1024),
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    catalog_version VARCHAR(64) NOT NULL,
+    updated_at TIMESTAMP NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_license_module_enabled ON license_module_catalog (enabled);
+CREATE INDEX IF NOT EXISTS idx_license_module_parent ON license_module_catalog (parent_key);

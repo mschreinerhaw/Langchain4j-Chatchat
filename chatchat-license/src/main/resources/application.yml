@@ -27,5 +27,3 @@ chatchat:
     key-id: ${CHATCHAT_LICENSE_KEY_ID:default}
     username: ${CHATCHAT_LICENSE_CENTER_USERNAME:license-admin}
     password: ${CHATCHAT_LICENSE_CENTER_PASSWORD:123456}
-    mcp-menu-catalog-url: ${CHATCHAT_MCP_MENU_CATALOG_URL:http://localhost:8090/api/v1/license/menu-catalog}
-    mcp-menu-catalog-timeout-ms: ${CHATCHAT_MCP_MENU_CATALOG_TIMEOUT_MS:5000}

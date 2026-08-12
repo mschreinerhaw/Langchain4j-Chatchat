@@ -125,6 +125,8 @@
         <EnterpriseUiArtifactRenderer
           v-if="message.role === 'assistant' && !message.streaming && messageUiArtifact(message)"
           :artifact="messageUiArtifact(message)"
+          :render-markdown="(content) => renderMarkdown(content, message)"
+          @click="handleMarkdownClick"
           @drill-down="handleVisualizationDrillDown(message, $event)"
         />
         <div

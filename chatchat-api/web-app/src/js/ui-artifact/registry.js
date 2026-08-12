@@ -6,6 +6,7 @@ import { enterpriseUiCatalog } from "./catalog.js";
 
 export const ARTIFACT_RESOURCE_LOADER = Symbol("artifact-resource-loader");
 export const ARTIFACT_EVENT_DISPATCHER = Symbol("artifact-event-dispatcher");
+export const ARTIFACT_MARKDOWN_RENDERER = Symbol("artifact-markdown-renderer");
 
 const markdown = new MarkdownIt({
   html: false,
@@ -33,6 +34,7 @@ function resourceComponent(name, renderResource) {
     setup(props) {
       const loader = inject(ARTIFACT_RESOURCE_LOADER, null);
       const dispatchArtifactEvent = inject(ARTIFACT_EVENT_DISPATCHER, null);
+      const renderArtifactMarkdown = inject(ARTIFACT_MARKDOWN_RENDERER, null);
       const value = ref(null);
       const loading = ref(true);
       const error = ref("");
@@ -58,16 +60,18 @@ function resourceComponent(name, renderResource) {
         if (error.value) {
           return h("div", { class: "artifact-resource-state error", role: "alert" }, error.value);
         }
-        return renderResource(value.value, props, dispatchArtifactEvent);
+        return renderResource(value.value, props, dispatchArtifactEvent, renderArtifactMarkdown);
       };
     }
   });
 }
 
-const MarkdownResource = resourceComponent("ArtifactMarkdown", (value) =>
+const MarkdownResource = resourceComponent("ArtifactMarkdown", (value, props, dispatchArtifactEvent, renderArtifactMarkdown) =>
   h("section", {
     class: "artifact-markdown message-markdown",
-    innerHTML: markdown.render(String(value || ""))
+    innerHTML: renderArtifactMarkdown
+      ? renderArtifactMarkdown(String(value || ""))
+      : markdown.render(String(value || ""))
   })
 );
 

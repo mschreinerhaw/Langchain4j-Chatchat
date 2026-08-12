@@ -14,6 +14,7 @@ import { JSONUIProvider, Renderer } from "@json-render/vue";
 import { fetchUiArtifact, fetchUiArtifactResource } from "../services/api.js";
 import {
   ARTIFACT_EVENT_DISPATCHER,
+  ARTIFACT_MARKDOWN_RENDERER,
   ARTIFACT_RESOURCE_LOADER,
   enterpriseUiRegistry
 } from "../js/ui-artifact/registry.js";
@@ -24,6 +25,10 @@ const props = defineProps({
   artifact: {
     type: Object,
     required: true
+  },
+  renderMarkdown: {
+    type: Function,
+    default: null
   }
 });
 
@@ -69,6 +74,9 @@ async function loadResource(resourceId) {
 }
 
 provide(ARTIFACT_RESOURCE_LOADER, loadResource);
+if (props.renderMarkdown) {
+  provide(ARTIFACT_MARKDOWN_RENDERER, (content) => props.renderMarkdown(content));
+}
 provide(ARTIFACT_EVENT_DISPATCHER, (eventName, payload = {}, context = {}) => {
   if (eventName !== "drill-down") {
     return;

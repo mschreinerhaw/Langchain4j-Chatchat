@@ -15,6 +15,10 @@ export const enterpriseUiCatalog = defineCatalog(schema, {
       props: z.object({ resourceId: z.string() }),
       description: "Safe Markdown loaded from an artifact resource"
     },
+    Html: {
+      props: z.object({ resourceId: z.string() }),
+      description: "Sanitized HTML document loaded from an artifact resource"
+    },
     Notice: {
       props: z.object({
         title: z.string(),

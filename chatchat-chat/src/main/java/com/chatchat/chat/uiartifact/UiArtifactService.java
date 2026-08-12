@@ -3,12 +3,17 @@ package com.chatchat.chat.uiartifact;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.commonmark.Extension;
+import org.commonmark.ext.gfm.tables.TablesExtension;
+import org.commonmark.parser.Parser;
+import org.commonmark.renderer.html.HtmlRenderer;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.scheduling.annotation.Scheduled;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
@@ -32,6 +37,8 @@ public class UiArtifactService {
     private final UiArtifactRepository repository;
     private final UiArtifactProperties properties;
     private final ObjectMapper objectMapper;
+    private final Parser markdownParser;
+    private final HtmlRenderer htmlRenderer;
 
     public UiArtifactService(ArtifactBlobStore blobStore,
                              UiArtifactRepository repository,
@@ -41,6 +48,9 @@ public class UiArtifactService {
         this.repository = repository;
         this.properties = properties;
         this.objectMapper = objectMapper;
+        List<Extension> extensions = List.of(TablesExtension.create());
+        this.markdownParser = Parser.builder().extensions(extensions).build();
+        this.htmlRenderer = HtmlRenderer.builder().extensions(extensions).escapeHtml(true).build();
     }
 
     public Presentation externalizeIfNeeded(String tenantId,
@@ -59,7 +69,13 @@ public class UiArtifactService {
         List<String> reportChildren = new ArrayList<>();
 
         String answer = text(uiResponse.get("answer"));
-        if (!answer.isBlank()) {
+        String reportHtml = reportHtml(uiResponse, answer);
+        if (!reportHtml.isBlank()) {
+            addResource(resources, resourceCatalog, artifactId, "report", reportHtml, "text/html");
+            elements.put("report-html", element("Html", Map.of("resourceId", "report"), List.of()));
+            reportChildren.add("report-html");
+        } else if (!answer.isBlank()) {
+            // Markdown is deliberately the final compatibility fallback.
             addResource(resources, resourceCatalog, artifactId, "answer", answer, "text/markdown");
             elements.put("answer", element("Markdown", Map.of("resourceId", "answer"), List.of()));
             reportChildren.add("answer");
@@ -123,7 +139,7 @@ public class UiArtifactService {
             long totalBytes = 0;
             for (Map.Entry<String, StoredResource> resource : resources.entrySet()) {
                 StoredResource stored = resource.getValue();
-                putObject(tenantId, artifactId, resourceKey(resource.getKey()), stored.bytes(), stored.mediaType());
+                putObject(tenantId, artifactId, stored.objectKey(), stored.bytes(), stored.mediaType());
                 totalBytes += stored.bytes().length;
             }
             byte[] manifestBytes = serialize(manifest);
@@ -134,7 +150,7 @@ public class UiArtifactService {
             repository.save(metadataEntity);
         } catch (RuntimeException ex) {
             resources.keySet().forEach(resourceId -> blobStore.delete(
-                new ArtifactLocation(tenantId, artifactId, resourceKey(resourceId))));
+                new ArtifactLocation(tenantId, artifactId, resources.get(resourceId).objectKey())));
             blobStore.delete(new ArtifactLocation(tenantId, artifactId, "manifest.json"));
             metadataEntity.setStatus("FAILED");
             repository.save(metadataEntity);
@@ -147,6 +163,7 @@ public class UiArtifactService {
         reference.put("revision", 1);
         reference.put("catalogVersion", CATALOG_VERSION);
         reference.put("manifestUrl", "/ui-artifacts/" + artifactId);
+        reference.put("renderMode", reportHtml.isBlank() ? "markdown" : "html");
 
         Map<String, Object> lightweight = new LinkedHashMap<>();
         lightweight.put("contractVersion", "ui_response_v2");
@@ -167,6 +184,7 @@ public class UiArtifactService {
             lightweight.put("visualizationSpec", visualizationSpec);
         }
         lightweight.put("uiArtifact", reference);
+        lightweight.put("renderMode", reportHtml.isBlank() ? "markdown" : "html");
         return new Presentation(lightweight, reference, true);
     }
 
@@ -183,7 +201,21 @@ public class UiArtifactService {
         if (!isReadable(tenantId, artifactId)) {
             return Optional.empty();
         }
-        return readObject(new ArtifactLocation(tenantId, artifactId, resourceKey(resourceId)), Object.class);
+        Optional<Map<String, Object>> manifest = readObject(
+            new ArtifactLocation(normalizedTenant(tenantId), artifactId, "manifest.json"), MAP_TYPE);
+        if (manifest.isEmpty() || !(manifest.get().get("resources") instanceof Map<?, ?> catalog)
+            || !(catalog.get(resourceId) instanceof Map<?, ?> descriptor)) {
+            return Optional.empty();
+        }
+        String mediaType = text(descriptor.get("mediaType"));
+        String objectKey = text(descriptor.get("objectKey"));
+        ArtifactLocation location = new ArtifactLocation(
+            normalizedTenant(tenantId), artifactId,
+            objectKey.isBlank() ? resourceKey(resourceId) : objectKey);
+        if ("text/html".equalsIgnoreCase(mediaType)) {
+            return readText(location).map(value -> (Object) value);
+        }
+        return readObject(location, Object.class);
     }
 
     @Transactional
@@ -218,8 +250,11 @@ public class UiArtifactService {
             Object catalog = manifest.get("resources");
             if (catalog instanceof Map<?, ?> resources) {
                 for (Object resourceId : resources.keySet()) {
+                    Object descriptor = resources.get(resourceId);
+                    String objectKey = descriptor instanceof Map<?, ?> map ? text(map.get("objectKey")) : "";
                     blobStore.delete(new ArtifactLocation(
-                        tenantId, artifactId, resourceKey(String.valueOf(resourceId))));
+                        tenantId, artifactId, objectKey.isBlank()
+                            ? resourceKey(String.valueOf(resourceId)) : objectKey));
                 }
             }
         });
@@ -232,11 +267,15 @@ public class UiArtifactService {
                              String resourceId,
                              Object value,
                              String mediaType) {
-        byte[] bytes = serialize(value);
-        resources.put(resourceId, new StoredResource(bytes, mediaType));
+        byte[] bytes = "text/html".equalsIgnoreCase(mediaType)
+            ? String.valueOf(value == null ? "" : value).getBytes(StandardCharsets.UTF_8)
+            : serialize(value);
+        String objectKey = resourceKey(resourceId, mediaType);
+        resources.put(resourceId, new StoredResource(bytes, mediaType, objectKey));
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("href", "/ui-artifacts/" + artifactId + "/resources/" + resourceId);
         metadata.put("mediaType", mediaType);
+        metadata.put("objectKey", objectKey);
         metadata.put("byteLength", bytes.length);
         metadata.put("sha256", sha256(bytes));
         catalog.put(resourceId, metadata);
@@ -270,6 +309,16 @@ public class UiArtifactService {
         return blobStore.get(location).map(content -> {
             try (content) {
                 return objectMapper.readValue(content.stream(), type);
+            } catch (IOException ex) {
+                throw new IllegalStateException("Failed to read artifact object " + location.objectKey(), ex);
+            }
+        });
+    }
+
+    private Optional<String> readText(ArtifactLocation location) {
+        return blobStore.get(location).map(content -> {
+            try (content) {
+                return new String(content.stream().readAllBytes(), StandardCharsets.UTF_8);
             } catch (IOException ex) {
                 throw new IllegalStateException("Failed to read artifact object " + location.objectKey(), ex);
             }
@@ -353,6 +402,27 @@ public class UiArtifactService {
         }
     }
 
+    private String reportHtml(Map<String, Object> uiResponse, String answer) {
+        String explicitHtml = firstText(
+            uiResponse.get("html"),
+            uiResponse.get("reportHtml"),
+            uiResponse.get("answerHtml"),
+            uiResponse.get("htmlContent")
+        );
+        if (!explicitHtml.isBlank()) {
+            return explicitHtml;
+        }
+        if (answer == null || answer.isBlank()) {
+            return "";
+        }
+        try {
+            String body = htmlRenderer.render(markdownParser.parse(answer));
+            return "<article class=\"artifact-html-document-body\">" + body + "</article>";
+        } catch (RuntimeException ignored) {
+            return "";
+        }
+    }
+
     private String preview(String answer) {
         int limit = Math.max(0, properties.getAnswerPreviewCharacters());
         if (answer.length() <= limit) {
@@ -373,6 +443,11 @@ public class UiArtifactService {
         return new ArtifactLocation("default", "validation", "resources/" + resourceId + ".json").objectKey();
     }
 
+    private static String resourceKey(String resourceId, String mediaType) {
+        String extension = "text/html".equalsIgnoreCase(mediaType) ? ".html" : ".json";
+        return new ArtifactLocation("default", "validation", "resources/" + resourceId + extension).objectKey();
+    }
+
     private static String normalizedTenant(String tenantId) {
         return tenantId == null || tenantId.isBlank() ? "default" : tenantId.trim();
     }
@@ -381,11 +456,24 @@ public class UiArtifactService {
         return value == null ? "" : String.valueOf(value).trim();
     }
 
+    private static String firstText(Object... values) {
+        if (values == null) {
+            return "";
+        }
+        for (Object value : values) {
+            String candidate = text(value);
+            if (!candidate.isBlank()) {
+                return candidate;
+            }
+        }
+        return "";
+    }
+
     public record Presentation(Map<String, Object> uiResponse,
                                Map<String, Object> reference,
                                boolean externalized) {
     }
 
-    private record StoredResource(byte[] bytes, String mediaType) {
+    private record StoredResource(byte[] bytes, String mediaType, String objectKey) {
     }
 }

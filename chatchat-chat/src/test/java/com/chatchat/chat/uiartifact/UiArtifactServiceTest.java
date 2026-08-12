@@ -57,6 +57,7 @@ class UiArtifactServiceTest {
         assertThat(presentation.externalized()).isTrue();
         assertThat(presentation.uiResponse())
             .containsEntry("contractVersion", "ui_response_v2")
+            .containsEntry("renderMode", "html")
             .containsKey("uiArtifact")
             .containsKey("visualizationSpec");
 
@@ -65,7 +66,11 @@ class UiArtifactServiceTest {
         assertThat(manifest)
             .containsEntry("schemaVersion", UiArtifactService.ARTIFACT_SCHEMA_VERSION)
             .containsEntry("catalogVersion", UiArtifactService.CATALOG_VERSION);
-        assertThat(fixture.service().resource("tenant-a", artifactId, "answer")).isPresent();
+        assertThat(fixture.service().resource("tenant-a", artifactId, "report"))
+            .hasValueSatisfying(value -> assertThat(String.valueOf(value))
+                .contains("artifact-html-document-body")
+                .contains("<p>"));
+        assertThat(fixture.service().resource("tenant-a", artifactId, "answer")).isEmpty();
         assertThat(fixture.service().resource("tenant-a", artifactId, "visualization")).isEmpty();
         assertThat(fixture.service().resource("tenant-a", artifactId, "citations")).isPresent();
         assertThat(fixture.service().resource("tenant-a", artifactId, "evidence-premises")).isPresent();
@@ -78,6 +83,33 @@ class UiArtifactServiceTest {
         assertThat(metadata.getCreatedAt()).isNotNull();
         assertThat(metadata.getUpdatedAt()).isNotNull();
         assertThat(metadata.getExpiresAt()).isNotNull();
+    }
+
+    @Test
+    void prefersExplicitHtmlAndPersistsItAsAnHtmlFile() {
+        Fixture fixture = fixture(64);
+        String html = "<section class=\"custom-report\"><h1>Dynamic report</h1></section>";
+
+        UiArtifactService.Presentation presentation = fixture.service().externalizeIfNeeded(
+            "tenant-a", "task-html", Map.of(
+                "answer", "# Markdown fallback",
+                "reportHtml", html,
+                "status", "SUCCESS"
+            ));
+
+        String artifactId = String.valueOf(presentation.reference().get("artifactId"));
+        Map<String, Object> manifest = fixture.service().manifest("tenant-a", artifactId).orElseThrow();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> resources = (Map<String, Object>) manifest.get("resources");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> report = (Map<String, Object>) resources.get("report");
+
+        assertThat(presentation.reference()).containsEntry("renderMode", "html");
+        assertThat(report)
+            .containsEntry("mediaType", "text/html")
+            .containsEntry("objectKey", "resources/report.html");
+        assertThat(fixture.service().resource("tenant-a", artifactId, "report")).contains(html);
+        assertThat(resources).doesNotContainKey("answer");
     }
 
     @Test

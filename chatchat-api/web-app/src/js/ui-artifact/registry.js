@@ -6,7 +6,6 @@ import { enterpriseUiCatalog } from "./catalog.js";
 
 export const ARTIFACT_RESOURCE_LOADER = Symbol("artifact-resource-loader");
 export const ARTIFACT_EVENT_DISPATCHER = Symbol("artifact-event-dispatcher");
-export const ARTIFACT_MARKDOWN_RENDERER = Symbol("artifact-markdown-renderer");
 
 const markdown = new MarkdownIt({
   html: false,
@@ -34,7 +33,6 @@ function resourceComponent(name, renderResource) {
     setup(props) {
       const loader = inject(ARTIFACT_RESOURCE_LOADER, null);
       const dispatchArtifactEvent = inject(ARTIFACT_EVENT_DISPATCHER, null);
-      const renderArtifactMarkdown = inject(ARTIFACT_MARKDOWN_RENDERER, null);
       const value = ref(null);
       const loading = ref(true);
       const error = ref("");
@@ -60,18 +58,41 @@ function resourceComponent(name, renderResource) {
         if (error.value) {
           return h("div", { class: "artifact-resource-state error", role: "alert" }, error.value);
         }
-        return renderResource(value.value, props, dispatchArtifactEvent, renderArtifactMarkdown);
+        return renderResource(value.value, props, dispatchArtifactEvent);
       };
     }
   });
 }
 
-const MarkdownResource = resourceComponent("ArtifactMarkdown", (value, props, dispatchArtifactEvent, renderArtifactMarkdown) =>
+const MarkdownResource = resourceComponent("ArtifactMarkdown", (value) =>
   h("section", {
     class: "artifact-markdown message-markdown",
-    innerHTML: renderArtifactMarkdown
-      ? renderArtifactMarkdown(String(value || ""))
-      : markdown.render(String(value || ""))
+    innerHTML: markdown.render(String(value || ""))
+  })
+);
+
+function sanitizeArtifactHtml(value = "") {
+  if (typeof DOMParser === "undefined") {
+    return "";
+  }
+  const document = new DOMParser().parseFromString(String(value || ""), "text/html");
+  document.querySelectorAll("script, iframe, object, embed, base, meta, form").forEach((node) => node.remove());
+  document.querySelectorAll("*").forEach((node) => {
+    [...node.attributes].forEach((attribute) => {
+      const name = attribute.name.toLowerCase();
+      const content = String(attribute.value || "");
+      if (name.startsWith("on") || /javascript\s*:/i.test(content)) {
+        node.removeAttribute(attribute.name);
+      }
+    });
+  });
+  return document.body.innerHTML;
+}
+
+const HtmlResource = resourceComponent("ArtifactHtml", (value) =>
+  h("section", {
+    class: "artifact-html-document",
+    innerHTML: sanitizeArtifactHtml(String(value || ""))
   })
 );
 
@@ -119,6 +140,7 @@ export const { registry: enterpriseUiRegistry } = defineRegistry(enterpriseUiCat
       "data-status": props.status || undefined,
       "data-task-id": props.taskId || undefined
     }, children),
+    Html: ({ props }) => h(HtmlResource, props),
     Markdown: ({ props }) => h(MarkdownResource, props),
     Notice: ({ props }) => h(NoticeResource, props),
     Visualization: ({ props }) => h(VisualizationResource, props),

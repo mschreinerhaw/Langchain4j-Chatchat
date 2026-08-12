@@ -14,7 +14,6 @@ import { JSONUIProvider, Renderer } from "@json-render/vue";
 import { fetchUiArtifact, fetchUiArtifactResource } from "../services/api.js";
 import {
   ARTIFACT_EVENT_DISPATCHER,
-  ARTIFACT_MARKDOWN_RENDERER,
   ARTIFACT_RESOURCE_LOADER,
   enterpriseUiRegistry
 } from "../js/ui-artifact/registry.js";
@@ -25,10 +24,6 @@ const props = defineProps({
   artifact: {
     type: Object,
     required: true
-  },
-  renderMarkdown: {
-    type: Function,
-    default: null
   }
 });
 
@@ -74,9 +69,6 @@ async function loadResource(resourceId) {
 }
 
 provide(ARTIFACT_RESOURCE_LOADER, loadResource);
-if (props.renderMarkdown) {
-  provide(ARTIFACT_MARKDOWN_RENDERER, (content) => props.renderMarkdown(content));
-}
 provide(ARTIFACT_EVENT_DISPATCHER, (eventName, payload = {}, context = {}) => {
   if (eventName !== "drill-down") {
     return;
@@ -117,6 +109,49 @@ watch(artifactId, loadManifest, { immediate: true });
 :deep(.enterprise-ui-report) {
   display: grid;
   gap: 1rem;
+}
+
+:deep(.artifact-html-document) {
+  color: #172033;
+  line-height: 1.72;
+}
+
+:deep(.artifact-html-document h1),
+:deep(.artifact-html-document h2),
+:deep(.artifact-html-document h3) {
+  color: #101828;
+  line-height: 1.3;
+}
+
+:deep(.artifact-html-document table) {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  border: 1px solid #dce5f1;
+  border-radius: 12px;
+}
+
+:deep(.artifact-html-document th),
+:deep(.artifact-html-document td) {
+  padding: 0.72rem 0.8rem;
+  border-right: 1px solid #e4eaf2;
+  border-bottom: 1px solid #e4eaf2;
+  text-align: left;
+}
+
+:deep(.artifact-html-document th) {
+  background: #f3f7fc;
+  font-weight: 700;
+}
+
+:deep(.artifact-html-document tr:last-child td) {
+  border-bottom: 0;
+}
+
+:deep(.artifact-html-document th:last-child),
+:deep(.artifact-html-document td:last-child) {
+  border-right: 0;
 }
 
 :deep(.artifact-notice),

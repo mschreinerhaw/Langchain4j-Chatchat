@@ -76,6 +76,18 @@
             <artifactId>jackson-databind</artifactId>
         </dependency>
 
+        <!-- Generate persisted HTML artifacts; Markdown remains a compatibility fallback. -->
+        <dependency>
+            <groupId>org.commonmark</groupId>
+            <artifactId>commonmark</artifactId>
+            <version>0.28.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.commonmark</groupId>
+            <artifactId>commonmark-ext-gfm-tables</artifactId>
+            <version>0.28.0</version>
+        </dependency>
+
         <!-- Configuration metadata -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

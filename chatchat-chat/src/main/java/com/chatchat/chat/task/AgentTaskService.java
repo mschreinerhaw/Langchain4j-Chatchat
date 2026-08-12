@@ -2274,6 +2274,7 @@ public class AgentTaskService {
             "ui_response_v1",
             "FAILED",
             answer,
+            "",
             List.of(),
             List.of(),
             null,
@@ -2298,6 +2299,8 @@ public class AgentTaskService {
                                           InteractionResponse response,
                                           Map<String, Object> reasoningPayload) {
         Map<String, Object> result = asStringMap(reasoningPayload.get("result"));
+        Map<String, Object> responseMetadata = response == null
+            ? Map.of() : asStringMap(response.getMetadata());
         Object visualizationSpec = ExecutionResultContract.visualizationSpec(response == null ? null : response.getMetadata());
         String evidenceSummary = firstTextValue(
             result.get("evidenceSummary"),
@@ -2317,11 +2320,20 @@ public class AgentTaskService {
             result.get("answer"),
             result.get("conclusion")
         );
+        String reportHtml = firstTextValue(
+            result.get("reportHtml"),
+            result.get("answerHtml"),
+            result.get("htmlContent"),
+            responseMetadata.get("reportHtml"),
+            responseMetadata.get("answerHtml"),
+            responseMetadata.get("htmlContent")
+        );
         Map<String, Object> visualization = visualization(visualizationSpec, reasoningPayload);
         return new UiResponseContract(
             "ui_response_v1",
             status,
             firstText(cleanDisplayAnswer(answer), ""),
+            reportHtml == null ? "" : reportHtml,
             citations,
             evidencePremises,
             confidence,
@@ -3605,6 +3617,7 @@ public class AgentTaskService {
         String contractVersion,
         String status,
         String answer,
+        String reportHtml,
         List<Map<String, Object>> citations,
         List<Map<String, Object>> evidencePremises,
         Double confidence,
@@ -3618,6 +3631,9 @@ public class AgentTaskService {
             values.put("contractVersion", firstText(contractVersion, "ui_response_v1"));
             values.put("status", firstText(status, "UNKNOWN"));
             values.put("answer", firstText(answer, ""));
+            if (reportHtml != null && !reportHtml.isBlank()) {
+                values.put("reportHtml", reportHtml);
+            }
             values.put("citations", citations == null ? List.of() : citations);
             values.put("evidencePremises", evidencePremises == null ? List.of() : evidencePremises);
             values.put("confidence", confidence);

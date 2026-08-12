@@ -47,7 +47,8 @@ public class UiArtifactService {
                                             String taskId,
                                             Map<String, Object> uiResponse) {
         if (!properties.isEnabled() || uiResponse == null || uiResponse.isEmpty()
-            || serializedSize(uiResponse) < properties.getExternalizeThresholdBytes()) {
+            || (!properties.isAlwaysExternalize()
+                && serializedSize(uiResponse) < properties.getExternalizeThresholdBytes())) {
             return new Presentation(uiResponse == null ? Map.of() : uiResponse, null, false);
         }
 
@@ -122,7 +123,7 @@ public class UiArtifactService {
 
         UiArtifactEntity metadataEntity = metadataEntity(
             tenantId, taskId, artifactId, resources.size(), properties.getTtlSeconds());
-        repository.save(metadataEntity);
+        metadataEntity = repository.save(metadataEntity);
         try {
             long totalBytes = 0;
             for (Map.Entry<String, StoredResource> resource : resources.entrySet()) {
@@ -320,8 +321,11 @@ public class UiArtifactService {
         entity.setManifestKey("manifest.json");
         entity.setTotalBytes(0);
         entity.setResourceCount(resourceCount);
+        Instant now = Instant.now();
+        entity.setCreatedAt(now);
+        entity.setUpdatedAt(now);
         if (ttlSeconds > 0) {
-            entity.setExpiresAt(Instant.now().plusSeconds(ttlSeconds));
+            entity.setExpiresAt(now.plusSeconds(ttlSeconds));
         }
         return entity;
     }

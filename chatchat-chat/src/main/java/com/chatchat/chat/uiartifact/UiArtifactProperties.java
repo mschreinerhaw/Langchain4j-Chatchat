@@ -16,6 +16,7 @@ public class UiArtifactProperties {
     private String storagePath = "./data/ui-artifacts";
     private String sharedMarkerFile = ".chatchat-artifact-store";
     private boolean migrateLegacyOnRead = true;
+    private boolean alwaysExternalize = true;
     private int externalizeThresholdBytes = 131_072;
     private int answerPreviewCharacters = 4_000;
     private long ttlSeconds = 2_592_000;

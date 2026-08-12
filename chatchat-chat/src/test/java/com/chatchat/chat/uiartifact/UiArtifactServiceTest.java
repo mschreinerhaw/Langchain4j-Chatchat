@@ -75,6 +75,8 @@ class UiArtifactServiceTest {
         assertThat(metadata.getStoreType()).isEqualTo("local");
         assertThat(metadata.getResourceCount()).isEqualTo(4);
         assertThat(metadata.getTotalBytes()).isPositive();
+        assertThat(metadata.getCreatedAt()).isNotNull();
+        assertThat(metadata.getUpdatedAt()).isNotNull();
         assertThat(metadata.getExpiresAt()).isNotNull();
     }
 
@@ -106,12 +108,26 @@ class UiArtifactServiceTest {
     }
 
     @Test
-    void leavesSmallUiResponseInlineForBackwardCompatibility() {
+    void externalizesSmallUiResponseWhenAlwaysExternalizeIsEnabled() {
         Fixture fixture = fixture(10_000);
         Map<String, Object> response = Map.of("answer", "短回答", "status", "SUCCESS");
 
         UiArtifactService.Presentation presentation = fixture.service().externalizeIfNeeded(
             "tenant-a", "task-2", response);
+
+        assertThat(presentation.externalized()).isTrue();
+        assertThat(presentation.uiResponse()).containsKey("uiArtifact");
+        assertThat(presentation.reference()).containsKey("artifactId");
+        assertThat(fixture.entities()).hasSize(1);
+    }
+
+    @Test
+    void canRetainThresholdModeWhenAlwaysExternalizeIsDisabled() {
+        Fixture fixture = fixture(10_000, false);
+        Map<String, Object> response = Map.of("answer", "短回答", "status", "SUCCESS");
+
+        UiArtifactService.Presentation presentation = fixture.service().externalizeIfNeeded(
+            "tenant-a", "task-threshold", response);
 
         assertThat(presentation.externalized()).isFalse();
         assertThat(presentation.uiResponse()).isEqualTo(response);
@@ -120,7 +136,12 @@ class UiArtifactServiceTest {
     }
 
     private Fixture fixture(int threshold) {
+        return fixture(threshold, true);
+    }
+
+    private Fixture fixture(int threshold, boolean alwaysExternalize) {
         UiArtifactProperties properties = properties(threshold);
+        properties.setAlwaysExternalize(alwaysExternalize);
         ObjectMapper objectMapper = new ObjectMapper();
         Map<String, UiArtifactEntity> entities = new LinkedHashMap<>();
         UiArtifactRepository repository = mock(UiArtifactRepository.class);

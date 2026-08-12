@@ -20,15 +20,16 @@ public class UiArtifactController {
     private final UiArtifactService artifactService;
 
     @GetMapping("/{artifactId}")
-    public ApiResponse<Object> manifest(@PathVariable String artifactId, HttpServletRequest request) {
+    public ApiResponse<Object> manifest(@PathVariable("artifactId") String artifactId,
+                                        HttpServletRequest request) {
         return artifactService.manifest(currentTenantId(request), artifactId)
             .<ApiResponse<Object>>map(ApiResponse::success)
             .orElseGet(() -> ApiResponse.notFound("UI artifact not found: " + artifactId));
     }
 
     @GetMapping("/{artifactId}/resources/{resourceId}")
-    public ApiResponse<Object> resource(@PathVariable String artifactId,
-                                        @PathVariable String resourceId,
+    public ApiResponse<Object> resource(@PathVariable("artifactId") String artifactId,
+                                        @PathVariable("resourceId") String resourceId,
                                         HttpServletRequest request) {
         return artifactService.resource(currentTenantId(request), artifactId, resourceId)
             .map(ApiResponse::success)
@@ -36,7 +37,8 @@ public class UiArtifactController {
     }
 
     @DeleteMapping("/{artifactId}")
-    public ApiResponse<Object> delete(@PathVariable String artifactId, HttpServletRequest request) {
+    public ApiResponse<Object> delete(@PathVariable("artifactId") String artifactId,
+                                      HttpServletRequest request) {
         if (!artifactService.delete(currentTenantId(request), artifactId)) {
             return ApiResponse.notFound("UI artifact not found: " + artifactId);
         }

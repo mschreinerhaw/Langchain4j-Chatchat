@@ -12,6 +12,9 @@ chatchat:
     storage-path: ${CHATCHAT_UI_ARTIFACT_STORAGE_PATH:./data/ui-artifacts}
     shared-marker-file: ${CHATCHAT_UI_ARTIFACT_SHARED_MARKER:.chatchat-artifact-store}
     migrate-legacy-on-read: ${CHATCHAT_UI_ARTIFACT_MIGRATE_LEGACY_ON_READ:true}
+    # Render every non-empty UI response through the governed artifact renderer by default.
+    always-externalize: ${CHATCHAT_UI_ARTIFACT_ALWAYS_EXTERNALIZE:true}
+    # Used only when always-externalize is false.
     externalize-threshold-bytes: ${CHATCHAT_UI_ARTIFACT_THRESHOLD_BYTES:131072}
     answer-preview-characters: ${CHATCHAT_UI_ARTIFACT_PREVIEW_CHARACTERS:4000}
     ttl-seconds: ${CHATCHAT_UI_ARTIFACT_TTL_SECONDS:2592000}

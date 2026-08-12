@@ -77,11 +77,6 @@ public class UiArtifactService {
         }
 
         Object visualizationSpec = uiResponse.get("visualizationSpec");
-        if (visualizationSpec != null) {
-            addResource(resources, resourceCatalog, artifactId, "visualization", visualizationSpec, "application/json");
-            elements.put("visualization", element("Visualization", Map.of("resourceId", "visualization"), List.of()));
-            reportChildren.add("visualization");
-        }
 
         Object citations = uiResponse.get("citations");
         if (citations instanceof List<?> list && !list.isEmpty()) {
@@ -162,7 +157,15 @@ public class UiArtifactService {
         lightweight.put("evidencePremises", List.of());
         lightweight.put("confidence", uiResponse.get("confidence"));
         lightweight.put("evidenceSummary", "");
-        lightweight.put("visualization", Map.of("type", "artifact"));
+        lightweight.put("visualization", visualizationSpec == null
+            ? Map.of("type", "artifact")
+            : Map.of("type", "inline", "spec", visualizationSpec));
+        if (visualizationSpec != null) {
+            // Keep the established VisualizationRenderer path available. The artifact owns the
+            // report body; the visualization remains inline to preserve chart/table switching,
+            // export, resize, and drill-down behavior without rendering it twice.
+            lightweight.put("visualizationSpec", visualizationSpec);
+        }
         lightweight.put("uiArtifact", reference);
         return new Presentation(lightweight, reference, true);
     }

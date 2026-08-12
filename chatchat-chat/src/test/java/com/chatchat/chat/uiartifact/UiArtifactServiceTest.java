@@ -58,7 +58,7 @@ class UiArtifactServiceTest {
         assertThat(presentation.uiResponse())
             .containsEntry("contractVersion", "ui_response_v2")
             .containsKey("uiArtifact")
-            .doesNotContainKey("visualizationSpec");
+            .containsKey("visualizationSpec");
 
         String artifactId = String.valueOf(presentation.reference().get("artifactId"));
         Map<String, Object> manifest = fixture.service().manifest("tenant-a", artifactId).orElseThrow();
@@ -66,14 +66,14 @@ class UiArtifactServiceTest {
             .containsEntry("schemaVersion", UiArtifactService.ARTIFACT_SCHEMA_VERSION)
             .containsEntry("catalogVersion", UiArtifactService.CATALOG_VERSION);
         assertThat(fixture.service().resource("tenant-a", artifactId, "answer")).isPresent();
-        assertThat(fixture.service().resource("tenant-a", artifactId, "visualization")).isPresent();
+        assertThat(fixture.service().resource("tenant-a", artifactId, "visualization")).isEmpty();
         assertThat(fixture.service().resource("tenant-a", artifactId, "citations")).isPresent();
         assertThat(fixture.service().resource("tenant-a", artifactId, "evidence-premises")).isPresent();
         assertThat(fixture.service().manifest("tenant-b", artifactId)).isEmpty();
 
         UiArtifactEntity metadata = fixture.entities().get(artifactId);
         assertThat(metadata.getStoreType()).isEqualTo("local");
-        assertThat(metadata.getResourceCount()).isEqualTo(4);
+        assertThat(metadata.getResourceCount()).isEqualTo(3);
         assertThat(metadata.getTotalBytes()).isPositive();
         assertThat(metadata.getCreatedAt()).isNotNull();
         assertThat(metadata.getUpdatedAt()).isNotNull();

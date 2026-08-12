@@ -2,15 +2,15 @@
   <section class="enterprise-ui-artifact" :data-artifact-id="artifactId">
     <div v-if="loading" class="artifact-shell-state">正在装载动态报告…</div>
     <div v-else-if="error" class="artifact-shell-state error" role="alert">{{ error }}</div>
-    <StateProvider v-else-if="spec" :initial-state="{}">
+    <JSONUIProvider v-else-if="spec" :registry="enterpriseUiRegistry" :initial-state="{}">
       <Renderer :spec="spec" :registry="enterpriseUiRegistry" />
-    </StateProvider>
+    </JSONUIProvider>
   </section>
 </template>
 
 <script setup>
-import { computed, provide, ref, watch } from "vue";
-import { Renderer, StateProvider } from "@json-render/vue";
+import { computed, onErrorCaptured, provide, ref, watch } from "vue";
+import { JSONUIProvider, Renderer } from "@json-render/vue";
 import { fetchUiArtifact, fetchUiArtifactResource } from "../services/api.js";
 import {
   ARTIFACT_EVENT_DISPATCHER,
@@ -79,6 +79,10 @@ provide(ARTIFACT_EVENT_DISPATCHER, (eventName, payload = {}, context = {}) => {
     artifactResourceId: context.resourceId || "",
     artifactSchemaVersion: manifest.value?.schemaVersion || "enterprise_ui_artifact_v1"
   });
+});
+onErrorCaptured((renderError) => {
+  error.value = renderError?.message || "动态报告渲染失败";
+  return false;
 });
 watch(artifactId, loadManifest, { immediate: true });
 </script>

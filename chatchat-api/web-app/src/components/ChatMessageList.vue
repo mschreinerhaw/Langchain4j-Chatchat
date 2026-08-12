@@ -223,7 +223,7 @@
           </section>
         </div>
         <VisualizationRenderer
-          v-if="message.role === 'assistant' && message.visualizationSpec && !message.streaming && !messageUiArtifact(message)"
+          v-if="message.role === 'assistant' && message.visualizationSpec && !message.streaming"
           :spec="message.visualizationSpec"
           @drill-down="handleVisualizationDrillDown(message, $event)"
         />

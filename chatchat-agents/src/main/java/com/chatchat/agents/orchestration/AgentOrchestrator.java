@@ -1643,7 +1643,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
         BooleanSupplier cancellationCheck,
         String stopReason
     ) {
-        if (hasBatchExecutionTrace(traces)) {
+        if (hasBatchExecutionTrace(traces)
+            || Boolean.TRUE.equals(metadata.get("cumulativeBatchEvidencePresent"))) {
             metadata.put("stopReason", stopReason);
             metadata.put("reservedFinalizationCalls", 1);
             metadata.put("batchFinalizationModelCalls", 1);
@@ -2246,10 +2247,15 @@ public class AgentOrchestrator implements AgentRunExecutor {
                                                       Map<String, Object> metadata,
                                                       BooleanSupplier cancellationCheck,
                                                       String stage) {
+        InterpretationPlanRuntime.ExecutionResult cumulativeEvidenceResult =
+            cumulativeEvidenceResult(result, attemptResults);
+        if (metadata != null && hasBatchExecutionResult(cumulativeEvidenceResult)) {
+            metadata.put("cumulativeBatchEvidencePresent", true);
+        }
         try {
             runtimeGuard.checkCancelled(cancellationCheck);
         } catch (CancellationException ex) {
-            if (!hasBatchExecutionResult(result)) {
+            if (!hasBatchExecutionResult(cumulativeEvidenceResult)) {
                 throw ex;
             }
             metadata.put("stopReason", "time_budget_exhausted");
@@ -2264,7 +2270,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         }
         List<AgentObservation> storedObservations = storedInterpretationPlanObservations(runtimeAttributes);
         RecordCoverageBundle recordCoverage = buildRecordCoverageBundle(
-            activeChatModel, query, result, runtimeAttributes, metadata, cancellationCheck);
+            activeChatModel, query, cumulativeEvidenceResult, runtimeAttributes, metadata, cancellationCheck);
         recordLifecyclePhase(
             runtimeAttributes,
             metadata,
@@ -2328,7 +2334,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
             metadata.put("interpretationPlanSummaryFailure",
                 firstNonBlank(ex.getMessage(), ex.getClass().getSimpleName()));
             if (summarizeAvailableResults(runtimeAttributes)) {
-                String fallbackAnswer = buildDeterministicAvailableResultAnswer(result);
+                String fallbackAnswer = buildDeterministicAvailableResultAnswer(cumulativeEvidenceResult);
                 fallbackAnswer = ensureCompleteRecordCoveragePresented(
                     fallbackAnswer, recordCoverage, metadata);
                 metadata.put("interpretationPlanDeterministicSummaryFallback", true);
@@ -2338,7 +2344,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
             metadata.putIfAbsent("executionStatus", "NO_PRESENTABLE_RESULT");
             return "";
         }
-        answer = ensureConcreteBatchEvidencePresented(answer, query, result, metadata);
+        answer = ensureConcreteBatchEvidencePresented(
+            answer, query, cumulativeEvidenceResult, metadata);
         answer = ensureCompleteRecordCoveragePresented(answer, recordCoverage, metadata);
         log.info("agentModelResponse phase=interpretation_plan_summary runId={} stage={} durationMs={} responseChars={}",
             firstNonBlank(runId, ""),
@@ -2375,6 +2382,94 @@ public class AgentOrchestrator implements AgentRunExecutor {
         return answer == null || answer.isBlank()
             ? (result == null ? "" : firstNonBlank(result.finalAnswer(), ""))
             : answer;
+    }
+
+    /**
+     * Builds the evidence view used by deterministic final-answer guards. Incremental DAG repair
+     * may move an executed batch into an earlier attempt while the latest attempt only contains
+     * repaired downstream steps. Prompt synthesis already sees every attempt; the immutable
+     * record-coverage and concrete-value guards must see the same cumulative evidence chain.
+     */
+    InterpretationPlanRuntime.ExecutionResult cumulativeEvidenceResult(
+        InterpretationPlanRuntime.ExecutionResult latest,
+        List<InterpretationPlanRuntime.ExecutionResult> attempts
+    ) {
+        List<InterpretationPlanRuntime.ExecutionResult> sources = attempts == null || attempts.isEmpty()
+            ? (latest == null ? List.of() : List.of(latest))
+            : attempts;
+        List<InterpretationPlanRuntime.StepExecution> steps = new ArrayList<>();
+        List<ToolCallResult> batchChildren = new ArrayList<>();
+        Set<String> seenBatchChildren = new LinkedHashSet<>();
+        Set<String> seenSteps = new LinkedHashSet<>();
+        for (InterpretationPlanRuntime.ExecutionResult attempt : sources) {
+            if (attempt == null || attempt.steps() == null) {
+                continue;
+            }
+            for (InterpretationPlanRuntime.StepExecution step : attempt.steps()) {
+                if (step == null || step.output() == null) {
+                    continue;
+                }
+                if (step.output() instanceof ToolCallBatchResult batch) {
+                    for (ToolCallResult child : batch.results()) {
+                        String evidenceIdentity = firstNonBlank(child.evidenceId(), "");
+                        String identity = firstNonBlank(child.templateId(),
+                            firstNonBlank(child.templateCode(), firstNonBlank(child.callId(), "batch-child")))
+                            + "|" + (evidenceIdentity.isBlank()
+                                ? stringify(child.output()) : evidenceIdentity);
+                        if (seenBatchChildren.add(identity)) {
+                            batchChildren.add(child);
+                        }
+                    }
+                    continue;
+                }
+                String identity = firstNonBlank(step.toolName(), step.actionType())
+                    + "|" + stringify(step.output());
+                if (seenSteps.add(identity)) {
+                    steps.add(step);
+                }
+            }
+        }
+        if (!batchChildren.isEmpty()) {
+            int succeeded = (int) batchChildren.stream()
+                .filter(child -> "SUCCESS".equalsIgnoreCase(child.status()))
+                .count();
+            int failed = batchChildren.size() - succeeded;
+            ToolCallBatchResult cumulativeBatch = new ToolCallBatchResult(
+                "cumulative-interpretation-plan-evidence",
+                "CUMULATIVE",
+                "",
+                "",
+                failed == 0 ? "SUCCESS" : (succeeded > 0 ? "PARTIAL_SUCCESS" : "FAILED"),
+                new ToolCallBatchResult.Summary(
+                    batchChildren.size(), succeeded, failed, 0, 0, batchChildren.size()),
+                batchChildren
+            );
+            steps.add(new InterpretationPlanRuntime.StepExecution(
+                -1,
+                "mcp_tool",
+                "cumulative_batch_execution",
+                succeeded > 0,
+                cumulativeBatch,
+                null,
+                null,
+                null,
+                0L,
+                Map.of("batchExecution", true, "cumulativeEvidence", true)
+            ));
+        }
+        if (steps.isEmpty() && latest != null) {
+            return latest;
+        }
+        return new InterpretationPlanRuntime.ExecutionResult(
+            latest == null ? "cumulative_evidence" : latest.status(),
+            latest == null || latest.success(),
+            latest != null && latest.approvalRequired(),
+            latest == null ? null : latest.errorMessage(),
+            latest == null ? null : latest.finalAnswer(),
+            List.copyOf(steps),
+            latest == null || latest.metadata() == null ? Map.of() : latest.metadata(),
+            latest == null ? 0L : latest.durationMs()
+        );
     }
 
     private String interpretationPlanReviewEvidenceContext(String synthesisPrompt) {

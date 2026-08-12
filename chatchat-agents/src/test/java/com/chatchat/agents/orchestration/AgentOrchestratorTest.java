@@ -556,6 +556,59 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void recordCoverageIncludesBatchEvidenceFromEarlierRepairAttempt() {
+        ToolCallResult success = new ToolCallResult(
+            "assets", "api_template_execute", "asset-template", "asset-1",
+            "SUCCESS", 10L, "evidence-assets",
+            Map.of("data", Map.of("body", Map.of("records", List.of(Map.of(
+                "CUSTOMER_ID", "070200046604",
+                "TOTAL_ASSET", "847174.25",
+                "DAILY_PROFIT", "42263.81"
+            ))))),
+            Map.of()
+        );
+        ToolCallBatchResult batch = new ToolCallBatchResult(
+            "batch-1", "SEQUENTIAL", "start", "end", "SUCCESS",
+            new ToolCallBatchResult.Summary(1, 1, 0, 0, 0, 1), List.of(success)
+        );
+        InterpretationPlanRuntime.ExecutionResult firstAttempt = new InterpretationPlanRuntime.ExecutionResult(
+            "rewrite_plan", false, false, null, null,
+            List.of(new InterpretationPlanRuntime.StepExecution(
+                3, "mcp_tool", "mcp_chatchat_mcp_server_api_template_execute", true,
+                batch, null, null, null, 10L, Map.of("batchExecution", true))),
+            Map.of(), 10L
+        );
+        InterpretationPlanRuntime.ExecutionResult repairedAttempt = new InterpretationPlanRuntime.ExecutionResult(
+            "completed_with_partial_evidence", true, false, null, null,
+            List.of(new InterpretationPlanRuntime.StepExecution(
+                4, "final_answer", null, true, null, null, null,
+                "templates succeeded", 1L, Map.of("reusedPlanStepIds", List.of(1, 2, 3)))),
+            Map.of(), 1L
+        );
+        ChatModel model = mock(ChatModel.class);
+        AgentOrchestrator orchestrator = newOrchestrator(model);
+        InterpretationPlanRuntime.ExecutionResult cumulative = orchestrator.cumulativeEvidenceResult(
+            repairedAttempt, List.of(firstAttempt, repairedAttempt));
+        Map<String, Object> metadata = new LinkedHashMap<>();
+
+        AgentOrchestrator.RecordCoverageBundle coverage = orchestrator.buildRecordCoverageBundle(
+            model, "query customer 070200046604 assets", cumulative, Map.of(), metadata, () -> false);
+        String answer = orchestrator.ensureConcreteBatchEvidencePresented(
+            "8/8 templates succeeded but concrete data is unavailable",
+            "query customer 070200046604 assets",
+            cumulative,
+            metadata
+        );
+
+        assertThat(coverage.returnedRecordCount()).isEqualTo(1);
+        assertThat(coverage.processedRecordCount()).isEqualTo(1);
+        assertThat(answer).contains("847174.25", "42263.81", "asset-template");
+        assertThat(metadata)
+            .containsEntry("recordAnalysisCoverageComplete", true)
+            .containsEntry("concreteBatchEvidencePresentationFallback", true);
+    }
+
+    @Test
     void iteratesUntilEveryOversizedReturnedRecordIsCovered() {
         List<Map<String, Object>> records = new ArrayList<>();
         for (int index = 0; index < 60; index++) {

@@ -1,4 +1,5 @@
 import { enhanceResultTables } from "./resultTableEnhancer.js";
+import { stripInternalDocumentRefsFromHtml } from "./internalDocumentRefs.js";
 
 export function sanitizeArtifactHtml(value = "") {
   if (typeof DOMParser === "undefined") return "";
@@ -37,5 +38,6 @@ export function repairEmbeddedMarkdownTables(value = "", renderMarkdown = (sourc
 
 export function normalizeArtifactHtml(value = "", renderMarkdown = (source) => source) {
   const sanitized = sanitizeArtifactHtml(value);
-  return enhanceResultTables(repairEmbeddedMarkdownTables(sanitized, renderMarkdown));
+  const repaired = repairEmbeddedMarkdownTables(sanitized, renderMarkdown);
+  return enhanceResultTables(stripInternalDocumentRefsFromHtml(repaired));
 }

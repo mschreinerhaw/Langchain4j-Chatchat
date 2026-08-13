@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import MarkdownIt from "markdown-it";
 import { normalizeArtifactHtml } from "./artifactHtmlNormalizer.js";
 import { enhanceResultTables } from "./resultTableEnhancer.js";
+import { stripInternalDocumentRefs, stripInternalDocumentRefsFromHtml } from "./internalDocumentRefs.js";
 
 const markdown = new MarkdownIt({ html: false, linkify: true, typographer: true });
 const renderMarkdown = (source) => markdown.render(source);
@@ -111,5 +112,29 @@ describe("dynamic report table regression matrix", () => {
     expect(root.querySelector("h2")?.hasAttribute("onclick")).toBe(false);
     expect(root.querySelector("a")?.hasAttribute("href")).toBe(false);
     expect(root.textContent).toContain("安全正文");
+  });
+
+  it("removes internal doc locators from text and legacy HTML without deleting user content", () => {
+    expect(stripInternalDocumentRefs("来源：doc://20260804_5eee01fd#chunk=0 配置说明"))
+      .toBe("来源： 配置说明");
+    const root = dom(stripInternalDocumentRefsFromHtml(
+      '<p>证据 doc://20260804_5eee01fd#chunk=0 支持该结论</p>'
+      + '<a href="doc://20260804_5eee01fd#chunk=0">doc://20260804_5eee01fd#chunk=0</a>'
+    ));
+    expect(root.textContent).not.toContain("doc://");
+    expect(root.textContent).toContain("支持该结论");
+    expect(root.querySelector("a")).toBeNull();
+  });
+
+  it("removes internal record-range labels while preserving surrounding business content", () => {
+    for (const marker of ["records[1…2]", "records[1..2]", "records[1...2]", "record[7]", "records[3-9]"]) {
+      const cleaned = stripInternalDocumentRefs(`持仓明细 ${marker} 共两条记录`);
+      expect(cleaned).toBe("持仓明细 共两条记录");
+    }
+    expect(stripInternalDocumentRefs("records 是英文业务字段说明")).toBe("records 是英文业务字段说明");
+
+    const root = dom(stripInternalDocumentRefsFromHtml("<p>资产数据 records[1…2] 已加载</p>"));
+    expect(root.textContent).toBe("资产数据 已加载");
+    expect(root.textContent).not.toContain("records[");
   });
 });

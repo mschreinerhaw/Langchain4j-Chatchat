@@ -12,6 +12,7 @@ import {
 import { selectCompleteMessageContent } from "../utils/messageContentSelection.js";
 import { answerPdfFileName, exportRenderedAnswerToPdf } from "../utils/answerPdfExport.js";
 import { enhanceResultTables as enhanceSharedResultTables } from "../utils/resultTableEnhancer.js";
+import { stripInternalDocumentRefs as stripInternalDisplayMetadata } from "../utils/internalDocumentRefs.js";
 
 const markdown = new MarkdownIt({
   html: false,
@@ -24,7 +25,6 @@ const SQL_START_RE = /^\s*(CREATE|WITH|SELECT|INSERT|UPDATE|DELETE|MERGE|ALTER|D
 const SQL_CONTINUATION_RE = /^\s*(USING|OPTIONS\s*\(|PARTITIONED\s+BY|TBLPROPERTIES\s*\(|LOCATION\b|COMMENT\b|AS\b|FROM\b|WHERE\b|JOIN\b|LEFT\b|RIGHT\b|INNER\b|OUTER\b|ON\b|GROUP\b|ORDER\b|HAVING\b|LIMIT\b|VALUES\b|URL\b|DBTABLE\b|USER\b|PASSWORD\b|DRIVER\b|PARTITIONCOLUMN\b|LOWERBOUND\b|UPPERBOUND\b|NUMPARTITIONS\b|FETCHSIZE\b|SESSIONINITSTATEMENT\b|\)|;|,)/i;
 const SECTION_BOUNDARY_RE = /^\s*(#{1,6}\s+|[-*]\s+\d+[.)]\s+|\d+[.)]\s+|[\[(].+[\])]\s*$)/;
 const JSON_START_RE = /^\s*[{[]\s*$/;
-const INTERNAL_DOCUMENT_REF_RE = /[\uFF08(]?\s*doc:\/\/[^\s\uFF09)\]}\>\uFF0C\u3002\uFF1B;]+[\uFF09)]?\s*[:\uFF1A]?/gi;
 const EXECUTED_SQL_CONTEXT_RE = /(business_query_template_search|sql_query_execute|sql_script_execute|\u6267\u884c\u7684?\s*SQL|\u5b9e\u9645\u6267\u884c\u8bed\u53e5|\u67e5\u8be2\u8bed\u53e5|\u5177\u4f53\u8bed\u53e5|operation\.statement|Executed\s+SQL|SQL\s+Statement)/i;
 
 function escapeHtml(value) {
@@ -1430,8 +1430,7 @@ export default {
         .trim();
     },
     stripInternalDocumentRefs(content) {
-      return String(content || "")
-        .replace(INTERNAL_DOCUMENT_REF_RE, "")
+      return stripInternalDisplayMetadata(content)
         .replace(/[ \t]*[\(\uFF08]\s*(?:confidence|missingInfo)\s*[\)\uFF09]/gi, "")
         .replace(/[ \t]*[\[\uFF3B][ \t]*[\]\uFF3D][ \t]*/g, " ")
         .replace(/[ \t]+([,.;:!?\uFF0C\u3002\uFF1B\uFF1A])/g, "$1")
@@ -1989,7 +1988,8 @@ export default {
     },
     renderReasoningStep(step = {}, env) {
       const action = step.action || step.text || step.nodeId || "";
-      const source = step.source || step.refId || "";
+      const rawSource = step.source || step.refId || "";
+      const source = /^doc:\/\//i.test(String(rawSource).trim()) ? "" : rawSource;
       const confidence = this.formatConfidencePercent(step.confidence);
       return [
         '<li>',
@@ -2004,8 +2004,9 @@ export default {
     },
     renderReasoningFacts(facts, env) {
       const rows = facts.slice(0, 6).map((fact) => {
-        const source = fact.sourceRef || fact.source || "";
-        const text = this.shortUiText(fact.content || fact.text || "", 220);
+        const rawSource = fact.sourceRef || fact.source || "";
+        const source = /^doc:\/\//i.test(String(rawSource).trim()) ? "" : rawSource;
+        const text = this.shortUiText(this.stripInternalDocumentRefs(fact.content || fact.text || ""), 220);
         return [
           '<li>',
           '<div>',
@@ -2030,7 +2031,8 @@ export default {
         '<li>',
         '<div>',
         item.nodeId ? `<small>${escapeHtml(item.nodeId)}</small>` : "",
-        item.sourceRef ? `<span class="doc-link">${escapeHtml(item.sourceRef)}</span>` : "",
+        item.sourceRef && !/^doc:\/\//i.test(String(item.sourceRef).trim())
+          ? `<span class="doc-link">${escapeHtml(item.sourceRef)}</span>` : "",
         item.sqlType ? `<small>${escapeHtml(item.sqlType)}</small>` : "",
         `<small>${escapeHtml(item.executionVerified ? "EXECUTION_VERIFIED" : "NOT_VERIFIED")}</small>`,
         Number.isFinite(Number(item.validationScore)) ? `<small>${escapeHtml(`score ${item.validationScore}`)}</small>` : "",
@@ -2132,8 +2134,9 @@ export default {
       ].join("");
     },
     renderEvidenceItem(item = {}, env) {
-      const refId = item.refId || item.source || "";
-      const text = this.shortUiText(item.text || item.content || item.action || "", 180);
+      const rawRefId = item.refId || item.source || "";
+      const refId = /^doc:\/\//i.test(String(rawRefId).trim()) ? "" : rawRefId;
+      const text = this.shortUiText(this.stripInternalDocumentRefs(item.text || item.content || item.action || ""), 180);
       const confidence = this.formatConfidencePercent(item.confidence);
       return [
         '<li>',
@@ -2260,10 +2263,11 @@ export default {
       const stepItems = answer.steps.length
         ? answer.steps.map((step) => `<li>${markdown.renderInline(step, env)}</li>`).join("")
         : `<li>${markdown.renderInline(answer.evidenceSummary || "\u8bc1\u636e\u5df2\u6536\u5f55\uff0c\u672a\u62bd\u53d6\u5230\u53ef\u5206\u6b65\u5c55\u793a\u7684\u8def\u5f84\u3002", env)}</li>`;
-      const refItems = answer.refs.length
-        ? answer.refs.map((ref) => `<li><span class="doc-link">${escapeHtml(ref)}</span></li>`).join("")
-        : `<li class="empty">${escapeHtml("\u6682\u65e0 doc \u5f15\u7528")}</li>`;
-      const docCount = answer.refs.length;
+      const visibleRefs = answer.refs.filter((ref) => !/^doc:\/\//i.test(String(ref).trim()));
+      const refItems = visibleRefs.length
+        ? visibleRefs.map((ref) => `<li><span class="doc-link">${escapeHtml(ref)}</span></li>`).join("")
+        : `<li class="empty">${escapeHtml("\u8bc1\u636e\u5b9a\u4f4d\u4fe1\u606f\u5df2\u9690\u85cf")}</li>`;
+      const docCount = visibleRefs.length;
       const constraintTitle = answer.constraint ? ` title="${escapeHtml(answer.constraint)}"` : "";
 
       return [
@@ -2280,7 +2284,7 @@ export default {
         `<ol>${stepItems}</ol>`,
         '</section>',
         '<details class="execution-evidence-details">',
-        `<summary><span>${escapeHtml("\u67e5\u770b\u8bc1\u636e")}</span><small>doc ${docCount} ${escapeHtml("\u6761")}</small></summary>`,
+        `<summary><span>${escapeHtml("\u67e5\u770b\u8bc1\u636e")}</span><small>${docCount} ${escapeHtml("\u6761")}</small></summary>`,
         '<div class="execution-evidence-body">',
         `<ul>${refItems}</ul>`,
         answer.evidenceSummary ? `<p>${markdown.renderInline(answer.evidenceSummary, env)}</p>` : "",

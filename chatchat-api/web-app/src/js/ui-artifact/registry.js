@@ -5,6 +5,7 @@ import VisualizationRenderer from "../../components/VisualizationRenderer.vue";
 import { enterpriseUiCatalog } from "./catalog.js";
 import { enhanceResultTables } from "../utils/resultTableEnhancer.js";
 import { normalizeArtifactHtml } from "../utils/artifactHtmlNormalizer.js";
+import { isInternalDocumentRef, stripInternalDocumentRefs } from "../utils/internalDocumentRefs.js";
 
 export const ARTIFACT_RESOURCE_LOADER = Symbol("artifact-resource-loader");
 export const ARTIFACT_EVENT_DISPATCHER = Symbol("artifact-event-dispatcher");
@@ -69,7 +70,7 @@ function resourceComponent(name, renderResource) {
 const MarkdownResource = resourceComponent("ArtifactMarkdown", (value) =>
   h("section", {
     class: "artifact-markdown message-markdown",
-    innerHTML: enhanceResultTables(markdown.render(String(value || "")))
+    innerHTML: enhanceResultTables(markdown.render(stripInternalDocumentRefs(String(value || ""))))
   })
 );
 
@@ -88,7 +89,7 @@ const NoticeResource = resourceComponent("ArtifactNotice", (value, props) =>
     ]),
     h("div", {
       class: "artifact-notice-content",
-      innerHTML: markdown.render(String(value || ""))
+      innerHTML: markdown.render(stripInternalDocumentRefs(String(value || "")))
     })
   ])
 );
@@ -111,7 +112,9 @@ function evidenceTitle(citation, index) {
     DOC_CHUNK: "文档证据",
     WEB_CHUNK: "网页证据"
   };
-  return typeLabels[candidate.toUpperCase()] || candidate || citation?.sourceRef || `证据 ${index + 1}`;
+  const visibleCandidate = stripInternalDocumentRefs(candidate);
+  const visibleSource = isInternalDocumentRef(citation?.sourceRef) ? "" : stripInternalDocumentRefs(citation?.sourceRef);
+  return typeLabels[candidate.toUpperCase()] || visibleCandidate || visibleSource || `证据 ${index + 1}`;
 }
 
 const EvidenceResource = resourceComponent("ArtifactEvidence", (value, props) => {
@@ -123,13 +126,14 @@ const EvidenceResource = resourceComponent("ArtifactEvidence", (value, props) =>
     ]),
     h("ol", citations.map((citation, index) => {
       const title = evidenceTitle(citation, index);
-      const text = citation?.text || citation?.snippet || citation?.summary || "";
+      const text = stripInternalDocumentRefs(citation?.text || citation?.snippet || citation?.summary || "");
       const sourceRef = citation?.sourceRef || citation?.source || "";
+      const visibleSourceRef = isInternalDocumentRef(sourceRef) ? "" : stripInternalDocumentRefs(sourceRef);
       const rawUrl = citation?.url || citation?.href || citation?.link || "";
       const url = /^https?:\/\//i.test(String(rawUrl)) ? String(rawUrl) : "";
       const confidence = Number(citation?.confidence);
       const meta = [
-        sourceRef && sourceRef !== title ? String(sourceRef) : "",
+        visibleSourceRef && visibleSourceRef !== title ? visibleSourceRef : "",
         Number.isFinite(confidence) && confidence > 0 ? `可信度 ${Math.round(confidence * 100)}%` : ""
       ].filter(Boolean).join(" · ");
       return h("li", { key: `${title}-${index}` }, [

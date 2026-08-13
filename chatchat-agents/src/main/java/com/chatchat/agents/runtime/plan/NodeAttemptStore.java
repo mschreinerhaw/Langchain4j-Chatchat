@@ -48,6 +48,16 @@ public interface NodeAttemptStore {
     /** Atomically commits every prepared node in one scheduler epoch. */
     BarrierResult commitBarrier(BarrierCommand command);
 
+    /** Whether this store can reconcile durable committed Attempts during recovery. */
+    default boolean supportsRecoveryQueries() {
+        return false;
+    }
+
+    /** Returns the durable committed Attempts for one run. */
+    default List<AttemptSnapshot> committedAttempts(String tenantId, String runId) {
+        return List.of();
+    }
+
     record AttemptCommand(
         String tenantId,
         String runId,

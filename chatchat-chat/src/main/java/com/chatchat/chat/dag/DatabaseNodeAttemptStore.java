@@ -21,6 +21,21 @@ public class DatabaseNodeAttemptStore implements NodeAttemptStore {
     private final ObjectMapper objectMapper;
 
     @Override
+    public boolean supportsRecoveryQueries() {
+        return true;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AttemptSnapshot> committedAttempts(String tenantId, String runId) {
+        return repository.findAllByTenantIdAndRunIdAndStateOrderByCommittedAtAscNodeIdAsc(
+                required(tenantId, "tenantId"), required(runId, "runId"), State.COMMITTED.name())
+            .stream()
+            .map(this::snapshot)
+            .toList();
+    }
+
+    @Override
     @Transactional
     public AttemptSnapshot create(AttemptCommand command) {
         require(command != null, "Node attempt command is required");

@@ -18,4 +18,7 @@ public interface NodeAttemptRepository extends JpaRepository<NodeAttemptEntity, 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     List<NodeAttemptEntity> findAllByTenantIdAndAttemptIdInOrderByAttemptId(
         String tenantId, List<String> attemptIds);
+
+    List<NodeAttemptEntity> findAllByTenantIdAndRunIdAndStateOrderByCommittedAtAscNodeIdAsc(
+        String tenantId, String runId, String state);
 }

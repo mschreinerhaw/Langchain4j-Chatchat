@@ -70,6 +70,13 @@ class DatabaseNodeAttemptStoreTest {
         });
         assertThat(persisted.getExecutionEpoch()).isEqualTo("epoch-1");
         assertThat(persisted.getCommittedAt()).isNotNull();
+
+        when(repository.findAllByTenantIdAndRunIdAndStateOrderByCommittedAtAscNodeIdAsc(
+            "tenant-a", "run-a", "COMMITTED")).thenReturn(List.of(persisted));
+        assertThat(store.supportsRecoveryQueries()).isTrue();
+        assertThat(store.committedAttempts("tenant-a", "run-a"))
+            .singleElement()
+            .satisfies(attempt -> assertThat(attempt.state()).isEqualTo(NodeAttemptStore.State.COMMITTED));
     }
 
     private NodeAttemptEntity entity(String id, String tenantId, String runId,

@@ -29,6 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -274,8 +275,9 @@ public class InterpretationPlanRuntime {
         String runId = runId(executableRequest);
         Set<Integer> reusedPlanStepIds = seedReusableStepExecutions(
             executableRequest, stepsById, completed, executions);
-        reusedPlanStepIds.addAll(seedPersistedStepCheckpoints(
-            runId, executableRequest, stepsById, completed));
+        CheckpointRecovery checkpointRecovery = seedPersistedStepCheckpoints(
+            runId, executableRequest, stepsById, completed);
+        reusedPlanStepIds.addAll(checkpointRecovery.stepIds());
         List<StepExecution> toleratedFailures = new ArrayList<>();
         Set<Integer> failureRegionSkippedStepIds = new LinkedHashSet<>();
         String finalAnswer = completed.values().stream()
@@ -286,7 +288,9 @@ public class InterpretationPlanRuntime {
         int decisionCount = 0;
 
         while (!remaining.isEmpty()) {
-            InterpretationPlanEventState eventState = eventState(runId, completed.keySet(), executableRequest);
+            InterpretationPlanEventState eventState = !"NONE".equals(checkpointRecovery.status())
+                ? new InterpretationPlanEventState(Set.of(), Set.of(), Set.of(), Set.of(), Set.of())
+                : eventState(runId, completed.keySet(), executableRequest);
             Set<Integer> storedCompletedStepIds = new LinkedHashSet<>(completed.keySet());
             storedCompletedStepIds.addAll(eventState.completedStepIds());
             List<StepExecution> hydratedExecutions = hydrateCompletedExecutionsFromEvents(
@@ -565,6 +569,11 @@ public class InterpretationPlanRuntime {
                 "requiredPlanStepIds", new ArrayList<>(stepsById.keySet()),
                 "completedPlanStepIds", new ArrayList<>(completed.keySet()),
                 "reusedPlanStepIds", new ArrayList<>(reusedPlanStepIds),
+                "recoveryStatus", checkpointRecovery.status(),
+                "resumedPlanStepIds", new ArrayList<>(checkpointRecovery.stepIds()),
+                "resumeToken", checkpointRecovery.resumeToken(),
+                "recoveryAttemptIds", new ArrayList<>(checkpointRecovery.attemptIds()),
+                "recoveryRejectedReason", checkpointRecovery.rejectedReason(),
                 "remainingPlanStepIds", new ArrayList<>(remaining),
                 "parallel", allowParallel(executablePlan),
                 "decisionCount", decisionCount,
@@ -612,20 +621,20 @@ public class InterpretationPlanRuntime {
         return reusedStepIds;
     }
 
-    private Set<Integer> seedPersistedStepCheckpoints(String runId,
-                                                      ExecutionRequest request,
-                                                      Map<Integer, InterpretationPlan.Step> stepsById,
-                                                      Map<Integer, StepExecution> completed) {
+    private CheckpointRecovery seedPersistedStepCheckpoints(String runId,
+                                                            ExecutionRequest request,
+                                                            Map<Integer, InterpretationPlan.Step> stepsById,
+                                                            Map<Integer, StepExecution> completed) {
         Set<Integer> reusedStepIds = new LinkedHashSet<>();
         if (runStore == null || runId == null || runId.isBlank() || stepsById.isEmpty()) {
-            return reusedStepIds;
+            return CheckpointRecovery.none();
         }
         List<PlanStepCheckpoint> stored;
         try {
             stored = runStore.planStepCheckpoints(runId);
         } catch (RuntimeException ex) {
             log.warn("Failed to load persisted plan checkpoints. runId={} error={}", runId, ex.getMessage());
-            return reusedStepIds;
+            return CheckpointRecovery.rejected("CHECKPOINT_STORE_UNAVAILABLE");
         }
         Map<Integer, PlanStepCheckpoint> byStepId = stored.stream()
             .filter(Objects::nonNull)
@@ -636,15 +645,25 @@ public class InterpretationPlanRuntime {
                 (left, right) -> left.updatedAt() >= right.updatedAt() ? left : right,
                 LinkedHashMap::new
             ));
+        String requestedToken = request == null || request.attributes() == null
+            ? null : stringValue(request.attributes().get("resumeToken"));
+        Set<String> committedAttemptIds = committedAttemptIds(request, runId);
+        boolean reconcileAttempts = nodeAttemptStore != null && nodeAttemptStore.supportsRecoveryQueries();
+        Map<Integer, StepExecution> recovered = new LinkedHashMap<>(completed);
+        Set<String> recoveryAttemptIds = new LinkedHashSet<>();
         boolean progressed;
         do {
             progressed = false;
             for (InterpretationPlan.Step step : stepsById.values()) {
-                if (completed.containsKey(step.id())) {
+                if (recovered.containsKey(step.id())) {
                     continue;
                 }
                 PlanStepCheckpoint checkpoint = byStepId.get(step.id());
-                if (!validCheckpoint(checkpoint, step, completed, request)) {
+                String attemptId = checkpointAttemptId(checkpoint);
+                if (reconcileAttempts && (attemptId == null || !committedAttemptIds.contains(attemptId))) {
+                    continue;
+                }
+                if (!validCheckpoint(checkpoint, step, recovered, request)) {
                     continue;
                 }
                 StepExecution materialized = checkpoint.materializedResult();
@@ -659,16 +678,98 @@ public class InterpretationPlanRuntime {
                     materialized.output(), null, materialized.toolExecution(), materialized.finalAnswer(),
                     0L, Map.copyOf(metadata)
                 );
-                completed.put(restored.stepId(), restored);
+                recovered.put(restored.stepId(), restored);
                 reusedStepIds.add(restored.stepId());
+                if (attemptId != null) {
+                    recoveryAttemptIds.add(attemptId);
+                }
                 progressed = true;
             }
         } while (progressed);
-        if (!reusedStepIds.isEmpty()) {
-            log.info("Restored plan node materializations from checkpoint. runId={} stepIds={}",
-                runId, reusedStepIds);
+        if (reusedStepIds.isEmpty()) {
+            return requestedToken == null || requestedToken.isBlank()
+                ? CheckpointRecovery.none()
+                : CheckpointRecovery.rejected("NO_CONSISTENT_COMMITTED_BOUNDARY");
         }
-        return reusedStepIds;
+        String resumeToken = recoveryToken(request, byStepId, reusedStepIds, recoveryAttemptIds);
+        if (requestedToken != null && !requestedToken.isBlank() && !requestedToken.equals(resumeToken)) {
+            log.warn("Rejected plan recovery because resume token does not match the latest consistent boundary. "
+                    + "runId={} recoveredStepIds={}", runId, reusedStepIds);
+            return CheckpointRecovery.rejected("RESUME_TOKEN_MISMATCH");
+        }
+        completed.putAll(recovered);
+        if (!reusedStepIds.isEmpty()) {
+            log.info("Restored plan from latest consistent checkpoint boundary. runId={} stepIds={} "
+                    + "attemptReconciled={} resumeToken={}",
+                runId, reusedStepIds, reconcileAttempts, resumeToken);
+        }
+        return new CheckpointRecovery("RESUMED", resumeToken,
+            Collections.unmodifiableSet(new LinkedHashSet<>(reusedStepIds)),
+            Collections.unmodifiableSet(new LinkedHashSet<>(recoveryAttemptIds)), null);
+    }
+
+    private Set<String> committedAttemptIds(ExecutionRequest request, String runId) {
+        if (nodeAttemptStore == null || !nodeAttemptStore.supportsRecoveryQueries()) {
+            return Set.of();
+        }
+        try {
+            return nodeAttemptStore.committedAttempts(request.tenantId(), runId).stream()
+                .filter(Objects::nonNull)
+                .filter(attempt -> attempt.state() == NodeAttemptStore.State.COMMITTED)
+                .map(NodeAttemptStore.AttemptSnapshot::attemptId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        } catch (RuntimeException ex) {
+            log.warn("Failed to reconcile committed node Attempts. runId={} error={}", runId, ex.getMessage());
+            return Set.of();
+        }
+    }
+
+    private String checkpointAttemptId(PlanStepCheckpoint checkpoint) {
+        if (checkpoint == null || checkpoint.materializedResult() == null
+            || checkpoint.materializedResult().metadata() == null) {
+            return null;
+        }
+        Map<String, Object> metadata = checkpoint.materializedResult().metadata();
+        if (metadata.get("nodeAttemptState") != null
+            && !NodeAttemptStore.State.COMMITTED.name().equals(String.valueOf(metadata.get("nodeAttemptState")))) {
+            return null;
+        }
+        return stringValue(metadata.get("nodeAttemptId"));
+    }
+
+    private String recoveryToken(ExecutionRequest request,
+                                 Map<Integer, PlanStepCheckpoint> checkpoints,
+                                 Set<Integer> stepIds,
+                                 Set<String> attemptIds) {
+        Map<Integer, String> checkpointFingerprints = new LinkedHashMap<>();
+        stepIds.stream().sorted().forEach(stepId -> {
+            PlanStepCheckpoint checkpoint = checkpoints.get(stepId);
+            if (checkpoint != null) {
+                checkpointFingerprints.put(stepId, checkpoint.checkpointFingerprint());
+            }
+        });
+        return "resume.v1." + sha256(mapOf(
+            "runId", runId(request),
+            "planExecutionScope", planExecutionScope(request),
+            "workflowExecutionAttempt", normalizedWorkflowExecutionAttempt(workflowExecutionAttempt(request)),
+            "checkpointFingerprints", checkpointFingerprints,
+            "attemptIds", attemptIds.stream().sorted().toList()
+        ));
+    }
+
+    private record CheckpointRecovery(String status,
+                                      String resumeToken,
+                                      Set<Integer> stepIds,
+                                      Set<String> attemptIds,
+                                      String rejectedReason) {
+        private static CheckpointRecovery none() {
+            return new CheckpointRecovery("NONE", null, Set.of(), Set.of(), null);
+        }
+
+        private static CheckpointRecovery rejected(String reason) {
+            return new CheckpointRecovery("REJECTED", null, Set.of(), Set.of(), reason);
+        }
     }
 
     private boolean validCheckpoint(PlanStepCheckpoint checkpoint,
@@ -925,6 +1026,20 @@ public class InterpretationPlanRuntime {
             return result;
         }
         Map<String, Object> metadata = new LinkedHashMap<>(result.metadata() == null ? Map.of() : result.metadata());
+        if (!metadata.containsKey("resumeToken") || metadata.get("resumeToken") == null) {
+            Map<Integer, InterpretationPlan.Step> recoverySteps = request.plan().steps().stream()
+                .filter(step -> step != null && step.id() != null)
+                .collect(Collectors.toMap(
+                    InterpretationPlan.Step::id, step -> step, (left, ignored) -> left, LinkedHashMap::new));
+            CheckpointRecovery recoverable = seedPersistedStepCheckpoints(
+                runId(request), request, recoverySteps, new LinkedHashMap<>());
+            if (!recoverable.stepIds().isEmpty()) {
+                metadata.put("recoveryStatus", "AVAILABLE");
+                metadata.put("resumeToken", recoverable.resumeToken());
+                metadata.put("resumedPlanStepIds", new ArrayList<>(recoverable.stepIds()));
+                metadata.put("recoveryAttemptIds", new ArrayList<>(recoverable.attemptIds()));
+            }
+        }
         Map<String, Object> governance = dagGovernanceContract(request);
         if (!governance.isEmpty()) {
             metadata.put("dagGovernanceContract", governance);

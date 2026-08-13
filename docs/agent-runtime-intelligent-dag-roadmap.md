@@ -23,7 +23,7 @@ The current Runtime is already stronger than a basic LLM workflow in authoritati
 
 ## Delivery priorities
 
-Implementation status: the database-backed immutable governance contract, durable node-attempt state machine, transactional execution-epoch commit barrier, and complete checkpoint fingerprint are implemented. Only barrier-committed node results may enter checkpoints or final analysis. Checkpoint schema v3 binds plan version, node definition, actual resolved input, dependency results, tool contract, secret-free model configuration, governance snapshot, and logical execution environment into one aggregate identity. Any component drift rejects replay and recomputes the affected node and its downstream dependencies.
+Implementation status: the database-backed immutable governance contract, durable node-attempt state machine, transactional execution-epoch commit barrier, complete checkpoint fingerprint, and recoverable execution are implemented. Only barrier-committed node results may enter checkpoints or final analysis. Checkpoint schema v3 binds plan version, node definition, actual resolved input, dependency results, tool contract, secret-free model configuration, governance snapshot, and logical execution environment into one aggregate identity. Runtime reconciles those checkpoints with MySQL `COMMITTED` Attempts, derives the latest topologically consistent boundary and a content-addressed `resume.v1` token, then continues from the first uncommitted node. Missing Attempts, token tampering, or fingerprint drift fail closed and trigger safe recomputation.
 
 ### P0 — correctness foundation
 

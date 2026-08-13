@@ -2303,8 +2303,7 @@
 }
 
 .message-markdown .query-result-table-card {
-  display: grid;
-  gap: 0;
+  display: block;
   margin: 12px 0;
   overflow: auto;
   border: 1px solid var(--line);
@@ -2315,7 +2314,24 @@
 
 .message-markdown .query-result-table-card table {
   margin: 0;
-  table-layout: fixed;
+  width: max-content;
+  min-width: 100%;
+  table-layout: auto;
+}
+
+.message-markdown .query-result-table-card th {
+  white-space: nowrap;
+}
+
+.message-markdown .query-result-table-card td {
+  min-width: 84px;
+  white-space: nowrap;
+}
+
+.message-markdown .query-result-table-card th:last-child,
+.message-markdown .query-result-table-card td:last-child {
+  min-width: 220px;
+  white-space: normal;
 }
 
 .message-markdown .query-result-table-card th.source-column,
@@ -2350,6 +2366,8 @@
   position: sticky;
   left: 0;
   z-index: 1;
+  width: 100%;
+  box-sizing: border-box;
   min-height: 42px;
   display: flex;
   align-items: center;

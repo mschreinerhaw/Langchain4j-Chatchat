@@ -126,6 +126,7 @@
           v-if="message.role === 'assistant' && !message.streaming && messageUiArtifact(message)"
           :artifact="messageUiArtifact(message)"
           @drill-down="handleVisualizationDrillDown(message, $event)"
+          @table-chart="openChartAnalysisModal"
         />
         <div
           v-else-if="messageHasRenderableContent(message)"

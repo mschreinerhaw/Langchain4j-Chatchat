@@ -1,5 +1,5 @@
 <template>
-  <section class="enterprise-ui-artifact" :data-artifact-id="artifactId">
+  <section class="enterprise-ui-artifact" :data-artifact-id="artifactId" @click="handleArtifactClick">
     <div v-if="loading" class="artifact-shell-state">正在装载动态报告…</div>
     <div v-else-if="error" class="artifact-shell-state error" role="alert">{{ error }}</div>
     <JSONUIProvider v-else-if="spec" :registry="enterpriseUiRegistry" :initial-state="{}">
@@ -18,7 +18,7 @@ import {
   enterpriseUiRegistry
 } from "../js/ui-artifact/registry.js";
 
-const emit = defineEmits(["drill-down"]);
+const emit = defineEmits(["drill-down", "table-chart"]);
 
 const props = defineProps({
   artifact: {
@@ -34,6 +34,14 @@ const resourceCache = new Map();
 
 const artifactId = computed(() => String(props.artifact?.artifactId || ""));
 const spec = computed(() => manifest.value?.spec || null);
+
+function handleArtifactClick(event) {
+  const chartTarget = event.target?.closest?.("[data-result-chart-payload]");
+  if (!chartTarget) return;
+  event.preventDefault();
+  event.stopPropagation();
+  emit("table-chart", chartTarget.dataset.resultChartPayload || "");
+}
 
 async function loadManifest() {
   manifest.value = null;
@@ -156,25 +164,140 @@ watch(artifactId, loadManifest, { immediate: true });
 
 :deep(.artifact-notice),
 :deep(.artifact-evidence) {
-  padding: 0.9rem 1rem;
+  padding: 0.72rem 0.9rem;
   border: 1px solid #dbe3ef;
   border-radius: 12px;
   background: #f8fafc;
+  color: #667085;
+  font-size: 0.84rem;
 }
 
-:deep(.artifact-notice strong),
+:deep(.artifact-notice > summary),
+:deep(.artifact-evidence > summary),
+:deep(.artifact-evidence-item > summary) {
+  cursor: pointer;
+  list-style: none;
+}
+
+:deep(.artifact-notice > summary::-webkit-details-marker),
+:deep(.artifact-evidence > summary::-webkit-details-marker),
+:deep(.artifact-evidence-item > summary::-webkit-details-marker) {
+  display: none;
+}
+
+:deep(.artifact-notice > summary),
+:deep(.artifact-evidence > summary) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 1.5rem;
+  color: #667085;
+  font-size: 0.84rem;
+  font-weight: 500;
+}
+
+:deep(.artifact-notice > summary::after),
+:deep(.artifact-evidence > summary::after) {
+  content: "＋";
+  color: #667085;
+}
+
+:deep(.artifact-notice[open] > summary::after),
+:deep(.artifact-evidence[open] > summary::after) {
+  content: "－";
+}
+
+:deep(.artifact-notice > summary > span),
+:deep(.artifact-evidence > summary > span) {
+  margin-left: auto;
+  color: #667085;
+  font-size: 0.84rem;
+}
+
 :deep(.artifact-evidence h4) {
-  display: block;
-  margin: 0 0 0.5rem;
+  margin: 0;
+  color: inherit;
+  font-size: inherit;
+  font-weight: 500;
+}
+
+:deep(.artifact-notice > summary strong) {
+  color: inherit;
+  font-size: inherit;
+  font-weight: 500;
+}
+
+:deep(.artifact-notice-content),
+:deep(.artifact-evidence > ol) {
+  margin-top: 0.85rem;
+  color: #667085;
+  font-size: 0.82rem;
 }
 
 :deep(.artifact-evidence li + li) {
   margin-top: 0.65rem;
 }
 
-:deep(.artifact-evidence p) {
-  margin: 0.25rem 0 0;
+:deep(.artifact-evidence > ol) {
+  padding-left: 0;
+  list-style: none;
+}
+
+:deep(.artifact-evidence-item) {
+  border-top: 1px solid #e4eaf2;
+  padding-top: 0.65rem;
+}
+
+:deep(.artifact-evidence-item > summary) {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+}
+
+:deep(.artifact-evidence-rank) {
+  display: inline-grid;
+  place-items: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  color: #175cd3;
+  background: #eff8ff;
+  font-weight: 700;
+  font-size: 0.78rem;
+}
+
+:deep(.artifact-evidence-heading) {
+  display: grid;
+  min-width: 0;
+  gap: 0.15rem;
+}
+
+:deep(.artifact-evidence-heading strong),
+:deep(.artifact-evidence-heading a) {
   color: #667085;
+  font-size: 0.84rem;
+  font-weight: 500;
+}
+
+:deep(.artifact-evidence-heading small) {
+  overflow: hidden;
+  color: #667085;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:deep(.artifact-evidence-content) {
+  margin: 0.65rem 0 0 2.35rem;
+  padding: 0.8rem 0.9rem;
+  max-height: 24rem;
+  overflow: auto;
+  border-radius: 8px;
+  color: #475467;
+  font-size: 0.82rem;
+  background: #fff;
 }
 
 :deep(.artifact-resource-state) {

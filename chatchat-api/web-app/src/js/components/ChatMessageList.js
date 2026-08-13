@@ -11,6 +11,7 @@ import {
 } from "../utils/webReferences.js";
 import { selectCompleteMessageContent } from "../utils/messageContentSelection.js";
 import { answerPdfFileName, exportRenderedAnswerToPdf } from "../utils/answerPdfExport.js";
+import { enhanceResultTables as enhanceSharedResultTables } from "../utils/resultTableEnhancer.js";
 
 const markdown = new MarkdownIt({
   html: false,
@@ -32,14 +33,6 @@ function escapeHtml(value) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
-}
-
-function parseNumber(value) {
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value : null;
-  }
-  const parsed = Number(String(value ?? "").replace(/,/g, ""));
-  return Number.isFinite(parsed) ? parsed : null;
 }
 
 const defaultLinkOpen =
@@ -612,170 +605,7 @@ export default {
       return this.collapseToolEvidenceHtml(this.enhanceResultTables(rendered));
     },
     enhanceResultTables(html = "") {
-      if (typeof DOMParser === "undefined" || !String(html || "").includes("<table")) {
-        return html;
-      }
-      try {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(`<div>${html}</div>`, "text/html");
-        const root = doc.body.firstElementChild;
-        root.querySelectorAll("th").forEach((cell) => {
-          if (/^(?:相关证据|证据来源|引用|引用来源)$/.test(String(cell.textContent || "").trim())) {
-            cell.textContent = "主要来源";
-          }
-        });
-        root.querySelectorAll("td").forEach((cell) => {
-          const sourceTags = [...cell.querySelectorAll("a.web-citation-link")];
-          if (sourceTags.length <= 2) {
-            return;
-          }
-          sourceTags.slice(2).forEach((tag) => tag.classList.add("source-tag-overflow-hidden"));
-          const toggle = doc.createElement("button");
-          toggle.type = "button";
-          toggle.className = "source-tag-overflow-toggle";
-          toggle.dataset.sourceTagsToggle = "collapsed";
-          toggle.textContent = `+${sourceTags.length - 2}`;
-          toggle.setAttribute("aria-label", `展开其余 ${sourceTags.length - 2} 条来源`);
-          cell.append(toggle);
-        });
-        const tables = [...root.querySelectorAll("table")];
-        tables.forEach((table) => this.removeEmptySourceColumns(table));
-        const tablePayloads = tables
-          .map((table, index) => ({ table, payload: this.resultTablePayload(table, index) }))
-          .filter((item) => item.payload);
-        let firstWrapper = null;
-        tablePayloads.forEach(({ table, payload }) => {
-          const wrapper = doc.createElement("section");
-          wrapper.className = "query-result-table-card";
-          wrapper.dataset.resultChartPayload = encodeURIComponent(JSON.stringify(payload));
-          const toolbar = doc.createElement("div");
-          toolbar.className = "query-result-table-toolbar";
-          const summary = doc.createElement("span");
-          summary.textContent = `${payload.rows.length} 行 / ${payload.columns.length} 列`;
-          const button = doc.createElement("button");
-          button.type = "button";
-          button.className = "query-result-chart-button";
-          button.dataset.resultChartPayload = encodeURIComponent(JSON.stringify(payload));
-          button.textContent = "图形分析";
-          toolbar.append(summary, button);
-          table.parentNode.insertBefore(wrapper, table);
-          wrapper.append(toolbar, table);
-          firstWrapper = firstWrapper || wrapper;
-        });
-        if (tablePayloads.length > 1 && firstWrapper?.parentNode) {
-          const multiPayload = {
-            title: "多数据集对比",
-            datasets: tablePayloads.map((item, index) => ({
-              id: `dataset_${index + 1}`,
-              ...item.payload
-            }))
-          };
-          const multiToolbar = doc.createElement("section");
-          multiToolbar.className = "query-result-table-card query-result-multi-dataset-card";
-          const toolbar = doc.createElement("div");
-          toolbar.className = "query-result-table-toolbar";
-          const summary = doc.createElement("span");
-          summary.textContent = `共 ${tablePayloads.length} 个数据集`;
-          const button = doc.createElement("button");
-          button.type = "button";
-          button.className = "query-result-chart-button";
-          button.dataset.resultChartPayload = encodeURIComponent(JSON.stringify(multiPayload));
-          button.textContent = "对比数据集";
-          toolbar.append(summary, button);
-          multiToolbar.append(toolbar);
-          firstWrapper.parentNode.insertBefore(multiToolbar, firstWrapper);
-        }
-        return root.innerHTML;
-      } catch (error) {
-        console.warn("Enhance result table failed", error);
-        return html;
-      }
-    },
-    removeEmptySourceColumns(table) {
-      const headers = [...table.querySelectorAll("thead th")];
-      const bodyRows = [...table.querySelectorAll("tbody tr")];
-      if (!headers.length || !bodyRows.length) {
-        return;
-      }
-      const sourceColumns = headers
-        .map((header, index) => ({
-          index,
-          header,
-          label: this.decodeHtml(header.textContent || "").replace(/\s+/g, " ").trim()
-        }))
-        .filter(({ label }) => /^(?:来源|主要来源|相关证据|证据来源|引用|引用来源|sources?)$/i.test(label));
-      sourceColumns.forEach(({ index, header }) => {
-        header.classList.add("source-column");
-        bodyRows.forEach((row) => {
-          const cell = row.children[index];
-          if (!cell) return;
-          cell.classList.add("source-column");
-          const value = this.decodeHtml(cell.textContent || "").replace(/\s+/g, " ").trim();
-          if (value) cell.title = value;
-          cell.querySelectorAll("a[href]").forEach((link) => {
-            link.title = link.getAttribute("href") || link.textContent || value;
-          });
-        });
-      });
-      const emptySourceIndexes = sourceColumns
-        .filter(({ index }) => bodyRows.every((row) => {
-          const cell = row.children[index];
-          if (!cell) {
-            return true;
-          }
-          if (cell.querySelector("a[href], img[src]")) {
-            return false;
-          }
-          const value = this.decodeHtml(cell.textContent || "").replace(/\s+/g, " ").trim();
-          return !value || /^(?:-|—|–|无|暂无|N\/?A|null)$/i.test(value);
-        }))
-        .map(({ index }) => index)
-        .sort((left, right) => right - left);
-      emptySourceIndexes.forEach((index) => {
-        table.querySelectorAll("tr").forEach((row) => row.children[index]?.remove());
-      });
-    },
-    resultTablePayload(table, index) {
-      const headers = [...table.querySelectorAll("thead th")]
-        .map((cell) => this.decodeHtml(cell.textContent || "").trim())
-        .filter(Boolean);
-      if (headers.length < 2) {
-        return null;
-      }
-      const rows = [...table.querySelectorAll("tbody tr")]
-        .map((tr) => {
-          const cells = [...tr.querySelectorAll("td")];
-          if (!cells.length) {
-            return null;
-          }
-          return Object.fromEntries(headers.map((column, columnIndex) => {
-            const raw = this.decodeHtml(cells[columnIndex]?.textContent || "").trim();
-            const number = parseNumber(raw);
-            return [column, number !== null && raw !== "" ? number : raw];
-          }));
-        })
-        .filter(Boolean);
-      if (rows.length < 1) {
-        return null;
-      }
-      const fallbackTitle = `查询结果 ${index + 1}`;
-      return {
-        title: this.nearestTableTitle(table) || fallbackTitle,
-        columns: headers,
-        rows
-      };
-    },
-    nearestTableTitle(table) {
-      let node = table.previousElementSibling;
-      let distance = 0;
-      while (node && distance < 6) {
-        if (/^H[1-6]$/i.test(node.tagName)) {
-          return this.decodeHtml(node.textContent || "").trim();
-        }
-        node = node.previousElementSibling;
-        distance += 1;
-      }
-      return "";
+      return enhanceSharedResultTables(html);
     },
     collapseToolEvidenceHtml(html = "") {
       let source = String(html || "");

@@ -57,7 +57,7 @@ class UiArtifactServiceTest {
         assertThat(presentation.externalized()).isTrue();
         assertThat(presentation.uiResponse())
             .containsEntry("contractVersion", "ui_response_v2")
-            .containsEntry("renderMode", "html")
+            .containsEntry("renderMode", "markdown")
             .containsKey("uiArtifact")
             .containsKey("visualizationSpec");
 
@@ -66,11 +66,9 @@ class UiArtifactServiceTest {
         assertThat(manifest)
             .containsEntry("schemaVersion", UiArtifactService.ARTIFACT_SCHEMA_VERSION)
             .containsEntry("catalogVersion", UiArtifactService.CATALOG_VERSION);
-        assertThat(fixture.service().resource("tenant-a", artifactId, "report"))
-            .hasValueSatisfying(value -> assertThat(String.valueOf(value))
-                .contains("artifact-html-document-body")
-                .contains("<p>"));
-        assertThat(fixture.service().resource("tenant-a", artifactId, "answer")).isEmpty();
+        assertThat(fixture.service().resource("tenant-a", artifactId, "report")).isEmpty();
+        assertThat(fixture.service().resource("tenant-a", artifactId, "answer"))
+            .hasValueSatisfying(value -> assertThat(String.valueOf(value)).contains("完整报告内容"));
         assertThat(fixture.service().resource("tenant-a", artifactId, "visualization")).isEmpty();
         assertThat(fixture.service().resource("tenant-a", artifactId, "citations")).isPresent();
         assertThat(fixture.service().resource("tenant-a", artifactId, "evidence-premises")).isPresent();
@@ -92,7 +90,7 @@ class UiArtifactServiceTest {
 
         UiArtifactService.Presentation presentation = fixture.service().externalizeIfNeeded(
             "tenant-a", "task-html", Map.of(
-                "answer", "# Markdown fallback",
+                "answer", "",
                 "reportHtml", html,
                 "status", "SUCCESS"
             ));
@@ -110,6 +108,24 @@ class UiArtifactServiceTest {
             .containsEntry("objectKey", "resources/report.html");
         assertThat(fixture.service().resource("tenant-a", artifactId, "report")).contains(html);
         assertThat(resources).doesNotContainKey("answer");
+    }
+
+    @Test
+    void prefersCanonicalMarkdownAnswerOverGeneratedReportHtml() {
+        Fixture fixture = fixture(64);
+
+        UiArtifactService.Presentation presentation = fixture.service().externalizeIfNeeded(
+            "tenant-a", "task-markdown", Map.of(
+                "answer", "# Markdown report\n\n| name | value |\n|---|---:|\n| alpha | 42 |",
+                "reportHtml", "<p>| name | value |<br>|---|---:|<br>| alpha | 42 |</p>",
+                "status", "SUCCESS"
+            ));
+
+        String artifactId = String.valueOf(presentation.reference().get("artifactId"));
+        assertThat(presentation.reference()).containsEntry("renderMode", "markdown");
+        assertThat(fixture.service().resource("tenant-a", artifactId, "answer"))
+            .hasValueSatisfying(value -> assertThat(String.valueOf(value)).contains("| alpha | 42 |"));
+        assertThat(fixture.service().resource("tenant-a", artifactId, "report")).isEmpty();
     }
 
     @Test

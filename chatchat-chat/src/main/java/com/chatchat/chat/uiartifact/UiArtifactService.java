@@ -3,10 +3,6 @@ package com.chatchat.chat.uiartifact;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.commonmark.Extension;
-import org.commonmark.ext.gfm.tables.TablesExtension;
-import org.commonmark.parser.Parser;
-import org.commonmark.renderer.html.HtmlRenderer;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -37,8 +33,6 @@ public class UiArtifactService {
     private final UiArtifactRepository repository;
     private final UiArtifactProperties properties;
     private final ObjectMapper objectMapper;
-    private final Parser markdownParser;
-    private final HtmlRenderer htmlRenderer;
 
     public UiArtifactService(ArtifactBlobStore blobStore,
                              UiArtifactRepository repository,
@@ -48,9 +42,6 @@ public class UiArtifactService {
         this.repository = repository;
         this.properties = properties;
         this.objectMapper = objectMapper;
-        List<Extension> extensions = List.of(TablesExtension.create());
-        this.markdownParser = Parser.builder().extensions(extensions).build();
-        this.htmlRenderer = HtmlRenderer.builder().extensions(extensions).escapeHtml(true).build();
     }
 
     public Presentation externalizeIfNeeded(String tenantId,
@@ -69,16 +60,17 @@ public class UiArtifactService {
         List<String> reportChildren = new ArrayList<>();
 
         String answer = text(uiResponse.get("answer"));
-        String reportHtml = reportHtml(uiResponse, answer);
-        if (!reportHtml.isBlank()) {
-            addResource(resources, resourceCatalog, artifactId, "report", reportHtml, "text/html");
-            elements.put("report-html", element("Html", Map.of("resourceId", "report"), List.of()));
-            reportChildren.add("report-html");
-        } else if (!answer.isBlank()) {
-            // Markdown is deliberately the final compatibility fallback.
+        String explicitHtml = explicitReportHtml(uiResponse);
+        if (!answer.isBlank()) {
+            // Keep authored Markdown as the canonical report resource. Converting it to an opaque
+            // HTML blob here loses semantics and makes evidence/report styling much harder to control.
             addResource(resources, resourceCatalog, artifactId, "answer", answer, "text/markdown");
             elements.put("answer", element("Markdown", Map.of("resourceId", "answer"), List.of()));
             reportChildren.add("answer");
+        } else if (!explicitHtml.isBlank()) {
+            addResource(resources, resourceCatalog, artifactId, "report", explicitHtml, "text/html");
+            elements.put("report-html", element("Html", Map.of("resourceId", "report"), List.of()));
+            reportChildren.add("report-html");
         }
 
         String evidenceSummary = text(uiResponse.get("evidenceSummary"));
@@ -163,7 +155,8 @@ public class UiArtifactService {
         reference.put("revision", 1);
         reference.put("catalogVersion", CATALOG_VERSION);
         reference.put("manifestUrl", "/ui-artifacts/" + artifactId);
-        reference.put("renderMode", reportHtml.isBlank() ? "markdown" : "html");
+        String renderMode = !answer.isBlank() ? "markdown" : "html";
+        reference.put("renderMode", renderMode);
 
         Map<String, Object> lightweight = new LinkedHashMap<>();
         lightweight.put("contractVersion", "ui_response_v2");
@@ -184,7 +177,7 @@ public class UiArtifactService {
             lightweight.put("visualizationSpec", visualizationSpec);
         }
         lightweight.put("uiArtifact", reference);
-        lightweight.put("renderMode", reportHtml.isBlank() ? "markdown" : "html");
+        lightweight.put("renderMode", renderMode);
         return new Presentation(lightweight, reference, true);
     }
 
@@ -402,25 +395,13 @@ public class UiArtifactService {
         }
     }
 
-    private String reportHtml(Map<String, Object> uiResponse, String answer) {
-        String explicitHtml = firstText(
+    private String explicitReportHtml(Map<String, Object> uiResponse) {
+        return firstText(
             uiResponse.get("html"),
             uiResponse.get("reportHtml"),
             uiResponse.get("answerHtml"),
             uiResponse.get("htmlContent")
         );
-        if (!explicitHtml.isBlank()) {
-            return explicitHtml;
-        }
-        if (answer == null || answer.isBlank()) {
-            return "";
-        }
-        try {
-            String body = htmlRenderer.render(markdownParser.parse(answer));
-            return "<article class=\"artifact-html-document-body\">" + body + "</article>";
-        } catch (RuntimeException ignored) {
-            return "";
-        }
     }
 
     private String preview(String answer) {

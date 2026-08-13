@@ -377,10 +377,13 @@ chatchat:
 
 ```bash
 # 主应用发行包
-mvn -pl chatchat-api -am package -DskipTests
+mvn -pl chatchat-api clean -am package -DskipTests
 
 # MCP Server 发行包
-mvn -pl chatchat-mcp-server -am package -DskipTests
+mvn -pl chatchat-mcp-server clean -am package -DskipTests
+
+# MCP runtime ews 发行包
+mvn -pl chatchat-runtime-news clean -am package -DskipTests
 ```
 
 生成文件：

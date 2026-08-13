@@ -3,6 +3,8 @@ import { defineComponent, h, inject, onMounted, ref, watch } from "vue";
 import { defineRegistry } from "@json-render/vue";
 import VisualizationRenderer from "../../components/VisualizationRenderer.vue";
 import { enterpriseUiCatalog } from "./catalog.js";
+import { enhanceResultTables } from "../utils/resultTableEnhancer.js";
+import { normalizeArtifactHtml } from "../utils/artifactHtmlNormalizer.js";
 
 export const ARTIFACT_RESOURCE_LOADER = Symbol("artifact-resource-loader");
 export const ARTIFACT_EVENT_DISPATCHER = Symbol("artifact-event-dispatcher");
@@ -67,39 +69,27 @@ function resourceComponent(name, renderResource) {
 const MarkdownResource = resourceComponent("ArtifactMarkdown", (value) =>
   h("section", {
     class: "artifact-markdown message-markdown",
-    innerHTML: markdown.render(String(value || ""))
+    innerHTML: enhanceResultTables(markdown.render(String(value || "")))
   })
 );
 
-function sanitizeArtifactHtml(value = "") {
-  if (typeof DOMParser === "undefined") {
-    return "";
-  }
-  const document = new DOMParser().parseFromString(String(value || ""), "text/html");
-  document.querySelectorAll("script, iframe, object, embed, base, meta, form").forEach((node) => node.remove());
-  document.querySelectorAll("*").forEach((node) => {
-    [...node.attributes].forEach((attribute) => {
-      const name = attribute.name.toLowerCase();
-      const content = String(attribute.value || "");
-      if (name.startsWith("on") || /javascript\s*:/i.test(content)) {
-        node.removeAttribute(attribute.name);
-      }
-    });
-  });
-  return document.body.innerHTML;
-}
-
 const HtmlResource = resourceComponent("ArtifactHtml", (value) =>
   h("section", {
-    class: "artifact-html-document",
-    innerHTML: sanitizeArtifactHtml(String(value || ""))
+    class: "artifact-html-document message-markdown",
+    innerHTML: normalizeArtifactHtml(String(value || ""), (source) => markdown.render(source))
   })
 );
 
 const NoticeResource = resourceComponent("ArtifactNotice", (value, props) =>
-  h("aside", { class: ["artifact-notice", `tone-${props.tone}`] }, [
-    h("strong", props.title),
-    h("div", { innerHTML: markdown.render(String(value || "")) })
+  h("details", { class: ["artifact-notice", `tone-${props.tone}`] }, [
+    h("summary", [
+      h("strong", props.title),
+      h("span", "展开查看")
+    ]),
+    h("div", {
+      class: "artifact-notice-content",
+      innerHTML: markdown.render(String(value || ""))
+    })
   ])
 );
 
@@ -114,20 +104,50 @@ const VisualizationResource = resourceComponent("ArtifactVisualization", (value,
     : h("div", { class: "artifact-resource-state" }, "暂无可视化数据")
 );
 
+function evidenceTitle(citation, index) {
+  const candidate = String(citation?.title || citation?.name || "").trim();
+  const typeLabels = {
+    TABLE_FACT: "表格证据",
+    DOC_CHUNK: "文档证据",
+    WEB_CHUNK: "网页证据"
+  };
+  return typeLabels[candidate.toUpperCase()] || candidate || citation?.sourceRef || `证据 ${index + 1}`;
+}
+
 const EvidenceResource = resourceComponent("ArtifactEvidence", (value, props) => {
   const citations = Array.isArray(value) ? value : [];
-  return h("section", { class: "artifact-evidence" }, [
-    h("h4", props.title),
+  return h("details", { class: "artifact-evidence" }, [
+    h("summary", [
+      h("h4", props.title),
+      h("span", `${citations.length} 条`)
+    ]),
     h("ol", citations.map((citation, index) => {
-      const title = citation?.title || citation?.name || citation?.sourceRef || `证据 ${index + 1}`;
+      const title = evidenceTitle(citation, index);
       const text = citation?.text || citation?.snippet || citation?.summary || "";
+      const sourceRef = citation?.sourceRef || citation?.source || "";
       const rawUrl = citation?.url || citation?.href || citation?.link || "";
       const url = /^https?:\/\//i.test(String(rawUrl)) ? String(rawUrl) : "";
+      const confidence = Number(citation?.confidence);
+      const meta = [
+        sourceRef && sourceRef !== title ? String(sourceRef) : "",
+        Number.isFinite(confidence) && confidence > 0 ? `可信度 ${Math.round(confidence * 100)}%` : ""
+      ].filter(Boolean).join(" · ");
       return h("li", { key: `${title}-${index}` }, [
-        url
-          ? h("a", { href: url, target: "_blank", rel: "noopener noreferrer" }, String(title))
-          : h("strong", String(title)),
-        text ? h("p", String(text)) : null
+        h("details", { class: "artifact-evidence-item" }, [
+          h("summary", [
+            h("span", { class: "artifact-evidence-rank" }, String(index + 1)),
+            h("span", { class: "artifact-evidence-heading" }, [
+              url
+                ? h("a", { href: url, target: "_blank", rel: "noopener noreferrer" }, String(title))
+                : h("strong", String(title)),
+              meta ? h("small", meta) : null
+            ])
+          ]),
+          text ? h("div", {
+            class: "artifact-evidence-content message-markdown",
+            innerHTML: markdown.render(String(text))
+          }) : null
+        ])
       ]);
     }))
   ]);

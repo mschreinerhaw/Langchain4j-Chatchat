@@ -22,10 +22,21 @@ import java.util.regex.Pattern;
 public class TrendSemanticConfigService {
 
     static final String GLOBAL_TENANT_ID = "__global__";
+    static final int FINANCE_RULESET_VERSION = 2;
     static final List<String> DEFAULT_KEYWORDS = List.of(
-        "涨跌", "涨幅", "跌幅", "盈亏", "收益", "回报", "增长", "增幅",
-        "同比", "环比", "变化", "变动", "净增", "change", "profit", "return",
-        "growth", "delta", "pnl"
+        "涨跌", "涨幅", "跌幅", "涨跌额", "日涨跌", "区间涨跌",
+        "盈亏", "盈亏率", "浮动盈亏", "已实现盈亏", "未实现盈亏", "损益",
+        "收益", "收益率", "净收益", "累计收益", "持有收益", "年化收益",
+        "超额收益", "绝对收益", "回报", "回报率",
+        "增长", "增长率", "增长额", "增幅", "增速", "净增长", "净增",
+        "同比", "环比", "变化", "变动", "净变化", "净变动",
+        "净流入", "净流出", "资金净流入", "资金净流出",
+        "估值变动", "市值变动", "净值增长", "利润增长", "利润增速",
+        "收入增长", "收入增速", "成本变动", "费用变动", "风险变化",
+        "回撤变化", "波动率变化",
+        "change", "profit", "return", "growth", "delta", "pnl", "p&l",
+        "gain", "loss", "performance", "roi", "roe", "yoy", "mom",
+        "net inflow", "net outflow", "drawdown change", "volatility change"
     );
     private static final Pattern COLOR_PATTERN = Pattern.compile("^#[0-9a-fA-F]{6}$");
     private static final Duration CACHE_TTL = Duration.ofMinutes(5);
@@ -71,6 +82,7 @@ public class TrendSemanticConfigService {
         entity.setUpColor(upColor);
         entity.setDownColor(downColor);
         entity.setNeutralColor(neutralColor);
+        entity.setRulesetVersion(FINANCE_RULESET_VERSION);
         entity.setRevision(existing ? Math.max(1, entity.getRevision() + 1) : 1);
         TrendSemanticConfigEntity saved = repository.save(entity);
         cache.remove(normalizedTenantId);
@@ -88,21 +100,34 @@ public class TrendSemanticConfigService {
     }
 
     private TrendSemanticConfigEntity globalConfigEntity() {
-        return repository.findById(GLOBAL_TENANT_ID).orElseGet(() -> {
+        return repository.findById(GLOBAL_TENANT_ID).map(this::upgradeGlobalRuleset).orElseGet(() -> {
             TrendSemanticConfigEntity entity = new TrendSemanticConfigEntity();
             entity.setTenantId(GLOBAL_TENANT_ID);
             entity.setKeywordsJson(writeKeywords(DEFAULT_KEYWORDS));
             entity.setUpColor("#e5484d");
             entity.setDownColor("#16a36a");
             entity.setNeutralColor("#98a2b3");
+            entity.setRulesetVersion(FINANCE_RULESET_VERSION);
             entity.setRevision(1);
             return repository.save(entity);
         });
     }
 
+    private TrendSemanticConfigEntity upgradeGlobalRuleset(TrendSemanticConfigEntity entity) {
+        if (entity.getRulesetVersion() >= FINANCE_RULESET_VERSION) {
+            return entity;
+        }
+        LinkedHashSet<String> merged = new LinkedHashSet<>(readKeywords(entity.getKeywordsJson()));
+        merged.addAll(DEFAULT_KEYWORDS);
+        entity.setKeywordsJson(writeKeywords(List.copyOf(merged)));
+        entity.setRulesetVersion(FINANCE_RULESET_VERSION);
+        entity.setRevision(Math.max(1, entity.getRevision() + 1));
+        return repository.save(entity);
+    }
+
     private TrendSemanticConfig toView(TrendSemanticConfigEntity entity, String scope) {
         return new TrendSemanticConfig(
-            entity.getRevision(), scope, readKeywords(entity.getKeywordsJson()),
+            entity.getRevision(), entity.getRulesetVersion(), scope, readKeywords(entity.getKeywordsJson()),
             entity.getUpColor(), entity.getDownColor(), entity.getNeutralColor(), entity.getUpdatedAt()
         );
     }
@@ -165,6 +190,7 @@ public class TrendSemanticConfigService {
 
     public record TrendSemanticConfig(
         long revision,
+        int rulesetVersion,
         String scope,
         List<String> keywords,
         String upColor,

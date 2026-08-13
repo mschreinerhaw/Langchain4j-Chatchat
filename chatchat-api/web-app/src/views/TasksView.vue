@@ -572,11 +572,18 @@
         </label>
       </div>
 
-      <div v-if="selectedTaskDisplay" class="selected-task">
-        <strong>{{ selectedTaskDisplay.id }}</strong>
-        <span>{{ selectedTaskDisplay.subtitle }}</span>
-        <p>{{ selectedTaskDisplay.description }}</p>
-        <div class="task-feedback">
+      <details v-if="selectedTaskDisplay" class="selected-task event-task-overview">
+        <summary>
+          <span class="event-task-summary-copy">
+            <strong>{{ selectedTaskDisplay.id }}</strong>
+            <span>{{ selectedTaskDisplay.subtitle }}</span>
+            <small>{{ compactPlanText(selectedTaskDisplay.description, 140) }}</small>
+          </span>
+          <span class="event-task-summary-action">查看任务上下文</span>
+        </summary>
+        <div class="event-task-context">
+          <p>{{ selectedTaskDisplay.description }}</p>
+          <div class="task-feedback">
           <label>
             <input v-model="feedbackDraft.useful" type="checkbox" :disabled="!canRecordFeedback || feedbackSubmitting" />
             有用
@@ -609,15 +616,25 @@
             <ShieldCheck :size="14" stroke-width="2" />
             <span>{{ feedbackSubmitting ? "保存中" : "保存反馈" }}</span>
           </button>
+          </div>
         </div>
-      </div>
+      </details>
 
       <div class="event-timeline">
-        <article v-for="event in pagedRows(filteredEvents, 'events')" :key="event.eventId">
+        <button
+          v-for="event in pagedRows(filteredEvents, 'events')"
+          :key="event.eventId"
+          type="button"
+          class="event-thumbnail"
+          :aria-label="`查看${formatEventType(event.type)}事件详情`"
+          @click="openEventDetail(event)"
+        >
           <span :class="statusClass(event.status)">{{ formatEventType(event.type) }}</span>
-          <strong>{{ formatTaskStatus(event.status) }}</strong>
+          <strong>{{ eventDetailHint(event) }}</strong>
+          <small>{{ formatTaskStatus(event.status) }}</small>
           <time>{{ formatEventTime(event.createTime) }}</time>
-        </article>
+          <b aria-hidden="true">›</b>
+        </button>
         <p v-if="!selectedTask" class="runtime-empty">请先在任务页或任务选择器中选择任务。</p>
         <p v-else-if="!eventsLoading && filteredEvents.length === 0" class="runtime-empty">没有匹配的事件记录。</p>
       </div>
@@ -652,6 +669,29 @@
           </button>
         </div>
       </nav>
+
+      <div v-if="selectedEventDetail" class="event-detail-backdrop" @click.self="closeEventDetail">
+        <section class="event-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="event-detail-title">
+          <header>
+            <div>
+              <p>事件详情</p>
+              <h3 id="event-detail-title">{{ formatEventType(selectedEventDetail.type) }}</h3>
+            </div>
+            <button type="button" aria-label="关闭事件详情" title="关闭" @click="closeEventDetail">×</button>
+          </header>
+          <dl>
+            <div><dt>状态</dt><dd>{{ formatTaskStatus(selectedEventDetail.status) }}</dd></div>
+            <div><dt>发生时间</dt><dd>{{ formatAuditTime(selectedEventDetail.createTime) }}</dd></div>
+            <div v-if="selectedEventDetail.toolName"><dt>工具</dt><dd>{{ selectedEventDetail.toolName }}</dd></div>
+            <div v-if="selectedEventDetail.errorCode"><dt>错误码</dt><dd>{{ selectedEventDetail.errorCode }}</dd></div>
+            <div v-if="selectedEventDetail.errorMessage"><dt>错误信息</dt><dd>{{ selectedEventDetail.errorMessage }}</dd></div>
+          </dl>
+          <section class="event-detail-payload">
+            <strong>事件载荷</strong>
+            <pre>{{ formatEventPayload(selectedEventDetail.payload) }}</pre>
+          </section>
+        </section>
+      </div>
     </section>
 
     <section v-else-if="activeTab === 'plan'" class="runtime-panel">
@@ -732,79 +772,24 @@
         </aside>
 
         <div class="plan-dag-canvas">
-          <div v-show="planControlsVisible" class="plan-dag-controls">
-            <button type="button" @click="zoomPlanDag(0.8)">-</button>
-            <span>{{ planZoomLabel }}</span>
-            <button type="button" @click="zoomPlanDag(1.25)">+</button>
-            <button type="button" @click="resetPlanDagView">重置</button>
-            <button type="button" @click="downloadPlanDagSvg">导出 SVG</button>
-            <button type="button" @click="downloadPlanDagJson">导出 JSON</button>
-          </div>
-          <svg
-            ref="planDagSvg"
-            class="plan-dag-svg"
-            :class="{ dragging: planDragActive }"
-            :viewBox="planDagViewBox"
-            preserveAspectRatio="xMinYMin meet"
-            role="img"
-            aria-label="解读计划图"
-            @click="togglePlanDagControls"
-            @wheel="handlePlanDagWheel"
-            @pointerdown="startPlanDagPan"
-            @pointermove="movePlanDagPan"
-            @pointerup="stopPlanDagPan"
-            @pointercancel="stopPlanDagPan"
-            @pointerleave="stopPlanDagPan"
-          >
-            <defs>
-              <marker id="plan-dag-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
-                <path d="M0,0 L0,6 L8,3 z" />
-              </marker>
-            </defs>
-            <g class="plan-dag-edges">
-              <path v-for="edge in planEdgeViews" :key="edge.id" :d="edge.path" marker-end="url(#plan-dag-arrow)" />
-              <g v-for="edge in planEdgeViews.filter((item) => item.hasLabel)" :key="`${edge.id}-label`" class="plan-dag-edge-label">
-                <title>{{ edge.fullLabel }}</title>
-                <rect :x="edge.x - edge.labelWidth / 2" :y="edge.y - 15" :width="edge.labelWidth" height="26" rx="7" />
-                <text :x="edge.x" :y="edge.y">{{ edge.label }}</text>
-              </g>
-            </g>
-            <g
-              v-for="node in planNodeViews"
-              :key="node.id"
-              class="plan-dag-node"
-              :class="[String(node.actionType || '').replaceAll('_', '-'), String(node.statusText || '').toLowerCase(), String(node.kind || '').toLowerCase()]"
-              :transform="`translate(${node.x}, ${node.y})`"
-            >
-              <rect :width="node.width" :height="node.height" rx="8" />
-              <title>{{ node.fullLabelText }} · {{ node.toolName || node.actionText }}</title>
-              <svg
-                class="plan-dag-node-textbox"
-                x="20"
-                y="14"
-                :width="node.width - 40"
-                :height="node.height - 28"
-                overflow="hidden"
-              >
-                <text x="0" y="16" class="plan-dag-node-title">
-                  <tspan
-                    v-for="(line, lineIndex) in node.labelLines"
-                    :key="`${node.id}-label-${lineIndex}`"
-                    x="0"
-                    :dy="lineIndex === 0 ? 0 : 20"
-                  >
-                    {{ line }}
-                  </tspan>
-                </text>
-                <text x="0" :y="node.toolY">{{ node.toolText }}</text>
-                <text x="0" :y="node.metaY" class="plan-dag-node-meta">{{ node.metaText }}</text>
-              </svg>
-            </g>
-          </svg>
+          <PlanDagGraph
+            ref="planDagGraph"
+            :nodes="planNodeViews"
+            :edges="planEdges"
+            :layout-key="`${selectedPlanDag?.planId || selectedTaskId}-${selectedPlanDag?.version || 'snapshot'}`"
+            :download-name="planDownloadName()"
+            @node-select="selectedPlanNodeId = $event"
+            @export-json="downloadPlanDagJson"
+          />
         </div>
 
         <div class="plan-dag-node-list">
-          <article v-for="node in planNodeViews" :key="`${node.id}-detail`" :class="String(node.statusText || '').toLowerCase()">
+          <article
+            v-for="node in planNodeViews"
+            :key="`${node.id}-detail`"
+            :class="[String(node.statusText || '').toLowerCase(), { selected: selectedPlanNodeId === node.id }]"
+            @click="selectedPlanNodeId = node.id"
+          >
             <span>{{ node.statusLabel }}</span>
             <div>
               <strong>{{ node.fullLabelText }}</strong>

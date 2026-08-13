@@ -524,6 +524,68 @@
   line-height: 1.6;
 }
 
+.event-task-overview {
+  border: 1px solid #e3eaf4;
+  border-radius: 10px;
+  padding: 0;
+  background: #fbfcff;
+}
+
+.event-task-overview summary {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.event-task-overview summary::-webkit-details-marker {
+  display: none;
+}
+
+.event-task-summary-copy {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.event-task-summary-copy small {
+  min-width: 0;
+  overflow: hidden;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-task-summary-action {
+  color: var(--primary-strong);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.event-task-context {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid #e3eaf4;
+  padding: 12px;
+  background: #fff;
+}
+
+.event-task-context > p {
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .plan-task-summary {
   min-width: 0;
   overflow: hidden;
@@ -707,22 +769,164 @@
   opacity: 0.55;
 }
 
-.event-timeline article {
+.event-timeline .event-thumbnail {
+  width: 100%;
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(88px, auto) minmax(72px, 1fr) 88px;
+  grid-template-columns: minmax(88px, auto) minmax(120px, 1fr) 78px 88px 18px;
   align-items: center;
   gap: 10px;
-  border-left: 2px solid #dce2ec;
-  padding: 8px 0 8px 12px;
+  min-height: 48px;
+  border: 1px solid #e6ebf3;
+  border-left: 3px solid #dce2ec;
+  border-radius: 8px;
+  padding: 7px 10px;
+  background: #fff;
+  text-align: left;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
 
-.event-timeline strong {
+.event-timeline .event-thumbnail:hover {
+  border-color: rgba(47, 124, 246, 0.34);
+  box-shadow: 0 5px 16px rgba(30, 64, 175, 0.08);
+  transform: translateY(-1px);
+}
+
+.event-timeline .event-thumbnail strong {
   overflow: hidden;
   color: var(--text);
   font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.event-timeline .event-thumbnail small,
+.event-timeline .event-thumbnail time {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-timeline .event-thumbnail b {
+  color: var(--primary-strong);
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.event-detail-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(15, 23, 42, 0.3);
+  backdrop-filter: blur(2px);
+}
+
+.event-detail-dialog {
+  width: min(680px, 92vw);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow: hidden;
+  padding: 20px;
+  background: #fff;
+  box-shadow: -14px 0 40px rgba(15, 23, 42, 0.16);
+}
+
+.event-detail-dialog > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.event-detail-dialog > header p,
+.event-detail-dialog > header h3 {
+  margin: 0;
+}
+
+.event-detail-dialog > header p {
+  color: var(--primary-strong);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.event-detail-dialog > header h3 {
+  margin-top: 3px;
+  color: var(--text);
+  font-size: 20px;
+}
+
+.event-detail-dialog > header button {
+  width: 34px;
+  height: 34px;
+  border: 1px solid #e0e6ef;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #475467;
+  font-size: 22px;
+}
+
+.event-detail-dialog dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.event-detail-dialog dl div {
+  min-width: 0;
+  border: 1px solid #e8edf5;
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: #fbfcff;
+}
+
+.event-detail-dialog dt {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.event-detail-dialog dd {
+  margin: 4px 0 0;
+  color: #344054;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.event-detail-payload {
+  min-height: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.event-detail-payload > strong {
+  color: #344054;
+  font-size: 13px;
+}
+
+.event-detail-payload pre {
+  min-height: 0;
+  flex: 1;
+  margin: 0;
+  overflow: auto;
+  border: 1px solid #e3eaf4;
+  border-radius: 9px;
+  padding: 12px;
+  background: #f7f9fc;
+  color: #475467;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .plan-dag-layout {
@@ -737,9 +941,8 @@
   position: relative;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid #e3eaf4;
-  border-radius: 8px;
-  background: #fbfcff;
+  border-radius: 14px;
+  background: #f8fbff;
 }
 
 .plan-dag-controls {
@@ -946,6 +1149,15 @@
   border-radius: 8px;
   padding: 11px;
   background: #fff;
+  cursor: pointer;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.plan-dag-node-list article:hover,
+.plan-dag-node-list article.selected {
+  border-color: rgba(47, 124, 246, 0.5);
+  box-shadow: 0 6px 18px rgba(47, 124, 246, 0.1);
+  transform: translateY(-1px);
 }
 
 .plan-dag-node-list article > span {
@@ -3785,7 +3997,7 @@
   .runtime-stage-panel header,
   .runtime-panel > header,
   .task-table button,
-  .event-timeline article,
+  .event-timeline .event-thumbnail,
   .audit-log-list dl {
     display: grid;
     grid-template-columns: 1fr;
@@ -3804,6 +4016,16 @@
 
   .plan-task-summary-copy {
     grid-column: 1 / -1;
+  }
+
+  .event-task-overview summary,
+  .event-task-summary-copy,
+  .event-detail-dialog dl {
+    grid-template-columns: 1fr;
+  }
+
+  .event-task-summary-action {
+    justify-self: start;
   }
 
   .runtime-flow article:not(:last-child)::after {

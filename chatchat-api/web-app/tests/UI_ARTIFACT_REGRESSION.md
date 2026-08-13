@@ -21,6 +21,8 @@
 | 证据链 | 默认折叠，灰色小字号，能够展开查看 |
 | 图表类型 | 折线图、柱状图、饼图、散点图、指标卡、组合面板全部渲染 |
 | 图表交互 | 图表、表格、原始数据三种视图可切换且数据不丢失 |
+| 智能体计划 DAG | Dagre 自动分层；节点可拖动；画布可平移缩放；MiniMap、适配视图、布局恢复和 SVG/JSON 导出可用 |
+| DAG 动态刷新 | 同一计划版本刷新状态时保留用户拖动坐标；仅版本或拓扑改变时重新布局 |
 | 安全边界 | script、iframe、object、embed、form、事件属性和 javascript URL 被移除 |
 | 响应式布局 | 1366px 桌面与 390px 手机均不产生整页横向溢出 |
 
@@ -36,6 +38,8 @@ npm run verify:ui-artifact
 
 - `test-results/ui-artifact-regression-desktop.png`
 - `test-results/ui-artifact-regression-mobile.png`
+- `test-results/plan-dag-interactive-desktop.png`
+- `test-results/plan-dag-interactive-mobile.png`
 
 修改 Markdown 清理、HTML 清洗、表格增强、证据样式、图表组件或聊天历史展示入口时，必须执行 `npm run verify:ui-artifact`。
 

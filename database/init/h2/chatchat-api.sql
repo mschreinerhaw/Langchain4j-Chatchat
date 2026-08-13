@@ -377,6 +377,41 @@
         primary key (id)
     );
 
+    create table runtime_dag_governance_contract (
+        enabled boolean not null,
+        immutable boolean not null,
+        created_at timestamp(6) with time zone not null,
+        checksum_sha256 varchar(64) not null,
+        contract_key varchar(64) not null,
+        contract_version varchar(64) not null,
+        contract_id varchar(128) not null,
+        rules_json LONGTEXT not null,
+        primary key (contract_id)
+    );
+
+    create table runtime_dag_node_attempt (
+        attempt_number integer not null,
+        node_id integer not null,
+        committed_at timestamp(6) with time zone,
+        created_at timestamp(6) with time zone not null,
+        prepared_at timestamp(6) with time zone,
+        revision bigint not null,
+        updated_at timestamp(6) with time zone not null,
+        state varchar(24) not null,
+        attempt_id varchar(64) not null,
+        input_fingerprint varchar(64),
+        node_definition_fingerprint varchar(64),
+        plan_version varchar(64),
+        tenant_id varchar(64) not null,
+        execution_epoch varchar(128),
+        execution_trace_id varchar(128),
+        run_id varchar(128) not null,
+        state_reason varchar(1000),
+        metadata_json LONGTEXT,
+        primary key (attempt_id),
+        constraint uk_dag_node_attempt_number unique (tenant_id, run_id, node_id, attempt_number)
+    );
+
     create table runtime_summary_contract (
         enabled boolean not null,
         immutable boolean not null,
@@ -741,6 +776,7 @@
     );
 
     create table ui_trend_semantic_config (
+        ruleset_version integer default 1 not null,
         revision bigint not null,
         updated_at timestamp(6) with time zone not null,
         down_color varchar(16) not null,
@@ -851,6 +887,15 @@
 
     create index idx_role_agent_agent 
        on role_agent_binding (tenant_id, agent_id);
+
+    create index idx_dag_governance_contract_active
+       on runtime_dag_governance_contract (contract_key, enabled, created_at);
+
+    create index idx_dag_node_attempt_run
+       on runtime_dag_node_attempt (tenant_id, run_id, node_id);
+
+    create index idx_dag_node_attempt_state
+       on runtime_dag_node_attempt (tenant_id, state, updated_at);
 
     create index idx_summary_contract_active
        on runtime_summary_contract (contract_key, enabled, created_at);

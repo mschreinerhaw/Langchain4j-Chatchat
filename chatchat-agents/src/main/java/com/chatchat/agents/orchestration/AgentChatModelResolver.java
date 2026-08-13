@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -48,6 +49,33 @@ public class AgentChatModelResolver {
         }
         return chatModelsByName.computeIfAbsent(normalized,
             chatModelFactory::create);
+    }
+
+    /** Returns a secret-free identity snapshot suitable for checkpoint fingerprinting. */
+    public Map<String, Object> checkpointModelConfiguration(String modelName, ChatModel resolvedModel) {
+        String normalized = normalizeModelName(modelName);
+        String selected = normalized == null ? modelsConfig.getDefaultChatModel() : normalized;
+        ModelsConfig.ModelConnectionConfig config = modelsConfig.resolveChatModelConfig(selected);
+        Map<String, Object> identity = new LinkedHashMap<>();
+        identity.put("selectedModel", selected == null ? "default" : selected);
+        identity.put("implementation", resolvedModel == null ? "none" : resolvedModel.getClass().getName());
+        if (config != null) {
+            identity.put("providerModel", config.getModelName() == null ? "" : config.getModelName());
+            identity.put("baseUrl", config.getBaseUrl() == null ? "" : config.getBaseUrl());
+            identity.put("protocol", config.getProtocol() == null ? "" : config.getProtocol());
+            identity.put("timeout", config.getTimeout());
+            identity.put("maxTokens", config.getMaxTokens());
+            identity.put("maxRetries", config.getMaxRetries());
+            if (config.getProxy() != null) {
+                identity.put("proxy", Map.of(
+                    "enabled", config.getProxy().isEnabled(),
+                    "host", config.getProxy().getHost() == null ? "" : config.getProxy().getHost(),
+                    "port", config.getProxy().getPort() == null ? 0 : config.getProxy().getPort(),
+                    "type", config.getProxy().getType() == null ? "" : config.getProxy().getType()
+                ));
+            }
+        }
+        return Map.copyOf(identity);
     }
 
     private String normalizeModelName(String modelName) {

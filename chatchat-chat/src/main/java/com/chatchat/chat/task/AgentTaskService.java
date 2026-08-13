@@ -61,7 +61,6 @@ public class AgentTaskService {
     );
     private static final int MAX_IDLE_POLLS = 3;
     private static final int MAX_CONFIRMATION_ROUNDS = 20;
-    private static final int DEBUG_TEXT_LIMIT = 8000;
     private static final int UI_CITATION_PREMISE_LIMIT = 900;
     private static final Pattern JSON_FENCE_PATTERN = Pattern.compile("```json\\s*([\\s\\S]*?)```", Pattern.CASE_INSENSITIVE);
 
@@ -2640,7 +2639,9 @@ public class AgentTaskService {
         if (stripped.isBlank()) {
             return "";
         }
-        return stripped.length() <= DEBUG_TEXT_LIMIT ? stripped : stripped.substring(0, DEBUG_TEXT_LIMIT);
+        // This is user-facing report content, not debug output. Truncating here
+        // permanently loses the tail before UiArtifactService can persist it.
+        return stripped;
     }
 
     @SuppressWarnings("unchecked")

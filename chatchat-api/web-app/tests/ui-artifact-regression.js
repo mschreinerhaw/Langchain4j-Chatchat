@@ -7,6 +7,7 @@ import { normalizeArtifactHtml } from "../src/js/utils/artifactHtmlNormalizer.js
 import { stripInternalDocumentRefs } from "../src/js/utils/internalDocumentRefs.js";
 import { normalizeMarkdownTables } from "../src/js/utils/markdownTableNormalizer.js";
 import VisualizationRenderer from "../src/components/VisualizationRenderer.vue";
+import PlanDagGraph from "../src/components/PlanDagGraph.vue";
 
 const markdown = new MarkdownIt({ html: false, linkify: true, typographer: true });
 const render = (source) => markdown.render(source);
@@ -128,6 +129,7 @@ document.querySelector("#app").innerHTML = `
   <section class="regression-case chart-gallery" data-case="scatter-chart"><div class="regression-case-label">风险收益散点图</div><div id="scatter-chart"></div></section>
   <section class="regression-case chart-gallery" data-case="metrics"><div class="regression-case-label">关键指标卡</div><div id="metrics"></div></section>
   <section class="regression-case" data-case="panel"><div class="regression-case-label">组合分析面板</div><div id="panel"></div></section>
+  <section class="regression-case" data-case="interactive-plan-dag"><div class="regression-case-label">可拖动智能体计划图</div><div id="interactive-plan-dag"></div></section>
 `;
 
 function mountVisualization(selector, spec) {
@@ -191,6 +193,21 @@ mountVisualization("#panel", {
     { id: "trend", type: "chart", title: "收益走势", spec: { type: "chart", chartType: "line", title: "收益走势", dataset: { columns: ["日期", "当日盈亏"], xKey: "日期", series: [{ name: "当日盈亏", yKey: "当日盈亏" }], rows: trendRows } } }
   ], insight: { summary: "指标与趋势在同一面板呈现。" }
 });
+
+createApp(PlanDagGraph, {
+  nodes: [
+    { id: "tool-search", stepId: 1, fullLabelText: "检索客户资产数据", toolName: "database_asset_search", statusText: "success", statusLabel: "成功", kind: "MCP 工具" },
+    { id: "tool-query", stepId: 2, fullLabelText: "查询证券持仓明细", toolName: "sql_metadata_search", statusText: "success", statusLabel: "成功", kind: "MCP 工具" },
+    { id: "review", stepId: 3, fullLabelText: "核验返回记录覆盖率", actionText: "record_grounded_analysis", statusText: "running", statusLabel: "运行中", kind: "校验" },
+    { id: "answer", stepId: 4, fullLabelText: "生成最终专业报告", actionText: "final_answer", statusText: "planned", statusLabel: "计划", kind: "回答" }
+  ],
+  edges: [
+    { source: "tool-search", target: "tool-query", label: "资产上下文" },
+    { source: "tool-query", target: "review", label: "返回记录" },
+    { source: "review", target: "answer", label: "校验通过" }
+  ],
+  downloadName: "plan-dag-regression"
+}).mount("#interactive-plan-dag");
 
 const style = document.createElement("style");
 style.textContent = `

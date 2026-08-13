@@ -1,7 +1,13 @@
 export const TREND_SEMANTICS_UPDATED_EVENT = "chatchat:trend-semantics-updated";
 export const DEFAULT_TREND_KEYWORDS = Object.freeze([
-  "涨跌", "涨幅", "跌幅", "盈亏", "收益", "回报", "增长", "增幅", "同比", "环比",
-  "变化", "变动", "净增", "change", "profit", "return", "growth", "delta", "pnl"
+  "涨跌", "涨幅", "跌幅", "涨跌额", "日涨跌", "区间涨跌",
+  "盈亏", "盈亏率", "浮动盈亏", "已实现盈亏", "未实现盈亏", "损益",
+  "收益", "收益率", "净收益", "累计收益", "持有收益", "年化收益", "超额收益", "绝对收益", "回报", "回报率",
+  "增长", "增长率", "增长额", "增幅", "增速", "净增长", "净增", "同比", "环比", "变化", "变动", "净变化", "净变动",
+  "净流入", "净流出", "资金净流入", "资金净流出", "估值变动", "市值变动", "净值增长", "利润增长", "利润增速",
+  "收入增长", "收入增速", "成本变动", "费用变动", "风险变化", "回撤变化", "波动率变化",
+  "change", "profit", "return", "growth", "delta", "pnl", "p&l", "gain", "loss", "performance", "roi", "roe", "yoy", "mom",
+  "net inflow", "net outflow", "drawdown change", "volatility change"
 ]);
 export const TREND_COLORS = {
   up: "#e5484d",

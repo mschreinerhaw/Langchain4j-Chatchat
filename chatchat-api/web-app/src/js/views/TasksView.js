@@ -13,6 +13,7 @@ import {
   TimerReset,
   XCircle
 } from "@lucide/vue";
+import { defineAsyncComponent } from "vue";
 import {
   cancelAgentTask,
   fetchAgentEffectAnalytics,
@@ -27,15 +28,13 @@ import {
   updateConversationHistoryStatus
 } from "../../services/api";
 import { notifyAgentTaskCancelled } from "../utils/agentTaskEvents";
+const PlanDagGraph = defineAsyncComponent(() => import("../../components/PlanDagGraph.vue"));
 
 const DEFAULT_RUNTIME_PAGE_SIZE = 10;
 const RUNTIME_REFRESH_INTERVAL_MS = 5000;
 const PLAN_NODE_WIDTH = 310;
 const PLAN_NODE_HEIGHT = 118;
 const PLAN_NODE_HORIZONTAL_PADDING = 40;
-const PLAN_EDGE_LABEL_MAX_WIDTH = 148;
-const PLAN_EDGE_LABEL_MIN_WIDTH = 54;
-const PLAN_EDGE_LABEL_PADDING = 20;
 
 export default {
   name: "TasksView",
@@ -51,7 +50,8 @@ export default {
     ShieldCheck,
     ShieldX,
     TimerReset,
-    XCircle
+    XCircle,
+    PlanDagGraph
   },
   props: {
     userId: {
@@ -107,15 +107,11 @@ export default {
       recentToolAudits: [],
       selectedTask: null,
       selectedEvents: [],
+      selectedEventId: "",
       selectedPlanDag: null,
+      planLoadedTaskId: "",
       selectedPlanVersions: [],
-      planZoom: 1,
-      planPanX: 0,
-      planPanY: 0,
-      planDragActive: false,
-      planDragStart: null,
-      planDragMoved: false,
-      planControlsVisible: false,
+      selectedPlanNodeId: "",
       planTaskDetailsOpen: false,
       cancellingTaskIds: {},
       feedbackSubmitting: false,
@@ -322,6 +318,12 @@ export default {
           this.selectedTask.answerSummary || this.selectedTask.errorMessage || this.selectedTask.question || ""
       };
     },
+    selectedEventDetail() {
+      if (!this.selectedEventId) {
+        return null;
+      }
+      return this.selectedEvents.find((event) => event.eventId === this.selectedEventId) || null;
+    },
     planTaskPreview() {
       const content =
         this.selectedTask?.question
@@ -415,60 +417,6 @@ export default {
           detailText: node.errorMessage || node.outputPreview || ""
         };
       });
-    },
-    planEdgeViews() {
-      const nodesById = this.planNodeViews.reduce((acc, node) => {
-        acc[node.id] = node;
-        return acc;
-      }, {});
-      return this.planEdges
-        .map((edge, index) => {
-          const sourceId = edge.source || edge.from || `step-${edge.fromStepId}`;
-          const targetId = edge.target || edge.to || `step-${edge.toStepId}`;
-          const source = nodesById[sourceId];
-          const target = nodesById[targetId];
-          if (!source || !target) {
-            return null;
-          }
-          const sx = source.x + source.width;
-          const sy = source.y + source.height / 2;
-          const tx = target.x;
-          const ty = target.y + target.height / 2;
-          const curve = Math.max(48, (tx - sx) / 2);
-          const fullLabel = edge.label || edge.kind || edge.type || "";
-          const label = this.compactPlanTextForWidth(fullLabel, PLAN_EDGE_LABEL_MAX_WIDTH - PLAN_EDGE_LABEL_PADDING, 12, 800);
-          const labelWidth = Math.min(
-            PLAN_EDGE_LABEL_MAX_WIDTH,
-            Math.max(
-              PLAN_EDGE_LABEL_MIN_WIDTH,
-              Math.ceil(this.estimatedPlanTextWidth(label, 12, 800) + PLAN_EDGE_LABEL_PADDING)
-            )
-          );
-          return {
-            id: edge.id || `edge-${index}`,
-            label,
-            fullLabel,
-            labelWidth,
-            hasLabel: !!fullLabel,
-            x: (sx + tx) / 2,
-            y: (sy + ty) / 2 - 14,
-            path: `M ${sx} ${sy} C ${sx + curve} ${sy}, ${tx - curve} ${ty}, ${tx} ${ty}`
-          };
-        })
-        .filter(Boolean);
-    },
-    planDagSize() {
-      const width = Math.max(1040, ...this.planNodeViews.map((node) => node.x + node.width + 44));
-      const height = Math.max(500, ...this.planNodeViews.map((node) => node.y + node.height + 44));
-      return { width, height };
-    },
-    planDagViewBox() {
-      const width = this.planDagSize.width / this.planZoom;
-      const height = this.planDagSize.height / this.planZoom;
-      return `${this.planPanX} ${this.planPanY} ${width} ${height}`;
-    },
-    planZoomLabel() {
-      return `${Math.round(this.planZoom * 100)}%`;
     },
     latestPlanVersionLabel() {
       if (!this.selectedPlanDag?.version) {
@@ -627,15 +575,24 @@ export default {
           if (refreshedTask) {
             this.selectedTask = refreshedTask;
             this.syncFeedbackDraft(refreshedTask);
+            if (this.planLoadedTaskId !== refreshedTask.taskId) {
+              await this.loadPlanDag({ silent: true });
+            }
           } else {
             this.selectedTask = null;
             this.selectedEvents = [];
+            this.selectedPlanDag = null;
+            this.selectedPlanVersions = [];
+            this.planLoadedTaskId = "";
           }
         } else if (!this.selectedTask && this.tasks.length > 0) {
           await this.selectTask(this.tasks[0]);
         } else if (this.selectedTask && !this.tasks.some((task) => task.taskId === this.selectedTask.taskId)) {
           this.selectedTask = null;
           this.selectedEvents = [];
+          this.selectedPlanDag = null;
+          this.selectedPlanVersions = [];
+          this.planLoadedTaskId = "";
         }
       } catch (error) {
         if (!silent) {
@@ -663,17 +620,18 @@ export default {
     },
     async selectTask(task) {
       this.selectedTask = task;
+      this.selectedEventId = "";
       this.syncFeedbackDraft(task);
       this.resetRuntimePage("events");
       this.selectedPlanDag = null;
       this.selectedPlanVersions = [];
-      this.planControlsVisible = false;
+      this.planLoadedTaskId = "";
+      this.selectedPlanNodeId = "";
       this.planTaskDetailsOpen = false;
-      this.resetPlanDagView();
-      await this.reloadEvents();
-      if (this.activeTab === "plan") {
-        await this.loadPlanDag();
-      }
+      await Promise.all([
+        this.reloadEvents(),
+        this.loadPlanDag({ silent: this.activeTab !== "plan" })
+      ]);
     },
     syncFeedbackDraft(task) {
       this.feedbackDraft = {
@@ -700,6 +658,9 @@ export default {
           this.selectedTask.tenantId || this.runtimeTenantId
         );
         this.selectedEvents = Array.isArray(events) ? events : [];
+        if (this.selectedEventId && !this.selectedEvents.some((event) => event.eventId === this.selectedEventId)) {
+          this.selectedEventId = "";
+        }
         this.runtimePages = {
           ...this.runtimePages,
           events: this.clampedRuntimePage("events", this.filteredEvents.length)
@@ -719,29 +680,35 @@ export default {
       if (!this.selectedTask?.taskId) {
         this.selectedPlanDag = null;
         this.selectedPlanVersions = [];
+        this.planLoadedTaskId = "";
         return;
       }
+      const requestedTaskId = this.selectedTask.taskId;
+      const requestedTenantId = this.selectedTask.tenantId || this.runtimeTenantId;
       const silent = !!options.silent;
       if (!silent) {
         this.planLoading = true;
         this.error = "";
       }
       try {
-        const tenantId = this.selectedTask.tenantId || this.runtimeTenantId;
         const [dag, versions] = await Promise.all([
-          fetchAgentTaskPlanDag(this.selectedTask.taskId, tenantId),
-          fetchAgentTaskPlanVersions(this.selectedTask.taskId, tenantId)
+          fetchAgentTaskPlanDag(requestedTaskId, requestedTenantId),
+          fetchAgentTaskPlanVersions(requestedTaskId, requestedTenantId)
         ]);
+        if (this.selectedTask?.taskId !== requestedTaskId) {
+          return;
+        }
         this.selectedPlanVersions = Array.isArray(versions) ? versions : [];
         const latestVersion = this.selectedPlanVersions[this.selectedPlanVersions.length - 1];
         this.selectedPlanDag = dag || this.planPayloadFromRecord(latestVersion);
-        this.planControlsVisible = false;
-        this.resetPlanDagView();
+        this.planLoadedTaskId = requestedTaskId;
+        this.selectedPlanNodeId = "";
       } catch (error) {
-        if (!silent) {
+        if (!silent && this.selectedTask?.taskId === requestedTaskId) {
           this.error = error.message || "加载计划图失败。";
           this.selectedPlanDag = null;
           this.selectedPlanVersions = [];
+          this.planLoadedTaskId = "";
         }
       } finally {
         if (!silent) {
@@ -753,95 +720,8 @@ export default {
       const payload = this.planPayloadFromRecord(version);
       if (payload) {
         this.selectedPlanDag = payload;
-        this.planControlsVisible = false;
-        this.resetPlanDagView();
+        this.selectedPlanNodeId = "";
       }
-    },
-    zoomPlanDag(factor, anchor = null) {
-      const nextZoom = Math.min(3.5, Math.max(0.35, this.planZoom * factor));
-      if (Math.abs(nextZoom - this.planZoom) < 0.001) {
-        return;
-      }
-      const currentWidth = this.planDagSize.width / this.planZoom;
-      const currentHeight = this.planDagSize.height / this.planZoom;
-      const anchorX = anchor?.x ?? this.planPanX + currentWidth / 2;
-      const anchorY = anchor?.y ?? this.planPanY + currentHeight / 2;
-      const ratioX = currentWidth === 0 ? 0.5 : (anchorX - this.planPanX) / currentWidth;
-      const ratioY = currentHeight === 0 ? 0.5 : (anchorY - this.planPanY) / currentHeight;
-      const nextWidth = this.planDagSize.width / nextZoom;
-      const nextHeight = this.planDagSize.height / nextZoom;
-      this.planZoom = nextZoom;
-      this.planPanX = anchorX - ratioX * nextWidth;
-      this.planPanY = anchorY - ratioY * nextHeight;
-    },
-    resetPlanDagView() {
-      this.planZoom = 1;
-      this.planPanX = 0;
-      this.planPanY = 0;
-      this.planDragActive = false;
-      this.planDragStart = null;
-      this.planDragMoved = false;
-    },
-    handlePlanDagWheel(event) {
-      if (!this.planNodes.length) {
-        return;
-      }
-      event.preventDefault();
-      const rect = event.currentTarget.getBoundingClientRect();
-      const viewWidth = this.planDagSize.width / this.planZoom;
-      const viewHeight = this.planDagSize.height / this.planZoom;
-      const x = this.planPanX + ((event.clientX - rect.left) / rect.width) * viewWidth;
-      const y = this.planPanY + ((event.clientY - rect.top) / rect.height) * viewHeight;
-      this.zoomPlanDag(event.deltaY < 0 ? 1.12 : 0.88, { x, y });
-    },
-    startPlanDagPan(event) {
-      if (event.button !== undefined && event.button !== 0) {
-        return;
-      }
-      event.currentTarget.setPointerCapture?.(event.pointerId);
-      this.planDragActive = true;
-      this.planDragMoved = false;
-      this.planDragStart = {
-        clientX: event.clientX,
-        clientY: event.clientY,
-        panX: this.planPanX,
-        panY: this.planPanY
-      };
-    },
-    movePlanDagPan(event) {
-      if (!this.planDragActive || !this.planDragStart) {
-        return;
-      }
-      const rect = event.currentTarget.getBoundingClientRect();
-      const viewWidth = this.planDagSize.width / this.planZoom;
-      const viewHeight = this.planDagSize.height / this.planZoom;
-      const dx = ((event.clientX - this.planDragStart.clientX) / rect.width) * viewWidth;
-      const dy = ((event.clientY - this.planDragStart.clientY) / rect.height) * viewHeight;
-      if (
-        Math.abs(event.clientX - this.planDragStart.clientX) > 3
-        || Math.abs(event.clientY - this.planDragStart.clientY) > 3
-      ) {
-        this.planDragMoved = true;
-      }
-      this.planPanX = this.planDragStart.panX - dx;
-      this.planPanY = this.planDragStart.panY - dy;
-    },
-    stopPlanDagPan(event) {
-      if (this.planDragActive) {
-        event?.currentTarget?.releasePointerCapture?.(event.pointerId);
-      }
-      this.planDragActive = false;
-      this.planDragStart = null;
-    },
-    togglePlanDagControls(event) {
-      if (this.planDragMoved) {
-        this.planDragMoved = false;
-        return;
-      }
-      if (event.target !== event.currentTarget) {
-        return;
-      }
-      this.planControlsVisible = !this.planControlsVisible;
     },
     downloadPlanDagJson() {
       if (!this.selectedPlanDag) {
@@ -851,40 +731,6 @@ export default {
         `${this.planDownloadName()}.json`,
         JSON.stringify(this.selectedPlanDag, null, 2),
         "application/json"
-      );
-    },
-    downloadPlanDagSvg() {
-      const svg = this.$refs.planDagSvg;
-      if (!svg || !this.planNodes.length) {
-        return;
-      }
-      const clone = svg.cloneNode(true);
-      clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-      clone.setAttribute("viewBox", `0 0 ${this.planDagSize.width} ${this.planDagSize.height}`);
-      clone.setAttribute("width", String(this.planDagSize.width));
-      clone.setAttribute("height", String(this.planDagSize.height));
-      const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
-      style.textContent = `
-        .plan-dag-edges path{fill:none;stroke:#667085;stroke-width:2.4}
-        .plan-dag-edges marker path{fill:#667085}
-        .plan-dag-edge-label rect{fill:rgba(255,255,255,.96);stroke:#cbd5e1;stroke-width:1}
-        .plan-dag-edge-label text{fill:#1f2937;font-size:12px;font-weight:900;dominant-baseline:middle;text-anchor:middle;paint-order:stroke;stroke:rgba(255,255,255,.9);stroke-width:2px}
-        .plan-dag-node rect{fill:#fff;stroke:rgba(47,124,246,.46);stroke-width:2}
-        .plan-dag-node.mcp-tool rect,.plan-dag-node.tool-call rect{stroke:rgba(47,124,246,.56);fill:#f8fbff}
-        .plan-dag-node.final-answer rect{stroke:rgba(244,166,41,.48);fill:#fffdf7}
-        .plan-dag-node.runtime rect{stroke:rgba(102,112,133,.42);fill:#f8fafc}
-        .plan-dag-node.failed rect{stroke:rgba(239,79,95,.62);fill:#fff7f8}
-        .plan-dag-node.success rect{stroke:rgba(32,178,107,.52);fill:#f7fffa}
-        .plan-dag-node text{fill:#5d6b82;font-family:Arial,sans-serif;font-size:14px;font-weight:800}
-        .plan-dag-node-textbox{overflow:hidden}
-        .plan-dag-node .plan-dag-node-title{fill:#111827;font-size:16px;font-weight:900}
-        .plan-dag-node .plan-dag-node-meta{fill:#7a8799;font-size:13px}
-      `;
-      clone.insertBefore(style, clone.firstChild);
-      this.downloadText(
-        `${this.planDownloadName()}.svg`,
-        new XMLSerializer().serializeToString(clone),
-        "image/svg+xml"
       );
     },
     planDownloadName() {
@@ -1108,6 +954,35 @@ export default {
         minute: "2-digit",
         second: "2-digit"
       }).format(new Date(value));
+    },
+    eventDetailHint(event) {
+      return this.compactPlanText(
+        event?.toolName || event?.errorMessage || event?.errorCode || "点击查看事件详情",
+        72
+      );
+    },
+    openEventDetail(event) {
+      this.selectedEventId = event?.eventId || "";
+    },
+    closeEventDetail() {
+      this.selectedEventId = "";
+    },
+    formatEventPayload(payload) {
+      if (payload === null || payload === undefined || payload === "") {
+        return "暂无事件载荷";
+      }
+      if (typeof payload === "string") {
+        try {
+          return JSON.stringify(JSON.parse(payload), null, 2);
+        } catch (error) {
+          return payload;
+        }
+      }
+      try {
+        return JSON.stringify(payload, null, 2);
+      } catch (error) {
+        return String(payload);
+      }
     },
     formatAuditTime(value) {
       if (!value) {

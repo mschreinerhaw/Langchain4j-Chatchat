@@ -157,8 +157,12 @@ describe("dynamic report table regression matrix", () => {
     expect(isDirectionalMetric("当日盈亏")).toBe(true);
     expect(isDirectionalMetric("累计收益")).toBe(true);
     expect(isDirectionalMetric("同比增长")).toBe(true);
+    expect(isDirectionalMetric("资金净流入")).toBe(true);
+    expect(isDirectionalMetric("最大回撤变化")).toBe(true);
+    expect(isDirectionalMetric("ROI")).toBe(true);
     expect(isDirectionalMetric("资产总额")).toBe(false);
     expect(isDirectionalMetric("最新市值")).toBe(false);
+    expect(isDirectionalMetric("波动率")).toBe(false);
     expect(trendColor(12.5)).toBe(TREND_COLORS.up);
     expect(trendColor(-0.1)).toBe(TREND_COLORS.down);
     expect(trendColor(0)).toBe(TREND_COLORS.neutral);

@@ -33,8 +33,32 @@ class TrendSemanticConfigServiceTest {
         var config = service.get("tenant-a");
 
         assertThat(config.scope()).isEqualTo("GLOBAL");
-        assertThat(config.keywords()).contains("盈亏", "change", "pnl");
+        assertThat(config.rulesetVersion()).isEqualTo(TrendSemanticConfigService.FINANCE_RULESET_VERSION);
+        assertThat(config.keywords()).contains(
+            "盈亏", "浮动盈亏", "收益率", "超额收益", "净流入", "市值变动",
+            "利润增速", "回撤变化", "change", "pnl", "roi", "net inflow"
+        );
         assertThat(config.upColor()).isEqualTo("#e5484d");
+    }
+
+    @Test
+    void upgradesAndPersistsAnExistingGlobalFinanceRulesetWithoutLosingCustomKeywords() {
+        TrendSemanticConfigEntity legacy = new TrendSemanticConfigEntity();
+        legacy.setTenantId(TrendSemanticConfigService.GLOBAL_TENANT_ID);
+        legacy.setKeywordsJson("[\"盈亏\",\"客户自定义利差\"]");
+        legacy.setUpColor("#e5484d");
+        legacy.setDownColor("#16a36a");
+        legacy.setNeutralColor("#98a2b3");
+        legacy.setRulesetVersion(1);
+        legacy.setRevision(4);
+        when(repository.findById("tenant-a")).thenReturn(Optional.empty());
+        when(repository.findById(TrendSemanticConfigService.GLOBAL_TENANT_ID)).thenReturn(Optional.of(legacy));
+
+        var config = service.get("tenant-a");
+
+        assertThat(config.rulesetVersion()).isEqualTo(TrendSemanticConfigService.FINANCE_RULESET_VERSION);
+        assertThat(config.revision()).isEqualTo(5);
+        assertThat(config.keywords()).contains("客户自定义利差", "涨跌额", "净流入", "roi");
     }
 
     @Test
@@ -46,6 +70,7 @@ class TrendSemanticConfigServiceTest {
         ));
 
         assertThat(config.scope()).isEqualTo("TENANT");
+        assertThat(config.rulesetVersion()).isEqualTo(TrendSemanticConfigService.FINANCE_RULESET_VERSION);
         assertThat(config.keywords()).containsExactly("净收益", "net profit");
         assertThat(config.upColor()).isEqualTo("#ff0000");
         assertThat(config.downColor()).isEqualTo("#00aa55");

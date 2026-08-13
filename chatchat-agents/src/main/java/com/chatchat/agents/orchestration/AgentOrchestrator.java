@@ -29,10 +29,12 @@ import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.agents.runtime.plan.InterpretationExecutionProtocol;
 import com.chatchat.agents.runtime.plan.DiagnosticRun;
 import com.chatchat.agents.runtime.plan.DiagnosticRunStateMachine;
+import com.chatchat.agents.runtime.plan.DagGovernanceContractProvider;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRewriter;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRecord;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
 import com.chatchat.agents.runtime.plan.InterpretationPlanStore;
+import com.chatchat.agents.runtime.plan.NodeAttemptStore;
 import com.chatchat.agents.runtime.plan.InterpretationPlanOptimizer;
 import com.chatchat.agents.runtime.plan.InterpretationPlanValidator;
 import com.chatchat.agents.runtime.plan.RetrievalQualityGate;
@@ -122,6 +124,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
     private final AgentContextBudget contextBudget;
     private final ContextTokenEstimator contextTokenEstimator = new ContextTokenEstimator();
     private final ContextEvidenceAggregator contextEvidenceAggregator = new ContextEvidenceAggregator();
+    private DagGovernanceContractProvider dagGovernanceContractProvider =
+        DagGovernanceContractProvider.builtInFallback();
+    private NodeAttemptStore nodeAttemptStore;
 
     public AgentOrchestrator(ChatModel chatModel,
                              ToolRegistry toolRegistry,
@@ -246,6 +251,20 @@ public class AgentOrchestrator implements AgentRunExecutor {
             : interpretationPlanStore;
     }
 
+    /** Production supplies the database-backed provider; direct unit construction retains a deterministic fallback. */
+    @Autowired(required = false)
+    public void setDagGovernanceContractProvider(DagGovernanceContractProvider provider) {
+        if (provider != null) {
+            this.dagGovernanceContractProvider = provider;
+        }
+    }
+
+    /** Production supplies the database-backed node attempt journal. */
+    @Autowired(required = false)
+    public void setNodeAttemptStore(NodeAttemptStore nodeAttemptStore) {
+        this.nodeAttemptStore = nodeAttemptStore;
+    }
+
     /**
      * Executes an agent run through the stable runtime request/result contract.
      *
@@ -330,7 +349,17 @@ public class AgentOrchestrator implements AgentRunExecutor {
         }
         attributes.put(AGENT_TIMEOUT_MS_ATTRIBUTE,
             request.getTimeoutMs() == null ? AgentRunRequest.DEFAULT_TIMEOUT_MS : request.getTimeoutMs());
+        pinDagGovernanceContract(attributes);
         return runtimeGuard.attributesWithDeadline(attributes);
+    }
+
+    private void pinDagGovernanceContract(Map<String, Object> attributes) {
+        if (attributes == null || attributes.containsKey(DagGovernanceContractProvider.CONTRACT_ATTRIBUTE)) {
+            return;
+        }
+        DagGovernanceContractProvider.ContractSnapshot contract =
+            dagGovernanceContractProvider.activeContract();
+        attributes.put(DagGovernanceContractProvider.CONTRACT_ATTRIBUTE, contract.toRuntimeAttribute());
     }
 
     /**
@@ -475,6 +504,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
             workflowMandatoryTools
         );
         ChatModel activeChatModel = chatModelResolver.resolveChatModel(modelName);
+        requestRuntimeAttributes.putIfAbsent("checkpointModelConfig",
+            chatModelResolver.checkpointModelConfiguration(modelName, activeChatModel));
         List<InteractionToolTrace> traces = new ArrayList<>();
         List<String> observations = runResultAdapter.runtimeObservationList(stringValue(requestRuntimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE)));
         Map<String, Object> metadata = new LinkedHashMap<>();
@@ -1025,6 +1056,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
                     activeChatModel, stepTool, contextual, evidenceContext).argumentsWithGateMarker();
             }
         );
+        runtime.setNodeAttemptStore(nodeAttemptStore);
         List<InterpretationPlanRuntime.ExecutionResult> planAttemptResults = new ArrayList<>();
         List<Map<String, Object>> evidenceHistory = new ArrayList<>();
         InterpretationPlanValidator.ValidationResult initialEvaluation = validator.validate(
@@ -1826,7 +1858,11 @@ public class AgentOrchestrator implements AgentRunExecutor {
             runtimeAttributes,
             workflowStateTracker.completedToolsFromTraces(traces)
         );
-        return workflowStateTracker.attributesWithCompletedWorkflowState(runtimeAttributes, completedTools, traces);
+        Map<String, Object> attributes = new LinkedHashMap<>(
+            workflowStateTracker.attributesWithCompletedWorkflowState(runtimeAttributes, completedTools, traces)
+        );
+        pinDagGovernanceContract(attributes);
+        return attributes;
     }
 
     private Map<String, Object> runtimeExecutionPolicy(boolean requireToolBeforeFinal) {
@@ -5541,7 +5577,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
             ? List.of()
             : validation.issues();
         Map<String, Object> repairEvent = metadataOf(
-            "contractVersion", "runtime_dag_governance.v1",
+            "contractVersion", dagGovernanceContractVersion(runtimeAttributes),
             "eventKind", "DAG_REPAIR",
             "eventState", normalizedState,
             "repairAttempt", rewriteCount,
@@ -5908,12 +5944,15 @@ public class AgentOrchestrator implements AgentRunExecutor {
         String normalizedStage = stage == null || stage.isBlank() ? "generated" : stage.trim();
         String planId = taskId + "-" + normalizedStage;
         try {
+            Map<String, Object> dag = interpretationPlanDagConverter.convert(plan);
+            attachDagGovernanceContract(dag, runtimeAttributes);
             InterpretationPlanRecord record = interpretationPlanStore.savePlan(
                 firstNonBlank(tenantId, "default"),
                 taskId,
                 planId,
                 plan,
-                "GENERATED"
+                "GENERATED",
+                dag
             );
             if (metadata != null) {
                 metadata.put("interpretationPlanId", record.planId());
@@ -5947,6 +5986,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         String planId = taskId + "-" + normalizedStage;
         try {
             Map<String, Object> dag = interpretationPlanDagConverter.convert(plan, normalizedStage, result);
+            attachDagGovernanceContract(dag, runtimeAttributes);
             InterpretationPlanRecord record = interpretationPlanStore.savePlan(
                 firstNonBlank(tenantId, "default"),
                 taskId,
@@ -5965,6 +6005,27 @@ public class AgentOrchestrator implements AgentRunExecutor {
             log.warn("Failed to save InterpretationPlan execution snapshot. taskId={} stage={} error={}",
                 taskId, normalizedStage, ex.getMessage());
         }
+    }
+
+    private void attachDagGovernanceContract(Map<String, Object> dag,
+                                             Map<String, Object> runtimeAttributes) {
+        if (dag == null) {
+            return;
+        }
+        Object contract = runtimeAttributes == null ? null
+            : runtimeAttributes.get(DagGovernanceContractProvider.CONTRACT_ATTRIBUTE);
+        if (contract != null) {
+            dag.put("governanceContract", contract);
+        }
+    }
+
+    private String dagGovernanceContractVersion(Map<String, Object> runtimeAttributes) {
+        Object raw = runtimeAttributes == null ? null
+            : runtimeAttributes.get(DagGovernanceContractProvider.CONTRACT_ATTRIBUTE);
+        Object version = raw instanceof Map<?, ?> contract ? contract.get("contractVersion") : null;
+        return version == null || String.valueOf(version).isBlank()
+            ? DagGovernanceContractProvider.INITIAL_VERSION
+            : String.valueOf(version);
     }
 
     @SuppressWarnings("unchecked")

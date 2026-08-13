@@ -54,8 +54,9 @@ class InterpretationPlanIncrementalRecoveryTest {
 
         assertThat(restored.success()).isTrue();
         assertThat(restored.metadata()).containsEntry("reusedPlanStepIds", List.of(1, 2));
-        assertThat(restored.steps()).allSatisfy(step ->
-            assertThat(step.metadata()).containsEntry("reusedFromCheckpoint", true));
+        assertThat(restored.steps()).isEmpty();
+        assertThat(restored.finalAnswer()).isEqualTo("done");
+        assertThat(restored.metadata()).containsEntry("completedPlanStepIds", List.of(1, 2));
         verify(tools, times(1)).execute(org.mockito.ArgumentMatchers.any());
 
         InterpretationPlan changedPlan = plan(

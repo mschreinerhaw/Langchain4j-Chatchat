@@ -56,7 +56,7 @@ class UiDisplayConfigControllerTest {
 
     private TrendSemanticConfigService.TrendSemanticConfig config(String scope) {
         return new TrendSemanticConfigService.TrendSemanticConfig(
-            1, scope, List.of("盈亏"), "#e5484d", "#16a36a", "#98a2b3", Instant.now()
+            1, 2, scope, List.of("盈亏"), "#e5484d", "#16a36a", "#98a2b3", Instant.now()
         );
     }
 }

@@ -39,7 +39,7 @@ try {
   await page.goto(`http://127.0.0.1:${port}/tests/ui-artifact-regression.html`, { waitUntil: "networkidle" });
   await page.locator('[data-case="panel"] canvas').waitFor({ state: "visible" });
 
-  assert(await page.locator(".regression-case").count() === 15, "回归夹具数量不完整");
+  assert(await page.locator(".regression-case").count() === 16, "回归夹具数量不完整");
   assert(await page.locator(".query-result-table-card:not(.query-result-multi-dataset-card) table").count() === 8, "所有可恢复输入都应形成可用表格");
   assert(await page.locator(".query-result-chart-button").count() === 9, "单表及多表可视化入口数量不正确");
   assert(await page.locator("text=|---|---|---:|").count() === 0, "旧管道表格仍显示为原始文本");
@@ -101,6 +101,23 @@ try {
   assert(await page.locator('[data-case="metrics"] .visualization-metrics article').count() === 3, "指标卡未完整显示");
   assert(await page.locator('[data-case="panel"] .visualization-panel-block').count() === 2, "组合面板区块未完整显示");
 
+  const planDag = page.locator('[data-case="interactive-plan-dag"]');
+  await planDag.locator(".vue-flow__node").first().waitFor({ state: "visible" });
+  assert(await planDag.locator(".vue-flow__node").count() === 4, "计划图节点未完整渲染");
+  assert(await planDag.locator(".vue-flow__edge").count() === 3, "计划图依赖边未完整渲染");
+  assert(await planDag.locator(".vue-flow__controls").count() === 1, "计划图缩放控制器未显示");
+  assert(await planDag.locator(".vue-flow__minimap").count() === 1, "计划图缩略导航未显示");
+  const draggableNode = planDag.locator(".vue-flow__node").first();
+  const nodeBeforeDrag = await draggableNode.boundingBox();
+  await draggableNode.hover();
+  await page.mouse.down();
+  await page.mouse.move(nodeBeforeDrag.x + nodeBeforeDrag.width / 2 + 85, nodeBeforeDrag.y + nodeBeforeDrag.height / 2 + 42, { steps: 8 });
+  await page.mouse.up();
+  const nodeAfterDrag = await draggableNode.boundingBox();
+  assert(Math.abs(nodeAfterDrag.x - nodeBeforeDrag.x) > 35 || Math.abs(nodeAfterDrag.y - nodeBeforeDrag.y) > 25, "计划图节点无法拖动");
+  await planDag.getByRole("button", { name: "自动布局" }).click();
+  await page.waitForTimeout(300);
+
   const trendTabs = trendChart.locator(".visualization-tabs");
   await trendTabs.getByRole("button", { name: "表格" }).click();
   assert(await trendChart.locator(".visualization-table tbody tr").count() === 6, "图表切换为表格后数据行丢失");
@@ -111,6 +128,7 @@ try {
 
   const outputDirectory = path.resolve("test-results");
   await mkdir(outputDirectory, { recursive: true });
+  await planDag.screenshot({ path: path.join(outputDirectory, "plan-dag-interactive-desktop.png") });
   await page.screenshot({ path: path.join(outputDirectory, "ui-artifact-regression-desktop.png"), fullPage: true });
 
   await page.setViewportSize({ width: 390, height: 844 });
@@ -137,6 +155,7 @@ try {
   }));
   assert(mobileWideTable.scrollable, "手机端宽表没有保留独立横向滚动");
   assert(mobileWideTable.buttonRight <= mobileWideTable.cardRight + 1, "手机端图形分析入口被推出表格卡片");
+  await planDag.screenshot({ path: path.join(outputDirectory, "plan-dag-interactive-mobile.png") });
   await page.screenshot({ path: path.join(outputDirectory, "ui-artifact-regression-mobile.png"), fullPage: true });
 
   process.stdout.write("UI artifact visual regression passed: desktop + mobile screenshots\n");

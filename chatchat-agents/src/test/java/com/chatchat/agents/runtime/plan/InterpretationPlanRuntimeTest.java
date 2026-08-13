@@ -18,6 +18,8 @@ import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +36,228 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class InterpretationPlanRuntimeTest {
+
+    @Test
+    void persistsMonotonicNodeAttemptLifecycleAndExposesCommittedIdentity() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("answer", "answer", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "final_answer", "", Map.of("answer", "done"),
+                    List.of(), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(1, false, List.of(), List.of(), 10_000),
+            review()
+        );
+        List<NodeAttemptStore.State> transitions = new ArrayList<>();
+        AtomicInteger revisions = new AtomicInteger();
+        NodeAttemptStore store = new NodeAttemptStore() {
+            @Override
+            public AttemptSnapshot create(AttemptCommand command) {
+                transitions.add(State.CREATED);
+                return new AttemptSnapshot("attempt-1", command.tenantId(), command.runId(),
+                    command.nodeId(), 1, State.CREATED, 0L, Instant.now(), Instant.now());
+            }
+
+            @Override
+            public AttemptSnapshot transition(String tenantId, String attemptId, State expectedState,
+                                              State targetState, String reason, Map<String, Object> metadata) {
+                assertThat(transitions.get(transitions.size() - 1)).isEqualTo(expectedState);
+                assertThat(expectedState.mayTransitionTo(targetState)).isTrue();
+                transitions.add(targetState);
+                return new AttemptSnapshot(attemptId, tenantId, "request-attempt", 1, 1,
+                    targetState, revisions.incrementAndGet(), Instant.now(), Instant.now());
+            }
+
+            @Override
+            public BarrierResult commitBarrier(BarrierCommand command) {
+                assertThat(transitions).endsWith(State.PREPARED);
+                transitions.add(State.COMMITTED);
+                return new BarrierResult(command.executionEpoch(), true, List.of(
+                    new AttemptSnapshot("attempt-1", command.tenantId(), command.runId(), 1, 1,
+                        State.COMMITTED, revisions.incrementAndGet(), Instant.now(), Instant.now())
+                ));
+            }
+        };
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class), new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1))));
+        runtime.setNodeAttemptStore(store);
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, toolRegistry, List.of(), "tenant", "request-attempt", "conversation", "user", Map.of()));
+
+        assertThat(result.success()).isTrue();
+        assertThat(transitions).containsExactly(
+            NodeAttemptStore.State.CREATED,
+            NodeAttemptStore.State.READY,
+            NodeAttemptStore.State.RUNNING,
+            NodeAttemptStore.State.PREPARED,
+            NodeAttemptStore.State.COMMITTED
+        );
+        assertThat(result.steps()).singleElement().satisfies(step -> assertThat(step.metadata())
+            .containsEntry("nodeAttemptId", "attempt-1")
+            .containsEntry("nodeAttemptNumber", 1)
+            .containsEntry("nodeAttemptState", "COMMITTED")
+            .containsEntry("commitBarrier", "SATISFIED")
+            .containsEntry("committedEvidence", true));
+        assertThat(NodeAttemptStore.State.COMMITTED.mayTransitionTo(NodeAttemptStore.State.RUNNING)).isFalse();
+    }
+
+    @Test
+    void commitBarrierFailureDiscardsPreparedEvidenceBeforeFinalAnalysis() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0", new InterpretationPlan.Intent("answer", "answer", "low"), context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "final_answer", "", Map.of("answer", "must not leak"),
+                    List.of(), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(1, false, List.of(), List.of(), 10_000), review());
+        AtomicReference<NodeAttemptStore.State> state = new AtomicReference<>(NodeAttemptStore.State.CREATED);
+        NodeAttemptStore store = new NodeAttemptStore() {
+            @Override
+            public AttemptSnapshot create(AttemptCommand command) {
+                return snapshot(command.tenantId(), command.runId(), State.CREATED, 0L);
+            }
+
+            @Override
+            public AttemptSnapshot transition(String tenantId, String attemptId, State expectedState,
+                                              State targetState, String reason, Map<String, Object> metadata) {
+                assertThat(state.get()).isEqualTo(expectedState);
+                state.set(targetState);
+                return snapshot(tenantId, "request-barrier-failure", targetState, targetState.ordinal());
+            }
+
+            @Override
+            public BarrierResult commitBarrier(BarrierCommand command) {
+                throw new IllegalStateException("simulated atomic barrier rejection");
+            }
+
+            private AttemptSnapshot snapshot(String tenantId, String runId, State current, long revision) {
+                return new AttemptSnapshot("attempt-rejected", tenantId, runId, 1, 1,
+                    current, revision, Instant.now(), Instant.now());
+            }
+        };
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class), new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1))));
+        runtime.setNodeAttemptStore(store);
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, toolRegistry, List.of(), "tenant", "request-barrier-failure",
+                "conversation", "user", Map.of()));
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.finalAnswer()).isNull();
+        assertThat(state.get()).isEqualTo(NodeAttemptStore.State.FAILED);
+        assertThat(result.steps()).singleElement().satisfies(step -> {
+            assertThat(step.success()).isFalse();
+            assertThat(step.output()).isNull();
+            assertThat(step.finalAnswer()).isNull();
+            assertThat(step.errorMessage()).contains("COMMIT_BARRIER_REJECTED");
+            assertThat(step.metadata())
+                .containsEntry("commitBarrier", "REJECTED")
+                .containsEntry("committedEvidence", false);
+        });
+    }
+
+    @Test
+    void commitsParallelEpochAtomicallyBeforeWritingCheckpoints() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(any())).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenReturn(ToolMetadata.builder().riskLevel("low").build());
+        ToolRuntimeService tools = mock(ToolRuntimeService.class);
+        when(tools.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest request = invocation.getArgument(0);
+            return new ToolRuntimeExecution(
+                ToolOutput.success(Map.of("tool", request.getToolName())),
+                ToolMetadata.builder().id(request.getToolName()).build(), null, "success", Map.of());
+        });
+        InMemoryAgentRunStore checkpoints = new InMemoryAgentRunStore();
+        RecordingNodeAttemptStore attempts = new RecordingNodeAttemptStore();
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            tools, new InterpretationPlanValidator(), checkpoints, null,
+            scriptedController(List.of(List.of(1, 2), List.of(3))));
+        runtime.setNodeAttemptStore(attempts);
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                parallelPlan(), toolRegistry, List.of("document_search", "web_search"),
+                "tenant-1", "request-parallel-barrier", "conversation", "user", Map.of()));
+
+        assertThat(result.success()).isTrue();
+        assertThat(attempts.barriers()).extracting(command -> command.requiredAttemptIds().size())
+            .containsExactly(2, 1);
+        assertThat(result.steps()).allSatisfy(step -> assertThat(step.metadata())
+            .containsEntry("nodeAttemptState", "COMMITTED")
+            .containsEntry("commitBarrier", "SATISFIED")
+            .containsEntry("committedEvidence", true));
+        assertThat(checkpoints.planStepCheckpoints("request-parallel-barrier"))
+            .extracting(PlanStepCheckpoint::stepId)
+            .containsExactlyInAnyOrder(1, 2, 3);
+    }
+
+    @Test
+    void preservesCommittedIndependentEvidenceWhenParallelSiblingFails() {
+        String failingTool = "orders_query";
+        String successfulTool = "positions_query";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(any())).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenReturn(ToolMetadata.builder().riskLevel("low").build());
+        ToolRuntimeService tools = mock(ToolRuntimeService.class);
+        when(tools.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest request = invocation.getArgument(0);
+            ToolOutput output = failingTool.equals(request.getToolName())
+                ? ToolOutput.failure("orders unavailable")
+                : ToolOutput.success(Map.of("records", List.of(Map.of("symbol", "600000"))));
+            return new ToolRuntimeExecution(output,
+                ToolMetadata.builder().id(request.getToolName()).build(), null,
+                output.isSuccess() ? "success" : "failed", Map.of());
+        });
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0", new InterpretationPlan.Intent("analysis", "partial evidence", "low"), context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", failingTool, Map.of(), List.of(), null, null),
+                new InterpretationPlan.Step(2, "mcp_tool", successfulTool, Map.of(), List.of(), null, null),
+                new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "partial result"),
+                    List.of(2), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                3, true, List.of(failingTool, successfulTool), List.of(), 30_000), review());
+        InMemoryAgentRunStore checkpoints = new InMemoryAgentRunStore();
+        RecordingNodeAttemptStore attempts = new RecordingNodeAttemptStore();
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            tools, new InterpretationPlanValidator(), checkpoints, null,
+            scriptedController(List.of(List.of(1, 2), List.of(3))));
+        runtime.setNodeAttemptStore(attempts);
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, toolRegistry, List.of(failingTool, successfulTool),
+                "tenant-1", "request-partial-barrier", "conversation", "user", Map.of(
+                    DagGovernanceContractProvider.CONTRACT_ATTRIBUTE, Map.of(
+                        "rules", Map.of("execution", Map.of("continueIndependentBranches", true))
+                    )
+                )));
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.status()).isEqualTo("completed_with_partial_evidence");
+        assertThat(result.finalAnswer()).isEqualTo("partial result");
+        assertThat(result.steps()).filteredOn(step -> step.stepId() == 1).singleElement()
+            .satisfies(step -> assertThat(step.metadata()).containsEntry("nodeAttemptState", "FAILED"));
+        assertThat(result.steps()).filteredOn(step -> step.stepId() == 2).singleElement()
+            .satisfies(step -> assertThat(step.metadata())
+                .containsEntry("nodeAttemptState", "COMMITTED")
+                .containsEntry("committedEvidence", true));
+        assertThat(checkpoints.planStepCheckpoints("request-partial-barrier"))
+            .extracting(PlanStepCheckpoint::stepId)
+            .containsExactlyInAnyOrder(2, 3);
+    }
 
     @Test
     void emptyToolResultDoesNotFailModelDataEdgeIntoFinalAnswer() {
@@ -84,7 +308,14 @@ class InterpretationPlanRuntimeTest {
         InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
             new InterpretationPlanRuntime.ExecutionRequest(
                 plan, toolRegistry, List.of("metadata_search"),
-                "tenant", "request", "conversation", "user", Map.of()
+                "tenant", "request", "conversation", "user", Map.of(
+                    DagGovernanceContractProvider.CONTRACT_ATTRIBUTE, Map.of(
+                        "contractId", "runtime_dag_governance.v3",
+                        "contractVersion", "runtime_dag_governance.v3",
+                        "checksumSha256", "sha-v3",
+                        "rules", Map.of("immutable", true)
+                    )
+                )
             ));
 
         assertThat(result.success())
@@ -92,6 +323,10 @@ class InterpretationPlanRuntimeTest {
             .isTrue();
         assertThat(result.status()).isEqualTo("completed");
         assertThat(result.finalAnswer()).isEqualTo("report the evidence gap");
+        assertThat(result.metadata())
+            .containsEntry("dagGovernanceContractId", "runtime_dag_governance.v3")
+            .containsEntry("dagGovernanceContractVersion", "runtime_dag_governance.v3")
+            .containsEntry("dagGovernanceContractChecksum", "sha-v3");
         assertThat(result.steps()).noneMatch(step -> step.errorMessage() != null
             && step.errorMessage().contains("EDGE_CONTRACT_FAILED"));
     }
@@ -460,6 +695,73 @@ class InterpretationPlanRuntimeTest {
         assertThat(result.metadata())
             .containsEntry("continuedFailureStepIds", List.of(1))
             .containsEntry("partialEvidence", true);
+        verify(toolRuntimeService, times(2)).execute(any());
+    }
+
+    @Test
+    void databaseGovernanceIsolatesFailedRegionAndContinuesIndependentBranch() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(any())).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenReturn(
+            ToolMetadata.builder().riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest request = invocation.getArgument(0);
+            ToolOutput output = "failing_query".equals(request.getToolName())
+                ? ToolOutput.failure("source unavailable")
+                : ToolOutput.success(Map.of("records", List.of(Map.of("value", 1))));
+            return new ToolRuntimeExecution(output,
+                ToolMetadata.builder().id(request.getToolName()).build(), null,
+                output.isSuccess() ? "success" : "failed", Map.of());
+        });
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("analysis", "isolate failed evidence branch", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", "failing_query", Map.of(), List.of(), null, null),
+                    new InterpretationPlan.Step(2, "mcp_tool", "independent_query", Map.of(), List.of(), null, null),
+                    new InterpretationPlan.Step(3, "mcp_tool", "blocked_query", Map.of(), List.of(1), null, null),
+                    new InterpretationPlan.Step(4, "final_answer", "",
+                        Map.of("answer", "independent evidence complete"), List.of(2), null, null)
+                ),
+                List.of(), List.of(), List.of(), null
+            ),
+            new InterpretationPlan.ExecutionPolicy(
+                4, false, List.of("failing_query", "independent_query", "blocked_query"), List.of(), 30_000),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService, new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2), List.of(4)))
+        );
+        Map<String, Object> rules = new LinkedHashMap<>(DagGovernanceContractProvider.defaultV1Rules());
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, toolRegistry, List.of("failing_query", "independent_query", "blocked_query"),
+                "tenant", "request", "conversation", "user", Map.of(
+                    DagGovernanceContractProvider.CONTRACT_ATTRIBUTE, Map.of(
+                        "contractId", DagGovernanceContractProvider.INITIAL_VERSION,
+                        "contractVersion", DagGovernanceContractProvider.INITIAL_VERSION,
+                        "checksumSha256", "test-checksum",
+                        "rules", rules
+                    )
+                )
+            )
+        );
+
+        assertThat(result.success())
+            .withFailMessage("status=%s error=%s metadata=%s", result.status(),
+                result.errorMessage(), result.metadata())
+            .isTrue();
+        assertThat(result.status()).isEqualTo("completed_with_partial_evidence");
+        assertThat(result.steps()).extracting(InterpretationPlanRuntime.StepExecution::stepId)
+            .containsExactly(1, 2, 4);
+        assertThat(result.metadata())
+            .containsEntry("continuedFailureStepIds", List.of(1))
+            .containsEntry("failureRegionSkippedStepIds", List.of(3));
         verify(toolRuntimeService, times(2)).execute(any());
     }
 
@@ -8427,6 +8729,62 @@ class InterpretationPlanRuntimeTest {
             }
             return InterpretationPlanRuntime.DagDecision.abort("No scripted DAG decision remains");
         };
+    }
+
+    private static final class RecordingNodeAttemptStore implements NodeAttemptStore {
+        private final AtomicInteger sequence = new AtomicInteger();
+        private final Map<String, AttemptSnapshot> attempts = new LinkedHashMap<>();
+        private final List<BarrierCommand> barriers = new ArrayList<>();
+
+        @Override
+        public synchronized AttemptSnapshot create(AttemptCommand command) {
+            String id = "attempt-" + command.nodeId() + "-" + sequence.incrementAndGet();
+            AttemptSnapshot snapshot = new AttemptSnapshot(
+                id, command.tenantId(), command.runId(), command.nodeId(), 1,
+                State.CREATED, 0L, Instant.now(), Instant.now());
+            attempts.put(id, snapshot);
+            return snapshot;
+        }
+
+        @Override
+        public synchronized AttemptSnapshot transition(String tenantId, String attemptId,
+                                                       State expectedState, State targetState,
+                                                       String reason, Map<String, Object> metadata) {
+            AttemptSnapshot current = attempts.get(attemptId);
+            assertThat(current).isNotNull();
+            assertThat(current.tenantId()).isEqualTo(tenantId);
+            assertThat(current.state()).isEqualTo(expectedState);
+            assertThat(expectedState.mayTransitionTo(targetState)).isTrue();
+            AttemptSnapshot updated = new AttemptSnapshot(
+                current.attemptId(), current.tenantId(), current.runId(), current.nodeId(),
+                current.attemptNumber(), targetState, current.revision() + 1,
+                current.createdAt(), Instant.now());
+            attempts.put(attemptId, updated);
+            return updated;
+        }
+
+        @Override
+        public synchronized BarrierResult commitBarrier(BarrierCommand command) {
+            barriers.add(command);
+            List<AttemptSnapshot> committed = command.requiredAttemptIds().stream().map(attemptId -> {
+                AttemptSnapshot current = attempts.get(attemptId);
+                assertThat(current).isNotNull();
+                assertThat(current.tenantId()).isEqualTo(command.tenantId());
+                assertThat(current.runId()).isEqualTo(command.runId());
+                assertThat(current.state()).isEqualTo(State.PREPARED);
+                AttemptSnapshot updated = new AttemptSnapshot(
+                    current.attemptId(), current.tenantId(), current.runId(), current.nodeId(),
+                    current.attemptNumber(), State.COMMITTED, current.revision() + 1,
+                    current.createdAt(), Instant.now());
+                attempts.put(attemptId, updated);
+                return updated;
+            }).toList();
+            return new BarrierResult(command.executionEpoch(), true, committed);
+        }
+
+        synchronized List<BarrierCommand> barriers() {
+            return List.copyOf(barriers);
+        }
     }
 }
 

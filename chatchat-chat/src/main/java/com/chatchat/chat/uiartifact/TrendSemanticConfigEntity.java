@@ -36,6 +36,9 @@ public class TrendSemanticConfigEntity {
     @Column(nullable = false)
     private long revision = 1;
 
+    @Column(name = "ruleset_version", nullable = false, columnDefinition = "integer default 1")
+    private int rulesetVersion = 1;
+
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 

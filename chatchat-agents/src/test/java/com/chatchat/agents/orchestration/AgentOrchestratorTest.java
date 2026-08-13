@@ -12,6 +12,7 @@ import com.chatchat.agents.runtime.AgentRunResult;
 import com.chatchat.agents.runtime.AgentRunStatus;
 import com.chatchat.agents.runtime.InMemoryAgentRunStore;
 import com.chatchat.agents.runtime.plan.DiagnosticRun;
+import com.chatchat.agents.runtime.plan.DagGovernanceContractProvider;
 import com.chatchat.agents.runtime.plan.InterpretationExecutionProtocol;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
@@ -44,6 +45,29 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentOrchestratorTest {
+
+    @Test
+    void pinsDatabaseDagGovernanceFingerprintIntoPlanRuntimeAttributes() {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        DagGovernanceContractProvider.ContractSnapshot snapshot =
+            new DagGovernanceContractProvider.ContractSnapshot(
+                "runtime_dag_governance.v7",
+                DagGovernanceContractProvider.CONTRACT_KEY,
+                "runtime_dag_governance.v7",
+                Map.of("immutable", true),
+                "sha-v7"
+            );
+        orchestrator.setDagGovernanceContractProvider(() -> snapshot);
+
+        Map<String, Object> attributes = orchestrator.interpretationPlanInitialAttributes(
+            Map.of(), List.of());
+
+        assertThat(attributes).containsKey(DagGovernanceContractProvider.CONTRACT_ATTRIBUTE);
+        assertThat((Map<String, Object>) attributes.get(DagGovernanceContractProvider.CONTRACT_ATTRIBUTE))
+            .containsEntry("contractId", "runtime_dag_governance.v7")
+            .containsEntry("contractVersion", "runtime_dag_governance.v7")
+            .containsEntry("checksumSha256", "sha-v7");
+    }
 
     @Test
     void forcedFinancialPolicyDeterministicallyAddsDedicatedToolToMandatoryWorkflow() {

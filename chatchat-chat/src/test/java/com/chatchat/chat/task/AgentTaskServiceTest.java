@@ -719,6 +719,29 @@ class AgentTaskServiceTest {
     }
 
     @Test
+    void compileExecutionResultPreservesLongReportBeforeArtifactExternalization() throws Exception {
+        AgentTaskService service = taskService(
+            mock(AgentEventBus.class), mock(AgentEventStore.class), mock(AgentTaskLatestRepository.class),
+            mock(TaskConfirmRepository.class), new ObjectMapper());
+        String fullAnswer = "# Complete report\n\n"
+            + "| security | market value | profit |\n|---|---:|---:|\n| 600000 | 100.00 | +1.00 |\n".repeat(180)
+            + "\nREPORT_TAIL_MARKER";
+        assertThat(fullAnswer.length()).isGreaterThan(8_000);
+        InteractionResponse response = InteractionResponse.builder().answer(fullAnswer).build();
+        Method compile = AgentTaskService.class.getDeclaredMethod("compileExecutionResult", InteractionResponse.class);
+        compile.setAccessible(true);
+
+        Object contract = compile.invoke(service, response);
+        Method answerSummary = contract.getClass().getDeclaredMethod("answerSummary");
+        answerSummary.setAccessible(true);
+
+        assertThat(answerSummary.invoke(contract))
+            .isEqualTo(fullAnswer)
+            .asString()
+            .endsWith("REPORT_TAIL_MARKER");
+    }
+
+    @Test
     void citationsRecoverReadableLinksFromSuccessfulWebSearchTrace() {
         ObjectMapper objectMapper = new ObjectMapper();
         AgentTaskService service = new AgentTaskService(

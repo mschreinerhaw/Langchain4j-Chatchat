@@ -130,6 +130,7 @@ public class InterpretationPlanRuntime {
     private final StepResultReviewer stepResultReviewer;
     private final DagExecutionController dagExecutionController;
     private final StepInputEnricher stepInputEnricher;
+    private NodeAttemptStore nodeAttemptStore;
     private final McpToolRouter mcpToolRouter = new McpToolRouter();
 
     public InterpretationPlanRuntime(ToolRuntimeService toolRuntimeService,
@@ -194,6 +195,10 @@ public class InterpretationPlanRuntime {
         this.stepResultReviewer = stepResultReviewer;
         this.dagExecutionController = dagExecutionController;
         this.stepInputEnricher = stepInputEnricher;
+    }
+
+    public void setNodeAttemptStore(NodeAttemptStore nodeAttemptStore) {
+        this.nodeAttemptStore = nodeAttemptStore;
     }
 
     /**
@@ -270,9 +275,14 @@ public class InterpretationPlanRuntime {
         Set<Integer> reusedPlanStepIds = seedReusableStepExecutions(
             executableRequest, stepsById, completed, executions);
         reusedPlanStepIds.addAll(seedPersistedStepCheckpoints(
-            runId, stepsById, completed, executions));
+            runId, executableRequest, stepsById, completed));
         List<StepExecution> toleratedFailures = new ArrayList<>();
-        String finalAnswer = null;
+        Set<Integer> failureRegionSkippedStepIds = new LinkedHashSet<>();
+        String finalAnswer = completed.values().stream()
+            .map(StepExecution::finalAnswer)
+            .filter(value -> value != null && !value.isBlank())
+            .reduce((ignored, value) -> value)
+            .orElse(null);
         int decisionCount = 0;
 
         while (!remaining.isEmpty()) {
@@ -393,18 +403,20 @@ public class InterpretationPlanRuntime {
                 decisionValidation.steps(),
                 decision
             );
-            List<StepExecution> waveResults = executeWave(selected, executableRequest, completed);
+            String executionEpoch = executionTraceId + ":epoch:" + currentDecisionCount;
+            List<StepExecution> waveResults = executeWave(
+                selected, executableRequest, completed, executionEpoch);
             for (StepExecution execution : waveResults) {
                 executions.add(execution);
                 completed.put(execution.stepId(), execution);
                 remaining.remove(execution.stepId());
-                if (execution.finalAnswer() != null && !execution.finalAnswer().isBlank()) {
-                    finalAnswer = execution.finalAnswer();
-                }
             }
             StepExecution contractFailure = validateEdgeContracts(
                 executablePlan, waveResults, completed, executableRequest);
             if (contractFailure != null) {
+                waveResults = rejectPreparedWave(waveResults, executableRequest, executionEpoch,
+                    "edge contract validation failed");
+                replaceWaveResults(executions, completed, waveResults);
                 executions.add(contractFailure);
                 return withDiagnosticRun(ExecutionResult.failed(
                     "EDGE_CONTRACT_FAILED",
@@ -418,7 +430,43 @@ public class InterpretationPlanRuntime {
                     elapsed(startedAt)
                 ), executableRequest, remaining);
             }
-            persistSuccessfulStepCheckpoints(runId, stepsById, completed, waveResults);
+            StepExecution preBarrierFailure = waveResults.stream()
+                .filter(step -> !step.success())
+                .findFirst()
+                .orElse(null);
+            if (preBarrierFailure != null) {
+                boolean independentCommitAllowed = dagGovernanceBoolean(
+                    executableRequest, "execution", "continueIndependentBranches", false)
+                    || waveResults.stream().filter(step -> !step.success())
+                        .anyMatch(step -> "continue_with_partial_evidence".equals(
+                            dependencyFailurePolicy(executablePlan, step.stepId())));
+                if (independentCommitAllowed) {
+                    List<StepExecution> prepared = waveResults.stream().filter(StepExecution::success).toList();
+                    List<StepExecution> committedPrepared = commitPreparedWave(
+                        prepared, executableRequest, executionEpoch);
+                    Map<Integer, StepExecution> committedByStep = committedPrepared.stream()
+                        .collect(Collectors.toMap(StepExecution::stepId, value -> value));
+                    waveResults = waveResults.stream()
+                        .map(step -> committedByStep.getOrDefault(step.stepId(), step))
+                        .toList();
+                } else {
+                    waveResults = rejectPreparedWave(waveResults, executableRequest, executionEpoch,
+                        "required node failed before commit barrier");
+                }
+            } else {
+                waveResults = commitPreparedWave(waveResults, executableRequest, executionEpoch);
+            }
+            replaceWaveResults(executions, completed, waveResults);
+            for (StepExecution committedExecution : waveResults) {
+                boolean committedEvidence = nodeAttemptStore == null
+                    || Boolean.TRUE.equals(committedExecution.metadata().get("committedEvidence"));
+                if (committedEvidence && committedExecution.success()
+                    && committedExecution.finalAnswer() != null
+                    && !committedExecution.finalAnswer().isBlank()) {
+                    finalAnswer = committedExecution.finalAnswer();
+                }
+            }
+            persistSuccessfulStepCheckpoints(runId, executableRequest, stepsById, completed, waveResults);
             StepExecution failed = waveResults.stream()
                 .filter(step -> !step.success())
                 .findFirst()
@@ -435,6 +483,28 @@ public class InterpretationPlanRuntime {
                         executionTraceId, failed.stepId(), failed.toolName(), failurePolicy, recoverableReviewedBatch,
                         new ArrayList<>(remaining), failed.errorMessage());
                     continue;
+                }
+                if (dagGovernanceBoolean(executableRequest, "execution",
+                    "continueIndependentBranches", false)) {
+                    Set<Integer> failedStepIds = waveResults.stream()
+                        .filter(step -> step != null && !step.success() && step.stepId() != null)
+                        .map(StepExecution::stepId)
+                        .collect(Collectors.toCollection(LinkedHashSet::new));
+                    Set<Integer> blockedRegion = descendantStepIds(executablePlan, failedStepIds);
+                    blockedRegion.retainAll(remaining);
+                    Set<Integer> independentRemaining = new LinkedHashSet<>(remaining);
+                    independentRemaining.removeAll(blockedRegion);
+                    if (!independentRemaining.isEmpty()) {
+                        remaining.removeAll(blockedRegion);
+                        failureRegionSkippedStepIds.addAll(blockedRegion);
+                        waveResults.stream()
+                            .filter(step -> step != null && !step.success())
+                            .forEach(toleratedFailures::add);
+                        log.warn("InterpretationPlan isolated failed DAG region and continued independent branches: "
+                                + "traceId={}, failedStepIds={}, skippedDescendantStepIds={}, independentStepIds={}",
+                            executionTraceId, failedStepIds, blockedRegion, independentRemaining);
+                        continue;
+                    }
                 }
                 String failureStatus = failed.errorMessage() != null
                     && failed.errorMessage().startsWith(
@@ -456,7 +526,7 @@ public class InterpretationPlanRuntime {
             }
         }
 
-        if (executions.isEmpty() && !stepsById.isEmpty()) {
+        if (executions.isEmpty() && completed.isEmpty() && !stepsById.isEmpty()) {
             log.warn("InterpretationPlan made no execution progress: traceId={}, attempt={}, scope={}, plannedStepIds={}",
                 executionTraceId, workflowExecutionAttempt(executableRequest),
                 planExecutionScope(executableRequest), new ArrayList<>(stepsById.keySet()));
@@ -501,6 +571,7 @@ public class InterpretationPlanRuntime {
                 "llmDagController", true,
                 "optimizationPasses", optimization.appliedPasses(),
                 "continuedFailureStepIds", toleratedFailures.stream().map(StepExecution::stepId).toList(),
+                "failureRegionSkippedStepIds", new ArrayList<>(failureRegionSkippedStepIds),
                 "partialEvidence", !toleratedFailures.isEmpty()
             ),
             elapsed(startedAt)
@@ -542,9 +613,9 @@ public class InterpretationPlanRuntime {
     }
 
     private Set<Integer> seedPersistedStepCheckpoints(String runId,
+                                                      ExecutionRequest request,
                                                       Map<Integer, InterpretationPlan.Step> stepsById,
-                                                      Map<Integer, StepExecution> completed,
-                                                      List<StepExecution> executions) {
+                                                      Map<Integer, StepExecution> completed) {
         Set<Integer> reusedStepIds = new LinkedHashSet<>();
         if (runStore == null || runId == null || runId.isBlank() || stepsById.isEmpty()) {
             return reusedStepIds;
@@ -573,7 +644,7 @@ public class InterpretationPlanRuntime {
                     continue;
                 }
                 PlanStepCheckpoint checkpoint = byStepId.get(step.id());
-                if (!validCheckpoint(checkpoint, step, completed)) {
+                if (!validCheckpoint(checkpoint, step, completed, request)) {
                     continue;
                 }
                 StepExecution materialized = checkpoint.materializedResult();
@@ -581,13 +652,14 @@ public class InterpretationPlanRuntime {
                 metadata.put("reusedFromCheckpoint", true);
                 metadata.put("checkpointSchemaVersion", checkpoint.schemaVersion());
                 metadata.put("checkpointUpdatedAt", checkpoint.updatedAt());
+                metadata.put("checkpointFingerprint", checkpoint.checkpointFingerprint());
+                metadata.put("checkpointIdentityFingerprints", checkpoint.identityFingerprints());
                 StepExecution restored = new StepExecution(
                     materialized.stepId(), materialized.actionType(), materialized.toolName(), true,
                     materialized.output(), null, materialized.toolExecution(), materialized.finalAnswer(),
                     0L, Map.copyOf(metadata)
                 );
                 completed.put(restored.stepId(), restored);
-                executions.add(restored);
                 reusedStepIds.add(restored.stepId());
                 progressed = true;
             }
@@ -601,13 +673,22 @@ public class InterpretationPlanRuntime {
 
     private boolean validCheckpoint(PlanStepCheckpoint checkpoint,
                                     InterpretationPlan.Step step,
-                                    Map<Integer, StepExecution> completed) {
+                                    Map<Integer, StepExecution> completed,
+                                    ExecutionRequest request) {
         try {
+            Map<String, String> expectedIdentity = checkpointIdentityFingerprints(
+                step, request, completed, null);
             if (checkpoint == null || step == null || checkpoint.materializedResult() == null
                 || !checkpoint.materializedResult().success()
                 || !PlanStepCheckpoint.SCHEMA_VERSION.equals(checkpoint.schemaVersion())
+                || !checkpoint.committed()
+                || !Objects.equals(checkpoint.planExecutionScope(), planExecutionScope(request))
+                || !Objects.equals(checkpoint.workflowExecutionAttempt(),
+                    normalizedWorkflowExecutionAttempt(workflowExecutionAttempt(request)))
                 || !Objects.equals(step.id(), checkpoint.stepId())
                 || !Objects.equals(stepFingerprint(step), checkpoint.definitionFingerprint())
+                || !Objects.equals(expectedIdentity, checkpoint.identityFingerprints())
+                || !Objects.equals(sha256(expectedIdentity), checkpoint.checkpointFingerprint())
                 || !Objects.equals(resultFingerprint(checkpoint.materializedResult()), checkpoint.resultFingerprint())) {
                 return false;
             }
@@ -628,6 +709,7 @@ public class InterpretationPlanRuntime {
     }
 
     private void persistSuccessfulStepCheckpoints(String runId,
+                                                  ExecutionRequest request,
                                                   Map<Integer, InterpretationPlan.Step> stepsById,
                                                   Map<Integer, StepExecution> completed,
                                                   List<StepExecution> waveResults) {
@@ -654,14 +736,21 @@ public class InterpretationPlanRuntime {
                 if (!dependenciesMaterialized) {
                     continue;
                 }
+                Map<String, String> identityFingerprints = checkpointIdentityFingerprints(
+                    step, request, completed, execution);
                 PlanStepCheckpoint checkpoint = new PlanStepCheckpoint(
                     PlanStepCheckpoint.SCHEMA_VERSION,
                     runId,
+                    planExecutionScope(request),
+                    normalizedWorkflowExecutionAttempt(workflowExecutionAttempt(request)),
                     step.id(),
                     stepFingerprint(step),
+                    sha256(identityFingerprints),
+                    identityFingerprints,
                     dependencyFingerprints,
                     resultFingerprint(execution),
                     execution,
+                    true,
                     now,
                     now
                 );
@@ -675,6 +764,98 @@ public class InterpretationPlanRuntime {
 
     private String stepFingerprint(InterpretationPlan.Step step) {
         return sha256(step);
+    }
+
+    private Map<String, String> checkpointIdentityFingerprints(InterpretationPlan.Step step,
+                                                               ExecutionRequest request,
+                                                               Map<Integer, StepExecution> completed,
+                                                               StepExecution materializedExecution) {
+        Map<Integer, String> dependencyFingerprints = new LinkedHashMap<>();
+        if (step != null) {
+            for (Integer dependencyId : step.dependsOn() == null ? List.<Integer>of() : step.dependsOn()) {
+                StepExecution dependency = completed == null ? null : completed.get(dependencyId);
+                if (dependency != null && dependency.success()) {
+                    dependencyFingerprints.put(dependencyId, resultFingerprint(dependency));
+                }
+            }
+        }
+        Map<String, String> identity = new LinkedHashMap<>();
+        identity.put("planVersion", sha256(request == null || request.plan() == null
+            ? null : request.plan().version()));
+        identity.put("nodeDefinition", stepFingerprint(step));
+        identity.put("actualInput", sha256(checkpointActualInput(
+            step, request, completed, materializedExecution)));
+        identity.put("dependencyResults", sha256(dependencyFingerprints));
+        identity.put("toolContract", sha256(checkpointToolContract(step, request)));
+        identity.put("modelConfig", checkpointContextFingerprint(
+            request, "checkpointModelConfigFingerprint", "checkpointModelConfig",
+            List.of("modelName", "modelProvider", "modelConfigVersion", "modelTemperature",
+                "modelTopP", "modelSeed", "modelEndpointId", "modelImplementation")));
+        identity.put("governanceContract", sha256(dagGovernanceContract(request)));
+        identity.put("executionEnvironment", checkpointContextFingerprint(
+            request, "checkpointExecutionEnvironmentFingerprint", "checkpointExecutionEnvironment",
+            List.of("env", "environment", "runtimeProfile", "deploymentId", "region", "timezone",
+                "applicationVersion", "runtimeVersion")));
+        return Map.copyOf(identity);
+    }
+
+    private Object checkpointActualInput(InterpretationPlan.Step step,
+                                         ExecutionRequest request,
+                                         Map<Integer, StepExecution> completed,
+                                         StepExecution materializedExecution) {
+        if (materializedExecution != null && materializedExecution.metadata() != null
+            && materializedExecution.metadata().get("resolvedInput") != null) {
+            return materializedExecution.metadata().get("resolvedInput");
+        }
+        if (step == null || !step.mcpToolAction()) {
+            return step == null || step.input() == null ? Map.of() : step.input();
+        }
+        Map<String, Object> resolved = new LinkedHashMap<>(resolvedStepInput(
+            step, request, completed == null ? Map.of() : completed));
+        resolved.remove(CONTEXT_PARAMETER_RECOVERY_KEY);
+        resolved.remove(MODEL_RETRIEVAL_GATE_KEY);
+        return resolved;
+    }
+
+    private Object checkpointToolContract(InterpretationPlan.Step step, ExecutionRequest request) {
+        if (step == null || !step.mcpToolAction()) {
+            return Map.of("actionType", step == null ? null : step.actionType());
+        }
+        ToolMetadata metadata = request == null || request.toolRegistry() == null
+            ? null : request.toolRegistry().getToolMetadata(step.toolName());
+        return mapOf(
+            "toolName", step.toolName(),
+            "metadata", metadata,
+            "allowed", request == null ? List.of() : safeList(request.allowedTools())
+        );
+    }
+
+    private String checkpointContextFingerprint(ExecutionRequest request,
+                                                String fingerprintAttribute,
+                                                String objectAttribute,
+                                                List<String> fallbackKeys) {
+        Map<String, Object> attributes = request == null || request.attributes() == null
+            ? Map.of() : request.attributes();
+        Object pinnedFingerprint = attributes.get(fingerprintAttribute);
+        if (pinnedFingerprint != null && !String.valueOf(pinnedFingerprint).isBlank()) {
+            return String.valueOf(pinnedFingerprint).trim();
+        }
+        Object explicit = attributes.get(objectAttribute);
+        if (explicit != null) {
+            return sha256(explicit);
+        }
+        Map<String, Object> selected = new LinkedHashMap<>();
+        for (String key : fallbackKeys) {
+            if (attributes.containsKey(key)) {
+                selected.put(key, attributes.get(key));
+            }
+        }
+        if ("checkpointExecutionEnvironment".equals(objectAttribute)) {
+            selected.putIfAbsent("javaVersion", System.getProperty("java.version"));
+            selected.putIfAbsent("osName", System.getProperty("os.name"));
+            selected.putIfAbsent("osArch", System.getProperty("os.arch"));
+        }
+        return sha256(selected);
     }
 
     private String resultFingerprint(StepExecution execution) {
@@ -743,6 +924,14 @@ public class InterpretationPlanRuntime {
         if (result == null || request == null || request.plan() == null) {
             return result;
         }
+        Map<String, Object> metadata = new LinkedHashMap<>(result.metadata() == null ? Map.of() : result.metadata());
+        Map<String, Object> governance = dagGovernanceContract(request);
+        if (!governance.isEmpty()) {
+            metadata.put("dagGovernanceContract", governance);
+            metadata.put("dagGovernanceContractId", governance.get("contractId"));
+            metadata.put("dagGovernanceContractVersion", governance.get("contractVersion"));
+            metadata.put("dagGovernanceContractChecksum", governance.get("checksumSha256"));
+        }
         DiagnosticRun diagnosticRun = DiagnosticRun.evaluate(
             request.plan(),
             result.steps(),
@@ -752,9 +941,11 @@ public class InterpretationPlanRuntime {
             result.success()
         );
         if (diagnosticRun == null) {
-            return result;
+            return new ExecutionResult(
+                result.status(), result.success(), result.approvalRequired(), result.errorMessage(),
+                result.finalAnswer(), result.steps(), metadata, result.durationMs()
+            );
         }
-        Map<String, Object> metadata = new LinkedHashMap<>(result.metadata() == null ? Map.of() : result.metadata());
         metadata.put("diagnosticRun", diagnosticRun);
         metadata.put("diagnosticCoverage", diagnosticRun.coverage());
         metadata.put("diagnosticAssessment", diagnosticRun.assessment());
@@ -777,6 +968,64 @@ public class InterpretationPlanRuntime {
             metadata,
             result.durationMs()
         );
+    }
+
+    private Set<Integer> descendantStepIds(InterpretationPlan plan, Set<Integer> rootStepIds) {
+        Set<Integer> descendants = new LinkedHashSet<>();
+        if (plan == null || plan.steps() == null || rootStepIds == null || rootStepIds.isEmpty()) {
+            return descendants;
+        }
+        boolean changed;
+        do {
+            changed = false;
+            for (InterpretationPlan.Step step : plan.steps()) {
+                if (step == null || step.id() == null || descendants.contains(step.id())
+                    || rootStepIds.contains(step.id())) {
+                    continue;
+                }
+                boolean affected = safeIntegerList(step.dependsOn()).stream()
+                    .anyMatch(dependency -> rootStepIds.contains(dependency) || descendants.contains(dependency));
+                if (affected) {
+                    changed |= descendants.add(step.id());
+                }
+            }
+        } while (changed);
+        return descendants;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> dagGovernanceContract(ExecutionRequest request) {
+        if (request == null || request.attributes() == null) {
+            return Map.of();
+        }
+        Object value = request.attributes().get(DagGovernanceContractProvider.CONTRACT_ATTRIBUTE);
+        if (!(value instanceof Map<?, ?> raw)) {
+            return Map.of();
+        }
+        Map<String, Object> contract = new LinkedHashMap<>();
+        raw.forEach((key, item) -> {
+            if (key != null) {
+                contract.put(String.valueOf(key), item);
+            }
+        });
+        return Map.copyOf(contract);
+    }
+
+    private String dagGovernanceContractVersion(ExecutionRequest request) {
+        Object version = dagGovernanceContract(request).get("contractVersion");
+        return version == null || String.valueOf(version).isBlank()
+            ? DagGovernanceContractProvider.INITIAL_VERSION
+            : String.valueOf(version);
+    }
+
+    private boolean dagGovernanceBoolean(ExecutionRequest request,
+                                         String section,
+                                         String key,
+                                         boolean fallback) {
+        Object rules = dagGovernanceContract(request).get("rules");
+        Object sectionValue = rules instanceof Map<?, ?> ruleMap ? ruleMap.get(section) : null;
+        Object value = sectionValue instanceof Map<?, ?> sectionMap ? sectionMap.get(key) : null;
+        return value instanceof Boolean configured ? configured : fallback;
     }
 
     private Set<Integer> planStepIds(InterpretationPlan plan) {
@@ -919,21 +1168,197 @@ public class InterpretationPlanRuntime {
 
     private List<StepExecution> executeWave(List<InterpretationPlan.Step> ready,
                                             ExecutionRequest request,
-                                            Map<Integer, StepExecution> completed) {
+                                            Map<Integer, StepExecution> completed,
+                                            String executionEpoch) {
         if (ready.size() == 1 || !allowParallel(request.plan())) {
             return ready.stream()
-                .map(step -> executeStep(step, request, completed))
+                .map(step -> executeStep(step, request, completed, executionEpoch))
                 .toList();
         }
         List<CompletableFuture<StepExecution>> futures = ready.stream()
-            .map(step -> CompletableFuture.supplyAsync(() -> executeStep(step, request, completed)))
+            .map(step -> CompletableFuture.supplyAsync(() -> executeStep(step, request, completed, executionEpoch)))
             .toList();
         return futures.stream().map(CompletableFuture::join).toList();
     }
 
     private StepExecution executeStep(InterpretationPlan.Step step,
                                       ExecutionRequest request,
-                                      Map<Integer, StepExecution> completed) {
+                                      Map<Integer, StepExecution> completed,
+                                      String executionEpoch) {
+        if (nodeAttemptStore == null) {
+            return executeStepBody(step, request, completed);
+        }
+        NodeAttemptStore.AttemptSnapshot attempt = nodeAttemptStore.create(
+            new NodeAttemptStore.AttemptCommand(
+                request.tenantId(), runId(request), executionTraceId(request), request.plan().version(),
+                step.id(), stepFingerprint(step), sha256(step.input()), Map.of(
+                    "actionType", firstText(step.actionType(), "unknown"),
+                    "toolName", firstText(step.toolName(), ""),
+                    "executionEpoch", executionEpoch
+                )
+            )
+        );
+        try {
+            attempt = transitionAttempt(attempt, NodeAttemptStore.State.READY, "dependencies committed", Map.of());
+            attempt = transitionAttempt(attempt, NodeAttemptStore.State.RUNNING, "node execution started", Map.of());
+            StepExecution execution = executeStepBody(step, request, completed);
+            if (!execution.success()) {
+                attempt = transitionAttempt(attempt, NodeAttemptStore.State.FAILED,
+                    firstText(execution.errorMessage(), "node execution failed"), Map.of());
+                return withAttemptMetadata(execution, attempt, NodeAttemptStore.State.FAILED);
+            }
+            attempt = transitionAttempt(attempt, NodeAttemptStore.State.PREPARED,
+                "node result validated; awaiting commit barrier", Map.of(
+                    "resultFingerprint", resultFingerprint(execution),
+                    "executionEpoch", executionEpoch
+                ));
+            return withAttemptMetadata(execution, attempt, NodeAttemptStore.State.PREPARED);
+        } catch (RuntimeException ex) {
+            try {
+                if (attempt != null && !attempt.state().terminal()) {
+                    transitionAttempt(attempt, NodeAttemptStore.State.FAILED,
+                        firstText(ex.getMessage(), ex.getClass().getSimpleName()), Map.of());
+                }
+            } catch (RuntimeException persistenceFailure) {
+                ex.addSuppressed(persistenceFailure);
+            }
+            return new StepExecution(
+                step.id(), step.actionType(), step.toolName(), false, null,
+                "NODE_ATTEMPT_PERSISTENCE_FAILED: " + firstText(ex.getMessage(), ex.getClass().getSimpleName()),
+                null, null, 0L, Map.of("nodeAttemptState", "FAILED")
+            );
+        }
+    }
+
+    private NodeAttemptStore.AttemptSnapshot transitionAttempt(NodeAttemptStore.AttemptSnapshot attempt,
+                                                               NodeAttemptStore.State target,
+                                                               String reason,
+                                                               Map<String, Object> metadata) {
+        return nodeAttemptStore.transition(
+            attempt.tenantId(), attempt.attemptId(), attempt.state(), target, reason, metadata);
+    }
+
+    private StepExecution withAttemptMetadata(StepExecution execution,
+                                              NodeAttemptStore.AttemptSnapshot attempt,
+                                              NodeAttemptStore.State state) {
+        Map<String, Object> metadata = new LinkedHashMap<>(execution.metadata());
+        metadata.put("nodeAttemptId", attempt.attemptId());
+        metadata.put("nodeAttemptNumber", attempt.attemptNumber());
+        metadata.put("nodeAttemptState", state.name());
+        metadata.put("nodeAttemptRevision", attempt.revision());
+        return execution.withMetadata(Map.copyOf(metadata), execution.durationMs());
+    }
+
+    private List<StepExecution> commitPreparedWave(List<StepExecution> waveResults,
+                                                   ExecutionRequest request,
+                                                   String executionEpoch) {
+        if (nodeAttemptStore == null || waveResults == null || waveResults.isEmpty()) {
+            return waveResults;
+        }
+        List<String> attemptIds = waveResults.stream()
+            .map(step -> stringValue(step.metadata().get("nodeAttemptId")))
+            .filter(value -> value != null && !value.isBlank())
+            .toList();
+        if (attemptIds.size() != waveResults.size()) {
+            return rejectPreparedWave(waveResults, request, executionEpoch,
+                "commit barrier is missing a required Attempt identity");
+        }
+        try {
+            NodeAttemptStore.BarrierResult barrier = nodeAttemptStore.commitBarrier(
+                new NodeAttemptStore.BarrierCommand(
+                    request.tenantId(), runId(request), executionEpoch, attemptIds,
+                    Map.of("requiredNodeCount", waveResults.size())
+                )
+            );
+            if (barrier == null || !barrier.committed() || barrier.attempts().size() != waveResults.size()) {
+                throw new IllegalStateException("Commit barrier did not commit every required node");
+            }
+            Map<String, NodeAttemptStore.AttemptSnapshot> committed = barrier.attempts().stream()
+                .collect(Collectors.toMap(NodeAttemptStore.AttemptSnapshot::attemptId, value -> value));
+            return waveResults.stream().map(execution -> {
+                String attemptId = stringValue(execution.metadata().get("nodeAttemptId"));
+                NodeAttemptStore.AttemptSnapshot snapshot = committed.get(attemptId);
+                if (snapshot == null || snapshot.state() != NodeAttemptStore.State.COMMITTED) {
+                    throw new IllegalStateException("Commit barrier returned an incomplete Attempt set");
+                }
+                Map<String, Object> metadata = new LinkedHashMap<>(execution.metadata());
+                metadata.put("nodeAttemptState", NodeAttemptStore.State.COMMITTED.name());
+                metadata.put("nodeAttemptRevision", snapshot.revision());
+                metadata.put("executionEpoch", executionEpoch);
+                metadata.put("commitBarrier", "SATISFIED");
+                metadata.put("committedEvidence", true);
+                return execution.withMetadata(Map.copyOf(metadata), execution.durationMs());
+            }).toList();
+        } catch (RuntimeException ex) {
+            log.error("DAG commit barrier failed. traceId={} epoch={} attemptIds={} error={}",
+                executionTraceId(request), executionEpoch, attemptIds, ex.getMessage());
+            return rejectPreparedWave(waveResults, request, executionEpoch,
+                "commit barrier failed: " + firstText(ex.getMessage(), ex.getClass().getSimpleName()));
+        }
+    }
+
+    private List<StepExecution> rejectPreparedWave(List<StepExecution> waveResults,
+                                                   ExecutionRequest request,
+                                                   String executionEpoch,
+                                                   String reason) {
+        if (waveResults == null || waveResults.isEmpty()) {
+            return List.of();
+        }
+        return waveResults.stream().map(execution -> {
+            if (!execution.success() || nodeAttemptStore == null
+                || !NodeAttemptStore.State.PREPARED.name().equals(
+                    stringValue(execution.metadata().get("nodeAttemptState")))) {
+                return execution;
+            }
+            String attemptId = stringValue(execution.metadata().get("nodeAttemptId"));
+            long revision = longValue(execution.metadata().get("nodeAttemptRevision"), 0L);
+            try {
+                NodeAttemptStore.AttemptSnapshot failed = nodeAttemptStore.transition(
+                    request.tenantId(), attemptId, NodeAttemptStore.State.PREPARED,
+                    NodeAttemptStore.State.FAILED, reason, Map.of(
+                        "executionEpoch", executionEpoch,
+                        "commitBarrier", "REJECTED"
+                    ));
+                revision = failed.revision();
+            } catch (RuntimeException ex) {
+                log.error("Failed to reject prepared node Attempt. attemptId={} epoch={} error={}",
+                    attemptId, executionEpoch, ex.getMessage());
+            }
+            Map<String, Object> metadata = new LinkedHashMap<>(execution.metadata());
+            metadata.put("nodeAttemptState", NodeAttemptStore.State.FAILED.name());
+            metadata.put("nodeAttemptRevision", revision);
+            metadata.put("executionEpoch", executionEpoch);
+            metadata.put("commitBarrier", "REJECTED");
+            metadata.put("committedEvidence", false);
+            metadata.put("discardedResultFingerprint", resultFingerprint(execution));
+            return new StepExecution(
+                execution.stepId(), execution.actionType(), execution.toolName(), false,
+                null, "COMMIT_BARRIER_REJECTED: " + reason, null, null,
+                execution.durationMs(), Map.copyOf(metadata)
+            );
+        }).toList();
+    }
+
+    private void replaceWaveResults(List<StepExecution> executions,
+                                    Map<Integer, StepExecution> completed,
+                                    List<StepExecution> waveResults) {
+        if (waveResults == null) {
+            return;
+        }
+        for (StepExecution replacement : waveResults) {
+            completed.put(replacement.stepId(), replacement);
+            for (int index = executions.size() - 1; index >= 0; index--) {
+                if (Objects.equals(executions.get(index).stepId(), replacement.stepId())) {
+                    executions.set(index, replacement);
+                    break;
+                }
+            }
+        }
+    }
+
+    private StepExecution executeStepBody(InterpretationPlan.Step step,
+                                          ExecutionRequest request,
+                                          Map<Integer, StepExecution> completed) {
         long startedAt = System.currentTimeMillis();
         recordPlanStep(request, step, completed);
         if (step.mcpToolAction()) {
@@ -1098,7 +1523,7 @@ public class InterpretationPlanRuntime {
                 stepMetadata.put("resolvedInput", new LinkedHashMap<>(resolvedInput));
                 if (templateCompletenessRepairApplied) {
                     Map<String, Object> repairEvent = Map.of(
-                        "contractVersion", "runtime_dag_governance.v1",
+                        "contractVersion", dagGovernanceContractVersion(request),
                         "eventKind", "DAG_REPAIR",
                         "eventState", "APPLIED",
                         "repairCode", "TEMPLATE_SET_COMPLETENESS_RESTORED",
@@ -1115,7 +1540,7 @@ public class InterpretationPlanRuntime {
                 }
                 if (!templatePreflightTerminalRepairs.isEmpty()) {
                     Map<String, Object> repairEvent = Map.of(
-                        "contractVersion", "runtime_dag_governance.v1",
+                        "contractVersion", dagGovernanceContractVersion(request),
                         "eventKind", "DAG_REPAIR",
                         "eventState", "APPLIED",
                         "repairCode", "TEMPLATE_BATCH_TERMINAL_COVERAGE_APPLIED",
@@ -1133,7 +1558,7 @@ public class InterpretationPlanRuntime {
                 }
                 if (!contextParameterRecovery.isEmpty()) {
                     Map<String, Object> repairEvent = new LinkedHashMap<>(contextParameterRecovery);
-                    repairEvent.put("contractVersion", "runtime_dag_governance.v1");
+                    repairEvent.put("contractVersion", dagGovernanceContractVersion(request));
                     repairEvent.put("eventKind", "DAG_REPAIR");
                     repairEvent.put("eventState", "APPLIED");
                     repairEvent.put("repairCode", "CONTEXT_PARAMETER_EVIDENCE_APPLIED");
@@ -1301,7 +1726,7 @@ public class InterpretationPlanRuntime {
             if (!deterministicContractRepairs.isEmpty()) {
                 Map<String, Object> metadata = new LinkedHashMap<>(execution.metadata());
                 Map<String, Object> repairEvent = Map.of(
-                    "contractVersion", "runtime_dag_governance.v1",
+                    "contractVersion", dagGovernanceContractVersion(request),
                     "eventKind", "DAG_REPAIR",
                     "eventState", "APPLIED",
                     "repairCode", "AGENT_ENVIRONMENT_CONTEXT_APPLIED",
@@ -3026,7 +3451,7 @@ public class InterpretationPlanRuntime {
                 continue;
             }
             PlanStepCheckpoint checkpoint = checkpoints.get(stepId);
-            if (checkpoint != null && !validCheckpoint(checkpoint, plannedStep, completed)) {
+            if (checkpoint != null && !validCheckpoint(checkpoint, plannedStep, completed, request)) {
                 log.info("Ignored stale completed plan step because its checkpoint dependency chain changed. "
                         + "runId={} stepId={}", runId, stepId);
                 continue;
@@ -7072,11 +7497,16 @@ public class InterpretationPlanRuntime {
     }
 
     private String runId(ExecutionRequest request) {
-        if (request == null || request.attributes() == null) {
+        if (request == null) {
             return null;
         }
-        Object value = request.attributes().get(AGENT_RUN_ID_ATTRIBUTE);
-        return value == null ? null : String.valueOf(value);
+        Object value = request.attributes() == null
+            ? null : request.attributes().get(AGENT_RUN_ID_ATTRIBUTE);
+        if (value != null && !String.valueOf(value).isBlank()) {
+            return String.valueOf(value);
+        }
+        return request.requestId() == null || request.requestId().isBlank()
+            ? null : request.requestId();
     }
 
     private String executionTraceId(ExecutionRequest request, long startedAt) {

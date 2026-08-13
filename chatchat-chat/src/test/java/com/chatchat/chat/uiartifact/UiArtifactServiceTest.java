@@ -84,6 +84,26 @@ class UiArtifactServiceTest {
     }
 
     @Test
+    void persistsLongMarkdownAnswerWithoutLosingTheTail() {
+        Fixture fixture = fixture(64);
+        String fullAnswer = "# Portfolio report\n\n"
+            + "| code | value | change |\n|---|---:|---:|\n| 600000 | 123.45 | -6.78 |\n".repeat(220)
+            + "\nARTIFACT_TAIL_MARKER";
+        assertThat(fullAnswer.length()).isGreaterThan(8_000);
+
+        UiArtifactService.Presentation presentation = fixture.service().externalizeIfNeeded(
+            "tenant-a", "task-long-report", Map.of(
+                "answer", fullAnswer,
+                "status", "SUCCESS"
+            ));
+
+        String artifactId = String.valueOf(presentation.reference().get("artifactId"));
+        assertThat(fixture.service().resource("tenant-a", artifactId, "answer"))
+            .hasValue(fullAnswer)
+            .hasValueSatisfying(value -> assertThat(String.valueOf(value)).endsWith("ARTIFACT_TAIL_MARKER"));
+    }
+
+    @Test
     void prefersExplicitHtmlAndPersistsItAsAnHtmlFile() {
         Fixture fixture = fixture(64);
         String html = "<section class=\"custom-report\"><h1>Dynamic report</h1></section>";

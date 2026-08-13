@@ -1,5 +1,6 @@
-const INTERNAL_DOCUMENT_REF_PATTERN = /(?:[（(]\s*)?doc:\/\/[^\s<>()\[\]{}，。；;]+(?:\s*[）)])?\s*[:：]?/gi;
-const INTERNAL_RECORD_RANGE_PATTERN = /\brecords?\s*\[\s*\d+\s*(?:(?:\.{2,3}|…|—|–|-)\s*\d+)?\s*\]\s*[:：]?/gi;
+const INTERNAL_DOCUMENT_REF_PATTERN = /(?:[（(][ \t]*)?doc:\/\/[^\s<>()\[\]{}，。；;]+(?:[ \t]*[）)])?[ \t]*[:：]?/gi;
+const INTERNAL_RECORD_RANGE_PATTERN = /\brecords?[ \t]*\[[ \t]*\d+[ \t]*(?:(?:\.{2,3}|…|—|–|-)[ \t]*\d+)?[ \t]*\][ \t]*[:：]?/gi;
+const MARKDOWN_TABLE_DELIMITER_PATTERN = /^\s*\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?\s*$/;
 
 export function isInternalDocumentRef(value = "") {
   return /^doc:\/\//i.test(String(value || "").trim());
@@ -11,7 +12,7 @@ export function stripInternalDocumentRefs(value = "") {
     .replace(INTERNAL_RECORD_RANGE_PATTERN, " ")
     .replace(/[ \t]+([，。；;、])/g, "$1")
     .replace(/[ \t]{2,}/g, " ")
-    .replace(/^\s*[-–—·:：|]+\s*$/gm, "")
+    .replace(/^\s*[-–—·:：|]+\s*$/gm, (line) => MARKDOWN_TABLE_DELIMITER_PATTERN.test(line) ? line : "")
     .trim();
 }
 

@@ -71,7 +71,7 @@ function removeEmptySourceColumns(table) {
       const cell = row.children[index];
       if (!cell) return true;
       if (cell.querySelector("a[href], img[src]")) return false;
-      return /^(?:|-|—|–|无|暂无|N\/?A|null)$/i.test(String(cell.textContent || "").trim());
+      return /^(?:|-|—|–|\/|无|暂无|N\/?A|null)$/i.test(String(cell.textContent || "").trim());
     }))
     .map(({ index }) => index)
     .sort((left, right) => right - left)

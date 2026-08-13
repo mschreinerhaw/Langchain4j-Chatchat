@@ -145,6 +145,13 @@ describe("dynamic report table regression matrix", () => {
     expect(root.textContent).not.toContain("records[");
   });
 
+  it("never removes canonical Markdown table delimiter rows while cleaning internal labels", () => {
+    const source = "| 字段 | 数值 |\n|---|---:|\n| RQ | 20260731 |";
+    const cleaned = stripInternalDocumentRefs(source);
+    expect(cleaned).toContain("|---|---:|");
+    expect(dom(enhanceResultTables(renderMarkdown(cleaned))).querySelectorAll("table")).toHaveLength(1);
+  });
+
   it("applies Chinese financial trend colors only to directional metrics", () => {
     configureTrendSemantics();
     expect(isDirectionalMetric("当日盈亏")).toBe(true);
@@ -202,6 +209,60 @@ describe("dynamic report table regression matrix", () => {
     expect(root.querySelector("p")?.textContent).toContain("返回 20 条持仓");
     expect(root.querySelectorAll("tbody tr")).toHaveLength(2);
     expect(payloadFor(root).rows[1].证券代码).toBe("000155");
+  });
+
+  it("restores historical two-column tables that have no Markdown delimiter row", () => {
+    const source = [
+      "来自模板 livedata_cx_mncg_khzc_r 的返回记录：",
+      "| 返回字段 | 返回值 |",
+      "| RQ | 20260731 |",
+      "| KHH | 070200046604 |",
+      "| ZZC | 847174.25 |",
+      "| ZQSZ | 846262.20 |",
+      "| ZJYE | 912.05 |",
+      "| DRYK | 42263.81 |"
+    ].join("\n");
+    const normalized = normalizeMarkdownTables(source);
+    const root = dom(enhanceResultTables(renderMarkdown(normalized)));
+
+    expect(normalized).toContain("| 返回字段 | 返回值 |\n| --- | --- |");
+    expect(root.querySelectorAll("table")).toHaveLength(1);
+    expect(root.querySelectorAll("tbody tr")).toHaveLength(6);
+    expect(payloadFor(root).rows[1]).toEqual({ 返回字段: "KHH", 返回值: "070200046604" });
+  });
+
+  it("restores historical wide holding tables without losing leading-zero codes", () => {
+    const source = [
+      "## 2.2 证券持仓明细",
+      "返回 3 条持仓。",
+      "| 市场 | 证券代码 | 证券名称 | 数量 | 最新市值 | 当日盈亏 | 累计盈亏 |",
+      "| SH | 600693 | 东百集团 | 2600 | 24544.00 | 749.61 | 5229.59 |",
+      "| SZ | 000155 | 川能动力 | 800 | 9808.00 | 0.00 | 1033.50 |",
+      "| SZ | 000609 | ST中迪 | 2300 | 21022.00 | 945.81 | 862.15 |"
+    ].join("\n");
+    const root = dom(enhanceResultTables(renderMarkdown(normalizeMarkdownTables(source))));
+
+    expect(root.querySelectorAll("table")).toHaveLength(1);
+    expect(root.querySelectorAll("tbody tr")).toHaveLength(3);
+    expect(root.querySelectorAll("td.trend-up").length).toBeGreaterThan(0);
+    expect(payloadFor(root).rows[1].证券代码).toBe("000155");
+  });
+
+  it("does not turn fenced pipe examples or isolated pipe prose into tables", () => {
+    const source = [
+      "```text",
+      "| 字段 | 数值 |",
+      "| RQ | 20260731 |",
+      "```",
+      "请选择 A | B | C",
+      "下一段仍然是普通说明"
+    ].join("\n");
+    const normalized = normalizeMarkdownTables(source);
+    const root = dom(renderMarkdown(normalized));
+
+    expect(normalized).not.toContain("| --- | --- |");
+    expect(root.querySelector("table")).toBeNull();
+    expect(root.querySelector("code")?.textContent).toContain("| 字段 | 数值 |");
   });
 
   it("repairs prose and a pipe table coexisting inside one legacy HTML paragraph", () => {

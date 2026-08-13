@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
     "test": "npm run test:ui-artifact",
-    "test:ui-artifact": "vitest run src/js/utils/resultTableEnhancer.test.js src/js/utils/artifactPresentationStyles.test.js",
+    "test:ui-artifact": "vitest run src/js/utils/resultTableEnhancer.test.js src/js/utils/artifactPresentationStyles.test.js src/js/utils/displayContractRegression.test.js",
     "test:ui-artifact:visual": "node scripts/test-ui-artifact-visual.mjs",
     "verify:ui-artifact": "npm run test:ui-artifact && npm run test:ui-artifact:visual && npm run build",
     "verify": "npm run test && npm run build"

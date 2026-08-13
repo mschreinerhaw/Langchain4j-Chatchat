@@ -25,3 +25,16 @@ java -cp h2.jar org.h2.tools.RunScript \
 The API and standalone MCP Server may use different physical databases. Do not initialize both schemas into one database unless that deployment intentionally shares them.
 
 The scripts are generated and checked by `DatabaseSchemaGeneratorTest` in the corresponding application module. After schema changes, regenerate and review both dialects before changing production from `ddl-auto: update` to `ddl-auto: validate`.
+
+## Immutable runtime summary contract
+
+`runtime_summary_contract` is the authoritative store for record-grounded summary rules. On startup the API loads the single enabled `record_grounded_analysis` contract. It inserts `record_grounded_analysis.v1` only when no enabled database contract exists; an existing row is never updated from application defaults.
+
+The SHA-256 checksum is validated before the contract is used. A checksum mismatch, mutable active row, or multiple active rows stops startup instead of silently replacing the rules. `skill_config.workflow_config_json.resultHandlingPolicy.recordAnalysisPolicy` is retained only as a compatibility projection of the database contract.
+
+```sql
+SELECT contract_id, contract_key, contract_version, enabled, immutable,
+       checksum_sha256, JSON_PRETTY(rules_json)
+FROM runtime_summary_contract
+ORDER BY created_at DESC;
+```

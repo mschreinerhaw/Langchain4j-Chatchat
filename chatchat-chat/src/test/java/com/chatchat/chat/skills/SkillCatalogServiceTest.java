@@ -27,7 +27,7 @@ class SkillCatalogServiceTest {
         when(versionRepository.save(any(SkillConfigVersionEntity.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         SkillCatalogService service = new SkillCatalogService(
-            repository, versionRepository, new ObjectMapper(), mock(JdbcTemplate.class));
+            repository, versionRepository, new ObjectMapper(), mock(JdbcTemplate.class), summaryContractService());
 
         SkillDefinition saved = service.upsert(draftWithEnvironment("dev"));
 
@@ -47,7 +47,7 @@ class SkillCatalogServiceTest {
         when(versionRepository.save(any(SkillConfigVersionEntity.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         SkillCatalogService service = new SkillCatalogService(
-            repository, versionRepository, new ObjectMapper(), mock(JdbcTemplate.class));
+            repository, versionRepository, new ObjectMapper(), mock(JdbcTemplate.class), summaryContractService());
 
         SkillDefinition saved = service.upsert(draftWithWorkflow(Map.of(
             "enabled", true,
@@ -67,7 +67,8 @@ class SkillCatalogServiceTest {
             mock(SkillConfigRepository.class),
             mock(SkillConfigVersionRepository.class),
             new ObjectMapper(),
-            mock(JdbcTemplate.class));
+            mock(JdbcTemplate.class),
+            summaryContractService());
 
         assertThatThrownBy(() -> service.upsert(draftWithEnvironment("sandbox")))
             .isInstanceOf(IllegalArgumentException.class)
@@ -83,7 +84,7 @@ class SkillCatalogServiceTest {
         when(versionRepository.save(any(SkillConfigVersionEntity.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         SkillCatalogService service = new SkillCatalogService(
-            repository, versionRepository, new ObjectMapper(), mock(JdbcTemplate.class));
+            repository, versionRepository, new ObjectMapper(), mock(JdbcTemplate.class), summaryContractService());
 
         SkillDefinition saved = service.upsert(draftWithWorkflow(Map.of(
             "enabled", true,
@@ -113,7 +114,7 @@ class SkillCatalogServiceTest {
         when(versionRepository.save(any(SkillConfigVersionEntity.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         SkillCatalogService service = new SkillCatalogService(
-            repository, versionRepository, new ObjectMapper(), mock(JdbcTemplate.class));
+            repository, versionRepository, new ObjectMapper(), mock(JdbcTemplate.class), summaryContractService());
 
         SkillDefinition saved = service.upsert(draftWithWorkflow(Map.of()));
 
@@ -153,7 +154,7 @@ class SkillCatalogServiceTest {
         when(versionRepository.save(any(SkillConfigVersionEntity.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         SkillCatalogService service = new SkillCatalogService(
-            repository, versionRepository, new ObjectMapper(), mock(JdbcTemplate.class));
+            repository, versionRepository, new ObjectMapper(), mock(JdbcTemplate.class), summaryContractService());
 
         SkillDefinition locked = service.upsert(draftWithWorkflow(Map.of(
             "resultHandlingPolicy", Map.of(
@@ -201,7 +202,8 @@ class SkillCatalogServiceTest {
         entity.setWorkflowConfigJson("{\"customExtension\":{\"keep\":\"value\"},\"enabled\":true}");
         when(repository.findAll()).thenReturn(List.of(entity));
         SkillCatalogService service = new SkillCatalogService(
-            repository, mock(SkillConfigVersionRepository.class), new ObjectMapper(), mock(JdbcTemplate.class));
+            repository, mock(SkillConfigVersionRepository.class), new ObjectMapper(), mock(JdbcTemplate.class),
+            summaryContractService());
 
         service.ensureResultHandlingPolicyPersisted();
 
@@ -217,6 +219,15 @@ class SkillCatalogServiceTest {
 
     private SkillDefinition draftWithEnvironment(String environment) {
         return draftWithWorkflow(Map.of("enabled", true, "runtimeEnvironment", environment));
+    }
+
+    private SummaryContractService summaryContractService() {
+        SummaryContractRepository repository = mock(SummaryContractRepository.class);
+        when(repository.findByContractKeyAndEnabledTrueOrderByCreatedAtDesc(
+            SummaryContractService.RECORD_ANALYSIS_CONTRACT_KEY)).thenReturn(List.of());
+        when(repository.saveAndFlush(any(SummaryContractEntity.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        return new SummaryContractService(repository, new ObjectMapper());
     }
 
     private SkillDefinition draftWithWorkflow(Map<String, Object> workflowConfig) {

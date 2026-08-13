@@ -59,6 +59,7 @@ public class SkillCatalogService {
     private final SkillConfigVersionRepository versionRepository;
     private final ObjectMapper objectMapper;
     private final JdbcTemplate jdbcTemplate;
+    private final SummaryContractService summaryContractService;
 
     /**
      * Performs the initialize defaults operation.
@@ -1071,15 +1072,7 @@ public class SkillCatalogService {
     }
 
     private Map<String, Object> immutableRecordAnalysisPolicy() {
-        return Map.of(
-            "contractVersion", "record_grounded_analysis.v1",
-            "requireRecordGroundedAnalysis", true,
-            "requireCompleteRecordCoverage", true,
-            "iterativeSummarizationWhenOversized", true,
-            "allowExecutionMetadataOnlyAnswer", false,
-            "completionCondition", "PROCESSED_RECORD_COUNT_EQUALS_RETURNED_RECORD_COUNT",
-            "immutable", true
-        );
+        return summaryContractService.recordAnalysisPolicy();
     }
 
     private boolean booleanValueOrDefault(Object value, boolean fallback) {

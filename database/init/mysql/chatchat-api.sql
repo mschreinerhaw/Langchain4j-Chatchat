@@ -374,6 +374,18 @@
         primary key (id)
     ) engine=InnoDB;
 
+    create table runtime_summary_contract (
+        enabled bit not null,
+        immutable bit not null,
+        created_at datetime(6) not null,
+        checksum_sha256 varchar(64) not null,
+        contract_key varchar(64) not null,
+        contract_version varchar(64) not null,
+        contract_id varchar(128) not null,
+        rules_json LONGTEXT not null,
+        primary key (contract_id)
+    ) engine=InnoDB;
+
     create table scheduled_task (
         max_retries integer,
         notification_condition_enabled bit not null,
@@ -706,6 +718,35 @@
         primary key (id)
     ) engine=InnoDB;
 
+    create table ui_artifact (
+        resource_count integer not null,
+        revision integer not null,
+        created_at datetime(6) not null,
+        expires_at datetime(6),
+        total_bytes bigint not null,
+        updated_at datetime(6) not null,
+        status varchar(32) not null,
+        store_type varchar(32) not null,
+        catalog_version varchar(64) not null,
+        schema_version varchar(64) not null,
+        artifact_id varchar(128) not null,
+        task_id varchar(128),
+        tenant_id varchar(128) not null,
+        manifest_key varchar(512) not null,
+        primary key (artifact_id)
+    ) engine=InnoDB;
+
+    create table ui_trend_semantic_config (
+        revision bigint not null,
+        updated_at datetime(6) not null,
+        down_color varchar(16) not null,
+        neutral_color varchar(16) not null,
+        up_color varchar(16) not null,
+        tenant_id varchar(128) not null,
+        keywords_json TEXT not null,
+        primary key (tenant_id)
+    ) engine=InnoDB;
+
     create table user_activity (
         created_at datetime(6) not null,
         action_type varchar(32) not null,
@@ -822,6 +863,9 @@
     create index idx_role_agent_agent 
        on role_agent_binding (tenant_id, agent_id);
 
+    create index idx_summary_contract_active
+       on runtime_summary_contract (contract_key, enabled, created_at);
+
     create index idx_scheduled_task_tenant_created 
        on scheduled_task (tenant_id, created_at);
 
@@ -878,6 +922,15 @@
 
     create index idx_todo_task_task_type 
        on todo_task (tenant_id, task_id, todo_type);
+
+    create index idx_ui_artifact_tenant_created
+       on ui_artifact (tenant_id, created_at);
+
+    create index idx_ui_artifact_expiry
+       on ui_artifact (status, expires_at);
+
+    create index idx_ui_artifact_task
+       on ui_artifact (tenant_id, task_id);
 
     create index idx_user_activity_user_target 
        on user_activity (tenant_id, user_id, target_type, created_at);

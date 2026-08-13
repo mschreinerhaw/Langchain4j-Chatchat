@@ -1,3 +1,5 @@
+import { isDirectionalMetric, trendState } from "./trendSemantics.js";
+
 function parseNumber(value) {
   if (typeof value === "number") {
     return Number.isFinite(value) ? value : null;
@@ -76,6 +78,21 @@ function removeEmptySourceColumns(table) {
     .forEach((index) => table.querySelectorAll("tr").forEach((row) => row.children[index]?.remove()));
 }
 
+function decorateDirectionalCells(table) {
+  const headers = [...table.querySelectorAll("thead th")];
+  const rows = [...table.querySelectorAll("tbody tr")];
+  headers.forEach((header, index) => {
+    const label = String(header.textContent || "").trim();
+    if (!isDirectionalMetric(label)) return;
+    header.classList.add("trend-column");
+    rows.forEach((row) => {
+      const cell = row.children[index];
+      if (!cell) return;
+      cell.classList.add("trend-value", `trend-${trendState(cell.textContent)}`);
+    });
+  });
+}
+
 export function enhanceResultTables(html = "") {
   if (typeof DOMParser === "undefined" || !String(html || "").includes("<table")) return html;
   try {
@@ -101,6 +118,7 @@ export function enhanceResultTables(html = "") {
 
     const tables = [...root.querySelectorAll("table")];
     tables.forEach(removeEmptySourceColumns);
+    tables.forEach(decorateDirectionalCells);
     const enhanced = tables
       .map((table, index) => ({ table, payload: tablePayload(table, index) }))
       .filter(({ payload }) => payload);

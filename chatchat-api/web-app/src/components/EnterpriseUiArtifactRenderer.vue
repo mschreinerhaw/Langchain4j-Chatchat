@@ -116,7 +116,52 @@ watch(artifactId, loadManifest, { immediate: true });
 
 :deep(.enterprise-ui-report) {
   display: grid;
-  gap: 1rem;
+  gap: 1.15rem;
+  color: #172033;
+  font-variant-numeric: tabular-nums;
+}
+
+:deep(.artifact-markdown > h1:first-child),
+:deep(.artifact-html-document > h1:first-child) {
+  margin: 0 0 1.4rem;
+  padding: 0 0 0.85rem;
+  border-bottom: 2px solid #dbe7f5;
+  color: #102a43;
+  font-size: clamp(1.45rem, 2vw, 1.85rem);
+  letter-spacing: -0.02em;
+}
+
+:deep(.artifact-markdown h2),
+:deep(.artifact-html-document h2) {
+  margin: 1.65rem 0 0.85rem;
+  padding-left: 0.72rem;
+  border-left: 4px solid #2563eb;
+  color: #173b67;
+  font-size: 1.25rem;
+}
+
+:deep(.artifact-markdown h3),
+:deep(.artifact-html-document h3) {
+  margin: 1.25rem 0 0.65rem;
+  color: #344054;
+  font-size: 1.06rem;
+}
+
+:deep(.artifact-markdown p),
+:deep(.artifact-html-document p) {
+  color: #344054;
+  line-height: 1.78;
+}
+
+:deep(.artifact-markdown blockquote),
+:deep(.artifact-html-document blockquote) {
+  margin: 1rem 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid #dbe8f8;
+  border-left: 4px solid #60a5fa;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #f7fbff, #f1f6fd);
+  color: #475467;
 }
 
 :deep(.artifact-html-document) {

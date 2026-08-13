@@ -26,6 +26,7 @@ import {
   fetchConversationDetail,
   fetchConversationHistory,
   fetchCurrentEnterpriseUser,
+  fetchTrendSemanticConfig,
   fetchWorkbenchShortcuts,
   getStoredAuthSession,
   killRuntimeTask,
@@ -35,6 +36,7 @@ import {
 } from "../services/api";
 import { notifyAgentTaskCancelled, onAgentTaskCancelled } from "./utils/agentTaskEvents";
 import { clearChatRuntimeState, mergeChatRuntimeState } from "./utils/chatRuntimeState";
+import { configureTrendSemantics } from "./utils/trendSemantics";
 import floatingDrag from "./directives/floatingDrag";
 import "../styles/app.css";
 import "../styles/components/dialog-close.css";
@@ -222,6 +224,7 @@ export default {
       return;
     }
     if (isAuthenticatedSession(this.authSession)) {
+      this.loadTrendSemanticConfig();
       this.refreshAuthSession();
       this.ensureAuthenticatedRoute();
       this.loadConversationHistory({ suppressError: true });
@@ -248,6 +251,13 @@ export default {
     this.stopTodoTimeoutKill();
   },
   methods: {
+    loadTrendSemanticConfig() {
+      fetchTrendSemanticConfig()
+        .then((config) => configureTrendSemantics(config))
+        .catch(() => {
+          // Keep built-in defaults during transient configuration failures.
+        });
+    },
     hasPermission(permissionCode) {
       const user = this.authSession?.user || {};
       if (String(user.username || "").toLowerCase() === "admin") {
@@ -290,6 +300,7 @@ export default {
       const sessionUser = session?.user || {};
       this.userId = sessionUser.username || sessionUser.id || USER_ID;
       this.tenantId = resolveSessionTenantId(session, this.userId);
+      this.loadTrendSemanticConfig();
       this.navigateToView(this.consumeRedirectView() || viewFromHash() || DEFAULT_VIEW);
       if (session?.embedded) {
         this.stopIdleLogoutWatcher();

@@ -1,7 +1,10 @@
 import * as echarts from "echarts";
 import { markRaw } from "vue";
+import { isDirectionalMetric, trendColor, TREND_SEMANTICS_UPDATED_EVENT } from "../utils/trendSemantics.js";
 
-const PALETTE = ["#2f7cf6", "#20b26b", "#f4a629", "#ef4f5f", "#7c3aed", "#0891b2"];
+export { isDirectionalMetric, trendColor, TREND_COLORS } from "../utils/trendSemantics.js";
+
+const PALETTE = ["#2563eb", "#7c3aed", "#0891b2", "#d97706", "#db2777", "#4f46e5", "#0f766e", "#9333ea"];
 const CHART_TYPES = new Set(["line", "bar", "pie", "scatter"]);
 const PANEL_LAYOUTS = new Set(["grid", "stack"]);
 const MAX_PANEL_BLOCKS = 6;
@@ -301,7 +304,8 @@ export default {
       activeView: "graph",
       chartInstance: null,
       resizeObserver: null,
-      chartViewportWidth: 520
+      chartViewportWidth: 520,
+      trendSemanticsRevision: 0
     };
   },
   computed: {
@@ -394,6 +398,7 @@ export default {
       return (values.length ? values : numericColumns).filter(Boolean).slice(0, 4);
     },
     seriesMeta() {
+      this.trendSemanticsRevision;
       const series = Array.isArray(this.normalizedSpec?.dataset?.series) ? this.normalizedSpec.dataset.series : [];
       return this.yKeys.map((key) => {
         const match = series.find((item) => item?.yKey === key) || {};
@@ -421,6 +426,15 @@ export default {
     yAxisLayout() {
       return resolveYAxisLayout(this.numericValues);
     },
+    directionalKeys() {
+      return this.seriesMeta
+        .filter((item) => isDirectionalMetric(`${item.yKey} ${item.name}`))
+        .map((item) => item.yKey);
+    },
+    hasDirectionalSeries() {
+      return this.chartType !== "pie"
+        && (this.directionalKeys.length > 0 || (this.chartType === "line" && this.rows.length > 1));
+    },
     xAxisLayout() {
       const values = this.chartType === "scatter"
         ? this.xNumericValues
@@ -443,6 +457,7 @@ export default {
       return `X 轴：${this.xAxisLabel}；Y 轴：${this.yAxisLabel || seriesNames}；图例/线条：${seriesNames}`;
     },
     chartOption() {
+      this.trendSemanticsRevision;
       if (!this.normalizedSpec || this.isMetrics || !CHART_TYPES.has(this.chartType) || !this.rows.length || !this.yKeys.length) {
         return null;
       }
@@ -516,6 +531,9 @@ export default {
             symbolSize: 8,
             data: this.rows.map((row, rowIndex) => ({
               value: [numeric(row[this.xKey]) ?? 0, numeric(row[key]) ?? 0],
+              itemStyle: this.directionalKeys.includes(key)
+                ? { color: trendColor(row[key]), borderColor: "#ffffff", borderWidth: 1 }
+                : undefined,
               row,
               rowIndex,
               xKey: this.xKey,
@@ -544,20 +562,64 @@ export default {
           axisLabel: this.yAxisLayout.axisLabel
         },
         dataZoom: this.rows.length > 20 ? [{ type: "inside" }, { type: "slider", height: 18, bottom: 8 }] : [],
-        series: this.yKeys.map((key) => ({
+        series: this.yKeys.map((key, seriesIndex) => {
+          const directional = this.directionalKeys.includes(key);
+          const values = this.rows.map((row) => numeric(row[key]) ?? 0);
+          const minimum = Math.min(0, ...values);
+          const maximum = Math.max(0, ...values);
+          return {
           name: seriesNameByKey[key] || key,
           type: this.chartType,
           smooth: this.chartType === "line",
+          showSymbol: this.chartType === "line",
+          symbolSize: this.chartType === "line" ? 7 : undefined,
+          lineStyle: this.chartType === "line" ? { width: 3, color: PALETTE[seriesIndex % PALETTE.length] } : undefined,
+          areaStyle: this.chartType === "line" && !directional
+            ? { opacity: 0.08, color: PALETTE[seriesIndex % PALETTE.length] }
+            : undefined,
           barMaxWidth: 34,
           emphasis: { focus: "series" },
           data: this.rows.map((row, rowIndex) => ({
             value: numeric(row[key]) ?? 0,
+            itemStyle: directional || this.chartType === "line"
+              ? {
+                  color: directional
+                    ? trendColor(row[key])
+                    : trendColor(rowIndex === 0
+                      ? 0
+                      : (numeric(row[key]) ?? 0) - (numeric(this.rows[rowIndex - 1]?.[key]) ?? 0)),
+                  borderColor: this.chartType === "line" ? "#ffffff" : undefined,
+                  borderWidth: this.chartType === "line" ? 1.5 : undefined,
+                  borderRadius: this.chartType === "bar" ? [4, 4, 0, 0] : 0
+                }
+              : { color: PALETTE[seriesIndex % PALETTE.length] },
             row,
             rowIndex,
             xKey: this.xKey,
             yKey: key
-          }))
-        }))
+          })),
+          markLine: directional ? {
+            silent: true,
+            symbol: "none",
+            label: { show: true, formatter: "零轴", color: "#667085", fontSize: 11 },
+            lineStyle: { color: "#98a2b3", width: 1, type: "dashed" },
+            data: [{ yAxis: 0 }]
+          } : undefined,
+          markArea: directional && this.chartType === "line" ? {
+            silent: true,
+            data: [
+              ...(maximum > 0 ? [[
+                { yAxis: 0, itemStyle: { color: "rgba(229, 72, 77, 0.07)" } },
+                { yAxis: maximum }
+              ]] : []),
+              ...(minimum < 0 ? [[
+                { yAxis: minimum, itemStyle: { color: "rgba(22, 163, 106, 0.07)" } },
+                { yAxis: 0 }
+              ]] : [])
+            ]
+          } : undefined
+        };
+        })
       };
     },
     availableViews() {
@@ -748,12 +810,22 @@ export default {
     }
   },
   mounted() {
+    if (typeof window !== "undefined") {
+      window.addEventListener(TREND_SEMANTICS_UPDATED_EVENT, this.handleTrendSemanticsUpdated);
+    }
     this.renderEchart();
   },
   beforeUnmount() {
+    if (typeof window !== "undefined") {
+      window.removeEventListener(TREND_SEMANTICS_UPDATED_EVENT, this.handleTrendSemanticsUpdated);
+    }
     this.disposeEchart();
   },
   methods: {
+    handleTrendSemanticsUpdated() {
+      this.trendSemanticsRevision += 1;
+      this.renderEchart();
+    },
     renderEchart() {
       this.$nextTick(() => {
         const element = this.$refs.chartCanvas;

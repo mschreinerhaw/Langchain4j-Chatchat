@@ -6,6 +6,7 @@ import { enterpriseUiCatalog } from "./catalog.js";
 import { enhanceResultTables } from "../utils/resultTableEnhancer.js";
 import { normalizeArtifactHtml } from "../utils/artifactHtmlNormalizer.js";
 import { isInternalDocumentRef, stripInternalDocumentRefs } from "../utils/internalDocumentRefs.js";
+import { normalizeMarkdownTables } from "../utils/markdownTableNormalizer.js";
 
 export const ARTIFACT_RESOURCE_LOADER = Symbol("artifact-resource-loader");
 export const ARTIFACT_EVENT_DISPATCHER = Symbol("artifact-event-dispatcher");
@@ -70,7 +71,9 @@ function resourceComponent(name, renderResource) {
 const MarkdownResource = resourceComponent("ArtifactMarkdown", (value) =>
   h("section", {
     class: "artifact-markdown message-markdown",
-    innerHTML: enhanceResultTables(markdown.render(stripInternalDocumentRefs(String(value || ""))))
+    innerHTML: enhanceResultTables(markdown.render(normalizeMarkdownTables(
+      stripInternalDocumentRefs(String(value || ""))
+    )))
   })
 );
 
@@ -89,7 +92,7 @@ const NoticeResource = resourceComponent("ArtifactNotice", (value, props) =>
     ]),
     h("div", {
       class: "artifact-notice-content",
-      innerHTML: markdown.render(stripInternalDocumentRefs(String(value || "")))
+      innerHTML: markdown.render(normalizeMarkdownTables(stripInternalDocumentRefs(String(value || ""))))
     })
   ])
 );

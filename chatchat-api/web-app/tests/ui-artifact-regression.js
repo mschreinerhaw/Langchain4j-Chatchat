@@ -1,8 +1,10 @@
 import MarkdownIt from "markdown-it";
+import { createApp } from "vue";
 import "../src/styles/base.css";
 import "../src/styles/pages/chat-assistant.css";
 import { enhanceResultTables } from "../src/js/utils/resultTableEnhancer.js";
 import { normalizeArtifactHtml } from "../src/js/utils/artifactHtmlNormalizer.js";
+import VisualizationRenderer from "../src/components/VisualizationRenderer.vue";
 
 const markdown = new MarkdownIt({ html: false, linkify: true, typographer: true });
 const render = (source) => markdown.render(source);
@@ -10,6 +12,7 @@ const render = (source) => markdown.render(source);
 const holdings = [
   "### 持仓明细：宽表与前导零",
   "",
+  "返回 3 条持仓，最新市值合计 **45,554.00**，当日盈亏合计 **+822.61**。",
   "| 证券代码 | 证券名称 | 数量 | 最新市值 | 当日盈亏 | 累计盈亏 | 成本价 | 摊薄成本价 |",
   "|---|---|---:|---:|---:|---:|---:|---:|",
   "| 000155 | 川能动力 | 800 | 9,808.00 | 0.00 | +1,033.50 | 11.8154 | 10.5236 |",
@@ -60,7 +63,34 @@ document.querySelector("#app").innerHTML = `
       <article class="message-markdown artifact-markdown">${html}</article>
     </section>
   `).join("")}
+  <section class="regression-case" data-case="semantic-trend-chart">
+    <div class="regression-case-label">金融语义趋势图</div>
+    <div id="trend-chart"></div>
+  </section>
 `;
+
+createApp(VisualizationRenderer, {
+  spec: {
+    version: "v1",
+    type: "chart",
+    chartType: "line",
+    title: "近六期当日盈亏走势",
+    dataset: {
+      columns: ["日期", "当日盈亏"],
+      xKey: "日期",
+      series: [{ name: "当日盈亏", yKey: "当日盈亏" }],
+      rows: [
+        { 日期: "08-01", 当日盈亏: -320 },
+        { 日期: "08-02", 当日盈亏: -80 },
+        { 日期: "08-03", 当日盈亏: 0 },
+        { 日期: "08-04", 当日盈亏: 180 },
+        { 日期: "08-05", 当日盈亏: 420 },
+        { 日期: "08-06", 当日盈亏: -120 }
+      ]
+    },
+    ui: { defaultView: "chart" }
+  }
+}).mount("#trend-chart");
 
 const style = document.createElement("style");
 style.textContent = `

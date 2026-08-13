@@ -73,6 +73,21 @@ export function fetchUiArtifactResource(artifactId, resourceId) {
   );
 }
 
+export function fetchTrendSemanticConfig() {
+  return apiRequest("/ui-display/trend-semantics");
+}
+
+export function updateTrendSemanticConfig(config) {
+  return apiRequest("/ui-display/trend-semantics", {
+    method: "PUT",
+    body: JSON.stringify(config)
+  });
+}
+
+export function resetTrendSemanticConfig() {
+  return apiRequest("/ui-display/trend-semantics", { method: "DELETE" });
+}
+
 export function submitAgentTask(payload) {
   return apiRequest("/agent/tasks", {
     method: "POST",

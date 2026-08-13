@@ -63,6 +63,12 @@
       {{ chartSemanticSummary }}
     </p>
 
+    <div v-if="hasDirectionalSeries" class="visualization-trend-legend" aria-label="涨跌颜色说明">
+      <span class="up"><i></i>上涨 / 正收益</span>
+      <span class="down"><i></i>下跌 / 负收益</span>
+      <span class="neutral"><i></i>持平 / 起点 / 零值</span>
+    </div>
+
     <div v-if="activeView === 'graph'" class="visualization-graph">
       <div v-if="isMetrics" class="visualization-metrics">
         <article v-for="metric in metrics" :key="metric.label">

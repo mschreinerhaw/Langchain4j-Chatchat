@@ -5,6 +5,13 @@ import MarkdownIt from "markdown-it";
 import { normalizeArtifactHtml } from "./artifactHtmlNormalizer.js";
 import { enhanceResultTables } from "./resultTableEnhancer.js";
 import { stripInternalDocumentRefs, stripInternalDocumentRefsFromHtml } from "./internalDocumentRefs.js";
+import {
+  configureTrendSemantics,
+  isDirectionalMetric,
+  trendColor,
+  TREND_COLORS
+} from "./trendSemantics.js";
+import { hasMarkdownTable, normalizeMarkdownTables } from "./markdownTableNormalizer.js";
 
 const markdown = new MarkdownIt({ html: false, linkify: true, typographer: true });
 const renderMarkdown = (source) => markdown.render(source);
@@ -136,5 +143,72 @@ describe("dynamic report table regression matrix", () => {
     const root = dom(stripInternalDocumentRefsFromHtml("<p>资产数据 records[1…2] 已加载</p>"));
     expect(root.textContent).toBe("资产数据 已加载");
     expect(root.textContent).not.toContain("records[");
+  });
+
+  it("applies Chinese financial trend colors only to directional metrics", () => {
+    configureTrendSemantics();
+    expect(isDirectionalMetric("当日盈亏")).toBe(true);
+    expect(isDirectionalMetric("累计收益")).toBe(true);
+    expect(isDirectionalMetric("同比增长")).toBe(true);
+    expect(isDirectionalMetric("资产总额")).toBe(false);
+    expect(isDirectionalMetric("最新市值")).toBe(false);
+    expect(trendColor(12.5)).toBe(TREND_COLORS.up);
+    expect(trendColor(-0.1)).toBe(TREND_COLORS.down);
+    expect(trendColor(0)).toBe(TREND_COLORS.neutral);
+  });
+
+  it("loads tenant-maintained trend keywords and colors dynamically", () => {
+    configureTrendSemantics({
+      keywords: ["净利差"],
+      upColor: "#aa0000",
+      downColor: "#008844",
+      neutralColor: "#777777"
+    });
+
+    expect(isDirectionalMetric("本期净利差")).toBe(true);
+    expect(isDirectionalMetric("累计收益")).toBe(false);
+    expect(trendColor(3)).toBe("#aa0000");
+    expect(document.documentElement.style.getPropertyValue("--trend-down-color")).toBe("#008844");
+    configureTrendSemantics();
+  });
+
+  it("adds restrained up/down/neutral emphasis to directional table cells", () => {
+    const source = [
+      "| 名称 | 当日盈亏 | 最新市值 |", "|---|---:|---:|",
+      "| A | +120.50 | 9,800 |", "| B | -35 | 8,600 |", "| C | 0 | 7,200 |"
+    ].join("\n");
+    const root = dom(enhanceResultTables(renderMarkdown(source)));
+
+    expect(root.querySelectorAll("th.trend-column")).toHaveLength(1);
+    expect(root.querySelectorAll("td.trend-up")).toHaveLength(1);
+    expect(root.querySelectorAll("td.trend-down")).toHaveLength(1);
+    expect(root.querySelectorAll("td.trend-neutral")).toHaveLength(1);
+    expect(root.querySelectorAll("tbody td:nth-child(3)[class*='trend-']")).toHaveLength(0);
+  });
+
+  it("repairs a valid Markdown table attached directly to a prose paragraph", () => {
+    const source = [
+      "返回 20 条持仓，最新市值合计 846262.20。",
+      "| 市场 | 证券代码 | 证券名称 | 数量 | 当日盈亏 |",
+      "|---|---:|---|---:|---:|",
+      "| SH | 600693 | 东百集团 | 2600 | +749.61 |",
+      "| SZ | 000155 | 川能动力 | 800 | 0.00 |"
+    ].join("\n");
+    expect(hasMarkdownTable(source)).toBe(true);
+    const normalized = normalizeMarkdownTables(source);
+    expect(normalized).toContain("846262.20。\n\n| 市场");
+    const root = dom(enhanceResultTables(renderMarkdown(normalized)));
+    expect(root.querySelectorAll("table")).toHaveLength(1);
+    expect(root.querySelector("p")?.textContent).toContain("返回 20 条持仓");
+    expect(root.querySelectorAll("tbody tr")).toHaveLength(2);
+    expect(payloadFor(root).rows[1].证券代码).toBe("000155");
+  });
+
+  it("repairs prose and a pipe table coexisting inside one legacy HTML paragraph", () => {
+    const html = "<p>返回 2 条持仓。\n| 市场 | 证券代码 | 数量 |\n|---|---:|---:|\n| SZ | 000155 | 800 |</p>";
+    const root = dom(normalizeArtifactHtml(html, renderMarkdown));
+    expect(root.querySelector("p")?.textContent).toBe("返回 2 条持仓。");
+    expect(root.querySelectorAll("table")).toHaveLength(1);
+    expect(payloadFor(root).rows[0].证券代码).toBe("000155");
   });
 });

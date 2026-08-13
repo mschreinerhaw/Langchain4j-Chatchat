@@ -38,7 +38,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 760, height: 1000 }, deviceScaleFactor: 1 });
   await page.goto(`http://127.0.0.1:${port}/tests/ui-artifact-regression.html`, { waitUntil: "networkidle" });
 
-  assert(await page.locator(".regression-case").count() === 5, "回归夹具数量不完整");
+  assert(await page.locator(".regression-case").count() === 6, "回归夹具数量不完整");
   assert(await page.locator("table").count() === 6, "所有输入都应形成可用表格");
   assert(await page.locator(".query-result-chart-button").count() === 7, "单表及多表可视化入口数量不正确");
   assert(await page.locator("text=|---|---|---:|").count() === 0, "旧管道表格仍显示为原始文本");
@@ -59,6 +59,18 @@ try {
   assert(wideLayout.headerWhiteSpace === "nowrap", "宽表标题仍会被逐字挤压");
   assert(wideLayout.buttonBounds.width > 0, "图形分析按钮不可见");
   assert(wideLayout.buttonBounds.right <= wideLayout.cardBounds.right, "图形分析按钮被宽表推到了可视区域之外");
+
+  const trendChart = page.locator('[data-case="semantic-trend-chart"]');
+  assert(await trendChart.locator("canvas").count() === 1, "金融趋势图画布未渲染");
+  assert(await trendChart.locator(".visualization-trend-legend").count() === 1, "涨跌颜色图例未显示");
+  const trendColors = await trendChart.locator(".visualization-trend-legend").evaluate((legend) => ({
+    up: getComputedStyle(legend.querySelector(".up i")).backgroundColor,
+    down: getComputedStyle(legend.querySelector(".down i")).backgroundColor,
+    neutral: getComputedStyle(legend.querySelector(".neutral i")).backgroundColor
+  }));
+  assert(trendColors.up === "rgb(229, 72, 77)", "上涨颜色不是金融红");
+  assert(trendColors.down === "rgb(22, 163, 106)", "下跌颜色不是金融绿");
+  assert(trendColors.neutral === "rgb(152, 162, 179)", "中性颜色不正确");
 
   const outputDirectory = path.resolve("test-results");
   await mkdir(outputDirectory, { recursive: true });

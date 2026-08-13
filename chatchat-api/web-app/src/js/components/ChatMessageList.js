@@ -13,6 +13,7 @@ import { selectCompleteMessageContent } from "../utils/messageContentSelection.j
 import { answerPdfFileName, exportRenderedAnswerToPdf } from "../utils/answerPdfExport.js";
 import { enhanceResultTables as enhanceSharedResultTables } from "../utils/resultTableEnhancer.js";
 import { stripInternalDocumentRefs as stripInternalDisplayMetadata } from "../utils/internalDocumentRefs.js";
+import { normalizeMarkdownTables } from "../utils/markdownTableNormalizer.js";
 
 const markdown = new MarkdownIt({
   html: false,
@@ -599,7 +600,7 @@ export default {
         const rendered = this.renderUiRenderContract(uiContract, new Set(prepared.citationUrls), prepared.pages);
         return this.collapseToolEvidenceHtml(this.enhanceResultTables(rendered));
       }
-      const rendered = markdown.render(prepared.content, {
+      const rendered = markdown.render(normalizeMarkdownTables(prepared.content), {
         webCitationUrls: new Set(prepared.citationUrls)
       });
       return this.collapseToolEvidenceHtml(this.enhanceResultTables(rendered));

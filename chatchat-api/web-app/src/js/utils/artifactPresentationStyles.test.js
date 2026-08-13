@@ -13,6 +13,10 @@ const artifactRegistry = readFileSync(
   new URL("../ui-artifact/registry.js", import.meta.url),
   "utf8"
 );
+const visualizationRenderer = readFileSync(
+  new URL("../../components/VisualizationRenderer.vue", import.meta.url),
+  "utf8"
+);
 
 describe("dynamic report presentation contract", () => {
   it("keeps wide enhanced tables scrollable without crushing headers", () => {
@@ -32,5 +36,15 @@ describe("dynamic report presentation contract", () => {
   it("retains the table-chart event bridge into the existing analysis modal", () => {
     expect(artifactRenderer).toContain('defineEmits(["drill-down", "table-chart"])');
     expect(artifactRenderer).toContain('emit("table-chart"');
+  });
+
+  it("shows an explicit financial trend legend and professional report hierarchy", () => {
+    expect(visualizationRenderer).toContain("visualization-trend-legend");
+    expect(visualizationRenderer).toContain("上涨 / 正收益");
+    expect(visualizationRenderer).toContain("下跌 / 负收益");
+    expect(visualizationRenderer).toContain("持平 / 起点 / 零值");
+    expect(chatStyles).toMatch(/\.visualization-trend-legend \.up i\s*\{\s*background:\s*var\(--trend-up-color, #e5484d\)/);
+    expect(chatStyles).toMatch(/\.visualization-trend-legend \.down i\s*\{\s*background:\s*var\(--trend-down-color, #16a36a\)/);
+    expect(artifactRenderer).toMatch(/\.artifact-markdown h2[\s\S]*border-left:\s*4px solid #2563eb/);
   });
 });

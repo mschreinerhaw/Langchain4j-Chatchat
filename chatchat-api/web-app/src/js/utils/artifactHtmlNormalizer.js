@@ -1,5 +1,6 @@
 import { enhanceResultTables } from "./resultTableEnhancer.js";
 import { stripInternalDocumentRefsFromHtml } from "./internalDocumentRefs.js";
+import { hasMarkdownTable, normalizeMarkdownTables } from "./markdownTableNormalizer.js";
 
 export function sanitizeArtifactHtml(value = "") {
   if (typeof DOMParser === "undefined") return "";
@@ -23,14 +24,9 @@ export function repairEmbeddedMarkdownTables(value = "", renderMarkdown = (sourc
     const scratch = document.createElement("div");
     scratch.innerHTML = withLineBreaks;
     const source = String(scratch.textContent || "").trim();
-    const lines = source.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-    const isPipeTable = lines.length >= 3
-      && /^\|.*\|$/.test(lines[0])
-      && /^\|?\s*:?-{3,}/.test(lines[1])
-      && lines[1].includes("|");
-    if (!isPipeTable) return;
+    if (!hasMarkdownTable(source)) return;
     const replacement = document.createElement("div");
-    replacement.innerHTML = renderMarkdown(lines.join("\n"));
+    replacement.innerHTML = renderMarkdown(normalizeMarkdownTables(source));
     paragraph.replaceWith(...replacement.childNodes);
   });
   return document.body.innerHTML;

@@ -8,6 +8,7 @@
 |---|---|
 | 标准 Markdown 表格 | 转为真实表格，并保留图形分析入口 |
 | 历史 Markdown 表格 | 缺失分隔行时自动恢复；CRLF 内容同样有效 |
+| 非规范 Markdown 表格 | 开源 `markdown-it` 先解析；失败后修复短分隔线、全角竖线、缺失单元格，再由解析器二次验收 |
 | 旧原生 HTML 表格 | 安全清洗后继续使用现有表格与图表能力 |
 | HTML 中的管道表文本 | 恢复为真实表格，不展示 `|---|` 原文 |
 | 宽表与长说明 | 桌面自适应，手机端在卡片内横向滚动，工具栏不被推出 |
@@ -37,3 +38,5 @@ npm run verify:ui-artifact
 - `test-results/ui-artifact-regression-mobile.png`
 
 修改 Markdown 清理、HTML 清洗、表格增强、证据样式、图表组件或聊天历史展示入口时，必须执行 `npm run verify:ui-artifact`。
+
+恢复器只接受连续、具备明确边界的表格候选；普通 `A | B | C` 文本和代码围栏不会被转换。`recoverMarkdownTables()` 会返回修复次数与行号诊断，方便后续接入日志监控。

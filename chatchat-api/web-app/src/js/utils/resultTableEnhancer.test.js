@@ -11,7 +11,7 @@ import {
   trendColor,
   TREND_COLORS
 } from "./trendSemantics.js";
-import { hasMarkdownTable, normalizeMarkdownTables } from "./markdownTableNormalizer.js";
+import { hasMarkdownTable, normalizeMarkdownTables, recoverMarkdownTables } from "./markdownTableNormalizer.js";
 
 const markdown = new MarkdownIt({ html: false, linkify: true, typographer: true });
 const renderMarkdown = (source) => markdown.render(source);
@@ -263,6 +263,47 @@ describe("dynamic report table regression matrix", () => {
     expect(normalized).not.toContain("| --- | --- |");
     expect(root.querySelector("table")).toBeNull();
     expect(root.querySelector("code")?.textContent).toContain("| 字段 | 数值 |");
+  });
+
+  it("repairs short delimiters and uneven rows before parser validation", () => {
+    const source = [
+      "| 名称 | 数量 | 备注 |",
+      "|-|-|-|",
+      "| API | 3 |",
+      "| 调度器 | 2 | 主节点 |"
+    ].join("\n");
+    const recovery = recoverMarkdownTables(source);
+    const root = dom(enhanceResultTables(renderMarkdown(recovery.content)));
+
+    expect(recovery).toMatchObject({ repaired: true, repairCount: 1 });
+    expect(recovery.content).toContain("| --- | --- | --- |");
+    expect(root.querySelectorAll("table")).toHaveLength(1);
+    expect(root.querySelectorAll("tbody tr")).toHaveLength(2);
+    expect(payloadFor(root).rows[0]).toEqual({ 名称: "API", 数量: 3, 备注: "" });
+  });
+
+  it("repairs full-width pipes and preserves pipes inside inline code cells", () => {
+    const source = [
+      "｜ 字段 ｜ 示例 ｜",
+      "｜ 名称 ｜ `A|B` ｜",
+      "｜ 状态 ｜ 正常 ｜"
+    ].join("\n");
+    const recovery = recoverMarkdownTables(source);
+    const root = dom(enhanceResultTables(renderMarkdown(recovery.content)));
+
+    expect(recovery.repaired).toBe(true);
+    expect(root.querySelectorAll("table")).toHaveLength(1);
+    expect(root.querySelector("tbody tr:first-child td:last-child")?.textContent).toBe("A|B");
+  });
+
+  it("returns recovery diagnostics and leaves ambiguous pipe prose unchanged", () => {
+    const prose = "请选择 A | B | C\n结果会显示在下一段";
+    expect(recoverMarkdownTables(prose)).toEqual({
+      content: prose,
+      repaired: false,
+      repairCount: 0,
+      repairs: []
+    });
   });
 
   it("repairs prose and a pipe table coexisting inside one legacy HTML paragraph", () => {

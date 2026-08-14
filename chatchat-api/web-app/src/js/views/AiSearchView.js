@@ -15,8 +15,8 @@ import {
   isDocumentOnlinePreviewSupported,
   UNSUPPORTED_DOCUMENT_PREVIEW_MESSAGE
 } from "../utils/documentPreview.js";
+import { validateDocumentUploadSelection } from "../utils/documentUploadPolicy.js";
 
-const MAX_UPLOAD_SIZE = 5 * 1024 * 1024;
 const MESSAGE_TEXT = {
   library_empty: "文档库暂无文档，请先上传文档。",
   no_match: "没有找到匹配文档，请换一个关键词。",
@@ -296,12 +296,12 @@ export default {
       const files = Array.from(event.target.files || []);
       const file = files[0] || null;
       this.uploadError = "";
-      const oversized = files.find((item) => item.size > MAX_UPLOAD_SIZE);
-      if (oversized) {
+      const validation = validateDocumentUploadSelection(files);
+      if (!validation.valid) {
         this.uploadForm.file = null;
         this.uploadForm.files = [];
         event.target.value = "";
-        this.uploadError = `文件不能超过 5MB: ${oversized.name}`;
+        this.uploadError = validation.message;
         return;
       }
       this.uploadForm.file = file;
@@ -321,6 +321,11 @@ export default {
       const category = this.resolveUploadCategory();
       if (!files.length) {
         this.uploadError = "请选择要上传的文件";
+        return;
+      }
+      const validation = validateDocumentUploadSelection(files);
+      if (!validation.valid) {
+        this.uploadError = validation.message;
         return;
       }
       if (!category) {

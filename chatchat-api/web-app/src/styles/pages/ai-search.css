@@ -408,6 +408,13 @@
   white-space: nowrap;
 }
 
+.ai-search-view .upload-dialog .upload-size-tip {
+  margin: -4px 0 2px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .ai-search-view .upload-dialog .file-picker-button {
   min-height: 38px;
   padding: 0 14px;

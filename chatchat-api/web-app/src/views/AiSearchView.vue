@@ -98,8 +98,9 @@
             @change="handleFileChange"
           >
           <button type="button" class="file-picker-button" @click="triggerFilePicker">选择文件</button>
-          <span>{{ uploadForm.files?.length > 1 ? `${uploadForm.files.length} 个文件` : (uploadForm.file?.name || "未选择文件，最大 5MB") }}</span>
+          <span>{{ uploadForm.files?.length > 1 ? `${uploadForm.files.length} 个文件` : (uploadForm.file?.name || "未选择文件，单文件最大 55MB") }}</span>
         </div>
+        <p class="upload-size-tip">超过 5MB 的文档仅支持单文件上传，后台将按 5MB 分片处理并建立索引。</p>
 
         <input v-if="(uploadForm.files?.length || 0) <= 1" v-model="uploadForm.title" placeholder="文档标题">
         <input v-model="uploadForm.source" placeholder="文档来源">

@@ -121,7 +121,7 @@ public class GlobalExceptionHandler {
         log.warn("Upload size exceeded: {}", ex.getMessage());
 
         return new ResponseEntity<>(
-            ApiResponse.badRequest("file size exceeds 5MB limit"),
+            ApiResponse.badRequest("file size exceeds 55MB limit"),
             HttpStatus.BAD_REQUEST
         );
     }
@@ -360,9 +360,9 @@ public class GlobalExceptionHandler {
     private String multipartErrorMessage(Throwable ex) {
         String message = nestedMessage(ex).toLowerCase();
         if (message.contains("exceed") || message.contains("size") || message.contains("maximum")) {
-            return "文件上传请求超过大小限制：单文件不超过 5MB，批量上传会自动分批，请减少单批文件数量后重试";
+            return "文件上传请求超过大小限制：单文件最大 55MB；超过 5MB 的文档请单独上传";
         }
-        return "文件上传请求解析失败，请减少单次上传文件数量或确认单文件不超过 5MB";
+        return "文件上传请求解析失败，请减少单次上传文件数量或确认单文件不超过 55MB";
     }
 
     private String nestedMessage(Throwable ex) {

@@ -14,6 +14,7 @@ import { answerPdfFileName, exportRenderedAnswerToPdf } from "../utils/answerPdf
 import { enhanceResultTables as enhanceSharedResultTables } from "../utils/resultTableEnhancer.js";
 import { stripInternalDocumentRefs as stripInternalDisplayMetadata } from "../utils/internalDocumentRefs.js";
 import { normalizeMarkdownTables } from "../utils/markdownTableNormalizer.js";
+import { collapseRecordCoverageEvidenceHtml } from "../utils/recordCoverageEvidence.js";
 
 const markdown = new MarkdownIt({
   html: false,
@@ -598,12 +599,16 @@ export default {
       const uiContract = this.uiRenderContract(message, prepared.content);
       if (uiContract) {
         const rendered = this.renderUiRenderContract(uiContract, new Set(prepared.citationUrls), prepared.pages);
-        return this.collapseToolEvidenceHtml(this.enhanceResultTables(rendered));
+        return collapseRecordCoverageEvidenceHtml(
+          this.collapseToolEvidenceHtml(this.enhanceResultTables(rendered))
+        );
       }
       const rendered = markdown.render(normalizeMarkdownTables(prepared.content), {
         webCitationUrls: new Set(prepared.citationUrls)
       });
-      return this.collapseToolEvidenceHtml(this.enhanceResultTables(rendered));
+      return collapseRecordCoverageEvidenceHtml(
+        this.collapseToolEvidenceHtml(this.enhanceResultTables(rendered))
+      );
     },
     enhanceResultTables(html = "") {
       return enhanceSharedResultTables(html);
@@ -614,7 +619,9 @@ export default {
       const headings = [...source.matchAll(headingPattern)];
       const targets = headings.map((match, index) => ({
         match,
-        bodyEnd: headings[index + 1]?.index ?? source.length
+        bodyEnd: headings
+          .slice(index + 1)
+          .find((candidate) => Number(candidate[1]) <= Number(match[1]))?.index ?? source.length
       })).filter(({ match }) => {
         if (Number(match[1]) < 2) {
           return false;
@@ -644,7 +651,7 @@ export default {
         : sections.map((section) => section.body).join("");
       const collapsed = [
         '<details class="tool-evidence-details">',
-        `<summary><span>工具链调用</span><small>${items.length ? `${items.length} steps` : "details"}</small></summary>`,
+        `<summary><span>证据 · 工具执行证据</span><small>${items.length ? `${items.length} 条` : "点击查看"}</small></summary>`,
         `<div class="tool-evidence-body">${mergedBody}</div>`,
         '</details>'
       ].join("");

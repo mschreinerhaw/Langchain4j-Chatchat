@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
     "test": "npm run test:ui-artifact",
-    "test:ui-artifact": "vitest run src/js/utils/resultTableEnhancer.test.js src/js/utils/artifactPresentationStyles.test.js src/js/utils/displayContractRegression.test.js src/js/utils/planDagLayout.test.js src/js/utils/documentUploadPolicy.test.js src/js/views/AiSearchView.test.js src/js/views/TasksView.test.js src/js/views/CapabilityMarketView.test.js src/js/views/FavoritesView.test.js src/js/components/RightPanel.test.js src/js/App.test.js",
+    "test:ui-artifact": "vitest run src/js/utils/resultTableEnhancer.test.js src/js/utils/artifactPresentationStyles.test.js src/js/utils/displayContractRegression.test.js src/js/utils/recordCoverageEvidence.test.js src/js/utils/planDagLayout.test.js src/js/utils/documentUploadPolicy.test.js src/js/views/AiSearchView.test.js src/js/views/TasksView.test.js src/js/views/CapabilityMarketView.test.js src/js/views/FavoritesView.test.js src/js/components/ChatMessageList.test.js src/js/components/RightPanel.test.js src/js/App.test.js",
     "test:ui-artifact:visual": "node scripts/test-ui-artifact-visual.mjs",
     "verify:ui-artifact": "npm run test:ui-artifact && npm run test:ui-artifact:visual && npm run build",
     "verify": "npm run test && npm run build"

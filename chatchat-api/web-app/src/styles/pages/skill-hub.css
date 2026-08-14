@@ -98,6 +98,32 @@
   gap: 6px;
 }
 
+.runtime-view .runtime-actions .runtime-filter {
+  width: var(--tenant-field-width, 176px);
+  min-width: 0;
+  max-width: 280px;
+  gap: 4px;
+}
+
+.runtime-view .runtime-actions .runtime-filter > span {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.runtime-view .runtime-actions .runtime-filter input {
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.runtime-view .runtime-actions > .light-button {
+  height: 36px;
+  min-height: 36px;
+}
+
 .runtime-view input,
 .runtime-view select {
   width: 100%;

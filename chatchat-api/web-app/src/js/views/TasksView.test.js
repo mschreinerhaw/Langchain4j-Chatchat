@@ -14,6 +14,14 @@ describe("TasksView persisted plan restoration", () => {
     expect(context.runtimeTenantId).toBe("9001fee4-482b-4851-9eb");
   });
 
+  it("sizes the tenant field from the visible tenant name", () => {
+    expect(TasksView.computed.runtimeTenantFieldWidth.call({ runtimeTenantName: "默认租户" })).toBe("96px");
+    expect(TasksView.computed.runtimeTenantFieldWidth.call({ runtimeTenantName: "华东区域生产环境数据智能中心" }))
+      .toBe("220px");
+    expect(TasksView.computed.runtimeTenantFieldWidth.call({ runtimeTenantName: "超长租户名称".repeat(20) }))
+      .toBe("280px");
+  });
+
   it("loads the selected task DAG even when the current tab is not the plan tab", async () => {
     const task = { taskId: "task-1", tenantId: "tenant-1" };
     const context = {

@@ -6,7 +6,7 @@
         <span>按租户监控任务执行、事件链路和工具治理。</span>
       </div>
       <div class="runtime-actions">
-        <label class="runtime-filter">
+        <label class="runtime-filter" :style="{ '--tenant-field-width': runtimeTenantFieldWidth }">
           <span>租户</span>
           <input :value="runtimeTenantName" type="text" readonly aria-label="当前租户名称" />
         </label>

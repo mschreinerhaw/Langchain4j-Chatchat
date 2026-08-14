@@ -143,6 +143,14 @@ export default {
     runtimeTenantName() {
       return this.tenantName || "默认租户";
     },
+    runtimeTenantFieldWidth() {
+      const name = String(this.runtimeTenantName || "");
+      const textWidth = Array.from(name).reduce(
+        (width, character) => width + (/[^\u0000-\u00ff]/.test(character) ? 14 : 7.5),
+        0
+      );
+      return `${Math.max(96, Math.min(280, Math.ceil(textWidth + 24)))}px`;
+    },
     tabs() {
       return [
         { key: "tasks", label: "任务", icon: ListFilter, count: this.tasks.length },

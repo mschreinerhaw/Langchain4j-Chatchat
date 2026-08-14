@@ -321,11 +321,12 @@ class StandardToolExecutionResultFactoryTest {
 
         assertThat(data.get("exitCode")).isEqualTo(2);
         assertThat(data.get("commandSuccess")).isEqualTo(false);
-        assertThat(limits.get("stdoutTruncated")).isEqualTo(true);
-        assertThat(limits.get("stderrTruncated")).isEqualTo(true);
+        assertThat(limits.get("strategy"))
+            .isEqualTo("FULL_CAPTURED_AGGREGATE_WITH_BOUNDED_STEP_PREVIEWS");
+        assertThat(limits.get("stdoutTruncated")).isEqualTo(false);
+        assertThat(limits.get("stderrTruncated")).isEqualTo(false);
         assertThat(String.valueOf(data.get("stdout")))
             .contains("STDOUT_HEAD")
-            .contains("[truncated")
             .contains("STDOUT_TAIL");
         assertThat(String.valueOf(data.get("stderr")))
             .contains("STDERR_HEAD")

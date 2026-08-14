@@ -2966,14 +2966,60 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 continue;
             }
             if (step.success()) {
-                List<Map<String, Object>> records = protocolRecords(step.output());
+                Object evidenceOutput = step.toolExecution() == null
+                    ? step.output()
+                    : toolRuntimeService.resolveOutputForEvidenceReview(step.toolExecution().output());
+                List<Map<String, Object>> records = protocolRecords(evidenceOutput);
                 if (!records.isEmpty()) {
                     sets.add(new BatchRecordSet(
                         firstNonBlank(step.toolName(), "step-" + step.stepId()), records));
+                } else {
+                    sets.addAll(linuxStreamRecordSets(
+                        evidenceOutput, firstNonBlank(step.toolName(), "step-" + step.stepId())));
                 }
             }
         }
         return List.copyOf(sets);
+    }
+
+    private List<BatchRecordSet> linuxStreamRecordSets(Object output, String reference) {
+        Map<String, Object> root = objectMap(output);
+        if (!"ssh_steps.v1".equals(stringValue(root.get("dataSchema")))) {
+            return List.of();
+        }
+        Map<String, Object> data = objectMap(root.get("data"));
+        Map<String, Object> limits = objectMap(data.get("outputLimits"));
+        List<BatchRecordSet> sets = new ArrayList<>();
+        appendLinuxStreamRecordSet(sets, reference, "stdout", stringValue(data.get("stdout")),
+            !Boolean.parseBoolean(stringValue(limits.get("stdoutTruncated"))));
+        appendLinuxStreamRecordSet(sets, reference, "stderr", stringValue(data.get("stderr")),
+            !Boolean.parseBoolean(stringValue(limits.get("stderrTruncated"))));
+        return List.copyOf(sets);
+    }
+
+    private void appendLinuxStreamRecordSet(List<BatchRecordSet> target,
+                                            String reference,
+                                            String stream,
+                                            String text,
+                                            boolean sourceComplete) {
+        if (text == null || text.isBlank()) {
+            return;
+        }
+        int chunkChars = Math.max(1_000, RECORD_ANALYSIS_CHUNK_MAX_CHARS - 2_000);
+        List<Map<String, Object>> chunks = new ArrayList<>();
+        int chunkIndex = 0;
+        for (int from = 0; from < text.length(); from += chunkChars) {
+            int to = Math.min(text.length(), from + chunkChars);
+            Map<String, Object> chunk = new LinkedHashMap<>();
+            chunk.put("stream", stream);
+            chunk.put("chunkIndex", ++chunkIndex);
+            chunk.put("fromChar", from);
+            chunk.put("toChar", to);
+            chunk.put("sourceComplete", sourceComplete);
+            chunk.put("content", text.substring(from, to));
+            chunks.add(Map.copyOf(chunk));
+        }
+        target.add(new BatchRecordSet(reference + "#" + stream, List.copyOf(chunks)));
     }
 
     private List<Map<String, Object>> protocolRecords(Object output) {

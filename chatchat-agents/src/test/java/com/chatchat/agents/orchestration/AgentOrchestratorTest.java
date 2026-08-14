@@ -691,6 +691,40 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void iterativelySummarizesCompleteLinuxStdoutInsteadOfDroppingTheMiddle() {
+        String stdout = "LINUX_HEAD\n" + "metric=value\n".repeat(2_000) + "LINUX_TAIL";
+        Map<String, Object> output = Map.of(
+            "dataSchema", "ssh_steps.v1",
+            "data", Map.of(
+                "stdout", stdout,
+                "stderr", "",
+                "outputLimits", Map.of("stdoutTruncated", false, "stderrTruncated", false)
+            )
+        );
+        InterpretationPlanRuntime.StepExecution step = new InterpretationPlanRuntime.StepExecution(
+            1, "mcp_tool", "linux_command_execute", true,
+            output, null, null, null, 10L, Map.of()
+        );
+        InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
+            "success", true, false, null, null, List.of(step), Map.of(), 10L
+        );
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(any(String.class))).thenReturn("linux output chunk summary");
+        Map<String, Object> metadata = new LinkedHashMap<>();
+
+        AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
+            .buildRecordCoverageBundle(model, "analyze linux output", result, Map.of(), metadata, () -> false);
+
+        assertThat(coverage.iterative()).isTrue();
+        assertThat(coverage.coverageComplete()).isTrue();
+        assertThat(coverage.returnedRecordCount()).isGreaterThan(1);
+        assertThat(coverage.processedRecordCount()).isEqualTo(coverage.returnedRecordCount());
+        assertThat(coverage.promptEvidence()).contains("linux_command_execute#stdout", "linux output chunk summary");
+        assertThat(metadata).containsEntry("recordAnalysisIterative", true);
+        verify(model, times(coverage.iterations())).chat(any(String.class));
+    }
+
+    @Test
     void dagControllerFailureStillSelectsSoleReadyFinalAnswerStep() {
         InterpretationPlan.Step finalStep = new InterpretationPlan.Step(
             3,

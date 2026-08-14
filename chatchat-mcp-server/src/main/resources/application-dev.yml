@@ -121,6 +121,10 @@ chatchat:
           vector-candidate-limit: 50
     server:
       endpoint: /mcp
+      concurrency:
+        tools:
+          linux_command_execute:
+            max-output-chars: 10485760
       document-search:
         api-base-url: http://localhost:8080
         auth:

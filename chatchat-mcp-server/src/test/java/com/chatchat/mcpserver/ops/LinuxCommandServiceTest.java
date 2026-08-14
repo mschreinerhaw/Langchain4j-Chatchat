@@ -16,6 +16,22 @@ import static org.mockito.Mockito.when;
 
 class LinuxCommandServiceTest {
 
+    @Test
+    void boundedSshCaptureConsumesAllBytesAndPreservesHeadAndTail() throws Exception {
+        LinuxCommandService.HeadTailOutputStream output =
+            new LinuxCommandService.HeadTailOutputStream(1_024);
+        String value = "HEAD" + "x".repeat(4_096) + "FATAL_TAIL";
+
+        output.write(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        String captured = output.asUtf8String();
+
+        assertThat(captured)
+            .startsWith("HEAD")
+            .contains("capture truncated")
+            .endsWith("FATAL_TAIL");
+        assertThat(captured.length()).isLessThan(1_200);
+    }
+
     private final SshHostConfigService hostConfigService = mock(SshHostConfigService.class);
     private final CommandTemplateService templateService = mock(CommandTemplateService.class);
     private final InvocationAuditService auditService = mock(InvocationAuditService.class);

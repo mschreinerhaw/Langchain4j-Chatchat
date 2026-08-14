@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
 public class StandardToolExecutionResultFactory {
 
     public static final String SCHEMA_VERSION = "tool_execution_result.v1";
-    static final int LINUX_AGGREGATE_STREAM_LIMIT = 24_000;
+    static final int LINUX_STEP_STREAM_LIMIT = 24_000;
     static final int LINUX_STEP_STREAM_TOTAL_BUDGET = 100_000;
     static final int MODEL_SAFE_TEXT_LIMIT = 4_000;
     public static final int MODEL_SAFE_COLLECTION_LIMIT = 200;
@@ -292,12 +292,12 @@ public class StandardToolExecutionResultFactory {
         Map<String, Object> diagnostics = linuxCommandDiagnostics(result);
         List<LinuxCommandStepResult> rawSteps = result.steps() == null ? List.of() : result.steps();
         int perStepStreamLimit = Math.min(
-            LINUX_AGGREGATE_STREAM_LIMIT,
+            LINUX_STEP_STREAM_LIMIT,
             Math.max(4_000, LINUX_STEP_STREAM_TOTAL_BUDGET / Math.max(2, rawSteps.size() * 2))
         );
         List<Map<String, Object>> boundedSteps = stepResults(rawSteps, perStepStreamLimit);
-        BoundedText stdout = boundedText(result.stdout(), LINUX_AGGREGATE_STREAM_LIMIT);
-        BoundedText stderr = boundedText(result.stderr(), LINUX_AGGREGATE_STREAM_LIMIT);
+        BoundedText stdout = completeCapturedText(result.stdout());
+        BoundedText stderr = completeCapturedText(result.stderr());
         Map<String, Object> payload = base(
             "ssh_command",
             "ssh_steps.v1",
@@ -338,8 +338,8 @@ public class StandardToolExecutionResultFactory {
             "outputMode", "separated",
             "diagnostics", diagnostics,
             "outputLimits", mapOf(
-                "strategy", "HEAD_TAIL_PER_STREAM",
-                "aggregateStreamLimit", LINUX_AGGREGATE_STREAM_LIMIT,
+                "strategy", "FULL_CAPTURED_AGGREGATE_WITH_BOUNDED_STEP_PREVIEWS",
+                "aggregateStreamLimit", -1,
                 "perStepStreamLimit", perStepStreamLimit,
                 "stdoutOriginalLength", stdout.originalLength(),
                 "stdoutReturnedLength", stdout.value().length(),
@@ -1043,6 +1043,13 @@ public class StandardToolExecutionResultFactory {
         int tailLength = available - headLength;
         String bounded = text.substring(0, headLength) + marker + text.substring(text.length() - tailLength);
         return new BoundedText(bounded, text.length(), true);
+    }
+
+    private BoundedText completeCapturedText(String value) {
+        String text = value == null ? "" : value;
+        boolean captureTruncated = text.contains("...[capture truncated ")
+            || text.contains("...[aggregate output truncated; preserving tail]...");
+        return new BoundedText(text, text.length(), captureTruncated);
     }
 
     private Map<String, Object> linuxCommandDiagnostics(LinuxCommandResult result) {

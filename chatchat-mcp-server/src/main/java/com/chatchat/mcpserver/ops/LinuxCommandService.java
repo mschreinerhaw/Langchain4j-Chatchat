@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.ByteArrayInputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.MessageDigest;
@@ -44,6 +45,9 @@ public class LinuxCommandService {
 
     private static final Pattern TEMPLATE_TOKEN = Pattern.compile("\\{\\{\\s*([A-Za-z0-9_][A-Za-z0-9_.-]*)\\s*}}");
     private static final int LOG_OUTPUT_LIMIT = 4000;
+    private static final int STDOUT_CAPTURE_LIMIT_BYTES = 8 * 1024 * 1024;
+    private static final int STDERR_CAPTURE_LIMIT_BYTES = 1024 * 1024;
+    private static final int AGGREGATE_STREAM_LIMIT_CHARS = 9 * 1024 * 1024;
 
     private final SshHostConfigService hostConfigService;
     private final CommandTemplateService templateService;
@@ -244,7 +248,9 @@ public class LinuxCommandService {
                 host.getId(), host.getName(), template, step.stepIndex(), commandSteps.size(), step.exitCode(), step.success(),
                 step.durationMs(), truncate(step.stdout()), truncate(step.stderr()));
             appendCommandOutput(stdoutAll, step.stepIndex(), step.command(), step.stdout());
+            boundAggregateOutput(stdoutAll, AGGREGATE_STREAM_LIMIT_CHARS);
             appendCommandOutput(stderrAll, step.stepIndex(), step.command(), step.stderr());
+            boundAggregateOutput(stderrAll, AGGREGATE_STREAM_LIMIT_CHARS);
             if (!step.success() && !plan.continueOnError()) {
                 break;
             }
@@ -311,8 +317,8 @@ public class LinuxCommandService {
                 authenticate(session, host);
                 log.info("MCP Linux command SSH authenticated: hostId={}, hostName={}, authType={}, step={}",
                     host.getId(), host.getName(), host.getAuthType(), stepIndex);
-                try (ByteArrayOutputStream stdout = new ByteArrayOutputStream();
-                     ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+                try (HeadTailOutputStream stdout = new HeadTailOutputStream(STDOUT_CAPTURE_LIMIT_BYTES);
+                     HeadTailOutputStream stderr = new HeadTailOutputStream(STDERR_CAPTURE_LIMIT_BYTES);
                      ClientChannel channel = session.createExecChannel(sshCommand)) {
                     channel.setOut(stdout);
                     channel.setErr(stderr);
@@ -331,8 +337,8 @@ public class LinuxCommandService {
                         command,
                         sha256(command),
                         exitCode,
-                        stdout.toString(StandardCharsets.UTF_8),
-                        stderr.toString(StandardCharsets.UTF_8),
+                        stdout.asUtf8String(),
+                        stderr.asUtf8String(),
                         durationMs,
                         exitCode == 0
                     );
@@ -766,6 +772,92 @@ public class LinuxCommandService {
     private String text(Map<String, Object> map, String key) {
         Object value = map == null ? null : map.get(key);
         return value == null ? null : String.valueOf(value).trim();
+    }
+
+    private void boundAggregateOutput(StringBuilder output, int maxChars) {
+        if (output.length() <= maxChars) {
+            return;
+        }
+        String marker = System.lineSeparator()
+            + "...[aggregate output truncated; preserving tail]..." + System.lineSeparator();
+        int available = Math.max(2, maxChars - marker.length());
+        int headLength = available / 2;
+        int tailLength = available - headLength;
+        String tail = output.substring(output.length() - tailLength);
+        output.setLength(headLength);
+        output.append(marker).append(tail);
+    }
+
+    /** Consumes the complete SSH stream while retaining a bounded head/tail window in heap. */
+    static final class HeadTailOutputStream extends OutputStream {
+        private final int limit;
+        private final int headLimit;
+        private final ByteArrayOutputStream head;
+        private final byte[] tail;
+        private long totalBytes;
+        private int tailSize;
+        private int tailPosition;
+
+        HeadTailOutputStream(int limit) {
+            this.limit = Math.max(1024, limit);
+            this.headLimit = this.limit / 2;
+            this.head = new ByteArrayOutputStream(this.headLimit);
+            this.tail = new byte[this.limit - this.headLimit];
+        }
+
+        @Override
+        public void write(int value) {
+            totalBytes++;
+            if (head.size() < headLimit) {
+                head.write(value);
+                return;
+            }
+            tail[tailPosition] = (byte) value;
+            tailPosition = (tailPosition + 1) % tail.length;
+            tailSize = Math.min(tail.length, tailSize + 1);
+        }
+
+        @Override
+        public void write(byte[] values, int offset, int length) {
+            if (values == null) {
+                throw new NullPointerException("values");
+            }
+            if (offset < 0 || length < 0 || offset + length > values.length) {
+                throw new IndexOutOfBoundsException();
+            }
+            for (int index = offset; index < offset + length; index++) {
+                write(values[index]);
+            }
+        }
+
+        String asUtf8String() {
+            if (totalBytes <= limit) {
+                byte[] combined = new byte[(int) totalBytes];
+                byte[] headBytes = head.toByteArray();
+                System.arraycopy(headBytes, 0, combined, 0, headBytes.length);
+                copyTail(combined, headBytes.length);
+                return new String(combined, StandardCharsets.UTF_8);
+            }
+            byte[] headBytes = head.toByteArray();
+            byte[] tailBytes = new byte[tailSize];
+            copyTail(tailBytes, 0);
+            long omitted = Math.max(0, totalBytes - headBytes.length - tailBytes.length);
+            String marker = System.lineSeparator()
+                + "...[capture truncated " + omitted + " bytes; preserving tail]..."
+                + System.lineSeparator();
+            return new String(headBytes, StandardCharsets.UTF_8)
+                + marker + new String(tailBytes, StandardCharsets.UTF_8);
+        }
+
+        private void copyTail(byte[] target, int offset) {
+            if (tailSize == 0) {
+                return;
+            }
+            int start = tailSize < tail.length ? 0 : tailPosition;
+            for (int index = 0; index < tailSize; index++) {
+                target[offset + index] = tail[(start + index) % tail.length];
+            }
+        }
     }
 
     private String firstText(String... values) {

@@ -52,19 +52,13 @@
     <template #right-panel="{ collapsed, toggleCollapsed }">
       <RightPanel
         :collapsed="collapsed"
-        :runtime-todos="runtimeTodos"
-        :todo-action-loading-ids="todoActionLoadingIds"
-        :todo-error="todoError"
-        :todo-loading="todoLoading"
+        :tenant-id="tenantId"
         :user-id="userId"
         @ask-ai="handleAskAiFromSearch"
         @navigate="handleNavigate"
         @open-document="handleOpenDocumentShortcut"
         @open-favorite="handleOpenFavoriteShortcut"
-        @refresh-todos="loadRuntimeTodos"
         @select-agent="handleSelectAgentShortcut"
-        @todo-action="handleTodoAction"
-        @todo-detail="handleTodoDetail"
         @toggle-collapsed="toggleCollapsed"
       />
     </template>

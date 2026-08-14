@@ -322,6 +322,20 @@
         primary key (id)
     ) engine=InnoDB;
 
+    create table personal_todo (
+        completed bit not null,
+        important bit not null,
+        created_at datetime(6) not null,
+        due_at datetime(6),
+        updated_at datetime(6) not null,
+        id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(64) not null,
+        title varchar(300) not null,
+        notes varchar(2000),
+        primary key (id)
+    ) engine=InnoDB;
+
     create table query_expand_rule (
         enabled bit,
         priority integer,
@@ -808,6 +822,15 @@
         primary key (id)
     ) engine=InnoDB;
 
+    create table user_favorite_category (
+        created_at datetime(6) not null,
+        id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(64) not null,
+        category_name varchar(80) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
     create index idx_agent_experience_tenant_score 
        on agent_experience (tenant_id, feedback_score);
 
@@ -891,6 +914,9 @@
 
     alter table mcp_user_tool_policy 
        add constraint uk_mcp_user_tool_policy_lookup unique (tenant_id, user_id, tool_name);
+
+    create index idx_personal_todo_user_status
+       on personal_todo (tenant_id, user_id, completed, updated_at);
 
     create index idx_role_agent_role 
        on role_agent_binding (role_id);
@@ -993,3 +1019,9 @@
 
     create index idx_user_favorite_target 
        on user_favorite (tenant_id, user_id, target_type, target_id);
+
+    create index idx_user_favorite_category_user
+       on user_favorite_category (tenant_id, user_id, created_at);
+
+    alter table user_favorite_category
+       add constraint uk_user_favorite_category_name unique (tenant_id, user_id, category_name);

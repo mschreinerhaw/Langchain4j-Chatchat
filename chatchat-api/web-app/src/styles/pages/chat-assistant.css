@@ -5475,6 +5475,13 @@
   white-space: nowrap;
 }
 
+.chat-upload-size-tip {
+  margin: -4px 0 2px;
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .chat-upload-dialog .file-picker-button,
 .chat-upload-dialog .secondary-button,
 .chat-upload-dialog .primary-button {

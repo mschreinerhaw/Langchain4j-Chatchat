@@ -1,21 +1,25 @@
 import {
   Bot,
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
+  Circle,
   ClipboardList,
   FileText,
   PanelRightClose,
   PanelRightOpen,
+  Plus,
   RefreshCw,
-  RotateCcw,
   Star,
+  Trash2,
   XCircle
 } from "@lucide/vue";
 import {
+  createPersonalTodo,
+  deletePersonalTodo,
+  fetchPersonalTodos,
   fetchWorkbenchShortcuts,
   recordUserActivity,
-  removeUserFavorite
+  removeUserFavorite,
+  updatePersonalTodo
 } from "../../services/api";
 import {
   getDocumentPreviewType,
@@ -29,15 +33,15 @@ export default {
   components: {
     Bot,
     CheckCircle2,
-    ChevronDown,
-    ChevronUp,
+    Circle,
     ClipboardList,
     FileText,
     PanelRightClose,
     PanelRightOpen,
+    Plus,
     RefreshCw,
-    RotateCcw,
     Star,
+    Trash2,
     XCircle
   },
   props: {
@@ -45,21 +49,9 @@ export default {
       type: Boolean,
       default: false
     },
-    runtimeTodos: {
-      type: Array,
-      default: () => []
-    },
-    todoActionLoadingIds: {
-      type: Object,
-      default: () => ({})
-    },
-    todoError: {
+    tenantId: {
       type: String,
       default: ""
-    },
-    todoLoading: {
-      type: Boolean,
-      default: false
     },
     userId: {
       type: String,
@@ -71,15 +63,15 @@ export default {
     "navigate",
     "open-favorite",
     "open-document",
-    "refresh-todos",
     "select-agent",
-    "todo-action",
-    "todo-detail",
     "toggle-collapsed"
   ],
   computed: {
     displayUserId() {
       return this.userId || "default-user";
+    },
+    effectiveTenantId() {
+      return this.tenantId || this.displayUserId;
     },
     railItems() {
       return [
@@ -87,8 +79,8 @@ export default {
           id: "todos",
           label: "待办任务",
           icon: ClipboardList,
-          count: this.todoItems.length,
-          urgent: this.todoItems.length > 0
+          count: this.activeTodoCount,
+          urgent: this.activeTodoCount > 0
         },
         {
           id: "reports",
@@ -110,36 +102,14 @@ export default {
         }
       ];
     },
-    todoItems() {
-      return Array.isArray(this.runtimeTodos) ? this.runtimeTodos : [];
+    activeTodoCount() {
+      return this.personalTodos.filter((todo) => !todo.completed).length;
     },
     visibleTodos() {
-      return this.todoItems.slice(0, 5);
+      return this.personalTodos.filter((todo) => !todo.completed).slice(0, 5);
     },
-    selectedTodoPayload() {
-      return this.selectedTodo?.payload && typeof this.selectedTodo.payload === "object"
-        ? this.selectedTodo.payload
-        : {};
-    },
-    selectedTodoReason() {
-      return this.selectedTodoPayload.reason || this.todoTypeReason(this.selectedTodo?.todoType);
-    },
-    selectedTodoContent() {
-      const task = this.selectedTodoPayload.task || {};
-      const confirmation = this.selectedTodoPayload.confirmation || {};
-      return (
-        confirmation.purpose
-        || task.errorMessage
-        || task.answerSummary
-        || task.question
-        || "需要你处理后，LiveRuntime 才能继续闭环。"
-      );
-    },
-    selectedTodoContentCanToggle() {
-      return String(this.selectedTodoContent || "").length > 120;
-    },
-    selectedTodoCountdown() {
-      return this.todoCountdown(this.selectedTodo);
+    managerTodos() {
+      return this.personalTodos.filter((todo) => todo.completed === this.showCompleted);
     }
   },
   data() {
@@ -149,32 +119,187 @@ export default {
       recentDocuments: [],
       favorites: [],
       recentAgents: [],
-      selectedTodo: null,
-      todoContentExpanded: false,
-      now: Date.now(),
-      countdownTimer: null
+      personalTodos: [],
+      todoLoading: false,
+      todoSaving: false,
+      todoError: "",
+      newTodoTitle: "",
+      todoManagerOpen: false,
+      editingTodo: null,
+      showCompleted: false,
+      todoDraft: {
+        title: "",
+        notes: "",
+        dueAt: "",
+        important: false
+      }
     };
-  },
-  mounted() {
-    this.countdownTimer = window.setInterval(() => {
-      this.now = Date.now();
-    }, 1000);
-  },
-  beforeUnmount() {
-    if (this.countdownTimer) {
-      window.clearInterval(this.countdownTimer);
-      this.countdownTimer = null;
-    }
   },
   watch: {
     userId: {
       immediate: true,
       handler() {
         this.loadShortcuts();
+        this.loadTodos();
       }
+    },
+    tenantId() {
+      this.loadShortcuts();
+      this.loadTodos();
     }
   },
   methods: {
+    async loadTodos() {
+      if (!this.displayUserId || !this.effectiveTenantId) {
+        return;
+      }
+      this.todoLoading = true;
+      this.todoError = "";
+      try {
+        const payload = await fetchPersonalTodos({
+          tenantId: this.effectiveTenantId,
+          userId: this.displayUserId,
+          includeCompleted: true,
+          limit: 100
+        });
+        this.personalTodos = Array.isArray(payload) ? payload : [];
+      } catch (error) {
+        this.todoError = error.message || "个人待办加载失败";
+      } finally {
+        this.todoLoading = false;
+      }
+    },
+    async createTodo() {
+      const title = this.newTodoTitle.trim();
+      if (!title || this.todoSaving) {
+        return;
+      }
+      this.todoSaving = true;
+      this.todoError = "";
+      try {
+        const item = await createPersonalTodo({
+          tenantId: this.effectiveTenantId,
+          userId: this.displayUserId,
+          title,
+          notes: "",
+          dueAt: null,
+          important: false
+        });
+        this.personalTodos = [item, ...this.personalTodos];
+        this.newTodoTitle = "";
+      } catch (error) {
+        this.todoError = error.message || "添加待办失败";
+      } finally {
+        this.todoSaving = false;
+      }
+    },
+    async patchTodo(todo, changes) {
+      if (!todo?.id || this.todoSaving) {
+        return null;
+      }
+      this.todoSaving = true;
+      this.todoError = "";
+      try {
+        const updated = await updatePersonalTodo(todo.id, {
+          tenantId: this.effectiveTenantId,
+          userId: this.displayUserId,
+          title: null,
+          notes: null,
+          dueAt: null,
+          dueAtChanged: false,
+          completed: null,
+          important: null,
+          ...changes
+        });
+        this.personalTodos = this.personalTodos.map((item) => item.id === updated.id ? updated : item);
+        return updated;
+      } catch (error) {
+        this.todoError = error.message || "待办更新失败";
+        return null;
+      } finally {
+        this.todoSaving = false;
+      }
+    },
+    toggleTodo(todo) {
+      return this.patchTodo(todo, { completed: !todo.completed });
+    },
+    toggleImportant(todo) {
+      return this.patchTodo(todo, { important: !todo.important });
+    },
+    openTodoManager() {
+      this.todoManagerOpen = true;
+      this.editingTodo = null;
+      this.showCompleted = false;
+    },
+    closeTodoManager() {
+      this.todoManagerOpen = false;
+      this.editingTodo = null;
+    },
+    editTodo(todo) {
+      this.todoManagerOpen = true;
+      this.editingTodo = todo;
+      this.todoDraft = {
+        title: todo.title || "",
+        notes: todo.notes || "",
+        dueAt: this.toLocalDateTime(todo.dueAt),
+        important: !!todo.important
+      };
+    },
+    async saveEditedTodo() {
+      if (!this.editingTodo || !this.todoDraft.title.trim()) {
+        return;
+      }
+      const updated = await this.patchTodo(this.editingTodo, {
+        title: this.todoDraft.title.trim(),
+        notes: this.todoDraft.notes.trim(),
+        dueAt: this.todoDraft.dueAt ? new Date(this.todoDraft.dueAt).toISOString() : null,
+        dueAtChanged: true,
+        important: this.todoDraft.important
+      });
+      if (updated) {
+        this.editingTodo = null;
+      }
+    },
+    async removeTodo(todo) {
+      if (!todo?.id || this.todoSaving) {
+        return;
+      }
+      this.todoSaving = true;
+      try {
+        await deletePersonalTodo(todo.id, {
+          tenantId: this.effectiveTenantId,
+          userId: this.displayUserId
+        });
+        this.personalTodos = this.personalTodos.filter((item) => item.id !== todo.id);
+        this.editingTodo = null;
+      } catch (error) {
+        this.todoError = error.message || "删除待办失败";
+      } finally {
+        this.todoSaving = false;
+      }
+    },
+    toLocalDateTime(value) {
+      if (!value) {
+        return "";
+      }
+      const date = new Date(value);
+      const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+      return local.toISOString().slice(0, 16);
+    },
+    todoDueLabel(todo) {
+      if (!todo?.dueAt) {
+        return "";
+      }
+      return `截止 ${new Intl.DateTimeFormat("zh-CN", {
+        month: "numeric",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      }).format(new Date(todo.dueAt))}`;
+    },
+    isOverdue(todo) {
+      return !todo?.completed && todo?.dueAt && new Date(todo.dueAt).getTime() < Date.now();
+    },
     async loadShortcuts() {
       if (!this.displayUserId) {
         return;
@@ -183,7 +308,7 @@ export default {
       this.error = "";
       try {
         const payload = await fetchWorkbenchShortcuts({
-          tenantId: this.displayUserId,
+          tenantId: this.effectiveTenantId,
           userId: this.displayUserId,
           limit: 6
         });
@@ -275,84 +400,10 @@ export default {
         this.error = error.message || "取消收藏失败";
       }
     },
-    openTodo(todo) {
-      this.selectedTodo = todo;
-      this.todoContentExpanded = false;
-    },
-    closeTodo() {
-      this.selectedTodo = null;
-      this.todoContentExpanded = false;
-    },
-    emitTodoAction(action, payload = {}) {
-      if (!this.selectedTodo || this.isTodoActionLoading(this.selectedTodo)) {
-        return;
-      }
-      this.$emit("todo-action", {
-        todo: this.selectedTodo,
-        action,
-        payload
-      });
-      this.closeTodo();
-    },
-    openTodoDetail() {
-      if (!this.selectedTodo) {
-        return;
-      }
-      this.$emit("todo-detail", this.selectedTodo);
-      this.closeTodo();
-    },
-    isTodoActionLoading(todo) {
-      return !!this.todoActionLoadingIds?.[todo?.id];
-    },
-    todoTypeLabel(type) {
-      return (
-        {
-          TOOL_CONFIRMATION: "工具确认",
-          FAILURE_RETRY: "失败重试",
-          FEEDBACK_REQUIRED: "反馈补录"
-        }[type] || "待办"
-      );
-    },
-    todoTypeReason(type) {
-      return (
-        {
-          TOOL_CONFIRMATION: "confirm_required 工具等待用户确认",
-          FAILURE_RETRY: "任务失败后等待用户选择重试或终止",
-          FEEDBACK_REQUIRED: "任务完成后等待用户评价：有用/采纳/解决"
-        }[type] || "需要用户处理的 Agent 执行节点"
-      );
-    },
-    todoTypeClass(type) {
-      return {
-        confirm: type === "TOOL_CONFIRMATION",
-        retry: type === "FAILURE_RETRY",
-        feedback: type === "FEEDBACK_REQUIRED"
-      };
-    },
-    todoTime(todo) {
-      const value = todo?.updatedAt || todo?.createdAt;
-      if (!value) {
-        return "";
-      }
-      return new Intl.DateTimeFormat("zh-CN", {
-        hour: "2-digit",
-        minute: "2-digit"
-      }).format(new Date(value));
-    },
-    todoCountdown(todo) {
-      if (todo?.todoType !== "TOOL_CONFIRMATION" || !todo.expiredAt) {
-        return "";
-      }
-      const remainingMs = Math.max(0, new Date(todo.expiredAt).getTime() - this.now);
-      const totalSeconds = Math.ceil(remainingMs / 1000);
-      const minutes = Math.floor(totalSeconds / 60);
-      const seconds = totalSeconds % 60;
-      return `${minutes}:${String(seconds).padStart(2, "0")}`;
-    },
     async recordShortcutAction(item, actionType) {
       try {
         await recordUserActivity({
-          tenantId: this.displayUserId,
+          tenantId: this.effectiveTenantId,
           userId: this.displayUserId,
           targetType: item.targetType,
           targetId: item.targetId,

@@ -56,6 +56,8 @@ import java.util.concurrent.CancellationException;
 @Tag(name = "AI Search", description = "Investment research document search APIs")
 public class SearchController {
 
+    private static final long BATCH_UPLOAD_FILE_MAX_BYTES = 5L * 1024 * 1024;
+
     private final SearchService searchService;
     private final SearchFeedbackService searchFeedbackService;
     private final DocumentSearchEvidenceService documentSearchEvidenceService;
@@ -595,6 +597,12 @@ public class SearchController {
         }
         if (category == null || category.isBlank()) {
             return ApiResponse.badRequest("category is required for batch upload");
+        }
+        boolean hasOversizedBatchFile = files.stream()
+            .filter(file -> file != null && !file.isEmpty())
+            .anyMatch(file -> file.getSize() > BATCH_UPLOAD_FILE_MAX_BYTES);
+        if (hasOversizedBatchFile) {
+            return ApiResponse.badRequest("files larger than 5MB must be uploaded individually");
         }
         String mergedTags = mergeCategoryTag(category, tags);
         SearchPermissionContext context = permissionContext(tenantId, userId, roles);

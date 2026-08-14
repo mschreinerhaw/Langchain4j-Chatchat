@@ -37,42 +37,57 @@
           <header>
             <span class="right-module-title">
               <ClipboardList :size="16" stroke-width="2" />
-              <strong>待办任务</strong>
-              <span v-if="todoItems.length" class="module-count">{{ todoItems.length }}</span>
+              <strong>我的待办</strong>
+              <span v-if="activeTodoCount" class="module-count">{{ activeTodoCount }}</span>
             </span>
             <button
               type="button"
               class="todo-refresh"
               :disabled="todoLoading"
-              aria-label="刷新待办"
-              title="刷新待办"
-              @click="$emit('refresh-todos')"
+              aria-label="刷新个人待办"
+              title="刷新个人待办"
+              @click="loadTodos"
             >
               <RefreshCw :class="{ spinning: todoLoading }" :size="14" stroke-width="2" />
             </button>
           </header>
           <div class="right-module-body">
+            <form class="todo-quick-add" @submit.prevent="createTodo">
+              <Plus :size="16" stroke-width="2.2" />
+              <input
+                v-model="newTodoTitle"
+                maxlength="300"
+                placeholder="添加任务，按 Enter 保存"
+                aria-label="添加待办任务"
+              />
+              <button type="submit" :disabled="todoSaving || !newTodoTitle.trim()">添加</button>
+            </form>
             <p v-if="todoError" class="todo-error">{{ todoError }}</p>
-            <p v-else-if="!todoLoading && todoItems.length === 0" class="todo-empty">暂无任务</p>
-            <button
+            <p v-else-if="!todoLoading && activeTodoCount === 0" class="todo-empty">今天没有待办，添加一条便签吧</p>
+            <article
               v-for="todo in visibleTodos"
               :key="todo.id"
-              class="todo-item"
-              type="button"
-              @click="openTodo(todo)"
+              class="personal-todo-item"
+              :class="{ important: todo.important }"
             >
-              <span class="todo-type" :class="todoTypeClass(todo.todoType)">{{ todoTypeLabel(todo.todoType) }}</span>
-              <strong>{{ todo.title }}</strong>
-              <small>{{ todo.source || todo.agentId || "LiveRuntime" }}</small>
-              <time>{{ todoTime(todo) }}</time>
-            </button>
+              <button class="todo-check" type="button" :aria-label="`完成：${todo.title}`" @click="toggleTodo(todo)">
+                <Circle :size="18" stroke-width="2" />
+              </button>
+              <button class="todo-content" type="button" @click="editTodo(todo)">
+                <strong>{{ todo.title }}</strong>
+                <small v-if="todo.notes">{{ todo.notes }}</small>
+                <time v-if="todo.dueAt" :class="{ overdue: isOverdue(todo) }">{{ todoDueLabel(todo) }}</time>
+              </button>
+              <button class="todo-star" type="button" :class="{ active: todo.important }" aria-label="切换重要标记" @click="toggleImportant(todo)">
+                <Star :size="16" stroke-width="2" />
+              </button>
+            </article>
             <button
-              v-if="todoItems.length > visibleTodos.length"
               type="button"
               class="todo-detail-link todo-more-link"
-              @click="$emit('navigate', 'tasks')"
+              @click="openTodoManager"
             >
-              查看全部 {{ todoItems.length }} 条
+              查看全部{{ activeTodoCount ? ` ${activeTodoCount} 条` : "" }}
             </button>
           </div>
         </section>
@@ -165,88 +180,46 @@
       </template>
     </section>
 
-    <div v-if="selectedTodo" class="todo-detail-backdrop">
-      <section class="todo-detail-panel" role="dialog" aria-modal="true" :aria-label="selectedTodo.title">
+    <div v-if="todoManagerOpen" class="todo-detail-backdrop" @click.self="closeTodoManager">
+      <section class="todo-detail-panel personal-todo-dialog" role="dialog" aria-modal="true" aria-label="我的待办">
         <header>
           <div>
-            <span class="todo-type" :class="todoTypeClass(selectedTodo.todoType)">
-              {{ todoTypeLabel(selectedTodo.todoType) }}
-            </span>
-            <h2>{{ selectedTodo.title }}</h2>
+            <span class="todo-dialog-kicker">个人便签</span>
+            <h2>{{ editingTodo ? "编辑待办" : "我的待办" }}</h2>
           </div>
-          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeTodo">
+          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeTodoManager">
             <XCircle :size="18" stroke-width="2" />
           </button>
         </header>
-        <dl>
-          <div>
-            <dt>来源Agent</dt>
-            <dd>{{ selectedTodo.source || selectedTodo.agentId || "LiveRuntime" }}</dd>
+        <form v-if="editingTodo" class="todo-editor" @submit.prevent="saveEditedTodo">
+          <label>任务内容<input v-model="todoDraft.title" maxlength="300" required /></label>
+          <label>备注<textarea v-model="todoDraft.notes" maxlength="2000" rows="4" placeholder="补充说明（可选）"></textarea></label>
+          <label>截止日期<input v-model="todoDraft.dueAt" type="datetime-local" /></label>
+          <label class="todo-important-field"><input v-model="todoDraft.important" type="checkbox" /> 标记为重要</label>
+          <div class="todo-editor-actions">
+            <button type="button" class="danger" @click="removeTodo(editingTodo)"><Trash2 :size="15" />删除</button>
+            <span></span>
+            <button type="button" @click="editingTodo = null">返回列表</button>
+            <button type="submit" class="primary" :disabled="todoSaving">保存</button>
           </div>
-          <div>
-            <dt>触发原因</dt>
-            <dd>{{ selectedTodoReason }}</dd>
+        </form>
+        <div v-else class="todo-manager-list">
+          <div class="todo-manager-tabs">
+            <button type="button" :class="{ active: !showCompleted }" @click="showCompleted = false">未完成</button>
+            <button type="button" :class="{ active: showCompleted }" @click="showCompleted = true">已完成</button>
           </div>
-        </dl>
-        <p v-if="selectedTodoCountdown" class="todo-confirm-timeout">
-          该操作需要确认，3分钟内未确认将自动取消任务。剩余 {{ selectedTodoCountdown }}
-        </p>
-        <div class="todo-confirm-content-wrap">
-          <p class="todo-confirm-content" :class="{ collapsed: selectedTodoContentCanToggle && !todoContentExpanded }">
-            {{ selectedTodoContent }}
-          </p>
-          <button
-            v-if="selectedTodoContentCanToggle"
-            type="button"
-            class="todo-content-toggle"
-            :aria-expanded="todoContentExpanded"
-            @click="todoContentExpanded = !todoContentExpanded"
-          >
-            <ChevronUp v-if="todoContentExpanded" :size="14" stroke-width="2" />
-            <ChevronDown v-else :size="14" stroke-width="2" />
-            <span>{{ todoContentExpanded ? "收起消息" : "展开消息" }}</span>
-          </button>
-        </div>
-        <div class="todo-detail-actions">
-          <template v-if="selectedTodo.todoType === 'TOOL_CONFIRMATION'">
-            <button type="button" :disabled="isTodoActionLoading(selectedTodo)" @click="emitTodoAction('approve')">
-              <CheckCircle2 :size="15" stroke-width="2" />
-              <span>同意执行</span>
+          <article v-for="todo in managerTodos" :key="todo.id" class="personal-todo-item manager-row">
+            <button class="todo-check" type="button" @click="toggleTodo(todo)">
+              <CheckCircle2 v-if="todo.completed" :size="19" />
+              <Circle v-else :size="19" />
             </button>
-            <button type="button" :disabled="isTodoActionLoading(selectedTodo)" @click="emitTodoAction('reject')">
-              <XCircle :size="15" stroke-width="2" />
-              <span>拒绝</span>
+            <button class="todo-content" type="button" @click="editTodo(todo)">
+              <strong :class="{ completed: todo.completed }">{{ todo.title }}</strong>
+              <small v-if="todo.notes">{{ todo.notes }}</small>
             </button>
-          </template>
-          <template v-else-if="selectedTodo.todoType === 'FAILURE_RETRY'">
-            <button type="button" :disabled="isTodoActionLoading(selectedTodo)" @click="emitTodoAction('retry')">
-              <RotateCcw :size="15" stroke-width="2" />
-              <span>重试</span>
-            </button>
-            <button type="button" :disabled="isTodoActionLoading(selectedTodo)" @click="emitTodoAction('terminate')">
-              <XCircle :size="15" stroke-width="2" />
-              <span>终止</span>
-            </button>
-          </template>
-          <template v-else>
-            <button type="button" :disabled="isTodoActionLoading(selectedTodo)" @click="emitTodoAction('useful')">
-              <CheckCircle2 :size="15" stroke-width="2" />
-              <span>有用</span>
-            </button>
-            <button type="button" :disabled="isTodoActionLoading(selectedTodo)" @click="emitTodoAction('adopted')">
-              <CheckCircle2 :size="15" stroke-width="2" />
-              <span>采纳</span>
-            </button>
-            <button type="button" :disabled="isTodoActionLoading(selectedTodo)" @click="emitTodoAction('resolved')">
-              <CheckCircle2 :size="15" stroke-width="2" />
-              <span>解决</span>
-            </button>
-            <button type="button" :disabled="isTodoActionLoading(selectedTodo)" @click="emitTodoAction('unresolved')">
-              <XCircle :size="15" stroke-width="2" />
-              <span>未解决</span>
-            </button>
-          </template>
-          <button type="button" class="todo-detail-link" @click="openTodoDetail">查看详情</button>
+            <button class="todo-star" type="button" :class="{ active: todo.important }" @click="toggleImportant(todo)"><Star :size="17" /></button>
+          </article>
+          <p v-if="managerTodos.length === 0" class="todo-empty">{{ showCompleted ? "暂无已完成任务" : "暂无未完成任务" }}</p>
         </div>
       </section>
     </div>

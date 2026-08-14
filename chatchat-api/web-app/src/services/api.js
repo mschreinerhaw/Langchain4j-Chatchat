@@ -709,6 +709,53 @@ export function removeUserFavorite(favoriteId) {
   });
 }
 
+export function fetchPersonalTodos(filters = {}) {
+  const params = new URLSearchParams();
+  params.set("tenantId", filters.tenantId || "");
+  params.set("userId", filters.userId || "");
+  params.set("includeCompleted", String(!!filters.includeCompleted));
+  params.set("limit", String(filters.limit || 20));
+  return apiRequest(`/data/workbench/todos?${params.toString()}`);
+}
+
+export function createPersonalTodo(payload) {
+  return apiRequest("/data/workbench/todos", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function updatePersonalTodo(todoId, payload) {
+  return apiRequest(`/data/workbench/todos/${encodeURIComponent(todoId)}`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function deletePersonalTodo(todoId, filters = {}) {
+  const params = new URLSearchParams({
+    tenantId: filters.tenantId || "",
+    userId: filters.userId || ""
+  });
+  return apiRequest(`/data/workbench/todos/${encodeURIComponent(todoId)}?${params.toString()}`, {
+    method: "DELETE"
+  });
+}
+
+export function createUserFavoriteCategory(payload) {
+  return apiRequest("/data/workbench/favorite-categories", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function updateUserFavoriteCategory(favoriteId, payload) {
+  return apiRequest(`/data/workbench/favorites/${encodeURIComponent(favoriteId)}/category`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+}
+
 export function fetchSkills(filters = {}) {
   const params = new URLSearchParams();
   if (filters.scope) {

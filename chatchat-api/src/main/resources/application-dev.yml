@@ -17,8 +17,8 @@ spring:
     add-mappings: false
   servlet:
     multipart:
-      max-file-size: 5MB
-      max-request-size: 32MB
+      max-file-size: 55MB
+      max-request-size: 60MB
 
 server:
   port: 8080
@@ -120,6 +120,8 @@ chatchat:
     final-summary-web-search-timeout-ms: 45000
   search:
     engine: opensearch
+    max-upload-bytes: ${CHATCHAT_SEARCH_MAX_UPLOAD_BYTES:57671680}
+    upload-chunk-bytes: ${CHATCHAT_SEARCH_UPLOAD_CHUNK_BYTES:5242880}
     store-path: ./data/search-rocksdb
     file-path: ./data/search-files
     rebuild-on-startup: false

@@ -8,6 +8,8 @@ import org.junit.jupiter.api.io.TempDir;
 import org.springframework.mock.web.MockMultipartFile;
 
 import java.nio.charset.StandardCharsets;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -31,6 +33,20 @@ class SearchServiceTest {
         if (store != null) {
             store.close();
         }
+    }
+
+    @Test
+    void copiesLargeUploadsInFiveMegabyteChunksWithoutChangingTheFile() throws Exception {
+        byte[] source = new byte[(5 * 1024 * 1024) + 37];
+        source[0] = 11;
+        source[source.length - 1] = 29;
+        ByteArrayOutputStream output = new ByteArrayOutputStream(source.length);
+
+        long copied = SearchService.copyUploadInChunks(
+            new ByteArrayInputStream(source), output, 5 * 1024 * 1024, 55L * 1024 * 1024);
+
+        assertThat(copied).isEqualTo(source.length);
+        assertThat(output.toByteArray()).containsExactly(source);
     }
 
     @Test

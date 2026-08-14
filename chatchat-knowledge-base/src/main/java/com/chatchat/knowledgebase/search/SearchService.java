@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -187,7 +189,7 @@ public class SearchService {
             throw new IllegalArgumentException("file is required");
         }
         if (file.getSize() > properties.getMaxUploadBytes()) {
-            throw new IllegalArgumentException("file size exceeds 5MB limit");
+            throw new IllegalArgumentException("file size exceeds 55MB limit");
         }
         String originalFileName = safeFileName(file.getOriginalFilename());
         if (!textExtractor.supports(originalFileName)) {
@@ -3377,17 +3379,57 @@ public class SearchService {
      * @return the saved original file
      */
     private Path saveOriginalFile(MultipartFile file, String docId, String originalFileName) {
+        Path target = null;
         try {
             Path root = Path.of(properties.getFilePath()).toAbsolutePath().normalize();
             Files.createDirectories(root);
-            Path target = root.resolve(docId + "_" + originalFileName).normalize();
-            if (!target.startsWith(root)) {
+            Path resolvedTarget = root.resolve(docId + "_" + originalFileName).normalize();
+            if (!resolvedTarget.startsWith(root)) {
                 throw new IllegalArgumentException("invalid file name");
             }
-            file.transferTo(target);
+            target = resolvedTarget;
+            int chunkBytes = Math.max(1, properties.getUploadChunkBytes());
+            long storedBytes;
+            try (InputStream input = file.getInputStream(); OutputStream output = Files.newOutputStream(target)) {
+                storedBytes = copyUploadInChunks(input, output, chunkBytes, properties.getMaxUploadBytes());
+            }
+            log.info("search_document_upload_chunked fileName={} chunks={} chunkBytes={} storedBytes={}",
+                safeLogValue(originalFileName, 100), (storedBytes + chunkBytes - 1) / chunkBytes, chunkBytes, storedBytes);
             return target;
         } catch (IOException ex) {
+            deletePartialUpload(target);
             throw new IllegalStateException("failed to save uploaded file", ex);
+        } catch (RuntimeException ex) {
+            deletePartialUpload(target);
+            throw ex;
+        }
+    }
+
+    static long copyUploadInChunks(InputStream input, OutputStream output, int chunkBytes, long maxBytes) throws IOException {
+        byte[] buffer = new byte[Math.max(1, chunkBytes)];
+        long totalBytes = 0L;
+        int read;
+        while ((read = input.read(buffer)) != -1) {
+            if (read == 0) {
+                continue;
+            }
+            totalBytes += read;
+            if (totalBytes > maxBytes) {
+                throw new IllegalArgumentException("file size exceeds 55MB limit");
+            }
+            output.write(buffer, 0, read);
+        }
+        return totalBytes;
+    }
+
+    private void deletePartialUpload(Path target) {
+        if (target == null) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(target);
+        } catch (IOException cleanupError) {
+            log.warn("failed to clean partial document upload path={}", target, cleanupError);
         }
     }
 

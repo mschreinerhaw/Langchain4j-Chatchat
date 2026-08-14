@@ -15,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +28,7 @@ public class UserWorkbenchService {
 
     private final UserActivityRepository activityRepository;
     private final UserFavoriteRepository favoriteRepository;
+    private final UserFavoriteCategoryRepository favoriteCategoryRepository;
     private final AgentTaskLatestRepository taskLatestRepository;
     private final ObjectMapper objectMapper;
 
@@ -49,6 +51,7 @@ public class UserWorkbenchService {
                 normalizeText(targetType),
                 normalizeText(keyword)
             ),
+            listFavoriteCategories(normalizedTenant, normalizedUser),
             listRecentAgents(normalizedTenant, normalizedUser, normalizedLimit),
             listRecentDocuments(normalizedTenant, normalizedUser, normalizedLimit)
         );
@@ -86,6 +89,7 @@ public class UserWorkbenchService {
         favorite.setTargetId(normalized.targetId());
         favorite.setCategory(truncate(normalized.category(), 80));
         favorite.setTitle(truncate(firstText(normalized.title(), normalized.targetId()), 300));
+        ensureFavoriteCategory(normalized.tenantId(), normalized.userId(), normalized.category());
         UserFavoriteEntity saved = favoriteRepository.save(favorite);
         recordActivity(new ActivityRequest(
             normalized.tenantId(),
@@ -103,6 +107,65 @@ public class UserWorkbenchService {
     @Transactional
     public void removeFavorite(String favoriteId) {
         favoriteRepository.deleteById(requireText(favoriteId, "Favorite ID cannot be empty"));
+    }
+
+    @Transactional
+    public FavoriteCategory createFavoriteCategory(FavoriteCategoryRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Favorite category payload cannot be empty");
+        }
+        String tenantId = requireText(request.tenantId(), "Tenant ID cannot be empty");
+        String userId = requireText(request.userId(), "User ID cannot be empty");
+        String name = truncate(requireText(request.name(), "Favorite category name cannot be empty"), 80);
+        return toFavoriteCategory(ensureFavoriteCategory(tenantId, userId, name));
+    }
+
+    @Transactional
+    public ShortcutItem updateFavoriteCategory(String favoriteId, FavoriteCategoryUpdateRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Favorite category update payload cannot be empty");
+        }
+        String tenantId = requireText(request.tenantId(), "Tenant ID cannot be empty");
+        String userId = requireText(request.userId(), "User ID cannot be empty");
+        String category = truncate(favoriteCategoryForSave(request.category()), 80);
+        UserFavoriteEntity favorite = favoriteRepository.findById(requireText(favoriteId, "Favorite ID cannot be empty"))
+            .filter(item -> tenantId.equals(item.getTenantId()) && userId.equals(item.getUserId()))
+            .orElseThrow(() -> new IllegalArgumentException("Favorite does not exist for the current user"));
+        ensureFavoriteCategory(tenantId, userId, category);
+        favorite.setCategory(category);
+        return toShortcut(favoriteRepository.save(favorite));
+    }
+
+    private UserFavoriteCategoryEntity ensureFavoriteCategory(String tenantId, String userId, String category) {
+        String name = truncate(favoriteCategoryForSave(category), 80);
+        return favoriteCategoryRepository.findByTenantIdAndUserIdAndCategoryName(tenantId, userId, name)
+            .orElseGet(() -> {
+                UserFavoriteCategoryEntity entity = new UserFavoriteCategoryEntity();
+                entity.setTenantId(tenantId);
+                entity.setUserId(userId);
+                entity.setCategoryName(name);
+                return favoriteCategoryRepository.save(entity);
+            });
+    }
+
+    private List<FavoriteCategory> listFavoriteCategories(String tenantId, String userId) {
+        LinkedHashSet<String> names = new LinkedHashSet<>();
+        names.add(DEFAULT_FAVORITE_CATEGORY);
+        favoriteCategoryRepository.findByTenantIdAndUserIdOrderByCreatedAtAsc(tenantId, userId).stream()
+            .map(UserFavoriteCategoryEntity::getCategoryName)
+            .map(this::normalizeText)
+            .filter(Objects::nonNull)
+            .forEach(names::add);
+        favoriteRepository.findByTenantIdAndUserIdOrderByCreatedAtDesc(tenantId, userId, PageRequest.of(0, 200)).stream()
+            .map(UserFavoriteEntity::getCategory)
+            .map(this::normalizeText)
+            .filter(Objects::nonNull)
+            .forEach(names::add);
+        return names.stream().map(name -> new FavoriteCategory(name, name)).toList();
+    }
+
+    private FavoriteCategory toFavoriteCategory(UserFavoriteCategoryEntity entity) {
+        return new FavoriteCategory(entity.getId(), entity.getCategoryName());
     }
 
     private List<ShortcutItem> listFavorites(
@@ -376,6 +439,7 @@ public class UserWorkbenchService {
 
     public record WorkbenchPayload(
         List<ShortcutItem> favorites,
+        List<FavoriteCategory> favoriteCategories,
         List<ShortcutItem> recentAgents,
         List<ShortcutItem> recentDocuments
     ) {
@@ -416,5 +480,14 @@ public class UserWorkbenchService {
         String title,
         String category
     ) {
+    }
+
+    public record FavoriteCategory(String id, String name) {
+    }
+
+    public record FavoriteCategoryRequest(String tenantId, String userId, String name) {
+    }
+
+    public record FavoriteCategoryUpdateRequest(String tenantId, String userId, String category) {
     }
 }

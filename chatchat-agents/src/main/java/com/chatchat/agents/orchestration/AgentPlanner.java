@@ -166,6 +166,13 @@ class AgentPlanner {
                 lastDecision = decision;
             }
             candidates.add(planCandidate(attempt, raw, lastDecision, validationContext));
+            if (hasPresentableRecoveredAnswer(lastDecision)
+                && normalizeList(validationContext.mandatoryTools()).isEmpty()) {
+                log.info("agentPlannerAcceptedPresentableAnswer phase=planner_parse runId={} attempt={}/{} "
+                        + "reason=non_json_report mandatoryToolsPending=0",
+                    logRunId, attempt, maxAttempts);
+                break;
+            }
             if (decision != null && !plannerPlanInvalid(decision)) {
                 PlanCandidate currentCandidate = candidates.get(candidates.size() - 1);
                 if (!experienceOptimizationRequested
@@ -1854,6 +1861,10 @@ class AgentPlanner {
         metadata.put("interpretationPlanExecutable", false);
         metadata.put("interpretationPlanRuntimeIssues", issue == null || issue.isBlank() ? List.of() : List.of(issue));
         String recoveredAnswer = recoverFinalAnswerCandidate(raw);
+        if ((recoveredAnswer == null || recoveredAnswer.isBlank())
+            && "non_json_response".equals(reason)) {
+            recoveredAnswer = recoverPresentableNonJsonAnswer(raw);
+        }
         if (recoveredAnswer != null && !recoveredAnswer.isBlank()) {
             boolean requiredEvidence = validationContext != null
                 && (validationContext.requireToolBeforeFinal()
@@ -3195,6 +3206,32 @@ class AgentPlanner {
             return null;
         }
         return rawDag;
+    }
+
+    private String recoverPresentableNonJsonAnswer(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        String candidate = raw.trim();
+        if (candidate.length() < 80 || candidate.startsWith("{") || candidate.startsWith("[")) {
+            return null;
+        }
+        boolean hasMarkdownHeading = Pattern.compile("(?m)^\\s{0,3}#{1,6}\\s+\\S+")
+            .matcher(candidate).find();
+        boolean hasMarkdownTable = Pattern.compile("(?m)^\\s*\\|.+\\|\\s*$")
+            .matcher(candidate).find();
+        boolean hasStructuredList = Pattern.compile("(?m)^\\s*(?:[-*+]\\s+|\\d+[.)]\\s+)\\S+")
+            .matcher(candidate).find();
+        return hasMarkdownHeading && (hasMarkdownTable || hasStructuredList) ? candidate : null;
+    }
+
+    private boolean hasPresentableRecoveredAnswer(AgentDecision decision) {
+        return decision != null
+            && FINAL.equals(decision.action())
+            && decision.answer() != null
+            && !decision.answer().isBlank()
+            && decision.executionPlan() != null
+            && Boolean.TRUE.equals(decision.executionPlan().get("plannerCandidateAnswerPreserved"));
     }
 }
 

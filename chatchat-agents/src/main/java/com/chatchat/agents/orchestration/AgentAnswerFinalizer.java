@@ -553,6 +553,25 @@ class AgentAnswerFinalizer {
             effectiveTraces, metadata, effectiveObservations);
     }
 
+    AgentOrchestrator.AgentExecutionResult finishProducedAnswerAfterCancellation(
+        String query,
+        List<InteractionToolTrace> traces,
+        Map<String, Object> metadata,
+        List<String> observations,
+        String answer,
+        String reason
+    ) {
+        recordAnswerCompletedAfterCancellation(
+            metadata,
+            "after_planner_answer",
+            firstNonBlank(reason, "Agent deadline reached after a displayable answer was produced")
+        );
+        metadata.put("stopReason", "answer_completed_after_cancellation");
+        metadata.put("resultRecoveredAtDeadline", true);
+        return finishWithDecision(query, answer, null, null, null,
+            traces, metadata, observations);
+    }
+
     private FinalSummaryWebSearchEnhancer.Enhancement enhanceFinalSummary(
         ChatModel activeChatModel,
         String query,

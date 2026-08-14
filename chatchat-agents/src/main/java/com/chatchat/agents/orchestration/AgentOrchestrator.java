@@ -660,7 +660,37 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 metadata.put("protectedCandidateAnswer", true);
                 metadata.put("plannerCandidateAnswerPreserved", true);
             }
-            runtimeGuard.checkCancelled(cancellationCheck);
+            boolean protectedPlannerReport = plannerCandidate != null
+                && decision.executionPlan() != null
+                && Boolean.TRUE.equals(decision.executionPlan().get("plannerCandidateAnswerPreserved"));
+            try {
+                runtimeGuard.checkCancelled(cancellationCheck);
+            } catch (CancellationException cancellation) {
+                boolean mandatoryEvidenceComplete = plannerMandatoryTools.isEmpty();
+                boolean verificationComplete = !requireDocumentWebVerification
+                    || !workflowTools.missingDocumentWebVerification(
+                        plannerCompletedTools, documentSearchTool, verificationWebSearchTool);
+                if (FINAL.equals(decision.action())
+                    && protectedPlannerReport
+                    && mandatoryEvidenceComplete
+                    && verificationComplete) {
+                    RuntimeAnswerCandidate selectedCandidate = plannerCandidate.transition(
+                        RuntimeAnswerCandidate.Status.SELECTED,
+                        metadataOf("selectionReason", "displayable_report_completed_at_deadline")
+                    );
+                    metadata.put("answerCandidate", selectedCandidate);
+                    metadata.put("answerLifecycleStatus", selectedCandidate.status().name());
+                    return answerFinalizer.finishProducedAnswerAfterCancellation(
+                        query,
+                        traces,
+                        metadata,
+                        observations,
+                        plannerCandidate.content(),
+                        cancellation.getMessage()
+                    );
+                }
+                throw cancellation;
+            }
             String plannedToolName = toolNames.normalizeToolName(decision.toolName(), decision.arguments(), tools);
             metadata.put("steps", step);
             Map<String, Object> plannerStep = new LinkedHashMap<>();

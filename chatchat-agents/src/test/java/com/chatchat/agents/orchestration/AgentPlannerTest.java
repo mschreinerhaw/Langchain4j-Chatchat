@@ -15,10 +15,50 @@ import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class AgentPlannerTest {
+
+    @Test
+    void preservesCompleteMarkdownReportWithoutJsonRepairLoop() {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        AtomicInteger calls = new AtomicInteger();
+        String report = """
+            # 持仓分析报告
+
+            ## 当前结论
+
+            | 证券代码 | 数量 | 累计盈亏 |
+            |---|---:|---:|
+            | 600839 | 15,900 | 2,088.42 |
+
+            ## 下一步观察
+
+            1. 核对当日盈亏。
+            2. 核对成本口径和费用。
+            """;
+        ChatModel model = new ChatModel() {
+            @Override
+            public String chat(String message) {
+                calls.incrementAndGet();
+                return report;
+            }
+        };
+
+        PlannerExecutionResult result = planner.decideNextAction(
+            model, "分析持仓", "", List.of("asset_query"), List.of(), List.of(), List.of(),
+            List.of(), true, false, null, null, Map.of("plannerMaxRepairAttempts", 3)
+        );
+
+        assertThat(calls).hasValue(1);
+        assertThat(result.decision().reason()).isEqualTo("non_json_response");
+        assertThat(result.candidateAnswer()).isNotNull();
+        assertThat(result.candidateAnswer().content()).contains("持仓分析报告", "600839");
+        assertThat(result.decision().executionPlan())
+            .containsEntry("plannerCandidateAnswerPreserved", true);
+    }
 
     @Test
     void authoritativeWorkflowDagAllowsIndependentMandatoryBranchAndRepairsModelEdge() {

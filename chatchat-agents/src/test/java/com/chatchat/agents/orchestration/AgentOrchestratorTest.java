@@ -2615,6 +2615,58 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void executeRuntimeRequestKeepsDisplayableReportProducedAtDeadline() {
+        String report = """
+            # 持仓分析报告
+
+            ## 当前结论
+
+            | 证券代码 | 数量 | 累计盈亏 |
+            |---|---:|---:|
+            | 600839 | 15,900 | 2,088.42 |
+
+            ## 观察建议
+
+            1. 核对当日盈亏。
+            2. 核对成本口径。
+            """;
+        ChatModel chatModel = new SlowChatModel(20L, report);
+        InMemoryAgentRunStore runStore = new InMemoryAgentRunStore();
+        ToolRegistry registry = mock(ToolRegistry.class);
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            chatModel,
+            registry,
+            new ToolRuntimeService(
+                registry,
+                new ObjectMapper(),
+                toolRuntimeProperties(),
+                List.of(),
+                List.of()
+            ),
+            new ObjectMapper(),
+            new ModelsConfig(),
+            new EvidenceTrustEvaluator(),
+            runStore
+        );
+
+        AgentRunResult result = orchestrator.execute(AgentRunRequest.builder()
+            .runId("run-report-at-deadline-1")
+            .query("分析持仓")
+            .tenantId("tenant-1")
+            .availableTools(List.of())
+            .requestId("req-report-at-deadline-1")
+            .timeoutMs(1L)
+            .build());
+
+        assertThat(result.status()).isEqualTo(AgentRunStatus.COMPLETED);
+        assertThat(result.answer()).contains("持仓分析报告", "600839");
+        assertThat(result.stopReason()).isEqualTo("answer_completed_after_cancellation");
+        assertThat(result.metadata())
+            .containsEntry("answerCompletedAfterCancellation", true)
+            .containsEntry("resultRecoveredAtDeadline", true);
+    }
+
+    @Test
     void executeRuntimeRequestReturnsFailedRunWhenPlannerThrows() {
         ChatModel chatModel = new FailingChatModel("planner boom");
         InMemoryAgentRunStore runStore = new InMemoryAgentRunStore();

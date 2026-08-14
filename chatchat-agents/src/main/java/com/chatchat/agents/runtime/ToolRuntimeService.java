@@ -814,9 +814,6 @@ public class ToolRuntimeService {
         }
         boolean forced = request.getAttributes() != null
             && Boolean.TRUE.equals(booleanValue(request.getAttributes().get("forceStructuredFinancialData")));
-        String dedicatedFinancialDataTool = request.getAttributes() == null ? ""
-            : String.valueOf(request.getAttributes().getOrDefault("dedicatedFinancialDataTool", "")).trim();
-        boolean dedicatedToolAvailable = forced && !dedicatedFinancialDataTool.isBlank();
         Map<String, Object> parameters = toolInput.getParameters() == null
             ? new LinkedHashMap<>()
             : new LinkedHashMap<>(toolInput.getParameters());
@@ -839,21 +836,15 @@ public class ToolRuntimeService {
         Map<String, Object> context = toolInput.getContext() == null
             ? new LinkedHashMap<>()
             : new LinkedHashMap<>(toolInput.getContext());
-        context.put("financialDataPolicy", dedicatedToolAvailable
-            ? "FORCED_WITH_DEDICATED_TOOL" : forced ? "FORCED" : "INTENT_DRIVEN");
+        context.put("financialDataPolicy", forced ? "FORCED_BRIDGE" : "INTENT_DRIVEN");
+        context.put("financialDataBridgeTool", "web_search");
+        context.put("financialDataBridgeVisibility", "internal_stage_only");
         context.put("financialDataModelRequired", modelRequired);
         context.put("financialDataEffectiveRequired", effectiveRequired);
-        if (dedicatedToolAvailable) {
-            context.put("dedicatedFinancialDataTool", dedicatedFinancialDataTool);
-        }
         toolInput.setContext(context);
-        if (dedicatedToolAvailable) {
-            log.info("Structured financial retrieval retained as web fallback and exposed through mandatory "
-                    + "dedicated tool={} webTool={} "
+        if (forced) {
+            log.info("Structured financial retrieval forced inside web_search bridge tool={} "
                     + "requestId={} conversationId={}",
-                dedicatedFinancialDataTool, toolName, request.getRequestId(), request.getConversationId());
-        } else if (forced) {
-            log.info("Structured financial retrieval forced by Agent policy tool={} requestId={} conversationId={}",
                 toolName, request.getRequestId(), request.getConversationId());
         }
     }

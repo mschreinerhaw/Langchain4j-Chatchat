@@ -457,25 +457,8 @@ class AgentPlanner {
         prompt.append("- When action is final_answer, write input.answer as Markdown with concise headings/lists where useful.\n");
         prompt.append("- Runtime policy may still reject final answers when required tool or verification constraints are incomplete.\n\n");
         prompt.append("Available tools:\n").append(describeTools(availableTools, runtimeAttributes)).append("\n");
-        String financialDataTool = matchingAvailableTool(availableTools, "financial_data_search");
         boolean forceStructuredFinancialData = runtimeAttributes != null
             && Boolean.parseBoolean(String.valueOf(runtimeAttributes.get("forceStructuredFinancialData")));
-        if (financialDataTool != null) {
-            prompt.append("Local structured financial data contract:\n");
-            prompt.append("- ").append(financialDataTool)
-                .append(" reads governed financial observations collected by this platform and never searches the public web.\n");
-            prompt.append("- Use it for prices, indices, returns, volume, market breadth, financing, holdings, valuations, "
-                + "or any answer that needs locally collected structured financial evidence.\n");
-            prompt.append("- Use web_search separately for news, policy, announcements, and public-web evidence; combine both observations in the final answer.\n");
-            prompt.append("- Pass the user's original financial question in query. Dataset discovery is dynamic; never invent or hardcode a dataset code.\n");
-            prompt.append("- If a prior observation returned an exact dataset code, a later step may pass that dataset to query exact rows.\n");
-            if (forceStructuredFinancialData) {
-                prompt.append("- MANDATORY: Agent policy forceStructuredFinancialData=true. The plan MUST include ")
-                    .append(financialDataTool)
-                    .append(" before final_answer, even if the model believes web/news evidence is already sufficient.\n");
-            }
-            prompt.append("\n");
-        }
         String resolvedDocumentSearchTool = firstNonBlank(documentSearchTool, DOCUMENT_SEARCH_TOOL);
         if (containsTool(availableTools, resolvedDocumentSearchTool)) {
             prompt.append("Document search contract:\n");
@@ -493,6 +476,16 @@ class AgentPlanner {
         }
         String discoverySearchTool = preferredWebSearchTool(availableTools);
         String crawlerTool = preferredCrawlerTool(availableTools);
+        if (discoverySearchTool != null) {
+            prompt.append("Unified search bridge contract:\n");
+            prompt.append("- web_search owns governed structured-financial retrieval as an internal bridge stage. "
+                + "Pass the user's original query once; never plan a separate financial_data_search call or invent dataset codes.\n");
+            if (forceStructuredFinancialData) {
+                prompt.append("- Agent setting forceStructuredFinancialData=true: every web_search call must keep "
+                    + "financial_data_required=true so the internal financial bridge stage cannot be skipped.\n");
+            }
+            prompt.append("\n");
+        }
         if (discoverySearchTool != null && crawlerTool != null) {
             prompt.append("Web evidence workflow:\n");
             prompt.append("1. Use ").append(discoverySearchTool)

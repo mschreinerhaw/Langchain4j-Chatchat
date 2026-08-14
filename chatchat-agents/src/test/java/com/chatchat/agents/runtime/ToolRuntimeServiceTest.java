@@ -58,12 +58,14 @@ class ToolRuntimeServiceTest {
             assertThat(capturedInput.get().getParameters())
                 .containsEntry("financial_data_required", true);
             assertThat(capturedInput.get().getContext())
-                .containsEntry("financialDataPolicy", "FORCED")
+                .containsEntry("financialDataPolicy", "FORCED_BRIDGE")
+                .containsEntry("financialDataBridgeTool", "web_search")
+                .containsEntry("financialDataBridgeVisibility", "internal_stage_only")
                 .containsEntry("financialDataModelRequired", false)
                 .containsEntry("financialDataEffectiveRequired", true)
                 .containsEntry("financialIntentQuery", "full user market question");
             assertThat(execution.audit())
-                .containsEntry("financialDataPolicy", "FORCED")
+                .containsEntry("financialDataPolicy", "FORCED_BRIDGE")
                 .containsEntry("financialDataEffectiveRequired", true);
         } finally {
             service.shutdown();
@@ -71,7 +73,7 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
-    void dedicatedFinancialToolKeepsWebFinancialFallbackSoExecutionFailureCannotLoseOriginalEffect() {
+    void legacyDedicatedFinancialToolAttributeCannotEscapeTheWebSearchBridge() {
         String webTool = "mcp_dynamic_service_web_search";
         String financialTool = "mcp_dynamic_service_financial_data_search";
         ToolRegistry registry = mock(ToolRegistry.class);
@@ -101,11 +103,12 @@ class ToolRuntimeServiceTest {
             assertThat(capturedInput.get().getParameters())
                 .containsEntry("financial_data_required", true);
             assertThat(capturedInput.get().getContext())
-                .containsEntry("financialDataPolicy", "FORCED_WITH_DEDICATED_TOOL")
+                .containsEntry("financialDataPolicy", "FORCED_BRIDGE")
                 .containsEntry("financialDataEffectiveRequired", true)
-                .containsEntry("dedicatedFinancialDataTool", financialTool);
+                .containsEntry("financialDataBridgeTool", "web_search")
+                .doesNotContainKey("dedicatedFinancialDataTool");
             assertThat(execution.audit())
-                .containsEntry("financialDataPolicy", "FORCED_WITH_DEDICATED_TOOL")
+                .containsEntry("financialDataPolicy", "FORCED_BRIDGE")
                 .containsEntry("financialDataEffectiveRequired", true);
         } finally {
             service.shutdown();

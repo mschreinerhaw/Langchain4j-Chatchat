@@ -442,7 +442,7 @@ class AgentPlannerTest {
     }
 
     @Test
-    void forcedFinancialPolicyRequiresDedicatedLocalFinancialToolIndependentlyFromWebSearch() throws Exception {
+    void forcedFinancialPolicyUsesOnlyTheWebSearchBridge() throws Exception {
         AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
         Method method = AgentPlanner.class.getDeclaredMethod(
             "buildPlannerPrompt", String.class, String.class, List.class, List.class, List.class,
@@ -457,12 +457,12 @@ class AgentPlannerTest {
             Map.of("forceStructuredFinancialData", true));
 
         assertThat(prompt)
-            .contains("Local structured financial data contract")
-            .contains(tool + " reads governed financial observations collected by this platform")
-            .contains("Use web_search separately for news")
-            .contains("MANDATORY: Agent policy forceStructuredFinancialData=true")
-            .contains("The plan MUST include " + tool + " before final_answer")
-            .contains("never invent or hardcode a dataset code");
+            .contains("web_search owns governed structured-financial retrieval as an internal bridge stage")
+            .contains("never plan a separate financial_data_search call")
+            .contains("forceStructuredFinancialData=true")
+            .contains("financial_data_required=true")
+            .doesNotContain("The plan MUST include " + tool)
+            .doesNotContain("Use web_search separately for news");
     }
 
     @Test

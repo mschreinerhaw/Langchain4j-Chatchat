@@ -440,11 +440,11 @@
           <section class="default-data-asset-settings financial-data-analysis-settings wide-field">
             <div class="default-data-asset-heading">
               <strong>结构化金融数据分析</strong>
-              <span>启用后，该 Agent 的联网检索会强制采集受治理的结构化金融数据；未启用时仍由检索意图模型按问题动态判断。</span>
+              <span>启用后，web_search 会在桥接层使用同一组检索词强制完成金融资产映射和本地表查询，再检索新闻并按需补充外网结果；不会单独调用金融工具。未启用时由检索意图动态判断。</span>
             </div>
             <label class="checkbox-row">
               <input v-model="form.workflowConfig.forceStructuredFinancialData" type="checkbox">
-              <span>强制采集结构化金融数据</span>
+              <span>在联网检索桥接层强制采集结构化金融数据</span>
             </label>
           </section>
           <section class="default-data-asset-settings wide-field">

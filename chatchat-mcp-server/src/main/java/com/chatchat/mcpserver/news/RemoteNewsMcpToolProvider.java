@@ -23,20 +23,22 @@ import java.util.UUID;
 @Component
 public class RemoteNewsMcpToolProvider implements McpToolProvider {
     private final NewsSearchService newsSearch;
-    private final Optional<FinancialEnrichmentService> financialEnrichment;
+    private final Optional<InternalFinancialDataSearchExecutor> financialSearch;
     private final Map<String, McpToolDefinition> definitions;
 
     public RemoteNewsMcpToolProvider(NewsSearchService newsSearch,
                                      Optional<FinancialEnrichmentService> financialEnrichment) {
         this.newsSearch = newsSearch;
-        this.financialEnrichment = financialEnrichment == null ? Optional.empty() : financialEnrichment;
+        this.financialSearch = financialEnrichment == null ? Optional.empty()
+            : financialEnrichment.map(InternalFinancialDataSearchExecutor::new);
         McpToolDefinition webSearch = definition("web_search", "Unified Web Search",
             "Unified one-call retrieval for current hotspots, place names, knowledge beyond the local corpus, "
                 + "news, and governed financial data. Governed financial data and local news are searched first; "
                 + "external search is a supplemental fallback and is not "
                 + "a separate user-facing tool. The tool dynamically matches the governed financial-data-asset "
                 + "index and reads bounded observations from relevant collected datasets before considering the "
-                + "external API. Use financial_data_search only for explicit dataset follow-up or expanded reads.",
+                + "external API. Financial asset mapping is an internal stage of this tool and always receives the "
+                + "same query. For an exact dataset follow-up, call web_search again with dataset.",
             List.of(text("query", "News topic, business question, or financial data keywords", false),
                 number("num_results", "Maximum number of unified search results to return", 10, 1, 50),
                 bool("financial_data_required", "Compatibility marker for callers that explicitly require financial "
@@ -66,7 +68,7 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         if (!dataset.isBlank()) {
             try {
                 int rowLimit = bounded(input.getParameterAsNumber("limit"), 50, 1, 200);
-                FinancialEnrichmentService enrichment = financialEnrichment.orElseThrow(() ->
+                InternalFinancialDataSearchExecutor enrichment = financialSearch.orElseThrow(() ->
                     new IllegalStateException("Financial query capability is unavailable"));
                 Map<String, Object> data = new LinkedHashMap<>(enrichment.queryDataset(dataset, input));
                 List<Map<String, Object>> compactRows = compactRows(rows(data), rowLimit);
@@ -105,10 +107,12 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         List<String> warnings = new ArrayList<>();
         // Local governed financial retrieval is authoritative and must finish before
         // the news runtime is allowed to consider supplemental internet recall.
-        FinancialEnrichmentService.EnrichmentResult enrichment = financialEnrichment
-            .map(service -> service.enrich(query, input, financialCandidateLimit))
-            .orElseGet(() -> new FinancialEnrichmentService.EnrichmentResult(
-                query, List.of(), List.of(), List.of(), "capability_unavailable"));
+        InternalFinancialDataSearchExecutor.SearchResult financialSearchResult = financialSearch
+            .map(service -> service.search(input, financialCandidateLimit))
+            .orElseGet(() -> new InternalFinancialDataSearchExecutor.SearchResult(query,
+                new FinancialEnrichmentService.EnrichmentResult(
+                    query, List.of(), List.of(), List.of(), "capability_unavailable")));
+        FinancialEnrichmentService.EnrichmentResult enrichment = financialSearchResult.enrichment();
         warnings.addAll(enrichment.warnings());
         String financialAssetQuery = enrichment.assetQuery();
         List<Map<String, Object>> assets = enrichment.assets().stream()
@@ -134,6 +138,10 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
             .map(String.class::cast).filter(value -> !value.isBlank()).distinct().toList();
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("query", query);
+        data.put("financialSearchQuery", financialSearchResult.query());
+        data.put("financialSearchQueryAligned", query.equals(financialSearchResult.query()));
+        data.put("financialSearchTool", InternalFinancialDataSearchExecutor.TOOL_NAME);
+        data.put("financialSearchToolVisibility", "internal_bridge_only");
         data.put("financialAssetQuery", financialAssetQuery);
         data.put("discovery_id", discoveryId);
         data.put("result_type", "unified_search_results");
@@ -143,9 +151,9 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         data.put("provider", "chatchat-unified-search");
         data.put("mode", "unified_news_and_financial_asset_discovery");
         data.put("retrievalOrder", List.of(
-            "governed_financial_index_and_data",
+            "financial_data_search_internal",
             "local_news_index",
-            "external_web_supplement"
+            "external_web_search_internal"
         ));
         data.put("externalSearchRole", "supplementary_fallback");
         data.put("count", results.size());
@@ -172,6 +180,9 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         result.getMetadata().put("financialCandidateDatasetCount", assets.size());
         result.getMetadata().put("financialQueriedDatasetCount", financialData.size());
         result.getMetadata().put("financialDataRequired", financialDataRequired);
+        result.getMetadata().put("financialSearchQuery", financialSearchResult.query());
+        result.getMetadata().put("financialSearchQueryAligned", query.equals(financialSearchResult.query()));
+        result.getMetadata().put("financialSearchToolVisibility", "internal_bridge_only");
         result.getMetadata().put("financialSecondQueryRequired", requiresSecondQuery);
         return result;
     }
@@ -257,7 +268,7 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
             "dailyHotDays", numberValue(source, "hot_retention_days", "hotRetentionDays", 7),
             "weeklySnapshotDays", numberValue(source, "archive_retention_days", "archiveRetentionDays", 1825),
             "historyGranularity", text(source, "history_granularity", "historyGranularity")));
-        item.put("readTool", FinancialDataMcpToolProvider.TOOL_NAME);
+        item.put("readTool", "web_search");
         Map<String, Object> evidence = new LinkedHashMap<>();
         evidence.put("dataset", dataset);
         evidence.put("storageLocation", storage);
@@ -265,7 +276,7 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         evidence.put("catalogIndex", "financial-data-asset");
         item.put("evidence", evidence);
         item.put("followUp", Map.of(
-            "tool", FinancialDataMcpToolProvider.TOOL_NAME,
+            "tool", "web_search",
             "arguments", Map.of("dataset", dataset, "discovery_id", discoveryId, "limit", 50)));
         return item;
     }
@@ -298,7 +309,7 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         )));
         guide.put("compatibleDirectQuery", true);
         guide.put("secondStage", Map.of(
-            "tool", FinancialDataMcpToolProvider.TOOL_NAME,
+            "tool", "web_search",
             "requiredArgument", "dataset",
             "reason", "Use for explicit dataset follow-up or expanded reads beyond the bounded web_search result"));
         guide.put("queryRevisionHint",

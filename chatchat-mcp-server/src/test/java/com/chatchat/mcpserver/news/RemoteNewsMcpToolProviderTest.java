@@ -163,6 +163,10 @@ class RemoteNewsMcpToolProviderTest {
         assertThat(output.isSuccess()).isTrue();
         Map<String, Object> data = (Map<String, Object>) output.getData();
         assertThat(data).containsEntry("newsCount", 1)
+            .containsEntry("financialSearchQuery", query)
+            .containsEntry("financialSearchQueryAligned", true)
+            .containsEntry("financialSearchTool", "financial_data_search")
+            .containsEntry("financialSearchToolVisibility", "internal_bridge_only")
             .containsEntry("result_type", "unified_search_results")
             .containsEntry("retrieval_stage", "DISCOVERY")
             .containsEntry("sample_only", false)
@@ -177,7 +181,7 @@ class RemoteNewsMcpToolProviderTest {
         assertThat((List<Map<String, Object>>) data.get("financialAssets")).singleElement().satisfies(asset -> {
             assertThat(asset).containsEntry("dataset", "market_quote_daily");
             assertThat((Map<String, Object>) asset.get("followUp"))
-                .containsEntry("tool", FinancialDataMcpToolProvider.TOOL_NAME);
+                .containsEntry("tool", "web_search");
         });
     }
 
@@ -310,12 +314,12 @@ class RemoteNewsMcpToolProviderTest {
                 .containsEntry("lastObservationDate", "2026-07-23")
                 .containsEntry("storageLocation", "chatchat_market.etf_scale_daily")
                 .containsEntry("relevanceScore", 12.5D)
-                .containsEntry("readTool", FinancialDataMcpToolProvider.TOOL_NAME);
+                .containsEntry("readTool", "web_search");
             assertThat((List<Map<String, Object>>) asset.get("availableFields"))
                 .containsExactly(Map.of("name", "fund_code", "type", "STRING", "description", "基金代码",
                     "exactFilterKey", "fund_code", "containsFilterKey", "fund_code_like"));
             assertThat((Map<String, Object>) asset.get("followUp"))
-                .containsEntry("tool", FinancialDataMcpToolProvider.TOOL_NAME)
+                .containsEntry("tool", "web_search")
                 .satisfies(followUp -> assertThat((Map<String, Object>) followUp.get("arguments"))
                     .containsKeys("dataset", "discovery_id"));
         });

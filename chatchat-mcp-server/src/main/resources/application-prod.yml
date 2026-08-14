@@ -59,7 +59,7 @@ chatchat:
         enabled: true
         tools:
           web_search: { enabled: true, agent-callable: true, timeout: 30s }
-          financial_data_search: { enabled: true, agent-callable: true, timeout: 20s }
+          financial_data_search: { enabled: false, agent-callable: false, timeout: 20s }
     admin:
       token-ttl-minutes: 480
     security:

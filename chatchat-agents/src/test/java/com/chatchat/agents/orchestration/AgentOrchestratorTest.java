@@ -70,24 +70,6 @@ class AgentOrchestratorTest {
     }
 
     @Test
-    void forcedFinancialPolicyDeterministicallyAddsDedicatedToolToMandatoryWorkflow() {
-        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
-        String financialTool = "mcp_chatchat_mcp_server_financial_data_search";
-
-        List<String> mandatory = orchestrator.withForcedFinancialDataTool(
-            List.of("mcp_chatchat_mcp_server_web_search"),
-            List.of("mcp_chatchat_mcp_server_web_search", financialTool),
-            true);
-
-        assertThat(mandatory).containsExactly(
-            "mcp_chatchat_mcp_server_web_search", financialTool);
-        assertThat(orchestrator.withForcedFinancialDataTool(mandatory,
-            List.of(financialTool), true)).containsExactlyElementsOf(mandatory);
-        assertThat(orchestrator.withForcedFinancialDataTool(List.of(),
-            List.of("mcp_chatchat_mcp_server_web_search"), true)).isEmpty();
-    }
-
-    @Test
     void interpretationPlanAttemptsUseOneReviewAndAtMostThreeFullPlans() throws Exception {
         AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
         Method attributesMethod = AgentOrchestrator.class.getDeclaredMethod(

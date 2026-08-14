@@ -8,7 +8,6 @@ import com.chatchat.runtime.mcp.registry.McpCapabilityCodes;
 import com.chatchat.runtime.mcp.registry.McpToolDefinition;
 import com.chatchat.runtime.mcp.registry.McpToolExecutor;
 import com.chatchat.runtime.mcp.registry.McpToolProvider;
-import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -18,16 +17,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-/** Explicit MCP boundary for governed, locally collected financial observations. */
-@Component
+/**
+ * Legacy compatibility wrapper for direct financial-data calls.
+ *
+ * <p>It is intentionally not a Spring component: production search exposes only web_search and
+ * runs this capability as an internal bridge stage, preventing independent query rewriting.</p>
+ */
 public class FinancialDataMcpToolProvider implements McpToolProvider {
-    public static final String TOOL_NAME = "financial_data_search";
+    public static final String TOOL_NAME = InternalFinancialDataSearchExecutor.TOOL_NAME;
 
-    private final FinancialEnrichmentService financialData;
+    private final InternalFinancialDataSearchExecutor financialData;
     private final McpToolDefinition definition;
 
     public FinancialDataMcpToolProvider(FinancialEnrichmentService financialData) {
-        this.financialData = financialData;
+        this.financialData = new InternalFinancialDataSearchExecutor(financialData);
         this.definition = new McpToolDefinition(
             TOOL_NAME,
             "Local Structured Financial Data Search",
@@ -97,7 +100,7 @@ public class FinancialDataMcpToolProvider implements McpToolProvider {
 
     private Map<String, Object> discoverAndQuery(String query, ToolInput input) {
         int requested = bounded(input.getParameterAsNumber("financial_dataset_limit"), 3, 1, 3);
-        FinancialEnrichmentService.EnrichmentResult result = financialData.enrich(query, input, requested);
+        FinancialEnrichmentService.EnrichmentResult result = financialData.search(input, requested).enrichment();
         List<Map<String, Object>> observations = result.financialData().stream()
             .map(item -> compactResult(item, input, "financial_row_limit", 20, 50)).toList();
         Map<String, Object> response = base(query);

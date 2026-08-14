@@ -75,4 +75,45 @@ describe("TasksView persisted plan restoration", () => {
     expect(context.selectedPlanNodeId).toBe("step-2");
     expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "nearest", inline: "nearest" });
   });
+
+  it("normalizes stale running DAG nodes to completed after the task ends", () => {
+    const context = {
+      selectedTask: { status: "SUCCESS" },
+      isActiveTask: TasksView.methods.isActiveTask
+    };
+
+    expect(TasksView.methods.resolvePlanNodeStatus.call(context, { status: "running" })).toBe("COMPLETED");
+    expect(TasksView.methods.resolvePlanNodeStatus.call(context, { status: "failed" })).toBe("FAILED");
+  });
+
+  it("uses the latest workflow event while an active task is still running", () => {
+    const context = {
+      selectedTask: { status: "RUNNING" },
+      selectedEvents: [
+        {
+          eventId: "call",
+          type: "TOOL_CALL",
+          status: "WAIT_TOOL",
+          toolName: "asset_query",
+          createTime: 100,
+          payload: "{}"
+        },
+        {
+          eventId: "result",
+          type: "TOOL_RESULT",
+          status: "RUNNING",
+          toolName: "asset_query",
+          createTime: 200,
+          payload: "{\"success\":true}"
+        }
+      ],
+      isActiveTask: TasksView.methods.isActiveTask,
+      parseEventPayload: TasksView.methods.parseEventPayload,
+      latestPlanNodeEvent: TasksView.methods.latestPlanNodeEvent,
+      planStatusFromEvent: TasksView.methods.planStatusFromEvent
+    };
+
+    expect(TasksView.methods.resolvePlanNodeStatus.call(context, { toolName: "asset_query", status: "running" }))
+      .toBe("COMPLETED");
+  });
 });

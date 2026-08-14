@@ -142,7 +142,11 @@ function statusLabel(data) {
 }
 
 function miniMapColor(node) {
-  return { success: "#4f9d69", failed: "#c85b5b", running: "#3f78a8", waiting: "#c58a2b", final: "#7568a6" }[nodeTone(node.data)] || "#7b8fa4";
+  return node?.data ? "#2f6fa9" : "#8aacc9";
+}
+
+function statusColor(data) {
+  return { success: "#278653", failed: "#c2414b", running: "#1976c9", waiting: "#b7791f", final: "#6554a5" }[nodeTone(data)] || "#507da5";
 }
 
 function formatDuration(value) {
@@ -194,8 +198,7 @@ function downloadSvg() {
   }).join("");
   const nodeSvg = flowNodes.value.map((node) => {
     const data = node.data || {};
-    const color = miniMapColor(node);
-    return `<g transform="translate(${node.position.x},${node.position.y})"><rect width="${PLAN_FLOW_NODE_WIDTH}" height="${PLAN_FLOW_NODE_HEIGHT}" rx="12" fill="#fff" stroke="${color}" stroke-width="2"/><circle cx="18" cy="21" r="5" fill="${color}"/><text x="32" y="25" class="status">${escapeXml(statusLabel(data))}</text><text x="18" y="56" class="title">${escapeXml(data.fullLabelText || data.labelText || data.label || node.id)}</text><text x="18" y="84" class="meta">${escapeXml(data.toolName || data.actionText || "运行节点")}</text><text x="18" y="108" class="step">#${escapeXml(data.stepId || node.id)}</text></g>`;
+    return `<g transform="translate(${node.position.x},${node.position.y})"><rect width="${PLAN_FLOW_NODE_WIDTH}" height="${PLAN_FLOW_NODE_HEIGHT}" rx="8" fill="#edf6fd" stroke="#2f6fa9" stroke-width="2"/><rect width="5" height="${PLAN_FLOW_NODE_HEIGHT}" rx="3" fill="#1f5f99"/><circle cx="18" cy="21" r="5" fill="${statusColor(data)}"/><text x="32" y="25" class="status">${escapeXml(statusLabel(data))}</text><text x="18" y="56" class="title">${escapeXml(data.fullLabelText || data.labelText || data.label || node.id)}</text><text x="18" y="84" class="meta">${escapeXml(data.toolName || data.actionText || "运行节点")}</text><text x="18" y="108" class="step">#${escapeXml(data.stepId || node.id)}</text></g>`;
   }).join("");
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${minX} ${minY} ${maxX - minX} ${maxY - minY}" width="${maxX - minX}" height="${maxY - minY}"><defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#64748b"/></marker></defs><style>path{fill:none;stroke:#64748b;stroke-width:2}.status{font:700 12px sans-serif;fill:#475467}.title{font:700 14px sans-serif;fill:#101828}.meta{font:12px sans-serif;fill:#475467}.step{font:11px monospace;fill:#667085}</style>${edgeSvg}${nodeSvg}</svg>`;
   const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
@@ -222,23 +225,23 @@ defineExpose({ fitGraph, resetLayout, downloadSvg, selectNode });
 .plan-flow-actions button { height: 32px; border: 1px solid #cfdced; border-radius: 8px; padding: 0 11px; background: #fff; color: #344054; font-size: 12px; font-weight: 700; }
 .plan-flow-actions button:hover { border-color: #2f7cf6; color: #175cd3; background: #f5f9ff; }
 .plan-flow { width: 100%; height: 650px; background: #f5f7fa; }
-.plan-flow-node { --node-accent: #7b8fa4; --node-border: #bdc9d5; --node-bg: #f7f9fb; --node-chip-bg: #e8edf2; width: 300px; min-height: 126px; box-sizing: border-box; display: grid; gap: 8px; border: 1px solid var(--node-border); border-left: 4px solid var(--node-accent); border-radius: 7px; padding: 11px 14px 11px 13px; background: var(--node-bg); box-shadow: 0 3px 10px rgba(44,62,80,.1); cursor: grab; transition: border-color .15s, box-shadow .15s, transform .15s; }
+.plan-flow-node { --node-accent: #2f6fa9; --node-border: #8eb6d9; --node-bg: #edf6fd; --node-chip-bg: #dcecf8; --status-accent: #507da5; width: 300px; min-height: 126px; box-sizing: border-box; display: grid; gap: 8px; border: 1px solid var(--node-border); border-left: 5px solid #1f5f99; border-radius: 7px; padding: 11px 14px 11px 13px; background: linear-gradient(145deg, #f7fbff 0%, var(--node-bg) 100%); box-shadow: 0 3px 10px rgba(35,83,126,.13); cursor: grab; transition: border-color .15s, box-shadow .15s, transform .15s; }
 .plan-flow-node:active { cursor: grabbing; }
 .plan-flow-node.selected { border-color: var(--node-accent); box-shadow: 0 0 0 3px rgba(63,120,168,.2), 0 7px 18px rgba(44,62,80,.14); transform: translateY(-1px); }
-.plan-flow-node.success { --node-accent: #4f9d69; --node-border: #a9cbb5; --node-bg: #f2f8f4; --node-chip-bg: #dceee2; }
-.plan-flow-node.failed { --node-accent: #c85b5b; --node-border: #dfb0b0; --node-bg: #fcf3f3; --node-chip-bg: #f4dddd; }
-.plan-flow-node.running { --node-accent: #3f78a8; --node-border: #a9bfd3; --node-bg: #f0f5fa; --node-chip-bg: #dbe8f3; }
-.plan-flow-node.waiting { --node-accent: #c58a2b; --node-border: #dac39d; --node-bg: #faf6ed; --node-chip-bg: #f2e6cf; }
-.plan-flow-node.final { --node-accent: #7568a6; --node-border: #bdb6d5; --node-bg: #f5f3f9; --node-chip-bg: #e6e1f0; }
+.plan-flow-node.success { --status-accent: #278653; }
+.plan-flow-node.failed { --status-accent: #c2414b; }
+.plan-flow-node.running { --status-accent: #1976c9; }
+.plan-flow-node.waiting { --status-accent: #b7791f; }
+.plan-flow-node.final { --status-accent: #6554a5; }
 .plan-flow-node header, .plan-flow-node footer { min-width: 0; display: flex; align-items: center; gap: 7px; }
 .plan-flow-node header small { border-radius: 4px; padding: 2px 6px; background: var(--node-chip-bg); color: #3f4c59; font-size: 10px; font-weight: 800; letter-spacing: .02em; }
 .plan-flow-node header code { margin-left: auto; max-width: 120px; overflow: hidden; color: #6b7d8f; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
-.plan-flow-status-dot { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: var(--node-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--node-accent) 16%, transparent); }
+.plan-flow-status-dot { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: var(--status-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-accent) 16%, transparent); }
 .plan-flow-node > strong { min-width: 0; display: -webkit-box; overflow: hidden; color: #25313d; font-size: 14px; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; }
 .plan-flow-node > p { min-width: 0; margin: 0; overflow: hidden; color: #536475; font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .plan-flow-node footer { border-top: 1px solid color-mix(in srgb, var(--node-border) 72%, transparent); padding-top: 7px; color: #6b7d8f; font-size: 10px; text-transform: uppercase; }
-:deep(.vue-flow__edge-path) { stroke: #8093a7; stroke-width: 1.8; }
-:deep(.vue-flow__edge.selected .vue-flow__edge-path) { stroke: #3f78a8; stroke-width: 2.8; }
+:deep(.vue-flow__edge-path) { stroke: #6f96b8; stroke-width: 1.8; }
+:deep(.vue-flow__edge.selected .vue-flow__edge-path) { stroke: #1f66a5; stroke-width: 2.8; }
 :deep(.vue-flow__edge-text) { fill: #3f4c59; font-size: 11px; font-weight: 800; }
 :deep(.vue-flow__edge-textbg) { fill: rgba(248,250,252,.96); stroke: #c8d2dc; stroke-width: 1; }
 :deep(.vue-flow__handle) { width: 8px; height: 8px; border: 2px solid var(--node-bg); background: var(--node-accent); }

@@ -392,6 +392,7 @@ export default {
           900
         );
         const hasWrappedLabel = labelLines.length > 1;
+        const displayStatus = this.resolvePlanNodeStatus(node);
         return {
           ...node,
           id,
@@ -417,10 +418,8 @@ export default {
             800
           ),
           metaY: hasWrappedLabel ? 84 : 80,
-          statusText: node.status || (node.success === true ? "success" : node.success === false ? "failed" : "planned"),
-          statusLabel: this.formatTaskStatus(
-            node.status || (node.success === true ? "success" : node.success === false ? "failed" : "planned")
-          ),
+          statusText: displayStatus,
+          statusLabel: this.formatTaskStatus(displayStatus),
           detailText: node.errorMessage || node.outputPreview || ""
         };
       });
@@ -878,6 +877,69 @@ export default {
       const normalized = String(task?.status || "").toUpperCase();
       return ["PENDING", "RUNNING", "WAIT_TOOL", "WAIT_MODEL", "WAIT_CONFIRMATION", "WAITING_CONFIRM"].includes(normalized);
     },
+    resolvePlanNodeStatus(node) {
+      const snapshotStatus = String(
+        node?.status || (node?.success === true ? "SUCCESS" : node?.success === false ? "FAILED" : "PLANNED")
+      ).toUpperCase();
+      if (!this.isActiveTask(this.selectedTask)) {
+        return ["RUNNING", "EXECUTING", "WAITING", "WAIT_TOOL", "WAIT_MODEL", "PENDING"].includes(snapshotStatus)
+          ? "COMPLETED"
+          : snapshotStatus;
+      }
+      const event = this.latestPlanNodeEvent(node);
+      return event ? this.planStatusFromEvent(event, snapshotStatus) : snapshotStatus;
+    },
+    latestPlanNodeEvent(node) {
+      const nodeStepId = String(node?.stepId ?? "");
+      const nodeToolName = String(node?.toolName || "").trim().toLowerCase();
+      const matches = (Array.isArray(this.selectedEvents) ? this.selectedEvents : []).filter((event) => {
+        const payload = this.parseEventPayload(event?.payload);
+        const eventStepId = String(payload?.stepId ?? payload?.step ?? "");
+        const eventToolName = String(event?.toolName || payload?.toolName || "").trim().toLowerCase();
+        if (nodeStepId && eventStepId) {
+          return nodeStepId === eventStepId;
+        }
+        return !!nodeToolName && nodeToolName === eventToolName;
+      });
+      return matches.reduce((latest, event) => {
+        if (!latest) {
+          return event;
+        }
+        const eventOrder = Number(event?.createTime || 0) * 1000 + Number(event?.sequence || 0);
+        const latestOrder = Number(latest?.createTime || 0) * 1000 + Number(latest?.sequence || 0);
+        return eventOrder >= latestOrder ? event : latest;
+      }, null);
+    },
+    parseEventPayload(payload) {
+      if (payload && typeof payload === "object") {
+        return payload;
+      }
+      if (!payload || typeof payload !== "string") {
+        return {};
+      }
+      try {
+        const parsed = JSON.parse(payload);
+        return parsed && typeof parsed === "object" ? parsed : {};
+      } catch (error) {
+        return {};
+      }
+    },
+    planStatusFromEvent(event, fallback = "PLANNED") {
+      const type = String(event?.type || "").toUpperCase();
+      const status = String(event?.status || "").toUpperCase();
+      const payload = this.parseEventPayload(event?.payload);
+      if (status === "FAILED" || event?.errorCode || payload?.success === false || type === "FAILED") {
+        return "FAILED";
+      }
+      if (type === "TOOL_RESULT" || type === "MODEL_RESULT" || type === "FINISHED" || status === "SUCCESS") {
+        return "COMPLETED";
+      }
+      if (["TOOL_CALL", "MODEL_CALL", "STARTED", "THINK", "PLAN", "STATUS"].includes(type)
+        || ["RUNNING", "WAIT_TOOL", "WAIT_MODEL"].includes(status)) {
+        return "RUNNING";
+      }
+      return fallback;
+    },
     isCancellingTask(task) {
       return !!this.cancellingTaskIds[task?.taskId];
     },
@@ -1068,6 +1130,7 @@ export default {
           WAIT_MODEL: "等待模型",
           WAIT_CONFIRMATION: "等待确认",
           SUCCESS: "成功",
+          COMPLETED: "完成",
           FAILED: "失败",
           CANCELLED: "已取消",
           CANCELED: "已取消",

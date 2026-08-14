@@ -7,6 +7,10 @@ import { enhanceResultTables } from "../utils/resultTableEnhancer.js";
 import { normalizeArtifactHtml } from "../utils/artifactHtmlNormalizer.js";
 import { isInternalDocumentRef, stripInternalDocumentRefs } from "../utils/internalDocumentRefs.js";
 import { normalizeMarkdownTables } from "../utils/markdownTableNormalizer.js";
+import {
+  collapseRecordCoverageEvidenceHtml,
+  collapseToolExecutionEvidenceHtml
+} from "../utils/recordCoverageEvidence.js";
 
 export const ARTIFACT_RESOURCE_LOADER = Symbol("artifact-resource-loader");
 export const ARTIFACT_EVENT_DISPATCHER = Symbol("artifact-event-dispatcher");
@@ -68,19 +72,29 @@ function resourceComponent(name, renderResource) {
   });
 }
 
+export function renderArtifactMarkdownHtml(value = "") {
+  const rendered = enhanceResultTables(markdown.render(normalizeMarkdownTables(
+    stripInternalDocumentRefs(String(value || ""))
+  )));
+  return collapseRecordCoverageEvidenceHtml(collapseToolExecutionEvidenceHtml(rendered));
+}
+
+export function renderArtifactHtml(value = "") {
+  const rendered = normalizeArtifactHtml(String(value || ""), (source) => markdown.render(source));
+  return collapseRecordCoverageEvidenceHtml(collapseToolExecutionEvidenceHtml(rendered));
+}
+
 const MarkdownResource = resourceComponent("ArtifactMarkdown", (value) =>
   h("section", {
     class: "artifact-markdown message-markdown",
-    innerHTML: enhanceResultTables(markdown.render(normalizeMarkdownTables(
-      stripInternalDocumentRefs(String(value || ""))
-    )))
+    innerHTML: renderArtifactMarkdownHtml(value)
   })
 );
 
 const HtmlResource = resourceComponent("ArtifactHtml", (value) =>
   h("section", {
     class: "artifact-html-document message-markdown",
-    innerHTML: normalizeArtifactHtml(String(value || ""), (source) => markdown.render(source))
+    innerHTML: renderArtifactHtml(value)
   })
 );
 

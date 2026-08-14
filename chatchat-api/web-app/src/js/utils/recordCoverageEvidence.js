@@ -47,3 +47,46 @@ export function collapseRecordCoverageEvidenceHtml(html = "") {
 
   return source;
 }
+
+const TOOL_EVIDENCE_HEADING_RE = /^(?:证据\s*[·:\-—]\s*)?工具(?:执行|调用|运行)?(?:证据|证明|链路|结果)$/i;
+
+/**
+ * Artifact-backed history messages bypass ChatMessageList's richer evidence-card
+ * formatter. Keep their tool appendix opt-in as well, without changing content.
+ */
+export function collapseToolExecutionEvidenceHtml(html = "") {
+  let source = String(html || "");
+  const headingPattern = /<h([1-6])(?:\s[^>]*)?>([\s\S]*?)<\/h\1>/gi;
+  const headings = [...source.matchAll(headingPattern)];
+  const sections = headings
+    .map((heading, index) => {
+      if (!TOOL_EVIDENCE_HEADING_RE.test(headingText(heading[2]))) {
+        return null;
+      }
+      const level = Number(heading[1]);
+      const nextBoundary = headings
+        .slice(index + 1)
+        .find((candidate) => Number(candidate[1]) <= level);
+      const end = nextBoundary?.index ?? source.length;
+      return {
+        start: heading.index,
+        end,
+        body: source.slice(heading.index + heading[0].length, end).trim()
+      };
+    })
+    .filter(Boolean);
+
+  [...sections].reverse().forEach((section) => {
+    const itemCount = (section.body.match(/<li(?:\s[^>]*)?>/gi) || []).length;
+    const summaryMeta = itemCount ? `${itemCount} 条` : "点击查看";
+    const collapsed = [
+      '<details class="tool-evidence-details">',
+      `<summary><span>证据 · 工具执行证据</span><small>${summaryMeta}</small></summary>`,
+      `<div class="tool-evidence-body">${section.body}</div>`,
+      '</details>'
+    ].join("");
+    source = `${source.slice(0, section.start)}${collapsed}${source.slice(section.end)}`;
+  });
+
+  return source;
+}

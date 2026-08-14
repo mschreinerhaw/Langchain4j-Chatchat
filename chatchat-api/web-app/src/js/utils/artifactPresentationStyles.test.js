@@ -59,6 +59,7 @@ describe("dynamic report presentation contract", () => {
     expect(artifactRenderer).toMatch(/\.artifact-notice[\s\S]*color:\s*#667085[\s\S]*font-size:\s*0\.84rem/);
     expect(artifactRenderer).toMatch(/\.artifact-evidence-content[\s\S]*font-size:\s*0\.82rem/);
     expect(artifactRegistry).toContain('h("details"');
+    expect(artifactRegistry).toContain("collapseRecordCoverageEvidenceHtml(collapseToolExecutionEvidenceHtml(rendered))");
   });
 
   it("retains the table-chart event bridge into the existing analysis modal", () => {

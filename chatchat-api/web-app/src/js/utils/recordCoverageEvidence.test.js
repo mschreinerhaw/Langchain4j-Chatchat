@@ -2,7 +2,10 @@
 
 import MarkdownIt from "markdown-it";
 import { describe, expect, it } from "vitest";
-import { collapseRecordCoverageEvidenceHtml } from "./recordCoverageEvidence.js";
+import {
+  collapseRecordCoverageEvidenceHtml,
+  collapseToolExecutionEvidenceHtml
+} from "./recordCoverageEvidence.js";
 
 const markdown = new MarkdownIt({ breaks: true });
 
@@ -42,5 +45,26 @@ describe("record coverage evidence", () => {
     expect(details.querySelector("h3")?.textContent).toBe("分批 1");
     expect(details.textContent).not.toContain("后续建议");
     expect(element.querySelector(":scope > h2")?.textContent).toBe("后续建议");
+  });
+});
+
+describe("artifact tool execution evidence", () => {
+  it("collapses a historical report tool appendix and keeps its rows", () => {
+    const source = [
+      "## 回答结论",
+      "历史回答正文。",
+      "## 工具执行证据",
+      "1. `asset_query`：成功",
+      "2. `template_execute`：成功"
+    ].join("\n\n");
+    const html = collapseToolExecutionEvidenceHtml(markdown.render(source));
+    const element = new DOMParser().parseFromString(`<main>${html}</main>`, "text/html").body.firstElementChild;
+    const details = element.querySelector("details.tool-evidence-details");
+
+    expect(details).not.toBeNull();
+    expect(details.hasAttribute("open")).toBe(false);
+    expect(details.querySelector("summary small")?.textContent).toBe("2 条");
+    expect(details.querySelectorAll(".tool-evidence-body li")).toHaveLength(2);
+    expect(element.querySelector(":scope > h2")?.textContent).toBe("回答结论");
   });
 });

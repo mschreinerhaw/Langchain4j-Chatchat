@@ -203,6 +203,14 @@ export default {
     favoriteCategory(favorite) {
       return favorite?.category || favorite?.extra?.category || DEFAULT_CATEGORY;
     },
+    favoriteCategorySelectWidth(favorite) {
+      const category = String(this.favoriteCategory(favorite) || DEFAULT_CATEGORY);
+      const textWidth = Array.from(category).reduce(
+        (width, character) => width + (/[^\u0000-\u00ff]/.test(character) ? 14 : 7.5),
+        0
+      );
+      return `${Math.max(120, Math.min(280, Math.ceil(textWidth + 48)))}px`;
+    },
     favoriteTypeClass(favorite) {
       return `type-${String(favorite?.targetType || "favorite").toLowerCase()}`;
     },

@@ -36,4 +36,12 @@ describe("FavoritesView", () => {
     expect(FavoritesView.computed.filteredFavorites.call(context)).toHaveLength(1);
     expect(FavoritesView.computed.filteredFavorites.call(context)[0].targetType).toBe("SESSION");
   });
+
+  it("sizes the category selector from the current category name", () => {
+    const context = { favoriteCategory: FavoritesView.methods.favoriteCategory };
+
+    expect(FavoritesView.methods.favoriteCategorySelectWidth.call(context, { category: "默认" })).toBe("120px");
+    expect(FavoritesView.methods.favoriteCategorySelectWidth.call(context, { category: "livegateway部署文档" })).toBe("187px");
+    expect(FavoritesView.methods.favoriteCategorySelectWidth.call(context, { category: "超长分类名称".repeat(20) })).toBe("280px");
+  });
 });

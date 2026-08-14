@@ -23,7 +23,7 @@
 
     <section class="business-category-strip">
       <button
-        v-for="category in categoryOptions"
+        v-for="category in visibleCategoryOptions"
         :key="category.value"
         type="button"
         :class="{ active: categoryFilter === category.value }"
@@ -31,6 +31,21 @@
       >
         <span>{{ category.label }}</span>
         <strong>{{ category.count }}</strong>
+      </button>
+      <button
+        v-if="hasHiddenCategories"
+        type="button"
+        class="category-more-button"
+        :class="{ expanded: categoriesExpanded }"
+        :aria-label="categoriesExpanded ? '收起分类' : '展开全部分类'"
+        :aria-expanded="categoriesExpanded"
+        :title="categoriesExpanded ? '收起分类' : '展开全部分类'"
+        @click="toggleCategories"
+      >
+        <span v-if="categoriesExpanded" class="category-collapse-label">收起</span>
+        <span v-else class="category-more-dots" aria-hidden="true">
+          <i></i><i></i><i></i>
+        </span>
       </button>
     </section>
 

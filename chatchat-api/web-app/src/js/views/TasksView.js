@@ -61,6 +61,10 @@ export default {
     tenantId: {
       type: String,
       default: ""
+    },
+    tenantName: {
+      type: String,
+      default: ""
     }
   },
   data() {
@@ -136,6 +140,9 @@ export default {
     };
   },
   computed: {
+    runtimeTenantName() {
+      return this.tenantName || "默认租户";
+    },
     tabs() {
       return [
         { key: "tasks", label: "任务", icon: ListFilter, count: this.tasks.length },
@@ -496,6 +503,12 @@ export default {
     }
   },
   methods: {
+    tenantLabel(tenantId) {
+      if (!tenantId || String(tenantId) === String(this.runtimeTenantId)) {
+        return this.runtimeTenantName;
+      }
+      return tenantId;
+    },
     async loadRuntime(options = {}) {
       await this.loadLegacyRuntime(options);
     },
@@ -722,6 +735,21 @@ export default {
         this.selectedPlanDag = payload;
         this.selectedPlanNodeId = "";
       }
+    },
+    focusPlanNode(nodeId) {
+      this.selectedPlanNodeId = String(nodeId || "");
+      this.$nextTick(() => {
+        this.$refs.planDagGraph?.selectNode?.(this.selectedPlanNodeId);
+        this.$refs.planDagCanvas?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      });
+    },
+    handlePlanNodeSelect(nodeId) {
+      this.selectedPlanNodeId = String(nodeId || "");
+      this.$nextTick(() => {
+        const cards = Array.from(this.$refs.planNodeList?.children || []);
+        const selectedCard = cards.find((card) => card.dataset.planNodeId === this.selectedPlanNodeId);
+        selectedCard?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+      });
     },
     downloadPlanDagJson() {
       if (!this.selectedPlanDag) {

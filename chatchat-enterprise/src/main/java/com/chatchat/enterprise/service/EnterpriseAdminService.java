@@ -978,10 +978,12 @@ public class EnterpriseAdminService implements ApplicationRunner {
             .map(SysUserRole::getRoleId)
             .toList();
         List<String> permissionCodes = permissionCodes(user, roleIds);
+        SysTenant tenant = tenantRepository.findById(user.getTenantId()).orElse(null);
         return new UserView(
             user.getId(),
             user.getTenantId(),
-            tenantRepository.findById(user.getTenantId()).map(SysTenant::getTenantNo).orElse(null),
+            tenant == null ? null : tenant.getTenantNo(),
+            tenant == null ? null : tenant.getTenantName(),
             user.getOrgId(),
             user.getUsername(),
             user.getDisplayName(),
@@ -1828,6 +1830,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
         String id,
         String tenantId,
         Long tenantNo,
+        String tenantName,
         String orgId,
         String username,
         String displayName,
@@ -1855,7 +1858,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
                         List<String> permissionCodes,
                         Instant createdAt,
                         Instant updatedAt) {
-            this(id, tenantId, tenantNo, orgId, username, displayName, email, phone, status,
+            this(id, tenantId, tenantNo, null, orgId, username, displayName, email, phone, status,
                 lastLoginAt, roleIds, permissionCodes, createdAt, updatedAt, false);
         }
     }

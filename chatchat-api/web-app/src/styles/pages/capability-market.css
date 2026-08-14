@@ -115,6 +115,39 @@
   color: var(--primary);
 }
 
+.capability-market-view .business-category-strip .category-more-button {
+  min-width: 42px;
+  padding: 0 12px;
+  justify-content: center;
+  border-color: rgba(47, 124, 246, 0.22);
+  background: rgba(47, 124, 246, 0.07);
+  color: var(--primary);
+}
+
+.capability-market-view .business-category-strip .category-more-button:hover,
+.capability-market-view .business-category-strip .category-more-button.expanded {
+  border-color: rgba(47, 124, 246, 0.42);
+  background: rgba(47, 124, 246, 0.13);
+}
+
+.capability-market-view .category-more-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.capability-market-view .category-more-dots i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.capability-market-view .category-collapse-label {
+  font-size: 12px;
+  line-height: 1;
+}
+
 .capability-market-view button {
   min-height: 38px;
   border-radius: 8px;

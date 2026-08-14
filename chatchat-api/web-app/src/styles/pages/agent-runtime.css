@@ -2521,13 +2521,49 @@
 }
 
 .keyword-rule-actions button {
-  min-height: 42px;
-  padding: 0 16px;
-  font-size: 14px;
+  min-width: 62px;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 7px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
 }
 
-.keyword-rule-actions .primary {
-  min-width: 154px;
+.keyword-rule-actions .primary-button {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: none;
+}
+
+.keyword-rule-actions .primary-button:hover {
+  border-color: transparent;
+  background: var(--primary-strong);
+  box-shadow: none;
+}
+
+.keyword-rule-actions .light-button {
+  background: #eef4ff;
+  color: var(--primary-strong);
+  box-shadow: none;
+}
+
+.keyword-rule-actions .light-button:hover {
+  border-color: transparent;
+  background: #dceaff;
+  box-shadow: none;
+}
+
+.keyword-rule-actions .primary-button:disabled,
+.keyword-rule-actions .light-button:disabled {
+  cursor: default;
+  opacity: 0.62;
 }
 
 .keyword-rule-metrics {

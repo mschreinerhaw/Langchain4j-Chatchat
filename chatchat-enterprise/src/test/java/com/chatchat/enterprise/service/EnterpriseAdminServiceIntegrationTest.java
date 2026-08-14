@@ -74,6 +74,7 @@ class EnterpriseAdminServiceIntegrationTest {
 
         EnterpriseAdminService.UserView userA = service.saveUser(
             user(tenantA.getId(), orgA.getId(), "release-user-a"), List.of(roleA.getId()));
+        assertThat(userA.tenantName()).isEqualTo("release-a");
         assertThatThrownBy(() -> service.saveUser(
             user(tenantA.getId(), orgA.getId(), "cross-tenant-role"), List.of(roleB.getId())))
             .isInstanceOf(IllegalArgumentException.class)

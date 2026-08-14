@@ -130,6 +130,30 @@
   cursor: not-allowed;
 }
 
+.runtime-view .light-button {
+  min-width: 62px;
+  min-height: 34px;
+  gap: 7px;
+  border: 0;
+  border-radius: 7px;
+  padding: 0 12px;
+  background: #eef4ff;
+  color: var(--primary-strong);
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.runtime-view .light-button:hover:not(:disabled) {
+  background: #dceaff;
+}
+
+.runtime-view .light-button:disabled {
+  cursor: default;
+  opacity: 0.62;
+}
+
 .runtime-error,
 .runtime-empty {
   margin: 0;
@@ -1150,14 +1174,28 @@
   padding: 11px;
   background: #fff;
   cursor: pointer;
+  scroll-margin: 16px;
   transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
 
-.plan-dag-node-list article:hover,
-.plan-dag-node-list article.selected {
+.plan-dag-node-list article:hover {
   border-color: rgba(47, 124, 246, 0.5);
   box-shadow: 0 6px 18px rgba(47, 124, 246, 0.1);
   transform: translateY(-1px);
+}
+
+.plan-dag-node-list article.selected {
+  border-color: #3f78a8;
+  border-left: 4px solid #3f78a8;
+  padding-left: 8px;
+  background: #f0f5fa;
+  box-shadow: 0 0 0 2px rgba(63, 120, 168, 0.13), 0 6px 18px rgba(44, 62, 80, 0.1);
+  transform: translateY(-1px);
+}
+
+.plan-dag-node-list article:focus-visible {
+  outline: 3px solid rgba(63, 120, 168, 0.25);
+  outline-offset: 2px;
 }
 
 .plan-dag-node-list article > span {
@@ -1867,6 +1905,45 @@
   gap: 8px;
 }
 
+.agent-workshop-view .agent-light-actions .primary-button,
+.agent-workshop-view .agent-light-actions .light-button {
+  min-width: 62px;
+  min-height: 34px;
+  gap: 7px;
+  border: 0;
+  border-radius: 7px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.agent-workshop-view .agent-light-actions .primary-button {
+  background: var(--primary);
+  color: #fff;
+}
+
+.agent-workshop-view .agent-light-actions .primary-button:hover:not(:disabled) {
+  background: var(--primary-strong);
+}
+
+.agent-workshop-view .agent-light-actions .light-button {
+  background: #eef4ff;
+  color: var(--primary-strong);
+}
+
+.agent-workshop-view .agent-light-actions .light-button:hover:not(:disabled) {
+  border-color: transparent;
+  background: #dceaff;
+}
+
+.agent-workshop-view .agent-light-actions .primary-button:disabled,
+.agent-workshop-view .agent-light-actions .light-button:disabled {
+  cursor: default;
+  opacity: 0.62;
+}
+
 .agent-workshop-view .agent-list-filters {
   display: grid;
   grid-template-columns: minmax(260px, 1fr) minmax(150px, 180px) minmax(150px, 180px) minmax(180px, 240px) auto;
@@ -2167,33 +2244,51 @@
 }
 
 .agent-workshop-view .agent-card-actions button {
-  height: 40px;
-  min-height: 40px;
+  height: 34px;
+  min-height: 34px;
   min-width: 0;
   width: 100%;
   box-sizing: border-box;
-  padding: 0 8px;
+  border-radius: 7px;
+  padding: 0 12px;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 850;
   line-height: 1;
 }
 
 .agent-workshop-view .agent-card-actions .primary-button {
-  border-color: rgba(47, 124, 246, 0.88);
-  background: #2f7cf6;
+  border: 0;
+  background: var(--primary);
   box-shadow: none;
 }
 
+.agent-workshop-view .agent-card-actions .primary-button:hover:not(:disabled) {
+  background: var(--primary-strong);
+}
+
 .agent-workshop-view .agent-card-actions .secondary-button {
-  border-color: #dce2ec;
-  background: #fff;
-  color: #172033;
+  border: 0;
+  background: #eef4ff;
+  color: var(--primary-strong);
+}
+
+.agent-workshop-view .agent-card-actions .secondary-button:hover:not(:disabled) {
+  background: #dceaff;
 }
 
 .agent-workshop-view .agent-card-actions .danger-button {
-  border-color: rgba(239, 79, 95, 0.34);
-  background: rgba(239, 79, 95, 0.04);
-  color: #c81932;
+  border: 1px solid #ffd1d8;
+  background: #fff3f4;
+  color: #b42335;
+}
+
+.agent-workshop-view .agent-card-actions .danger-button:hover:not(:disabled) {
+  background: #ffe4e8;
+}
+
+.agent-workshop-view .agent-card-actions button:disabled {
+  cursor: default;
+  opacity: 0.62;
 }
 
 .agent-workshop-view .agent-recall-backdrop {
@@ -2380,6 +2475,42 @@
 .agent-workshop-view .agent-recall-submit:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 10px 22px rgba(234, 88, 12, 0.27);
+}
+
+.agent-workshop-view .agent-delete-icon {
+  background: linear-gradient(145deg, #fff1f2, #ffe4e6);
+  color: #dc2626;
+  box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.12);
+}
+
+.agent-workshop-view .agent-delete-header p {
+  color: #dc2626;
+}
+
+.agent-workshop-view .agent-delete-note {
+  border-color: #fecdd3;
+  background: #fff7f8;
+}
+
+.agent-workshop-view .agent-delete-note > span {
+  background: #dc2626;
+}
+
+.agent-workshop-view .agent-delete-note p {
+  color: #9f1239;
+}
+
+.agent-workshop-view .agent-delete-submit {
+  border: 1px solid #dc2626;
+  background: #dc2626;
+  color: #fff;
+  box-shadow: 0 7px 16px rgba(220, 38, 38, 0.2);
+}
+
+.agent-workshop-view .agent-delete-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: #b91c1c;
+  box-shadow: 0 10px 22px rgba(220, 38, 38, 0.27);
 }
 
 .agent-workshop-view .agent-recall-actions button:disabled,
@@ -3277,35 +3408,47 @@
 }
 
 .mcp-center-view .mcp-actions button {
-  min-height: 38px;
+  min-width: 62px;
+  min-height: 34px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 7px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 0 13px;
-  background: #fff;
-  color: var(--text);
-  font-weight: 700;
+  border: 0;
+  border-radius: 7px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .mcp-center-view .mcp-actions button:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
+  opacity: 0.62;
+  cursor: default;
 }
 
-.mcp-center-view .mcp-actions .primary-action {
-  border-color: var(--primary);
+.mcp-center-view .mcp-actions .primary-button {
   background: var(--primary);
   color: #fff;
-  font-size: 14px;
-  font-weight: 800;
 }
 
-.mcp-center-view .mcp-actions .primary-action span,
-.mcp-center-view .mcp-actions .primary-action svg {
+.mcp-center-view .mcp-actions .primary-button:hover:not(:disabled) {
+  background: var(--primary-strong);
+}
+
+.mcp-center-view .mcp-actions .primary-button span,
+.mcp-center-view .mcp-actions .primary-button svg {
   color: #fff;
+}
+
+.mcp-center-view .mcp-actions .light-button {
+  background: #eef4ff;
+  color: var(--primary-strong);
+}
+
+.mcp-center-view .mcp-actions .light-button:hover:not(:disabled) {
+  background: #dceaff;
 }
 
 .mcp-center-view .mcp-summary {
@@ -4070,6 +4213,7 @@
 
   .agent-workshop-view .agent-actions button,
   .agent-workshop-view .agent-card-actions button,
+  .agent-workshop-view .agent-light-actions .primary-button,
   .agent-workshop-view .agent-light-actions .light-button,
   .agent-workshop-view .agent-list-filters label,
   .agent-workshop-view .agent-list-filters .light-button {

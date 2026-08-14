@@ -196,6 +196,9 @@ export default {
       recallConfirmOpen: false,
       recallTarget: null,
       recallConfirmError: "",
+      deleteConfirmOpen: false,
+      deleteTarget: null,
+      deleteConfirmError: "",
       form: emptyForm(),
       importDialogOpen: false,
       importText: "",
@@ -1401,21 +1404,38 @@ export default {
       this.activeAgent = null;
       this.form = emptyForm();
     },
-    async removeAgent(agent) {
+    removeAgent(agent) {
       if (!agent?.id || agent.builtin || agent.defaultAgent) {
         return;
       }
-      if (!window.confirm(`确认删除Agent「${agent.name || agent.id}」？`)) {
+      this.deleteTarget = agent;
+      this.deleteConfirmError = "";
+      this.deleteConfirmOpen = true;
+    },
+    closeDeleteConfirm() {
+      if (this.saving) {
+        return;
+      }
+      this.deleteConfirmOpen = false;
+      this.deleteTarget = null;
+      this.deleteConfirmError = "";
+    },
+    async confirmDeleteAgent() {
+      const agent = this.deleteTarget;
+      if (!agent?.id || agent.builtin || agent.defaultAgent || this.saving) {
         return;
       }
       this.saving = true;
       this.error = "";
+      this.deleteConfirmError = "";
       try {
         await deleteWorkshopAgent(agent.id);
         this.setAgentExportSelection(agent, false);
+        this.deleteConfirmOpen = false;
+        this.deleteTarget = null;
         await this.loadWorkshop();
       } catch (error) {
-        this.error = error.message || "Agent删除失败";
+        this.deleteConfirmError = error.message || "Agent 删除失败，请稍后重试。";
       } finally {
         this.saving = false;
       }

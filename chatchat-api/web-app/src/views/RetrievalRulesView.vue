@@ -14,15 +14,15 @@
       </div>
 
       <div class="keyword-rule-actions">
-        <button type="button" class="primary" title="创建规则" @click="openCreateRule">
+        <button type="button" class="primary-button" title="创建规则" @click="openCreateRule">
           <Plus :size="15" stroke-width="2" />
           <span>创建规则</span>
         </button>
-        <button type="button" :disabled="rulesLoading" title="发布全部规则" @click="publishAllRules">
+        <button type="button" class="light-button" :disabled="rulesLoading" title="发布全部规则" @click="publishAllRules">
           <Send :size="14" stroke-width="2" />
           <span>发布全部</span>
         </button>
-        <button type="button" :disabled="rulesLoading" title="刷新规则缓存" @click="refreshRules">
+        <button type="button" class="light-button" :disabled="rulesLoading" title="刷新规则缓存" @click="refreshRules">
           <RefreshCw :size="14" stroke-width="2" />
           <span>刷新</span>
         </button>

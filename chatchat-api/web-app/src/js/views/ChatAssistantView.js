@@ -1615,16 +1615,11 @@ export default {
         return;
       }
       this.appliedDraftId = draft.id;
+      if (draft.newSession) {
+        this.clearChat();
+      }
       if (draft.agentId) {
         this.selectedAgentId = draft.agentId;
-        if (draft.newSession && !this.loading) {
-          this.historyId = "";
-          this.conversationId = "";
-          this.messages = [];
-          this.analysisTree = emptyAnalysisTree();
-          this.conversationStatus = "completed";
-          this.lastResponse = { ...EMPTY_RESPONSE };
-        }
         this.uploadNotice = draft.title
           ? `已切换到 Agent：${draft.title}。`
           : `已切换到 Agent：${draft.agentId}。`;

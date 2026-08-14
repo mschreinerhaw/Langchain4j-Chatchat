@@ -431,6 +431,7 @@ export default {
         sourceName: result.source || "",
         date: result.date || "",
         keyword: this.searchedKeyword || this.keyword || "",
+        newSession: true,
         prompt: this.buildAskAiPrompt(result)
       });
       this.recordDocumentActivity(result, "ASK");

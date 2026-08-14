@@ -40,7 +40,7 @@
           <span>{{ agentTotal }} / {{ summary.agentCount || 0 }} 个</span>
         </div>
         <div class="agent-light-actions">
-          <button type="button" class="light-button primary-light" @click="openCreateDialog">新增Agent</button>
+          <button type="button" class="primary-button" @click="openCreateDialog">新增Agent</button>
           <button type="button" class="light-button" @click="openImportDialog">批量导入</button>
           <button type="button" class="light-button" :disabled="selectedAgentCount === 0" @click="exportAgentsAsJson">
             导出已选JSON（{{ selectedAgentCount }}）
@@ -238,6 +238,65 @@
         </button>
       </div>
     </nav>
+
+    <div
+      v-if="deleteConfirmOpen"
+      class="agent-recall-backdrop agent-delete-backdrop"
+      @click.self="closeDeleteConfirm"
+    >
+      <section
+        class="agent-recall-dialog agent-delete-dialog"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="agent-delete-title"
+        aria-describedby="agent-delete-description"
+      >
+        <header class="agent-recall-header agent-delete-header">
+          <span class="agent-recall-icon agent-delete-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M4 7h16" />
+              <path d="M9 7V4h6v3" />
+              <path d="m7 7 1 13h8l1-13" />
+              <path d="M10 11v5M14 11v5" />
+            </svg>
+          </span>
+          <div>
+            <p>Agent 管理</p>
+            <h2 id="agent-delete-title">确认删除 Agent</h2>
+          </div>
+          <button
+            type="button"
+            class="agent-recall-close"
+            aria-label="关闭"
+            title="关闭"
+            :disabled="saving"
+            @click="closeDeleteConfirm"
+          >×</button>
+        </header>
+
+        <div class="agent-recall-body agent-delete-body">
+          <p id="agent-delete-description">
+            确认永久删除
+            <strong>「{{ deleteTarget?.name || deleteTarget?.id }}」</strong>？
+          </p>
+          <div class="agent-recall-note agent-delete-note">
+            <span aria-hidden="true">!</span>
+            <p>删除后该 Agent 的配置将无法恢复。如需保留，请先导出配置再执行删除。</p>
+          </div>
+          <p v-if="deleteConfirmError" class="agent-recall-error">{{ deleteConfirmError }}</p>
+        </div>
+
+        <footer class="agent-recall-actions">
+          <button type="button" class="agent-recall-cancel" :disabled="saving" @click="closeDeleteConfirm">
+            取消
+          </button>
+          <button type="button" class="agent-delete-submit" :disabled="saving" @click="confirmDeleteAgent">
+            <span v-if="saving" class="agent-recall-spinner" aria-hidden="true"></span>
+            {{ saving ? "正在删除" : "确认删除" }}
+          </button>
+        </footer>
+      </section>
+    </div>
 
     <div
       v-if="recallConfirmOpen"

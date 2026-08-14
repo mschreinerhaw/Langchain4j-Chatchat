@@ -73,11 +73,11 @@
           <span>{{ toolFilterSummary }}</span>
         </div>
         <div class="mcp-actions">
-          <button type="button" :disabled="loading" title="刷新 MCP 数据" @click="loadMcpCenter">
+          <button type="button" class="light-button" :disabled="loading" title="刷新 MCP 数据" @click="loadMcpCenter">
             <RefreshCw :size="17" />
             <span>{{ loading ? "刷新中" : "刷新" }}</span>
           </button>
-          <button type="button" class="primary-action" :disabled="syncing" title="从独立 MCP服务同步" @click="syncCenter">
+          <button type="button" class="primary-button" :disabled="syncing" title="从独立 MCP服务同步" @click="syncCenter">
             <DownloadCloud :size="17" />
             <span>{{ syncing ? "同步中" : "同步中心" }}</span>
           </button>

@@ -122,6 +122,7 @@ export default {
       activeView: authSession ? (viewFromHash() || DEFAULT_VIEW) : DEFAULT_VIEW,
       userId: sessionUser.username || sessionUser.id || USER_ID,
       tenantId: resolveSessionTenantId(authSession, sessionUser.username || sessionUser.id || USER_ID),
+      tenantName: sessionUser.tenantName || sessionUser.tenant_name || "",
       historyLoading: false,
       historyError: "",
       conversationHistory: [],
@@ -199,6 +200,7 @@ export default {
         : {
             userId: this.userId,
             tenantId: this.tenantId,
+            ...(this.activeView === "tasks" ? { tenantName: this.tenantName } : {}),
             pendingDocumentShortcut: this.activeView === "search" ? this.pendingDocumentShortcut : null
           };
     },
@@ -282,6 +284,8 @@ export default {
         if (!user?.id) return;
         const session = { ...this.authSession, user };
         this.authSession = session;
+        this.tenantId = resolveSessionTenantId(session, this.userId);
+        this.tenantName = user.tenantName || user.tenant_name || "";
         storeAuthSession(session);
         if (!this.canAccessView(this.activeView)) {
           const fallback = this.firstAccessibleView();
@@ -300,6 +304,7 @@ export default {
       const sessionUser = session?.user || {};
       this.userId = sessionUser.username || sessionUser.id || USER_ID;
       this.tenantId = resolveSessionTenantId(session, this.userId);
+      this.tenantName = sessionUser.tenantName || sessionUser.tenant_name || "";
       this.loadTrendSemanticConfig();
       this.navigateToView(this.consumeRedirectView() || viewFromHash() || DEFAULT_VIEW);
       if (session?.embedded) {
@@ -334,6 +339,7 @@ export default {
       this.authSession = null;
       this.userId = USER_ID;
       this.tenantId = USER_ID;
+      this.tenantName = "";
       this.conversationHistory = [];
       this.favoriteConversationIds = [];
       this.favoriteConversationRecordIds = {};
@@ -658,9 +664,15 @@ export default {
       if (!payload?.prompt) {
         return;
       }
+      const newSession = payload.newSession === true;
+      if (newSession) {
+        this.selectedConversation = null;
+        this.activeHistoryId = "";
+      }
       this.pendingChatDraft = {
         ...payload,
-        id: payload.id || `${Date.now()}`
+        id: payload.id || `${Date.now()}`,
+        newSession
       };
       this.navigateToView("chat");
     },

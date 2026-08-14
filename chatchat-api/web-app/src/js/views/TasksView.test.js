@@ -2,6 +2,18 @@ import { describe, expect, it, vi } from "vitest";
 import TasksView from "./TasksView.js";
 
 describe("TasksView persisted plan restoration", () => {
+  it("displays the tenant name while preserving the internal tenant id", () => {
+    const context = {
+      tenantName: "星河科技",
+      runtimeTenantId: "9001fee4-482b-4851-9eb"
+    };
+    context.runtimeTenantName = TasksView.computed.runtimeTenantName.call(context);
+
+    expect(context.runtimeTenantName).toBe("星河科技");
+    expect(TasksView.methods.tenantLabel.call(context, context.runtimeTenantId)).toBe("星河科技");
+    expect(context.runtimeTenantId).toBe("9001fee4-482b-4851-9eb");
+  });
+
   it("loads the selected task DAG even when the current tab is not the plan tab", async () => {
     const task = { taskId: "task-1", tenantId: "tenant-1" };
     const context = {
@@ -25,5 +37,42 @@ describe("TasksView persisted plan restoration", () => {
     expect(context.planLoadedTaskId).toBe("");
     expect(context.reloadEvents).toHaveBeenCalledOnce();
     expect(context.loadPlanDag).toHaveBeenCalledWith({ silent: true });
+  });
+
+  it("focuses the matching DAG node when a detail card is activated", async () => {
+    const selectNode = vi.fn();
+    const scrollIntoView = vi.fn();
+    const context = {
+      selectedPlanNodeId: "",
+      $refs: { planDagGraph: { selectNode }, planDagCanvas: { scrollIntoView } },
+      $nextTick: (callback) => callback()
+    };
+
+    TasksView.methods.focusPlanNode.call(context, "step-2");
+
+    expect(context.selectedPlanNodeId).toBe("step-2");
+    expect(selectNode).toHaveBeenCalledWith("step-2");
+    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "nearest" });
+  });
+
+  it("scrolls the matching detail card into view when a DAG node is selected", async () => {
+    const scrollIntoView = vi.fn();
+    const context = {
+      selectedPlanNodeId: "",
+      $refs: {
+        planNodeList: {
+          children: [
+            { dataset: { planNodeId: "step-1" } },
+            { dataset: { planNodeId: "step-2" }, scrollIntoView }
+          ]
+        }
+      },
+      $nextTick: (callback) => callback()
+    };
+
+    TasksView.methods.handlePlanNodeSelect.call(context, "step-2");
+
+    expect(context.selectedPlanNodeId).toBe("step-2");
+    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "nearest", inline: "nearest" });
   });
 });

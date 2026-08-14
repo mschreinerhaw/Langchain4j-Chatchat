@@ -17,6 +17,34 @@ const visualizationRenderer = readFileSync(
   new URL("../../components/VisualizationRenderer.vue", import.meta.url),
   "utf8"
 );
+const retrievalRulesView = readFileSync(
+  new URL("../../views/RetrievalRulesView.vue", import.meta.url),
+  "utf8"
+);
+const agentRuntimeStyles = readFileSync(
+  new URL("../../styles/pages/agent-runtime.css", import.meta.url),
+  "utf8"
+);
+const tasksView = readFileSync(
+  new URL("../../views/TasksView.vue", import.meta.url),
+  "utf8"
+);
+const skillHubStyles = readFileSync(
+  new URL("../../styles/pages/skill-hub.css", import.meta.url),
+  "utf8"
+);
+const agentWorkshopView = readFileSync(
+  new URL("../../views/AgentWorkshopView.vue", import.meta.url),
+  "utf8"
+);
+const mcpCenterView = readFileSync(
+  new URL("../../views/McpCenterView.vue", import.meta.url),
+  "utf8"
+);
+const agentWorkshopLogic = readFileSync(
+  new URL("../views/AgentWorkshopView.js", import.meta.url),
+  "utf8"
+);
 
 describe("dynamic report presentation contract", () => {
   it("keeps wide enhanced tables scrollable without crushing headers", () => {
@@ -46,5 +74,45 @@ describe("dynamic report presentation contract", () => {
     expect(chatStyles).toMatch(/\.visualization-trend-legend \.up i\s*\{\s*background:\s*var\(--trend-up-color, #e5484d\)/);
     expect(chatStyles).toMatch(/\.visualization-trend-legend \.down i\s*\{\s*background:\s*var\(--trend-down-color, #16a36a\)/);
     expect(artifactRenderer).toMatch(/\.artifact-markdown h2[\s\S]*border-left:\s*4px solid #2563eb/);
+  });
+
+  it("keeps keyword rule actions aligned with Agent scheduler buttons", () => {
+    expect(retrievalRulesView).toContain('class="primary-button" title="创建规则"');
+    expect(retrievalRulesView.match(/class="light-button"/g)).toHaveLength(2);
+    expect(agentRuntimeStyles).toMatch(/\.keyword-rule-actions button\s*\{[^}]*min-height:\s*34px[^}]*border-radius:\s*7px[^}]*font-size:\s*13px/s);
+    expect(agentRuntimeStyles).toMatch(/\.keyword-rule-actions \.light-button\s*\{[^}]*background:\s*#eef4ff/s);
+  });
+
+  it("keeps runtime refresh and load actions aligned with Agent scheduler buttons", () => {
+    expect(tasksView.match(/class="light-button"/g)).toHaveLength(3);
+    expect(skillHubStyles).toMatch(/\.runtime-view \.light-button\s*\{[^}]*min-height:\s*34px[^}]*border-radius:\s*7px[^}]*background:\s*#eef4ff[^}]*font-size:\s*13px/s);
+    expect(skillHubStyles).toMatch(/\.runtime-view \.light-button:hover:not\(:disabled\)\s*\{[^}]*background:\s*#dceaff/s);
+  });
+
+  it("keeps Agent management header actions aligned with Agent scheduler buttons", () => {
+    expect(agentWorkshopView).toContain('class="primary-button" @click="openCreateDialog"');
+    expect(skillHubStyles).toMatch(/\.agent-workshop-view \.agent-light-actions \.primary-button,[\s\S]*?\.agent-workshop-view \.agent-light-actions \.light-button\s*\{[^}]*min-height:\s*34px[^}]*border-radius:\s*7px[^}]*font-size:\s*13px/s);
+    expect(skillHubStyles).toMatch(/\.agent-workshop-view \.agent-light-actions \.light-button\s*\{[^}]*background:\s*#eef4ff/s);
+  });
+
+  it("keeps Agent card actions aligned with Agent scheduler row actions", () => {
+    expect(skillHubStyles).toMatch(/\.agent-workshop-view \.agent-card-actions button\s*\{[^}]*height:\s*34px[^}]*border-radius:\s*7px[^}]*font-size:\s*13px/s);
+    expect(skillHubStyles).toMatch(/\.agent-workshop-view \.agent-card-actions \.secondary-button\s*\{[^}]*background:\s*#eef4ff/s);
+    expect(skillHubStyles).toMatch(/\.agent-workshop-view \.agent-card-actions \.danger-button\s*\{[^}]*border:\s*1px solid #ffd1d8[^}]*background:\s*#fff3f4/s);
+  });
+
+  it("uses a product delete dialog instead of the browser confirmation", () => {
+    expect(agentWorkshopView).toContain('id="agent-delete-title"');
+    expect(agentWorkshopView).toContain('@click="confirmDeleteAgent"');
+    expect(agentWorkshopLogic).not.toContain("window.confirm");
+    expect(agentWorkshopLogic).toContain("deleteConfirmError");
+    expect(skillHubStyles).toMatch(/\.agent-workshop-view \.agent-delete-submit\s*\{[^}]*background:\s*#dc2626/s);
+  });
+
+  it("keeps MCP management actions aligned with Agent scheduler buttons", () => {
+    expect(mcpCenterView).toContain('class="light-button" :disabled="loading"');
+    expect(mcpCenterView).toContain('class="primary-button" :disabled="syncing"');
+    expect(skillHubStyles).toMatch(/\.mcp-center-view \.mcp-actions button\s*\{[^}]*min-height:\s*34px[^}]*border-radius:\s*7px[^}]*font-size:\s*13px/s);
+    expect(skillHubStyles).toMatch(/\.mcp-center-view \.mcp-actions \.light-button\s*\{[^}]*background:\s*#eef4ff/s);
   });
 });

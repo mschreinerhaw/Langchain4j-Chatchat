@@ -66,13 +66,14 @@ import "@vue-flow/minimap/dist/style.css";
 const props = defineProps({
   nodes: { type: Array, default: () => [] },
   edges: { type: Array, default: () => [] },
+  selectedNodeId: { type: String, default: "" },
   layoutKey: { type: String, default: "" },
   downloadName: { type: String, default: "plan-dag" }
 });
 const emit = defineEmits(["node-select", "export-json"]);
 const flowNodes = ref([]);
 const flowEdges = ref([]);
-const { fitView } = useVueFlow();
+const { fitView, setCenter } = useVueFlow();
 const positionCache = new Map();
 let activeGraphKey = "";
 
@@ -141,7 +142,7 @@ function statusLabel(data) {
 }
 
 function miniMapColor(node) {
-  return { success: "#20b26b", failed: "#ef4f5f", running: "#2f7cf6", waiting: "#f4a629", final: "#8b5cf6" }[nodeTone(node.data)] || "#94a3b8";
+  return { success: "#4f9d69", failed: "#c85b5b", running: "#3f78a8", waiting: "#c58a2b", final: "#7568a6" }[nodeTone(node.data)] || "#7b8fa4";
 }
 
 function formatDuration(value) {
@@ -152,6 +153,21 @@ function formatDuration(value) {
 
 function handleNodeClick({ node }) {
   emit("node-select", node.id);
+}
+
+function selectNode(nodeId, { center = true } = {}) {
+  const selectedId = String(nodeId || "");
+  const target = flowNodes.value.find((node) => node.id === selectedId);
+  flowNodes.value = flowNodes.value.map((node) => ({
+    ...node,
+    selected: Boolean(selectedId) && node.id === selectedId
+  }));
+  if (!target || !center) return Promise.resolve(false);
+  return setCenter(
+    target.position.x + PLAN_FLOW_NODE_WIDTH / 2,
+    target.position.y + PLAN_FLOW_NODE_HEIGHT / 2,
+    { zoom: 1, duration: 320 }
+  );
 }
 
 function escapeXml(value) {
@@ -192,7 +208,8 @@ function downloadSvg() {
 
 watch(graphKey, (key) => rebuild(key), { immediate: true });
 watch(() => props.nodes, syncNodeData, { deep: true });
-defineExpose({ fitGraph, resetLayout, downloadSvg });
+watch(() => props.selectedNodeId, (nodeId) => nextTick(() => selectNode(nodeId, { center: false })), { immediate: true });
+defineExpose({ fitGraph, resetLayout, downloadSvg, selectNode });
 </script>
 
 <style scoped>
@@ -204,29 +221,31 @@ defineExpose({ fitGraph, resetLayout, downloadSvg });
 .plan-flow-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
 .plan-flow-actions button { height: 32px; border: 1px solid #cfdced; border-radius: 8px; padding: 0 11px; background: #fff; color: #344054; font-size: 12px; font-weight: 700; }
 .plan-flow-actions button:hover { border-color: #2f7cf6; color: #175cd3; background: #f5f9ff; }
-.plan-flow { width: 100%; height: 650px; background: linear-gradient(180deg, #fbfdff, #f6f9fd); }
-.plan-flow-node { width: 300px; min-height: 126px; box-sizing: border-box; display: grid; gap: 8px; border: 2px solid #94a3b8; border-radius: 12px; padding: 12px 14px; background: #fff; box-shadow: 0 8px 20px rgba(15,23,42,.08); cursor: grab; transition: border-color .15s, box-shadow .15s, transform .15s; }
+.plan-flow { width: 100%; height: 650px; background: #f5f7fa; }
+.plan-flow-node { --node-accent: #7b8fa4; --node-border: #bdc9d5; --node-bg: #f7f9fb; --node-chip-bg: #e8edf2; width: 300px; min-height: 126px; box-sizing: border-box; display: grid; gap: 8px; border: 1px solid var(--node-border); border-left: 4px solid var(--node-accent); border-radius: 7px; padding: 11px 14px 11px 13px; background: var(--node-bg); box-shadow: 0 3px 10px rgba(44,62,80,.1); cursor: grab; transition: border-color .15s, box-shadow .15s, transform .15s; }
 .plan-flow-node:active { cursor: grabbing; }
-.plan-flow-node.selected { box-shadow: 0 0 0 4px rgba(47,124,246,.15), 0 10px 24px rgba(15,23,42,.12); transform: translateY(-1px); }
-.plan-flow-node.success { border-color: #20b26b; background: linear-gradient(145deg,#fff,#f3fff8); }
-.plan-flow-node.failed { border-color: #ef4f5f; background: linear-gradient(145deg,#fff,#fff5f6); }
-.plan-flow-node.running { border-color: #2f7cf6; background: linear-gradient(145deg,#fff,#f3f8ff); }
-.plan-flow-node.waiting { border-color: #f4a629; background: linear-gradient(145deg,#fff,#fffaf0); }
-.plan-flow-node.final { border-color: #8b5cf6; background: linear-gradient(145deg,#fff,#f8f5ff); }
+.plan-flow-node.selected { border-color: var(--node-accent); box-shadow: 0 0 0 3px rgba(63,120,168,.2), 0 7px 18px rgba(44,62,80,.14); transform: translateY(-1px); }
+.plan-flow-node.success { --node-accent: #4f9d69; --node-border: #a9cbb5; --node-bg: #f2f8f4; --node-chip-bg: #dceee2; }
+.plan-flow-node.failed { --node-accent: #c85b5b; --node-border: #dfb0b0; --node-bg: #fcf3f3; --node-chip-bg: #f4dddd; }
+.plan-flow-node.running { --node-accent: #3f78a8; --node-border: #a9bfd3; --node-bg: #f0f5fa; --node-chip-bg: #dbe8f3; }
+.plan-flow-node.waiting { --node-accent: #c58a2b; --node-border: #dac39d; --node-bg: #faf6ed; --node-chip-bg: #f2e6cf; }
+.plan-flow-node.final { --node-accent: #7568a6; --node-border: #bdb6d5; --node-bg: #f5f3f9; --node-chip-bg: #e6e1f0; }
 .plan-flow-node header, .plan-flow-node footer { min-width: 0; display: flex; align-items: center; gap: 7px; }
-.plan-flow-node header small { color: #475467; font-size: 11px; font-weight: 800; }
-.plan-flow-node header code { margin-left: auto; max-width: 120px; overflow: hidden; color: #667085; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
-.plan-flow-status-dot { width: 9px; height: 9px; flex: 0 0 auto; border-radius: 50%; background: #94a3b8; box-shadow: 0 0 0 3px rgba(148,163,184,.16); }
-.success .plan-flow-status-dot { background: #20b26b; }.failed .plan-flow-status-dot { background: #ef4f5f; }.running .plan-flow-status-dot { background: #2f7cf6; }.waiting .plan-flow-status-dot { background: #f4a629; }.final .plan-flow-status-dot { background: #8b5cf6; }
-.plan-flow-node > strong { min-width: 0; display: -webkit-box; overflow: hidden; color: #101828; font-size: 14px; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; }
-.plan-flow-node > p { min-width: 0; margin: 0; overflow: hidden; color: #475467; font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.plan-flow-node footer { color: #667085; font-size: 10px; text-transform: uppercase; }
-:deep(.vue-flow__edge-path) { stroke: #64748b; stroke-width: 2.2; }
-:deep(.vue-flow__edge.selected .vue-flow__edge-path) { stroke: #2f7cf6; stroke-width: 3; }
-:deep(.vue-flow__edge-text) { fill: #344054; font-size: 11px; font-weight: 800; }
-:deep(.vue-flow__edge-textbg) { fill: rgba(255,255,255,.95); stroke: #d8e1ee; stroke-width: 1; }
-:deep(.vue-flow__handle) { width: 9px; height: 9px; border: 2px solid #fff; background: #64748b; }
+.plan-flow-node header small { border-radius: 4px; padding: 2px 6px; background: var(--node-chip-bg); color: #3f4c59; font-size: 10px; font-weight: 800; letter-spacing: .02em; }
+.plan-flow-node header code { margin-left: auto; max-width: 120px; overflow: hidden; color: #6b7d8f; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.plan-flow-status-dot { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: var(--node-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--node-accent) 16%, transparent); }
+.plan-flow-node > strong { min-width: 0; display: -webkit-box; overflow: hidden; color: #25313d; font-size: 14px; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; }
+.plan-flow-node > p { min-width: 0; margin: 0; overflow: hidden; color: #536475; font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.plan-flow-node footer { border-top: 1px solid color-mix(in srgb, var(--node-border) 72%, transparent); padding-top: 7px; color: #6b7d8f; font-size: 10px; text-transform: uppercase; }
+:deep(.vue-flow__edge-path) { stroke: #8093a7; stroke-width: 1.8; }
+:deep(.vue-flow__edge.selected .vue-flow__edge-path) { stroke: #3f78a8; stroke-width: 2.8; }
+:deep(.vue-flow__edge-text) { fill: #3f4c59; font-size: 11px; font-weight: 800; }
+:deep(.vue-flow__edge-textbg) { fill: rgba(248,250,252,.96); stroke: #c8d2dc; stroke-width: 1; }
+:deep(.vue-flow__handle) { width: 8px; height: 8px; border: 2px solid var(--node-bg); background: var(--node-accent); }
 :deep(.vue-flow__minimap) { border: 1px solid #d8e1ee; border-radius: 10px; overflow: hidden; background: rgba(255,255,255,.92); }
 :deep(.vue-flow__controls) { border: 1px solid #d8e1ee; border-radius: 9px; overflow: hidden; box-shadow: 0 5px 15px rgba(15,23,42,.08); }
+:deep(.vue-flow__controls-button) { line-height: 0; }
+:deep(.vue-flow__controls-button svg) { display: block; flex: 0 0 auto; }
+:deep(.vue-flow__controls-zoomout svg) { width: 12px; height: 12px; transform: translateY(-1px); }
 @media (max-width: 720px) { .plan-flow-toolbar { align-items: flex-start; flex-direction: column; }.plan-flow-actions { justify-content: flex-start; }.plan-flow { height: 560px; } }
 </style>

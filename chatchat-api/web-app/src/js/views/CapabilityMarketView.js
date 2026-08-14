@@ -9,6 +9,8 @@ import {
 } from "../../services/api.js";
 import "../../styles/pages/capability-market.css";
 
+const COLLAPSED_CATEGORY_LIMIT = 8;
+
 function uniqueList(values) {
   return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))];
 }
@@ -68,6 +70,7 @@ export default {
       skillTotal: 0,
       allSkillCount: 0,
       categoryOptionsData: [],
+      categoriesExpanded: false,
       searchQuery: "",
       categoryFilter: "all",
       page: 1,
@@ -85,6 +88,22 @@ export default {
       return this.categoryOptionsData.length
         ? this.categoryOptionsData
         : [{ value: "all", label: "全部业务", count: this.allSkillCount }];
+    },
+    visibleCategoryOptions() {
+      const options = this.categoryOptions;
+      if (this.categoriesExpanded || options.length <= COLLAPSED_CATEGORY_LIMIT) {
+        return options;
+      }
+
+      const visible = options.slice(0, COLLAPSED_CATEGORY_LIMIT);
+      const activeCategory = options.find((option) => option.value === this.categoryFilter);
+      if (activeCategory && !visible.some((option) => option.value === activeCategory.value)) {
+        visible.splice(Math.max(1, visible.length - 1), 1, activeCategory);
+      }
+      return visible;
+    },
+    hasHiddenCategories() {
+      return this.categoryOptions.length > COLLAPSED_CATEGORY_LIMIT;
     },
     pagedSkills() {
       return this.skills;
@@ -175,6 +194,9 @@ export default {
     },
     selectCategory(category) {
       this.categoryFilter = category || "all";
+    },
+    toggleCategories() {
+      this.categoriesExpanded = !this.categoriesExpanded;
     },
     normalizeCategoryFilter() {
       if (!this.categoryOptions.some((option) => option.value === this.categoryFilter)) {

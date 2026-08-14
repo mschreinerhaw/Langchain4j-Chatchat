@@ -2,15 +2,15 @@
   <section class="feature-view runtime-view">
     <header class="runtime-header">
       <div class="runtime-title">
-        <p>智能体运行监控</p>
+        <p>Agent运行监控</p>
         <span>按租户监控任务执行、事件链路和工具治理。</span>
       </div>
       <div class="runtime-actions">
         <label class="runtime-filter">
           <span>租户</span>
-          <input v-model.trim="runtimeTenantId" type="text" placeholder="租户编号" @keyup.enter="loadRuntime" />
+          <input :value="runtimeTenantName" type="text" readonly aria-label="当前租户名称" />
         </label>
-        <button type="button" :disabled="loading" @click="loadRuntime">
+        <button type="button" class="light-button" :disabled="loading" @click="loadRuntime">
           <RefreshCw :size="16" stroke-width="2" />
           <span>{{ loading ? "刷新中" : "刷新" }}</span>
         </button>
@@ -73,7 +73,7 @@
         >
           <span class="task-id">{{ shortId(task.taskId) }}</span>
           <span class="task-question">{{ task.question || "未命名任务" }}</span>
-          <span class="task-tenant">{{ task.tenantId || "默认" }}</span>
+          <span class="task-tenant">{{ tenantLabel(task.tenantId) }}</span>
           <strong :class="statusClass(task.status)">{{ formatTaskStatus(task.status) }}</strong>
           <time>{{ formatTime(task.updateTime || task.createTime) }}</time>
           <span
@@ -126,7 +126,7 @@
     <section v-else-if="activeTab === 'effects'" class="runtime-panel">
       <header>
         <div>
-          <p>智能体效果</p>
+          <p>Agent效果</p>
           <h2>效果分析</h2>
         </div>
       </header>
@@ -146,7 +146,7 @@
           @click="effectActiveTab = 'agents'"
         >
           <Activity :size="15" stroke-width="2" />
-          <strong>智能体汇总</strong>
+          <strong>Agent汇总</strong>
           <span>{{ agentEffectRows.length }}</span>
         </button>
         <button
@@ -202,8 +202,8 @@
 
       <section v-if="effectActiveTab === 'agents'" class="effect-section">
         <header class="subsection-head">
-          <strong>智能体汇总</strong>
-          <span>{{ agentEffectRows.length }} 个智能体</span>
+          <strong>Agent汇总</strong>
+          <span>{{ agentEffectRows.length }} 个Agent</span>
         </header>
         <div class="effect-table">
           <article v-for="agent in pagedRows(agentEffectRows, 'agentEffects')" :key="agent.agentId">
@@ -543,7 +543,7 @@
           <p>事件库</p>
           <h2>事件链路</h2>
         </div>
-        <button type="button" :disabled="!selectedTask || eventsLoading" @click="reloadEvents">
+        <button type="button" class="light-button" :disabled="!selectedTask || eventsLoading" @click="reloadEvents">
           <Database :size="15" stroke-width="2" />
           <span>{{ eventsLoading ? "加载中" : "加载" }}</span>
         </button>
@@ -700,7 +700,7 @@
           <p>解读计划</p>
           <h2>计划图</h2>
         </div>
-        <button type="button" :disabled="!selectedTask || planLoading" @click="loadPlanDag">
+        <button type="button" class="light-button" :disabled="!selectedTask || planLoading" @click="loadPlanDag">
           <GitBranch :size="15" stroke-width="2" />
           <span>{{ planLoading ? "加载中" : "加载" }}</span>
         </button>
@@ -771,24 +771,32 @@
           </div>
         </aside>
 
-        <div class="plan-dag-canvas">
+        <div ref="planDagCanvas" class="plan-dag-canvas">
           <PlanDagGraph
             ref="planDagGraph"
             :nodes="planNodeViews"
             :edges="planEdges"
+            :selected-node-id="selectedPlanNodeId"
             :layout-key="`${selectedPlanDag?.planId || selectedTaskId}-${selectedPlanDag?.version || 'snapshot'}`"
             :download-name="planDownloadName()"
-            @node-select="selectedPlanNodeId = $event"
+            @node-select="handlePlanNodeSelect"
             @export-json="downloadPlanDagJson"
           />
         </div>
 
-        <div class="plan-dag-node-list">
+        <div ref="planNodeList" class="plan-dag-node-list">
           <article
             v-for="node in planNodeViews"
             :key="`${node.id}-detail`"
+            :data-plan-node-id="node.id"
             :class="[String(node.statusText || '').toLowerCase(), { selected: selectedPlanNodeId === node.id }]"
-            @click="selectedPlanNodeId = node.id"
+            role="button"
+            tabindex="0"
+            :aria-pressed="selectedPlanNodeId === node.id"
+            title="点击在计划图中定位"
+            @click="focusPlanNode(node.id)"
+            @keydown.enter.prevent="focusPlanNode(node.id)"
+            @keydown.space.prevent="focusPlanNode(node.id)"
           >
             <span>{{ node.statusLabel }}</span>
             <div>

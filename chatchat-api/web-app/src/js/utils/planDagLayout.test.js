@@ -43,5 +43,13 @@ describe("interactive plan DAG layout contract", () => {
     expect(component).toContain("resetLayout");
     expect(component).toContain("positionCache");
     expect(component).toContain("watch(graphKey");
+    expect(component).toContain(":deep(.vue-flow__controls-zoomout svg)");
+    expect(component).toContain("transform: translateY(-1px)");
+    expect(component).toContain("--node-accent: #7b8fa4");
+    expect(component).toContain("border-left: 4px solid var(--node-accent)");
+    expect(component).toContain('success: "#4f9d69"');
+    expect(component).toContain("selectedNodeId");
+    expect(component).toContain("setCenter(");
+    expect(component).toContain("defineExpose({ fitGraph, resetLayout, downloadSvg, selectNode })");
   });
 });

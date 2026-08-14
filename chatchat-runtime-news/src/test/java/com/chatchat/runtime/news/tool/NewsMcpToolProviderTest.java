@@ -29,6 +29,7 @@ class NewsMcpToolProviderTest {
             .allSatisfy(name -> assertThat(provider.findExecutor(name)).isPresent());
         assertThat(provider.findExecutor("search_financial_dataset")).isEmpty();
         assertThat(provider.findExecutor("get_financial_data")).isEmpty();
+        assertThat(provider.findExecutor(ExternalWebSearchToolExecutor.INTERNAL_TOOL_NAME)).isEmpty();
     }
 
     @Test

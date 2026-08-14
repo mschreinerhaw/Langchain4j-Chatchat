@@ -1139,9 +1139,19 @@ export default {
           WAIT_CONFIRMATION: "等待确认",
           SUCCESS: "成功",
           COMPLETED: "完成",
+          PARTIAL: "部分完成",
+          PARTIAL_SUCCESS: "部分完成",
+          EMPTY: "无结果",
+          NO_PRESENTABLE_RESULT: "无可展示结果",
+          TIME_BUDGET_EXHAUSTED: "执行超时",
+          MODEL_BUDGET_EXHAUSTED: "模型额度耗尽",
+          CONFLICTED: "证据冲突",
           FAILED: "失败",
           CANCELLED: "已取消",
           CANCELED: "已取消",
+          TIMEOUT_CANCELLED: "超时取消",
+          KILLED: "已停止",
+          REJECTED: "已拒绝",
           DENIED: "已拒绝",
           RATE_LIMITED: "已限流",
           CIRCUIT_OPEN: "熔断",
@@ -1334,13 +1344,21 @@ export default {
     statusClass(status) {
       const normalized = String(status || "").toLowerCase();
       return {
-        success: normalized === "success",
-        failed: normalized === "failed",
+        success: ["success", "completed"].includes(normalized),
+        failed: [
+          "failed",
+          "empty",
+          "no_presentable_result",
+          "time_budget_exhausted",
+          "model_budget_exhausted",
+          "conflicted"
+        ].includes(normalized),
         running: normalized === "running",
         pending: normalized === "pending",
         waiting: normalized.startsWith("wait"),
-        cancelled: normalized === "cancelled",
-        denied: normalized === "denied",
+        cancelled: ["cancelled", "canceled", "timeout_cancelled", "killed"].includes(normalized),
+        denied: ["denied", "rejected"].includes(normalized),
+        partial: ["partial", "partial_success"].includes(normalized),
         rateLimited: normalized === "rate_limited",
         circuitOpen: normalized === "circuit_open"
       };

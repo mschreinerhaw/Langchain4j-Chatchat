@@ -90,6 +90,11 @@ describe("dynamic report presentation contract", () => {
     expect(skillHubStyles).toMatch(/\.runtime-view \.light-button:hover:not\(:disabled\)\s*\{[^}]*background:\s*#dceaff/s);
   });
 
+  it("keeps task status badges inside their own runtime-table column", () => {
+    expect(skillHubStyles).toMatch(/\.task-table button\s*\{[^}]*grid-template-columns:[^;}]*minmax\(112px, 140px\)/s);
+    expect(skillHubStyles).toMatch(/\.task-table button > strong\s*\{[^}]*max-width:\s*100%[^}]*overflow:\s*hidden[^}]*text-overflow:\s*ellipsis/s);
+  });
+
   it("keeps Agent management header actions aligned with Agent scheduler buttons", () => {
     expect(agentWorkshopView).toContain('class="primary-button" @click="openCreateDialog"');
     expect(skillHubStyles).toMatch(/\.agent-workshop-view \.agent-light-actions \.primary-button,[\s\S]*?\.agent-workshop-view \.agent-light-actions \.light-button\s*\{[^}]*min-height:\s*34px[^}]*border-radius:\s*7px[^}]*font-size:\s*13px/s);

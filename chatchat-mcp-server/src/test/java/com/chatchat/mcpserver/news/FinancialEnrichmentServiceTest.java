@@ -19,6 +19,33 @@ import static org.mockito.ArgumentMatchers.eq;
 class FinancialEnrichmentServiceTest {
 
     @Test
+    void lowConfidenceCatalogSearchExpandsAndReranksUsingMetadataWithoutBusinessRules() {
+        FinancialAssetCatalogService catalog = mock(FinancialAssetCatalogService.class);
+        FinancialDataStore store = mock(FinancialDataStore.class);
+        String query = "A股午间主要指数成交量板块分析";
+        when(store.assetSearchQuery(query, 10)).thenReturn(query);
+        Map<String, Object> unrelated = Map.of(
+            "dataset_code", "unrelated_dataset", "asset_name", "无关数据集");
+        Map<String, Object> relevant = Map.of(
+            "dataset_code", "market_quote_daily", "asset_name", "A股及主要指数行情");
+        when(catalog.search(query, 6)).thenReturn(List.of(unrelated));
+        when(catalog.search(query, 24)).thenReturn(List.of(unrelated, relevant));
+        when(store.resolveEntityFilters("market_quote_daily", query, 5)).thenReturn(List.of());
+        when(store.query("market_quote_daily", Map.of(), null, null, 20, "auto"))
+            .thenReturn(Map.of("rows", List.of(Map.of("quote_name", "上证指数", "close", 3200))));
+        FinancialEnrichmentService service = new FinancialEnrichmentService(catalog, store);
+
+        FinancialEnrichmentService.EnrichmentResult result = service.enrich(
+            query, ToolInput.builder().parameters(Map.of("financial_dataset_limit", 1)).build(), 6);
+
+        assertThat(result.assets()).extracting(asset -> asset.get("dataset_code"))
+            .startsWith("market_quote_daily");
+        assertThat(result.financialData()).singleElement()
+            .satisfies(data -> assertThat(data).containsEntry("dataset", "market_quote_daily"));
+        verify(store, never()).query(eq("unrelated_dataset"), any(), any(), any(), any(Integer.class), any());
+    }
+
+    @Test
     void finalSummaryPolicySkipsEveryFinancialDependency() {
         FinancialAssetCatalogService catalog = mock(FinancialAssetCatalogService.class);
         FinancialDataStore store = mock(FinancialDataStore.class);

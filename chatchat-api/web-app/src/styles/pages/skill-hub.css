@@ -433,7 +433,7 @@
   width: 100%;
   min-height: 54px;
   display: grid;
-  grid-template-columns: 92px minmax(220px, 1fr) minmax(110px, 150px) 112px 96px 82px;
+  grid-template-columns: 92px minmax(220px, 1fr) minmax(110px, 150px) minmax(112px, 140px) 96px 82px;
   align-items: center;
   gap: 10px;
   border-color: #edf1f7;
@@ -525,6 +525,11 @@
 .event-timeline span.circuitOpen,
 .audit-log-head span.circuitOpen {
   background: rgba(244, 166, 41, 0.16);
+  color: #8a5a00;
+}
+
+.task-table strong.partial {
+  background: rgba(244, 166, 41, 0.14);
   color: #8a5a00;
 }
 
@@ -695,6 +700,18 @@
   padding: 4px 8px;
   font-size: 12px;
   font-weight: 900;
+  white-space: nowrap;
+}
+
+.task-table button > strong {
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.task-table time {
+  min-width: 0;
   white-space: nowrap;
 }
 

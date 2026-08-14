@@ -74,7 +74,9 @@
           <span class="task-id">{{ shortId(task.taskId) }}</span>
           <span class="task-question">{{ task.question || "未命名任务" }}</span>
           <span class="task-tenant">{{ tenantLabel(task.tenantId) }}</span>
-          <strong :class="statusClass(task.status)">{{ formatTaskStatus(task.status) }}</strong>
+          <strong :class="statusClass(task.status)" :title="formatTaskStatus(task.status)">
+            {{ formatTaskStatus(task.status) }}
+          </strong>
           <time>{{ formatTime(task.updateTime || task.createTime) }}</time>
           <span
             v-if="isActiveTask(task)"

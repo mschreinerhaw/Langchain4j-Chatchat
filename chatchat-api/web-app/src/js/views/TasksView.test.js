@@ -2,6 +2,14 @@ import { describe, expect, it, vi } from "vitest";
 import TasksView from "./TasksView.js";
 
 describe("TasksView persisted plan restoration", () => {
+  it("localizes long terminal task statuses for the compact task table", () => {
+    expect(TasksView.methods.formatTaskStatus("NO_PRESENTABLE_RESULT")).toBe("无可展示结果");
+    expect(TasksView.methods.formatTaskStatus("TIME_BUDGET_EXHAUSTED")).toBe("执行超时");
+    expect(TasksView.methods.formatTaskStatus("PARTIAL_SUCCESS")).toBe("部分完成");
+    expect(TasksView.methods.statusClass("NO_PRESENTABLE_RESULT")).toMatchObject({ failed: true });
+    expect(TasksView.methods.statusClass("PARTIAL_SUCCESS")).toMatchObject({ partial: true });
+  });
+
   it("displays the tenant name while preserving the internal tenant id", () => {
     const context = {
       tenantName: "星河科技",

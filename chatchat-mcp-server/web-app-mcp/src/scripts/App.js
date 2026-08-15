@@ -54,6 +54,7 @@ export default {
   },
   data() {
     return {
+      publicPath: process.env.BASE_URL || './',
       authenticated: Boolean(getToken()),
       user: getUser(),
       activeView: 'apiServices',

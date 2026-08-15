@@ -4,7 +4,7 @@
     <div v-else class="app-shell">
       <aside class="sidebar">
         <div class="sidebar-brand">
-          <img class="brand-mark product-mark" src="/ruiheng-mark.svg" alt="" aria-hidden="true" />
+          <img class="brand-mark product-mark" :src="`${publicPath}ruiheng-mark.svg`" alt="" aria-hidden="true" />
           <div>
             <div class="sidebar-title">睿衡智联</div>
             <small>RuiHeng Nexus</small>

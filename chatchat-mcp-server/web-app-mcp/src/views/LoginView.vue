@@ -4,7 +4,7 @@
 
     <header class="login-topbar">
       <div class="login-brand-mini">
-        <img class="login-product-logo" src="/ruiheng-nexus-logo.svg" alt="睿衡智联 RuiHeng Nexus" />
+        <img class="login-product-logo" :src="`${publicPath}ruiheng-nexus-logo.svg`" alt="睿衡智联 RuiHeng Nexus" />
       </div>
       <span>Enterprise AI Capability Platform · v1.0.0</span>
     </header>
@@ -46,7 +46,7 @@
 
       <aside class="login-card">
         <div class="login-card-head">
-            <img class="brand-mark product-mark large" src="/ruiheng-mark.svg" alt="" aria-hidden="true" />
+            <img class="brand-mark product-mark large" :src="`${publicPath}ruiheng-mark.svg`" alt="" aria-hidden="true" />
           <div>
             <h2>睿衡智联</h2>
             <p>RuiHeng Nexus · 企业智能能力统一入口</p>

@@ -91,10 +91,11 @@ class EnterpriseMetadataMatchingServiceTest {
             .containsEntry("perFieldTypeRetrieval", true);
         Map<String, Object> reviewContract = map(result.get("reviewContract"));
         assertThat(reviewContract)
-            .containsEntry("candidateReturnPolicy", "ALL_RETRIEVED_CANDIDATES");
+            .containsEntry("candidateReturnPolicy", "ONE_OR_ZERO_PER_FIELD")
+            .containsEntry("candidateExpansion", "INTERNAL_ONLY");
         assertThat(map(reviewContract.get("reasoningCandidateSelection")))
             .containsEntry("strategy", "HIGHEST_SCORE")
-            .containsEntry("maximumSelectedPerFieldAndMetadataType", 1)
+            .containsEntry("maximumSelectedPerField", 1)
             .containsEntry("tieBreaker", "PROVIDER_ORDER");
 
         List<Map<String, Object>> fields = maps(result.get("fieldMatches"));
@@ -144,16 +145,15 @@ class EnterpriseMetadataMatchingServiceTest {
         assertThat(strings(providerFields.get(0).get("dictionaryTerms")))
             .contains("客户", "customer", "姓名", "name");
         Map<String, Object> providerResponse = map(
-            map(result.get("providerExchange")).get("response"));
-        Map<String, Object> firstProviderResult =
-            maps(providerResponse.get("results")).get(0);
-        Map<String, Object> firstProviderCandidate =
-            maps(firstProviderResult.get("candidates")).get(0);
-        assertThat(firstProviderCandidate)
-            .containsEntry("columnName", "customer_name")
-            .containsEntry("columnCnName", "客户姓名");
-        assertThat(map(firstProviderCandidate.get("matchResult")))
-            .containsEntry("level", "EXACT");
+            map(result.get("providerExchange")).get("responseSummary"));
+        assertThat(providerResponse)
+            .containsEntry("fieldCount", 2)
+            .containsEntry("candidatePayloadReturned", false);
+        assertThat(maps(providerResponse.get("fields")))
+            .allSatisfy(field -> assertThat(field).containsKey("retrievedCandidateCount"));
+        assertThat(map(result.get("coverage")))
+            .containsEntry("returnedMetadataCount", 2)
+            .containsEntry("cardinalityPreserved", true);
     }
 
     @Test

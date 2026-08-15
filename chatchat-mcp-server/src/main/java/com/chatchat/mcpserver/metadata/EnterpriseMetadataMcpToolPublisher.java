@@ -59,9 +59,10 @@ public class EnterpriseMetadataMcpToolPublisher {
             .description("Search configured enterprise standard fields, business roots and code dictionaries. "
                 + "Every invocation performs the required standard-field, term-root and dictionary retrieval internally; "
                 + "For a new table whose fields do not exist yet, supply queryTerms (or query) containing model-extracted "
-                + "business concepts and candidate field meanings; the tool returns relevant enterprise metadata records. "
-                + "When fields are supplied, one invocation validates every supplied field and returns field-scoped "
-                + "standard-field, term-root and dictionary evidence. Do not split those metadata types into separate tool calls. "
+                + "business concepts and candidate field meanings; each requested concept returns at most one qualified metadata record. "
+                + "When fields are supplied, one invocation internally evaluates standard fields, term roots and dictionaries "
+                + "for every field, then returns at most one qualified field-scoped metadata decision. Do not split those "
+                + "metadata types into separate tool calls. "
                 + "For CREATE TABLE requests, use queryTerms for discovery when the draft schema is not yet known; when a "
                 + "complete model-proposed schema exists, place it in fields and the proposed table name in targetObject. "
                 + "A downstream reasoning/script step must review the returned evidence before producing DDL. "
@@ -88,7 +89,7 @@ public class EnterpriseMetadataMcpToolPublisher {
                         .build();
                 } catch (Exception ex) {
                     Map<String, Object> error = Map.of(
-                        "schemaVersion", EnterpriseMetadataSearchService.REQUIRED_BUNDLE_SCHEMA_VERSION,
+                        "schemaVersion", EnterpriseMetadataSearchService.CARDINALITY_SCHEMA_VERSION,
                         "success", false,
                         "error", ex.getMessage()
                     );
@@ -131,18 +132,23 @@ public class EnterpriseMetadataMcpToolPublisher {
     }
 
     private Map<String, Object> executeDiscovery(Map<String, Object> arguments) {
-        Map<String, Object> result = new LinkedHashMap<>(searchService.searchRequiredBundle(
+        List<String> inputTerms = strings(arguments.get("queryTerms"));
+        if (inputTerms.isEmpty()) {
+            inputTerms = List.of(text(arguments.get("query")));
+        }
+        Map<String, Object> result = new LinkedHashMap<>(searchService.searchRequirements(
             new EnterpriseMetadataSearchService.SearchRequest(
                 text(arguments.get("query")),
                 strings(firstPresent(arguments, "types", "metadataTypes")),
                 strings(arguments.get("statuses")),
                 strings(arguments.get("scenarios")),
                 integerValue(firstPresent(arguments, "limit", "candidateLimit"))
-            )
+            ),
+            inputTerms
         ));
         result.put("invokedCapability", TOOL_NAME);
         result.put("operationMode", "ENTERPRISE_METADATA_DISCOVERY");
-        result.put("inputTerms", strings(arguments.get("queryTerms")));
+        result.put("inputTerms", inputTerms);
         log.info("enterprise_metadata_search discovery output requestId={} resultSummary={}",
             text(arguments.get("requestId")),
             ToolLogSummarizer.summarizeResult(TOOL_NAME, result));
@@ -383,19 +389,19 @@ public class EnterpriseMetadataMcpToolPublisher {
             "limit", Map.of(
                 "type", "integer",
                 "minimum", 1,
-                "description", "Caller-requested total metadata result count across standard fields, term roots and dictionaries; no fixed service cap is applied"
+                "description", "Maximum returned metadata count. It never enlarges queryTerms demand cardinality"
             ),
             "candidateLimitPerType", mapOf(
                 "type", "integer",
                 "minimum", 1,
-                "description", "Caller-requested candidates per metadata type for every supplied field; defaults to limit when provided"
+                "description", "Internal recall-pool size per metadata type. Expanded candidates are quality-reranked and are not returned to the reasoning layer"
             )
         ), List.of(), false, null, null);
     }
 
     private Map<String, Object> meta() {
         return mapOf(
-            "schemaVersion", EnterpriseMetadataSearchService.REQUIRED_BUNDLE_SCHEMA_VERSION,
+            "schemaVersion", EnterpriseMetadataSearchService.CARDINALITY_SCHEMA_VERSION,
             "kind", "enterprise_metadata_capability",
             "capabilityType", "metadata",
             "provider", "configured_catalog",
@@ -435,8 +441,16 @@ public class EnterpriseMetadataMcpToolPublisher {
                 "factBoundary", "returned_records_only",
                 "requiredRetrieval", String.join("+",
                     policyService.current().getMetadataContract().getRequiredBundle()),
-                "allTypesAttemptedPath", "requiredRetrieval.allTypesAttempted",
-                "evidenceCompletePath", "requiredRetrieval.evidenceComplete"
+                "allTypesAttemptedPath", "requirementMatches[].allMetadataTypesAttempted",
+                "qualityDecisionPath", "requirementMatches[].selectionStatus",
+                "cardinalityPreservedPath", "cardinalityPreserved"
+            ),
+            "cardinalityContract", mapOf(
+                "policy", "ONE_OR_ZERO_PER_REQUIREMENT",
+                "requirementPath", "queryTerms[] or fields[]",
+                "matchPath", "requirementMatches[] or fieldMatches[]",
+                "returnedCountPath", "returnedMetadataCount",
+                "candidateExpansion", "internal_only"
             ),
             "inputAdapterContract", mapOf(
                 "contractVersion", "runtime_dependency_evidence.v1",

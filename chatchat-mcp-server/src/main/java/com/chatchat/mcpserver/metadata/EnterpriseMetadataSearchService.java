@@ -20,6 +20,7 @@ public class EnterpriseMetadataSearchService {
 
     public static final String RESULT_SCHEMA_VERSION = "enterprise_metadata_search_result.v2";
     public static final String REQUIRED_BUNDLE_SCHEMA_VERSION = "enterprise_metadata_search_result.v3";
+    public static final String CARDINALITY_SCHEMA_VERSION = "enterprise_metadata_search_result.v4";
     private final EnterpriseMetadataCatalog catalog;
     private final EnterpriseMetadataProperties properties;
     private final OpenSearchMcpSearchService openSearch;
@@ -53,6 +54,109 @@ public class EnterpriseMetadataSearchService {
         return search(request, true);
     }
 
+    /**
+     * Searches independent metadata requirements without exposing the expanded
+     * candidate pool.  The public result cardinality can never exceed the
+     * caller's requirement cardinality; unmatched or ambiguous requirements are
+     * retained as explicit slots instead of being filled with noisy candidates.
+     */
+    public Map<String, Object> searchRequirements(SearchRequest request,
+                                                   List<String> requirements) {
+        SearchRequest effective = request == null
+            ? new SearchRequest(null, List.of(), List.of(), List.of(), null)
+            : request;
+        List<String> demand = requirementTerms(requirements, effective.query());
+        if (demand.isEmpty()) {
+            throw new IllegalArgumentException("query or queryTerms is required");
+        }
+        int requested = effective.limit() == null
+            ? demand.size() : Math.min(effective.limit(), demand.size());
+        if (requested < 1) {
+            throw new IllegalArgumentException("limit must be greater than 0");
+        }
+        demand = demand.subList(0, requested);
+        int candidateLimit = expandedCandidateLimit(Math.max(1, requested));
+        Set<String> selectedKeys = new LinkedHashSet<>();
+        List<Map<String, Object>> selected = new ArrayList<>();
+        List<Map<String, Object>> slots = new ArrayList<>();
+        Set<String> backends = new LinkedHashSet<>();
+
+        for (int index = 0; index < demand.size(); index++) {
+            String requirement = demand.get(index);
+            Map<String, Object> retrieval = search(new SearchRequest(
+                requirement,
+                effective.types(),
+                effective.statuses(),
+                effective.scenarios(),
+                candidateLimit
+            ), true);
+            backends.add(String.valueOf(retrieval.getOrDefault("backend", "none")));
+            List<Map<String, Object>> retrievedCandidates = maps(retrieval.get("results"));
+            List<Map<String, Object>> candidates = retrievedCandidates.stream()
+                .filter(candidate -> !selectedKeys.contains(resultKey(candidate)))
+                .toList();
+            Selection selection = selectCandidate(candidates);
+            Map<String, Object> retrievalCoverage = objectMap(retrieval.get("requiredRetrieval"));
+            Map<String, Object> slot = new LinkedHashMap<>();
+            slot.put("requirementIndex", index);
+            slot.put("requirement", requirement);
+            slot.put("retrievedCandidateCount", retrievedCandidates.size());
+            slot.put("eligibleCandidateCount", candidates.size());
+            slot.put("duplicateCandidateCount", retrievedCandidates.size() - candidates.size());
+            slot.put("allMetadataTypesAttempted",
+                Boolean.TRUE.equals(retrievalCoverage.get("allTypesAttempted")));
+            slot.put("retrievedCountsByType",
+                objectMap(retrievalCoverage.get("retrievedCountsByType")));
+            slot.put("matched", selection.selected() != null);
+            slot.put("selectionStatus", selection.status());
+            slot.put("qualityThreshold", searchPolicy().getMinimumQualityScore());
+            slot.put("selectionMargin", selection.margin());
+            if (selection.selected() != null) {
+                Map<String, Object> result = selection.selected();
+                selected.add(result);
+                selectedKeys.add(resultKey(result));
+                slot.put("selectedResult", selectionReference(result));
+            }
+            slots.add(Map.copyOf(slot));
+        }
+
+        List<Map<String, Object>> evidence = selected.stream().map(this::evidenceObject).toList();
+        List<String> requiredTypes = requiredTypes();
+        Map<String, Object> countsByType = countsByType(selected, requiredTypes);
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("schemaVersion", CARDINALITY_SCHEMA_VERSION);
+        response.put("success", true);
+        response.put("query", effective.query());
+        response.put("inputTerms", List.copyOf(demand));
+        response.put("requestedRequirementCount", demand.size());
+        response.put("returnedMetadataCount", selected.size());
+        response.put("matchedRequirementCount", selected.size());
+        response.put("unmatchedRequirementCount", demand.size() - selected.size());
+        response.put("cardinalityPreserved", selected.size() <= demand.size());
+        response.put("candidateExpansionInternalOnly", true);
+        response.put("candidateReturnPolicy", "ONE_OR_ZERO_PER_REQUIREMENT");
+        response.put("backend", aggregateValues(backends));
+        response.put("count", selected.size());
+        response.put("countsByType", countsByType);
+        response.put("requirementMatches", List.copyOf(slots));
+        response.put("results", List.copyOf(selected));
+        response.put("evidenceObjects", evidence);
+        response.put("evidenceBundle", evidenceBundle(
+            String.join(" ", demand), scenarioClassifier.classifyQuery(String.join(" ", demand)),
+            evidence, countsByType, Map.of(
+                "cardinalityPreserved", true,
+                "requestedRequirementCount", demand.size(),
+                "returnedMetadataCount", selected.size()
+            ), true));
+        response.put("evidencePolicy", Map.of(
+            "factBoundary", "Only selected enterprise metadata records may be used as factual field or term definitions",
+            "sampleValuesIncluded", false,
+            "sourceAuthority", "configured_enterprise_metadata_catalog"
+        ));
+        response.put("evidenceCoverage", policyService.evidenceCoverage());
+        return Map.copyOf(response);
+    }
+
     private Map<String, Object> search(SearchRequest request, boolean requiredBundle) {
         if (!properties.isEnabled()) {
             throw new IllegalStateException("Enterprise metadata capability is disabled");
@@ -68,6 +172,7 @@ public class EnterpriseMetadataSearchService {
         List<String> statuses = normalizeValues(effective.statuses());
         List<String> scenarios = normalizeValues(effective.scenarios());
         int limit = requestedLimit(effective.limit());
+        int candidateLimit = expandedCandidateLimit(limit);
         String expandedQuery = expandedQuery(query);
 
         String semanticQuery = scenarioClassifier.enrichQuery(expandedQuery);
@@ -82,19 +187,21 @@ public class EnterpriseMetadataSearchService {
             buckets = new ArrayList<>();
             for (String type : requiredTypes) {
                 buckets.add(searchRequiredType(
-                    query, expandedQuery, type, statuses, scenarios, queryVector, limit));
+                    query, expandedQuery, type, statuses, scenarios, queryVector, candidateLimit));
             }
-            results = mergeBucketsWithinTotalLimit(buckets, limit);
+            results = rerankAndFilter(query,
+                mergeBucketsWithinTotalLimit(buckets, candidateLimit), limit);
             backend = aggregateBackend(buckets);
         } else {
             results = searchOpenSearch(
-                expandedQuery, requestedTypes, statuses, scenarios, queryVector, limit);
+                expandedQuery, requestedTypes, statuses, scenarios, queryVector, candidateLimit);
             backend = "opensearch";
             if (results.isEmpty()) {
                 results = searchMemory(
-                    query, expandedQuery, requestedTypes, statuses, scenarios, limit);
+                    query, expandedQuery, requestedTypes, statuses, scenarios, candidateLimit);
                 backend = "memory";
             }
+            results = rerankAndFilter(query, results, limit);
         }
         Map<String, Object> countsByType = countsByType(results, requiredTypes);
         Map<String, Object> retrievedCountsByType = requiredBundle
@@ -327,6 +434,146 @@ public class EnterpriseMetadataSearchService {
             .toList();
     }
 
+    private List<Map<String, Object>> rerankAndFilter(String query,
+                                                       List<Map<String, Object>> candidates,
+                                                       int limit) {
+        return (candidates == null ? List.<Map<String, Object>>of() : candidates).stream()
+            .map(candidate -> qualityScored(query, candidate))
+            .filter(candidate -> numericScore(candidate.get("qualityScore"))
+                >= searchPolicy().getMinimumQualityScore())
+            .sorted(Comparator
+                .comparingDouble((Map<String, Object> candidate) ->
+                    numericScore(candidate.get("qualityScore"))).reversed()
+                .thenComparing(candidate -> String.valueOf(candidate.getOrDefault("name", ""))))
+            .limit(limit)
+            .toList();
+    }
+
+    private Map<String, Object> qualityScored(String query, Map<String, Object> candidate) {
+        double lexical = lexicalQuality(query, candidate);
+        double retrieval = Math.max(0.0D,
+            Math.min(1.0D, numericScore(candidate.get("relevanceScore"))));
+        boolean preferred = normalizeValues(searchPolicy().getPreferredStatuses())
+            .contains(normalize(String.valueOf(candidate.get("status"))));
+        double quality = lexical * searchPolicy().getLexicalQualityWeight()
+            + retrieval * searchPolicy().getRetrievalQualityWeight()
+            + (preferred ? searchPolicy().getStatusQualityWeight() : 0.0D);
+        Map<String, Object> result = new LinkedHashMap<>(candidate);
+        result.put("lexicalQualityScore", round(lexical));
+        result.put("qualityScore", round(quality));
+        result.put("qualityGatePassed", quality >= searchPolicy().getMinimumQualityScore());
+        return Map.copyOf(result);
+    }
+
+    private double lexicalQuality(String query, Map<String, Object> candidate) {
+        String normalizedQuery = compact(query);
+        if (normalizedQuery.isEmpty()) return 0.0D;
+        List<String> values = new ArrayList<>();
+        add(values, candidate.get("name"));
+        add(values, candidate.get("technicalName"));
+        add(values, candidate.get("description"));
+        add(values, candidate.get(metadataContract().getEnglishNameAttribute()));
+        add(values, candidate.get(metadataContract().getAbbreviationAttribute()));
+        double best = 0.0D;
+        Set<String> queryTokens = tokens(query);
+        for (String value : values) {
+            String normalizedValue = compact(value);
+            if (normalizedValue.equals(normalizedQuery)) return 1.0D;
+            if (normalizedValue.contains(normalizedQuery) || normalizedQuery.contains(normalizedValue)) {
+                best = Math.max(best, 0.90D);
+            }
+            Set<String> candidateTokens = tokens(value);
+            Set<String> overlap = new LinkedHashSet<>(queryTokens);
+            overlap.retainAll(candidateTokens);
+            double coverage = overlap.size() / (double) Math.max(1, queryTokens.size());
+            double precision = overlap.size() / (double) Math.max(1, candidateTokens.size());
+            best = Math.max(best, coverage * 0.7D + precision * 0.3D);
+        }
+        return Math.min(1.0D, best);
+    }
+
+    private Selection selectCandidate(List<Map<String, Object>> candidates) {
+        if (candidates == null || candidates.isEmpty()) {
+            return new Selection(null, "NO_QUALIFIED_CANDIDATE", 0.0D);
+        }
+        Map<String, Object> first = candidates.get(0);
+        double firstScore = numericScore(first.get("qualityScore"));
+        double margin = candidates.size() < 2 ? firstScore
+            : firstScore - numericScore(candidates.get(1).get("qualityScore"));
+        if (candidates.size() > 1
+            && margin < searchPolicy().getMinimumSelectionMargin()
+            && numericScore(first.get("lexicalQualityScore")) < 0.85D) {
+            return new Selection(null, "AMBIGUOUS_TOP_CANDIDATES", round(margin));
+        }
+        return new Selection(first, "MATCHED", round(margin));
+    }
+
+    private int expandedCandidateLimit(int requested) {
+        return Math.max(requested, Math.min(500,
+            requested * Math.max(1, searchPolicy().getCandidateExpansionFactor())));
+    }
+
+    private List<String> requirementTerms(List<String> requirements, String fallbackQuery) {
+        List<String> result = new ArrayList<>();
+        if (requirements != null) {
+            for (String requirement : requirements) {
+                String value = text(requirement);
+                if (value != null) result.add(value);
+            }
+        }
+        if (result.isEmpty()) {
+            String value = text(fallbackQuery);
+            if (value != null) result.add(value);
+        }
+        return List.copyOf(result);
+    }
+
+    private List<Map<String, Object>> maps(Object value) {
+        if (!(value instanceof Iterable<?> iterable)) return List.of();
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Object item : iterable) {
+            if (item instanceof Map<?, ?> map) {
+                Map<String, Object> converted = new LinkedHashMap<>();
+                map.forEach((key, itemValue) -> converted.put(String.valueOf(key), itemValue));
+                result.add(Map.copyOf(converted));
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    private Map<String, Object> objectMap(Object value) {
+        if (!(value instanceof Map<?, ?> map)) return Map.of();
+        Map<String, Object> result = new LinkedHashMap<>();
+        map.forEach((key, itemValue) -> result.put(String.valueOf(key), itemValue));
+        return Map.copyOf(result);
+    }
+
+    private String resultKey(Map<String, Object> result) {
+        return String.valueOf(result.getOrDefault("metadataType", "metadata")) + ":"
+            + String.valueOf(result.getOrDefault("id", ""));
+    }
+
+    private Map<String, Object> selectionReference(Map<String, Object> result) {
+        Map<String, Object> reference = new LinkedHashMap<>();
+        copyPresent(reference, result, "id", "metadataType", "name", "technicalName",
+            "qualityScore", "lexicalQualityScore");
+        return Map.copyOf(reference);
+    }
+
+    private String aggregateValues(Set<String> values) {
+        if (values == null || values.isEmpty()) return "none";
+        return values.size() == 1 ? values.iterator().next() : "mixed";
+    }
+
+    private String compact(String value) {
+        return value == null ? "" : value.toLowerCase(Locale.ROOT)
+            .replaceAll("[^\\p{L}\\p{N}]+", "");
+    }
+
+    private double round(double value) {
+        return Math.round(value * 10_000D) / 10_000D;
+    }
+
     private Map<String, Object> scored(EnterpriseMetadataRecord record,
                                        String originalQuery,
                                        Set<String> queryTokens) {
@@ -433,6 +680,16 @@ public class EnterpriseMetadataSearchService {
                                                List<Map<String, Object>> evidence,
                                                Map<String, Object> countsByType,
                                                Object requiredRetrieval) {
+        return evidenceBundle(query, detectedScenarios, evidence, countsByType,
+            requiredRetrieval, false);
+    }
+
+    private Map<String, Object> evidenceBundle(String query,
+                                               List<String> detectedScenarios,
+                                               List<Map<String, Object>> evidence,
+                                               Map<String, Object> countsByType,
+                                               Object requiredRetrieval,
+                                               boolean cardinalityBounded) {
         List<Map<String, Object>> standardReferences = evidence.stream()
             .map(item -> {
                 Map<String, Object> reference = new LinkedHashMap<>();
@@ -441,8 +698,8 @@ public class EnterpriseMetadataSearchService {
                 return Map.copyOf(reference);
             })
             .toList();
-        List<Map<String, Object>> selectedStandardReferences =
-            highestConfidenceReference(standardReferences);
+        List<Map<String, Object>> selectedStandardReferences = cardinalityBounded
+            ? standardReferences : highestConfidenceReference(standardReferences);
         Map<String, Object> bundle = new LinkedHashMap<>();
         bundle.put("contractVersion", "enterprise_metadata_evidence_bundle.v1");
         bundle.put("targetContext", Map.of(
@@ -477,8 +734,10 @@ public class EnterpriseMetadataSearchService {
             "inferenceMustBeLabeled", true,
             "rawResultsAreRetrievalCandidates", true,
             "standardReferencesDoNotProveTargetSchema", true,
-            "candidateReturnPolicy", "ALL_RETRIEVED_CANDIDATES_IN_RESULTS",
-            "reasoningSelectionPolicy", "HIGHEST_CONFIDENCE_ONE"
+            "candidateReturnPolicy", cardinalityBounded
+                ? "ONE_OR_ZERO_PER_REQUIREMENT" : "ALL_RETRIEVED_CANDIDATES_IN_RESULTS",
+            "reasoningSelectionPolicy", cardinalityBounded
+                ? "QUALITY_GATE_THEN_HIGHEST_SCORE" : "HIGHEST_CONFIDENCE_ONE"
         ));
         return Map.copyOf(bundle);
     }
@@ -676,5 +935,8 @@ public class EnterpriseMetadataSearchService {
             results = results == null ? List.of() : List.copyOf(results);
             backend = backend == null || backend.isBlank() ? "unknown" : backend;
         }
+    }
+
+    private record Selection(Map<String, Object> selected, String status, double margin) {
     }
 }

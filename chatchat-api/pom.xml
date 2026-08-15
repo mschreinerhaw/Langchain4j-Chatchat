@@ -12,7 +12,7 @@
     </parent>
 
     <artifactId>chatchat-api</artifactId>
-    <name>LiveRuntime API Module</name>
+    <name>RuiHeng Insight API Module</name>
     <description>REST API, WebSocket support, and conversation engine</description>
 
     <properties>

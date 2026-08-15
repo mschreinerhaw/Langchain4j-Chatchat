@@ -1,12 +1,12 @@
 <template>
   <main class="login-view">
-    <header class="login-brand" aria-label="LiveRuntime">
-      <img src="/agent-runtime-logo.svg" alt="LiveRuntime" />
+    <header class="login-brand" aria-label="睿衡智策 RuiHeng Insight">
+      <img src="/agent-runtime-logo.svg" alt="睿衡智策 RuiHeng Insight" />
     </header>
 
-    <section class="login-shell" aria-label="LiveRuntime 登录首页">
-      <section class="login-hero" aria-label="360°智能工作循环">
-        <div class="ai-cycle" aria-label="360°智能工作循环">
+    <section class="login-shell" aria-label="睿衡智策登录首页">
+      <section class="login-hero" aria-label="企业智能决策闭环">
+        <div class="ai-cycle" aria-label="企业智能决策闭环">
           <div class="cycle-halo"></div>
           <svg class="cycle-svg" viewBox="0 0 640 640" aria-hidden="true" focusable="false">
             <defs>
@@ -27,31 +27,31 @@
 
           <div class="center-card">
             <div class="ai-title">AI</div>
-            <div class="ai-desc">360° 智能工作循环</div>
+            <div class="ai-desc">企业智能决策中心</div>
           </div>
 
           <div class="node-card node-top" :class="{ active: cycleFeatureIndex === 0 }" @mouseenter="setCycleFeature(0)">
             <div class="node-icon"></div>
-            <div class="node-title">数据</div>
-            <div class="node-desc">业务查询</div>
+            <div class="node-title">数据洞察</div>
+            <div class="node-desc">经营分析</div>
           </div>
 
           <div class="node-card node-right green" :class="{ active: cycleFeatureIndex === 1 }" @mouseenter="setCycleFeature(1)">
             <div class="node-icon"></div>
-            <div class="node-title">知识</div>
+            <div class="node-title">知识智能</div>
             <div class="node-desc">制度检索</div>
           </div>
 
           <div class="node-card node-bottom green" :class="{ active: cycleFeatureIndex === 2 }" @mouseenter="setCycleFeature(2)">
             <div class="node-icon"></div>
-            <div class="node-title">办公</div>
-            <div class="node-desc">报告生成</div>
+            <div class="node-title">决策辅助</div>
+            <div class="node-desc">分析研判</div>
           </div>
 
           <div class="node-card node-left" :class="{ active: cycleFeatureIndex === 3 }" @mouseenter="setCycleFeature(3)">
             <div class="node-icon"></div>
-            <div class="node-title">协同</div>
-            <div class="node-desc">待办审批</div>
+            <div class="node-title">智能协同</div>
+            <div class="node-desc">流程闭环</div>
           </div>
 
           <article class="cycle-info-card" :key="activeCycleFeature.title">
@@ -67,7 +67,7 @@
       <section class="login-card" aria-labelledby="login-title">
         <div class="login-card-head">
           <h2 id="login-title">欢迎登录</h2>
-          <p>使用企业统一账号访问智能业务平台</p>
+          <p>基于数据、知识与 AI 的企业智能洞察与决策平台</p>
         </div>
 
         <form class="login-form" @submit.prevent="submitLogin">
@@ -94,8 +94,8 @@
                 <BadgeCheck :size="18" />
                 <input v-model.trim="form.captcha" type="text" autocomplete="off" maxlength="4" placeholder="输入验证码" />
               </span>
-              <button type="button" class="captcha-code" title="刷新验证码" aria-label="刷新验证码" @click="refreshCaptcha">
-                <strong>{{ captchaCode }}</strong>
+              <button type="button" class="captcha-code" title="看不清？点击刷新验证码" aria-label="刷新图片验证码" @click="refreshCaptcha">
+                <canvas ref="captchaCanvas" width="216" height="84" aria-hidden="true"></canvas>
               </button>
             </span>
           </label>
@@ -112,7 +112,7 @@
 
           <button class="login-submit" type="submit" :disabled="loading">
             <LogIn :size="18" />
-            <span>{{ loading ? "登录中..." : "进入智能工作台" }}</span>
+            <span>{{ loading ? "登录中..." : "进入睿衡工作台" }}</span>
           </button>
         </form>
 
@@ -124,7 +124,7 @@
       </section>
     </section>
 
-    <footer class="login-footer">Copyright 1996-2026 Apexsoft, All rights reserved.</footer>
+    <footer class="login-footer">© 1996-2026 RuiHeng Technology. All Rights Reserved.</footer>
   </main>
 </template>
 

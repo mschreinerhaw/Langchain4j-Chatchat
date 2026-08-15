@@ -451,9 +451,9 @@ class ToolObservationBuilder {
     }
 
     /**
-     * Formats the unified metadata protocol for model review. The MCP result retains all
-     * retrieved candidates. This reasoning projection selects only the highest-scored
-     * candidate for each field and metadata type while preserving returned counts.
+     * Formats the unified metadata protocol for model review. Current MCP results expose
+     * at most one selected metadata record per requested field. Legacy payloads that still
+     * contain expanded candidates are reduced to their highest-scored candidates here.
      */
     private String buildEnterpriseMetadataObservation(String toolName,
                                                       ToolOutput output,
@@ -505,6 +505,10 @@ class ToolObservationBuilder {
             protocolCoverage.get("processedFieldCount"), fieldMatches.size());
         boolean allFieldsProcessed = booleanValue(protocolCoverage.get("allFieldsProcessed"))
             || (inputFieldCount > 0 && processedFieldCount == inputFieldCount);
+        String candidateReturnPolicy = firstNonBlank(
+            stringValue(asMap(payload.get("reviewContract")).get("candidateReturnPolicy")),
+            "ALL_RETRIEVED_CANDIDATES_IN_TOOL_RESULT");
+        boolean cardinalityBounded = "ONE_OR_ZERO_PER_FIELD".equals(candidateReturnPolicy);
         Map<String, Object> context = new LinkedHashMap<>();
         context.put("schemaVersion", "enterprise_metadata_model_context.v1");
         context.put("sourceSchemaVersion",
@@ -529,9 +533,11 @@ class ToolObservationBuilder {
         context.put("fields", List.copyOf(formattedFields));
         context.put("projection", Map.of(
             "includedCandidateProperties", List.of("field", "englishName", "comment"),
-            "candidateReturnPolicy", "ALL_RETRIEVED_CANDIDATES_IN_TOOL_RESULT",
-            "reasoningSelectionPolicy", "HIGHEST_SCORE_ONE_PER_FIELD_AND_METADATA_TYPE",
-            "allReturnedCandidatesIncluded", false,
+            "candidateReturnPolicy", candidateReturnPolicy,
+            "reasoningSelectionPolicy", cardinalityBounded
+                ? "SERVER_QUALITY_GATE_ONE_OR_ZERO_PER_FIELD"
+                : "HIGHEST_SCORE_ONE_PER_FIELD_AND_METADATA_TYPE",
+            "allReturnedCandidatesIncluded", cardinalityBounded,
             "fullProtocolEvidenceLocation", "toolTrace"
         ));
         if (payload.get("errorCode") != null) {
@@ -561,9 +567,18 @@ class ToolObservationBuilder {
             "backend", payload.get("backend"),
             "mode", payload.get("retrievalMode"),
             "returnedCount", payload.get("count"),
+            "requestedRequirementCount", payload.get("requestedRequirementCount"),
+            "returnedMetadataCount", payload.get("returnedMetadataCount"),
+            "unmatchedRequirementCount", payload.get("unmatchedRequirementCount"),
+            "cardinalityPreserved", payload.get("cardinalityPreserved"),
             "countsByType", payload.get("countsByType"),
             "requiredRetrieval", payload.get("requiredRetrieval")
         ));
+        List<Map<String, Object>> requirementMatches = mapList(payload.get("requirementMatches"))
+            .stream().map(this::enterpriseMetadataRequirementProjection).toList();
+        if (!requirementMatches.isEmpty()) {
+            context.put("requirementMatches", requirementMatches);
+        }
         context.put("evidenceCoverage", modelEvidenceCoverageProjection(payload.get("evidenceCoverage")));
         if (evidenceBundle.isEmpty()) {
             context.put("candidates", candidates);
@@ -578,6 +593,19 @@ class ToolObservationBuilder {
             "Evidence coverage describes returned data; it does not pre-decide enterprise-design conformance."
         ));
         return ModelProtocolJson.compact(context);
+    }
+
+    private Map<String, Object> enterpriseMetadataRequirementProjection(Map<String, Object> source) {
+        return mapOfNonNull(
+            "requirementIndex", source.get("requirementIndex"),
+            "requirement", source.get("requirement"),
+            "matched", source.get("matched"),
+            "selectionStatus", source.get("selectionStatus"),
+            "selectionMargin", source.get("selectionMargin"),
+            "allMetadataTypesAttempted", source.get("allMetadataTypesAttempted"),
+            "retrievedCountsByType", source.get("retrievedCountsByType"),
+            "selectedResult", source.get("selectedResult")
+        );
     }
 
     private Map<String, Object> enterpriseMetadataDiscoveryCandidate(Map<String, Object> source) {

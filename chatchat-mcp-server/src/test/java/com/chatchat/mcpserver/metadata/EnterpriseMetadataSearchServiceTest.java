@@ -13,6 +13,70 @@ import static org.mockito.Mockito.when;
 class EnterpriseMetadataSearchServiceTest {
 
     @Test
+    @SuppressWarnings("unchecked")
+    void preservesRequirementCardinalityAndDoesNotFillNoise() {
+        EnterpriseMetadataProperties properties = new EnterpriseMetadataProperties();
+        EnterpriseMetadataWorkbookLoader loader = mock(EnterpriseMetadataWorkbookLoader.class);
+        OpenSearchMcpSearchService openSearch = mock(OpenSearchMcpSearchService.class);
+        EnterpriseMetadataTaxonomyService taxonomyService = mock(EnterpriseMetadataTaxonomyService.class);
+        when(taxonomyService.taxonomy()).thenReturn(new EnterpriseMetadataTaxonomyService.TaxonomySnapshot(
+            List.of(),
+            new EnterpriseMetadataTaxonomyService.ScenarioDefinition(
+                "fallback", "general_metadata", "General", "General metadata", "common",
+                List.of(), 999, true, List.of()
+            )
+        ));
+        EnterpriseMetadataScenarioClassifier classifier =
+            new EnterpriseMetadataScenarioClassifier(properties, taxonomyService);
+        EnterpriseMetadataVectorizer vectorizer = new EnterpriseMetadataVectorizer(properties);
+        when(openSearch.enabled()).thenReturn(false);
+        properties.setSourceLocationPattern("memory:cardinality");
+        when(loader.load("memory:cardinality")).thenReturn(List.of(
+            new EnterpriseMetadataRecord(
+                "F001", "metadata_field", "enterprise_field_catalog",
+                "Customer Number", "CUST_NUM", "Unique customer identifier", "active", "fields#1",
+                Map.of("dataType", "string")
+            ),
+            new EnterpriseMetadataRecord(
+                "F002", "metadata_field", "enterprise_field_catalog",
+                "Mobile Number", "MOBILE_NUM", "Customer mobile telephone", "active", "fields#2",
+                Map.of("dataType", "string")
+            )
+        ));
+        EnterpriseMetadataCatalog catalog =
+            new EnterpriseMetadataCatalog(properties, loader, classifier, vectorizer, openSearch);
+        catalog.refresh();
+        EnterpriseMetadataSearchService service = new EnterpriseMetadataSearchService(
+            catalog, properties, openSearch, classifier, vectorizer,
+            EnterpriseMetadataTestProperties.policyService());
+
+        Map<String, Object> response = service.searchRequirements(
+            new EnterpriseMetadataSearchService.SearchRequest(
+                "customer mobile orbital", List.of(), List.of(), null),
+            List.of("Customer Number", "Mobile Number", "Orbital Telemetry")
+        );
+
+        assertThat(response)
+            .containsEntry("schemaVersion", EnterpriseMetadataSearchService.CARDINALITY_SCHEMA_VERSION)
+            .containsEntry("requestedRequirementCount", 3)
+            .containsEntry("returnedMetadataCount", 2)
+            .containsEntry("unmatchedRequirementCount", 1)
+            .containsEntry("cardinalityPreserved", true)
+            .containsEntry("candidateReturnPolicy", "ONE_OR_ZERO_PER_REQUIREMENT");
+        assertThat((List<Map<String, Object>>) response.get("requirementMatches"))
+            .hasSize(3)
+            .extracting(item -> item.get("matched"))
+            .containsExactly(true, true, false);
+        assertThat((List<Map<String, Object>>) response.get("results"))
+            .hasSize(2)
+            .extracting(item -> item.get("technicalName"))
+            .containsExactly("CUST_NUM", "MOBILE_NUM");
+        Map<String, Object> bundle = (Map<String, Object>) response.get("evidenceBundle");
+        assertThat((List<Map<String, Object>>) ((Map<String, Object>) bundle
+            .get("standardEvidence")).get("items")).hasSize(2);
+    }
+
+    @Test
     void expandsBusinessRootAndReturnsTraceableFieldEvidence() {
         EnterpriseMetadataProperties properties = new EnterpriseMetadataProperties();
         EnterpriseMetadataWorkbookLoader loader = mock(EnterpriseMetadataWorkbookLoader.class);

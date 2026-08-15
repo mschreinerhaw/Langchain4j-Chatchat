@@ -154,6 +154,51 @@ class ToolObservationBuilderEvidenceTest {
     }
 
     @Test
+    void enterpriseMetadataDiscoveryPreservesRequirementDecisionsForReasoning() {
+        Map<String, Object> discovery = Map.of(
+            "schemaVersion", "enterprise_metadata_search_result.v4",
+            "success", true,
+            "count", 1,
+            "requestedRequirementCount", 2,
+            "returnedMetadataCount", 1,
+            "unmatchedRequirementCount", 1,
+            "cardinalityPreserved", true,
+            "requirementMatches", List.of(
+                Map.of(
+                    "requirementIndex", 0,
+                    "requirement", "customer number",
+                    "matched", true,
+                    "selectionStatus", "MATCHED",
+                    "selectedResult", Map.of("id", "F001", "technicalName", "CUST_NUM")
+                ),
+                Map.of(
+                    "requirementIndex", 1,
+                    "requirement", "orbital telemetry",
+                    "matched", false,
+                    "selectionStatus", "NO_QUALIFIED_CANDIDATE"
+                )
+            ),
+            "evidenceCoverage", Map.of(),
+            "evidenceBundle", Map.of(
+                "contractVersion", "enterprise_metadata_evidence_bundle.v1",
+                "factEvidence", Map.of("status", "NOT_PROVIDED_BY_THIS_TOOL", "items", List.of()),
+                "standardEvidence", Map.of("status", "DATA_RETURNED", "items", List.of()),
+                "inferenceEvidence", Map.of("status", "MODEL_REASONING_REQUIRED", "items", List.of())
+            )
+        );
+
+        String observation = builder.buildAuthoritativeExecutionEvidence(
+            "mcp_chatchat_mcp_server_enterprise_metadata_search", discovery);
+
+        assertThat(observation)
+            .contains("\"requestedRequirementCount\":2")
+            .contains("\"returnedMetadataCount\":1")
+            .contains("\"cardinalityPreserved\":true")
+            .contains("customer number", "CUST_NUM")
+            .contains("orbital telemetry", "NO_QUALIFIED_CANDIDATE");
+    }
+
+    @Test
     void enterpriseMetadataEvidenceSelectsOnlyHighestScoredCandidatePerFieldAndType() {
         List<Map<String, Object>> candidates = java.util.stream.IntStream.rangeClosed(1, 5)
             .mapToObj(index -> Map.<String, Object>of(

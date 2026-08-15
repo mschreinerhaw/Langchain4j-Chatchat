@@ -1,8 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 56 56" role="img" aria-labelledby="mark-title mark-desc">
-  <title id="mark-title">LiveRuntime</title>
-  <desc id="mark-desc">LiveRuntime product mark</desc>
-  <rect x="7" y="7" width="42" height="42" rx="13" fill="#0B1220"/>
-  <path d="M19 17.5h15.25C41.4 17.5 46 22.05 46 29.2v10.3" fill="none" stroke="#2DD4BF" stroke-width="3" stroke-linecap="round"/>
-  <circle cx="46" cy="43" r="2" fill="#2DD4BF"/>
-  <path d="M19.5 38.5V24h10.25c4.4 0 7.25 2.35 7.25 6s-2.85 6-7.25 6H19.5m10.25 0 7.5 6" fill="none" stroke="#F8FAFC" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <title id="mark-title">睿衡 RuiHeng</title><desc id="mark-desc">睿衡企业智能产品标志</desc>
+  <defs><linearGradient id="apex-mark-gradient" x1="7" y1="7" x2="49" y2="49" gradientUnits="userSpaceOnUse"><stop stop-color="#3B82F6"/><stop offset="1" stop-color="#14B8A6"/></linearGradient></defs>
+  <rect x="7" y="7" width="42" height="42" rx="12" fill="#0B1220"/>
+  <path d="M20.5 18.5v21M35.5 18.5v21M20.5 29h15" fill="none" stroke="#F8FAFC" stroke-width="3.2" stroke-linecap="round"/>
+  <path d="M16.5 39.5C20 24.2 30.5 17.1 42 21.5" fill="none" stroke="url(#apex-mark-gradient)" stroke-width="2.7" stroke-linecap="round"/>
+  <circle cx="17" cy="39" r="2.5" fill="#3B82F6"/><circle cx="28" cy="29" r="2.3" fill="#F8FAFC"/><circle cx="42" cy="21.5" r="2.5" fill="#14B8A6"/>
+  <path d="M41.1 21.4 47 20.2 43.6 25Z" fill="#14B8A6"/>
 </svg>

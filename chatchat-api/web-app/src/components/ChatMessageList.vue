@@ -280,14 +280,14 @@
 
     <article v-if="loading && !hasStreamingMessage" class="chat-message assistant thinking-message">
       <div class="message-avatar">RUN</div>
-      <div class="message-bubble loading-bubble" aria-label="LiveRuntime is starting a run">
+      <div class="message-bubble loading-bubble" aria-label="睿衡智策正在启动任务">
         <div class="thinking-brief" aria-hidden="true">
           <span></span>
           <span></span>
           <span></span>
         </div>
         <div class="thinking-copy">
-          <strong>LiveRuntime is preparing the run</strong>
+          <strong>睿衡智策正在准备任务</strong>
           <small>Planning, binding tools, and waiting for execution events</small>
           <div class="thinking-steps" aria-hidden="true">
             <span>Planner</span>

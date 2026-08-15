@@ -63,6 +63,12 @@ public class MetadataGovernancePolicy {
         private double confidenceBase;
         private double confidenceSlope;
         private double confidenceMaximum;
+        private double minimumQualityScore = 0.38D;
+        private double minimumSelectionMargin = 0.03D;
+        private double lexicalQualityWeight = 0.60D;
+        private double retrievalQualityWeight = 0.30D;
+        private double statusQualityWeight = 0.10D;
+        private int candidateExpansionFactor = 6;
     }
 
     @Data

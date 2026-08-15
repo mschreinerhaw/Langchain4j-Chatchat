@@ -112,12 +112,14 @@ public class EnterpriseMetadataMatchingService {
         response.put("providerExchange", mapOf(
             "providerType", evidenceProvider.getClass().getSimpleName(),
             "request", providerRequest.toMap(),
-            "response", providerResponse.toMap()
+            "responseSummary", providerResponseSummary(providerResponse)
         ));
         response.put("coverage", mapOf(
             "inputFieldCount", schema.fields().size(),
             "processedFieldCount", fieldMatches.size(),
             "allFieldsProcessed", fieldMatches.size() == schema.fields().size(),
+            "returnedMetadataCount", evidenceObjects.size(),
+            "cardinalityPreserved", evidenceObjects.size() <= schema.fields().size(),
             "requiredMetadataTypes", requiredTypes(),
             "perFieldTypeRetrieval", true
         ));
@@ -128,10 +130,11 @@ public class EnterpriseMetadataMatchingService {
         response.put("reviewContract", mapOf(
             "reviewRequired", true,
             "decisionScope", "PER_FIELD",
-            "candidateReturnPolicy", "ALL_RETRIEVED_CANDIDATES",
+            "candidateReturnPolicy", "ONE_OR_ZERO_PER_FIELD",
+            "candidateExpansion", "INTERNAL_ONLY",
             "reasoningCandidateSelection", mapOf(
                 "strategy", "HIGHEST_SCORE",
-                "maximumSelectedPerFieldAndMetadataType", 1,
+                "maximumSelectedPerField", 1,
                 "tieBreaker", "PROVIDER_ORDER"
             ),
             "allowedDecisions", List.of(
@@ -151,8 +154,8 @@ public class EnterpriseMetadataMatchingService {
         List<String> strategies
     ) {
         Map<String, List<Map<String, Object>>> candidatesByType = new LinkedHashMap<>();
-        Map<String, List<Map<String, Object>>> evidenceByType = new LinkedHashMap<>();
-        List<Map<String, Object>> allEvidence = new ArrayList<>();
+        Map<String, Integer> candidateCountsByType = new LinkedHashMap<>();
+        List<Map<String, Object>> rankedCandidates = new ArrayList<>();
 
         for (String type : requiredTypes()) {
             List<Map<String, Object>> candidates = providerResult.candidates().stream()
@@ -167,15 +170,22 @@ public class EnterpriseMetadataMatchingService {
                 ))
                 .sorted(candidateComparator())
                 .toList();
-            List<Map<String, Object>> scopedEvidence = candidates.stream()
-                .map(candidate -> objectMap(candidate.get("evidence")))
-                .filter(value -> !value.isEmpty())
-                .toList();
-            candidatesByType.put(type, candidates.stream()
-                .map(this::withoutEmbeddedEvidence).toList());
-            evidenceByType.put(type, scopedEvidence);
-            allEvidence.addAll(scopedEvidence);
+            candidateCountsByType.put(type, candidates.size());
+            rankedCandidates.addAll(candidates);
         }
+
+        rankedCandidates.sort(candidateComparator());
+        Map<String, Object> selected = rankedCandidates.isEmpty()
+            ? Map.of() : rankedCandidates.get(0);
+        for (String type : requiredTypes()) {
+            boolean selectedType = !selected.isEmpty()
+                && type.equals(selected.get("metadataType"));
+            candidatesByType.put(type, selectedType
+                ? List.of(withoutEmbeddedEvidence(selected)) : List.of());
+        }
+        Map<String, Object> selectedEvidence = objectMap(selected.get("evidence"));
+        List<Map<String, Object>> allEvidence = selectedEvidence.isEmpty()
+            ? List.of() : List.of(selectedEvidence);
 
         String fieldType = contract().getFieldType();
         List<Map<String, Object>> standardFields =
@@ -200,11 +210,40 @@ public class EnterpriseMetadataMatchingService {
             "standardFields", standardFields,
             "termRoots", candidatesByType.getOrDefault(contract().getTermType(), List.of()),
             "dictionaries", candidatesByType.getOrDefault(contract().getDictionaryType(), List.of()),
-            "evidenceByType", evidenceByType,
+            "selectedMatch", selected.isEmpty() ? null : withoutEmbeddedEvidence(selected),
+            "matched", !selected.isEmpty(),
+            "candidateAudit", mapOf(
+                "retrievedCountsByType", candidateCountsByType,
+                "candidateExpansion", "INTERNAL_ONLY",
+                "returnedMetadataCount", selected.isEmpty() ? 0 : 1
+            ),
             "analysis", analysis,
             "decisionRequired", true
         );
         return new FieldDiscovery(protocol, List.copyOf(allEvidence));
+    }
+
+    private Map<String, Object> providerResponseSummary(
+        MetadataEvidenceProviderProtocol.MatchResponse response
+    ) {
+        List<Map<String, Object>> fields = response.results().stream()
+            .map(result -> mapOf(
+                "fieldId", result.fieldId(),
+                "retrievedCandidateCount", result.candidates().size(),
+                "retrievedCountsByType", result.candidates().stream().collect(
+                    java.util.stream.Collectors.groupingBy(
+                        MetadataEvidenceProviderProtocol.CandidateEvidence::metadataType,
+                        LinkedHashMap::new,
+                        java.util.stream.Collectors.counting()
+                    ))
+            ))
+            .toList();
+        return mapOf(
+            "requestId", response.requestId(),
+            "fieldCount", fields.size(),
+            "fields", fields,
+            "candidatePayloadReturned", false
+        );
     }
 
     private Map<String, Object> candidate(

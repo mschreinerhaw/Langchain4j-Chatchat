@@ -327,7 +327,7 @@ export default {
           this.timeline = { run: null, events: [], steps: [], observations: [], trace: null };
         }
       } catch (error) {
-        this.error = error.message || "Failed to load LiveRuntime.";
+        this.error = error.message || "睿衡智策加载失败。";
       } finally {
         this.loading = false;
       }

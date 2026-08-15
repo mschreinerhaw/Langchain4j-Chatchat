@@ -423,9 +423,11 @@
   transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease;
 }
 
-.captcha-code strong {
-  font-size: 16px;
-  letter-spacing: 0;
+.captcha-code canvas {
+  display: block;
+  width: 108px;
+  height: 42px;
+  border-radius: 6px;
 }
 
 .captcha-code:hover {

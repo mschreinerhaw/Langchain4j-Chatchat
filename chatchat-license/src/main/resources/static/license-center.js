@@ -60,7 +60,7 @@ function updatePreview() {
   const edition = form.elements.edition.value || 'enterprise';
   const plan = planCatalog[edition] || planCatalog.enterprise;
   const moduleNames = modules.map(item => moduleLabels[item] || item);
-  preview.plan.textContent = `LiveMCP ${plan.label}`;
+  preview.plan.textContent = `RuiHeng Nexus ${plan.label}`;
   preview.product.textContent = `${edition.charAt(0).toUpperCase() + edition.slice(1)} Commercial License`;
   preview.licenseNo.textContent = form.elements.licenseNo.value || '-';
   preview.moduleCount.textContent = modules.length;
@@ -294,7 +294,7 @@ function auditRow(item) {
   const row = document.createElement('tr');
   row.append(
     auditCell(item.licenseNo, item.documentSha256 ? item.documentSha256.slice(0, 12) + '…' : '-'),
-    auditCell(editionText(item.edition), item.product || 'LiveMCP'),
+    auditCell(editionText(item.edition), item.product || 'RuiHeng Nexus'),
     auditCell(item.customerCode || '未设置', item.serverId || '-'),
     auditCell(`${item.maxUsers ?? '-'} 用户`, `${item.maxAgents ?? '-'} Agent`),
     auditCell(item.expireDate || '-', `签发 ${item.issuedDate || '-'}`),
@@ -413,7 +413,7 @@ form.addEventListener('submit', async event => {
     const url = URL.createObjectURL(new Blob([bytes], { type: result.contentType || 'application/zip' }));
     const link = document.createElement('a');
     link.href = url;
-    link.download = result.fileName || 'LiveMCP-license-package.zip';
+    link.download = result.fileName || 'RuiHeng-Nexus-license-package.zip';
     link.click();
     URL.revokeObjectURL(url);
     let auditUpdated = true;

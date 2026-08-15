@@ -1,11 +1,17 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="206" height="56" viewBox="0 0 206 56" role="img" aria-labelledby="logo-title logo-desc">
-  <title id="logo-title">LiveRuntime</title>
-  <desc id="logo-desc">LiveRuntime product logo, a runtime loop surrounding an R monogram</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="236" height="56" viewBox="0 0 236 56" role="img" aria-labelledby="logo-title logo-desc">
+  <title id="logo-title">睿衡智策 RuiHeng Insight</title>
+  <desc id="logo-desc">睿衡智策企业智能洞察与辅助决策平台标志。</desc>
+  <defs><linearGradient id="ruiheng-insight-gradient" x1="8" y1="8" x2="48" y2="48" gradientUnits="userSpaceOnUse"><stop stop-color="#3B82F6"/><stop offset="1" stop-color="#14B8A6"/></linearGradient></defs>
   <g transform="translate(1 7)">
-    <rect width="42" height="42" rx="13" fill="#0B1220"/>
-    <path d="M12 10.5h15.25c7.15 0 11.75 4.55 11.75 11.7v10.3" fill="none" stroke="#2DD4BF" stroke-width="3" stroke-linecap="round"/>
-    <circle cx="39" cy="36" r="2" fill="#2DD4BF"/>
-    <path d="M12.5 31.5V17h10.25c4.4 0 7.25 2.35 7.25 6s-2.85 6-7.25 6H12.5m10.25 0 7.5 6" fill="none" stroke="#F8FAFC" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect width="42" height="42" rx="12" fill="#0B1220"/>
+    <path d="M13.5 11.5v21M28.5 11.5v21M13.5 22h15" fill="none" stroke="#F8FAFC" stroke-width="3.2" stroke-linecap="round"/>
+    <path d="M9.5 32.5C13 17.2 23.5 10.1 35 14.5" fill="none" stroke="url(#ruiheng-insight-gradient)" stroke-width="2.7" stroke-linecap="round"/>
+    <circle cx="10" cy="32" r="2.5" fill="#3B82F6"/><circle cx="21" cy="22" r="2.3" fill="#F8FAFC"/><circle cx="35" cy="14.5" r="2.5" fill="#14B8A6"/>
+    <path d="M34.1 14.4 40 13.2 36.6 18Z" fill="#14B8A6"/>
   </g>
-  <text x="55" y="36.5" fill="#0B1220" font-family="Inter, 'Segoe UI', Arial, sans-serif" font-size="22.5" font-weight="750" letter-spacing="-0.65">Live<tspan fill="#334155">Runtime</tspan></text>
+  <text x="55" y="28" fill="#0B1220" font-family="'Microsoft YaHei', 'PingFang SC', sans-serif" font-size="22" font-weight="800" letter-spacing="1">睿衡</text>
+  <text x="56" y="42" fill="#64748B" font-family="Inter, 'Segoe UI', Arial, sans-serif" font-size="8.5" font-weight="750" letter-spacing="1.55">RUIHENG</text>
+  <path d="M127 15v27" stroke="#CBD5E1"/>
+  <text x="140" y="28" fill="#087F73" font-family="'Microsoft YaHei', 'PingFang SC', sans-serif" font-size="15" font-weight="800" letter-spacing="1.5">智策</text>
+  <text x="140" y="42" fill="#0F766E" font-family="Inter, 'Segoe UI', Arial, sans-serif" font-size="8.5" font-weight="800" letter-spacing="1.15">INSIGHT</text>
 </svg>

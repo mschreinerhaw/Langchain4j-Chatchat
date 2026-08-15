@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "serve": "vue-cli-service serve",
-    "build": "vue-cli-service build"
+    "build": "vue-cli-service build",
+    "postbuild": "node scripts/sync-admin-static.js"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",

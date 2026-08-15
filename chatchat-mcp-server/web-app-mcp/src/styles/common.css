@@ -190,6 +190,12 @@ textarea {
   overflow: auto;
 }
 
+.brand-mark.product-mark {
+  padding: 0;
+  background: transparent;
+  object-fit: contain;
+}
+
 .modal-panel-header {
   display: flex;
   align-items: center;

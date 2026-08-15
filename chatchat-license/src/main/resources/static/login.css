@@ -91,6 +91,12 @@ input {
   font-weight: 800;
 }
 
+.brand-mark.product-mark {
+  padding: 0;
+  background: transparent;
+  object-fit: contain;
+}
+
 .brand strong,
 .brand small {
   display: block;

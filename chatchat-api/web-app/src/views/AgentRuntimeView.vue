@@ -2,8 +2,8 @@
   <section :class="['feature-view agent-runtime-view', { 'agent-runtime-embedded': embedded }]">
     <header v-if="!embedded" class="agent-runtime-head">
       <div>
-        <p>LiveRuntime</p>
-        <h1>Run Control Plane</h1>
+        <p>睿衡智策 · RuiHeng Insight</p>
+        <h1>Intelligent Run Control</h1>
       </div>
       <div class="agent-runtime-actions">
         <button type="button" :disabled="loading" title="Refresh" @click="loadRuntime">

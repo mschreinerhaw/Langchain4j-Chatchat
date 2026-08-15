@@ -73,7 +73,7 @@ class EnterpriseMetadataMcpToolPublisherTest {
         EnterpriseMetadataMatchingService matchingService = mock(EnterpriseMetadataMatchingService.class);
         EnterpriseMetadataSearchService searchService = mock(EnterpriseMetadataSearchService.class);
         EnterpriseMetadataMcpToolPublisher publisher = publisher(matchingService, searchService);
-        when(searchService.searchRequiredBundle(any())).thenReturn(Map.of(
+        when(searchService.searchRequirements(any(), any())).thenReturn(Map.of(
             "schemaVersion", EnterpriseMetadataSearchService.REQUIRED_BUNDLE_SCHEMA_VERSION,
             "success", true,
             "count", 3,
@@ -102,7 +102,7 @@ class EnterpriseMetadataMcpToolPublisherTest {
             .contains("客户", "客户号", "客户名称", "手机", "状态");
         ArgumentCaptor<EnterpriseMetadataSearchService.SearchRequest> request =
             ArgumentCaptor.forClass(EnterpriseMetadataSearchService.SearchRequest.class);
-        verify(searchService).searchRequiredBundle(request.capture());
+        verify(searchService).searchRequirements(request.capture(), any());
         assertThat(request.getValue().query())
             .contains("客户", "客户信息", "customer", "客户号", "客户名称", "证件", "地址", "手机", "状态");
         verifyNoInteractions(matchingService);
@@ -113,7 +113,7 @@ class EnterpriseMetadataMcpToolPublisherTest {
         EnterpriseMetadataMatchingService matchingService = mock(EnterpriseMetadataMatchingService.class);
         EnterpriseMetadataSearchService searchService = mock(EnterpriseMetadataSearchService.class);
         EnterpriseMetadataMcpToolPublisher publisher = publisher(matchingService, searchService);
-        when(searchService.searchRequiredBundle(any())).thenReturn(Map.of(
+        when(searchService.searchRequirements(any(), any())).thenReturn(Map.of(
             "schemaVersion", EnterpriseMetadataSearchService.REQUIRED_BUNDLE_SCHEMA_VERSION,
             "success", true,
             "count", 0,
@@ -131,7 +131,7 @@ class EnterpriseMetadataMcpToolPublisherTest {
             .containsEntry("success", true)
             .containsEntry("operationMode", "ENTERPRISE_METADATA_DISCOVERY")
             .containsEntry("count", 0);
-        verify(searchService).searchRequiredBundle(any());
+        verify(searchService).searchRequirements(any(), any());
         verifyNoInteractions(matchingService);
     }
 
@@ -141,7 +141,7 @@ class EnterpriseMetadataMcpToolPublisherTest {
         EnterpriseMetadataMatchingService matchingService = mock(EnterpriseMetadataMatchingService.class);
         EnterpriseMetadataSearchService searchService = mock(EnterpriseMetadataSearchService.class);
         EnterpriseMetadataMcpToolPublisher publisher = publisher(matchingService, searchService);
-        when(searchService.searchRequiredBundle(any())).thenReturn(Map.of(
+        when(searchService.searchRequirements(any(), any())).thenReturn(Map.of(
             "schemaVersion", EnterpriseMetadataSearchService.REQUIRED_BUNDLE_SCHEMA_VERSION,
             "success", true,
             "count", 1,
@@ -159,7 +159,7 @@ class EnterpriseMetadataMcpToolPublisherTest {
             .containsEntry("operationMode", "ENTERPRISE_METADATA_DISCOVERY");
         assertThat((List<String>) result.get("inputTerms"))
             .containsExactly("var_scr_code_info", "变量评分代码信息", "评分代码");
-        verify(searchService).searchRequiredBundle(any());
+        verify(searchService).searchRequirements(any(), any());
         verifyNoInteractions(matchingService);
     }
 
@@ -171,7 +171,7 @@ class EnterpriseMetadataMcpToolPublisherTest {
         EnterpriseMetadataMcpToolPublisher publisher =
             publisher(matchingService, searchService, sqlSearchService);
         when(sqlSearchService.search(any())).thenReturn(Map.of());
-        when(searchService.searchRequiredBundle(any())).thenReturn(Map.of(
+        when(searchService.searchRequirements(any(), any())).thenReturn(Map.of(
             "schemaVersion", EnterpriseMetadataSearchService.REQUIRED_BUNDLE_SCHEMA_VERSION,
             "success", true,
             "count", 2,
@@ -191,7 +191,7 @@ class EnterpriseMetadataMcpToolPublisherTest {
             .containsEntry("operationMode", "ENTERPRISE_METADATA_DISCOVERY")
             .containsEntry("count", 2);
         verify(sqlSearchService).search(any());
-        verify(searchService).searchRequiredBundle(any());
+        verify(searchService).searchRequirements(any(), any());
         verifyNoInteractions(matchingService);
     }
 

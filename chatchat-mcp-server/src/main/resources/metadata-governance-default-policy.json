@@ -48,7 +48,13 @@
     "termExpansionLimit": 30,
     "confidenceBase": 0.55,
     "confidenceSlope": 0.15,
-    "confidenceMaximum": 0.99
+    "confidenceMaximum": 0.99,
+    "minimumQualityScore": 0.38,
+    "minimumSelectionMargin": 0.03,
+    "lexicalQualityWeight": 0.60,
+    "retrievalQualityWeight": 0.30,
+    "statusQualityWeight": 0.10,
+    "candidateExpansionFactor": 6
   },
   "comparison": {
     "minimumFieldScore": 0.55,

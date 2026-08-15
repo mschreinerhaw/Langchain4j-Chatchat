@@ -4,30 +4,29 @@
 
     <header class="login-topbar">
       <div class="login-brand-mini">
-        <div class="brand-mark">M</div>
-        <strong>LiveMCP</strong>
+        <img class="login-product-logo" src="/ruiheng-nexus-logo.svg" alt="睿衡智联 RuiHeng Nexus" />
       </div>
-      <span>Enterprise MCP Platform · v1.0.0</span>
+      <span>Enterprise AI Capability Platform · v1.0.0</span>
     </header>
 
     <section class="login-shell">
-      <section class="login-hero" aria-label="LiveMCP 平台能力">
-        <h1>企业级 <span>MCP 服务管理中心</span></h1>
+      <section class="login-hero" aria-label="睿衡智联平台能力">
+        <h1>企业级智能能力 <span>连接中心</span></h1>
         <p>
-          统一管理 MCP Server、工具注册、连接器、网关与 Agent Runtime，让企业内部系统能力安全、可控、可观测地接入 AI Agent。
+          统一管理数据、知识、工具与智能服务，让企业系统安全、可信地接入 AI Agent。
         </p>
 
         <div class="runtime-stage">
           <div class="runtime-stage-head">
-            <strong>360° Runtime 工作循环</strong>
-            <small>模型、工具、记忆、知识与网关形成完整闭环</small>
+            <strong>360° AI 能力协同体系</strong>
+            <small>数据、知识、业务能力、智能体与安全治理形成可信闭环</small>
           </div>
           <div class="runtime-tags">
-            <span>Planner</span>
-            <span>Memory</span>
-            <span>Tool</span>
-            <span>Knowledge</span>
-            <span>Gateway</span>
+            <span>任务规划</span>
+            <span>企业知识</span>
+            <span>业务能力</span>
+            <span>流程编排</span>
+            <span>安全接入</span>
           </div>
           <div class="runtime-orbit">
             <svg viewBox="0 0 620 410" preserveAspectRatio="none" aria-hidden="true" focusable="false">
@@ -35,22 +34,22 @@
               <path d="M408 328 C290 390 118 345 132 182" />
               <path d="M132 182 C138 66 252 38 310 62" />
             </svg>
-            <div class="orbit-center">LLM</div>
-            <div class="orbit-node node-memory">Memory</div>
-            <div class="orbit-node node-tool">Tool</div>
-            <div class="orbit-node node-gateway">Gateway</div>
-            <div class="orbit-node node-workflow">Workflow</div>
-            <div class="orbit-node node-planner">Planner</div>
+            <div class="orbit-center">智能体</div>
+            <div class="orbit-node node-memory">企业知识</div>
+            <div class="orbit-node node-tool">业务能力</div>
+            <div class="orbit-node node-gateway">安全接入</div>
+            <div class="orbit-node node-workflow">流程编排</div>
+            <div class="orbit-node node-planner">任务规划</div>
           </div>
         </div>
       </section>
 
       <aside class="login-card">
         <div class="login-card-head">
-          <div class="brand-mark large">M</div>
+            <img class="brand-mark product-mark large" src="/ruiheng-mark.svg" alt="" aria-hidden="true" />
           <div>
-            <h2>LiveMCP</h2>
-            <p>Enterprise MCP Platform</p>
+            <h2>睿衡智联</h2>
+            <p>RuiHeng Nexus · 企业智能能力统一入口</p>
           </div>
         </div>
 
@@ -79,7 +78,7 @@
       </aside>
     </section>
 
-    <footer class="login-copyright">Copyright 1996-2026 Apexsoft, All rights reserved.</footer>
+    <footer class="login-copyright">© 1996-2026 RuiHeng Technology. All Rights Reserved.</footer>
   </main>
 </template>
 

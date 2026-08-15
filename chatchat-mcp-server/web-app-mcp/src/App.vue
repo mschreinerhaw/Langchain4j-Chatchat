@@ -4,10 +4,10 @@
     <div v-else class="app-shell">
       <aside class="sidebar">
         <div class="sidebar-brand">
-          <div class="brand-mark">M</div>
+          <img class="brand-mark product-mark" src="/ruiheng-mark.svg" alt="" aria-hidden="true" />
           <div>
-            <div class="sidebar-title">LiveMCP</div>
-            <small>MCP 服务管理中心</small>
+            <div class="sidebar-title">睿衡智联</div>
+            <small>RuiHeng Nexus</small>
           </div>
         </div>
         <el-menu class="sidebar-menu" :default-active="activeView" @select="activeView = $event">

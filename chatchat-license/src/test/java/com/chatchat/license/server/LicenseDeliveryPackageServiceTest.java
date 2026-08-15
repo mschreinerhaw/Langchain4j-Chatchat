@@ -43,7 +43,7 @@ class LicenseDeliveryPackageServiceTest {
             .create(license, "LIC/DELIVERY-1");
         Map<String, byte[]> files = unzip(delivery.content());
 
-        assertEquals("LiveMCP-LIC-DELIVERY-1-license-package.zip", delivery.fileName());
+        assertEquals("RuiHeng-Nexus-LIC-DELIVERY-1-license-package.zip", delivery.fileName());
         assertEquals("application/zip", delivery.contentType());
         assertEquals(List.of("README.txt", "license-public.pem", "license.dat"), files.keySet().stream().sorted().toList());
         assertArrayEquals(license, files.get("license.dat"));

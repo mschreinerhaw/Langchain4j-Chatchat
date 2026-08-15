@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="236" height="56" viewBox="0 0 236 56" role="img" aria-labelledby="logo-title logo-desc">
+  <title id="logo-title">睿衡智联 RuiHeng Nexus</title><desc id="logo-desc">睿衡智联企业数据与智能能力协同平台标志。</desc>
+  <defs><linearGradient id="ruiheng-nexus-gradient" x1="8" y1="8" x2="48" y2="48" gradientUnits="userSpaceOnUse"><stop stop-color="#2563EB"/><stop offset="1" stop-color="#22D3C5"/></linearGradient></defs>
+  <g transform="translate(1 7)">
+    <rect width="42" height="42" rx="12" fill="#0B1220"/>
+    <path d="M13.5 11.5v21M28.5 11.5v21M13.5 22h15" fill="none" stroke="#F8FAFC" stroke-width="3.2" stroke-linecap="round"/>
+    <path d="M9.5 32.5C13 17.2 23.5 10.1 35 14.5" fill="none" stroke="url(#ruiheng-nexus-gradient)" stroke-width="2.7" stroke-linecap="round"/>
+    <circle cx="10" cy="32" r="2.5" fill="#2563EB"/><circle cx="21" cy="22" r="2.3" fill="#F8FAFC"/><circle cx="35" cy="14.5" r="2.5" fill="#22D3C5"/>
+    <path d="M34.1 14.4 40 13.2 36.6 18Z" fill="#22D3C5"/>
+  </g>
+  <text x="55" y="28" fill="#0B1220" font-family="'Microsoft YaHei', 'PingFang SC', sans-serif" font-size="22" font-weight="800" letter-spacing="1">睿衡</text>
+  <text x="56" y="42" fill="#64748B" font-family="Inter, 'Segoe UI', Arial, sans-serif" font-size="8.5" font-weight="750" letter-spacing="1.55">RUIHENG</text>
+  <path d="M127 15v27" stroke="#CBD5E1"/>
+  <text x="140" y="28" fill="#1557C0" font-family="'Microsoft YaHei', 'PingFang SC', sans-serif" font-size="15" font-weight="800" letter-spacing="1.5">智联</text>
+  <text x="140" y="42" fill="#1557C0" font-family="Inter, 'Segoe UI', Arial, sans-serif" font-size="8.5" font-weight="800" letter-spacing="1.25">NEXUS</text>
+</svg>

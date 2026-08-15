@@ -19,6 +19,7 @@ import java.util.Map;
 /** Dedicated read pool: slow financial analytics cannot consume control-plane/JPA connections. */
 @Configuration
 @EnableConfigurationProperties(FinancialQueryPoolProperties.class)
+@ConditionalOnProperty(prefix = "chatchat.mcp.market.query-pool", name = "enabled", havingValue = "true")
 public class FinancialQueryPoolConfiguration {
 
     @Bean(name = "financialWriteStorage", destroyMethod = "close")
@@ -40,9 +41,18 @@ public class FinancialQueryPoolConfiguration {
     }
 
     @Bean(name = "financialReadOperations", destroyMethod = "close")
-    @ConditionalOnProperty(prefix = "chatchat.mcp.market.query-pool", name = "enabled", havingValue = "true")
-    public IsolatedFinancialReadOperations financialReadOperations(DataSourceProperties primary,
-                                                                   FinancialQueryPoolProperties properties) {
+    @ConditionalOnProperty(prefix = "chatchat.mcp.market.query-pool", name = "storage",
+        havingValue = "LOCAL_H2")
+    public SnapshotFinancialReadOperations snapshotFinancialReadOperations(
+        FinancialWriteStorage writer, FinancialQueryPoolProperties properties) {
+        return new SnapshotFinancialReadOperations(writer, properties);
+    }
+
+    @Bean(name = "financialReadOperations", destroyMethod = "close")
+    @ConditionalOnProperty(prefix = "chatchat.mcp.market.query-pool", name = "storage",
+        havingValue = "PRIMARY", matchIfMissing = true)
+    public IsolatedFinancialReadOperations primaryFinancialReadOperations(DataSourceProperties primary,
+                                                                          FinancialQueryPoolProperties properties) {
         HikariConfig config = hikariConfig(primary, properties);
         int queryTimeoutSeconds = Math.max(1, Math.min(20, properties.getQueryTimeoutSeconds()));
         return new IsolatedFinancialReadOperations(config, queryTimeoutSeconds);

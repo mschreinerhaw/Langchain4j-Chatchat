@@ -14,6 +14,9 @@ public class FinancialQueryPoolProperties {
         + "DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_ON_EXIT=FALSE";
     private String localUsername = "sa";
     private String localPassword = "";
+    /** Root containing the two physical read replicas and the transient online backup. */
+    private String snapshotRoot = "./data/h2/financial-snapshots";
+    private String snapshotDatabaseName = "financial-market";
     /** A single writer serializes schema evolution and idempotent collector upserts. */
     private int writePoolSize = 1;
     private int maximumPoolSize = 4;
@@ -31,5 +34,14 @@ public class FinancialQueryPoolProperties {
 
     public boolean isLocalH2() {
         return "LOCAL_H2".equalsIgnoreCase(storage == null ? "" : storage.trim());
+    }
+
+    public String snapshotJdbcUrl(String slot) {
+        String normalized = "B".equalsIgnoreCase(slot) ? "b" : "a";
+        String root = snapshotRoot == null || snapshotRoot.isBlank()
+            ? "./data/h2/financial-snapshots" : snapshotRoot.trim();
+        return "jdbc:h2:file:" + root.replace('\\', '/') + "/read-" + normalized + "/"
+            + snapshotDatabaseName + ";MODE=MySQL;DATABASE_TO_LOWER=TRUE;"
+            + "CASE_INSENSITIVE_IDENTIFIERS=TRUE;ACCESS_MODE_DATA=r;DB_CLOSE_ON_EXIT=FALSE";
     }
 }

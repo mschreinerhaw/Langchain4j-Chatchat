@@ -52,6 +52,7 @@ public class FinancialDataStore {
     private static final Pattern SIX_DIGIT_CODE = Pattern.compile("(?<!\\d)([0-9]{6})(?!\\d)");
     private final JdbcTemplate jdbc;
     private final FinancialReadOperations financialReads;
+    private final FinancialSnapshotPublisher snapshotPublisher;
     private final DataSource dataSource;
     private final ObjectMapper mapper;
     private final MarketModuleProperties properties;
@@ -62,29 +63,40 @@ public class FinancialDataStore {
 
     public FinancialDataStore(JdbcTemplate jdbc, DataSource dataSource, ObjectMapper mapper,
                               MarketModuleProperties runtimeProperties) {
-        this(jdbc, dataSource, mapper, runtimeProperties, jdbc::queryForList);
+        this(jdbc, dataSource, mapper, runtimeProperties, jdbc::queryForList,
+            FinancialSnapshotPublisher.NO_OP);
     }
 
     @Autowired
     public FinancialDataStore(JdbcTemplate jdbc, DataSource dataSource, ObjectMapper mapper,
                               MarketModuleProperties runtimeProperties,
                               @Qualifier("financialWriteStorage") ObjectProvider<FinancialWriteStorage> writeStorageProvider,
-                              @Qualifier("financialReadOperations") ObjectProvider<FinancialReadOperations> readProvider) {
+                              @Qualifier("financialReadOperations") ObjectProvider<FinancialReadOperations> readProvider,
+                              ObjectProvider<FinancialSnapshotPublisher> snapshotPublisherProvider) {
         this(resolveStorage(jdbc, dataSource, writeStorageProvider), mapper,
-            runtimeProperties, readProvider);
+            runtimeProperties, readProvider, snapshotPublisherProvider);
     }
 
     private FinancialDataStore(StorageResources storage, ObjectMapper mapper,
                                MarketModuleProperties runtimeProperties,
-                               ObjectProvider<FinancialReadOperations> readProvider) {
+                               ObjectProvider<FinancialReadOperations> readProvider,
+                               ObjectProvider<FinancialSnapshotPublisher> snapshotPublisherProvider) {
         this(storage.jdbc(), storage.dataSource(), mapper, runtimeProperties,
-            readProvider.getIfAvailable(() -> storage.jdbc()::queryForList));
+            readProvider.getIfAvailable(() -> storage.jdbc()::queryForList),
+            snapshotPublisherProvider.getIfAvailable(() -> FinancialSnapshotPublisher.NO_OP));
     }
 
     FinancialDataStore(JdbcTemplate jdbc, DataSource dataSource, ObjectMapper mapper,
                        MarketModuleProperties runtimeProperties, FinancialReadOperations financialReads) {
+        this(jdbc, dataSource, mapper, runtimeProperties, financialReads, FinancialSnapshotPublisher.NO_OP);
+    }
+
+    FinancialDataStore(JdbcTemplate jdbc, DataSource dataSource, ObjectMapper mapper,
+                       MarketModuleProperties runtimeProperties, FinancialReadOperations financialReads,
+                       FinancialSnapshotPublisher snapshotPublisher) {
         this.jdbc = jdbc;
         this.financialReads = financialReads;
+        this.snapshotPublisher = snapshotPublisher;
         this.dataSource = dataSource;
         this.mapper = mapper;
         this.properties = runtimeProperties;
@@ -137,6 +149,7 @@ public class FinancialDataStore {
             + "constraint uk_security_master_code unique(exchange_code, security_code))");
         ensureIndex("security_master", "idx_security_master_code", "security_code");
         ensureIndex("security_master", "idx_security_master_name", "security_name");
+        publishSnapshot("schema initialization");
     }
 
     public synchronized StoredObservation store(MarketObservation item) {
@@ -186,6 +199,7 @@ public class FinancialDataStore {
                 stored.add(new StoredObservation(definition.code(), definition.tableName(), value.recordKey(),
                     value.observationDate(), collectedDate));
             }
+            publishSnapshot("financial ingestion");
             return List.copyOf(stored);
         } catch (Exception ex) {
             Throwable root = ex;
@@ -239,6 +253,7 @@ public class FinancialDataStore {
                 throw new IllegalStateException("Failed to refresh financial catalog definition: " + code, ex);
             }
         }
+        if (refreshed > 0) publishSnapshot("catalog vocabulary refresh");
         return refreshed;
     }
 
@@ -271,6 +286,7 @@ public class FinancialDataStore {
         if (batch.isEmpty()) return 0;
         jdbc.batchUpdate(sql, batch);
         jdbc.update("delete from security_master where exchange_code=? and source_refreshed_at<?", exchange, refreshedAt);
+        publishSnapshot("security master refresh");
         return batch.size();
     }
 
@@ -543,7 +559,17 @@ public class FinancialDataStore {
                 datasets.add(Map.of("dataset", code, "error", String.valueOf(ex.getMessage())));
             }
         }
+        if (archived > 0 || deleted > 0 || pruned > 0) publishSnapshot("retention maintenance");
         return new RetentionRunResult(today, archived, deleted, pruned, List.copyOf(datasets));
+    }
+
+    private void publishSnapshot(String reason) {
+        try {
+            snapshotPublisher.publish();
+        } catch (Exception ex) {
+            log.warn("Financial read snapshot publication failed reason={} fallback=previous_snapshot error={}",
+                reason, ex.getMessage(), ex);
+        }
     }
 
     public Map<String, Object> catalog(String code) {

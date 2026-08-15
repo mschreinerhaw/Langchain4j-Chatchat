@@ -33,8 +33,19 @@ class StandardToolExecutionResultFactoryTest {
         config.setToolName("api_template_execute");
         config.setTitle("Governed API");
         config.setMethod("GET");
+        config.setOutputSchemaJson("""
+            {
+              "type": "object",
+              "properties": {
+                "GDH": {"type": "string", "description": "股东号"},
+                "JYS": {"type": "string", "description": "交易所"}
+              },
+              "required": ["GDH"]
+            }
+            """);
         Map<String, Object> envelope = factory.fromApi(config, new ApiInvokeResult(
-            true, 200, Map.of(), List.of(Map.of("id", 1)), "[{\"id\":1}]", null, false));
+            true, 200, Map.of(), List.of(Map.of("GDH", "A000046604", "JYS", "SH")),
+            "[{\"GDH\":\"A000046604\",\"JYS\":\"SH\"}]", null, false));
 
         assertThat(envelope)
             .containsEntry("schemaVersion", StandardToolExecutionResultFactory.SCHEMA_VERSION)
@@ -46,6 +57,21 @@ class StandardToolExecutionResultFactoryTest {
             .containsEntry("gatewayTruncated", false)
             .containsEntry("upstreamCompleteness", "UNKNOWN")
             .containsEntry("topLevelRecordCount", 1);
+        assertThat((Map<String, Object>) data.get("outputSchema"))
+            .containsKey("properties");
+        List<Map<String, Object>> fieldMetadata = (List<Map<String, Object>>) data.get("fieldMetadata");
+        assertThat(fieldMetadata)
+            .anySatisfy(field -> assertThat(field)
+                .containsEntry("name", "GDH")
+                .containsEntry("technicalName", "GDH")
+                .containsEntry("label", "股东号")
+                .containsEntry("description", "股东号")
+                .containsEntry("required", true))
+            .anySatisfy(field -> assertThat(field)
+                .containsEntry("name", "JYS")
+                .containsEntry("label", "交易所")
+                .containsEntry("required", false));
+        assertThat(data.get("columnMetadata")).isEqualTo(fieldMetadata);
     }
 
     @Test

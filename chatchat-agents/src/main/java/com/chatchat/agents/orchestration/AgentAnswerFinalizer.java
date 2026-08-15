@@ -168,6 +168,11 @@ class AgentAnswerFinalizer {
         }
         Map<String, Object> visualizationSpec = toolResultVisualizationSpec(traces);
         if (!visualizationSpec.isEmpty()) {
+            String labeledAnswer = applyConfiguredColumnLabels(finalAnswer, visualizationSpec);
+            if (!labeledAnswer.equals(finalAnswer)) {
+                finalAnswer = labeledAnswer;
+                values.put("configuredColumnLabelsApplied", true);
+            }
             values.putIfAbsent("visualizationSpec", visualizationSpec);
             values.putIfAbsent("dataVisualization", visualizationSpec);
             values.put("toolResultDataDisplayed", true);
@@ -953,10 +958,13 @@ class AgentAnswerFinalizer {
             if (columns.isEmpty()) {
                 continue;
             }
+            List<Map<String, Object>> columnDefinitions = columnDefinitions(columns, data);
             int rowCount = firstInt(data.get("rowCount"), data.get("total"), data.get("count"), rows.size());
             String title = firstNonBlank(stringValue(data.get("title")), "查询结果明细");
-            Map<String, Object> tableSpec = tableVisualizationSpec(title, columns, rows, rowCount, trace);
-            Map<String, Object> chartSpec = chartVisualizationSpec(title, columns, rows);
+            Map<String, Object> tableSpec = tableVisualizationSpec(
+                title, columns, columnDefinitions, rows, rowCount, trace);
+            Map<String, Object> chartSpec = chartVisualizationSpec(
+                title, columns, columnDefinitions, rows);
             return chartSpec.isEmpty() ? tableSpec : panelVisualizationSpec(title, chartSpec, tableSpec, trace);
         }
         return Map.of();
@@ -976,11 +984,13 @@ class AgentAnswerFinalizer {
 
     private Map<String, Object> tableVisualizationSpec(String title,
                                                        List<String> columns,
+                                                       List<Map<String, Object>> columnDefinitions,
                                                        List<Map<String, Object>> rows,
                                                        int rowCount,
                                                        InteractionToolTrace trace) {
         Map<String, Object> dataset = new LinkedHashMap<>();
         dataset.put("columns", columns);
+        dataset.put("columnDefinitions", columnDefinitions);
         dataset.put("rows", rows);
         dataset.put("rowCount", rowCount);
         dataset.put("displayedRowCount", rows.size());
@@ -1020,6 +1030,7 @@ class AgentAnswerFinalizer {
 
     private Map<String, Object> chartVisualizationSpec(String title,
                                                        List<String> columns,
+                                                       List<Map<String, Object>> columnDefinitions,
                                                        List<Map<String, Object>> rows) {
         if (rows == null || rows.size() < 2 || columns == null || columns.isEmpty()) {
             return Map.of();
@@ -1036,12 +1047,14 @@ class AgentAnswerFinalizer {
             .toList();
         if (!numericColumns.isEmpty()) {
             String xKey = firstNonBlank(timeKey, firstNonBlank(firstCategoricalColumn(columns, rows), columns.get(0)));
+            Map<String, String> labels = columnLabelMap(columnDefinitions);
             return chartVisualizationSpec(
                 title,
                 timeKey == null ? "bar" : "line",
                 timeKey == null ? "comparison" : "trend",
                 xKey,
-                numericColumns.stream().map(column -> Map.of("name", column, "yKey", column)).toList(),
+                numericColumns.stream().map(column -> Map.of(
+                    "name", labels.getOrDefault(column, column), "yKey", column)).toList(),
                 rows
             );
         }
@@ -1324,11 +1337,18 @@ class AgentAnswerFinalizer {
         if (!batch.isEmpty()) {
             return batch;
         }
-        for (String key : List.of("result", "data", "dataset", "payload", "structuredContent")) {
+        for (String key : List.of("result", "data", "dataset", "payload", "body", "structuredContent")) {
             Object value = output.get(key);
             if (value instanceof Map<?, ?> map) {
                 Map<String, Object> nested = firstTabularData(copyMap(map));
                 if (!nested.isEmpty()) {
+                    inheritFieldPresentationMetadata(output, nested);
+                    return nested;
+                }
+            } else if (value instanceof List<?> list && !list.isEmpty()) {
+                Map<String, Object> nested = tabularData(Map.of("records", list));
+                if (!nested.isEmpty()) {
+                    inheritFieldPresentationMetadata(output, nested);
                     return nested;
                 }
             }
@@ -1403,7 +1423,113 @@ class AgentAnswerFinalizer {
         data.put("columns", firstPresent(value.get("columns"), value.get("fields")));
         data.put("rowCount", firstPresent(value.get("rowCount"), firstPresent(value.get("total"), value.get("count"))));
         data.put("title", firstPresent(value.get("title"), firstPresent(value.get("name"), value.get("templateId"))));
+        copyFieldPresentationMetadata(value, data);
         return data;
+    }
+
+    private void inheritFieldPresentationMetadata(Map<String, Object> source,
+                                                  Map<String, Object> target) {
+        if (source == null || target == null) {
+            return;
+        }
+        for (String key : List.of("columnMetadata", "fieldMetadata", "outputSchema")) {
+            if (!target.containsKey(key) && source.get(key) != null) {
+                target.put(key, source.get(key));
+            }
+        }
+    }
+
+    private void copyFieldPresentationMetadata(Map<String, Object> source,
+                                               Map<String, Object> target) {
+        inheritFieldPresentationMetadata(source, target);
+    }
+
+    private List<Map<String, Object>> columnDefinitions(List<String> columns,
+                                                        Map<String, Object> data) {
+        Map<String, Map<String, Object>> metadataByName = new LinkedHashMap<>();
+        for (String key : List.of("columnMetadata", "fieldMetadata")) {
+            Object rawMetadata = data == null ? null : data.get(key);
+            if (!(rawMetadata instanceof List<?> values)) {
+                continue;
+            }
+            for (Object value : values) {
+                if (!(value instanceof Map<?, ?> map)) {
+                    continue;
+                }
+                Map<String, Object> metadata = copyMap(map);
+                String name = firstNonBlank(
+                    stringValue(metadata.get("name")),
+                    firstNonBlank(stringValue(metadata.get("technicalName")),
+                        stringValue(metadata.get("fieldName")))
+                );
+                if (name != null && !name.isBlank()) {
+                    metadataByName.putIfAbsent(normalizeFieldName(name), metadata);
+                }
+            }
+        }
+        Map<String, Object> outputSchema = data != null && data.get("outputSchema") instanceof Map<?, ?> map
+            ? copyMap(map) : Map.of();
+        if (outputSchema.get("properties") instanceof Map<?, ?> properties) {
+            properties.forEach((rawName, rawDefinition) -> {
+                if (rawName == null) {
+                    return;
+                }
+                Map<String, Object> definition = rawDefinition instanceof Map<?, ?> map
+                    ? copyMap(map) : new LinkedHashMap<>();
+                definition.putIfAbsent("name", String.valueOf(rawName));
+                metadataByName.putIfAbsent(normalizeFieldName(String.valueOf(rawName)), definition);
+            });
+        }
+        List<Map<String, Object>> definitions = new ArrayList<>();
+        for (String column : columns) {
+            Map<String, Object> metadata = metadataByName.getOrDefault(
+                normalizeFieldName(column), Map.of());
+            String businessLabel = firstNonBlank(
+                stringValue(metadata.get("description")),
+                firstNonBlank(stringValue(metadata.get("comment")),
+                    firstNonBlank(stringValue(metadata.get("title")),
+                        firstNonBlank(stringValue(metadata.get("displayName")),
+                            stringValue(metadata.get("label")))))
+            );
+            String displayLabel = businessLabel == null || businessLabel.isBlank()
+                || normalizeFieldName(businessLabel).equals(normalizeFieldName(column))
+                ? column : businessLabel.trim() + "（" + column + "）";
+            Map<String, Object> definition = new LinkedHashMap<>();
+            definition.put("key", column);
+            definition.put("label", displayLabel);
+            definition.put("businessLabel", firstNonBlank(businessLabel, column));
+            copyIfPresent(metadata, definition, "description", "comment", "type", "unit", "required");
+            definitions.add(Map.copyOf(definition));
+        }
+        return List.copyOf(definitions);
+    }
+
+    private Map<String, String> columnLabelMap(List<Map<String, Object>> columnDefinitions) {
+        Map<String, String> labels = new LinkedHashMap<>();
+        if (columnDefinitions != null) {
+            for (Map<String, Object> definition : columnDefinitions) {
+                String key = stringValue(definition.get("key"));
+                String label = stringValue(definition.get("label"));
+                if (key != null && !key.isBlank()) {
+                    labels.put(key, firstNonBlank(label, key));
+                }
+            }
+        }
+        return Map.copyOf(labels);
+    }
+
+    private String normalizeFieldName(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private void copyIfPresent(Map<String, Object> source,
+                               Map<String, Object> target,
+                               String... keys) {
+        for (String key : keys) {
+            if (source.containsKey(key) && source.get(key) != null) {
+                target.put(key, source.get(key));
+            }
+        }
     }
 
     private List<Map<String, Object>> rowMaps(Object rowsValue, Object columnsValue) {
@@ -1482,8 +1608,9 @@ class AgentAnswerFinalizer {
         table.append("已找到 ").append(rowCount).append(" 行数据，下面展示前 ")
             .append(displayCount).append(" 行；完整结构化数据已随结果返回用于表格展示。\n\n");
         table.append("| ");
+        Map<String, String> labels = visualizationColumnLabels(dataset);
         for (String column : columns) {
-            table.append(escapeTableCell(column)).append(" | ");
+            table.append(escapeTableCell(labels.getOrDefault(column, column))).append(" | ");
         }
         table.append("\n| ");
         for (int i = 0; i < columns.size(); i++) {
@@ -1508,6 +1635,87 @@ class AgentAnswerFinalizer {
         }
         appendLongTextCells(table, longTextCells);
         return base.isBlank() ? table.toString().trim() : base + "\n\n" + table.toString().trim();
+    }
+
+    private String applyConfiguredColumnLabels(String answer,
+                                               Map<String, Object> visualizationSpec) {
+        if (answer == null || answer.isBlank() || visualizationSpec == null) {
+            return answer == null ? "" : answer;
+        }
+        Map<String, Object> dataset = visualizationSpec.get("dataset") instanceof Map<?, ?> map
+            ? copyMap(map) : Map.of();
+        Map<String, String> labels = visualizationColumnLabels(dataset);
+        if (labels.entrySet().stream().noneMatch(entry -> !entry.getKey().equals(entry.getValue()))) {
+            return answer;
+        }
+        String[] lines = answer.split("\\R", -1);
+        boolean changed = false;
+        for (int index = 0; index + 1 < lines.length; index++) {
+            if (!isMarkdownTableRow(lines[index]) || !isMarkdownTableSeparator(lines[index + 1])) {
+                continue;
+            }
+            String rewritten = rewriteMarkdownHeader(lines[index], labels);
+            if (!rewritten.equals(lines[index])) {
+                lines[index] = rewritten;
+                changed = true;
+            }
+        }
+        return changed ? String.join("\n", lines) : answer;
+    }
+
+    private Map<String, String> visualizationColumnLabels(Map<String, Object> dataset) {
+        if (dataset == null || !(dataset.get("columnDefinitions") instanceof List<?> definitions)) {
+            return Map.of();
+        }
+        Map<String, String> labels = new LinkedHashMap<>();
+        for (Object value : definitions) {
+            if (!(value instanceof Map<?, ?> rawDefinition)) {
+                continue;
+            }
+            Map<String, Object> definition = copyMap(rawDefinition);
+            String key = stringValue(definition.get("key"));
+            if (key != null && !key.isBlank()) {
+                labels.put(key, firstNonBlank(stringValue(definition.get("label")), key));
+            }
+        }
+        return Map.copyOf(labels);
+    }
+
+    private boolean isMarkdownTableRow(String line) {
+        return line != null && line.trim().startsWith("|") && line.trim().endsWith("|");
+    }
+
+    private boolean isMarkdownTableSeparator(String line) {
+        if (!isMarkdownTableRow(line)) {
+            return false;
+        }
+        String value = line.trim().substring(1, line.trim().length() - 1);
+        return !value.isBlank() && java.util.Arrays.stream(value.split("\\|", -1))
+            .map(String::trim)
+            .allMatch(cell -> cell.matches(":?-{3,}:?"));
+    }
+
+    private String rewriteMarkdownHeader(String line, Map<String, String> labels) {
+        String trimmed = line.trim();
+        String body = trimmed.substring(1, trimmed.length() - 1);
+        String[] cells = body.split("\\|", -1);
+        boolean changed = false;
+        for (int index = 0; index < cells.length; index++) {
+            String key = cells[index].trim().replace("`", "");
+            String label = labels.get(key);
+            if (label == null) {
+                label = labels.entrySet().stream()
+                    .filter(entry -> entry.getKey().equalsIgnoreCase(key))
+                    .map(Map.Entry::getValue)
+                    .findFirst()
+                    .orElse(null);
+            }
+            if (label != null && !label.equals(key)) {
+                cells[index] = " " + label + " ";
+                changed = true;
+            }
+        }
+        return changed ? "|" + String.join("|", cells) + "|" : line;
     }
 
     private boolean isLongTextCell(Object value) {

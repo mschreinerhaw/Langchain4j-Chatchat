@@ -319,6 +319,60 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void apiOutputSchemaDescriptionsBecomeBusinessReadableColumnLabels() {
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            (chatModel, query, systemPrompt, observations, answer) ->
+                new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok"),
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        InteractionToolTrace trace = InteractionToolTrace.builder()
+            .toolName("api_template_execute")
+            .success(true)
+            .output("""
+                {
+                  "kind": "api_request",
+                  "data": {
+                    "body": [
+                      {"GDH":"A000046604","JYS":"SH","ZQDM":"600693","UNCONFIGURED":"raw"}
+                    ],
+                    "fieldMetadata": [
+                      {"name":"GDH","description":"股东号","type":"string"},
+                      {"name":"jys","description":"交易所","type":"string"},
+                      {"name":"ZQDM","description":"证券代码","type":"string"}
+                    ]
+                  }
+                }
+                """)
+            .build();
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishExecution(
+            """
+                ## 查询结果
+
+                | GDH | JYS | ZQDM | UNCONFIGURED |
+                | --- | --- | --- | --- |
+                | A000046604 | SH | 600693 | raw |
+                """,
+            List.of(trace),
+            new LinkedHashMap<>(Map.of("responseContract", Map.of("version", "response-contract-v2"))),
+            List.of("API returned one configured row.")
+        );
+
+        assertThat(result.answer())
+            .contains("| 股东号（GDH） | 交易所（JYS） | 证券代码（ZQDM） | UNCONFIGURED |")
+            .doesNotContain("| GDH | JYS | ZQDM | UNCONFIGURED |");
+        assertThat(result.metadata()).containsEntry("configuredColumnLabelsApplied", true);
+        Map<String, Object> visualization = (Map<String, Object>) result.metadata().get("visualizationSpec");
+        Map<String, Object> dataset = (Map<String, Object>) visualization.get("dataset");
+        List<Map<String, Object>> definitions =
+            (List<Map<String, Object>>) dataset.get("columnDefinitions");
+        assertThat(definitions)
+            .extracting(definition -> definition.get("label"))
+            .containsExactly("股东号（GDH）", "交易所（JYS）", "证券代码（ZQDM）", "UNCONFIGURED");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void appendsRowsFromEverySuccessfulDiagnosticBatchChild() {
         AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
             (chatModel, query, systemPrompt, observations, answer) ->

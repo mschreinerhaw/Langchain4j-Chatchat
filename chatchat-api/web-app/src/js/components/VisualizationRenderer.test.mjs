@@ -30,3 +30,25 @@ test("tooltip prefers the original row value over the plotted numeric projection
   assert.match(html, /2689\.00/);
   assert.doesNotMatch(html, /2\.7K/i);
 });
+
+test("configured API field descriptions label tables charts and exports without hiding raw keys", () => {
+  const context = {
+    columnDefinitions: [
+      { key: "GDH", label: "股东号（GDH）", description: "股东号" },
+      { key: "JYS", label: "交易所（JYS）", description: "交易所" }
+    ]
+  };
+
+  assert.equal(
+    VisualizationRenderer.methods.displayColumnLabel.call(context, "gdh"),
+    "股东号（GDH）"
+  );
+  assert.equal(
+    VisualizationRenderer.methods.columnDescription.call(context, "JYS"),
+    "交易所"
+  );
+  assert.equal(
+    VisualizationRenderer.methods.displayColumnLabel.call(context, "UNCONFIGURED"),
+    "UNCONFIGURED"
+  );
+});

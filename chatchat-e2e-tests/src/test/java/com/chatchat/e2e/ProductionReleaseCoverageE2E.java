@@ -211,6 +211,43 @@ class ProductionReleaseCoverageE2E {
             .contains("finalSynthesisRemovesExternalDocumentReferencesAbsentFromCurrentTurnEvidence");
     }
 
+    @Test
+    void apiBusinessFieldLabelsRemainConnectedFromConfigurationToRenderedReport() throws IOException {
+        Path root = repositoryRoot();
+        String resultFactory = Files.readString(root.resolve(
+            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/tool/StandardToolExecutionResultFactory.java"));
+        String finalizer = Files.readString(root.resolve(
+            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentAnswerFinalizer.java"));
+        String renderer = Files.readString(root.resolve(
+            "chatchat-api/web-app/src/js/components/VisualizationRenderer.js"));
+        String rendererTemplate = Files.readString(root.resolve(
+            "chatchat-api/web-app/src/components/VisualizationRenderer.vue"));
+        String protocolTest = Files.readString(root.resolve(
+            "chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/tool/StandardToolExecutionResultFactoryTest.java"));
+        String presentationTest = Files.readString(root.resolve(
+            "chatchat-agents/src/test/java/com/chatchat/agents/orchestration/AgentAnswerFinalizerEvidenceAnswerTest.java"));
+
+        assertThat(resultFactory)
+            .contains("apiOutputSchema(config)", "apiFieldMetadata(outputSchema)",
+                "\"fieldMetadata\", fieldMetadata",
+                "\"columnMetadata\", fieldMetadata");
+        assertThat(finalizer)
+            .contains("columnDefinitions(columns, data)", "applyConfiguredColumnLabels",
+                "configuredColumnLabelsApplied")
+            .doesNotContain("GDH", "JYS", "ZQDM", "股东号", "交易所", "证券代码");
+        assertThat(renderer)
+            .contains("displayColumnLabel(column)", "columnDescription(column)",
+                "csvCell(this.displayColumnLabel(column))");
+        assertThat(rendererTemplate)
+            .contains(":title=\"columnDescription(column)\"", "{{ displayColumnLabel(column) }}");
+        assertThat(protocolTest)
+            .contains("apiExecutionUsesStandardEnvelopeAndKeepsUpstreamCompletenessUnknown",
+                "fieldMetadata", "股东号");
+        assertThat(presentationTest)
+            .contains("apiOutputSchemaDescriptionsBecomeBusinessReadableColumnLabels",
+                "UNCONFIGURED");
+    }
+
     private Path repositoryRoot() {
         String configured = System.getProperty("chatchat.e2e.repository-root");
         Path root = configured == null || configured.isBlank()

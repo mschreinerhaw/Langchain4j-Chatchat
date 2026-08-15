@@ -13,6 +13,8 @@ import com.chatchat.mcpserver.sql.SqlQueryResult;
 import com.chatchat.mcpserver.sql.SqlScriptResult;
 import com.chatchat.mcpserver.sql.SqlScriptStatementResult;
 import com.chatchat.tools.builtin.DatabaseToolProperties;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -36,6 +38,7 @@ public class StandardToolExecutionResultFactory {
     static final int LINUX_STEP_STREAM_TOTAL_BUDGET = 100_000;
     static final int MODEL_SAFE_TEXT_LIMIT = 4_000;
     public static final int MODEL_SAFE_COLLECTION_LIMIT = 200;
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     private final DatabaseToolProperties databaseToolProperties;
 
@@ -427,6 +430,8 @@ public class StandardToolExecutionResultFactory {
      * from source-level pagination or completeness, which the gateway cannot infer.
      */
     public Map<String, Object> fromApi(ApiServiceConfig config, ApiInvokeResult result) {
+        Map<String, Object> outputSchema = apiOutputSchema(config);
+        List<Map<String, Object>> fieldMetadata = apiFieldMetadata(outputSchema);
         Map<String, Object> payload = base(
             "api_request", "api_response.v1",
             result.body() instanceof Map<?, ?> || result.body() instanceof List<?> ? "structured" : "semi_raw",
@@ -459,9 +464,54 @@ public class StandardToolExecutionResultFactory {
             "body", result.body(),
             "rawBody", result.rawBody(),
             "cacheHit", result.cacheHit(),
+            "outputSchema", outputSchema,
+            "fieldMetadata", fieldMetadata,
+            "columnMetadata", fieldMetadata,
             "bodyCompleteness", httpBodyCompleteness(result.body(), result.rawBody())
         ));
         return payload;
+    }
+
+    private Map<String, Object> apiOutputSchema(ApiServiceConfig config) {
+        if (config == null || config.getOutputSchemaJson() == null
+            || config.getOutputSchemaJson().isBlank()) {
+            return Map.of();
+        }
+        try {
+            return JSON.readValue(config.getOutputSchemaJson(), new TypeReference<>() { });
+        } catch (Exception ignored) {
+            return Map.of();
+        }
+    }
+
+    private List<Map<String, Object>> apiFieldMetadata(Map<String, Object> outputSchema) {
+        if (outputSchema == null || !(outputSchema.get("properties") instanceof Map<?, ?> properties)) {
+            return List.of();
+        }
+        Set<String> required = outputSchema.get("required") instanceof List<?> values
+            ? values.stream().map(String::valueOf).collect(Collectors.toSet())
+            : Set.of();
+        return properties.entrySet().stream()
+            .filter(entry -> entry.getKey() != null)
+            .map(entry -> {
+                String name = String.valueOf(entry.getKey());
+                Map<?, ?> definition = entry.getValue() instanceof Map<?, ?> map ? map : Map.of();
+                String description = firstText(
+                    stringValue(definition.get("description")),
+                    stringValue(definition.get("title")),
+                    stringValue(definition.get("label"))
+                );
+                return mapOf(
+                    "name", name,
+                    "technicalName", name,
+                    "label", firstText(description, name),
+                    "description", description,
+                    "type", definition.get("type"),
+                    "required", required.contains(name),
+                    "source", "api_output_schema"
+                );
+            })
+            .toList();
     }
 
     /** Creates an operation receipt; notification response text is not business evidence. */

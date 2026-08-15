@@ -76,7 +76,14 @@ class FinancialAnalysisQuerySampleSeederTest {
         existing.setDatasourceId(FinancialAnalysisQuerySamples.INTERNAL_DATASOURCE_ID);
         existing.setOwner("system");
         existing.setEnabled(true);
-        existing.setSqlTemplate("SELECT * FROM market_quote_daily ORDER BY collected_at DESC");
+        existing.setSqlTemplate("""
+            SELECT observation_date, quote_code
+            FROM market_quote_daily
+            QUALIFY ROW_NUMBER() OVER (
+                PARTITION BY observation_date, source_code, source_url
+                ORDER BY collected_at DESC, id DESC
+            ) = 1
+            """);
         when(repository.findById(anyString())).thenReturn(Optional.empty());
         when(repository.findById("builtin-market-latest-movers")).thenReturn(Optional.of(existing));
         when(repository.save(any(DatabaseQueryConfig.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -88,8 +95,10 @@ class FinancialAnalysisQuerySampleSeederTest {
         ArgumentCaptor<DatabaseQueryConfig> captor = ArgumentCaptor.forClass(DatabaseQueryConfig.class);
         verify(repository).save(captor.capture());
         assertThat(captor.getValue().isEnabled()).isTrue();
-        assertThat(captor.getValue().getSqlTemplate()).contains("QUALIFY ROW_NUMBER()", "market_quote_daily");
-        assertThat(captor.getValue().getSqlStepsJson()).contains("QUALIFY ROW_NUMBER()");
+        assertThat(captor.getValue().getSqlTemplate())
+            .contains("ROW_NUMBER() OVER", "observation_rank", "market_quote_daily")
+            .doesNotContain("QUALIFY ");
+        assertThat(captor.getValue().getSqlStepsJson()).contains("observation_rank");
         verify(jdbc, times(0)).update(anyString(), any(), any());
     }
 

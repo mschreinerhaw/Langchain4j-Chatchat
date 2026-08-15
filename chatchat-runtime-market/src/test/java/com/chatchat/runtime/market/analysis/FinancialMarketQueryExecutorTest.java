@@ -159,7 +159,8 @@ class FinancialMarketQueryExecutorTest {
             assertThat(sample.intent()).isNotBlank();
             assertThat(sample.resultSemantics()).isNotBlank();
             assertThat(sample.sql())
-                .contains("QUALIFY ROW_NUMBER()")
+                .contains("ROW_NUMBER() OVER", "observation_rank")
+                .doesNotContain("QUALIFY ")
                 .doesNotContain("IFNULL(", "DATE_FORMAT(", "STR_TO_DATE(", "LIMIT ");
         });
     }
@@ -175,7 +176,34 @@ class FinancialMarketQueryExecutorTest {
                 executor.execute(sample.sql(), parameters, sample.maxRows(), 10);
 
             assertThat(result.rows()).as(sample.toolName()).isEmpty();
+            assertThat(result.dataAvailable()).as(sample.toolName()).isTrue();
+            assertThat(result.availabilityStatus()).as(sample.toolName()).isEqualTo("AVAILABLE");
         });
+    }
+
+    @Test
+    void everyBuiltInAnalysisTemplateReportsUncollectedDatasetInsteadOfBadSqlGrammar() {
+        FinancialAnalysisQuerySamples.all().forEach(sample -> {
+            Map<String, Object> parameters = sample.inputSchema().toString().contains("security_code")
+                ? Map.of("security_code", "000001") : Map.of();
+
+            FinancialMarketQueryExecutor.QueryResult result =
+                executor.execute(sample.sql(), parameters, sample.maxRows(), 10);
+
+            assertThat(result.rows()).as(sample.toolName()).isEmpty();
+            assertThat(result.columns()).as(sample.toolName()).isNotEmpty();
+            assertThat(result.dataAvailable()).as(sample.toolName()).isFalse();
+            assertThat(result.availabilityStatus()).as(sample.toolName())
+                .isEqualTo("DATASET_NOT_COLLECTED_OR_SCHEMA_INCOMPLETE");
+            assertThat(result.availabilityMessage()).as(sample.toolName()).contains("H2 read store");
+        });
+    }
+
+    @Test
+    void syntaxErrorsAreNotMisreportedAsMissingFinancialData() {
+        assertThatThrownBy(() -> executor.execute(
+            "select dataset_code,, asset_name from market_asset_catalog", Map.of(), 20, 10))
+            .isInstanceOf(RuntimeException.class);
     }
 
     private void createNativeH2FinancialTables() {

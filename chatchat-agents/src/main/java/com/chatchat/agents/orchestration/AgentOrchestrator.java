@@ -3006,7 +3006,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
         }
         return new RecordCoverageBundle(
             promptEvidence.toString(), appendix.toString(), List.copyOf(recordValueGroups),
-            returnedRecordCount, processedRecordCount, iterations, iterative, coverageComplete);
+            returnedRecordCount, processedRecordCount, iterations, iterative, coverageComplete,
+            sourceContentComplete);
     }
 
     private List<BatchRecordSet> executionRecordSets(InterpretationPlanRuntime.ExecutionResult result) {
@@ -3045,7 +3046,41 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (!records.isEmpty()) {
             return List.of(new BatchRecordSet(reference, records));
         }
-        return linuxStreamRecordSets(output, reference);
+        List<BatchRecordSet> linuxSets = linuxStreamRecordSets(output, reference);
+        if (!linuxSets.isEmpty()) {
+            return linuxSets;
+        }
+        return externalizedPreviewRecordSets(output, reference);
+    }
+
+    /**
+     * Keeps a non-empty bounded preview as partial evidence when the Runtime-owned
+     * full payload cannot be resolved. This is protocol-driven: it applies to every
+     * externalized tool result and does not depend on command, template, or domain.
+     */
+    private List<BatchRecordSet> externalizedPreviewRecordSets(Object output, String reference) {
+        Map<String, Object> root = objectMap(output);
+        if (!Boolean.TRUE.equals(booleanValue(root.get("outputTruncated")))) {
+            return List.of();
+        }
+        Object preview = root.get("preview");
+        if (preview == null || String.valueOf(preview).isBlank()) {
+            return List.of();
+        }
+        Map<String, Object> structuredPreview = objectMap(preview);
+        if (!structuredPreview.isEmpty() && structuredPreview != root) {
+            List<BatchRecordSet> nested = outputRecordSets(
+                structuredPreview, reference + "#externalized-preview");
+            if (!nested.isEmpty()) {
+                return nested;
+            }
+        }
+        Map<String, Object> record = new LinkedHashMap<>();
+        record.put("stream", "externalized-preview");
+        record.put("sourceComplete", false);
+        record.put("content", String.valueOf(preview));
+        return List.of(new BatchRecordSet(
+            reference + "#externalized-preview", List.of(Map.copyOf(record))));
     }
 
     private List<BatchRecordSet> sqlRecordSets(Object output, String reference) {
@@ -3245,7 +3280,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         }
         boolean everyRecordReferenced = coverage.recordValueGroups().stream()
             .allMatch(values -> containsAnyConcreteValue(answer, values));
-        if (everyRecordReferenced && !coverage.iterative()) {
+        if (everyRecordReferenced && !coverage.iterative() && coverage.sourceContentComplete()) {
             return answer;
         }
         if (metadata != null) {
@@ -3257,7 +3292,11 @@ public class AgentOrchestrator implements AgentRunExecutor {
             + coverage.appendix()
             + "\n\u8986\u76d6\u6821\u9a8c\uff1a"
             + coverage.processedRecordCount() + "/" + coverage.returnedRecordCount()
-            + (coverage.coverageComplete() ? "\uff08\u5b8c\u6574\uff09" : "\uff08\u672a\u5b8c\u6574\uff09");
+            + (!coverage.coverageComplete()
+                ? "\uff08\u672a\u5b8c\u6574\uff09"
+                : coverage.sourceContentComplete()
+                    ? "\uff08\u5b8c\u6574\uff09"
+                    : "\uff08\u5df2\u5b8c\u6574\u5904\u7406\u8fd4\u56de\u9884\u89c8\uff0c\u6e90\u5185\u5bb9\u4e0d\u5b8c\u6574\uff09");
     }
 
     private record BatchRecordSet(String reference, List<Map<String, Object>> records) {
@@ -3271,10 +3310,11 @@ public class AgentOrchestrator implements AgentRunExecutor {
         int processedRecordCount,
         int iterations,
         boolean iterative,
-        boolean coverageComplete
+        boolean coverageComplete,
+        boolean sourceContentComplete
     ) {
         private static RecordCoverageBundle empty() {
-            return new RecordCoverageBundle("", "", List.of(), 0, 0, 0, false, true);
+            return new RecordCoverageBundle("", "", List.of(), 0, 0, 0, false, true, true);
         }
     }
 

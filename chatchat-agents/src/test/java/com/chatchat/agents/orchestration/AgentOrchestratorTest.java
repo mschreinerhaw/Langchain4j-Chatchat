@@ -726,6 +726,53 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void analyzesNonEmptyExternalizedPreviewWhenFullEvidenceCannotBeResolved() {
+        String preview = "USER PID CPU MEM COMMAND\n"
+            + "hive 324493 2.0 8.1 /usr/java/bin/java inceptor-executor\n"
+            + "root 410002 0.5 1.2 container-runtime";
+        Map<String, Object> reference = Map.of(
+            "outputExternal", true,
+            "outputTruncated", true,
+            "documentId", "tool-output:tenant:current-run:process-check:abc123",
+            "evidenceId", "tool:linux_command_execute:abc123",
+            "preview", preview
+        );
+        ToolCallResult child = new ToolCallResult(
+            "process-check", "linux_command_execute", "PROCESS_CHECK", "host-1",
+            "SUCCESS", 20L, "audit-evidence", reference, Map.of());
+        ToolCallBatchResult batch = new ToolCallBatchResult(
+            "diagnostic-step", "SEQUENTIAL", "start", "end", "SUCCESS",
+            new ToolCallBatchResult.Summary(1, 1, 0, 0, 0, 1), List.of(child));
+        InterpretationPlanRuntime.StepExecution step = new InterpretationPlanRuntime.StepExecution(
+            1, "mcp_tool", "linux_command_execute", true,
+            batch, null, null, null, 10L, Map.of());
+        InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
+            "success", true, false, null, null, List.of(step), Map.of(), 10L);
+        ChatModel model = mock(ChatModel.class);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+
+        AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
+            .buildRecordCoverageBundle(model, "analyze returned process evidence", result,
+                Map.of(), metadata, () -> false);
+        String guardedAnswer = newOrchestrator(model).ensureCompleteRecordCoveragePresented(
+            "The complete list is unavailable; read the external document.", coverage, metadata);
+
+        assertThat(coverage.returnedRecordCount()).isEqualTo(1);
+        assertThat(coverage.processedRecordCount()).isEqualTo(1);
+        assertThat(coverage.coverageComplete()).isTrue();
+        assertThat(coverage.sourceContentComplete()).isFalse();
+        assertThat(coverage.promptEvidence())
+            .contains("externalized-preview", "324493", "inceptor-executor");
+        assertThat(guardedAnswer)
+            .contains("全量记录覆盖分析", "324493", "inceptor-executor",
+                "覆盖校验：1/1（已完整处理返回预览，源内容不完整）");
+        assertThat(metadata)
+            .containsEntry("recordAnalysisSourceContentComplete", false)
+            .containsEntry("recordAnalysisCoverageAppendixApplied", true);
+        verify(model, never()).chat(any(String.class));
+    }
+
+    @Test
     void sqlScriptCoverageProcessesEveryFetchedRowAndReportsDatabaseLimitCompleteness() {
         Map<String, Object> output = Map.of(
             "dataSchema", "sql_script_result.v1",

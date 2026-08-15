@@ -635,6 +635,9 @@
                   <el-tag :type="resultSet.success === false ? 'danger' : 'success'" size="small" effect="plain">
                     {{ resultSet.success === false ? '执行失败' : '执行成功' }}
                   </el-tag>
+                  <el-tag v-if="databasePreviewData.dataAvailable === false" type="warning" size="small" effect="plain">
+                    数据集尚未就绪
+                  </el-tag>
                   <span>返回 {{ databasePreviewData.rowCount ?? databasePreviewRows.length }} 行</span>
                   <span>上限 {{ databasePreviewData.maxRows ?? '-' }} 行</span>
                   <span v-if="databasePreviewData.durationMs != null">耗时 {{ databasePreviewData.durationMs }} ms</span>
@@ -645,6 +648,15 @@
                   v-if="databasePreviewData.success === false"
                   type="error"
                   :title="databasePreviewData.errorMessage || '该 SQL 执行失败'"
+                  :closable="false"
+                  show-icon
+                />
+
+                <el-alert
+                  v-else-if="databasePreviewData.dataAvailable === false"
+                  type="warning"
+                  title="对应金融数据集尚未采集，或字段尚未同步到 H2 查询库"
+                  :description="databasePreviewData.availabilityMessage || '模板本身可执行；完成该数据集采集后即可返回结果。'"
                   :closable="false"
                   show-icon
                 />

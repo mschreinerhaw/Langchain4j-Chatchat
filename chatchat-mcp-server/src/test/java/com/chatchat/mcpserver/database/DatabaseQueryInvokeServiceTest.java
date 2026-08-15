@@ -121,11 +121,47 @@ class DatabaseQueryInvokeServiceTest {
         assertThat(output.getData()).asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
             .containsEntry("dataSource", FinancialAnalysisQuerySamples.INTERNAL_DATASOURCE_ID)
             .containsEntry("rowCount", 1)
+            .containsEntry("dataAvailable", true)
+            .containsEntry("availabilityStatus", "AVAILABLE")
             .containsEntry("governedFinancialTablesOnly", true);
         verify(executor).execute(
             "SELECT dataset_code FROM market_asset_catalog", arguments, 25, 30);
         verify(cacheService).getOrLoad(eq(config), eq(Map.of()),
             eq(new DatabaseQueryCacheService.CacheScope("tenant-a", "user-a")), any());
+    }
+
+    @Test
+    void returnsAUsableEmptyResultWhenBuiltInFinancialDatasetIsNotCollected() {
+        FinancialMarketQueryExecutor executor = mock(FinancialMarketQueryExecutor.class);
+        service.setFinancialMarketQueryExecutor(executor);
+        when(executor.execute(any(), anyMap(), eq(25), eq(30)))
+            .thenReturn(new FinancialMarketQueryExecutor.QueryResult(
+                "SELECT observation_date FROM bond_yield_curve_daily",
+                List.of("observation_date"),
+                List.of(),
+                0, 25, false,
+                false,
+                "DATASET_NOT_COLLECTED_OR_SCHEMA_INCOMPLETE",
+                "The required financial dataset table or field has not been collected into the H2 read store yet"
+            ));
+        DatabaseQueryConfig config = new DatabaseQueryConfig();
+        config.setId("builtin-market-uncollected");
+        config.setToolName("sample_market_uncollected");
+        config.setTitle("Uncollected market dataset");
+        config.setDatasourceId(FinancialAnalysisQuerySamples.INTERNAL_DATASOURCE_ID);
+        config.setSqlTemplate("SELECT observation_date FROM bond_yield_curve_daily");
+        config.setMaxRows(25);
+        config.setTimeoutSeconds(30);
+
+        ToolOutput output = service.invoke(config, Map.of());
+
+        assertThat(output.isSuccess()).isTrue();
+        assertThat(output.getData()).asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
+            .containsEntry("rowCount", 0)
+            .containsEntry("dataAvailable", false)
+            .containsEntry("availabilityStatus", "DATASET_NOT_COLLECTED_OR_SCHEMA_INCOMPLETE")
+            .containsKey("availabilityMessage");
+        assertThat(output.getMetadata()).containsEntry("financialDatasetAvailable", false);
     }
 
     @Test

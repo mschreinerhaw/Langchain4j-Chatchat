@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import javax.sql.DataSource;
 import java.io.Reader;
 import java.sql.Clob;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -62,14 +63,95 @@ public class FinancialMarketQueryExecutor {
         String safeSql = validate(sql);
         int maxRows = Math.max(1, Math.min(requestedMaxRows, 500));
         Map<String, Object> safeParameters = parameters == null ? Map.of() : parameters;
-        List<Map<String, Object>> rows = (isolatedReads != null
-            ? isolatedReads.queryForList(safeSql, safeParameters, maxRows, timeoutSeconds)
-            : queryPrimary(safeSql, safeParameters, maxRows, timeoutSeconds))
-            .stream()
-            .map(this::normalizeRow)
-            .toList();
-        List<String> columns = rows.isEmpty() ? List.of() : new ArrayList<>(rows.get(0).keySet());
-        return new QueryResult(safeSql, columns, rows, rows.size(), maxRows, rows.size() >= maxRows);
+        try {
+            List<Map<String, Object>> rows = (isolatedReads != null
+                ? isolatedReads.queryForList(safeSql, safeParameters, maxRows, timeoutSeconds)
+                : queryPrimary(safeSql, safeParameters, maxRows, timeoutSeconds))
+                .stream()
+                .map(this::normalizeRow)
+                .toList();
+            List<String> columns = rows.isEmpty() ? expectedColumns(safeSql) : new ArrayList<>(rows.get(0).keySet());
+            return new QueryResult(safeSql, columns, rows, rows.size(), maxRows, rows.size() >= maxRows,
+                true, "AVAILABLE", null);
+        } catch (RuntimeException ex) {
+            if (!isUncollectedDatasetSchema(ex)) {
+                throw ex;
+            }
+            return new QueryResult(
+                safeSql,
+                expectedColumns(safeSql),
+                List.of(),
+                0,
+                maxRows,
+                false,
+                false,
+                "DATASET_NOT_COLLECTED_OR_SCHEMA_INCOMPLETE",
+                "The required financial dataset table or field has not been collected into the H2 read store yet"
+            );
+        }
+    }
+
+    private boolean isUncollectedDatasetSchema(Throwable error) {
+        Throwable current = error;
+        while (current != null) {
+            if (current instanceof SQLException sqlException) {
+                String state = sqlException.getSQLState();
+                int code = sqlException.getErrorCode();
+                if ("42S02".equalsIgnoreCase(state) || "42S22".equalsIgnoreCase(state)
+                    || code == 42102 || code == 42122 || code == 1146 || code == 1054) {
+                    return true;
+                }
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private List<String> expectedColumns(String sql) {
+        if (sql == null) {
+            return List.of();
+        }
+        Matcher select = Pattern.compile("(?is)^\\s*select\\s+(.*?)\\s+from\\s").matcher(sql);
+        if (!select.find()) {
+            return List.of();
+        }
+        List<String> expressions = splitTopLevel(select.group(1));
+        List<String> columns = new ArrayList<>();
+        for (String expression : expressions) {
+            String value = expression == null ? "" : expression.trim();
+            if (value.isBlank() || "*".equals(value) || value.endsWith(".*")) {
+                continue;
+            }
+            Matcher alias = Pattern.compile("(?is).*\\s+as\\s+[`\"]?([a-zA-Z][a-zA-Z0-9_]*)[`\"]?$")
+                .matcher(value);
+            String column = alias.matches() ? alias.group(1) : value;
+            int qualifier = column.lastIndexOf('.');
+            if (qualifier >= 0) {
+                column = column.substring(qualifier + 1);
+            }
+            column = column.replace("`", "").replace("\"", "").trim();
+            if (column.matches("[a-zA-Z][a-zA-Z0-9_]*")) {
+                columns.add(column);
+            }
+        }
+        return List.copyOf(columns);
+    }
+
+    private List<String> splitTopLevel(String value) {
+        List<String> values = new ArrayList<>();
+        int depth = 0;
+        int start = 0;
+        for (int index = 0; index < value.length(); index++) {
+            char current = value.charAt(index);
+            if (current == '(') depth++;
+            else if (current == ')') depth = Math.max(0, depth - 1);
+            else if (current == ',' && depth == 0) {
+                values.add(value.substring(start, index));
+                start = index + 1;
+            }
+        }
+        values.add(value.substring(start));
+        return values;
     }
 
     private List<Map<String, Object>> queryPrimary(String sql,
@@ -146,7 +228,15 @@ public class FinancialMarketQueryExecutor {
         List<Map<String, Object>> rows,
         int rowCount,
         int maxRows,
-        boolean possiblyTruncated
+        boolean possiblyTruncated,
+        boolean dataAvailable,
+        String availabilityStatus,
+        String availabilityMessage
     ) {
+        public QueryResult(String sql, List<String> columns, List<Map<String, Object>> rows,
+                           int rowCount, int maxRows, boolean possiblyTruncated) {
+            this(sql, columns, rows, rowCount, maxRows, possiblyTruncated,
+                true, "AVAILABLE", null);
+        }
     }
 }

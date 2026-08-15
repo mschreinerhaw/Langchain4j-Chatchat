@@ -295,12 +295,21 @@ public class DatabaseQueryInvokeService {
         data.put("rowCount", result.rowCount());
         data.put("maxRows", result.maxRows());
         data.put("possiblyTruncated", result.possiblyTruncated());
+        data.put("dataAvailable", result.dataAvailable());
+        data.put("availabilityStatus", result.availabilityStatus());
+        if (result.availabilityMessage() != null && !result.availabilityMessage().isBlank()) {
+            data.put("availabilityMessage", result.availabilityMessage());
+        }
         data.put("readOnly", true);
         data.put("governedFinancialTablesOnly", true);
-        ToolOutput output = ToolOutput.success(data, "Financial market query completed successfully");
+        String message = result.dataAvailable()
+            ? "Financial market query completed successfully"
+            : "Financial dataset has not been collected into the H2 read store or its schema is incomplete";
+        ToolOutput output = ToolOutput.success(data, message);
         output.setExecutionTimeMs(Math.max(0L, System.currentTimeMillis() - startedAt));
         output.getMetadata().put("cacheHit", false);
         output.getMetadata().put("internalFinancialDatasource", true);
+        output.getMetadata().put("financialDatasetAvailable", result.dataAvailable());
         return output;
     }
 

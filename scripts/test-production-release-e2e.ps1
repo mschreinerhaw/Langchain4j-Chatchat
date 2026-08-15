@@ -9,6 +9,8 @@ param(
     [string]$NewsBaseUrl,
     [string]$InferenceQuery = "Analyze the latest public market data and provide source-grounded recommendations",
     [string]$InferenceExpectedEvidence = "web_search",
+    [string]$InferenceExpectedTool = "web_search",
+    [string]$InferenceExpectedQueryArgument,
     [string]$PrePlanWorkflowQuery,
     [string]$PrePlanSkillId,
     [string]$PrePlanExpectedTools,
@@ -32,6 +34,12 @@ param(
     [int]$SoakConcurrency = 8,
     [double]$SoakMinimumSuccessRate = 0.999,
     [int]$SoakMaximumP95Ms = 180000,
+    [double]$MinimumQualityCasePassRate = 1.0,
+    [double]$MinimumRetrievalQuality = 0.90,
+    [double]$MinimumToolSelectionAccuracy = 0.95,
+    [double]$MinimumParameterAccuracy = 0.95,
+    [double]$MinimumEvidenceCompleteness = 0.95,
+    [double]$MinimumOverallQuality = 0.95,
     [double]$MinimumLineCoverage = 0.70,
     [double]$MinimumBranchCoverage = 0.60
 )
@@ -54,8 +62,17 @@ try {
     $mavenArguments = @(
         "-pl", "chatchat-e2e-tests", "-am",
         "-Dfrontend.skip=true",
-        "-Dchatchat.e2e.coverage-audit.strict=true"
+        "-Dchatchat.e2e.coverage-audit.strict=true",
+        "-Dchatchat.e2e.quality.min-case-pass-rate=$MinimumQualityCasePassRate",
+        "-Dchatchat.e2e.quality.min-retrieval=$MinimumRetrievalQuality",
+        "-Dchatchat.e2e.quality.min-tool-selection=$MinimumToolSelectionAccuracy",
+        "-Dchatchat.e2e.quality.min-parameter-accuracy=$MinimumParameterAccuracy",
+        "-Dchatchat.e2e.quality.min-evidence-completeness=$MinimumEvidenceCompleteness",
+        "-Dchatchat.e2e.quality.min-overall=$MinimumOverallQuality"
     )
+    if ($AllowConditionalSkips) {
+        $mavenArguments += "-Dchatchat.e2e.allow-conditional-skips=true"
+    }
     if ($DeployedTopologyLive) {
         if ([string]::IsNullOrWhiteSpace($ApiBaseUrl) -or
             [string]::IsNullOrWhiteSpace($McpBaseUrl) -or
@@ -79,6 +96,10 @@ try {
         $mavenArguments += "-Dchatchat.e2e.news-base-url=$NewsBaseUrl"
         $mavenArguments += "-Dchatchat.e2e.inference-query=$InferenceQuery"
         $mavenArguments += "-Dchatchat.e2e.inference-expected-evidence=$InferenceExpectedEvidence"
+        $mavenArguments += "-Dchatchat.e2e.inference-expected-tool=$InferenceExpectedTool"
+        if (-not [string]::IsNullOrWhiteSpace($InferenceExpectedQueryArgument)) {
+            $mavenArguments += "-Dchatchat.e2e.inference-expected-query-argument=$InferenceExpectedQueryArgument"
+        }
         $mavenArguments += "-Dchatchat.e2e.preplan-workflow-query=$PrePlanWorkflowQuery"
         $mavenArguments += "-Dchatchat.e2e.preplan-skill-id=$PrePlanSkillId"
         $mavenArguments += "-Dchatchat.e2e.preplan-expected-tools=$PrePlanExpectedTools"

@@ -10,6 +10,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -59,6 +60,45 @@ class ProductionDeployedTopologyE2E {
         assertThat(inference.path("data").path("toolTraces").isEmpty()).isFalse();
         assertThat(inference.path("data").toString().toLowerCase())
             .contains(required("chatchat.e2e.inference-expected-evidence").toLowerCase());
+
+        String runId = inference.path("data").path("metadata").path("agentRunId").asText();
+        assertThat(runId).as("online evaluation requires persisted Agent runId").isNotBlank();
+        String query = required("chatchat.e2e.inference-query");
+        String expectedEvidence = required("chatchat.e2e.inference-expected-evidence");
+        String expectedTool = required("chatchat.e2e.inference-expected-tool");
+        String expectedQueryArgument = optional("chatchat.e2e.inference-expected-query-argument", null);
+        if (expectedQueryArgument == null) expectedQueryArgument = query;
+        Map<String, Double> thresholds = Map.of(
+            "minRetrievalScore", qualityProperty("chatchat.e2e.quality.min-retrieval", 0.90D),
+            "minToolSelectionScore", qualityProperty("chatchat.e2e.quality.min-tool-selection", 0.95D),
+            "minParameterAccuracy", qualityProperty("chatchat.e2e.quality.min-parameter-accuracy", 0.95D),
+            "minEvidenceCompleteness", qualityProperty("chatchat.e2e.quality.min-evidence-completeness", 0.95D),
+            "minOverallScore", qualityProperty("chatchat.e2e.quality.min-overall", 0.95D));
+        JsonNode evaluation = postJson(required("chatchat.e2e.api-base-url")
+                + "/api/v1/agent/runtime/runs/" + runId + "/evaluation",
+            Map.of(
+                "question", query,
+                "expectedEvidence", List.of(),
+                "expectedKeywords", List.of(),
+                "mustHaveCitation", true,
+                "expectedRetrieval", List.of(Map.of(
+                    "mustContainAny", List.of(expectedEvidence), "maxRank", 10)),
+                "expectedTools", List.of(Map.of(
+                    "toolName", expectedTool,
+                    "expectedArguments", Map.of("query", expectedQueryArgument))),
+                "thresholds", thresholds
+            ),
+            optional("chatchat.e2e.api-auth-header", null),
+            optional("chatchat.e2e.api-auth-value", "CHATCHAT_E2E_API_AUTH_VALUE"));
+        assertThat(evaluation.path("code").asInt()).isEqualTo(200);
+        assertThat(evaluation.path("data").path("contractVersion").asText()).isEqualTo("agent_evaluation_v2");
+        assertThat(evaluation.path("data").path("passed").asBoolean())
+            .as("online quality evaluation: %s", evaluation.path("data")).isTrue();
+        JsonNode dimensions = evaluation.path("data").path("dimensions");
+        assertThat(dimensions.has("retrieval")).isTrue();
+        assertThat(dimensions.has("toolSelection")).isTrue();
+        assertThat(dimensions.has("parameterAccuracy")).isTrue();
+        assertThat(dimensions.has("evidenceCompleteness")).isTrue();
     }
 
     private JsonNode getJson(String url, String authHeader, String authValue) throws Exception {
@@ -103,5 +143,9 @@ class ProductionDeployedTopologyE2E {
     private String preview(String value) {
         if (value == null) return "";
         return value.length() <= 500 ? value : value.substring(0, 500) + "...";
+    }
+
+    private double qualityProperty(String name, double fallback) {
+        return Double.parseDouble(System.getProperty(name, String.valueOf(fallback)));
     }
 }

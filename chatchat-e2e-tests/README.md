@@ -34,6 +34,9 @@ Equivalent Maven command:
 mvn -pl chatchat-e2e-tests -am -Dfrontend.skip=true verify
 ```
 
+The mandatory Agent quality gate and its online/offline scoring contract are documented in
+[`docs/agent-quality-evaluation-gate.md`](../docs/agent-quality-evaluation-gate.md). The release script exposes explicit thresholds for retrieval quality, tool selection, parameter accuracy, evidence completeness, total case pass rate, and overall quality. When deployed-topology testing is enabled, provide `InferenceExpectedTool` and, when the required query argument differs from the user query, `InferenceExpectedQueryArgument`; the live test evaluates the persisted run through the production evaluation API.
+
 Coverage includes Agent planning and repair, MCP authorization and retry, API/gateway assets, SSH/server assets, SQL/database assets, capability-center discovery, News/Market runtime dependencies, evidence boundaries, tenant context, release artifacts, and deployment-hardcoding checks.
 
 The E2E tests use generated tenant, namespace and template identifiers. They must never depend on one deployed MCP server name or one maintained production template ID.

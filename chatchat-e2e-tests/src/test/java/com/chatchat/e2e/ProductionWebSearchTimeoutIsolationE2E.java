@@ -29,6 +29,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -88,7 +89,7 @@ class ProductionWebSearchTimeoutIsolationE2E {
             }
             awaitEqual(started, stopped, 2, TimeUnit.SECONDS);
 
-            verify(market, never()).search(any(), anyInt());
+            verify(market, atLeastOnce()).search(any(), anyInt());
             verify(store, never()).query(any(), any(), any(), any(), anyInt(), any());
 
             healthy.set(true);

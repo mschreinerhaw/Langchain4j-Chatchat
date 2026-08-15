@@ -46,14 +46,14 @@ class ProductionPrePlanWorkflowContinuityE2E {
 
             assertThat(result.toolTraces())
                 .extracting(trace -> trace.getToolName())
-                .containsExactly(scenario.templateTool(), scenario.executorTool());
+                .containsExactly(scenario.assetTool(), scenario.templateTool(), scenario.executorTool());
             assertThat(result.toolTraces()).allSatisfy(trace -> {
                 assertThat(trace.isSuccess()).isTrue();
                 assertThat(trace.getErrorMessage() == null ? "" : trace.getErrorMessage())
                     .doesNotContain("required previous steps", "dependency not completed");
             });
             assertThat(scenario.invocations())
-                .containsExactly(scenario.templateTool(), scenario.executorTool());
+                .containsExactly(scenario.assetTool(), scenario.templateTool(), scenario.executorTool());
             assertThat(scenario.runStore().events(scenario.request().getRunId()).toString())
                 .contains(scenario.assetTool(), scenario.templateTool(), scenario.executorTool())
                 .doesNotContain("required previous steps");

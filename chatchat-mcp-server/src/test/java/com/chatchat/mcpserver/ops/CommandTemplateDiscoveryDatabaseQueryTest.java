@@ -373,13 +373,12 @@ class CommandTemplateDiscoveryDatabaseQueryTest {
             "trace", trace()
         ));
 
-        assertThat(result).containsEntry("categoryRequired", false).containsEntry("returnedCount", 1);
+        assertThat(result).containsEntry("categoryRequired", false).containsEntry("returnedCount", 2);
         assertThat(result.get("selectedCategory").toString()).contains("default");
         assertThat(result.get("categoryDiagnostics").toString())
             .contains("fallbackUsed=true", "fallbackCategory=default");
         assertThat(result.get("templates").toString())
-            .contains("query_margin_trade_latest", "sql_query_execute", "market_data")
-            .doesNotContain("query_generic_business_data");
+            .contains("query_margin_trade_latest", "query_generic_business_data", "sql_query_execute", "market_data");
     }
 
     @Test

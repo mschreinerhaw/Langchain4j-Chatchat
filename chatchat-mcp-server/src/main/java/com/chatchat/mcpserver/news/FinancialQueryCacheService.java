@@ -384,7 +384,11 @@ public class FinancialQueryCacheService {
     }
 
     private MarketModuleProperties.QueryCache policy() {
-        if (configService != null) return configService.currentPolicy();
+        if (configService != null) {
+            MarketModuleProperties.QueryCache configured = configService.currentPolicy();
+            if (configured != null) return configured;
+            log.warn("Dynamic financial query cache policy is unavailable; using application defaults");
+        }
         return properties.getQueryCache() == null
             ? new MarketModuleProperties.QueryCache() : properties.getQueryCache();
     }

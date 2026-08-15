@@ -79,7 +79,7 @@
       </aside>
     </section>
 
-    <footer class="login-copyright">© 2026 LiveMCP · Build · Connect · Deploy</footer>
+    <footer class="login-copyright">Copyright 1996-2026 Apexsoft, All rights reserved.</footer>
   </main>
 </template>
 

@@ -33,6 +33,26 @@ import static org.mockito.Mockito.when;
 class FinancialQueryCacheServiceTest {
 
     @Test
+    void unavailableDynamicPolicyFallsBackToApplicationPolicy() {
+        MarketModuleProperties properties = new MarketModuleProperties();
+        FinancialQueryCacheConfigService config = mock(FinancialQueryCacheConfigService.class);
+        when(config.currentPolicy()).thenReturn(null);
+        FinancialQueryCacheService cache = new FinancialQueryCacheService(
+            properties,
+            new McpCacheProperties(),
+            mock(McpRocksDbStore.class),
+            mock(RedisCacheStore.class),
+            new ObjectMapper().findAndRegisterModules(),
+            config);
+
+        Map<String, Object> result = cache.getOrLoad("runtime_dataset", Map.of(),
+            null, null, 10, "auto", () -> Map.of("rows", List.of(Map.of("value", 1))));
+
+        assertThat(result).containsEntry("rows", List.of(Map.of("value", 1)));
+        verify(config).currentPolicy();
+    }
+
+    @Test
     void defaultsToRocksDbForThirtyMinutesAndAvoidsDuplicateDatabaseReads() throws Exception {
         MarketModuleProperties properties = new MarketModuleProperties();
         McpRocksDbStore rocks = mock(McpRocksDbStore.class);

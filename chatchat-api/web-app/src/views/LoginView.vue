@@ -124,7 +124,7 @@
       </section>
     </section>
 
-    <footer class="login-footer">&copy; 2026 LiveRuntime. All rights reserved.</footer>
+    <footer class="login-footer">Copyright 1996-2026 Apexsoft, All rights reserved.</footer>
   </main>
 </template>
 

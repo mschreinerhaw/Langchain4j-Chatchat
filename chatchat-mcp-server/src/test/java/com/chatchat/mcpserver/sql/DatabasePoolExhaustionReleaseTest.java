@@ -3,6 +3,7 @@ package com.chatchat.mcpserver.sql;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assumptions;
 
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
@@ -20,6 +21,10 @@ class DatabasePoolExhaustionReleaseTest {
 
     @Test
     void realMysqlPoolTimesOutWhenExhaustedAndRecoversAfterReleaseWithoutLeak() {
+        if (Boolean.getBoolean("chatchat.e2e.allow-conditional-skips")) {
+            Assumptions.assumeTrue(dockerAvailable(),
+                "Docker is unavailable; conditional skips were explicitly allowed for this non-release run");
+        }
         assertTimeoutPreemptively(Duration.ofMinutes(3), () -> {
             String container = "chatchat-pool-gate-" + UUID.randomUUID().toString().substring(0, 8);
             String image = System.getProperty("chatchat.e2e.mysql.image", "mysql:8.4");
@@ -68,6 +73,15 @@ class DatabasePoolExhaustionReleaseTest {
                 dockerIgnoringFailure("rm", "-f", container);
             }
         });
+    }
+
+    private boolean dockerAvailable() {
+        try {
+            docker("info", "--format", "{{.ServerVersion}}");
+            return true;
+        } catch (Exception ex) {
+            return false;
+        }
     }
 
     private void awaitMysql(String jdbcUrl) throws Exception {

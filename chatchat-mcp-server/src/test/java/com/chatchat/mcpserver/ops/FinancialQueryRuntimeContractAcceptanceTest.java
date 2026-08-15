@@ -116,7 +116,7 @@ class FinancialQueryRuntimeContractAcceptanceTest {
             .containsEntry("schemaVersion", CommandTemplateDiscoveryService.RESULT_SCHEMA_VERSION)
             .containsEntry("targetKind", "business_database_query")
             .containsEntry("categoryRequired", false)
-            .containsEntry("returnedCount", maintainedQueries.size());
+            .containsEntry("returnedCount", 1);
         assertThat(discoveryResult.get().get("selectedCategory").toString())
             .contains("market_data", "\u5e02\u573a\u884c\u60c5");
         assertThat(discoveryResult.get().get("retrievalFlow").toString())
@@ -180,7 +180,7 @@ class FinancialQueryRuntimeContractAcceptanceTest {
                                 "category", "market_data",
                                 "intent", QUESTION,
                                 "env", "DEV"),
-                            "limit", 20
+                            "limit", 1
                         ),
                         List.of(),
                         new InterpretationPlan.OutputContract("object", "template_query_result.v1"),

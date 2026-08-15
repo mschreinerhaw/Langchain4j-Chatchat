@@ -84,7 +84,7 @@ class ProductionAgentRuntimeFinancialEvidenceStressE2E {
                         )).build()).build());
                     assertThat(execution.output().isSuccess()).isTrue();
                     assertThat(execution.audit())
-                        .containsEntry("financialDataPolicy", "FORCED")
+                        .containsEntry("financialDataPolicy", "FORCED_BRIDGE")
                         .containsEntry("financialDataModelRequired", false)
                         .containsEntry("financialDataEffectiveRequired", true);
                     return Map.entry(requestId, marker);
@@ -101,7 +101,7 @@ class ProductionAgentRuntimeFinancialEvidenceStressE2E {
                         .containsEntry("query", entry.getValue())
                         .containsEntry("financial_data_required", true);
                     assertThat(input.getContext())
-                        .containsEntry("financialDataPolicy", "FORCED")
+                        .containsEntry("financialDataPolicy", "FORCED_BRIDGE")
                         .containsEntry("financialDataEffectiveRequired", true);
                 });
             });

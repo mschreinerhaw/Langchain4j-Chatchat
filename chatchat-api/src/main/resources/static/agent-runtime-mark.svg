@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 56 56" role="img" aria-labelledby="mark-title mark-desc">
+  <title id="mark-title">LiveRuntime</title>
+  <desc id="mark-desc">LiveRuntime product mark</desc>
+  <rect x="7" y="7" width="42" height="42" rx="13" fill="#0B1220"/>
+  <path d="M19 17.5h15.25C41.4 17.5 46 22.05 46 29.2v10.3" fill="none" stroke="#2DD4BF" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="46" cy="43" r="2" fill="#2DD4BF"/>
+  <path d="M19.5 38.5V24h10.25c4.4 0 7.25 2.35 7.25 6s-2.85 6-7.25 6H19.5m10.25 0 7.5 6" fill="none" stroke="#F8FAFC" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

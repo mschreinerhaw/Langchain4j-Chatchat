@@ -4533,7 +4533,7 @@ public class InterpretationPlanRuntime {
         }
         String targetKind = isLinuxCommandExecuteTool(step.toolName()) ? "host"
             : isHttpRequestExecuteTool(step.toolName()) || isApiTemplateExecuteTool(step.toolName())
-                ? "api" : "database";
+                ? "api" : isSqlQueryExecuteTool(step.toolName()) ? "business_database_query" : "database";
         Map<String, Object> discoveryInput = new LinkedHashMap<>();
         discoveryInput.put("candidates", List.of(Map.of("targetKind", targetKind, "confidence", 1.0)));
         discoveryInput.put("finalDecision", targetKind);
@@ -5506,7 +5506,7 @@ public class InterpretationPlanRuntime {
             return executor.trim();
         }
         for (String allowed : allowedTools) {
-            if (sameToolName(allowed, executor)) {
+            if (executorToolNameMatches(allowed, executor)) {
                 return allowed;
             }
         }
@@ -5931,11 +5931,26 @@ public class InterpretationPlanRuntime {
             firstValueAtAnyPath(template, "$.executionTool")
         };
         for (Object value : candidates) {
-            if (sameToolName(value == null ? null : String.valueOf(value), toolName)) {
+            if (executorToolNameMatches(value == null ? null : String.valueOf(value), toolName)) {
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * Template metadata stores a stable logical executor while an MCP transport may prepend a
+     * deployment-specific namespace. Matching is limited to an underscore-delimited suffix and
+     * the selected name must still be present in the request's allowed-tools list.
+     */
+    private boolean executorToolNameMatches(String left, String right) {
+        if (sameToolName(left, right)) {
+            return true;
+        }
+        String leftKey = toolSemanticKey(left);
+        String rightKey = toolSemanticKey(right);
+        return !leftKey.isBlank() && !rightKey.isBlank()
+            && (leftKey.endsWith("_" + rightKey) || rightKey.endsWith("_" + leftKey));
     }
 
     private boolean isJsonSchemaObject(Map<String, Object> values) {

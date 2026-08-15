@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.chatchat.mcpserver.news.FinancialEnrichmentService;
 import com.chatchat.mcpserver.news.FinancialDataMcpToolProvider;
 import com.chatchat.mcpserver.news.FinancialQueryCacheService;
+import com.chatchat.mcpserver.news.FinancialQueryCacheConfigService;
 import com.chatchat.mcpserver.cache.McpCacheProperties;
 import com.chatchat.mcpserver.cache.McpRocksDbStore;
 import com.chatchat.mcpserver.cache.RedisCacheStore;
@@ -70,7 +71,7 @@ class ProductionFinancialRetrievalIntentMarkerE2E {
             .when(rocks).put(anyString(), any(byte[].class));
         FinancialQueryCacheService cache = new FinancialQueryCacheService(
             new MarketModuleProperties(), new McpCacheProperties(), rocks, redis,
-            new ObjectMapper().findAndRegisterModules());
+            new ObjectMapper().findAndRegisterModules(), mock(FinancialQueryCacheConfigService.class));
         FinancialEnrichmentService financial = new FinancialEnrichmentService(catalog, store, cache);
         RemoteNewsMcpToolProvider webProvider = new RemoteNewsMcpToolProvider(
             new NewsSearchService(news), Optional.of(financial));
@@ -111,7 +112,7 @@ class ProductionFinancialRetrievalIntentMarkerE2E {
                 .containsEntry("financialDatasetCount", 1)
                 .containsEntry("financialDataSatisfied", true);
             assertThat(webExecution.audit())
-                .containsEntry("financialDataPolicy", "FORCED_WITH_DEDICATED_TOOL")
+                .containsEntry("financialDataPolicy", "FORCED_BRIDGE")
                 .containsEntry("financialDataEffectiveRequired", true);
 
             ToolRuntimeExecution financialExecution = runtime.execute(ToolRuntimeRequest.builder()
@@ -210,7 +211,7 @@ class ProductionFinancialRetrievalIntentMarkerE2E {
             assertThat((List<Map<String, Object>>) data.get("financialData")).singleElement()
                 .satisfies(result -> assertThat(result).containsEntry("dataset", runtimeDataset));
             assertThat(execution.audit())
-                .containsEntry("financialDataPolicy", "FORCED")
+                .containsEntry("financialDataPolicy", "FORCED_BRIDGE")
                 .containsEntry("financialDataModelRequired", false)
                 .containsEntry("financialDataEffectiveRequired", true);
             verify(catalog).search(financialIntentQuery, 4);

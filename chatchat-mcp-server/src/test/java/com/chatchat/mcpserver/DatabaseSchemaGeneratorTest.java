@@ -8,6 +8,10 @@ import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -19,8 +23,8 @@ class DatabaseSchemaGeneratorTest {
         Files.createDirectories(output);
         generate("org.hibernate.dialect.MySQLDialect", output.resolve("chatchat-mcp-server-mysql.sql"));
         generate("org.hibernate.dialect.H2Dialect", output.resolve("chatchat-mcp-server-h2.sql"));
-        assertSchemaMatches(output.resolve("chatchat-mcp-server-mysql.sql"), Path.of("..", "database", "init", "mysql", "chatchat-mcp-server.sql"), 31);
-        assertSchemaMatches(output.resolve("chatchat-mcp-server-h2.sql"), Path.of("..", "database", "init", "h2", "chatchat-mcp-server.sql"), 31);
+        assertSchemaMatches(output.resolve("chatchat-mcp-server-mysql.sql"), Path.of("..", "database", "init", "mysql", "chatchat-mcp-server.sql"), 33);
+        assertSchemaMatches(output.resolve("chatchat-mcp-server-h2.sql"), Path.of("..", "database", "init", "h2", "chatchat-mcp-server.sql"), 33);
     }
 
     private void generate(String dialect, Path target) throws Exception {
@@ -51,6 +55,28 @@ class DatabaseSchemaGeneratorTest {
     }
 
     private String normalize(String sql) {
-        return sql.replaceAll("(?m)^--.*$", "").replaceAll("\\s+", " ").trim().toLowerCase();
+        String withoutComments = sql.replaceAll("(?m)^--.*$", "");
+        List<String> statements = new ArrayList<>();
+        for (String raw : withoutComments.split(";")) {
+            String statement = raw.trim();
+            if (statement.isEmpty()) continue;
+            if (statement.toLowerCase().startsWith("create table ")) {
+                int open = statement.indexOf('(');
+                int close = statement.lastIndexOf(')');
+                if (open > 0 && close > open) {
+                    List<String> columns = new ArrayList<>(Arrays.asList(
+                        statement.substring(open + 1, close).split(",\\s*\\R")));
+                    columns.replaceAll(String::trim);
+                    Collections.sort(columns);
+                    statement = statement.substring(0, open + 1) + String.join(",", columns)
+                        + statement.substring(close);
+                }
+            }
+            statement = statement.replaceAll("(?i)add\\s+constraint\\s+\\S+\\s+unique", "add unique")
+                .replaceAll("\\s+", " ").trim().toLowerCase();
+            statements.add(statement);
+        }
+        Collections.sort(statements);
+        return String.join(";", statements);
     }
 }

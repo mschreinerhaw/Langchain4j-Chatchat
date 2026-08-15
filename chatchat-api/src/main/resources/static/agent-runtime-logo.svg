@@ -1,13 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="206" height="56" viewBox="0 0 206 56" role="img" aria-labelledby="title desc">
-  <title id="title">LiveRuntime</title>
-  <desc id="desc">LiveRuntime brand wordmark</desc>
-  <rect width="206" height="56" rx="8" fill="none"/>
-  <g transform="translate(0 8)">
-    <rect x="1" y="1" width="38" height="38" rx="10" fill="#101828"/>
-    <path d="M13 14h14v4H13zM13 23h10v4H13zM27 23h4v4h-4z" fill="#ffffff"/>
-    <path d="M10 10h20a8 8 0 0 1 8 8v20" fill="none" stroke="#2dd4bf" stroke-width="3" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="206" height="56" viewBox="0 0 206 56" role="img" aria-labelledby="logo-title logo-desc">
+  <title id="logo-title">LiveRuntime</title>
+  <desc id="logo-desc">LiveRuntime product logo, a runtime loop surrounding an R monogram</desc>
+  <g transform="translate(1 7)">
+    <rect width="42" height="42" rx="13" fill="#0B1220"/>
+    <path d="M12 10.5h15.25c7.15 0 11.75 4.55 11.75 11.7v10.3" fill="none" stroke="#2DD4BF" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="39" cy="36" r="2" fill="#2DD4BF"/>
+    <path d="M12.5 31.5V17h10.25c4.4 0 7.25 2.35 7.25 6s-2.85 6-7.25 6H12.5m10.25 0 7.5 6" fill="none" stroke="#F8FAFC" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
-  <g font-family="Inter, Arial, Helvetica, sans-serif" font-weight="850" letter-spacing="0">
-    <text x="48" y="36" fill="#101828" font-size="22">LiveRuntime</text>
-  </g>
+  <text x="55" y="36.5" fill="#0B1220" font-family="Inter, 'Segoe UI', Arial, sans-serif" font-size="22.5" font-weight="750" letter-spacing="-0.65">Live<tspan fill="#334155">Runtime</tspan></text>
 </svg>

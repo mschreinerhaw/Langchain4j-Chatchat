@@ -39,16 +39,12 @@ public final class FinancialAnalysisQuerySamples {
                 SELECT observation_date, quote_code, quote_name, instrument_type,
                        previous_close, open, high, low, close, change_pct,
                        volume10_k_units, amount10_k_cny, amount100_m_cny, source_code
-                FROM (
-                    SELECT market_rows.*,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY observation_date, source_code, source_url
-                               ORDER BY collected_at DESC, id DESC
-                           ) AS observation_rank
-                    FROM market_quote_daily market_rows
-                    WHERE observation_date = (SELECT MAX(observation_date) FROM market_quote_daily)
-                ) latest_rows
-                WHERE observation_rank = 1
+                FROM market_quote_daily
+                WHERE observation_date = (SELECT MAX(observation_date) FROM market_quote_daily)
+                QUALIFY ROW_NUMBER() OVER (
+                    PARTITION BY observation_date, source_code, source_url
+                    ORDER BY collected_at DESC, id DESC
+                ) = 1
                 ORDER BY change_pct DESC, quote_code
                 """,
                 emptySchema(),
@@ -73,16 +69,12 @@ public final class FinancialAnalysisQuerySamples {
                 SELECT observation_date, quote_code, quote_name, instrument_type,
                        previous_close, open, high, low, close, change_pct,
                        volume10_k_units, amount10_k_cny, amount100_m_cny, source_code
-                FROM (
-                    SELECT market_rows.*,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY observation_date, source_code, source_url
-                               ORDER BY collected_at DESC, id DESC
-                           ) AS observation_rank
-                    FROM market_quote_daily market_rows
-                    WHERE quote_code = :security_code
-                ) latest_rows
-                WHERE observation_rank = 1
+                FROM market_quote_daily
+                WHERE quote_code = :security_code
+                QUALIFY ROW_NUMBER() OVER (
+                    PARTITION BY observation_date, source_code, source_url
+                    ORDER BY collected_at DESC, id DESC
+                ) = 1
                 ORDER BY observation_date DESC, collected_at DESC
                 """,
                 schema(Map.of(
@@ -107,16 +99,12 @@ public final class FinancialAnalysisQuerySamples {
                 """,
                 """
                 SELECT observation_date, fund_code, fund_scale10_k_units, source_code, payload_json
-                FROM (
-                    SELECT market_rows.*,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY observation_date, source_code, source_url
-                               ORDER BY collected_at DESC, id DESC
-                           ) AS observation_rank
-                    FROM etf_scale_daily market_rows
-                    WHERE observation_date = (SELECT MAX(observation_date) FROM etf_scale_daily)
-                ) latest_rows
-                WHERE observation_rank = 1
+                FROM etf_scale_daily
+                WHERE observation_date = (SELECT MAX(observation_date) FROM etf_scale_daily)
+                QUALIFY ROW_NUMBER() OVER (
+                    PARTITION BY observation_date, source_code, source_url
+                    ORDER BY collected_at DESC, id DESC
+                ) = 1
                 ORDER BY fund_scale10_k_units DESC, fund_code
                 """,
                 emptySchema(),
@@ -139,16 +127,12 @@ public final class FinancialAnalysisQuerySamples {
                 """,
                 """
                 SELECT observation_date, source_code, record_key, payload_json
-                FROM (
-                    SELECT market_rows.*,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY observation_date, source_code, source_url
-                               ORDER BY collected_at DESC, id DESC
-                           ) AS observation_rank
-                    FROM margin_trade_daily market_rows
-                    WHERE observation_date = (SELECT MAX(observation_date) FROM margin_trade_daily)
-                ) latest_rows
-                WHERE observation_rank = 1
+                FROM margin_trade_daily
+                WHERE observation_date = (SELECT MAX(observation_date) FROM margin_trade_daily)
+                QUALIFY ROW_NUMBER() OVER (
+                    PARTITION BY observation_date, source_code, source_url
+                    ORDER BY collected_at DESC, id DESC
+                ) = 1
                 ORDER BY record_key
                 """,
                 emptySchema(),
@@ -171,16 +155,12 @@ public final class FinancialAnalysisQuerySamples {
                 """,
                 """
                 SELECT observation_date, source_code, record_key, payload_json
-                FROM (
-                    SELECT market_rows.*,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY observation_date, source_code, source_url
-                               ORDER BY collected_at DESC, id DESC
-                           ) AS observation_rank
-                    FROM market_statistics_daily market_rows
-                    WHERE observation_date = (SELECT MAX(observation_date) FROM market_statistics_daily)
-                ) latest_rows
-                WHERE observation_rank = 1
+                FROM market_statistics_daily
+                WHERE observation_date = (SELECT MAX(observation_date) FROM market_statistics_daily)
+                QUALIFY ROW_NUMBER() OVER (
+                    PARTITION BY observation_date, source_code, source_url
+                    ORDER BY collected_at DESC, id DESC
+                ) = 1
                 ORDER BY source_code, record_key
                 """,
                 emptySchema(),
@@ -203,16 +183,12 @@ public final class FinancialAnalysisQuerySamples {
                 """,
                 """
                 SELECT observation_date, curve_name, curve_type, maturity_years, yield_pct, source_code
-                FROM (
-                    SELECT market_rows.*,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY observation_date, source_code, source_url
-                               ORDER BY collected_at DESC, id DESC
-                           ) AS observation_rank
-                    FROM bond_yield_curve_daily market_rows
-                    WHERE observation_date = (SELECT MAX(observation_date) FROM bond_yield_curve_daily)
-                ) latest_rows
-                WHERE observation_rank = 1
+                FROM bond_yield_curve_daily
+                WHERE observation_date = (SELECT MAX(observation_date) FROM bond_yield_curve_daily)
+                QUALIFY ROW_NUMBER() OVER (
+                    PARTITION BY observation_date, source_code, source_url
+                    ORDER BY collected_at DESC, id DESC
+                ) = 1
                 ORDER BY curve_name, maturity_years
                 """,
                 emptySchema(),
@@ -237,16 +213,12 @@ public final class FinancialAnalysisQuerySamples {
                 SELECT observation_date, settlement_time, settlement_type,
                        principal_amount100_m_cny, face_amount100_m_cny,
                        funds_amount100_m_cny, transaction_count, source_code
-                FROM (
-                    SELECT market_rows.*,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY observation_date, source_code, source_url
-                               ORDER BY collected_at DESC, id DESC
-                           ) AS observation_rank
-                    FROM bond_settlement_daily market_rows
-                    WHERE observation_date = (SELECT MAX(observation_date) FROM bond_settlement_daily)
-                ) latest_rows
-                WHERE observation_rank = 1
+                FROM bond_settlement_daily
+                WHERE observation_date = (SELECT MAX(observation_date) FROM bond_settlement_daily)
+                QUALIFY ROW_NUMBER() OVER (
+                    PARTITION BY observation_date, source_code, source_url
+                    ORDER BY collected_at DESC, id DESC
+                ) = 1
                 ORDER BY settlement_type
                 """,
                 emptySchema(),

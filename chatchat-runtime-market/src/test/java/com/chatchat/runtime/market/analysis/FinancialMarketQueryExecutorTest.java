@@ -22,7 +22,7 @@ class FinancialMarketQueryExecutorTest {
     void setUp() {
         JdbcDataSource dataSource = new JdbcDataSource();
         dataSource.setURL("jdbc:h2:mem:financial-query-" + System.nanoTime()
-            + ";MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1");
+            + ";DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1");
         jdbc = new JdbcTemplate(dataSource);
         jdbc.execute("""
             create table market_asset_catalog (
@@ -145,7 +145,7 @@ class FinancialMarketQueryExecutorTest {
     }
 
     @Test
-    void exposesEightCompleteDisabledSampleDefinitions() {
+    void exposesSevenCompleteDisabledSampleDefinitions() {
         assertThat(FinancialAnalysisQuerySamples.all()).hasSize(7);
         assertThat(FinancialAnalysisQuerySamples.all()).allSatisfy(sample -> {
             assertThat(sample.id()).isNotBlank();
@@ -158,6 +158,71 @@ class FinancialMarketQueryExecutorTest {
             assertThat(sample.tags()).isNotEmpty();
             assertThat(sample.intent()).isNotBlank();
             assertThat(sample.resultSemantics()).isNotBlank();
+            assertThat(sample.sql())
+                .contains("QUALIFY ROW_NUMBER()")
+                .doesNotContain("IFNULL(", "DATE_FORMAT(", "STR_TO_DATE(", "LIMIT ");
         });
+    }
+
+    @Test
+    void everyBuiltInAnalysisTemplateExecutesAgainstNativeH2() {
+        createNativeH2FinancialTables();
+
+        FinancialAnalysisQuerySamples.all().forEach(sample -> {
+            Map<String, Object> parameters = sample.inputSchema().toString().contains("security_code")
+                ? Map.of("security_code", "000001") : Map.of();
+            FinancialMarketQueryExecutor.QueryResult result =
+                executor.execute(sample.sql(), parameters, sample.maxRows(), 10);
+
+            assertThat(result.rows()).as(sample.toolName()).isEmpty();
+        });
+    }
+
+    private void createNativeH2FinancialTables() {
+        jdbc.execute("""
+            create table market_quote_daily (
+                id bigint primary key, observation_date date, collected_at timestamp,
+                source_code varchar(64), source_url varchar(1000), quote_code varchar(32),
+                quote_name varchar(160), instrument_type varchar(32), previous_close decimal(20,4),
+                open decimal(20,4), high decimal(20,4), low decimal(20,4), close decimal(20,4),
+                change_pct decimal(20,4), volume10_k_units decimal(20,4),
+                amount10_k_cny decimal(20,4), amount100_m_cny decimal(20,4)
+            )
+            """);
+        jdbc.execute("""
+            create table etf_scale_daily (
+                id bigint primary key, observation_date date, collected_at timestamp,
+                source_code varchar(64), source_url varchar(1000), fund_code varchar(32),
+                fund_scale10_k_units decimal(20,4), payload_json clob
+            )
+            """);
+        jdbc.execute("""
+            create table margin_trade_daily (
+                id bigint primary key, observation_date date, collected_at timestamp,
+                source_code varchar(64), source_url varchar(1000), record_key varchar(64), payload_json clob
+            )
+            """);
+        jdbc.execute("""
+            create table market_statistics_daily (
+                id bigint primary key, observation_date date, collected_at timestamp,
+                source_code varchar(64), source_url varchar(1000), record_key varchar(64), payload_json clob
+            )
+            """);
+        jdbc.execute("""
+            create table bond_yield_curve_daily (
+                id bigint primary key, observation_date date, collected_at timestamp,
+                source_code varchar(64), source_url varchar(1000), curve_name varchar(160),
+                curve_type varchar(64), maturity_years decimal(12,4), yield_pct decimal(20,8)
+            )
+            """);
+        jdbc.execute("""
+            create table bond_settlement_daily (
+                id bigint primary key, observation_date date, collected_at timestamp,
+                source_code varchar(64), source_url varchar(1000), settlement_time varchar(64),
+                settlement_type varchar(160), principal_amount100_m_cny decimal(20,4),
+                face_amount100_m_cny decimal(20,4), funds_amount100_m_cny decimal(20,4),
+                transaction_count bigint
+            )
+            """);
     }
 }

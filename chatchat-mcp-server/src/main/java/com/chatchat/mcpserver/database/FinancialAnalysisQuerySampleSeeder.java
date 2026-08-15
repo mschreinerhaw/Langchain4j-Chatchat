@@ -52,7 +52,7 @@ public class FinancialAnalysisQuerySampleSeeder {
         for (Sample sample : FinancialAnalysisQuerySamples.all()) {
             if (seedRecorded(sample.id())) {
                 Optional<DatabaseQueryConfig> existing = repository.findById(sample.id());
-                if (existing.isPresent() && requiresStableObservationUpgrade(existing.get(), sample)) {
+                if (existing.isPresent() && requiresManagedDefinitionUpgrade(existing.get(), sample)) {
                     DatabaseQueryConfig config = existing.get();
                     config.setSqlTemplate(sample.sql());
                     config.setSqlStepsJson(writeJson(List.of(sqlStep(sample))));
@@ -85,14 +85,20 @@ public class FinancialAnalysisQuerySampleSeeder {
         }
     }
 
-    private boolean requiresStableObservationUpgrade(DatabaseQueryConfig existing, Sample sample) {
+    private boolean requiresManagedDefinitionUpgrade(DatabaseQueryConfig existing, Sample sample) {
         if (!FinancialAnalysisQuerySamples.INTERNAL_DATASOURCE_ID.equals(existing.getDatasourceId())
             || !"system".equalsIgnoreCase(existing.getOwner())) {
             return false;
         }
         String currentSql = existing.getSqlTemplate() == null ? "" : existing.getSqlTemplate();
-        return sample.sql().contains("observation_rank")
-            && !currentSql.contains("observation_rank");
+        String expectedSteps = writeJson(List.of(sqlStep(sample)));
+        String currentSteps = existing.getSqlStepsJson() == null ? "" : existing.getSqlStepsJson();
+        return !normalizeSql(currentSql).equals(normalizeSql(sample.sql()))
+            || !currentSteps.equals(expectedSteps);
+    }
+
+    private String normalizeSql(String value) {
+        return value == null ? "" : value.trim().replaceAll("\\s+", " ");
     }
 
     private DatabaseQueryConfig toConfig(Sample sample) {

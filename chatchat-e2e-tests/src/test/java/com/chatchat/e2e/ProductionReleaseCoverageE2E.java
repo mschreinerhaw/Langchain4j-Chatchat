@@ -31,6 +31,7 @@ class ProductionReleaseCoverageE2E {
             "LinuxCommandServiceTest",
             "SqlQueryExecuteServiceTest",
             "CommandTemplateDiscoveryDatabaseQueryTest",
+            "FinancialMarketQueryExecutorTest",
             "FinancialQueryRuntimeContractAcceptanceTest"
         );
         assertThat(releaseSuite)

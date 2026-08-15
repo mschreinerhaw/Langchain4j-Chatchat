@@ -67,7 +67,7 @@ class FinancialAnalysisQuerySampleSeederTest {
     }
 
     @Test
-    void upgradesSeededSystemSamplesThatStillUseLegacyObservationSelection() {
+    void upgradesSeededSystemSamplesToTheMaintainedH2Definition() {
         DatabaseQueryConfigRepository repository = mock(DatabaseQueryConfigRepository.class);
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
         when(jdbc.queryForObject(anyString(), eq(Integer.class), anyString())).thenReturn(1);
@@ -88,9 +88,30 @@ class FinancialAnalysisQuerySampleSeederTest {
         ArgumentCaptor<DatabaseQueryConfig> captor = ArgumentCaptor.forClass(DatabaseQueryConfig.class);
         verify(repository).save(captor.capture());
         assertThat(captor.getValue().isEnabled()).isTrue();
-        assertThat(captor.getValue().getSqlTemplate()).contains("observation_rank", "ROW_NUMBER()");
-        assertThat(captor.getValue().getSqlStepsJson()).contains("observation_rank");
+        assertThat(captor.getValue().getSqlTemplate()).contains("QUALIFY ROW_NUMBER()", "market_quote_daily");
+        assertThat(captor.getValue().getSqlStepsJson()).contains("QUALIFY ROW_NUMBER()");
         verify(jdbc, times(0)).update(anyString(), any(), any());
+    }
+
+    @Test
+    void preservesUserOwnedTemplatesEvenWhenTheirSqlDiffersFromTheBuiltinDefinition() {
+        DatabaseQueryConfigRepository repository = mock(DatabaseQueryConfigRepository.class);
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.queryForObject(anyString(), eq(Integer.class), anyString())).thenReturn(1);
+        DatabaseQueryConfig existing = new DatabaseQueryConfig();
+        existing.setId("builtin-market-latest-movers");
+        existing.setDatasourceId(FinancialAnalysisQuerySamples.INTERNAL_DATASOURCE_ID);
+        existing.setOwner("data-admin");
+        existing.setSqlTemplate("SELECT quote_code FROM market_quote_daily");
+        when(repository.findById(anyString())).thenReturn(Optional.empty());
+        when(repository.findById(existing.getId())).thenReturn(Optional.of(existing));
+        FinancialAnalysisQuerySampleSeeder seeder =
+            new FinancialAnalysisQuerySampleSeeder(repository, jdbc, new ObjectMapper());
+
+        seeder.seedOnce();
+
+        verify(repository, times(0)).save(any(DatabaseQueryConfig.class));
+        assertThat(existing.getSqlTemplate()).isEqualTo("SELECT quote_code FROM market_quote_daily");
     }
 
     @Test

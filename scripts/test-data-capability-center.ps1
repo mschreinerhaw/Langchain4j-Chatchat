@@ -39,6 +39,7 @@ $testClasses = @(
     "DatabaseQueryMcpToolPublisherTest",
     "CommandTemplateDiscoveryDatabaseQueryTest",
     "DataQueryCategoryServiceTest",
+    "FinancialMarketQueryExecutorTest",
     "FinancialAnalysisQuerySampleSeederTest",
     "FinancialQueryRuntimeContractAcceptanceTest"
 )

@@ -7,7 +7,7 @@ import { enhanceResultTables } from "../utils/resultTableEnhancer.js";
 import { normalizeArtifactHtml } from "../utils/artifactHtmlNormalizer.js";
 import { isInternalDocumentRef, stripInternalDocumentRefs } from "../utils/internalDocumentRefs.js";
 import { normalizeMarkdownTables } from "../utils/markdownTableNormalizer.js";
-import { inlineWebCitationLinks } from "../utils/webReferences.js";
+import { inlineWebCitationLinks, stripWebCitationMarkersFromHtml } from "../utils/webReferences.js";
 import {
   collapseRecordCoverageEvidenceHtml,
   collapseToolExecutionEvidenceHtml
@@ -78,15 +78,17 @@ export function renderArtifactMarkdownHtml(value = "") {
     stripInternalDocumentRefs(String(value || "")),
     []
   ).content;
-  const rendered = enhanceResultTables(markdown.render(normalizeMarkdownTables(
+  const rendered = enhanceResultTables(stripWebCitationMarkersFromHtml(markdown.render(normalizeMarkdownTables(
     visibleContent
-  )));
+  ))));
   return collapseRecordCoverageEvidenceHtml(collapseToolExecutionEvidenceHtml(rendered));
 }
 
 export function renderArtifactHtml(value = "") {
   const visibleContent = inlineWebCitationLinks(String(value || ""), []).content;
-  const rendered = normalizeArtifactHtml(visibleContent, (source) => markdown.render(source));
+  const rendered = stripWebCitationMarkersFromHtml(
+    normalizeArtifactHtml(visibleContent, (source) => markdown.render(source))
+  );
   return collapseRecordCoverageEvidenceHtml(collapseToolExecutionEvidenceHtml(rendered));
 }
 
@@ -112,9 +114,9 @@ const NoticeResource = resourceComponent("ArtifactNotice", (value, props) =>
     ]),
     h("div", {
       class: "artifact-notice-content",
-      innerHTML: markdown.render(normalizeMarkdownTables(inlineWebCitationLinks(
+      innerHTML: stripWebCitationMarkersFromHtml(markdown.render(normalizeMarkdownTables(inlineWebCitationLinks(
         stripInternalDocumentRefs(String(value || "")), []
-      ).content))
+      ).content)))
     })
   ])
 );
@@ -176,7 +178,7 @@ const EvidenceResource = resourceComponent("ArtifactEvidence", (value, props) =>
           ]),
           text ? h("div", {
             class: "artifact-evidence-content message-markdown",
-            innerHTML: markdown.render(String(text))
+            innerHTML: stripWebCitationMarkersFromHtml(markdown.render(String(text)))
           }) : null
         ])
       ]);

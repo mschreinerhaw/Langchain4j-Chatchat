@@ -31,6 +31,35 @@ describe("tool execution evidence", () => {
     expect(richHtml).not.toMatch(/\[(?:网页|網頁)\s*\d+\]/);
   });
 
+  it("hides decoded and full-width web markers when restoring history", () => {
+    const html = methods.renderMarkdown.call(
+      context,
+      "历史结论 &#91;网页7&#93;，补充来源 ［网页\u200B８］。",
+      { role: "assistant", sources: [], traces: [] }
+    );
+    const contractHtml = methods.renderMarkdown.call(
+      context,
+      "历史结论 &#91;网页7&#93;。",
+      {
+        role: "assistant",
+        sources: [],
+        traces: [],
+        uiResponse: {
+          contractVersion: "ui_response_v1",
+          answer: "历史结论 &#91;网页7&#93;。",
+          citations: []
+        }
+      }
+    );
+
+    expect(html).toContain("历史结论");
+    expect(html).not.toContain("网页7");
+    expect(html).not.toContain("网页\u200B８");
+    expect(html).not.toContain("&#91;");
+    expect(contractHtml).not.toContain("网页7");
+    expect(contractHtml).not.toContain("&#91;");
+  });
+
   it("keeps tool execution evidence collapsed by default", () => {
     const element = render([
       "## 回答结论",

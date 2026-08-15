@@ -123,7 +123,7 @@ export function inlineWebCitationLinks(content, pages = []) {
   if (!text || !Array.isArray(pages)) {
     return { content: text, citationUrls: [] };
   }
-  const marker = /(?:\[(?:网页|網頁|来源|source|ref|citation)\s*(?:\[\s*)?(\d+)(?:\s*\])?\]|【(?:网页|網頁|来源)\s*(\d+)】|(?:来源|网页|網頁|source|ref|citation)\s*(?:\[\s*(\d+)\s*\]|(\d+)))(?:\(\s*<?(https?:\/\/[^)\s>]+)>?(?:\s+["'][^)]*["'])?\s*\))?/gi;
+  const marker = /(?:[\[［](?:网页|網頁|来源|source|ref|citation)[\s\u200B-\u200D\uFEFF]*(?:[\[［][\s\u200B-\u200D\uFEFF]*)?([0-9０-９]+)(?:[\s\u200B-\u200D\uFEFF]*[\]］])?[\]］]|【(?:网页|網頁|来源)[\s\u200B-\u200D\uFEFF]*([0-9０-９]+)】|(?:来源|网页|網頁|source|ref|citation)[\s\u200B-\u200D\uFEFF]*(?:[\[［][\s\u200B-\u200D\uFEFF]*([0-9０-９]+)[\s\u200B-\u200D\uFEFF]*[\]］]|([0-9０-９]+)))(?:\(\s*<?(https?:\/\/[^)\s>]+)>?(?:\s+["'][^)]*["'])?\s*\))?/gi;
   const citationUrls = [];
   let output = "";
   let cursor = 0;
@@ -131,7 +131,7 @@ export function inlineWebCitationLinks(content, pages = []) {
   while ((match = marker.exec(text)) !== null) {
     output += text.slice(cursor, match.index);
     cursor = marker.lastIndex;
-    const rank = Number(match[1] || match[2] || match[3] || match[4]);
+    const rank = Number(String(match[1] || match[2] || match[3] || match[4]).normalize("NFKC"));
     const page = pages.find((item) => Number(item?.rank) === rank) || pages[rank - 1] || {};
     const url = safeWebUrl(page.url) || safeWebUrl(match[5]);
     if (url) {
@@ -144,6 +144,26 @@ export function inlineWebCitationLinks(content, pages = []) {
     .replace(/[ \t]{2,}/g, " ")
     .replace(/[ \t]+$/gm, "");
   return { content: output, citationUrls: [...new Set(citationUrls)] };
+}
+
+/** Removes citation markers after HTML/entity decoding without touching element attributes. */
+export function stripWebCitationMarkersFromHtml(html = "") {
+  const source = String(html || "");
+  if (!source || typeof document === "undefined") {
+    return inlineWebCitationLinks(source, []).content;
+  }
+  const template = document.createElement("template");
+  template.innerHTML = source;
+  const walker = document.createTreeWalker(
+    template.content,
+    globalThis.NodeFilter?.SHOW_TEXT ?? 4
+  );
+  let node = walker.nextNode();
+  while (node) {
+    node.nodeValue = inlineWebCitationLinks(node.nodeValue || "", []).content;
+    node = walker.nextNode();
+  }
+  return template.innerHTML;
 }
 
 export function extractDocumentSearchPages(trace) {

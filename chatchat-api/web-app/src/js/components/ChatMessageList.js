@@ -7,7 +7,8 @@ import {
   extractDocumentSearchPagesFromTraces,
   extractWebCitationPages,
   extractWebSearchPagesFromTraces,
-  inlineWebCitationLinks
+  inlineWebCitationLinks,
+  stripWebCitationMarkersFromHtml
 } from "../utils/webReferences.js";
 import { selectCompleteMessageContent } from "../utils/messageContentSelection.js";
 import { answerPdfFileName, exportRenderedAnswerToPdf } from "../utils/answerPdfExport.js";
@@ -598,14 +599,16 @@ export default {
       const prepared = this.prepareMarkdownContent(String(content ?? ""), message);
       const uiContract = this.uiRenderContract(message, prepared.content);
       if (uiContract) {
-        const rendered = this.renderUiRenderContract(uiContract, new Set(prepared.citationUrls), prepared.pages);
+        const rendered = stripWebCitationMarkersFromHtml(
+          this.renderUiRenderContract(uiContract, new Set(prepared.citationUrls), prepared.pages)
+        );
         return collapseRecordCoverageEvidenceHtml(
           this.collapseToolEvidenceHtml(this.enhanceResultTables(rendered))
         );
       }
-      const rendered = markdown.render(normalizeMarkdownTables(prepared.content), {
+      const rendered = stripWebCitationMarkersFromHtml(markdown.render(normalizeMarkdownTables(prepared.content), {
         webCitationUrls: new Set(prepared.citationUrls)
-      });
+      }));
       return collapseRecordCoverageEvidenceHtml(
         this.collapseToolEvidenceHtml(this.enhanceResultTables(rendered))
       );

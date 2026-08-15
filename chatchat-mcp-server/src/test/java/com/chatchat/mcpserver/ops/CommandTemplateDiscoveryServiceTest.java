@@ -481,7 +481,7 @@ class CommandTemplateDiscoveryServiceTest {
         Map<?, ?> irAsset = (Map<?, ?>) queryIr.get("asset");
         Map<?, ?> irIntent = (Map<?, ?>) queryIr.get("intent");
         Map<?, ?> selectedAsset = (Map<?, ?>) irAsset.get("selected");
-        assertThat(result).containsEntry("returnedCount", 2);
+        assertThat(result).containsEntry("returnedCount", 1);
         assertThat(selectedTemplate.get("templateId")).isEqualTo("MYSQL_SHOW_STATUS");
         assertThat(selectedTemplate.get("matchReasons").toString()).contains("status");
         assertThat(selectedTemplate.get("mcpDecision").toString())
@@ -633,7 +633,7 @@ class CommandTemplateDiscoveryServiceTest {
     }
 
     @Test
-    void returnsAuthorizedSqlCandidatesWhenTemplateIndexIsUnavailable() {
+    void doesNotReturnUnrelatedAuthorizedSqlCandidateWhenTemplateIndexIsUnavailable() {
         SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
         CommandTemplateDiscoveryService service = service(
@@ -668,9 +668,9 @@ class CommandTemplateDiscoveryServiceTest {
             "limit", 10
         ));
 
-        assertThat((List<?>) result.get("templates")).hasSize(1);
-        assertThat(result).containsEntry("returnedCount", 1);
-        assertThat(result.get("resolutionTrace").toString()).contains("fallbackUsed=true");
+        assertThat((List<?>) result.get("templates")).isEmpty();
+        assertThat(result).containsEntry("returnedCount", 0);
+        assertThat(result.get("resolutionTrace").toString()).contains("fallbackUsed=false");
     }
 
     @Test
@@ -732,7 +732,7 @@ class CommandTemplateDiscoveryServiceTest {
         assertThat(result.get("resolutionTrace").toString())
             .contains("template_retrieval", "returnedCount=2", "fallbackUsed=true", "hitCount=0");
         assertThat(result.get("templateSelectionPolicy").toString())
-            .contains("runtimeSemanticReviewRequiredWhenMultiple=true", "mcpRelevanceIsAdmissionFilter=false");
+            .contains("runtimeSemanticReviewRequiredWhenMultiple=true", "mcpRelevanceIsAdmissionFilter=true");
     }
 
     @Test
@@ -976,7 +976,7 @@ class CommandTemplateDiscoveryServiceTest {
     }
 
     @Test
-    void ranksMysqlTableMetadataBeforeStorageTemplateForMetadataIntent() {
+    void doesNotSubstituteUnrelatedTemplateWhenMetadataTemplateIsRetired() {
         SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
         LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
@@ -1045,13 +1045,11 @@ class CommandTemplateDiscoveryServiceTest {
         ));
 
         List<?> templates = (List<?>) result.get("templates");
-        assertThat(templates).isNotEmpty();
-        assertThat(templates.stream().map(template -> ((Map<?, ?>) template).get("templateId")).toList()
-            .contains("MYSQL_TABLE_METADATA")).isFalse();
+        assertThat(templates).isEmpty();
     }
 
     @Test
-    void retrievesEnglishNamedTemplateFromChineseOnlyMetadataIntent() {
+    void returnsNoUnrelatedTemplateForChineseMetadataIntentWhenMetadataTemplateIsRetired() {
         SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
         LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
@@ -1119,9 +1117,7 @@ class CommandTemplateDiscoveryServiceTest {
         Map<?, ?> queryIr = (Map<?, ?>) result.get("queryIr");
         Map<?, ?> intent = (Map<?, ?>) queryIr.get("intent");
 
-        assertThat(templates).isNotEmpty();
-        assertThat(templates.stream().map(template -> ((Map<?, ?>) template).get("templateId")).toList()
-            .contains("MYSQL_TABLE_METADATA")).isFalse();
+        assertThat(templates).isEmpty();
         assertThat(intent.get("type")).isEqualTo("metadata_query");
         assertThat(result.get("templateSelectionPolicy").toString()).contains("Chinese and English");
     }

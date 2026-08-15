@@ -266,14 +266,14 @@ class CommandTemplateDiscoveryDatabaseQueryTest {
             "limit", 10
         ));
 
-        assertThat(result).containsEntry("categoryRequired", false).containsEntry("returnedCount", 2);
+        assertThat(result).containsEntry("categoryRequired", false).containsEntry("returnedCount", 1);
         assertThat(result.get("selectedCategory").toString()).contains("market_data", "\u5e02\u573a\u884c\u60c5");
         assertThat(result.get("retrievalFlow").toString())
             .contains("business_category_resolution", "global_template_search_with_category_ranking",
                 "sql_template_execution", "evidence_analysis", "crossCategoryResultsAllowed=true");
         assertThat(result.get("templates").toString())
-            .contains("query_margin_trade_latest", "query_customer_assets", "sql_query_execute",
-                "market_data", "customer_analysis");
+            .contains("query_margin_trade_latest", "sql_query_execute", "market_data")
+            .doesNotContain("query_customer_assets", "customer_analysis");
     }
 
     @Test
@@ -373,12 +373,13 @@ class CommandTemplateDiscoveryDatabaseQueryTest {
             "trace", trace()
         ));
 
-        assertThat(result).containsEntry("categoryRequired", false).containsEntry("returnedCount", 2);
+        assertThat(result).containsEntry("categoryRequired", false).containsEntry("returnedCount", 1);
         assertThat(result.get("selectedCategory").toString()).contains("default");
         assertThat(result.get("categoryDiagnostics").toString())
             .contains("fallbackUsed=true", "fallbackCategory=default");
         assertThat(result.get("templates").toString())
-            .contains("query_generic_business_data", "query_margin_trade_latest", "sql_query_execute", "market_data");
+            .contains("query_margin_trade_latest", "sql_query_execute", "market_data")
+            .doesNotContain("query_generic_business_data");
     }
 
     @Test
@@ -480,10 +481,10 @@ class CommandTemplateDiscoveryDatabaseQueryTest {
             "limit", 10
         ));
 
-        assertThat(result).containsEntry("returnedCount", 2);
+        assertThat(result).containsEntry("returnedCount", 1);
         assertThat(result.get("templates").toString())
             .contains("query_margin_trade_latest")
-            .contains("query_bond_settlement");
+            .doesNotContain("query_bond_settlement");
         assertThat(result.get("resolutionTrace").toString()).contains("fallbackUsed=true");
     }
 

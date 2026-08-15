@@ -36,6 +36,9 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
     public static final String TOOL_NAME = "api_template_query";
     private static final int DEFAULT_LIMIT = 10;
     private static final int MAX_LIMIT = 20;
+    private static final double RELATIVE_RETRIEVAL_FLOOR = 0.20;
+    private static final double STRONG_SEMANTIC_FLOOR = 0.60;
+    private static final double LOCAL_COVERAGE_FLOOR = 0.15;
 
     private final McpSyncServer mcpSyncServer;
     private final ApiServiceConfigService configService;
@@ -143,22 +146,21 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
                 Math::max,
                 LinkedHashMap::new
             ));
+        double bestHitScore = hitScores.values().stream().mapToDouble(Double::doubleValue).max().orElse(0.0D);
+        boolean browseMode = terms.isEmpty();
+        boolean explicitSelection = !requestedTemplateIds.isEmpty();
         List<ScoredApiTemplate> matched = scopedConfigs.stream()
             .filter(config -> !text(config.getToolName()).isBlank())
             .filter(config -> !excludedTemplateIds.contains(config.getToolName()))
-            .map(config -> new ScoredApiTemplate(
-                config,
-                hitScores.getOrDefault(config.getToolName(),
-                    categoryResolution.category() != null && belongsTo(config, categoryResolution.category())
-                        ? 1.0
-                        : 0.0)
-            ))
+            .map(config -> scoredTemplate(config, terms, hitScores, bestHitScore,
+                categoryResolution.category(), browseMode, explicitSelection))
+            .filter(ScoredApiTemplate::qualified)
             .sorted(java.util.Comparator.comparingDouble(ScoredApiTemplate::score).reversed()
                 .thenComparing(item -> item.config().getToolName()))
             .toList();
         List<Map<String, Object>> templates = matched.stream()
             .limit(limit)
-            .map(item -> templateMetadata(item.config(), item.score()))
+            .map(this::templateMetadata)
             .toList();
         return mapOf(
             "schemaVersion", CommandTemplateDiscoveryService.RESULT_SCHEMA_VERSION,
@@ -188,7 +190,9 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
                 "mustUseReturnedTemplateId", true,
                 "doNotInventTemplateNames", true,
                 "runtimeSemanticReviewRequiredWhenMultiple", true,
-                "mcpRelevanceIsAdmissionFilter", false,
+                "mcpRelevanceIsAdmissionFilter", true,
+                "relativeRetrievalFloor", RELATIVE_RETRIEVAL_FLOOR,
+                "localCoverageFloor", LOCAL_COVERAGE_FLOOR,
                 "rawExecutionSpecReturned", false,
                 "selectionFields", List.of("templateId", "toolName", "title", "description", "businessGroup", "capabilitySpec", "outputSchema", "dependencySpec", "parameterSchema", "requiredParameters", "parameterContract", "invocationExample"),
                 "onEmptyResult", "No existing API template matched the request. Do not invent an API tool name."
@@ -205,7 +209,9 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
                 "hitCount", hitScores.size(),
                 "hitIds", hitScores.keySet().stream().limit(limit).toList(),
                 "candidateCount", matched.size(),
-                "candidatePolicy", "authorized_high_recall_runtime_semantic_review",
+                "candidatePolicy", "authorized_relevance_qualified_candidates",
+                "retrievedCandidateCount", hitScores.size(),
+                "qualifiedCandidateCount", matched.size(),
                 "categoryScoped", false,
                 "categoryRequired", false,
                 "categoryAmbiguous", categoryResolution.categoryRequired(),
@@ -455,7 +461,68 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             return null;
         }
         double categoryBoost = preferredCategory != null && belongsTo(config, preferredCategory) ? 1.0 : 0.0;
-        return new ScoredApiTemplate(config, hit.score() + categoryBoost);
+        return new ScoredApiTemplate(config, hit.score() + categoryBoost, true, 0, 0.0D);
+    }
+
+    private ScoredApiTemplate scoredTemplate(ApiServiceConfig config,
+                                             List<String> terms,
+                                             Map<String, Double> hitScores,
+                                             double bestHitScore,
+                                             BusinessCategory preferredCategory,
+                                             boolean browseMode,
+                                             boolean explicitSelection) {
+        TemplateLexicalQuality lexical = templateLexicalQuality(config, terms);
+        Double retrievalScore = hitScores.get(config.getToolName());
+        double relativeScore = retrievalScore == null || bestHitScore <= 0.0D
+            ? 0.0D
+            : retrievalScore / bestHitScore;
+        boolean indexQualified = retrievalScore != null
+            && relativeScore >= RELATIVE_RETRIEVAL_FLOOR
+            && (lexical.matchedTerms() > 0 || relativeScore >= STRONG_SEMANTIC_FLOOR);
+        boolean registryQualified = lexical.coverage() >= LOCAL_COVERAGE_FLOOR
+            && lexical.matchedTerms() >= (lexical.queryTerms() >= 4 ? 2 : 1);
+        boolean qualified = browseMode || explicitSelection || indexQualified || registryQualified;
+        double categoryBoost = preferredCategory != null && belongsTo(config, preferredCategory) ? 1.0D : 0.0D;
+        double score = (retrievalScore == null ? lexical.coverage() : retrievalScore) + categoryBoost;
+        return new ScoredApiTemplate(config, score, qualified, lexical.matchedTerms(), lexical.coverage());
+    }
+
+    private TemplateLexicalQuality templateLexicalQuality(ApiServiceConfig config, List<String> terms) {
+        if (terms == null || terms.isEmpty()) {
+            return new TemplateLexicalQuality(0, 0, 1.0D);
+        }
+        String haystack = normalize(String.join(" ", List.of(
+            text(config.getToolName()),
+            text(config.getTitle()),
+            text(config.getDescription()),
+            text(config.getBusinessGroup()),
+            text(config.getBusinessGroupName()),
+            text(config.getBusinessGroupDescription()),
+            String.join(" ", governanceSignals(config.getGovernanceJson()))
+        )));
+        List<String> queryTerms = terms.stream()
+            .flatMap(term -> lexicalTerms(term).stream())
+            .filter(term -> !term.isBlank())
+            .distinct()
+            .toList();
+        int matched = (int) queryTerms.stream().filter(haystack::contains).count();
+        double coverage = queryTerms.isEmpty() ? 0.0D : matched / (double) queryTerms.size();
+        return new TemplateLexicalQuality(queryTerms.size(), matched, coverage);
+    }
+
+    private List<String> lexicalTerms(String value) {
+        String normalized = normalize(value);
+        if (normalized.isBlank()) {
+            return List.of();
+        }
+        List<String> values = new ArrayList<>();
+        values.add(normalized);
+        for (String token : normalized.split("[^a-z0-9\\p{IsHan}]+")) {
+            if (!token.isBlank() && token.length() >= 2) {
+                values.add(token);
+            }
+        }
+        return values.stream().distinct().toList();
     }
 
     private Map<String, Object> filtersWithApiAssetSignals(Map<String, Object> filters, List<String> signals) {
@@ -616,7 +683,8 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
         return !left.isBlank() && !right.isBlank() && (left.equals(right) || left.contains(right) || right.contains(left));
     }
 
-    private Map<String, Object> templateMetadata(ApiServiceConfig config, double score) {
+    private Map<String, Object> templateMetadata(ScoredApiTemplate scored) {
+        ApiServiceConfig config = scored.config();
         Map<String, Object> parameterSchema = parameterSchema(config.getInputSchemaJson());
         List<String> requiredParameters = requiredParameters(parameterSchema);
         return mapOf(
@@ -639,7 +707,10 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             "invocationExample", directInvocationExample(config.getToolName(), parameterSchema),
             "riskLevel", "LOW",
             "enabled", config.isEnabled(),
-            "relevanceScore", score,
+            "relevanceScore", scored.score(),
+            "relevanceCoverage", scored.coverage(),
+            "matchedTermCount", scored.matchedTerms(),
+            "relevanceStrategy", "api_template_hybrid_quality_gate_v2",
             "routing", mapOf(
                 "callTool", ApiMcpToolPublisher.EXECUTE_TOOL_NAME,
                 "templateId", config.getToolName(),
@@ -823,6 +894,13 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
         return map;
     }
 
-    private record ScoredApiTemplate(ApiServiceConfig config, double score) {
+    private record ScoredApiTemplate(ApiServiceConfig config,
+                                     double score,
+                                     boolean qualified,
+                                     int matchedTerms,
+                                     double coverage) {
+    }
+
+    private record TemplateLexicalQuality(int queryTerms, int matchedTerms, double coverage) {
     }
 }

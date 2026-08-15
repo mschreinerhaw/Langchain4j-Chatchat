@@ -129,9 +129,10 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
             "filters", Map.of("groupDescription", "fulfillment lifecycle")
         ));
 
-        assertThat(result.get("returnedCount")).isEqualTo(2);
+        assertThat(result.get("returnedCount")).isEqualTo(1);
         assertThat(result.toString())
-            .contains("order_status_api", "invoice_status_api", "order_services", "fulfillment lifecycle APIs");
+            .contains("order_status_api", "order_services", "fulfillment lifecycle APIs")
+            .doesNotContain("invoice_status_api");
         Map<?, ?> first = (Map<?, ?>) ((List<?>) result.get("templates")).get(0);
         assertThat(first.get("templateId")).isEqualTo("order_status_api");
     }
@@ -207,13 +208,37 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
         assertThat(result).containsEntry("returnedCount", 1);
         assertThat(result.get("templates").toString()).contains("order_status_api");
         assertThat(result.get("diagnostics").toString())
-            .contains("hitCount=0", "candidateCount=1", "authorized_high_recall_runtime_semantic_review");
+            .contains("hitCount=0", "candidateCount=1", "authorized_relevance_qualified_candidates");
         assertThat(result.get("templateSelectionPolicy").toString())
-            .contains("runtimeSemanticReviewRequiredWhenMultiple=true", "mcpRelevanceIsAdmissionFilter=false");
+            .contains("runtimeSemanticReviewRequiredWhenMultiple=true", "mcpRelevanceIsAdmissionFilter=true");
         verify(lucene).searchApiServiceTemplates(argThat(request -> request != null
             && request.intentText() != null
             && request.intentText().contains("\u67e5\u8be2\u8ba2\u5355\u72b6\u6001")
             && request.intentText().contains("query order status")));
+    }
+
+    @Test
+    void queryDoesNotReturnUnrelatedRegistryCandidateWhenApiIndexHasNoHit() {
+        ApiServiceConfig config = new ApiServiceConfig();
+        config.setToolName("order_status_api");
+        config.setTitle("Order status API");
+        config.setDescription("Query order status by order id");
+        config.setEnabled(true);
+
+        ApiServiceConfigService configService = mock(ApiServiceConfigService.class);
+        when(configService.listEnabled()).thenReturn(List.of(config));
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        when(lucene.enabled()).thenReturn(true);
+        when(lucene.searchApiServiceTemplates(any())).thenReturn(List.of());
+
+        Map<String, Object> result = publisher(configService, lucene).query(Map.of(
+            "filters", Map.of("intent", "rotate database encryption keys")
+        ));
+
+        assertThat(result).containsEntry("returnedCount", 0);
+        assertThat((List<?>) result.get("templates")).isEmpty();
+        assertThat(result.get("diagnostics").toString())
+            .contains("retrievedCandidateCount=0", "qualifiedCandidateCount=0");
     }
 
     @Test
@@ -337,12 +362,13 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
         Map<String, Object> result = publisher.query(Map.of(
             "filters", Map.of("category", "missing-category", "intent", "查询业务状态")));
 
-        assertThat(result).containsEntry("categoryRequired", false).containsEntry("returnedCount", 2);
+        assertThat(result).containsEntry("categoryRequired", false).containsEntry("returnedCount", 1);
         assertThat(result.get("selectedCategory").toString()).contains("default");
         assertThat(result.get("diagnostics").toString())
             .contains("fallbackUsed=true", "fallbackCategory=default");
         assertThat(result.get("templates").toString())
-            .contains("generic_lookup_api", "order_status_api", "order_services");
+            .contains("order_status_api", "order_services")
+            .doesNotContain("generic_lookup_api");
     }
 
     private BusinessCategory category(String id, String code, String name) {

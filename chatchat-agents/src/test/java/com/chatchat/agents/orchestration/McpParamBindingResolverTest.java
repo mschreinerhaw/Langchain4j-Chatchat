@@ -230,7 +230,61 @@ class McpParamBindingResolverTest {
             .doesNotContain("Linux", "iowait");
         Map<String, Object> intentScoring = (Map<String, Object>) filters.get("intentScoring");
         assertThat(intentScoring)
-            .containsEntry("fallback", "top2_when_no_candidate_reaches_threshold");
+            .containsEntry("fallback", "original_query_only_when_no_candidate_reaches_threshold");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void rejectsAllLowConfidenceIntentCandidatesInsteadOfPollutingRetrieval() {
+        String query = "A股主要指数 2026年8月14日 行情数据 成交量";
+        Map<String, Object> result = resolver.resolve(
+            "mcp_chatchat_mcp_server_sql_datasource_asset_query",
+            null,
+            Map.of(
+                "finalDecision", "database",
+                "confidence", 0.95,
+                "filters", Map.of(
+                    "assetName", query,
+                    "intentCandidates", List.of(
+                        Map.of("intent", "债券托管量", "score", 0.42),
+                        Map.of("intent", "融资融券", "score", 0.31)
+                    )
+                ),
+                "trace", Map.of("plannerVersion", "v1.1")
+            ),
+            query
+        );
+
+        Map<String, Object> filters = (Map<String, Object>) result.get("filters");
+        assertThat(filters).doesNotContainKey("assetName").containsEntry("intent", query);
+        assertThat(strings(filters.get("queryTerms")))
+            .containsExactly(query)
+            .doesNotContain("债券托管量", "融资融券");
+        assertThat((Map<String, Object>) filters.get("intentScoring"))
+            .containsEntry("selectedTerms", List.of())
+            .containsEntry("fallback", "original_query_only_when_no_candidate_reaches_threshold");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void explicitFiltersWinAndStaleContextEnvelopeIsRemoved() {
+        Map<String, Object> result = resolver.resolve(
+            "mcp_chatchat_mcp_server_sql_datasource_asset_query",
+            null,
+            Map.of(
+                "finalDecision", "database",
+                "confidence", 0.95,
+                "executionContext", Map.of("asset_name", "stale-db", "environment", "TEST"),
+                "filters", Map.of("assetName", "authoritative-db", "env", "PROD"),
+                "trace", Map.of("plannerVersion", "v1.1")
+            ),
+            "查询数据库资产"
+        );
+
+        assertThat((Map<String, Object>) result.get("filters"))
+            .containsEntry("assetName", "authoritative-db")
+            .containsEntry("env", "PROD");
+        assertThat(result).doesNotContainKeys("executionContext", "mcpExecutionContext");
     }
 
     private List<String> strings(Object value) {

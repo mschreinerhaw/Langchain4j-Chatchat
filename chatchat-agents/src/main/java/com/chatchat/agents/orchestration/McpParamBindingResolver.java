@@ -18,6 +18,9 @@ import java.util.regex.Pattern;
  */
 class McpParamBindingResolver {
 
+    private final DiscoveryParameterNormalizer discoveryParameterNormalizer =
+        new DiscoveryParameterNormalizer();
+
     private static final Pattern ENV_ASSIGNMENT_PATTERN = Pattern.compile(
         "(?iu)(?:\\benv(?:ironment)?\\b|\\u73af\\u5883)\\s*(?:[:=]|\\u4e3a|\\u662f)\\s*"
             + "(DEV|TEST|UAT|PROD|\\u5f00\\u53d1|\\u6d4b\\u8bd5|\\u9884\\u53d1|\\u751f\\u4ea7)"
@@ -283,8 +286,24 @@ class McpParamBindingResolver {
                 + (templateQuery ? "host, database, http, java, or business_database_query" : "host, database, or http")
                 + "; use document_search for targetKind=document.");
         }
-        Map<String, Object> filters = filters(values);
-        inferLogicalContext(userQuery).forEach(filters::putIfAbsent);
+        DiscoveryParameterNormalizer.Normalization normalizedParameters =
+            discoveryParameterNormalizer.normalize(values, inferLogicalContext(userQuery), userQuery);
+        Map<String, Object> filters = new LinkedHashMap<>(normalizedParameters.filters());
+        removeForbidden(filters);
+        // A single canonical envelope prevents the MCP server from applying a second,
+        // different precedence order to stale aliases.
+        values.remove("executionContext");
+        values.remove("mcpExecutionContext");
+        if (!normalizedParameters.conflicts().isEmpty() || !normalizedParameters.repairs().isEmpty()) {
+            org.slf4j.LoggerFactory.getLogger(McpParamBindingResolver.class).info(
+                "Discovery parameters normalized tool={} conflicts={} repairs={} temporalConstraints={} provenance={}",
+                toolName,
+                normalizedParameters.conflicts(),
+                normalizedParameters.repairs(),
+                normalizedParameters.temporalConstraints(),
+                normalizedParameters.provenance()
+            );
+        }
         if (targetKind == null) {
             targetKind = removeTargetKind(filters);
         }
@@ -477,12 +496,14 @@ class McpParamBindingResolver {
         if (!retrievalSignals.isEmpty()) {
             filters.put("retrievalSignals", retrievalSignals);
         }
-        if (!selectedIntentTerms.isEmpty() && !filters.containsKey("intentScoring")) {
+        if (rawCandidates instanceof List<?> candidates && !candidates.isEmpty()
+            && !filters.containsKey("intentScoring")) {
             filters.put("intentScoring", Map.of(
                 "strategy", "threshold_intent_ensemble_plus_original_query",
                 "threshold", INTENT_RETRIEVAL_THRESHOLD,
-                "fallback", "top2_when_no_candidate_reaches_threshold",
-                "selectedTerms", selectedIntentTerms
+                "fallback", "original_query_only_when_no_candidate_reaches_threshold",
+                "selectedTerms", selectedIntentTerms,
+                "candidateCount", candidates.size()
             ));
         }
     }
@@ -499,9 +520,6 @@ class McpParamBindingResolver {
         List<IntentCandidate> selected = ranked.stream()
             .filter(candidate -> candidate.score() >= INTENT_RETRIEVAL_THRESHOLD)
             .toList();
-        if (selected.isEmpty()) {
-            selected = ranked.stream().limit(2).toList();
-        }
         List<String> terms = new ArrayList<>();
         selected.forEach(candidate -> addTerms(terms, candidate.terms()));
         return terms;

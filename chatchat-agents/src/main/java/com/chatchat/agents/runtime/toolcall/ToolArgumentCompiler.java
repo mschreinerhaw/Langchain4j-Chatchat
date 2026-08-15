@@ -36,6 +36,13 @@ public final class ToolArgumentCompiler {
             String name = String.valueOf(entry.getKey());
             Map<String, Object> property = objectMap(entry.getValue());
             SourceValue selected = sourceValue(source, name, property);
+            if (selected.conflicting()) {
+                errors.add(new ValidationError(name, "CONFLICTING_PARAMETER_ALIASES",
+                    "Conflicting values were provided for parameter aliases " + selected.matchedNames(),
+                    selected.value(), expectedType(property)));
+                consumed.addAll(selected.matchedNames());
+                continue;
+            }
             Object value = selected.value();
             Object declaredDefault = firstPresent(property, "default", "defaultValue", "default_value");
             if (value == null && declaredDefault != null) {
@@ -45,7 +52,7 @@ public final class ToolArgumentCompiler {
             if (value == null) {
                 continue;
             }
-            consumed.add(selected.sourceName());
+            consumed.addAll(selected.matchedNames());
             Conversion conversion = convert(name, value, property);
             if (conversion.error() != null) {
                 Conversion defaultConversion = declaredDefault == null
@@ -103,8 +110,8 @@ public final class ToolArgumentCompiler {
                 case "number" -> number(value);
                 case "boolean" -> bool(value);
                 case "string" -> stringValue(value, property);
-                case "array" -> value instanceof List<?> ? value : List.of(value);
-                case "object" -> value instanceof Map<?, ?> ? value : null;
+                case "array" -> arrayValue(field, value, property);
+                case "object" -> objectValue(field, value, property);
                 default -> value;
             };
         } catch (RuntimeException ex) {
@@ -142,6 +149,66 @@ public final class ToolArgumentCompiler {
         return text;
     }
 
+    private Object arrayValue(String field, Object value, Map<String, Object> property) {
+        List<?> source = value instanceof List<?> list ? list : List.of(value);
+        Map<String, Object> itemSchema = objectMap(property.get("items"));
+        if (itemSchema.isEmpty()) {
+            return List.copyOf(source);
+        }
+        List<Object> converted = new ArrayList<>();
+        for (int index = 0; index < source.size(); index++) {
+            Conversion item = convert(field + "[" + index + "]", source.get(index), itemSchema);
+            if (item.error() != null) {
+                throw new IllegalArgumentException(item.error().message());
+            }
+            converted.add(item.value());
+        }
+        return List.copyOf(converted);
+    }
+
+    private Object objectValue(String field, Object value, Map<String, Object> property) {
+        if (!(value instanceof Map<?, ?> raw)) {
+            return null;
+        }
+        Map<String, Object> source = objectMap(raw);
+        if (!(property.get("properties") instanceof Map<?, ?> rawProperties)) {
+            return Map.copyOf(source);
+        }
+        Map<String, Object> converted = new LinkedHashMap<>();
+        Set<String> consumed = new LinkedHashSet<>();
+        Set<String> required = new LinkedHashSet<>(stringList(property.get("required")));
+        for (Map.Entry<?, ?> entry : rawProperties.entrySet()) {
+            String name = String.valueOf(entry.getKey());
+            Map<String, Object> childSchema = objectMap(entry.getValue());
+            SourceValue selected = sourceValue(source, name, childSchema);
+            if (selected.conflicting()) {
+                throw new IllegalArgumentException("Conflicting aliases for " + field + "." + name);
+            }
+            Object childValue = selected.value();
+            if (childValue == null) {
+                childValue = firstPresent(childSchema, "default", "defaultValue", "default_value");
+            }
+            if (childValue == null) {
+                if (required.contains(name)) {
+                    throw new IllegalArgumentException("Missing required parameter " + field + "." + name);
+                }
+                continue;
+            }
+            Conversion child = convert(field + "." + name, childValue, childSchema);
+            if (child.error() != null) {
+                throw new IllegalArgumentException(child.error().message());
+            }
+            converted.put(name, child.value());
+            consumed.addAll(selected.matchedNames());
+        }
+        if (Boolean.TRUE.equals(property.get("additionalProperties"))) {
+            source.forEach((key, item) -> {
+                if (!consumed.contains(key)) converted.putIfAbsent(key, item);
+            });
+        }
+        return Map.copyOf(converted);
+    }
+
     private Integer integer(Object value) {
         if (value instanceof Number number) {
             return number.intValue();
@@ -172,17 +239,29 @@ public final class ToolArgumentCompiler {
         candidates.add(field);
         candidates.addAll(stringList(property.get("aliases")));
         candidates.addAll(stringList(property.get("acceptedSources")));
-        if (field.toLowerCase(Locale.ROOT).endsWith("name")) {
+        // Keep the legacy convenience for value-like names (table -> tableName), but never
+        // apply it to routing identities where an object such as "asset" must not become text.
+        if (field.toLowerCase(Locale.ROOT).endsWith("name")
+            && !Set.of("assetname", "toolname", "servicename").contains(canonical(field))) {
             candidates.add(field.substring(0, field.length() - 4));
         }
-        for (String candidate : candidates) {
-            for (Map.Entry<String, Object> entry : source.entrySet()) {
-                if (canonical(candidate).equals(canonical(entry.getKey())) && hasValue(entry.getValue())) {
-                    return new SourceValue(entry.getKey(), entry.getValue());
-                }
-            }
+        List<Map.Entry<String, Object>> matches = source.entrySet().stream()
+            .filter(entry -> hasValue(entry.getValue()))
+            .filter(entry -> candidates.stream().anyMatch(candidate ->
+                canonical(candidate).equals(canonical(entry.getKey()))))
+            .toList();
+        if (matches.isEmpty()) {
+            return new SourceValue(field, null, false, List.of());
         }
-        return new SourceValue(field, null);
+        Map.Entry<String, Object> selected = matches.stream()
+            .filter(entry -> field.equals(entry.getKey()))
+            .findFirst()
+            .orElse(matches.get(0));
+        boolean conflicting = matches.stream()
+            .map(Map.Entry::getValue)
+            .anyMatch(candidate -> !valuesEqual(selected.getValue(), candidate));
+        return new SourceValue(selected.getKey(), selected.getValue(), conflicting,
+            matches.stream().map(Map.Entry::getKey).toList());
     }
 
     private String canonical(String value) {
@@ -266,7 +345,7 @@ public final class ToolArgumentCompiler {
     public record Repair(String field, String repairCode, Object originalValue, Object repairedValue) {
     }
 
-    private record SourceValue(String sourceName, Object value) {
+    private record SourceValue(String sourceName, Object value, boolean conflicting, List<String> matchedNames) {
     }
 
     private record Conversion(Object value, ValidationError error) {

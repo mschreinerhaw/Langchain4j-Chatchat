@@ -122,4 +122,65 @@ class ToolArgumentCompilerTest {
             .contains("INVALID_OVERRIDE_DROPPED_DEFAULT_APPLIED",
                 "INVALID_OPTIONAL_OVERRIDE_DROPPED");
     }
+
+    @Test
+    void recursivelyNormalizesNestedFilterSchema() {
+        Map<String, Object> schema = Map.of(
+            "type", "object",
+            "additionalProperties", false,
+            "properties", Map.of(
+                "filters", Map.of(
+                    "type", "object",
+                    "additionalProperties", false,
+                    "required", List.of("startDate"),
+                    "properties", Map.of(
+                        "startDate", Map.of("type", "string", "format", "date", "aliases", List.of("date")),
+                        "limit", Map.of("type", "integer"),
+                        "queryTerms", Map.of("type", "array", "items", Map.of("type", "string"))
+                    )
+                )
+            )
+        );
+
+        ToolArgumentCompiler.CompilationResult result = compiler.compile(Map.of(
+            "filters", Map.of(
+                "date", "20260814",
+                "limit", "10",
+                "queryTerms", List.of(100, "行情数据"),
+                "unknown", "discard"
+            )
+        ), schema);
+
+        assertThat(result.valid()).isTrue();
+        assertThat(result.parameters().get("filters"))
+            .isEqualTo(Map.of(
+                "startDate", "2026-08-14",
+                "limit", 10,
+                "queryTerms", List.of("100", "行情数据")
+            ));
+    }
+
+    @Test
+    void rejectsConflictingAliasValuesAndDoesNotGuessNameSuffixAliases() {
+        Map<String, Object> schema = Map.of(
+            "type", "object",
+            "required", List.of("assetName"),
+            "properties", Map.of(
+                "assetName", Map.of("type", "string", "aliases", List.of("asset_name"))
+            )
+        );
+
+        ToolArgumentCompiler.CompilationResult conflicting = compiler.compile(Map.of(
+            "assetName", "canonical-asset",
+            "asset_name", "different-asset"
+        ), schema);
+        ToolArgumentCompiler.CompilationResult guessed = compiler.compile(
+            Map.of("asset", "must-not-be-used-as-asset-name"), schema);
+
+        assertThat(conflicting.validationErrors())
+            .extracting(ToolArgumentCompiler.ValidationError::errorCode)
+            .contains("CONFLICTING_PARAMETER_ALIASES");
+        assertThat(guessed.valid()).isFalse();
+        assertThat(guessed.parameters()).doesNotContainKey("assetName");
+    }
 }

@@ -50,7 +50,7 @@ class FinalSummaryWebSearchEnhancerTest {
     }
 
     @Test
-    void agentSettingForcesFinancialRetrievalWhenModelIntentSaysNo() {
+    void structuredFinancialSettingDoesNotOverrideSufficientEvidenceQualityDecision() {
         ToolRegistry registry = mock(ToolRegistry.class);
         ToolRuntimeService runtime = mock(ToolRuntimeService.class);
         ChatModel model = mock(ChatModel.class);
@@ -61,12 +61,45 @@ class FinalSummaryWebSearchEnhancerTest {
             .build());
         when(model.chat(any(String.class))).thenReturn(
             "{\"needed\":false,\"financialDataRequired\":false,\"keywords\":[],\"reason\":\"model skipped\"}");
-        when(runtime.execute(any())).thenReturn(new ToolRuntimeExecution(
-            ToolOutput.failure("provider unavailable"), null, null, "failed", Map.of()));
         Map<String, Object> metadata = new LinkedHashMap<>(Map.of(
             "agentRunId", "forced-financial-run",
             "forceStructuredFinancialData", true
         ));
+        InteractionToolTrace existingWebTrace = InteractionToolTrace.builder()
+            .toolName("mcp_news_web_search").success(true)
+            .output("financialDataSatisfied=true retrievalSource=governed_financial_store").build();
+
+        var result = enhancer(registry, runtime).enhance(
+            model, "analyze today's market", "", "candidate",
+            List.of("complete structured index and volume evidence"), List.of(existingWebTrace), metadata);
+
+        verify(runtime, never()).execute(any());
+        assertThat(result.attempted()).isFalse();
+        assertThat(metadata)
+            .containsEntry("finalSummaryFinancialDataModelRequired", false)
+            .containsEntry("finalSummaryStructuredFinancialPolicyRequested", true)
+            .containsEntry("finalSummaryFinancialDataForced", false)
+            .containsEntry("finalSummaryFinancialDataRequired", false)
+            .containsEntry("finalSummaryFinancialDataDecisionSource", "QUALITY_GATE")
+            .containsEntry("finalSummaryWebSearchSkippedReason", "existing_evidence_sufficient");
+    }
+
+    @Test
+    void structuredFinancialSettingAppliesWhenQualityDecisionFindsAnEvidenceGap() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        ToolRuntimeService runtime = mock(ToolRuntimeService.class);
+        ChatModel model = mock(ChatModel.class);
+        when(registry.getAllToolNames()).thenReturn(Set.of("mcp_news_web_search"));
+        when(registry.getToolMetadata("mcp_news_web_search")).thenReturn(ToolMetadata.builder()
+            .id("mcp_news_web_search")
+            .parameters(List.of(ToolParameter.builder().name("financial_data_required").type("boolean").build()))
+            .build());
+        when(model.chat(any(String.class))).thenReturn(
+            "{\"needed\":true,\"financialDataRequired\":false,\"keywords\":[\"missing market breadth\"],"
+                + "\"reason\":\"market breadth is missing\"}");
+        when(runtime.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.failure("provider unavailable"), null, null, "failed", Map.of()));
+        Map<String, Object> metadata = new LinkedHashMap<>(Map.of("forceStructuredFinancialData", true));
 
         var result = enhancer(registry, runtime).enhance(
             model, "analyze today's market", "", "candidate", List.of(), List.of(), metadata);
@@ -77,9 +110,7 @@ class FinalSummaryWebSearchEnhancerTest {
         assertThat(captor.getValue().getToolInput().getParameters())
             .containsEntry("financial_data_required", true);
         assertThat(metadata)
-            .containsEntry("finalSummaryFinancialDataModelRequired", false)
             .containsEntry("finalSummaryFinancialDataForced", true)
-            .containsEntry("finalSummaryFinancialDataRequired", true)
             .containsEntry("finalSummaryFinancialDataDecisionSource", "AGENT_SETTING");
     }
 

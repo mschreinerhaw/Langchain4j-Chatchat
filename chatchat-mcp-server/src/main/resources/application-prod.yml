@@ -41,6 +41,11 @@ chatchat:
         single-flight-grace-ms: ${CHATCHAT_MARKET_QUERY_CACHE_SINGLE_FLIGHT_GRACE_MS:500}
       query-pool:
         enabled: ${CHATCHAT_MARKET_QUERY_POOL_ENABLED:true}
+        storage: ${CHATCHAT_MARKET_STORAGE:LOCAL_H2}
+        local-jdbc-url: "${CHATCHAT_MARKET_H2_JDBC_URL:jdbc:h2:file:./data/h2/financial-market;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_ON_EXIT=FALSE}"
+        local-username: ${CHATCHAT_MARKET_H2_USERNAME:sa}
+        local-password: ${CHATCHAT_MARKET_H2_PASSWORD:}
+        write-pool-size: ${CHATCHAT_MARKET_WRITE_POOL_SIZE:1}
         maximum-pool-size: ${CHATCHAT_MARKET_QUERY_POOL_SIZE:4}
         minimum-idle: ${CHATCHAT_MARKET_QUERY_POOL_MIN_IDLE:0}
         connection-timeout-ms: ${CHATCHAT_MARKET_QUERY_POOL_CONNECTION_TIMEOUT_MS:2000}

@@ -57,37 +57,42 @@ class FinalSummaryWebSearchEnhancer {
             || toolRegistry == null || toolRuntimeService == null) {
             return Enhancement.skipped(observations, traces);
         }
-        boolean forcedFinancialData = booleanValue(metadata == null
+        boolean structuredFinancialPolicy = booleanValue(metadata == null
             ? null
             : metadata.get("forceStructuredFinancialData"));
         String toolName = resolveInternalWebSearchTool(false);
         if (toolName == null || toolName.isBlank()) {
-            record(metadata, "finalSummaryWebSearchSkippedReason", forcedFinancialData
+            record(metadata, "finalSummaryWebSearchSkippedReason", structuredFinancialPolicy
                 ? "structured_financial_web_search_unavailable"
                 : "web_search_unavailable");
             return Enhancement.skipped(observations, traces);
         }
 
         SearchDecision modelDecision = decide(chatModel, query, systemPrompt, candidateAnswer, observations, traces);
-        List<String> effectiveKeywords = modelDecision.keywords();
-        if (forcedFinancialData && effectiveKeywords.isEmpty() && query != null && !query.isBlank()) {
-            effectiveKeywords = List.of(preview(query.trim(), 512));
-        }
+        // forceStructuredFinancialData governs the payload of a retrieval round; it must
+        // not manufacture a second web call after the quality decision says the existing
+        // evidence is sufficient. This avoids duplicate financial reads at finalization.
+        boolean policyApplied = structuredFinancialPolicy && modelDecision.needed();
         SearchDecision decision = new SearchDecision(
-            modelDecision.needed() || forcedFinancialData,
-            modelDecision.financialDataRequired() || forcedFinancialData,
-            effectiveKeywords,
-            forcedFinancialData ? "forced_by_agent_setting; " + modelDecision.reason() : modelDecision.reason()
+            modelDecision.needed(),
+            modelDecision.financialDataRequired() || policyApplied,
+            modelDecision.keywords(),
+            policyApplied ? "structured_financial_policy; " + modelDecision.reason() : modelDecision.reason()
         );
         record(metadata, "finalSummaryWebSearchDecision", decision.needed());
         record(metadata, "finalSummaryWebSearchDecisionReason", decision.reason());
         record(metadata, "finalSummaryWebSearchKeywords", decision.keywords());
         record(metadata, "finalSummaryFinancialDataModelRequired", modelDecision.financialDataRequired());
-        record(metadata, "finalSummaryFinancialDataForced", forcedFinancialData);
+        record(metadata, "finalSummaryStructuredFinancialPolicyRequested", structuredFinancialPolicy);
+        record(metadata, "finalSummaryFinancialDataForced", policyApplied);
         record(metadata, "finalSummaryFinancialDataRequired", decision.financialDataRequired());
         record(metadata, "finalSummaryFinancialDataDecisionSource",
-            forcedFinancialData ? "AGENT_SETTING" : "MODEL_INTENT");
+            policyApplied ? "AGENT_SETTING" : (modelDecision.needed() ? "MODEL_INTENT" : "QUALITY_GATE"));
         if (!decision.needed() || decision.keywords().isEmpty()) {
+            record(metadata, "finalSummaryWebSearchSkippedReason", "existing_evidence_sufficient");
+            log.info("Final summary web search skipped runId={} reason={} successfulWebTrace={}",
+                safe(text(metadata, "agentRunId", "__agentRunId")), safe(decision.reason()),
+                hasSuccessfulWebTrace(traces));
             return Enhancement.skipped(observations, traces);
         }
         if (decision.financialDataRequired()) {
@@ -115,7 +120,7 @@ class FinalSummaryWebSearchEnhancer {
             "Final summary financial retrieval decision runId={} policy={} modelRequired={} requested={} "
                 + "webEffective={}",
             safe(text(metadata, "agentRunId", "__agentRunId")),
-            forcedFinancialData ? "FORCED" : "INTENT_DRIVEN",
+            policyApplied ? "STRUCTURED_FINANCIAL_POLICY" : "INTENT_DRIVEN",
             modelDecision.financialDataRequired(),
             decision.financialDataRequired(),
             effectiveWebFinancialDataRequired

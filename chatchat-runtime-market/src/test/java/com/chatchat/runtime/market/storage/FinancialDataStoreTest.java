@@ -35,6 +35,9 @@ class FinancialDataStoreTest {
         CountDownLatch enteredReadLane = new CountDownLatch(1);
         CountDownLatch releaseReadLane = new CountDownLatch(1);
         FinancialReadOperations blockingReads = (sql, arguments) -> {
+            if (!sql.toLowerCase(java.util.Locale.ROOT).contains("from `market_quote_daily`")) {
+                return jdbc.queryForList(sql, arguments);
+            }
             enteredReadLane.countDown();
             try {
                 if (!releaseReadLane.await(3, TimeUnit.SECONDS)) throw new IllegalStateException("test read did not release");

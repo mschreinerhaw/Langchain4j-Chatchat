@@ -68,9 +68,18 @@ public class FinancialDataStore {
     @Autowired
     public FinancialDataStore(JdbcTemplate jdbc, DataSource dataSource, ObjectMapper mapper,
                               MarketModuleProperties runtimeProperties,
+                              @Qualifier("financialWriteJdbcTemplate") ObjectProvider<JdbcTemplate> writeJdbcProvider,
+                              @Qualifier("financialWriteDataSource") ObjectProvider<DataSource> writeDataSourceProvider,
                               @Qualifier("financialReadOperations") ObjectProvider<FinancialReadOperations> readProvider) {
-        this(jdbc, dataSource, mapper, runtimeProperties,
-            readProvider.getIfAvailable(() -> jdbc::queryForList));
+        this(resolveStorage(jdbc, dataSource, writeJdbcProvider, writeDataSourceProvider), mapper,
+            runtimeProperties, readProvider);
+    }
+
+    private FinancialDataStore(StorageResources storage, ObjectMapper mapper,
+                               MarketModuleProperties runtimeProperties,
+                               ObjectProvider<FinancialReadOperations> readProvider) {
+        this(storage.jdbc(), storage.dataSource(), mapper, runtimeProperties,
+            readProvider.getIfAvailable(() -> storage.jdbc()::queryForList));
     }
 
     FinancialDataStore(JdbcTemplate jdbc, DataSource dataSource, ObjectMapper mapper,
@@ -82,6 +91,14 @@ public class FinancialDataStore {
         this.properties = runtimeProperties;
         this.queryPermits = new Semaphore(Math.max(1, runtimeProperties.getMaxConcurrentQueries()), true);
         this.jdbc.setQueryTimeout(Math.max(1, runtimeProperties.getQueryTimeoutSeconds()));
+    }
+
+    private static StorageResources resolveStorage(JdbcTemplate primaryJdbc, DataSource primaryDataSource,
+                                                    ObjectProvider<JdbcTemplate> writeJdbcProvider,
+                                                    ObjectProvider<DataSource> writeDataSourceProvider) {
+        JdbcTemplate writeJdbc = writeJdbcProvider.getIfAvailable(() -> primaryJdbc);
+        DataSource writeDataSource = writeDataSourceProvider.getIfAvailable(() -> primaryDataSource);
+        return new StorageResources(writeJdbc, writeDataSource);
     }
 
     @PostConstruct
@@ -183,12 +200,12 @@ public class FinancialDataStore {
         int bounded = Math.max(1, Math.min(limit, 50));
         String term = query == null ? "" : query.trim();
         if (term.isBlank()) {
-            return jdbc.queryForList("select dataset_code,asset_name,business_description,business_tags_json,database_name,"
+            return financialReads.queryForList("select dataset_code,asset_name,business_description,business_tags_json,database_name,"
                 + "table_name,archive_table_name,hot_retention_days,archive_retention_days,history_granularity,"
                 + "update_frequency,last_observation_date,last_collected_at from market_asset_catalog order by updated_at desc limit ?", bounded);
         }
         String like = "%" + term.toLowerCase(Locale.ROOT) + "%";
-        return jdbc.queryForList("select dataset_code,asset_name,business_description,business_tags_json,database_name,"
+        return financialReads.queryForList("select dataset_code,asset_name,business_description,business_tags_json,database_name,"
             + "table_name,archive_table_name,hot_retention_days,archive_retention_days,history_granularity,"
             + "update_frequency,last_observation_date,last_collected_at from market_asset_catalog "
             + "where lower(asset_name) like ? or lower(business_description) like ? or lower(business_tags_json) like ? "
@@ -196,7 +213,8 @@ public class FinancialDataStore {
     }
 
     public List<String> catalogCodes() {
-        return jdbc.queryForList("select dataset_code from market_asset_catalog order by dataset_code", String.class);
+        return financialReads.queryForList("select dataset_code from market_asset_catalog order by dataset_code")
+            .stream().map(row -> String.valueOf(row.get("dataset_code"))).toList();
     }
 
     /**
@@ -264,12 +282,13 @@ public class FinancialDataStore {
         if (term.isBlank()) return List.of();
         int bounded = Math.max(1, Math.min(limit, 20));
         String like = "%" + term.toLowerCase(Locale.ROOT) + "%";
-        return jdbc.queryForList("select security_code from security_master "
+        return financialReads.queryForList("select security_code from security_master "
                 + "where lower(security_code)=? or lower(security_name) like ? or lower(security_full_name) like ? "
                 + "order by case when lower(security_code)=? then 0 when lower(security_name)=? then 1 "
                 + "when lower(security_name) like ? then 2 else 3 end, exchange_code, security_code limit ?",
-            String.class, term.toLowerCase(Locale.ROOT), like, like, term.toLowerCase(Locale.ROOT),
-            term.toLowerCase(Locale.ROOT), term.toLowerCase(Locale.ROOT) + "%", bounded);
+            term.toLowerCase(Locale.ROOT), like, like, term.toLowerCase(Locale.ROOT),
+            term.toLowerCase(Locale.ROOT), term.toLowerCase(Locale.ROOT) + "%", bounded)
+            .stream().map(row -> String.valueOf(row.get("security_code"))).toList();
     }
 
     /**
@@ -296,7 +315,7 @@ public class FinancialDataStore {
                 + "where `" + nameColumn + "` is not null and `" + nameColumn + "`<>'' "
                 + "and lower(?) like concat('%',lower(`" + nameColumn + "`),'%') "
                 + "order by length(`" + nameColumn + "`) desc limit ?";
-            for (Map<String, Object> row : jdbc.queryForList(sql, text.toLowerCase(Locale.ROOT), limit)) {
+            for (Map<String, Object> row : financialReads.queryForList(sql, text.toLowerCase(Locale.ROOT), limit)) {
                 addMention(mentions, row.get(codeColumn), row.get(nameColumn));
             }
         }
@@ -306,7 +325,7 @@ public class FinancialDataStore {
                 + "or (security_full_name is not null and security_full_name<>'' "
                 + "and lower(?) like concat('%',lower(security_full_name),'%'))) "
                 + "order by length(security_name) desc limit ?";
-            for (Map<String, Object> row : jdbc.queryForList(
+            for (Map<String, Object> row : financialReads.queryForList(
                 sql, text.toLowerCase(Locale.ROOT), text.toLowerCase(Locale.ROOT), limit)) {
                 addMention(mentions, row.get("security_code"), row.get("security_name"));
             }
@@ -345,7 +364,7 @@ public class FinancialDataStore {
             + "and lower(?) like concat('%',lower(security_full_name),'%'))) "
             + "order by greatest(length(security_name),coalesce(length(security_full_name),0)) desc limit ?";
         String result = original;
-        for (Map<String, Object> row : jdbc.queryForList(
+        for (Map<String, Object> row : financialReads.queryForList(
             sql, original.toLowerCase(Locale.ROOT), original.toLowerCase(Locale.ROOT), limit)) {
             result = removeLiteralIgnoreCase(result, String.valueOf(row.getOrDefault("security_full_name", "")));
             result = removeLiteralIgnoreCase(result, String.valueOf(row.getOrDefault("security_name", "")));
@@ -530,10 +549,12 @@ public class FinancialDataStore {
     }
 
     public Map<String, Object> catalog(String code) {
-        List<Map<String, Object>> found = jdbc.queryForList("select * from market_asset_catalog where dataset_code=?", code);
+        List<Map<String, Object>> found = financialReads.queryForList(
+            "select * from market_asset_catalog where dataset_code=?", code);
         if (found.isEmpty()) return Map.of();
         Map<String, Object> result = new LinkedHashMap<>(found.get(0));
-        result.put("fields", jdbc.queryForList("select field_name,source_field,field_type,business_description,schema_version "
+        result.put("fields", financialReads.queryForList(
+            "select field_name,source_field,field_type,business_description,schema_version "
             + "from data_schema_registry where dataset_code=? order by id", code));
         return result;
     }
@@ -861,11 +882,7 @@ public class FinancialDataStore {
     }
 
     private boolean tableExists(String table) {
-        try (var connection = dataSource.getConnection(); var found = connection.getMetaData()
-            .getTables(connection.getCatalog(), null, table, new String[]{"TABLE"})) {
-            if (found.next()) return true;
-        } catch (Exception ignored) { }
-        try { jdbc.queryForObject("select count(*) from `" + identifier(table) + "` where 1=0", Integer.class); return true; }
+        try { financialReads.queryForList("select 1 from `" + identifier(table) + "` where 1=0"); return true; }
         catch (Exception ignored) { return false; }
     }
 
@@ -967,7 +984,12 @@ public class FinancialDataStore {
     }
 
     private Map<String, String> schemaFields(String code) {
-        return schemaFields(code, jdbc);
+        Map<String, String> result = new LinkedHashMap<>();
+        for (Map<String, Object> row : financialReads.queryForList(
+            "select field_name,field_type from data_schema_registry where dataset_code=?", code)) {
+            result.put(String.valueOf(row.get("field_name")), String.valueOf(row.get("field_type")));
+        }
+        return result;
     }
 
     private Map<String, String> schemaFields(String code, JdbcTemplate schemaJdbc) {
@@ -981,6 +1003,8 @@ public class FinancialDataStore {
             return catalog == null || catalog.isBlank() ? connection.getMetaData().getDatabaseProductName() : catalog;
         } catch (Exception ex) { return "financial-data"; }
     }
+
+    private record StorageResources(JdbcTemplate jdbc, DataSource dataSource) { }
 
     private void ensureIndex(String table, String index, String columns) {
         try (var connection = dataSource.getConnection(); var found = connection.getMetaData()

@@ -1157,12 +1157,25 @@ public class OpenSearchMcpSearchService {
 
     @SuppressWarnings("unchecked")
     public List<Map<String, Object>> searchMarketCatalog(String rawIndexName, String query, int limit) {
-        if (!enabled()) return List.of();
+        if (!enabled() || query == null || query.isBlank()) return List.of();
         String index = rawIndexName(rawIndexName);
-        Map<String, Object> body = Map.of("size", Math.max(1, Math.min(limit, 50)), "query", Map.of("multi_match", Map.of(
-            "query", query, "fields", List.of("title^5", "description^4", "business_description^4",
-                "search_text^3", "business_tags_json^2", "fields.business_description^2",
-                "fields.field_name", "fields.source_field", "dataset_code"))));
+        Map<String, Object> body = Map.of(
+            "size", Math.max(1, Math.min(limit, 50)),
+            "query", Map.of("bool", Map.of(
+                "should", List.of(
+                    Map.of("multi_match", Map.of(
+                        "query", query,
+                        "type", "best_fields",
+                        "fields", List.of("title^7", "business_tags_json^6", "description^4",
+                            "business_description^4", "dataset_code^3", "table_name^2"))),
+                    Map.of("multi_match", Map.of(
+                        "query", query,
+                        "type", "best_fields",
+                        "fields", List.of("fields.business_description^2", "fields.field_name",
+                            "fields.source_field"))),
+                    Map.of("match", Map.of("search_text", Map.of("query", query, "boost", 0.25D)))
+                ),
+                "minimum_should_match", 1)));
         JsonNode response = searchRequest("POST", "/" + index + "/_search", body);
         List<Map<String, Object>> result = new ArrayList<>();
         for (JsonNode hit : response.path("hits").path("hits")) {

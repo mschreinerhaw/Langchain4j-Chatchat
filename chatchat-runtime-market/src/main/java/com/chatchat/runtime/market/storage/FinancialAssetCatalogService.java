@@ -69,15 +69,20 @@ public class FinancialAssetCatalogService {
     public List<Map<String, Object>> search(String query, int limit) {
         CancellationSupport.throwIfCancelled("financial asset catalog search");
         int bounded = Math.max(1, Math.min(limit, 50));
+        int candidateLimit = Math.min(50, Math.max(24, bounded * 5));
+        List<Map<String, Object>> candidates;
         if (index == null || !index.available() || query == null || query.isBlank()) {
-            return store.searchCatalog(query, bounded);
+            candidates = store.searchCatalog("", candidateLimit);
+            return FinancialCatalogRelevanceRanker.rank(query, candidates, bounded);
         }
         try {
-            return index.search(indexName, query, bounded);
+            candidates = index.search(indexName, query, candidateLimit);
+            return FinancialCatalogRelevanceRanker.rank(query, candidates, bounded);
         } catch (Exception ex) {
             CancellationSupport.rethrowIfCancelled(ex, "financial asset catalog search");
             log.warn("financial_asset_catalog_search_fallback query={} error={}", query, ex.getMessage());
-            return store.searchCatalog(query, bounded);
+            candidates = store.searchCatalog("", candidateLimit);
+            return FinancialCatalogRelevanceRanker.rank(query, candidates, bounded);
         }
     }
 

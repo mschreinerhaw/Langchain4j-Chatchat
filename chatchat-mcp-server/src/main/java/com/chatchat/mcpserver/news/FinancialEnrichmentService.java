@@ -9,12 +9,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 /** Optional, independently testable financial enrichment composed behind web search. */
 @Service
@@ -54,16 +50,6 @@ public class FinancialEnrichmentService {
         List<Map<String, Object>> assets;
         try {
             assets = catalog.search(assetQuery, limit);
-            boolean expanded = assets != null && !assets.isEmpty()
-                && bestCatalogTextMatch(assetQuery, assets) < 2;
-            if (expanded) {
-                int expandedLimit = Math.max(limit, Math.min(24, Math.max(1, limit) * 4));
-                List<Map<String, Object>> expandedAssets = mergeAssets(
-                    assets, catalog.search(assetQuery, expandedLimit));
-                if (expandedAssets.size() > assets.size()) {
-                    assets = rankAssetsByCatalogText(assetQuery, expandedAssets);
-                }
-            }
             assets = (assets == null ? List.<Map<String, Object>>of() : assets).stream()
                 .limit(Math.max(1, limit)).toList();
         } catch (Exception ex) {
@@ -109,70 +95,6 @@ public class FinancialEnrichmentService {
         }
         return new EnrichmentResult(assetQuery, assets, List.copyOf(financialData), List.copyOf(warnings),
             financialData.isEmpty() ? "financial_data_unavailable" : null);
-    }
-
-    /**
-     * Generic second-stage catalog ranking. It only compares the request with indexed asset
-     * metadata and deliberately contains no market, product, dataset or industry vocabulary.
-     */
-    private List<Map<String, Object>> rankAssetsByCatalogText(String query, List<Map<String, Object>> assets) {
-        if (assets == null || assets.size() < 2) {
-            return assets == null ? List.of() : List.copyOf(assets);
-        }
-        Set<String> queryTokens = lexicalTokens(query);
-        if (queryTokens.isEmpty()) return List.copyOf(assets);
-        List<Map<String, Object>> ranked = new ArrayList<>(assets);
-        // List.sort is stable, so the index score/order remains the tie-breaker.
-        ranked.sort(Comparator.comparingInt(
-            (Map<String, Object> asset) -> catalogTextMatch(queryTokens, asset)).reversed());
-        return List.copyOf(ranked);
-    }
-
-    private int bestCatalogTextMatch(String query, List<Map<String, Object>> assets) {
-        Set<String> queryTokens = lexicalTokens(query);
-        return assets == null ? 0 : assets.stream()
-            .mapToInt(asset -> catalogTextMatch(queryTokens, asset)).max().orElse(0);
-    }
-
-    private int catalogTextMatch(Set<String> queryTokens, Map<String, Object> asset) {
-        if (queryTokens.isEmpty() || asset == null) return 0;
-        String catalogText = text(asset, "dataset_code", "datasetCode") + " "
-            + text(asset, "asset_name", "assetName") + " "
-            + text(asset, "business_description", "businessDescription") + " "
-            + text(asset, "business_tags_json", "businessTags") + " "
-            + String.valueOf(asset.getOrDefault("fields", ""));
-        Set<String> catalogTokens = lexicalTokens(catalogText);
-        int matches = 0;
-        for (String token : queryTokens) if (catalogTokens.contains(token)) matches++;
-        return matches;
-    }
-
-    private List<Map<String, Object>> mergeAssets(List<Map<String, Object>> first,
-                                                   List<Map<String, Object>> second) {
-        Map<String, Map<String, Object>> merged = new java.util.LinkedHashMap<>();
-        for (Map<String, Object> asset : first == null ? List.<Map<String, Object>>of() : first) {
-            merged.putIfAbsent(text(asset, "dataset_code", "datasetCode"), asset);
-        }
-        for (Map<String, Object> asset : second == null ? List.<Map<String, Object>>of() : second) {
-            merged.putIfAbsent(text(asset, "dataset_code", "datasetCode"), asset);
-        }
-        merged.remove("");
-        return List.copyOf(merged.values());
-    }
-
-    private Set<String> lexicalTokens(String value) {
-        String normalized = value == null ? "" : value.toLowerCase(Locale.ROOT)
-            .replaceAll("[^\\p{L}\\p{N}_]+", " ").trim();
-        if (normalized.isBlank()) return Set.of();
-        Set<String> tokens = new LinkedHashSet<>();
-        for (String segment : normalized.split("\\s+")) {
-            if (segment.length() >= 2) tokens.add(segment);
-            int[] points = segment.codePoints().toArray();
-            for (int index = 0; index + 1 < points.length; index++) {
-                tokens.add(new String(points, index, 2));
-            }
-        }
-        return Set.copyOf(tokens);
     }
 
     public Map<String, Object> queryDataset(String dataset, ToolInput input) {

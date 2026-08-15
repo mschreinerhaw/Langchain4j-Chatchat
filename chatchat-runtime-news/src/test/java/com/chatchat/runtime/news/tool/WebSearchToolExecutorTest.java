@@ -77,6 +77,32 @@ class WebSearchToolExecutorTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void lowQualityLocalCandidatesDoNotSuppressExternalSupplement() throws Exception {
+        NewsRuntimeProperties properties = new NewsRuntimeProperties();
+        properties.getOpenSearch().setEnabled(true);
+        properties.getWebSearch().setMinimumLocalResults(3);
+        NewsDocumentStore store = mock(NewsDocumentStore.class);
+        when(store.search(any())).thenReturn(List.of(
+            irrelevantDocument("noise-1"), irrelevantDocument("noise-2"), irrelevantDocument("noise-3")));
+        TencentWebSearchClient external = mock(TencentWebSearchClient.class);
+        when(external.enabled()).thenReturn(true);
+        when(external.search("A股主要指数行情成交量", 10)).thenReturn(response("quality-fallback"));
+
+        var output = new WebSearchToolExecutor(store, properties, external).execute(
+            ToolInput.builder().parameters(Map.of("query", "A股主要指数行情成交量")).build());
+
+        assertThat(output.isSuccess()).isTrue();
+        assertThat((Map<String, Object>) output.getData())
+            .containsEntry("newsIndexCandidateCount", 3)
+            .containsEntry("qualifiedLocalNewsCount", 0)
+            .containsEntry("localEvidenceSufficient", false)
+            .containsEntry("externalSearchRequired", true)
+            .containsEntry("externalWebCount", 1);
+        verify(external).search("A股主要指数行情成交量", 10);
+    }
+
+    @Test
     void cancellationDuringLocalRecallStopsExternalAndCacheWork() throws Exception {
         NewsRuntimeProperties properties = new NewsRuntimeProperties();
         properties.getOpenSearch().setEnabled(true);
@@ -225,6 +251,14 @@ class WebSearchToolExecutorTest {
             "Local title " + id, "Local content " + id, "Local summary " + id, "author",
             "https://example.com/" + id, Instant.parse("2026-08-09T00:00:00Z"),
             Instant.parse("2026-08-09T00:01:00Z"), "en", List.of("market"), List.of(),
+            "hash-" + id, NewsAnalysisStatus.COMPLETED, Map.of());
+    }
+
+    private NewsDocument irrelevantDocument(String id) {
+        return new NewsDocument(id, 1L, "local source", NewsSourceType.RSS,
+            "债券担保业务 " + id, "债券托管及质押业务规模", "债券月度统计", "author",
+            "https://example.com/" + id, Instant.parse("2026-08-09T00:00:00Z"),
+            Instant.parse("2026-08-09T00:01:00Z"), "zh-CN", List.of("债券"), List.of("担保品"),
             "hash-" + id, NewsAnalysisStatus.COMPLETED, Map.of());
     }
 }

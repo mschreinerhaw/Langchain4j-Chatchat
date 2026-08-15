@@ -3,6 +3,7 @@ package com.chatchat.runtime.news.store;
 import com.chatchat.runtime.news.config.NewsRuntimeProperties;
 import com.chatchat.runtime.news.model.NewsDocument;
 import com.chatchat.runtime.news.model.NewsSearchQuery;
+import com.chatchat.runtime.news.search.NewsRelevanceRanker;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -136,20 +137,32 @@ public class OpenSearchNewsDocumentStore implements NewsDocumentStore {
     @Override
     public List<NewsDocument> search(NewsSearchQuery query) throws Exception {
         int requested = Math.max(1, Math.min(query.size(), 50));
-        boolean semantic = query.query() != null && !query.query().isBlank() && embeddingClient.enabled();
-        int candidateLimit = semantic ? Math.max(requested, properties.getEmbedding().getVectorCandidateLimit()) : requested;
+        String lexicalQuery = NewsQueryDateParser.lexicalText(query.query());
+        boolean semantic = !lexicalQuery.isBlank() && embeddingClient.enabled();
+        int lexicalCandidateLimit = Math.max(24, requested * 5);
+        int candidateLimit = Math.min(200, semantic
+            ? Math.max(lexicalCandidateLimit, properties.getEmbedding().getVectorCandidateLimit())
+            : lexicalCandidateLimit);
         ObjectNode root = objectMapper.createObjectNode();
         root.put("size", candidateLimit);
-        ArrayNode must = root.putObject("query").putObject("bool").putArray("must");
-        if (query.query() != null && !query.query().isBlank()) {
-            must.addObject().putObject("multi_match").put("query", query.query())
-                .putArray("fields").add("title^3").add("summary^2").add("content").add("tags").add("categories");
+        ObjectNode bool = root.putObject("query").putObject("bool");
+        if (!lexicalQuery.isBlank()) {
+            ArrayNode should = bool.putArray("should");
+            ObjectNode primary = should.addObject().putObject("multi_match");
+            primary.put("query", lexicalQuery).put("type", "best_fields");
+            primary.putArray("fields").add("title^8").add("tags^6").add("categories^5")
+                .add("summary^4").add("sourceName^2");
+            ObjectNode phrase = should.addObject().putObject("match_phrase").putObject("title");
+            phrase.put("query", lexicalQuery).put("boost", 3.0D);
+            ObjectNode content = should.addObject().putObject("match").putObject("content");
+            content.put("query", lexicalQuery).put("boost", 0.6D);
+            bool.put("minimum_should_match", 1);
         } else {
-            must.addObject().putObject("match_all");
+            bool.putArray("must").addObject().putObject("match_all");
         }
-        ArrayNode filters = ((ObjectNode) root.path("query").path("bool")).putArray("filter");
+        ArrayNode filters = bool.putArray("filter");
         appendFilters(filters, query);
-        if (query.query() == null || query.query().isBlank()) root.putArray("sort").addObject().put("publishTime", "desc");
+        if (lexicalQuery.isBlank()) root.putArray("sort").addObject().put("publishTime", "desc");
         String targets = String.join(",", indexNaming.readableIndices());
         List<SearchHit> lexical;
         try {
@@ -158,14 +171,14 @@ public class OpenSearchNewsDocumentStore implements NewsDocumentStore {
             if (ex.getResponse() != null && ex.getResponse().getStatusLine().getStatusCode() == 404) return List.of();
             throw ex;
         }
-        if (!semantic) return documents(lexical, requested);
-        List<Float> queryVector = embeddingClient.embed(query.query());
-        if (queryVector.isEmpty()) return documents(lexical, requested);
+        if (!semantic) return rankedDocuments(query.query(), lexical, requested);
+        List<Float> queryVector = embeddingClient.embed(lexicalQuery);
+        if (queryVector.isEmpty()) return rankedDocuments(query.query(), lexical, requested);
         List<SearchHit> vector = List.of();
         try {
             String vectorTargets = indexNaming.readableIndices().stream().filter(this::hasVectorIndex)
                 .collect(java.util.stream.Collectors.joining(","));
-            if (vectorTargets.isBlank()) return documents(lexical, requested);
+            if (vectorTargets.isBlank()) return rankedDocuments(query.query(), lexical, requested);
             ObjectNode vectorRoot = objectMapper.createObjectNode();
             vectorRoot.put("size", candidateLimit);
             ObjectNode field = vectorRoot.putObject("query").putObject("knn").putObject(vectorField());
@@ -179,7 +192,7 @@ public class OpenSearchNewsDocumentStore implements NewsDocumentStore {
         } catch (Exception ex) {
             // Older daily indices may not have a vector mapping; lexical recall must remain available.
         }
-        return documents(rrf(lexical, vector), requested);
+        return rankedDocuments(query.query(), rrf(lexical, vector), requested);
     }
 
     @Override
@@ -219,7 +232,20 @@ public class OpenSearchNewsDocumentStore implements NewsDocumentStore {
             ObjectNode range = filters.addObject().putObject("range").putObject("publishTime");
             if (query.startTime() != null) range.put("gte", query.startTime().toString());
             if (query.endTime() != null) range.put("lte", query.endTime().toString());
+        } else {
+            NewsQueryDateParser.parse(query.query(), properties.getZoneId()).ifPresent(timeRange -> {
+                ObjectNode range = filters.addObject().putObject("range").putObject("publishTime");
+                range.put("gte", timeRange.startInclusive().toString());
+                range.put("lt", timeRange.endExclusive().toString());
+            });
         }
+    }
+
+    private List<NewsDocument> rankedDocuments(String query, List<SearchHit> hits, int limit) throws Exception {
+        List<NewsDocument> candidates = documents(hits, hits == null ? 0 : hits.size());
+        return NewsRelevanceRanker.rank(query, candidates, limit).stream()
+            .map(NewsRelevanceRanker.RankedNews::document)
+            .toList();
     }
 
     private List<SearchHit> hits(JsonNode response) {

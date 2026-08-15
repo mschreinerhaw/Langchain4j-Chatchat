@@ -7,6 +7,7 @@ import com.chatchat.runtime.news.config.NewsRuntimeProperties;
 import com.chatchat.runtime.news.model.NewsDocument;
 import com.chatchat.runtime.news.model.NewsSearchQuery;
 import com.chatchat.runtime.news.search.DisabledWebSearchCache;
+import com.chatchat.runtime.news.search.NewsRelevanceRanker;
 import com.chatchat.runtime.news.search.TencentWebSearchClient;
 import com.chatchat.runtime.news.search.WebSearchCache;
 import com.chatchat.runtime.news.store.NewsDocumentStore;
@@ -59,13 +60,17 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
 
         int size = NewsToolSupport.boundedInt(input.getParameterAsNumber("num_results"), 10, 1, 50);
         List<Map<String, Object>> local = new ArrayList<>();
+        int localCandidateCount = 0;
         List<Map<String, Object>> external = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
         boolean localSucceeded = false;
         if (localEnabled) {
             try {
-                store.search(new NewsSearchQuery(query, List.of(), null, null, List.of(), size))
-                    .forEach(document -> local.add(localItem(document)));
+                List<NewsDocument> candidates = store.search(
+                    new NewsSearchQuery(query, List.of(), null, null, List.of(), size));
+                localCandidateCount = candidates == null ? 0 : candidates.size();
+                NewsRelevanceRanker.rank(query, candidates, size)
+                    .forEach(ranked -> local.add(localItem(ranked)));
                 localSucceeded = true;
             } catch (Exception ex) {
                 CancellationSupport.rethrowIfCancelled(ex, "web_search local retrieval");
@@ -78,13 +83,15 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
         int requiredLocalResults = Math.min(size,
             Math.max(1, properties.getWebSearch().getMinimumLocalResults()));
         int upstreamLocalEvidenceCount = upstreamLocalEvidenceCount(input);
-        int totalLocalEvidenceCount = local.size() + upstreamLocalEvidenceCount;
+        int qualifiedLocalNewsCount = local.size();
+        int totalLocalEvidenceCount = qualifiedLocalNewsCount + upstreamLocalEvidenceCount;
         boolean localSufficient = (localSucceeded || upstreamLocalEvidenceCount > 0)
             && totalLocalEvidenceCount >= requiredLocalResults;
         boolean externalSupplementRequired = forceExternal || !localSufficient;
-        log.info("webSearchBridgeRoute query=\"{}\" requested={} localNewsCount={} "
+        log.info("webSearchBridgeRoute query=\"{}\" requested={} localCandidateCount={} qualifiedLocalNewsCount={} "
                 + "upstreamLocalEvidenceCount={} requiredLocalCount={} externalTool={} externalRequired={}",
-            auditQuery(query), size, local.size(), upstreamLocalEvidenceCount, requiredLocalResults,
+            auditQuery(query), size, localCandidateCount, qualifiedLocalNewsCount,
+            upstreamLocalEvidenceCount, requiredLocalResults,
             ExternalWebSearchToolExecutor.INTERNAL_TOOL_NAME, externalSupplementRequired);
 
         boolean externalSucceeded = false;
@@ -118,7 +125,10 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
             : externalSucceeded ? String.valueOf(externalData.getOrDefault("mode", "external_web_search"))
             : "news_index");
         data.put("count", results.size());
-        data.put("newsIndexCount", local.size());
+        data.put("newsIndexCount", qualifiedLocalNewsCount);
+        data.put("newsIndexCandidateCount", localCandidateCount);
+        data.put("qualifiedLocalNewsCount", qualifiedLocalNewsCount);
+        data.put("localEvidenceQualityStrategy", NewsRelevanceRanker.STRATEGY);
         data.put("externalWebCount", external.size());
         data.put("webSearchCacheEnabled", externalData.getOrDefault("webSearchCacheEnabled", false));
         data.put("webSearchCacheHit", externalData.getOrDefault("webSearchCacheHit", false));
@@ -147,10 +157,15 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
         catch (NumberFormatException ignored) { return 0; }
     }
 
-    private Map<String, Object> localItem(NewsDocument document) {
+    private Map<String, Object> localItem(NewsRelevanceRanker.RankedNews ranked) {
+        NewsDocument document = ranked.document();
         Map<String, Object> item = NewsToolSupport.evidenceItem(document);
         item.put("resultType", "news");
         item.put("retrievalSource", "news_index");
+        item.put("relevanceScore", ranked.score());
+        item.put("relevanceCoverage", ranked.coverage());
+        item.put("matchedTermCount", ranked.matchedTerms());
+        item.put("relevanceStrategy", NewsRelevanceRanker.STRATEGY);
         item.put("snippet", document.summary() == null || document.summary().isBlank()
             ? NewsToolSupport.abbreviate(document.content(), 500) : document.summary());
         return item;

@@ -48,7 +48,7 @@ chatchat:
       token-ttl-minutes: 480
     security:
       require-mcp-token: true
-      encrypted-invocation-token:
+      encrypted-invocation-token: "${CHATCHAT_MCP_ENCRYPTED_INVOCATION_TOKEN:${chatchat.internal-credential.encrypted-secret:}}"
     authorization:
       enabled: true
       fail-open: false
@@ -56,7 +56,7 @@ chatchat:
       api-base-url: http://localhost:8080
       auth:
         username: chatchat_mcp_internal
-        encrypted-password:
+        encrypted-password: "${CHATCHAT_MCP_API_ENCRYPTED_PASSWORD:${chatchat.internal-credential.encrypted-secret:}}"
         bearer-token:
     command-templates:
       seed-defaults-enabled: false
@@ -72,7 +72,7 @@ chatchat:
         api-base-url: http://localhost:8080
         auth:
           username: chatchat_mcp_internal
-          encrypted-password:
+          encrypted-password: "${CHATCHAT_MCP_API_ENCRYPTED_PASSWORD:${chatchat.internal-credential.encrypted-secret:}}"
           bearer-token:
   tools:
     document-search:
@@ -80,7 +80,7 @@ chatchat:
       api-base-url: http://localhost:8080
       auth:
         username: chatchat_mcp_internal
-        encrypted-password:
+        encrypted-password: "${CHATCHAT_MCP_API_ENCRYPTED_PASSWORD:${chatchat.internal-credential.encrypted-secret:}}"
         bearer-token:
 logging:
   config: file:./config/logback-spring.xml

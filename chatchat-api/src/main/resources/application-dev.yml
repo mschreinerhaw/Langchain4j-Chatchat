@@ -66,8 +66,8 @@ chatchat:
       enabled: true
       base-url: http://localhost:8090
       admin-username: chatchat_mcp_internal
-      encrypted-admin-password:
-      encrypted-invocation-token:
+      encrypted-admin-password: "${CHATCHAT_API_MCP_ENCRYPTED_PASSWORD:${chatchat.internal-credential.encrypted-secret:}}"
+      encrypted-invocation-token: "${CHATCHAT_API_MCP_ENCRYPTED_INVOCATION_TOKEN:${chatchat.internal-credential.encrypted-secret:}}"
       timeout-ms: 1800000
       import-standalone-server: true
       auto-recovery-enabled: true
@@ -154,7 +154,7 @@ chatchat:
       api-base-url: http://localhost:8080
       auth:
         username: chatchat_mcp_internal
-        encrypted-password:
+        encrypted-password: "${CHATCHAT_MCP_API_ENCRYPTED_PASSWORD:${chatchat.internal-credential.encrypted-secret:}}"
 
 springdoc:
   api-docs:

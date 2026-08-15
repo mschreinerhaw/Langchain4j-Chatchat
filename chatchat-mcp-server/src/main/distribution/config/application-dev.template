@@ -31,7 +31,7 @@ chatchat:
       token-ttl-minutes: 480
     security:
       require-mcp-token: true
-      encrypted-invocation-token:
+      encrypted-invocation-token: "${CHATCHAT_MCP_ENCRYPTED_INVOCATION_TOKEN:${chatchat.internal-credential.encrypted-secret:}}"
     authorization:
       enabled: false
       api-base-url: http://localhost:8080
@@ -44,7 +44,7 @@ chatchat:
         enabled: true
         login-path: /api/v1/enterprise/auth/login
         username: chatchat_mcp_internal
-        encrypted-password:
+        encrypted-password: "${CHATCHAT_MCP_API_ENCRYPTED_PASSWORD:${chatchat.internal-credential.encrypted-secret:}}"
         password:
         bearer-token: ""
     notifications:
@@ -228,7 +228,7 @@ chatchat:
         enabled: true
         login-path: /api/v1/enterprise/auth/login
         username: chatchat_mcp_internal
-        encrypted-password:
+        encrypted-password: "${CHATCHAT_MCP_API_ENCRYPTED_PASSWORD:${chatchat.internal-credential.encrypted-secret:}}"
         password:
         bearer-token: ""
       risk-level: medium

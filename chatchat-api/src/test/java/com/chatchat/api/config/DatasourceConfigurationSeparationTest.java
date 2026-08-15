@@ -35,6 +35,21 @@ class DatasourceConfigurationSeparationTest {
     }
 
     @Test
+    void apiProfilesDefaultMcpCommunicationToSharedEncryptedCredential() throws Exception {
+        for (Path profile : List.of(
+            Path.of("src/main/resources/application-dev.yml"),
+            Path.of("src/main/resources/application-prod.yml"),
+            Path.of("../packaging/config/application-dev.yml"),
+            Path.of("../packaging/config/application-prod.yml"))) {
+            List<PropertySource<?>> sources = load(profile);
+            assertSharedEncryptedDefault(value(sources,
+                "chatchat.mcp.center.encrypted-admin-password"), "CHATCHAT_API_MCP_ENCRYPTED_PASSWORD");
+            assertSharedEncryptedDefault(value(sources,
+                "chatchat.mcp.center.encrypted-invocation-token"), "CHATCHAT_API_MCP_ENCRYPTED_INVOCATION_TOKEN");
+        }
+    }
+
+    @Test
     void defaultDevelopmentProfileImportsSelectedDatasourceAtRuntime() {
         SpringApplication application = new SpringApplication(EmptyConfiguration.class);
         application.setWebApplicationType(WebApplicationType.NONE);
@@ -84,6 +99,12 @@ class DatasourceConfigurationSeparationTest {
             .filter(java.util.Objects::nonNull)
             .findFirst()
             .orElse(null);
+    }
+
+    private void assertSharedEncryptedDefault(Object value, String overrideName) {
+        assertThat(String.valueOf(value))
+            .contains(overrideName)
+            .contains("chatchat.internal-credential.encrypted-secret");
     }
 
     @Configuration(proxyBeanMethods = false)

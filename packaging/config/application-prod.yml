@@ -55,13 +55,13 @@ chatchat:
       enabled: true
       base-url: http://localhost:8090
       admin-username: chatchat_mcp_internal
-      encrypted-admin-password:
+      encrypted-admin-password: "${CHATCHAT_API_MCP_ENCRYPTED_PASSWORD:${chatchat.internal-credential.encrypted-secret:}}"
       admin-login-path: /api/v1/admin/auth/login
       service-list-path: /api/v1/mcp-services
       mcp-endpoint: /mcp
       standalone-service-id: chatchat-mcp-server
       standalone-service-name: ChatChat MCP Server
-      encrypted-invocation-token:
+      encrypted-invocation-token: "${CHATCHAT_API_MCP_ENCRYPTED_INVOCATION_TOKEN:${chatchat.internal-credential.encrypted-secret:}}"
       timeout-ms: 90000
       import-standalone-server: true
     stdio-proxy:

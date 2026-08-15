@@ -29,24 +29,24 @@ chatchat:
     public-key-path: ./data/license/license-public.pem
   mcp:
     market:
-      query-timeout-seconds: ${CHATCHAT_MARKET_QUERY_TIMEOUT_SECONDS:15}
-      max-concurrent-queries: ${CHATCHAT_MARKET_MAX_CONCURRENT_QUERIES:4}
-      query-queue-timeout-ms: ${CHATCHAT_MARKET_QUERY_QUEUE_TIMEOUT_MS:100}
+      query-timeout-seconds: 15
+      max-concurrent-queries: 4
+      query-queue-timeout-ms: 100
       query-cache:
-        enabled: ${CHATCHAT_MARKET_QUERY_CACHE_ENABLED:true}
-        storage: ${CHATCHAT_MARKET_QUERY_CACHE_STORAGE:ROCKSDB}
-        ttl-seconds: ${CHATCHAT_MARKET_QUERY_CACHE_TTL_SECONDS:1800}
-        fallback-to-rocks-db: ${CHATCHAT_MARKET_QUERY_CACHE_FALLBACK_TO_ROCKSDB:true}
-        max-entry-kb: ${CHATCHAT_MARKET_QUERY_CACHE_MAX_ENTRY_KB:2048}
-        single-flight-grace-ms: ${CHATCHAT_MARKET_QUERY_CACHE_SINGLE_FLIGHT_GRACE_MS:500}
+        enabled: true
+        storage: ROCKSDB
+        ttl-seconds: 1800
+        fallback-to-rocks-db: true
+        max-entry-kb: 2048
+        single-flight-grace-ms: 500
       query-pool:
-        enabled: ${CHATCHAT_MARKET_QUERY_POOL_ENABLED:true}
-        maximum-pool-size: ${CHATCHAT_MARKET_QUERY_POOL_SIZE:4}
-        minimum-idle: ${CHATCHAT_MARKET_QUERY_POOL_MIN_IDLE:0}
-        connection-timeout-ms: ${CHATCHAT_MARKET_QUERY_POOL_CONNECTION_TIMEOUT_MS:2000}
-        query-timeout-seconds: ${CHATCHAT_MARKET_QUERY_POOL_QUERY_TIMEOUT_SECONDS:15}
-        network-timeout-ms: ${CHATCHAT_MARKET_QUERY_POOL_NETWORK_TIMEOUT_MS:17000}
-        server-execution-timeout-ms: ${CHATCHAT_MARKET_QUERY_POOL_SERVER_EXECUTION_TIMEOUT_MS:15000}
+        enabled: true
+        maximum-pool-size: 4
+        minimum-idle: 0
+        connection-timeout-ms: 2000
+        query-timeout-seconds: 15
+        network-timeout-ms: 17000
+        server-execution-timeout-ms: 15000
       retention:
         enabled: true
         hot-days: 7
@@ -55,7 +55,7 @@ chatchat:
         zone-id: Asia/Shanghai
     news-runtime:
       base-url: http://localhost:8091
-      timeout-millis: ${CHATCHAT_NEWS_RUNTIME_TIMEOUT_MILLIS:20000}
+      timeout-millis: 20000
     capabilities:
       news:
         enabled: true
@@ -66,7 +66,7 @@ chatchat:
       token-ttl-minutes: 480
     security:
       require-mcp-token: true
-      encrypted-invocation-token:
+      encrypted-invocation-token: "${CHATCHAT_MCP_ENCRYPTED_INVOCATION_TOKEN:${chatchat.internal-credential.encrypted-secret:}}"
     authorization:
       enabled: true
       fail-open: false
@@ -74,7 +74,7 @@ chatchat:
       api-base-url: http://localhost:8080
       auth:
         username: chatchat_mcp_internal
-        encrypted-password:
+        encrypted-password: "${CHATCHAT_MCP_API_ENCRYPTED_PASSWORD:${chatchat.internal-credential.encrypted-secret:}}"
         bearer-token:
     notifications:
       # Enable notification/alert MCP tool publishing in development.
@@ -90,9 +90,9 @@ chatchat:
       index-dir: ./data/lucene/mcp
       open-search:
         enabled: true
-        url: ${CHATCHAT_OPENSEARCH_URL:https://127.0.0.1:9200}
+        url: ${CHATCHAT_OPENSEARCH_URL:https://192.168.195.221:9200}
         username: ${CHATCHAT_OPENSEARCH_USERNAME:admin}
-        password: ${CHATCHAT_OPENSEARCH_PASSWORD:}
+        password: ${CHATCHAT_OPENSEARCH_PASSWORD:apexSoft12345}
         index-prefix: chatchat_mcp_dev_
         insecure-ssl: true
         request-timeout-ms: 30000
@@ -131,7 +131,7 @@ chatchat:
         api-base-url: http://localhost:8080
         auth:
           username: chatchat_mcp_internal
-          encrypted-password:
+          encrypted-password: "${CHATCHAT_MCP_API_ENCRYPTED_PASSWORD:${chatchat.internal-credential.encrypted-secret:}}"
           bearer-token:
   tools:
     document-search:
@@ -139,7 +139,7 @@ chatchat:
       api-base-url: http://localhost:8080
       auth:
         username: chatchat_mcp_internal
-        encrypted-password:
+        encrypted-password: "${CHATCHAT_MCP_API_ENCRYPTED_PASSWORD:${chatchat.internal-credential.encrypted-secret:}}"
         bearer-token:
     livedata:
       # Runtime values are maintained on the admin page. Database access is bound through a database asset.

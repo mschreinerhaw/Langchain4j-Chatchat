@@ -125,6 +125,39 @@ class CommandTemplateDiscoveryServiceTest {
     }
 
     @Test
+    void admitsStrongVectorOnlyEvidenceForOrdinaryTemplates() {
+        CommandTemplateService templateService = mock(CommandTemplateService.class);
+        SshHostConfigService hostService = mock(SshHostConfigService.class);
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        CommandTemplateConfig heap = template(
+            "CHECK_HEAP_PRESSURE", "jcmd {{pid}} GC.heap_info", "Heap pressure inspection",
+            "Observe JVM heap saturation and allocation pressure", "[\"jvm\",\"heap\"]");
+        when(templateService.listEnabled()).thenReturn(List.of(heap));
+        when(hostService.listEnabled()).thenReturn(List.of(
+            host("host-runtime", "runtime-host", "DEV", "[\"CHECK_HEAP_PRESSURE\"]")));
+        when(lucene.enabled()).thenReturn(true);
+        when(lucene.searchTemplates(anyList(), any())).thenReturn(List.of(
+            new LuceneMcpSearchService.SearchHit(
+                "CHECK_HEAP_PRESSURE", "template", 0.92F, List.of("opensearch_vector:0.92"))
+        ));
+        CommandTemplateDiscoveryService service = new CommandTemplateDiscoveryService(
+            templateService, hostService, mock(SqlTemplateService.class), mock(SqlDatasourceConfigService.class),
+            mock(HttpEndpointConfigService.class), new ObjectMapper(), new TemplateDiscoveryProperties(), lucene);
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "host",
+            "confidence", 0.95,
+            "filters", Map.of("assetName", "runtime-host", "intent", "运行资源耗尽预警"),
+            "trace", trace(),
+            "limit", 5
+        ));
+
+        assertThat(result).containsEntry("returnedCount", 1);
+        assertThat(result.toString())
+            .contains("CHECK_HEAP_PRESSURE", "channels=vector", "mcp_template_hybrid_ranking_v3");
+    }
+
+    @Test
     void ranksTemplatesByConfiguredSynonymsAndIntentSignalsInsteadOfRepositoryOrder() {
         CommandTemplateService templateService = mock(CommandTemplateService.class);
         SshHostConfigService hostService = mock(SshHostConfigService.class);
@@ -485,7 +518,7 @@ class CommandTemplateDiscoveryServiceTest {
         assertThat(selectedTemplate.get("templateId")).isEqualTo("MYSQL_SHOW_STATUS");
         assertThat(selectedTemplate.get("matchReasons").toString()).contains("status");
         assertThat(selectedTemplate.get("mcpDecision").toString())
-            .contains("mcp_template_ranking_v2_no_vector", "0.40*intentMatch");
+            .contains("mcp_template_hybrid_ranking_v3", "0.40*intentMatch");
         assertThat(selectedTemplate.get("rankingFeatures").toString())
             .contains("intentMatch", "lexicalScore", "typeMatch", "safetyScore", "featureList", "weightedScore");
         assertThat(irIntent.get("type")).isEqualTo("db_status");

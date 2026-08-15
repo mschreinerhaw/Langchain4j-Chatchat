@@ -8,6 +8,7 @@ import com.chatchat.mcpserver.category.BusinessCategoryService;
 import com.chatchat.mcpserver.database.DataQueryCategoryService;
 import com.chatchat.mcpserver.routing.TargetKindRegistry;
 import com.chatchat.mcpserver.search.LuceneMcpSearchService;
+import com.chatchat.mcpserver.search.SearchQueryTokenizer;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import com.chatchat.mcpserver.sql.SqlTemplateConfig;
@@ -641,13 +642,15 @@ public class CommandTemplateDiscoveryService {
                 "templateIdSource", "templates[].templateId",
                 "mustUseReturnedTemplateId", true,
                 "doNotInventTemplateNames", true,
-                "engine", "mcp_template_quality_gate_v2",
+                "engine", "mcp_template_hybrid_quality_gate_v3",
                 "orderedBy", "templates[] contains only authorized, executable and relevance-qualified candidates ranked by decisionScore",
                 "runtimeSemanticReviewRequiredWhenMultiple", true,
                 "mcpRelevanceIsAdmissionFilter", true,
                 "minimumRegistryRelevanceScore", TEMPLATE_MIN_RELEVANCE_SCORE,
                 "relativeScoreFloor", TEMPLATE_RELATIVE_SCORE_FLOOR,
                 "minimumQueryCoverage", TEMPLATE_MIN_QUERY_COVERAGE,
+                "querySegmentation", "NFKC normalization with identifier preservation, script-aware tokenization and Chinese bigrams",
+                "vectorRetrieval", "OpenSearch embedding/KNN evidence is fused when configured and index-compatible; otherwise retrieval degrades to segmented BM25/registry ranking",
                 "intentSynonymSource", "built-in zh/en intent synonyms plus chatchat.mcp.template-discovery.intent-synonyms and template intentSignals",
                 "languageSupport", "Models should generate bilingual Chinese and English retrieval terms in bilingualIntent, bilingualQuery, intentZh, or intentEn; the engine expands them into shared bilingual signals before retrieval and ranking.",
                 "selectionHint", "Runtime must semantically compare relevance-qualified candidates with the user request and project selected_template_ids before dependent execution.",
@@ -878,7 +881,17 @@ public class CommandTemplateDiscoveryService {
         }
         int score = relevance.score() + Math.min(100, Math.round(hit.score() * 10));
         List<String> reasons = new ArrayList<>(relevance.reasons());
-        reasons.add("lucene template index matched bm25=" + round(hit.score()));
+        List<String> channels = new ArrayList<>();
+        List<String> hitReasons = hit.reasons() == null ? List.of() : hit.reasons();
+        if (hitReasons.stream().anyMatch(reason -> reason != null && reason.startsWith("opensearch_vector:"))) {
+            channels.add("vector");
+        }
+        if (hitReasons.stream().anyMatch(reason -> reason != null
+            && (reason.startsWith("opensearch_bm25:") || reason.startsWith("lucene_bm25:")))) {
+            channels.add("bm25");
+        }
+        reasons.add("template index retrieval matched score=" + round(hit.score())
+            + " channels=" + (channels.isEmpty() ? "lexical" : String.join("+", channels)));
         return new Relevance(score, reasons.stream().limit(10).toList());
     }
 
@@ -2036,10 +2049,10 @@ public class CommandTemplateDiscoveryService {
 
     private Map<String, Object> decisionMetadata(Relevance relevance) {
         return mapOf(
-            "engine", "mcp_template_ranking_v2_no_vector",
+            "engine", "mcp_template_hybrid_ranking_v3",
             "formula", relevance.features().containsKey("dbTypeMatch")
-                ? "SQL Template Marketplace: final score = 0.35*intentMatch + 0.15*categoryMatch + 0.15*dbTypeMatch + 0.20*luceneScore + 0.10*riskScore + 0.05*usageScore"
-                : "Lucene BM25 recall contributes to lexicalScore; final score = 0.40*intentMatch + 0.30*lexicalScore + 0.20*typeMatch + 0.05*popularity + 0.05*safetyScore",
+                ? "SQL Template Marketplace: BM25/vector retrieval is fused when available; final score = 0.35*intentMatch + 0.15*categoryMatch + 0.15*dbTypeMatch + 0.20*luceneScore + 0.10*riskScore + 0.05*usageScore"
+                : "Segmented BM25/vector recall contributes to lexicalScore; final score = 0.40*intentMatch + 0.30*lexicalScore + 0.20*typeMatch + 0.05*popularity + 0.05*safetyScore",
             "score", relevance.finalScore(),
             "features", relevance.features()
         );
@@ -2175,22 +2188,17 @@ public class CommandTemplateDiscoveryService {
             .map(this::normalize)
             .filter(java.util.Objects::nonNull)
             .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
-        boolean semanticOnlyAllowed = candidates.stream()
-            .anyMatch(candidate -> candidate.template() instanceof DatabaseQueryConfig);
-        boolean hasLexicalQualifiedCandidate = candidates.stream()
-            .filter(candidate -> candidate.relevance().score() >= scoreFloor)
-            .anyMatch(candidate -> passesLexicalCoverage(candidate.relevance(), normalizedQueryTokens, requiredMatches));
-        double bestLuceneScore = candidates.stream()
+        double bestVectorScore = candidates.stream()
+            .filter(candidate -> hasVectorEvidence(candidate.relevance()))
             .mapToDouble(candidate -> luceneScore(candidate.relevance()))
             .max()
             .orElse(0.0D);
         return candidates.stream()
-            .filter(candidate -> candidate.relevance().score() >= scoreFloor)
-            .filter(candidate -> passesLexicalCoverage(candidate.relevance(), normalizedQueryTokens, requiredMatches)
-                || (semanticOnlyAllowed
-                    && !hasLexicalQualifiedCandidate
-                    && bestLuceneScore > 0.0D
-                    && luceneScore(candidate.relevance()) / bestLuceneScore >= TEMPLATE_STRONG_SEMANTIC_FLOOR))
+            .filter(candidate -> (candidate.relevance().score() >= scoreFloor
+                    && passesLexicalCoverage(candidate.relevance(), normalizedQueryTokens, requiredMatches))
+                || (hasVectorEvidence(candidate.relevance())
+                    && bestVectorScore > 0.0D
+                    && luceneScore(candidate.relevance()) / bestVectorScore >= TEMPLATE_STRONG_SEMANTIC_FLOOR))
             .sorted(comparator)
             .toList();
     }
@@ -2201,9 +2209,9 @@ public class CommandTemplateDiscoveryService {
             for (String key : List.of("intent", "goal", "template", "templateId", "template_id", "service")) {
                 Object value = filters.get(key);
                 if (value instanceof List<?> list) {
-                    list.forEach(item -> addWords(tokens, item));
+                    list.forEach(item -> addSegmentedWords(tokens, item));
                 } else {
-                    addWords(tokens, value);
+                    addSegmentedWords(tokens, value);
                 }
             }
         }
@@ -2211,9 +2219,9 @@ public class CommandTemplateDiscoveryService {
             for (String key : List.of("bilingualIntent", "bilingualQuery", "intentZh", "intentEn")) {
                 Object value = filters.get(key);
                 if (value instanceof List<?> list) {
-                    list.forEach(item -> addWords(tokens, item));
+                    list.forEach(item -> addSegmentedWords(tokens, item));
                 } else {
-                    addWords(tokens, value);
+                    addSegmentedWords(tokens, value);
                 }
             }
         }
@@ -2250,18 +2258,27 @@ public class CommandTemplateDiscoveryService {
         if (relevance == null || relevance.reasons() == null) {
             return 0.0D;
         }
-        String prefix = "lucene template index matched bm25=";
+        String prefix = "template index retrieval matched score=";
         for (String reason : relevance.reasons()) {
             if (reason == null || !reason.startsWith(prefix)) {
                 continue;
             }
             try {
-                return Double.parseDouble(reason.substring(prefix.length()));
+                int end = reason.indexOf(' ', prefix.length());
+                return Double.parseDouble(reason.substring(prefix.length(), end < 0 ? reason.length() : end));
             } catch (NumberFormatException ignored) {
                 return 0.0D;
             }
         }
         return 0.0D;
+    }
+
+    private boolean hasVectorEvidence(Relevance relevance) {
+        return relevance != null && relevance.reasons() != null && relevance.reasons().stream()
+            .anyMatch(reason -> reason != null
+                && reason.startsWith("template index retrieval matched score=")
+                && reason.contains("channels=")
+                && reason.substring(reason.indexOf("channels=") + "channels=".length()).contains("vector"));
     }
 
     private int expandedTemplateRetrievalLimit(int requestedLimit, int universeSize) {
@@ -2759,9 +2776,9 @@ public class CommandTemplateDiscoveryService {
             "template_id", "service")) {
             Object value = filters.get(key);
             if (value instanceof List<?> list) {
-                list.forEach(item -> addWords(tokens, item));
+                list.forEach(item -> addSegmentedWords(tokens, item));
             } else {
-                addWords(tokens, value);
+                addSegmentedWords(tokens, value);
             }
         }
         return tokens.stream().distinct().toList();
@@ -2769,7 +2786,7 @@ public class CommandTemplateDiscoveryService {
 
     private List<String> bilingualIntentTokens(Map<String, Object> filters) {
         List<String> tokens = new ArrayList<>();
-        bilingualIntentValues(filters).forEach(value -> addWords(tokens, value));
+        bilingualIntentValues(filters).forEach(value -> addSegmentedWords(tokens, value));
         return tokens.stream().distinct().toList();
     }
 
@@ -3530,6 +3547,16 @@ public class CommandTemplateDiscoveryService {
 
     private void addWords(List<String> words, Object value) {
         addWordsToCollection(words, value);
+    }
+
+    private void addSegmentedWords(java.util.Collection<String> words, Object value) {
+        String text = normalize(value == null ? null : String.valueOf(value));
+        if (text == null) {
+            return;
+        }
+        words.addAll(SearchQueryTokenizer.terms(text));
+        addBuiltinIntentSynonyms(words, text);
+        addConfiguredIntentSynonyms(words, text);
     }
 
     private void addRetrievalValue(java.util.Collection<String> values, Object value) {

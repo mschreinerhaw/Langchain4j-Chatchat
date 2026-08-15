@@ -242,6 +242,32 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
     }
 
     @Test
+    void queryAcceptsStrongVectorEvidenceWithoutLexicalOverlap() {
+        ApiServiceConfig config = new ApiServiceConfig();
+        config.setId("api-capacity");
+        config.setToolName("runtime_capacity_api");
+        config.setTitle("Runtime capacity API");
+        config.setDescription("Observe saturation pressure and allocation headroom");
+        config.setEnabled(true);
+
+        ApiServiceConfigService configService = mock(ApiServiceConfigService.class);
+        when(configService.listEnabled()).thenReturn(List.of(config));
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        when(lucene.enabled()).thenReturn(true);
+        when(lucene.searchApiServiceTemplates(any())).thenReturn(List.of(
+            new LuceneMcpSearchService.SearchHit(
+                "runtime_capacity_api", "template", 0.91F, List.of("opensearch_vector:0.91"))
+        ));
+
+        Map<String, Object> result = publisher(configService, lucene).query(Map.of(
+            "filters", Map.of("intent", "运行资源耗尽预警")
+        ));
+
+        assertThat(result).containsEntry("returnedCount", 1);
+        assertThat(result.get("templates").toString()).contains("runtime_capacity_api");
+    }
+
+    @Test
     void queryRestrictsResultsToTemplateIdsFromPriorAssetDiscovery() {
         ApiServiceConfig fundFlow = new ApiServiceConfig();
         fundFlow.setToolName("livedata_hisJyZjmxls");
@@ -352,7 +378,7 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
         LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
         when(lucene.enabled()).thenReturn(true);
         when(lucene.searchApiServiceTemplates(any())).thenReturn(List.of(
-            new LuceneMcpSearchService.SearchHit("order_status_api", "template", 20.0f, List.of("cross-category")),
+            new LuceneMcpSearchService.SearchHit("order_status_api", "template", 20.0f, List.of("opensearch_vector:20.0")),
             new LuceneMcpSearchService.SearchHit("generic_lookup_api", "template", 8.0f, List.of("default"))
         ));
         ApiTemplateDiscoveryMcpToolPublisher publisher = new ApiTemplateDiscoveryMcpToolPublisher(

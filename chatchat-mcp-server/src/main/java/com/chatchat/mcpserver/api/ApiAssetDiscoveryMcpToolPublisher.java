@@ -3,6 +3,7 @@ package com.chatchat.mcpserver.api;
 import com.chatchat.mcpserver.routing.AssetDiscoveryService;
 import com.chatchat.mcpserver.routing.AssetMetadataFactory;
 import com.chatchat.mcpserver.routing.TargetKindRegistry;
+import com.chatchat.mcpserver.search.AssetRelevanceRanker;
 import com.chatchat.mcpserver.search.LuceneMcpSearchService;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
@@ -17,7 +18,6 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -246,29 +246,55 @@ public class ApiAssetDiscoveryMcpToolPublisher {
                 null,
                 null,
                 List.of(),
-                Math.min(MAX_LIMIT, Math.max(limit + 1, limit))
+                AssetRelevanceRanker.expandedLimit(limit, configs.size())
             )
         );
-        return hits.stream()
+        List<AssetRelevanceRanker.Candidate<ScoredApiAsset>> candidates = hits.stream()
             .map(hit -> {
                 ApiServiceConfig config = byId.get(hit.id());
-                return config == null ? null : new ScoredApiAsset(config, hit.score());
+                return config == null ? null : new AssetRelevanceRanker.Candidate<>(
+                    new ScoredApiAsset(config, hit.score()),
+                    identityTexts(config),
+                    contentTexts(config),
+                    hit.score()
+                );
             })
             .filter(item -> item != null)
+            .toList();
+        return AssetRelevanceRanker.rank(queryText(terms, filters), candidates).stream()
+            .map(item -> new ScoredApiAsset(item.value().config(), item.score()))
             .toList();
     }
 
     private List<ScoredApiAsset> fallbackMatched(List<ApiServiceConfig> configs,
                                                  List<String> terms,
                                                  Map<String, Object> filters) {
-        return configs.stream()
-            .map(config -> new ScoredApiAsset(config, score(config, terms, filters)))
-            .filter(item -> terms.isEmpty() || item.score() > 0)
-            .sorted(Comparator
-                .comparingDouble(ScoredApiAsset::score)
-                .reversed()
-                .thenComparing(item -> text(item.config().getToolName())))
+        List<AssetRelevanceRanker.Candidate<ApiServiceConfig>> candidates = configs.stream()
+            .map(config -> new AssetRelevanceRanker.Candidate<>(
+                config, identityTexts(config), contentTexts(config), 0.0D))
             .toList();
+        return AssetRelevanceRanker.rank(queryText(terms, filters), candidates).stream()
+            .map(item -> new ScoredApiAsset(item.value(), terms.isEmpty() ? 1.0D : item.score()))
+            .toList();
+    }
+
+    private List<String> identityTexts(ApiServiceConfig config) {
+        return List.of(
+            text(config.getId()),
+            text(config.getToolName()),
+            text(config.getTitle())
+        );
+    }
+
+    private List<String> contentTexts(ApiServiceConfig config) {
+        return List.of(
+            text(config.getDescription()),
+            text(config.getBusinessGroup()),
+            text(config.getBusinessGroupName()),
+            text(config.getBusinessGroupDescription()),
+            text(config.getMethod()),
+            String.join(" ", apiLabels(config))
+        );
     }
 
     private LuceneMcpSearchService.AssetDoc apiAssetDoc(ApiServiceConfig config) {
@@ -341,28 +367,6 @@ public class ApiAssetDiscoveryMcpToolPublisher {
         if (!text.isBlank()) {
             terms.add(text);
         }
-    }
-
-    private double score(ApiServiceConfig config, List<String> terms, Map<String, Object> filters) {
-        if (terms.isEmpty()) {
-            return 1.0;
-        }
-        String haystack = normalize(String.join(" ",
-            text(config.getToolName()),
-            text(config.getTitle()),
-            text(config.getDescription()),
-            text(config.getBusinessGroup()),
-            text(config.getBusinessGroupName()),
-            text(config.getBusinessGroupDescription()),
-            text(config.getMethod())
-        ));
-        long matched = terms.stream().filter(haystack::contains).count();
-        double score = matched / (double) terms.size();
-        String requestedName = normalize(firstValue(filters, "assetName", "asset_name", "toolName", "name"));
-        if (!requestedName.isBlank() && normalize(config.getToolName()).equals(requestedName)) {
-            score += 1.0;
-        }
-        return score;
     }
 
     private Map<String, Object> assetMetadata(ApiServiceConfig config, double score) {

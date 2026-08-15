@@ -78,7 +78,7 @@ class CommandTemplateDiscoveryLuceneIntegrationTest {
         Map<?, ?> first = (Map<?, ?>) templates.get(0);
         assertThat((Integer) result.get("returnedCount")).isGreaterThanOrEqualTo(1);
         assertThat(first.get("templateId")).isEqualTo("MYSQL_SHOW_STATUS");
-        assertThat(first.get("matchReasons").toString()).contains("lucene template index matched bm25");
+        assertThat(first.get("matchReasons").toString()).contains("template index retrieval matched score");
         assertThat(result.get("resolutionTrace").toString())
             .contains("registry_universe_with_lucene_score_then_authorized_feature_rank", "lucene_scored");
     }

@@ -438,6 +438,71 @@ class AssetDiscoveryServiceTest {
     }
 
     @Test
+    void removesBackendHitsWithoutAnyQueryEvidence() {
+        SshHostConfigService hostService = mock(SshHostConfigService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        HttpEndpointConfigService httpService = mock(HttpEndpointConfigService.class);
+        LuceneMcpSearchService searchService = mock(LuceneMcpSearchService.class);
+        when(hostService.listEnabled()).thenReturn(List.of());
+        when(datasourceService.listEnabled()).thenReturn(List.of(
+            datasource("db-account", "customer-warehouse", "DEV", "[\"account\"]"),
+            datasource("db-bond", "bond-warehouse", "DEV", "[\"bond\"]")
+        ));
+        when(httpService.listEnabled()).thenReturn(List.of());
+        when(searchService.enabled()).thenReturn(true);
+        when(searchService.searchAssets(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(
+            searchHit("db-bond", "db-bond:market.bond_quote", 9.0F, "bond_quote"),
+            searchHit("db-account", "db-account:customer.account", 3.0F, "account")
+        ));
+        AssetDiscoveryService service = new AssetDiscoveryService(
+            hostService, datasourceService, httpService,
+            new AssetMetadataFactory(new ObjectMapper()), searchService, new TargetKindRegistry());
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "database",
+            "confidence", 0.95,
+            "filters", Map.of("intent", "customer account analysis"),
+            "trace", trace(),
+            "limit", 10
+        ));
+
+        assertThat(result).containsEntry("returnedCount", 1);
+        assertThat(result.toString()).contains("customer-warehouse").doesNotContain("bond-warehouse");
+    }
+
+    @Test
+    void expandsBackendCandidatesBeyondRequestedResultLimit() {
+        SshHostConfigService hostService = mock(SshHostConfigService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        HttpEndpointConfigService httpService = mock(HttpEndpointConfigService.class);
+        LuceneMcpSearchService searchService = mock(LuceneMcpSearchService.class);
+        List<SqlDatasourceConfig> datasources = new java.util.ArrayList<>();
+        for (int index = 0; index < 12; index++) {
+            datasources.add(datasource("db-" + index, "warehouse-" + index, "DEV", null));
+        }
+        when(hostService.listEnabled()).thenReturn(List.of());
+        when(datasourceService.listEnabled()).thenReturn(datasources);
+        when(httpService.listEnabled()).thenReturn(List.of());
+        when(searchService.enabled()).thenReturn(true);
+        when(searchService.searchAssets(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
+        AssetDiscoveryService service = new AssetDiscoveryService(
+            hostService, datasourceService, httpService,
+            new AssetMetadataFactory(new ObjectMapper()), searchService, new TargetKindRegistry());
+
+        service.query(Map.of(
+            "targetKind", "database",
+            "confidence", 0.95,
+            "filters", Map.of("intent", "customer account analysis"),
+            "trace", trace(),
+            "limit", 1
+        ));
+
+        org.mockito.Mockito.verify(searchService).searchAssets(org.mockito.ArgumentMatchers.argThat(request ->
+            request.limit() == 9
+        ));
+    }
+
+    @Test
     void resolvesExplicitAssetNameFromRegistryBeforeSharedMetadataIndex() {
         SshHostConfigService hostService = mock(SshHostConfigService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
@@ -485,10 +550,7 @@ class AssetDiscoveryServiceTest {
         when(httpService.listEnabled()).thenReturn(List.of());
         when(searchService.enabled()).thenReturn(true);
         when(searchService.searchAssets(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(
-            new LuceneMcpSearchService.SearchHit(
-                "oracle-1", "asset", 1.0F, List.of("asset_registry"), "oracle-1",
-                "asset_registry", "oracle-1", null, null, null, null, null
-            )
+            searchHit("oracle-1", "oracle-1:system.tablespace_usage", 1.0F, "tablespace_usage")
         ));
         AssetDiscoveryService service = new AssetDiscoveryService(
             hostService, datasourceService, httpService,

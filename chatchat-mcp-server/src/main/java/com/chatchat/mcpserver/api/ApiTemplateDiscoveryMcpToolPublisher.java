@@ -5,6 +5,7 @@ import com.chatchat.mcpserver.category.BusinessCategoryService;
 import com.chatchat.mcpserver.ops.CommandTemplateDiscoveryService;
 import com.chatchat.mcpserver.routing.TargetKindRegistry;
 import com.chatchat.mcpserver.search.LuceneMcpSearchService;
+import com.chatchat.mcpserver.search.SearchQueryTokenizer;
 import com.chatchat.mcpserver.templatepublication.TemplateQueryMcpToolPublisher;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -137,22 +138,24 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
                 (first, ignored) -> first,
                 LinkedHashMap::new
             ));
-        Map<String, Double> hitScores = hits.stream()
+        Map<String, RetrievalEvidence> hitEvidence = hits.stream()
             .map(hit -> apiTemplateHit(configsByToolName, hit, categoryResolution.category()))
             .filter(item -> item != null)
             .collect(Collectors.toMap(
                 item -> item.config().getToolName(),
-                ScoredApiTemplate::score,
-                Math::max,
+                item -> new RetrievalEvidence(item.score(), item.vector()),
+                (left, right) -> new RetrievalEvidence(
+                    Math.max(left.score(), right.score()), left.vector() || right.vector()),
                 LinkedHashMap::new
             ));
-        double bestHitScore = hitScores.values().stream().mapToDouble(Double::doubleValue).max().orElse(0.0D);
+        double bestHitScore = hitEvidence.values().stream()
+            .mapToDouble(RetrievalEvidence::score).max().orElse(0.0D);
         boolean browseMode = terms.isEmpty();
         boolean explicitSelection = !requestedTemplateIds.isEmpty();
         List<ScoredApiTemplate> matched = scopedConfigs.stream()
             .filter(config -> !text(config.getToolName()).isBlank())
             .filter(config -> !excludedTemplateIds.contains(config.getToolName()))
-            .map(config -> scoredTemplate(config, terms, hitScores, bestHitScore,
+            .map(config -> scoredTemplate(config, terms, hitEvidence, bestHitScore,
                 categoryResolution.category(), browseMode, explicitSelection))
             .filter(ScoredApiTemplate::qualified)
             .sorted(java.util.Comparator.comparingDouble(ScoredApiTemplate::score).reversed()
@@ -193,6 +196,8 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
                 "mcpRelevanceIsAdmissionFilter", true,
                 "relativeRetrievalFloor", RELATIVE_RETRIEVAL_FLOOR,
                 "localCoverageFloor", LOCAL_COVERAGE_FLOOR,
+                "querySegmentation", "NFKC normalization with identifier preservation, script-aware tokenization and Chinese bigrams",
+                "vectorRetrieval", "OpenSearch embedding/KNN evidence is admitted only when present and above the relative semantic floor; otherwise BM25/local coverage rules apply",
                 "rawExecutionSpecReturned", false,
                 "selectionFields", List.of("templateId", "toolName", "title", "description", "businessGroup", "capabilitySpec", "outputSchema", "dependencySpec", "parameterSchema", "requiredParameters", "parameterContract", "invocationExample"),
                 "onEmptyResult", "No existing API template matched the request. Do not invent an API tool name."
@@ -206,11 +211,11 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             ),
             "diagnostics", mapOf(
                 "source", "lucene_api_service_template_index",
-                "hitCount", hitScores.size(),
-                "hitIds", hitScores.keySet().stream().limit(limit).toList(),
+                "hitCount", hitEvidence.size(),
+                "hitIds", hitEvidence.keySet().stream().limit(limit).toList(),
                 "candidateCount", matched.size(),
                 "candidatePolicy", "authorized_relevance_qualified_candidates",
-                "retrievedCandidateCount", hitScores.size(),
+                "retrievedCandidateCount", hitEvidence.size(),
                 "qualifiedCandidateCount", matched.size(),
                 "categoryScoped", false,
                 "categoryRequired", false,
@@ -447,9 +452,9 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
         }
     }
 
-    private ScoredApiTemplate apiTemplateHit(Map<String, ApiServiceConfig> configsByToolName,
-                                             LuceneMcpSearchService.SearchHit hit,
-                                             BusinessCategory preferredCategory) {
+    private ApiTemplateHit apiTemplateHit(Map<String, ApiServiceConfig> configsByToolName,
+                                          LuceneMcpSearchService.SearchHit hit,
+                                          BusinessCategory preferredCategory) {
         if (hit == null) {
             return null;
         }
@@ -461,24 +466,28 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             return null;
         }
         double categoryBoost = preferredCategory != null && belongsTo(config, preferredCategory) ? 1.0 : 0.0;
-        return new ScoredApiTemplate(config, hit.score() + categoryBoost, true, 0, 0.0D);
+        boolean vector = hit.reasons() != null && hit.reasons().stream()
+            .anyMatch(reason -> reason != null && reason.startsWith("opensearch_vector:"));
+        return new ApiTemplateHit(config, hit.score() + categoryBoost, vector);
     }
 
     private ScoredApiTemplate scoredTemplate(ApiServiceConfig config,
                                              List<String> terms,
-                                             Map<String, Double> hitScores,
+                                             Map<String, RetrievalEvidence> hitEvidence,
                                              double bestHitScore,
                                              BusinessCategory preferredCategory,
                                              boolean browseMode,
                                              boolean explicitSelection) {
         TemplateLexicalQuality lexical = templateLexicalQuality(config, terms);
-        Double retrievalScore = hitScores.get(config.getToolName());
+        RetrievalEvidence evidence = hitEvidence.get(config.getToolName());
+        Double retrievalScore = evidence == null ? null : evidence.score();
         double relativeScore = retrievalScore == null || bestHitScore <= 0.0D
             ? 0.0D
             : retrievalScore / bestHitScore;
         boolean indexQualified = retrievalScore != null
             && relativeScore >= RELATIVE_RETRIEVAL_FLOOR
-            && (lexical.matchedTerms() > 0 || relativeScore >= STRONG_SEMANTIC_FLOOR);
+            && (lexical.matchedTerms() > 0
+                || evidence.vector() && relativeScore >= STRONG_SEMANTIC_FLOOR);
         boolean registryQualified = lexical.coverage() >= LOCAL_COVERAGE_FLOOR
             && lexical.matchedTerms() >= (lexical.queryTerms() >= 4 ? 2 : 1);
         boolean qualified = browseMode || explicitSelection || indexQualified || registryQualified;
@@ -511,18 +520,7 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
     }
 
     private List<String> lexicalTerms(String value) {
-        String normalized = normalize(value);
-        if (normalized.isBlank()) {
-            return List.of();
-        }
-        List<String> values = new ArrayList<>();
-        values.add(normalized);
-        for (String token : normalized.split("[^a-z0-9\\p{IsHan}]+")) {
-            if (!token.isBlank() && token.length() >= 2) {
-                values.add(token);
-            }
-        }
-        return values.stream().distinct().toList();
+        return SearchQueryTokenizer.terms(value);
     }
 
     private Map<String, Object> filtersWithApiAssetSignals(Map<String, Object> filters, List<String> signals) {
@@ -899,6 +897,12 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
                                      boolean qualified,
                                      int matchedTerms,
                                      double coverage) {
+    }
+
+    private record ApiTemplateHit(ApiServiceConfig config, double score, boolean vector) {
+    }
+
+    private record RetrievalEvidence(double score, boolean vector) {
     }
 
     private record TemplateLexicalQuality(int queryTerms, int matchedTerms, double coverage) {

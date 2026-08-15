@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.api;
 
+import com.chatchat.mcpserver.search.LuceneMcpSearchService;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -139,6 +140,44 @@ class ApiAssetDiscoveryMcpToolPublisherTest {
     }
 
     @Test
+    void expandsAndQualityFiltersApiAssetCandidates() {
+        ApiServiceConfigService configService = mock(ApiServiceConfigService.class);
+        LuceneMcpSearchService searchService = mock(LuceneMcpSearchService.class);
+        java.util.ArrayList<ApiServiceConfig> configs = new java.util.ArrayList<>();
+        ApiServiceConfig accountApi = apiConfig(
+            "api-account", "customer_account_api", "Customer account API", "Customer account reporting");
+        ApiServiceConfig bondApi = apiConfig(
+            "api-bond", "bond_quote_api", "Bond quote API", "Bond market quotes");
+        configs.add(accountApi);
+        configs.add(bondApi);
+        for (int index = 0; index < 10; index++) {
+            configs.add(apiConfig("api-" + index, "service_" + index, "Service " + index, "Unrelated service"));
+        }
+        when(configService.listEnabled()).thenReturn(configs);
+        when(searchService.enabled()).thenReturn(true);
+        when(searchService.searchAssets(
+            org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.any()))
+            .thenReturn(List.of(
+                new LuceneMcpSearchService.SearchHit("api-bond", "asset", 9.0F, List.of("bm25")),
+                new LuceneMcpSearchService.SearchHit("api-account", "asset", 3.0F, List.of("bm25"))
+            ));
+        ApiAssetDiscoveryMcpToolPublisher publisher = new ApiAssetDiscoveryMcpToolPublisher(
+            mock(McpSyncServer.class), configService, searchService);
+
+        Map<String, Object> result = publisher.query(Map.of(
+            "filters", Map.of("intent", "customer account analysis"),
+            "limit", 1
+        ));
+
+        assertThat(result).containsEntry("returnedCount", 1);
+        assertThat(result.toString()).contains("customer_account_api").doesNotContain("bond_quote_api");
+        ArgumentCaptor<LuceneMcpSearchService.AssetSearchRequest> requestCaptor =
+            ArgumentCaptor.forClass(LuceneMcpSearchService.AssetSearchRequest.class);
+        verify(searchService).searchAssets(org.mockito.ArgumentMatchers.anyList(), requestCaptor.capture());
+        assertThat(requestCaptor.getValue().limit()).isEqualTo(9);
+    }
+
+    @Test
     void queryRejectsRawApiExecutionFields() {
         ApiAssetDiscoveryMcpToolPublisher publisher = new ApiAssetDiscoveryMcpToolPublisher(
             mock(McpSyncServer.class),
@@ -149,5 +188,18 @@ class ApiAssetDiscoveryMcpToolPublisherTest {
         assertThatThrownBy(() -> publisher.query(Map.of("filters", Map.of("urlTemplate", "https://example.com"))))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("api_asset_query");
+    }
+
+    private ApiServiceConfig apiConfig(String id, String toolName, String title, String description) {
+        ApiServiceConfig config = new ApiServiceConfig();
+        config.setId(id);
+        config.setToolName(toolName);
+        config.setTitle(title);
+        config.setDescription(description);
+        config.setBusinessGroup("test_services");
+        config.setBusinessGroupName("Test services");
+        config.setMethod("GET");
+        config.setEnabled(true);
+        return config;
     }
 }

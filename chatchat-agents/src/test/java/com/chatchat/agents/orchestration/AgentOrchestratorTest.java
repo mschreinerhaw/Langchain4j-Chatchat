@@ -721,7 +721,51 @@ class AgentOrchestratorTest {
         assertThat(coverage.processedRecordCount()).isEqualTo(coverage.returnedRecordCount());
         assertThat(coverage.promptEvidence()).contains("linux_command_execute#stdout", "linux output chunk summary");
         assertThat(metadata).containsEntry("recordAnalysisIterative", true);
+        assertThat(metadata).containsEntry("recordAnalysisSourceContentComplete", true);
         verify(model, times(coverage.iterations())).chat(any(String.class));
+    }
+
+    @Test
+    void sqlScriptCoverageProcessesEveryFetchedRowAndReportsDatabaseLimitCompleteness() {
+        Map<String, Object> output = Map.of(
+            "dataSchema", "sql_script_result.v1",
+            "data", Map.of("results", List.of(
+                Map.of(
+                    "statementIndex", 1,
+                    "stepCode", "ACTIVE_SESSIONS",
+                    "possiblyTruncated", false,
+                    "rows", List.of(Map.of("SID", 1), Map.of("SID", 2))
+                ),
+                Map.of(
+                    "statementIndex", 2,
+                    "stepCode", "LOCK_WAITS",
+                    "possiblyTruncated", true,
+                    "rows", List.of(Map.of("WAITING_SID", 9))
+                )
+            ))
+        );
+        InterpretationPlanRuntime.StepExecution step = new InterpretationPlanRuntime.StepExecution(
+            1, "mcp_tool", "sql_script_execute", true,
+            output, null, null, null, 10L, Map.of()
+        );
+        InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
+            "success", true, false, null, null, List.of(step), Map.of(), 10L
+        );
+        ChatModel model = mock(ChatModel.class);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+
+        AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
+            .buildRecordCoverageBundle(model, "analyze sql script", result, Map.of(), metadata, () -> false);
+
+        assertThat(coverage.returnedRecordCount()).isEqualTo(3);
+        assertThat(coverage.processedRecordCount()).isEqualTo(3);
+        assertThat(coverage.promptEvidence())
+            .contains("#statement-1", "#statement-2", "SID", "WAITING_SID")
+            .contains("sourceContentComplete=false");
+        assertThat(metadata)
+            .containsEntry("recordAnalysisCoverageComplete", true)
+            .containsEntry("recordAnalysisSourceContentComplete", false);
+        verify(model, never()).chat(any(String.class));
     }
 
     @Test

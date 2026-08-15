@@ -2879,8 +2879,11 @@ public class AgentOrchestrator implements AgentRunExecutor {
         int processedRecordCount = 0;
         int iterations = 0;
         boolean iterative = false;
+        boolean sourceContentComplete = true;
         for (BatchRecordSet recordSet : recordSets) {
             returnedRecordCount += recordSet.records().size();
+            sourceContentComplete &= recordSet.records().stream()
+                .noneMatch(record -> Boolean.FALSE.equals(record.get("sourceComplete")));
             recordSet.records().forEach(record ->
                 recordValueGroups.add(recordValueGroup(record, query)));
             String allRecords = stringify(recordSet.records());
@@ -2930,12 +2933,14 @@ public class AgentOrchestrator implements AgentRunExecutor {
         boolean coverageComplete = processedRecordCount == returnedRecordCount;
         promptEvidence.append("Coverage: returnedRecordCount=").append(returnedRecordCount)
             .append(", processedRecordCount=").append(processedRecordCount)
-            .append(", complete=").append(coverageComplete).append(".\n");
+            .append(", complete=").append(coverageComplete)
+            .append(", sourceContentComplete=").append(sourceContentComplete).append(".\n");
         if (metadata != null) {
             metadata.put("recordAnalysisContractVersion", "record_grounded_analysis.v1");
             metadata.put("recordAnalysisReturnedRecordCount", returnedRecordCount);
             metadata.put("recordAnalysisProcessedRecordCount", processedRecordCount);
             metadata.put("recordAnalysisCoverageComplete", coverageComplete);
+            metadata.put("recordAnalysisSourceContentComplete", sourceContentComplete);
             metadata.put("recordAnalysisIterationCount", iterations);
             metadata.put("recordAnalysisIterative", iterative);
         }
@@ -2950,36 +2955,108 @@ public class AgentOrchestrator implements AgentRunExecutor {
         }
         List<BatchRecordSet> sets = new ArrayList<>();
         for (InterpretationPlanRuntime.StepExecution step : result.steps()) {
-            if (step.output() instanceof ToolCallBatchResult batch) {
+            Object resolvedStepOutput = resolvedEvidenceData(step);
+            if (resolvedStepOutput instanceof ToolCallBatchResult batch) {
                 for (ToolCallResult child : batch.results()) {
                     if (!"SUCCESS".equalsIgnoreCase(child.status()) || !child.evidenceUsable()) {
                         continue;
                     }
-                    List<Map<String, Object>> records = protocolRecords(child.output());
-                    if (!records.isEmpty()) {
-                        sets.add(new BatchRecordSet(
-                            firstNonBlank(child.templateId(),
-                                firstNonBlank(child.templateCode(), firstNonBlank(child.callId(), "result"))),
-                            records));
-                    }
+                    String reference = firstNonBlank(child.templateId(),
+                        firstNonBlank(child.templateCode(), firstNonBlank(child.callId(), "result")));
+                    sets.addAll(outputRecordSets(child.output(), reference));
                 }
                 continue;
             }
             if (step.success()) {
-                Object evidenceOutput = step.toolExecution() == null
-                    ? step.output()
-                    : toolRuntimeService.resolveOutputForEvidenceReview(step.toolExecution().output());
-                List<Map<String, Object>> records = protocolRecords(evidenceOutput);
-                if (!records.isEmpty()) {
-                    sets.add(new BatchRecordSet(
-                        firstNonBlank(step.toolName(), "step-" + step.stepId()), records));
-                } else {
-                    sets.addAll(linuxStreamRecordSets(
-                        evidenceOutput, firstNonBlank(step.toolName(), "step-" + step.stepId())));
-                }
+                Object evidenceOutput = resolvedStepOutput;
+                sets.addAll(outputRecordSets(
+                    evidenceOutput, firstNonBlank(step.toolName(), "step-" + step.stepId())));
             }
         }
         return List.copyOf(sets);
+    }
+
+    private List<BatchRecordSet> outputRecordSets(Object output, String reference) {
+        List<BatchRecordSet> sqlSets = sqlRecordSets(output, reference);
+        if (!sqlSets.isEmpty()) {
+            return sqlSets;
+        }
+        List<Map<String, Object>> records = protocolRecords(output);
+        if (!records.isEmpty()) {
+            return List.of(new BatchRecordSet(reference, records));
+        }
+        return linuxStreamRecordSets(output, reference);
+    }
+
+    private List<BatchRecordSet> sqlRecordSets(Object output, String reference) {
+        Map<String, Object> root = objectMap(output);
+        String dataSchema = stringValue(root.get("dataSchema"));
+        Map<String, Object> data = objectMap(root.get("data"));
+        if ("sql_result.v1".equals(dataSchema)) {
+            List<Map<String, Object>> rows = objectMapList(data.get("rows"));
+            if (rows.isEmpty()) {
+                return List.of();
+            }
+            boolean sourceComplete = !Boolean.TRUE.equals(booleanValue(data.get("possiblyTruncated")));
+            List<Map<String, Object>> annotated = new ArrayList<>(rows.size());
+            for (int index = 0; index < rows.size(); index++) {
+                Map<String, Object> row = new LinkedHashMap<>(rows.get(index));
+                row.put("_resultRowIndex", index + 1);
+                row.put("sourceComplete", sourceComplete);
+                annotated.add(Map.copyOf(row));
+            }
+            return List.of(new BatchRecordSet(reference, List.copyOf(annotated)));
+        }
+        boolean scriptResult = "sql_script_result.v1".equals(dataSchema);
+        boolean multiQueryResult = "database_query_multi_sql_result.v1".equals(dataSchema)
+            || "database_query_workflow_result.v1".equals(dataSchema);
+        if (!scriptResult && !multiQueryResult) {
+            return List.of();
+        }
+        List<BatchRecordSet> sets = new ArrayList<>();
+        List<Map<String, Object>> resultSets = objectMapList(
+            firstNonNull(data.get("results"), data.get("resultSets")));
+        for (Map<String, Object> resultSet : resultSets) {
+            List<Map<String, Object>> rows = objectMapList(resultSet.get("rows"));
+            if (rows.isEmpty()) {
+                continue;
+            }
+            boolean sourceComplete = !Boolean.TRUE.equals(booleanValue(resultSet.get("possiblyTruncated")));
+            List<Map<String, Object>> annotated = new ArrayList<>(rows.size());
+            for (int index = 0; index < rows.size(); index++) {
+                Map<String, Object> row = new LinkedHashMap<>(rows.get(index));
+                Object statementIndex = firstNonNull(
+                    resultSet.get("statementIndex"), resultSet.get("executionOrder"));
+                Object stepCode = firstNonNull(resultSet.get("stepCode"), resultSet.get("sqlCode"));
+                if (statementIndex != null) {
+                    row.put("_statementIndex", statementIndex);
+                }
+                if (stepCode != null) {
+                    row.put("_stepCode", stepCode);
+                }
+                row.put("_resultRowIndex", index + 1);
+                row.put("sourceComplete", sourceComplete);
+                annotated.add(Map.copyOf(row));
+            }
+            sets.add(new BatchRecordSet(
+                reference + "#statement-" + firstNonBlank(stringValue(firstNonNull(
+                    resultSet.get("statementIndex"), resultSet.get("executionOrder"))), "?"),
+                List.copyOf(annotated)));
+        }
+        return List.copyOf(sets);
+    }
+
+    private Object resolvedEvidenceData(InterpretationPlanRuntime.StepExecution step) {
+        if (step == null) {
+            return null;
+        }
+        Object data = step.output();
+        if (data instanceof ToolCallBatchResult batch) {
+            return toolRuntimeService.resolveBatchOutputForEvidenceReview(batch);
+        }
+        return step.toolExecution() == null
+            ? data
+            : toolRuntimeService.resolveOutputForEvidenceReview(step.toolExecution().output());
     }
 
     private List<BatchRecordSet> linuxStreamRecordSets(Object output, String reference) {

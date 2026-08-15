@@ -88,9 +88,10 @@ class StandardToolExecutionResultFactoryTest {
     }
 
     @Test
-    void sqlResultUsesStandardEnvelopeAndLimitsRowsForModel() {
+    void sqlResultPreservesAllFetchedRowsForRuntimeChunkAnalysis() {
+        String fullCell = "SQL_CELL_HEAD\n" + "x".repeat(10_000) + "\nSQL_CELL_TAIL";
         List<Map<String, Object>> rows = IntStream.rangeClosed(1, 60)
-            .mapToObj(index -> Map.<String, Object>of("id", index))
+            .mapToObj(index -> Map.<String, Object>of("id", index, "payload", fullCell + index))
             .toList();
         SqlQueryResult result = new SqlQueryResult(
             true,
@@ -102,7 +103,7 @@ class StandardToolExecutionResultFactoryTest {
             "SELECT * FROM t",
             30,
             1000,
-            List.of("id"),
+            List.of("id", "payload"),
             List.of(Map.of(
                 "name", "id",
                 "label", "id",
@@ -150,13 +151,16 @@ class StandardToolExecutionResultFactoryTest {
         assertThat(governance.get("schemaVersion")).isEqualTo("sql_output_governance.v1");
         assertThat(((List<?>) governance.get("maskedColumns")).stream().map(String::valueOf).toList()).contains("id");
         assertThat(governance.get("columnCommentsIncluded")).isEqualTo(true);
-        assertThat((List<?>) data.get("rows")).hasSize(50);
+        assertThat((List<?>) data.get("rows")).hasSize(60);
         assertThat(data.get("rowCount")).isEqualTo(60);
-        assertThat(data.get("returnedRowCount")).isEqualTo(50);
-        assertThat(data.get("complete")).isEqualTo(false);
-        assertThat(data.get("possiblyTruncated")).isEqualTo(true);
-        assertThat(data.get("truncationStrategy")).isEqualTo("LIMIT_50");
-        assertThat(limits.get("truncationStrategy")).isEqualTo("LIMIT_50");
+        assertThat(data.get("returnedRowCount")).isEqualTo(60);
+        assertThat(data.get("complete")).isEqualTo(true);
+        assertThat(data.get("possiblyTruncated")).isEqualTo(false);
+        assertThat(data.get("truncationStrategy")).isEqualTo("DATABASE_MAX_ROWS_1000");
+        assertThat(limits.get("fullFetchedRowsAvailable")).isEqualTo(true);
+        assertThat(limits.get("analysisStrategy")).isEqualTo("RUNTIME_EXTERNALIZE_AND_CHUNK");
+        assertThat(((Map<?, ?>) ((List<?>) data.get("rows")).get(0)).get("payload"))
+            .isEqualTo(fullCell + 1);
         assertThat(graph.get("schemaVersion")).isEqualTo("execution_graph.v1");
         assertThat(sourceMetadata.get("schemaVersion")).isEqualTo("execution_source.v1");
         assertThat(sourceMetadata.get("executionType")).isEqualTo("SQL_QUERY");
@@ -323,6 +327,8 @@ class StandardToolExecutionResultFactoryTest {
         assertThat(data.get("commandSuccess")).isEqualTo(false);
         assertThat(limits.get("strategy"))
             .isEqualTo("FULL_CAPTURED_AGGREGATE_WITH_BOUNDED_STEP_PREVIEWS");
+        assertThat(limits.get("fullAggregateAvailable")).isEqualTo(true);
+        assertThat(limits.get("stepStreamsPreviewOnly")).isEqualTo(true);
         assertThat(limits.get("stdoutTruncated")).isEqualTo(false);
         assertThat(limits.get("stderrTruncated")).isEqualTo(false);
         assertThat(String.valueOf(data.get("stdout")))

@@ -481,6 +481,55 @@ class ToolObservationBuilderEvidenceTest {
     }
 
     @Test
+    void linuxObservationUsesCompleteAggregateWhenStepStreamsAreOnlyPreviews() {
+        String aggregate = "PROCESS_HEAD\n" + "complete-process-row\n" + "PROCESS_TAIL";
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("schemaVersion", "tool_execution_result.v1");
+        result.put("kind", "ssh_command");
+        result.put("dataSchema", "ssh_steps.v1");
+        result.put("success", true);
+        result.put("status", "success");
+        result.put("operation", Map.of("type", "ssh.command_steps", "template", "CHECK_PROCESS"));
+        result.put("data", Map.of(
+            "transportSuccess", true,
+            "commandSuccess", true,
+            "exitCode", 0,
+            "stdout", aggregate,
+            "stderr", "",
+            "outputLimits", Map.of(
+                "strategy", "FULL_CAPTURED_AGGREGATE_WITH_BOUNDED_STEP_PREVIEWS",
+                "stdoutOriginalLength", aggregate.length(),
+                "stdoutReturnedLength", aggregate.length(),
+                "stdoutTruncated", false,
+                "stderrOriginalLength", 0,
+                "stderrReturnedLength", 0,
+                "stderrTruncated", false
+            ),
+            "steps", List.of(Map.ofEntries(
+                Map.entry("stepIndex", 1),
+                Map.entry("success", true),
+                Map.entry("exitCode", 0),
+                Map.entry("stdoutOriginalLength", 500_000),
+                Map.entry("stdoutReturnedLength", 24_000),
+                Map.entry("stdoutTruncated", true),
+                Map.entry("stderrOriginalLength", 0),
+                Map.entry("stderrReturnedLength", 0),
+                Map.entry("stderrTruncated", false),
+                Map.entry("stdout", "PROCESS_HEAD\n...[truncated]...\nPROCESS_TAIL"),
+                Map.entry("stderr", "")
+            ))
+        ));
+
+        String evidence = builder.buildAuthoritativeExecutionEvidence("linux_command_execute", result);
+
+        assertThat(evidence)
+            .contains("per-step streams above are previews")
+            .contains("complete-process-row")
+            .contains("BEGIN COMPLETE AGGREGATE STDOUT")
+            .contains("presentation-only and must not be reported as missing evidence");
+    }
+
+    @Test
     void standardRuntimeContractPreservesUnknownToolDataWithoutPurposeHardcoding() {
         String body = "response head\n" + "y".repeat(5_000) + "\nresponse tail";
         Map<String, Object> result = new LinkedHashMap<>();

@@ -113,26 +113,28 @@ public class StandardToolExecutionResultFactory {
             "sourceTaskId", result.sourceTaskId(),
             "diagnostics", safeDiagnostics
         ));
-        int rowLimit = sqlResultRowLimit();
         List<Map<String, Object>> rows = result.rows() == null
             ? List.of()
-            : result.rows().stream().limit(rowLimit)
-                .map(row -> modelSafeSqlRow(row, result.columnMetadata()))
+            : result.rows().stream()
+                .map(row -> runtimeSafeSqlRow(row, result.columnMetadata()))
                 .toList();
         int effectiveRowCount = Math.max(rows.size(), Math.max(0, result.rowCount()));
         Map<String, Object> limits = mapOf(
             "maxRowsRequested", result.maxRows(),
-            "maxRowsReturnedToModel", rowLimit,
-            "truncationStrategy", sqlTruncationStrategy()
+            "configuredDatabaseMaxRows", databaseToolProperties.getMaxRows(),
+            "rowsFetchedFromDatabase", rows.size(),
+            "fullFetchedRowsAvailable", true,
+            "analysisStrategy", "RUNTIME_EXTERNALIZE_AND_CHUNK",
+            "truncationStrategy", "DATABASE_MAX_ROWS_" + result.maxRows()
         );
         payload.put("limits", limits);
-        boolean possiblyTruncated = result.possiblyTruncated() || effectiveRowCount > rows.size();
+        boolean possiblyTruncated = result.possiblyTruncated();
         Map<String, Object> data = mapOf(
             "rowCount", effectiveRowCount,
             "returnedRowCount", rows.size(),
             "complete", !possiblyTruncated,
             "possiblyTruncated", possiblyTruncated,
-            "truncationStrategy", sqlTruncationStrategy(),
+            "truncationStrategy", "DATABASE_MAX_ROWS_" + result.maxRows(),
             "columns", result.columns(),
             "columnMetadata", result.columnMetadata(),
             "governance", sqlOutputGovernance(result, effectiveRowCount, rows.size()),
@@ -208,8 +210,10 @@ public class StandardToolExecutionResultFactory {
             .toList();
         payload.put("limits", mapOf(
             "maxRowsPerStatementRequested", result.maxRowsPerStatement(),
-            "maxRowsReturnedToModelPerStatement", sqlResultRowLimit(),
-            "truncationStrategy", sqlTruncationStrategy() + "_PER_STATEMENT"
+            "configuredDatabaseMaxRows", databaseToolProperties.getMaxRows(),
+            "fullFetchedRowsAvailable", true,
+            "analysisStrategy", "RUNTIME_EXTERNALIZE_AND_CHUNK",
+            "truncationStrategy", "DATABASE_MAX_ROWS_PER_STATEMENT_" + result.maxRowsPerStatement()
         ));
         payload.put("data", mapOf(
             "statementCount", result.statementCount(),
@@ -265,7 +269,9 @@ public class StandardToolExecutionResultFactory {
     private Map<String, Object> scriptResultSet(SqlScriptStatementResult result) {
         List<Map<String, Object>> rows = result.rows() == null
             ? List.of()
-            : result.rows().stream().limit(sqlResultRowLimit()).toList();
+            : result.rows().stream()
+                .map(row -> runtimeSafeSqlRow(row, result.columnMetadata()))
+                .toList();
         return mapOf(
             "statementIndex", result.statementIndex(),
             "stepCode", result.stepCode(),
@@ -282,7 +288,7 @@ public class StandardToolExecutionResultFactory {
             "rowCount", result.rowCount(),
             "returnedRowCount", rows.size(),
             "possiblyTruncated", result.possiblyTruncated() || result.rowCount() > rows.size(),
-            "truncationStrategy", sqlTruncationStrategy(),
+            "truncationStrategy", "DATABASE_MAX_ROWS_PER_STATEMENT",
             "errorMessage", result.errorMessage(),
             "diagnostics", modelSafeMap(result.diagnostics())
         );
@@ -341,6 +347,10 @@ public class StandardToolExecutionResultFactory {
                 "strategy", "FULL_CAPTURED_AGGREGATE_WITH_BOUNDED_STEP_PREVIEWS",
                 "aggregateStreamLimit", -1,
                 "perStepStreamLimit", perStepStreamLimit,
+                "fullAggregateAvailable", !stdout.truncated() && !stderr.truncated(),
+                "stepStreamsPreviewOnly", boundedSteps.stream().anyMatch(step ->
+                    Boolean.TRUE.equals(step.get("stdoutTruncated"))
+                        || Boolean.TRUE.equals(step.get("stderrTruncated"))),
                 "stdoutOriginalLength", stdout.originalLength(),
                 "stdoutReturnedLength", stdout.value().length(),
                 "stdoutTruncated", stdout.truncated(),
@@ -588,7 +598,7 @@ public class StandardToolExecutionResultFactory {
             "maxRowsReturnedToModel", resultData.get("maxRows"),
             "truncationStrategy", "DATABASE_QUERY_MAX_ROWS"
         ));
-        payload.put("data", modelSafeMap(resultData));
+        payload.put("data", runtimeSafeSqlMap(resultData));
         payload.put("execution", execution(
             toolName,
             durationMs,
@@ -637,7 +647,7 @@ public class StandardToolExecutionResultFactory {
                                                                  String errorMessage) {
         List<Map<String, Object>> resultSets = listOfMaps(firstPresent(resultData.get("resultSets"), resultData.get("results")));
         if (resultSets.isEmpty()) {
-            return List.of(step(1, "sql", Map.of(), modelSafeMap(resultData), false, durationMs, errorMessage, Map.of()));
+            return List.of(step(1, "sql", Map.of(), runtimeSafeSqlMap(resultData), false, durationMs, errorMessage, Map.of()));
         }
         return resultSets.stream()
             .map(resultSet -> {
@@ -652,7 +662,7 @@ public class StandardToolExecutionResultFactory {
                         "statement", resultSet.get("sql"),
                         "parameters", arguments == null ? Map.of() : arguments
                     ),
-                    modelSafeMap(resultSet),
+                    runtimeSafeSqlMap(resultSet),
                     Boolean.TRUE.equals(resultSet.get("success")),
                     longValue(resultSet.get("durationMs"), 0L),
                     stringValue(resultSet.get("errorMessage")),
@@ -889,9 +899,8 @@ public class StandardToolExecutionResultFactory {
         return value;
     }
 
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> modelSafeSqlRow(Map<String, Object> row,
-                                                List<Map<String, Object>> columnMetadata) {
+    private Map<String, Object> runtimeSafeSqlRow(Map<String, Object> row,
+                                                  List<Map<String, Object>> columnMetadata) {
         if (row == null || row.isEmpty()) {
             return Map.of();
         }
@@ -899,9 +908,40 @@ public class StandardToolExecutionResultFactory {
         Map<String, Object> safe = new LinkedHashMap<>();
         row.forEach((key, value) -> safe.put(
             key,
-            masked.contains(normalizedColumnName(key)) ? "***" : modelSafeValue(value)
+            masked.contains(normalizedColumnName(key)) ? "***" : runtimeSafeSqlValue(value)
         ));
         return safe;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> runtimeSafeSqlMap(Map<String, Object> value) {
+        if (value == null || value.isEmpty()) {
+            return Map.of();
+        }
+        return (Map<String, Object>) runtimeSafeSqlValue(value);
+    }
+
+    /** Preserves fetched SQL evidence for Runtime externalization while removing connection coordinates. */
+    private Object runtimeSafeSqlValue(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            Map<String, Object> safe = new LinkedHashMap<>();
+            map.forEach((key, item) -> {
+                String name = String.valueOf(key);
+                if (!isDatabaseConnectionUrlKey(name)) {
+                    safe.put(name, runtimeSafeSqlValue(item));
+                }
+            });
+            return safe;
+        }
+        if (value instanceof Iterable<?> iterable) {
+            List<Object> safe = new java.util.ArrayList<>();
+            iterable.forEach(item -> safe.add(runtimeSafeSqlValue(item)));
+            return safe;
+        }
+        if (value instanceof CharSequence text) {
+            return text.toString();
+        }
+        return value;
     }
 
     private Set<String> maskedColumnNames(List<Map<String, Object>> columnMetadata) {
@@ -1155,7 +1195,7 @@ public class StandardToolExecutionResultFactory {
             "rowCount", effectiveRowCount,
             "returnedRowCount", returnedRowCount,
             "possiblyTruncated", result.possiblyTruncated() || effectiveRowCount > returnedRowCount,
-            "truncationStrategy", sqlTruncationStrategy(),
+            "truncationStrategy", "DATABASE_MAX_ROWS_" + result.maxRows(),
             "maskedColumns", maskedColumns(result.columnMetadata()),
             "columnCommentsIncluded", hasColumnComments(result.columnMetadata())
         );
@@ -1262,14 +1302,6 @@ public class StandardToolExecutionResultFactory {
 
     private String stringValue(Object value) {
         return value == null ? null : String.valueOf(value);
-    }
-
-    private int sqlResultRowLimit() {
-        return Math.max(1, databaseToolProperties.getMaxRows());
-    }
-
-    private String sqlTruncationStrategy() {
-        return "LIMIT_" + sqlResultRowLimit();
     }
 
     private record BoundedText(String value, int originalLength, boolean truncated) {

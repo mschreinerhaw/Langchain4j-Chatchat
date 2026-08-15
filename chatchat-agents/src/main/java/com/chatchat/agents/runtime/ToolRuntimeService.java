@@ -3060,20 +3060,78 @@ public class ToolRuntimeService {
             log.warn("Rejected unverified externalized tool output reference documentId={}", documentId);
             return data;
         }
+        return resolveVerifiedExternalOutput(reference, documentId, evidenceId);
+    }
+
+    /**
+     * Resolves Runtime-created large outputs nested inside an ordered batch.
+     * Child ToolOutput metadata is deliberately not copied into the public batch
+     * contract, so verification is performed against the signed-by-content
+     * document/evidence identifiers that Runtime itself placed in the child.
+     */
+    public ToolCallBatchResult resolveBatchOutputForEvidenceReview(ToolCallBatchResult batch) {
+        if (batch == null || batch.results() == null || batch.results().isEmpty()) {
+            return batch;
+        }
+        boolean changed = false;
+        List<ToolCallResult> resolvedResults = new ArrayList<>(batch.results().size());
+        for (ToolCallResult child : batch.results()) {
+            Object resolved = resolveRuntimeOwnedBatchChildOutput(child);
+            changed |= child != null && resolved != child.output();
+            if (child == null || resolved == child.output()) {
+                resolvedResults.add(child);
+                continue;
+            }
+            resolvedResults.add(new ToolCallResult(
+                child.diagnosticRunId(), child.batchId(), child.callId(), child.checkId(),
+                child.toolName(), child.normalizedToolName(), child.templateId(), child.templateCode(),
+                child.assetId(), child.assetDisplayName(), child.assetToolName(), child.sequence(),
+                child.evidenceUsable(), child.status(), child.invoked(), child.durationMs(),
+                child.evidenceId(), resolved, child.error(), child.evidencePolicy(), child.evidenceQuality()
+            ));
+        }
+        if (!changed) {
+            return batch;
+        }
+        return new ToolCallBatchResult(
+            batch.batchId(), batch.executionMode(), batch.startedAt(), batch.completedAt(),
+            batch.status(), batch.cardinality(), batch.summary(), resolvedResults
+        );
+    }
+
+    private Object resolveRuntimeOwnedBatchChildOutput(ToolCallResult child) {
+        Object data = child == null ? null : child.output();
+        if (!(data instanceof Map<?, ?> reference)
+            || !Boolean.TRUE.equals(reference.get("outputExternal"))
+            || !Boolean.TRUE.equals(reference.get("outputTruncated"))) {
+            return data;
+        }
+        String documentId = stringValue(reference.get("documentId"));
+        String evidenceId = stringValue(reference.get("evidenceId"));
+        if (documentId == null || !documentId.startsWith("tool-output:")
+            || evidenceId == null || !evidenceId.startsWith("tool:")
+            || child.callId() == null
+            || !documentId.contains(":" + child.callId() + ":")) {
+            return data;
+        }
+        return resolveVerifiedExternalOutput(reference, documentId, evidenceId);
+    }
+
+    private Object resolveVerifiedExternalOutput(Map<?, ?> reference, String documentId, String evidenceId) {
         AgentEvidenceStore store = evidenceStore;
         if (store == null || !store.isEnabled()) {
-            return data;
+            return reference;
         }
         try {
             Optional<String> stored = store.get(documentId);
             if (stored.isEmpty() || stored.get().isBlank()) {
                 log.warn("Externalized tool output unavailable for evidence review documentId={}", documentId);
-                return data;
+                return reference;
             }
             String storedHash = sha256(stored.get());
             if (!evidenceId.endsWith(storedHash.substring(0, 24))) {
                 log.warn("Externalized tool output failed integrity verification documentId={}", documentId);
-                return data;
+                return reference;
             }
             Object resolved = objectMapper.readValue(stored.get(), Object.class);
             log.debug("Resolved externalized tool output for evidence review documentId={}", documentId);
@@ -3081,7 +3139,7 @@ public class ToolRuntimeService {
         } catch (Exception ex) {
             log.warn("Failed to resolve externalized tool output for evidence review documentId={} error={}",
                 documentId, ex.getMessage());
-            return data;
+            return reference;
         }
     }
 

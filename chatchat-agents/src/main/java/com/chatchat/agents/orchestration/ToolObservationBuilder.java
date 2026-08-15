@@ -304,14 +304,14 @@ class ToolObservationBuilder {
         if (!enterpriseMetadata.isEmpty()) {
             return buildEnterpriseMetadataObservation(toolName, null, enterpriseMetadata);
         }
-        if (isStandardExecutionResult(data)) {
-            return buildStandardExecutionObservation(toolName, null, data);
-        }
         if (isSqlExecutionResult(toolName, data)) {
             return buildSqlExecutionObservation(toolName, null, data);
         }
         if (isLinuxExecutionResult(toolName, data)) {
             return buildLinuxCommandObservation(toolName, null, data);
+        }
+        if (isStandardExecutionResult(data)) {
+            return buildStandardExecutionObservation(toolName, null, data);
         }
         String protocolEvidence = structuredEvidenceAdapters.format(data);
         if (protocolEvidence != null) {
@@ -851,9 +851,23 @@ class ToolObservationBuilder {
                 appendStream(observation, "step stdout", stringValue(step.get("stdout")));
                 appendStream(observation, "step stderr", stringValue(step.get("stderr")));
             }
+            boolean stepPreviewTruncated = steps.stream().anyMatch(step ->
+                booleanValue(step.get("stdoutTruncated")) || booleanValue(step.get("stderrTruncated")));
+            if (stepPreviewTruncated) {
+                observation.append("\nOne or more per-step streams above are previews. "
+                    + "The aggregate streams below are the complete captured command output and are authoritative.");
+                appendStream(observation, "complete aggregate stdout", stringValue(resultData.get("stdout")));
+                appendStream(observation, "complete aggregate stderr", stringValue(resultData.get("stderr")));
+                if (!booleanValue(outputLimits.get("stdoutTruncated"))
+                    && !booleanValue(outputLimits.get("stderrTruncated"))) {
+                    observation.append("\nCompleteness decision: aggregate stdout/stderr are complete; "
+                        + "per-step preview truncation is presentation-only and must not be reported as missing evidence.");
+                }
+            }
         }
         observation.append("\nLinux completeness rule: transportSuccess describes SSH transport only; commandSuccess and each exitCode describe command outcome. ")
-            .append("A truncated stream remains partial evidence. Always report non-zero exit codes and preserve tail errors shown above.");
+            .append("Aggregate stdoutTruncated/stderrTruncated decide source completeness; per-step preview flags do not. ")
+            .append("Always report non-zero exit codes and preserve tail errors shown above.");
         return observation.toString();
     }
 

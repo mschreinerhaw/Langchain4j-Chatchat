@@ -156,6 +156,26 @@ class ToolRuntimeServiceTest {
             assertThat(service.resolveOutputForEvidenceReview(execution.output()))
                 .isInstanceOfSatisfying(Map.class, resolved ->
                     assertThat(resolved).containsEntry("rows", "x".repeat(100_000)));
+
+            ToolCallResult child = new ToolCallResult(
+                "large-output-1", "linux_command_execute", "CHECK_PROCESS", "host-1",
+                "SUCCESS", 20L, "audit-evidence", execution.output().getData(), Map.of());
+            ToolCallBatchResult batch = new ToolCallBatchResult(
+                "diagnostic-step-3", "SEQUENTIAL", "start", "end", "SUCCESS",
+                new ToolCallBatchResult.Summary(1, 1, 0, 0, 0, 1), List.of(child));
+
+            assertThat(service.resolveBatchOutputForEvidenceReview(batch).results().get(0).output())
+                .isInstanceOfSatisfying(Map.class, resolved ->
+                    assertThat(resolved).containsEntry("rows", "x".repeat(100_000)));
+
+            ToolCallResult mismatchedChild = new ToolCallResult(
+                "other_call", "linux_command_execute", "CHECK_PROCESS", "host-1",
+                "SUCCESS", 20L, "audit-evidence", execution.output().getData(), Map.of());
+            ToolCallBatchResult mismatchedBatch = new ToolCallBatchResult(
+                "diagnostic-step-3", "SEQUENTIAL", "start", "end", "SUCCESS",
+                new ToolCallBatchResult.Summary(1, 1, 0, 0, 0, 1), List.of(mismatchedChild));
+            assertThat(service.resolveBatchOutputForEvidenceReview(mismatchedBatch).results().get(0).output())
+                .isSameAs(execution.output().getData());
         } finally {
             service.shutdown();
         }

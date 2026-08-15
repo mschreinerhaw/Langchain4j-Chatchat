@@ -24,6 +24,8 @@ class DatasourceConfigurationSeparationTest {
         assertProfileSelects(Path.of("src/main/resources/application-prod.yml"), "datasource-h2.yml");
         assertProfileSelects(Path.of("src/main/distribution/config/application-dev.yml"), "datasource-mysql.yml");
         assertProfileSelects(Path.of("src/main/distribution/config/application-prod.yml"), "datasource-h2.yml");
+        assertProfileSelects(Path.of("src/main/resources/application-prod.template"), "datasource-h2.yml");
+        assertProfileSelects(Path.of("src/main/distribution/config/application-prod.template"), "datasource-h2.yml");
     }
 
     @Test
@@ -44,6 +46,8 @@ class DatasourceConfigurationSeparationTest {
             List<PropertySource<?>> sources = load(profile);
             assertThat(String.valueOf(value(sources,
                 "chatchat.mcp.market.query-pool.enabled"))).contains("true");
+            assertThat(String.valueOf(value(sources,
+                "chatchat.mcp.market.query-pool.storage"))).contains("LOCAL_H2");
             assertThat(value(sources, "chatchat.mcp.market.max-concurrent-queries")).isNotNull();
         }
         for (Path datasource : List.of(

@@ -68,10 +68,9 @@ public class FinancialDataStore {
     @Autowired
     public FinancialDataStore(JdbcTemplate jdbc, DataSource dataSource, ObjectMapper mapper,
                               MarketModuleProperties runtimeProperties,
-                              @Qualifier("financialWriteJdbcTemplate") ObjectProvider<JdbcTemplate> writeJdbcProvider,
-                              @Qualifier("financialWriteDataSource") ObjectProvider<DataSource> writeDataSourceProvider,
+                              @Qualifier("financialWriteStorage") ObjectProvider<FinancialWriteStorage> writeStorageProvider,
                               @Qualifier("financialReadOperations") ObjectProvider<FinancialReadOperations> readProvider) {
-        this(resolveStorage(jdbc, dataSource, writeJdbcProvider, writeDataSourceProvider), mapper,
+        this(resolveStorage(jdbc, dataSource, writeStorageProvider), mapper,
             runtimeProperties, readProvider);
     }
 
@@ -94,11 +93,10 @@ public class FinancialDataStore {
     }
 
     private static StorageResources resolveStorage(JdbcTemplate primaryJdbc, DataSource primaryDataSource,
-                                                    ObjectProvider<JdbcTemplate> writeJdbcProvider,
-                                                    ObjectProvider<DataSource> writeDataSourceProvider) {
-        JdbcTemplate writeJdbc = writeJdbcProvider.getIfAvailable(() -> primaryJdbc);
-        DataSource writeDataSource = writeDataSourceProvider.getIfAvailable(() -> primaryDataSource);
-        return new StorageResources(writeJdbc, writeDataSource);
+                                                    ObjectProvider<FinancialWriteStorage> writeStorageProvider) {
+        FinancialWriteStorage storage = writeStorageProvider.getIfAvailable();
+        return storage == null ? new StorageResources(primaryJdbc, primaryDataSource)
+            : new StorageResources(storage.jdbc(), storage.dataSource());
     }
 
     @PostConstruct

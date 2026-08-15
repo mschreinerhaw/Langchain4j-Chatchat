@@ -32,9 +32,9 @@ class ProductionFinancialH2ReadWriteSeparationE2E {
         properties.setQueryTimeoutSeconds(2);
 
         FinancialQueryPoolConfiguration configuration = new FinancialQueryPoolConfiguration();
-        try (var ingestionDataSource = configuration.financialWriteDataSource(properties);
+        try (var ingestionStorage = configuration.financialWriteStorage(properties);
              var onlineReads = configuration.financialReadOperations(unavailableControlPlane, properties)) {
-            JdbcTemplate ingestion = configuration.financialWriteJdbcTemplate(ingestionDataSource, properties);
+            JdbcTemplate ingestion = ingestionStorage.jdbc();
             ingestion.execute("create table market_quote_daily("
                 + "quote_code varchar(16) primary key,trade_date date,close decimal(18,4),volume bigint)");
             ingestion.update("insert into market_quote_daily values (?,?,?,?)",

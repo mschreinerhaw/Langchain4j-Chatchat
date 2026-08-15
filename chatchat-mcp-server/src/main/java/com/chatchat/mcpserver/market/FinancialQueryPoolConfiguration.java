@@ -1,6 +1,7 @@
 package com.chatchat.mcpserver.market;
 
 import com.chatchat.runtime.market.storage.FinancialReadOperations;
+import com.chatchat.runtime.market.storage.FinancialWriteStorage;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
@@ -8,11 +9,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
-import javax.sql.DataSource;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -22,9 +21,9 @@ import java.util.Map;
 @EnableConfigurationProperties(FinancialQueryPoolProperties.class)
 public class FinancialQueryPoolConfiguration {
 
-    @Bean(name = "financialWriteDataSource", destroyMethod = "close")
+    @Bean(name = "financialWriteStorage", destroyMethod = "close")
     @ConditionalOnProperty(prefix = "chatchat.mcp.market.query-pool", name = "storage", havingValue = "LOCAL_H2")
-    public HikariDataSource financialWriteDataSource(FinancialQueryPoolProperties properties) {
+    public FinancialWriteStorage financialWriteStorage(FinancialQueryPoolProperties properties) {
         HikariConfig config = new HikariConfig();
         config.setPoolName("FinancialIngestionPool");
         config.setJdbcUrl(properties.getLocalJdbcUrl());
@@ -37,17 +36,7 @@ public class FinancialQueryPoolConfiguration {
         config.setValidationTimeout(Math.max(250L, properties.getValidationTimeoutMs()));
         config.setIdleTimeout(Math.max(10_000L, properties.getIdleTimeoutMs()));
         config.setMaxLifetime(Math.max(30_000L, properties.getMaxLifetimeMs()));
-        return new HikariDataSource(config);
-    }
-
-    @Bean(name = "financialWriteJdbcTemplate")
-    @ConditionalOnProperty(prefix = "chatchat.mcp.market.query-pool", name = "storage", havingValue = "LOCAL_H2")
-    public JdbcTemplate financialWriteJdbcTemplate(
-        @Qualifier("financialWriteDataSource") DataSource dataSource,
-        FinancialQueryPoolProperties properties) {
-        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
-        jdbc.setQueryTimeout(Math.max(1, Math.min(20, properties.getQueryTimeoutSeconds())));
-        return jdbc;
+        return new FinancialWriteStorage(new HikariDataSource(config), properties.getQueryTimeoutSeconds());
     }
 
     @Bean(name = "financialReadOperations", destroyMethod = "close")

@@ -517,7 +517,7 @@ public class InvocationAuditService {
     public void recordMcpTransportRequest(String method, String uri, String queryString, String caller,
                                           String userAgent, Integer statusCode, long durationMs,
                                           String errorMessage, String requestBody) {
-        if (!rocksDbStore.isUsable()) {
+        if (!rocksDbStore.isUsable() || isProtocolHeartbeatOnly(requestBody)) {
             return;
         }
         String toolName = extractToolName(requestBody);
@@ -554,6 +554,34 @@ public class InvocationAuditService {
         log.setResponseSummary(toJsonSummary(redact(response)));
         log.setCreatedAt(Instant.now());
         save(log);
+    }
+
+    /** Protocol-level MCP pings are liveness traffic, not auditable business invocations. */
+    private boolean isProtocolHeartbeatOnly(String requestBody) {
+        if (requestBody == null || requestBody.isBlank()) {
+            return false;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(requestBody);
+            if (root.isArray()) {
+                if (root.isEmpty()) {
+                    return false;
+                }
+                for (JsonNode item : root) {
+                    if (!isProtocolHeartbeat(item)) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            return isProtocolHeartbeat(root);
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    private boolean isProtocolHeartbeat(JsonNode node) {
+        return node != null && node.isObject() && "ping".equals(textValue(node.get("method")));
     }
 
     /**

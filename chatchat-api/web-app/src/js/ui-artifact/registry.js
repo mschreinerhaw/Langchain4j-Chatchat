@@ -7,6 +7,7 @@ import { enhanceResultTables } from "../utils/resultTableEnhancer.js";
 import { normalizeArtifactHtml } from "../utils/artifactHtmlNormalizer.js";
 import { isInternalDocumentRef, stripInternalDocumentRefs } from "../utils/internalDocumentRefs.js";
 import { normalizeMarkdownTables } from "../utils/markdownTableNormalizer.js";
+import { inlineWebCitationLinks } from "../utils/webReferences.js";
 import {
   collapseRecordCoverageEvidenceHtml,
   collapseToolExecutionEvidenceHtml
@@ -73,14 +74,19 @@ function resourceComponent(name, renderResource) {
 }
 
 export function renderArtifactMarkdownHtml(value = "") {
+  const visibleContent = inlineWebCitationLinks(
+    stripInternalDocumentRefs(String(value || "")),
+    []
+  ).content;
   const rendered = enhanceResultTables(markdown.render(normalizeMarkdownTables(
-    stripInternalDocumentRefs(String(value || ""))
+    visibleContent
   )));
   return collapseRecordCoverageEvidenceHtml(collapseToolExecutionEvidenceHtml(rendered));
 }
 
 export function renderArtifactHtml(value = "") {
-  const rendered = normalizeArtifactHtml(String(value || ""), (source) => markdown.render(source));
+  const visibleContent = inlineWebCitationLinks(String(value || ""), []).content;
+  const rendered = normalizeArtifactHtml(visibleContent, (source) => markdown.render(source));
   return collapseRecordCoverageEvidenceHtml(collapseToolExecutionEvidenceHtml(rendered));
 }
 
@@ -106,7 +112,9 @@ const NoticeResource = resourceComponent("ArtifactNotice", (value, props) =>
     ]),
     h("div", {
       class: "artifact-notice-content",
-      innerHTML: markdown.render(normalizeMarkdownTables(stripInternalDocumentRefs(String(value || ""))))
+      innerHTML: markdown.render(normalizeMarkdownTables(inlineWebCitationLinks(
+        stripInternalDocumentRefs(String(value || "")), []
+      ).content))
     })
   ])
 );
@@ -143,7 +151,9 @@ const EvidenceResource = resourceComponent("ArtifactEvidence", (value, props) =>
     ]),
     h("ol", citations.map((citation, index) => {
       const title = evidenceTitle(citation, index);
-      const text = stripInternalDocumentRefs(citation?.text || citation?.snippet || citation?.summary || "");
+      const text = inlineWebCitationLinks(
+        stripInternalDocumentRefs(citation?.text || citation?.snippet || citation?.summary || ""), []
+      ).content;
       const sourceRef = citation?.sourceRef || citation?.source || "";
       const visibleSourceRef = isInternalDocumentRef(sourceRef) ? "" : stripInternalDocumentRefs(sourceRef);
       const rawUrl = citation?.url || citation?.href || citation?.link || "";

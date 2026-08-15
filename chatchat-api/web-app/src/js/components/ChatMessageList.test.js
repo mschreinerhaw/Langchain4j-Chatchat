@@ -3,6 +3,7 @@
 import MarkdownIt from "markdown-it";
 import { describe, expect, it } from "vitest";
 import ChatMessageList from "./ChatMessageList.js";
+import { renderArtifactHtml, renderArtifactMarkdownHtml } from "../ui-artifact/registry.js";
 
 const markdown = new MarkdownIt({ breaks: true });
 const methods = ChatMessageList.methods;
@@ -16,6 +17,20 @@ function render(source) {
 }
 
 describe("tool execution evidence", () => {
+  it("hides numbered web citation markers in dynamic report answers", () => {
+    const markdownHtml = renderArtifactMarkdownHtml(
+      "关注行业数据 [网页7][网页8]。\n\n风险提示 [网页3]。"
+    );
+    const richHtml = renderArtifactHtml(
+      "<p>关注行业数据 [网页7]，并观察后续变化 [网页8]。</p>"
+    );
+
+    expect(markdownHtml).toContain("关注行业数据");
+    expect(richHtml).toContain("关注行业数据");
+    expect(markdownHtml).not.toMatch(/\[(?:网页|網頁)\s*\d+\]/);
+    expect(richHtml).not.toMatch(/\[(?:网页|網頁)\s*\d+\]/);
+  });
+
   it("keeps tool execution evidence collapsed by default", () => {
     const element = render([
       "## 回答结论",

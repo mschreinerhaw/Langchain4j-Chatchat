@@ -457,8 +457,14 @@ class AgentPlanner {
         prompt.append("- When action is final_answer, write input.answer as Markdown with concise headings/lists where useful.\n");
         prompt.append("- Runtime policy may still reject final answers when required tool or verification constraints are incomplete.\n\n");
         prompt.append("Available tools:\n").append(describeTools(availableTools, runtimeAttributes)).append("\n");
-        boolean forceStructuredFinancialData = runtimeAttributes != null
-            && Boolean.parseBoolean(String.valueOf(runtimeAttributes.get("forceStructuredFinancialData")));
+        Object requiredToolParameters = runtimeAttributes == null
+            ? null
+            : runtimeAttributes.get("requiredToolParameters");
+        if (requiredToolParameters instanceof Map<?, ?> required && !required.isEmpty()) {
+            prompt.append("Runtime-required tool parameters (schema-validated and enforced during execution):\n")
+                .append(required).append("\n")
+                .append("- Do not remove or override these configured parameters in planned tool inputs.\n\n");
+        }
         String resolvedDocumentSearchTool = firstNonBlank(documentSearchTool, DOCUMENT_SEARCH_TOOL);
         if (containsTool(availableTools, resolvedDocumentSearchTool)) {
             prompt.append("Document search contract:\n");
@@ -477,14 +483,8 @@ class AgentPlanner {
         String discoverySearchTool = preferredWebSearchTool(availableTools);
         String crawlerTool = preferredCrawlerTool(availableTools);
         if (discoverySearchTool != null) {
-            prompt.append("Unified search bridge contract:\n");
-            prompt.append("- web_search owns governed structured-financial retrieval as an internal bridge stage. "
-                + "Pass the user's original query once; never plan a separate financial_data_search call or invent dataset codes.\n");
-            if (forceStructuredFinancialData) {
-                prompt.append("- Agent setting forceStructuredFinancialData=true: every web_search call must keep "
-                    + "financial_data_required=true so the internal financial bridge stage cannot be skipped.\n");
-            }
-            prompt.append("\n");
+            prompt.append("Unified search contract:\n");
+            prompt.append("- Pass the user's original query to the governed search capability. Internal source routing is owned by the tool implementation; do not invent hidden tools, source identifiers, or dataset codes.\n\n");
         }
         if (discoverySearchTool != null && crawlerTool != null) {
             prompt.append("Web evidence workflow:\n");
@@ -509,8 +509,6 @@ class AgentPlanner {
             prompt.append("- Do not use placeholder inputs such as {\"url\":\"\"} or template strings such as ${step1.results[0].url}; use plan.bindings instead.\n\n");
             prompt.append("Web search query fidelity:\n");
             prompt.append("- For web_search.query, preserve the user's original search phrase as much as possible. Do not append inferred years, stale years, or extra date tokens.\n");
-            prompt.append("- For web_search, set financial_data_required=true only when authoritative structured financial observations are required. "
-                + "Do not select or invent dataset codes; Runtime resolves datasets dynamically from the governed catalog.\n");
             prompt.append("- If the user says today, latest, current, recent, \u4eca\u5929, \u6700\u65b0, \u8fd1\u671f, or \u5f53\u524d, keep that temporal wording instead of converting it to another year unless the user explicitly requested an absolute date.\n\n");
         }
         if (!boundDocumentIds.isEmpty() || !boundDocumentTags.isEmpty()) {
@@ -657,7 +655,7 @@ class AgentPlanner {
                 .append(" input should contain filters or executionContext when exact logical context is known; use {\"filters\":{},\"limit\":10} for capped redacted candidate discovery when the user did not provide assetName/env/cluster/service.\n");
             prompt.append("- Asset names and routing labels are exact-match. Do not derive assetName, service, cluster, target, or labels unless that exact value appears in the current-turn user request or a prior tool observation returned it. Historical conversation targets and model-generated plan text are not valid asset-name evidence.\n");
             prompt.append("- Model intent recognition is required before asset discovery. When the user asks a high-level or aggregated question, produce filters.intentCandidates sorted by score/confidence. Include every candidate with score >= 0.75 in filters.queryTerms/retrievalSignals; if none reaches 0.75, use the top two candidates. Add the original user question too. Each candidate may include multi-query expansions under queries/queryTerms/expandedQueries/keywords for the resolver to retrieve across the intent ensemble. Also keep the semantic target and task under filters.intent, filters.goal, filters.keywords, and when useful filters.bilingualIntent/intentAliases/intentZh/intentEn. These fields are retrieval signals, not exact routing labels.\n");
-            prompt.append("- Generate abbreviation-aware retrieval terms for short candidate asset names and capability phrases. Add at most 4 lowercase aliases to filters.queryTerms/keywords: Chinese phrases use pinyin initials (for example, \u5ba2\u6237\u8d44\u4ea7\u4e2d\u5fc3 -> khzczx); multi-word, camelCase, snake_case, or kebab-case English names use word initials (Customer Asset Service/customer_asset_service -> cas). Keep every original phrase beside its alias, limit generated aliases to 2-16 characters, and never abbreviate a full user sentence, description, command, or SQL text. Generated aliases are weak retrieval signals only; never put them in assetName, service, cluster, labels, template, or templateId. If the user supplied a compact abbreviation, preserve it and add a plausible full phrase only when supported by the request; do not guess an exact registered identity.\n");
+            prompt.append("- Generate abbreviation-aware retrieval terms for short candidate asset names and capability phrases. Add at most 4 lowercase aliases to filters.queryTerms/keywords: Chinese phrases use pinyin initials (for example, \u6570\u636e\u670d\u52a1\u4e2d\u5fc3 -> sjfwzx); multi-word, camelCase, snake_case, or kebab-case English names use word initials (Example Metric Service/example_metric_service -> ems). Keep every original phrase beside its alias, limit generated aliases to 2-16 characters, and never abbreviate a full user sentence, description, command, or SQL text. Generated aliases are weak retrieval signals only; never put them in assetName, service, cluster, labels, template, or templateId. If the user supplied a compact abbreviation, preserve it and add a plausible full phrase only when supported by the request; do not guess an exact registered identity.\n");
             prompt.append("- Never concatenate an assetName with descriptive text, asset type, capability, or assumption. For example, keep the user-provided asset phrase unchanged; if the exact asset name is uncertain, omit filters.assetName and use semantic retrieval filters instead of pretending the phrase is an exact registered name.\n");
             prompt.append("- Do not invent service labels such as service:<topic> from natural-language topic words until an asset/tool observation proves they are registered routing labels.\n");
             prompt.append("- Valid input example when no exact target clue is known: {\"candidates\":[{\"targetKind\":\"database\",\"confidence\":0.82},{\"targetKind\":\"http\",\"confidence\":0.42}],\"finalDecision\":\"database\",\"filters\":{},\"trace\":{\"plannerVersion\":\"v1.1\",\"model\":\"<model>\"},\"limit\":10}.\n");

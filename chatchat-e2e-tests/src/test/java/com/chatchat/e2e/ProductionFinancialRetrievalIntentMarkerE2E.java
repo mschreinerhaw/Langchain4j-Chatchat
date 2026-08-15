@@ -82,7 +82,10 @@ class ProductionFinancialRetrievalIntentMarkerE2E {
         String financialTool = "mcp_chatchat_mcp_server_financial_data_search";
         ToolRegistry registry = mock(ToolRegistry.class);
         when(registry.getToolMetadata(webTool)).thenReturn(ToolMetadata.builder()
-            .id(webTool).title("Web search").categories(List.of("mcp")).build());
+            .id(webTool).title("Web search").categories(List.of("mcp"))
+            .parameters(List.of(com.chatchat.common.tool.ToolParameter.builder()
+                .name("financial_data_required").type("boolean").build()))
+            .build());
         when(registry.getToolMetadata(financialTool)).thenReturn(ToolMetadata.builder()
             .id(financialTool).title("Local financial data").categories(List.of("mcp")).build());
         when(registry.executeEnhancedTool(eq(webTool), any())).thenAnswer(invocation -> {
@@ -100,9 +103,8 @@ class ProductionFinancialRetrievalIntentMarkerE2E {
             registry, new ObjectMapper(), new ToolRuntimeProperties(), List.of(), List.of());
         try {
             Map<String, Object> attributes = Map.of(
-                "forceStructuredFinancialData", true,
-                "dedicatedFinancialDataTool", financialTool,
-                "financialIntentQuery", query);
+                "requiredToolParameters", Map.of(
+                    webTool, Map.of("financial_data_required", true)));
             ToolRuntimeExecution webExecution = runtime.execute(ToolRuntimeRequest.builder()
                 .toolName(webTool).runtimeMode("agent_chat").requestId("joint-web")
                 .conversationId("joint-conversation").tenantId("tenant-e2e").userId("user-e2e")
@@ -114,8 +116,8 @@ class ProductionFinancialRetrievalIntentMarkerE2E {
                 .containsEntry("financialDatasetCount", 1)
                 .containsEntry("financialDataSatisfied", true);
             assertThat(webExecution.audit())
-                .containsEntry("financialDataPolicy", "FORCED_BRIDGE")
-                .containsEntry("financialDataEffectiveRequired", true);
+                .containsEntry("runtimeRequiredToolParametersApplied",
+                    List.of("financial_data_required"));
 
             ToolRuntimeExecution financialExecution = runtime.execute(ToolRuntimeRequest.builder()
                 .toolName(financialTool).runtimeMode("agent_chat").requestId("joint-financial")
@@ -145,7 +147,6 @@ class ProductionFinancialRetrievalIntentMarkerE2E {
         FinancialAssetCatalogService catalog = mock(FinancialAssetCatalogService.class);
         FinancialDataStore store = mock(FinancialDataStore.class);
         String query = "隔夜全球市场与今日开盘结构化观察";
-        String financialIntentQuery = "A share opening breadth valuation and capital-flow analysis";
         String runtimeDataset = "tenant_dataset_" + UUID.randomUUID().toString().replace("-", "");
         when(news.invoke(eq("web_search"), any())).thenReturn(ToolOutput.success(Map.of(
             "results", List.of(Map.of("resultType", "web", "retrievalSource", "tencent_wsa",
@@ -166,8 +167,8 @@ class ProductionFinancialRetrievalIntentMarkerE2E {
         verify(catalog, never()).search(any(), any(Integer.class));
         verify(store, never()).query(any(), any(), any(), any(), any(Integer.class), any());
 
-        when(store.assetSearchQuery(financialIntentQuery, 10)).thenReturn(financialIntentQuery);
-        when(catalog.search(financialIntentQuery, 4)).thenReturn(List.of(Map.of(
+        when(store.assetSearchQuery(query, 10)).thenReturn(query);
+        when(catalog.search(query, 4)).thenReturn(List.of(Map.of(
             "dataset_code", runtimeDataset, "asset_name", "tenant registered opening metrics")));
         when(store.resolveEntityFilters(runtimeDataset, query, 5)).thenReturn(List.of());
         when(store.query(runtimeDataset, Map.of(), null, null, 20, "auto")).thenReturn(Map.of(
@@ -185,7 +186,10 @@ class ProductionFinancialRetrievalIntentMarkerE2E {
         String localToolName = "mcp_runtime_registered_web_search";
         ToolRegistry registry = mock(ToolRegistry.class);
         when(registry.getToolMetadata(localToolName)).thenReturn(ToolMetadata.builder()
-            .id(localToolName).title("Runtime registered web search").categories(List.of("mcp")).build());
+            .id(localToolName).title("Runtime registered web search").categories(List.of("mcp"))
+            .parameters(List.of(com.chatchat.common.tool.ToolParameter.builder()
+                .name("financial_data_required").type("boolean").build()))
+            .build());
         when(registry.executeEnhancedTool(eq(localToolName), any())).thenAnswer(invocation ->
             provider.findExecutor("web_search").orElseThrow().execute(invocation.getArgument(1)));
         ToolRuntimeProperties runtimeProperties = new ToolRuntimeProperties();
@@ -197,9 +201,8 @@ class ProductionFinancialRetrievalIntentMarkerE2E {
                 .toolName(localToolName).runtimeMode("agent_chat").requestId("forced-policy-e2e")
                 .conversationId("forced-policy-conversation").tenantId("tenant-e2e").userId("user-e2e")
                 .allowedTools(List.of(localToolName))
-                .attributes(Map.of(
-                    "forceStructuredFinancialData", true,
-                    "financialIntentQuery", financialIntentQuery))
+                .attributes(Map.of("requiredToolParameters", Map.of(
+                    localToolName, Map.of("financial_data_required", true))))
                 .toolInput(modelInputWithoutMarker)
                 .build());
 
@@ -213,10 +216,9 @@ class ProductionFinancialRetrievalIntentMarkerE2E {
             assertThat((List<Map<String, Object>>) data.get("financialData")).singleElement()
                 .satisfies(result -> assertThat(result).containsEntry("dataset", runtimeDataset));
             assertThat(execution.audit())
-                .containsEntry("financialDataPolicy", "FORCED_BRIDGE")
-                .containsEntry("financialDataModelRequired", false)
-                .containsEntry("financialDataEffectiveRequired", true);
-            verify(catalog).search(financialIntentQuery, 4);
+                .containsEntry("runtimeRequiredToolParametersApplied",
+                    List.of("financial_data_required"));
+            verify(catalog).search(query, 4);
             verify(store).query(runtimeDataset, Map.of(), null, null, 20, "auto");
         } finally {
             runtime.shutdown();

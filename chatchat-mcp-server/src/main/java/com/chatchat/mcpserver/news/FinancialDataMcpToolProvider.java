@@ -109,9 +109,12 @@ public class FinancialDataMcpToolProvider implements McpToolProvider {
         response.put("assets", result.assets());
         response.put("assetCount", result.assets().size());
         response.put("financialData", observations);
+        response.put("structuredData", observations);
         response.put("datasetCount", observations.size());
+        response.put("structuredDatasetCount", observations.size());
         response.put("observationCount", observations.stream()
             .mapToInt(item -> ((Number) item.getOrDefault("count", 0)).intValue()).sum());
+        response.put("structuredObservationCount", response.get("observationCount"));
         response.put("coverageComplete", !observations.isEmpty() && result.warnings().isEmpty());
         if (!result.warnings().isEmpty()) response.put("warnings", result.warnings());
         if (result.skippedReason() != null) response.put("skippedReason", result.skippedReason());
@@ -127,8 +130,11 @@ public class FinancialDataMcpToolProvider implements McpToolProvider {
         String discoveryId = input.getParameterAsString("discovery_id", "").trim();
         if (!discoveryId.isBlank()) response.put("discovery_id", discoveryId);
         response.put("financialData", List.of(queried));
+        response.put("structuredData", List.of(queried));
         response.put("datasetCount", 1);
+        response.put("structuredDatasetCount", 1);
         response.put("observationCount", queried.getOrDefault("count", 0));
+        response.put("structuredObservationCount", response.get("observationCount"));
         response.put("coverageComplete", ((Number) queried.getOrDefault("count", 0)).intValue() > 0);
         return response;
     }
@@ -150,6 +156,7 @@ public class FinancialDataMcpToolProvider implements McpToolProvider {
     private Map<String, Object> base(String query) {
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("schemaVersion", "financial_data_search_result.v1");
+        response.put("runtimeEvidenceSchemaVersion", "structured_data_search_result.v1");
         response.put("query", query == null ? "" : query);
         response.put("resultType", "local_structured_financial_data");
         response.put("retrievalSource", "governed_financial_store");
@@ -171,6 +178,7 @@ public class FinancialDataMcpToolProvider implements McpToolProvider {
         result.put("count", rows.size());
         result.put("emptyResult", rows.isEmpty());
         result.put("resultView", "compact_model_context");
+        result.put("runtimeEvidenceType", "structured_data_observation");
         return result;
     }
 

@@ -928,12 +928,10 @@ public class SkillCatalogService {
         if (runtimeEnvironment != null) {
             normalized.put("runtimeEnvironment", runtimeEnvironment);
         }
-        Object forceStructuredFinancialData = firstObject(
-            source,
-            "forceStructuredFinancialData",
-            "force_structured_financial_data"
-        );
-        normalized.put("forceStructuredFinancialData", booleanValue(forceStructuredFinancialData));
+        Object requiredToolParameters = firstObject(source, "requiredToolParameters", "required_tool_parameters");
+        if (requiredToolParameters instanceof Map<?, ?>) {
+            normalized.put("requiredToolParameters", requiredToolParameters);
+        }
         putText(normalized, "workflow", firstObject(source, "workflow", "workflowId", "id", "name"));
         Object mcpWorkflow = source.get("mcpWorkflow");
         if (mcpWorkflow instanceof List<?> || mcpWorkflow instanceof Map<?, ?>) {

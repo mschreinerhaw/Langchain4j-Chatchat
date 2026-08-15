@@ -442,7 +442,7 @@ class AgentPlannerTest {
     }
 
     @Test
-    void forcedFinancialPolicyUsesOnlyTheWebSearchBridge() throws Exception {
+    void plannerDescribesGenericRuntimeRequiredToolParameters() throws Exception {
         AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
         Method method = AgentPlanner.class.getDeclaredMethod(
             "buildPlannerPrompt", String.class, String.class, List.class, List.class, List.class,
@@ -454,15 +454,14 @@ class AgentPlannerTest {
             "analyze current market with local observations and news", "",
             List.of(tool, "mcp_chatchat_mcp_server_web_search"),
             List.of(), List.of(), List.of(), List.of(tool), true, false, null, null,
-            Map.of("forceStructuredFinancialData", true));
+            Map.of("requiredToolParameters", Map.of("web_search", Map.of("strict_mode", true))));
 
         assertThat(prompt)
-            .contains("web_search owns governed structured-financial retrieval as an internal bridge stage")
-            .contains("never plan a separate financial_data_search call")
-            .contains("forceStructuredFinancialData=true")
-            .contains("financial_data_required=true")
+            .contains("Runtime-required tool parameters")
+            .contains("strict_mode=true")
+            .contains("Internal source routing is owned by the tool implementation")
             .doesNotContain("The plan MUST include " + tool)
-            .doesNotContain("Use web_search separately for news");
+            .doesNotContain("financial_data_required");
     }
 
     @Test
@@ -522,8 +521,8 @@ class AgentPlannerTest {
             .contains("filters.intentZh")
             .contains("filters.intentEn")
             .contains("abbreviation-aware retrieval terms")
-            .contains("khzczx")
-            .contains("customer_asset_service -> cas")
+            .contains("sjfwzx")
+            .contains("example_metric_service -> ems")
             .contains("at most 4 lowercase aliases")
             .contains("weak retrieval signals only")
             .contains("never put them in assetName")

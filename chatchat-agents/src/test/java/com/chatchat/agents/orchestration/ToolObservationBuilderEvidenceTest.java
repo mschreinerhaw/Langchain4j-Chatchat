@@ -381,7 +381,7 @@ class ToolObservationBuilderEvidenceTest {
         quote.put("change_pct", 0.07);
         quote.put("amount", "1258148128160");
         Map<String, Object> financialResult = new LinkedHashMap<>();
-        financialResult.put("resultType", "financial_data");
+        financialResult.put("runtimeEvidenceType", "structured_data_observation");
         financialResult.put("dataset", "market_quote_daily");
         financialResult.put("title", "证券及指数行情：实际观测数据");
         financialResult.put("snippet", "已从受治理存储位置读取实际金融数据，不是资产目录元数据。");
@@ -391,8 +391,8 @@ class ToolObservationBuilderEvidenceTest {
         result.put("query", "A股市场行情");
         result.put("provider", "chatchat-unified-search");
         result.put("count", 1);
-        result.put("financialDatasetCount", 1);
-        result.put("financialObservationCount", 1);
+        result.put("structuredDatasetCount", 1);
+        result.put("structuredObservationCount", 1);
         result.put("results", List.of(financialResult));
 
         String observation = builder.buildSuccessObservation(
@@ -402,9 +402,9 @@ class ToolObservationBuilderEvidenceTest {
         );
 
         assertThat(observation)
-            .contains("financialDatasets=1, financialObservations=1")
-            .contains("do not describe the result as asset metadata only")
-            .contains("Actual governed financial observations: dataset=market_quote_daily, returnedRows=1")
+            .contains("structuredDatasets=1, structuredObservations=1")
+            .contains("do not describe returned observations as discovery metadata only")
+            .contains("Actual governed structured observations: dataset=market_quote_daily, returnedRows=1")
             .contains("quote_name=上证指数")
             .contains("close=3867.0336")
             .contains("change_pct=0.07")
@@ -966,17 +966,17 @@ class ToolObservationBuilderEvidenceTest {
     }
 
     @Test
-    void formatsSchemaRegisteredFinancialDataAsReasoningEvidence() {
+    void formatsSchemaRegisteredStructuredDataAsReasoningEvidence() {
         ToolOutput output = ToolOutput.success(Map.of(
-            "schemaVersion", "financial_data_search_result.v1",
-            "datasetCount", 1,
-            "observationCount", 1,
+            "runtimeEvidenceSchemaVersion", "structured_data_search_result.v1",
+            "structuredDatasetCount", 1,
+            "structuredObservationCount", 1,
             "coverageComplete", true,
-            "financialData", List.of(Map.of("dataset", "quotes", "count", 1,
+            "structuredData", List.of(Map.of("dataset", "quotes", "count", 1,
                 "rows", List.of(Map.of("security", "600000", "price", 10.2))))
         ), "ok");
 
-        String observation = builder.buildSuccessObservation("financial_data_search", output, "");
+        String observation = builder.buildSuccessObservation("structured_data_search", output, "");
 
         assertThat(observation)
             .contains("Structured reasoning evidence")

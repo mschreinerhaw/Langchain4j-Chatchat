@@ -110,7 +110,7 @@ function defaultWorkflowConfig() {
   return {
     enabled: true,
     runtimeEnvironment: "",
-    forceStructuredFinancialData: false,
+    requiredToolParameters: {},
     workflow: "",
     executionStrategy: {
       mode: "sequential",
@@ -1312,7 +1312,9 @@ export default {
       return {
         enabled: base.enabled !== false,
         runtimeEnvironment: normalizeRuntimeEnvironment(base.runtimeEnvironment),
-        forceStructuredFinancialData: booleanValue(base.forceStructuredFinancialData),
+        requiredToolParameters: base.requiredToolParameters && typeof base.requiredToolParameters === "object"
+          ? base.requiredToolParameters
+          : {},
         workflow: base.workflow || (this.form?.id ? `${this.form.id}_workflow` : "agent_workflow"),
         executionStrategy: base.executionStrategy,
         steps,

@@ -25,7 +25,7 @@ final class StructuredReasoningEvidenceAdapterRegistry {
     private final Map<String, Function<Map<String, Object>, Map<String, Object>>> prefixes = new LinkedHashMap<>();
 
     StructuredReasoningEvidenceAdapterRegistry() {
-        exact.put("financial_data_search_result.v1", this::financialData);
+        exact.put("structured_data_search_result.v1", this::structuredData);
         exact.put("api_requirement_analysis.v1", this::requirementCoverage);
         exact.put("http_requirement_analysis.v1", this::requirementCoverage);
         exact.put("metadata_ddl_annotation.v1", this::ddlAnnotation);
@@ -34,7 +34,7 @@ final class StructuredReasoningEvidenceAdapterRegistry {
 
     Map<String, Object> project(Object value) {
         Map<String, Object> root = findProtocolRoot(value, 0);
-        String schema = text(root.get("schemaVersion"));
+        String schema = evidenceSchema(root);
         if (schema == null) {
             return Map.of();
         }
@@ -54,14 +54,14 @@ final class StructuredReasoningEvidenceAdapterRegistry {
         return projection.isEmpty() ? null : ModelProtocolJson.compact(projection);
     }
 
-    private Map<String, Object> financialData(Map<String, Object> root) {
-        List<Map<String, Object>> recordSets = maps(root.get("financialData"));
+    private Map<String, Object> structuredData(Map<String, Object> root) {
+        List<Map<String, Object>> recordSets = maps(root.get("structuredData"));
         Map<String, Object> projection = base(root, "STRUCTURED_DATA_FACTS", "DATASET_RECORD_ANALYSIS");
         projection.put("factEvidence", recordSets);
         projection.put("referenceEvidence", maps(root.get("assets")));
         projection.put("claimCoverage", mapOf(
-            "returnedDatasetCount", first(root, "datasetCount", recordSets.size()),
-            "returnedObservationCount", first(root, "observationCount", countRows(recordSets)),
+            "returnedDatasetCount", first(root, "structuredDatasetCount", recordSets.size()),
+            "returnedObservationCount", first(root, "structuredObservationCount", countRows(recordSets)),
             "sourceDeclaredCoverageComplete", root.get("coverageComplete"),
             "warnings", list(root.get("warnings")),
             "skippedReason", root.get("skippedReason")
@@ -73,7 +73,7 @@ final class StructuredReasoningEvidenceAdapterRegistry {
         ));
         projection.put("reasoningRules", List.of(
             "Rows inside factEvidence are returned observations and must remain associated with their dataset metadata.",
-            "Assets are discovery references, not observed financial facts.",
+            "Reference candidates are discovery metadata, not observed facts.",
             "Do not turn missing datasets, periods, or dimensions into factual conclusions."
         ));
         return immutable(projection);
@@ -171,7 +171,7 @@ final class StructuredReasoningEvidenceAdapterRegistry {
     private Map<String, Object> base(Map<String, Object> root, String role, String capability) {
         Map<String, Object> projection = new LinkedHashMap<>();
         projection.put("schemaVersion", PROJECTION_SCHEMA);
-        projection.put("sourceSchemaVersion", root.get("schemaVersion"));
+        projection.put("sourceSchemaVersion", evidenceSchema(root));
         projection.put("evidenceRole", role);
         projection.put("assessmentCapability", capability);
         projection.put("operation", mapOf(
@@ -188,7 +188,7 @@ final class StructuredReasoningEvidenceAdapterRegistry {
             return Map.of();
         }
         Map<String, Object> map = new LinkedHashMap<>((Map<String, Object>) raw);
-        String schema = text(map.get("schemaVersion"));
+        String schema = evidenceSchema(map);
         if (schema != null && (exact.containsKey(schema)
             || prefixes.keySet().stream().anyMatch(schema::startsWith))) {
             return map;
@@ -205,6 +205,11 @@ final class StructuredReasoningEvidenceAdapterRegistry {
 
     private int countRows(List<Map<String, Object>> recordSets) {
         return recordSets.stream().mapToInt(item -> number(item.get("count"), maps(item.get("rows")).size())).sum();
+    }
+
+    private String evidenceSchema(Map<String, Object> value) {
+        String runtimeSchema = text(value.get("runtimeEvidenceSchemaVersion"));
+        return runtimeSchema == null ? text(value.get("schemaVersion")) : runtimeSchema;
     }
 
     private int number(Object value, int fallback) {

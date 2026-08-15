@@ -438,13 +438,9 @@ public class AgentChatModeHandler implements InteractionModeHandler {
                 attributes.put("resultHandlingPolicy", resultHandlingPolicy);
             }
         }
-        boolean forceStructuredFinancialData = forceStructuredFinancialData(skill);
-        if (forceStructuredFinancialData) {
-            attributes.put("forceStructuredFinancialData", true);
-            attributes.put("financialDataPolicy", "FORCED");
-            if (request != null && request.getQuery() != null && !request.getQuery().isBlank()) {
-                attributes.put("financialIntentQuery", request.getQuery().trim());
-            }
+        if (skill != null && skill.workflowConfig() != null
+            && skill.workflowConfig().get("requiredToolParameters") instanceof Map<?, ?> requiredToolParameters) {
+            attributes.put("requiredToolParameters", requiredToolParameters);
         }
         String runtimeEnvironment = agentRuntimeEnvironment(skill);
         if (runtimeEnvironment != null) {
@@ -473,19 +469,6 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             || workflowConfig.get("workflow") != null
             || workflowConfig.get("toolDependencies") instanceof Map<?, ?>
             || workflowConfig.get("parallelSteps") instanceof List<?>;
-    }
-
-    private boolean forceStructuredFinancialData(SkillDefinition skill) {
-        if (skill == null || skill.workflowConfig() == null) {
-            return false;
-        }
-        Object value = firstPresent(
-            skill.workflowConfig().get("forceStructuredFinancialData"),
-            skill.workflowConfig().get("force_structured_financial_data")
-        );
-        return value instanceof Boolean bool
-            ? bool
-            : value != null && Boolean.parseBoolean(String.valueOf(value).trim());
     }
 
     private String appendDefaultDataAssetPolicy(String systemPrompt, SkillDefinition skill) {

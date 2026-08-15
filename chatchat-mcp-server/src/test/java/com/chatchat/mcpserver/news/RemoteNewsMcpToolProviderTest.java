@@ -390,8 +390,9 @@ class RemoteNewsMcpToolProviderTest {
 
         assertThat(output.isSuccess()).isTrue();
         assertThat((Map<String, Object>) output.getData())
-            .containsEntry("financialObservationCount", 0)
-            .containsEntry("requires_second_query", true);
+            .containsEntry("financialObservationCount", 1)
+            .containsEntry("structuredObservationCount", 1)
+            .containsEntry("requires_second_query", false);
     }
 
     @Test

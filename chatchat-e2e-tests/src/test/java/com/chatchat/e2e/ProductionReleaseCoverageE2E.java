@@ -66,9 +66,9 @@ class ProductionReleaseCoverageE2E {
             .doesNotContain("Mockito", "mock(", "InMemoryAgentRunStore");
         assertThat(Files.readString(root.resolve(
             "chatchat-e2e-tests/src/test/java/com/chatchat/agents/orchestration/ProductionAgentRuntimeFinancialEvidenceStressE2E.java")))
-            .contains("concurrentForcedFinancialRequestsRemainIsolatedAndSchemaDriven",
+            .contains("concurrentConfiguredToolParametersRemainIsolatedAndSchemaDriven",
                 "concurrentExtremeEvidenceCombinationsNeverEraseUsableAnalysisOrLeakRequests",
-                "UUID.randomUUID()", "financial_data_required", "evidenceLimitedAnalysisPreserved");
+                "UUID.randomUUID()", "requiredToolParameters", "evidenceLimitedAnalysisPreserved");
         assertThat(Files.readString(root.resolve(
             "chatchat-e2e-tests/src/test/java/com/chatchat/agents/orchestration/ProductionAbbreviationRetrievalStressE2E.java")))
             .contains("modelAliasesRemainIsolatedAcrossResolverAssetAndTemplateSearchUnderConcurrency",
@@ -131,6 +131,60 @@ class ProductionReleaseCoverageE2E {
                 })
                 .toList();
             assertThat(maintainedSampleTemplateViolations).isEmpty();
+        }
+    }
+
+    @Test
+    void runtimeOsCoreContainsNoBusinessDecisionLiteralsOrSimulatedAnswers() throws IOException {
+        Path root = repositoryRoot();
+        List<Path> runtimeCore = List.of(
+            root.resolve("chatchat-agents/src/main/java/com/chatchat/agents/runtime/ToolRuntimeService.java"),
+            root.resolve("chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentPlanner.java"),
+            root.resolve("chatchat-agents/src/main/java/com/chatchat/agents/orchestration/FinalSummaryWebSearchEnhancer.java"),
+            root.resolve("chatchat-api/src/main/java/com/chatchat/api/sidebar/SidebarCardService.java"),
+            root.resolve("chatchat-api/src/main/java/com/chatchat/api/websocket/ChatWebSocketHandler.java")
+        );
+        List<String> forbidden = List.of(
+            "forceStructured" + "FinancialData",
+            "financial_data" + "_required",
+            "customer" + "_detail",
+            "branch" + "_summary",
+            "风控" + "负责人",
+            "客户" + "风险画像",
+            "营业" + "部对比",
+            "12.85" + "万元"
+        );
+
+        for (Path source : runtimeCore) {
+            assertThat(Files.readString(source))
+                .as("Runtime OS source must remain domain-neutral: %s", source)
+                .doesNotContain(forbidden.toArray(String[]::new));
+        }
+
+        String legacyWebSocket = Files.readString(runtimeCore.get(4));
+        assertThat(legacyWebSocket)
+            .contains("@ConditionalOnProperty")
+            .doesNotContain("generate" + "Response", "Thread." + "sleep");
+
+        try (Stream<Path> paths = Files.walk(root.resolve("chatchat-agents/src/main/java"))) {
+            List<Path> domainCoupledRuntimeSources = paths
+                .filter(path -> path.toString().endsWith(".java"))
+                .filter(path -> {
+                    try {
+                        String source = Files.readString(path).toLowerCase();
+                        return source.contains("financial")
+                            || source.contains("customer")
+                            || source.contains("客户")
+                            || source.contains("营业部")
+                            || source.contains("证券");
+                    } catch (IOException ex) {
+                        throw new IllegalStateException(ex);
+                    }
+                })
+                .toList();
+            assertThat(domainCoupledRuntimeSources)
+                .as("Agent Runtime module must not contain business-domain decision vocabulary")
+                .isEmpty();
         }
     }
 

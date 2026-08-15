@@ -12,8 +12,6 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -91,70 +89,29 @@ public class SidebarCardService {
     public SidebarActionResult executeAction(SidebarActionRequest request) {
         String actionId = request == null || request.actionId() == null ? "" : request.actionId().trim().toLowerCase(Locale.ROOT);
         String requestId = UUID.randomUUID().toString();
-        return switch (actionId) {
-            case "view_detail_metrics" -> new SidebarActionResult(
+        SkillDefinition skill = skillCatalogService.resolve(request == null ? null : request.skillId());
+        Map<String, Object> configuredAction = configuredItems(skill, "quickActions").stream()
+            .filter(item -> actionId.equals(stringValue(item.get("actionId"))))
+            .findFirst()
+            .orElse(null);
+        if (configuredAction == null) {
+            return new SidebarActionResult(
                 actionId,
                 requestId,
-                "已为你整理详细指标，请继续查看。",
-                "send_query",
-                "请基于当前会话展开详细指标、波动原因和异常点。",
-                Map.of("target", "detailed_metrics")
-            );
-            case "generate_analysis_report" -> new SidebarActionResult(
-                actionId,
-                requestId,
-                "分析报告生成任务已创建。",
-                "send_query",
-                "请基于当前会话内容生成一份正式的分析报告，包含结论、风险点和后续建议。",
-                Map.of(
-                    "reportId", "REPORT-" + shortId(requestId),
-                    "status", "QUEUED"
-                )
-            );
-            case "export_excel" -> new SidebarActionResult(
-                actionId,
-                requestId,
-                "Excel 导出任务已提交。",
-                "notify",
-                null,
-                Map.of(
-                    "exportTaskId", "EXPORT-" + shortId(requestId),
-                    "fileName", "enterprise-analysis-" + System.currentTimeMillis() + ".xlsx",
-                    "status", "QUEUED"
-                )
-            );
-            case "notify_owner" -> new SidebarActionResult(
-                actionId,
-                requestId,
-                "已通知对应负责人跟进。",
-                "notify",
-                null,
-                Map.of(
-                    "notifyTicketId", "NOTICE-" + shortId(requestId),
-                    "owner", "风控负责人",
-                    "status", "SENT"
-                )
-            );
-            case "subscribe_monitor" -> new SidebarActionResult(
-                actionId,
-                requestId,
-                "已加入持续监控。",
-                "notify",
-                null,
-                Map.of(
-                    "subscriptionId", "SUB-" + shortId(requestId),
-                    "status", "ACTIVE"
-                )
-            );
-            default -> new SidebarActionResult(
-                actionId,
-                requestId,
-                "暂不支持该快捷操作。",
+                "该操作未在当前技能中配置。",
                 "notify",
                 null,
                 Map.of("status", "UNSUPPORTED")
             );
-        };
+        }
+        return new SidebarActionResult(
+            actionId,
+            requestId,
+            safe(stringValue(configuredAction.get("message")), "已加载技能配置操作。"),
+            safe(stringValue(configuredAction.get("clientAction")), "notify"),
+            blankToNull(stringValue(configuredAction.get("query"))),
+            mapValue(configuredAction.get("payload"))
+        );
     }
 
     /**
@@ -197,10 +154,6 @@ public class SidebarCardService {
                 .forEach(service -> items.add(toUsageItem(service, null)));
         }
 
-        if (items.isEmpty()) {
-            items.addAll(defaultUsageItems());
-        }
-
         return new ServiceUsageCard(
             "本次服务使用",
             "共调用 " + items.size() + " 个服务",
@@ -239,36 +192,6 @@ public class SidebarCardService {
     }
 
     /**
-     * Performs the default usage items operation.
-     *
-     * @return the operation result
-     */
-    private List<ServiceUsageItem> defaultUsageItems() {
-        return List.of(
-            new ServiceUsageItem(
-                "preview-risk",
-                "风险预警指标服务",
-                "实时风控系统",
-                "已就绪",
-                true,
-                "shield",
-                "更新时间：" + formatTime(Instant.now()),
-                "耗时：--"
-            ),
-            new ServiceUsageItem(
-                "preview-finance",
-                "财务指标查询服务",
-                "财务核心系统",
-                "已就绪",
-                true,
-                "finance",
-                "更新时间：" + formatTime(Instant.now()),
-                "耗时：--"
-            )
-        );
-    }
-
-    /**
      * Builds the data sources.
      *
      * @param enabledServices the enabled services value
@@ -285,13 +208,6 @@ public class SidebarCardService {
                 iconTypeFor(service.getName())
             ))
             .toList();
-
-        if (items.isEmpty()) {
-            items = List.of(
-                new DataSourceItem("source-risk", "实时风控系统", "实时数据", "shield"),
-                new DataSourceItem("source-finance", "财务核心系统", "实时数据", "finance")
-            );
-        }
 
         Instant latestUpdatedAt = enabledServices.stream()
             .map(McpServiceConfig::getUpdatedAt)
@@ -313,23 +229,14 @@ public class SidebarCardService {
      * @return the built quick actions
      */
     private List<QuickActionItem> buildQuickActions(SkillDefinition skill) {
-        List<QuickActionItem> items = new ArrayList<>();
-        items.add(new QuickActionItem("view_detail_metrics", "查看详细指标", "doc"));
-        items.add(new QuickActionItem("generate_analysis_report", "生成分析报告", "report"));
-        items.add(new QuickActionItem("export_excel", "导出Excel", "download"));
-        items.add(new QuickActionItem("notify_owner", "推送负责人", "user"));
-        items.add(new QuickActionItem("subscribe_monitor", "加入持续监控", "monitor"));
-
-        if (skill != null && "report".equalsIgnoreCase(skill.id())) {
-            items = List.of(
-                new QuickActionItem("view_detail_metrics", "查看报告重点", "doc"),
-                new QuickActionItem("generate_analysis_report", "生成会议纪要", "report"),
-                new QuickActionItem("export_excel", "导出附件清单", "download"),
-                new QuickActionItem("notify_owner", "推送审批人", "user"),
-                new QuickActionItem("subscribe_monitor", "加入复盘跟踪", "monitor")
-            );
-        }
-        return items;
+        return configuredItems(skill, "quickActions").stream()
+            .map(item -> new QuickActionItem(
+                stringValue(item.get("actionId")),
+                stringValue(item.get("label")),
+                safe(stringValue(item.get("iconType")), "action")
+            ))
+            .filter(item -> !item.actionId().isBlank() && !item.label().isBlank())
+            .toList();
     }
 
     /**
@@ -359,33 +266,35 @@ public class SidebarCardService {
      * @return the operation result
      */
     private List<RecommendationItem> recommendationPool(SkillDefinition skill) {
-        String id = skill == null || skill.id() == null ? "general" : skill.id().trim().toLowerCase(Locale.ROOT);
-        return switch (id) {
-            case "risk" -> List.of(
-                new RecommendationItem("risk-account", "异常账户分析", "快速排查高风险账户异动", "请帮我分析当前会话关联的异常账户。"),
-                new RecommendationItem("risk-portrait", "客户风险画像", "生成客户风险等级与成因画像", "请根据当前上下文生成客户风险画像。"),
-                new RecommendationItem("risk-watch", "风险事件追踪", "跟踪风险事件处置进度", "请汇总当前风险事件的处置进展和责任人。"),
-                new RecommendationItem("risk-kpi", "风险指标看板", "查看风险关键指标变化", "请展示最近一周风险关键指标变化。")
-            );
-            case "operations" -> List.of(
-                new RecommendationItem("ops-board", "经营指标看板", "查看核心经营指标波动", "请整理本周经营指标看板。"),
-                new RecommendationItem("ops-funnel", "渠道转化诊断", "识别转化漏斗问题", "请分析当前业务的转化漏斗问题。"),
-                new RecommendationItem("ops-report", "经营日报生成", "生成可汇报的经营日报", "请生成一份经营日报。"),
-                new RecommendationItem("ops-branch", "营业部对比", "对比分支机构表现", "请对比各营业部最近的经营表现。")
-            );
-            case "report" -> List.of(
-                new RecommendationItem("report-summary", "报告重点提炼", "抽取核心结论与建议", "请提炼当前报告的核心结论。"),
-                new RecommendationItem("report-risk", "口径异常检查", "识别数据矛盾与异常", "请检查当前报告中的口径异常。"),
-                new RecommendationItem("report-brief", "会议摘要输出", "整理成一页会议摘要", "请生成一页会议摘要。"),
-                new RecommendationItem("report-action", "行动项清单", "沉淀后续跟进动作", "请列出基于当前报告的行动项。")
-            );
-            default -> List.of(
-                new RecommendationItem("mix-account", "异常账户分析", "识别异常账户与风险点", "请帮我分析异常账户。"),
-                new RecommendationItem("mix-portrait", "客户风险画像", "生成客户分层画像", "请生成客户风险画像。"),
-                new RecommendationItem("mix-board", "经营指标看板", "快速查看经营重点指标", "请生成经营指标看板。"),
-                new RecommendationItem("mix-report", "分析报告生成", "沉淀结构化分析报告", "请生成一份结构化分析报告。")
-            );
-        };
+        List<RecommendationItem> configured = configuredItems(skill, "recommendations").stream()
+            .map(item -> new RecommendationItem(
+                stringValue(item.get("id")),
+                stringValue(item.get("label")),
+                stringValue(item.get("description")),
+                stringValue(item.get("queryTemplate"))
+            ))
+            .filter(item -> !item.id().isBlank() && !item.label().isBlank() && !item.queryTemplate().isBlank())
+            .toList();
+        if (!configured.isEmpty()) {
+            return configured;
+        }
+        if (skill == null || skill.quickQuestions() == null) {
+            return List.of();
+        }
+        String description = safe(skill.description(), "来自当前技能配置");
+        List<RecommendationItem> derived = new ArrayList<>();
+        for (int index = 0; index < skill.quickQuestions().size(); index++) {
+            String question = safe(skill.quickQuestions().get(index), "");
+            if (!question.isBlank()) {
+                derived.add(new RecommendationItem(
+                    "quick-question-" + (index + 1),
+                    compactLabel(question),
+                    description,
+                    question
+                ));
+            }
+        }
+        return derived;
     }
 
     /**
@@ -396,17 +305,8 @@ public class SidebarCardService {
      * @return the built permission info
      */
     private PermissionInfo buildPermissionInfo(SkillDefinition skill, List<McpServiceConfig> enabledServices) {
-        int serviceCount = enabledServices.size();
-        List<String> scopes = new ArrayList<>();
-        scopes.add("查询");
-        if (skill != null && skill.boundMcpToolNames() != null && !skill.boundMcpToolNames().isEmpty()) {
-            scopes.add("分析");
-        }
-        if (serviceCount > 2) {
-            scopes.add("导出");
-        }
         return new PermissionInfo(
-            "当前结果基于已授权的服务生成，可用范围：" + String.join(" / ", new LinkedHashSet<>(scopes)),
+            "当前仅展示已授权且已登记的服务能力。",
             "查看我的服务权限",
             "./mcp.html"
         );
@@ -420,14 +320,7 @@ public class SidebarCardService {
      * @return the operation result
      */
     private String normalizeUsageTitle(String rawTitle, String fallbackServiceName) {
-        String value = safe(rawTitle, fallbackServiceName);
-        if (value.endsWith("服务") || value.endsWith("系统")) {
-            return value;
-        }
-        if (value.contains("指标") || value.contains("分析") || value.contains("查询") || value.contains("画像")) {
-            return value + "服务";
-        }
-        return value;
+        return safe(rawTitle, fallbackServiceName);
     }
 
     /**
@@ -437,20 +330,48 @@ public class SidebarCardService {
      * @return the operation result
      */
     private String iconTypeFor(String text) {
-        String value = safe(text, "").toLowerCase(Locale.ROOT);
-        if (value.contains("风险")) {
-            return "shield";
-        }
-        if (value.contains("财务") || value.contains("经营")) {
-            return "finance";
-        }
-        if (value.contains("客户") || value.contains("负责人")) {
-            return "user";
-        }
-        if (value.contains("报告")) {
-            return "report";
-        }
         return "data";
+    }
+
+    private List<Map<String, Object>> configuredItems(SkillDefinition skill, String key) {
+        if (skill == null || skill.workflowConfig() == null) {
+            return List.of();
+        }
+        Map<String, Object> sidebar = mapValue(skill.workflowConfig().get("sidebar"));
+        Object rawItems = sidebar.get(key);
+        if (!(rawItems instanceof List<?> values)) {
+            return List.of();
+        }
+        return values.stream()
+            .map(this::mapValue)
+            .filter(item -> !item.isEmpty())
+            .toList();
+    }
+
+    private Map<String, Object> mapValue(Object value) {
+        if (!(value instanceof Map<?, ?> source)) {
+            return Map.of();
+        }
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        source.forEach((key, entryValue) -> {
+            if (key != null) {
+                result.put(String.valueOf(key), entryValue);
+            }
+        });
+        return result;
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? "" : String.valueOf(value).trim();
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
+    }
+
+    private String compactLabel(String value) {
+        String normalized = safe(value, "");
+        return normalized.length() <= 24 ? normalized : normalized.substring(0, 24) + "…";
     }
 
     /**
@@ -482,16 +403,6 @@ public class SidebarCardService {
      */
     private String safe(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value.trim();
-    }
-
-    /**
-     * Performs the short id operation.
-     *
-     * @param value the value value
-     * @return the operation result
-     */
-    private String shortId(String value) {
-        return value == null || value.length() < 8 ? value : value.substring(0, 8).toUpperCase(Locale.ROOT);
     }
 
     public record SidebarPayload(

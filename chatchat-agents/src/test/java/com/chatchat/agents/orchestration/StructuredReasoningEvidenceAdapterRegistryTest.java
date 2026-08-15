@@ -13,14 +13,14 @@ class StructuredReasoningEvidenceAdapterRegistryTest {
         new StructuredReasoningEvidenceAdapterRegistry();
 
     @Test
-    void preservesFinancialRowsAsFactsAndAssetsAsReferences() {
+    void preservesStructuredRowsAsFactsAndCandidatesAsReferences() {
         Map<String, Object> projection = registry.project(Map.of(
-            "schemaVersion", "financial_data_search_result.v1",
-            "datasetCount", 1,
-            "observationCount", 1,
+            "runtimeEvidenceSchemaVersion", "structured_data_search_result.v1",
+            "structuredDatasetCount", 1,
+            "structuredObservationCount", 1,
             "coverageComplete", true,
             "assets", List.of(Map.of("dataset", "bond_quote")),
-            "financialData", List.of(Map.of(
+            "structuredData", List.of(Map.of(
                 "dataset", "bond_quote",
                 "count", 1,
                 "rows", List.of(Map.of("bond", "240001", "yield", 2.31))
@@ -32,7 +32,7 @@ class StructuredReasoningEvidenceAdapterRegistryTest {
             .containsEntry("assessmentCapability", "DATASET_RECORD_ANALYSIS");
         assertThat(projection.get("factEvidence").toString()).contains("240001", "2.31");
         assertThat(projection.get("referenceEvidence").toString()).contains("bond_quote");
-        assertThat(projection.get("reasoningRules").toString()).contains("discovery references");
+        assertThat(projection.get("reasoningRules").toString()).contains("discovery metadata");
     }
 
     @Test

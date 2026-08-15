@@ -7,9 +7,7 @@ import com.chatchat.agents.runtime.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.ToolRuntimeService;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.interaction.InteractionToolTrace;
-import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
-import com.chatchat.common.tool.ToolParameter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
 import org.junit.jupiter.api.Test;
@@ -50,20 +48,16 @@ class FinalSummaryWebSearchEnhancerTest {
     }
 
     @Test
-    void structuredFinancialSettingDoesNotOverrideSufficientEvidenceQualityDecision() {
+    void requiredToolParametersDoNotOverrideSufficientEvidenceQualityDecision() {
         ToolRegistry registry = mock(ToolRegistry.class);
         ToolRuntimeService runtime = mock(ToolRuntimeService.class);
         ChatModel model = mock(ChatModel.class);
         when(registry.getAllToolNames()).thenReturn(Set.of("mcp_news_web_search"));
-        when(registry.getToolMetadata("mcp_news_web_search")).thenReturn(ToolMetadata.builder()
-            .id("mcp_news_web_search")
-            .parameters(List.of(ToolParameter.builder().name("financial_data_required").type("boolean").build()))
-            .build());
         when(model.chat(any(String.class))).thenReturn(
-            "{\"needed\":false,\"financialDataRequired\":false,\"keywords\":[],\"reason\":\"model skipped\"}");
+            "{\"needed\":false,\"keywords\":[],\"reason\":\"model skipped\"}");
         Map<String, Object> metadata = new LinkedHashMap<>(Map.of(
-            "agentRunId", "forced-financial-run",
-            "forceStructuredFinancialData", true
+            "agentRunId", "required-parameter-run",
+            "requiredToolParameters", Map.of("mcp_news_web_search", Map.of("strict_mode", true))
         ));
         InteractionToolTrace existingWebTrace = InteractionToolTrace.builder()
             .toolName("mcp_news_web_search").success(true)
@@ -76,30 +70,22 @@ class FinalSummaryWebSearchEnhancerTest {
         verify(runtime, never()).execute(any());
         assertThat(result.attempted()).isFalse();
         assertThat(metadata)
-            .containsEntry("finalSummaryFinancialDataModelRequired", false)
-            .containsEntry("finalSummaryStructuredFinancialPolicyRequested", true)
-            .containsEntry("finalSummaryFinancialDataForced", false)
-            .containsEntry("finalSummaryFinancialDataRequired", false)
-            .containsEntry("finalSummaryFinancialDataDecisionSource", "QUALITY_GATE")
             .containsEntry("finalSummaryWebSearchSkippedReason", "existing_evidence_sufficient");
     }
 
     @Test
-    void structuredFinancialSettingAppliesWhenQualityDecisionFindsAnEvidenceGap() {
+    void requiredToolParametersPropagateWhenQualityDecisionFindsAnEvidenceGap() {
         ToolRegistry registry = mock(ToolRegistry.class);
         ToolRuntimeService runtime = mock(ToolRuntimeService.class);
         ChatModel model = mock(ChatModel.class);
         when(registry.getAllToolNames()).thenReturn(Set.of("mcp_news_web_search"));
-        when(registry.getToolMetadata("mcp_news_web_search")).thenReturn(ToolMetadata.builder()
-            .id("mcp_news_web_search")
-            .parameters(List.of(ToolParameter.builder().name("financial_data_required").type("boolean").build()))
-            .build());
         when(model.chat(any(String.class))).thenReturn(
-            "{\"needed\":true,\"financialDataRequired\":false,\"keywords\":[\"missing market breadth\"],"
-                + "\"reason\":\"market breadth is missing\"}");
+            "{\"needed\":true,\"keywords\":[\"missing observation\"],"
+                + "\"reason\":\"evidence is missing\"}");
         when(runtime.execute(any())).thenReturn(new ToolRuntimeExecution(
             ToolOutput.failure("provider unavailable"), null, null, "failed", Map.of()));
-        Map<String, Object> metadata = new LinkedHashMap<>(Map.of("forceStructuredFinancialData", true));
+        Map<String, Object> required = Map.of("mcp_news_web_search", Map.of("strict_mode", true));
+        Map<String, Object> metadata = new LinkedHashMap<>(Map.of("requiredToolParameters", required));
 
         var result = enhancer(registry, runtime).enhance(
             model, "analyze today's market", "", "candidate", List.of(), List.of(), metadata);
@@ -107,11 +93,10 @@ class FinalSummaryWebSearchEnhancerTest {
         ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
         verify(runtime).execute(captor.capture());
         assertThat(result.attempted()).isTrue();
+        assertThat(captor.getValue().getAttributes())
+            .containsEntry("requiredToolParameters", required);
         assertThat(captor.getValue().getToolInput().getParameters())
-            .containsEntry("financial_data_required", true);
-        assertThat(metadata)
-            .containsEntry("finalSummaryFinancialDataForced", true)
-            .containsEntry("finalSummaryFinancialDataDecisionSource", "AGENT_SETTING");
+            .containsOnlyKeys("query", "num_results");
     }
 
     @Test
@@ -181,12 +166,8 @@ class FinalSummaryWebSearchEnhancerTest {
         ToolRuntimeService runtime = mock(ToolRuntimeService.class);
         ChatModel model = mock(ChatModel.class);
         when(registry.getAllToolNames()).thenReturn(Set.of("mcp_vendor_web_search"));
-        when(registry.getToolMetadata("mcp_vendor_web_search")).thenReturn(ToolMetadata.builder()
-            .id("mcp_vendor_web_search")
-            .parameters(List.of(ToolParameter.builder().name("financial_data_required").type("boolean").build()))
-            .build());
         when(model.chat(any(String.class))).thenReturn(
-            "{\"needed\":true,\"financialDataRequired\":true,\"keywords\":[\"latest market\"],\"reason\":\"current data\"}");
+            "{\"needed\":true,\"keywords\":[\"latest event\"],\"reason\":\"current data\"}");
         when(runtime.execute(any())).thenReturn(new ToolRuntimeExecution(
             ToolOutput.failure("provider unavailable"), null, null, "failed", Map.of()));
         Map<String, Object> metadata = new LinkedHashMap<>(Map.of(
@@ -212,23 +193,20 @@ class FinalSummaryWebSearchEnhancerTest {
             .containsEntry("tenantId", "tenant-ctx")
             .containsEntry("userId", "user-ctx");
         assertThat(request.getToolInput().getParameters())
-            .containsEntry("financial_data_required", true)
-            .containsEntry("financial_dataset_limit", 2)
-            .containsEntry("financial_row_limit", 20);
-        assertThat(metadata).containsEntry("finalSummaryFinancialDataRequired", true);
+            .containsEntry("query", "latest event")
+            .containsKey("num_results")
+            .doesNotContainKeys("financial_data_required", "financial_dataset_limit", "financial_row_limit");
     }
 
     @Test
-    void financialEvidenceGapStillUsesExternalWebWhenWebToolHasNoStructuredParameter() {
+    void evidenceGapUsesExternalWebWithoutBusinessSpecificParameters() {
         ToolRegistry registry = mock(ToolRegistry.class);
         ToolRuntimeService runtime = mock(ToolRuntimeService.class);
         ChatModel model = mock(ChatModel.class);
         when(registry.getAllToolNames()).thenReturn(Set.of("mcp_runtime_web_search"));
-        when(registry.getToolMetadata("mcp_runtime_web_search")).thenReturn(ToolMetadata.builder()
-            .id("mcp_runtime_web_search").parameters(List.of()).build());
         when(model.chat(any(String.class))).thenReturn(
-            "{\"needed\":true,\"financialDataRequired\":true,\"keywords\":[\"missing index close\"],"
-                + "\"reason\":\"one market observation is missing\"}",
+            "{\"needed\":true,\"keywords\":[\"missing observation\"],"
+                + "\"reason\":\"one observation is missing\"}",
             "The missing observation was supplemented from the external source. "
                 + "[source](https://example.test/index-close)");
         InteractionToolTrace trace = InteractionToolTrace.builder()
@@ -251,16 +229,11 @@ class FinalSummaryWebSearchEnhancerTest {
         ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
         verify(runtime).execute(captor.capture());
         assertThat(captor.getValue().getToolInput().getParameters())
-            .containsEntry("financial_data_required", false);
+            .containsOnlyKeys("query", "num_results");
         assertThat(result.attempted()).isTrue();
         assertThat(result.used()).isTrue();
         assertThat(result.enhancedAnswer()).contains("https://example.test/index-close");
-        assertThat(metadata)
-            .containsEntry("finalSummaryFinancialDataRequired", true)
-            .containsEntry("finalSummaryWebFinancialDataRequiredEffective", false)
-            .containsEntry("finalSummaryWebSearchCapabilityFallback",
-                "external_web_only_structured_financial_parameter_unavailable")
-            .containsEntry("finalSummaryWebSearchUsed", true);
+        assertThat(metadata).containsEntry("finalSummaryWebSearchUsed", true);
     }
 
     @Test

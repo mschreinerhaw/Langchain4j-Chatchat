@@ -1660,6 +1660,8 @@ class AgentOrchestratorTest {
             .contains("Do not reinterpret a generic request for enterprise standards")
             .contains("relaxes the blocking exact filter")
             .contains("Never propose a downstream binding such as tables[0]")
+            .contains("A single generic shared token is insufficient")
+            .contains("full declared capability and dimension meaning")
             .contains("\"englishName\":\"field_1\"")
             .contains("\"englishName\":\"field_12\"")
             .contains("\"englishName\":\"STD_FIELD_12\"")

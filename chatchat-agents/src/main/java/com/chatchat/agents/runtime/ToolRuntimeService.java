@@ -16,6 +16,7 @@ import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
+import com.chatchat.common.tool.ToolParameter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,7 @@ import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -53,6 +55,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -556,7 +559,7 @@ public class ToolRuntimeService {
         ToolMetadata metadata = toolRegistry.getToolMetadata(toolName);
         ToolInput toolInput = request.getToolInput() == null ? new ToolInput() : request.getToolInput();
         enrichToolInputContext(request, toolInput);
-        applyFinancialRetrievalPolicy(toolName, metadata, request, toolInput);
+        applyRequiredToolParameters(toolName, metadata, request, toolInput);
         if (isParamBindingDenied(toolInput)) {
             return deniedExecution(toolName, request, metadata,
                 firstText(paramBindingError(toolInput), "Tool parameter binding was denied by runtime policy"),
@@ -801,57 +804,61 @@ public class ToolRuntimeService {
         copyRuntimeAttribute(context, request.getAttributes(), "mcpWorkflow");
         copyRuntimeAttribute(context, request.getAttributes(), "workflowContext");
         copyRuntimeAttribute(context, request.getAttributes(), "workflowVariables");
-        copyRuntimeAttribute(context, request.getAttributes(), "financialIntentQuery");
+        copyRuntimeAttribute(context, request.getAttributes(), "requiredToolParameters");
         toolInput.setContext(context);
     }
 
-    private void applyFinancialRetrievalPolicy(String toolName,
-                                               ToolMetadata metadata,
-                                               ToolRuntimeRequest request,
-                                               ToolInput toolInput) {
-        if (!isWebSearchTool(toolName) || request == null || toolInput == null) {
+    private void applyRequiredToolParameters(String toolName,
+                                             ToolMetadata metadata,
+                                             ToolRuntimeRequest request,
+                                             ToolInput toolInput) {
+        if (request == null || toolInput == null || request.getAttributes() == null) {
             return;
         }
-        boolean forced = request.getAttributes() != null
-            && Boolean.TRUE.equals(booleanValue(request.getAttributes().get("forceStructuredFinancialData")));
+        Map<String, Object> configuredByTool = asMap(request.getAttributes().get("requiredToolParameters"));
+        if (configuredByTool.isEmpty()) {
+            return;
+        }
+        Map<String, Object> required = new LinkedHashMap<>();
+        configuredByTool.forEach((configuredTool, configuredParameters) -> {
+            if ("*".equals(configuredTool) || sameTool(configuredTool, toolName)) {
+                required.putAll(asMap(configuredParameters));
+            }
+        });
+        if (required.isEmpty()) {
+            return;
+        }
+        Set<String> supportedParameters = metadata == null || metadata.getParameters() == null
+            ? Set.of()
+            : metadata.getParameters().stream()
+                .filter(Objects::nonNull)
+                .map(ToolParameter::getName)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
         Map<String, Object> parameters = toolInput.getParameters() == null
             ? new LinkedHashMap<>()
             : new LinkedHashMap<>(toolInput.getParameters());
-        boolean supportsFinancialIntent = parameters.containsKey("financial_data_required")
-            || metadata != null && metadata.getParameters() != null
-            && metadata.getParameters().stream().anyMatch(parameter -> parameter != null
-                && "financial_data_required".equals(parameter.getName()));
-        if (!supportsFinancialIntent) {
-            if (forced) {
-                log.warn("Agent financial retrieval policy could not be applied because Tool schema lacks capability "
-                        + "tool={} requestId={}", toolName, request.getRequestId());
+        List<String> applied = new ArrayList<>();
+        required.forEach((parameterName, value) -> {
+            if (supportedParameters.contains(parameterName)) {
+                parameters.put(parameterName, value);
+                applied.add(parameterName);
+            } else {
+                log.warn("Required tool parameter ignored because it is absent from Tool schema "
+                        + "tool={} parameter={} requestId={}",
+                    toolName, parameterName, request.getRequestId());
             }
+        });
+        if (applied.isEmpty()) {
             return;
         }
-        boolean modelRequired = Boolean.TRUE.equals(booleanValue(parameters.get("financial_data_required")));
-        boolean effectiveRequired = forced || modelRequired;
-        parameters.put("financial_data_required", effectiveRequired);
         toolInput.setParameters(parameters);
 
         Map<String, Object> context = toolInput.getContext() == null
             ? new LinkedHashMap<>()
             : new LinkedHashMap<>(toolInput.getContext());
-        context.put("financialDataPolicy", forced ? "FORCED_BRIDGE" : "INTENT_DRIVEN");
-        context.put("financialDataBridgeTool", "web_search");
-        context.put("financialDataBridgeVisibility", "internal_stage_only");
-        context.put("financialDataModelRequired", modelRequired);
-        context.put("financialDataEffectiveRequired", effectiveRequired);
+        context.put("runtimeRequiredToolParametersApplied", List.copyOf(applied));
         toolInput.setContext(context);
-        if (forced) {
-            log.info("Structured financial retrieval forced inside web_search bridge tool={} "
-                    + "requestId={} conversationId={}",
-                toolName, request.getRequestId(), request.getConversationId());
-        }
-    }
-
-    private boolean isWebSearchTool(String toolName) {
-        String normalized = normalizePolicyKey(toolName);
-        return "web_search".equals(normalized) || normalized.endsWith("_web_search");
     }
 
     private void copyRuntimeAttribute(Map<String, Object> context, Map<String, Object> attributes, String key) {
@@ -984,9 +991,7 @@ public class ToolRuntimeService {
         return normalized.contains("web_search")
             || normalized.contains("document_search")
             || normalized.contains("crawl_url")
-            || normalized.contains("finance_site_search")
             || normalized.contains("generic_web_site_search")
-            || normalized.contains("retrieve_financial_evidence")
             || normalized.contains("retrieve_evidence")
             || normalized.contains("search_and_extract");
     }
@@ -1449,10 +1454,9 @@ public class ToolRuntimeService {
         values.put("executionPlan", executionPlan == null ? null : executionPlan.toMap());
         if (request != null && request.getToolInput() != null) {
             Map<String, Object> context = request.getToolInput().getContext();
-            if (context != null && context.containsKey("financialDataEffectiveRequired")) {
-                values.put("financialDataPolicy", context.get("financialDataPolicy"));
-                values.put("financialDataModelRequired", context.get("financialDataModelRequired"));
-                values.put("financialDataEffectiveRequired", context.get("financialDataEffectiveRequired"));
+            if (context != null && context.containsKey("runtimeRequiredToolParametersApplied")) {
+                values.put("runtimeRequiredToolParametersApplied",
+                    context.get("runtimeRequiredToolParametersApplied"));
             }
         }
         if (policyDecision != null) {
@@ -2436,8 +2440,6 @@ public class ToolRuntimeService {
             case "contains_delete" -> containsWord(parameters, "delete");
             case "contains_update" -> containsWord(parameters, "update");
             case "contains_drop" -> containsWord(parameters, "drop");
-            case "customer_detail" -> isCustomerDetail(parameters);
-            case "branch_summary" -> isBranchSummary(parameters);
             default -> truthy(parameters.get(rule)) || truthy(parameters.get(normalized));
         };
     }
@@ -4444,45 +4446,6 @@ public class ToolRuntimeService {
     }
 
     /**
-     * Returns whether is customer detail.
-     *
-     * @param parameters the parameters value
-     * @return whether the condition is satisfied
-     */
-    private boolean isCustomerDetail(Map<String, Object> parameters) {
-        if (truthy(parameters.get("customer_detail")) || truthy(parameters.get("customerDetail"))) {
-            return true;
-        }
-        if (parameters.containsKey("customer_id") || parameters.containsKey("customerId")) {
-            return true;
-        }
-        String scope = String.join(" ",
-            stringValue(parameters.get("scope")),
-            stringValue(parameters.get("data_scope")),
-            stringValue(parameters.get("dataScope")),
-            stringValue(parameters.get("level"))
-        ).toLowerCase(Locale.ROOT);
-        return scope.contains("customer") || scope.contains("detail");
-    }
-
-    /**
-     * Returns whether is branch summary.
-     *
-     * @param parameters the parameters value
-     * @return whether the condition is satisfied
-     */
-    private boolean isBranchSummary(Map<String, Object> parameters) {
-        String scope = String.join(" ",
-            stringValue(parameters.get("scope")),
-            stringValue(parameters.get("data_scope")),
-            stringValue(parameters.get("dataScope")),
-            stringValue(parameters.get("level"))
-        ).toLowerCase(Locale.ROOT);
-        return (scope.contains("branch") || parameters.containsKey("branch_id") || parameters.containsKey("branchId"))
-            && !isCustomerDetail(parameters);
-    }
-
-    /**
      * Performs the infer data scope operation.
      *
      * @param parameters the parameters value
@@ -4492,13 +4455,10 @@ public class ToolRuntimeService {
         if (parameters == null || parameters.isEmpty()) {
             return "unknown";
         }
-        if (isCustomerDetail(parameters)) {
-            return "customer_detail";
-        }
-        if (isBranchSummary(parameters)) {
-            return "branch_summary";
-        }
-        String scope = firstText(stringValue(parameters.get("data_scope")), stringValue(parameters.get("scope")));
+        String scope = firstText(
+            firstText(stringValue(parameters.get("data_scope")), stringValue(parameters.get("dataScope"))),
+            firstText(stringValue(parameters.get("scope")), stringValue(parameters.get("level")))
+        );
         return firstText(scope, "unknown");
     }
 

@@ -39,7 +39,7 @@ class SkillCatalogServiceTest {
     }
 
     @Test
-    void persistsStructuredFinancialDataForceFlag() {
+    void persistsRequiredToolParametersAsGenericRuntimeContract() {
         SkillConfigRepository repository = mock(SkillConfigRepository.class);
         SkillConfigVersionRepository versionRepository = mock(SkillConfigVersionRepository.class);
         when(repository.findById("db_ops_assistant")).thenReturn(Optional.empty());
@@ -51,14 +51,15 @@ class SkillCatalogServiceTest {
 
         SkillDefinition saved = service.upsert(draftWithWorkflow(Map.of(
             "enabled", true,
-            "force_structured_financial_data", true
+            "required_tool_parameters", Map.of("search_tool", Map.of("strict_mode", true))
         )));
 
         ArgumentCaptor<SkillConfigEntity> entityCaptor = ArgumentCaptor.forClass(SkillConfigEntity.class);
         verify(repository).save(entityCaptor.capture());
         assertThat(entityCaptor.getValue().getWorkflowConfigJson())
-            .contains("\"forceStructuredFinancialData\":true");
-        assertThat(saved.workflowConfig()).containsEntry("forceStructuredFinancialData", true);
+            .contains("\"requiredToolParameters\"")
+            .contains("\"strict_mode\":true");
+        assertThat(saved.workflowConfig()).containsKey("requiredToolParameters");
     }
 
     @Test

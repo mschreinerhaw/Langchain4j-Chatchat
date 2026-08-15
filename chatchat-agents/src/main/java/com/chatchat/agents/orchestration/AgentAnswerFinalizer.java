@@ -2478,7 +2478,7 @@ class AgentAnswerFinalizer {
 
     /**
      * A limitation statement inside an otherwise complete report is not a refusal. The signal is
-     * deliberately domain-neutral: Runtime must not depend on financial terms, tool names, or
+     * deliberately domain-neutral: Runtime must not depend on domain terms, tool names, or
      * dataset identifiers when deciding whether a model produced a substantive business result.
      */
     private boolean hasSubstantiveAnalysisStructure(String answer) {

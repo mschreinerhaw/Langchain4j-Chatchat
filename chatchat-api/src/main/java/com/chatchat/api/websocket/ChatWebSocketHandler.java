@@ -2,6 +2,7 @@ package com.chatchat.api.websocket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -17,6 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Slf4j
 @Component
+@ConditionalOnProperty(prefix = "chatchat.websocket.legacy-chat", name = "enabled", havingValue = "true")
 public class ChatWebSocketHandler extends TextWebSocketHandler {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -53,18 +55,12 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             ChatMessage request = objectMapper.readValue(message.getPayload(), ChatMessage.class);
             log.info("Received message from {}: {}", session.getId(), request);
 
-            // Simulate AI response
-            String response = generateResponse(request.getMessage());
-
-            // Send streaming response
-            String[] words = response.split("");
-            for (String word : words) {
-                sendMessage(session, new Message("assistant", word, true));
-                Thread.sleep(14); // Simulate typing
-            }
-
-            // Send final message marker
-            sendMessage(session, new Message("assistant", "", false, true));
+            sendMessage(session, new Message(
+                "error",
+                "该旧版 WebSocket 入口未绑定 Agent Runtime，请使用统一会话 API。",
+                false,
+                true
+            ));
 
         } catch (Exception e) {
             log.error("Error handling WebSocket message", e);
@@ -83,23 +79,6 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
         log.info("WebSocket connection closed: {}", session.getId());
         sessions.remove(session.getId());
-    }
-
-    /**
-     * Generate AI response (placeholder - will be replaced with real LLM call)
-     */
-    private String generateResponse(String question) {
-        // This will be replaced with actual LLM/agent logic.
-        if (question.contains("客户")) {
-            return "根据当前数据，客户总数为852户，其中高净值客户142户，环比增长稳定。";
-        } else if (question.contains("风险")) {
-            return "客户风险分布中，低风险占比46%，中低风险占比28%，整体风险可控。";
-        } else if (question.contains("两融")) {
-            return "两融总资产12.85万元，总负债4.54万元，业务规模稳定增长。";
-        } else if (question.contains("流失")) {
-            return "近期资产流失主要集中在2位高净值客户，已标记为重点回访对象。";
-        }
-        return "您提出的问题已记录，我们正在分析相关数据，即将为您生成详细分析报告。";
     }
 
     /**

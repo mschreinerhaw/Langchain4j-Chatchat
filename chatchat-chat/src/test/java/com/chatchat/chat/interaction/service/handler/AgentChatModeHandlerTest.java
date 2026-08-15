@@ -903,7 +903,7 @@ class AgentChatModeHandlerTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void propagatesAgentStructuredFinancialDataPolicyToRuntime() {
+    void propagatesGenericRequiredToolParametersToRuntime() {
         AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
@@ -919,7 +919,8 @@ class AgentChatModeHandlerTest {
             base.defaultMode(), base.modelName(), base.systemPrompt(), base.firstUseGreeting(),
             base.preferredToolPrefixes(), base.boundMcpServiceIds(), base.boundMcpToolNames(),
             base.boundDocumentIds(), base.boundDocumentTags(), base.toolConfigs(), base.routingSettings(),
-            Map.of("forceStructuredFinancialData", true), base.defaultDataAsset(),
+            Map.of("requiredToolParameters", Map.of(
+                "mcp_chatchat_mcp_server_web_search", Map.of("strict_mode", true))), base.defaultDataAsset(),
             base.assetSelectionPolicy(), base.quickQuestions(), base.marketStatus(), base.defaultAgent());
         when(skillCatalogService.resolve("ops")).thenReturn(configured);
         when(mcpToolRegistryBridge.listRegisteredTools()).thenReturn(List.of());
@@ -940,9 +941,8 @@ class AgentChatModeHandlerTest {
             anyString(), anyString(), anyString(), anyString(), anyInt(), anyList(), anyBoolean(), attributes.capture()
         );
         assertThat(attributes.getValue())
-            .containsEntry("forceStructuredFinancialData", true)
-            .containsEntry("financialDataPolicy", "FORCED")
-            .containsEntry("financialIntentQuery", "analyze market");
+            .containsEntry("requiredToolParameters", Map.of(
+                "mcp_chatchat_mcp_server_web_search", Map.of("strict_mode", true)));
     }
 
     private SkillDefinition skillWithoutWebSearch() {

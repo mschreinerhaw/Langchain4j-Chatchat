@@ -483,8 +483,6 @@ public class AgentOrchestrator implements AgentRunExecutor {
         List<String> mandatoryTools = workflowMandatoryTools.isEmpty()
             ? workflowTools.resolveMandatoryToolCandidates(tools, requiredToolNames)
             : workflowMandatoryTools;
-        boolean forceStructuredFinancialData = Boolean.TRUE.equals(
-            requestRuntimeAttributes.get("forceStructuredFinancialData"));
         if (requireDocumentWebVerification) {
             mandatoryTools = workflowTools.withDocumentWebVerificationMandatoryTools(mandatoryTools, documentSearchTool, verificationWebSearchTool);
         }
@@ -511,8 +509,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
         metadata.put("userId", userId);
         metadata.put("skillId", skillId == null ? "general" : skillId);
         metadata.put("modelName", normalizeModelName(modelName));
-        metadata.put("forceStructuredFinancialData", forceStructuredFinancialData);
-        metadata.put("financialDataPolicy", forceStructuredFinancialData ? "FORCED" : "INTENT_DRIVEN");
+        metadata.put("requiredToolParameters",
+            requestRuntimeAttributes.getOrDefault("requiredToolParameters", Map.of()));
         metadata.put("boundDocumentIds", documentIds);
         metadata.put("boundDocumentTags", documentTags);
         metadata.put("availableTools", tools);
@@ -3796,6 +3794,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("- For document_search, evaluate each returned document/chunk against the current user request. Put useful doc:// refs in useful_refs and unrelated or misleading refs in rejected_refs. Do not infer usefulness from retrieval rank alone.\n");
         prompt.append("- Treat retrieval score as a weak prior only. Your semantic evidence evaluation must state relevance, answerability, supported aspects, missing aspects, usefulness, and whether another query expansion is needed.\n");
         prompt.append("- For template discovery and API/HTTP requirement analysis, compare title, description, capabilitySpec, outputSchema, dependencySpec and required parameters with the current requirement. Return only ids present in the tool output under selected_template_ids/rejected_template_ids. If candidates do not cover the requirement, set satisfied=false and provide refined_intent.\n");
+        prompt.append("- When the plan has diagnostic_profile checks, selected templates must cover those checks by their full declared capability and dimension meaning. A single generic shared token is insufficient. Prefer the candidate that matches the check-specific template metadata; reject unrelated substitutes and request refined retrieval when the intended capability is absent.\n");
         prompt.append("- For asset discovery with multiple candidates, compare only returned routing metadata with the current target. Return selected_asset_ids/rejected_asset_ids and one asset_evaluations entry per candidate. Asset discovery proves routing eligibility, never target health or business state.\n");
         prompt.append("- Template retrieval scores and ordering are weak recall priors, never acceptance decisions. Semantically review every returned template candidate.\n");
         prompt.append("- When governed template discovery returns multiple admitted templates, every template remaining in that discovery result is execution-required. A scalar templates[0] plan binding does not reduce this set: Runtime compiles all admitted templates into a failure-isolated batch and final synthesis must wait for a terminal result from every call. selected_template_ids may order or narrow candidates only during the discovery admission decision; it may never be used after admission to skip physical execution.\n");

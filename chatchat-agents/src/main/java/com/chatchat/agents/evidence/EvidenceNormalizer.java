@@ -13,9 +13,9 @@ import java.util.Set;
 public class EvidenceNormalizer {
 
     private static final int DEFAULT_LIMIT = 12;
-    private static final int FINANCIAL_ROW_LIMIT = 20;
-    private static final int FINANCIAL_ROW_CHAR_LIMIT = 1_500;
-    private static final Set<String> FINANCIAL_INTERNAL_FIELDS = Set.of(
+    private static final int STRUCTURED_ROW_LIMIT = 20;
+    private static final int STRUCTURED_ROW_CHAR_LIMIT = 1_500;
+    private static final Set<String> STRUCTURED_INTERNAL_FIELDS = Set.of(
         "id", "collected_date", "collected_at", "source_id", "source_code", "record_key",
         "payload_json", "_omitted_fields", "_storage_tier", "snapshot_mode", "legal_risk"
     );
@@ -157,12 +157,12 @@ public class EvidenceNormalizer {
 
     private EvidenceChunk webChunk(Map<String, Object> root, Map<String, Object> item) {
         Map<String, Object> citation = citationMap(item);
-        String financialContent = financialObservationContent(item);
+        String structuredContent = structuredObservationContent(item);
         String url = firstNonBlank(
             firstNonBlank(stringValue(item.get("url")), stringValue(item.get("source_url"))),
             firstNonBlank(
                 firstNonBlank(stringValue(citation.get("url")), stringValue(item.get("link"))),
-                financialSourceUrl(item)
+                structuredSourceUrl(item)
             )
         );
         String domain = firstNonBlank(
@@ -184,7 +184,7 @@ public class EvidenceNormalizer {
             EvidenceChunk.CONTRACT_VERSION,
             source,
             firstNonBlank(
-                financialContent,
+                structuredContent,
                 firstNonBlank(
                     firstNonBlank(stringValue(item.get("content")), stringValue(item.get("excerpt"))),
                     firstNonBlank(
@@ -205,8 +205,8 @@ public class EvidenceNormalizer {
         );
     }
 
-    private String financialObservationContent(Map<String, Object> item) {
-        if (!"financial_data".equalsIgnoreCase(stringValue(item.get("resultType")))) {
+    private String structuredObservationContent(Map<String, Object> item) {
+        if (!"structured_data_observation".equalsIgnoreCase(stringValue(item.get("runtimeEvidenceType")))) {
             return null;
         }
         Object value = item.get("rows");
@@ -214,24 +214,24 @@ public class EvidenceNormalizer {
             return null;
         }
         String dataset = firstNonBlank(stringValue(item.get("dataset")), "unknown");
-        StringBuilder content = new StringBuilder("Actual governed financial observations: dataset=")
+        StringBuilder content = new StringBuilder("Actual governed structured observations: dataset=")
             .append(dataset)
             .append(", returnedRows=")
             .append(rows.size())
             .append(". Values below are factual query results, not asset metadata.");
         int index = 0;
         for (Object rowValue : rows) {
-            if (index >= FINANCIAL_ROW_LIMIT) break;
+            if (index >= STRUCTURED_ROW_LIMIT) break;
             Map<String, Object> row = asMap(rowValue);
             if (row.isEmpty()) continue;
             StringBuilder line = new StringBuilder();
             for (Map.Entry<String, Object> entry : row.entrySet()) {
                 String key = entry.getKey();
                 Object fieldValue = entry.getValue();
-                if (key == null || FINANCIAL_INTERNAL_FIELDS.contains(key) || emptyValue(fieldValue)) continue;
+                if (key == null || STRUCTURED_INTERNAL_FIELDS.contains(key) || emptyValue(fieldValue)) continue;
                 String fragment = key + "=" + String.valueOf(fieldValue).replaceAll("\\s+", " ").trim();
                 if (line.length() > 0) fragment = ", " + fragment;
-                if (line.length() + fragment.length() > FINANCIAL_ROW_CHAR_LIMIT) break;
+                if (line.length() + fragment.length() > STRUCTURED_ROW_CHAR_LIMIT) break;
                 line.append(fragment);
             }
             if (line.length() == 0) continue;
@@ -240,7 +240,7 @@ public class EvidenceNormalizer {
         return index == 0 ? null : content.toString();
     }
 
-    private String financialSourceUrl(Map<String, Object> item) {
+    private String structuredSourceUrl(Map<String, Object> item) {
         Object value = item.get("rows");
         if (!(value instanceof Collection<?> rows)) return null;
         for (Object rowValue : rows) {
@@ -273,8 +273,7 @@ public class EvidenceNormalizer {
         if (semantic.contains("document") && semantic.contains("search")) {
             return EvidenceType.DOCUMENT;
         }
-        if (semantic.contains("web") || semantic.contains("crawl") || semantic.contains("search_and_extract")
-            || semantic.contains("retrieve_financial_evidence")) {
+        if (semantic.contains("web") || semantic.contains("crawl") || semantic.contains("search_and_extract")) {
             return EvidenceType.WEB;
         }
         return null;

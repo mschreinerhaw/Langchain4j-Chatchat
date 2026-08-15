@@ -1096,8 +1096,8 @@ class InterpretationPlanRuntimeTest {
         InterpretationPlanRuntime.StepExecution execution = new InterpretationPlanRuntime.StepExecution(
             1, "mcp_tool", "mcp_chatchat_mcp_server_web_search", true,
             Map.of("structuredContent", Map.of(
-                "financialObservationCount", 12,
-                "financialData", List.of(Map.of("dataset", "market_quote_daily", "count", 12)))),
+                "structuredObservationCount", 12,
+                "structuredData", List.of(Map.of("dataset", "observations", "count", 12)))),
             null, null, null, 5
         );
 
@@ -1108,8 +1108,8 @@ class InterpretationPlanRuntimeTest {
         assertThat(review.satisfied()).isTrue();
         assertThat(review.metadata())
             .containsEntry("localFactCheckHasEvidence", true)
-            .containsEntry("localFactCheckEvidenceType", "financial_data_observations")
-            .containsEntry("financialObservationCount", 12);
+            .containsEntry("localFactCheckEvidenceType", "structured_data_observations")
+            .containsEntry("structuredObservationCount", 12);
 
         Method skipReviewMethod = InterpretationPlanRuntime.class.getDeclaredMethod(
             "shouldSkipModelReviewAfterLocalFactCheck",
@@ -3597,6 +3597,52 @@ class InterpretationPlanRuntimeTest {
             Map.of()
         ))
             .hasRootCauseMessage("SQL_TEMPLATE_TARGET_SCOPE_MISMATCH: template INSTANCE_STATUS is not table-scoped but tableName=T_AD_DICT_ENTR_SUPN was provided; planner must select a dialect-specific *_TABLE_METADATA template.");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void doesNotBindJavaProcessCheckToIoTemplateFromOneGenericToken() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        List<InterpretationPlan.DiagnosticCheck> checks = List.of(
+            new InterpretationPlan.DiagnosticCheck(
+                "resource_usage", "resource_usage", "memory", true, 1, List.of(3)),
+            new InterpretationPlan.DiagnosticCheck(
+                "java_process", "process_inventory", "java_process", true, 2, List.of(3)),
+            new InterpretationPlan.DiagnosticCheck(
+                "container_status", "container_inventory", "docker_container", true, 3, List.of(3))
+        );
+        List<Map<String, Object>> mismatchedTemplates = List.of(
+            Map.of("templateId", "CHECK_MEMORY", "name", "Memory status", "description", "Read memory usage"),
+            Map.of("templateId", "CHECK_IO_STATUS", "name", "IO status",
+                "description", "Read disk IO utilization and process IO statistics"),
+            Map.of("templateId", "CHECK_DOCKER_CONTAINERS", "name", "Docker containers",
+                "description", "Read docker container inventory")
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "diagnosticTemplateAssignments", List.class, List.class, Map.class);
+        method.setAccessible(true);
+
+        Map<Integer, Integer> mismatched = (Map<Integer, Integer>) method.invoke(
+            runtime, checks, mismatchedTemplates, Map.of("java_process", "CHECK_PROCESS"));
+
+        assertThat(mismatched)
+            .containsEntry(0, 0)
+            .containsEntry(2, 2)
+            .doesNotContainKey(1);
+
+        List<Map<String, Object>> matchedTemplates = List.of(
+            mismatchedTemplates.get(0),
+            Map.of("templateId", "CHECK_JAVA_PROCESS", "name", "Java process",
+                "description", "Read Java process inventory"),
+            mismatchedTemplates.get(2)
+        );
+        Map<Integer, Integer> matched = (Map<Integer, Integer>) method.invoke(
+            runtime, checks, matchedTemplates, Map.of("java_process", "CHECK_PROCESS"));
+        assertThat(matched).containsAllEntriesOf(Map.of(0, 0, 1, 1, 2, 2));
     }
 
     @Test

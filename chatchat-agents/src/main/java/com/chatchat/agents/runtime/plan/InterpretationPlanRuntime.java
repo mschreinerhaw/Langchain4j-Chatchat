@@ -2887,17 +2887,17 @@ public class InterpretationPlanRuntime {
             return null;
         }
         if (isWebSearchTool(execution.toolName())) {
-            int observationCount = financialObservationCount(execution.output(), 0);
+            int observationCount = structuredObservationCount(execution.output(), 0);
             if (observationCount > 0) {
                 return StepReview.accepted(
                     "Unified web_search returned " + observationCount
-                        + " governed financial observation row(s); model review is unnecessary.",
+                        + " governed structured observation row(s); model review is unnecessary.",
                     mapOf(
                         "localFactCheckHasEvidence", true,
-                        "localFactCheckEvidenceType", "financial_data_observations",
-                        "localFactCheckReason", "web_search returned actual structured market rows, not only asset metadata",
-                        "financialObservationCount", observationCount,
-                        "financialObservationStepId", step == null ? null : step.id()
+                        "localFactCheckEvidenceType", "structured_data_observations",
+                        "localFactCheckReason", "tool returned declared structured observation rows, not only discovery metadata",
+                        "structuredObservationCount", observationCount,
+                        "structuredObservationStepId", step == null ? null : step.id()
                     )
                 );
             }
@@ -4620,14 +4620,14 @@ public class InterpretationPlanRuntime {
         return null;
     }
 
-    private int financialObservationCount(Object output, int depth) {
+    private int structuredObservationCount(Object output, int depth) {
         if (output == null || depth > 8) return 0;
         Object normalized = normalizeToolProtocolPayload(output);
-        if (normalized != output) return financialObservationCount(normalized, depth + 1);
+        if (normalized != output) return structuredObservationCount(normalized, depth + 1);
         if (!(output instanceof Map<?, ?> map)) return 0;
-        Integer count = integerValue(firstMapValue(map, "financialObservationCount", "financial_observation_count"));
+        Integer count = integerValue(firstMapValue(map, "structuredObservationCount", "structured_observation_count"));
         if (count != null && count > 0) return count;
-        Object datasets = firstMapValue(map, "financialData", "financial_data");
+        Object datasets = firstMapValue(map, "structuredData", "structured_data");
         if (datasets instanceof List<?> values) {
             int total = 0;
             for (Object value : values) {
@@ -4639,7 +4639,7 @@ public class InterpretationPlanRuntime {
             if (total > 0) return total;
         }
         for (String key : List.of("structuredContent", "structured_content", "data", "result", "payload", "output")) {
-            int nested = financialObservationCount(firstMapValue(map, key), depth + 1);
+            int nested = structuredObservationCount(firstMapValue(map, key), depth + 1);
             if (nested > 0) return nested;
         }
         return 0;
@@ -4854,9 +4854,18 @@ public class InterpretationPlanRuntime {
             return null;
         }
 
-        Map<Integer, Integer> templateAssignments = diagnosticTemplateAssignments(checks, templates);
+        Map<Integer, Integer> templateAssignments = diagnosticTemplateAssignments(
+            checks, templates, diagnosticTemplateHints(step.input()));
         if (templateAssignments.size() != checks.size()) {
-            return null;
+            List<String> unmatchedCheckIds = java.util.stream.IntStream.range(0, checks.size())
+                .filter(index -> !templateAssignments.containsKey(index))
+                .mapToObj(index -> checks.get(index).checkId())
+                .filter(Objects::nonNull)
+                .toList();
+            throw new IllegalStateException(
+                "DIAGNOSTIC_TEMPLATE_COVERAGE_MISMATCH: governed template candidates do not "
+                    + "semantically cover required checks " + unmatchedCheckIds
+                    + "; template discovery must be retried with the missing check intent");
         }
         List<Map<String, Object>> calls = new ArrayList<>();
         String outerTool = null;
@@ -5268,13 +5277,30 @@ public class InterpretationPlanRuntime {
         List<InterpretationPlan.DiagnosticCheck> checks,
         List<Map<String, Object>> templates
     ) {
+        return diagnosticTemplateAssignments(checks, templates, Map.of());
+    }
+
+    private Map<Integer, Integer> diagnosticTemplateAssignments(
+        List<InterpretationPlan.DiagnosticCheck> checks,
+        List<Map<String, Object>> templates,
+        Map<String, String> templateHints
+    ) {
         List<DiagnosticTemplateMatch> candidates = new ArrayList<>();
         for (int checkIndex = 0; checkIndex < checks.size(); checkIndex++) {
+            InterpretationPlan.DiagnosticCheck check = checks.get(checkIndex);
+            String templateHint = templateHints.get(check.checkId());
             for (int templateIndex = 0; templateIndex < templates.size(); templateIndex++) {
-                int score = diagnosticSemanticScore(
-                    checks.get(checkIndex),
-                    diagnosticTemplateIdentity(templates.get(templateIndex))
-                );
+                Map<String, Object> template = templates.get(templateIndex);
+                String candidateId = canonicalTemplateId(template);
+                boolean exactHint = templateHint != null && candidateId != null
+                    && templateHint.equalsIgnoreCase(candidateId);
+                int score = exactHint
+                    ? 1_000_000
+                    : diagnosticSemanticScore(
+                        check,
+                        diagnosticTemplateIdentity(template),
+                        templateHint != null
+                    );
                 if (score > 0) {
                     candidates.add(new DiagnosticTemplateMatch(checkIndex, templateIndex, score));
                 }
@@ -5297,6 +5323,29 @@ public class InterpretationPlanRuntime {
             assignments.put(candidate.checkIndex(), candidate.templateIndex());
         }
         return assignments;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, String> diagnosticTemplateHints(Map<String, Object> stepInput) {
+        if (stepInput == null || !(stepInput.get("calls") instanceof Iterable<?> calls)) {
+            return Map.of();
+        }
+        Map<String, String> hints = new LinkedHashMap<>();
+        for (Object item : calls) {
+            if (!(item instanceof Map<?, ?> rawCall)) continue;
+            Map<String, Object> call = new LinkedHashMap<>((Map<String, Object>) rawCall);
+            String callId = firstText(
+                stringValue(firstMapValue(call, "callId", "call_id", "checkId", "check_id")), null);
+            Object rawArguments = firstMapValue(call, "arguments", "input");
+            Map<String, Object> arguments = rawArguments instanceof Map<?, ?> map
+                ? new LinkedHashMap<>((Map<String, Object>) map)
+                : Map.of();
+            String templateId = canonicalTemplateId(firstText(
+                stringValue(firstMapValue(arguments, "templateId", "template_id", "template")),
+                stringValue(firstMapValue(call, "templateId", "template_id", "template"))));
+            if (callId != null && templateId != null) hints.putIfAbsent(callId, templateId);
+        }
+        return Map.copyOf(hints);
     }
 
     private String diagnosticTemplateIdentity(Map<String, Object> template) {
@@ -5322,6 +5371,12 @@ public class InterpretationPlanRuntime {
     }
 
     private int diagnosticSemanticScore(InterpretationPlan.DiagnosticCheck check, String templateIdentity) {
+        return diagnosticSemanticScore(check, templateIdentity, false);
+    }
+
+    private int diagnosticSemanticScore(InterpretationPlan.DiagnosticCheck check,
+                                        String templateIdentity,
+                                        boolean requireStrongMatch) {
         if (check == null || templateIdentity == null || templateIdentity.isBlank()) {
             return 0;
         }
@@ -5332,11 +5387,14 @@ public class InterpretationPlanRuntime {
                 + " " + firstText(check.dimension(), "")
         );
         int score = 0;
+        int matchedTokenCount = 0;
         for (String token : checkTokens) {
             if (templateTokens.contains(token) || normalizedIdentity.contains(token)) {
                 score += token.length();
+                matchedTokenCount++;
             }
         }
+        boolean exactSemanticPhrase = false;
         for (String phrase : java.util.Arrays.asList(
             firstText(check.capability(), ""),
             firstText(check.dimension(), "")
@@ -5344,12 +5402,17 @@ public class InterpretationPlanRuntime {
             if (phrase == null) {
                 continue;
             }
-            String normalizedPhrase = phrase.toLowerCase(Locale.ROOT).trim();
+            String normalizedPhrase = phrase.toLowerCase(Locale.ROOT)
+                .replaceAll("[^\\p{IsHan}a-z0-9]+", " ")
+                .trim();
             if (normalizedPhrase.length() >= 2 && normalizedIdentity.contains(normalizedPhrase)) {
                 score += normalizedPhrase.length() * 4;
+                exactSemanticPhrase = true;
             }
         }
-        return score;
+        // One generic shared word (for example "process" in an IO template) is not
+        // enough evidence to bind a required diagnostic check to that template.
+        return !requireStrongMatch || exactSemanticPhrase || matchedTokenCount >= 2 ? score : 0;
     }
 
     private Set<String> diagnosticTokens(String value) {

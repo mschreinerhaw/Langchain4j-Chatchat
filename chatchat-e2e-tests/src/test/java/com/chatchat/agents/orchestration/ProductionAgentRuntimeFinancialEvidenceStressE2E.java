@@ -39,7 +39,7 @@ class ProductionAgentRuntimeFinancialEvidenceStressE2E {
     private static final int REQUESTS = 192;
 
     @Test
-    void concurrentForcedFinancialRequestsRemainIsolatedAndSchemaDriven() {
+    void concurrentConfiguredToolParametersRemainIsolatedAndSchemaDriven() {
         String randomNamespace = UUID.randomUUID().toString().replace("-", "");
         String toolName = "mcp_" + randomNamespace + "_web_search";
         ToolRegistry registry = mock(ToolRegistry.class);
@@ -77,16 +77,16 @@ class ProductionAgentRuntimeFinancialEvidenceStressE2E {
                         .toolName(toolName).runtimeMode("agent_chat").requestId(requestId)
                         .conversationId("conversation-" + index).tenantId("tenant-" + index % 7)
                         .userId("user-" + index).allowedTools(List.of(toolName))
-                        .attributes(Map.of("forceStructuredFinancialData", true))
+                        .attributes(Map.of("requiredToolParameters", Map.of(
+                            toolName, Map.of("financial_data_required", true))))
                         .toolInput(ToolInput.builder().parameters(Map.of(
                             "query", marker,
                             "financial_data_required", false
                         )).build()).build());
                     assertThat(execution.output().isSuccess()).isTrue();
                     assertThat(execution.audit())
-                        .containsEntry("financialDataPolicy", "FORCED_BRIDGE")
-                        .containsEntry("financialDataModelRequired", false)
-                        .containsEntry("financialDataEffectiveRequired", true);
+                        .containsEntry("runtimeRequiredToolParametersApplied",
+                            List.of("financial_data_required"));
                     return Map.entry(requestId, marker);
                 })).toList();
 
@@ -101,8 +101,8 @@ class ProductionAgentRuntimeFinancialEvidenceStressE2E {
                         .containsEntry("query", entry.getValue())
                         .containsEntry("financial_data_required", true);
                     assertThat(input.getContext())
-                        .containsEntry("financialDataPolicy", "FORCED_BRIDGE")
-                        .containsEntry("financialDataEffectiveRequired", true);
+                        .containsEntry("runtimeRequiredToolParametersApplied",
+                            List.of("financial_data_required"));
                 });
             });
         } finally {

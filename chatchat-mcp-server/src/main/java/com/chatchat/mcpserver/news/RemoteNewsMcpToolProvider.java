@@ -164,6 +164,9 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         data.put("financialDatasetCount", financialData.size());
         data.put("financialObservationCount", financialObservationCount);
         data.put("financialData", financialData);
+        data.put("structuredDatasetCount", financialData.size());
+        data.put("structuredObservationCount", financialObservationCount);
+        data.put("structuredData", financialData);
         boolean financialDataRequired = input.getParameterAsBoolean("financial_data_required", false);
         data.put("financialDataRequired", financialDataRequired);
         data.put("financialDataPolicy", "local_first_auto");
@@ -228,6 +231,7 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         result.put("count", compact.size());
         result.put("empty_result", compact.isEmpty());
         result.put("resultView", "compact_model_context");
+        result.put("runtimeEvidenceType", "structured_data_observation");
         return result;
     }
 

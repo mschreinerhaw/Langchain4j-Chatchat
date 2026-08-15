@@ -6,6 +6,7 @@ import com.chatchat.agents.runtime.batch.ToolCallResult;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
+import com.chatchat.common.tool.ToolParameter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
@@ -29,11 +30,13 @@ import static org.mockito.Mockito.when;
 class ToolRuntimeServiceTest {
 
     @Test
-    void agentFinancialPolicyForcesWebSearchParameterAndAuditMetadata() {
-        String toolName = "mcp_dynamic_service_web_search";
+    void runtimeAppliesConfiguredRequiredParameterWhenDeclaredByToolSchema() {
+        String toolName = "mcp_dynamic_service_search";
         ToolRegistry registry = mock(ToolRegistry.class);
         when(registry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
-            .id(toolName).title("Dynamic web search").categories(List.of("mcp")).build());
+            .id(toolName).title("Dynamic search").categories(List.of("mcp"))
+            .parameters(List.of(ToolParameter.builder().name("strict_mode").type("boolean").build()))
+            .build());
         AtomicReference<ToolInput> capturedInput = new AtomicReference<>();
         when(registry.executeEnhancedTool(any(), any())).thenAnswer(invocation -> {
             capturedInput.set(invocation.getArgument(1));
@@ -43,39 +46,31 @@ class ToolRuntimeServiceTest {
             registry, new ObjectMapper(), properties(), List.of(), List.of());
         try {
             ToolRuntimeExecution execution = service.execute(ToolRuntimeRequest.builder()
-                .toolName(toolName).runtimeMode("agent_chat").requestId("forced-financial-1")
+                .toolName(toolName).runtimeMode("agent_chat").requestId("required-parameter-1")
                 .conversationId("conversation-1").tenantId("tenant-1").userId("user-1")
                 .allowedTools(List.of(toolName))
-                .attributes(Map.of(
-                    "forceStructuredFinancialData", true,
-                    "financialIntentQuery", "full user market question"))
+                .attributes(Map.of("requiredToolParameters", Map.of(
+                    toolName, Map.of("strict_mode", true))))
                 .toolInput(ToolInput.builder().parameters(Map.of(
-                    "query", "latest market",
-                    "financial_data_required", false
+                    "query", "original query",
+                    "strict_mode", false
                 )).build())
                 .build());
 
             assertThat(capturedInput.get().getParameters())
-                .containsEntry("financial_data_required", true);
+                .containsEntry("strict_mode", true);
             assertThat(capturedInput.get().getContext())
-                .containsEntry("financialDataPolicy", "FORCED_BRIDGE")
-                .containsEntry("financialDataBridgeTool", "web_search")
-                .containsEntry("financialDataBridgeVisibility", "internal_stage_only")
-                .containsEntry("financialDataModelRequired", false)
-                .containsEntry("financialDataEffectiveRequired", true)
-                .containsEntry("financialIntentQuery", "full user market question");
+                .containsEntry("runtimeRequiredToolParametersApplied", List.of("strict_mode"));
             assertThat(execution.audit())
-                .containsEntry("financialDataPolicy", "FORCED_BRIDGE")
-                .containsEntry("financialDataEffectiveRequired", true);
+                .containsEntry("runtimeRequiredToolParametersApplied", List.of("strict_mode"));
         } finally {
             service.shutdown();
         }
     }
 
     @Test
-    void legacyDedicatedFinancialToolAttributeCannotEscapeTheWebSearchBridge() {
-        String webTool = "mcp_dynamic_service_web_search";
-        String financialTool = "mcp_dynamic_service_financial_data_search";
+    void runtimeDoesNotInjectConfiguredParameterMissingFromToolSchema() {
+        String webTool = "mcp_dynamic_service_search";
         ToolRegistry registry = mock(ToolRegistry.class);
         when(registry.getToolMetadata(webTool)).thenReturn(ToolMetadata.builder()
             .id(webTool).title("Dynamic web search").categories(List.of("mcp")).build());
@@ -88,28 +83,22 @@ class ToolRuntimeServiceTest {
             registry, new ObjectMapper(), properties(), List.of(), List.of());
         try {
             ToolRuntimeExecution execution = service.execute(ToolRuntimeRequest.builder()
-                .toolName(webTool).runtimeMode("agent_chat").requestId("delegated-financial-1")
+                .toolName(webTool).runtimeMode("agent_chat").requestId("unsupported-parameter-1")
                 .conversationId("conversation-1").tenantId("tenant-1").userId("user-1")
-                .allowedTools(List.of(webTool, financialTool))
-                .attributes(Map.of(
-                    "forceStructuredFinancialData", true,
-                    "dedicatedFinancialDataTool", financialTool))
+                .allowedTools(List.of(webTool))
+                .attributes(Map.of("requiredToolParameters", Map.of(
+                    webTool, Map.of("undeclared_parameter", true))))
                 .toolInput(ToolInput.builder().parameters(Map.of(
-                    "query", "latest securities news",
-                    "financial_data_required", false
+                    "query", "original query"
                 )).build())
                 .build());
 
             assertThat(capturedInput.get().getParameters())
-                .containsEntry("financial_data_required", true);
+                .doesNotContainKey("undeclared_parameter");
             assertThat(capturedInput.get().getContext())
-                .containsEntry("financialDataPolicy", "FORCED_BRIDGE")
-                .containsEntry("financialDataEffectiveRequired", true)
-                .containsEntry("financialDataBridgeTool", "web_search")
-                .doesNotContainKey("dedicatedFinancialDataTool");
+                .doesNotContainKey("runtimeRequiredToolParametersApplied");
             assertThat(execution.audit())
-                .containsEntry("financialDataPolicy", "FORCED_BRIDGE")
-                .containsEntry("financialDataEffectiveRequired", true);
+                .doesNotContainKey("runtimeRequiredToolParametersApplied");
         } finally {
             service.shutdown();
         }

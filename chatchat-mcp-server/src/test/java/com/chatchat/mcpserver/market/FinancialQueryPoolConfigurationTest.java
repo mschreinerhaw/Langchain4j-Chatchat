@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.market;
 
+import com.zaxxer.hikari.HikariConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 
@@ -8,6 +9,26 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class FinancialQueryPoolConfigurationTest {
+
+    @Test
+    void configuresIndependentMySqlServerAndNetworkDeadlines() {
+        DataSourceProperties primary = new DataSourceProperties();
+        primary.setUrl("jdbc:mysql://database.test:3306/financial");
+        primary.setUsername("reader");
+        primary.setPassword("secret");
+        primary.setDriverClassName("com.mysql.cj.jdbc.Driver");
+        FinancialQueryPoolProperties properties = new FinancialQueryPoolProperties();
+        properties.setQueryTimeoutSeconds(7);
+        properties.setNetworkTimeoutMs(9_000);
+        properties.setServerExecutionTimeoutMs(6_500);
+
+        HikariConfig config = new FinancialQueryPoolConfiguration().hikariConfig(primary, properties);
+
+        assertThat(config.getConnectionInitSql()).isEqualTo("SET SESSION MAX_EXECUTION_TIME=6500");
+        assertThat(config.getDataSourceProperties())
+            .containsEntry("enableQueryTimeouts", true)
+            .containsEntry("socketTimeout", 9_000);
+    }
 
     @Test
     void startsDedicatedPoolAndExecutesBoundedPositionalAndNamedReads() {

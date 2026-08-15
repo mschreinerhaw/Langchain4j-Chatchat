@@ -23,6 +23,14 @@ public class FinancialQueryPoolConfiguration {
     @ConditionalOnProperty(prefix = "chatchat.mcp.market.query-pool", name = "enabled", havingValue = "true")
     public IsolatedFinancialReadOperations financialReadOperations(DataSourceProperties primary,
                                                                    FinancialQueryPoolProperties properties) {
+        HikariConfig config = hikariConfig(primary, properties);
+        int queryTimeoutSeconds = Math.max(1, Math.min(20, properties.getQueryTimeoutSeconds()));
+        return new IsolatedFinancialReadOperations(config, queryTimeoutSeconds);
+    }
+
+    HikariConfig hikariConfig(DataSourceProperties primary, FinancialQueryPoolProperties properties) {
+        int queryTimeoutSeconds = Math.max(1, Math.min(20, properties.getQueryTimeoutSeconds()));
+        int queryTimeoutMs = Math.multiplyExact(queryTimeoutSeconds, 1_000);
         HikariConfig config = new HikariConfig();
         config.setPoolName("FinancialQueryPool");
         config.setJdbcUrl(primary.determineUrl());
@@ -38,8 +46,28 @@ public class FinancialQueryPoolConfiguration {
         if (properties.getLeakDetectionMs() >= 2_000L) {
             config.setLeakDetectionThreshold(properties.getLeakDetectionMs());
         }
+        if (isMySql(primary)) {
+            int networkTimeoutMs = properties.getNetworkTimeoutMs() > 0
+                ? properties.getNetworkTimeoutMs() : queryTimeoutMs + 2_000;
+            int serverExecutionTimeoutMs = properties.getServerExecutionTimeoutMs() > 0
+                ? properties.getServerExecutionTimeoutMs() : queryTimeoutMs;
+            // Statement.setQueryTimeout alone is cooperative in Connector/J and may leave
+            // the server query running after Future.cancel(true). These two independent
+            // deadlines bound both server execution and a non-responsive network read.
+            config.addDataSourceProperty("enableQueryTimeouts", true);
+            config.addDataSourceProperty("socketTimeout", Math.max(queryTimeoutMs, networkTimeoutMs));
+            config.setConnectionInitSql("SET SESSION MAX_EXECUTION_TIME="
+                + Math.max(1_000, serverExecutionTimeoutMs));
+        }
         config.setReadOnly(true);
-        return new IsolatedFinancialReadOperations(config, properties.getQueryTimeoutSeconds());
+        return config;
+    }
+
+    private boolean isMySql(DataSourceProperties primary) {
+        String url = primary.determineUrl();
+        String driver = primary.determineDriverClassName();
+        return (url != null && url.regionMatches(true, 0, "jdbc:mysql:", 0, 11))
+            || (driver != null && driver.toLowerCase(java.util.Locale.ROOT).contains("mysql"));
     }
 
     public static final class IsolatedFinancialReadOperations implements FinancialReadOperations, AutoCloseable {

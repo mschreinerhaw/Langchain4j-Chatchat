@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 import java.util.List;
+import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -17,6 +18,42 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 
 class FinancialEnrichmentServiceTest {
+
+    @Test
+    void infersUnambiguousDayFromNaturalLanguageAndPushesItIntoFinancialRead() {
+        FinancialAssetCatalogService catalog = mock(FinancialAssetCatalogService.class);
+        FinancialDataStore store = mock(FinancialDataStore.class);
+        String query = "2026年8月15日 A股收盘复盘 主要指数";
+        when(store.assetSearchQuery(query, 10)).thenReturn(query);
+        when(catalog.search(query, 6)).thenReturn(List.of(Map.of("dataset_code", "market_quote_daily")));
+        when(store.resolveEntityFilters("market_quote_daily", query, 5)).thenReturn(List.of());
+        LocalDate requestedDay = LocalDate.of(2026, 8, 15);
+        when(store.query("market_quote_daily", Map.of(), requestedDay, requestedDay, 20, "auto"))
+            .thenReturn(Map.of("rows", List.of(Map.of("close", 3200))));
+
+        FinancialEnrichmentService service = new FinancialEnrichmentService(catalog, store);
+        service.enrich(query, ToolInput.builder().build(), 6);
+
+        verify(store).query("market_quote_daily", Map.of(), requestedDay, requestedDay, 20, "auto");
+    }
+
+    @Test
+    void explicitRangeArgumentsRemainAuthoritativeOverDateInQuery() {
+        FinancialAssetCatalogService catalog = mock(FinancialAssetCatalogService.class);
+        FinancialDataStore store = mock(FinancialDataStore.class);
+        FinancialQueryCacheService cache = mock(FinancialQueryCacheService.class);
+        LocalDate start = LocalDate.of(2026, 8, 1);
+        when(cache.getOrLoad(eq("market_quote_daily"), eq(Map.of()), eq(start), eq(null), eq(50), eq("auto"),
+            eq(""), any())).thenReturn(Map.of("rows", List.of()));
+        FinancialEnrichmentService service = new FinancialEnrichmentService(catalog, store, cache);
+        ToolInput input = ToolInput.builder().parameters(Map.of(
+            "query", "2026年8月15日行情", "startDate", "2026-08-01")).build();
+
+        service.queryDataset("market_quote_daily", input);
+
+        verify(cache).getOrLoad(eq("market_quote_daily"), eq(Map.of()), eq(start), eq(null), eq(50), eq("auto"),
+            eq(""), any());
+    }
 
     @Test
     void consumesTheCatalogServicesGloballyRerankedResultWithoutASecondSearch() {

@@ -8,14 +8,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.LocalDate;
+import java.time.DateTimeException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /** Optional, independently testable financial enrichment composed behind web search. */
 @Service
 public class FinancialEnrichmentService {
     public static final String FINAL_SUMMARY_PURPOSE = "final_summary_web_enhancement";
+    private static final Pattern EXPLICIT_DATE = Pattern.compile(
+        "(?<!\\d)(\\d{4})(?:年|[-/.])(\\d{1,2})(?:月|[-/.])(\\d{1,2})(?:日)?(?!\\d)");
 
     private final FinancialAssetCatalogService catalog;
     private final FinancialDataStore store;
@@ -63,8 +68,9 @@ public class FinancialEnrichmentService {
 
         int datasetLimit = bounded(input.getParameterAsNumber("financial_dataset_limit"), 2, 1, 3);
         int rowLimit = bounded(input.getParameterAsNumber("financial_row_limit"), 20, 1, 50);
-        LocalDate startDate = date(input.getParameterAsString("startDate", ""));
-        LocalDate endDate = date(input.getParameterAsString("endDate", ""));
+        DateRange dateRange = dateRange(input, retrievalIntent, query);
+        LocalDate startDate = dateRange.startDate();
+        LocalDate endDate = dateRange.endDate();
         String historyMode = input.getParameterAsString("historyMode", "auto");
         List<Map<String, Object>> financialData = new ArrayList<>();
         int candidateLimit = Math.min(assets.size(), Math.max(datasetLimit, datasetLimit * 2));
@@ -101,8 +107,9 @@ public class FinancialEnrichmentService {
         Map<String, Object> filters = input.getParameter("filters") instanceof Map<?, ?> values
             ? values.entrySet().stream().collect(java.util.stream.Collectors.toMap(
                 entry -> String.valueOf(entry.getKey()), Map.Entry::getValue)) : Map.of();
-        LocalDate startDate = date(input.getParameterAsString("startDate", ""));
-        LocalDate endDate = date(input.getParameterAsString("endDate", ""));
+        DateRange dateRange = dateRange(input, input.getParameterAsString("query", ""));
+        LocalDate startDate = dateRange.startDate();
+        LocalDate endDate = dateRange.endDate();
         String historyMode = input.getParameterAsString("historyMode", "auto");
         int rowLimit = bounded(input.getParameterAsNumber("limit"), 50, 1, 200);
         return cachedQuery(dataset, filters, startDate, endDate, rowLimit, historyMode, input);
@@ -182,6 +189,44 @@ public class FinancialEnrichmentService {
         catch (RuntimeException ignored) { return null; }
     }
 
+    /**
+     * Keeps explicit tool arguments authoritative and fills only missing bounds from an
+     * unambiguous day-level date in the retrieval intent. This prevents a dated search
+     * from accidentally scanning the complete financial retention window.
+     */
+    private DateRange dateRange(ToolInput input, String... queryCandidates) {
+        LocalDate startDate = date(input == null ? "" : input.getParameterAsString("startDate", ""));
+        LocalDate endDate = date(input == null ? "" : input.getParameterAsString("endDate", ""));
+        if (startDate != null || endDate != null) return ordered(startDate, endDate);
+        LocalDate inferred = firstExplicitDate(queryCandidates);
+        if (startDate == null) startDate = inferred;
+        if (endDate == null) endDate = inferred;
+        return ordered(startDate, endDate);
+    }
+
+    private LocalDate firstExplicitDate(String... candidates) {
+        if (candidates == null) return null;
+        for (String candidate : candidates) {
+            if (candidate == null || candidate.isBlank()) continue;
+            Matcher matcher = EXPLICIT_DATE.matcher(candidate);
+            if (!matcher.find()) continue;
+            try {
+                return LocalDate.of(Integer.parseInt(matcher.group(1)),
+                    Integer.parseInt(matcher.group(2)), Integer.parseInt(matcher.group(3)));
+            } catch (DateTimeException | NumberFormatException ignored) {
+                // Invalid date-like text remains lexical input and must not broaden the SQL query.
+            }
+        }
+        return null;
+    }
+
+    private DateRange ordered(LocalDate startDate, LocalDate endDate) {
+        if (startDate != null && endDate != null && startDate.isAfter(endDate)) {
+            return new DateRange(endDate, startDate);
+        }
+        return new DateRange(startDate, endDate);
+    }
+
     private int bounded(Number value, int fallback, int min, int max) {
         return Math.max(min, Math.min(max, value == null ? fallback : value.intValue()));
     }
@@ -193,4 +238,6 @@ public class FinancialEnrichmentService {
     public record EnrichmentResult(String assetQuery, List<Map<String, Object>> assets,
                                    List<Map<String, Object>> financialData, List<String> warnings,
                                    String skippedReason) { }
+
+    private record DateRange(LocalDate startDate, LocalDate endDate) { }
 }

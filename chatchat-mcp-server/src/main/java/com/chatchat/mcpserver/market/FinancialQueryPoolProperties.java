@@ -15,4 +15,8 @@ public class FinancialQueryPoolProperties {
     private long maxLifetimeMs = 600_000;
     private long leakDetectionMs = 30_000;
     private int queryTimeoutSeconds = 15;
+    /** Hard driver read deadline; zero derives a small grace period from queryTimeoutSeconds. */
+    private int networkTimeoutMs;
+    /** MySQL server-side SELECT deadline; zero derives it from queryTimeoutSeconds. */
+    private int serverExecutionTimeoutMs;
 }

@@ -45,6 +45,8 @@ chatchat:
         minimum-idle: ${CHATCHAT_MARKET_QUERY_POOL_MIN_IDLE:0}
         connection-timeout-ms: ${CHATCHAT_MARKET_QUERY_POOL_CONNECTION_TIMEOUT_MS:2000}
         query-timeout-seconds: ${CHATCHAT_MARKET_QUERY_POOL_QUERY_TIMEOUT_SECONDS:15}
+        network-timeout-ms: ${CHATCHAT_MARKET_QUERY_POOL_NETWORK_TIMEOUT_MS:17000}
+        server-execution-timeout-ms: ${CHATCHAT_MARKET_QUERY_POOL_SERVER_EXECUTION_TIMEOUT_MS:15000}
       retention:
         enabled: true
         hot-days: 7

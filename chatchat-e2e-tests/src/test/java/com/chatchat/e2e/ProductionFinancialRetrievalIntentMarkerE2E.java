@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.time.LocalDate;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -50,7 +51,8 @@ class ProductionFinancialRetrievalIntentMarkerE2E {
         NewsRuntimeClient news = mock(NewsRuntimeClient.class);
         FinancialAssetCatalogService catalog = mock(FinancialAssetCatalogService.class);
         FinancialDataStore store = mock(FinancialDataStore.class);
-        String query = "runtime securities information analysis";
+        String query = "2026年8月15日 A股收盘复盘 主要指数 涨跌幅 成交量";
+        LocalDate requestedDay = LocalDate.of(2026, 8, 15);
         String runtimeDataset = "runtime_dataset_" + UUID.randomUUID().toString().replace("-", "");
         when(news.invoke(eq("web_search"), any())).thenReturn(ToolOutput.success(Map.of(
             "results", List.of(Map.of("resultType", "news", "title", "policy and announcement evidence")))));
@@ -60,7 +62,7 @@ class ProductionFinancialRetrievalIntentMarkerE2E {
         when(catalog.search(query, 3)).thenReturn(List.of(Map.of(
             "dataset_code", runtimeDataset, "asset_name", "runtime-discovered observations")));
         when(store.resolveEntityFilters(runtimeDataset, query, 5)).thenReturn(List.of());
-        when(store.query(runtimeDataset, Map.of(), null, null, 20, "auto")).thenReturn(Map.of(
+        when(store.query(runtimeDataset, Map.of(), requestedDay, requestedDay, 20, "auto")).thenReturn(Map.of(
             "rows", List.of(Map.of("metric", "market_breadth", "value", 321))));
         McpRocksDbStore rocks = mock(McpRocksDbStore.class);
         RedisCacheStore redis = mock(RedisCacheStore.class);
@@ -125,7 +127,7 @@ class ProductionFinancialRetrievalIntentMarkerE2E {
                 .containsEntry("networkSearchUsed", false)
                 .containsEntry("datasetCount", 1)
                 .containsEntry("observationCount", 1);
-            verify(store).query(runtimeDataset, Map.of(), null, null, 20, "auto");
+            verify(store).query(runtimeDataset, Map.of(), requestedDay, requestedDay, 20, "auto");
         } finally {
             runtime.shutdown();
         }

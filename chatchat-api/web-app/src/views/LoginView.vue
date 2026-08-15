@@ -124,7 +124,8 @@
       </section>
     </section>
 
-    <footer class="login-footer">© 1996-2026 RuiHeng Technology. All Rights Reserved.</footer>
+    <!-- <footer class="login-footer">© 1996-2026 RuiHeng Technology. All Rights Reserved.</footer> -->
+    <footer class="login-footer">© 1996-2026 RuiHeng by Apexsoft Technology. All Rights Reserved.</footer>
   </main>
 </template>
 

@@ -3745,8 +3745,11 @@ public class InterpretationPlanRuntime {
         compileDirectToolArguments(step, request, completed, input);
         hydrateExecutionContextFromCompletedAssets(step, completed, input);
         normalizeSqlExecutionContext(step, input);
-        Map<Integer, StepExecution> contractContext = resolveTemplateContractFromMcp(step, request, completed, input);
-        if (!runtimeOwnedTemplateBatch(step, plan, completed)) {
+        boolean runtimeOwnsTemplateBatch = runtimeOwnedTemplateBatch(step, plan, completed);
+        Map<Integer, StepExecution> contractContext = runtimeOwnsTemplateBatch
+            ? completed
+            : resolveTemplateContractFromMcp(step, request, completed, input);
+        if (!runtimeOwnsTemplateBatch) {
             bridgeTemplateInvocation(step, request, contractContext, input);
             validateTemplateExecutionArgumentContract(step, input);
         }
@@ -3754,7 +3757,7 @@ public class InterpretationPlanRuntime {
         hydrateSqlMetadataParametersFromMetadataSearch(step, contractContext, input);
         repairTableScopedSqlTemplate(step, contractContext, input);
         enforceAgentRuntimeEnvironment(step, request, input);
-        if (!runtimeOwnedTemplateBatch(step, plan, completed)) {
+        if (!runtimeOwnsTemplateBatch) {
             validateRequiredExecutionTemplate(step, input, completed);
         }
         enforceCanonicalAssetContinuity(step, completed, input);

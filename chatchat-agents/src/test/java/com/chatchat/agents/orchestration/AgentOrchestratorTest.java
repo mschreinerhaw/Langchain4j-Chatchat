@@ -1551,6 +1551,48 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void finalSynthesisRemovesExternalDocumentReferencesAbsentFromCurrentTurnEvidence() {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        String currentDocumentId = "tool-output:tenant:current-run:call-1:abc123";
+        String historicalDocumentId = "tool-output:tenant:historical-run:call-9:def456";
+        InterpretationPlanRuntime.StepExecution step = new InterpretationPlanRuntime.StepExecution(
+            1,
+            "mcp_tool",
+            "generic_execute",
+            true,
+            Map.of(
+                "success", true,
+                "documentId", currentDocumentId,
+                "preview", "visible current-turn evidence"
+            ),
+            null,
+            null,
+            null,
+            1L
+        );
+        InterpretationPlanRuntime.ExecutionResult currentEvidence =
+            new InterpretationPlanRuntime.ExecutionResult(
+                "success", true, false, null, null, List.of(step), Map.of(), 1L
+            );
+        Map<String, Object> metadata = new LinkedHashMap<>();
+
+        String guarded = orchestrator.removeUnsupportedCurrentTurnDocumentReferences(
+            "Current evidence is available.\n"
+                + "- historical reference: `" + historicalDocumentId + "`\n"
+                + "- current reference: `" + currentDocumentId + "`",
+            currentEvidence,
+            metadata
+        );
+
+        assertThat(guarded)
+            .contains("Current evidence is available", currentDocumentId)
+            .doesNotContain(historicalDocumentId, "historical reference");
+        assertThat(metadata)
+            .containsEntry("currentTurnDocumentReferenceGuardApplied", true)
+            .containsEntry("unsupportedCurrentTurnDocumentReferencesRemoved", 1);
+    }
+
+    @Test
     void finalSynthesisCompressesOversizedCumulativeEvidence() {
         String repeatedPayload = "provider-noise-".repeat(12_000);
         Map<String, Object> output = Map.of(

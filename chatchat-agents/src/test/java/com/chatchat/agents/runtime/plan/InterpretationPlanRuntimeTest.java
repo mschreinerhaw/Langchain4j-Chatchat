@@ -8478,8 +8478,6 @@ class InterpretationPlanRuntimeTest {
                                 Map.of("callId", "model-load", "toolName", executorTool,
                                     "arguments", Map.of("templateId", "INVENTED_LOAD_TEMPLATE"))
                             ),
-                            "templateId", "ORACLE_INSTANCE_STATUS",
-                            "template", "ORACLE_INSTANCE_STATUS",
                             "executionContext", Map.of(
                                 "assetName", "oracle-dev",
                                 "env", "DEV"
@@ -8572,6 +8570,10 @@ class InterpretationPlanRuntimeTest {
             .containsExactlyElementsOf(templateIds);
         assertThat(batchRequest.getToolInput().getParameters().toString())
             .doesNotContain("INVENTED_CPU_TEMPLATE", "INVENTED_LOAD_TEMPLATE");
+        assertThat(requests.stream()
+            .filter(request -> discoveryTool.equals(request.getToolName())))
+            .as("Runtime-owned diagnostic execution must reuse the completed discovery result")
+            .hasSize(1);
         assertThat((List<String>) ((List<Map<String, Object>>) batchRequest.getToolInput()
             .getParameters().get("calls")).get(4).get("requiredFields"))
             .containsExactly("TABLESPACE_NAME", "USED_PERCENT");

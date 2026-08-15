@@ -188,6 +188,29 @@ class ProductionReleaseCoverageE2E {
         }
     }
 
+    @Test
+    void runtimeReleaseGatePreservesSingleDiscoveryAndCurrentTurnEvidenceIsolation() throws IOException {
+        Path root = repositoryRoot();
+        String runtime = Files.readString(root.resolve(
+            "chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/InterpretationPlanRuntime.java"));
+        String orchestrator = Files.readString(root.resolve(
+            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentOrchestrator.java"));
+        String runtimeTests = Files.readString(root.resolve(
+            "chatchat-agents/src/test/java/com/chatchat/agents/runtime/plan/InterpretationPlanRuntimeTest.java"));
+        String orchestratorTests = Files.readString(root.resolve(
+            "chatchat-agents/src/test/java/com/chatchat/agents/orchestration/AgentOrchestratorTest.java"));
+
+        assertThat(runtime)
+            .contains("runtimeOwnsTemplateBatch", "? completed", ": resolveTemplateContractFromMcp");
+        assertThat(orchestrator)
+            .contains("removeUnsupportedCurrentTurnDocumentReferences",
+                "currentTurnDocumentReferenceGuardApplied");
+        assertThat(runtimeTests)
+            .contains("Runtime-owned diagnostic execution must reuse the completed discovery result");
+        assertThat(orchestratorTests)
+            .contains("finalSynthesisRemovesExternalDocumentReferencesAbsentFromCurrentTurnEvidence");
+    }
+
     private Path repositoryRoot() {
         String configured = System.getProperty("chatchat.e2e.repository-root");
         Path root = configured == null || configured.isBlank()

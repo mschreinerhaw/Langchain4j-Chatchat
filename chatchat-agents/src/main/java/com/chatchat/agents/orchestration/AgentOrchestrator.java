@@ -63,6 +63,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.function.BooleanSupplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Agent orchestrator with tool planning and execution loop.
@@ -81,6 +83,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
     private static final int SUMMARY_COMPRESSED_OBSERVATION_CHARS = 4_000;
     private static final int RECORD_ANALYSIS_CHUNK_MAX_CHARS = 12_000;
     private static final int RECORD_ANALYSIS_CHUNK_MAX_ROWS = 50;
+    private static final Pattern TOOL_OUTPUT_DOCUMENT_ID = Pattern.compile(
+        "tool-output:[A-Za-z0-9._:-]+"
+    );
     private static final String AGENT_CANCELLATION_ATTRIBUTE = "__agentCancellation";
     private static final String AGENT_MAX_STEPS_ATTRIBUTE = "__agentMaxSteps";
     private static final String AGENT_MAX_TOOL_CALLS_ATTRIBUTE = "__agentMaxToolCalls";
@@ -1720,6 +1725,59 @@ public class AgentOrchestrator implements AgentRunExecutor {
         );
     }
 
+    /**
+     * Prevents a final synthesis model from copying an external evidence handle out of chat
+     * history or a behavioral system prompt. External document handles are opaque capabilities:
+     * only handles present in this execution's persisted tool evidence may be shown as current
+     * results. The guard is deliberately protocol-based and contains no domain vocabulary.
+     */
+    String removeUnsupportedCurrentTurnDocumentReferences(
+        String answer,
+        InterpretationPlanRuntime.ExecutionResult currentEvidence,
+        Map<String, Object> metadata
+    ) {
+        if (answer == null || answer.isBlank()) {
+            return answer;
+        }
+        Set<String> supported = toolOutputDocumentIds(stringify(currentEvidence));
+        Matcher answerIds = TOOL_OUTPUT_DOCUMENT_ID.matcher(answer);
+        if (!answerIds.find()) {
+            return answer;
+        }
+        List<String> keptLines = new ArrayList<>();
+        int removed = 0;
+        for (String line : answer.split("\\R", -1)) {
+            Set<String> referenced = toolOutputDocumentIds(line);
+            if (!referenced.isEmpty() && !supported.containsAll(referenced)) {
+                removed++;
+                continue;
+            }
+            keptLines.add(line);
+        }
+        if (removed == 0) {
+            return answer;
+        }
+        String guarded = String.join("\n", keptLines).replaceAll("\n{3,}", "\n\n").trim();
+        if (metadata != null) {
+            metadata.put("unsupportedCurrentTurnDocumentReferencesRemoved", removed);
+            metadata.put("currentTurnDocumentReferenceGuardApplied", true);
+        }
+        log.warn("Removed unsupported external evidence references from final synthesis: count={}", removed);
+        return guarded;
+    }
+
+    private Set<String> toolOutputDocumentIds(String text) {
+        if (text == null || text.isBlank()) {
+            return Set.of();
+        }
+        LinkedHashSet<String> ids = new LinkedHashSet<>();
+        Matcher matcher = TOOL_OUTPUT_DOCUMENT_ID.matcher(text);
+        while (matcher.find()) {
+            ids.add(matcher.group());
+        }
+        return Set.copyOf(ids);
+    }
+
     private boolean hasBatchExecutionTrace(List<InteractionToolTrace> traces) {
         return traces != null && traces.stream().anyMatch(trace ->
             trace != null
@@ -2405,6 +2463,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
         answer = ensureConcreteBatchEvidencePresented(
             answer, query, cumulativeEvidenceResult, metadata);
         answer = ensureCompleteRecordCoveragePresented(answer, recordCoverage, metadata);
+        answer = removeUnsupportedCurrentTurnDocumentReferences(
+            answer, cumulativeEvidenceResult, metadata);
         log.info("agentModelResponse phase=interpretation_plan_summary runId={} stage={} durationMs={} responseChars={}",
             firstNonBlank(runId, ""),
             stage,
@@ -2617,6 +2677,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("- Use plan_evolution_v1 only to explain why the runtime changed its retrieval or execution path. A plan change is not evidence for the user's factual answer.\n");
         prompt.append("- Treat template_selection_feedback.v1 and runtimeTemplateCandidateEvaluations as the decision ledger for template changes. When a previously preferred or more precise template was rejected, state its evidence-backed rejection reason; when another template was selected or queried, state the evidence gap it was chosen to close. Do not imply that a service was unavailable when the trace shows a binding, contract, parameter-evidence, policy, or pre-invocation failure.\n");
         prompt.append("- The final answer must be grounded in the cumulative MCP results from every iteration. Do not treat an intermediate model conclusion as evidence unless its referenced evidenceId exists in an executed tool result.\n");
+        prompt.append("- System instructions and conversation history provide behavior and context only. A documentId, timestamp, metric, command output, or concrete result appearing there is not current-turn evidence unless the executed attempts below return the same value.\n");
         prompt.append("- Resolve conflicts explicitly. If three iterations still leave a material gap, report that gap instead of filling it with model knowledge.\n");
         prompt.append("- Do not hide earlier partial or failed attempts when they contain usable evidence. State unresolved limitations after considering all attempts.\n");
         prompt.append("- When diagnosticRun is present, report required/completed/failed/missing counts and the coverage ratio. List missing checks with their exact runtime reason.\n");

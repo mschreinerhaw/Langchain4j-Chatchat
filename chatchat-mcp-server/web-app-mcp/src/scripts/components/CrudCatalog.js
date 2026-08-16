@@ -677,6 +677,7 @@ export default {
 
       const workflowField = this.formFields.find(field => field.type === 'databaseSqlSteps');
       const steps = workflowField ? this.databaseSqlSteps(workflowField) : [];
+      this.repairEmptyStaticMappingsFromFlowInputs(paramField, steps);
       steps.forEach((step, stepIndex) => {
         const fixedNames = new Set((step.staticParameterEntries || []).map(item => String(item?.name || '').trim()).filter(Boolean));
         const mappings = new Map((step.parameterMappings || []).map(item => [String(item?.parameter || '').trim(), item]));
@@ -1099,6 +1100,58 @@ export default {
         entry.testValue = '';
         entry.required = false;
       }
+      this.syncDatabaseMappingsFromFlowInput(entry);
+    },
+    syncDatabaseMappingsFromFlowInput(entry) {
+      const name = String(entry?.name || '').trim();
+      if (!name) return;
+      const defaultSource = String(entry?.defaultSource || 'user_input');
+      const workflowField = this.formFields.find(field => field.type === 'databaseSqlSteps');
+      if (!workflowField) return;
+      this.databaseSqlSteps(workflowField).forEach(step => {
+        (step.parameterMappings || []).forEach(mapping => {
+          const parameter = String(mapping?.parameter || '').trim();
+          const sourceKey = String(mapping?.sourceKey || '').trim();
+          if (parameter !== name && sourceKey !== name) return;
+          if (String(mapping?.sourceType || '').toUpperCase() === 'UPSTREAM_RESULT') return;
+          mapping.sourceNode = '';
+          mapping.sourceExpression = '$.rows[0]';
+          mapping.defaultValue = '';
+          if (defaultSource === 'user_input') {
+            mapping.sourceType = 'USER_INPUT';
+            mapping.sourceKey = name;
+            mapping.required = entry.required === true;
+          } else {
+            mapping.sourceType = 'SYSTEM_CONTEXT';
+            mapping.sourceKey = defaultSource;
+            mapping.required = false;
+          }
+        });
+      });
+      this.reconcileDatabaseFlowInputs(this.databaseParamConfigField());
+    },
+    repairEmptyStaticMappingsFromFlowInputs(field, stepsOverride = null) {
+      if (!field) return;
+      const userInputs = new Map((this.schemaDraft[field.key] || [])
+        .filter(row => String(row?.defaultSource || 'user_input') === 'user_input')
+        .map(row => [String(row?.name || '').trim(), row])
+        .filter(([name]) => Boolean(name)));
+      if (!userInputs.size) return;
+      const steps = stepsOverride || normalizeDatabaseSqlSteps(this.form[field.sqlStepsKey], this.form[field.sqlKey]);
+      steps.forEach(step => {
+        (step.parameterMappings || []).forEach(mapping => {
+          const parameter = String(mapping?.parameter || '').trim();
+          const row = userInputs.get(parameter);
+          if (!row || String(mapping?.sourceType || '').toUpperCase() !== 'STATIC'
+            || !this.isEmptyFieldValue(mapping.defaultValue)) return;
+          mapping.sourceType = 'USER_INPUT';
+          mapping.sourceKey = parameter;
+          mapping.sourceNode = '';
+          mapping.sourceExpression = '$.rows[0]';
+          mapping.defaultValue = '';
+          mapping.required = row.required === true;
+        });
+      });
     },
     reconcileDatabaseFlowInputs(field, stepsOverride = null) {
       if (!field) return;
@@ -1263,6 +1316,7 @@ export default {
       });
       this.schemaDraft[field.key] = rows;
       this.form[field.sqlStepsKey] = steps;
+      this.repairEmptyStaticMappingsFromFlowInputs(field, steps);
       this.reconcileDatabaseFlowInputs(field, steps);
       if (notifyUser) {
         const details = [

@@ -472,8 +472,8 @@
                                 <div><el-tag type="success" effect="plain">内置日期变量</el-tag><el-button plain type="danger" size="small" @click="removeDatabaseParamEntry(paramField, paramIndex)">删除</el-button></div>
                               </template>
                               <template v-else>
-                                <el-autocomplete v-model="param.testValue" class="w-100" :fetch-suggestions="databaseDateFunctionSuggestions" clearable :placeholder="databaseParamRequiresTestValue(param) ? '流程测试值（测试必填）' : '流程测试值（选填）'" />
-                                <small class="database-flow-input-hint">可填写固定值，或使用 ${today}、${month_start}、${trade_date-1} 等系统日期函数。</small>
+                                <el-autocomplete v-model="param.testValue" class="w-100" :fetch-suggestions="databaseDateFunctionSuggestions" clearable :placeholder="databaseParamRequiresTestValue(param) ? '流程测试值（试运行必填）' : '流程测试值（选填）'" />
+                                <small class="database-flow-input-hint">此值仅用于页面试运行，不会写入“当前 SQL 独立参数”；也可使用 ${today}、${month_start}、${trade_date-1} 等系统日期函数。</small>
                                 <small v-if="databaseParameterValidationAttempted && databaseParamTestValueMissing(param)" class="database-flow-input-error">请填写该必填参数的流程测试值</small>
                                 <div><el-checkbox v-model="param.required" @change="handleDatabaseFlowInputRequiredChange(param)">设为必填</el-checkbox><el-button plain type="danger" size="small" @click="removeDatabaseParamEntry(paramField, paramIndex)">删除</el-button></div>
                               </template>

@@ -1,7 +1,8 @@
 package com.chatchat.chat.skills;
 
+import com.chatchat.chat.contract.ContractRuleRecordCodec;
+import com.chatchat.chat.contract.RuntimeContractRuleSchemaMigrator;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -23,10 +24,10 @@ public class SummaryContractService {
 
     public static final String RECORD_ANALYSIS_CONTRACT_KEY = "record_grounded_analysis";
     public static final String INITIAL_CONTRACT_VERSION = "record_grounded_analysis.v1";
-    private static final TypeReference<Map<String, Object>> OBJECT_MAP = new TypeReference<>() { };
-
     private final SummaryContractRepository repository;
     private final ObjectMapper objectMapper;
+    private final ContractRuleRecordCodec ruleCodec;
+    private final RuntimeContractRuleSchemaMigrator ruleSchemaMigrator;
     private volatile ActiveContract activeContract;
 
     @PostConstruct
@@ -54,6 +55,7 @@ public class SummaryContractService {
     }
 
     private ActiveContract loadOrBootstrap() {
+        ruleSchemaMigrator.migrateIfNeeded();
         List<SummaryContractEntity> active = repository
             .findByContractKeyAndEnabledTrueOrderByCreatedAtDesc(RECORD_ANALYSIS_CONTRACT_KEY);
         if (active.size() > 1) {
@@ -73,7 +75,7 @@ public class SummaryContractService {
         if (!entity.isImmutable()) {
             throw new IllegalStateException("Active summary contract must be immutable: " + entity.getContractId());
         }
-        Map<String, Object> rules = readRules(entity.getRulesJson());
+        Map<String, Object> rules = ruleCodec.assemble(entity.getRuleNodes());
         String canonicalJson = writeRules(rules);
         String checksum = checksum(canonicalJson);
         if (!checksum.equalsIgnoreCase(entity.getChecksumSha256())) {
@@ -92,7 +94,7 @@ public class SummaryContractService {
         entity.setContractId(INITIAL_CONTRACT_VERSION);
         entity.setContractKey(RECORD_ANALYSIS_CONTRACT_KEY);
         entity.setContractVersion(INITIAL_CONTRACT_VERSION);
-        entity.setRulesJson(json);
+        entity.setRuleNodes(new java.util.ArrayList<>(ruleCodec.flatten(rules)));
         entity.setChecksumSha256(checksum(json));
         entity.setEnabled(true);
         entity.setImmutable(true);
@@ -113,18 +115,6 @@ public class SummaryContractService {
         rules.put("completionCondition", "PROCESSED_RECORD_COUNT_EQUALS_RETURNED_RECORD_COUNT");
         rules.put("immutable", true);
         return rules;
-    }
-
-    private Map<String, Object> readRules(String json) {
-        try {
-            Map<String, Object> rules = objectMapper.readValue(json, OBJECT_MAP);
-            if (rules == null || rules.isEmpty()) {
-                throw new IllegalStateException("Summary contract rules cannot be empty");
-            }
-            return new LinkedHashMap<>(rules);
-        } catch (JsonProcessingException ex) {
-            throw new IllegalStateException("Invalid summary contract JSON", ex);
-        }
     }
 
     private String writeRules(Map<String, Object> rules) {

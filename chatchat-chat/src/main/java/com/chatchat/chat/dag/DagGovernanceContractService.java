@@ -1,8 +1,9 @@
 package com.chatchat.chat.dag;
 
 import com.chatchat.agents.runtime.plan.DagGovernanceContractProvider;
+import com.chatchat.chat.contract.ContractRuleRecordCodec;
+import com.chatchat.chat.contract.RuntimeContractRuleSchemaMigrator;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -22,10 +23,10 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class DagGovernanceContractService implements DagGovernanceContractProvider {
 
-    private static final TypeReference<Map<String, Object>> OBJECT_MAP = new TypeReference<>() { };
-
     private final DagGovernanceContractRepository repository;
     private final ObjectMapper objectMapper;
+    private final ContractRuleRecordCodec ruleCodec;
+    private final RuntimeContractRuleSchemaMigrator ruleSchemaMigrator;
     private volatile ContractSnapshot activeContract;
 
     @PostConstruct
@@ -49,6 +50,7 @@ public class DagGovernanceContractService implements DagGovernanceContractProvid
     }
 
     private ContractSnapshot loadOrBootstrap() {
+        ruleSchemaMigrator.migrateIfNeeded();
         List<DagGovernanceContractEntity> active = repository
             .findByContractKeyAndEnabledTrueOrderByCreatedAtDesc(CONTRACT_KEY);
         if (active.size() > 1) {
@@ -69,7 +71,7 @@ public class DagGovernanceContractService implements DagGovernanceContractProvid
             throw new IllegalStateException("Active DAG governance contract must be immutable: "
                 + entity.getContractId());
         }
-        Map<String, Object> rules = readRules(entity.getRulesJson());
+        Map<String, Object> rules = ruleCodec.assemble(entity.getRuleNodes());
         String canonicalJson = writeRules(rules);
         String checksum = checksum(canonicalJson);
         if (!checksum.equalsIgnoreCase(entity.getChecksumSha256())) {
@@ -90,7 +92,7 @@ public class DagGovernanceContractService implements DagGovernanceContractProvid
         entity.setContractId(INITIAL_VERSION);
         entity.setContractKey(CONTRACT_KEY);
         entity.setContractVersion(INITIAL_VERSION);
-        entity.setRulesJson(json);
+        entity.setRuleNodes(new java.util.ArrayList<>(ruleCodec.flatten(rules)));
         entity.setChecksumSha256(checksum(json));
         entity.setEnabled(true);
         entity.setImmutable(true);
@@ -142,18 +144,6 @@ public class DagGovernanceContractService implements DagGovernanceContractProvid
     private Object sectionValue(Map<String, Object> rules, String section, String key) {
         Object value = rules.get(section);
         return value instanceof Map<?, ?> map ? map.get(key) : null;
-    }
-
-    private Map<String, Object> readRules(String json) {
-        try {
-            Map<String, Object> rules = objectMapper.readValue(json, OBJECT_MAP);
-            if (rules == null || rules.isEmpty()) {
-                throw new IllegalStateException("DAG governance contract rules cannot be empty");
-            }
-            return Map.copyOf(new LinkedHashMap<>(rules));
-        } catch (JsonProcessingException ex) {
-            throw new IllegalStateException("Invalid DAG governance contract JSON", ex);
-        }
     }
 
     private String writeRules(Map<String, Object> rules) {

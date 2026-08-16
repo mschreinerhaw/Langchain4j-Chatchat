@@ -1,6 +1,8 @@
 package com.chatchat.chat.dag;
 
 import com.chatchat.agents.runtime.plan.DagGovernanceContractProvider;
+import com.chatchat.chat.contract.ContractRuleRecordCodec;
+import com.chatchat.chat.contract.RuntimeContractRuleSchemaMigrator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
@@ -30,7 +32,7 @@ class DagGovernanceContractServiceTest {
             DagGovernanceContractProvider.CONTRACT_KEY)).thenReturn(List.of());
         when(repository.saveAndFlush(any(DagGovernanceContractEntity.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
-        DagGovernanceContractService service = new DagGovernanceContractService(repository, objectMapper);
+        DagGovernanceContractService service = service(repository);
 
         service.initialize();
 
@@ -48,7 +50,7 @@ class DagGovernanceContractServiceTest {
         DagGovernanceContractRepository repository = mock(DagGovernanceContractRepository.class);
         when(repository.findByContractKeyAndEnabledTrueOrderByCreatedAtDesc(
             DagGovernanceContractProvider.CONTRACT_KEY)).thenReturn(List.of(entity));
-        DagGovernanceContractService service = new DagGovernanceContractService(repository, objectMapper);
+        DagGovernanceContractService service = service(repository);
 
         service.initialize();
 
@@ -64,7 +66,7 @@ class DagGovernanceContractServiceTest {
         when(repository.findByContractKeyAndEnabledTrueOrderByCreatedAtDesc(
             DagGovernanceContractProvider.CONTRACT_KEY))
             .thenReturn(List.of(entity("{\"immutable\":true}", "bad-checksum")));
-        DagGovernanceContractService service = new DagGovernanceContractService(repository, objectMapper);
+        DagGovernanceContractService service = service(repository);
 
         assertThatThrownBy(service::initialize)
             .isInstanceOf(IllegalStateException.class)
@@ -85,7 +87,7 @@ class DagGovernanceContractServiceTest {
         DagGovernanceContractRepository repository = mock(DagGovernanceContractRepository.class);
         when(repository.findByContractKeyAndEnabledTrueOrderByCreatedAtDesc(
             DagGovernanceContractProvider.CONTRACT_KEY)).thenReturn(List.of(entity(json, sha256(json))));
-        DagGovernanceContractService service = new DagGovernanceContractService(repository, objectMapper);
+        DagGovernanceContractService service = service(repository);
 
         assertThatThrownBy(service::initialize)
             .isInstanceOf(IllegalStateException.class)
@@ -98,7 +100,7 @@ class DagGovernanceContractServiceTest {
         when(repository.findByContractKeyAndEnabledTrueOrderByCreatedAtDesc(
             DagGovernanceContractProvider.CONTRACT_KEY)).thenReturn(List.of());
         when(repository.existsByContractKey(DagGovernanceContractProvider.CONTRACT_KEY)).thenReturn(true);
-        DagGovernanceContractService service = new DagGovernanceContractService(repository, objectMapper);
+        DagGovernanceContractService service = service(repository);
 
         assertThatThrownBy(service::initialize)
             .isInstanceOf(IllegalStateException.class)
@@ -111,11 +113,23 @@ class DagGovernanceContractServiceTest {
         entity.setContractId(DagGovernanceContractProvider.INITIAL_VERSION);
         entity.setContractKey(DagGovernanceContractProvider.CONTRACT_KEY);
         entity.setContractVersion(DagGovernanceContractProvider.INITIAL_VERSION);
-        entity.setRulesJson(json);
+        try {
+            entity.setRuleNodes(new java.util.ArrayList<>(new ContractRuleRecordCodec().flatten(
+                objectMapper.readValue(json, new com.fasterxml.jackson.core.type.TypeReference<>() { })
+            )));
+        } catch (Exception ex) {
+            throw new IllegalArgumentException(ex);
+        }
         entity.setChecksumSha256(checksum);
         entity.setEnabled(true);
         entity.setImmutable(true);
         return entity;
+    }
+
+    private DagGovernanceContractService service(DagGovernanceContractRepository repository) {
+        return new DagGovernanceContractService(
+            repository, objectMapper, new ContractRuleRecordCodec(), mock(RuntimeContractRuleSchemaMigrator.class)
+        );
     }
 
     private String sha256(String value) throws Exception {

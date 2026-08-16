@@ -50,7 +50,7 @@ Implementation status: the database-backed immutable governance contract, durabl
 
 ## Immutable contract lifecycle
 
-`runtime_dag_governance_contract` is authoritative. A row is never edited in place. Startup requires exactly one enabled contract, validates canonical JSON SHA-256 and runtime-supported invariants, then pins its identity and rules into every execution and persisted DAG snapshot.
+`runtime_dag_governance_contract` is the authoritative immutable header and `runtime_dag_governance_contract_rule` stores its typed rule records. A contract version is never edited in place. The backend reconstructs nested objects and arrays from ordered path records. Startup requires exactly one enabled contract, validates the canonical reconstruction SHA-256 and runtime-supported invariants, then pins its identity and rules into every execution and persisted DAG snapshot.
 
 An upgrade creates a new row, passes compatibility and replay tests, then switches activation in a controlled migration. Existing snapshots retain the old contract fingerprint. Runtime code must fail closed when it cannot implement the pinned contract; it must never silently substitute current defaults.
 

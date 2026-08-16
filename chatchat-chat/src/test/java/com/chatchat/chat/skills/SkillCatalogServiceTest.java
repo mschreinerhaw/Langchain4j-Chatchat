@@ -1,5 +1,7 @@
 package com.chatchat.chat.skills;
 
+import com.chatchat.chat.contract.ContractRuleRecordCodec;
+import com.chatchat.chat.contract.RuntimeContractRuleSchemaMigrator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -228,7 +230,10 @@ class SkillCatalogServiceTest {
             SummaryContractService.RECORD_ANALYSIS_CONTRACT_KEY)).thenReturn(List.of());
         when(repository.saveAndFlush(any(SummaryContractEntity.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
-        return new SummaryContractService(repository, new ObjectMapper());
+        return new SummaryContractService(
+            repository, new ObjectMapper(), new ContractRuleRecordCodec(),
+            mock(RuntimeContractRuleSchemaMigrator.class)
+        );
     }
 
     private SkillDefinition draftWithWorkflow(Map<String, Object> workflowConfig) {

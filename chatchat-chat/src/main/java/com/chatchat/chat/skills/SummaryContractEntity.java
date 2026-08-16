@@ -1,16 +1,25 @@
 package com.chatchat.chat.skills;
 
+import com.chatchat.chat.contract.ContractRuleNodeValue;
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OrderColumn;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Immutable;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @Setter
@@ -35,8 +44,16 @@ public class SummaryContractEntity {
     @Column(name = "contract_version", length = 64, nullable = false)
     private String contractVersion;
 
-    @Column(name = "rules_json", columnDefinition = "LONGTEXT", nullable = false)
-    private String rulesJson;
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+        name = "runtime_summary_contract_rule",
+        joinColumns = @JoinColumn(name = "contract_id", nullable = false),
+        uniqueConstraints = @UniqueConstraint(
+            name = "uk_summary_contract_rule_path", columnNames = {"contract_id", "rule_path"}
+        )
+    )
+    @OrderColumn(name = "storage_order")
+    private List<ContractRuleNodeValue> ruleNodes = new ArrayList<>();
 
     @Column(name = "checksum_sha256", length = 64, nullable = false)
     private String checksumSha256;

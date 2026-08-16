@@ -1,15 +1,11 @@
 package com.chatchat.chat.uiartifact;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -40,14 +36,14 @@ public class TrendSemanticConfigService {
     );
     private static final Pattern COLOR_PATTERN = Pattern.compile("^#[0-9a-fA-F]{6}$");
     private static final Duration CACHE_TTL = Duration.ofMinutes(5);
-    private static final TypeReference<List<String>> STRING_LIST = new TypeReference<>() { };
-
     private final TrendSemanticConfigRepository repository;
-    private final ObjectMapper objectMapper;
+    private final TrendSemanticKeywordRepository keywordRepository;
+    private final TrendSemanticKeywordSchemaMigrator keywordSchemaMigrator;
     private final Map<String, CacheEntry> cache = new ConcurrentHashMap<>();
 
     @Transactional
     public TrendSemanticConfig get(String tenantId) {
+        keywordSchemaMigrator.migrateIfNeeded();
         String normalizedTenantId = normalizeTenantId(tenantId);
         CacheEntry cached = cache.get(normalizedTenantId);
         if (cached != null && cached.expiresAt().isAfter(Instant.now())) {
@@ -56,13 +52,18 @@ public class TrendSemanticConfigService {
 
         TrendSemanticConfigEntity entity = repository.findById(normalizedTenantId)
             .orElseGet(this::globalConfigEntity);
-        TrendSemanticConfig result = toView(entity, normalizedTenantId.equals(entity.getTenantId()) ? "TENANT" : "GLOBAL");
+        TrendSemanticConfig result = toView(
+            entity,
+            normalizedTenantId.equals(entity.getTenantId()) ? "TENANT" : "GLOBAL",
+            keywords(entity.getTenantId())
+        );
         cache.put(normalizedTenantId, new CacheEntry(result, Instant.now().plus(CACHE_TTL)));
         return result;
     }
 
     @Transactional
     public TrendSemanticConfig update(String tenantId, UpdateRequest request) {
+        keywordSchemaMigrator.migrateIfNeeded();
         if (request == null) {
             throw new IllegalArgumentException("趋势语义配置不能为空");
         }
@@ -78,21 +79,23 @@ public class TrendSemanticConfigService {
             entity = new TrendSemanticConfigEntity();
         }
         entity.setTenantId(normalizedTenantId);
-        entity.setKeywordsJson(writeKeywords(keywords));
         entity.setUpColor(upColor);
         entity.setDownColor(downColor);
         entity.setNeutralColor(neutralColor);
         entity.setRulesetVersion(FINANCE_RULESET_VERSION);
         entity.setRevision(existing ? Math.max(1, entity.getRevision() + 1) : 1);
         TrendSemanticConfigEntity saved = repository.save(entity);
+        replaceKeywords(normalizedTenantId, keywords);
         cache.remove(normalizedTenantId);
-        return toView(saved, "TENANT");
+        return toView(saved, "TENANT", keywords);
     }
 
     @Transactional
     public TrendSemanticConfig reset(String tenantId) {
+        keywordSchemaMigrator.migrateIfNeeded();
         String normalizedTenantId = normalizeTenantId(tenantId);
         if (!GLOBAL_TENANT_ID.equals(normalizedTenantId)) {
+            keywordRepository.deleteByTenantId(normalizedTenantId);
             repository.deleteById(normalizedTenantId);
         }
         cache.remove(normalizedTenantId);
@@ -103,13 +106,14 @@ public class TrendSemanticConfigService {
         return repository.findById(GLOBAL_TENANT_ID).map(this::upgradeGlobalRuleset).orElseGet(() -> {
             TrendSemanticConfigEntity entity = new TrendSemanticConfigEntity();
             entity.setTenantId(GLOBAL_TENANT_ID);
-            entity.setKeywordsJson(writeKeywords(DEFAULT_KEYWORDS));
             entity.setUpColor("#e5484d");
             entity.setDownColor("#16a36a");
             entity.setNeutralColor("#98a2b3");
             entity.setRulesetVersion(FINANCE_RULESET_VERSION);
             entity.setRevision(1);
-            return repository.save(entity);
+            TrendSemanticConfigEntity saved = repository.save(entity);
+            replaceKeywords(GLOBAL_TENANT_ID, DEFAULT_KEYWORDS);
+            return saved;
         });
     }
 
@@ -117,19 +121,44 @@ public class TrendSemanticConfigService {
         if (entity.getRulesetVersion() >= FINANCE_RULESET_VERSION) {
             return entity;
         }
-        LinkedHashSet<String> merged = new LinkedHashSet<>(readKeywords(entity.getKeywordsJson()));
+        LinkedHashSet<String> merged = new LinkedHashSet<>(keywords(entity.getTenantId()));
         merged.addAll(DEFAULT_KEYWORDS);
-        entity.setKeywordsJson(writeKeywords(List.copyOf(merged)));
         entity.setRulesetVersion(FINANCE_RULESET_VERSION);
         entity.setRevision(Math.max(1, entity.getRevision() + 1));
-        return repository.save(entity);
+        TrendSemanticConfigEntity saved = repository.save(entity);
+        replaceKeywords(entity.getTenantId(), List.copyOf(merged));
+        return saved;
     }
 
-    private TrendSemanticConfig toView(TrendSemanticConfigEntity entity, String scope) {
+    private TrendSemanticConfig toView(TrendSemanticConfigEntity entity, String scope, List<String> keywords) {
         return new TrendSemanticConfig(
-            entity.getRevision(), entity.getRulesetVersion(), scope, readKeywords(entity.getKeywordsJson()),
+            entity.getRevision(), entity.getRulesetVersion(), scope, keywords,
             entity.getUpColor(), entity.getDownColor(), entity.getNeutralColor(), entity.getUpdatedAt()
         );
+    }
+
+    private List<String> keywords(String tenantId) {
+        List<String> keywords = keywordRepository.findByTenantIdOrderBySortOrderAscKeywordAsc(tenantId).stream()
+            .map(TrendSemanticKeywordEntity::getKeyword)
+            .toList();
+        if (!keywords.isEmpty()) {
+            return keywords;
+        }
+        replaceKeywords(tenantId, DEFAULT_KEYWORDS);
+        return DEFAULT_KEYWORDS;
+    }
+
+    private void replaceKeywords(String tenantId, List<String> keywords) {
+        keywordRepository.deleteByTenantId(tenantId);
+        List<TrendSemanticKeywordEntity> rows = new java.util.ArrayList<>(keywords.size());
+        for (int index = 0; index < keywords.size(); index++) {
+            TrendSemanticKeywordEntity row = new TrendSemanticKeywordEntity();
+            row.setTenantId(tenantId);
+            row.setKeyword(keywords.get(index));
+            row.setSortOrder(index);
+            rows.add(row);
+        }
+        keywordRepository.saveAll(rows);
     }
 
     private List<String> normalizeKeywords(List<String> values) {
@@ -167,23 +196,6 @@ public class TrendSemanticConfigService {
     private String normalizeTenantId(String tenantId) {
         String normalized = tenantId == null ? "" : tenantId.trim();
         return normalized.isEmpty() ? "default" : normalized;
-    }
-
-    private List<String> readKeywords(String json) {
-        try {
-            List<String> values = objectMapper.readValue(json, STRING_LIST);
-            return normalizeKeywords(new ArrayList<>(values));
-        } catch (JsonProcessingException | IllegalArgumentException ex) {
-            return DEFAULT_KEYWORDS;
-        }
-    }
-
-    private String writeKeywords(List<String> keywords) {
-        try {
-            return objectMapper.writeValueAsString(keywords);
-        } catch (JsonProcessingException ex) {
-            throw new IllegalStateException("无法保存趋势语义配置", ex);
-        }
     }
 
     public record UpdateRequest(List<String> keywords, String upColor, String downColor, String neutralColor) { }

@@ -1,5 +1,7 @@
 package com.chatchat.chat.skills;
 
+import com.chatchat.chat.contract.ContractRuleRecordCodec;
+import com.chatchat.chat.contract.RuntimeContractRuleSchemaMigrator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
@@ -27,7 +29,7 @@ class SummaryContractServiceTest {
             SummaryContractService.RECORD_ANALYSIS_CONTRACT_KEY)).thenReturn(List.of());
         when(repository.saveAndFlush(any(SummaryContractEntity.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
-        SummaryContractService service = new SummaryContractService(repository, objectMapper);
+        SummaryContractService service = service(repository);
 
         service.initialize();
 
@@ -50,7 +52,7 @@ class SummaryContractServiceTest {
         SummaryContractRepository repository = mock(SummaryContractRepository.class);
         when(repository.findByContractKeyAndEnabledTrueOrderByCreatedAtDesc(
             SummaryContractService.RECORD_ANALYSIS_CONTRACT_KEY)).thenReturn(List.of(entity));
-        SummaryContractService service = new SummaryContractService(repository, objectMapper);
+        SummaryContractService service = service(repository);
 
         service.initialize();
 
@@ -66,7 +68,7 @@ class SummaryContractServiceTest {
         when(repository.findByContractKeyAndEnabledTrueOrderByCreatedAtDesc(
             SummaryContractService.RECORD_ANALYSIS_CONTRACT_KEY))
             .thenReturn(List.of(entity("{\"immutable\":true}", "bad-checksum")));
-        SummaryContractService service = new SummaryContractService(repository, objectMapper);
+        SummaryContractService service = service(repository);
 
         assertThatThrownBy(service::initialize)
             .isInstanceOf(IllegalStateException.class)
@@ -79,7 +81,7 @@ class SummaryContractServiceTest {
         when(repository.findByContractKeyAndEnabledTrueOrderByCreatedAtDesc(
             SummaryContractService.RECORD_ANALYSIS_CONTRACT_KEY)).thenReturn(List.of());
         when(repository.existsByContractKey(SummaryContractService.RECORD_ANALYSIS_CONTRACT_KEY)).thenReturn(true);
-        SummaryContractService service = new SummaryContractService(repository, objectMapper);
+        SummaryContractService service = service(repository);
 
         assertThatThrownBy(service::initialize)
             .isInstanceOf(IllegalStateException.class)
@@ -92,11 +94,23 @@ class SummaryContractServiceTest {
         entity.setContractId("record_grounded_analysis.v1");
         entity.setContractKey(SummaryContractService.RECORD_ANALYSIS_CONTRACT_KEY);
         entity.setContractVersion("record_grounded_analysis.v1");
-        entity.setRulesJson(json);
+        try {
+            entity.setRuleNodes(new java.util.ArrayList<>(new ContractRuleRecordCodec().flatten(
+                objectMapper.readValue(json, new com.fasterxml.jackson.core.type.TypeReference<>() { })
+            )));
+        } catch (Exception ex) {
+            throw new IllegalArgumentException(ex);
+        }
         entity.setChecksumSha256(checksum);
         entity.setEnabled(true);
         entity.setImmutable(true);
         return entity;
+    }
+
+    private SummaryContractService service(SummaryContractRepository repository) {
+        return new SummaryContractService(
+            repository, objectMapper, new ContractRuleRecordCodec(), mock(RuntimeContractRuleSchemaMigrator.class)
+        );
     }
 
     private String sha256(String value) throws Exception {

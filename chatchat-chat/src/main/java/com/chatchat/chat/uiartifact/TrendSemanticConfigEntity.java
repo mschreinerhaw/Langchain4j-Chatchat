@@ -21,9 +21,6 @@ public class TrendSemanticConfigEntity {
     @Column(name = "tenant_id", length = 128, nullable = false)
     private String tenantId;
 
-    @Column(name = "keywords_json", columnDefinition = "TEXT", nullable = false)
-    private String keywordsJson;
-
     @Column(name = "up_color", length = 16, nullable = false)
     private String upColor;
 

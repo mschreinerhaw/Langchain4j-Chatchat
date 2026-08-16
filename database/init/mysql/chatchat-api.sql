@@ -396,8 +396,19 @@
         contract_key varchar(64) not null,
         contract_version varchar(64) not null,
         contract_id varchar(128) not null,
-        rules_json LONGTEXT not null,
         primary key (contract_id)
+    ) engine=InnoDB;
+
+    create table runtime_dag_governance_contract_rule (
+        array_index integer,
+        storage_order integer not null,
+        value_type varchar(16) not null,
+        contract_id varchar(128) not null,
+        rule_key varchar(256),
+        parent_path varchar(512) not null,
+        rule_path varchar(512) not null,
+        value_text LONGTEXT,
+        primary key (storage_order, contract_id)
     ) engine=InnoDB;
 
     create table runtime_dag_node_attempt (
@@ -430,8 +441,19 @@
         contract_key varchar(64) not null,
         contract_version varchar(64) not null,
         contract_id varchar(128) not null,
-        rules_json LONGTEXT not null,
         primary key (contract_id)
+    ) engine=InnoDB;
+
+    create table runtime_summary_contract_rule (
+        array_index integer,
+        storage_order integer not null,
+        value_type varchar(16) not null,
+        contract_id varchar(128) not null,
+        rule_key varchar(256),
+        parent_path varchar(512) not null,
+        rule_path varchar(512) not null,
+        value_text LONGTEXT,
+        primary key (storage_order, contract_id)
     ) engine=InnoDB;
 
     create table scheduled_task (
@@ -792,8 +814,14 @@
         neutral_color varchar(16) not null,
         up_color varchar(16) not null,
         tenant_id varchar(128) not null,
-        keywords_json TEXT not null,
         primary key (tenant_id)
+    ) engine=InnoDB;
+
+    create table ui_trend_semantic_keyword (
+        sort_order integer not null,
+        keyword varchar(64) not null,
+        tenant_id varchar(128) not null,
+        primary key (keyword, tenant_id)
     ) engine=InnoDB;
 
     create table user_activity (
@@ -927,6 +955,9 @@
     create index idx_dag_governance_contract_active
        on runtime_dag_governance_contract (contract_key, enabled, created_at);
 
+    alter table runtime_dag_governance_contract_rule
+       add constraint uk_dag_governance_contract_rule_path unique (contract_id, rule_path);
+
     create index idx_dag_node_attempt_run
        on runtime_dag_node_attempt (tenant_id, run_id, node_id);
 
@@ -938,6 +969,9 @@
 
     create index idx_summary_contract_active
        on runtime_summary_contract (contract_key, enabled, created_at);
+
+    alter table runtime_summary_contract_rule
+       add constraint uk_summary_contract_rule_path unique (contract_id, rule_path);
 
     create index idx_scheduled_task_tenant_created 
        on scheduled_task (tenant_id, created_at);
@@ -1025,3 +1059,13 @@
 
     alter table user_favorite_category
        add constraint uk_user_favorite_category_name unique (tenant_id, user_id, category_name);
+
+    alter table runtime_dag_governance_contract_rule
+       add constraint FKc01ycbv0ic5yx8n8qv7ovin2x
+       foreign key (contract_id)
+       references runtime_dag_governance_contract (contract_id);
+
+    alter table runtime_summary_contract_rule
+       add constraint FKld2mcn4rv000xxcdvek7hrihl
+       foreign key (contract_id)
+       references runtime_summary_contract (contract_id);

@@ -13,6 +13,7 @@ import org.rocksdb.RocksIterator;
 import org.rocksdb.WriteBatch;
 import org.rocksdb.WriteOptions;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.scheduling.annotation.Scheduled;
 
@@ -42,6 +43,7 @@ public class RocksDbAnalysisEvidenceSpillStore implements AnalysisEvidenceSpillS
     private Options options;
     private RocksDB db;
 
+    @Autowired
     public RocksDbAnalysisEvidenceSpillStore(AgentRuntimeProperties properties, ObjectMapper objectMapper) {
         this(properties, objectMapper, Clock.systemUTC());
     }

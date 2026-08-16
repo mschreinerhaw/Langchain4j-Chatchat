@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -65,6 +66,28 @@ class RocksDbAnalysisEvidenceSpillStoreTest {
 
         assertThat(reopened.readCheckpoint(scope, "dataset#chunk-1", "input-hash"))
             .contains("{\"content\":\"完整摘要\"}");
+    }
+
+    @Test
+    void springContainerSelectsProductionConstructorAndOpensStore() {
+        AgentRuntimeProperties properties = properties("spring-context");
+        try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext()) {
+            context.registerBean(AgentRuntimeProperties.class, () -> properties);
+            context.registerBean(ObjectMapper.class, () -> new ObjectMapper());
+            context.register(RocksDbAnalysisEvidenceSpillStore.class);
+            context.refresh();
+
+            RocksDbAnalysisEvidenceSpillStore store =
+                context.getBean(RocksDbAnalysisEvidenceSpillStore.class);
+            GovernanceIsolationScope scope = scope("tenant-spring", "run-spring");
+            String payload = "spring-constructor-evidence";
+            AnalysisEvidenceSpillStore.SpillReference reference = store.spill(
+                scope, "spring-evidence", ModelProtocolJson.sha256Hex(payload),
+                payload.getBytes(StandardCharsets.UTF_8));
+
+            assertThat(store.read(scope, reference))
+                .isEqualTo(payload.getBytes(StandardCharsets.UTF_8));
+        }
     }
 
     @Test

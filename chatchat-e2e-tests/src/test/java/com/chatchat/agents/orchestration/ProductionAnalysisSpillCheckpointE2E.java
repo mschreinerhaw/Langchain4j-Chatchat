@@ -14,6 +14,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -36,6 +37,19 @@ class ProductionAnalysisSpillCheckpointE2E {
 
     @TempDir
     Path tempDir;
+
+    @Test
+    void productionSpringContainerConstructsAndInitializesSpillBean() {
+        AgentRuntimeProperties properties = properties();
+        try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext()) {
+            context.registerBean(AgentRuntimeProperties.class, () -> properties);
+            context.registerBean(ObjectMapper.class, () -> new ObjectMapper());
+            context.register(RocksDbAnalysisEvidenceSpillStore.class);
+            context.refresh();
+
+            assertThat(context.getBean(RocksDbAnalysisEvidenceSpillStore.class).isEnabled()).isTrue();
+        }
+    }
 
     @Test
     void allExecutionFamiliesSpillReplayAndResumeAcrossRestart() {

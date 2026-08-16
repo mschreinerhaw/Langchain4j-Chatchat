@@ -92,7 +92,7 @@ export default {
       collapsedGroups: {
         platform: true
       },
-      agentRuntimeLogo: "/agent-runtime-logo.svg",
+      agentRuntimeLogo: "/lingdong-insight-logo.svg",
       historyKeyword: "",
       showAllHistory: false
     };

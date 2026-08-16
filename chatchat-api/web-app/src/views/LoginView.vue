@@ -1,7 +1,7 @@
 <template>
   <main class="login-view">
     <header class="login-brand" aria-label="灵动智策 LingDong Insight">
-      <img src="/agent-runtime-logo.svg" alt="灵动智策 LingDong Insight" />
+      <img src="/lingdong-insight-logo.svg" alt="灵动智策 LingDong Insight" />
     </header>
 
     <section class="login-shell" aria-label="灵动智策登录首页">

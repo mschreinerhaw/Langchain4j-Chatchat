@@ -1230,11 +1230,14 @@ public class AgentOrchestrator implements AgentRunExecutor {
             String rewriteSummary = planAttemptRewriteSummary(
                 rewriteCount,
                 currentPlan,
-                currentResult
+                currentResult,
+                evidenceHistory
             );
             observations.add(rewriteSummary);
             InterpretationPlan.Step failedStep = repairRootStep(currentPlan, currentResult);
             String repairReason = evidenceRewriteReason(currentResult, evidenceHistory);
+            Map<String, Object> repairEvidenceContext = repairEvidenceContext(evidenceHistory);
+            metadata.put("latestDagRepairEvidenceContext", repairEvidenceContext);
             boolean dagRepairAttempt = !currentResult.success() || failedStep != null;
             if (dagRepairAttempt) {
                 recordDagRepairEvent(
@@ -3006,6 +3009,22 @@ public class AgentOrchestrator implements AgentRunExecutor {
                         entry.put("templateId", firstNonBlank(child.templateId(), child.templateCode()));
                         entry.put("callId", child.callId());
                         entry.put("resultStatus", child.status());
+                        entry.put("commandContext", metadataOf(
+                            "toolName", child.toolName(),
+                            "normalizedToolName", child.normalizedToolName(),
+                            "templateId", firstNonBlank(child.templateId(), child.templateCode()),
+                            "assetId", child.assetId(),
+                            "assetDisplayName", child.assetDisplayName(),
+                            "sequence", child.sequence()
+                        ));
+                        entry.put("commandDescription", describeBatchChildCommand(child));
+                        entry.put("references", metadataOf(
+                            "relationType", "BATCH_MEMBER_OF",
+                            "parentEvidenceId", evidenceId,
+                            "batchId", child.batchId(),
+                            "callId", child.callId(),
+                            "sequence", child.sequence()
+                        ));
                         if ("SUCCESS".equalsIgnoreCase(child.status())) {
                             if (summaryPreviewOnly(child.output())) {
                                 entry.put("executionState", "PARTIAL_PREVIEW");
@@ -3028,6 +3047,16 @@ public class AgentOrchestrator implements AgentRunExecutor {
             }
         }
         return List.copyOf(entries);
+    }
+
+    private String describeBatchChildCommand(ToolCallResult child) {
+        if (child == null) {
+            return "No executable command metadata was returned.";
+        }
+        String executor = firstNonBlank(firstNonBlank(child.toolName(), child.normalizedToolName()), "unknown executor");
+        String template = firstNonBlank(firstNonBlank(child.templateId(), child.templateCode()), "unidentified template");
+        String asset = firstNonBlank(firstNonBlank(child.assetDisplayName(), child.assetId()), "unidentified target");
+        return "Executor " + executor + " invoked template " + template + " for target " + asset + ".";
     }
 
     private boolean summaryPreviewOnly(Object output) {
@@ -6204,6 +6233,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
             "failedToolName", failedStep == null ? null : failedStep.toolName(),
             "changeCount", safeChanges.size(),
             "changes", safeChanges,
+            "evidenceContext", metadata == null
+                ? Map.of()
+                : metadata.getOrDefault("latestDagRepairEvidenceContext", Map.of()),
             "validationIssues", validationIssues,
             "createdAt", System.currentTimeMillis()
         );
@@ -6440,6 +6472,15 @@ public class AgentOrchestrator implements AgentRunExecutor {
         InterpretationPlan previousPlan,
         InterpretationPlanRuntime.ExecutionResult previousResult
     ) {
+        return planAttemptRewriteSummary(nextAttempt, previousPlan, previousResult, List.of());
+    }
+
+    private String planAttemptRewriteSummary(
+        int nextAttempt,
+        InterpretationPlan previousPlan,
+        InterpretationPlanRuntime.ExecutionResult previousResult,
+        List<Map<String, Object>> evidenceHistory
+    ) {
         List<String> failedSteps = new ArrayList<>();
         if (previousResult != null && previousResult.steps() != null) {
             for (InterpretationPlanRuntime.StepExecution step : previousResult.steps()) {
@@ -6461,7 +6502,26 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 "none"
             )
             + "; failed steps=" + failedSteps
-            + ". Generate a new complete plan from this evidence, evaluate it, then execute it only if evaluation passes.";
+            + ". Generate a new complete plan from this evidence, evaluate it, then execute it only if evaluation passes."
+            + " Repair evidence context=" + stringify(repairEvidenceContext(evidenceHistory));
+    }
+
+    private Map<String, Object> repairEvidenceContext(List<Map<String, Object>> evidenceHistory) {
+        Map<String, Object> context = new LinkedHashMap<>();
+        Map<String, Object> latest = evidenceHistory == null || evidenceHistory.isEmpty()
+            ? Map.of()
+            : evidenceHistory.get(evidenceHistory.size() - 1);
+        context.put("contractVersion", "dag_repair_evidence_context_v1");
+        context.put("evidenceIds", evidenceIdsFromSnapshot(latest));
+        context.put("evidenceRelationIds", evidenceRelationIdsFromSnapshot(latest));
+        context.put("hypothesisIds", hypothesisIdsFromSnapshot(latest));
+        context.put("conclusion", latest.getOrDefault("conclusion", ""));
+        context.put("missingEvidence", latest.getOrDefault("missingEvidence", List.of()));
+        context.put("conflicts", latest.getOrDefault("conflicts", List.of()));
+        context.put("nextActions", latest.getOrDefault("nextActions", List.of()));
+        context.put("evidenceQuality", latest.getOrDefault("evidenceQuality", latest.getOrDefault("confidence", null)));
+        context.put("sourceState", latest.getOrDefault("sourceState", latest.getOrDefault("overallStatus", "UNKNOWN")));
+        return context;
     }
 
     private String fallbackMode(InterpretationPlan plan) {

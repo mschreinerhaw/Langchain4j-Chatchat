@@ -512,6 +512,7 @@ class AgentOrchestratorTest {
         assertThat(prompt)
             .contains("enabled=true")
             .contains("batch_execution_evidence.v1")
+            .contains("commandDescription", "BATCH_MEMBER_OF")
             .contains("070200046604")
             .contains("returned-value-1", "returned-value-2", "returned-value-3",
                 "returned-value-4", "returned-value-5")
@@ -2616,7 +2617,10 @@ class AgentOrchestratorTest {
             .containsExactly("STARTED", "APPLIED");
         assertThat(repairEvents.get(1))
             .containsEntry("contractVersion", "runtime_dag_governance.v1")
-            .containsEntry("repairAttempt", 1);
+            .containsEntry("repairAttempt", 1)
+            .extractingByKey("evidenceContext")
+            .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
+            .containsEntry("contractVersion", "dag_repair_evidence_context_v1");
     }
 
     @Test

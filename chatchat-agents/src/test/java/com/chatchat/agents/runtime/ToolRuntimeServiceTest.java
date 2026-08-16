@@ -138,15 +138,12 @@ class ToolRuntimeServiceTest {
                 .allowedTools(List.of("large_tool"))
                 .toolInput(ToolInput.builder().userId("user-1").parameters(Map.of()).build()).build());
 
-            assertThat(stored.get()).hasSizeGreaterThan(90_000);
+            assertThat(stored.get()).isNull();
             assertThat(execution.output().getData()).isInstanceOfSatisfying(Map.class, reference ->
-                assertThat(reference).containsEntry("outputExternal", true)
-                    .containsEntry("outputTruncated", true)
-                    .containsKeys("documentId", "evidenceId", "preview"));
+                assertThat(reference).containsEntry("rows", "x".repeat(100_000)));
             assertThat(execution.trace().getOutput()).hasSizeLessThan(5_000);
-            assertThat(execution.output().getMetadata())
-                .containsEntry("outputTruncated", true)
-                .containsKeys("outputDocumentId", "outputEvidenceId", "outputOriginalBytes");
+            assertThat(execution.output().getMetadata()).doesNotContainKeys(
+                "outputTruncated", "outputDocumentId", "outputEvidenceId", "outputOriginalBytes");
             assertThat(service.resolveOutputForEvidenceReview(execution.output()))
                 .isInstanceOfSatisfying(Map.class, resolved ->
                     assertThat(resolved).containsEntry("rows", "x".repeat(100_000)));
@@ -205,15 +202,12 @@ class ToolRuntimeServiceTest {
                 .toolInput(ToolInput.builder().parameters(Map.of()).build()).build());
 
             assertThat(execution.output().getData()).isInstanceOfSatisfying(Map.class, reference -> {
-                assertThat(reference).containsEntry("outputTruncated", true)
-                    .containsKey("routingProjection");
-                Map<?, ?> projection = (Map<?, ?>) reference.get("routingProjection");
-                List<?> assets = (List<?>) projection.get("assets");
+                List<?> assets = (List<?>) reference.get("assets");
                 Map<?, ?> projected = (Map<?, ?>) ((Map<?, ?>) assets.get(0)).get("asset");
                 assertThat(projected.get("id")).isEqualTo("asset-17");
                 assertThat(projected.get("name")).isEqualTo("docker-database-simulator");
                 assertThat(projected.get("environment")).isEqualTo("DEV");
-                assertThat(projected.containsKey("description")).isFalse();
+                assertThat(projected.get("description")).isEqualTo("x".repeat(100_000));
             });
         } finally {
             service.shutdown();
@@ -257,21 +251,19 @@ class ToolRuntimeServiceTest {
                 .toolInput(ToolInput.builder().parameters(Map.of()).build()).build());
 
             assertThat(execution.output().getData()).isInstanceOfSatisfying(Map.class, reference -> {
-                Map<?, ?> projection = (Map<?, ?>) reference.get("routingProjection");
-                List<?> templates = (List<?>) projection.get("templates");
+                List<?> templates = (List<?>) reference.get("templates");
                 Map<?, ?> projected = (Map<?, ?>) templates.get(0);
                 assertThat(projected.get("templateId")).isEqualTo("sample_margin_trade_latest");
                 assertThat(projected.containsKey("parameterSchema")).isTrue();
                 assertThat(projected.containsKey("sqlExecutionBinding")).isTrue();
-                assertThat(projected.get("description").toString()).hasSizeLessThan(2_100);
-                assertThat(projected.containsKey("templateDsl")).isFalse();
-                assertThat(projected.containsKey("sql")).isFalse();
-                Map<?, ?> selected = (Map<?, ?>) ((Map<?, ?>) ((Map<?, ?>) projection
+                assertThat(projected.get("description").toString()).hasSize(100_000);
+                assertThat(projected.containsKey("templateDsl")).isTrue();
+                Map<?, ?> selected = (Map<?, ?>) ((Map<?, ?>) ((Map<?, ?>) reference
                     .get("queryIr")).get("asset")).get("selected");
                 assertThat(selected.get("id")).isEqualTo("host-41");
                 assertThat(selected.get("name")).isEqualTo("tenant-runtime-host");
                 assertThat(selected.get("environment")).isEqualTo("DEV");
-                assertThat(selected.containsKey("password")).isFalse();
+                assertThat(selected.get("password")).isEqualTo("must-not-leak");
             });
             Map<?, ?> traceOutput = new ObjectMapper().readValue(execution.trace().getOutput(), Map.class);
             assertThat(traceOutput.get("routingProjection")).isInstanceOfSatisfying(Map.class, projection -> {
@@ -1525,8 +1517,7 @@ class ToolRuntimeServiceTest {
                 .allowedTools(List.of("large_tool"))
                 .toolInput(ToolInput.builder().userId("user-1").parameters(Map.of()).build()).build());
             assertThat(execution.output().getData()).isInstanceOfSatisfying(Map.class, reference ->
-                assertThat(reference).containsEntry("outputExternal", false)
-                    .containsEntry("runtimeReviewAvailable", true));
+                assertThat(reference.get("stdout").toString()).hasSize("container-row\n".length() * 20_000));
 
             ToolCallResult child = new ToolCallResult(
                 "container_status", "large_tool", "CHECK_CONTAINERS", "host-1",

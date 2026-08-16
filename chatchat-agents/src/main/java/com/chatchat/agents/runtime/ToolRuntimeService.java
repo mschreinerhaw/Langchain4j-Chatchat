@@ -2990,65 +2990,10 @@ public class ToolRuntimeService {
     }
 
     private Object boundToolOutput(Object data, ToolRuntimeRequest request, ToolOutput output) {
-        if (data == null) return null;
-        try {
-            byte[] serialized = objectMapper.writeValueAsBytes(data);
-            int payloadBytes = serialized.length;
-            if (payloadBytes <= properties.safeMaxOutputBytes()) return data;
-            Object preview = ToolLogSummarizer.summarize(data, properties.safeMaxOutputPreviewChars());
-            Map<String, Object> reference = new LinkedHashMap<>();
-            reference.put("outputTruncated", true);
-            reference.put("originalBytes", payloadBytes);
-            reference.put("preview", preview);
-            Map<String, Object> routingProjection = routingProjection(data);
-            if (!routingProjection.isEmpty()) {
-                reference.put("routingProjection", routingProjection);
-            }
-            reference.put("reason", "TOOL_OUTPUT_LIMIT_EXCEEDED");
-            reference.put("maxInlineBytes", properties.safeMaxOutputBytes());
-            AgentEvidenceStore store = evidenceStore;
-            String serializedJson = new String(serialized, StandardCharsets.UTF_8);
-            String hash = sha256(serializedJson);
-            String requestId = firstText(request == null ? null : request.getRequestId(), "unknown");
-            String tenantId = firstText(request == null ? null : request.getTenantId(), "default");
-            String runId = firstText(stringValue(request == null || request.getAttributes() == null
-                ? null : firstPresent(request.getAttributes().get("runId"), request.getAttributes().get("agentRunId"))),
-                firstText(request == null ? null : request.getConversationId(), requestId));
-            String evidenceId = "tool:" + firstText(request == null ? null : request.getToolName(), "unknown")
-                + ":" + hash.substring(0, 24);
-            String documentId = "tool-output:" + tenantId + ":" + requestId + ":" + hash.substring(0, 24);
-            boolean runtimeReviewAvailable = cacheReviewPayload(documentId, serializedJson);
-            reference.put("runtimeReviewAvailable", runtimeReviewAvailable);
-            reference.put("documentId", documentId);
-            reference.put("evidenceId", evidenceId);
-            if (output != null) {
-                output.getMetadata().put("outputDocumentId", documentId);
-                output.getMetadata().put("outputEvidenceId", evidenceId);
-            }
-            if (store != null && store.isEnabled()) {
-                store.put(documentId, tenantId, runId, evidenceId, serializedJson);
-                reference.put("outputExternal", true);
-            } else {
-                reference.put("outputExternal", false);
-                reference.put("externalizationUnavailable", true);
-            }
-            if (output != null) {
-                output.getMetadata().put("outputTruncated", true);
-                output.getMetadata().put("outputOriginalBytes", payloadBytes);
-                output.getMetadata().put("outputMaxInlineBytes", properties.safeMaxOutputBytes());
-            }
-            log.warn("Tool output exceeded inline budget tool={} requestId={} payloadBytes={} maxInlineBytes={}",
-                request == null ? null : request.getToolName(),
-                request == null ? null : request.getRequestId(), payloadBytes, properties.safeMaxOutputBytes());
-            return Map.copyOf(reference);
-        } catch (Exception ex) {
-            Map<String, Object> fallback = new LinkedHashMap<>();
-            fallback.put("outputTruncated", true);
-            fallback.put("preview", ToolLogSummarizer.summarize(data, properties.safeMaxOutputPreviewChars()));
-            fallback.put("reason", "TOOL_OUTPUT_SERIALIZATION_FAILED");
-            if (output != null) output.getMetadata().put("outputTruncated", true);
-            return Map.copyOf(fallback);
-        }
+        // MCP execution results are authoritative evidence. The Runtime must
+        // preserve the complete value; output size is controlled by the
+        // registered template/remote command, not by this Java layer.
+        return data;
     }
 
     /**
@@ -3062,10 +3007,7 @@ public class ToolRuntimeService {
             return null;
         }
         Object data = output.getData();
-        if (!(data instanceof Map<?, ?> reference)
-            || (!Boolean.TRUE.equals(reference.get("outputExternal"))
-                && !Boolean.TRUE.equals(reference.get("runtimeReviewAvailable")))
-            || !Boolean.TRUE.equals(reference.get("outputTruncated"))) {
+        if (!(data instanceof Map<?, ?> reference) || !isResolvableExternalizedReference(reference)) {
             return data;
         }
         Object documentIdValue = reference.get("documentId");
@@ -3123,10 +3065,7 @@ public class ToolRuntimeService {
 
     private Object resolveRuntimeOwnedBatchChildOutput(ToolCallResult child) {
         Object data = child == null ? null : child.output();
-        if (!(data instanceof Map<?, ?> reference)
-            || (!Boolean.TRUE.equals(reference.get("outputExternal"))
-                && !Boolean.TRUE.equals(reference.get("runtimeReviewAvailable")))
-            || !Boolean.TRUE.equals(reference.get("outputTruncated"))) {
+        if (!(data instanceof Map<?, ?> reference) || !isResolvableExternalizedReference(reference)) {
             return data;
         }
         String documentId = stringValue(reference.get("documentId"));
@@ -3138,6 +3077,23 @@ public class ToolRuntimeService {
             return data;
         }
         return resolveVerifiedExternalOutput(reference, documentId, evidenceId);
+    }
+
+    /**
+     * The public MCP bridge may wrap the Runtime-owned reference in a summary
+     * contract and expose {@code summaryTruncated} instead of
+     * {@code outputTruncated}. Both flags describe the same loss of inline
+     * evidence and must use the same verified document lookup path. Keeping
+     * this predicate protocol-level prevents executor-specific branches.
+     */
+    private boolean isResolvableExternalizedReference(Map<?, ?> reference) {
+        if (reference == null
+            || (!Boolean.TRUE.equals(reference.get("outputExternal"))
+                && !Boolean.TRUE.equals(reference.get("runtimeReviewAvailable")))) {
+            return false;
+        }
+        return Boolean.TRUE.equals(reference.get("outputTruncated"))
+            || Boolean.TRUE.equals(reference.get("summaryTruncated"));
     }
 
     private Object resolveVerifiedExternalOutput(Map<?, ?> reference, String documentId, String evidenceId) {

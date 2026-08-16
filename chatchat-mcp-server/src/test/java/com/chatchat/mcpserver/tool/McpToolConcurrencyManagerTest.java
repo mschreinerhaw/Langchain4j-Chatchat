@@ -215,15 +215,16 @@ class McpToolConcurrencyManagerTest {
         Map<?, ?> returnedData = (Map<?, ?>) returned.get("data");
         assertThat(returned.get("schemaVersion")).isEqualTo("tool_execution_result.v1");
         assertThat(returned.get("success")).isEqualTo(true);
-        assertThat(returned.get("_truncated")).isEqualTo(true);
-        assertThat(returned.get("outputTruncation")).isNotNull();
+        assertThat(returned.containsKey("_truncated")).isFalse();
+        assertThat(returned.containsKey("outputTruncation")).isFalse();
         assertThat(returnedData.get("exitCode")).isEqualTo(2);
         assertThat(returnedData.get("transportSuccess")).isEqualTo(true);
         assertThat(returnedData.get("commandSuccess")).isEqualTo(false);
         assertThat(String.valueOf(returnedData.get("stderr"))).contains("FATAL_ERROR_AT_TAIL");
         assertThat(String.valueOf(returnedData.get("stdout")))
             .contains("OUTPUT_HEAD")
-            .contains("OUTPUT_TAIL");
+            .contains("OUTPUT_TAIL")
+            .hasSize(2_000 + "OUTPUT_HEAD\n".length() + "\nOUTPUT_TAIL".length());
     }
 
     private void sleep(long millis) {

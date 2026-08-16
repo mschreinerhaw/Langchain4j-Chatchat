@@ -3,7 +3,6 @@ package com.chatchat.mcpserver.tool;
 import com.chatchat.mcpserver.config.ChatChatMcpServerProperties;
 import com.chatchat.mcpserver.config.ChatChatMcpServerProperties.LimitProperties;
 import com.chatchat.mcpserver.mcp.McpInvocationContext;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.annotation.PreDestroy;
@@ -16,7 +15,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -208,7 +206,8 @@ public class McpToolConcurrencyManager {
         meta.put("queue_size", Math.max(0, limit.getQueueSize()));
         meta.put("queue_timeout_seconds", Math.max(0, limit.getQueueTimeoutSeconds()));
         meta.put("runtime_level", firstText(limit.getRuntimeLevel(), normalizeRuntimeLevel(toolName, runtimeLevel)));
-        meta.put("max_output_chars", normalizedMaxOutputChars(limit.getMaxOutputChars()));
+        meta.put("max_output_chars", -1);
+        meta.put("output_control", "template_or_remote_command");
         meta.put("retry_attempts", Math.max(0, limit.getRetryAttempts()));
         meta.put("failure_threshold", Math.max(1, limit.getFailureThreshold()));
         meta.put("circuit_open_seconds", Math.max(1, limit.getCircuitOpenSeconds()));
@@ -366,151 +365,17 @@ public class McpToolConcurrencyManager {
         if (result == null) {
             return limitResult("FAILED", toolName, runtimeLevel, "MCP tool returned null result");
         }
-        int maxChars = normalizedMaxOutputChars(limit.getMaxOutputChars());
-        if (maxChars < 0) {
-            Map<String, Object> meta = new LinkedHashMap<>(result.meta() == null ? Map.of() : result.meta());
-            meta.putIfAbsent("mcp_tool_limit", limitMeta(toolName, runtimeLevel));
-            return McpSchema.CallToolResult.builder()
-                .content(result.content())
-                .structuredContent(result.structuredContent())
-                .isError(Boolean.TRUE.equals(result.isError()))
-                .meta(meta)
-                .build();
-        }
-        List<McpSchema.Content> content = trimContent(result.content(), maxChars);
-        Counter structuredCounter = new Counter();
-        Object structured = trimValue(result.structuredContent(), maxChars, structuredCounter);
-        if (structuredCounter.truncated && structured instanceof Map<?, ?> map) {
-            Map<String, Object> marked = new LinkedHashMap<>();
-            map.forEach((key, value) -> marked.put(String.valueOf(key), value));
-            marked.put("_truncated", true);
-            marked.put("outputTruncation", Map.of(
-                "strategy", "STRUCTURE_AWARE_HEAD_TAIL",
-                "maxOutputChars", maxChars,
-                "message", "Structured output exceeded the MCP transport budget; scalar execution facts were prioritized."
-            ));
-            structured = marked;
-        }
+        // Result cardinality is controlled by the registered template/remote
+        // command. The MCP runtime must never rewrite, trim, or externalize
+        // returned content because doing so changes the evidence semantics.
         Map<String, Object> meta = new LinkedHashMap<>(result.meta() == null ? Map.of() : result.meta());
         meta.putIfAbsent("mcp_tool_limit", limitMeta(toolName, runtimeLevel));
         return McpSchema.CallToolResult.builder()
-            .content(content)
-            .structuredContent(structured)
+            .content(result.content())
+            .structuredContent(result.structuredContent())
             .isError(Boolean.TRUE.equals(result.isError()))
             .meta(meta)
             .build();
-    }
-
-    private List<McpSchema.Content> trimContent(List<McpSchema.Content> content, int maxChars) {
-        if (content == null || content.isEmpty()) {
-            return content;
-        }
-        List<McpSchema.Content> trimmed = new ArrayList<>(content.size());
-        Counter counter = new Counter();
-        for (McpSchema.Content item : content) {
-            if (item instanceof McpSchema.TextContent text) {
-                trimmed.add(new McpSchema.TextContent(text.annotations(), trimText(text.text(), maxChars, counter), text.meta()));
-            } else {
-                trimmed.add(item);
-            }
-        }
-        return trimmed;
-    }
-
-    private int normalizedMaxOutputChars(int configured) {
-        return configured < 0 ? -1 : Math.max(1_000, configured);
-    }
-
-    private Object trimValue(Object value, int maxChars, Counter counter) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof String text) {
-            return trimText(text, maxChars, counter);
-        }
-        if (value instanceof Number || value instanceof Boolean) {
-            return value;
-        }
-        if (value instanceof Map<?, ?> map) {
-            Map<String, Object> copy = new LinkedHashMap<>();
-            List<Map.Entry<?, ?>> entries = new ArrayList<>(map.entrySet());
-            entries.sort((left, right) -> Integer.compare(
-                outputFieldPriority(String.valueOf(left.getKey())),
-                outputFieldPriority(String.valueOf(right.getKey()))
-            ));
-            for (Map.Entry<?, ?> entry : entries) {
-                if (counter.value >= maxChars) {
-                    copy.put("_truncated", true);
-                    counter.truncated = true;
-                    break;
-                }
-                copy.put(String.valueOf(entry.getKey()), trimValue(entry.getValue(), maxChars, counter));
-            }
-            return copy;
-        }
-        if (value instanceof Iterable<?> iterable) {
-            List<Object> copy = new ArrayList<>();
-            for (Object item : iterable) {
-                if (counter.value >= maxChars) {
-                    copy.add(Map.of("_truncated", true));
-                    counter.truncated = true;
-                    break;
-                }
-                copy.add(trimValue(item, maxChars, counter));
-            }
-            return copy;
-        }
-        try {
-            Object converted = objectMapper.convertValue(value, new TypeReference<Object>() {});
-            if (!Objects.equals(converted, value)) {
-                return trimValue(converted, maxChars, counter);
-            }
-        } catch (IllegalArgumentException ignored) {
-            // Fall through to String conversion.
-        }
-        return trimText(String.valueOf(value), maxChars, counter);
-    }
-
-    private String trimText(String text, int maxChars, Counter counter) {
-        if (text == null) {
-            return null;
-        }
-        int remaining = maxChars - counter.value;
-        if (remaining <= 0) {
-            counter.truncated = true;
-            return "[truncated]";
-        }
-        if (text.length() <= remaining) {
-            counter.value += text.length();
-            return text;
-        }
-        counter.value = maxChars;
-        counter.truncated = true;
-        String marker = "\n...[truncated; preserving tail]...\n";
-        if (remaining <= marker.length() + 2) {
-            return text.substring(0, Math.max(0, remaining)) + "...[truncated]";
-        }
-        int available = remaining - marker.length();
-        int headLength = available / 2;
-        int tailLength = available - headLength;
-        return text.substring(0, headLength) + marker + text.substring(text.length() - tailLength);
-    }
-
-    private int outputFieldPriority(String key) {
-        if (key == null) {
-            return 50;
-        }
-        return switch (key) {
-            case "schemaVersion", "kind", "dataSchema", "payloadType", "success", "status",
-                 "error", "errorMessage", "exitCode", "transportSuccess", "commandSuccess",
-                 "failedStepIndex", "nonZeroStepIndexes", "rowCount", "returnedRowCount",
-                 "complete", "possiblyTruncated", "catalogTruncated", "detailTruncated" -> 0;
-            case "target", "limits", "outputLimits", "columns", "columnMetadata", "diagnostics" -> 1;
-            case "data", "steps", "results", "rows", "stderr" -> 2;
-            case "stdout", "operation", "executionGraph" -> 3;
-            case "execution" -> 4;
-            default -> 10;
-        };
     }
 
     private McpSchema.CallToolResult limitResult(String status, String toolName, String runtimeLevel, String message) {
@@ -643,12 +508,6 @@ public class McpToolConcurrencyManager {
                     Math.max(1, limit.getCircuitOpenSeconds()));
             }
         }
-    }
-
-    private static final class Counter {
-
-        private int value;
-        private boolean truncated;
     }
 
     private static final class ToolThreadFactory implements ThreadFactory {

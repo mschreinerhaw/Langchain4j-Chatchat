@@ -51,17 +51,42 @@ class AnalysisSummaryGovernanceBridgeTest {
         AnalysisSummaryGovernanceBridge.ChunkPosition position =
             bridge.position("positions", 2, 3, 51, 75, 120);
 
-        AnalysisSummaryGovernanceBridge.ChunkSummary summary = bridge.summarize(
+        AnalysisSummaryResult summary = bridge.summarize(
             model, position, context, List.of(Map.of("VALUE", 1)));
         Map<String, Object> ledger = bridge.ledger(List.of(summary), 120, 25, false);
 
-        assertThat(summary.summary()).isEqualTo("第 2 分块总结");
+        assertThat(summary.schemaVersion()).isEqualTo("analysis_summary_result.v1");
+        assertThat(summary.content()).isEqualTo("第 2 分块总结");
         assertThat(summary.outcome()).isEqualTo("MODEL_SUMMARY");
         assertThat(summary.toMap().toString())
+            .contains("scope=DATASET_CHUNK", "content=第 2 分块总结")
             .contains("chunkIndex=2", "recordFrom=51", "recordTo=75", "totalRecords=120")
             .contains("positions.records[51..75]");
         assertThat(ledger.toString())
             .contains("analysis_summary_bridge.v1", "summary_governance.v1", "第 2 分块总结");
         verify(model).chat(argThat((String prompt) -> prompt.contains("Missing semantic sections remain unknown")));
+    }
+
+    @Test
+    void finalModelContentIsStoredInTheCanonicalGovernedResultObject() {
+        Map<String, Object> context = bridge.govern("assets", Map.of(),
+            List.of(Map.of("TOTAL_ASSET", 847174.25)));
+        AnalysisSummaryResult chunk = bridge.preserve(
+            bridge.position("assets", 1, 1, 1, 1, 1), context,
+            List.of(Map.of("TOTAL_ASSET", 847174.25)));
+
+        AnalysisSummaryResult result = bridge.finalResult(
+            "initial", "资产分析总结正文", "MODEL_FINAL_SUMMARY",
+            Map.of("returnedRecordCount", 1, "processedRecordCount", 1, "coverageComplete", true),
+            List.of(chunk));
+
+        assertThat(result.schemaVersion()).isEqualTo("analysis_summary_result.v1");
+        assertThat(result.scope()).isEqualTo("FINAL_SYNTHESIS");
+        assertThat(result.content()).isEqualTo("资产分析总结正文");
+        assertThat(result.inputSummaryResultIds()).containsExactly("assets#chunk-1");
+        assertThat(result.toMap().toString())
+            .contains("MODEL_FINAL_SUMMARY", "summary_governance.v1")
+            .contains("GOVERNED_ANALYSIS_SUMMARY", "RETURNED_STRUCTURED_EVIDENCE")
+            .contains("coverageComplete=true");
     }
 }

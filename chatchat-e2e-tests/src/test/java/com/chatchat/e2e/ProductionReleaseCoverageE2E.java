@@ -231,6 +231,8 @@ class ProductionReleaseCoverageE2E {
             "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentOrchestrator.java"));
         String summaryBridge = Files.readString(root.resolve(
             "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AnalysisSummaryGovernanceBridge.java"));
+        String summaryResult = Files.readString(root.resolve(
+            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AnalysisSummaryResult.java"));
         String structuredAdapter = Files.readString(root.resolve(
             "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/StructuredReasoningEvidenceAdapterRegistry.java"));
         String factGrounding = Files.readString(root.resolve(
@@ -277,6 +279,7 @@ class ProductionReleaseCoverageE2E {
                 "analysisSummaryGovernanceBridge.position(",
                 "analysisSummaryGovernanceBridge.summarize(",
                 "analysisSummaryGovernanceBridge.ledger(",
+                "governedFinalSummaryResult(", "analysisSummaryResult",
                 "analysisContext(output)", "structuredDatasetRecordSets(output, reference)")
             .doesNotContain("api_data_identity.v1", "other API datasets");
         assertThat(summaryBridge)
@@ -285,6 +288,12 @@ class ProductionReleaseCoverageE2E {
                 "missingSemanticSections", "semanticInferenceAllowed",
                 "Analysis summary bridge position", "recordFrom", "recordTo", "totalRecords",
                 "STRUCTURED_RECORD_FALLBACK", "finalSynthesisInstruction()")
+            .doesNotContain("portfolio_positions", "market_quote_daily");
+        assertThat(summaryResult)
+            .contains("SCHEMA_VERSION = \"analysis_summary_result.v1\"",
+                "String content", "DATASET_CHUNK", "FINAL_SYNTHESIS",
+                "inputSummaryResultIds", "GOVERNED_ANALYSIS_SUMMARY",
+                "RETURNED_STRUCTURED_EVIDENCE", "DataAnalysisContextProtocol.GOVERNANCE_VERSION")
             .doesNotContain("portfolio_positions", "market_quote_daily");
         assertThat(structuredAdapter)
             .contains("analysisContexts", "summary-governance input",

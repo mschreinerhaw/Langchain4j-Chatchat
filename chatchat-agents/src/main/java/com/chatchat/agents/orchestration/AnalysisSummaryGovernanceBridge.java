@@ -82,10 +82,10 @@ public final class AnalysisSummaryGovernanceBridge {
             from, to, totalRecords);
     }
 
-    public ChunkSummary summarize(ChatModel model,
-                                  ChunkPosition position,
-                                  Map<String, Object> governedContext,
-                                  List<Map<String, Object>> records) {
+    public AnalysisSummaryResult summarize(ChatModel model,
+                                           ChunkPosition position,
+                                           Map<String, Object> governedContext,
+                                           List<Map<String, Object>> records) {
         String prompt = "You are performing immutable record-grounded analysis under "
             + DataAnalysisContextProtocol.GOVERNANCE_VERSION + ". "
             + "Summarize only the returned records below in Chinese. Preserve concrete values, "
@@ -100,20 +100,21 @@ public final class AnalysisSummaryGovernanceBridge {
         try {
             String summary = model.chat(prompt);
             if (summary != null && !summary.isBlank()) {
-                return new ChunkSummary(position, governedContext, summary, "MODEL_SUMMARY");
+                return AnalysisSummaryResult.chunk(
+                    position.toMap(), governedContext, summary, "MODEL_SUMMARY");
             }
         } catch (RuntimeException ignored) {
             // The immutable returned-record fallback remains authoritative.
         }
-        return new ChunkSummary(position, governedContext, ModelProtocolJson.compact(records),
-            "STRUCTURED_RECORD_FALLBACK");
+        return AnalysisSummaryResult.chunk(position.toMap(), governedContext,
+            ModelProtocolJson.compact(records), "STRUCTURED_RECORD_FALLBACK");
     }
 
-    public ChunkSummary preserve(ChunkPosition position,
-                                 Map<String, Object> governedContext,
-                                 List<Map<String, Object>> records) {
-        return new ChunkSummary(position, governedContext, ModelProtocolJson.compact(records),
-            "STRUCTURED_RECORD_DIRECT");
+    public AnalysisSummaryResult preserve(ChunkPosition position,
+                                          Map<String, Object> governedContext,
+                                          List<Map<String, Object>> records) {
+        return AnalysisSummaryResult.chunk(position.toMap(), governedContext,
+            ModelProtocolJson.compact(records), "STRUCTURED_RECORD_DIRECT");
     }
 
     public String finalSynthesisInstruction() {
@@ -125,7 +126,7 @@ public final class AnalysisSummaryGovernanceBridge {
             + "is incomplete, keep missing semantics and relationships unknown.\n";
     }
 
-    public Map<String, Object> ledger(List<ChunkSummary> summaries,
+    public Map<String, Object> ledger(List<AnalysisSummaryResult> summaries,
                                       int returnedRecordCount,
                                       int processedRecordCount,
                                       boolean complete) {
@@ -135,8 +136,16 @@ public final class AnalysisSummaryGovernanceBridge {
             "returnedRecordCount", returnedRecordCount,
             "processedRecordCount", processedRecordCount,
             "complete", complete,
-            "chunks", summaries.stream().map(ChunkSummary::toMap).toList()
+            "summaryResults", summaries.stream().map(AnalysisSummaryResult::toMap).toList()
         );
+    }
+
+    public AnalysisSummaryResult finalResult(String stage,
+                                             String content,
+                                             String outcome,
+                                             Map<String, Object> coverage,
+                                             List<AnalysisSummaryResult> inputs) {
+        return AnalysisSummaryResult.finalSummary(stage, content, outcome, coverage, inputs);
     }
 
     private List<Map<String, Object>> returnedFields(List<Map<String, Object>> records) {
@@ -185,18 +194,4 @@ public final class AnalysisSummaryGovernanceBridge {
         }
     }
 
-    public record ChunkSummary(ChunkPosition position,
-                               Map<String, Object> analysisContext,
-                               String summary,
-                               String outcome) {
-        public Map<String, Object> toMap() {
-            return Map.of(
-                "position", position.toMap(),
-                "analysisContextSchemaVersion", String.valueOf(
-                    analysisContext.getOrDefault("schemaVersion", "unknown")),
-                "outcome", outcome,
-                "summary", summary
-            );
-        }
-    }
 }

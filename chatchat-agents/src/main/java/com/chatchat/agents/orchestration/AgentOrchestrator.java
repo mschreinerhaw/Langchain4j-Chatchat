@@ -2457,7 +2457,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
                     fallbackAnswer, recordCoverage, metadata);
                 metadata.put("interpretationPlanDeterministicSummaryFallback", true);
                 metadata.putIfAbsent("executionStatus", "PARTIAL_RESULT_PRESENTED");
-                return fallbackAnswer;
+                AnalysisSummaryResult fallbackResult = governedFinalSummaryResult(
+                    stage, fallbackAnswer, "DETERMINISTIC_FINAL_FALLBACK", recordCoverage, metadata);
+                return fallbackResult.content();
             }
             metadata.putIfAbsent("executionStatus", "NO_PRESENTABLE_RESULT");
             return "";
@@ -2467,6 +2469,14 @@ public class AgentOrchestrator implements AgentRunExecutor {
         answer = ensureCompleteRecordCoveragePresented(answer, recordCoverage, metadata);
         answer = removeUnsupportedCurrentTurnDocumentReferences(
             answer, cumulativeEvidenceResult, metadata);
+        String governedContent = answer == null || answer.isBlank()
+            ? (result == null ? "" : firstNonBlank(result.finalAnswer(), ""))
+            : answer;
+        AnalysisSummaryResult finalSummaryResult = governedFinalSummaryResult(
+            stage, governedContent,
+            answer == null || answer.isBlank() ? "MODEL_EMPTY_RUNTIME_FINAL_FALLBACK" : "MODEL_FINAL_SUMMARY",
+            recordCoverage, metadata);
+        answer = finalSummaryResult.content();
         log.info("agentModelResponse phase=interpretation_plan_summary runId={} stage={} durationMs={} responseChars={}",
             firstNonBlank(runId, ""),
             stage,
@@ -2499,9 +2509,29 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 "answerPreview", preview(answer)
             )
         );
-        return answer == null || answer.isBlank()
-            ? (result == null ? "" : firstNonBlank(result.finalAnswer(), ""))
-            : answer;
+        return answer;
+    }
+
+    private AnalysisSummaryResult governedFinalSummaryResult(String stage,
+                                                              String content,
+                                                              String outcome,
+                                                              RecordCoverageBundle coverage,
+                                                              Map<String, Object> metadata) {
+        Map<String, Object> coverageMap = Map.of(
+            "returnedRecordCount", coverage.returnedRecordCount(),
+            "processedRecordCount", coverage.processedRecordCount(),
+            "coverageComplete", coverage.coverageComplete(),
+            "sourceContentComplete", coverage.sourceContentComplete(),
+            "iterationCount", coverage.iterations(),
+            "summaryResultCount", coverage.summaryResults().size()
+        );
+        AnalysisSummaryResult summaryResult = analysisSummaryGovernanceBridge.finalResult(
+            stage, content, outcome, coverageMap, coverage.summaryResults());
+        if (metadata != null) {
+            metadata.put("analysisSummaryResult", summaryResult.toMap());
+            metadata.put("analysisSummaryResultSchemaVersion", AnalysisSummaryResult.SCHEMA_VERSION);
+        }
+        return summaryResult;
     }
 
     /**
@@ -2942,7 +2972,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         int iterations = 0;
         boolean iterative = false;
         boolean sourceContentComplete = true;
-        List<AnalysisSummaryGovernanceBridge.ChunkSummary> governedChunkSummaries = new ArrayList<>();
+        List<AnalysisSummaryResult> governedSummaryResults = new ArrayList<>();
         for (BatchRecordSet recordSet : recordSets) {
             returnedRecordCount += recordSet.records().size();
             sourceContentComplete &= recordSet.records().stream()
@@ -2968,12 +2998,12 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 AnalysisSummaryGovernanceBridge.ChunkPosition position =
                     analysisSummaryGovernanceBridge.position(recordSet.reference(), chunkOffset + 1,
                         chunks.size(), from, to, recordSet.records().size());
-                AnalysisSummaryGovernanceBridge.ChunkSummary governedSummary = oversized
+                AnalysisSummaryResult governedSummary = oversized
                     ? analysisSummaryGovernanceBridge.summarize(
                         activeChatModel, position, governedContext, chunk)
                     : analysisSummaryGovernanceBridge.preserve(position, governedContext, chunk);
-                governedChunkSummaries.add(governedSummary);
-                String analysis = governedSummary.summary();
+                governedSummaryResults.add(governedSummary);
+                String analysis = governedSummary.content();
                 if (metadata != null
                     && "STRUCTURED_RECORD_FALLBACK".equals(governedSummary.outcome())) {
                     metadata.put("recordAnalysisChunkFallback", true);
@@ -3004,14 +3034,14 @@ public class AgentOrchestrator implements AgentRunExecutor {
             metadata.put("recordAnalysisIterationCount", iterations);
             metadata.put("recordAnalysisIterative", iterative);
             metadata.put("analysisSummaryGovernanceBridge",
-                analysisSummaryGovernanceBridge.ledger(governedChunkSummaries,
+                analysisSummaryGovernanceBridge.ledger(governedSummaryResults,
                     returnedRecordCount, processedRecordCount, coverageComplete));
         }
         return new RecordCoverageBundle(
             promptEvidence.toString(), appendix.toString(), List.copyOf(recordValueGroups),
             returnedRecordCount, processedRecordCount, iterations, iterative, coverageComplete,
             sourceContentComplete,
-            governedChunkSummaries.stream().map(AnalysisSummaryGovernanceBridge.ChunkSummary::toMap).toList());
+            List.copyOf(governedSummaryResults));
     }
 
     private List<BatchRecordSet> executionRecordSets(InterpretationPlanRuntime.ExecutionResult result) {
@@ -3380,7 +3410,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         boolean iterative,
         boolean coverageComplete,
         boolean sourceContentComplete,
-        List<Map<String, Object>> summaryPositions
+        List<AnalysisSummaryResult> summaryResults
     ) {
         private static RecordCoverageBundle empty() {
             return new RecordCoverageBundle("", "", List.of(), 0, 0, 0, false, true, true, List.of());

@@ -665,8 +665,9 @@ class AgentOrchestratorTest {
         assertThat(coverage.coverageComplete()).isTrue();
         assertThat(coverage.iterative()).isTrue();
         assertThat(coverage.iterations()).isGreaterThan(1);
-        assertThat(coverage.summaryPositions()).hasSize(coverage.iterations())
-            .allSatisfy(entry -> assertThat(entry.toString())
+        assertThat(coverage.summaryResults()).hasSize(coverage.iterations())
+            .allSatisfy(entry -> assertThat(entry.toMap().toString())
+                .contains("schemaVersion=analysis_summary_result.v1", "scope=DATASET_CHUNK")
                 .contains("datasetReference=records", "recordFrom=", "recordTo=", "totalRecords=60"));
         assertThat(answer)
             .contains("chunk evidence summary")
@@ -678,7 +679,8 @@ class AgentOrchestratorTest {
             .containsEntry("recordAnalysisProcessedRecordCount", 60);
         assertThat(metadata.get("analysisSummaryGovernanceBridge").toString())
             .contains("analysis_summary_bridge.v1", "summary_governance.v1")
-            .contains("datasetReference=records", "chunkIndex=1", "summary=chunk evidence summary");
+            .contains("analysis_summary_result.v1", "scope=DATASET_CHUNK")
+            .contains("datasetReference=records", "chunkIndex=1", "content=chunk evidence summary");
         verify(model, times(coverage.iterations())).chat(argThat((String prompt) ->
             prompt.contains("analysis_summary_bridge.v1")
                 && prompt.contains("summary_governance.v1")

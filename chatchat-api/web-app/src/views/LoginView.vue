@@ -1,10 +1,10 @@
 <template>
   <main class="login-view">
-    <header class="login-brand" aria-label="睿衡智策 RuiHeng Insight">
-      <img src="/agent-runtime-logo.svg" alt="睿衡智策 RuiHeng Insight" />
+    <header class="login-brand" aria-label="灵动智策 LingDong Insight">
+      <img src="/agent-runtime-logo.svg" alt="灵动智策 LingDong Insight" />
     </header>
 
-    <section class="login-shell" aria-label="睿衡智策登录首页">
+    <section class="login-shell" aria-label="灵动智策登录首页">
       <section class="login-hero" aria-label="企业智能决策闭环">
         <div class="ai-cycle" aria-label="企业智能决策闭环">
           <div class="cycle-halo"></div>
@@ -112,7 +112,7 @@
 
           <button class="login-submit" type="submit" :disabled="loading">
             <LogIn :size="18" />
-            <span>{{ loading ? "登录中..." : "进入睿衡工作台" }}</span>
+            <span>{{ loading ? "登录中..." : "进入灵动工作台" }}</span>
           </button>
         </form>
 
@@ -124,8 +124,7 @@
       </section>
     </section>
 
-    <!-- <footer class="login-footer">© 1996-2026 RuiHeng Technology. All Rights Reserved.</footer> -->
-    <footer class="login-footer">© 1996-2026 RuiHeng by Apexsoft Technology. All Rights Reserved.</footer>
+    <footer class="login-footer">© 1996-2026 LingDong by Apexsoft Technology. All Rights Reserved.</footer>
   </main>
 </template>
 

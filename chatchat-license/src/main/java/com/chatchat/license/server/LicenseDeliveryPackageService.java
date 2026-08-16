@@ -51,12 +51,12 @@ public class LicenseDeliveryPackageService {
     private String fileName(String licenseNo) {
         String safe = licenseNo == null ? "license" : licenseNo.trim().replaceAll("[^A-Za-z0-9._-]", "-");
         if (safe.isBlank()) safe = "license";
-        return "RuiHeng-Nexus-" + safe + "-license-package.zip";
+        return "LingDong-Nexus-" + safe + "-license-package.zip";
     }
 
     private String instructions() {
         return """
-            睿衡智联（RuiHeng Nexus）商业授权交付包
+            灵动智联（LingDong Nexus）商业授权交付包
             =======================
 
             1. 将 license.dat 和 license-public.pem 一起复制到 MCP Server 的 ./data/license/ 目录。

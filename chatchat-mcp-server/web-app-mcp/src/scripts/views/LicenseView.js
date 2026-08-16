@@ -32,7 +32,7 @@ export default {
       return '产品授权不可用';
     },
     statusDescription() {
-      if (this.status.valid) return `睿衡智联（RuiHeng Nexus）${this.editionLabel}授权已生效，服务可在许可范围内正常运行。`;
+      if (this.status.valid) return `灵动智联（LingDong Nexus）${this.editionLabel}授权已生效，服务可在许可范围内正常运行。`;
       return this.status.message || '请联系授权管理员检查 License 配置。';
     },
     editionLabel() {

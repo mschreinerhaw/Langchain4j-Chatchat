@@ -37,7 +37,7 @@
       <div class="license-metric-grid">
         <section class="license-metric">
           <div class="license-metric-icon product"><el-icon><Cpu /></el-icon></div>
-          <div><span>产品与版本</span><strong>睿衡智联</strong><small>RuiHeng Nexus · {{ editionLabel }}</small></div>
+          <div><span>产品与版本</span><strong>灵动智联</strong><small>LingDong Nexus · {{ editionLabel }}</small></div>
         </section>
         <section class="license-metric">
           <div class="license-metric-icon expiry"><el-icon><Tickets /></el-icon></div>

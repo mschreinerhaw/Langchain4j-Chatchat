@@ -1,17 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="236" height="56" viewBox="0 0 236 56" role="img" aria-labelledby="logo-title logo-desc">
-  <title id="logo-title">睿衡智策 RuiHeng Insight</title>
-  <desc id="logo-desc">睿衡智策企业智能洞察与辅助决策平台标志。</desc>
-  <defs><linearGradient id="ruiheng-insight-gradient" x1="8" y1="8" x2="48" y2="48" gradientUnits="userSpaceOnUse"><stop stop-color="#3B82F6"/><stop offset="1" stop-color="#14B8A6"/></linearGradient></defs>
+  <title id="logo-title">灵动智策 LingDong Insight</title>
+  <desc id="logo-desc">由多彩流线与跃迁节点构成的灵动智策企业智能洞察平台标志。</desc>
+  <defs>
+    <linearGradient id="lingdong-insight-bg" x1="3" y1="3" x2="39" y2="39" gradientUnits="userSpaceOnUse"><stop stop-color="#172554"/><stop offset=".55" stop-color="#312E81"/><stop offset="1" stop-color="#4C1D95"/></linearGradient>
+    <linearGradient id="lingdong-insight-flow" x1="7" y1="33" x2="38" y2="10" gradientUnits="userSpaceOnUse"><stop stop-color="#22D3EE"/><stop offset=".34" stop-color="#3B82F6"/><stop offset=".67" stop-color="#A855F7"/><stop offset="1" stop-color="#F472B6"/></linearGradient>
+    <linearGradient id="lingdong-insight-spark" x1="12" y1="32" x2="36" y2="36" gradientUnits="userSpaceOnUse"><stop stop-color="#FDE047"/><stop offset=".5" stop-color="#FB923C"/><stop offset="1" stop-color="#FB7185"/></linearGradient>
+  </defs>
   <g transform="translate(1 7)">
-    <rect width="42" height="42" rx="12" fill="#0B1220"/>
-    <path d="M13.5 11.5v21M28.5 11.5v21M13.5 22h15" fill="none" stroke="#F8FAFC" stroke-width="3.2" stroke-linecap="round"/>
-    <path d="M9.5 32.5C13 17.2 23.5 10.1 35 14.5" fill="none" stroke="url(#ruiheng-insight-gradient)" stroke-width="2.7" stroke-linecap="round"/>
-    <circle cx="10" cy="32" r="2.5" fill="#3B82F6"/><circle cx="21" cy="22" r="2.3" fill="#F8FAFC"/><circle cx="35" cy="14.5" r="2.5" fill="#14B8A6"/>
-    <path d="M34.1 14.4 40 13.2 36.6 18Z" fill="#14B8A6"/>
+    <rect width="42" height="42" rx="13" fill="url(#lingdong-insight-bg)"/>
+    <path d="M8.5 29.8C13.8 28.5 15.5 19.6 21.6 16.1C26.5 13.3 31.3 14.4 36 18" fill="none" stroke="url(#lingdong-insight-flow)" stroke-width="4.2" stroke-linecap="round"/>
+    <path d="M11.5 34C17.4 33.4 20.8 26.7 26.3 27.2C31.1 27.6 32.6 33 37.3 33.8" fill="none" stroke="url(#lingdong-insight-spark)" stroke-width="3.2" stroke-linecap="round"/>
+    <circle cx="9" cy="29.8" r="2.1" fill="#22D3EE"/><circle cx="21.6" cy="16.1" r="2" fill="#A855F7"/><circle cx="36.2" cy="18" r="2.2" fill="#F472B6"/>
+    <path d="m34.8 14.8 5.4 4.3-6.5 2.3Z" fill="#F472B6"/>
   </g>
-  <text x="55" y="28" fill="#0B1220" font-family="'Microsoft YaHei', 'PingFang SC', sans-serif" font-size="22" font-weight="800" letter-spacing="1">睿衡</text>
-  <text x="56" y="42" fill="#64748B" font-family="Inter, 'Segoe UI', Arial, sans-serif" font-size="8.5" font-weight="750" letter-spacing="1.55">RUIHENG</text>
+  <text x="55" y="28" fill="#111827" font-family="'Microsoft YaHei', 'PingFang SC', sans-serif" font-size="22" font-weight="800" letter-spacing="1">灵动</text>
+  <text x="56" y="42" fill="#64748B" font-family="Inter, 'Segoe UI', Arial, sans-serif" font-size="8.5" font-weight="750" letter-spacing="1.35">LINGDONG</text>
   <path d="M127 15v27" stroke="#CBD5E1"/>
-  <text x="140" y="28" fill="#087F73" font-family="'Microsoft YaHei', 'PingFang SC', sans-serif" font-size="15" font-weight="800" letter-spacing="1.5">智策</text>
-  <text x="140" y="42" fill="#0F766E" font-family="Inter, 'Segoe UI', Arial, sans-serif" font-size="8.5" font-weight="800" letter-spacing="1.15">INSIGHT</text>
+  <text x="140" y="28" fill="#6D28D9" font-family="'Microsoft YaHei', 'PingFang SC', sans-serif" font-size="15" font-weight="800" letter-spacing="1.5">智策</text>
+  <text x="140" y="42" fill="#7C3AED" font-family="Inter, 'Segoe UI', Arial, sans-serif" font-size="8.5" font-weight="800" letter-spacing="1.15">INSIGHT</text>
 </svg>

@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 56 56" role="img" aria-labelledby="mark-title mark-desc">
-  <title id="mark-title">睿衡 RuiHeng</title><desc id="mark-desc">睿衡企业智能产品标志</desc>
-  <defs><linearGradient id="ruiheng-mark-gradient" x1="7" y1="7" x2="49" y2="49" gradientUnits="userSpaceOnUse"><stop stop-color="#2563EB"/><stop offset="1" stop-color="#22D3C5"/></linearGradient></defs>
-  <rect x="7" y="7" width="42" height="42" rx="12" fill="#0B1220"/>
-  <path d="M20.5 18.5v21M35.5 18.5v21M20.5 29h15" fill="none" stroke="#F8FAFC" stroke-width="3.2" stroke-linecap="round"/>
-  <path d="M16.5 39.5C20 24.2 30.5 17.1 42 21.5" fill="none" stroke="url(#ruiheng-mark-gradient)" stroke-width="2.7" stroke-linecap="round"/>
-  <circle cx="17" cy="39" r="2.5" fill="#2563EB"/><circle cx="28" cy="29" r="2.3" fill="#F8FAFC"/><circle cx="42" cy="21.5" r="2.5" fill="#22D3C5"/>
-  <path d="M41.1 21.4 47 20.2 43.6 25Z" fill="#22D3C5"/>
-</svg>

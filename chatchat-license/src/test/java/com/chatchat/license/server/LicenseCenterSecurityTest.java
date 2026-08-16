@@ -27,7 +27,7 @@ class LicenseCenterSecurityTest {
         mockMvc.perform(get("/login.html"))
             .andExpect(status().isOk())
             .andExpect(content().string(org.hamcrest.Matchers.containsString("登录授权中心")))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("睿衡智联")));
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("灵动智联")));
     }
 
     @Test

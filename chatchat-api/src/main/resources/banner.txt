@@ -5,7 +5,7 @@
 /_/  |_\__, /\___/_/ /_/\__/  /_/ |_|\__,_/_/ /_/\__/_/_/ /_/ /_/\___/
       /____/
 
- RuiHeng Insight / 睿衡智策
+ LingDong Insight / 灵动智策
  Enterprise Intelligent Runtime Platform
  Task | Queue | Worker | Event | State | Storage
  Powered by Spring Boot, LangChain4j, and MCP

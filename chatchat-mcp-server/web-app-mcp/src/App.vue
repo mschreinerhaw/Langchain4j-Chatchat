@@ -4,10 +4,10 @@
     <div v-else class="app-shell">
       <aside class="sidebar">
         <div class="sidebar-brand">
-          <img class="brand-mark product-mark" :src="`${publicPath}ruiheng-mark.svg`" alt="" aria-hidden="true" />
+          <img class="brand-mark product-mark" :src="`${publicPath}lingdong-mark.svg`" alt="" aria-hidden="true" />
           <div>
-            <div class="sidebar-title">睿衡智联</div>
-            <small>RuiHeng Nexus</small>
+            <div class="sidebar-title">灵动智联</div>
+            <small>LingDong Nexus</small>
           </div>
         </div>
         <el-menu class="sidebar-menu" :default-active="activeView" @select="activeView = $event">

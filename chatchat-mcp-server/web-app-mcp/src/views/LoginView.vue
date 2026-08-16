@@ -4,13 +4,13 @@
 
     <header class="login-topbar">
       <div class="login-brand-mini">
-        <img class="login-product-logo" :src="`${publicPath}ruiheng-nexus-logo.svg`" alt="睿衡智联 RuiHeng Nexus" />
+        <img class="login-product-logo" :src="`${publicPath}lingdong-nexus-logo.svg`" alt="灵动智联 LingDong Nexus" />
       </div>
       <span>Enterprise AI Capability Platform · v1.0.0</span>
     </header>
 
     <section class="login-shell">
-      <section class="login-hero" aria-label="睿衡智联平台能力">
+      <section class="login-hero" aria-label="灵动智联平台能力">
         <h1>企业级智能能力 <span>连接中心</span></h1>
         <p>
           统一管理数据、知识、工具与智能服务，让企业系统安全、可信地接入 AI Agent。
@@ -46,10 +46,10 @@
 
       <aside class="login-card">
         <div class="login-card-head">
-            <img class="brand-mark product-mark large" :src="`${publicPath}ruiheng-mark.svg`" alt="" aria-hidden="true" />
+            <img class="brand-mark product-mark large" :src="`${publicPath}lingdong-mark.svg`" alt="" aria-hidden="true" />
           <div>
-            <h2>睿衡智联</h2>
-            <p>RuiHeng Nexus · 企业智能能力统一入口</p>
+            <h2>灵动智联</h2>
+            <p>LingDong Nexus · 企业智能能力统一入口</p>
           </div>
         </div>
 
@@ -78,8 +78,7 @@
       </aside>
     </section>
 
-    <!-- <footer class="login-copyright">© 1996-2026 RuiHeng Technology. All Rights Reserved.</footer> -->
-    <footer class="login-copyright">© 1996-2026 RuiHeng by Apexsoft Technology. All Rights Reserved.</footer>
+    <footer class="login-copyright">© 1996-2026 LingDong by Apexsoft Technology. All Rights Reserved.</footer>
   </main>
 </template>
 

@@ -2,7 +2,7 @@
   <section :class="['feature-view agent-runtime-view', { 'agent-runtime-embedded': embedded }]">
     <header v-if="!embedded" class="agent-runtime-head">
       <div>
-        <p>睿衡智策 · RuiHeng Insight</p>
+        <p>灵动智策 · LingDong Insight</p>
         <h1>Intelligent Run Control</h1>
       </div>
       <div class="agent-runtime-actions">

@@ -153,8 +153,12 @@ class LivedataApiRegistrationServiceTest {
         mapped.setInputSchemaJson("""
             {"type":"object","properties":{"orderId":{"type":"string","default":"A001"}},"required":[]}
             """);
+        mapped.setOutputSchemaJson("""
+            {"type":"object","properties":{"amount":{"type":"number","description":"订单金额"}}}
+            """);
         ApiServiceConfig registered = apiService("service-1", "livedata_orders", "gateway-1");
         registered.setInputSchemaJson("{\"type\":\"object\",\"properties\":{}}");
+        registered.setOutputSchemaJson("{\"type\":\"object\",\"properties\":{}}");
         HttpEndpointConfig registeredGateway = gateway("gateway-1", "http_livedata_orders");
         registeredGateway.setTags("livedata,api_gateway");
         registeredGateway.setInputSchemaJson("{\"type\":\"object\",\"properties\":{}}");
@@ -168,7 +172,8 @@ class LivedataApiRegistrationServiceTest {
         when(apiServiceConfigService.findByToolName("livedata_orders")).thenReturn(Optional.of(registered));
         when(gatewayConfigService.getById("gateway-1")).thenReturn(registeredGateway);
         when(mapper.toGatewayConfig(definition, sourceGateway, properties())).thenReturn(mappedGateway);
-        when(apiServiceConfigService.updateParameterContract("service-1", mapped.getInputSchemaJson()))
+        when(apiServiceConfigService.updateDataContract(
+            "service-1", mapped.getInputSchemaJson(), mapped.getOutputSchemaJson()))
             .thenReturn(registered);
 
         LivedataApiRegistrationService.LivedataParameterSyncResult result =
@@ -182,7 +187,8 @@ class LivedataApiRegistrationServiceTest {
         ).containsExactly(1, 1, 1, 0);
         verify(gatewayConfigService).updateParameterContract(
             "gateway-1", mapped.getInputSchemaJson(), mappedGateway.getBodyTemplate());
-        verify(apiServiceConfigService).updateParameterContract("service-1", mapped.getInputSchemaJson());
+        verify(apiServiceConfigService).updateDataContract(
+            "service-1", mapped.getInputSchemaJson(), mapped.getOutputSchemaJson());
         verify(publisher).refresh();
         verify(templateIndexService).upsertApiServiceTemplates(List.of(registered));
         verify(assetIndexService).refresh("api_service");

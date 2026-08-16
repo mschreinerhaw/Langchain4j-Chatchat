@@ -25,6 +25,7 @@ chatchat:
     public-key-path: ./data/license/license-public.pem
   mcp:
     market:
+      require-dedicated-storage: true
       query-timeout-seconds: ${CHATCHAT_MARKET_QUERY_TIMEOUT_SECONDS:15}
       max-concurrent-queries: ${CHATCHAT_MARKET_MAX_CONCURRENT_QUERIES:4}
       query-queue-timeout-ms: ${CHATCHAT_MARKET_QUERY_QUEUE_TIMEOUT_MS:100}

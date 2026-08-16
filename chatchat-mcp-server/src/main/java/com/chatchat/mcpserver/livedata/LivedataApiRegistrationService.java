@@ -120,9 +120,10 @@ public class LivedataApiRegistrationService {
     }
 
     /**
-     * Synchronizes ld_dataservice_api.params into already registered API
-     * services and their generated gateways. It never creates new API
-     * registrations and preserves manually maintained transport/category data.
+     * Synchronizes source-declared input and return-field contracts into already
+     * registered API services and their generated gateways. It never creates new
+     * API registrations and preserves manually maintained identity, capability,
+     * category and transport governance.
      */
     public LivedataParameterSyncResult synchronizeRegisteredParameterContracts() {
         ensureEnabled();
@@ -159,7 +160,12 @@ public class LivedataApiRegistrationService {
                     skipped++;
                     continue;
                 }
-                boolean serviceChanged = !same(existing.getInputSchemaJson(), mapped.getInputSchemaJson());
+                String synchronizedOutputSchema = mapped.getOutputSchemaJson() == null
+                    || mapped.getOutputSchemaJson().isBlank()
+                    ? existing.getOutputSchemaJson()
+                    : mapped.getOutputSchemaJson();
+                boolean serviceChanged = !same(existing.getInputSchemaJson(), mapped.getInputSchemaJson())
+                    || !same(existing.getOutputSchemaJson(), synchronizedOutputSchema);
                 boolean gatewayChanged = !same(gateway.getInputSchemaJson(), mappedGateway.getInputSchemaJson())
                     || !same(gateway.getBodyTemplate(), mappedGateway.getBodyTemplate());
                 if (!serviceChanged && !gatewayChanged) {
@@ -171,7 +177,8 @@ public class LivedataApiRegistrationService {
                         mappedGateway.getInputSchemaJson(), mappedGateway.getBodyTemplate());
                 }
                 ApiServiceConfig saved = serviceChanged
-                    ? apiServiceConfigService.updateParameterContract(existing.getId(), mapped.getInputSchemaJson())
+                    ? apiServiceConfigService.updateDataContract(existing.getId(),
+                        mapped.getInputSchemaJson(), synchronizedOutputSchema)
                     : existing;
                 updatedServices.add(saved);
                 updated++;

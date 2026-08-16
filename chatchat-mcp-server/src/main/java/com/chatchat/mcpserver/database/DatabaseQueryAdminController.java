@@ -230,6 +230,7 @@ public class DatabaseQueryAdminController {
      * @return the converted view
      */
     private DatabaseQueryView toView(DatabaseQueryConfig config) {
+        var readiness = configService.dataReadiness(config);
         return new DatabaseQueryView(
             config.getId(),
             config.getToolName(),
@@ -271,6 +272,12 @@ public class DatabaseQueryAdminController {
             null,
             false,
             config.isEnabled(),
+            readiness.ready(),
+            readiness.status(),
+            readiness.requiredTables().stream().sorted().toList(),
+            readiness.missingTables().stream().sorted().toList(),
+            readiness.lastCollectedAt() == null ? null : readiness.lastCollectedAt().toEpochMilli(),
+            readiness.message(),
             config.getCreatedAt() == null ? null : config.getCreatedAt().toEpochMilli(),
             config.getUpdatedAt() == null ? null : config.getUpdatedAt().toEpochMilli()
         );
@@ -510,6 +517,12 @@ public class DatabaseQueryAdminController {
         String password,
         boolean reloadDrivers,
         boolean enabled,
+        boolean dataReady,
+        String dataAvailabilityStatus,
+        List<String> requiredDatasetTables,
+        List<String> missingDatasetTables,
+        Long lastDataCollectedAt,
+        String dataAvailabilityMessage,
         Long createdAt,
         Long updatedAt
     ) {

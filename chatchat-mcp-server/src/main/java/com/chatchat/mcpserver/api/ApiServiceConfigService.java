@@ -190,6 +190,20 @@ public class ApiServiceConfigService {
     }
 
     /**
+     * Synchronizes source-declared input and output contracts without overwriting
+     * manually governed service identity, capability, category or transport data.
+     */
+    @Transactional
+    public ApiServiceConfig updateDataContract(String id,
+                                               String inputSchemaJson,
+                                               String outputSchemaJson) {
+        ApiServiceConfig current = getById(id);
+        current.setInputSchemaJson(normalizeJsonObject(inputSchemaJson, "inputSchema"));
+        current.setOutputSchemaJson(normalizeJsonObject(outputSchemaJson, "outputSchema"));
+        return repository.save(current);
+    }
+
+    /**
      * Deletes the delete.
      *
      * @param id the id value

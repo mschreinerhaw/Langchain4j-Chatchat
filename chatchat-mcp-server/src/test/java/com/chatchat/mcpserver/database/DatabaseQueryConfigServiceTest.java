@@ -7,6 +7,7 @@ import com.chatchat.mcpserver.search.LuceneSearchProperties;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import com.chatchat.runtime.market.analysis.FinancialAnalysisQuerySamples;
+import com.chatchat.runtime.market.analysis.FinancialDatasetReadinessService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -110,6 +111,47 @@ class DatabaseQueryConfigServiceTest {
         assertThat(saved.getJdbcUrl()).isNull();
         assertThat(saved.getUsername()).isNull();
         assertThat(saved.getPassword()).isNull();
+    }
+
+    @Test
+    void refusesToEnableInternalFinancialQueryBeforeItsDatasetIsCollected() {
+        DatabaseQueryConfig config = query();
+        config.setId("builtin-market-query");
+        config.setDatasourceId(FinancialAnalysisQuerySamples.INTERNAL_DATASOURCE_ID);
+        config.setSqlTemplate("select quote_code from market_quote_daily");
+        config.setEnabled(false);
+        FinancialDatasetReadinessService readinessService = mock(FinancialDatasetReadinessService.class);
+        service.setFinancialDatasetReadinessService(readinessService);
+        when(repository.findById(config.getId())).thenReturn(Optional.of(config));
+        when(readinessService.inspect(config.getSqlTemplate())).thenReturn(
+            new FinancialDatasetReadinessService.Readiness(false, "DATASET_NOT_COLLECTED",
+                java.util.Set.of("market_quote_daily"), java.util.Set.of("market_quote_daily"), null,
+                "Required financial datasets have not produced a successful ingestion receipt"));
+
+        assertThatThrownBy(() -> service.setEnabled(config.getId(), true))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("暂不可启用")
+            .hasMessageContaining("market_quote_daily");
+    }
+
+    @Test
+    void publishesEnabledInternalQueryOnlyAfterItsDatasetIsCollected() {
+        DatabaseQueryConfig config = query();
+        config.setDatasourceId(FinancialAnalysisQuerySamples.INTERNAL_DATASOURCE_ID);
+        config.setSqlTemplate("select quote_code from market_quote_daily");
+        FinancialDatasetReadinessService readinessService = mock(FinancialDatasetReadinessService.class);
+        service.setFinancialDatasetReadinessService(readinessService);
+        when(repository.findByEnabledTrueOrderByToolNameAsc()).thenReturn(List.of(config));
+        when(readinessService.inspect(config.getSqlTemplate())).thenReturn(
+            new FinancialDatasetReadinessService.Readiness(false, "DATASET_NOT_COLLECTED",
+                java.util.Set.of("market_quote_daily"), java.util.Set.of("market_quote_daily"), null,
+                "No successful ingestion receipt"),
+            new FinancialDatasetReadinessService.Readiness(true, "READY",
+                java.util.Set.of("market_quote_daily"), java.util.Set.of(), java.time.Instant.now(),
+                "Required financial datasets are collected"));
+
+        assertThat(service.listEnabled()).isEmpty();
+        assertThat(service.listEnabled()).containsExactly(config);
     }
 
     @Test

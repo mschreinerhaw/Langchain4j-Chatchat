@@ -111,6 +111,8 @@ chatchat:
           bm25-weight: 0.55
           vector-weight: 0.45
     market:
+      # The MCP service must never silently store financial observations in its control database.
+      require-dedicated-storage: true
       query-cache:
         # Default financial query cache; select REDIS after Redis connectivity succeeds.
         enabled: true

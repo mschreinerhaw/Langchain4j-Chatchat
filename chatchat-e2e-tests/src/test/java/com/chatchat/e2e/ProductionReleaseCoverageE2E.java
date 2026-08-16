@@ -213,6 +213,34 @@ class ProductionReleaseCoverageE2E {
     }
 
     @Test
+    void internalFinancialQueriesRequireDedicatedStorageAndSuccessfulDatasetReceipts() throws IOException {
+        Path root = repositoryRoot();
+        String store = Files.readString(root.resolve(
+            "chatchat-runtime-market/src/main/java/com/chatchat/runtime/market/storage/FinancialDataStore.java"));
+        String readiness = Files.readString(root.resolve(
+            "chatchat-runtime-market/src/main/java/com/chatchat/runtime/market/analysis/FinancialDatasetReadinessService.java"));
+        String queryService = Files.readString(root.resolve(
+            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/database/DatabaseQueryConfigService.java"));
+        String adminController = Files.readString(root.resolve(
+            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/database/DatabaseQueryAdminController.java"));
+        String devConfig = Files.readString(root.resolve(
+            "chatchat-mcp-server/src/main/resources/application-dev.yml"));
+        String prodConfig = Files.readString(root.resolve(
+            "chatchat-mcp-server/src/main/resources/application-prod.yml"));
+        String governance = Files.readString(root.resolve(
+            "docs/data-analysis-evidence-summary-governance.md"));
+
+        assertThat(store).contains("isRequireDedicatedStorage()", "financialWriteStorage is unavailable");
+        assertThat(readiness).contains("market_asset_catalog", "DATASET_NOT_COLLECTED",
+            "FINANCIAL_STORAGE_UNAVAILABLE");
+        assertThat(queryService).contains("filter(this::hasUsableDatasource)", "dataReadiness(config).ready()");
+        assertThat(adminController).contains("dataAvailabilityStatus", "lastDataCollectedAt");
+        assertThat(devConfig).contains("require-dedicated-storage: true");
+        assertThat(prodConfig).contains("require-dedicated-storage: true");
+        assertThat(governance).contains("内置数据集就绪治理", "不得互相替代");
+    }
+
+    @Test
     void summaryGovernanceProtocolCoversAllStructuredDataIncludingAssetAnalysis() throws IOException {
         Path root = repositoryRoot();
         String contextProtocol = Files.readString(root.resolve(
@@ -223,6 +251,10 @@ class ProductionReleaseCoverageE2E {
             "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/database/DatabaseQueryToolSpecFactory.java"));
         String financialEnrichment = Files.readString(root.resolve(
             "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/news/FinancialEnrichmentService.java"));
+        String livedataRegistration = Files.readString(root.resolve(
+            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/livedata/LivedataApiRegistrationService.java"));
+        String apiServiceConfigService = Files.readString(root.resolve(
+            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/api/ApiServiceConfigService.java"));
         String finalizer = Files.readString(root.resolve(
             "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentAnswerFinalizer.java"));
         String observationBuilder = Files.readString(root.resolve(
@@ -300,8 +332,16 @@ class ProductionReleaseCoverageE2E {
                 "analysisSummaryGovernanceBridge.summarize(",
                 "analysisSummaryGovernanceBridge.ledger(",
                 "governedFinalSummaryResult(", "analysisSummaryResult",
-                "analysisContext(output)", "structuredDatasetRecordSets(output, reference)")
+                "analysisContext(output)", "structuredDatasetRecordSets(output, reference)",
+                "governedModelSummaryRequired = oversized || !recordSet.analysisContext().isEmpty()",
+                "Mandatory analysis deliverable", "ensureGovernedNarrativeAnalysis(",
+                "governedNarrativeAnalysisAppended")
             .doesNotContain("api_data_identity.v1", "other API datasets");
+        assertThat(livedataRegistration)
+            .contains("existing.getOutputSchemaJson()", "mapped.getOutputSchemaJson()",
+                "apiServiceConfigService.updateDataContract(");
+        assertThat(apiServiceConfigService)
+            .contains("updateDataContract(String id", "current.setOutputSchemaJson(");
         assertThat(summaryBridge)
             .contains("BRIDGE_SCHEMA_VERSION = \"analysis_summary_bridge.v1\"",
                 "DataAnalysisContextProtocol.GOVERNANCE_VERSION",

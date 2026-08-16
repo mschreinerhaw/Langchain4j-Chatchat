@@ -2758,6 +2758,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("- Do not recommend manual one-by-one execution as the product solution when an ordered runtime batch is expected. Report the missing batch dispatch/evidence and recommend repairing or retrying the batch workflow.\n");
         prompt.append("- For batch_execution_evidence.v1, results[].dataset.representativeRows and numericProfiles are authoritative returned business data. Analyze and report their concrete values. recordCount and omittedRecordCount describe model projection coverage; omitted rows remain in the tool trace. numericProfiles are mechanical statistics: use sum only when the field semantics prove additivity, and never sum identifiers, dates, prices, rates, or categorical codes merely because they are numeric. Never reduce a successful non-empty batch to execution metadata or claim that concrete values are unavailable when these dataset fields are present.\n");
         prompt.append(analysisSummaryGovernanceBridge.finalSynthesisInstruction());
+        prompt.append("- Mandatory analysis deliverable: tables and returned rows are evidence attachments, not the summary itself. For every non-empty structured dataset, write a business-readable analysis paragraph using its governed analysisContext. State the dataset identity and purpose, explain material values/differences/anomalies supported by the rows, and relate datasets only when relationships are explicitly supplied. A heading, data-source label, row count, or table without analytical findings is incomplete.\n");
         prompt.append("- A successful template inventory is not a business result. When returned rows exist, do not replace them with phrases such as '可返回', '可获取', '可计算', template capability descriptions, or execution-count tables. Present the returned values first; execution metadata is secondary.\n");
         prompt.append("- diagnosticRun assessment scores are authoritative only when non-null. Never convert tool success, OPEN/running state, capacity size, or coverage ratio into a missing health score.\n");
         prompt.append("- Keep execution coverage and evidence quality separate. A successful query with incomplete requiredMetrics remains executed and covered, but its health assessment capability is LIMITED; never reduce coverage merely because quality is incomplete.\n");
@@ -3040,7 +3041,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 AnalysisSummaryGovernanceBridge.ChunkPosition position =
                     analysisSummaryGovernanceBridge.position(recordSet.reference(), chunkOffset + 1,
                         chunks.size(), from, to, recordSet.records().size());
-                AnalysisSummaryResult governedSummary = oversized
+                boolean governedModelSummaryRequired = oversized || !recordSet.analysisContext().isEmpty();
+                AnalysisSummaryResult governedSummary = governedModelSummaryRequired
                     ? analysisSummaryGovernanceBridge.summarize(
                         activeChatModel, isolationScope, position, governedContext, chunk)
                     : analysisSummaryGovernanceBridge.preserve(
@@ -3225,6 +3227,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
 
     private List<BatchRecordSet> sqlRecordSets(Object output, String reference) {
         Map<String, Object> root = objectMap(output);
+        Map<String, Object> rootAnalysisContext = analysisContext(output);
         String dataSchema = stringValue(root.get("dataSchema"));
         Map<String, Object> data = objectMap(root.get("data"));
         if ("sql_result.v1".equals(dataSchema)) {
@@ -3240,7 +3243,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 row.put("sourceComplete", sourceComplete);
                 annotated.add(Map.copyOf(row));
             }
-            return List.of(new BatchRecordSet(reference, List.copyOf(annotated)));
+            return List.of(new BatchRecordSet(reference, rootAnalysisContext, List.copyOf(annotated)));
         }
         boolean scriptResult = "sql_script_result.v1".equals(dataSchema);
         boolean multiQueryResult = "database_query_multi_sql_result.v1".equals(dataSchema)
@@ -3273,9 +3276,11 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 row.put("sourceComplete", sourceComplete);
                 annotated.add(Map.copyOf(row));
             }
+            Map<String, Object> resultSetAnalysisContext = objectMap(resultSet.get("analysisContext"));
             sets.add(new BatchRecordSet(
                 reference + "#statement-" + firstNonBlank(stringValue(firstNonNull(
                     resultSet.get("statementIndex"), resultSet.get("executionOrder"))), "?"),
+                resultSetAnalysisContext.isEmpty() ? rootAnalysisContext : resultSetAnalysisContext,
                 List.copyOf(annotated)));
         }
         return List.copyOf(sets);
@@ -3422,16 +3427,17 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (coverage.returnedRecordCount() == 0) {
             return answer;
         }
+        String governedAnswer = ensureGovernedNarrativeAnalysis(answer, coverage, metadata);
         boolean everyRecordReferenced = coverage.recordValueGroups().stream()
-            .allMatch(values -> containsAnyConcreteValue(answer, values));
+            .allMatch(values -> containsAnyConcreteValue(governedAnswer, values));
         if (everyRecordReferenced && !coverage.iterative() && coverage.sourceContentComplete()) {
-            return answer;
+            return governedAnswer;
         }
         if (metadata != null) {
             metadata.put("recordAnalysisCoverageAppendixApplied", true);
             metadata.put("recordAnalysisEveryRecordReferencedByModel", everyRecordReferenced);
         }
-        return firstNonBlank(answer, "")
+        return firstNonBlank(governedAnswer, "")
             + "\n\n## \u5168\u91cf\u8bb0\u5f55\u8986\u76d6\u5206\u6790\n\n"
             + coverage.appendix()
             + "\n\u8986\u76d6\u6821\u9a8c\uff1a"
@@ -3441,6 +3447,51 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 : coverage.sourceContentComplete()
                     ? "\uff08\u5b8c\u6574\uff09"
                     : "\uff08\u5df2\u5b8c\u6574\u5904\u7406\u8fd4\u56de\u9884\u89c8\uff0c\u6e90\u5185\u5bb9\u4e0d\u5b8c\u6574\uff09");
+    }
+
+    private String ensureGovernedNarrativeAnalysis(String answer,
+                                                   RecordCoverageBundle coverage,
+                                                   Map<String, Object> metadata) {
+        if (hasNarrativeAnalysis(answer)) {
+            return answer;
+        }
+        List<AnalysisSummaryResult> modelSummaries = coverage.summaryResults().stream()
+            .filter(summary -> "MODEL_SUMMARY".equals(summary.outcome()))
+            .filter(summary -> summary.content() != null && !summary.content().isBlank())
+            .toList();
+        if (modelSummaries.isEmpty()) {
+            if (metadata != null) metadata.put("governedNarrativeAnalysisUnavailable", true);
+            return answer;
+        }
+        StringBuilder appendix = new StringBuilder(firstNonBlank(answer, ""));
+        appendix.append("\n\n## 数据分析总结\n\n");
+        for (AnalysisSummaryResult summary : modelSummaries) {
+            String dataset = stringValue(summary.position().get("datasetReference"));
+            String displayName = stringValue(objectMap(summary.analysisContext().get("source")).get("displayName"));
+            if (modelSummaries.size() > 1 || (dataset != null && !dataset.isBlank())) {
+                appendix.append("### ").append(firstNonBlank(displayName,
+                    firstNonBlank(dataset, "数据集分析"))).append("\n\n");
+            }
+            appendix.append(summary.content().trim()).append("\n\n");
+        }
+        if (metadata != null) {
+            metadata.put("governedNarrativeAnalysisAppended", true);
+            metadata.put("governedNarrativeAnalysisSummaryCount", modelSummaries.size());
+        }
+        return appendix.toString().trim();
+    }
+
+    private boolean hasNarrativeAnalysis(String answer) {
+        if (answer == null || answer.isBlank()) return false;
+        String narrative = java.util.Arrays.stream(answer.split("\\R"))
+            .map(String::trim)
+            .filter(line -> !line.isBlank())
+            .filter(line -> !line.startsWith("#") && !line.startsWith("|") && !line.startsWith("```"))
+            .filter(line -> !line.matches("^[-:| ]+$"))
+            .filter(line -> !line.matches("^(?:[-*]\\s*)?(?:数据来源|来源|数据集|共?\\s*\\d+\\s*(?:行|个数据集)).*$"))
+            .map(line -> line.replaceAll("[`*_>#]", "").trim())
+            .collect(java.util.stream.Collectors.joining(" "));
+        return narrative.length() >= 40;
     }
 
     private record BatchRecordSet(String reference,

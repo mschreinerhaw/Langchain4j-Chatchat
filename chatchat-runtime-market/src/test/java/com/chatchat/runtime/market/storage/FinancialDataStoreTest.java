@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.beans.factory.support.StaticListableBeanFactory;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -17,8 +18,26 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class FinancialDataStoreTest {
+    @Test
+    void dedicatedStorageRequirementFailsClosedInsteadOfUsingControlPlaneDatasource() {
+        var dataSource = new DriverManagerDataSource(
+            "jdbc:h2:mem:financial_control_plane;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1", "sa", "");
+        MarketModuleProperties properties = new MarketModuleProperties();
+        properties.setRequireDedicatedStorage(true);
+        var beans = new StaticListableBeanFactory();
+
+        assertThatThrownBy(() -> new FinancialDataStore(
+            new JdbcTemplate(dataSource), dataSource, new ObjectMapper(), properties,
+            beans.getBeanProvider(FinancialWriteStorage.class),
+            beans.getBeanProvider(FinancialReadOperations.class),
+            beans.getBeanProvider(FinancialSnapshotPublisher.class)))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("Dedicated financial storage is required");
+    }
+
     @Test
     void financialQueryBulkheadFailsFastWithoutConsumingMoreDatabaseConnections() throws Exception {
         var dataSource = new DriverManagerDataSource(

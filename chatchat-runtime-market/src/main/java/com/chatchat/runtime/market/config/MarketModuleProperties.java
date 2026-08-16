@@ -8,6 +8,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "chatchat.mcp.market")
 public class MarketModuleProperties {
     private boolean enabled = true;
+    /** Fail startup instead of silently writing financial observations into the control-plane datasource. */
+    private boolean requireDedicatedStorage;
     private String catalogIndexName = "financial-data-asset";
     private int defaultQueryLimit = 50;
     private int maxQueryLimit = 200;

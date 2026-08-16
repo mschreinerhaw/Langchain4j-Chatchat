@@ -726,6 +726,46 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void appendsGovernedModelAnalysisWhenCandidateContainsOnlyHeadingsAndDataSource() {
+        Map<String, Object> output = Map.of(
+            "analysisContext", Map.of(
+                "source", Map.of("displayName", "资产与盈亏概览", "description", "客户资产快照"),
+                "capability", Map.of("description", "分析资产规模与当日盈亏"),
+                "business", Map.of("name", "资产分析"),
+                "schema", Map.of("fields", List.of(
+                    Map.of("name", "ZZC", "description", "总资产"),
+                    Map.of("name", "DRYK", "description", "当日盈亏")))),
+            "data", Map.of("body", List.of(Map.of("ZZC", 847174.25, "DRYK", 42263.81))));
+        InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
+            "success", true, false, null, null,
+            List.of(new InterpretationPlanRuntime.StepExecution(
+                1, "mcp_tool", "livedata_asset_summary", true,
+                output, null, null, null, 10L, Map.of())),
+            Map.of(), 10L);
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(any(String.class))).thenReturn(
+            "该资产快照显示总资产为 847174.25，当日盈亏为 42263.81；该结论仅基于当前返回记录。");
+        AgentOrchestrator orchestrator = newOrchestrator(model);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+
+        AgentOrchestrator.RecordCoverageBundle coverage = orchestrator.buildRecordCoverageBundle(
+            model, "分析客户资产", result, Map.of(), metadata, () -> false);
+        String answer = orchestrator.ensureCompleteRecordCoveragePresented(
+            "## 资产与盈亏概览\n\n数据来源：`livedata_asset_summary`", coverage, metadata);
+
+        assertThat(answer)
+            .contains("数据分析总结", "资产与盈亏概览", "总资产为 847174.25", "当日盈亏为 42263.81");
+        assertThat(metadata)
+            .containsEntry("governedNarrativeAnalysisAppended", true)
+            .containsEntry("governedNarrativeAnalysisSummaryCount", 1);
+        verify(model).chat(argThat((String prompt) ->
+            prompt.contains("客户资产快照")
+                && prompt.contains("分析资产规模与当日盈亏")
+                && prompt.contains("总资产")
+                && prompt.contains("当日盈亏")));
+    }
+
+    @Test
     void iterativelySummarizesCompleteLinuxStdoutInsteadOfDroppingTheMiddle() {
         String stdout = "LINUX_HEAD\n" + "metric=value\n".repeat(2_000) + "LINUX_TAIL";
         Map<String, Object> output = Map.of(
@@ -811,6 +851,14 @@ class AgentOrchestratorTest {
     void sqlScriptCoverageProcessesEveryFetchedRowAndReportsDatabaseLimitCompleteness() {
         Map<String, Object> output = Map.of(
             "dataSchema", "sql_script_result.v1",
+            "analysisContext", Map.of(
+                "schemaVersion", "data_analysis_context.v1",
+                "source", Map.of("displayName", "数据库运行指标"),
+                "capability", Map.of("description", "分析活动会话与锁等待"),
+                "business", Map.of("name", "数据库运维"),
+                "schema", Map.of("fields", List.of(
+                    Map.of("name", "SID", "description", "会话编号"))),
+                "relationships", Map.of()),
             "data", Map.of("results", List.of(
                 Map.of(
                     "statementIndex", 1,
@@ -834,6 +882,7 @@ class AgentOrchestratorTest {
             "success", true, false, null, null, List.of(step), Map.of(), 10L
         );
         ChatModel model = mock(ChatModel.class);
+        when(model.chat(any(String.class))).thenReturn("SQL 分块业务分析");
         Map<String, Object> metadata = new LinkedHashMap<>();
 
         AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
@@ -842,12 +891,15 @@ class AgentOrchestratorTest {
         assertThat(coverage.returnedRecordCount()).isEqualTo(3);
         assertThat(coverage.processedRecordCount()).isEqualTo(3);
         assertThat(coverage.promptEvidence())
-            .contains("#statement-1", "#statement-2", "SID", "WAITING_SID")
+            .contains("#statement-1", "#statement-2", "SID", "SQL 分块业务分析")
             .contains("sourceContentComplete=false");
         assertThat(metadata)
             .containsEntry("recordAnalysisCoverageComplete", true)
             .containsEntry("recordAnalysisSourceContentComplete", false);
-        verify(model, never()).chat(any(String.class));
+        verify(model, times(2)).chat(argThat((String prompt) ->
+            prompt.contains("数据库运行指标")
+                && prompt.contains("分析活动会话与锁等待")
+                && prompt.contains("会话编号")));
     }
 
     @Test

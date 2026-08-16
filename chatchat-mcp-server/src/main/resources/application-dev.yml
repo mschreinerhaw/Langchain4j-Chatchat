@@ -29,6 +29,7 @@ chatchat:
     public-key-path: ./data/license/license-public.pem
   mcp:
     market:
+      require-dedicated-storage: true
       query-timeout-seconds: 15
       max-concurrent-queries: 4
       query-queue-timeout-ms: 100

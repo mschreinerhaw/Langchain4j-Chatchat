@@ -73,7 +73,7 @@ public class FinancialDataStore {
                               @Qualifier("financialWriteStorage") ObjectProvider<FinancialWriteStorage> writeStorageProvider,
                               @Qualifier("financialReadOperations") ObjectProvider<FinancialReadOperations> readProvider,
                               ObjectProvider<FinancialSnapshotPublisher> snapshotPublisherProvider) {
-        this(resolveStorage(jdbc, dataSource, writeStorageProvider), mapper,
+        this(resolveStorage(jdbc, dataSource, runtimeProperties, writeStorageProvider), mapper,
             runtimeProperties, readProvider, snapshotPublisherProvider);
     }
 
@@ -105,8 +105,12 @@ public class FinancialDataStore {
     }
 
     private static StorageResources resolveStorage(JdbcTemplate primaryJdbc, DataSource primaryDataSource,
+                                                    MarketModuleProperties runtimeProperties,
                                                     ObjectProvider<FinancialWriteStorage> writeStorageProvider) {
         FinancialWriteStorage storage = writeStorageProvider.getIfAvailable();
+        if (storage == null && runtimeProperties.isRequireDedicatedStorage()) {
+            throw new IllegalStateException("Dedicated financial storage is required but financialWriteStorage is unavailable");
+        }
         return storage == null ? new StorageResources(primaryJdbc, primaryDataSource)
             : new StorageResources(storage.jdbc(), storage.dataSource());
     }

@@ -12,6 +12,7 @@ import com.chatchat.mcpserver.search.FeatureHashVectorizer;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import com.chatchat.runtime.market.analysis.FinancialAnalysisQuerySamples;
+import com.chatchat.runtime.market.analysis.FinancialDatasetReadinessService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,6 +49,7 @@ public class DatabaseQueryConfigService {
     private final SqlDatasourceConfigService datasourceConfigService;
     private final LuceneMcpSearchService luceneSearchService;
     private final DataQueryCategoryService categoryService;
+    private FinancialDatasetReadinessService financialDatasetReadinessService;
 
     public DatabaseQueryConfigService(DatabaseQueryConfigRepository repository,
                                       ApiServiceConfigRepository apiServiceConfigRepository,
@@ -240,6 +242,11 @@ public class DatabaseQueryConfigService {
     public DatabaseQueryConfig setEnabled(String id, boolean enabled) {
         DatabaseQueryConfig current = getById(id);
         if (enabled && !hasUsableDatasource(current)) {
+            FinancialDatasetReadinessService.Readiness readiness = dataReadiness(current);
+            if (isInternalFinancialMarketDatasource(current)) {
+                throw new IllegalArgumentException("内置金融查询暂不可启用：" + readiness.message()
+                    + (readiness.missingTables().isEmpty() ? "" : "；缺少数据集表 " + readiness.missingTables()));
+            }
             throw new IllegalArgumentException("database query requires an enabled datasource asset");
         }
         current.setEnabled(enabled);
@@ -900,7 +907,7 @@ public class DatabaseQueryConfigService {
 
     private boolean hasUsableDatasource(DatabaseQueryConfig config) {
         if (isInternalFinancialMarketDatasource(config)) {
-            return true;
+            return dataReadiness(config).ready();
         }
         if (blankToNull(config.getDatasourceId()) != null) {
             try {
@@ -911,6 +918,24 @@ public class DatabaseQueryConfigService {
             }
         }
         return false;
+    }
+
+    public FinancialDatasetReadinessService.Readiness dataReadiness(DatabaseQueryConfig config) {
+        if (!isInternalFinancialMarketDatasource(config)) {
+            return new FinancialDatasetReadinessService.Readiness(
+                true, "NOT_APPLICABLE", Set.of(), Set.of(), null, "External datasource readiness is managed by its asset");
+        }
+        if (financialDatasetReadinessService == null) {
+            return new FinancialDatasetReadinessService.Readiness(
+                false, "FINANCIAL_STORAGE_UNAVAILABLE", Set.of(), Set.of(), null,
+                "Financial dataset readiness service is unavailable");
+        }
+        return financialDatasetReadinessService.inspect(config.getSqlTemplate());
+    }
+
+    @Autowired(required = false)
+    void setFinancialDatasetReadinessService(FinancialDatasetReadinessService financialDatasetReadinessService) {
+        this.financialDatasetReadinessService = financialDatasetReadinessService;
     }
 
     private boolean isInternalFinancialMarketDatasource(DatabaseQueryConfig config) {

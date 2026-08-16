@@ -58,6 +58,7 @@ export default {
         { key: 'businessGroupName', label: '能力分类' },
         { key: 'domain', label: '业务领域' },
         { key: 'maxRows', label: '最大行数' },
+        { key: 'dataAvailabilityStatus', label: '数据状态', formatter: (value, row) => this.dataAvailabilityLabel(value, row) },
         { key: 'enabled', label: '状态', type: 'badge', formatter: value => value === false ? '停用' : '启用' }
       ],
       formFields: [
@@ -257,6 +258,16 @@ export default {
     this.loadTradingCalendar();
   },
   methods: {
+    dataAvailabilityLabel(value, row) {
+      if (value === 'NOT_APPLICABLE') return '外部数据源';
+      if (value === 'READY') return '已采集';
+      if (value === 'DATASET_NOT_COLLECTED') {
+        const missing = Array.isArray(row?.missingDatasetTables) ? row.missingDatasetTables.join('、') : '';
+        return missing ? `未采集：${missing}` : '未采集';
+      }
+      if (value === 'FINANCIAL_STORAGE_UNAVAILABLE') return '存储未就绪';
+      return value || '未知';
+    },
     async loadCategories() {
       try {
         const [categories, queries] = await Promise.all([api.listCategories(), api.list()]);

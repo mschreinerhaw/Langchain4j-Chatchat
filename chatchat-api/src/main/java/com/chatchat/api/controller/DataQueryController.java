@@ -12,6 +12,7 @@ import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.common.config.ModelsConfig;
 import com.chatchat.common.tool.ToolMetadata;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -546,11 +547,15 @@ public class DataQueryController {
         private String role;
         private String content;
         private Long timestamp;
+        @JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
         private List<Map<String, Object>> sources;
+        @JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
         private List<Map<String, Object>> traces;
+        @JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
         private List<Map<String, Object>> steps;
         private Map<String, Object> visualizationSpec;
         private Map<String, Object> uiResponse;
+        @JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
         private List<Map<String, Object>> evidencePremises;
         private String agentName;
         private String modelName;

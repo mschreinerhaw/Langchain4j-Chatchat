@@ -51,6 +51,31 @@ import static org.mockito.Mockito.when;
 class AgentOrchestratorTest {
 
     @Test
+    void suppressesScalarMandatoryFallbackAfterGovernedDiagnosticExecutorFailure() {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("diagnosticRun", Map.of("required", 3, "completed", 0));
+        metadata.put("interpretationPlanStepExecutions", List.of(
+            Map.of(
+                "stage", "repair-1",
+                "stepId", 4,
+                "toolName", "generic_batch_executor",
+                "success", false,
+                "errorMessage", "coverage mismatch"
+            )
+        ));
+
+        assertThat(orchestrator.shouldSuppressLegacyMandatoryFallback(
+            "generic_batch_executor", metadata)).isTrue();
+        assertThat(orchestrator.shouldSuppressLegacyMandatoryFallback(
+            "different_executor", metadata)).isFalse();
+        assertThat(orchestrator.shouldSuppressLegacyMandatoryFallback(
+            "generic_batch_executor", Map.of(
+                "interpretationPlanStepExecutions", metadata.get("interpretationPlanStepExecutions")
+            ))).isFalse();
+    }
+
+    @Test
     void pinsDatabaseDagGovernanceFingerprintIntoPlanRuntimeAttributes() {
         AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
         DagGovernanceContractProvider.ContractSnapshot snapshot =

@@ -777,10 +777,17 @@ public class InterpretationPlanRuntime {
                                     Map<Integer, StepExecution> completed,
                                     ExecutionRequest request) {
         try {
+            if (checkpoint == null || step == null || checkpoint.materializedResult() == null) {
+                return false;
+            }
+            for (Integer dependencyId : step.dependsOn() == null ? List.<Integer>of() : step.dependsOn()) {
+                if (!completed.containsKey(dependencyId)) {
+                    return false;
+                }
+            }
             Map<String, String> expectedIdentity = checkpointIdentityFingerprints(
                 step, request, completed, null);
-            if (checkpoint == null || step == null || checkpoint.materializedResult() == null
-                || !checkpoint.materializedResult().success()
+            if (!checkpoint.materializedResult().success()
                 || !PlanStepCheckpoint.SCHEMA_VERSION.equals(checkpoint.schemaVersion())
                 || !checkpoint.committed()
                 || !Objects.equals(checkpoint.planExecutionScope(), planExecutionScope(request))

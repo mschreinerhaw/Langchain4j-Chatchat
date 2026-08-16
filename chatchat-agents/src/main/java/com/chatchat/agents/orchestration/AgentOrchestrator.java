@@ -6980,6 +6980,17 @@ public class AgentOrchestrator implements AgentRunExecutor {
                     + failedMandatoryTool + " already produced a failure observation.");
                 return;
             }
+            if (shouldSuppressLegacyMandatoryFallback(fallbackTool, metadata)) {
+                metadata.put("mandatoryWorkflowFallbackSuppressed", true);
+                metadata.put("mandatoryWorkflowFallbackSuppressedTool", fallbackTool);
+                metadata.put("mandatoryWorkflowFallbackSuppressionReason",
+                    "GOVERNED_DIAGNOSTIC_EXECUTOR_FAILED");
+                metadata.put("mandatoryWorkflowStoppedOnFailure", fallbackTool);
+                observations.add("Mandatory workflow fallback did not invoke " + fallbackTool
+                    + " because the governed diagnostic DAG already attempted that executor and failed. "
+                    + "A scalar legacy fallback cannot replace its reviewed multi-result execution contract.");
+                return;
+            }
             completedTools = completedWorkflowToolsFromEvents(
                 runtimeAttributes,
                 workflowStateTracker.completedToolsFromTraces(traces)
@@ -7116,6 +7127,30 @@ public class AgentOrchestrator implements AgentRunExecutor {
         } else {
             metadata.put("mandatoryWorkflowStillMissingAfterFallback", remainingMandatoryTools);
         }
+    }
+
+    boolean shouldSuppressLegacyMandatoryFallback(String fallbackTool,
+                                                  Map<String, Object> metadata) {
+        if (fallbackTool == null || fallbackTool.isBlank() || metadata == null
+            || metadata.get("diagnosticRun") == null) {
+            return false;
+        }
+        Object rawExecutions = metadata.get("interpretationPlanStepExecutions");
+        if (!(rawExecutions instanceof Iterable<?> executions)) {
+            return false;
+        }
+        for (Object rawExecution : executions) {
+            if (!(rawExecution instanceof Map<?, ?> execution)) {
+                continue;
+            }
+            String attemptedTool = stringValue(execution.get("toolName"));
+            boolean failed = execution.containsKey("success")
+                && !booleanValue(execution.get("success"));
+            if (failed && toolNames.sameToolName(fallbackTool, attemptedTool)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private List<String> missingRequiredToolInputs(String toolName, Map<String, Object> arguments) {

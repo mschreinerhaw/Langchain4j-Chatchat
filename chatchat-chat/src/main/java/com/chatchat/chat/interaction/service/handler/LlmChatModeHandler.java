@@ -62,6 +62,8 @@ public class LlmChatModeHandler implements InteractionModeHandler {
             .metadata(java.util.Map.of(
                 "historyUsed", context.history().size(),
                 "summaryUsed", context.conversationSummary() != null && !context.conversationSummary().isBlank(),
+                "conversationEvidenceUsed",
+                    context.conversationEvidence() != null && !context.conversationEvidence().isBlank(),
                 "handler", "LlmChatModeHandler"
             ))
             .build();
@@ -83,6 +85,11 @@ public class LlmChatModeHandler implements InteractionModeHandler {
             builder.append("Conversation Summary:\n")
                 .append(context.conversationSummary().trim())
                 .append("\n\n");
+        }
+        if (context.conversationEvidence() != null && !context.conversationEvidence().isBlank()) {
+            builder.append("Governed Historical Evidence (identity and lineage only; not current-turn proof):\n")
+                .append(context.conversationEvidence().trim())
+                .append("\nRevalidate volatile facts before treating them as current.\n\n");
         }
         if (!context.history().isEmpty()) {
             String history = context.history().stream()

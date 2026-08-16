@@ -31,6 +31,8 @@ public class ConversationMemoryService {
     private final ObjectMapper objectMapper;
     private final ObjectProvider<ChatModel> chatModelProvider;
     private final ConversationContextProperties properties;
+    private final ConversationEvidenceLedgerBridge evidenceLedgerBridge =
+        new ConversationEvidenceLedgerBridge();
 
     /**
      * Creates a new ConversationMemoryService instance.
@@ -125,6 +127,13 @@ public class ConversationMemoryService {
     }
 
     public Map<String, Object> responseMemoryContext(InteractionResponse response) {
+        return responseMemoryContext(response, null, null, null);
+    }
+
+    public Map<String, Object> responseMemoryContext(InteractionResponse response,
+                                                     String tenantId,
+                                                     String conversationId,
+                                                     String requestId) {
         if (response == null) {
             return Map.of();
         }
@@ -158,7 +167,22 @@ public class ConversationMemoryService {
         if (!tools.isEmpty()) {
             context.put("tools", tools);
         }
+        Map<String, Object> ledger = evidenceLedgerBridge.capture(
+            response, tenantId, conversationId, requestId);
+        if (!ledger.isEmpty()) {
+            context.put("conversationEvidenceLedger", ledger);
+        }
         return context.size() <= 1 ? Map.of() : Map.copyOf(context);
+    }
+
+    public String conversationEvidenceProjection(String tenantId,
+                                                 String conversationId,
+                                                 int messageLimit,
+                                                 int maxEntries) {
+        List<MessageSnapshot> messages = recent(
+            tenantId, conversationId, Math.max(1, messageLimit));
+        return evidenceLedgerBridge.project(
+            messages, tenantId, conversationId, Math.max(1, maxEntries));
     }
 
     /**
@@ -467,6 +491,10 @@ public class ConversationMemoryService {
         if (evidenceAnswer != null && !String.valueOf(evidenceAnswer).isBlank()) {
             parts.add("evidenceSummary=" + limit(String.valueOf(evidenceAnswer), 260));
         }
+        Object ledger = memoryContext.get("conversationEvidenceLedger");
+        if (ledger != null) {
+            parts.add("historicalEvidenceLedger=conversation_evidence_ledger.v1; revalidationRequired=true");
+        }
         return String.join("; ", parts);
     }
 
@@ -528,6 +556,10 @@ public class ConversationMemoryService {
             String tools = tools(memoryContext.get("tools"));
             if (!tools.isBlank()) {
                 parts.add("tools=" + tools);
+            }
+            if (memoryContext.get("conversationEvidenceLedger") != null) {
+                parts.add("historicalEvidenceLedger=conversation_evidence_ledger.v1");
+                parts.add("historicalEvidenceRevalidationRequired=true");
             }
             return String.join("; ", parts);
         }

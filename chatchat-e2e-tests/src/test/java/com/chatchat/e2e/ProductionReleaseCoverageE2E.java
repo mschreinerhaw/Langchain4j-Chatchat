@@ -241,6 +241,14 @@ class ProductionReleaseCoverageE2E {
             "chatchat-agents/src/main/java/com/chatchat/agents/runtime/McpEvidenceResult.java"));
         String toolRuntime = Files.readString(root.resolve(
             "chatchat-agents/src/main/java/com/chatchat/agents/runtime/ToolRuntimeService.java"));
+        String conversationEvidenceBridge = Files.readString(root.resolve(
+            "chatchat-chat/src/main/java/com/chatchat/chat/interaction/service/ConversationEvidenceLedgerBridge.java"));
+        String conversationMemory = Files.readString(root.resolve(
+            "chatchat-chat/src/main/java/com/chatchat/chat/interaction/service/ConversationMemoryService.java"));
+        String interactionOrchestration = Files.readString(root.resolve(
+            "chatchat-chat/src/main/java/com/chatchat/chat/interaction/service/InteractionOrchestrationService.java"));
+        String agentChatHandler = Files.readString(root.resolve(
+            "chatchat-chat/src/main/java/com/chatchat/chat/interaction/service/handler/AgentChatModeHandler.java"));
         String structuredAdapter = Files.readString(root.resolve(
             "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/StructuredReasoningEvidenceAdapterRegistry.java"));
         String factGrounding = Files.readString(root.resolve(
@@ -319,10 +327,27 @@ class ProductionReleaseCoverageE2E {
         assertThat(toolRuntime)
             .contains("evidenceGovernanceBridge.capture(",
                 "output.getMetadata().put(\"mcpEvidenceResult\"",
+                "runtimeMetadata.put(\"mcpEvidenceResult\"",
                 "McpEvidenceResult.SCHEMA_VERSION");
         assertThat(observationBuilder)
             .contains("appendMcpEvidenceGovernance", "trustedEvidenceGovernance",
                 "MCP evidence governance bridge:");
+        assertThat(conversationEvidenceBridge)
+            .contains("SCHEMA_VERSION = \"conversation_evidence_ledger.v1\"",
+                "HISTORICAL_ON_NEXT_TURN", "HISTORICAL_CONTEXT_ONLY",
+                "currentFact", "revalidationRequired", "crossTenantReuseAllowed",
+                "crossConversationReuseAllowed", "rawPayloadPersisted",
+                "tenantId", "conversationId");
+        assertThat(conversationMemory)
+            .contains("conversationEvidenceLedger", "conversationEvidenceProjection(",
+                "historicalEvidenceRevalidationRequired=true");
+        assertThat(interactionOrchestration)
+            .contains("conversationEvidence(memoryService.conversationEvidenceProjection(",
+                "responseMemoryContext(response, tenantId, conversationId, requestId)");
+        assertThat(agentChatHandler)
+            .contains("conversationEvidenceProjection", "conversationEvidenceCurrentFact",
+                "conversationEvidenceRevalidationRequired",
+                "identity and lineage context only, not current-turn proof");
         assertThat(structuredAdapter)
             .contains("analysisContexts", "summary-governance input",
                 "not observed data or a presentation-label mapping");

@@ -97,6 +97,11 @@ public class InteractionOrchestrationService {
             .mode(mode)
             .startedAtMs(startedAt)
             .conversationSummary(memoryService.summary(tenantId, conversationId).map(summary -> summary.summary()).orElse(""))
+            .conversationEvidence(memoryService.conversationEvidenceProjection(
+                tenantId,
+                conversationId,
+                contextProperties.getEvidenceLedgerMessageLimit(),
+                contextProperties.getEvidenceProjectionMaxEntries()))
             .history(memoryService.recent(tenantId, conversationId, historyWindow))
             .build();
 
@@ -120,7 +125,7 @@ public class InteractionOrchestrationService {
                 response.getAnswer(),
                 response.getSources(),
                 response.getToolTraces(),
-                memoryService.responseMemoryContext(response)
+                memoryService.responseMemoryContext(response, tenantId, conversationId, requestId)
             );
             memoryService.maybeRefreshSummary(tenantId, conversationId);
         }

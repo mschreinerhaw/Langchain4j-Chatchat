@@ -683,6 +683,8 @@ public class ToolRuntimeService {
                 executionPlan,
                 policyDecision
             );
+            runtimeMetadata.put("mcpEvidenceResult", governedEvidence.descriptor());
+            runtimeMetadata.put("mcpEvidenceResultSchemaVersion", McpEvidenceResult.SCHEMA_VERSION);
             InteractionToolTrace trace = buildTrace(toolName, metadata, toolInput, output, startedAt, finishedAt, runtimeMetadata);
             logAudit(toolName, request, output.isSuccess() ? "success" : "failed", durationMs, output.getErrorMessage());
             publishAuditRecord(request, metadata, output, trace, output.isSuccess() ? "success" : "failed", null, durationMs, runtimeMetadata);

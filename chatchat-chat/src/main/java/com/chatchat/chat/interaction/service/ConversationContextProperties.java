@@ -22,6 +22,8 @@ public class ConversationContextProperties {
     private int maxAvailableTools = 256;
     private int maxImageAnalysisIds = 64;
     private int maxHistoryWindow = 100;
+    private int evidenceLedgerMessageLimit = 100;
+    private int evidenceProjectionMaxEntries = 32;
     private int maxResults = 1_000;
     private int maxToolInputDepth = 20;
     private int maxToolInputNodes = 10_000;

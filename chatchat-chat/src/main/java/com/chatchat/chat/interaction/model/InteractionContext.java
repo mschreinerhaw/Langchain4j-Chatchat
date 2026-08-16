@@ -15,6 +15,7 @@ public record InteractionContext(
     InteractionMode mode,
     long startedAtMs,
     String conversationSummary,
+    String conversationEvidence,
     List<ConversationMemoryService.MessageSnapshot> history
 ) {
 }

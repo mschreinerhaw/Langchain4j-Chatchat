@@ -714,6 +714,18 @@ class AgentAnswerFinalizer {
         if (activeChatModel == null) {
             return null;
         }
+        if (metadata != null
+            && Boolean.TRUE.equals(metadata.get("modelEvidenceReviewRewriteAllowed"))
+            && review != null
+            && AgentAnswerReview.REVISED.equals(review.status())
+            && review.answer() != null
+            && !review.answer().isBlank()) {
+            // The reviewer has already performed the authorized second-pass
+            // analysis against complete executed evidence. A generic quality
+            // pass does not carry that privileged evidence context and must not
+            // override the evidence-grounded repair with the original candidate.
+            return null;
+        }
         List<AnswerQualityEvaluator.AnswerCandidate> candidates =
             answerCandidates(candidateAnswer, review, signal, metadata);
         if (candidates.size() <= 1) {

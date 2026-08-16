@@ -2,6 +2,7 @@ package com.chatchat.common.tool;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -55,6 +56,16 @@ public final class ToolLogSummarizer {
         envelope.put("originalSummaryChars", text.length());
         envelope.put("preview", text.substring(0, Math.max(0, maxChars)) + "...");
         return envelope;
+    }
+
+    /**
+     * Produces a complete evidence copy while redacting values whose field names
+     * identify credentials. Unlike {@link #summarize(Object)}, this method never
+     * applies character, collection, or depth limits and is therefore suitable
+     * for the Runtime-to-Agent evidence boundary rather than operational logs.
+     */
+    public static Object redactComplete(Object value) {
+        return redactCompleteValue(value, null, new IdentityHashMap<>());
     }
 
     /**
@@ -185,6 +196,50 @@ public final class ToolLogSummarizer {
             return summarized;
         }
         return limitString(String.valueOf(value));
+    }
+
+    private static Object redactCompleteValue(Object value,
+                                              String key,
+                                              IdentityHashMap<Object, Boolean> ancestors) {
+        if (isSensitiveKey(key)) {
+            return "***";
+        }
+        if (value == null || value instanceof Number || value instanceof Boolean
+            || value instanceof Character || value instanceof Enum<?>) {
+            return value;
+        }
+        if (value instanceof CharSequence text) {
+            return text.toString();
+        }
+        if (ancestors.put(value, Boolean.TRUE) != null) {
+            return "[cyclic reference]";
+        }
+        try {
+            if (value instanceof Map<?, ?> map) {
+                Map<String, Object> redacted = new LinkedHashMap<>();
+                map.forEach((childKey, item) -> {
+                    String name = String.valueOf(childKey);
+                    redacted.put(name, redactCompleteValue(item, name, ancestors));
+                });
+                return redacted;
+            }
+            if (value instanceof Iterable<?> iterable) {
+                List<Object> redacted = new ArrayList<>();
+                iterable.forEach(item -> redacted.add(redactCompleteValue(item, null, ancestors)));
+                return redacted;
+            }
+            if (value.getClass().isArray()) {
+                int length = Array.getLength(value);
+                List<Object> redacted = new ArrayList<>(length);
+                for (int i = 0; i < length; i++) {
+                    redacted.add(redactCompleteValue(Array.get(value, i), null, ancestors));
+                }
+                return redacted;
+            }
+            return String.valueOf(value);
+        } finally {
+            ancestors.remove(value);
+        }
     }
 
     private static Map<String, Object> enterpriseMetadataPayload(String toolName, Object value, int depth) {

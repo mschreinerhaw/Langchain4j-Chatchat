@@ -16,6 +16,7 @@ import com.chatchat.agents.runtime.AgentRunStatus;
 import com.chatchat.agents.runtime.AgentRunStore;
 import com.chatchat.agents.runtime.AgentRuntimeFactGroundingContract;
 import com.chatchat.agents.runtime.AgentRuntimeProperties;
+import com.chatchat.agents.runtime.AnalysisEvidenceSpillStore;
 import com.chatchat.agents.runtime.DefaultAgentAnswerReviewer;
 import com.chatchat.agents.runtime.DefaultAgentObservationPipeline;
 import com.chatchat.agents.runtime.InMemoryAgentRunStore;
@@ -66,6 +67,7 @@ import java.util.concurrent.CancellationException;
 import java.util.function.BooleanSupplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Agent orchestrator with tool planning and execution loop.
@@ -82,8 +84,6 @@ public class AgentOrchestrator implements AgentRunExecutor {
     private static final int SUMMARY_OBSERVATION_METADATA_CHARS = 16_000;
     private static final int SUMMARY_EVIDENCE_TOKEN_BUDGET = 24_000;
     private static final int SUMMARY_COMPRESSED_OBSERVATION_CHARS = 4_000;
-    private static final int RECORD_ANALYSIS_CHUNK_MAX_CHARS = 12_000;
-    private static final int RECORD_ANALYSIS_CHUNK_MAX_ROWS = 50;
     private static final Pattern TOOL_OUTPUT_DOCUMENT_ID = Pattern.compile(
         "tool-output:[A-Za-z0-9._:-]+"
     );
@@ -128,6 +128,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
     private final InterpretationPlanWorkflowGuard interpretationPlanWorkflowGuard = new InterpretationPlanWorkflowGuard();
     private final EvidenceAugmentationPolicy evidenceAugmentationPolicy = new EvidenceAugmentationPolicy();
     private final AgentContextBudget contextBudget;
+    private final int recordAnalysisChunkMaxChars;
+    private final int recordAnalysisChunkMaxRows;
+    private final int analysisSpillThresholdBytes;
     private final ContextTokenEstimator contextTokenEstimator = new ContextTokenEstimator();
     private final ContextEvidenceAggregator contextEvidenceAggregator = new ContextEvidenceAggregator();
     private final AnalysisSummaryGovernanceBridge analysisSummaryGovernanceBridge =
@@ -136,6 +139,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
     private DagGovernanceContractProvider dagGovernanceContractProvider =
         DagGovernanceContractProvider.builtInFallback();
     private NodeAttemptStore nodeAttemptStore;
+    private AnalysisEvidenceSpillStore analysisEvidenceSpillStore = AnalysisEvidenceSpillStore.disabled();
 
     public AgentOrchestrator(ChatModel chatModel,
                              ToolRegistry toolRegistry,
@@ -256,6 +260,12 @@ public class AgentOrchestrator implements AgentRunExecutor {
             Math.max(0, resolvedModelsConfig.getContextReservedHistoryTokens()),
             Math.max(0, resolvedModelsConfig.getContextReservedOutputTokens())
         );
+        AgentRuntimeProperties resolvedRuntimeProperties = agentRuntimeProperties == null
+            ? new AgentRuntimeProperties()
+            : agentRuntimeProperties;
+        this.recordAnalysisChunkMaxChars = resolvedRuntimeProperties.recordAnalysisChunkMaxChars();
+        this.recordAnalysisChunkMaxRows = resolvedRuntimeProperties.recordAnalysisChunkMaxRows();
+        this.analysisSpillThresholdBytes = resolvedRuntimeProperties.analysisSpillThresholdBytes();
         this.interpretationPlanStore = interpretationPlanStore == null && this.runStore instanceof InterpretationPlanStore store
             ? store
             : interpretationPlanStore;
@@ -273,6 +283,14 @@ public class AgentOrchestrator implements AgentRunExecutor {
     @Autowired(required = false)
     public void setNodeAttemptStore(NodeAttemptStore nodeAttemptStore) {
         this.nodeAttemptStore = nodeAttemptStore;
+    }
+
+    /** Production supplies the lossless RocksDB overflow/checkpoint store. */
+    @Autowired(required = false)
+    public void setAnalysisEvidenceSpillStore(AnalysisEvidenceSpillStore spillStore) {
+        this.analysisEvidenceSpillStore = spillStore == null
+            ? AnalysisEvidenceSpillStore.disabled()
+            : spillStore;
     }
 
     /**
@@ -2572,9 +2590,11 @@ public class AgentOrchestrator implements AgentRunExecutor {
             "returnedRecordCount", coverage.returnedRecordCount(),
             "processedRecordCount", coverage.processedRecordCount(),
             "coverageComplete", coverage.coverageComplete(),
+            "evidenceTraceComplete", coverage.evidenceTraceComplete(),
             "sourceContentComplete", coverage.sourceContentComplete(),
             "iterationCount", coverage.iterations(),
-            "summaryResultCount", coverage.summaryResults().size()
+            "summaryResultCount", coverage.summaryResults().size(),
+            "rawReplayChunkCount", coverage.rawReplayChunkCount()
         );
         AnalysisSummaryResult summaryResult = analysisSummaryGovernanceBridge.finalResult(
             summaryIsolationScope(coverage, metadata),
@@ -3194,45 +3214,94 @@ public class AgentOrchestrator implements AgentRunExecutor {
             "Complete returned-record evidence (record_grounded_analysis.v1). "
                 + "Every range below is processed evidence; final analysis must use it and must not substitute execution metadata.\n");
         StringBuilder appendix = new StringBuilder();
+        StringBuilder rawReplayEvidence = new StringBuilder();
         List<List<String>> recordValueGroups = new ArrayList<>();
         int returnedRecordCount = 0;
         int processedRecordCount = 0;
         int iterations = 0;
         boolean iterative = false;
         boolean sourceContentComplete = true;
+        int rawReplayChunkCount = 0;
+        int spilledChunkCount = 0;
+        int restoredCheckpointCount = 0;
+        long spilledByteCount = 0;
+        Map<String, Integer> datasetOccurrences = new LinkedHashMap<>();
         List<AnalysisSummaryResult> governedSummaryResults = new ArrayList<>();
         for (BatchRecordSet recordSet : recordSets) {
+            int datasetOccurrence = datasetOccurrences.merge(recordSet.reference(), 1, Integer::sum);
+            String evidenceReference = datasetOccurrence == 1
+                ? recordSet.reference()
+                : recordSet.reference() + "#occurrence-" + datasetOccurrence;
             returnedRecordCount += recordSet.records().size();
             sourceContentComplete &= recordSet.records().stream()
                 .noneMatch(record -> Boolean.FALSE.equals(record.get("sourceComplete")));
-            recordSet.records().forEach(record ->
-                recordValueGroups.add(recordValueGroup(record, query)));
-            String allRecords = stringify(recordSet.records());
-            boolean oversized = allRecords.length() > RECORD_ANALYSIS_CHUNK_MAX_CHARS;
+            RecordChunkPlan chunkPlan = recordChunkPlan(recordSet.records());
+            boolean oversized = chunkPlan.oversized();
+            if (!oversized) {
+                recordSet.records().forEach(record ->
+                    recordValueGroups.add(recordValueGroup(record, query)));
+            }
             iterative |= oversized;
-            List<List<Map<String, Object>>> chunks = oversized
-                ? recordChunks(recordSet.records()) : List.of(recordSet.records());
             Map<String, Object> governedContext = analysisSummaryGovernanceBridge.govern(
-                recordSet.reference(), recordSet.analysisContext(), recordSet.records());
-            promptEvidence.append("- ").append(recordSet.reference())
+                evidenceReference, recordSet.analysisContext(), recordSet.records());
+            promptEvidence.append("- ").append(evidenceReference)
                 .append(" analysisContext: ").append(stringify(governedContext)).append("\n");
-            appendix.append("### ").append(recordSet.reference()).append("\n\n");
+            appendix.append("### ").append(evidenceReference).append("\n\n");
             int from = 1;
-            for (int chunkOffset = 0; chunkOffset < chunks.size(); chunkOffset++) {
-                List<Map<String, Object>> chunk = chunks.get(chunkOffset);
+            for (int chunkOffset = 0; chunkOffset < chunkPlan.ranges().size(); chunkOffset++) {
+                RecordRange chunkRange = chunkPlan.ranges().get(chunkOffset);
+                List<Map<String, Object>> chunk = recordSet.records()
+                    .subList(chunkRange.fromInclusive(), chunkRange.toExclusive());
                 runtimeGuard.checkCancelled(cancellationCheck);
                 int to = from + chunk.size() - 1;
                 iterations++;
                 AnalysisSummaryGovernanceBridge.ChunkPosition position =
-                    analysisSummaryGovernanceBridge.position(recordSet.reference(), chunkOffset + 1,
-                        chunks.size(), from, to, recordSet.records().size());
+                    analysisSummaryGovernanceBridge.position(evidenceReference, chunkOffset + 1,
+                        chunkPlan.ranges().size(), from, to, recordSet.records().size());
                 boolean governedModelSummaryRequired =
                     analysisSummaryGovernanceBridge.requiresModelSummary(governedContext, oversized);
-                AnalysisSummaryResult governedSummary = governedModelSummaryRequired
-                    ? analysisSummaryGovernanceBridge.summarize(
-                        activeChatModel, isolationScope, position, governedContext, chunk, query)
-                    : analysisSummaryGovernanceBridge.preserve(
-                        isolationScope, position, governedContext, chunk);
+                String rawChunkJson = ModelProtocolJson.compact(chunk);
+                byte[] rawChunkBytes = rawChunkJson.getBytes(StandardCharsets.UTF_8);
+                String contentSha256 = ModelProtocolJson.sha256Hex(rawChunkJson);
+                String evidenceId = isolationScope.partitionKey() + ":" + evidenceReference
+                    + "#chunk-" + (chunkOffset + 1);
+                boolean spillRequested = analysisEvidenceSpillStore.isEnabled()
+                    && (oversized || rawChunkBytes.length >= analysisSpillThresholdBytes);
+                AnalysisEvidenceSpillStore.SpillReference spillReference = null;
+                if (spillRequested) {
+                    spillReference = analysisEvidenceSpillStore.spill(
+                        isolationScope, evidenceId, contentSha256, rawChunkBytes);
+                    spilledChunkCount++;
+                    spilledByteCount += spillReference.byteLength();
+                }
+                String checkpointInputSha256 = summaryCheckpointInputSha256(
+                    contentSha256, position, governedContext, query, governedModelSummaryRequired);
+                String checkpointKey = evidenceReference + "#chunk-" + (chunkOffset + 1);
+                AnalysisSummaryResult governedSummary = null;
+                if (spillReference != null) {
+                    governedSummary = restoreAnalysisSummaryCheckpoint(
+                        isolationScope, checkpointKey, checkpointInputSha256);
+                    if (governedSummary != null) restoredCheckpointCount++;
+                }
+                if (governedSummary == null) {
+                    governedSummary = governedModelSummaryRequired
+                        ? analysisSummaryGovernanceBridge.summarize(
+                            activeChatModel, isolationScope, position, governedContext, chunk, query)
+                        : analysisSummaryGovernanceBridge.preserve(
+                            isolationScope, position, governedContext, chunk);
+                    if (spillReference != null
+                        && !"STRUCTURED_RECORD_FALLBACK".equals(governedSummary.outcome())) {
+                        persistAnalysisSummaryCheckpoint(
+                            isolationScope, checkpointKey, checkpointInputSha256, governedSummary);
+                    }
+                }
+                if (spillReference != null) {
+                    governedSummary = governedSummary.withEvidence(Map.of(
+                        "rawReplayLocator", spillReference.toMap(),
+                        "spillCheckpointKey", checkpointKey,
+                        "spillCheckpointInputSha256", checkpointInputSha256
+                    ));
+                }
                 governedSummaryResults.add(governedSummary);
                 runResultAdapter.recordRuntimeObservation(
                     runtimeAttributes,
@@ -3253,29 +3322,63 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 }
                 processedRecordCount += chunk.size();
                 String range = "records[" + from + ".." + to + "]";
-                promptEvidence.append("- ").append(recordSet.reference()).append(' ')
+                promptEvidence.append("- ").append(evidenceReference).append(' ')
                     .append(range).append(" position=")
                     .append(ModelProtocolJson.compact(position.toMap()))
+                    .append(" evidence=")
+                    .append(ModelProtocolJson.compact(governedSummary.evidence()))
                     .append(": ").append(analysis).append("\n");
                 appendix.append("- ").append(range).append("：")
                     .append(analysis).append("\n");
+                if (requiresRawEvidenceReplay(governedSummary)) {
+                    rawReplayChunkCount++;
+                    String replayJson = spillReference == null
+                        ? rawChunkJson
+                        : new String(analysisEvidenceSpillStore.read(isolationScope, spillReference),
+                            StandardCharsets.UTF_8);
+                    rawReplayEvidence.append("- evidenceId=")
+                        .append(stringValue(governedSummary.evidence().get("evidenceId")))
+                        .append(" position=")
+                        .append(ModelProtocolJson.compact(position.toMap()))
+                        .append(" contentSha256=")
+                        .append(stringValue(governedSummary.evidence().get("contentSha256")))
+                        .append(" rawRecords=")
+                        .append(replayJson)
+                        .append("\n");
+                }
                 from = to + 1;
             }
             appendix.append("\n");
         }
         boolean coverageComplete = processedRecordCount == returnedRecordCount;
+        boolean evidenceTraceComplete = governedSummaryResults.size() == iterations
+            && governedSummaryResults.stream().allMatch(this::hasTraceableChunkEvidence)
+            && governedSummaryResults.stream().map(AnalysisSummaryResult::resultId).distinct().count()
+                == governedSummaryResults.size();
         promptEvidence.append("Coverage: returnedRecordCount=").append(returnedRecordCount)
             .append(", processedRecordCount=").append(processedRecordCount)
             .append(", complete=").append(coverageComplete)
-            .append(", sourceContentComplete=").append(sourceContentComplete).append(".\n");
+            .append(", sourceContentComplete=").append(sourceContentComplete)
+            .append(", evidenceTraceComplete=").append(evidenceTraceComplete)
+            .append(", rawReplayChunkCount=").append(rawReplayChunkCount).append(".\n");
+        if (!rawReplayEvidence.isEmpty()) {
+            promptEvidence.append("Raw evidence replay (lossless, selected by generic integrity rules). "
+                    + "These records are authoritative and override an inconsistent chunk narrative:\n")
+                .append(rawReplayEvidence);
+        }
         if (metadata != null) {
             metadata.put("recordAnalysisContractVersion", "record_grounded_analysis.v1");
             metadata.put("recordAnalysisReturnedRecordCount", returnedRecordCount);
             metadata.put("recordAnalysisProcessedRecordCount", processedRecordCount);
             metadata.put("recordAnalysisCoverageComplete", coverageComplete);
+            metadata.put("recordAnalysisEvidenceTraceComplete", evidenceTraceComplete);
             metadata.put("recordAnalysisSourceContentComplete", sourceContentComplete);
             metadata.put("recordAnalysisIterationCount", iterations);
             metadata.put("recordAnalysisIterative", iterative);
+            metadata.put("recordAnalysisRawReplayChunkCount", rawReplayChunkCount);
+            metadata.put("recordAnalysisSpilledChunkCount", spilledChunkCount);
+            metadata.put("recordAnalysisSpilledByteCount", spilledByteCount);
+            metadata.put("recordAnalysisRestoredCheckpointCount", restoredCheckpointCount);
             metadata.put("analysisSummaryGovernanceBridge",
                 analysisSummaryGovernanceBridge.ledger(governedSummaryResults,
                     returnedRecordCount, processedRecordCount, coverageComplete));
@@ -3283,8 +3386,28 @@ public class AgentOrchestrator implements AgentRunExecutor {
         return new RecordCoverageBundle(
             promptEvidence.toString(), appendix.toString(), List.copyOf(recordValueGroups),
             returnedRecordCount, processedRecordCount, iterations, iterative, coverageComplete,
-            sourceContentComplete,
+            sourceContentComplete, evidenceTraceComplete, rawReplayChunkCount,
             List.copyOf(governedSummaryResults));
+    }
+
+    private boolean hasTraceableChunkEvidence(AnalysisSummaryResult summary) {
+        if (summary == null || summary.evidence() == null) return false;
+        Map<String, Object> evidence = summary.evidence();
+        return AnalysisSummaryGovernanceBridge.EVIDENCE_SCHEMA_VERSION.equals(evidence.get("schemaVersion"))
+            && !firstNonBlank(stringValue(evidence.get("evidenceId")), "").isBlank()
+            && !firstNonBlank(stringValue(evidence.get("contentSha256")), "").isBlank()
+            && Boolean.TRUE.equals(booleanValue(evidence.get("rawReplayAvailable")));
+    }
+
+    private boolean requiresRawEvidenceReplay(AnalysisSummaryResult summary) {
+        if (!hasTraceableChunkEvidence(summary)) return true;
+        Map<String, Object> evidence = summary.evidence();
+        return !Boolean.TRUE.equals(booleanValue(evidence.get("structured")))
+            || Boolean.TRUE.equals(booleanValue(evidence.get("rawReplayRecommended")))
+            || Boolean.FALSE.equals(booleanValue(evidence.get("factRecordCoverageComplete")))
+            || !Boolean.TRUE.equals(booleanValue(evidence.get("sourceComplete")))
+            || collectionSize(evidence.get("conflicts")) > 0
+            || intValue(evidence.get("rejectedFactCount"), 0) > 0;
     }
 
     private List<BatchRecordSet> executionRecordSets(InterpretationPlanRuntime.ExecutionResult result) {
@@ -3509,7 +3632,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (text == null || text.isBlank()) {
             return;
         }
-        int chunkChars = Math.max(1_000, RECORD_ANALYSIS_CHUNK_MAX_CHARS - 2_000);
+        int chunkChars = Math.max(1_000, recordAnalysisChunkMaxChars - 2_000);
         List<Map<String, Object>> chunks = new ArrayList<>();
         int chunkIndex = 0;
         for (int from = 0; from < text.length(); from += chunkChars) {
@@ -3569,25 +3692,82 @@ public class AgentOrchestrator implements AgentRunExecutor {
         return List.of();
     }
 
-    private List<List<Map<String, Object>>> recordChunks(List<Map<String, Object>> records) {
-        List<List<Map<String, Object>>> chunks = new ArrayList<>();
-        List<Map<String, Object>> current = new ArrayList<>();
+    private RecordChunkPlan recordChunkPlan(List<Map<String, Object>> records) {
+        List<RecordRange> ranges = new ArrayList<>();
+        int currentFrom = 0;
+        int currentRows = 0;
         int currentChars = 0;
-        for (Map<String, Object> record : records) {
+        long totalChars = 0;
+        for (int index = 0; index < records.size(); index++) {
+            Map<String, Object> record = records.get(index);
             int recordChars = Math.max(1, stringify(record).length());
-            if (!current.isEmpty() && (current.size() >= RECORD_ANALYSIS_CHUNK_MAX_ROWS
-                || currentChars + recordChars > RECORD_ANALYSIS_CHUNK_MAX_CHARS)) {
-                chunks.add(List.copyOf(current));
-                current.clear();
+            totalChars += recordChars;
+            if (currentRows > 0 && (currentRows >= recordAnalysisChunkMaxRows
+                || currentChars + recordChars > recordAnalysisChunkMaxChars)) {
+                ranges.add(new RecordRange(currentFrom, index));
+                currentFrom = index;
+                currentRows = 0;
                 currentChars = 0;
             }
-            current.add(record);
+            currentRows++;
             currentChars += recordChars;
         }
-        if (!current.isEmpty()) {
-            chunks.add(List.copyOf(current));
+        if (currentRows > 0) {
+            ranges.add(new RecordRange(currentFrom, records.size()));
         }
-        return List.copyOf(chunks);
+        boolean oversized = totalChars > recordAnalysisChunkMaxChars
+            || records.size() > recordAnalysisChunkMaxRows;
+        return new RecordChunkPlan(List.copyOf(ranges), oversized, totalChars);
+    }
+
+    private String summaryCheckpointInputSha256(String contentSha256,
+                                                AnalysisSummaryGovernanceBridge.ChunkPosition position,
+                                                Map<String, Object> governedContext,
+                                                String query,
+                                                boolean modelSummaryRequired) {
+        return ModelProtocolJson.sha256Hex(Map.of(
+            "bridgeSchemaVersion", AnalysisSummaryGovernanceBridge.BRIDGE_SCHEMA_VERSION,
+            "contentSha256", firstNonBlank(contentSha256, ""),
+            "position", position == null ? Map.of() : position.toMap(),
+            "governedContext", governedContext == null ? Map.of() : governedContext,
+            "userObjective", firstNonBlank(query, ""),
+            "modelSummaryRequired", modelSummaryRequired
+        ));
+    }
+
+    private AnalysisSummaryResult restoreAnalysisSummaryCheckpoint(GovernanceIsolationScope scope,
+                                                                    String checkpointKey,
+                                                                    String inputSha256) {
+        try {
+            return analysisEvidenceSpillStore.readCheckpoint(scope, checkpointKey, inputSha256)
+                .map(json -> {
+                    try {
+                        AnalysisSummaryResult result = objectMapper.readValue(json, AnalysisSummaryResult.class);
+                        scope.requireSamePartition(result.isolationScope());
+                        return result;
+                    } catch (Exception ex) {
+                        throw new IllegalStateException(ex);
+                    }
+                })
+                .orElse(null);
+        } catch (Exception ex) {
+            log.warn("Analysis summary checkpoint is unusable and will be recomputed. checkpointKey={} error={}",
+                checkpointKey, ex.getMessage());
+            return null;
+        }
+    }
+
+    private void persistAnalysisSummaryCheckpoint(GovernanceIsolationScope scope,
+                                                  String checkpointKey,
+                                                  String inputSha256,
+                                                  AnalysisSummaryResult summary) {
+        try {
+            analysisEvidenceSpillStore.checkpoint(
+                scope, checkpointKey, inputSha256, objectMapper.writeValueAsString(summary));
+        } catch (Exception ex) {
+            throw new IllegalStateException(
+                "Analysis summary checkpoint cannot be persisted losslessly: " + checkpointKey, ex);
+        }
     }
 
     private List<String> recordValueGroup(Map<String, Object> record, String query) {
@@ -3618,7 +3798,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
             return answer;
         }
         String governedAnswer = ensureGovernedNarrativeAnalysis(answer, coverage, metadata);
-        boolean everyRecordReferenced = coverage.recordValueGroups().stream()
+        boolean everyRecordReferenced = !coverage.iterative() && coverage.recordValueGroups().stream()
             .allMatch(values -> containsAnyConcreteValue(governedAnswer, values));
         if (everyRecordReferenced && !coverage.iterative() && coverage.sourceContentComplete()) {
             return governedAnswer;
@@ -3627,7 +3807,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
             .filter(summary -> "MODEL_SUMMARY".equals(summary.outcome()))
             .filter(summary -> summary.content() != null && !summary.content().isBlank())
             .count();
-        if (coverage.coverageComplete() && coverage.sourceContentComplete()
+        if (coverage.coverageComplete() && coverage.evidenceTraceComplete()
+            && coverage.sourceContentComplete()
             && governedSummaryCount > 0) {
             if (metadata != null) {
                 metadata.put("recordAnalysisCoverageAppendixApplied", false);
@@ -3723,12 +3904,21 @@ public class AgentOrchestrator implements AgentRunExecutor {
         boolean iterative,
         boolean coverageComplete,
         boolean sourceContentComplete,
+        boolean evidenceTraceComplete,
+        int rawReplayChunkCount,
         List<AnalysisSummaryResult> summaryResults
     ) {
         private static RecordCoverageBundle empty() {
-            return new RecordCoverageBundle("", "", List.of(), 0, 0, 0, false, true, true, List.of());
+            return new RecordCoverageBundle(
+                "", "", List.of(), 0, 0, 0, false, true, true, true, 0, List.of());
         }
     }
+
+    private record RecordRange(int fromInclusive, int toExclusive) { }
+
+    private record RecordChunkPlan(List<RecordRange> ranges,
+                                   boolean oversized,
+                                   long serializedChars) { }
 
     String buildDeterministicAvailableResultAnswer(
         InterpretationPlanRuntime.ExecutionResult result

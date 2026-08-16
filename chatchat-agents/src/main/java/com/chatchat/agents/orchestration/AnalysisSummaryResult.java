@@ -23,6 +23,7 @@ public record AnalysisSummaryResult(
     Map<String, Object> analysisContext,
     Map<String, Object> coverage,
     List<String> inputSummaryResultIds,
+    Map<String, Object> evidence,
     Map<String, Object> governance
 ) {
 
@@ -41,6 +42,7 @@ public record AnalysisSummaryResult(
         analysisContext = immutable(analysisContext);
         coverage = immutable(coverage);
         inputSummaryResultIds = inputSummaryResultIds == null ? List.of() : List.copyOf(inputSummaryResultIds);
+        evidence = immutable(evidence);
         governance = immutable(governance);
     }
 
@@ -49,6 +51,15 @@ public record AnalysisSummaryResult(
                                               Map<String, Object> analysisContext,
                                               String content,
                                               String outcome) {
+        return chunk(isolationScope, position, analysisContext, content, outcome, Map.of());
+    }
+
+    public static AnalysisSummaryResult chunk(GovernanceIsolationScope isolationScope,
+                                              Map<String, Object> position,
+                                              Map<String, Object> analysisContext,
+                                              String content,
+                                              String outcome,
+                                              Map<String, Object> evidence) {
         GovernanceIsolationScope safeScope = isolationScope == null
             ? GovernanceIsolationScope.runtime(null, null, null, null, null)
             : isolationScope;
@@ -70,6 +81,7 @@ public record AnalysisSummaryResult(
                 "chunkComplete", true
             ),
             List.of(),
+            evidence,
             governanceContract()
         );
     }
@@ -103,6 +115,14 @@ public record AnalysisSummaryResult(
                 .filter(id -> !inputIds.contains(id))
                 .forEach(inputIds::add);
         }
+        List<String> evidenceIds = safeInputs.stream()
+            .map(AnalysisSummaryResult::evidence)
+            .map(item -> item.get("evidenceId"))
+            .filter(java.util.Objects::nonNull)
+            .map(String::valueOf)
+            .filter(id -> !id.isBlank())
+            .distinct()
+            .toList();
         return new AnalysisSummaryResult(
             SCHEMA_VERSION,
             safeScope.partitionKey() + ":final-summary#" + text(stage, "final"),
@@ -114,6 +134,13 @@ public record AnalysisSummaryResult(
             Map.of(),
             coverage,
             inputIds,
+            Map.of(
+                "schemaVersion", "final_evidence_lineage.v1",
+                "inputEvidenceIds", evidenceIds,
+                "traceableInputCount", evidenceIds.size(),
+                "inputSummaryCount", safeInputs.size(),
+                "traceComplete", evidenceIds.size() == safeInputs.size()
+            ),
             governanceContract()
         );
     }
@@ -130,8 +157,21 @@ public record AnalysisSummaryResult(
         result.put("analysisContext", analysisContext);
         result.put("coverage", coverage);
         result.put("inputSummaryResultIds", inputSummaryResultIds);
+        result.put("evidence", evidence);
         result.put("governance", governance);
         return Collections.unmodifiableMap(result);
+    }
+
+    public AnalysisSummaryResult withEvidence(Map<String, Object> additions) {
+        Map<String, Object> merged = new LinkedHashMap<>(evidence);
+        if (additions != null) {
+            additions.forEach((key, value) -> {
+                if (key != null && value != null) merged.put(key, value);
+            });
+        }
+        return new AnalysisSummaryResult(schemaVersion, resultId, scope, content, outcome,
+            isolationScope, position, analysisContext, coverage, inputSummaryResultIds,
+            merged, governance);
     }
 
     private static Map<String, Object> governanceContract() {
@@ -139,6 +179,8 @@ public record AnalysisSummaryResult(
             "protocolVersion", DataAnalysisContextProtocol.GOVERNANCE_VERSION,
             "contentRole", "GOVERNED_ANALYSIS_SUMMARY",
             "factBoundary", "RETURNED_STRUCTURED_EVIDENCE",
+            "evidenceProtocol", "traceable_chunk_evidence.v1",
+            "rawReplayAuthority", "RUNTIME_EXECUTION_RESULT",
             "presentationPolicy", "CONTENT_IS_PRESENTATION_EXACT_FIELDS_REMAIN_AUTHORITATIVE",
             "semanticInferenceAllowed", false
         );

@@ -110,7 +110,7 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
-    void oversizedToolOutputIsExternalizedAndOnlyBoundedReferenceCrossesRuntimeBoundary() {
+    void oversizedToolOutputRemainsCompleteAcrossRuntimeEvidenceBoundary() {
         ToolRegistry registry = mock(ToolRegistry.class);
         when(registry.getToolMetadata("large_tool")).thenReturn(ToolMetadata.builder()
             .id("large_tool").title("Large Tool").build());
@@ -141,7 +141,9 @@ class ToolRuntimeServiceTest {
             assertThat(stored.get()).isNull();
             assertThat(execution.output().getData()).isInstanceOfSatisfying(Map.class, reference ->
                 assertThat(reference).containsEntry("rows", "x".repeat(100_000)));
-            assertThat(execution.trace().getOutput()).hasSizeLessThan(5_000);
+            assertThat(execution.trace().getOutput())
+                .hasSizeGreaterThan(100_000)
+                .contains("x".repeat(10_000));
             assertThat(execution.output().getMetadata()).doesNotContainKeys(
                 "outputTruncated", "outputDocumentId", "outputEvidenceId", "outputOriginalBytes");
             assertThat(service.resolveOutputForEvidenceReview(execution.output()))
@@ -266,6 +268,13 @@ class ToolRuntimeServiceTest {
                 assertThat(selected.get("password")).isEqualTo("must-not-leak");
             });
             Map<?, ?> traceOutput = new ObjectMapper().readValue(execution.trace().getOutput(), Map.class);
+            assertThat(((Map<?, ?>) ((List<?>) traceOutput.get("templates")).get(0)).get("description"))
+                .isEqualTo("x".repeat(100_000));
+            assertThat(((Map<?, ?>) ((List<?>) traceOutput.get("templates")).get(0)).get("templateDsl"))
+                .isEqualTo(Map.of("sql", "select secret implementation body"));
+            Map<?, ?> traceSelected = (Map<?, ?>) ((Map<?, ?>) ((Map<?, ?>) traceOutput
+                .get("queryIr")).get("asset")).get("selected");
+            assertThat(traceSelected.get("password")).isEqualTo("***");
             assertThat(traceOutput.get("routingProjection")).isInstanceOfSatisfying(Map.class, projection -> {
                 List<?> templates = (List<?>) projection.get("templates");
                 assertThat(templates).singleElement().isInstanceOfSatisfying(Map.class, projected ->

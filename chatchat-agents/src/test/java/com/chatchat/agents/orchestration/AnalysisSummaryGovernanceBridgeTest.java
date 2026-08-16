@@ -75,6 +75,120 @@ class AnalysisSummaryGovernanceBridgeTest {
     }
 
     @Test
+    void buildsValidatedStructuredFactsAndLosslessReplayLocator() {
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenReturn("""
+            {
+              "summary": "返回记录显示 MARKET_VALUE=12000。",
+              "facts": [{
+                "claim": "MARKET_VALUE 为 12000",
+                "recordRefs": ["positions.records[1]"],
+                "exactValues": ["12000"]
+              }],
+              "entities": [{"key":"SECURITY_CODE","value":"600000"}],
+              "crossChunkKeys": ["600000"],
+              "conflicts": [],
+              "limitations": [],
+              "rawReplayRecommended": false
+            }
+            """);
+        Map<String, Object> context = bridge.govern(
+            "positions",
+            Map.of("extensions", Map.of("commandContext", Map.of(
+                "templateId", "POSITION_QUERY",
+                "description", "Return position values",
+                "references", List.of(Map.of("from", "account", "to", "position"))))),
+            List.of(Map.of("SECURITY_CODE", "600000", "MARKET_VALUE", 12000)));
+
+        AnalysisSummaryResult result = bridge.summarize(
+            model,
+            isolationScope,
+            bridge.position("positions", 1, 1, 1, 1, 1),
+            context,
+            List.of(Map.of("SECURITY_CODE", "600000", "MARKET_VALUE", 12000)),
+            "分析持仓");
+
+        assertThat(result.content()).isEqualTo("返回记录显示 MARKET_VALUE=12000。");
+        assertThat(result.evidence())
+            .containsEntry("schemaVersion", "traceable_chunk_evidence.v1")
+            .containsEntry("structured", true)
+            .containsEntry("rawReplayAvailable", true)
+            .containsEntry("rawReplayRecommended", false)
+            .containsEntry("citedRecordCount", 1)
+            .containsEntry("factRecordCoverageComplete", true)
+            .containsEntry("rejectedFactCount", 0);
+        assertThat(String.valueOf(result.evidence().get("contentSha256"))).hasSize(64);
+        assertThat(result.evidence().toString())
+            .contains("positions.records[1]", "MARKET_VALUE 为 12000", "exactValues=[12000]")
+            .contains("SECURITY_CODE", "600000", "POSITION_QUERY", "Return position values")
+            .contains("resolver=RUNTIME_EXECUTION_RESULT");
+    }
+
+    @Test
+    void rejectsInventedFactValuesAndRequiresRawReplay() {
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenReturn("""
+            {
+              "summary": "模型声称返回值为 999。",
+              "facts": [{
+                "claim": "VALUE 为 999",
+                "recordRefs": ["metrics.records[1]"],
+                "exactValues": ["999"]
+              }],
+              "conflicts": [],
+              "limitations": [],
+              "rawReplayRecommended": false
+            }
+            """);
+
+        AnalysisSummaryResult result = bridge.summarize(
+            model,
+            isolationScope,
+            bridge.position("metrics", 1, 1, 1, 1, 1),
+            bridge.govern("metrics", Map.of(), List.of(Map.of("VALUE", 42))),
+            List.of(Map.of("VALUE", 42)),
+            "分析指标");
+
+        assertThat(result.evidence())
+            .containsEntry("structured", true)
+            .containsEntry("rejectedFactCount", 1)
+            .containsEntry("rawReplayRecommended", true);
+        assertThat(result.evidence().get("facts")).isEqualTo(List.of());
+    }
+
+    @Test
+    void rejectsValueThatExistsOnlyInAnotherRecordThanTheCitation() {
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenReturn("""
+            {
+              "summary": "错误地把第二条记录的值归给第一条。",
+              "facts": [{
+                "claim": "第一条 VALUE 为 99",
+                "recordRefs": ["metrics.records[1]"],
+                "exactValues": ["99"]
+              }],
+              "conflicts": [],
+              "limitations": [],
+              "rawReplayRecommended": false
+            }
+            """);
+        List<Map<String, Object>> records = List.of(Map.of("VALUE", 42), Map.of("VALUE", 99));
+
+        AnalysisSummaryResult result = bridge.summarize(
+            model,
+            isolationScope,
+            bridge.position("metrics", 1, 1, 1, 2, 2),
+            bridge.govern("metrics", Map.of(), records),
+            records,
+            "分析指标");
+
+        assertThat(result.evidence())
+            .containsEntry("rejectedFactCount", 1)
+            .containsEntry("rawReplayRecommended", true);
+        assertThat(result.evidence().get("facts")).isEqualTo(List.of());
+    }
+
+    @Test
     void preservesExtensibleAssetSemanticsWithoutDomainSpecificBridgeCode() {
         Map<String, Object> governed = bridge.govern(
             "asset-snapshot",
@@ -134,7 +248,9 @@ class AnalysisSummaryGovernanceBridgeTest {
         assertThat(result.toMap().toString())
             .contains("MODEL_FINAL_SUMMARY", "summary_governance.v1")
             .contains("GOVERNED_ANALYSIS_SUMMARY", "RETURNED_STRUCTURED_EVIDENCE")
-            .contains("coverageComplete=true");
+            .contains("coverageComplete=true")
+            .contains("final_evidence_lineage.v1", "traceComplete=true")
+            .contains("tenant-a:run-a:assets#chunk-1");
     }
 
     @Test

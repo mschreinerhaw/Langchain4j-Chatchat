@@ -22,6 +22,8 @@ public final class AgentRuntimeFactGroundingContract {
             "Tool structured output defines the immutable fact boundary.",
             "Every structured dataset follows summary_governance.v1 when analysisContext is present: use it for data identity, field semantics, analytical semantics, quality, analysis policy, source extensions, and explicit inter-result relationships only.",
             "Summary-governance context is not returned business data and field metadata is not a presentation-label mapping.",
+            "Every analysis chunk carries traceable_chunk_evidence.v1 identity, position, content digest, exact fact references, command context and a Runtime raw-replay locator.",
+            "An unstructured, conflicted, incomplete or fact-validation-failed chunk must be replayed from its full Runtime record before final synthesis; chunk narrative never overrides raw evidence.",
             "The model may explain, relate, and summarize facts, but must not add, rename, replace, or contradict them.",
             "Identifiers, counts, statuses, completeness flags, database layers, schemas, tables, fields, and execution results remain exact.",
             "Inferences and recommendations must be explicitly separated from observed facts and must never be presented as retrieved objects.",
@@ -55,6 +57,8 @@ public final class AgentRuntimeFactGroundingContract {
             - Structured tool output is the immutable fact boundary and has priority over model assumptions or prior knowledge.
             - Summary-governance contract (summary_governance.v1): for every structured dataset, use analysisContext to understand source identity, capability, business meaning, schema semantics, analytical semantics, quality, analysis policy, source extensions, and explicit relationships. Apply this contract uniformly across API, database, asset analysis, and future data structures.
             - analysisContext is semantic input, not returned business data. Field metadata explains meaning but never renames returned keys in tables, charts, exports, or factual references. Infer no relationship that the context or returned facts do not establish.
+            - Traceable chunk evidence contract (traceable_chunk_evidence.v1): every chunk is identified by dataset, chunk index, exact record range and SHA-256 content digest. Ground material conclusions in its validated facts and exact record/value references. Preserve command descriptions, result references and explicit relationships as context, never as returned facts.
+            - Raw replay contract: when a chunk capsule is unstructured, contains rejected facts or conflicts, marks rawReplayRecommended, or comes from an incomplete source, use the attached full raw replay. Raw records are authoritative and override inconsistent chunk narrative. Chunking is a processing boundary, never a result-size limit.
             - The model may interpret, connect, and summarize observed facts, but must not add, rename, replace, omit material qualifiers from, or contradict them.
             - Preserve exact identifiers, counts, statuses, completeness/truncation flags, database layers, schemas, tables, fields, and execution outcomes.
             - Keep explicit inference/recommendation separate from observed facts. Never present inferred examples or naming conventions as retrieved results.

@@ -1387,8 +1387,9 @@ public class ToolRuntimeService {
                                             long startedAt,
                                             long finishedAt,
                                             Map<String, Object> runtimeMetadata) {
-        // Traces cross HTTP, event-store and feedback boundaries. They are an
-        // operational preview, never the authoritative evidence payload.
+        // Interaction traces are consumed by downstream evidence analysis. Keep
+        // the complete returned payload here; chunking belongs to the analysis
+        // layer and must not be confused with destructive result truncation.
         String outputText = stringify(traceOutputSummary(
             toolName, output == null ? null : output.getData()));
         return InteractionToolTrace.builder()
@@ -1408,12 +1409,12 @@ public class ToolRuntimeService {
     }
 
     /**
-     * Keeps the bounded operational summary and the Runtime-owned routing contract together.
-     * Large discovery results may already have been externalized before trace construction;
-     * their projection must remain structured so a dependent tool can compile its invocation.
+     * Keeps complete, credential-redacted evidence and the Runtime-owned routing
+     * contract together. Operational logging may use compact summaries, but the
+     * evidence trace must preserve every returned record and value.
      */
     private Object traceOutputSummary(String toolName, Object data) {
-        Object summary = ToolLogSummarizer.summarizeResult(toolName, data);
+        Object summary = ToolLogSummarizer.redactComplete(data);
         Map<String, Object> projection = existingRoutingProjection(data);
         if (projection.isEmpty()) {
             projection = routingProjection(data);

@@ -27,11 +27,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/** Production regression for the observed 20,054,016-character request failure. */
+/** Release boundary: execution evidence remains complete while oversized inbound HTTP feedback is rejected. */
 class ProductionOversizedAgentPayloadContainmentE2E {
 
     @Test
-    void twentyMegabyteToolResultBecomesEvidenceReferenceAndCannotReenterHttpFeedbackBody() throws Exception {
+    void twentyMegabyteToolResultRemainsCompleteWhileHttpFeedbackBodyIsRejected() throws Exception {
         ToolRegistry registry = mock(ToolRegistry.class);
         when(registry.getToolMetadata("extreme_result_tool")).thenReturn(ToolMetadata.builder()
             .id("extreme_result_tool").title("Extreme Result Tool").build());
@@ -57,9 +57,12 @@ class ProductionOversizedAgentPayloadContainmentE2E {
                 .allowedTools(List.of("extreme_result_tool"))
                 .toolInput(ToolInput.builder().parameters(Map.of()).build()).build());
 
-            assertThat(externalBytes).hasValueGreaterThan(20_000_000);
-            assertThat(new ObjectMapper().writeValueAsBytes(execution.output()).length).isLessThan(25_000);
-            assertThat(execution.trace().getOutput()).hasSizeLessThan(5_000);
+            assertThat(externalBytes).hasValue(0);
+            assertThat(new ObjectMapper().writeValueAsBytes(execution.output()).length)
+                .isGreaterThan(20_000_000);
+            assertThat(execution.output().getData()).isInstanceOfSatisfying(Map.class, data ->
+                assertThat(data.get("payload")).isEqualTo("x".repeat(20_054_016)));
+            assertThat(execution.trace().getOutput()).hasSizeGreaterThan(20_000_000);
 
             JsonRequestSizeProperties httpProperties = new JsonRequestSizeProperties();
             JsonRequestSizeFilter filter = new JsonRequestSizeFilter(httpProperties, new ObjectMapper());

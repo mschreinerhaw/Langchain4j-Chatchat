@@ -34,6 +34,7 @@ chatchat:
       enabled: false
   agent-runtime:
     store-type: memory
+    analysis-spill-enabled: false
   agent:
     learning:
       model-attribution-enabled: false

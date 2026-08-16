@@ -13,6 +13,9 @@ import com.chatchat.agents.runtime.AgentRunRequest;
 import com.chatchat.agents.runtime.AgentRunResult;
 import com.chatchat.agents.runtime.AgentRunStatus;
 import com.chatchat.agents.runtime.InMemoryAgentRunStore;
+import com.chatchat.agents.runtime.AnalysisEvidenceSpillStore;
+import com.chatchat.agents.runtime.GovernanceIsolationScope;
+import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.plan.DiagnosticRun;
 import com.chatchat.agents.runtime.plan.DagGovernanceContractProvider;
 import com.chatchat.agents.runtime.plan.InterpretationExecutionProtocol;
@@ -37,6 +40,9 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -706,8 +712,10 @@ class AgentOrchestratorTest {
         assertThat(coverage.returnedRecordCount()).isEqualTo(60);
         assertThat(coverage.processedRecordCount()).isEqualTo(60);
         assertThat(coverage.coverageComplete()).isTrue();
+        assertThat(coverage.evidenceTraceComplete()).isTrue();
         assertThat(coverage.iterative()).isTrue();
         assertThat(coverage.iterations()).isGreaterThan(1);
+        assertThat(coverage.rawReplayChunkCount()).isEqualTo(coverage.iterations());
         assertThat(coverage.summaryResults()).hasSize(coverage.iterations())
             .allSatisfy(entry -> assertThat(entry.toMap().toString())
                 .contains("schemaVersion=analysis_summary_result.v1", "scope=DATASET_CHUNK")
@@ -723,6 +731,8 @@ class AgentOrchestratorTest {
             .containsEntry("recordAnalysisCoverageComplete", true)
             .containsEntry("recordAnalysisReturnedRecordCount", 60)
             .containsEntry("recordAnalysisProcessedRecordCount", 60)
+            .containsEntry("recordAnalysisEvidenceTraceComplete", true)
+            .containsEntry("recordAnalysisRawReplayChunkCount", coverage.iterations())
             .containsEntry("recordAnalysisCoverageAppendixApplied", false)
             .containsEntry("recordAnalysisNarrativeCoverageApplied", true);
         assertThat(metadata.get("analysisSummaryGovernanceBridge").toString())
@@ -738,6 +748,73 @@ class AgentOrchestratorTest {
                 && prompt.contains("Position value")
                 && prompt.contains("Field comments are not display labels")
                 && prompt.contains("Analysis summary bridge position")));
+    }
+
+    @Test
+    void spillsOversizedLoopEvidenceAndRestoresCheckpointsWithoutRepeatingModelWork() {
+        List<Map<String, Object>> records = new ArrayList<>();
+        for (int index = 0; index < 12; index++) {
+            records.add(Map.of("ROW_ID", "row-" + index, "VALUE", "v" + index + "-" + "x".repeat(2_000)));
+        }
+        ToolCallResult success = new ToolCallResult(
+            "records", "api_template_execute", "generic-template", "asset-1",
+            "SUCCESS", 10L, "evidence", Map.of(
+                "analysisContext", Map.of("source", Map.of("displayName", "Generic dataset")),
+                "data", Map.of("body", records)), Map.of());
+        ToolCallBatchResult batch = new ToolCallBatchResult(
+            "batch", "SEQUENTIAL", "start", "end", "SUCCESS",
+            new ToolCallBatchResult.Summary(1, 1, 0, 0, 0, 1), List.of(success));
+        InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
+            "success", true, false, null, null,
+            List.of(new InterpretationPlanRuntime.StepExecution(
+                1, "mcp_tool", "api_template_execute", true, batch,
+                null, null, null, 10L, Map.of())), Map.of(), 10L);
+        AtomicInteger modelCalls = new AtomicInteger();
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(any(String.class))).thenAnswer(invocation -> {
+            modelCalls.incrementAndGet();
+            return "generic chunk summary";
+        });
+        InMemoryAnalysisSpillStore spillStore = new InMemoryAnalysisSpillStore();
+        AgentOrchestrator orchestrator = newOrchestrator(model);
+        orchestrator.setAnalysisEvidenceSpillStore(spillStore);
+        Map<String, Object> runtime = Map.of("__agentRunId", "spill-run");
+        Map<String, Object> firstMetadata = new LinkedHashMap<>(Map.of(
+            "tenantId", "tenant-spill", "agentRunId", "spill-run"));
+
+        AgentOrchestrator.RecordCoverageBundle first = orchestrator.buildRecordCoverageBundle(
+            model, "analyze generic dataset", result, runtime, firstMetadata, () -> false);
+        int callsAfterFirst = modelCalls.get();
+        Map<String, Object> secondMetadata = new LinkedHashMap<>(Map.of(
+            "tenantId", "tenant-spill", "agentRunId", "spill-run"));
+        AgentOrchestrator.RecordCoverageBundle restored = orchestrator.buildRecordCoverageBundle(
+            model, "analyze generic dataset", result, runtime, secondMetadata, () -> false);
+
+        assertThat(first.coverageComplete()).isTrue();
+        assertThat(restored.coverageComplete()).isTrue();
+        assertThat(callsAfterFirst).isEqualTo(first.iterations()).isGreaterThan(1);
+        assertThat(modelCalls.get()).isEqualTo(callsAfterFirst);
+        assertThat(spillStore.spillCount.get()).isEqualTo(first.iterations() * 2);
+        assertThat(spillStore.readCount.get()).isEqualTo(first.rawReplayChunkCount() * 2);
+        assertThat(firstMetadata)
+            .containsEntry("recordAnalysisSpilledChunkCount", first.iterations())
+            .containsEntry("recordAnalysisRestoredCheckpointCount", 0);
+        assertThat(secondMetadata)
+            .containsEntry("recordAnalysisSpilledChunkCount", restored.iterations())
+            .containsEntry("recordAnalysisRestoredCheckpointCount", restored.iterations());
+        assertThat(restored.summaryResults()).allSatisfy(summary ->
+            assertThat(summary.evidence().get("rawReplayLocator").toString())
+                .contains("ROCKSDB_ANALYSIS_SPILL", "contentSha256", "byteLength"));
+        assertThat(restored.promptEvidence()).contains("v11-").doesNotContain("externalized-preview");
+
+        spillStore.checkpoints.replaceAll((key, value) -> "{corrupt-checkpoint");
+        Map<String, Object> recoveryMetadata = new LinkedHashMap<>(Map.of(
+            "tenantId", "tenant-spill", "agentRunId", "spill-run"));
+        AgentOrchestrator.RecordCoverageBundle recomputed = orchestrator.buildRecordCoverageBundle(
+            model, "analyze generic dataset", result, runtime, recoveryMetadata, () -> false);
+        assertThat(modelCalls.get()).isEqualTo(callsAfterFirst + recomputed.iterations());
+        assertThat(recomputed.coverageComplete()).isTrue();
+        assertThat(recoveryMetadata).containsEntry("recordAnalysisRestoredCheckpointCount", 0);
     }
 
     @Test
@@ -762,6 +839,34 @@ class AgentOrchestratorTest {
         assertThat(coverage.processedRecordCount()).isEqualTo(2);
         assertThat(coverage.coverageComplete()).isTrue();
         assertThat(coverage.promptEvidence()).contains("orders", "assets");
+        verify(model, never()).chat(any(String.class));
+    }
+
+    @Test
+    void assignsStableDistinctEvidenceIdsToRepeatedDatasetReferences() {
+        InterpretationPlanRuntime.StepExecution first = new InterpretationPlanRuntime.StepExecution(
+            1, "mcp_tool", "sql_metadata_search", true,
+            Map.of("data", Map.of("rows", List.of(Map.of("TABLE_NAME", "orders")))),
+            null, null, null, 10L, Map.of());
+        InterpretationPlanRuntime.StepExecution second = new InterpretationPlanRuntime.StepExecution(
+            2, "mcp_tool", "sql_metadata_search", true,
+            Map.of("data", Map.of("rows", List.of(Map.of("TABLE_NAME", "assets")))),
+            null, null, null, 10L, Map.of());
+        InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
+            "success", true, false, null, null, List.of(first, second), Map.of(), 10L);
+        ChatModel model = mock(ChatModel.class);
+
+        AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
+            .buildRecordCoverageBundle(model, "analyze metadata", result, Map.of(),
+                new LinkedHashMap<>(), () -> false);
+
+        assertThat(coverage.evidenceTraceComplete()).isTrue();
+        assertThat(coverage.summaryResults()).extracting(AnalysisSummaryResult::resultId)
+            .doesNotHaveDuplicates()
+            .anyMatch(id -> id.contains("sql_metadata_search#chunk-1"))
+            .anyMatch(id -> id.contains("sql_metadata_search#occurrence-2#chunk-1"));
+        assertThat(coverage.promptEvidence())
+            .contains("sql_metadata_search#occurrence-2", "orders", "assets");
         verify(model, never()).chat(any(String.class));
     }
 
@@ -900,11 +1005,19 @@ class AgentOrchestratorTest {
 
         assertThat(coverage.iterative()).isTrue();
         assertThat(coverage.coverageComplete()).isTrue();
+        assertThat(coverage.evidenceTraceComplete()).isTrue();
+        assertThat(coverage.rawReplayChunkCount()).isEqualTo(coverage.iterations());
         assertThat(coverage.returnedRecordCount()).isGreaterThan(1);
         assertThat(coverage.processedRecordCount()).isEqualTo(coverage.returnedRecordCount());
-        assertThat(coverage.promptEvidence()).contains("linux_command_execute#stdout", "linux output chunk summary");
+        assertThat(coverage.promptEvidence())
+            .contains("linux_command_execute#stdout", "linux output chunk summary")
+            .contains("traceable_chunk_evidence.v1", "Raw evidence replay", "LINUX_HEAD", "LINUX_TAIL")
+            .contains("Runtime metrics", "Collect runtime metric values", "$.data.stdout");
         assertThat(metadata).containsEntry("recordAnalysisIterative", true);
         assertThat(metadata).containsEntry("recordAnalysisSourceContentComplete", true);
+        assertThat(metadata)
+            .containsEntry("recordAnalysisEvidenceTraceComplete", true)
+            .containsEntry("recordAnalysisRawReplayChunkCount", coverage.iterations());
         verify(model, times(coverage.iterations())).chat(argThat((String prompt) ->
             prompt.contains("User analysis objective: analyze linux output")
                 && prompt.contains("Assess current runtime metrics")
@@ -1065,11 +1178,64 @@ class AgentOrchestratorTest {
             .contains("sourceContentComplete=false");
         assertThat(metadata)
             .containsEntry("recordAnalysisCoverageComplete", true)
-            .containsEntry("recordAnalysisSourceContentComplete", false);
+            .containsEntry("recordAnalysisSourceContentComplete", false)
+            .containsEntry("recordAnalysisEvidenceTraceComplete", true)
+            .containsEntry("recordAnalysisRawReplayChunkCount", 2);
         verify(model, times(2)).chat(argThat((String prompt) ->
             prompt.contains("数据库运行指标")
                 && prompt.contains("分析活动会话与锁等待")
                 && prompt.contains("会话编号")));
+    }
+
+    @Test
+    void usesStructuredEvidenceCapsuleWithoutReplayingCompleteJmxDataset() {
+        Map<String, Object> output = Map.of(
+            "structuredData", List.of(Map.of(
+                "dataset", "java.lang:type=Memory",
+                "analysisContext", Map.of(
+                    "source", Map.of("displayName", "JVM memory"),
+                    "relationships", Map.of("node", "jvm")),
+                "records", List.of(Map.of("HeapUsedMb", 42, "ObjectName", "java.lang:type=Memory")))));
+        InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
+            "success", true, false, null, null,
+            List.of(new InterpretationPlanRuntime.StepExecution(
+                1, "mcp_tool", "jmx_monitor_execute", true,
+                output, null, null, null, 10L, Map.of())),
+            Map.of(), 10L);
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(any(String.class))).thenReturn("""
+            {
+              "summary": "HeapUsedMb 为 42。",
+              "facts": [{
+                "claim": "HeapUsedMb 为 42",
+                "recordRefs": ["java.lang:type=Memory.records[1]"],
+                "exactValues": ["42"]
+              }],
+              "entities": [{"key":"ObjectName","value":"java.lang:type=Memory"}],
+              "crossChunkKeys": ["java.lang:type=Memory"],
+              "conflicts": [],
+              "limitations": [],
+              "rawReplayRecommended": false
+            }
+            """);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+
+        AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
+            .buildRecordCoverageBundle(model, "analyze jmx memory", result, Map.of(), metadata, () -> false);
+
+        assertThat(coverage.coverageComplete()).isTrue();
+        assertThat(coverage.evidenceTraceComplete()).isTrue();
+        assertThat(coverage.rawReplayChunkCount()).isZero();
+        assertThat(coverage.promptEvidence())
+            .contains("traceable_chunk_evidence.v1", "HeapUsedMb 为 42")
+            .contains("java.lang:type=Memory.records[1]", "crossChunkKeys")
+            .doesNotContain("Raw evidence replay (lossless");
+        assertThat(coverage.summaryResults().get(0).evidence())
+            .containsEntry("structured", true)
+            .containsEntry("rawReplayRecommended", false);
+        assertThat(metadata)
+            .containsEntry("recordAnalysisEvidenceTraceComplete", true)
+            .containsEntry("recordAnalysisRawReplayChunkCount", 0);
     }
 
     @Test
@@ -4287,6 +4453,62 @@ class AgentOrchestratorTest {
             }
         }
         return values;
+    }
+
+    private static final class InMemoryAnalysisSpillStore implements AnalysisEvidenceSpillStore {
+        private final Map<String, byte[]> payloads = new ConcurrentHashMap<>();
+        private final Map<String, String> checkpoints = new ConcurrentHashMap<>();
+        private final AtomicInteger spillCount = new AtomicInteger();
+        private final AtomicInteger readCount = new AtomicInteger();
+
+        @Override
+        public boolean isEnabled() {
+            return true;
+        }
+
+        @Override
+        public SpillReference spill(GovernanceIsolationScope scope,
+                                    String evidenceId,
+                                    String contentSha256,
+                                    byte[] payload) {
+            String key = scope.partitionKey() + ":" + evidenceId + ":" + contentSha256;
+            payloads.put(key, payload.clone());
+            spillCount.incrementAndGet();
+            return new SpillReference(SPILL_SCHEMA_VERSION, "ROCKSDB_ANALYSIS_SPILL", key,
+                evidenceId, contentSha256, payload.length, System.currentTimeMillis());
+        }
+
+        @Override
+        public byte[] read(GovernanceIsolationScope scope, SpillReference reference) {
+            if (!reference.storageKey().startsWith(scope.partitionKey() + ":")) {
+                throw new SecurityException("wrong partition");
+            }
+            byte[] payload = payloads.get(reference.storageKey());
+            if (payload == null
+                || !reference.contentSha256().equals(ModelProtocolJson.sha256Hex(
+                    new String(payload, java.nio.charset.StandardCharsets.UTF_8)))) {
+                throw new IllegalStateException("missing or corrupt spill");
+            }
+            readCount.incrementAndGet();
+            return payload.clone();
+        }
+
+        @Override
+        public Optional<String> readCheckpoint(GovernanceIsolationScope scope,
+                                               String checkpointKey,
+                                               String inputSha256) {
+            return Optional.ofNullable(checkpoints.get(
+                scope.partitionKey() + ":" + checkpointKey + ":" + inputSha256));
+        }
+
+        @Override
+        public void checkpoint(GovernanceIsolationScope scope,
+                               String checkpointKey,
+                               String inputSha256,
+                               String summaryJson) {
+            checkpoints.put(scope.partitionKey() + ":" + checkpointKey + ":" + inputSha256,
+                summaryJson);
+        }
     }
 
     private static final class FailingChatModel implements ChatModel {

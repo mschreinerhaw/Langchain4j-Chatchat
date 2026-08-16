@@ -149,11 +149,18 @@ class ProductionTemplateExecutionContextContinuityE2E {
             ToolRuntimeExecution discovery = runtime.execute(request(
                 discoveryTool, "discover-" + scenario.kind(), List.of(discoveryTool), Map.of()));
             assertThat(discovery.output().isSuccess()).isTrue();
-            assertThat(discovery.output().getData()).isInstanceOfSatisfying(Map.class, reference ->
-                assertThat(reference).containsEntry("outputTruncated", true));
+            assertThat(discovery.output().getData()).isInstanceOfSatisfying(Map.class, result -> {
+                assertThat(result).doesNotContainKey("outputTruncated");
+                assertThat(result.get("templates")).isInstanceOfSatisfying(List.class, templates -> {
+                    assertThat(templates).hasSize(1);
+                    assertThat(templates.get(0)).isInstanceOfSatisfying(Map.class, template ->
+                        assertThat(template.get("description")).isEqualTo("x".repeat(100_000)));
+                });
+            });
             assertThat(discovery.trace().getOutput())
-                .contains("routingProjection", templateId)
-                .doesNotContain("must-not-leak", "select secret", "cat /etc/shadow");
+                .contains("routingProjection", templateId, "select secret", "cat /etc/shadow")
+                .doesNotContain("must-not-leak")
+                .hasSizeGreaterThan(100_000);
 
             AgentToolArgumentResolver resolver = new AgentToolArgumentResolver(
                 new AgentToolNameResolver(), 5, registry);

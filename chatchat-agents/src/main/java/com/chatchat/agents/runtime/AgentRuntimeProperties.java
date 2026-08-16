@@ -35,6 +35,19 @@ public class AgentRuntimeProperties {
     private int finalSummaryWebSearchResultLimit = 6;
     private int finalSummaryWebSearchEvidenceMaxChars = 16_000;
     private long finalSummaryWebSearchTimeoutMs = 45_000;
+    /** Governs lossless analysis chunk boundaries only; it never truncates returned evidence. */
+    private int recordAnalysisChunkMaxChars = 12_000;
+    /** Governs lossless analysis chunk boundaries only; every returned record remains covered. */
+    private int recordAnalysisChunkMaxRows = 50;
+    /** Spills oversized loop-analysis mirrors outside the JVM without truncating source evidence. */
+    private boolean analysisSpillEnabled = true;
+    /** Must be different from rocksDbPath because RocksDB does not allow two independent handles on one path. */
+    private String analysisSpillRocksDbPath = "./data/agent-analysis-spill-rocksdb";
+    private boolean analysisSpillRocksDbCreateIfMissing = true;
+    /** A single unusually large chunk also spills even when the dataset has only one record. */
+    private int analysisSpillThresholdBytes = 65_536;
+    /** Spill payloads and summary checkpoints remain recoverable for this duration. */
+    private long analysisSpillTtlMs = DEFAULT_RETENTION_MS;
 
     public int corePoolSize() {
         return Math.max(1, corePoolSize);
@@ -98,5 +111,27 @@ public class AgentRuntimeProperties {
 
     public long finalSummaryWebSearchTimeoutMs() {
         return Math.max(5_000L, finalSummaryWebSearchTimeoutMs);
+    }
+
+    public int recordAnalysisChunkMaxChars() {
+        return Math.max(1_000, recordAnalysisChunkMaxChars);
+    }
+
+    public int recordAnalysisChunkMaxRows() {
+        return Math.max(1, recordAnalysisChunkMaxRows);
+    }
+
+    public String analysisSpillRocksDbPath() {
+        return analysisSpillRocksDbPath == null || analysisSpillRocksDbPath.isBlank()
+            ? "./data/agent-analysis-spill-rocksdb"
+            : analysisSpillRocksDbPath.trim();
+    }
+
+    public int analysisSpillThresholdBytes() {
+        return Math.max(1_024, analysisSpillThresholdBytes);
+    }
+
+    public long analysisSpillTtlMs() {
+        return Math.max(0, analysisSpillTtlMs);
     }
 }

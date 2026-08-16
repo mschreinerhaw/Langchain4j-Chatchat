@@ -140,4 +140,24 @@ class ToolLogSummarizerTest {
                 .containsEntry("summaryTruncated", true)
                 .containsEntry("resultPresent", true));
     }
+
+    @Test
+    void completeEvidenceRedactionPreservesAllValuesAndMasksCredentials() {
+        String fullValue = "head-" + "x".repeat(20_000) + "-tail";
+        Object redacted = ToolLogSummarizer.redactComplete(Map.of(
+            "rows", java.util.stream.IntStream.range(0, 100)
+                .mapToObj(index -> Map.of("index", index, "payload", fullValue + index))
+                .toList(),
+            "password", "must-not-leak"
+        ));
+
+        assertThat(redacted).isInstanceOfSatisfying(Map.class, result -> {
+            assertThat(result.get("password")).isEqualTo("***");
+            assertThat(result.get("rows")).isInstanceOfSatisfying(List.class, rows -> {
+                assertThat(rows).hasSize(100);
+                assertThat(rows.get(99)).isInstanceOfSatisfying(Map.class, row ->
+                    assertThat(row.get("payload")).isEqualTo(fullValue + 99));
+            });
+        });
+    }
 }

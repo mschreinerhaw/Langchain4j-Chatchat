@@ -19,6 +19,7 @@ import com.chatchat.agents.runtime.AgentRuntimeProperties;
 import com.chatchat.agents.runtime.DefaultAgentAnswerReviewer;
 import com.chatchat.agents.runtime.DefaultAgentObservationPipeline;
 import com.chatchat.agents.runtime.InMemoryAgentRunStore;
+import com.chatchat.agents.runtime.GovernanceIsolationScope;
 import com.chatchat.agents.runtime.ToolRuntimeExecution;
 import com.chatchat.agents.runtime.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.ToolRuntimeService;
@@ -2458,7 +2459,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 metadata.put("interpretationPlanDeterministicSummaryFallback", true);
                 metadata.putIfAbsent("executionStatus", "PARTIAL_RESULT_PRESENTED");
                 AnalysisSummaryResult fallbackResult = governedFinalSummaryResult(
-                    stage, fallbackAnswer, "DETERMINISTIC_FINAL_FALLBACK", recordCoverage, metadata);
+                    stage, fallbackAnswer, "DETERMINISTIC_FINAL_FALLBACK", recordCoverage,
+                    runtimeAttributes, metadata);
                 return fallbackResult.content();
             }
             metadata.putIfAbsent("executionStatus", "NO_PRESENTABLE_RESULT");
@@ -2475,7 +2477,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         AnalysisSummaryResult finalSummaryResult = governedFinalSummaryResult(
             stage, governedContent,
             answer == null || answer.isBlank() ? "MODEL_EMPTY_RUNTIME_FINAL_FALLBACK" : "MODEL_FINAL_SUMMARY",
-            recordCoverage, metadata);
+            recordCoverage, runtimeAttributes, metadata);
         answer = finalSummaryResult.content();
         log.info("agentModelResponse phase=interpretation_plan_summary runId={} stage={} durationMs={} responseChars={}",
             firstNonBlank(runId, ""),
@@ -2506,7 +2508,10 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 "type", "final_summary",
                 "workflow", "interpretation_plan",
                 "stage", stage,
-                "answerPreview", preview(answer)
+                "answerPreview", preview(answer),
+                "analysisSummaryResult", finalSummaryResult.toMap(),
+                "tenantId", finalSummaryResult.isolationScope().tenantId(),
+                "runId", finalSummaryResult.isolationScope().runId()
             )
         );
         return answer;
@@ -2516,6 +2521,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
                                                               String content,
                                                               String outcome,
                                                               RecordCoverageBundle coverage,
+                                                              Map<String, Object> runtimeAttributes,
                                                               Map<String, Object> metadata) {
         Map<String, Object> coverageMap = Map.of(
             "returnedRecordCount", coverage.returnedRecordCount(),
@@ -2526,12 +2532,47 @@ public class AgentOrchestrator implements AgentRunExecutor {
             "summaryResultCount", coverage.summaryResults().size()
         );
         AnalysisSummaryResult summaryResult = analysisSummaryGovernanceBridge.finalResult(
+            summaryIsolationScope(coverage, metadata),
             stage, content, outcome, coverageMap, coverage.summaryResults());
         if (metadata != null) {
             metadata.put("analysisSummaryResult", summaryResult.toMap());
             metadata.put("analysisSummaryResultSchemaVersion", AnalysisSummaryResult.SCHEMA_VERSION);
         }
+        runResultAdapter.recordRuntimeObservation(
+            runtimeAttributes,
+            AGENT_RUN_ID_ATTRIBUTE,
+            "Governed final analysis summary recorded for " + summaryResult.resultId() + ".",
+            "analysis_summary_governance",
+            metadataOf(
+                "type", "analysis_summary_result",
+                "analysisSummaryResult", summaryResult.toMap(),
+                "tenantId", summaryResult.isolationScope().tenantId(),
+                "runId", summaryResult.isolationScope().runId()
+            )
+        );
         return summaryResult;
+    }
+
+    private GovernanceIsolationScope summaryIsolationScope(RecordCoverageBundle coverage,
+                                                            Map<String, Object> metadata) {
+        if (coverage != null && coverage.summaryResults() != null && !coverage.summaryResults().isEmpty()) {
+            return coverage.summaryResults().get(0).isolationScope();
+        }
+        return governanceIsolationScope(metadata, Map.of());
+    }
+
+    private GovernanceIsolationScope governanceIsolationScope(Map<String, Object> metadata,
+                                                               Map<String, Object> runtimeAttributes) {
+        Map<String, Object> safeMetadata = metadata == null ? Map.of() : metadata;
+        Map<String, Object> safeAttributes = runtimeAttributes == null ? Map.of() : runtimeAttributes;
+        return GovernanceIsolationScope.runtime(
+            stringValue(safeMetadata.get("tenantId")),
+            stringValue(safeMetadata.get("userId")),
+            firstNonBlank(stringValue(safeAttributes.get(AGENT_RUN_ID_ATTRIBUTE)),
+                stringValue(safeMetadata.get("agentRunId"))),
+            stringValue(safeMetadata.get("requestId")),
+            stringValue(safeMetadata.get("conversationId"))
+        );
     }
 
     /**
@@ -2958,6 +2999,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         Map<String, Object> metadata,
         BooleanSupplier cancellationCheck
     ) {
+        GovernanceIsolationScope isolationScope = governanceIsolationScope(metadata, runtimeAttributes);
         List<BatchRecordSet> recordSets = executionRecordSets(result);
         if (recordSets.isEmpty()) {
             return RecordCoverageBundle.empty();
@@ -3000,9 +3042,22 @@ public class AgentOrchestrator implements AgentRunExecutor {
                         chunks.size(), from, to, recordSet.records().size());
                 AnalysisSummaryResult governedSummary = oversized
                     ? analysisSummaryGovernanceBridge.summarize(
-                        activeChatModel, position, governedContext, chunk)
-                    : analysisSummaryGovernanceBridge.preserve(position, governedContext, chunk);
+                        activeChatModel, isolationScope, position, governedContext, chunk)
+                    : analysisSummaryGovernanceBridge.preserve(
+                        isolationScope, position, governedContext, chunk);
                 governedSummaryResults.add(governedSummary);
+                runResultAdapter.recordRuntimeObservation(
+                    runtimeAttributes,
+                    AGENT_RUN_ID_ATTRIBUTE,
+                    "Governed analysis chunk summary recorded for " + governedSummary.resultId() + ".",
+                    "analysis_summary_governance",
+                    metadataOf(
+                        "type", "analysis_summary_chunk",
+                        "analysisSummaryResult", governedSummary.toMap(),
+                        "tenantId", isolationScope.tenantId(),
+                        "runId", isolationScope.runId()
+                    )
+                );
                 String analysis = governedSummary.content();
                 if (metadata != null
                     && "STRUCTURED_RECORD_FALLBACK".equals(governedSummary.outcome())) {
@@ -6726,6 +6781,12 @@ public class AgentOrchestrator implements AgentRunExecutor {
         metadata.put("toolName", toolName);
         metadata.put("success", output != null && output.isSuccess());
         metadata.put("outcome", execution == null ? null : execution.outcome());
+        if (output != null && output.getMetadata() != null
+            && output.getMetadata().get("mcpEvidenceResult") != null) {
+            metadata.put("mcpEvidenceResult", output.getMetadata().get("mcpEvidenceResult"));
+            metadata.put("mcpEvidenceResultSchemaVersion",
+                output.getMetadata().get("mcpEvidenceResultSchemaVersion"));
+        }
         copyAttribute(runtimeAttributes, metadata, "workflowStepId");
         copyAttribute(runtimeAttributes, metadata, "workflowToolName");
         copyAttribute(runtimeAttributes, metadata, "interpretationPlanStepId");

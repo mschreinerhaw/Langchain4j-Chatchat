@@ -69,6 +69,7 @@ public class ToolRuntimeService {
     private final List<ToolRuntimePolicyProvider> policyProviders;
     private final List<ToolRuntimeAuditSink> auditSinks;
     private final TemplateExecutionLayer templateExecutionLayer = new TemplateExecutionLayer();
+    private final McpEvidenceGovernanceBridge evidenceGovernanceBridge = new McpEvidenceGovernanceBridge();
     private final ToolRuntimeUserPolicyStore userPolicyStore;
     private final ExecutorService toolExecutionExecutor;
     private final ExecutorService auditExecutor;
@@ -641,6 +642,15 @@ public class ToolRuntimeService {
                 output.setMetadata(new LinkedHashMap<>());
             }
             output.setData(processResultData(output.getData(), metadata, request, output));
+            McpEvidenceResult governedEvidence = evidenceGovernanceBridge.capture(
+                request,
+                toolName,
+                output.isSuccess() ? "success" : "failed",
+                output.getData()
+            );
+            output.setData(governedEvidence.payload());
+            output.getMetadata().put("mcpEvidenceResult", governedEvidence.descriptor());
+            output.getMetadata().put("mcpEvidenceResultSchemaVersion", McpEvidenceResult.SCHEMA_VERSION);
             long finishedAt = System.currentTimeMillis();
             long durationMs = output.getExecutionTimeMs() == null
                 ? Math.max(0L, finishedAt - startedAt)

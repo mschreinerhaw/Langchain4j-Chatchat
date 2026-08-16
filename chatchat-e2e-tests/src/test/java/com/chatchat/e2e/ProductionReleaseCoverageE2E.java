@@ -233,6 +233,14 @@ class ProductionReleaseCoverageE2E {
             "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AnalysisSummaryGovernanceBridge.java"));
         String summaryResult = Files.readString(root.resolve(
             "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AnalysisSummaryResult.java"));
+        String isolationScope = Files.readString(root.resolve(
+            "chatchat-agents/src/main/java/com/chatchat/agents/runtime/GovernanceIsolationScope.java"));
+        String mcpEvidenceBridge = Files.readString(root.resolve(
+            "chatchat-agents/src/main/java/com/chatchat/agents/runtime/McpEvidenceGovernanceBridge.java"));
+        String mcpEvidenceResult = Files.readString(root.resolve(
+            "chatchat-agents/src/main/java/com/chatchat/agents/runtime/McpEvidenceResult.java"));
+        String toolRuntime = Files.readString(root.resolve(
+            "chatchat-agents/src/main/java/com/chatchat/agents/runtime/ToolRuntimeService.java"));
         String structuredAdapter = Files.readString(root.resolve(
             "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/StructuredReasoningEvidenceAdapterRegistry.java"));
         String factGrounding = Files.readString(root.resolve(
@@ -267,6 +275,8 @@ class ProductionReleaseCoverageE2E {
                 "DataAnalysisContextProtocol.create(source, capability, business, schema, relationships)")
             .doesNotContain("portfolio_positions", "market_quote_daily");
         assertThat(finalizer)
+            .contains("attachGovernedSummaryResult(", "answer_finalization",
+                "analysisSummaryObservable", "analysisSummaryUpstreamIsolationRejected")
             .doesNotContain("applyConfiguredColumnLabels", "configuredColumnLabelsApplied",
                 "columnDefinitions(columns, data)");
         assertThat(observationBuilder)
@@ -293,8 +303,26 @@ class ProductionReleaseCoverageE2E {
             .contains("SCHEMA_VERSION = \"analysis_summary_result.v1\"",
                 "String content", "DATASET_CHUNK", "FINAL_SYNTHESIS",
                 "inputSummaryResultIds", "GOVERNED_ANALYSIS_SUMMARY",
-                "RETURNED_STRUCTURED_EVIDENCE", "DataAnalysisContextProtocol.GOVERNANCE_VERSION")
+                "RETURNED_STRUCTURED_EVIDENCE", "DataAnalysisContextProtocol.GOVERNANCE_VERSION",
+                "GovernanceIsolationScope isolationScope", "requireSamePartition")
             .doesNotContain("portfolio_positions", "market_quote_daily");
+        assertThat(isolationScope)
+            .contains("SCHEMA_VERSION = \"governance_isolation_scope.v1\"",
+                "RUNTIME_REQUEST_CONTEXT", "partitionKey()", "samePartition",
+                "Cross-tenant or cross-run governance result merge rejected");
+        assertThat(mcpEvidenceBridge)
+            .contains("McpEvidenceResult capture(", "trustedScope(ToolRuntimeRequest request)",
+                "MCP_RUNTIME_RETURNED_PAYLOAD", "crossTenantMergeAllowed", "summaryMutationAllowed");
+        assertThat(mcpEvidenceResult)
+            .contains("SCHEMA_VERSION = \"mcp_evidence_result.v1\"",
+                "GovernanceIsolationScope isolationScope", "Object payload", "descriptor()");
+        assertThat(toolRuntime)
+            .contains("evidenceGovernanceBridge.capture(",
+                "output.getMetadata().put(\"mcpEvidenceResult\"",
+                "McpEvidenceResult.SCHEMA_VERSION");
+        assertThat(observationBuilder)
+            .contains("appendMcpEvidenceGovernance", "trustedEvidenceGovernance",
+                "MCP evidence governance bridge:");
         assertThat(structuredAdapter)
             .contains("analysisContexts", "summary-governance input",
                 "not observed data or a presentation-label mapping");

@@ -1,6 +1,7 @@
 package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
+import com.chatchat.agents.runtime.GovernanceIsolationScope;
 import com.chatchat.common.tool.DataAnalysisContextProtocol;
 import dev.langchain4j.model.chat.ChatModel;
 
@@ -83,6 +84,7 @@ public final class AnalysisSummaryGovernanceBridge {
     }
 
     public AnalysisSummaryResult summarize(ChatModel model,
+                                           GovernanceIsolationScope isolationScope,
                                            ChunkPosition position,
                                            Map<String, Object> governedContext,
                                            List<Map<String, Object>> records) {
@@ -101,19 +103,20 @@ public final class AnalysisSummaryGovernanceBridge {
             String summary = model.chat(prompt);
             if (summary != null && !summary.isBlank()) {
                 return AnalysisSummaryResult.chunk(
-                    position.toMap(), governedContext, summary, "MODEL_SUMMARY");
+                    isolationScope, position.toMap(), governedContext, summary, "MODEL_SUMMARY");
             }
         } catch (RuntimeException ignored) {
             // The immutable returned-record fallback remains authoritative.
         }
-        return AnalysisSummaryResult.chunk(position.toMap(), governedContext,
+        return AnalysisSummaryResult.chunk(isolationScope, position.toMap(), governedContext,
             ModelProtocolJson.compact(records), "STRUCTURED_RECORD_FALLBACK");
     }
 
-    public AnalysisSummaryResult preserve(ChunkPosition position,
+    public AnalysisSummaryResult preserve(GovernanceIsolationScope isolationScope,
+                                          ChunkPosition position,
                                           Map<String, Object> governedContext,
                                           List<Map<String, Object>> records) {
-        return AnalysisSummaryResult.chunk(position.toMap(), governedContext,
+        return AnalysisSummaryResult.chunk(isolationScope, position.toMap(), governedContext,
             ModelProtocolJson.compact(records), "STRUCTURED_RECORD_DIRECT");
     }
 
@@ -127,25 +130,43 @@ public final class AnalysisSummaryGovernanceBridge {
     }
 
     public Map<String, Object> ledger(List<AnalysisSummaryResult> summaries,
-                                      int returnedRecordCount,
-                                      int processedRecordCount,
-                                      boolean complete) {
+                                     int returnedRecordCount,
+                                     int processedRecordCount,
+                                     boolean complete) {
+        List<AnalysisSummaryResult> safeSummaries = summaries == null ? List.of() : List.copyOf(summaries);
+        if (!safeSummaries.isEmpty()) {
+            GovernanceIsolationScope scope = safeSummaries.get(0).isolationScope();
+            safeSummaries.forEach(summary -> scope.requireSamePartition(summary.isolationScope()));
+        }
         return Map.of(
             "schemaVersion", BRIDGE_SCHEMA_VERSION,
             "governanceProtocolVersion", DataAnalysisContextProtocol.GOVERNANCE_VERSION,
             "returnedRecordCount", returnedRecordCount,
             "processedRecordCount", processedRecordCount,
             "complete", complete,
-            "summaryResults", summaries.stream().map(AnalysisSummaryResult::toMap).toList()
+            "isolationScope", safeSummaries.isEmpty() ? Map.of() : safeSummaries.get(0).isolationScope().toMap(),
+            "summaryResults", safeSummaries.stream().map(AnalysisSummaryResult::toMap).toList()
         );
     }
 
-    public AnalysisSummaryResult finalResult(String stage,
+    public AnalysisSummaryResult finalResult(GovernanceIsolationScope isolationScope,
+                                             String stage,
                                              String content,
                                              String outcome,
                                              Map<String, Object> coverage,
                                              List<AnalysisSummaryResult> inputs) {
-        return AnalysisSummaryResult.finalSummary(stage, content, outcome, coverage, inputs);
+        return AnalysisSummaryResult.finalSummary(isolationScope, stage, content, outcome, coverage, inputs);
+    }
+
+    public AnalysisSummaryResult finalResult(GovernanceIsolationScope isolationScope,
+                                             String stage,
+                                             String content,
+                                             String outcome,
+                                             Map<String, Object> coverage,
+                                             List<AnalysisSummaryResult> inputs,
+                                             List<String> upstreamResultIds) {
+        return AnalysisSummaryResult.finalSummary(
+            isolationScope, stage, content, outcome, coverage, inputs, upstreamResultIds);
     }
 
     private List<Map<String, Object>> returnedFields(List<Map<String, Object>> records) {

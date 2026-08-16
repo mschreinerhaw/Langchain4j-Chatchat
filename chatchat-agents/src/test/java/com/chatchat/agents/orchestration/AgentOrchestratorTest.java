@@ -653,10 +653,16 @@ class AgentOrchestratorTest {
         ChatModel model = mock(ChatModel.class);
         when(model.chat(any(String.class))).thenReturn("chunk evidence summary");
         AgentOrchestrator orchestrator = newOrchestrator(model);
-        Map<String, Object> metadata = new LinkedHashMap<>();
+        Map<String, Object> metadata = new LinkedHashMap<>(Map.of(
+            "tenantId", "tenant-summary",
+            "userId", "user-summary",
+            "agentRunId", "run-summary",
+            "requestId", "request-summary",
+            "conversationId", "conversation-summary"
+        ));
 
         AgentOrchestrator.RecordCoverageBundle coverage = orchestrator.buildRecordCoverageBundle(
-            model, "analyze returned records", result, Map.of(), metadata, () -> false);
+            model, "analyze returned records", result, Map.of("__agentRunId", "run-summary"), metadata, () -> false);
         String answer = orchestrator.ensureCompleteRecordCoveragePresented(
             "all templates succeeded", coverage, metadata);
 
@@ -668,7 +674,9 @@ class AgentOrchestratorTest {
         assertThat(coverage.summaryResults()).hasSize(coverage.iterations())
             .allSatisfy(entry -> assertThat(entry.toMap().toString())
                 .contains("schemaVersion=analysis_summary_result.v1", "scope=DATASET_CHUNK")
-                .contains("datasetReference=records", "recordFrom=", "recordTo=", "totalRecords=60"));
+                .contains("datasetReference=records", "recordFrom=", "recordTo=", "totalRecords=60")
+                .contains("tenantId=tenant-summary", "runId=run-summary",
+                    "authority=RUNTIME_REQUEST_CONTEXT"));
         assertThat(answer)
             .contains("chunk evidence summary")
             .contains("60/60")

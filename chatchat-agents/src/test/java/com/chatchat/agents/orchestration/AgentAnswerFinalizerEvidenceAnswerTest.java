@@ -54,7 +54,12 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
             .containsEntry("answerEvidenceStatus", "PARTIAL")
             .containsEntry("answerEvidenceUserVisible", false)
             .containsEntry("answerEvidenceLimitations", List.of("TOOL_EXECUTION_FAILURE"))
+            .containsEntry("analysisSummaryResultSchemaVersion", "analysis_summary_result.v1")
+            .containsEntry("analysisSummaryObservable", true)
             .doesNotContainKeys("answerEvidenceLabel", "answerEvidenceDisclosure");
+        assertThat(result.metadata().get("analysisSummaryResult").toString())
+            .contains("scope=FINAL_SYNTHESIS", "stage=answer_finalization")
+            .contains("answerAssemblyComplete=true", "authority=RUNTIME_REQUEST_CONTEXT");
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.runtime.GovernanceIsolationScope;
 import dev.langchain4j.model.chat.ChatModel;
 import org.junit.jupiter.api.Test;
 
@@ -15,6 +16,8 @@ import static org.mockito.Mockito.when;
 class AnalysisSummaryGovernanceBridgeTest {
 
     private final AnalysisSummaryGovernanceBridge bridge = new AnalysisSummaryGovernanceBridge();
+    private final GovernanceIsolationScope isolationScope = GovernanceIsolationScope.runtime(
+        "tenant-a", "user-a", "run-a", "request-a", "conversation-a");
 
     @Test
     void supplementsStructureWithoutInventingMissingBusinessSemantics() {
@@ -52,7 +55,7 @@ class AnalysisSummaryGovernanceBridgeTest {
             bridge.position("positions", 2, 3, 51, 75, 120);
 
         AnalysisSummaryResult summary = bridge.summarize(
-            model, position, context, List.of(Map.of("VALUE", 1)));
+            model, isolationScope, position, context, List.of(Map.of("VALUE", 1)));
         Map<String, Object> ledger = bridge.ledger(List.of(summary), 120, 25, false);
 
         assertThat(summary.schemaVersion()).isEqualTo("analysis_summary_result.v1");
@@ -72,10 +75,11 @@ class AnalysisSummaryGovernanceBridgeTest {
         Map<String, Object> context = bridge.govern("assets", Map.of(),
             List.of(Map.of("TOTAL_ASSET", 847174.25)));
         AnalysisSummaryResult chunk = bridge.preserve(
-            bridge.position("assets", 1, 1, 1, 1, 1), context,
+            isolationScope, bridge.position("assets", 1, 1, 1, 1, 1), context,
             List.of(Map.of("TOTAL_ASSET", 847174.25)));
 
         AnalysisSummaryResult result = bridge.finalResult(
+            isolationScope,
             "initial", "资产分析总结正文", "MODEL_FINAL_SUMMARY",
             Map.of("returnedRecordCount", 1, "processedRecordCount", 1, "coverageComplete", true),
             List.of(chunk));
@@ -83,10 +87,26 @@ class AnalysisSummaryGovernanceBridgeTest {
         assertThat(result.schemaVersion()).isEqualTo("analysis_summary_result.v1");
         assertThat(result.scope()).isEqualTo("FINAL_SYNTHESIS");
         assertThat(result.content()).isEqualTo("资产分析总结正文");
-        assertThat(result.inputSummaryResultIds()).containsExactly("assets#chunk-1");
+        assertThat(result.inputSummaryResultIds()).containsExactly("tenant-a:run-a:assets#chunk-1");
         assertThat(result.toMap().toString())
             .contains("MODEL_FINAL_SUMMARY", "summary_governance.v1")
             .contains("GOVERNED_ANALYSIS_SUMMARY", "RETURNED_STRUCTURED_EVIDENCE")
             .contains("coverageComplete=true");
+    }
+
+    @Test
+    void rejectsCrossTenantSummaryLineage() {
+        Map<String, Object> context = bridge.govern("assets", Map.of(),
+            List.of(Map.of("TOTAL_ASSET", 1)));
+        AnalysisSummaryResult foreignChunk = bridge.preserve(
+            GovernanceIsolationScope.runtime(
+                "tenant-b", "user-b", "run-b", "request-b", "conversation-b"),
+            bridge.position("assets", 1, 1, 1, 1, 1), context,
+            List.of(Map.of("TOTAL_ASSET", 1)));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> bridge.finalResult(
+                isolationScope, "initial", "summary", "MODEL_FINAL_SUMMARY", Map.of(), List.of(foreignChunk)))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Cross-tenant or cross-run");
     }
 }

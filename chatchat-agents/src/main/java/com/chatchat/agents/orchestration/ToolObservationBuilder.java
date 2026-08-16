@@ -9,6 +9,7 @@ import com.chatchat.agents.evidence.EvidenceExecutionContract;
 import com.chatchat.agents.evidence.EvidenceExecutionContractCompiler;
 import com.chatchat.agents.evidence.EvidenceExecutionReport;
 import com.chatchat.agents.evidence.EvidenceFormatter;
+import com.chatchat.agents.evidence.EvidenceGovernance;
 import com.chatchat.agents.evidence.EvidenceGraph;
 import com.chatchat.agents.evidence.EvidenceGraphExecutionEngine;
 import com.chatchat.agents.evidence.EvidenceGraphFormatter;
@@ -66,6 +67,14 @@ class ToolObservationBuilder {
     }
 
     String buildSuccessObservation(String toolName, ToolOutput output, String outputText, Map<String, Object> reviewMetadata) {
+        String content = buildSuccessObservationContent(toolName, output, outputText, reviewMetadata);
+        return appendMcpEvidenceGovernance(content, output);
+    }
+
+    private String buildSuccessObservationContent(String toolName,
+                                                  ToolOutput output,
+                                                  String outputText,
+                                                  Map<String, Object> reviewMetadata) {
         Object data = output == null ? null : output.getData();
         if (data instanceof ToolCallBatchResult batchResult) {
             return buildBatchExecutionObservation(toolName, output, batchResult);
@@ -114,7 +123,7 @@ class ToolObservationBuilder {
             observation.append(" Message: ").append(shortObservationText(message, 400));
         }
         Map<String, Object> root = asMap(data);
-        appendUnifiedEvidence(observation, toolName, data, reviewMetadata);
+        appendUnifiedEvidence(observation, toolName, data, reviewMetadata, output);
         if (!root.isEmpty()) {
             String structuredObservationCount = firstNonBlank(
                 stringValue(root.get("structuredObservationCount")),
@@ -166,6 +175,18 @@ class ToolObservationBuilder {
         }
         observation.append("Citation rule: append the matching [网页N] label immediately after any sentence that uses facts from that page.");
         return normalizeWebCitationLabels(observation.toString());
+    }
+
+    private String appendMcpEvidenceGovernance(String observation, ToolOutput output) {
+        if (output == null || output.getMetadata() == null) {
+            return observation;
+        }
+        Object descriptor = output.getMetadata().get("mcpEvidenceResult");
+        if (!(descriptor instanceof Map<?, ?> map) || map.isEmpty()) {
+            return observation;
+        }
+        return firstNonBlank(observation, "Tool execution produced no presentation text.")
+            + "\nMCP evidence governance bridge: " + descriptor;
     }
 
     private String buildSqlMetadataSearchObservation(String toolName, ToolOutput output, Object data) {
@@ -1016,7 +1037,7 @@ class ToolObservationBuilder {
         }
 
         Map<String, Object> root = asMap(data);
-        appendUnifiedEvidence(observation, toolName, data, reviewMetadata);
+        appendUnifiedEvidence(observation, toolName, data, reviewMetadata, output);
         if (!root.isEmpty()) {
             List<Map<String, Object>> results = new ArrayList<>();
             addCandidateList(results, root.get("results"));
@@ -1071,12 +1092,30 @@ class ToolObservationBuilder {
         return observation.toString();
     }
 
-    private void appendUnifiedEvidence(StringBuilder observation, String toolName, Object data, Map<String, Object> reviewMetadata) {
+    private void appendUnifiedEvidence(StringBuilder observation,
+                                       String toolName,
+                                       Object data,
+                                       Map<String, Object> reviewMetadata,
+                                       ToolOutput output) {
         Object evidenceData = trustedUnifiedEvidenceData(toolName, data);
         DocumentSelectionContext selectionContext = isDocumentSearchToolName(toolName)
             ? DocumentSelectionContext.fromToolData(evidenceData)
             : DocumentSelectionContext.unrestricted();
         List<EvidenceChunk> normalizedChunks = evidenceNormalizer.normalize(toolName, evidenceData, Integer.MAX_VALUE);
+        EvidenceGovernance trustedGovernance = trustedEvidenceGovernance(output);
+        if (trustedGovernance != null) {
+            normalizedChunks = normalizedChunks.stream()
+                .map(chunk -> new EvidenceChunk(
+                    chunk.evidenceType(), chunk.contractVersion(), chunk.source(), chunk.content(), chunk.score(),
+                    chunk.citation(),
+                    new EvidenceGovernance(
+                        trustedGovernance.tenantId(),
+                        trustedGovernance.userId(),
+                        chunk.governance() == null ? List.of() : chunk.governance().roles(),
+                        chunk.governance() == null ? "ALLOWED" : chunk.governance().policyStatus()),
+                    chunk.trace()))
+                .toList();
+        }
         List<EvidenceChunk> blockedInjectionChunks = normalizedChunks.stream()
             .filter(chunk -> promptInjectionDetector.detect(chunk.content()).suspicious())
             .toList();
@@ -1152,6 +1191,24 @@ class ToolObservationBuilder {
                 .append(blockedCount)
                 .append(".\n");
         }
+    }
+
+    private EvidenceGovernance trustedEvidenceGovernance(ToolOutput output) {
+        if (output == null || output.getMetadata() == null) {
+            return null;
+        }
+        Map<String, Object> descriptor = asMap(output.getMetadata().get("mcpEvidenceResult"));
+        Map<String, Object> scope = asMap(descriptor.get("isolationScope"));
+        String tenantId = stringValue(scope.get("tenantId"));
+        if (tenantId == null || tenantId.isBlank()) {
+            return null;
+        }
+        return new EvidenceGovernance(
+            tenantId,
+            firstNonBlank(stringValue(scope.get("userId")), "anonymous"),
+            List.of(),
+            "ALLOWED"
+        );
     }
 
     private void appendUntrustedExternalSummary(StringBuilder observation, String summary) {

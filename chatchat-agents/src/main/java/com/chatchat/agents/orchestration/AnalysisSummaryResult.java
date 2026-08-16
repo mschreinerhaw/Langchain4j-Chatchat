@@ -1,5 +1,6 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.runtime.GovernanceIsolationScope;
 import com.chatchat.common.tool.DataAnalysisContextProtocol;
 
 import java.util.Collections;
@@ -17,6 +18,7 @@ public record AnalysisSummaryResult(
     String scope,
     String content,
     String outcome,
+    GovernanceIsolationScope isolationScope,
     Map<String, Object> position,
     Map<String, Object> analysisContext,
     Map<String, Object> coverage,
@@ -32,6 +34,9 @@ public record AnalysisSummaryResult(
         scope = text(scope, "DATASET_CHUNK");
         content = content == null ? "" : content;
         outcome = text(outcome, "UNKNOWN");
+        isolationScope = isolationScope == null
+            ? GovernanceIsolationScope.runtime(null, null, null, null, null)
+            : isolationScope;
         position = immutable(position);
         analysisContext = immutable(analysisContext);
         coverage = immutable(coverage);
@@ -39,18 +44,23 @@ public record AnalysisSummaryResult(
         governance = immutable(governance);
     }
 
-    public static AnalysisSummaryResult chunk(Map<String, Object> position,
+    public static AnalysisSummaryResult chunk(GovernanceIsolationScope isolationScope,
+                                              Map<String, Object> position,
                                               Map<String, Object> analysisContext,
                                               String content,
                                               String outcome) {
+        GovernanceIsolationScope safeScope = isolationScope == null
+            ? GovernanceIsolationScope.runtime(null, null, null, null, null)
+            : isolationScope;
         String dataset = string(position, "datasetReference", "result");
         String chunk = string(position, "chunkIndex", "1");
         return new AnalysisSummaryResult(
             SCHEMA_VERSION,
-            dataset + "#chunk-" + chunk,
+            safeScope.partitionKey() + ":" + dataset + "#chunk-" + chunk,
             "DATASET_CHUNK",
             content,
             outcome,
+            safeScope,
             position,
             analysisContext,
             Map.of(
@@ -64,22 +74,46 @@ public record AnalysisSummaryResult(
         );
     }
 
-    public static AnalysisSummaryResult finalSummary(String stage,
+    public static AnalysisSummaryResult finalSummary(GovernanceIsolationScope isolationScope,
+                                                     String stage,
                                                      String content,
                                                      String outcome,
                                                      Map<String, Object> coverage,
                                                      List<AnalysisSummaryResult> inputs) {
+        return finalSummary(isolationScope, stage, content, outcome, coverage, inputs, List.of());
+    }
+
+    public static AnalysisSummaryResult finalSummary(GovernanceIsolationScope isolationScope,
+                                                     String stage,
+                                                     String content,
+                                                     String outcome,
+                                                     Map<String, Object> coverage,
+                                                     List<AnalysisSummaryResult> inputs,
+                                                     List<String> upstreamResultIds) {
+        GovernanceIsolationScope safeScope = isolationScope == null
+            ? GovernanceIsolationScope.runtime(null, null, null, null, null)
+            : isolationScope;
         List<AnalysisSummaryResult> safeInputs = inputs == null ? List.of() : List.copyOf(inputs);
+        safeInputs.forEach(input -> safeScope.requireSamePartition(input.isolationScope()));
+        List<String> inputIds = new java.util.ArrayList<>(
+            safeInputs.stream().map(AnalysisSummaryResult::resultId).toList());
+        if (upstreamResultIds != null) {
+            upstreamResultIds.stream()
+                .filter(id -> id != null && !id.isBlank())
+                .filter(id -> !inputIds.contains(id))
+                .forEach(inputIds::add);
+        }
         return new AnalysisSummaryResult(
             SCHEMA_VERSION,
-            "final-summary#" + text(stage, "final"),
+            safeScope.partitionKey() + ":final-summary#" + text(stage, "final"),
             "FINAL_SYNTHESIS",
             content,
             outcome,
+            safeScope,
             Map.of("stage", text(stage, "final")),
             Map.of(),
             coverage,
-            safeInputs.stream().map(AnalysisSummaryResult::resultId).toList(),
+            inputIds,
             governanceContract()
         );
     }
@@ -91,6 +125,7 @@ public record AnalysisSummaryResult(
         result.put("scope", scope);
         result.put("content", content);
         result.put("outcome", outcome);
+        result.put("isolationScope", isolationScope.toMap());
         result.put("position", position);
         result.put("analysisContext", analysisContext);
         result.put("coverage", coverage);

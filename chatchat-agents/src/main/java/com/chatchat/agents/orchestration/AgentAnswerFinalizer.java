@@ -15,6 +15,7 @@ import com.chatchat.agents.runtime.AgentRuntimeFactGroundingContract;
 import com.chatchat.agents.runtime.AgentRuntimeProperties;
 import com.chatchat.agents.runtime.AnswerCandidateCollector;
 import com.chatchat.agents.runtime.DraftArtifactRuntimePolicy;
+import com.chatchat.agents.runtime.GovernanceIsolationScope;
 import com.chatchat.agents.runtime.ToolRuntimeService;
 import com.chatchat.agents.runtime.plan.DiagnosticRunStateMachine;
 import com.chatchat.agents.tool.ToolRegistry;
@@ -77,6 +78,8 @@ class AgentAnswerFinalizer {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final AnswerQualityEvaluator answerQualityEvaluator = new AnswerQualityEvaluator(objectMapper);
     private final AnswerCandidateCollector answerCandidateCollector = new AnswerCandidateCollector();
+    private final AnalysisSummaryGovernanceBridge analysisSummaryGovernanceBridge =
+        new AnalysisSummaryGovernanceBridge();
     private final FinalSummaryWebSearchEnhancer finalSummaryWebSearchEnhancer;
     private final AgentRuntimeProperties agentRuntimeProperties;
 
@@ -212,11 +215,58 @@ class AgentAnswerFinalizer {
         attachAnswerAssemblyPolicy(values, observations);
         attachTaskResultAssessment(values, traces, observations);
         attachEvidenceAnswerContract(finalAnswer, values, observations);
+        attachGovernedSummaryResult(finalAnswer, values, traces, observations);
         return new AgentOrchestrator.AgentExecutionResult(
             finalAnswer,
             traces == null ? List.of() : List.copyOf(traces),
             values
         );
+    }
+
+    private void attachGovernedSummaryResult(String finalAnswer,
+                                             Map<String, Object> values,
+                                             List<InteractionToolTrace> traces,
+                                             List<String> observations) {
+        GovernanceIsolationScope scope = GovernanceIsolationScope.runtime(
+            stringValue(values.get("tenantId")),
+            stringValue(values.get("userId")),
+            stringValue(values.get("agentRunId")),
+            stringValue(values.get("requestId")),
+            stringValue(values.get("conversationId"))
+        );
+        Map<String, Object> upstream = objectMap(values.get("analysisSummaryResult"));
+        List<String> upstreamIds = List.of();
+        if (!upstream.isEmpty()) {
+            Map<String, Object> upstreamScope = objectMap(upstream.get("isolationScope"));
+            boolean samePartition = scope.tenantId().equals(stringValue(upstreamScope.get("tenantId")))
+                && scope.runId().equals(stringValue(upstreamScope.get("runId")));
+            String upstreamId = stringValue(upstream.get("resultId"));
+            if (samePartition && upstreamId != null && !upstreamId.isBlank()) {
+                upstreamIds = List.of(upstreamId);
+                values.put("analysisSummaryUpstreamResult", upstream);
+            } else {
+                values.put("analysisSummaryUpstreamIsolationRejected", true);
+            }
+        }
+        String outcome = Boolean.TRUE.equals(values.get("deterministicFinalizationFallback"))
+            ? "DETERMINISTIC_FINALIZATION"
+            : "FINAL_ANSWER_ASSEMBLY";
+        AnalysisSummaryResult result = analysisSummaryGovernanceBridge.finalResult(
+            scope,
+            "answer_finalization",
+            finalAnswer,
+            outcome,
+            Map.of(
+                "toolTraceCount", traces == null ? 0 : traces.size(),
+                "observationCount", observations == null ? 0 : observations.size(),
+                "answerAssemblyComplete", true
+            ),
+            List.of(),
+            upstreamIds
+        );
+        values.put("analysisSummaryResult", result.toMap());
+        values.put("analysisSummaryResultSchemaVersion", AnalysisSummaryResult.SCHEMA_VERSION);
+        values.put("analysisSummaryObservable", true);
     }
 
     private String deterministicBatchReport(List<InteractionToolTrace> traces) {
@@ -2794,6 +2844,19 @@ class AgentAnswerFinalizer {
 
     private String stringValue(Object value) {
         return value == null ? null : String.valueOf(value);
+    }
+
+    private Map<String, Object> objectMap(Object value) {
+        if (!(value instanceof Map<?, ?> map) || map.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        map.forEach((key, item) -> {
+            if (key != null) {
+                result.put(String.valueOf(key), item);
+            }
+        });
+        return result;
     }
 
     private Object firstPresent(Object first, Object second) {

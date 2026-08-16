@@ -63,6 +63,11 @@ class ToolRuntimeServiceTest {
                 .containsEntry("runtimeRequiredToolParametersApplied", List.of("strict_mode"));
             assertThat(execution.audit())
                 .containsEntry("runtimeRequiredToolParametersApplied", List.of("strict_mode"));
+            assertThat(execution.output().getMetadata())
+                .containsEntry("mcpEvidenceResultSchemaVersion", "mcp_evidence_result.v1");
+            assertThat(execution.output().getMetadata().get("mcpEvidenceResult").toString())
+                .contains("tenantId=tenant-1", "requestId=required-parameter-1")
+                .contains("crossTenantMergeAllowed=false");
         } finally {
             service.shutdown();
         }

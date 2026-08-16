@@ -2669,11 +2669,16 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (synthesisPrompt == null || synthesisPrompt.isBlank()) {
             return "";
         }
-        int start = synthesisPrompt.indexOf("Executed plan attempts (");
+        int start = synthesisPrompt.indexOf("Authoritative Summary Evidence Ledger (runtime-generated):");
+        int end = synthesisPrompt.indexOf("Executed plan attempts (", start);
+        if (start >= 0 && end > start) {
+            return synthesisPrompt.substring(start, end);
+        }
+        start = synthesisPrompt.indexOf("Executed plan attempts (");
         if (start < 0) {
             return "";
         }
-        int end = synthesisPrompt.lastIndexOf("\nReturn only the final user-facing Markdown answer");
+        end = synthesisPrompt.lastIndexOf("\nReturn only the final user-facing Markdown answer");
         if (end <= start) {
             end = synthesisPrompt.length();
         }
@@ -2801,6 +2806,14 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("- Database layering labels (for example ADS/DWS/DWD/DIM), table names, schemas, databases, and fields are evidence facts only when the current tool output explicitly returned them. Never infer a layer from a naming convention. Never output 'possible table examples', 'common tables', or supplemental table recommendations that were not retrieved.\n");
         prompt.append(AgentRuntimeFactGroundingContract.promptSection());
         prompt.append("User query:\n").append(query == null ? "" : query).append("\n\n");
+        prompt.append("Authoritative Summary Evidence Ledger (runtime-generated):\n")
+            .append("- This ledger is the factual boundary for final synthesis and reviewer rewrites. "
+                + "Every factual finding must be supported by an EXECUTED_RESULT entry and its evidenceId.\n")
+            .append("- DISCOVERY_ONLY entries establish available assets/templates only; they never prove the requested business, diagnostic, or health finding.\n")
+            .append("- BLOCKED_PRE_EXECUTION and FAILED entries may explain a limitation only. They never prove a remote execution, returned metric, or target state.\n")
+            .append("- A result set absent from this ledger must be described as not available, never reconstructed from template text, review notes, or prior model wording.\n")
+            .append(stringify(summaryEvidenceLedger(results)))
+            .append("\n\n");
         prompt.append("context_compression: ")
             .append(Map.of(
                 "enabled", compressionEnabled,
@@ -2923,6 +2936,90 @@ public class AgentOrchestrator implements AgentRunExecutor {
         }
         prompt.append("\nReturn only the final user-facing Markdown answer, no JSON.");
         return prompt.toString();
+    }
+
+    private List<Map<String, Object>> summaryEvidenceLedger(
+        List<InterpretationPlanRuntime.ExecutionResult> results
+    ) {
+        List<Map<String, Object>> entries = new ArrayList<>();
+        List<InterpretationPlanRuntime.ExecutionResult> safeResults = results == null ? List.of() : results;
+        for (int attemptIndex = 0; attemptIndex < safeResults.size(); attemptIndex++) {
+            InterpretationPlanRuntime.ExecutionResult attempt = safeResults.get(attemptIndex);
+            if (attempt == null || attempt.steps() == null) {
+                continue;
+            }
+            for (InterpretationPlanRuntime.StepExecution step : attempt.steps()) {
+                if (step == null) {
+                    continue;
+                }
+                String evidenceId = "iteration:" + (attemptIndex + 1) + ":step:" + step.stepId()
+                    + ":tool:" + firstNonBlank(step.toolName(), step.actionType());
+                if (step.output() instanceof ToolCallBatchResult batch) {
+                    for (ToolCallResult child : batch.results() == null ? List.<ToolCallResult>of() : batch.results()) {
+                        if (child == null) {
+                            continue;
+                        }
+                        Map<String, Object> entry = baseSummaryLedgerEntry(
+                            attemptIndex, step, firstNonBlank(child.evidenceId(), evidenceId),
+                            "SUCCESS".equalsIgnoreCase(child.status()), stringify(child.error()));
+                        entry.put("templateId", firstNonBlank(child.templateId(), child.templateCode()));
+                        entry.put("callId", child.callId());
+                        entry.put("resultStatus", child.status());
+                        if ("SUCCESS".equalsIgnoreCase(child.status())) {
+                            entry.put("returnedEvidence", summaryLedgerOutput(child.output()));
+                        }
+                        entries.add(entry);
+                    }
+                    continue;
+                }
+                Map<String, Object> entry = baseSummaryLedgerEntry(
+                    attemptIndex, step, evidenceId, step.success(), step.errorMessage());
+                if (step.success() && step.output() != null) {
+                    entry.put("returnedEvidence", summaryLedgerOutput(step.output()));
+                }
+                entries.add(entry);
+            }
+        }
+        return List.copyOf(entries);
+    }
+
+    private Map<String, Object> baseSummaryLedgerEntry(int attemptIndex,
+                                                        InterpretationPlanRuntime.StepExecution step,
+                                                        String evidenceId,
+                                                        boolean success,
+                                                        String error) {
+        Map<String, Object> entry = new LinkedHashMap<>();
+        entry.put("evidenceId", evidenceId);
+        entry.put("attempt", attemptIndex + 1);
+        entry.put("stepId", step.stepId());
+        entry.put("tool", firstNonBlank(step.toolName(), step.actionType()));
+        entry.put("executionState", summaryLedgerExecutionState(step, success));
+        if (error != null && !error.isBlank()) {
+            entry.put("runtimeReason", error);
+        }
+        return entry;
+    }
+
+    private String summaryLedgerExecutionState(InterpretationPlanRuntime.StepExecution step,
+                                               boolean success) {
+        if (!success) {
+            return step.toolExecution() == null ? "BLOCKED_PRE_EXECUTION" : "FAILED";
+        }
+        if (step != null && "final_answer".equalsIgnoreCase(step.actionType())) {
+            return "SYNTHESIS_HINT";
+        }
+        String normalizedTool = firstNonBlank(step == null ? null : step.toolName(), "")
+            .toLowerCase(Locale.ROOT);
+        return normalizedTool.contains("asset_query") || normalizedTool.contains("template_query")
+            ? "DISCOVERY_ONLY" : "EXECUTED_RESULT";
+    }
+
+    private Object summaryLedgerOutput(Object output) {
+        Map<String, Object> facts = structuredOutputFacts(output);
+        if (!facts.isEmpty()) {
+            return facts;
+        }
+        return shortObservationText(stringify(contextEvidenceAggregator.aggregate(output)), 4000);
     }
 
     private String buildStructuralFallbackSummaryPrompt(

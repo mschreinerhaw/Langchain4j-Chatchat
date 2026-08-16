@@ -711,6 +711,9 @@ class AgentAnswerFinalizer {
                                                                        AgentAnswerReview review,
                                                                        AnswerDecisionEngine.EvidenceSignal signal,
                                                                        Map<String, Object> metadata) {
+        if (activeChatModel == null) {
+            return null;
+        }
         List<AnswerQualityEvaluator.AnswerCandidate> candidates =
             answerCandidates(candidateAnswer, review, signal, metadata);
         if (candidates.size() <= 1) {
@@ -766,6 +769,18 @@ class AgentAnswerFinalizer {
                     signal.groundedDocumentAnswer()
                 ));
             }
+        }
+        if (metadata != null
+            && Boolean.TRUE.equals(metadata.get("modelEvidenceReviewRewriteAllowed"))
+            && review != null
+            && AgentAnswerReview.REVISED.equals(review.status())
+            && review.answer() != null
+            && !review.answer().isBlank()) {
+            candidates.add(new AnswerQualityEvaluator.AnswerCandidate(
+                AnswerQualityEvaluator.REVIEWER_SUGGESTION,
+                AnswerQualityEvaluator.REVIEWER_SUGGESTION,
+                review.answer()
+            ));
         }
         addRuntimeAnswerCandidates(candidates, metadata);
         return List.copyOf(candidates);

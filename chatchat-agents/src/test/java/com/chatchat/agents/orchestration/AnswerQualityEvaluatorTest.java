@@ -93,6 +93,50 @@ class AnswerQualityEvaluatorTest {
     }
 
     @Test
+    void evidenceReviewerRewriteIsQualityGatedWhenQualityEvidenceIsAvailable() {
+        AnswerQualityEvaluator.AnswerCandidate current =
+            new AnswerQualityEvaluator.AnswerCandidate("candidate", "candidate", "Grounded current answer");
+        AnswerQualityEvaluator.AnswerCandidate reviewer =
+            new AnswerQualityEvaluator.AnswerCandidate(
+                AnswerQualityEvaluator.REVIEWER_SUGGESTION,
+                AnswerQualityEvaluator.REVIEWER_SUGGESTION,
+                "Unsupported reviewer rewrite"
+            );
+        AnswerQualityEvaluator.QualityReport report = new AnswerQualityEvaluator.QualityReport(
+            true,
+            AnswerQualityEvaluator.CONTRACT_VERSION,
+            "candidate",
+            List.of(current, reviewer),
+            List.of(
+                score("candidate", 0.9, 0.9, 0.8),
+                score(AnswerQualityEvaluator.REVIEWER_SUGGESTION, 0.2, 0.2, 0.95)
+            ),
+            "reviewer rewrite has insufficient grounding",
+            null
+        );
+
+        AnswerDecisionEngine.AnswerDecision decision = new AnswerDecisionEngine().decide(
+            new AnswerDecisionEngine.AnswerDecisionRequest(
+                current.answer(),
+                new com.chatchat.agents.runtime.AgentAnswerReview(
+                    com.chatchat.agents.runtime.AgentAnswerReview.REVISED,
+                    reviewer.answer(),
+                    "reviewer proposed a rewrite"
+                ),
+                AnswerDecisionEngine.EvidenceSignal.empty(),
+                report,
+                Map.of("modelEvidenceReviewRewriteAllowed", true)
+            )
+        );
+
+        assertThat(decision.finalAnswer()).isEqualTo(current.answer());
+        assertThat(decision.metadata())
+            .containsEntry("answerReviewRewriteApplied", false)
+            .containsEntry("answerReviewRewriteSkippedReason",
+                "quality_aggregation_selected_original_candidate");
+    }
+
+    @Test
     void persistedCandidateAuditContainsOnlyBoundedPreview() {
         String longAnswer = "x".repeat(5000);
         AnswerQualityEvaluator.QualityReport report =

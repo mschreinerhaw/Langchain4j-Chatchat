@@ -65,7 +65,8 @@ class AnswerDecisionEngine {
             && review != null
             && AgentAnswerReview.REVISED.equals(review.status())
             && review.answer() != null
-            && !review.answer().isBlank()) {
+            && !review.answer().isBlank()
+            && quality == null) {
             metadata.put("answerReviewAuthority", "evidence_analysis_repair");
             metadata.put("answerReviewRewriteApplied", true);
             return decision(
@@ -137,6 +138,16 @@ class AnswerDecisionEngine {
                     metadata
                 );
             }
+        }
+
+        if (modelEvidenceRepairAllowed(request == null ? null : request.metadata())
+            && review != null
+            && AgentAnswerReview.REVISED.equals(review.status())
+            && review.answer() != null
+            && !review.answer().isBlank()) {
+            metadata.put("answerReviewRewriteApplied", false);
+            metadata.put("answerReviewAuthority", "quality_gate");
+            metadata.put("answerReviewRewriteSkippedReason", "quality_unavailable_or_no_safe_selection");
         }
 
         if (evidence != null

@@ -197,6 +197,8 @@ class AgentOrchestratorTest {
 
         assertThat(prompt)
             .contains("Executed plan attempts (3)")
+            .contains("Authoritative Summary Evidence Ledger (runtime-generated)")
+            .contains("EXECUTED_RESULT")
             .contains("Attempt 1: status=result_unsatisfied, success=false")
             .contains("Attempt 2: status=result_unsatisfied, success=false")
             .contains("Attempt 3: status=success, success=true")

@@ -4,7 +4,9 @@ import com.chatchat.mcpserver.routing.AssetDiscoveryService;
 import com.chatchat.mcpserver.routing.AssetMetadataFactory;
 import com.chatchat.mcpserver.routing.TargetKindRegistry;
 import com.chatchat.mcpserver.search.AssetRelevanceRanker;
+import com.chatchat.mcpserver.search.DiscoveryQueryVariants;
 import com.chatchat.mcpserver.search.LuceneMcpSearchService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -31,6 +33,7 @@ public class ApiAssetDiscoveryMcpToolPublisher {
     public static final String TOOL_NAME = "api_asset_query";
     private static final int DEFAULT_LIMIT = 10;
     private static final int MAX_LIMIT = 20;
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     private final McpSyncServer mcpSyncServer;
     private final ApiServiceConfigService configService;
@@ -99,11 +102,13 @@ public class ApiAssetDiscoveryMcpToolPublisher {
         Map<String, Object> filters = filters(arguments);
         int limit = limit(arguments);
         List<String> terms = terms(filters);
+        List<String> retrievalVariants = DiscoveryQueryVariants.from(filters);
         List<ApiServiceConfig> enabledConfigs = configService.listEnabled();
-        List<ScoredApiAsset> matched = luceneMatched(enabledConfigs, terms, filters, limit);
-        boolean luceneUsed = !matched.isEmpty() || luceneSearchService != null && luceneSearchService.enabled() && terms.isEmpty();
+        List<ScoredApiAsset> matched = luceneMatched(enabledConfigs, retrievalVariants, limit);
+        boolean luceneUsed = !matched.isEmpty()
+            || luceneSearchService != null && luceneSearchService.enabled() && retrievalVariants.isEmpty();
         if (matched.isEmpty()) {
-            matched = fallbackMatched(enabledConfigs, terms, filters);
+            matched = fallbackMatched(enabledConfigs, retrievalVariants);
             luceneUsed = false;
         }
         List<Map<String, Object>> assets = matched.stream()
@@ -127,7 +132,9 @@ public class ApiAssetDiscoveryMcpToolPublisher {
                 "redaction", "URL templates, headers, and body templates are never returned",
                 "logicalIndex", "asset:api_service",
                 "physicalIndex", "assets-api-service",
-                "indexBackend", luceneUsed ? "lucene_typed_asset_index" : "registry_fallback"
+                "indexBackend", luceneUsed ? "lucene_typed_asset_index" : "registry_fallback",
+                "enabledCandidateCount", enabledConfigs.size(),
+                "retrievalVariants", retrievalVariants
             ),
             "queryIr", mapOf(
                 "schemaVersion", "api_asset_query_ir.v1",
@@ -226,8 +233,7 @@ public class ApiAssetDiscoveryMcpToolPublisher {
     }
 
     private List<ScoredApiAsset> luceneMatched(List<ApiServiceConfig> configs,
-                                               List<String> terms,
-                                               Map<String, Object> filters,
+                                               List<String> retrievalVariants,
                                                int limit) {
         if (luceneSearchService == null || !luceneSearchService.enabled()) {
             return List.of();
@@ -238,43 +244,57 @@ public class ApiAssetDiscoveryMcpToolPublisher {
                 byId.put(config.getId(), config);
             }
         }
-        List<LuceneMcpSearchService.SearchHit> hits = luceneSearchService.searchAssets(
-            configs.stream().map(this::apiAssetDoc).toList(),
-            new LuceneMcpSearchService.AssetSearchRequest(
-                "api_service",
-                queryText(terms, filters),
-                null,
-                null,
-                List.of(),
-                AssetRelevanceRanker.expandedLimit(limit, configs.size())
-            )
-        );
-        List<AssetRelevanceRanker.Candidate<ScoredApiAsset>> candidates = hits.stream()
-            .map(hit -> {
-                ApiServiceConfig config = byId.get(hit.id());
-                return config == null ? null : new AssetRelevanceRanker.Candidate<>(
-                    new ScoredApiAsset(config, hit.score()),
-                    identityTexts(config),
-                    contentTexts(config),
-                    hit.score()
-                );
-            })
-            .filter(item -> item != null)
-            .toList();
-        return AssetRelevanceRanker.rank(queryText(terms, filters), candidates).stream()
-            .map(item -> new ScoredApiAsset(item.value().config(), item.score()))
-            .toList();
+        List<String> variants = retrievalVariants.isEmpty() ? List.of("") : retrievalVariants;
+        Map<String, ScoredApiAsset> merged = new LinkedHashMap<>();
+        for (String variant : variants) {
+            List<LuceneMcpSearchService.SearchHit> hits = luceneSearchService.searchAssets(
+                configs.stream().map(this::apiAssetDoc).toList(),
+                new LuceneMcpSearchService.AssetSearchRequest(
+                    "api_service", variant, null, null, List.of(),
+                    AssetRelevanceRanker.expandedLimit(limit, configs.size())
+                )
+            );
+            List<AssetRelevanceRanker.Candidate<ScoredApiAsset>> candidates = hits.stream()
+                .map(hit -> {
+                    ApiServiceConfig config = byId.get(hit.id());
+                    return config == null ? null : new AssetRelevanceRanker.Candidate<>(
+                        new ScoredApiAsset(config, hit.score()), identityTexts(config),
+                        contentTexts(config), hit.score());
+                })
+                .filter(item -> item != null)
+                .toList();
+            AssetRelevanceRanker.rank(variant, candidates).forEach(item -> mergeBest(
+                merged, item.value().config(), item.score()));
+        }
+        return sortedAssets(merged);
     }
 
     private List<ScoredApiAsset> fallbackMatched(List<ApiServiceConfig> configs,
-                                                 List<String> terms,
-                                                 Map<String, Object> filters) {
+                                                 List<String> retrievalVariants) {
         List<AssetRelevanceRanker.Candidate<ApiServiceConfig>> candidates = configs.stream()
             .map(config -> new AssetRelevanceRanker.Candidate<>(
                 config, identityTexts(config), contentTexts(config), 0.0D))
             .toList();
-        return AssetRelevanceRanker.rank(queryText(terms, filters), candidates).stream()
-            .map(item -> new ScoredApiAsset(item.value(), terms.isEmpty() ? 1.0D : item.score()))
+        List<String> variants = retrievalVariants.isEmpty() ? List.of("") : retrievalVariants;
+        Map<String, ScoredApiAsset> merged = new LinkedHashMap<>();
+        for (String variant : variants) {
+            AssetRelevanceRanker.rank(variant, candidates).forEach(item -> mergeBest(
+                merged, item.value(), variant.isBlank() ? 1.0D : item.score()));
+        }
+        return sortedAssets(merged);
+    }
+
+    private void mergeBest(Map<String, ScoredApiAsset> merged, ApiServiceConfig config, double score) {
+        String key = text(config == null ? null : config.getId());
+        if (key.isBlank() && config != null) key = text(config.getToolName());
+        ScoredApiAsset current = merged.get(key);
+        if (current == null || score > current.score()) merged.put(key, new ScoredApiAsset(config, score));
+    }
+
+    private List<ScoredApiAsset> sortedAssets(Map<String, ScoredApiAsset> merged) {
+        return merged.values().stream()
+            .sorted(java.util.Comparator.comparingDouble(ScoredApiAsset::score).reversed()
+                .thenComparing(item -> text(item.config().getToolName())))
             .toList();
     }
 
@@ -293,6 +313,11 @@ public class ApiAssetDiscoveryMcpToolPublisher {
             text(config.getBusinessGroupName()),
             text(config.getBusinessGroupDescription()),
             text(config.getMethod()),
+            text(config.getInputSchemaJson()),
+            text(config.getOutputSchemaJson()),
+            text(config.getCapabilitySpecJson()),
+            text(config.getDependencySpecJson()),
+            text(config.getGovernanceJson()),
             String.join(" ", apiLabels(config))
         );
     }
@@ -317,7 +342,12 @@ public class ApiAssetDiscoveryMcpToolPublisher {
                 text(config.getBusinessGroup()),
                 text(config.getBusinessGroupName()),
                 text(config.getBusinessGroupDescription()),
-                text(config.getMethod())
+                text(config.getMethod()),
+                text(config.getInputSchemaJson()),
+                text(config.getOutputSchemaJson()),
+                text(config.getCapabilitySpecJson()),
+                text(config.getDependencySpecJson()),
+                text(config.getGovernanceJson())
             )),
             null,
             null
@@ -382,6 +412,15 @@ public class ApiAssetDiscoveryMcpToolPublisher {
                 "businessGroup", businessGroupMetadata(config),
                 "enabled", config.isEnabled()
             ),
+            "analysisIdentity", mapOf(
+                "displayName", firstText(config.getTitle(), config.getToolName()),
+                "toolDescription", text(config.getDescription()),
+                "capabilityDescription", configuredMetadata(config.getCapabilitySpecJson()),
+                "businessCategory", businessGroupMetadata(config),
+                "returnFields", configuredMetadata(config.getOutputSchemaJson()),
+                "fieldCommentsSource", "returnFields.properties.*.description",
+                "governance", configuredMetadata(config.getGovernanceJson())
+            ),
             "capabilities", mapOf(
                 "method", config.getMethod(),
                 "apiTemplates", List.of(mapOf(
@@ -443,6 +482,16 @@ public class ApiAssetDiscoveryMcpToolPublisher {
             "error", message,
             "errorDetail", mapOf("code", "API_ASSET_QUERY_REJECTED", "message", message)
         );
+    }
+
+    private Object configuredMetadata(String json) {
+        String value = text(json);
+        if (value.isBlank()) return Map.of();
+        try {
+            return JSON.readValue(value, Object.class);
+        } catch (Exception ignored) {
+            return value;
+        }
     }
 
     private int limit(Map<String, Object> arguments) {

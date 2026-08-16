@@ -5,6 +5,7 @@ import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
 import com.chatchat.mcpserver.ops.HttpEndpointTechnicalType;
 import com.chatchat.mcpserver.ops.SshHostConfigService;
 import com.chatchat.mcpserver.search.AssetRelevanceRanker;
+import com.chatchat.mcpserver.search.DiscoveryQueryVariants;
 import com.chatchat.mcpserver.search.LuceneMcpSearchService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -159,6 +160,8 @@ public class AssetDiscoveryService {
                 "requiresContextFilter", false,
                 "broadDiscovery", "allowed_redacted_candidates_only",
                 "maxResults", limitValue(DEFAULT_LIMIT),
+                "retrievalVariants", DiscoveryQueryVariants.from(filters),
+                "variantPolicy", "independent_recall_then_best_score_merge",
                 "redaction", "concrete target fields are never returned"
             ),
             "filters", compactFilters,
@@ -299,36 +302,49 @@ public class AssetDiscoveryService {
                 byId.put(id, asset);
             }
         });
-        LuceneMcpSearchService.AssetSearchRequest request = assetSearchRequest(assetType, technicalType, filters, limit);
-        List<LuceneMcpSearchService.SearchHit> hits = luceneSearchService.searchAssets(request);
-        Map<String, LuceneMcpSearchService.SearchHit> bestHitByAssetId = new LinkedHashMap<>();
-        hits.forEach(hit -> {
-            String id = hit == null ? null : hit.id();
-            if (id != null && byId.containsKey(id)) {
-                bestHitByAssetId.merge(id, hit,
-                    (current, candidate) -> candidate.score() > current.score() ? candidate : current);
-            }
-        });
-        String semanticQuery = retrievalText(filters);
-        List<AssetRelevanceRanker.Candidate<AssetHitCandidate>> qualityCandidates = bestHitByAssetId.values().stream()
-            .map(hit -> new AssetHitCandidate(byId.get(hit.id()), hit))
-            .map(candidate -> new AssetRelevanceRanker.Candidate<>(
-                candidate,
-                assetIdentityTexts(candidate.metadata()),
-                assetContentTexts(candidate.metadata(), candidate.hit()),
-                candidate.hit().score()
-            ))
+        List<String> retrievalVariants = DiscoveryQueryVariants.from(filters);
+        List<String> searchQueries = retrievalVariants.isEmpty() ? java.util.Collections.singletonList(null) : retrievalVariants;
+        Map<String, RankedAssetHit> bestByAssetId = new LinkedHashMap<>();
+        int hitCount = 0;
+        for (String semanticQuery : searchQueries) {
+            LuceneMcpSearchService.AssetSearchRequest request = assetSearchRequest(
+                assetType, technicalType, filters, semanticQuery, limit);
+            List<LuceneMcpSearchService.SearchHit> variantHits = luceneSearchService.searchAssets(request);
+            hitCount += variantHits.size();
+            Map<String, LuceneMcpSearchService.SearchHit> bestVariantHitByAssetId = new LinkedHashMap<>();
+            variantHits.stream()
+                .filter(hit -> hit != null && hit.id() != null && byId.containsKey(hit.id()))
+                .forEach(hit -> bestVariantHitByAssetId.merge(hit.id(), hit,
+                    (current, candidate) -> candidate.score() > current.score() ? candidate : current));
+            List<AssetRelevanceRanker.Candidate<AssetHitCandidate>> qualityCandidates = bestVariantHitByAssetId.values().stream()
+                .map(hit -> new AssetHitCandidate(byId.get(hit.id()), hit))
+                .map(candidate -> new AssetRelevanceRanker.Candidate<>(
+                    candidate,
+                    assetIdentityTexts(candidate.metadata()),
+                    assetContentTexts(candidate.metadata(), candidate.hit()),
+                    candidate.hit().score()
+                ))
+                .toList();
+            AssetRelevanceRanker.rank(semanticQuery, qualityCandidates).forEach(ranked -> {
+                String id = ranked.value().hit().id();
+                RankedAssetHit candidate = new RankedAssetHit(ranked, semanticQuery);
+                bestByAssetId.merge(id, candidate,
+                    (current, replacement) -> replacement.ranked().score() > current.ranked().score()
+                        ? replacement : current);
+            });
+        }
+        List<RankedAssetHit> ranked = bestByAssetId.values().stream()
+            .sorted(Comparator.comparingDouble((RankedAssetHit item) -> item.ranked().score()).reversed())
             .toList();
-        List<AssetRelevanceRanker.Ranked<AssetHitCandidate>> ranked = AssetRelevanceRanker.rank(
-            semanticQuery, qualityCandidates);
         List<Map<String, Object>> luceneMatchedAll = ranked.stream()
-            .map(item -> annotateSearchHit(item.value().metadata(), item.value().hit(), item))
+            .map(item -> annotateSearchHit(item.ranked().value().metadata(), item.ranked().value().hit(),
+                item.ranked(), item.retrievalVariant()))
             .toList();
         List<Map<String, Object>> luceneMatched = applyLimit(luceneMatchedAll, limit);
         if (!luceneMatched.isEmpty()) {
             log.info("asset_query lucene search assetType={} filters={} registryCandidates={} luceneHits={} qualifiedAssetHits={} returned={} hitIds={}",
-                assetType, compactFilters(filters), assets.size(), hits.size(), ranked.size(), luceneMatched.size(),
-                applyLimit(ranked.stream().map(item -> item.value().hit().id()).toList(), limit));
+                assetType, compactFilters(filters), assets.size(), hitCount, ranked.size(), luceneMatched.size(),
+                applyLimit(ranked.stream().map(item -> item.ranked().value().hit().id()).toList(), limit));
             return luceneMatched;
         }
         AssetFallback fallback = registryFallbackAssets(assets, filters, limit);
@@ -349,7 +365,7 @@ public class AssetDiscoveryService {
             : List.of();
         if (!exact.isEmpty()) {
             if (hasRetrievalFilter(filters) && !hasExplicitAssetName(filters)) {
-                return new AssetFallback(rankRegistryAssets(exact, retrievalText(filters), limit), false);
+                return new AssetFallback(rankRegistryAssets(exact, filters, limit), false);
             }
             return new AssetFallback(applyLimit(exact, limit), false);
         }
@@ -358,7 +374,7 @@ public class AssetDiscoveryService {
             return new AssetFallback(fuzzy, !fuzzy.isEmpty());
         }
         if (hasRetrievalFilter(filters) && !hasExplicitAssetName(filters)) {
-            return new AssetFallback(rankRegistryAssets(assets, retrievalText(filters), limit), false);
+            return new AssetFallback(rankRegistryAssets(assets, filters, limit), false);
         }
         if (hasContextFilter(filters) || hasRetrievalFilter(filters)) {
             return new AssetFallback(List.of(), false);
@@ -369,7 +385,8 @@ public class AssetDiscoveryService {
     @SuppressWarnings("unchecked")
     private Map<String, Object> annotateSearchHit(Map<String, Object> metadata,
                                                   LuceneMcpSearchService.SearchHit hit,
-                                                  AssetRelevanceRanker.Ranked<?> relevance) {
+                                                  AssetRelevanceRanker.Ranked<?> relevance,
+                                                  String retrievalVariant) {
         if (metadata == null || hit == null) {
             return null;
         }
@@ -387,6 +404,7 @@ public class AssetDiscoveryService {
             "queryCoverage", round(relevance.coverage()),
             "matchedTerms", relevance.matchedTerms(),
             "queryTerms", relevance.queryTerms(),
+            "retrievalVariant", retrievalVariant,
             "reasons", hit.reasons()
         ));
         annotated.put("routingHints", routingHints);
@@ -394,20 +412,35 @@ public class AssetDiscoveryService {
     }
 
     private List<Map<String, Object>> rankRegistryAssets(List<Map<String, Object>> assets,
-                                                         String queryText,
+                                                         Map<String, Object> filters,
                                                          int limit) {
         List<AssetRelevanceRanker.Candidate<Map<String, Object>>> candidates = safeList(assets).stream()
             .map(asset -> new AssetRelevanceRanker.Candidate<>(
                 asset, assetIdentityTexts(asset), assetContentTexts(asset, null), 0.0D))
             .toList();
-        return applyLimit(AssetRelevanceRanker.rank(queryText, candidates).stream()
-            .map(item -> annotateRegistryQuality(item.value(), item))
+        List<String> variants = DiscoveryQueryVariants.from(filters);
+        List<String> queries = variants.isEmpty() ? java.util.Collections.singletonList(null) : variants;
+        Map<String, RankedRegistryAsset> bestByAssetId = new LinkedHashMap<>();
+        for (String query : queries) {
+            AssetRelevanceRanker.rank(query, candidates).forEach(ranked -> {
+                String id = assetId(ranked.value());
+                if (id == null) return;
+                RankedRegistryAsset candidate = new RankedRegistryAsset(ranked, query);
+                bestByAssetId.merge(id, candidate,
+                    (current, replacement) -> replacement.ranked().score() > current.ranked().score()
+                        ? replacement : current);
+            });
+        }
+        return applyLimit(bestByAssetId.values().stream()
+            .sorted(Comparator.comparingDouble((RankedRegistryAsset item) -> item.ranked().score()).reversed())
+            .map(item -> annotateRegistryQuality(item.ranked().value(), item.ranked(), item.retrievalVariant()))
             .toList(), limit);
     }
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> annotateRegistryQuality(Map<String, Object> metadata,
-                                                        AssetRelevanceRanker.Ranked<?> relevance) {
+                                                        AssetRelevanceRanker.Ranked<?> relevance,
+                                                        String retrievalVariant) {
         Map<String, Object> annotated = new LinkedHashMap<>(metadata);
         Map<String, Object> routingHints = metadata.get("routingHints") instanceof Map<?, ?> map
             ? new LinkedHashMap<>((Map<String, Object>) map)
@@ -418,7 +451,8 @@ public class AssetDiscoveryService {
             "finalScore", round(relevance.score()),
             "queryCoverage", round(relevance.coverage()),
             "matchedTerms", relevance.matchedTerms(),
-            "queryTerms", relevance.queryTerms()
+            "queryTerms", relevance.queryTerms(),
+            "retrievalVariant", retrievalVariant
         ));
         annotated.put("routingHints", routingHints);
         return annotated;
@@ -575,10 +609,11 @@ public class AssetDiscoveryService {
     private LuceneMcpSearchService.AssetSearchRequest assetSearchRequest(String assetType,
                                                                          String technicalType,
                                                                          Map<String, Object> filters,
+                                                                         String semanticQuery,
                                                                          int limit) {
         return new LuceneMcpSearchService.AssetSearchRequest(
             assetIndexType(assetType, technicalType),
-            firstText(text(firstValue(filters, "assetName", "asset_name", "name")), retrievalText(filters)),
+            firstText(text(firstValue(filters, "assetName", "asset_name", "name")), semanticQuery),
             text(firstValue(filters, "env", "environment")),
             text(firstValue(filters, "databaseType", "dbType", "dialect")),
             contextTokens(filters),
@@ -1274,5 +1309,13 @@ public class AssetDiscoveryService {
     }
 
     private record AssetHitCandidate(Map<String, Object> metadata, LuceneMcpSearchService.SearchHit hit) {
+    }
+
+    private record RankedAssetHit(AssetRelevanceRanker.Ranked<AssetHitCandidate> ranked,
+                                  String retrievalVariant) {
+    }
+
+    private record RankedRegistryAsset(AssetRelevanceRanker.Ranked<Map<String, Object>> ranked,
+                                       String retrievalVariant) {
     }
 }

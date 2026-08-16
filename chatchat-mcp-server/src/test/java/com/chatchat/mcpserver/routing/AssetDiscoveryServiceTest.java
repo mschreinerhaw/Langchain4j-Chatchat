@@ -21,6 +21,32 @@ import static org.mockito.Mockito.when;
 class AssetDiscoveryServiceTest {
 
     @Test
+    void retrievesRegistryAssetFromNestedIntentCandidateQueryWithoutNoiseDilution() {
+        SshHostConfigService hostService = mock(SshHostConfigService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        HttpEndpointConfigService httpService = mock(HttpEndpointConfigService.class);
+        SqlDatasourceConfig portfolio = datasource("db-portfolio", "generic-datasource", "DEV", "[\"portfolio\"]");
+        when(hostService.listEnabled()).thenReturn(List.of());
+        when(datasourceService.listEnabled()).thenReturn(List.of(portfolio));
+        when(httpService.listEnabled()).thenReturn(List.of());
+        AssetDiscoveryService service = service(hostService, datasourceService, httpService);
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "database",
+            "confidence", 0.95,
+            "filters", Map.of("intentCandidates", List.of(Map.of(
+                "intent", "customer 070200046604 unrelated context",
+                "queries", List.of("portfolio")
+            ))),
+            "trace", trace(),
+            "limit", 5
+        ));
+
+        assertThat(result).containsEntry("returnedCount", 1);
+        assertThat(result.toString()).contains("generic-datasource", "retrievalVariant=portfolio");
+    }
+
+    @Test
     void queriesRedactedAssetsByLogicalContext() {
         SshHostConfigService hostService = mock(SshHostConfigService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);

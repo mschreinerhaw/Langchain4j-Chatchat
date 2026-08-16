@@ -178,6 +178,40 @@ class ApiAssetDiscoveryMcpToolPublisherTest {
     }
 
     @Test
+    void retrievesByStructuredIntentVariantsAndConfiguredAnalysisIdentity() {
+        ApiServiceConfig customerApi = apiConfig(
+            "api-customer", "livedata_customer_center", "客户综合数据", "受控客户数据查询入口");
+        customerApi.setCapabilitySpecJson("{\"businessObject\":\"客户\",\"operations\":[\"客户交易查询\",\"客户资产查询\"]}");
+        customerApi.setOutputSchemaJson("{\"type\":\"object\",\"properties\":{\"profit\":{\"type\":\"number\",\"description\":\"客户资产、持仓和盈亏数据\"}}}");
+        customerApi.setGovernanceJson("{\"businessDescription\":\"用于客户资产与盈亏分析\"}");
+        ApiServiceConfig unrelated = apiConfig(
+            "api-weather", "weather_center", "天气数据", "城市天气预报");
+
+        ApiServiceConfigService configService = mock(ApiServiceConfigService.class);
+        when(configService.listEnabled()).thenReturn(List.of(unrelated, customerApi));
+        ApiAssetDiscoveryMcpToolPublisher publisher = new ApiAssetDiscoveryMcpToolPublisher(
+            mock(McpSyncServer.class), configService);
+
+        Map<String, Object> result = publisher.query(Map.of("filters", Map.of(
+            "intent", "查询客户号070200046604的交易、资产和盈亏情况",
+            "queryTerms", List.of("客户交易查询", "客户资产查询", "客户盈亏查询"),
+            "intentCandidates", List.of(
+                Map.of("intent", "客户交易查询", "queries", List.of("customer transaction query", "客户交易查询")),
+                Map.of("intent", "客户资产查询", "queries", List.of("customer asset query", "客户资产查询"))
+            )
+        )));
+
+        assertThat(result).containsEntry("returnedCount", 1);
+        assertThat(result.toString()).contains("livedata_customer_center").doesNotContain("weather_center");
+        Map<?, ?> asset = (Map<?, ?>) ((List<?>) result.get("assets")).get(0);
+        Map<?, ?> identity = (Map<?, ?>) asset.get("analysisIdentity");
+        assertThat(identity.get("displayName")).isEqualTo("客户综合数据");
+        assertThat(identity.get("fieldCommentsSource")).isEqualTo("returnFields.properties.*.description");
+        assertThat(identity.get("capabilityDescription").toString()).contains("客户交易查询", "客户资产查询");
+        assertThat(identity.get("returnFields").toString()).contains("客户资产、持仓和盈亏数据");
+    }
+
+    @Test
     void queryRejectsRawApiExecutionFields() {
         ApiAssetDiscoveryMcpToolPublisher publisher = new ApiAssetDiscoveryMcpToolPublisher(
             mock(McpSyncServer.class),

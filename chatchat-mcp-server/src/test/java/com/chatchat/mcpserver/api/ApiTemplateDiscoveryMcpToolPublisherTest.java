@@ -23,6 +23,32 @@ import static org.mockito.Mockito.when;
 class ApiTemplateDiscoveryMcpToolPublisherTest {
 
     @Test
+    void queryUsesIndependentIntentCandidatesAndConfiguredFieldMetadata() {
+        ApiServiceConfig config = new ApiServiceConfig();
+        config.setId("api-portfolio");
+        config.setToolName("generic_query_api");
+        config.setTitle("Generic data query");
+        config.setDescription("Read configured data");
+        config.setOutputSchemaJson("{\"type\":\"array\",\"properties\":{\"ZQSL\":{\"description\":\"证券持仓数量\"}}}");
+        config.setCapabilitySpecJson("{\"description\":\"客户持仓分析\"}");
+        config.setEnabled(true);
+        ApiServiceConfigService configService = mock(ApiServiceConfigService.class);
+        when(configService.listEnabled()).thenReturn(List.of(config));
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        when(lucene.enabled()).thenReturn(false);
+
+        Map<String, Object> result = publisher(configService, lucene).query(Map.of(
+            "filters", Map.of("intentCandidates", List.of(Map.of(
+                "intent", "customer 070200046604 transaction noise",
+                "queries", List.of("客户持仓分析", "证券持仓数量")
+            )))
+        ));
+
+        assertThat(result).containsEntry("returnedCount", 1);
+        assertThat(result.toString()).contains("generic_query_api", "客户持仓分析", "retrievalVariants");
+    }
+
+    @Test
     void apiTemplateToolIsBusinessNamedReadOnlyDiscoveryTool() throws Exception {
         ApiTemplateDiscoveryMcpToolPublisher publisher = publisher(
             mock(ApiServiceConfigService.class), mock(LuceneMcpSearchService.class));
@@ -166,11 +192,10 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
 
         assertThat(result.get("diagnostics").toString())
             .contains("retrievalSignals", "Payment status API", "settlement");
-        verify(lucene).searchApiServiceTemplates(argThat(request -> request != null
-            && request.intentText() != null
-            && request.intentText().contains("payment_status_api")
-            && request.intentText().contains("payment status api")
-            && request.intentText().contains("settlement")));
+        verify(lucene, org.mockito.Mockito.atLeastOnce()).searchApiServiceTemplates(argThat(request -> request != null
+            && request.intentText() != null && request.intentText().contains("payment status api")));
+        verify(lucene, org.mockito.Mockito.atLeastOnce()).searchApiServiceTemplates(argThat(request -> request != null
+            && request.intentText() != null && request.intentText().contains("settlement")));
     }
 
     @Test
@@ -211,10 +236,10 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
             .contains("hitCount=0", "candidateCount=1", "authorized_relevance_qualified_candidates");
         assertThat(result.get("templateSelectionPolicy").toString())
             .contains("runtimeSemanticReviewRequiredWhenMultiple=true", "mcpRelevanceIsAdmissionFilter=true");
-        verify(lucene).searchApiServiceTemplates(argThat(request -> request != null
-            && request.intentText() != null
-            && request.intentText().contains("\u67e5\u8be2\u8ba2\u5355\u72b6\u6001")
-            && request.intentText().contains("query order status")));
+        verify(lucene, org.mockito.Mockito.atLeastOnce()).searchApiServiceTemplates(argThat(request -> request != null
+            && request.intentText() != null && request.intentText().contains("\u67e5\u8be2\u8ba2\u5355\u72b6\u6001")));
+        verify(lucene, org.mockito.Mockito.atLeastOnce()).searchApiServiceTemplates(argThat(request -> request != null
+            && request.intentText() != null && request.intentText().contains("query order status")));
     }
 
     @Test

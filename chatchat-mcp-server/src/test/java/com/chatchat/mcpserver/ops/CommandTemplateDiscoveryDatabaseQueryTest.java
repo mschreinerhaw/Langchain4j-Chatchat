@@ -322,7 +322,7 @@ class CommandTemplateDiscoveryDatabaseQueryTest {
         assertThat((List<?>) result.get("templates")).isEmpty();
         assertThat(result.get("categoryDiagnostics").toString())
             .contains("categoryAmbiguous=true", "categoryUsage=ranking_signal_and_model_selection_metadata");
-        verify(lucene).searchDatabaseQueryTemplates(
+        verify(lucene, org.mockito.Mockito.atLeastOnce()).searchDatabaseQueryTemplates(
             org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.any());
     }
 

@@ -447,10 +447,8 @@ class CommandTemplateDiscoveryServiceTest {
         Map<?, ?> diagnostics = (Map<?, ?>) result.get("templateRegistryDiagnostics");
         assertThat(diagnostics.get("notEnabledOrMissingAllowedTemplates").toString())
             .contains("mysql_analytics_special");
-        verify(lucene).searchTemplates(anyList(), argThat(request -> request != null
-            && request.intentText() != null
-            && request.intentText().contains("analytics_db")
-            && request.intentText().contains("analytics reporting database")));
+        verify(lucene, org.mockito.Mockito.atLeastOnce()).searchTemplates(anyList(), argThat(request -> request != null
+            && request.intentText() != null && request.intentText().contains("analytics reporting database")));
     }
 
     @Test
@@ -1289,10 +1287,10 @@ class CommandTemplateDiscoveryServiceTest {
         assertThat(bilingualRetrieval.get("modelGenerated").toString())
             .contains("\u6570\u636e\u5e93\u72b6\u6001", "database health status");
         assertThat(bilingualRetrieval.get("fields").toString()).contains("bilingualIntent", "intentZh", "intentEn");
-        verify(lucene).searchTemplates(anyList(), argThat(request -> request != null
-            && request.intentText() != null
-            && request.intentText().contains("\u6570\u636e\u5e93\u72b6\u6001")
-            && request.intentText().contains("database health status")));
+        verify(lucene, org.mockito.Mockito.atLeastOnce()).searchTemplates(anyList(), argThat(request -> request != null
+            && request.intentText() != null && request.intentText().contains("\u6570\u636e\u5e93\u72b6\u6001")));
+        verify(lucene, org.mockito.Mockito.atLeastOnce()).searchTemplates(anyList(), argThat(request -> request != null
+            && request.intentText() != null && request.intentText().contains("database health status")));
     }
 
     @Test
@@ -1387,10 +1385,42 @@ class CommandTemplateDiscoveryServiceTest {
         ));
 
         assertThat(result.get("queryIr").toString()).contains("retrievalSignals", "payment", "callback");
-        verify(lucene).searchTemplates(anyList(), argThat(request -> request != null
-            && request.intentText() != null
-            && request.intentText().contains("http_payment_status")
-            && request.intentText().contains("payment status endpoint")));
+        verify(lucene, org.mockito.Mockito.atLeastOnce()).searchTemplates(anyList(), argThat(request -> request != null
+            && request.intentText() != null && request.intentText().contains("payment status endpoint")));
+    }
+
+    @Test
+    void retrievesDatabaseQueryTemplateFromTypeSpecificCapabilityMetadataAndNestedIntent() {
+        DatabaseQueryConfigService databaseQueryService = mock(DatabaseQueryConfigService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        DatabaseQueryConfig query = databaseQuery("generic_asset_query", "ds-asset");
+        query.setTitle("Generic configured query");
+        query.setDescription("Read configured records");
+        query.setCapabilitiesJson("[\"客户资产盈亏分析\",\"持仓市值\"]");
+        when(databaseQueryService.listEnabled()).thenReturn(List.of(query));
+        when(datasourceService.getEnabled("ds-asset")).thenReturn(datasource("ds-asset", "asset-db", "DEV"));
+        when(lucene.enabled()).thenReturn(false);
+        CommandTemplateDiscoveryService service = new CommandTemplateDiscoveryService(
+            mock(CommandTemplateService.class), mock(SshHostConfigService.class),
+            mock(SqlTemplateService.class), datasourceService,
+            mock(HttpEndpointConfigService.class), databaseQueryService,
+            new ObjectMapper(), new TemplateDiscoveryProperties(), lucene
+        );
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "business_database_query",
+            "confidence", 0.9,
+            "filters", Map.of("intentCandidates", List.of(Map.of(
+                "intent", "customer 070200046604 unrelated noise",
+                "queries", List.of("客户资产盈亏分析", "持仓市值")
+            ))),
+            "trace", trace(),
+            "limit", 10
+        ));
+
+        assertThat(result).containsEntry("returnedCount", 1);
+        assertThat(result.toString()).contains("generic_asset_query", "客户资产盈亏分析");
     }
 
     @Test

@@ -5,6 +5,7 @@ import com.chatchat.mcpserver.category.BusinessCategoryService;
 import com.chatchat.mcpserver.ops.CommandTemplateDiscoveryService;
 import com.chatchat.mcpserver.routing.TargetKindRegistry;
 import com.chatchat.mcpserver.search.LuceneMcpSearchService;
+import com.chatchat.mcpserver.search.DiscoveryQueryVariants;
 import com.chatchat.mcpserver.search.SearchQueryTokenizer;
 import com.chatchat.mcpserver.templatepublication.TemplateQueryMcpToolPublisher;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -122,14 +123,18 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             ? filters
             : filtersWithApiAssetSignals(filters, assetSignals);
         List<String> terms = terms(retrievalFilters);
-        List<LuceneMcpSearchService.SearchHit> hits = luceneSearchService == null || !luceneSearchService.enabled()
-            ? List.of()
-            : luceneSearchService.searchApiServiceTemplates(new LuceneMcpSearchService.TemplateSearchRequest(
-                "api_service",
-                null,
-                terms.isEmpty() ? null : String.join(" ", terms),
-                Math.max(Math.max(limit, DEFAULT_LIMIT), Math.min(200, enabledConfigs.size() * 4))
-        ));
+        List<String> retrievalVariants = DiscoveryQueryVariants.from(retrievalFilters);
+        List<LuceneMcpSearchService.SearchHit> hits = new ArrayList<>();
+        if (luceneSearchService != null && luceneSearchService.enabled()) {
+            List<String> queries = retrievalVariants.isEmpty()
+                ? java.util.Collections.singletonList(null) : retrievalVariants;
+            for (String query : queries) {
+                hits.addAll(luceneSearchService.searchApiServiceTemplates(
+                    new LuceneMcpSearchService.TemplateSearchRequest(
+                        "api_service", null, query,
+                        Math.max(Math.max(limit, DEFAULT_LIMIT), Math.min(200, enabledConfigs.size() * 4)))));
+            }
+        }
         Map<String, ApiServiceConfig> configsByToolName = scopedConfigs.stream()
             .filter(config -> !text(config.getToolName()).isBlank())
             .collect(Collectors.toMap(
@@ -150,12 +155,12 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             ));
         double bestHitScore = hitEvidence.values().stream()
             .mapToDouble(RetrievalEvidence::score).max().orElse(0.0D);
-        boolean browseMode = terms.isEmpty();
+        boolean browseMode = retrievalVariants.isEmpty();
         boolean explicitSelection = !requestedTemplateIds.isEmpty();
         List<ScoredApiTemplate> matched = scopedConfigs.stream()
             .filter(config -> !text(config.getToolName()).isBlank())
             .filter(config -> !excludedTemplateIds.contains(config.getToolName()))
-            .map(config -> scoredTemplate(config, terms, hitEvidence, bestHitScore,
+            .map(config -> scoredTemplate(config, retrievalVariants, hitEvidence, bestHitScore,
                 categoryResolution.category(), browseMode, explicitSelection))
             .filter(ScoredApiTemplate::qualified)
             .sorted(java.util.Comparator.comparingDouble(ScoredApiTemplate::score).reversed()
@@ -208,6 +213,7 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
                 "targetKind", "api_service",
                 "indexType", "api_service_template",
                 "terms", terms
+                , "retrievalVariants", retrievalVariants
             ),
             "diagnostics", mapOf(
                 "source", "lucene_api_service_template_index",
@@ -472,13 +478,13 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
     }
 
     private ScoredApiTemplate scoredTemplate(ApiServiceConfig config,
-                                             List<String> terms,
+                                             List<String> retrievalVariants,
                                              Map<String, RetrievalEvidence> hitEvidence,
                                              double bestHitScore,
                                              BusinessCategory preferredCategory,
                                              boolean browseMode,
                                              boolean explicitSelection) {
-        TemplateLexicalQuality lexical = templateLexicalQuality(config, terms);
+        TemplateLexicalQuality lexical = templateLexicalQuality(config, retrievalVariants);
         RetrievalEvidence evidence = hitEvidence.get(config.getToolName());
         Double retrievalScore = evidence == null ? null : evidence.score();
         double relativeScore = retrievalScore == null || bestHitScore <= 0.0D
@@ -496,8 +502,8 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
         return new ScoredApiTemplate(config, score, qualified, lexical.matchedTerms(), lexical.coverage());
     }
 
-    private TemplateLexicalQuality templateLexicalQuality(ApiServiceConfig config, List<String> terms) {
-        if (terms == null || terms.isEmpty()) {
+    private TemplateLexicalQuality templateLexicalQuality(ApiServiceConfig config, List<String> retrievalVariants) {
+        if (retrievalVariants == null || retrievalVariants.isEmpty()) {
             return new TemplateLexicalQuality(0, 0, 1.0D);
         }
         String haystack = normalize(String.join(" ", List.of(
@@ -507,16 +513,18 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             text(config.getBusinessGroup()),
             text(config.getBusinessGroupName()),
             text(config.getBusinessGroupDescription()),
-            String.join(" ", governanceSignals(config.getGovernanceJson()))
+            String.join(" ", configuredMetadataSignals(config))
         )));
-        List<String> queryTerms = terms.stream()
-            .flatMap(term -> lexicalTerms(term).stream())
-            .filter(term -> !term.isBlank())
-            .distinct()
-            .toList();
-        int matched = (int) queryTerms.stream().filter(haystack::contains).count();
-        double coverage = queryTerms.isEmpty() ? 0.0D : matched / (double) queryTerms.size();
-        return new TemplateLexicalQuality(queryTerms.size(), matched, coverage);
+        return retrievalVariants.stream()
+            .map(variant -> lexicalTerms(variant).stream().filter(term -> !term.isBlank()).distinct().toList())
+            .map(queryTerms -> {
+                int matched = (int) queryTerms.stream().filter(haystack::contains).count();
+                double coverage = queryTerms.isEmpty() ? 0.0D : matched / (double) queryTerms.size();
+                return new TemplateLexicalQuality(queryTerms.size(), matched, coverage);
+            })
+            .max(java.util.Comparator.comparingDouble(TemplateLexicalQuality::coverage)
+                .thenComparingInt(TemplateLexicalQuality::matchedTerms))
+            .orElse(new TemplateLexicalQuality(0, 0, 0.0D));
     }
 
     private List<String> lexicalTerms(String value) {
@@ -638,7 +646,7 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             addTerm(signals, config.getBusinessGroup());
             addTerm(signals, config.getBusinessGroupName());
             addTerm(signals, config.getBusinessGroupDescription());
-            addTerm(signals, governanceSignals(config.getGovernanceJson()));
+            addTerm(signals, configuredMetadataSignals(config));
         }
         return signals.stream()
             .filter(value -> value != null && !value.isBlank())
@@ -897,6 +905,17 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
                                      boolean qualified,
                                      int matchedTerms,
                                      double coverage) {
+    }
+
+    private List<String> configuredMetadataSignals(ApiServiceConfig config) {
+        List<String> signals = new ArrayList<>();
+        for (String json : List.of(
+            text(config.getInputSchemaJson()), text(config.getOutputSchemaJson()),
+            text(config.getCapabilitySpecJson()), text(config.getDependencySpecJson()),
+            text(config.getGovernanceJson()))) {
+            signals.addAll(governanceSignals(json));
+        }
+        return signals.stream().filter(value -> value != null && !value.isBlank()).distinct().toList();
     }
 
     private record ApiTemplateHit(ApiServiceConfig config, double score, boolean vector) {

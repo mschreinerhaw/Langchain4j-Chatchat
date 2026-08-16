@@ -8,6 +8,7 @@ import com.chatchat.mcpserver.category.BusinessCategoryService;
 import com.chatchat.mcpserver.database.DataQueryCategoryService;
 import com.chatchat.mcpserver.routing.TargetKindRegistry;
 import com.chatchat.mcpserver.search.LuceneMcpSearchService;
+import com.chatchat.mcpserver.search.DiscoveryQueryVariants;
 import com.chatchat.mcpserver.search.SearchQueryTokenizer;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
@@ -838,16 +839,18 @@ public class CommandTemplateDiscoveryService {
         if (!luceneActive()) {
             return Map.of();
         }
-        LuceneMcpSearchService.TemplateSearchRequest request = new LuceneMcpSearchService.TemplateSearchRequest(
-            assetType,
-            dbType,
-            luceneIntentText(filters, intent),
-            expandedTemplateRetrievalLimit(limit, docs.size())
-        );
         boolean databaseQueryIndex = "database_query".equalsIgnoreCase(assetType == null ? "" : assetType);
-        List<LuceneMcpSearchService.SearchHit> hits = databaseQueryIndex
-            ? luceneSearchService.searchDatabaseQueryTemplates(docs, request)
-            : luceneSearchService.searchTemplates(docs, request);
+        List<String> retrievalVariants = DiscoveryQueryVariants.from(filters);
+        List<String> queries = retrievalVariants.isEmpty()
+            ? java.util.Collections.singletonList(null) : retrievalVariants;
+        List<LuceneMcpSearchService.SearchHit> hits = new ArrayList<>();
+        for (String query : queries) {
+            LuceneMcpSearchService.TemplateSearchRequest request = new LuceneMcpSearchService.TemplateSearchRequest(
+                assetType, dbType, query, expandedTemplateRetrievalLimit(limit, docs.size()));
+            hits.addAll(databaseQueryIndex
+                ? luceneSearchService.searchDatabaseQueryTemplates(docs, request)
+                : luceneSearchService.searchTemplates(docs, request));
+        }
         boolean strictTemplateIndex = "sql_datasource".equalsIgnoreCase(assetType == null ? "" : assetType)
             || databaseQueryIndex;
         if (!strictTemplateIndex && hits.isEmpty() && intent != null && !"unknown".equals(intent.type())) {
@@ -861,7 +864,8 @@ public class CommandTemplateDiscoveryService {
         Map<String, LuceneMcpSearchService.SearchHit> byId = new LinkedHashMap<>();
         hits.stream()
             .filter(hit -> !isRetiredSqlMetadataTemplateId(hit.id()))
-            .forEach(hit -> byId.put(hit.id(), hit));
+            .forEach(hit -> byId.merge(hit.id(), hit,
+                (current, candidate) -> candidate.score() > current.score() ? candidate : current));
         return byId;
     }
 
@@ -1960,6 +1964,10 @@ public class CommandTemplateDiscoveryService {
         weightedFields.put(firstText(description, ""), 24);
         weightedFields.put(firstText(category, ""), 14);
         signals.forEach(signal -> weightedFields.put(signal, 28));
+        return relevanceTextForTokens(tokens, weightedFields);
+    }
+
+    private Relevance relevanceTextForTokens(List<String> tokens, Map<String, Integer> weightedFields) {
         int score = 0;
         Set<String> reasons = new LinkedHashSet<>();
         for (String token : tokens) {
@@ -2185,8 +2193,7 @@ public class CommandTemplateDiscoveryService {
             TEMPLATE_MIN_RELEVANCE_SCORE,
             (int) Math.ceil(bestScore * TEMPLATE_RELATIVE_SCORE_FLOOR));
         Set<String> normalizedQueryTokens = queryTokens.stream()
-            .map(this::normalize)
-            .filter(java.util.Objects::nonNull)
+            .map(this::normalize).filter(java.util.Objects::nonNull)
             .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
         double bestVectorScore = candidates.stream()
             .filter(candidate -> hasVectorEvidence(candidate.relevance()))
@@ -2206,24 +2213,19 @@ public class CommandTemplateDiscoveryService {
     private List<String> qualityQueryTokens(Map<String, Object> filters) {
         LinkedHashSet<String> tokens = new LinkedHashSet<>();
         if (filters != null) {
-            for (String key : List.of("intent", "goal", "template", "templateId", "template_id", "service")) {
+            for (String key : List.of("intent", "goal", "template", "templateId", "template_id", "service",
+                "bilingualIntent", "bilingualQuery", "intentZh", "intentEn")) {
                 Object value = filters.get(key);
-                if (value instanceof List<?> list) {
-                    list.forEach(item -> addSegmentedWords(tokens, item));
+                if (value instanceof Iterable<?> iterable) {
+                    for (Object item : iterable) addSegmentedWords(tokens, item);
                 } else {
                     addSegmentedWords(tokens, value);
                 }
             }
-        }
-        if (filters != null) {
-            for (String key : List.of("bilingualIntent", "bilingualQuery", "intentZh", "intentEn")) {
-                Object value = filters.get(key);
-                if (value instanceof List<?> list) {
-                    list.forEach(item -> addSegmentedWords(tokens, item));
-                } else {
-                    addSegmentedWords(tokens, value);
-                }
-            }
+            Map<String, Object> structuredCandidates = new LinkedHashMap<>();
+            structuredCandidates.put("intentCandidates", filters.get("intentCandidates"));
+            structuredCandidates.put("intent_candidates", filters.get("intent_candidates"));
+            DiscoveryQueryVariants.from(structuredCandidates).forEach(value -> addSegmentedWords(tokens, value));
         }
         return List.copyOf(tokens);
     }
@@ -2830,7 +2832,10 @@ public class CommandTemplateDiscoveryService {
             "required", true,
             "modelGenerated", modelGenerated,
             "generatedByEngine", generated.stream().toList(),
-            "fields", List.of("bilingualIntent", "bilingualQuery", "intentAliases", "keywords", "retrievalSignals", "intentZh", "intentEn"),
+            "retrievalVariants", DiscoveryQueryVariants.from(filters),
+            "variantPolicy", "independent_recall_then_best_hit_merge_with_user_intent_quality_gate",
+            "fields", List.of("bilingualIntent", "bilingualQuery", "intentAliases", "keywords", "retrievalSignals",
+                "intentCandidates", "intentZh", "intentEn"),
             "languages", List.of("zh", "en")
         );
     }
@@ -2869,6 +2874,11 @@ public class CommandTemplateDiscoveryService {
             "searchTerms",
             "intentZh",
             "intentEn",
+            "intentAliases",
+            "keywords",
+            "retrievalSignals",
+            "intentCandidates",
+            "intent_candidates",
             "goal",
             "category",
             "database",
@@ -3103,7 +3113,8 @@ public class CommandTemplateDiscoveryService {
         addWords(signals, template.getTitle());
         addWords(signals, template.getDescription());
         addWords(signals, category(template));
-        return signals.stream().limit(12).toList();
+        addGovernanceSignals(signals, template.getGovernanceJson());
+        return signals.stream().limit(32).toList();
     }
 
     private List<String> intentSignals(SqlTemplateConfig template) {
@@ -3113,7 +3124,7 @@ public class CommandTemplateDiscoveryService {
         addWords(signals, template.getTitle());
         addWords(signals, template.getDescription());
         addWords(signals, category(template));
-        return signals.stream().limit(12).toList();
+        return signals.stream().limit(24).toList();
     }
 
     private List<String> intentSignals(HttpEndpointConfig endpoint) {
@@ -3125,7 +3136,13 @@ public class CommandTemplateDiscoveryService {
         addWords(signals, endpoint.getCategory());
         addWords(signals, HttpEndpointTechnicalType.from(endpoint.getTechnicalType()).name());
         addDelimited(signals, endpoint.getTags());
-        return signals.stream().limit(12).toList();
+        addGovernanceSignals(signals, endpoint.getInputSchemaJson());
+        addGovernanceSignals(signals, endpoint.getOutputSchemaJson());
+        addGovernanceSignals(signals, endpoint.getCapabilitySpecJson());
+        addGovernanceSignals(signals, endpoint.getDependencySpecJson());
+        addGovernanceSignals(signals, endpoint.getGovernanceJson());
+        addGovernanceSignals(signals, endpoint.getCapabilitiesJson());
+        return signals.stream().limit(64).toList();
     }
 
     private List<String> intentSignals(JmxTemplateConfig template) {
@@ -3136,7 +3153,7 @@ public class CommandTemplateDiscoveryService {
         addWords(signals, template.getDescription());
         addWords(signals, template.getCategory());
         addWords(signals, template.getQueriesJson());
-        return signals.stream().limit(16).toList();
+        return signals.stream().limit(48).toList();
     }
 
     private List<String> intentSignals(DatabaseQueryConfig config) {
@@ -3152,10 +3169,11 @@ public class CommandTemplateDiscoveryService {
         addWords(signals, config.getRiskLevel());
         addWords(signals, config.getOwner());
         addJsonLabels(signals, config.getRoutingLabelsJson());
-        addJsonLabels(signals, config.getCapabilitiesJson());
+        addGovernanceSignals(signals, config.getCapabilitiesJson());
         addJsonLabels(signals, config.getTagsJson());
         addGovernanceSignals(signals, config.getGovernanceJson());
-        return signals.stream().limit(16).toList();
+        addGovernanceSignals(signals, config.getInputSchemaJson());
+        return signals.stream().limit(64).toList();
     }
 
     private void addGovernanceSignals(Set<String> signals, String json) {
@@ -3163,8 +3181,8 @@ public class CommandTemplateDiscoveryService {
             return;
         }
         try {
-            Map<String, Object> map = objectMapper.readValue(json, new TypeReference<>() {});
-            flattenGovernanceSignals(signals, map);
+            Object metadata = objectMapper.readValue(json, Object.class);
+            flattenGovernanceSignals(signals, metadata);
         } catch (Exception ignored) {
             // Invalid stale governance metadata is ignored for discovery.
         }

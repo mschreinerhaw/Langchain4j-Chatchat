@@ -8,6 +8,8 @@
 
 发布门禁脚本：`scripts/test-production-release-e2e.ps1`
 
+结构化数据身份、MCP 证据、模型总结、多租户隔离及多轮会话证据复用遵循
+[`数据分析、证据、总结与多轮会话治理规范`](data-analysis-evidence-summary-governance.md)。
 DAG 拓扑审核、模型漂移的确定性修复、局部失败继续执行、任务终态聚合及 MCP 命名验收遵循
 [`Agent Runtime DAG 审核与自动修复规范`](agent-runtime-dag-governance-contract.md)。
 候选模型的能力、上下文、量化部署和准入测试遵循

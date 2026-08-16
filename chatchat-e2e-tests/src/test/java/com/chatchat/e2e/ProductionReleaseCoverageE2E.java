@@ -261,6 +261,8 @@ class ProductionReleaseCoverageE2E {
             "chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/tool/StandardToolExecutionResultFactoryTest.java"));
         String presentationTest = Files.readString(root.resolve(
             "chatchat-agents/src/test/java/com/chatchat/agents/orchestration/AgentAnswerFinalizerEvidenceAnswerTest.java"));
+        String governanceDocument = Files.readString(root.resolve(
+            "docs/data-analysis-evidence-summary-governance.md"));
 
         assertThat(contextProtocol)
             .contains("SCHEMA_VERSION = \"data_analysis_context.v1\"",
@@ -366,6 +368,14 @@ class ProductionReleaseCoverageE2E {
         assertThat(presentationTest)
             .contains("apiOutputSchemaDescriptionsDoNotReplaceReturnedFieldNames",
                 "UNCONFIGURED");
+        assertThat(governanceDocument)
+            .contains("# 数据分析、证据、总结与多轮会话治理规范",
+                "`data_analysis_context.v1`", "`mcp_evidence_result.v1`",
+                "`analysis_summary_result.v1`", "`conversation_evidence_ledger.v1`",
+                "字段注释不是返回值，也不是展示标签",
+                "历史证据不能冒充当前事实",
+                "租户、用户、运行和会话身份只能来自可信 Runtime 请求上下文",
+                "资产分析", "禁止从自然语言回答猜测恢复");
     }
 
     private Path repositoryRoot() {

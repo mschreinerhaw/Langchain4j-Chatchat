@@ -454,6 +454,7 @@ mvn -pl chatchat-e2e-tests -am test
 
 ## 设计规范
 
+- [数据分析、证据、总结与多轮会话治理规范](docs/data-analysis-evidence-summary-governance.md)
 - [Agent Runtime DAG 审核与自动修复规范](docs/agent-runtime-dag-governance-contract.md)
 - [证据增广契约](docs/agent-runtime-evidence-augmentation-contract.md)
 - [模板候选评定与执行满意度契约](docs/agent-runtime-template-evaluation-contract.md)

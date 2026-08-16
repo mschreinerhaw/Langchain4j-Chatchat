@@ -180,6 +180,12 @@ class AgentOrchestratorTest {
             .contains("clearly labeled non-executed draft for human review")
             .contains("Distinguish BLOCKED before invocation")
             .contains("Do not make the tool evidence list, document heading path, execution trace, or JSON field names the body of the answer")
+            .contains("Primary answer contract (outcome-first)")
+            .contains("Do not begin with asset discovery, template counts, tool calls, plan attempts, or execution chronology")
+            .contains("Treat commandContext as the authoritative description and execution-lineage map")
+            .contains("Follow the reference to the canonical data object and summarize that object once")
+            .contains("write the user-facing answer by finding or requested dimension rather than by execution order")
+            .doesNotContain("Summarize what was done step by step, then provide the final answer")
             .contains("deduplicate repeated headings")
             .contains("Do not claim that enterprise standards, terms, dictionaries, or other governed metadata do not exist")
             .contains("state its evidence-backed rejection reason")
@@ -680,11 +686,14 @@ class AgentOrchestratorTest {
         assertThat(answer)
             .contains("chunk evidence summary")
             .contains("60/60")
-            .contains("\u5168\u91cf\u8bb0\u5f55\u8986\u76d6\u5206\u6790");
+            .contains("受治理证据摘要")
+            .doesNotContain("\u5168\u91cf\u8bb0\u5f55\u8986\u76d6\u5206\u6790", "value-59-");
         assertThat(metadata)
             .containsEntry("recordAnalysisCoverageComplete", true)
             .containsEntry("recordAnalysisReturnedRecordCount", 60)
-            .containsEntry("recordAnalysisProcessedRecordCount", 60);
+            .containsEntry("recordAnalysisProcessedRecordCount", 60)
+            .containsEntry("recordAnalysisCoverageAppendixApplied", false)
+            .containsEntry("recordAnalysisNarrativeCoverageApplied", true);
         assertThat(metadata.get("analysisSummaryGovernanceBridge").toString())
             .contains("analysis_summary_bridge.v1", "summary_governance.v1")
             .contains("analysis_summary_result.v1", "scope=DATASET_CHUNK")
@@ -830,7 +839,18 @@ class AgentOrchestratorTest {
             "data", Map.of(
                 "stdout", stdout,
                 "stderr", "",
-                "outputLimits", Map.of("stdoutTruncated", false, "stderrTruncated", false)
+                "outputLimits", Map.of("stdoutTruncated", false, "stderrTruncated", false),
+                "commandContext", Map.of(
+                    "schemaVersion", "template_result_context.v1",
+                    "templateId", "CHECK_METRICS",
+                    "templateName", "Runtime metrics",
+                    "description", "Assess current runtime metrics",
+                    "executionMode", "SINGLE",
+                    "commands", List.of(Map.of(
+                        "commandId", "metrics",
+                        "description", "Collect runtime metric values",
+                        "resultReference", "$.data.stdout")),
+                    "references", List.of())
             )
         );
         InterpretationPlanRuntime.StepExecution step = new InterpretationPlanRuntime.StepExecution(
@@ -854,7 +874,11 @@ class AgentOrchestratorTest {
         assertThat(coverage.promptEvidence()).contains("linux_command_execute#stdout", "linux output chunk summary");
         assertThat(metadata).containsEntry("recordAnalysisIterative", true);
         assertThat(metadata).containsEntry("recordAnalysisSourceContentComplete", true);
-        verify(model, times(coverage.iterations())).chat(any(String.class));
+        verify(model, times(coverage.iterations())).chat(argThat((String prompt) ->
+            prompt.contains("User analysis objective: analyze linux output")
+                && prompt.contains("Assess current runtime metrics")
+                && prompt.contains("Collect runtime metric values")
+                && prompt.contains("$.data.stdout")));
     }
 
     @Test

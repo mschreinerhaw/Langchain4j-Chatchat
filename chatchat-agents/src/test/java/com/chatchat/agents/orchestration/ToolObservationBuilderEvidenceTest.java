@@ -16,6 +16,46 @@ class ToolObservationBuilderEvidenceTest {
     private final ToolObservationBuilder builder = new ToolObservationBuilder(new EvidenceTrustEvaluator());
 
     @Test
+    void apiTemplateObservationSurfacesCommandDescriptionAndCanonicalBodyReferenceOnce() {
+        Map<String, Object> commandContext = Map.of(
+            "schemaVersion", "template_result_context.v1",
+            "templateId", "api-positions",
+            "templateName", "Position API",
+            "description", "Returns governed positions",
+            "executionMode", "SINGLE",
+            "commands", List.of(Map.of(
+                "commandId", "api-positions",
+                "order", 1,
+                "name", "Position API",
+                "description", "Returns governed positions",
+                "resultReference", "$.data.body")),
+            "references", List.of());
+        Map<String, Object> result = Map.of(
+            "schemaVersion", "tool_execution_result.v1",
+            "kind", "api_request",
+            "dataSchema", "api_response.v1",
+            "payloadType", "structured",
+            "success", true,
+            "status", "SUCCESS",
+            "data", Map.of(
+                "resultSetMode", "ONE_PER_TEMPLATE_EXECUTION",
+                "resultSetId", "api-positions",
+                "commandContext", commandContext,
+                "statusCode", 200,
+                "body", Map.of("position", 12)));
+
+        String evidence = builder.buildAuthoritativeExecutionEvidence(
+            "mcp_chatchat_mcp_server_api_template_execute", result);
+
+        assertThat(evidence)
+            .contains("Command context (authoritative template description and command references)")
+            .contains("Returns governed positions")
+            .contains("$.data.body")
+            .contains("position=12")
+            .containsOnlyOnce("template_result_context.v1");
+    }
+
+    @Test
     void batchExecutionEvidencePreservesConcreteRowsAndProfilesForFinalSynthesis() {
         ToolCallBatchResult batch = new ToolCallBatchResult(
             "reviewed-template-step-3",
@@ -597,6 +637,47 @@ class ToolObservationBuilderEvidenceTest {
             .contains("complete-process-row")
             .contains("BEGIN COMPLETE AGGREGATE STDOUT")
             .contains("presentation-only and must not be reported as missing evidence");
+    }
+
+    @Test
+    void linuxObservationKeepsCanonicalOutputAndCommandReferencesForMetadataOnlySteps() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("schemaVersion", "tool_execution_result.v1");
+        result.put("kind", "ssh_command");
+        result.put("dataSchema", "ssh_steps.v1");
+        result.put("success", true);
+        result.put("status", "success");
+        result.put("data", Map.ofEntries(
+            Map.entry("transportSuccess", true),
+            Map.entry("commandSuccess", true),
+            Map.entry("exitCode", 0),
+            Map.entry("stdout", "CANONICAL_COMMAND_EVIDENCE"),
+            Map.entry("stderr", ""),
+            Map.entry("outputLimits", Map.of("stdoutTruncated", false, "stderrTruncated", false)),
+            Map.entry("commandContext", Map.of(
+                "schemaVersion", "template_result_context.v1",
+                "description", "Collect state before evaluating it",
+                "commands", List.of(
+                    Map.of("commandId", "COLLECT", "description", "Collect state", "resultReference", "$.data"),
+                    Map.of("commandId", "EVALUATE", "description", "Evaluate collected state", "resultReference", "$.data")
+                ),
+                "references", List.of(Map.of(
+                    "fromCommandId", "COLLECT", "toCommandId", "EVALUATE", "relation", "EXECUTION_ORDER"))
+            )),
+            Map.entry("steps", List.of(
+                Map.of("stepIndex", 1, "stepCode", "COLLECT", "success", true, "exitCode", 0,
+                    "outputReference", "$.data.stdout"),
+                Map.of("stepIndex", 2, "stepCode", "EVALUATE", "success", true, "exitCode", 0,
+                    "outputReference", "$.data.stdout")
+            ))
+        ));
+
+        String evidence = builder.buildAuthoritativeExecutionEvidence("linux_command_execute", result);
+
+        assertThat(evidence)
+            .contains("Collect state before evaluating it", "fromCommandId=COLLECT", "toCommandId=EVALUATE")
+            .contains("CANONICAL_COMMAND_EVIDENCE")
+            .contains("metadata and result references only");
     }
 
     @Test

@@ -296,6 +296,7 @@ class ToolObservationBuilder {
         appendFact(observation, "durationMs", stringValue(root.get("durationMs")));
         observation.append('.');
         appendDataAnalysisContext(observation, root);
+        appendCommandContext(observation, resultData);
 
         List<Map<String, Object>> resultSets = mapList(resultData.get("results"));
         if (resultSets.isEmpty()) {
@@ -795,6 +796,7 @@ class ToolObservationBuilder {
         appendFact(observation, "durationMs", stringValue(root.get("durationMs")));
         appendFact(observation, "errorMessage", stringValue(root.get("errorMessage")));
         appendDataAnalysisContext(observation, root);
+        appendCommandContext(observation, asMap(root.get("data")));
         if (!asMap(root.get("target")).isEmpty()) {
             observation.append("\nTarget: ").append(root.get("target"));
         }
@@ -811,8 +813,10 @@ class ToolObservationBuilder {
             observation.append("\nTransport truncation: ").append(root.get("outputTruncation"));
         }
         if (root.containsKey("data")) {
+            Map<String, Object> returnedData = new LinkedHashMap<>(asMap(root.get("data")));
+            returnedData.remove("commandContext");
             observation.append("\n---BEGIN RETURNED DATA---\n")
-                .append(root.get("data"))
+                .append(returnedData.isEmpty() ? root.get("data") : returnedData)
                 .append("\n---END RETURNED DATA---");
         }
         observation.append("\nCompleteness rule: the returned data above is complete relative to this runtime payload only. ")
@@ -884,6 +888,7 @@ class ToolObservationBuilder {
         appendFact(observation, "environment", stringValue(target.get("environment")));
         appendFact(observation, "failedStepIndex", stringValue(resultData.get("failedStepIndex")));
         observation.append('.');
+        appendCommandContext(observation, resultData);
         if (!outputLimits.isEmpty()) {
             observation.append("\nOutput completeness: strategy=")
                 .append(firstNonBlank(stringValue(outputLimits.get("strategy")), "unknown"));
@@ -917,9 +922,13 @@ class ToolObservationBuilder {
             }
             boolean stepPreviewTruncated = steps.stream().anyMatch(step ->
                 booleanValue(step.get("stdoutTruncated")) || booleanValue(step.get("stderrTruncated")));
-            if (stepPreviewTruncated) {
-                observation.append("\nOne or more per-step streams above are previews. "
-                    + "The aggregate streams below are the complete captured command output and are authoritative.");
+            boolean stepStreamsInline = steps.stream().anyMatch(step ->
+                step.containsKey("stdout") || step.containsKey("stderr"));
+            if (stepPreviewTruncated || !stepStreamsInline) {
+                observation.append(stepPreviewTruncated
+                    ? "\nOne or more per-step streams above are previews. "
+                    : "\nPer-step entries contain metadata and result references only. ");
+                observation.append("The canonical aggregate streams below are the captured command output and are authoritative.");
                 appendStream(observation, "complete aggregate stdout", stringValue(resultData.get("stdout")));
                 appendStream(observation, "complete aggregate stderr", stringValue(resultData.get("stderr")));
                 if (!booleanValue(outputLimits.get("stdoutTruncated"))
@@ -933,6 +942,14 @@ class ToolObservationBuilder {
             .append("Aggregate stdoutTruncated/stderrTruncated decide source completeness; per-step preview flags do not. ")
             .append("Always report non-zero exit codes and preserve tail errors shown above.");
         return observation.toString();
+    }
+
+    private void appendCommandContext(StringBuilder observation, Map<String, Object> resultData) {
+        Map<String, Object> commandContext = asMap(resultData == null ? null : resultData.get("commandContext"));
+        if (!commandContext.isEmpty()) {
+            observation.append("\nCommand context (authoritative template description and command references): ")
+                .append(commandContext);
+        }
     }
 
     private void appendStream(StringBuilder observation, String label, String value) {

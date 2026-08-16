@@ -11,10 +11,14 @@ import com.chatchat.mcpserver.ops.JmxMonitorResult;
 import com.chatchat.mcpserver.ops.LinuxCommandResult;
 import com.chatchat.mcpserver.ops.LinuxCommandStepResult;
 import com.chatchat.mcpserver.sql.SqlQueryResult;
+import com.chatchat.mcpserver.sql.SqlScriptResult;
+import com.chatchat.mcpserver.sql.SqlScriptStatementResult;
 import com.chatchat.tools.builtin.DatabaseToolProperties;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.IntStream;
 
@@ -64,6 +68,25 @@ class StandardToolExecutionResultFactoryTest {
             .containsEntry("gatewayTruncated", false)
             .containsEntry("upstreamCompleteness", "UNKNOWN")
             .containsEntry("topLevelRecordCount", 1);
+        assertThat(data)
+            .containsEntry("resultSetMode", "ONE_PER_TEMPLATE_EXECUTION")
+            .containsEntry("resultSetId", "api-1");
+        Map<String, Object> commandContext = (Map<String, Object>) data.get("commandContext");
+        assertThat(commandContext)
+            .containsEntry("templateId", "api-1")
+            .containsEntry("templateName", "Governed API")
+            .containsEntry("description", "Returns governed shareholder positions");
+        Map<String, Object> apiCommand = (Map<String, Object>) ((List<?>) commandContext.get("commands")).get(0);
+        assertThat(apiCommand)
+            .containsEntry("commandId", "api-1")
+            .containsEntry("resultReference", "$.data.body");
+        assertThat(commandContext.get("references")).isEqualTo(List.of());
+        Map<String, Object> execution = (Map<String, Object>) envelope.get("execution");
+        Map<String, Object> executionStep = (Map<String, Object>) ((List<?>) execution.get("steps")).get(0);
+        assertThat((Map<String, Object>) executionStep.get("output"))
+            .containsEntry("resultSetReference", "$.data")
+            .containsEntry("bodyReference", "$.data.body")
+            .doesNotContainKeys("body", "rawBody");
         assertThat(data).doesNotContainKeys("outputSchema", "fieldMetadata", "columnMetadata");
         Map<String, Object> analysisContext = (Map<String, Object>) envelope.get("analysisContext");
         Map<String, Object> schema = (Map<String, Object>) analysisContext.get("schema");
@@ -138,10 +161,44 @@ class StandardToolExecutionResultFactoryTest {
         assertThat(String.valueOf(envelope)).doesNotContain("10.20.30.40").doesNotContain("service:jmx");
         assertThat(((Map<?, ?>) envelope.get("target")).get("templateId"))
             .isEqualTo("JMX_KAFKA_BROKER_OVERVIEW");
+        Map<?, ?> data = (Map<?, ?>) envelope.get("data");
+        Map<?, ?> execution = (Map<?, ?>) envelope.get("execution");
+        Map<?, ?> step = (Map<?, ?>) ((List<?>) execution.get("steps")).get(0);
+        Map<?, ?> output = (Map<?, ?>) step.get("output");
+        assertThat(data.get("resultSetMode")).isEqualTo("ONE_PER_TEMPLATE_EXECUTION");
+        assertThat(output.get("resultSetReference")).isEqualTo("$.data");
+        assertThat(output.containsKey("metrics")).isFalse();
+        Map<?, ?> commandContext = (Map<?, ?>) data.get("commandContext");
+        assertThat(commandContext.get("description"))
+            .isEqualTo("Read-only metrics collected by the configured JMX template");
     }
 
     @Test
-    void sqlResultPreservesAllFetchedRowsForRuntimeChunkAnalysis() {
+    void jmxResultPreservesCompleteMetricSetOnlyInCanonicalData() {
+        List<Map<String, Object>> metrics = IntStream.range(0, 250)
+            .mapToObj(index -> Map.<String, Object>of(
+                "name", "metric-" + index,
+                "value", "UNIQUE_JMX_VALUE_" + index
+            ))
+            .toList();
+        JmxMonitorResult result = new JmxMonitorResult(
+            true, "GENERIC_MONITOR", "service:jmx:hidden", metrics, List.of(), 10L, null
+        );
+
+        Map<String, Object> envelope = factory.fromJmx(result);
+        Map<?, ?> data = (Map<?, ?>) envelope.get("data");
+        Map<?, ?> execution = (Map<?, ?>) envelope.get("execution");
+        Map<?, ?> step = (Map<?, ?>) ((List<?>) execution.get("steps")).get(0);
+        Map<?, ?> output = (Map<?, ?>) step.get("output");
+
+        assertThat((List<?>) data.get("metrics")).hasSize(250);
+        assertThat(data.get("possiblyTruncated")).isEqualTo(false);
+        assertThat(output.containsKey("metrics")).isFalse();
+        assertThat(countOccurrences(envelope.toString(), "UNIQUE_JMX_VALUE_249")).isEqualTo(1);
+    }
+
+    @Test
+    void sqlResultPreservesAllFetchedRowsForRuntimeChunkAnalysis() throws Exception {
         String fullCell = "SQL_CELL_HEAD\n" + "x".repeat(10_000) + "\nSQL_CELL_TAIL";
         List<Map<String, Object>> rows = IntStream.rangeClosed(1, 60)
             .mapToObj(index -> Map.<String, Object>of("id", index, "payload", fullCell + index))
@@ -184,8 +241,8 @@ class StandardToolExecutionResultFactoryTest {
         Map<?, ?> step = (Map<?, ?>) ((List<?>) execution.get("steps")).get(0);
         Map<?, ?> input = (Map<?, ?>) step.get("input");
         Map<?, ?> output = (Map<?, ?>) step.get("output");
-        Map<?, ?> governance = (Map<?, ?>) output.get("governance");
-        Map<?, ?> firstColumn = (Map<?, ?>) ((List<?>) output.get("columnMetadata")).get(0);
+        Map<?, ?> governance = (Map<?, ?>) data.get("governance");
+        Map<?, ?> firstColumn = (Map<?, ?>) ((List<?>) data.get("columnMetadata")).get(0);
         Map<?, ?> graph = (Map<?, ?>) envelope.get("executionGraph");
         Map<?, ?> sourceMetadata = (Map<?, ?>) envelope.get("sourceMetadata");
         Map<?, ?> sourceOperation = (Map<?, ?>) sourceMetadata.get("operation");
@@ -200,6 +257,8 @@ class StandardToolExecutionResultFactoryTest {
         assertThat(step.get("stepType")).isEqualTo("sql");
         assertThat(input.get("statement")).isEqualTo("SELECT * FROM t");
         assertThat(output.get("rowCount")).isEqualTo(60);
+        assertThat(output.get("resultSetReference")).isEqualTo("$.data");
+        assertThat(output.containsKey("rows")).isFalse();
         assertThat(firstColumn.get("comment")).isEqualTo("customer id");
         assertThat(governance.get("schemaVersion")).isEqualTo("sql_output_governance.v1");
         assertThat(((List<?>) governance.get("maskedColumns")).stream().map(String::valueOf).toList()).contains("id");
@@ -221,6 +280,37 @@ class StandardToolExecutionResultFactoryTest {
         assertThat(sourceOperation.get("statementHash")).isNotNull();
         assertThat(sourceBusiness.get("description")).isEqualTo("debug");
         assertThat(envelope.toString()).doesNotContain("jdbc:mysql://", "db.internal", "jdbcUrl");
+        String json = new ObjectMapper().writeValueAsString(envelope);
+        assertThat(countOccurrences(json, "SQL_CELL_HEAD")).isEqualTo(60);
+    }
+
+    @Test
+    void sqlScriptExecutionReferencesCanonicalStatementResultSets() {
+        SqlScriptStatementResult statement = new SqlScriptStatementResult(
+            7, "LOAD_INVENTORY", "Load inventory", "SQL", true,
+            "Use this result as the inventory evidence", true,
+            "select payload from inventory", List.of("payload"), List.of(),
+            List.of(Map.of("payload", "UNIQUE_SCRIPT_VALUE")), 1, false, 5L, null, Map.of()
+        );
+        SqlScriptResult result = new SqlScriptResult(
+            true, "ds-1", "db", "sql_script_execute", "DEV", "script", 30, 100,
+            1, List.of(statement), 5L, "inventory", "task-1", null, Map.of()
+        );
+
+        Map<String, Object> envelope = factory.fromSqlScript(result);
+        Map<?, ?> data = (Map<?, ?>) envelope.get("data");
+        Map<?, ?> execution = (Map<?, ?>) envelope.get("execution");
+        Map<?, ?> step = (Map<?, ?>) ((List<?>) execution.get("steps")).get(0);
+        Map<?, ?> output = (Map<?, ?>) step.get("output");
+
+        assertThat(data.get("resultSetMode")).isEqualTo("ONE_PER_TEMPLATE_EXECUTION");
+        assertThat(output.get("resultSetReference")).isEqualTo("$.data.results[0]");
+        assertThat(output.containsKey("rows")).isFalse();
+        assertThat(countOccurrences(envelope.toString(), "UNIQUE_SCRIPT_VALUE")).isEqualTo(1);
+        Map<?, ?> commandContext = (Map<?, ?>) data.get("commandContext");
+        Map<?, ?> command = (Map<?, ?>) ((List<?>) commandContext.get("commands")).get(0);
+        assertThat(command.get("description")).isEqualTo("Use this result as the inventory evidence");
+        assertThat(command.get("resultReference")).isEqualTo("$.data.results[0]");
     }
 
     @Test
@@ -245,7 +335,12 @@ class StandardToolExecutionResultFactoryTest {
             "failed",
             11,
             "step failed",
-            Map.of("sourceTaskId", "task-1")
+            Map.of(
+                "sourceTaskId", "task-1",
+                "templateTitle", "System state check",
+                "templateDescription", "Collect system state before evaluating the dependent check",
+                "templateDsl", Map.of("executionMode", "SEQUENTIAL")
+            )
         );
 
         Map<String, Object> envelope = factory.fromLinuxCommand(result);
@@ -271,10 +366,17 @@ class StandardToolExecutionResultFactoryTest {
         assertThat(execution.get("toolName")).isEqualTo("ssh_host");
         assertThat(secondStep.get("stepType")).isEqualTo("command");
         assertThat(secondStep.get("exitCode")).isEqualTo(1);
-        assertThat(secondInput.get("command")).isEqualTo("false");
-        assertThat(secondOutput.get("stderr")).isEqualTo("failed");
+        assertThat(secondInput.get("commandHash")).isEqualTo("hash2");
+        assertThat(secondInput.containsKey("command")).isFalse();
+        assertThat(secondOutput.get("resultSetReference")).isEqualTo("$.data");
+        assertThat(data.get("stderr")).isEqualTo("failed");
         assertThat(data.get("failedStepIndex")).isEqualTo(2);
         assertThat(data.get("outputMode")).isEqualTo("separated");
+        assertThat(data.get("resultSetMode")).isEqualTo("ONE_PER_TEMPLATE_EXECUTION");
+        Map<?, ?> commandContext = (Map<?, ?>) data.get("commandContext");
+        assertThat(commandContext.get("description"))
+            .isEqualTo("Collect system state before evaluating the dependent check");
+        assertThat((List<?>) commandContext.get("references")).hasSize(1);
         assertThat(operation.get("diagnostics")).isEqualTo(diagnostics);
         assertThat(diagnostics.get("schemaVersion")).isEqualTo("linux_command_diagnostics.v1");
         assertThat(diagnostics.get("stepCount")).isEqualTo(2);
@@ -379,9 +481,10 @@ class StandardToolExecutionResultFactoryTest {
         assertThat(data.get("exitCode")).isEqualTo(2);
         assertThat(data.get("commandSuccess")).isEqualTo(false);
         assertThat(limits.get("strategy"))
-            .isEqualTo("FULL_CAPTURED_AGGREGATE_WITH_BOUNDED_STEP_PREVIEWS");
+            .isEqualTo("SINGLE_TEMPLATE_RESULT_WITH_STEP_METADATA");
         assertThat(limits.get("fullAggregateAvailable")).isEqualTo(true);
-        assertThat(limits.get("stepStreamsPreviewOnly")).isEqualTo(true);
+        assertThat(limits.get("commandStreamsStoredOnce")).isEqualTo(true);
+        assertThat(limits.get("stepStreamsInline")).isEqualTo(false);
         assertThat(limits.get("stdoutTruncated")).isEqualTo(false);
         assertThat(limits.get("stderrTruncated")).isEqualTo(false);
         assertThat(String.valueOf(data.get("stdout")))
@@ -390,8 +493,36 @@ class StandardToolExecutionResultFactoryTest {
         assertThat(String.valueOf(data.get("stderr")))
             .contains("STDERR_HEAD")
             .contains("FATAL_ERROR_AT_TAIL");
-        assertThat(returnedStep.get("stderrTruncated")).isEqualTo(true);
-        assertThat(String.valueOf(returnedStep.get("stderr"))).contains("FATAL_ERROR_AT_TAIL");
+        assertThat(returnedStep.containsKey("stdout")).isFalse();
+        assertThat(returnedStep.containsKey("stderr")).isFalse();
+        assertThat(returnedStep.get("errorReference")).isEqualTo("$.data.stderr");
+    }
+
+    @Test
+    void linuxResultStoresCommandStreamsOnlyOncePerTemplateResultSet() throws Exception {
+        String stdout = "UNIQUE_COMMAND_ROW\n".repeat(8_000);
+        LinuxCommandResult result = new LinuxCommandResult(
+            true, "host-1", "10.0.0.1", "ssh_host", "DEV", "LARGE_COMMAND_OUTPUT",
+            "inventory-command", "hash", List.of(
+                new LinuxCommandStepResult(1, "inventory-command", "step-hash", 0, stdout, "", 10, true)
+            ), null, null, 0, stdout, "", 10, null, Map.of()
+        );
+
+        Map<String, Object> envelope = factory.fromLinuxCommand(result);
+        String json = new ObjectMapper().writeValueAsString(envelope);
+
+        assertThat(countOccurrences(json, "UNIQUE_COMMAND_ROW")).isEqualTo(8_000);
+        assertThat(json.length()).isLessThan(stdout.length() + 20_000);
+    }
+
+    private int countOccurrences(String value, String token) {
+        int count = 0;
+        int offset = 0;
+        while ((offset = value.indexOf(token, offset)) >= 0) {
+            count++;
+            offset += token.length();
+        }
+        return count;
     }
 
     @Test
@@ -434,6 +565,8 @@ class StandardToolExecutionResultFactoryTest {
         assertThat(step.get("stepType")).isEqualTo("http");
         assertThat(input.get("method")).isEqualTo("GET");
         assertThat(output.get("statusCode")).isEqualTo(200);
+        assertThat(output.get("resultSetReference")).isEqualTo("$.data");
+        assertThat(output.containsKey("body")).isFalse();
         assertThat(data.get("statusCode")).isEqualTo(200);
         assertThat(envelope).containsKey("executionGraph");
         assertThat(sourceMetadata.get("executionType")).isEqualTo("HTTP_REQUEST");
@@ -441,6 +574,46 @@ class StandardToolExecutionResultFactoryTest {
         assertThat(sourceOperation.get("method")).isEqualTo("GET");
         assertThat(sourceOperation.containsKey("url")).isFalse();
         assertThat(sourceBusiness.get("description")).isEqualTo("Checks whether the business service is available");
+    }
+
+    @Test
+    void databaseWorkflowResultCarriesDescriptionsAndExplicitCommandReferences() {
+        DatabaseQueryConfig config = new DatabaseQueryConfig();
+        config.setId("workflow-1");
+        config.setToolName("database_query");
+        config.setTitle("Inventory workflow");
+        config.setDescription("Collect inventory and then evaluate its state");
+        Map<String, Object> resultData = new LinkedHashMap<>();
+        resultData.put("mode", "database_query_workflow");
+        resultData.put("nodeExecutions", List.of(
+            Map.of(
+                "nodeCode", "COLLECT", "sqlName", "Collect inventory",
+                "description", "Provides the inventory used by the evaluation command",
+                "executionOrder", 1, "dependencies", List.of(), "rowCount", 1,
+                "rows", List.of(Map.of("value", 1)), "success", true
+            ),
+            Map.of(
+                "nodeCode", "EVALUATE", "sqlName", "Evaluate inventory",
+                "description", "Evaluates the collected inventory",
+                "executionOrder", 2, "dependencies", List.of("COLLECT"), "rowCount", 1,
+                "rows", List.of(Map.of("state", "ok")), "success", true
+            )
+        ));
+        ToolOutput output = ToolOutput.success(resultData);
+
+        Map<String, Object> envelope = factory.fromDatabaseQuery(config, Map.of(), output);
+        Map<?, ?> data = (Map<?, ?>) envelope.get("data");
+        Map<?, ?> commandContext = (Map<?, ?>) data.get("commandContext");
+        List<?> commands = (List<?>) commandContext.get("commands");
+        Map<?, ?> firstCommand = (Map<?, ?>) commands.get(0);
+        Map<?, ?> reference = (Map<?, ?>) ((List<?>) commandContext.get("references")).get(0);
+
+        assertThat(firstCommand.get("description"))
+            .isEqualTo("Provides the inventory used by the evaluation command");
+        assertThat(firstCommand.get("resultReference")).isEqualTo("$.data.nodeExecutions[0]");
+        assertThat(reference.get("fromCommandId")).isEqualTo("COLLECT");
+        assertThat(reference.get("toCommandId")).isEqualTo("EVALUATE");
+        assertThat(reference.get("relation")).isEqualTo("DEPENDS_ON_SUCCESS");
     }
 
     @Test
@@ -481,7 +654,8 @@ class StandardToolExecutionResultFactoryTest {
         Map<?, ?> step = (Map<?, ?>) ((List<?>) execution.get("steps")).get(0);
         Map<?, ?> input = (Map<?, ?>) step.get("input");
         Map<?, ?> stepOutput = (Map<?, ?>) step.get("output");
-        Map<?, ?> nameColumn = (Map<?, ?>) ((List<?>) stepOutput.get("columnMetadata")).get(1);
+        Map<?, ?> data = (Map<?, ?>) envelope.get("data");
+        Map<?, ?> nameColumn = (Map<?, ?>) ((List<?>) data.get("columnMetadata")).get(1);
 
         assertThat(envelope).containsEntry("schemaVersion", StandardToolExecutionResultFactory.SCHEMA_VERSION);
         assertThat(envelope).containsEntry("kind", "sql_query");
@@ -490,6 +664,8 @@ class StandardToolExecutionResultFactoryTest {
         assertThat(step.get("stepType")).isEqualTo("sql");
         assertThat(input.get("statement")).isEqualTo("select * from customer where id = :id");
         assertThat(stepOutput.get("rowCount")).isEqualTo(1);
+        assertThat(stepOutput.get("resultSetReference")).isEqualTo("$.data");
+        assertThat(stepOutput.containsKey("rows")).isFalse();
         assertThat(nameColumn.get("comment")).isEqualTo("Customer name");
         assertThat(analysisContext.get("schemaVersion")).isEqualTo("data_analysis_context.v1");
         assertThat(contextSource.get("type")).isEqualTo("database_query_template");

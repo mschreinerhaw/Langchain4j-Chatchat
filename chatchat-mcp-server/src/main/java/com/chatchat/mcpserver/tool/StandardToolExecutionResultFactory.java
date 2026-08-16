@@ -29,14 +29,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Component
 @RequiredArgsConstructor
 public class StandardToolExecutionResultFactory {
 
     public static final String SCHEMA_VERSION = "tool_execution_result.v1";
-    static final int LINUX_STEP_STREAM_LIMIT = 24_000;
-    static final int LINUX_STEP_STREAM_TOTAL_BUDGET = 100_000;
     static final int MODEL_SAFE_TEXT_LIMIT = 4_000;
     public static final int MODEL_SAFE_COLLECTION_LIMIT = 200;
     private static final ObjectMapper JSON = new ObjectMapper();
@@ -60,25 +59,33 @@ public class StandardToolExecutionResultFactory {
             "jmx_monitoring"
         ));
         List<Map<String, Object>> metrics = result.metrics() == null ? List.of() : result.metrics().stream()
-            .limit(MODEL_SAFE_COLLECTION_LIMIT)
-            .map(this::modelSafeMap)
+            .map(this::runtimeSafeEvidenceMap)
             .toList();
         List<Map<String, Object>> errors = result.errors() == null ? List.of() : result.errors().stream()
-            .limit(MODEL_SAFE_COLLECTION_LIMIT)
-            .map(this::modelSafeMap)
+            .map(this::runtimeSafeEvidenceMap)
             .toList();
         Map<String, Object> data = mapOf(
+            "resultSetMode", "ONE_PER_TEMPLATE_EXECUTION",
+            "resultSetId", firstText(result.template(), "jmx-monitor-result"),
+            "commandContext", commandContext(
+                result.template(), result.template(), "Read-only metrics collected by the configured JMX template",
+                "SINGLE", List.of(commandDescriptor("jmx_monitor", 1, result.template(),
+                    "Collect the metrics declared by this JMX template", null, "$.data")), List.of()),
             "metrics", metrics,
             "metricCount", result.metrics() == null ? 0 : result.metrics().size(),
             "errors", errors,
             "errorCount", result.errors() == null ? 0 : result.errors().size(),
-            "possiblyTruncated", (result.metrics() != null && result.metrics().size() > metrics.size())
-                || (result.errors() != null && result.errors().size() > errors.size())
+            "possiblyTruncated", false
         );
         payload.put("data", data);
         payload.put("execution", execution(
             "jmx_monitor_execute", result.durationMs(),
-            List.of(step(1, "jmx", mapOf("template", result.template()), data,
+            List.of(step(1, "jmx", mapOf("template", result.template()), mapOf(
+                    "resultSetReference", "$.data",
+                    "metricCount", data.get("metricCount"),
+                    "errorCount", data.get("errorCount"),
+                    "possiblyTruncated", data.get("possiblyTruncated")
+                ),
                 result.success(), result.durationMs(), result.errorMessage(),
                 mapOf("metricCount", data.get("metricCount"), "errorCount", data.get("errorCount"))))
         ));
@@ -134,6 +141,13 @@ public class StandardToolExecutionResultFactory {
         payload.put("limits", limits);
         boolean possiblyTruncated = result.possiblyTruncated();
         Map<String, Object> data = mapOf(
+            "resultSetMode", "ONE_PER_TEMPLATE_EXECUTION",
+            "resultSetId", firstText(sha256(firstText(result.normalizedSql(), result.sql())),
+                result.sourceTaskId(), "sql-query-result"),
+            "commandContext", commandContext(
+                result.toolName(), result.toolName(), result.purpose(), "SINGLE_SQL",
+                List.of(commandDescriptor("sql_query", 1, result.toolName(), result.purpose(), null, "$.data")),
+                List.of()),
             "rowCount", effectiveRowCount,
             "returnedRowCount", rows.size(),
             "complete", !possiblyTruncated,
@@ -159,15 +173,11 @@ public class StandardToolExecutionResultFactory {
                     "sourceTaskId", result.sourceTaskId()
                 ),
                 mapOf(
-                    "columns", result.columns(),
-                    "columnMetadata", result.columnMetadata(),
-                    "rows", rows,
+                    "resultSetReference", "$.data",
                     "rowCount", effectiveRowCount,
                     "returnedRowCount", rows.size(),
                     "possiblyTruncated", data.get("possiblyTruncated"),
-                    "governance", data.get("governance"),
-                    "meta", limits,
-                    "diagnostics", safeDiagnostics
+                    "columnCount", result.columns() == null ? 0 : result.columns().size()
                 ),
                 effectiveSuccess,
                 result.durationMs(),
@@ -220,6 +230,9 @@ public class StandardToolExecutionResultFactory {
             "truncationStrategy", "DATABASE_MAX_ROWS_PER_STATEMENT_" + result.maxRowsPerStatement()
         ));
         payload.put("data", mapOf(
+            "resultSetMode", "ONE_PER_TEMPLATE_EXECUTION",
+            "resultSetId", firstText(result.sourceTaskId(), "sql-script-result"),
+            "commandContext", sqlScriptCommandContext(result),
             "statementCount", result.statementCount(),
             "resultSetCount", resultSets.size(),
             "results", resultSets,
@@ -228,8 +241,10 @@ public class StandardToolExecutionResultFactory {
         payload.put("execution", execution(
             "sql_script_execute",
             result.durationMs(),
-            result.results().stream()
-                .map(statement -> step(
+            IntStream.range(0, result.results().size())
+                .mapToObj(position -> {
+                    SqlScriptStatementResult statement = result.results().get(position);
+                    return step(
                     statement.statementIndex(),
                     firstText(statement.stepType(), "sql").toLowerCase(java.util.Locale.ROOT),
                     mapOf(
@@ -240,7 +255,12 @@ public class StandardToolExecutionResultFactory {
                         "required", statement.required(),
                         "analysisHint", statement.analysisHint()
                     ),
-                    scriptResultSet(statement),
+                    mapOf(
+                        "resultSetReference", "$.data.results[" + position + "]",
+                        "rowCount", statement.rowCount(),
+                        "returnedRowCount", statement.rows() == null ? 0 : statement.rows().size(),
+                        "possiblyTruncated", statement.possiblyTruncated()
+                    ),
                     statement.success(),
                     statement.durationMs(),
                     statement.errorMessage(),
@@ -252,7 +272,8 @@ public class StandardToolExecutionResultFactory {
                         "required", statement.required(),
                         "analysisHint", statement.analysisHint()
                     )
-                ))
+                );
+                })
                 .toList()
         ));
         payload.put("executionGraph", graph(
@@ -301,11 +322,7 @@ public class StandardToolExecutionResultFactory {
     public Map<String, Object> fromLinuxCommand(LinuxCommandResult result) {
         Map<String, Object> diagnostics = linuxCommandDiagnostics(result);
         List<LinuxCommandStepResult> rawSteps = result.steps() == null ? List.of() : result.steps();
-        int perStepStreamLimit = Math.min(
-            LINUX_STEP_STREAM_LIMIT,
-            Math.max(4_000, LINUX_STEP_STREAM_TOTAL_BUDGET / Math.max(2, rawSteps.size() * 2))
-        );
-        List<Map<String, Object>> boundedSteps = stepResults(rawSteps, perStepStreamLimit);
+        List<Map<String, Object>> stepSummaries = commandStepSummaries(rawSteps);
         BoundedText stdout = completeCapturedText(result.stdout());
         BoundedText stderr = completeCapturedText(result.stderr());
         Map<String, Object> payload = base(
@@ -346,15 +363,16 @@ public class StandardToolExecutionResultFactory {
             "failedStepIndex", result.failedStepIndex(),
             "failedCommand", result.failedCommand(),
             "outputMode", "separated",
+            "resultSetMode", "ONE_PER_TEMPLATE_EXECUTION",
+            "resultSetId", firstText(result.template(), result.commandHash(), "linux-command-result"),
+            "commandContext", linuxCommandContext(result, rawSteps),
             "diagnostics", diagnostics,
             "outputLimits", mapOf(
-                "strategy", "FULL_CAPTURED_AGGREGATE_WITH_BOUNDED_STEP_PREVIEWS",
+                "strategy", "SINGLE_TEMPLATE_RESULT_WITH_STEP_METADATA",
                 "aggregateStreamLimit", -1,
-                "perStepStreamLimit", perStepStreamLimit,
                 "fullAggregateAvailable", !stdout.truncated() && !stderr.truncated(),
-                "stepStreamsPreviewOnly", boundedSteps.stream().anyMatch(step ->
-                    Boolean.TRUE.equals(step.get("stdoutTruncated"))
-                        || Boolean.TRUE.equals(step.get("stderrTruncated"))),
+                "commandStreamsStoredOnce", true,
+                "stepStreamsInline", false,
                 "stdoutOriginalLength", stdout.originalLength(),
                 "stdoutReturnedLength", stdout.value().length(),
                 "stdoutTruncated", stdout.truncated(),
@@ -362,11 +380,11 @@ public class StandardToolExecutionResultFactory {
                 "stderrReturnedLength", stderr.value().length(),
                 "stderrTruncated", stderr.truncated()
             ),
-            "steps", boundedSteps,
+            "steps", stepSummaries,
             "stdout", stdout.value(),
             "stderr", stderr.value()
         ));
-        payload.put("execution", linuxExecution(result, rawSteps, perStepStreamLimit));
+        payload.put("execution", linuxExecution(result, rawSteps));
         payload.put("executionGraph", graph(stepGraphNodes(rawSteps), stepGraphEdges(rawSteps)));
         return payload;
     }
@@ -394,6 +412,12 @@ public class StandardToolExecutionResultFactory {
             "url", result.url()
         ));
         Map<String, Object> data = mapOf(
+            "resultSetMode", "ONE_PER_TEMPLATE_EXECUTION",
+            "resultSetId", firstText(sha256(result.method() + ":" + result.url()), "http-request-result"),
+            "commandContext", commandContext(
+                "http_request", "HTTP request", result.method() + " request to the configured endpoint",
+                "SINGLE", List.of(commandDescriptor("http_request", 1, "HTTP request",
+                    result.method() + " request", null, "$.data")), List.of()),
             "statusCode", result.statusCode(),
             "headers", result.headers(),
             "body", result.body(),
@@ -411,7 +435,11 @@ public class StandardToolExecutionResultFactory {
                     "method", result.method(),
                     "url", result.url()
                 ),
-                data,
+                mapOf(
+                    "resultSetReference", "$.data",
+                    "statusCode", result.statusCode(),
+                    "bodyCompleteness", data.get("bodyCompleteness")
+                ),
                 result.success(),
                 result.durationMs(),
                 result.errorMessage(),
@@ -478,13 +506,47 @@ public class StandardToolExecutionResultFactory {
             "cacheHit", result.cacheHit()
         ));
         payload.put("analysisContext", analysisContext);
-        payload.put("data", mapOf(
+        String apiCommandId = config == null ? "api_request" : firstText(config.getId(), config.getToolName(), "api_request");
+        String apiCommandName = config == null ? "API request" : firstText(config.getTitle(), config.getToolName(), "API request");
+        String apiDescription = config == null ? "Execute the configured API request"
+            : firstText(config.getDescription(), config.getBusinessGroupDescription(), "Execute the configured API request");
+        Map<String, Object> apiData = mapOf(
+            "resultSetMode", "ONE_PER_TEMPLATE_EXECUTION",
+            "resultSetId", apiCommandId,
+            "commandContext", commandContext(
+                config == null ? null : config.getId(),
+                apiCommandName,
+                apiDescription,
+                "SINGLE",
+                List.of(commandDescriptor(apiCommandId, 1, apiCommandName, apiDescription,
+                    config == null ? null : firstText(config.getBusinessGroupDescription(), config.getDescription()),
+                    "$.data.body")),
+                List.of()),
             "statusCode", result.statusCode(),
             "headers", result.headers(),
             "body", result.body(),
             "rawBody", result.rawBody(),
             "cacheHit", result.cacheHit(),
             "bodyCompleteness", httpBodyCompleteness(result.body(), result.rawBody())
+        );
+        payload.put("data", apiData);
+        payload.put("execution", execution(
+            config == null ? "api_template_execute" : firstText(config.getToolName(), "api_template_execute"),
+            0L,
+            List.of(step(1, apiCommandId,
+                mapOf("method", config == null ? null : config.getMethod()),
+                mapOf(
+                    "resultSetReference", "$.data",
+                    "bodyReference", "$.data.body",
+                    "statusCode", result.statusCode(),
+                    "bodyCompleteness", apiData.get("bodyCompleteness")
+                ),
+                result.success(), 0L, result.errorMessage(),
+                mapOf("statusCode", result.statusCode(), "cacheHit", result.cacheHit()))))
+        );
+        payload.put("executionGraph", graph(
+            List.of(graphNode(apiCommandId, "api.template_request", result.success(), 0L)),
+            List.of()
         ));
         return payload;
     }
@@ -676,7 +738,16 @@ public class StandardToolExecutionResultFactory {
             "maxRowsReturnedToModel", resultData.get("maxRows"),
             "truncationStrategy", "DATABASE_QUERY_MAX_ROWS"
         ));
-        payload.put("data", runtimeSafeSqlMap(resultData));
+        Map<String, Object> canonicalData = new LinkedHashMap<>(runtimeSafeEvidenceMap(resultData));
+        canonicalData.put("resultSetMode", "ONE_PER_TEMPLATE_EXECUTION");
+        canonicalData.put("resultSetId", firstText(
+            sha256(statement),
+            stringValue(arguments == null ? null : arguments.get("sourceTaskId")),
+            "database-query-result"
+        ));
+        canonicalData.put("commandContext", databaseQueryCommandContext(
+            config, resultData, toolName, multiSql, workflow));
+        payload.put("data", canonicalData);
         payload.put("execution", execution(
             toolName,
             durationMs,
@@ -690,19 +761,11 @@ public class StandardToolExecutionResultFactory {
                     "sourceTaskId", arguments == null ? null : arguments.get("sourceTaskId")
                 ),
                 mapOf(
-                    "analysisContext", analysisContext,
-                    "columns", resultData.get("columns"),
-                    "columnMetadata", resultData.get("columnMetadata"),
-                    "rows", resultData.get("rows"),
+                    "resultSetReference", "$.data",
                     "rowCount", resultData.get("rowCount"),
                     "returnedRowCount", resultData.get("rowCount"),
                     "possiblyTruncated", resultData.get("possiblyTruncated"),
-                    "readOnly", resultData.get("readOnly"),
-                    "governance", sqlOutputGovernance(resultData),
-                    "meta", mapOf(
-                        "maxRows", resultData.get("maxRows"),
-                        "dataSource", resultData.get("dataSource")
-                    )
+                    "readOnly", resultData.get("readOnly")
                 ),
                 success,
                 durationMs,
@@ -725,11 +788,16 @@ public class StandardToolExecutionResultFactory {
                                                                  String errorMessage) {
         List<Map<String, Object>> resultSets = listOfMaps(firstPresent(resultData.get("resultSets"), resultData.get("results")));
         if (resultSets.isEmpty()) {
-            return List.of(step(1, "sql", Map.of(), runtimeSafeSqlMap(resultData), false, durationMs, errorMessage, Map.of()));
+            return List.of(step(1, "sql", Map.of(), mapOf(
+                "resultSetReference", "$.data",
+                "rowCount", resultData.get("rowCount")
+            ), false, durationMs, errorMessage, Map.of()));
         }
-        return resultSets.stream()
-            .map(resultSet -> {
-                int index = intValue(resultSet.get("executionOrder"), resultSets.indexOf(resultSet) + 1);
+        String resultSetField = resultData.get("resultSets") instanceof List<?> ? "resultSets" : "results";
+        return IntStream.range(0, resultSets.size())
+            .mapToObj(position -> {
+                Map<String, Object> resultSet = resultSets.get(position);
+                int index = intValue(resultSet.get("executionOrder"), position + 1);
                 return step(
                     index,
                     "sql_result_set",
@@ -740,7 +808,13 @@ public class StandardToolExecutionResultFactory {
                         "statement", resultSet.get("sql"),
                         "parameters", arguments == null ? Map.of() : arguments
                     ),
-                    runtimeSafeSqlMap(resultSet),
+                    mapOf(
+                        "resultSetReference", "$.data." + resultSetField + "[" + position + "]",
+                        "rowCount", resultSet.get("rowCount"),
+                        "returnedRowCount", resultSet.get("rows") instanceof List<?> rows
+                            ? rows.size() : resultSet.get("returnedRowCount"),
+                        "possiblyTruncated", resultSet.get("possiblyTruncated")
+                    ),
                     Boolean.TRUE.equals(resultSet.get("success")),
                     longValue(resultSet.get("durationMs"), 0L),
                     stringValue(resultSet.get("errorMessage")),
@@ -835,6 +909,181 @@ public class StandardToolExecutionResultFactory {
                 "fields", resultData == null ? List.of() : resultData.get("columnMetadata")
             ),
             Map.of()
+        );
+    }
+
+    private Map<String, Object> linuxCommandContext(LinuxCommandResult result,
+                                                    List<LinuxCommandStepResult> steps) {
+        Map<String, Object> request = result.request() == null ? Map.of() : result.request();
+        List<Map<String, Object>> commands = IntStream.range(0, steps.size())
+            .mapToObj(position -> {
+                LinuxCommandStepResult step = steps.get(position);
+                return commandDescriptor(
+                    firstText(step.stepCode(), "STEP_" + step.stepIndex()),
+                    step.stepIndex(),
+                    firstText(step.stepName(), step.stepCode(), "Step " + step.stepIndex()),
+                    firstText(step.analysisHint(), step.stepName()),
+                    step.analysisHint(),
+                    "$.data"
+                );
+            })
+            .toList();
+        return commandContext(
+            result.template(),
+            firstText(stringValue(request.get("templateTitle")), result.template()),
+            firstText(stringValue(request.get("templateDescription")), stringValue(request.get("reason"))),
+            firstText(contextExecutionMode(request), "SEQUENTIAL"),
+            commands,
+            sequentialCommandReferences(commands)
+        );
+    }
+
+    private String contextExecutionMode(Map<String, Object> request) {
+        if (request == null || !(request.get("templateDsl") instanceof Map<?, ?> templateDsl)) {
+            return null;
+        }
+        return stringValue(templateDsl.get("executionMode"));
+    }
+
+    private Map<String, Object> sqlScriptCommandContext(SqlScriptResult result) {
+        List<Map<String, Object>> commands = IntStream.range(0, result.results().size())
+            .mapToObj(position -> {
+                SqlScriptStatementResult statement = result.results().get(position);
+                return commandDescriptor(
+                    firstText(statement.stepCode(), "STEP_" + statement.statementIndex()),
+                    statement.statementIndex(),
+                    firstText(statement.stepName(), statement.stepCode(), "Step " + statement.statementIndex()),
+                    firstText(statement.analysisHint(), statement.stepName()),
+                    statement.analysisHint(),
+                    "$.data.results[" + position + "]"
+                );
+            })
+            .toList();
+        return commandContext(
+            result.toolName(), result.toolName(), result.purpose(), "SEQUENTIAL",
+            commands, sequentialCommandReferences(commands));
+    }
+
+    private Map<String, Object> databaseQueryCommandContext(DatabaseQueryConfig config,
+                                                             Map<String, Object> resultData,
+                                                             String toolName,
+                                                             boolean multiSql,
+                                                             boolean workflow) {
+        List<Map<String, Object>> resultSets = listOfMaps(firstPresent(
+            resultData.get("nodeExecutions"), resultData.get("resultSets"), resultData.get("results")));
+        String resultSetField = resultData.get("nodeExecutions") instanceof List<?> ? "nodeExecutions"
+            : resultData.get("resultSets") instanceof List<?> ? "resultSets" : "results";
+        List<Map<String, Object>> commands;
+        if (resultSets.isEmpty()) {
+            commands = List.of(commandDescriptor(
+                "sql_query", 1, config == null ? toolName : firstText(config.getTitle(), toolName),
+                config == null ? null : firstText(config.getDescription(), config.getImplementationSteps()),
+                null, "$.data"));
+        } else {
+            commands = IntStream.range(0, resultSets.size())
+                .mapToObj(position -> {
+                    Map<String, Object> resultSet = resultSets.get(position);
+                    String commandId = firstText(
+                        stringValue(resultSet.get("nodeCode")),
+                        stringValue(resultSet.get("sqlCode")),
+                        stringValue(resultSet.get("stepCode")),
+                        "sql_result_" + (position + 1));
+                    return commandDescriptor(
+                        commandId,
+                        intValue(resultSet.get("executionOrder"), position + 1),
+                        firstText(stringValue(resultSet.get("sqlName")), stringValue(resultSet.get("stepName")), commandId),
+                        firstText(stringValue(resultSet.get("description")), stringValue(resultSet.get("analysisHint"))),
+                        stringValue(resultSet.get("analysisHint")),
+                        "$.data." + resultSetField + "[" + position + "]"
+                    );
+                })
+                .toList();
+        }
+        List<Map<String, Object>> references = workflow
+            ? databaseQueryCommandReferences(resultSets)
+            : multiSql ? sequentialCommandReferences(commands) : List.of();
+        return commandContext(
+            config == null ? toolName : firstText(config.getToolName(), config.getId()),
+            config == null ? toolName : firstText(config.getTitle(), config.getToolName()),
+            config == null ? null : firstText(config.getDescription(), config.getImplementationSteps()),
+            workflow ? "DEPENDENCY_GRAPH" : multiSql ? "SEQUENTIAL_MULTI_SQL" : "SINGLE_SQL",
+            commands,
+            references
+        );
+    }
+
+    private List<Map<String, Object>> databaseQueryCommandReferences(List<Map<String, Object>> resultSets) {
+        List<Map<String, Object>> references = new java.util.ArrayList<>();
+        for (Map<String, Object> resultSet : resultSets) {
+            String target = firstText(stringValue(resultSet.get("nodeCode")), stringValue(resultSet.get("sqlCode")),
+                stringValue(resultSet.get("stepCode")));
+            if (target == null || !(resultSet.get("dependencies") instanceof Iterable<?> dependencies)) {
+                continue;
+            }
+            for (Object dependency : dependencies) {
+                if (dependency != null) {
+                    references.add(commandReference(String.valueOf(dependency), target, "DEPENDS_ON_SUCCESS"));
+                }
+            }
+        }
+        return List.copyOf(references);
+    }
+
+    private Map<String, Object> commandContext(String templateId,
+                                               String templateName,
+                                               String description,
+                                               String executionMode,
+                                               List<Map<String, Object>> commands,
+                                               List<Map<String, Object>> references) {
+        return mapOf(
+            "schemaVersion", "template_result_context.v1",
+            "templateId", templateId,
+            "templateName", templateName,
+            "description", description,
+            "executionMode", executionMode,
+            "commands", commands == null ? List.of() : commands,
+            "references", references == null ? List.of() : references
+        );
+    }
+
+    private Map<String, Object> commandDescriptor(String commandId,
+                                                  int order,
+                                                  String name,
+                                                  String description,
+                                                  String analysisHint,
+                                                  String resultReference) {
+        return mapOf(
+            "commandId", commandId,
+            "order", order,
+            "name", name,
+            "description", description,
+            "analysisHint", analysisHint,
+            "resultReference", resultReference
+        );
+    }
+
+    private List<Map<String, Object>> sequentialCommandReferences(List<Map<String, Object>> commands) {
+        if (commands == null || commands.size() < 2) {
+            return List.of();
+        }
+        List<Map<String, Object>> references = new java.util.ArrayList<>();
+        for (int index = 1; index < commands.size(); index++) {
+            references.add(commandReference(
+                stringValue(commands.get(index - 1).get("commandId")),
+                stringValue(commands.get(index).get("commandId")),
+                "EXECUTION_ORDER"
+            ));
+        }
+        return List.copyOf(references);
+    }
+
+    private Map<String, Object> commandReference(String fromCommandId,
+                                                 String toCommandId,
+                                                 String relation) {
+        return mapOf(
+            "fromCommandId", fromCommandId,
+            "toCommandId", toCommandId,
+            "relation", relation
         );
     }
 
@@ -998,34 +1247,34 @@ public class StandardToolExecutionResultFactory {
         Map<String, Object> safe = new LinkedHashMap<>();
         row.forEach((key, value) -> safe.put(
             key,
-            masked.contains(normalizedColumnName(key)) ? "***" : runtimeSafeSqlValue(value)
+            masked.contains(normalizedColumnName(key)) ? "***" : runtimeSafeEvidenceValue(value)
         ));
         return safe;
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, Object> runtimeSafeSqlMap(Map<String, Object> value) {
+    private Map<String, Object> runtimeSafeEvidenceMap(Map<String, Object> value) {
         if (value == null || value.isEmpty()) {
             return Map.of();
         }
-        return (Map<String, Object>) runtimeSafeSqlValue(value);
+        return (Map<String, Object>) runtimeSafeEvidenceValue(value);
     }
 
-    /** Preserves fetched SQL evidence for Runtime externalization while removing connection coordinates. */
-    private Object runtimeSafeSqlValue(Object value) {
+    /** Preserves complete template evidence for Runtime externalization while removing connection coordinates. */
+    private Object runtimeSafeEvidenceValue(Object value) {
         if (value instanceof Map<?, ?> map) {
             Map<String, Object> safe = new LinkedHashMap<>();
             map.forEach((key, item) -> {
                 String name = String.valueOf(key);
                 if (!isDatabaseConnectionUrlKey(name)) {
-                    safe.put(name, runtimeSafeSqlValue(item));
+                    safe.put(name, runtimeSafeEvidenceValue(item));
                 }
             });
             return safe;
         }
         if (value instanceof Iterable<?> iterable) {
             List<Object> safe = new java.util.ArrayList<>();
-            iterable.forEach(item -> safe.add(runtimeSafeSqlValue(item)));
+            iterable.forEach(item -> safe.add(runtimeSafeEvidenceValue(item)));
             return safe;
         }
         if (value instanceof CharSequence text) {
@@ -1076,18 +1325,22 @@ public class StandardToolExecutionResultFactory {
         return new LinkedHashMap<>((Map<String, Object>) value);
     }
 
-    private List<Map<String, Object>> stepResults(List<LinuxCommandStepResult> steps, int streamLimit) {
+    /**
+     * Command output has one canonical home in data.stdout/data.stderr for each
+     * template invocation. Step entries are control-plane metadata only. Keeping
+     * another copy of every stream in both data.steps and execution.steps made a
+     * perfectly ordinary command result exceed the transport budget.
+     */
+    private List<Map<String, Object>> commandStepSummaries(List<LinuxCommandStepResult> steps) {
         if (steps == null) {
             return List.of();
         }
         return steps.stream()
-            .map(step -> boundedStepResult(step, streamLimit))
+            .map(this::commandStepSummary)
             .toList();
     }
 
-    private Map<String, Object> boundedStepResult(LinuxCommandStepResult step, int streamLimit) {
-        BoundedText stdout = boundedText(step.stdout(), streamLimit);
-        BoundedText stderr = boundedText(step.stderr(), streamLimit);
+    private Map<String, Object> commandStepSummary(LinuxCommandStepResult step) {
         return mapOf(
             "stepIndex", step.stepIndex(),
             "stepCode", step.stepCode(),
@@ -1111,49 +1364,46 @@ public class StandardToolExecutionResultFactory {
             "exitCode", step.exitCode(),
             "success", step.success(),
             "durationMs", step.durationMs(),
-            "stdoutOriginalLength", stdout.originalLength(),
-            "stdoutReturnedLength", stdout.value().length(),
-            "stdoutTruncated", stdout.truncated(),
-            "stderrOriginalLength", stderr.originalLength(),
-            "stderrReturnedLength", stderr.value().length(),
-            "stderrTruncated", stderr.truncated(),
-            "stdout", stdout.value(),
-            "stderr", stderr.value()
+            "stdoutLength", textLength(step.stdout()),
+            "stderrLength", textLength(step.stderr()),
+            "outputReference", "$.data.stdout",
+            "errorReference", "$.data.stderr"
         );
     }
 
     private Map<String, Object> linuxExecution(LinuxCommandResult result,
-                                               List<LinuxCommandStepResult> steps,
-                                               int streamLimit) {
+                                               List<LinuxCommandStepResult> steps) {
         return execution(
             result.toolName(),
             result.durationMs(),
             steps.stream().map(step -> {
-                Map<String, Object> bounded = boundedStepResult(step, streamLimit);
                 return step(
                     step.stepIndex(),
                     "command",
                     mapOf(
                         "stepCode", step.stepCode(),
-                        "stepName", step.stepName(),
-                        "stepType", step.stepType(),
-                        "required", step.required(),
-                        "analysisHint", step.analysisHint(),
-                        "command", step.command(),
                         "commandHash", step.commandHash()
                     ),
-                    bounded,
-                    step.success(),
-                    step.durationMs(),
-                    step.success() ? null : bounded.get("stderr").toString(),
                     mapOf(
                         "exitCode", step.exitCode(),
-                        "stdoutTruncated", bounded.get("stdoutTruncated"),
-                        "stderrTruncated", bounded.get("stderrTruncated")
+                        "stdoutLength", textLength(step.stdout()),
+                        "stderrLength", textLength(step.stderr()),
+                        "resultSetReference", "$.data"
+                    ),
+                    step.success(),
+                    step.durationMs(),
+                    step.success() ? null : "Command step exited with code " + step.exitCode(),
+                    mapOf(
+                        "exitCode", step.exitCode(),
+                        "resultSetId", firstText(result.template(), result.commandHash(), "linux-command-result")
                     )
                 );
             }).toList()
         );
+    }
+
+    private int textLength(String value) {
+        return value == null ? 0 : value.length();
     }
 
     private BoundedText boundedText(String value, int limit) {

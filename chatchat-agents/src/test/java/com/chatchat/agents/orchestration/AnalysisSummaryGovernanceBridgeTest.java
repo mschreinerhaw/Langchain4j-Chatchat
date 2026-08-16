@@ -47,7 +47,9 @@ class AnalysisSummaryGovernanceBridgeTest {
         when(model.chat(argThat((String prompt) -> prompt.contains("analysis_summary_bridge.v1")
             && prompt.contains("datasetReference\":\"positions")
             && prompt.contains("recordFrom\":51")
-            && prompt.contains("recordTo\":75"))))
+            && prompt.contains("recordTo\":75")
+            && prompt.contains("Identify position concentration risk")
+            && prompt.contains("objective-relevant findings"))))
             .thenReturn("第 2 分块总结");
         Map<String, Object> context = bridge.govern("positions", Map.of(),
             List.of(Map.of("VALUE", 1)));
@@ -55,7 +57,8 @@ class AnalysisSummaryGovernanceBridgeTest {
             bridge.position("positions", 2, 3, 51, 75, 120);
 
         AnalysisSummaryResult summary = bridge.summarize(
-            model, isolationScope, position, context, List.of(Map.of("VALUE", 1)));
+            model, isolationScope, position, context, List.of(Map.of("VALUE", 1)),
+            "Identify position concentration risk");
         Map<String, Object> ledger = bridge.ledger(List.of(summary), 120, 25, false);
 
         assertThat(summary.schemaVersion()).isEqualTo("analysis_summary_result.v1");
@@ -67,7 +70,8 @@ class AnalysisSummaryGovernanceBridgeTest {
             .contains("positions.records[51..75]");
         assertThat(ledger.toString())
             .contains("analysis_summary_bridge.v1", "summary_governance.v1", "第 2 分块总结");
-        verify(model).chat(argThat((String prompt) -> prompt.contains("Missing semantic sections remain unknown")));
+        verify(model).chat(argThat((String prompt) -> prompt.contains("Missing semantic sections remain unknown")
+            && prompt.contains("Lead with findings, not row counts or metadata")));
     }
 
     @Test

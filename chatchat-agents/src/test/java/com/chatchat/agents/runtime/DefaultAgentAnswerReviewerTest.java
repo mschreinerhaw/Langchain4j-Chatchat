@@ -25,6 +25,10 @@ class DefaultAgentAnswerReviewerTest {
 
         assertThat(prompt)
             .contains("leads with API/template inventory")
+            .contains("lead with execution chronology")
+            .contains("organized by the user's requested outcome or dimensions")
+            .contains("When commandContext is present")
+            .contains("does not duplicate the same canonical result")
             .contains("EMPTY_RESULT, NOT_EXECUTED, BLOCKED, and FAILED")
             .contains("without an invented business cause")
             .contains("displayed date or date range differs from executed parameters");

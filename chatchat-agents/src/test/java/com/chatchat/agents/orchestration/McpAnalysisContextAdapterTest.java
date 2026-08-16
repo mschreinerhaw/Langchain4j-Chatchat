@@ -96,4 +96,28 @@ class McpAnalysisContextAdapterTest {
         assertThat(adapter.adapt("documents", metadata, Map.of("rows", List.of(Map.of("id", 1)))))
             .isEmpty();
     }
+
+    @Test
+    void carriesTemplateCommandPurposeAndCanonicalReferencesIntoSummaryContext() {
+        Map<String, Object> context = adapter.adapt("host-check", null, Map.of(
+            "data", Map.of(
+                "commandContext", Map.of(
+                    "schemaVersion", "template_result_context.v1",
+                    "templateId", "CHECK_PROCESS",
+                    "templateName", "Process inventory",
+                    "description", "Inspect resident application processes",
+                    "executionMode", "SEQUENTIAL",
+                    "commands", List.of(Map.of(
+                        "commandId", "processes",
+                        "description", "Collect the process inventory",
+                        "resultReference", "$.data.stdout")),
+                    "references", List.of()))));
+
+        assertThat(context.get("source").toString())
+            .contains("CHECK_PROCESS", "Process inventory", "Inspect resident application processes");
+        assertThat(context.get("capability").toString())
+            .contains("SEQUENTIAL", "Collect the process inventory", "$.data.stdout");
+        assertThat(context.get("extensions").toString())
+            .contains("commandContext", "template_result_context.v1");
+    }
 }

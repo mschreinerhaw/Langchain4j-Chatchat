@@ -88,6 +88,8 @@ public class DefaultAgentAnswerReviewer implements AgentAnswerReviewer {
         }
         prompt.append("Reject answers that only point to documents/tools, summarize where information may be, or avoid giving the concrete requested result.\n");
         prompt.append("A good answer must directly address the user request, use the available observations as evidence, and clearly state missing evidence when the observations are insufficient.\n");
+        prompt.append("Reject answers that lead with execution chronology, template inventory, or tool status when non-empty result data supports a direct finding. The answer should be organized by the user's requested outcome or dimensions; execution details belong only in concise coverage or limitation notes.\n");
+        prompt.append("When commandContext is present, verify that the answer uses command descriptions to interpret the canonical resultReference, does not mistake metadata-only execution steps for missing output, and does not duplicate the same canonical result.\n");
         prompt.append("Do not invent facts that are absent from the observations.\n");
         prompt.append(AgentRuntimeFactGroundingContract.promptSection());
         prompt.append("If both document_search and web_search observations are available, the answer must distinguish internal document evidence from web verification evidence and explicitly handle conflicts.\n");

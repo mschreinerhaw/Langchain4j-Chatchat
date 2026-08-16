@@ -116,13 +116,35 @@ public final class McpAnalysisContextAdapter {
         Map<String, Object> root = map(value);
         if (root.isEmpty()) return Map.of();
         Map<String, Object> direct = firstMap(root, Map.of(), "analysisContext", "analysis_context");
-        if (!direct.isEmpty()) return direct;
+        Map<String, Object> commandContext = firstMap(root, Map.of(), "commandContext", "command_context");
         for (String path : CONTEXT_PATHS) {
             Map<String, Object> nested = map(root.get(path));
             Map<String, Object> context = firstMap(nested, Map.of(), "analysisContext", "analysis_context");
-            if (!context.isEmpty()) return context;
+            if (!context.isEmpty()) direct = deepMerge(direct, context);
+            Map<String, Object> nestedCommandContext = firstMap(
+                nested, Map.of(), "commandContext", "command_context");
+            if (!nestedCommandContext.isEmpty()) {
+                commandContext = deepMerge(commandContext, nestedCommandContext);
+            }
         }
-        return Map.of();
+        return deepMerge(commandAnalysisContext(commandContext), direct);
+    }
+
+    private Map<String, Object> commandAnalysisContext(Map<String, Object> commandContext) {
+        if (commandContext == null || commandContext.isEmpty()) return Map.of();
+        Map<String, Object> source = new LinkedHashMap<>();
+        put(source, "id", text(commandContext.get("templateId")));
+        put(source, "displayName", text(commandContext.get("templateName")));
+        put(source, "description", text(commandContext.get("description")));
+
+        Map<String, Object> capability = new LinkedHashMap<>();
+        put(capability, "executionMode", commandContext.get("executionMode"));
+        put(capability, "commands", commandContext.get("commands"));
+
+        Map<String, Object> extensions = new LinkedHashMap<>();
+        extensions.put("commandContext", commandContext);
+        return DataAnalysisContextProtocol.create(
+            source, capability, Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), extensions);
     }
 
     /** Maps explicit dataset-level semantic sections without copying returned row values. */

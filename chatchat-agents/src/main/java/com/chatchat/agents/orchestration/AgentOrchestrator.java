@@ -2733,14 +2733,18 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("Answer the user in Chinese using only the executed attempt records, model review decisions, and stored observations.\n");
         prompt.append("Return a polished Markdown document, not a single plain paragraph. Use concise headings and lists when they improve readability.\n");
         prompt.append("Do not wrap the Markdown in code fences and do not output JSON.\n");
-        prompt.append("Primary answer contract:\n");
+        prompt.append("Primary answer contract (outcome-first):\n");
         prompt.append("- Start by directly answering the user's requested deliverable. For a summary request, synthesize the document's main content and value points first.\n");
+        prompt.append("- Use this answer order unless the user requests another format: direct conclusion; evidence-backed findings grouped by the user's requested dimensions; coverage and material limitations; smallest useful next action only when evidence is incomplete.\n");
+        prompt.append("- Do not begin with asset discovery, template counts, tool calls, plan attempts, or execution chronology. Include execution details only when they explain evidence coverage, failure, or provenance requested by the user.\n");
         prompt.append("- Do not make the tool evidence list, document heading path, execution trace, or JSON field names the body of the answer.\n");
         prompt.append("- Use source/document references only as support after the synthesized conclusion. Avoid copying retrieved heading paths or raw chunk structure unless the user explicitly asks for provenance.\n");
         prompt.append("- If retrieved text is noisy, deduplicate repeated headings, repair line-break artifacts, and summarize the underlying meaning instead of echoing the retrieval format.\n");
         prompt.append("- If a required metadata search was blocked by workflow dependency validation, report it as a runtime workflow blockage. Do not claim that enterprise standards, terms, dictionaries, or other governed metadata do not exist unless the corresponding search tool executed successfully and returned an empty result.\n");
         prompt.append("Workflow contract:\n");
         prompt.append("- Treat every succeeded tool step with returned data as evidence, even when the model review marked it incomplete or partial.\n");
+        prompt.append("- Treat commandContext as the authoritative description and execution-lineage map for a template result. Use commands[].description/analysisHint to interpret the purpose of canonical data at commands[].resultReference. Use references only for execution order or dependency; never treat a command description as an observed value or a command dependency as a business-data relationship.\n");
+        prompt.append("- A metadata-only execution step with resultSetReference/bodyReference is not missing evidence. Follow the reference to the canonical data object and summarize that object once. Never duplicate the same result under both the execution step and result set.\n");
         prompt.append("- If any MCP tool returned non-empty data, you MUST analyze the supported parts of the user's task. Evidence gaps may reduce confidence and require a limitations section, but MUST NOT produce a refusal or an empty answer.\n");
         prompt.append("- When multiple plan attempts were executed, reconcile and summarize evidence from all attempts; prefer the latest complete result when evidence conflicts.\n");
         prompt.append("- Treat interpretation_evidence_iteration_v1 snapshots as the evidence chain: preserve their evidenceId-to-conclusion basis, missingEvidence, conflicts, and nextActions.\n");
@@ -2770,8 +2774,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("- diagnosticRun.confidence_engine is the authoritative evidence-coverage classification. When partial_conclusion_allowed=true, provide a bounded partial diagnosis from completed checks and separately list what the missing checks prevent you from concluding.\n");
         prompt.append("- assessment.overall_status=INSUFFICIENT_EVIDENCE means no complete health score is available; it does not erase completed check evidence and must not force the entire report to say that nothing can be assessed.\n");
         prompt.append("- Never turn successful execution alone into a healthy finding. State metric conclusions only from returned values, and do not infer that an environment has no serious anomaly merely because queries succeeded.\n");
-        prompt.append("- Use each step's review reason as the premise for later steps.\n");
-        prompt.append("- Summarize what was done step by step, then provide the final answer.\n");
+        prompt.append("- Use each step's review reason only to understand later evidence collection; it is not a substitute for returned evidence.\n");
+        prompt.append("- Reconcile steps internally, but write the user-facing answer by finding or requested dimension rather than by execution order.\n");
         prompt.append("- If a succeeded SQL/database step is partial, still summarize the returned rows/metrics and explicitly state missing fields or limitations.\n");
         prompt.append("- If some step truly failed with no usable output, state the limitation and do not use that failed result as evidence.\n");
         prompt.append("- Do not display SQL statements, scripts, or query text that were executed by tools. Mention only the template/tool and returned data for executed operations.\n");
@@ -3047,7 +3051,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
                     analysisSummaryGovernanceBridge.requiresModelSummary(governedContext, oversized);
                 AnalysisSummaryResult governedSummary = governedModelSummaryRequired
                     ? analysisSummaryGovernanceBridge.summarize(
-                        activeChatModel, isolationScope, position, governedContext, chunk)
+                        activeChatModel, isolationScope, position, governedContext, chunk, query)
                     : analysisSummaryGovernanceBridge.preserve(
                         isolationScope, position, governedContext, chunk);
                 governedSummaryResults.add(governedSummary);
@@ -3151,7 +3155,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (!records.isEmpty()) {
             return List.of(new BatchRecordSet(reference, rootAnalysisContext, records));
         }
-        List<BatchRecordSet> linuxSets = linuxStreamRecordSets(output, reference);
+        List<BatchRecordSet> linuxSets = linuxStreamRecordSets(output, reference, rootAnalysisContext);
         if (!linuxSets.isEmpty()) {
             return linuxSets;
         }
@@ -3300,7 +3304,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
             : toolRuntimeService.resolveOutputForEvidenceReview(step.toolExecution().output());
     }
 
-    private List<BatchRecordSet> linuxStreamRecordSets(Object output, String reference) {
+    private List<BatchRecordSet> linuxStreamRecordSets(Object output,
+                                                       String reference,
+                                                       Map<String, Object> rootAnalysisContext) {
         Map<String, Object> root = objectMap(output);
         if (!"ssh_steps.v1".equals(stringValue(root.get("dataSchema")))) {
             return List.of();
@@ -3309,9 +3315,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
         Map<String, Object> limits = objectMap(data.get("outputLimits"));
         List<BatchRecordSet> sets = new ArrayList<>();
         appendLinuxStreamRecordSet(sets, reference, "stdout", stringValue(data.get("stdout")),
-            !Boolean.parseBoolean(stringValue(limits.get("stdoutTruncated"))));
+            !Boolean.parseBoolean(stringValue(limits.get("stdoutTruncated"))), rootAnalysisContext);
         appendLinuxStreamRecordSet(sets, reference, "stderr", stringValue(data.get("stderr")),
-            !Boolean.parseBoolean(stringValue(limits.get("stderrTruncated"))));
+            !Boolean.parseBoolean(stringValue(limits.get("stderrTruncated"))), rootAnalysisContext);
         return List.copyOf(sets);
     }
 
@@ -3319,7 +3325,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
                                             String reference,
                                             String stream,
                                             String text,
-                                            boolean sourceComplete) {
+                                            boolean sourceComplete,
+                                            Map<String, Object> rootAnalysisContext) {
         if (text == null || text.isBlank()) {
             return;
         }
@@ -3337,7 +3344,10 @@ public class AgentOrchestrator implements AgentRunExecutor {
             chunk.put("content", text.substring(from, to));
             chunks.add(Map.copyOf(chunk));
         }
-        target.add(new BatchRecordSet(reference + "#" + stream, List.copyOf(chunks)));
+        target.add(new BatchRecordSet(
+            reference + "#" + stream,
+            rootAnalysisContext == null ? Map.of() : rootAnalysisContext,
+            List.copyOf(chunks)));
     }
 
     private List<Map<String, Object>> protocolRecords(Object output) {
@@ -3433,6 +3443,23 @@ public class AgentOrchestrator implements AgentRunExecutor {
             .allMatch(values -> containsAnyConcreteValue(governedAnswer, values));
         if (everyRecordReferenced && !coverage.iterative() && coverage.sourceContentComplete()) {
             return governedAnswer;
+        }
+        long governedSummaryCount = coverage.summaryResults().stream()
+            .filter(summary -> "MODEL_SUMMARY".equals(summary.outcome()))
+            .filter(summary -> summary.content() != null && !summary.content().isBlank())
+            .count();
+        if (coverage.coverageComplete() && coverage.sourceContentComplete()
+            && governedSummaryCount > 0) {
+            if (metadata != null) {
+                metadata.put("recordAnalysisCoverageAppendixApplied", false);
+                metadata.put("recordAnalysisNarrativeCoverageApplied", true);
+                metadata.put("recordAnalysisEveryRecordReferencedByModel", everyRecordReferenced);
+                metadata.put("recordAnalysisGovernedSummaryCount", governedSummaryCount);
+            }
+            return firstNonBlank(governedAnswer, "")
+                + "\n\n> 证据覆盖：已处理 " + coverage.processedRecordCount() + "/"
+                + coverage.returnedRecordCount() + " 条返回记录，共形成 "
+                + governedSummaryCount + " 个受治理证据摘要；该说明仅表示覆盖范围，不构成新增结论。";
         }
         if (metadata != null) {
             metadata.put("recordAnalysisCoverageAppendixApplied", true);

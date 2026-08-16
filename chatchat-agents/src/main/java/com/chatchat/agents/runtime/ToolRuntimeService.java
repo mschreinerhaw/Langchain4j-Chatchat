@@ -79,6 +79,11 @@ public class ToolRuntimeService {
     private final Map<String, CircuitState> circuitStates = new ConcurrentHashMap<>();
     private final Map<String, ToolCounters> counters = new ConcurrentHashMap<>();
     private final Map<String, WorkflowState> workflowStates = new ConcurrentHashMap<>();
+    private static final int REVIEW_CACHE_MAX_ENTRIES = 64;
+    private static final long REVIEW_CACHE_MAX_BYTES = 64L * 1024L * 1024L;
+    private final Object reviewCacheLock = new Object();
+    private final LinkedHashMap<String, String> reviewPayloads = new LinkedHashMap<>(16, 0.75f, true);
+    private long reviewPayloadBytes;
 
     @Autowired(required = false)
     public void setEvidenceStore(AgentEvidenceStore evidenceStore) {
@@ -3002,25 +3007,27 @@ public class ToolRuntimeService {
             reference.put("reason", "TOOL_OUTPUT_LIMIT_EXCEEDED");
             reference.put("maxInlineBytes", properties.safeMaxOutputBytes());
             AgentEvidenceStore store = evidenceStore;
+            String serializedJson = new String(serialized, StandardCharsets.UTF_8);
+            String hash = sha256(serializedJson);
+            String requestId = firstText(request == null ? null : request.getRequestId(), "unknown");
+            String tenantId = firstText(request == null ? null : request.getTenantId(), "default");
+            String runId = firstText(stringValue(request == null || request.getAttributes() == null
+                ? null : firstPresent(request.getAttributes().get("runId"), request.getAttributes().get("agentRunId"))),
+                firstText(request == null ? null : request.getConversationId(), requestId));
+            String evidenceId = "tool:" + firstText(request == null ? null : request.getToolName(), "unknown")
+                + ":" + hash.substring(0, 24);
+            String documentId = "tool-output:" + tenantId + ":" + requestId + ":" + hash.substring(0, 24);
+            boolean runtimeReviewAvailable = cacheReviewPayload(documentId, serializedJson);
+            reference.put("runtimeReviewAvailable", runtimeReviewAvailable);
+            reference.put("documentId", documentId);
+            reference.put("evidenceId", evidenceId);
+            if (output != null) {
+                output.getMetadata().put("outputDocumentId", documentId);
+                output.getMetadata().put("outputEvidenceId", evidenceId);
+            }
             if (store != null && store.isEnabled()) {
-                String serializedJson = new String(serialized, StandardCharsets.UTF_8);
-                String hash = sha256(serializedJson);
-                String requestId = firstText(request == null ? null : request.getRequestId(), "unknown");
-                String tenantId = firstText(request == null ? null : request.getTenantId(), "default");
-                String runId = firstText(stringValue(request == null || request.getAttributes() == null
-                    ? null : firstPresent(request.getAttributes().get("runId"), request.getAttributes().get("agentRunId"))),
-                    firstText(request == null ? null : request.getConversationId(), requestId));
-                String evidenceId = "tool:" + firstText(request == null ? null : request.getToolName(), "unknown")
-                    + ":" + hash.substring(0, 24);
-                String documentId = "tool-output:" + tenantId + ":" + requestId + ":" + hash.substring(0, 24);
                 store.put(documentId, tenantId, runId, evidenceId, serializedJson);
                 reference.put("outputExternal", true);
-                reference.put("documentId", documentId);
-                reference.put("evidenceId", evidenceId);
-                if (output != null) {
-                    output.getMetadata().put("outputDocumentId", documentId);
-                    output.getMetadata().put("outputEvidenceId", evidenceId);
-                }
             } else {
                 reference.put("outputExternal", false);
                 reference.put("externalizationUnavailable", true);
@@ -3056,7 +3063,8 @@ public class ToolRuntimeService {
         }
         Object data = output.getData();
         if (!(data instanceof Map<?, ?> reference)
-            || !Boolean.TRUE.equals(reference.get("outputExternal"))
+            || (!Boolean.TRUE.equals(reference.get("outputExternal"))
+                && !Boolean.TRUE.equals(reference.get("runtimeReviewAvailable")))
             || !Boolean.TRUE.equals(reference.get("outputTruncated"))) {
             return data;
         }
@@ -3116,7 +3124,8 @@ public class ToolRuntimeService {
     private Object resolveRuntimeOwnedBatchChildOutput(ToolCallResult child) {
         Object data = child == null ? null : child.output();
         if (!(data instanceof Map<?, ?> reference)
-            || !Boolean.TRUE.equals(reference.get("outputExternal"))
+            || (!Boolean.TRUE.equals(reference.get("outputExternal"))
+                && !Boolean.TRUE.equals(reference.get("runtimeReviewAvailable")))
             || !Boolean.TRUE.equals(reference.get("outputTruncated"))) {
             return data;
         }
@@ -3132,8 +3141,15 @@ public class ToolRuntimeService {
     }
 
     private Object resolveVerifiedExternalOutput(Map<?, ?> reference, String documentId, String evidenceId) {
+        String cached = cachedReviewPayload(documentId);
+        if (cached != null) {
+            return decodeVerifiedReviewPayload(reference, documentId, evidenceId, cached, "runtime-cache");
+        }
         AgentEvidenceStore store = evidenceStore;
         if (store == null || !store.isEnabled()) {
+            log.warn("Externalized tool output unavailable for evidence review documentId={} "
+                    + "runtimeCacheHit=false externalStoreEnabled=false",
+                documentId);
             return reference;
         }
         try {
@@ -3142,18 +3158,58 @@ public class ToolRuntimeService {
                 log.warn("Externalized tool output unavailable for evidence review documentId={}", documentId);
                 return reference;
             }
-            String storedHash = sha256(stored.get());
-            if (!evidenceId.endsWith(storedHash.substring(0, 24))) {
-                log.warn("Externalized tool output failed integrity verification documentId={}", documentId);
-                return reference;
-            }
-            Object resolved = objectMapper.readValue(stored.get(), Object.class);
-            log.debug("Resolved externalized tool output for evidence review documentId={}", documentId);
-            return resolved;
+            return decodeVerifiedReviewPayload(reference, documentId, evidenceId, stored.get(), "external-store");
         } catch (Exception ex) {
             log.warn("Failed to resolve externalized tool output for evidence review documentId={} error={}",
                 documentId, ex.getMessage());
             return reference;
+        }
+    }
+
+    private Object decodeVerifiedReviewPayload(Map<?, ?> reference,
+                                               String documentId,
+                                               String evidenceId,
+                                               String json,
+                                               String source) {
+        try {
+            String storedHash = sha256(json);
+            if (!evidenceId.endsWith(storedHash.substring(0, 24))) {
+                log.warn("Externalized tool output failed integrity verification documentId={} source={}",
+                    documentId, source);
+                return reference;
+            }
+            Object resolved = objectMapper.readValue(json, Object.class);
+            log.info("Resolved full tool output for evidence review documentId={} source={} bytes={}",
+                documentId, source, json.getBytes(StandardCharsets.UTF_8).length);
+            return resolved;
+        } catch (Exception ex) {
+            log.warn("Failed to decode tool output for evidence review documentId={} source={} error={}",
+                documentId, source, ex.getMessage());
+            return reference;
+        }
+    }
+
+    private boolean cacheReviewPayload(String documentId, String json) {
+        if (documentId == null || json == null) return false;
+        long bytes = json.getBytes(StandardCharsets.UTF_8).length;
+        if (bytes > REVIEW_CACHE_MAX_BYTES) return false;
+        synchronized (reviewCacheLock) {
+            String previous = reviewPayloads.put(documentId, json);
+            if (previous != null) reviewPayloadBytes -= previous.getBytes(StandardCharsets.UTF_8).length;
+            reviewPayloadBytes += bytes;
+            while (reviewPayloads.size() > REVIEW_CACHE_MAX_ENTRIES
+                || reviewPayloadBytes > REVIEW_CACHE_MAX_BYTES) {
+                Map.Entry<String, String> eldest = reviewPayloads.entrySet().iterator().next();
+                reviewPayloadBytes -= eldest.getValue().getBytes(StandardCharsets.UTF_8).length;
+                reviewPayloads.remove(eldest.getKey());
+            }
+        }
+        return true;
+    }
+
+    private String cachedReviewPayload(String documentId) {
+        synchronized (reviewCacheLock) {
+            return reviewPayloads.get(documentId);
         }
     }
 

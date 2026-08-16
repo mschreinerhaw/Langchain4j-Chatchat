@@ -3,6 +3,8 @@ package com.chatchat.agents.orchestration;
 import com.chatchat.agents.assessment.EvidenceAugmentationPolicy;
 import com.chatchat.agents.runtime.ToolRuntimeService;
 import com.chatchat.agents.runtime.ToolRuntimeProperties;
+import com.chatchat.agents.runtime.ToolRuntimeExecution;
+import com.chatchat.agents.runtime.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
 import com.chatchat.agents.runtime.batch.ToolCallResult;
@@ -20,6 +22,7 @@ import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.config.ModelsConfig;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.tool.ToolMetadata;
+import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolOutput;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
@@ -926,6 +929,59 @@ class AgentOrchestratorTest {
             .containsEntry("recordAnalysisSourceContentComplete", false)
             .containsEntry("recordAnalysisCoverageAppendixApplied", true);
         verify(model, never()).chat(any(String.class));
+    }
+
+    @Test
+    void recordCoverageUsesFullRuntimeCachedBatchChildInsteadOfExternalizedPreview() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getToolMetadata("linux_command_execute")).thenReturn(ToolMetadata.builder()
+            .id("linux_command_execute").title("Linux command").build());
+        String stdout = "CONTAINER ID IMAGE STATUS\n"
+            + "abc123 transwarp/quark Up 3 days\n".repeat(12_000);
+        when(registry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.success(Map.of(
+            "dataSchema", "ssh_steps.v1",
+            "data", Map.of(
+                "stdout", stdout,
+                "stderr", "",
+                "outputLimits", Map.of("stdoutTruncated", false, "stderrTruncated", false)
+            )
+        )));
+        ToolRuntimeProperties runtimeProperties = toolRuntimeProperties();
+        runtimeProperties.setMaxOutputBytes(16_384);
+        ToolRuntimeService runtime = new ToolRuntimeService(
+            registry, new ObjectMapper(), runtimeProperties, List.of(), List.of());
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(any(String.class))).thenReturn("Docker containers include abc123 transwarp/quark, status Up 3 days.");
+        try {
+            ToolRuntimeExecution execution = runtime.execute(ToolRuntimeRequest.builder()
+                .toolName("linux_command_execute").runtimeMode("agent_chat")
+                .requestId("run-1:container_status").conversationId("conversation-1")
+                .tenantId("tenant-1").userId("user-1")
+                .allowedTools(List.of("linux_command_execute"))
+                .toolInput(ToolInput.builder().userId("user-1").parameters(Map.of()).build()).build());
+            ToolCallResult child = new ToolCallResult(
+                "container_status", "linux_command_execute", "CHECK_DOCKER_CONTAINERS", "host-1",
+                "SUCCESS", 20L, "audit-evidence", execution.output().getData(), Map.of());
+            ToolCallBatchResult batch = new ToolCallBatchResult(
+                "diagnostic-step", "SEQUENTIAL", "start", "end", "SUCCESS",
+                new ToolCallBatchResult.Summary(1, 1, 0, 0, 0, 1), List.of(child));
+            InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
+                "success", true, false, null, null, List.of(new InterpretationPlanRuntime.StepExecution(
+                    1, "mcp_tool", "linux_command_execute", true,
+                    batch, null, null, null, 10L, Map.of())), Map.of(), 10L);
+            AgentOrchestrator orchestrator = new AgentOrchestrator(
+                model, registry, runtime, new ObjectMapper(), new ModelsConfig());
+
+            AgentOrchestrator.RecordCoverageBundle coverage = orchestrator.buildRecordCoverageBundle(
+                model, "analyze docker containers", result, Map.of(), new LinkedHashMap<>(), () -> false);
+
+            assertThat(coverage.sourceContentComplete()).isTrue();
+            assertThat(coverage.promptEvidence())
+                .contains("CHECK_DOCKER_CONTAINERS#stdout", "transwarp/quark")
+                .doesNotContain("externalized-preview");
+        } finally {
+            runtime.shutdown();
+        }
     }
 
     @Test

@@ -4865,6 +4865,20 @@ public class InterpretationPlanRuntime {
                 .mapToObj(index -> checks.get(index).checkId())
                 .filter(Objects::nonNull)
                 .toList();
+            Map<String, String> assignedTemplateIds = new LinkedHashMap<>();
+            templateAssignments.forEach((checkIndex, templateIndex) -> {
+                if (checkIndex >= 0 && checkIndex < checks.size()
+                    && templateIndex >= 0 && templateIndex < templates.size()) {
+                    assignedTemplateIds.put(
+                        firstText(checks.get(checkIndex).checkId(), "check-" + checkIndex),
+                        firstText(canonicalTemplateId(templates.get(templateIndex)),
+                            "template-" + templateIndex));
+                }
+            });
+            log.warn("Diagnostic template coverage mismatch: unmatchedCheckIds={}, "
+                    + "assignedTemplateIds={}, candidateTemplateIds={}",
+                unmatchedCheckIds, assignedTemplateIds,
+                templates.stream().map(this::canonicalTemplateId).filter(Objects::nonNull).toList());
             throw new IllegalStateException(
                 "DIAGNOSTIC_TEMPLATE_COVERAGE_MISMATCH: governed template candidates do not "
                     + "semantically cover required checks " + unmatchedCheckIds
@@ -5299,11 +5313,7 @@ public class InterpretationPlanRuntime {
                     && templateHint.equalsIgnoreCase(candidateId);
                 int score = exactHint
                     ? 1_000_000
-                    : diagnosticSemanticScore(
-                        check,
-                        diagnosticTemplateIdentity(template),
-                        templateHint != null
-                    );
+                    : diagnosticSemanticScore(check, template);
                 if (score > 0) {
                     candidates.add(new DiagnosticTemplateMatch(checkIndex, templateIndex, score));
                 }
@@ -5375,6 +5385,69 @@ public class InterpretationPlanRuntime {
 
     private int diagnosticSemanticScore(InterpretationPlan.DiagnosticCheck check, String templateIdentity) {
         return diagnosticSemanticScore(check, templateIdentity, false);
+    }
+
+    /**
+     * Scores discovered templates without treating descriptive prose as an authoritative binding.
+     * A stable template identifier match is weighted above names/descriptions; otherwise at least
+     * two semantic terms or an exact capability/dimension phrase must agree. This prevents a broad
+     * word such as "process" in an IO template description from satisfying a process-inventory
+     * check while still allowing identifiers such as CHECK_MEMORY to match a memory dimension.
+     */
+    private int diagnosticSemanticScore(InterpretationPlan.DiagnosticCheck check,
+                                        Map<String, Object> template) {
+        if (check == null || template == null || template.isEmpty()) {
+            return 0;
+        }
+        String canonicalId = firstText(canonicalTemplateId(template), "");
+        String fullIdentity = diagnosticTemplateIdentity(template);
+        Set<String> checkTokens = diagnosticTokens(
+            firstText(check.checkId(), "") + " " + firstText(check.capability(), "")
+                + " " + firstText(check.dimension(), ""));
+        Set<String> canonicalTokens = diagnosticTokens(canonicalId);
+        Set<String> identityTokens = diagnosticTokens(fullIdentity);
+        int canonicalMatches = 0;
+        int totalMatches = 0;
+        int score = 0;
+        for (String token : checkTokens) {
+            if (canonicalTokens.contains(token)) {
+                canonicalMatches++;
+                totalMatches++;
+                score += token.length() * 20;
+            } else if (identityTokens.contains(token)) {
+                totalMatches++;
+                score += token.length();
+            }
+        }
+        String normalizedIdentity = normalizeDiagnosticPhrase(fullIdentity);
+        boolean exactSemanticPhrase = java.util.Arrays.asList(
+                check.checkId(), check.capability(), check.dimension())
+            .stream()
+            .map(this::normalizeDiagnosticPhrase)
+            .filter(phrase -> phrase.length() >= 2)
+            .anyMatch(normalizedIdentity::contains);
+        if (exactSemanticPhrase) {
+            score += 100;
+        }
+        boolean strongMatch = canonicalMatches > 0 || totalMatches >= 2 || exactSemanticPhrase;
+        if (strongMatch) {
+            return score;
+        }
+        // A check whose id and declared capability are the same represents a broad
+        // capability request. Discovery may legitimately return a more specific child
+        // template whose description contributes only one shared term. In contrast, a
+        // check with a refined capability must retain that qualifier and cannot fall back
+        // to a single descriptive token.
+        String normalizedCheckId = normalizeDiagnosticPhrase(check.checkId());
+        boolean broadCapability = !normalizedCheckId.isBlank()
+            && normalizedCheckId.equals(normalizeDiagnosticPhrase(check.capability()));
+        return broadCapability && totalMatches == 1 ? score : 0;
+    }
+
+    private String normalizeDiagnosticPhrase(String value) {
+        return value == null ? "" : value.toLowerCase(Locale.ROOT)
+            .replaceAll("[^\\p{IsHan}a-z0-9]+", " ")
+            .trim();
     }
 
     private int diagnosticSemanticScore(InterpretationPlan.DiagnosticCheck check,

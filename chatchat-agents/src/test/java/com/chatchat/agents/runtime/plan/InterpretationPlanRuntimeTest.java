@@ -3609,7 +3609,7 @@ class InterpretationPlanRuntimeTest {
         );
         List<InterpretationPlan.DiagnosticCheck> checks = List.of(
             new InterpretationPlan.DiagnosticCheck(
-                "resource_usage", "resource_usage", "memory", true, 1, List.of(3)),
+                "resource_usage", "resource_usage", "host_resource", true, 1, List.of(3)),
             new InterpretationPlan.DiagnosticCheck(
                 "java_process", "process_inventory", "java_process", true, 2, List.of(3)),
             new InterpretationPlan.DiagnosticCheck(
@@ -3630,6 +3630,13 @@ class InterpretationPlanRuntimeTest {
             runtime, checks, mismatchedTemplates, Map.of("java_process", "CHECK_PROCESS"));
 
         assertThat(mismatched)
+            .containsEntry(0, 0)
+            .containsEntry(2, 2)
+            .doesNotContainKey(1);
+
+        Map<Integer, Integer> mismatchedWithoutHints = (Map<Integer, Integer>) method.invoke(
+            runtime, checks, mismatchedTemplates, Map.of());
+        assertThat(mismatchedWithoutHints)
             .containsEntry(0, 0)
             .containsEntry(2, 2)
             .doesNotContainKey(1);

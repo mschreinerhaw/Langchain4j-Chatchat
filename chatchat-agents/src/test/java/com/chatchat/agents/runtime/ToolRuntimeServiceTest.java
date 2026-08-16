@@ -1508,6 +1508,42 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
+    void oversizedBatchChildRemainsFullyReviewableWhenExternalStoreIsDisabled() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getToolMetadata("large_tool")).thenReturn(ToolMetadata.builder()
+            .id("large_tool").title("Large Tool").build());
+        when(registry.executeEnhancedTool(any(), any()))
+            .thenReturn(ToolOutput.success(Map.of("stdout", "container-row\n".repeat(20_000))));
+        ToolRuntimeProperties runtimeProperties = properties();
+        runtimeProperties.setMaxOutputBytes(16_384);
+        ToolRuntimeService service = new ToolRuntimeService(
+            registry, new ObjectMapper(), runtimeProperties, List.of(), List.of());
+        try {
+            ToolRuntimeExecution execution = service.execute(ToolRuntimeRequest.builder()
+                .toolName("large_tool").runtimeMode("agent_chat").requestId("run-1:container_status")
+                .conversationId("conversation-1").tenantId("tenant-1").userId("user-1")
+                .allowedTools(List.of("large_tool"))
+                .toolInput(ToolInput.builder().userId("user-1").parameters(Map.of()).build()).build());
+            assertThat(execution.output().getData()).isInstanceOfSatisfying(Map.class, reference ->
+                assertThat(reference).containsEntry("outputExternal", false)
+                    .containsEntry("runtimeReviewAvailable", true));
+
+            ToolCallResult child = new ToolCallResult(
+                "container_status", "large_tool", "CHECK_CONTAINERS", "host-1",
+                "SUCCESS", 20L, "audit-evidence", execution.output().getData(), Map.of());
+            ToolCallBatchResult batch = new ToolCallBatchResult(
+                "diagnostic-step-3", "SEQUENTIAL", "start", "end", "SUCCESS",
+                new ToolCallBatchResult.Summary(1, 1, 0, 0, 0, 1), List.of(child));
+
+            assertThat(service.resolveBatchOutputForEvidenceReview(batch).results().get(0).output())
+                .isInstanceOfSatisfying(Map.class, resolved ->
+                    assertThat(resolved.get("stdout")).asString().contains("container-row"));
+        } finally {
+            service.shutdown();
+        }
+    }
+
+    @Test
     void optionalNonTemplateToolDoesNotInheritUnrelatedMandatorySequence() {
         String query = "mcp_chatchat_mcp_server_api_template_query";
         String execute = "mcp_chatchat_mcp_server_api_template_execute";

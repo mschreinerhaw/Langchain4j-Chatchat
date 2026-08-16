@@ -319,7 +319,7 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void apiOutputSchemaDescriptionsBecomeBusinessReadableColumnLabels() {
+    void apiOutputSchemaDescriptionsDoNotReplaceReturnedFieldNames() {
         AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
             (chatModel, query, systemPrompt, observations, answer) ->
                 new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok"),
@@ -359,16 +359,12 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
         );
 
         assertThat(result.answer())
-            .contains("| 股东号（GDH） | 交易所（JYS） | 证券代码（ZQDM） | UNCONFIGURED |")
-            .doesNotContain("| GDH | JYS | ZQDM | UNCONFIGURED |");
-        assertThat(result.metadata()).containsEntry("configuredColumnLabelsApplied", true);
+            .contains("| GDH | JYS | ZQDM | UNCONFIGURED |")
+            .doesNotContain("股东号（GDH）", "交易所（JYS）", "证券代码（ZQDM）");
+        assertThat(result.metadata()).doesNotContainKey("configuredColumnLabelsApplied");
         Map<String, Object> visualization = (Map<String, Object>) result.metadata().get("visualizationSpec");
         Map<String, Object> dataset = (Map<String, Object>) visualization.get("dataset");
-        List<Map<String, Object>> definitions =
-            (List<Map<String, Object>>) dataset.get("columnDefinitions");
-        assertThat(definitions)
-            .extracting(definition -> definition.get("label"))
-            .containsExactly("股东号（GDH）", "交易所（JYS）", "证券代码（ZQDM）", "UNCONFIGURED");
+        assertThat(dataset).doesNotContainKey("columnDefinitions");
     }
 
     @Test

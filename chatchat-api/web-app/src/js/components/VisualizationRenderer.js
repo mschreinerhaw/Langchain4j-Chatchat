@@ -372,10 +372,6 @@ export default {
       }
       return [...new Set(this.rows.flatMap((row) => Object.keys(row || {})))];
     },
-    columnDefinitions() {
-      const definitions = this.normalizedSpec?.dataset?.columnDefinitions;
-      return Array.isArray(definitions) ? definitions.filter((item) => item && item.key) : [];
-    },
     chartType() {
       return String(this.normalizedSpec?.chartType || "").toLowerCase();
     },
@@ -406,7 +402,7 @@ export default {
       const series = Array.isArray(this.normalizedSpec?.dataset?.series) ? this.normalizedSpec.dataset.series : [];
       return this.yKeys.map((key) => {
         const match = series.find((item) => item?.yKey === key) || {};
-        const label = compact(match.label || match.name || this.displayColumnLabel(key));
+        const label = compact(match.label || match.name || key);
         const unit = compact(match.unit || this.normalizedSpec?.dataset?.unit || "");
         return {
           yKey: key,
@@ -416,7 +412,7 @@ export default {
       });
     },
     xAxisLabel() {
-      return compact(this.normalizedSpec?.dataset?.xLabel || this.normalizedSpec?.xLabel || this.displayColumnLabel(this.xKey));
+      return compact(this.normalizedSpec?.dataset?.xLabel || this.normalizedSpec?.xLabel || this.xKey);
     },
     yAxisLabel() {
       if (this.chartType === "scatter" && this.seriesMeta.length === 1) {
@@ -905,7 +901,7 @@ export default {
         return;
       }
       if (this.activeView === "table") {
-        const header = this.columns.map((column) => csvCell(this.displayColumnLabel(column))).join(",");
+        const header = this.columns.map(csvCell).join(",");
         const body = this.rows.map((row) => this.columns.map((column) => csvCell(row[column])).join(","));
         this.downloadBlob(`\ufeff${[header, ...body].join("\n")}`, `${baseName}.csv`, "text/csv;charset=utf-8");
         return;
@@ -939,14 +935,6 @@ export default {
     },
     viewLabel(view) {
       return { graph: "图表", table: "表格", raw: "原始数据" }[view] || view;
-    },
-    displayColumnLabel(column) {
-      const definition = this.columnDefinitions.find((item) => compact(item.key).toLowerCase() === compact(column).toLowerCase());
-      return compact(definition?.label || column);
-    },
-    columnDescription(column) {
-      const definition = this.columnDefinitions.find((item) => compact(item.key).toLowerCase() === compact(column).toLowerCase());
-      return compact(definition?.description || definition?.comment || definition?.businessLabel || definition?.label || column);
     },
     formatTooltip(params, seriesNameByKey = {}) {
       const items = Array.isArray(params) ? params : [params];

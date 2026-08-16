@@ -88,8 +88,7 @@
             <th
               v-for="column in columns"
               :key="column"
-              :title="columnDescription(column)"
-            >{{ displayColumnLabel(column) }}</th>
+            >{{ column }}</th>
           </tr>
         </thead>
         <tbody>

@@ -30,6 +30,15 @@ class ToolObservationBuilderEvidenceTest {
                 Map.of(
                     "schemaVersion", "tool_execution_result.v1",
                     "target", Map.of("name", "order details"),
+                    "analysisContext", Map.of(
+                        "schemaVersion", "data_analysis_context.v1",
+                        "source", Map.of(
+                            "displayName", "Order details API",
+                            "description", "Returns entrusted orders"),
+                        "capability", Map.of("summary", "Order analysis"),
+                        "business", Map.of("code", "trading", "name", "Trading"),
+                        "schema", Map.of("fields", List.of(
+                            Map.of("name", "ZQDM", "description", "Security code")))),
                     "data", Map.of(
                         "statusCode", 200,
                         "body", Map.of(
@@ -53,6 +62,10 @@ class ToolObservationBuilderEvidenceTest {
         assertThat(evidence)
             .contains("\"schemaVersion\":\"batch_execution_evidence.v1\"")
             .contains("\"batchId\":\"reviewed-template-step-3\"")
+            .contains("\"schemaVersion\":\"data_analysis_context.v1\"")
+            .contains("\"displayName\":\"Order details API\"")
+            .contains("\"description\":\"Returns entrusted orders\"")
+            .contains("\"description\":\"Security code\"")
             .contains("\"recordCount\":3")
             .contains("\"omittedRecordCount\":2")
             .contains("\"KHH\":\"070200046604\"")
@@ -420,6 +433,15 @@ class ToolObservationBuilderEvidenceTest {
         result.put("status", "success");
         result.put("target", Map.of("name", "TDH数据仓库", "environment", "DEV"));
         result.put("limits", Map.of("truncationStrategy", "LIMIT_50"));
+        result.put("analysisContext", Map.of(
+            "schemaVersion", "data_analysis_context.v1",
+            "source", Map.of("type", "database_query_template", "displayName", "基金年度收益查询"),
+            "business", Map.of("name", "基金绩效"),
+            "schema", Map.of("fields", List.of(
+                Map.of("name", "fund_code", "description", "基金代码"),
+                Map.of("name", "ret_1y", "description", "近一年收益率")
+            ))
+        ));
         result.put("data", Map.of(
             "rowCount", 120,
             "returnedRowCount", 2,
@@ -444,6 +466,9 @@ class ToolObservationBuilderEvidenceTest {
             .contains("truncationStrategy=LIMIT_50")
             .contains("fund_code=F001")
             .contains("ret_1y=0.0800")
+            .contains("Data analysis context (semantic input, not returned values or presentation labels)")
+            .contains("schemaVersion=data_analysis_context.v1")
+            .contains("近一年收益率")
             .contains("never describe them as the full result")
             .doesNotContain("raw output should not be used");
     }

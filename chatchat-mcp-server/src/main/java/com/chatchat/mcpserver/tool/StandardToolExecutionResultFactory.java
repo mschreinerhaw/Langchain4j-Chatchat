@@ -13,6 +13,7 @@ import com.chatchat.mcpserver.sql.SqlQueryResult;
 import com.chatchat.mcpserver.sql.SqlScriptResult;
 import com.chatchat.mcpserver.sql.SqlScriptStatementResult;
 import com.chatchat.tools.builtin.DatabaseToolProperties;
+import com.chatchat.common.tool.DataAnalysisContextProtocol;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -432,6 +433,24 @@ public class StandardToolExecutionResultFactory {
     public Map<String, Object> fromApi(ApiServiceConfig config, ApiInvokeResult result) {
         Map<String, Object> outputSchema = apiOutputSchema(config);
         List<Map<String, Object>> fieldMetadata = apiFieldMetadata(outputSchema);
+        Map<String, Object> analysisContext = config == null ? Map.of() : DataAnalysisContextProtocol.create(
+            mapOf(
+                "type", "api_service",
+                "id", config.getId(),
+                "displayName", firstText(config.getTitle(), config.getToolName()),
+                "toolName", config.getToolName(),
+                "description", config.getDescription()
+            ),
+            apiJsonObject(config.getCapabilitySpecJson()),
+            mapOf(
+                "id", config.getCategoryId(),
+                "code", config.getBusinessGroup(),
+                "name", firstText(config.getBusinessGroupName(), config.getBusinessGroup()),
+                "description", config.getBusinessGroupDescription()
+            ),
+            mapOf("definition", outputSchema, "fields", fieldMetadata),
+            apiJsonObject(config.getDependencySpecJson())
+        );
         Map<String, Object> payload = base(
             "api_request", "api_response.v1",
             result.body() instanceof Map<?, ?> || result.body() instanceof List<?> ? "structured" : "semi_raw",
@@ -458,15 +477,13 @@ public class StandardToolExecutionResultFactory {
             "method", config == null ? null : config.getMethod(),
             "cacheHit", result.cacheHit()
         ));
+        payload.put("analysisContext", analysisContext);
         payload.put("data", mapOf(
             "statusCode", result.statusCode(),
             "headers", result.headers(),
             "body", result.body(),
             "rawBody", result.rawBody(),
             "cacheHit", result.cacheHit(),
-            "outputSchema", outputSchema,
-            "fieldMetadata", fieldMetadata,
-            "columnMetadata", fieldMetadata,
             "bodyCompleteness", httpBodyCompleteness(result.body(), result.rawBody())
         ));
         return payload;
@@ -484,6 +501,17 @@ public class StandardToolExecutionResultFactory {
         }
     }
 
+    private Map<String, Object> apiJsonObject(String json) {
+        if (json == null || json.isBlank()) {
+            return Map.of();
+        }
+        try {
+            return JSON.readValue(json, new TypeReference<>() { });
+        } catch (Exception ignored) {
+            return Map.of();
+        }
+    }
+
     private List<Map<String, Object>> apiFieldMetadata(Map<String, Object> outputSchema) {
         if (outputSchema == null || !(outputSchema.get("properties") instanceof Map<?, ?> properties)) {
             return List.of();
@@ -496,7 +524,7 @@ public class StandardToolExecutionResultFactory {
             .map(entry -> {
                 String name = String.valueOf(entry.getKey());
                 Map<?, ?> definition = entry.getValue() instanceof Map<?, ?> map ? map : Map.of();
-                String description = firstText(
+                String comment = firstText(
                     stringValue(definition.get("description")),
                     stringValue(definition.get("title")),
                     stringValue(definition.get("label"))
@@ -504,8 +532,8 @@ public class StandardToolExecutionResultFactory {
                 return mapOf(
                     "name", name,
                     "technicalName", name,
-                    "label", firstText(description, name),
-                    "description", description,
+                    "description", comment,
+                    "comment", comment,
                     "type", definition.get("type"),
                     "required", required.contains(name),
                     "source", "api_output_schema"
@@ -581,7 +609,7 @@ public class StandardToolExecutionResultFactory {
         String toolName = firstText(publishedToolName,
             config == null ? null : config.getToolName(), "database_query");
         String errorMessage = output == null ? "database_query returned no output" : output.getErrorMessage();
-        Map<String, Object> analysisContext = databaseQueryAnalysisContext(config);
+        Map<String, Object> analysisContext = databaseQueryAnalysisContext(config, resultData, toolName);
         Map<String, Object> payload = base(
             workflow ? "sql_workflow_result_sets" : multiSql ? "sql_result_sets" : "sql_query",
             workflow ? "database_query_workflow_result.v1" : multiSql ? "database_query_multi_sql_result.v1" : "sql_result.v1",
@@ -777,24 +805,36 @@ public class StandardToolExecutionResultFactory {
         return "sql_node_" + code;
     }
 
-    private Map<String, Object> databaseQueryAnalysisContext(DatabaseQueryConfig config) {
+    private Map<String, Object> databaseQueryAnalysisContext(DatabaseQueryConfig config,
+                                                             Map<String, Object> resultData,
+                                                             String toolName) {
         if (config == null) {
             return Map.of();
         }
         String groupCode = firstText(config.getBusinessGroup(), "default");
         String groupName = firstText(config.getBusinessGroupName(), groupCode);
         String groupDescription = firstText(config.getBusinessGroupDescription(), "");
-        return mapOf(
-            "schemaVersion", "database_query_analysis_context.v1",
-            "templateId", config.getToolName(),
-            "templateTitle", config.getTitle(),
-            "templateDescription", config.getDescription(),
-            "implementationSteps", config.getImplementationSteps(),
-            "templateIntent", firstText(config.getTemplateIntent(), "general_query"),
-            "businessGroupCode", groupCode,
-            "businessGroupName", groupName,
-            "businessGroupDescription", groupDescription,
-            "modelAnalysisHint", "Use businessGroupName and businessGroupDescription as semantic context when interpreting returned SQL rows."
+        return DataAnalysisContextProtocol.create(
+            mapOf(
+                "type", "database_query_template",
+                "id", config.getId(),
+                "displayName", firstText(config.getTitle(), config.getToolName()),
+                "toolName", toolName,
+                "description", config.getDescription()
+            ),
+            mapOf(
+                "intent", firstText(config.getTemplateIntent(), "general_query"),
+                "implementationSteps", config.getImplementationSteps()
+            ),
+            mapOf(
+                "code", groupCode,
+                "name", groupName,
+                "description", groupDescription
+            ),
+            mapOf(
+                "fields", resultData == null ? List.of() : resultData.get("columnMetadata")
+            ),
+            Map.of()
         );
     }
 

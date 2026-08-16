@@ -37,6 +37,7 @@ import java.util.function.BooleanSupplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -626,7 +627,17 @@ class AgentOrchestratorTest {
         ToolCallResult success = new ToolCallResult(
             "records", "api_template_execute", "records-template", "asset-1",
             "SUCCESS", 10L, "evidence-1",
-            Map.of("data", Map.of("body", Map.of("records", records))), Map.of()
+            Map.of(
+                "analysisContext", Map.of(
+                    "schemaVersion", "data_analysis_context.v1",
+                    "source", Map.of(
+                        "displayName", "Position detail API",
+                        "description", "Returns account positions"),
+                    "capability", Map.of("summary", "Position analysis"),
+                    "business", Map.of("code", "positions"),
+                    "schema", Map.of("fields", List.of(
+                        Map.of("name", "VALUE", "description", "Position value")))),
+                "data", Map.of("body", records)), Map.of()
         );
         ToolCallBatchResult batch = new ToolCallBatchResult(
             "batch-1", "SEQUENTIAL", "start", "end", "SUCCESS",
@@ -654,6 +665,9 @@ class AgentOrchestratorTest {
         assertThat(coverage.coverageComplete()).isTrue();
         assertThat(coverage.iterative()).isTrue();
         assertThat(coverage.iterations()).isGreaterThan(1);
+        assertThat(coverage.summaryPositions()).hasSize(coverage.iterations())
+            .allSatisfy(entry -> assertThat(entry.toString())
+                .contains("datasetReference=records", "recordFrom=", "recordTo=", "totalRecords=60"));
         assertThat(answer)
             .contains("chunk evidence summary")
             .contains("60/60")
@@ -662,7 +676,18 @@ class AgentOrchestratorTest {
             .containsEntry("recordAnalysisCoverageComplete", true)
             .containsEntry("recordAnalysisReturnedRecordCount", 60)
             .containsEntry("recordAnalysisProcessedRecordCount", 60);
-        verify(model, times(coverage.iterations())).chat(any(String.class));
+        assertThat(metadata.get("analysisSummaryGovernanceBridge").toString())
+            .contains("analysis_summary_bridge.v1", "summary_governance.v1")
+            .contains("datasetReference=records", "chunkIndex=1", "summary=chunk evidence summary");
+        verify(model, times(coverage.iterations())).chat(argThat((String prompt) ->
+            prompt.contains("analysis_summary_bridge.v1")
+                && prompt.contains("summary_governance.v1")
+                && prompt.contains("data_analysis_context.v1")
+                && prompt.contains("Position detail API")
+                && prompt.contains("Returns account positions")
+                && prompt.contains("Position value")
+                && prompt.contains("Field comments are not display labels")
+                && prompt.contains("Analysis summary bridge position")));
     }
 
     @Test

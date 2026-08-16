@@ -4,6 +4,7 @@ import com.chatchat.mcpserver.mcp.McpToolApplicability;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 
 import com.chatchat.common.tool.ToolOutput;
+import com.chatchat.common.tool.DataAnalysisContextProtocol;
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import com.chatchat.mcpserver.tool.StandardToolExecutionResultFactory;
@@ -152,13 +153,26 @@ public class DatabaseQueryToolSpecFactory {
         }
         if (data instanceof Map<?, ?> map) {
             Map<String, Object> summary = new LinkedHashMap<>();
-            summary.put("analysisContext", Map.of(
-                "businessGroupCode", firstText(config.getBusinessGroup(), "default"),
-                "businessGroupName", firstText(config.getBusinessGroupName(), firstText(config.getBusinessGroup(), "default")),
-                "businessGroupDescription", firstText(config.getBusinessGroupDescription(), ""),
-                "templateDescription", firstText(config.getDescription(), ""),
-                "implementationSteps", firstText(config.getImplementationSteps(), ""),
-                "templateIntent", firstText(config.getTemplateIntent(), "general_query")
+            String groupCode = firstText(config.getBusinessGroup(), "default");
+            Object fields = firstPresent(map.get("columnMetadata"), map.get("columns"));
+            summary.put("analysisContext", DataAnalysisContextProtocol.create(
+                Map.of(
+                    "type", "database_query_template",
+                    "displayName", firstText(config.getTitle(), config.getToolName()),
+                    "toolName", firstText(config.getToolName(), "database_query"),
+                    "description", firstText(config.getDescription(), "")
+                ),
+                Map.of(
+                    "intent", firstText(config.getTemplateIntent(), "general_query"),
+                    "implementationSteps", firstText(config.getImplementationSteps(), "")
+                ),
+                Map.of(
+                    "code", groupCode,
+                    "name", firstText(config.getBusinessGroupName(), groupCode),
+                    "description", firstText(config.getBusinessGroupDescription(), "")
+                ),
+                Map.of("fields", fields == null ? List.of() : fields),
+                Map.of()
             ));
             Object resultSets = firstPresent(map.get("resultSets"), map.get("results"));
             if (resultSets instanceof List<?>) {

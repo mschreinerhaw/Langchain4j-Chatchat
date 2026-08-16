@@ -208,4 +208,38 @@ class FinancialEnrichmentServiceTest {
         verify(cache).getOrLoad(eq("fund_scale"), eq(Map.of()), eq(null), eq(null), eq(50), eq("auto"),
             eq("tenant-9001"), any());
     }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void financialAssetResultsCarryTheSharedSummaryGovernanceContext() {
+        FinancialAssetCatalogService catalog = mock(FinancialAssetCatalogService.class);
+        FinancialDataStore store = mock(FinancialDataStore.class);
+        Map<String, Object> asset = Map.of(
+            "dataset_code", "portfolio_positions",
+            "asset_name", "Customer portfolio positions",
+            "business_description", "Position quantity and market value by instrument",
+            "business_tags_json", List.of("portfolio", "position"),
+            "fields", List.of(
+                Map.of("field_name", "security_code", "business_description", "Instrument code"),
+                Map.of("field_name", "market_value", "business_description", "Position market value")));
+        when(store.query("portfolio_positions", Map.of(), null, null, 50, "auto"))
+            .thenReturn(Map.of(
+                "asset", asset,
+                "rows", List.of(Map.of("security_code", "600000", "market_value", 12000))));
+        FinancialEnrichmentService service = new FinancialEnrichmentService(catalog, store);
+
+        Map<String, Object> result = service.queryDataset(
+            "portfolio_positions", ToolInput.builder().build());
+
+        Map<String, Object> context = (Map<String, Object>) result.get("analysisContext");
+        assertThat(context.get("governance").toString())
+            .contains("summary_governance.v1", "DATA_IDENTITY_FOR_SUMMARY")
+            .contains("PRESERVE_RETURNED_FIELD_KEYS", "EXPLICIT_RELATIONSHIPS_ONLY");
+        assertThat(context.get("source").toString())
+            .contains("portfolio_positions", "Customer portfolio positions");
+        assertThat(context.get("business").toString())
+            .contains("Position quantity and market value", "portfolio", "position");
+        assertThat(context.get("schema").toString())
+            .contains("security_code", "Instrument code", "market_value", "Position market value");
+    }
 }

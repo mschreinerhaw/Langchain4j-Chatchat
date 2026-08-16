@@ -1,6 +1,7 @@
 package com.chatchat.mcpserver.news;
 
 import com.chatchat.common.concurrent.CancellationSupport;
+import com.chatchat.common.tool.DataAnalysisContextProtocol;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.runtime.market.storage.FinancialAssetCatalogService;
 import com.chatchat.runtime.market.storage.FinancialDataStore;
@@ -89,6 +90,7 @@ public class FinancialEnrichmentService {
                 result.put("resultType", "financial_dataset_query");
                 result.put("retrievalSource", "governed_financial_store");
                 result.put("filters", filters);
+                result.put("analysisContext", financialAnalysisContext(dataset, asset, result));
                 if (hasObservations(result)) {
                     financialData.add(result);
                 } else {
@@ -112,7 +114,83 @@ public class FinancialEnrichmentService {
         LocalDate endDate = dateRange.endDate();
         String historyMode = input.getParameterAsString("historyMode", "auto");
         int rowLimit = bounded(input.getParameterAsNumber("limit"), 50, 1, 200);
-        return cachedQuery(dataset, filters, startDate, endDate, rowLimit, historyMode, input);
+        Map<String, Object> result = new java.util.LinkedHashMap<>(
+            cachedQuery(dataset, filters, startDate, endDate, rowLimit, historyMode, input));
+        result.put("dataset", dataset);
+        result.put("analysisContext", financialAnalysisContext(dataset, map(result.get("asset")), result));
+        return java.util.Collections.unmodifiableMap(result);
+    }
+
+    private Map<String, Object> financialAnalysisContext(String dataset,
+                                                          Map<String, Object> catalogEntry,
+                                                          Map<String, Object> result) {
+        Map<String, Object> source = new java.util.LinkedHashMap<>();
+        source.put("type", "governed_structured_dataset");
+        source.put("id", dataset);
+        source.put("displayName", firstNonBlank(
+            text(catalogEntry, "asset_name", "assetName", "title"), dataset));
+        putIfPresent(source, "description",
+            text(catalogEntry, "business_description", "businessDescription", "description"));
+        putIfPresent(source, "provider", text(catalogEntry, "provider", "source_name", "sourceName"));
+
+        Map<String, Object> capability = new java.util.LinkedHashMap<>();
+        putIfPresent(capability, "supportedScenarios",
+            first(catalogEntry, "supported_scenarios", "supportedScenarios"));
+        putIfPresent(capability, "updateFrequency",
+            first(catalogEntry, "update_frequency", "updateFrequency"));
+
+        Map<String, Object> business = new java.util.LinkedHashMap<>();
+        putIfPresent(business, "description",
+            first(catalogEntry, "business_description", "businessDescription", "description"));
+        putIfPresent(business, "tags",
+            first(catalogEntry, "business_tags_json", "businessTags", "tags"));
+        putIfPresent(business, "category",
+            first(catalogEntry, "business_category", "businessCategory", "category"));
+
+        Object fields = first(catalogEntry, "fields", "fieldMetadata", "columnMetadata");
+        Map<String, Object> schema = new java.util.LinkedHashMap<>();
+        schema.put("definition", catalogEntry == null ? Map.of() : catalogEntry);
+        schema.put("fields", fields == null ? returnedFields(result) : fields);
+
+        Object relationships = first(catalogEntry,
+            "relationships", "dependency_spec", "dependencySpec", "related_datasets", "relatedDatasets");
+        return DataAnalysisContextProtocol.create(source, capability, business, schema, relationships);
+    }
+
+    private List<Map<String, Object>> returnedFields(Map<String, Object> result) {
+        if (result == null || !(result.get("rows") instanceof List<?> rows)) return List.of();
+        for (Object row : rows) {
+            if (!(row instanceof Map<?, ?> values) || values.isEmpty()) continue;
+            return values.keySet().stream()
+                .map(String::valueOf)
+                .map(name -> Map.<String, Object>of("name", name))
+                .toList();
+        }
+        return List.of();
+    }
+
+    private Map<String, Object> map(Object value) {
+        if (!(value instanceof Map<?, ?> values)) return Map.of();
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        values.forEach((key, item) -> result.put(String.valueOf(key), item));
+        return result;
+    }
+
+    private Object first(Map<String, Object> source, String... names) {
+        if (source == null) return null;
+        for (String name : names) {
+            Object value = source.get(name);
+            if (value != null && (!(value instanceof String text) || !text.isBlank())) return value;
+        }
+        return null;
+    }
+
+    private void putIfPresent(Map<String, Object> target, String name, Object value) {
+        if (value != null && (!(value instanceof String text) || !text.isBlank())) target.put(name, value);
+    }
+
+    private String firstNonBlank(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
     }
 
     private Map<String, Object> cachedQuery(String dataset, Map<String, Object> filters,

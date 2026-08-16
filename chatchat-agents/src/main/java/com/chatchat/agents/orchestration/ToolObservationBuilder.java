@@ -274,6 +274,7 @@ class ToolObservationBuilder {
         appendFact(observation, "environment", stringValue(target.get("environment")));
         appendFact(observation, "durationMs", stringValue(root.get("durationMs")));
         observation.append('.');
+        appendDataAnalysisContext(observation, root);
 
         List<Map<String, Object>> resultSets = mapList(resultData.get("results"));
         if (resultSets.isEmpty()) {
@@ -371,10 +372,15 @@ class ToolObservationBuilder {
         }
         putIfPresent(projection, "sourceSchemaVersion", output.get("schemaVersion"));
         putIfPresent(projection, "target", output.get("target"));
+        putIfPresent(projection, "analysisContext", output.get("analysisContext"));
         Map<String, Object> data = asMap(output.get("data"));
         putIfPresent(projection, "statusCode", data.get("statusCode"));
-        Map<String, Object> body = asMap(data.get("body"));
+        Object bodyValue = data.get("body");
+        Map<String, Object> body = asMap(bodyValue);
         List<Map<String, Object>> records = mapList(body.get("records"));
+        if (records.isEmpty()) {
+            records = mapList(bodyValue);
+        }
         if (!records.isEmpty()) {
             projection.put("dataset", batchDatasetProjection(records, body));
         } else if (!body.isEmpty()) {
@@ -767,6 +773,7 @@ class ToolObservationBuilder {
             .append('.');
         appendFact(observation, "durationMs", stringValue(root.get("durationMs")));
         appendFact(observation, "errorMessage", stringValue(root.get("errorMessage")));
+        appendDataAnalysisContext(observation, root);
         if (!asMap(root.get("target")).isEmpty()) {
             observation.append("\nTarget: ").append(root.get("target"));
         }
@@ -830,6 +837,14 @@ class ToolObservationBuilder {
         observation.append("\n  Returned rows:");
         for (int i = 0; i < rows.size(); i++) {
             observation.append("\n  - row ").append(i + 1).append(": ").append(rows.get(i));
+        }
+    }
+
+    private void appendDataAnalysisContext(StringBuilder observation,
+                                           Map<String, Object> root) {
+        if (root != null && !asMap(root.get("analysisContext")).isEmpty()) {
+            observation.append("\nData analysis context (semantic input, not returned values or presentation labels): ")
+                .append(root.get("analysisContext"));
         }
     }
 

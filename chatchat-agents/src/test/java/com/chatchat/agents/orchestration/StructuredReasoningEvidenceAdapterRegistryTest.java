@@ -22,6 +22,12 @@ class StructuredReasoningEvidenceAdapterRegistryTest {
             "assets", List.of(Map.of("dataset", "bond_quote")),
             "structuredData", List.of(Map.of(
                 "dataset", "bond_quote",
+                "analysisContext", Map.of(
+                    "schemaVersion", "data_analysis_context.v1",
+                    "governance", Map.of("protocolVersion", "summary_governance.v1"),
+                    "source", Map.of("displayName", "Bond quote observations"),
+                    "schema", Map.of("fields", List.of(
+                        Map.of("name", "yield", "description", "Yield to maturity")))),
                 "count", 1,
                 "rows", List.of(Map.of("bond", "240001", "yield", 2.31))
             ))
@@ -31,8 +37,11 @@ class StructuredReasoningEvidenceAdapterRegistryTest {
             .containsEntry("evidenceRole", "STRUCTURED_DATA_FACTS")
             .containsEntry("assessmentCapability", "DATASET_RECORD_ANALYSIS");
         assertThat(projection.get("factEvidence").toString()).contains("240001", "2.31");
+        assertThat(projection.get("analysisContexts").toString())
+            .contains("summary_governance.v1", "Bond quote observations", "Yield to maturity");
         assertThat(projection.get("referenceEvidence").toString()).contains("bond_quote");
-        assertThat(projection.get("reasoningRules").toString()).contains("discovery metadata");
+        assertThat(projection.get("reasoningRules").toString())
+            .contains("summary-governance input", "not observed data", "discovery metadata");
     }
 
     @Test

@@ -32,7 +32,14 @@ class StandardToolExecutionResultFactoryTest {
         config.setId("api-1");
         config.setToolName("api_template_execute");
         config.setTitle("Governed API");
+        config.setDescription("Returns governed shareholder positions");
+        config.setCategoryId("category-1");
+        config.setBusinessGroup("securities");
+        config.setBusinessGroupName("Securities business");
+        config.setBusinessGroupDescription("Governed securities datasets");
         config.setMethod("GET");
+        config.setCapabilitySpecJson("{\"summary\":\"Query shareholder positions\"}");
+        config.setDependencySpecJson("{\"joinKeys\":[\"GDH\"]}");
         config.setOutputSchemaJson("""
             {
               "type": "object",
@@ -57,21 +64,41 @@ class StandardToolExecutionResultFactoryTest {
             .containsEntry("gatewayTruncated", false)
             .containsEntry("upstreamCompleteness", "UNKNOWN")
             .containsEntry("topLevelRecordCount", 1);
-        assertThat((Map<String, Object>) data.get("outputSchema"))
+        assertThat(data).doesNotContainKeys("outputSchema", "fieldMetadata", "columnMetadata");
+        Map<String, Object> analysisContext = (Map<String, Object>) envelope.get("analysisContext");
+        Map<String, Object> schema = (Map<String, Object>) analysisContext.get("schema");
+        assertThat((Map<String, Object>) schema.get("definition"))
             .containsKey("properties");
-        List<Map<String, Object>> fieldMetadata = (List<Map<String, Object>>) data.get("fieldMetadata");
+        List<Map<String, Object>> fieldMetadata =
+            (List<Map<String, Object>>) schema.get("fields");
         assertThat(fieldMetadata)
             .anySatisfy(field -> assertThat(field)
                 .containsEntry("name", "GDH")
                 .containsEntry("technicalName", "GDH")
-                .containsEntry("label", "股东号")
                 .containsEntry("description", "股东号")
+                .containsEntry("comment", "股东号")
                 .containsEntry("required", true))
             .anySatisfy(field -> assertThat(field)
                 .containsEntry("name", "JYS")
-                .containsEntry("label", "交易所")
+                .containsEntry("comment", "交易所")
                 .containsEntry("required", false));
-        assertThat(data.get("columnMetadata")).isEqualTo(fieldMetadata);
+        assertThat(analysisContext)
+            .containsEntry("schemaVersion", "data_analysis_context.v1");
+        assertThat((Map<String, Object>) analysisContext.get("source"))
+            .containsEntry("type", "api_service")
+            .containsEntry("displayName", "Governed API")
+            .containsEntry("toolName", "api_template_execute")
+            .containsEntry("description", "Returns governed shareholder positions");
+        assertThat((Map<String, Object>) analysisContext.get("capability"))
+            .containsEntry("summary", "Query shareholder positions");
+        assertThat((Map<String, Object>) analysisContext.get("business"))
+            .containsEntry("id", "category-1")
+            .containsEntry("code", "securities")
+            .containsEntry("name", "Securities business")
+            .containsEntry("description", "Governed securities datasets");
+        assertThat((Map<String, Object>) analysisContext.get("relationships"))
+            .containsEntry("joinKeys", List.of("GDH"));
+        assertThat(schema.get("fields")).isEqualTo(fieldMetadata);
     }
 
     @Test
@@ -444,6 +471,10 @@ class StandardToolExecutionResultFactoryTest {
         Map<String, Object> envelope = factory.fromDatabaseQuery(config, Map.of("id", "c-1"), output);
         Map<?, ?> execution = (Map<?, ?>) envelope.get("execution");
         Map<?, ?> analysisContext = (Map<?, ?>) envelope.get("analysisContext");
+        Map<?, ?> contextSource = (Map<?, ?>) analysisContext.get("source");
+        Map<?, ?> contextCapability = (Map<?, ?>) analysisContext.get("capability");
+        Map<?, ?> contextBusiness = (Map<?, ?>) analysisContext.get("business");
+        Map<?, ?> contextSchema = (Map<?, ?>) analysisContext.get("schema");
         Map<?, ?> target = (Map<?, ?>) envelope.get("target");
         Map<?, ?> template = (Map<?, ?>) target.get("template");
         Map<?, ?> businessGroup = (Map<?, ?>) template.get("businessGroup");
@@ -460,10 +491,13 @@ class StandardToolExecutionResultFactoryTest {
         assertThat(input.get("statement")).isEqualTo("select * from customer where id = :id");
         assertThat(stepOutput.get("rowCount")).isEqualTo(1);
         assertThat(nameColumn.get("comment")).isEqualTo("Customer name");
-        assertThat(analysisContext.get("businessGroupName")).isEqualTo("基金净值核对");
-        assertThat(analysisContext.get("businessGroupDescription")).isEqualTo("用于跨渠道基金净值一致性分析");
-        assertThat(analysisContext.get("templateIntent")).isEqualTo("nav_reconciliation");
-        assertThat(String.valueOf(analysisContext.get("modelAnalysisHint"))).contains("businessGroupName");
+        assertThat(analysisContext.get("schemaVersion")).isEqualTo("data_analysis_context.v1");
+        assertThat(contextSource.get("type")).isEqualTo("database_query_template");
+        assertThat(contextSource.get("displayName")).isEqualTo("Customer query");
+        assertThat(contextCapability.get("intent")).isEqualTo("nav_reconciliation");
+        assertThat(contextBusiness.get("name")).isEqualTo("基金净值核对");
+        assertThat(contextBusiness.get("description")).isEqualTo("用于跨渠道基金净值一致性分析");
+        assertThat((List<?>) contextSchema.get("fields")).hasSize(2);
         assertThat(businessGroup.get("name")).isEqualTo("基金净值核对");
     }
 }

@@ -213,12 +213,28 @@ class ProductionReleaseCoverageE2E {
     }
 
     @Test
-    void apiBusinessFieldLabelsRemainConnectedFromConfigurationToRenderedReport() throws IOException {
+    void summaryGovernanceProtocolCoversAllStructuredDataIncludingAssetAnalysis() throws IOException {
         Path root = repositoryRoot();
+        String contextProtocol = Files.readString(root.resolve(
+            "chatchat-common/src/main/java/com/chatchat/common/tool/DataAnalysisContextProtocol.java"));
         String resultFactory = Files.readString(root.resolve(
             "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/tool/StandardToolExecutionResultFactory.java"));
+        String databaseToolSpecFactory = Files.readString(root.resolve(
+            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/database/DatabaseQueryToolSpecFactory.java"));
+        String financialEnrichment = Files.readString(root.resolve(
+            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/news/FinancialEnrichmentService.java"));
         String finalizer = Files.readString(root.resolve(
             "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentAnswerFinalizer.java"));
+        String observationBuilder = Files.readString(root.resolve(
+            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/ToolObservationBuilder.java"));
+        String orchestrator = Files.readString(root.resolve(
+            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentOrchestrator.java"));
+        String summaryBridge = Files.readString(root.resolve(
+            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AnalysisSummaryGovernanceBridge.java"));
+        String structuredAdapter = Files.readString(root.resolve(
+            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/StructuredReasoningEvidenceAdapterRegistry.java"));
+        String factGrounding = Files.readString(root.resolve(
+            "chatchat-agents/src/main/java/com/chatchat/agents/runtime/AgentRuntimeFactGroundingContract.java"));
         String renderer = Files.readString(root.resolve(
             "chatchat-api/web-app/src/js/components/VisualizationRenderer.js"));
         String rendererTemplate = Files.readString(root.resolve(
@@ -228,24 +244,65 @@ class ProductionReleaseCoverageE2E {
         String presentationTest = Files.readString(root.resolve(
             "chatchat-agents/src/test/java/com/chatchat/agents/orchestration/AgentAnswerFinalizerEvidenceAnswerTest.java"));
 
+        assertThat(contextProtocol)
+            .contains("SCHEMA_VERSION = \"data_analysis_context.v1\"",
+                "GOVERNANCE_VERSION = \"summary_governance.v1\"",
+                "DATA_IDENTITY_FOR_SUMMARY", "PRESERVE_RETURNED_FIELD_KEYS",
+                "context.put(\"source\"", "context.put(\"capability\"",
+                "context.put(\"business\"", "context.put(\"schema\"",
+                "context.put(\"relationships\"");
         assertThat(resultFactory)
-            .contains("apiOutputSchema(config)", "apiFieldMetadata(outputSchema)",
-                "\"fieldMetadata\", fieldMetadata",
-                "\"columnMetadata\", fieldMetadata");
+            .contains("DataAnalysisContextProtocol.create(",
+                "databaseQueryAnalysisContext(config, resultData, toolName)")
+            .doesNotContain("api_data_identity.v1", "database_query_analysis_context.v1",
+                "\"columnMetadata\", fieldMetadata", "\"label\", firstText");
+        assertThat(databaseToolSpecFactory)
+            .contains("DataAnalysisContextProtocol.create(")
+            .doesNotContain("businessGroupCode", "businessGroupName", "businessGroupDescription");
+        assertThat(financialEnrichment)
+            .contains("financialAnalysisContext(dataset, asset, result)",
+                "financialAnalysisContext(dataset, map(result.get(\"asset\")), result)",
+                "DataAnalysisContextProtocol.create(source, capability, business, schema, relationships)")
+            .doesNotContain("portfolio_positions", "market_quote_daily");
         assertThat(finalizer)
-            .contains("columnDefinitions(columns, data)", "applyConfiguredColumnLabels",
-                "configuredColumnLabelsApplied")
-            .doesNotContain("GDH", "JYS", "ZQDM", "股东号", "交易所", "证券代码");
+            .doesNotContain("applyConfiguredColumnLabels", "configuredColumnLabelsApplied",
+                "columnDefinitions(columns, data)");
+        assertThat(observationBuilder)
+            .contains("\"analysisContext\", output.get(\"analysisContext\")",
+                "Data analysis context (semantic input, not returned values or presentation labels)")
+            .doesNotContain("api_data_identity.v1");
+        assertThat(orchestrator)
+            .contains("analysisSummaryGovernanceBridge.finalSynthesisInstruction()",
+                "analysisSummaryGovernanceBridge.govern(",
+                "analysisSummaryGovernanceBridge.position(",
+                "analysisSummaryGovernanceBridge.summarize(",
+                "analysisSummaryGovernanceBridge.ledger(",
+                "analysisContext(output)", "structuredDatasetRecordSets(output, reference)")
+            .doesNotContain("api_data_identity.v1", "other API datasets");
+        assertThat(summaryBridge)
+            .contains("BRIDGE_SCHEMA_VERSION = \"analysis_summary_bridge.v1\"",
+                "DataAnalysisContextProtocol.GOVERNANCE_VERSION",
+                "missingSemanticSections", "semanticInferenceAllowed",
+                "Analysis summary bridge position", "recordFrom", "recordTo", "totalRecords",
+                "STRUCTURED_RECORD_FALLBACK", "finalSynthesisInstruction()")
+            .doesNotContain("portfolio_positions", "market_quote_daily");
+        assertThat(structuredAdapter)
+            .contains("analysisContexts", "summary-governance input",
+                "not observed data or a presentation-label mapping");
+        assertThat(factGrounding)
+            .contains("Summary-governance contract (summary_governance.v1)",
+                "Apply this contract uniformly across API, database, asset analysis, and future data structures");
         assertThat(renderer)
-            .contains("displayColumnLabel(column)", "columnDescription(column)",
-                "csvCell(this.displayColumnLabel(column))");
+            .contains("this.columns.map(csvCell)")
+            .doesNotContain("displayColumnLabel", "columnDescription");
         assertThat(rendererTemplate)
-            .contains(":title=\"columnDescription(column)\"", "{{ displayColumnLabel(column) }}");
+            .contains("{{ column }}")
+            .doesNotContain("displayColumnLabel(column)", "columnDescription(column)");
         assertThat(protocolTest)
             .contains("apiExecutionUsesStandardEnvelopeAndKeepsUpstreamCompletenessUnknown",
-                "fieldMetadata", "股东号");
+                "data_analysis_context.v1", "contextCapability", "contextBusiness");
         assertThat(presentationTest)
-            .contains("apiOutputSchemaDescriptionsBecomeBusinessReadableColumnLabels",
+            .contains("apiOutputSchemaDescriptionsDoNotReplaceReturnedFieldNames",
                 "UNCONFIGURED");
     }
 

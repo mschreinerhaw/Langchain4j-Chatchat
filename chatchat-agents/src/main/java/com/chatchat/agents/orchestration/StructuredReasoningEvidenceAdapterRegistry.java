@@ -23,6 +23,8 @@ final class StructuredReasoningEvidenceAdapterRegistry {
 
     private final Map<String, Function<Map<String, Object>, Map<String, Object>>> exact = new LinkedHashMap<>();
     private final Map<String, Function<Map<String, Object>, Map<String, Object>>> prefixes = new LinkedHashMap<>();
+    private final AnalysisSummaryGovernanceBridge summaryGovernanceBridge =
+        new AnalysisSummaryGovernanceBridge();
 
     StructuredReasoningEvidenceAdapterRegistry() {
         exact.put("structured_data_search_result.v1", this::structuredData);
@@ -58,6 +60,7 @@ final class StructuredReasoningEvidenceAdapterRegistry {
         List<Map<String, Object>> recordSets = maps(root.get("structuredData"));
         Map<String, Object> projection = base(root, "STRUCTURED_DATA_FACTS", "DATASET_RECORD_ANALYSIS");
         projection.put("factEvidence", recordSets);
+        projection.put("analysisContexts", governedAnalysisContexts(recordSets));
         projection.put("referenceEvidence", maps(root.get("assets")));
         projection.put("claimCoverage", mapOf(
             "returnedDatasetCount", first(root, "structuredDatasetCount", recordSets.size()),
@@ -73,10 +76,22 @@ final class StructuredReasoningEvidenceAdapterRegistry {
         ));
         projection.put("reasoningRules", List.of(
             "Rows inside factEvidence are returned observations and must remain associated with their dataset metadata.",
+            "Use each dataset analysisContext as summary-governance input for identity, field semantics, and explicit relationships; it is not observed data or a presentation-label mapping.",
             "Reference candidates are discovery metadata, not observed facts.",
             "Do not turn missing datasets, periods, or dimensions into factual conclusions."
         ));
         return immutable(projection);
+    }
+
+    private List<Map<String, Object>> governedAnalysisContexts(List<Map<String, Object>> recordSets) {
+        List<Map<String, Object>> contexts = new ArrayList<>();
+        for (int index = 0; index < recordSets.size(); index++) {
+            Map<String, Object> recordSet = recordSets.get(index);
+            String reference = String.valueOf(recordSet.getOrDefault("dataset", "dataset-" + (index + 1)));
+            contexts.add(summaryGovernanceBridge.govern(
+                reference, map(recordSet.get("analysisContext")), maps(recordSet.get("rows"))));
+        }
+        return List.copyOf(contexts);
     }
 
     private Map<String, Object> requirementCoverage(Map<String, Object> root) {
@@ -232,6 +247,13 @@ final class StructuredReasoningEvidenceAdapterRegistry {
         if (!(value instanceof List<?> list)) return List.of();
         return list.stream().filter(Map.class::isInstance)
             .map(item -> (Map<String, Object>) new LinkedHashMap<>((Map<String, Object>) item)).toList();
+    }
+
+    private Map<String, Object> map(Object value) {
+        if (!(value instanceof Map<?, ?> raw)) return Map.of();
+        Map<String, Object> result = new LinkedHashMap<>();
+        raw.forEach((key, item) -> result.put(String.valueOf(key), item));
+        return result;
     }
 
     private List<?> list(Object value) {

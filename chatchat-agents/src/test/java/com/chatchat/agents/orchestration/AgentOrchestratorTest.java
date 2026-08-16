@@ -940,6 +940,8 @@ class AgentOrchestratorTest {
         AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
             .buildRecordCoverageBundle(model, "analyze returned process evidence", result,
                 Map.of(), metadata, () -> false);
+        String summaryPrompt = newOrchestrator(model).buildInterpretationPlanSummaryPrompt(
+            "analyze returned process evidence", null, result, List.of(result), List.of(), List.of());
         String guardedAnswer = newOrchestrator(model).ensureCompleteRecordCoveragePresented(
             "The complete list is unavailable; read the external document.", coverage, metadata);
 
@@ -949,6 +951,9 @@ class AgentOrchestratorTest {
         assertThat(coverage.sourceContentComplete()).isFalse();
         assertThat(coverage.promptEvidence())
             .contains("externalized-preview", "324493", "inceptor-executor");
+        assertThat(summaryPrompt)
+            .contains("PARTIAL_PREVIEW")
+            .contains("absence from a preview never proves absence in the target");
         assertThat(guardedAnswer)
             .contains("全量记录覆盖分析", "324493", "inceptor-executor",
                 "覆盖校验：1/1（已完整处理返回预览，源内容不完整）");

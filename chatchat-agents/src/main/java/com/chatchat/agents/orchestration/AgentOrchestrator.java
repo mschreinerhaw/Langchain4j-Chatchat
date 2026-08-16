@@ -2392,6 +2392,11 @@ public class AgentOrchestrator implements AgentRunExecutor {
         List<AgentObservation> storedObservations = storedInterpretationPlanObservations(runtimeAttributes);
         RecordCoverageBundle recordCoverage = buildRecordCoverageBundle(
             activeChatModel, query, cumulativeEvidenceResult, runtimeAttributes, metadata, cancellationCheck);
+        List<InterpretationPlanRuntime.ExecutionResult> resolvedAttemptResults =
+            resolvedSummaryEvidenceAttempts(attemptResults);
+        InterpretationPlanRuntime.ExecutionResult resolvedResult = resolvedAttemptResults.isEmpty()
+            ? result
+            : resolvedAttemptResults.get(resolvedAttemptResults.size() - 1);
         recordLifecyclePhase(
             runtimeAttributes,
             metadata,
@@ -2409,8 +2414,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
             prompt = buildInterpretationPlanSummaryPrompt(
                 query,
                 systemPrompt,
-                result,
-                attemptResults,
+                resolvedResult,
+                resolvedAttemptResults,
                 observations,
                 storedObservations
             );
@@ -2517,6 +2522,41 @@ public class AgentOrchestrator implements AgentRunExecutor {
             )
         );
         return answer;
+    }
+
+    private List<InterpretationPlanRuntime.ExecutionResult> resolvedSummaryEvidenceAttempts(
+        List<InterpretationPlanRuntime.ExecutionResult> attempts
+    ) {
+        if (attempts == null || attempts.isEmpty()) {
+            return List.of();
+        }
+        List<InterpretationPlanRuntime.ExecutionResult> resolvedAttempts = new ArrayList<>(attempts.size());
+        for (InterpretationPlanRuntime.ExecutionResult attempt : attempts) {
+            if (attempt == null || attempt.steps() == null || attempt.steps().isEmpty()) {
+                resolvedAttempts.add(attempt);
+                continue;
+            }
+            boolean changed = false;
+            List<InterpretationPlanRuntime.StepExecution> resolvedSteps = new ArrayList<>(attempt.steps().size());
+            for (InterpretationPlanRuntime.StepExecution step : attempt.steps()) {
+                Object resolved = resolvedEvidenceData(step);
+                if (step == null || resolved == step.output()) {
+                    resolvedSteps.add(step);
+                    continue;
+                }
+                changed = true;
+                resolvedSteps.add(new InterpretationPlanRuntime.StepExecution(
+                    step.stepId(), step.actionType(), step.toolName(), step.success(), resolved,
+                    step.errorMessage(), step.toolExecution(), step.finalAnswer(), step.durationMs(), step.metadata()
+                ));
+            }
+            resolvedAttempts.add(changed
+                ? new InterpretationPlanRuntime.ExecutionResult(
+                    attempt.status(), attempt.success(), attempt.approvalRequired(), attempt.errorMessage(),
+                    attempt.finalAnswer(), List.copyOf(resolvedSteps), attempt.metadata(), attempt.durationMs())
+                : attempt);
+        }
+        return List.copyOf(resolvedAttempts);
     }
 
     private AnalysisSummaryResult governedFinalSummaryResult(String stage,
@@ -2811,6 +2851,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 + "Every factual finding must be supported by an EXECUTED_RESULT entry and its evidenceId.\n")
             .append("- DISCOVERY_ONLY entries establish available assets/templates only; they never prove the requested business, diagnostic, or health finding.\n")
             .append("- BLOCKED_PRE_EXECUTION and FAILED entries may explain a limitation only. They never prove a remote execution, returned metric, or target state.\n")
+            .append("- PARTIAL_PREVIEW means Runtime could not resolve the complete result. It may support only facts visibly present in the preview; absence from a preview never proves absence in the target.\n")
             .append("- A result set absent from this ledger must be described as not available, never reconstructed from template text, review notes, or prior model wording.\n")
             .append(stringify(summaryEvidenceLedger(results)))
             .append("\n\n");
@@ -2966,6 +3007,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
                         entry.put("callId", child.callId());
                         entry.put("resultStatus", child.status());
                         if ("SUCCESS".equalsIgnoreCase(child.status())) {
+                            if (summaryPreviewOnly(child.output())) {
+                                entry.put("executionState", "PARTIAL_PREVIEW");
+                            }
                             entry.put("returnedEvidence", summaryLedgerOutput(child.output()));
                         }
                         entries.add(entry);
@@ -2975,12 +3019,21 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 Map<String, Object> entry = baseSummaryLedgerEntry(
                     attemptIndex, step, evidenceId, step.success(), step.errorMessage());
                 if (step.success() && step.output() != null) {
+                    if (summaryPreviewOnly(step.output())) {
+                        entry.put("executionState", "PARTIAL_PREVIEW");
+                    }
                     entry.put("returnedEvidence", summaryLedgerOutput(step.output()));
                 }
                 entries.add(entry);
             }
         }
         return List.copyOf(entries);
+    }
+
+    private boolean summaryPreviewOnly(Object output) {
+        Map<String, Object> value = objectMap(output);
+        return Boolean.TRUE.equals(booleanValue(value.get("summaryTruncated")))
+            || Boolean.TRUE.equals(booleanValue(value.get("outputTruncated")));
     }
 
     private Map<String, Object> baseSummaryLedgerEntry(int attemptIndex,

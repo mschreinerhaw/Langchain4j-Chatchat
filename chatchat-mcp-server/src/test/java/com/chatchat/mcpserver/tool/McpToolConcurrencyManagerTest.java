@@ -182,7 +182,7 @@ class McpToolConcurrencyManagerTest {
     }
 
     @Test
-    void structuredLimitPreservesExecutionFactsAndStreamTail() {
+    void configuredOutputLimitDoesNotRewriteStructuredEvidence() {
         ChatChatMcpServerProperties properties = new ChatChatMcpServerProperties();
         ChatChatMcpServerProperties.LimitProperties sshLimit =
             new ChatChatMcpServerProperties.LimitProperties(1, 1, 1, 0, "ssh");

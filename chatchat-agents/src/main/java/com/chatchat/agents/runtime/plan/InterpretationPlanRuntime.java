@@ -4865,7 +4865,10 @@ public class InterpretationPlanRuntime {
         }
 
         Map<Integer, Integer> templateAssignments = diagnosticTemplateAssignments(
-            checks, templates, diagnosticTemplateHints(step.input()));
+            checks,
+            templates,
+            resolvedDiagnosticTemplateHints(step.input(), input),
+            resolvedDiagnosticCallContexts(step.input(), input));
         if (templateAssignments.size() != checks.size()) {
             List<String> unmatchedCheckIds = java.util.stream.IntStream.range(0, checks.size())
                 .filter(index -> !templateAssignments.containsKey(index))
@@ -5309,18 +5312,29 @@ public class InterpretationPlanRuntime {
         List<Map<String, Object>> templates,
         Map<String, String> templateHints
     ) {
+        return diagnosticTemplateAssignments(checks, templates, templateHints, Map.of());
+    }
+
+    private Map<Integer, Integer> diagnosticTemplateAssignments(
+        List<InterpretationPlan.DiagnosticCheck> checks,
+        List<Map<String, Object>> templates,
+        Map<String, String> templateHints,
+        Map<String, String> callContexts
+    ) {
         List<DiagnosticTemplateMatch> candidates = new ArrayList<>();
         for (int checkIndex = 0; checkIndex < checks.size(); checkIndex++) {
             InterpretationPlan.DiagnosticCheck check = checks.get(checkIndex);
             String templateHint = templateHints.get(check.checkId());
+            String callContext = callContexts.getOrDefault(check.checkId(), "");
             for (int templateIndex = 0; templateIndex < templates.size(); templateIndex++) {
                 Map<String, Object> template = templates.get(templateIndex);
                 String candidateId = canonicalTemplateId(template);
                 boolean exactHint = templateHint != null && candidateId != null
                     && templateHint.equalsIgnoreCase(candidateId);
-                int score = exactHint
-                    ? 1_000_000
-                    : diagnosticSemanticScore(check, template);
+                int semanticScore = diagnosticSemanticScore(check, template, callContext);
+                int score = exactHint && semanticScore > 0
+                    ? 1_000_000 + semanticScore
+                    : semanticScore;
                 if (score > 0) {
                     candidates.add(new DiagnosticTemplateMatch(checkIndex, templateIndex, score));
                 }
@@ -5368,6 +5382,68 @@ public class InterpretationPlanRuntime {
         return Map.copyOf(hints);
     }
 
+    /**
+     * Uses the post-binding executor input as the authoritative source of
+     * template hints. The original plan input may still contain planner
+     * placeholders, so it is retained only as a fallback. This rule applies to
+     * every registered template executor and does not depend on check names or
+     * business-specific template identifiers.
+     */
+    private Map<String, String> resolvedDiagnosticTemplateHints(
+        Map<String, Object> plannedInput,
+        Map<String, Object> resolvedInput
+    ) {
+        Map<String, String> hints = new LinkedHashMap<>(diagnosticTemplateHints(plannedInput));
+        diagnosticTemplateHints(resolvedInput).forEach(hints::put);
+        return Map.copyOf(hints);
+    }
+
+    private Map<String, String> resolvedDiagnosticCallContexts(
+        Map<String, Object> plannedInput,
+        Map<String, Object> resolvedInput
+    ) {
+        Map<String, String> contexts = new LinkedHashMap<>(diagnosticCallContexts(plannedInput));
+        diagnosticCallContexts(resolvedInput).forEach(contexts::put);
+        return Map.copyOf(contexts);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, String> diagnosticCallContexts(Map<String, Object> stepInput) {
+        if (stepInput == null || !(stepInput.get("calls") instanceof Iterable<?> calls)) {
+            return Map.of();
+        }
+        Map<String, String> contexts = new LinkedHashMap<>();
+        for (Object item : calls) {
+            if (!(item instanceof Map<?, ?> rawCall)) continue;
+            Map<String, Object> call = new LinkedHashMap<>((Map<String, Object>) rawCall);
+            String callId = firstText(
+                stringValue(firstMapValue(call, "callId", "call_id", "checkId", "check_id")), null);
+            if (callId == null) continue;
+            List<Object> values = new ArrayList<>();
+            values.add(callId);
+            for (String key : List.of(
+                "purpose", "description", "reason", "requiredMetrics", "required_metrics",
+                "requiredFields", "required_fields", "healthCapability", "health_capability"
+            )) {
+                Object value = call.get(key);
+                if (value != null) values.add(value);
+            }
+            Object rawArguments = firstMapValue(call, "arguments", "input");
+            if (rawArguments instanceof Map<?, ?> arguments) {
+                for (String key : List.of("purpose", "description", "reason")) {
+                    Object value = arguments.get(key);
+                    if (value != null) values.add(value);
+                }
+            }
+            contexts.put(callId, values.stream()
+                .filter(Objects::nonNull)
+                .map(String::valueOf)
+                .filter(value -> !value.isBlank())
+                .collect(java.util.stream.Collectors.joining(" ")));
+        }
+        return Map.copyOf(contexts);
+    }
+
     private String diagnosticTemplateIdentity(Map<String, Object> template) {
         List<Object> values = java.util.Arrays.asList(
             canonicalTemplateId(template),
@@ -5403,6 +5479,12 @@ public class InterpretationPlanRuntime {
      */
     private int diagnosticSemanticScore(InterpretationPlan.DiagnosticCheck check,
                                         Map<String, Object> template) {
+        return diagnosticSemanticScore(check, template, "");
+    }
+
+    private int diagnosticSemanticScore(InterpretationPlan.DiagnosticCheck check,
+                                        Map<String, Object> template,
+                                        String callContext) {
         if (check == null || template == null || template.isEmpty()) {
             return 0;
         }
@@ -5410,7 +5492,7 @@ public class InterpretationPlanRuntime {
         String fullIdentity = diagnosticTemplateIdentity(template);
         Set<String> checkTokens = diagnosticTokens(
             firstText(check.checkId(), "") + " " + firstText(check.capability(), "")
-                + " " + firstText(check.dimension(), ""));
+                + " " + firstText(check.dimension(), "") + " " + firstText(callContext, ""));
         Set<String> canonicalTokens = diagnosticTokens(canonicalId);
         Set<String> identityTokens = diagnosticTokens(fullIdentity);
         int canonicalMatches = 0;
@@ -7241,16 +7323,18 @@ public class InterpretationPlanRuntime {
             if (binding == null || !step.id().equals(binding.to())) {
                 continue;
             }
+            StepExecution bindingSource = completed == null ? null : completed.get(binding.from());
             if (runtimeOwnsDiagnosticTemplateTransport(
                 plan, binding.from(), binding.to(),
                 firstText(binding.outputPath(), "") + " " + firstText(binding.inputField(), ""), completed
-            )) {
+            ) && (!bindingTargetsBatchChild(binding)
+                || bindingSource == null || !bindingSource.success())) {
                 log.info("InterpretationPlan ignored model template transport binding because Runtime "
                         + "will compile the authorized template batch: fromStep={}, toStep={}, outputPath={}, inputField={}",
                     binding.from(), binding.to(), binding.outputPath(), binding.inputField());
                 continue;
             }
-            StepExecution source = completed == null ? null : completed.get(binding.from());
+            StepExecution source = bindingSource;
             if (source == null || !source.success()) {
                 if (binding.required() == null || binding.required()) {
                     throw new IllegalStateException("BINDING_FAILED: source step not completed for binding "

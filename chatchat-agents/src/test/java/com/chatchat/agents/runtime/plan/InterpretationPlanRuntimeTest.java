@@ -3641,6 +3641,12 @@ class InterpretationPlanRuntimeTest {
             .containsEntry(2, 2)
             .doesNotContainKey(1);
 
+        Map<Integer, Integer> wrongExplicitHint = (Map<Integer, Integer>) method.invoke(
+            runtime, checks, mismatchedTemplates, Map.of("java_process", "CHECK_IO_STATUS"));
+        assertThat(wrongExplicitHint)
+            .as("an explicit binding must not override a semantic contradiction")
+            .doesNotContainEntry(1, 1);
+
         List<Map<String, Object>> matchedTemplates = List.of(
             mismatchedTemplates.get(0),
             Map.of("templateId", "CHECK_JAVA_PROCESS", "name", "Java process",
@@ -3650,6 +3656,45 @@ class InterpretationPlanRuntimeTest {
         Map<Integer, Integer> matched = (Map<Integer, Integer>) method.invoke(
             runtime, checks, matchedTemplates, Map.of("java_process", "CHECK_PROCESS"));
         assertThat(matched).containsAllEntriesOf(Map.of(0, 0, 1, 1, 2, 2));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void diagnosticTemplateHintsPreferResolvedBindingsOverPlannerPlaceholders() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        Map<String, Object> planned = Map.of("calls", List.of(
+            Map.of("callId", "resource_usage", "arguments", Map.of(
+                "template", "{{bindings.templateResource}}")),
+            Map.of("callId", "java_process", "arguments", Map.of(
+                "template", "{{bindings.templateJava}}"))
+        ));
+        Map<String, Object> resolved = Map.of("calls", List.of(
+            Map.of("callId", "resource_usage", "requiredMetrics", List.of("memory", "cpu"),
+                "arguments", Map.of("template", "CHECK_MEMORY")),
+            Map.of("callId", "java_process", "purpose", "process inventory",
+                "arguments", Map.of("template", "CHECK_PROCESS"))
+        ));
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedDiagnosticTemplateHints", Map.class, Map.class);
+        method.setAccessible(true);
+
+        Map<String, String> hints = (Map<String, String>) method.invoke(runtime, planned, resolved);
+
+        assertThat(hints).containsExactlyInAnyOrderEntriesOf(Map.of(
+            "resource_usage", "CHECK_MEMORY",
+            "java_process", "CHECK_PROCESS"
+        ));
+
+        Method contextMethod = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedDiagnosticCallContexts", Map.class, Map.class);
+        contextMethod.setAccessible(true);
+        Map<String, String> contexts = (Map<String, String>) contextMethod.invoke(runtime, planned, resolved);
+        assertThat(contexts.get("resource_usage")).contains("memory", "cpu");
+        assertThat(contexts.get("java_process")).contains("process inventory");
     }
 
     @Test

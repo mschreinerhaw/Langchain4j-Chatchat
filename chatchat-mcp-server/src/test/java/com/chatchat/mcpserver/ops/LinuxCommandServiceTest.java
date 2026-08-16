@@ -5,9 +5,9 @@ import com.chatchat.mcpserver.template.TemplateParameterValidator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayOutputStream;
 import java.util.List;
 import java.util.Map;
-import java.io.ByteArrayOutputStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -20,7 +20,7 @@ class LinuxCommandServiceTest {
     @Test
     void sshCapturePreservesCompleteBytes() throws Exception {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
-        String value = "HEAD" + "x".repeat(4_096) + "FATAL_TAIL";
+        String value = "HEAD" + "x".repeat(9 * 1024 * 1024) + "FATAL_TAIL";
 
         output.write(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         String captured = output.toString(java.nio.charset.StandardCharsets.UTF_8);

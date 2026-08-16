@@ -263,6 +263,8 @@ class ProductionReleaseCoverageE2E {
             "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentOrchestrator.java"));
         String summaryBridge = Files.readString(root.resolve(
             "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AnalysisSummaryGovernanceBridge.java"));
+        String mcpAnalysisContextAdapter = Files.readString(root.resolve(
+            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/McpAnalysisContextAdapter.java"));
         String summaryResult = Files.readString(root.resolve(
             "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AnalysisSummaryResult.java"));
         String isolationScope = Files.readString(root.resolve(
@@ -301,8 +303,10 @@ class ProductionReleaseCoverageE2E {
                 "GOVERNANCE_VERSION = \"summary_governance.v1\"",
                 "DATA_IDENTITY_FOR_SUMMARY", "PRESERVE_RETURNED_FIELD_KEYS",
                 "context.put(\"source\"", "context.put(\"capability\"",
-                "context.put(\"business\"", "context.put(\"schema\"",
-                "context.put(\"relationships\"");
+                 "context.put(\"business\"", "context.put(\"schema\"",
+                 "context.put(\"relationships\"", "context.put(\"semantics\"",
+                 "context.put(\"quality\"", "context.put(\"analysisPolicy\"",
+                 "context.put(\"extensions\"");
         assertThat(resultFactory)
             .contains("DataAnalysisContextProtocol.create(",
                 "databaseQueryAnalysisContext(config, resultData, toolName)")
@@ -314,7 +318,8 @@ class ProductionReleaseCoverageE2E {
         assertThat(financialEnrichment)
             .contains("financialAnalysisContext(dataset, asset, result)",
                 "financialAnalysisContext(dataset, map(result.get(\"asset\")), result)",
-                "DataAnalysisContextProtocol.create(source, capability, business, schema, relationships)")
+                "DataAnalysisContextProtocol.create(source, capability, business, schema, relationships,",
+                "semantics, quality, analysisPolicy, extensions")
             .doesNotContain("portfolio_positions", "market_quote_daily");
         assertThat(finalizer)
             .contains("attachGovernedSummaryResult(", "answer_finalization",
@@ -332,11 +337,19 @@ class ProductionReleaseCoverageE2E {
                 "analysisSummaryGovernanceBridge.summarize(",
                 "analysisSummaryGovernanceBridge.ledger(",
                 "governedFinalSummaryResult(", "analysisSummaryResult",
-                "analysisContext(output)", "structuredDatasetRecordSets(output, reference)",
-                "governedModelSummaryRequired = oversized || !recordSet.analysisContext().isEmpty()",
+                 "mcpAnalysisContextAdapter.adapt(reference, toolMetadata, output)",
+                 "mcpAnalysisContextAdapter.adaptDataset(rootAnalysisContext, dataset)",
+                "analysisSummaryGovernanceBridge.requiresModelSummary(governedContext, oversized)",
                 "Mandatory analysis deliverable", "ensureGovernedNarrativeAnalysis(",
                 "governedNarrativeAnalysisAppended")
-            .doesNotContain("api_data_identity.v1", "other API datasets");
+             .doesNotContain("api_data_identity.v1", "other API datasets");
+        assertThat(mcpAnalysisContextAdapter)
+            .contains("class McpAnalysisContextAdapter",
+                "mcpToolMeta", "analysisContext", "analysis_context",
+                "semantics", "quality", "analysisPolicy", "extensions",
+                "adaptDataset(Map<String, Object> rootContext",
+                "MCP_EXTENSION_KEYS", "isMcp(ToolMetadata metadata)")
+            .doesNotContain("tenantId", "userId", "runId", "conversationId");
         assertThat(livedataRegistration)
             .contains("existing.getOutputSchemaJson()", "mapped.getOutputSchemaJson()",
                 "apiServiceConfigService.updateDataContract(");
@@ -345,7 +358,9 @@ class ProductionReleaseCoverageE2E {
         assertThat(summaryBridge)
             .contains("BRIDGE_SCHEMA_VERSION = \"analysis_summary_bridge.v1\"",
                 "DataAnalysisContextProtocol.GOVERNANCE_VERSION",
-                "missingSemanticSections", "semanticInferenceAllowed",
+                 "missingSemanticSections", "semanticInferenceAllowed",
+                 "analytical semantics", "analysis policy", "source extensions",
+                 "requiresModelSummary(", "PRESERVE_ONLY", "DO_NOT_ANALYZE",
                 "Analysis summary bridge position", "recordFrom", "recordTo", "totalRecords",
                 "STRUCTURED_RECORD_FALLBACK", "finalSynthesisInstruction()")
             .doesNotContain("portfolio_positions", "market_quote_daily");

@@ -766,6 +766,63 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void adaptsMcpToolMetadataAndInheritsItIntoAssetCenterDatasetSummary() {
+        String toolName = "mcp_asset_center_position_query";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName)
+            .title("资产中心查询")
+            .description("查询客户资产快照并支持持仓分析")
+            .author("MCP:asset-center")
+            .categories(List.of("mcp", "asset_analysis"))
+            .category("asset_analysis")
+            .outputType("json")
+            .metadata(Map.of(
+                "serviceId", "asset-center",
+                "remoteToolName", "position_query",
+                "mcpToolMeta", Map.of(
+                    "capabilitySpec", Map.of("supportedScenarios", List.of("position_analysis")),
+                    "businessGroup", Map.of("name", "客户资产"),
+                    "semantics", Map.of("currency", "CNY", "timeBasis", "business_date"),
+                    "quality", Map.of("freshness", "T+1"))))
+            .build());
+        Map<String, Object> output = Map.of(
+            "structuredData", List.of(Map.of(
+                "dataset", "positions",
+                "analysisContext", Map.of(
+                    "source", Map.of("displayName", "持仓明细"),
+                    "semantics", Map.of("granularity", "account-security-day"),
+                    "schema", Map.of("fields", List.of(
+                        Map.of("name", "marketValue", "description", "持仓市值")))),
+                "rows", List.of(Map.of("marketValue", 100, "businessDate", "2026-07-31")))));
+        InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
+            "success", true, false, null, null,
+            List.of(new InterpretationPlanRuntime.StepExecution(
+                1, "mcp_tool", toolName, true, output, null, null, null, 10L, Map.of())),
+            Map.of(), 10L);
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(any(String.class))).thenReturn("持仓市值为 100 元，口径为账户-证券-业务日。 ");
+        AgentOrchestrator orchestrator = newOrchestrator(model, registry);
+
+        AgentOrchestrator.RecordCoverageBundle coverage = orchestrator.buildRecordCoverageBundle(
+            model, "分析客户资产", result, Map.of(), new LinkedHashMap<>(), () -> false);
+
+        assertThat(coverage.summaryResults()).hasSize(1);
+        assertThat(coverage.summaryResults().get(0).analysisContext().toString())
+            .contains("资产中心查询", "持仓明细", "position_analysis", "客户资产")
+            .contains("currency=CNY", "timeBasis=business_date", "account-security-day")
+            .contains("freshness=T+1", "持仓市值");
+        verify(model).chat(argThat((String prompt) ->
+            prompt.contains("资产中心查询")
+                && prompt.contains("持仓明细")
+                && prompt.contains("position_analysis")
+                && prompt.contains("currency\":\"CNY")
+                && prompt.contains("account-security-day")
+                && prompt.contains("freshness\":\"T+1")
+                && prompt.contains("持仓市值")));
+    }
+
+    @Test
     void iterativelySummarizesCompleteLinuxStdoutInsteadOfDroppingTheMiddle() {
         String stdout = "LINUX_HEAD\n" + "metric=value\n".repeat(2_000) + "LINUX_TAIL";
         Map<String, Object> output = Map.of(
@@ -3791,11 +3848,15 @@ class AgentOrchestratorTest {
     }
 
     private AgentOrchestrator newOrchestrator(ChatModel chatModel) {
+        return newOrchestrator(chatModel, mock(ToolRegistry.class));
+    }
+
+    private AgentOrchestrator newOrchestrator(ChatModel chatModel, ToolRegistry toolRegistry) {
         return new AgentOrchestrator(
             chatModel,
-            mock(ToolRegistry.class),
+            toolRegistry,
             new ToolRuntimeService(
-                mock(ToolRegistry.class),
+                toolRegistry,
                 new ObjectMapper(),
                 toolRuntimeProperties(),
                 List.of(),

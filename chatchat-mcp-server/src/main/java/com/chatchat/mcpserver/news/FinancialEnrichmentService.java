@@ -154,7 +154,38 @@ public class FinancialEnrichmentService {
 
         Object relationships = first(catalogEntry,
             "relationships", "dependency_spec", "dependencySpec", "related_datasets", "relatedDatasets");
-        return DataAnalysisContextProtocol.create(source, capability, business, schema, relationships);
+        Map<String, Object> semantics = new java.util.LinkedHashMap<>();
+        putIfPresent(semantics, "dimensions", first(catalogEntry, "dimensions", "dimensionMetadata"));
+        putIfPresent(semantics, "measures", first(catalogEntry, "measures", "measureMetadata"));
+        putIfPresent(semantics, "timeSemantics", first(catalogEntry, "time_semantics", "timeSemantics"));
+        putIfPresent(semantics, "granularity",
+            first(catalogEntry, "history_granularity", "historyGranularity", "granularity"));
+        putIfPresent(semantics, "units", first(catalogEntry, "units", "unitMetadata"));
+        putIfPresent(semantics, "scope", first(catalogEntry, "scope", "analysisScope"));
+        putIfPresent(semantics, "aggregationRules",
+            first(catalogEntry, "aggregation_rules", "aggregationRules"));
+        putIfPresent(semantics, "filters", result == null ? null : result.get("filters"));
+
+        Map<String, Object> quality = new java.util.LinkedHashMap<>();
+        putIfPresent(quality, "updateFrequency",
+            first(catalogEntry, "update_frequency", "updateFrequency"));
+        putIfPresent(quality, "lastObservationAt",
+            first(catalogEntry, "last_observation_date", "lastObservationDate"));
+        putIfPresent(quality, "lastCollectedAt",
+            first(catalogEntry, "last_collected_at", "lastCollectedAt"));
+        putIfPresent(quality, "status", first(catalogEntry, "quality_status", "qualityStatus"));
+
+        Map<String, Object> analysisPolicy = map(first(catalogEntry,
+            "analysis_policy", "analysisPolicy"));
+        Map<String, Object> assetCenter = new java.util.LinkedHashMap<>();
+        for (String key : List.of("database_name", "table_name", "archive_table_name",
+            "hot_retention_days", "archive_retention_days")) {
+            putIfPresent(assetCenter, key, catalogEntry == null ? null : catalogEntry.get(key));
+        }
+        Map<String, Object> extensions = assetCenter.isEmpty()
+            ? Map.of() : Map.of("assetCenter", assetCenter);
+        return DataAnalysisContextProtocol.create(source, capability, business, schema, relationships,
+            semantics, quality, analysisPolicy, extensions);
     }
 
     private List<Map<String, Object>> returnedFields(Map<String, Object> result) {

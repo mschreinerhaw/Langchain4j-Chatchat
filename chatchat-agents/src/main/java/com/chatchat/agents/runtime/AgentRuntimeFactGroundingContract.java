@@ -20,7 +20,7 @@ public final class AgentRuntimeFactGroundingContract {
         contract.put("runtimeRole", "PRESERVE_VALIDATE_AND_REWRITE_ON_FACT_MUTATION");
         contract.put("invariants", List.of(
             "Tool structured output defines the immutable fact boundary.",
-            "Every structured dataset follows summary_governance.v1 when analysisContext is present: use it for data identity, field semantics, and explicit inter-result relationships only.",
+            "Every structured dataset follows summary_governance.v1 when analysisContext is present: use it for data identity, field semantics, analytical semantics, quality, analysis policy, source extensions, and explicit inter-result relationships only.",
             "Summary-governance context is not returned business data and field metadata is not a presentation-label mapping.",
             "The model may explain, relate, and summarize facts, but must not add, rename, replace, or contradict them.",
             "Identifiers, counts, statuses, completeness flags, database layers, schemas, tables, fields, and execution results remain exact.",
@@ -53,7 +53,7 @@ public final class AgentRuntimeFactGroundingContract {
         return """
             Agent Runtime fact-grounding contract (contractVersion=agent_runtime_fact_grounding_v1):
             - Structured tool output is the immutable fact boundary and has priority over model assumptions or prior knowledge.
-            - Summary-governance contract (summary_governance.v1): for every structured dataset, use analysisContext to understand source identity, capability, business meaning, schema semantics, and explicit relationships. Apply this contract uniformly across API, database, asset analysis, and future data structures.
+            - Summary-governance contract (summary_governance.v1): for every structured dataset, use analysisContext to understand source identity, capability, business meaning, schema semantics, analytical semantics, quality, analysis policy, source extensions, and explicit relationships. Apply this contract uniformly across API, database, asset analysis, and future data structures.
             - analysisContext is semantic input, not returned business data. Field metadata explains meaning but never renames returned keys in tables, charts, exports, or factual references. Infer no relationship that the context or returned facts do not establish.
             - The model may interpret, connect, and summarize observed facts, but must not add, rename, replace, omit material qualifiers from, or contradict them.
             - Preserve exact identifiers, counts, statuses, completeness/truncation flags, database layers, schemas, tables, fields, and execution outcomes.

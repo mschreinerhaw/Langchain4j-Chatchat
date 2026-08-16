@@ -219,6 +219,11 @@ class FinancialEnrichmentServiceTest {
             "asset_name", "Customer portfolio positions",
             "business_description", "Position quantity and market value by instrument",
             "business_tags_json", List.of("portfolio", "position"),
+            "history_granularity", "account-security-day",
+            "update_frequency", "T+1",
+            "last_observation_date", "2026-07-31",
+            "database_name", "financial_market",
+            "table_name", "portfolio_positions",
             "fields", List.of(
                 Map.of("field_name", "security_code", "business_description", "Instrument code"),
                 Map.of("field_name", "market_value", "business_description", "Position market value")));
@@ -241,5 +246,9 @@ class FinancialEnrichmentServiceTest {
             .contains("Position quantity and market value", "portfolio", "position");
         assertThat(context.get("schema").toString())
             .contains("security_code", "Instrument code", "market_value", "Position market value");
+        assertThat(context.get("semantics").toString()).contains("account-security-day");
+        assertThat(context.get("quality").toString()).contains("T+1", "2026-07-31");
+        assertThat(context.get("extensions").toString())
+            .contains("assetCenter", "financial_market", "portfolio_positions");
     }
 }

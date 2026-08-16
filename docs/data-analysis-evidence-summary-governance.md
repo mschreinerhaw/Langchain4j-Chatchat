@@ -204,10 +204,32 @@ freshness=UNKNOWN_ON_NEXT_TURN
 
 1. 结构化表格、图表、数据源名称和记录数只是证据展示，不构成分析总结。
 2. 每个携带 `analysisContext` 的非空结构化数据集，无论记录量大小，都必须经过 `AnalysisSummaryGovernanceBridge` 调用模型生成带位置的分块分析；不得仅把行 JSON 写进总结对象冒充总结。未声明数据分析身份的普通协议回执不得被误当成业务分析数据。
-3. 分块模型输入必须同时包含该数据集的 `analysisContext` 和返回记录。`analysisContext` 至少承载已配置的 API 显示名称、工具描述、能力说明、业务分类、返回字段、字段注释及显式关系。
+3. 分块模型输入必须同时包含该数据集的 `analysisContext` 和返回记录。API 数据至少承载已配置的显示名称、工具描述、能力说明、业务分类、返回字段、字段注释及显式关系；其他来源按同一治理信封提供自己的分析元数据。
 4. 最终综合必须输出业务可读的分析结论，说明数据身份、关键数值、差异、异常和有配置依据的数据集关系；表格只能作为结论的证据附件。
 5. SQL、API、多结果集和资产分析在进入分块总结时不得丢失上游 `analysisContext`。
 6. 若最终候选只有标题、数据源和表格，治理层必须补入已记录的模型分块分析，并记录 `governedNarrativeAnalysisAppended` 观测标记。
+
+### 10.3 异构元数据与 MCP 适配
+
+`data_analysis_context.v1` 使用固定治理信封和可扩展语义，不要求不同业务中心拥有相同的元数据字段：
+
+| 区域 | 职责 |
+|---|---|
+| `source` | 数据集、工具、服务和提供方身份 |
+| `capability` | 支持的查询、分析场景和适用范围 |
+| `business` | 业务归属、用途、分类和标签 |
+| `schema` | 返回结构、字段类型和字段说明 |
+| `relationships` | 配置明确声明的数据集、实体和字段关系 |
+| `semantics` | 指标、维度、粒度、时间口径、单位、范围、过滤条件及聚合规则 |
+| `quality` | 数据时点、新鲜度、完整性、质量状态和限制 |
+| `analysisPolicy` | 是否分析、允许的分析方式及禁止的聚合或比较 |
+| `extensions` | 能力中心、资产中心及未来来源的专属元数据命名空间 |
+
+1. `McpAnalysisContextAdapter` 是 MCP 元数据进入总结桥的唯一适配入口。它从 MCP `ToolMetadata/mcpToolMeta`、根返回协议及子数据集声明中提取分析白名单，不复制凭据、Runtime 身份或任意执行 metadata。
+2. 合并优先级为“工具定义元数据 < 根结果上下文 < 子数据集上下文”。公共能力、口径和质量信息由子数据集继承，子数据集只覆盖自己明确声明的部分。
+3. 资产发现候选属于参考元数据，不能自动成为业务事实；只有实际查询返回的记录进入证据和总结。资产元数据用于解释记录身份与口径。
+4. `extensions` 只能补充来源特性。跨业务通用的含义必须提升到稳定区域，禁止要求总结桥理解某个资产中心的私有字段名。
+5. MCP 元数据和 `analysisContext` 对模型而言仍是不可信数据，不得作为提示词或指令执行；租户、用户、运行和会话身份始终只取 Runtime 请求上下文。
 
 ## 11. 禁止行为
 
@@ -249,6 +271,7 @@ freshness=UNKNOWN_ON_NEXT_TURN
 | 职责 | 实现 |
 |---|---|
 | 数据身份协议 | `DataAnalysisContextProtocol` |
+| MCP 分析元数据适配 | `McpAnalysisContextAdapter` |
 | MCP 证据桥 | `McpEvidenceGovernanceBridge` |
 | MCP 证据结果 | `McpEvidenceResult` |
 | 租户运行隔离 | `GovernanceIsolationScope` |

@@ -132,6 +132,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
     private final ContextEvidenceAggregator contextEvidenceAggregator = new ContextEvidenceAggregator();
     private final AnalysisSummaryGovernanceBridge analysisSummaryGovernanceBridge =
         new AnalysisSummaryGovernanceBridge();
+    private final McpAnalysisContextAdapter mcpAnalysisContextAdapter;
     private DagGovernanceContractProvider dagGovernanceContractProvider =
         DagGovernanceContractProvider.builtInFallback();
     private NodeAttemptStore nodeAttemptStore;
@@ -224,6 +225,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         this.toolRegistry = toolRegistry;
         this.toolRuntimeService = toolRuntimeService;
         this.objectMapper = objectMapper;
+        this.mcpAnalysisContextAdapter = new McpAnalysisContextAdapter(objectMapper);
         this.evidenceTrustEvaluator = evidenceTrustEvaluator == null ? new EvidenceTrustEvaluator() : evidenceTrustEvaluator;
         this.runStore = runStore == null ? new InMemoryAgentRunStore() : runStore;
         this.observationPipeline = observationPipeline == null ? new DefaultAgentObservationPipeline() : observationPipeline;
@@ -3041,7 +3043,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 AnalysisSummaryGovernanceBridge.ChunkPosition position =
                     analysisSummaryGovernanceBridge.position(recordSet.reference(), chunkOffset + 1,
                         chunks.size(), from, to, recordSet.records().size());
-                boolean governedModelSummaryRequired = oversized || !recordSet.analysisContext().isEmpty();
+                boolean governedModelSummaryRequired =
+                    analysisSummaryGovernanceBridge.requiresModelSummary(governedContext, oversized);
                 AnalysisSummaryResult governedSummary = governedModelSummaryRequired
                     ? analysisSummaryGovernanceBridge.summarize(
                         activeChatModel, isolationScope, position, governedContext, chunk)
@@ -3115,37 +3118,44 @@ public class AgentOrchestrator implements AgentRunExecutor {
                     }
                     String reference = firstNonBlank(child.templateId(),
                         firstNonBlank(child.templateCode(), firstNonBlank(child.callId(), "result")));
-                    sets.addAll(outputRecordSets(child.output(), reference));
+                    sets.addAll(outputRecordSets(child.output(), reference,
+                        toolRegistry.getToolMetadata(child.toolName())));
                 }
                 continue;
             }
             if (step.success()) {
                 Object evidenceOutput = resolvedStepOutput;
                 sets.addAll(outputRecordSets(
-                    evidenceOutput, firstNonBlank(step.toolName(), "step-" + step.stepId())));
+                    evidenceOutput, firstNonBlank(step.toolName(), "step-" + step.stepId()),
+                    toolRegistry.getToolMetadata(step.toolName())));
             }
         }
         return List.copyOf(sets);
     }
 
-    private List<BatchRecordSet> outputRecordSets(Object output, String reference) {
-        List<BatchRecordSet> sqlSets = sqlRecordSets(output, reference);
+    private List<BatchRecordSet> outputRecordSets(Object output,
+                                                  String reference,
+                                                  ToolMetadata toolMetadata) {
+        Map<String, Object> rootAnalysisContext =
+            mcpAnalysisContextAdapter.adapt(reference, toolMetadata, output);
+        List<BatchRecordSet> sqlSets = sqlRecordSets(output, reference, rootAnalysisContext);
         if (!sqlSets.isEmpty()) {
             return sqlSets;
         }
-        List<BatchRecordSet> structuredSets = structuredDatasetRecordSets(output, reference);
+        List<BatchRecordSet> structuredSets = structuredDatasetRecordSets(
+            output, reference, rootAnalysisContext);
         if (!structuredSets.isEmpty()) {
             return structuredSets;
         }
         List<Map<String, Object>> records = protocolRecords(output);
         if (!records.isEmpty()) {
-            return List.of(new BatchRecordSet(reference, analysisContext(output), records));
+            return List.of(new BatchRecordSet(reference, rootAnalysisContext, records));
         }
         List<BatchRecordSet> linuxSets = linuxStreamRecordSets(output, reference);
         if (!linuxSets.isEmpty()) {
             return linuxSets;
         }
-        return externalizedPreviewRecordSets(output, reference);
+        return externalizedPreviewRecordSets(output, reference, toolMetadata, rootAnalysisContext);
     }
 
     /**
@@ -3153,7 +3163,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
      * the dataset's own identity, field semantics, and relationships. This is schema-shaped and
      * intentionally independent of source type or business domain.
      */
-    private List<BatchRecordSet> structuredDatasetRecordSets(Object output, String reference) {
+    private List<BatchRecordSet> structuredDatasetRecordSets(Object output,
+                                                             String reference,
+                                                             Map<String, Object> rootAnalysisContext) {
         Map<String, Object> root = objectMap(output);
         List<Map<String, Object>> containers = new ArrayList<>();
         if (!root.isEmpty()) containers.add(root);
@@ -3172,27 +3184,11 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 String datasetReference = firstNonBlank(stringValue(firstNonNull(
                     dataset.get("dataset"), dataset.get("id"))), reference + "#dataset-" + (index + 1));
                 sets.add(new BatchRecordSet(datasetReference,
-                    objectMap(dataset.get("analysisContext")), rows));
+                    mcpAnalysisContextAdapter.adaptDataset(rootAnalysisContext, dataset), rows));
             }
             if (!sets.isEmpty()) return List.copyOf(sets);
         }
         return List.of();
-    }
-
-    private Map<String, Object> analysisContext(Object output) {
-        Map<String, Object> root = objectMap(output);
-        Map<String, Object> context = objectMap(root.get("analysisContext"));
-        if (!context.isEmpty()) {
-            return context;
-        }
-        for (String key : List.of("structuredContent", "structured_content", "payload", "result")) {
-            Map<String, Object> nested = objectMap(root.get(key));
-            context = objectMap(nested.get("analysisContext"));
-            if (!context.isEmpty()) {
-                return context;
-            }
-        }
-        return Map.of();
     }
 
     /**
@@ -3200,7 +3196,10 @@ public class AgentOrchestrator implements AgentRunExecutor {
      * full payload cannot be resolved. This is protocol-driven: it applies to every
      * externalized tool result and does not depend on command, template, or domain.
      */
-    private List<BatchRecordSet> externalizedPreviewRecordSets(Object output, String reference) {
+    private List<BatchRecordSet> externalizedPreviewRecordSets(Object output,
+                                                               String reference,
+                                                               ToolMetadata toolMetadata,
+                                                               Map<String, Object> rootAnalysisContext) {
         Map<String, Object> root = objectMap(output);
         if (!Boolean.TRUE.equals(booleanValue(root.get("outputTruncated")))) {
             return List.of();
@@ -3212,7 +3211,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         Map<String, Object> structuredPreview = objectMap(preview);
         if (!structuredPreview.isEmpty() && structuredPreview != root) {
             List<BatchRecordSet> nested = outputRecordSets(
-                structuredPreview, reference + "#externalized-preview");
+                structuredPreview, reference + "#externalized-preview", toolMetadata);
             if (!nested.isEmpty()) {
                 return nested;
             }
@@ -3222,12 +3221,13 @@ public class AgentOrchestrator implements AgentRunExecutor {
         record.put("sourceComplete", false);
         record.put("content", String.valueOf(preview));
         return List.of(new BatchRecordSet(
-            reference + "#externalized-preview", List.of(Map.copyOf(record))));
+            reference + "#externalized-preview", rootAnalysisContext, List.of(Map.copyOf(record))));
     }
 
-    private List<BatchRecordSet> sqlRecordSets(Object output, String reference) {
+    private List<BatchRecordSet> sqlRecordSets(Object output,
+                                               String reference,
+                                               Map<String, Object> rootAnalysisContext) {
         Map<String, Object> root = objectMap(output);
-        Map<String, Object> rootAnalysisContext = analysisContext(output);
         String dataSchema = stringValue(root.get("dataSchema"));
         Map<String, Object> data = objectMap(root.get("data"));
         if ("sql_result.v1".equals(dataSchema)) {
@@ -3276,11 +3276,12 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 row.put("sourceComplete", sourceComplete);
                 annotated.add(Map.copyOf(row));
             }
-            Map<String, Object> resultSetAnalysisContext = objectMap(resultSet.get("analysisContext"));
+            Map<String, Object> resultSetAnalysisContext =
+                mcpAnalysisContextAdapter.adaptDataset(rootAnalysisContext, resultSet);
             sets.add(new BatchRecordSet(
                 reference + "#statement-" + firstNonBlank(stringValue(firstNonNull(
                     resultSet.get("statementIndex"), resultSet.get("executionOrder"))), "?"),
-                resultSetAnalysisContext.isEmpty() ? rootAnalysisContext : resultSetAnalysisContext,
+                resultSetAnalysisContext,
                 List.copyOf(annotated)));
         }
         return List.copyOf(sets);

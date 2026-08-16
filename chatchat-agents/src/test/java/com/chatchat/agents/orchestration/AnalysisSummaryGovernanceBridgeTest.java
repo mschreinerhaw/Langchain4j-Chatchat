@@ -71,6 +71,45 @@ class AnalysisSummaryGovernanceBridgeTest {
     }
 
     @Test
+    void preservesExtensibleAssetSemanticsWithoutDomainSpecificBridgeCode() {
+        Map<String, Object> governed = bridge.govern(
+            "asset-snapshot",
+            Map.of(
+                "source", Map.of("displayName", "资产中心快照"),
+                "semantics", Map.of(
+                    "dimensions", List.of("account", "security"),
+                    "measures", List.of("marketValue", "profitLoss"),
+                    "timeSemantics", Map.of("asOfField", "businessDate"),
+                    "units", Map.of("marketValue", "CNY")),
+                "quality", Map.of("freshness", "T+1"),
+                "analysisPolicy", Map.of("mode", "ANALYZE_RETURNED_RECORDS"),
+                "extensions", Map.of("assetCenter", Map.of("valuationBasis", "close_price"))),
+            List.of(Map.of("marketValue", 100, "profitLoss", -2)));
+
+        assertThat(governed.get("semantics").toString())
+            .contains("businessDate", "marketValue=CNY", "profitLoss");
+        assertThat(governed.get("quality").toString()).contains("freshness=T+1");
+        assertThat(governed.get("analysisPolicy").toString()).contains("ANALYZE_RETURNED_RECORDS");
+        assertThat(governed.get("extensions").toString()).contains("valuationBasis=close_price");
+        Map<?, ?> completeness = (Map<?, ?>) governed.get("contextCompleteness");
+        assertThat(String.valueOf(completeness.get("missingSemanticSections")))
+            .doesNotContain("semantics", "quality", "analysisPolicy", "extensions");
+    }
+
+    @Test
+    void appliesExplicitAnalysisPolicyBeforeCallingTheModel() {
+        assertThat(bridge.requiresModelSummary(Map.of(
+            "source", Map.of("displayName", "资产目录"),
+            "analysisPolicy", Map.of("mode", "REFERENCE_ONLY")), true)).isFalse();
+        assertThat(bridge.requiresModelSummary(Map.of(
+            "source", Map.of("displayName", "持仓结果"),
+            "analysisPolicy", Map.of("mode", "ANALYZE_RETURNED_RECORDS")), false)).isTrue();
+        assertThat(bridge.requiresModelSummary(Map.of(
+            "source", Map.of("displayName", "受限结果"),
+            "analysisPolicy", Map.of("enabled", false)), false)).isFalse();
+    }
+
+    @Test
     void finalModelContentIsStoredInTheCanonicalGovernedResultObject() {
         Map<String, Object> context = bridge.govern("assets", Map.of(),
             List.of(Map.of("TOTAL_ASSET", 847174.25)));

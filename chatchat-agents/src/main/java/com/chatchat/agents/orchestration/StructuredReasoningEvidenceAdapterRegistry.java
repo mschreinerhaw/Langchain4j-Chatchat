@@ -76,7 +76,7 @@ final class StructuredReasoningEvidenceAdapterRegistry {
         ));
         projection.put("reasoningRules", List.of(
             "Rows inside factEvidence are returned observations and must remain associated with their dataset metadata.",
-            "Use each dataset analysisContext as summary-governance input for identity, field semantics, and explicit relationships; it is not observed data or a presentation-label mapping.",
+            "Use each dataset analysisContext as summary-governance input for identity, field semantics, analytical semantics, quality, analysis policy, source extensions, and explicit relationships; it is not observed data or a presentation-label mapping.",
             "Reference candidates are discovery metadata, not observed facts.",
             "Do not turn missing datasets, periods, or dimensions into factual conclusions."
         ));

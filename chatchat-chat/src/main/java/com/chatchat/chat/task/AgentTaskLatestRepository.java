@@ -4,7 +4,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
@@ -13,6 +17,62 @@ import java.util.Optional;
 public interface AgentTaskLatestRepository extends JpaRepository<AgentTaskLatestEntity, String> {
 
     Optional<AgentTaskLatestEntity> findByTenantIdAndIdempotencyKey(String tenantId, String idempotencyKey);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select t from AgentTaskLatestEntity t where t.taskId = :taskId")
+    Optional<AgentTaskLatestEntity> findByTaskIdForUpdate(@Param("taskId") String taskId);
+
+    @Query("""
+        select t from AgentTaskLatestEntity t
+        where t.status in ('PENDING', 'RETRY_WAIT')
+          and (t.availableAt is null or t.availableAt <= :now)
+          and (t.claimToken is null or t.leaseExpiresAt < :now)
+          and (t.requiredWorkerVersion is null or t.requiredWorkerVersion = '' or t.requiredWorkerVersion = :workerVersion)
+        order by t.priority desc, t.createTime asc
+        """)
+    List<AgentTaskLatestEntity> findDispatchCandidates(
+        @Param("now") Instant now,
+        @Param("workerVersion") String workerVersion,
+        Pageable pageable);
+
+    @Modifying
+    @Transactional
+    @Query("""
+        update AgentTaskLatestEntity t
+        set t.status = 'CLAIMED', t.claimWorkerId = :workerId, t.claimToken = :claimToken,
+            t.heartbeatAt = :now, t.leaseExpiresAt = :leaseExpiresAt,
+            t.attemptCount = coalesce(t.attemptCount, 0) + 1, t.updateTime = :now
+        where t.taskId = :taskId
+          and t.status in ('PENDING', 'RETRY_WAIT')
+          and (t.availableAt is null or t.availableAt <= :now)
+          and (t.claimToken is null or t.leaseExpiresAt < :now)
+        """)
+    int claimTask(@Param("taskId") String taskId,
+                  @Param("workerId") String workerId,
+                  @Param("claimToken") String claimToken,
+                  @Param("now") Instant now,
+                  @Param("leaseExpiresAt") Instant leaseExpiresAt);
+
+    @Modifying
+    @Transactional
+    @Query("""
+        update AgentTaskLatestEntity t
+        set t.heartbeatAt = :now, t.leaseExpiresAt = :leaseExpiresAt, t.updateTime = :now
+        where t.taskId = :taskId and t.claimToken = :claimToken
+          and t.status in ('CLAIMED', 'RUNNING', 'WAIT_MODEL', 'WAIT_TOOL')
+        """)
+    int heartbeatClaim(@Param("taskId") String taskId,
+                       @Param("claimToken") String claimToken,
+                       @Param("now") Instant now,
+                       @Param("leaseExpiresAt") Instant leaseExpiresAt);
+
+    @Query("""
+        select t from AgentTaskLatestEntity t
+        where t.leaseExpiresAt < :now
+          and t.claimToken is not null
+        order by t.leaseExpiresAt asc
+        """)
+    List<AgentTaskLatestEntity> findExpiredClaims(@Param("now") Instant now, Pageable pageable);
 
     /**
      * Finds the all by order by create time desc.

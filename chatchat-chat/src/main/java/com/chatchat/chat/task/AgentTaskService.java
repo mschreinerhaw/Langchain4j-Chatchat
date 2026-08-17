@@ -42,6 +42,9 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 import java.util.regex.Matcher;
@@ -58,7 +61,7 @@ public class AgentTaskService {
     private static final List<String> TERMINAL_STATUSES = List.of(
         "SUCCESS", "PARTIAL", "PARTIAL_SUCCESS", "EMPTY", "NO_PRESENTABLE_RESULT",
         "FAILED", "TIME_BUDGET_EXHAUSTED", "MODEL_BUDGET_EXHAUSTED",
-        "CANCELLED", "REJECTED", "TIMEOUT_CANCELLED", "KILLED"
+        "CANCELLED", "REJECTED", "TIMEOUT_CANCELLED", "KILLED", "DLQ"
     );
     private static final int MAX_IDLE_POLLS = 3;
     private static final int MAX_CONFIRMATION_ROUNDS = 20;
@@ -84,12 +87,22 @@ public class AgentTaskService {
     @Autowired(required = false)
     private UiArtifactService uiArtifactService;
 
+    @Autowired(required = false)
+    private AgentTaskQueueCoordinator queueCoordinator;
+
     @Qualifier("agentTaskExecutor")
     private final ThreadPoolTaskExecutor taskExecutor;
 
     private final Map<String, AtomicInteger> tenantWorkerCounts = new ConcurrentHashMap<>();
     private final Map<String, Thread> runningTaskThreads = new ConcurrentHashMap<>();
+    private final ThreadLocal<AgentTaskQueueCoordinator.ClaimedTask> activeDatabaseClaim = new ThreadLocal<>();
     private volatile boolean stopping;
+    private static final String DATABASE_WORKER_ID = "agent-worker-" + UUID.randomUUID();
+    private static final ScheduledExecutorService DATABASE_HEARTBEATS = Executors.newScheduledThreadPool(1, runnable -> {
+        Thread thread = new Thread(runnable, "agent-database-queue-heartbeat");
+        thread.setDaemon(true);
+        return thread;
+    });
 
     /**
      * Performs the submit operation.
@@ -128,6 +141,10 @@ public class AgentTaskService {
         latest.setRequestPayloadJson(writePayload(new AgentTaskPayload(normalized)));
         latest.setCreateTime(Instant.now());
         latest.setUpdateTime(Instant.now());
+        latest.setAvailableAt(Instant.now());
+        latest.setAttemptCount(0);
+        latest.setMaxAttempts(Math.max(1, properties.getTaskMaxAttempts()));
+        applyWorkerRequirements(latest, normalized);
         try {
             latestRepository.save(latest);
         } catch (DataIntegrityViolationException duplicate) {
@@ -802,6 +819,11 @@ public class AgentTaskService {
      * @return the operation result
      */
     public int recoverActiveTasks() {
+        if (databaseQueueEnabled()) {
+            int recovered = queueCoordinator.recoverExpiredClaims();
+            dispatchPersistentTasks();
+            return recovered;
+        }
         List<AgentTaskLatestEntity> tasks = latestRepository.findByStatusInOrderByCreateTimeAsc(ACTIVE_STATUSES);
         if (tasks.isEmpty()) {
             return 0;
@@ -1075,6 +1097,9 @@ public class AgentTaskService {
             }
             throw new CancellationException("Agent task stopped");
         } catch (CancellationException ex) {
+            if (!databaseClaimStillOwned(question.getTaskId())) {
+                return;
+            }
             if (!isCancelled(question.getTaskId())) {
                 String status = ex instanceof AgentTaskStoppedException stopped ? stopped.status : "CANCELLED";
                 updateLatest(question.getTaskId(), status, null, firstText(ex.getMessage(), "Task cancelled"));
@@ -1088,6 +1113,10 @@ public class AgentTaskService {
                 eventBus.publishResult(cancelledEvent);
             }
         } catch (Exception ex) {
+            if (!databaseClaimStillOwned(question.getTaskId())) {
+                log.warn("Discarded stale Agent worker result after claim loss. taskId={}", question.getTaskId());
+                return;
+            }
             if (isCancelled(question.getTaskId())) {
                 return;
             }
@@ -1628,6 +1657,11 @@ public class AgentTaskService {
     protected void updateLatest(String taskId, String status, String answerSummary, String errorMessage,
                                 String finalNotificationJson) {
         latestRepository.findById(taskId).ifPresent(entity -> {
+            AgentTaskQueueCoordinator.ClaimedTask claim = activeDatabaseClaim.get();
+            if (claim != null && claim.taskId().equals(taskId)
+                && !claim.claimToken().equals(entity.getClaimToken())) {
+                throw new StaleTaskClaimException(taskId);
+            }
             entity.setStatus(status);
             if (answerSummary != null) {
                 entity.setAnswerSummary(answerSummary);
@@ -1685,8 +1719,109 @@ public class AgentTaskService {
         if (persistQuestionEvent) {
             eventStore.save(question);
         }
+        if (databaseQueueEnabled()) {
+            latest.setStatus("PENDING");
+            latest.setAvailableAt(Instant.now());
+            latest.setClaimWorkerId(null);
+            latest.setClaimToken(null);
+            latest.setHeartbeatAt(null);
+            latest.setLeaseExpiresAt(null);
+            latestRepository.save(latest);
+            dispatchPersistentTasks();
+            return;
+        }
         eventBus.publish(question);
         startWorkers(latest.getTenantId());
+    }
+
+    public int dispatchPersistentTasks() {
+        if (!databaseQueueEnabled() || stopping) {
+            return 0;
+        }
+        List<AgentTaskQueueCoordinator.ClaimedTask> claims = queueCoordinator.claimAvailable(DATABASE_WORKER_ID);
+        int submitted = 0;
+        for (AgentTaskQueueCoordinator.ClaimedTask claim : claims) {
+            try {
+                taskExecutor.submit(() -> executeDatabaseClaim(claim));
+                submitted++;
+            } catch (RuntimeException rejected) {
+                queueCoordinator.requeueRejectedClaim(claim, "local worker executor rejected database claim");
+                log.warn("Requeued database Agent claim after local executor rejection. taskId={} error={}",
+                    claim.taskId(), rejected.getMessage());
+            }
+        }
+        return submitted;
+    }
+
+    public int recoverExpiredDatabaseClaims() {
+        return databaseQueueEnabled() ? queueCoordinator.recoverExpiredClaims() : 0;
+    }
+
+    private void executeDatabaseClaim(AgentTaskQueueCoordinator.ClaimedTask claim) {
+        Thread owner = Thread.currentThread();
+        long heartbeatMs = Math.max(250L, properties.getWorkerHeartbeatMs());
+        ScheduledFuture<?> heartbeat = DATABASE_HEARTBEATS.scheduleAtFixedRate(() -> {
+            try {
+                if (!queueCoordinator.heartbeat(claim)) {
+                    owner.interrupt();
+                }
+            } catch (RuntimeException ex) {
+                log.warn("Agent database claim heartbeat failed. taskId={} workerId={} error={}",
+                    claim.taskId(), claim.workerId(), ex.getMessage());
+            }
+        }, heartbeatMs, heartbeatMs, TimeUnit.MILLISECONDS);
+        activeDatabaseClaim.set(claim);
+        try {
+            AgentTaskLatestEntity task = latestRepository.findById(claim.taskId())
+                .orElseThrow(() -> new IllegalStateException("Claimed Agent task not found: " + claim.taskId()));
+            AgentEvent question = loadQuestionEvent(task);
+            handleQuestion(question);
+        } finally {
+            heartbeat.cancel(false);
+            try {
+                queueCoordinator.finish(claim);
+            } finally {
+                activeDatabaseClaim.remove();
+            }
+        }
+    }
+
+    private boolean databaseClaimStillOwned(String taskId) {
+        AgentTaskQueueCoordinator.ClaimedTask claim = activeDatabaseClaim.get();
+        if (claim == null || !claim.taskId().equals(taskId)) {
+            return true;
+        }
+        return latestRepository.findById(taskId)
+            .map(task -> claim.claimToken().equals(task.getClaimToken()))
+            .orElse(false);
+    }
+
+    private static final class StaleTaskClaimException extends CancellationException {
+        private StaleTaskClaimException(String taskId) {
+            super("Database claim is no longer owned for task " + taskId);
+        }
+    }
+
+    private boolean databaseQueueEnabled() {
+        return properties.isDatabaseQueueEnabled() && queueCoordinator != null;
+    }
+
+    private void applyWorkerRequirements(AgentTaskLatestEntity latest, AgentTaskSubmitRequest request) {
+        if (request == null || request.getToolInput() == null) {
+            return;
+        }
+        Object version = request.getToolInput().get("requiredWorkerVersion");
+        Object capabilities = request.getToolInput().get("requiredWorkerCapabilities");
+        if (version != null && !String.valueOf(version).isBlank()) {
+            latest.setRequiredWorkerVersion(String.valueOf(version).trim());
+        }
+        if (capabilities instanceof Collection<?> values) {
+            latest.setRequiredWorkerCapabilities(values.stream().map(String::valueOf)
+                .map(String::trim).filter(value -> !value.isBlank()).distinct()
+                .collect(java.util.stream.Collectors.joining(",")));
+        } else if (capabilities != null && !String.valueOf(capabilities).isBlank()) {
+            latest.setRequiredWorkerCapabilities(String.valueOf(capabilities).trim());
+        }
     }
 
     /**

@@ -74,6 +74,7 @@ public class ToolRuntimeService {
     private final ExecutorService toolExecutionExecutor;
     private final ExecutorService auditExecutor;
     private volatile AgentEvidenceStore evidenceStore;
+    private volatile DistributedToolRateLimiter distributedRateLimiter;
 
     private final Map<String, Deque<Long>> rateWindows = new ConcurrentHashMap<>();
     private final Map<String, CircuitState> circuitStates = new ConcurrentHashMap<>();
@@ -88,6 +89,11 @@ public class ToolRuntimeService {
     @Autowired(required = false)
     public void setEvidenceStore(AgentEvidenceStore evidenceStore) {
         this.evidenceStore = evidenceStore;
+    }
+
+    @Autowired(required = false)
+    public void setDistributedRateLimiter(DistributedToolRateLimiter distributedRateLimiter) {
+        this.distributedRateLimiter = distributedRateLimiter;
     }
 
     /**
@@ -1317,6 +1323,15 @@ public class ToolRuntimeService {
         String tenantToolKey = (tenant == null ? "default" : tenant) + "::" + toolName;
         String actorKey = tenantToolKey + "::" + (actor == null ? "anonymous" : actor);
         long now = System.currentTimeMillis();
+        if (distributedRateLimiter != null) {
+            return !distributedRateLimiter.tryAcquire(
+                tenant == null ? "default" : tenant,
+                toolName,
+                actor == null ? "anonymous" : actor,
+                limit,
+                qpsLimit,
+                Instant.ofEpochMilli(now));
+        }
         return exceedsRateWindow(actorKey + "::minute", now, 60_000L, limit)
             || exceedsRateWindow(tenantToolKey + "::second", now, 1_000L, qpsLimit);
     }

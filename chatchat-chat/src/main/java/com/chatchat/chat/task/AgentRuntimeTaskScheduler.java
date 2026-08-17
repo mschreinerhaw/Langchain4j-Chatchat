@@ -13,6 +13,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class AgentRuntimeTaskScheduler {
 
     private final AgentScheduledTaskService scheduledTaskService;
+    private final AgentTaskService taskService;
     private final AtomicBoolean scanning = new AtomicBoolean(false);
 
     @Scheduled(fixedDelayString = "${chatchat.agent.task.scheduler-scan-ms:30000}")
@@ -29,6 +30,27 @@ public class AgentRuntimeTaskScheduler {
             log.warn("Failed to scan Agent Runtime scheduled tasks: {}", ex.getMessage());
         } finally {
             scanning.set(false);
+        }
+    }
+
+    @Scheduled(fixedDelayString = "${chatchat.agent.task.database-queue-poll-ms:250}")
+    public void dispatchDatabaseQueue() {
+        try {
+            taskService.dispatchPersistentTasks();
+        } catch (Exception ex) {
+            log.warn("Failed to dispatch database Agent queue: {}", ex.getMessage());
+        }
+    }
+
+    @Scheduled(fixedDelayString = "${chatchat.agent.task.database-lease-recovery-ms:1000}")
+    public void recoverExpiredDatabaseClaims() {
+        try {
+            int recovered = taskService.recoverExpiredDatabaseClaims();
+            if (recovered > 0) {
+                log.warn("Recovered {} expired database Agent claims", recovered);
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to recover expired database Agent claims: {}", ex.getMessage());
         }
     }
 }

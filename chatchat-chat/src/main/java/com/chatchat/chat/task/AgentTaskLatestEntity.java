@@ -8,6 +8,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Version;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -22,7 +23,9 @@ import java.util.UUID;
     indexes = {
         @Index(name = "idx_agent_task_tenant_created", columnList = "tenant_id, create_time"),
         @Index(name = "idx_agent_task_session_created", columnList = "tenant_id, session_id, create_time"),
-        @Index(name = "idx_agent_task_status_updated", columnList = "status, update_time")
+        @Index(name = "idx_agent_task_status_updated", columnList = "status, update_time"),
+        @Index(name = "idx_agent_task_dispatch", columnList = "status, available_at, priority, create_time"),
+        @Index(name = "idx_agent_task_lease", columnList = "lease_expires_at, status")
     },
     uniqueConstraints = @UniqueConstraint(
         name = "uk_agent_task_tenant_idempotency",
@@ -73,6 +76,43 @@ public class AgentTaskLatestEntity {
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
 
+    @Column(name = "available_at")
+    private Instant availableAt;
+
+    @Column(name = "priority")
+    private Integer priority = 0;
+
+    @Column(name = "claim_worker_id", length = 128)
+    private String claimWorkerId;
+
+    @Column(name = "claim_token", length = 64)
+    private String claimToken;
+
+    @Column(name = "lease_expires_at")
+    private Instant leaseExpiresAt;
+
+    @Column(name = "heartbeat_at")
+    private Instant heartbeatAt;
+
+    @Column(name = "attempt_count")
+    private Integer attemptCount = 0;
+
+    @Column(name = "max_attempts")
+    private Integer maxAttempts = 3;
+
+    @Column(name = "required_worker_version", length = 64)
+    private String requiredWorkerVersion;
+
+    @Column(name = "required_worker_capabilities", length = 1000)
+    private String requiredWorkerCapabilities;
+
+    @Column(name = "dead_letter_reason", length = 2000)
+    private String deadLetterReason;
+
+    @Version
+    @Column(name = "revision", nullable = false)
+    private Long revision;
+
     @Column(name = "feedback_useful")
     private Boolean feedbackUseful;
 
@@ -120,6 +160,18 @@ public class AgentTaskLatestEntity {
         Instant now = Instant.now();
         if (createTime == null) {
             createTime = now;
+        }
+        if (availableAt == null) {
+            availableAt = now;
+        }
+        if (priority == null) {
+            priority = 0;
+        }
+        if (attemptCount == null) {
+            attemptCount = 0;
+        }
+        if (maxAttempts == null || maxAttempts < 1) {
+            maxAttempts = 3;
         }
         updateTime = now;
     }

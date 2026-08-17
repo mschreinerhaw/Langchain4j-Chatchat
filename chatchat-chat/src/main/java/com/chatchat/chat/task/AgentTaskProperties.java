@@ -27,6 +27,16 @@ public class AgentTaskProperties {
     private int schedulerBatchSize = 100;
     private int schedulerDefaultMaxRetries = 2;
     private long schedulerDefaultRetryDelaySeconds = 60;
+    private boolean databaseQueueEnabled = true;
+    private long databaseQueuePollMs = 250;
+    private int databaseQueueClaimBatchSize = 16;
+    private long workerLeaseMs = 30_000;
+    private long workerHeartbeatMs = 10_000;
+    private int taskMaxAttempts = 3;
+    private long retryBaseDelayMs = 1_000;
+    private long retryMaxDelayMs = 60_000;
+    private String workerVersion = "1.0";
+    private String workerCapabilities = "dag-v2,conditional-edge-v1";
     private EventStore eventStore = new EventStore();
 
     @Getter

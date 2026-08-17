@@ -19,6 +19,7 @@ class AgentRuntimeTaskSchedulerConcurrencyTest {
     @Test
     void coalescesConcurrentScansAndAllowsTheNextScanAfterCompletion() throws Exception {
         AgentScheduledTaskService scheduledTaskService = mock(AgentScheduledTaskService.class);
+        AgentTaskService taskService = mock(AgentTaskService.class);
         CountDownLatch firstScanEntered = new CountDownLatch(1);
         CountDownLatch releaseFirstScan = new CountDownLatch(1);
         when(scheduledTaskService.scanDueTasks()).thenAnswer(invocation -> {
@@ -26,7 +27,7 @@ class AgentRuntimeTaskSchedulerConcurrencyTest {
             assertThat(releaseFirstScan.await(5, TimeUnit.SECONDS)).isTrue();
             return 1;
         });
-        AgentRuntimeTaskScheduler scheduler = new AgentRuntimeTaskScheduler(scheduledTaskService);
+        AgentRuntimeTaskScheduler scheduler = new AgentRuntimeTaskScheduler(scheduledTaskService, taskService);
         ExecutorService executor = Executors.newFixedThreadPool(2);
         try {
             Future<?> first = executor.submit(scheduler::scanDueTasks);

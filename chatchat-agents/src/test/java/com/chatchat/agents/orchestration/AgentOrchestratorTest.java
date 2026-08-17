@@ -3438,7 +3438,7 @@ class AgentOrchestratorTest {
         );
 
         assertThat(result.answer()).contains("[网页1]");
-        assertThat(chatModel.messages()).hasSize(3);
+        assertThat(chatModel.messages()).hasSize(4);
         assertThat(chatModel.messages().get(1))
             .contains("Web citation map")
             .contains("[网页1] Audit trail for AI answers - https://example.com/audit")
@@ -3446,6 +3446,10 @@ class AgentOrchestratorTest {
         assertThat(chatModel.messages().get(2))
             .contains("web citation labels such as [网页1]")
             .contains("https://example.com/audit");
+        assertThat(chatModel.messages().get(3))
+            .contains("final answer critic")
+            .contains("Answer Contract")
+            .contains("Evidence gate");
     }
 
     @Test
@@ -3495,7 +3499,7 @@ class AgentOrchestratorTest {
         );
 
         assertThat(result.answer()).contains("[网页1]");
-        assertThat(chatModel.messages()).hasSize(3);
+        assertThat(chatModel.messages()).hasSize(4);
         assertThat(chatModel.messages().get(1))
             .contains("Evidence trust policy")
             .contains("usable=1")
@@ -3505,6 +3509,12 @@ class AgentOrchestratorTest {
             .doesNotContain("https://docs.example.com/low-quality");
         assertThat(chatModel.messages().get(2))
             .contains("Evidence trust policy")
+            .contains("https://docs.example.com/evidence")
+            .doesNotContain("https://docs.example.com/low-quality");
+        assertThat(chatModel.messages().get(3))
+            .contains("final answer critic")
+            .contains("Answer Contract")
+            .contains("Evidence gate")
             .contains("https://docs.example.com/evidence")
             .doesNotContain("https://docs.example.com/low-quality");
     }

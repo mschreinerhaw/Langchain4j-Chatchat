@@ -63,7 +63,8 @@ class FinalSummaryWebSearchEnhancer {
             return Enhancement.skipped(observations, traces);
         }
 
-        SearchDecision decision = decide(chatModel, query, systemPrompt, candidateAnswer, observations, traces);
+        SearchDecision decision = decide(
+            chatModel, query, systemPrompt, candidateAnswer, observations, traces, metadata);
         record(metadata, "finalSummaryWebSearchDecision", decision.needed());
         record(metadata, "finalSummaryWebSearchDecisionReason", decision.reason());
         record(metadata, "finalSummaryWebSearchKeywords", decision.keywords());
@@ -134,7 +135,8 @@ class FinalSummaryWebSearchEnhancer {
                                   String systemPrompt,
                                   String answer,
                                   List<String> observations,
-                                  List<InteractionToolTrace> traces) {
+                                  List<InteractionToolTrace> traces,
+                                  Map<String, Object> metadata) {
         StringBuilder prompt = new StringBuilder();
         prompt.append("You decide whether a final answer needs one internal web retrieval round before delivery.\n");
         prompt.append("Request retrieval only when it can materially improve correctness: current events or changing facts, "
@@ -142,6 +144,14 @@ class FinalSummaryWebSearchEnhancer {
         prompt.append("Do not request it for writing, translation, coding based on supplied context, stable general knowledge, "
             + "or when existing evidence already fully supports the answer.\n");
         prompt.append("This decision is not evidence. Return strict JSON only.\n");
+        if (metadata != null && metadata.get("answerContract") != null) {
+            prompt.append("Answer Contract:\n").append(metadata.get("answerContract")).append("\n\n");
+        }
+        if (metadata != null && metadata.get("evidenceSufficiencyGate") != null) {
+            prompt.append("Deterministic evidence sufficiency gate:\n")
+                .append(metadata.get("evidenceSufficiencyGate"))
+                .append("\nUse this gap signal, but request web retrieval only when external retrieval is appropriate for the request.\n\n");
+        }
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             prompt.append("System instruction:\n").append(preview(systemPrompt, 2_000)).append("\n\n");
         }

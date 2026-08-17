@@ -40,6 +40,11 @@ public class AgentRuntimeProperties {
     private int finalSummaryWebSearchResultLimit = 6;
     private int finalSummaryWebSearchEvidenceMaxChars = 16_000;
     private long finalSummaryWebSearchTimeoutMs = 45_000;
+    /** Enables the business-neutral Answer Contract, evidence gate, critic and targeted repair loop. */
+    private boolean answerQualityPipelineEnabled = true;
+    private boolean answerCriticEnabled = true;
+    private boolean answerRepairEnabled = true;
+    private long answerCriticTimeoutMs = 45_000;
     /** Governs lossless analysis chunk boundaries only; it never truncates returned evidence. */
     private int recordAnalysisChunkMaxChars = 12_000;
     /** Governs lossless analysis chunk boundaries only; every returned record remains covered. */
@@ -124,6 +129,10 @@ public class AgentRuntimeProperties {
 
     public long finalSummaryWebSearchTimeoutMs() {
         return Math.max(5_000L, finalSummaryWebSearchTimeoutMs);
+    }
+
+    public long answerCriticTimeoutMs() {
+        return Math.max(5_000L, answerCriticTimeoutMs);
     }
 
     public int recordAnalysisChunkMaxChars() {

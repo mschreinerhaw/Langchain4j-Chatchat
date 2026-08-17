@@ -133,6 +133,10 @@ chatchat:
     final-summary-web-search-result-limit: 6
     final-summary-web-search-evidence-max-chars: 16000
     final-summary-web-search-timeout-ms: 45000
+    answer-quality-pipeline-enabled: true
+    answer-critic-enabled: true
+    answer-repair-enabled: true
+    answer-critic-timeout-ms: 45000
     # Lossless processing boundaries; these values never truncate returned evidence.
     record-analysis-chunk-max-chars: ${CHATCHAT_AGENT_RECORD_ANALYSIS_CHUNK_MAX_CHARS:12000}
     record-analysis-chunk-max-rows: ${CHATCHAT_AGENT_RECORD_ANALYSIS_CHUNK_MAX_ROWS:50}

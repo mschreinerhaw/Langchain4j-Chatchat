@@ -82,6 +82,9 @@ class AgentAnswerFinalizer {
         new AnalysisSummaryGovernanceBridge();
     private final AnswerEvidenceLedgerCompiler answerEvidenceLedgerCompiler =
         new AnswerEvidenceLedgerCompiler();
+    private final AnswerContractCompiler answerContractCompiler = new AnswerContractCompiler();
+    private final EvidenceSufficiencyGate evidenceSufficiencyGate = new EvidenceSufficiencyGate();
+    private final AnswerCriticRepairer answerCriticRepairer;
     private final FinalSummaryWebSearchEnhancer finalSummaryWebSearchEnhancer;
     private final AgentRuntimeProperties agentRuntimeProperties;
 
@@ -107,6 +110,7 @@ class AgentAnswerFinalizer {
         this.modelRequestTimeoutMs = modelRequestTimeoutMs(modelsConfig);
         this.agentRuntimeProperties = agentRuntimeProperties == null
             ? new AgentRuntimeProperties() : agentRuntimeProperties;
+        this.answerCriticRepairer = new AnswerCriticRepairer(objectMapper);
         this.finalSummaryWebSearchEnhancer = new FinalSummaryWebSearchEnhancer(
             toolRegistry, toolRuntimeService, objectMapper, this.agentRuntimeProperties);
     }
@@ -115,10 +119,13 @@ class AgentAnswerFinalizer {
                                                            List<InteractionToolTrace> traces,
                                                            Map<String, Object> metadata,
                                                            List<String> observations) {
-        return finishWithDecision(null, answer, null, null, null, traces, metadata, observations);
+        return finishWithDecision(null, null, null, answer, null, null, null,
+            traces, metadata, observations);
     }
 
-    private AgentOrchestrator.AgentExecutionResult finishWithDecision(String query,
+    private AgentOrchestrator.AgentExecutionResult finishWithDecision(ChatModel activeChatModel,
+                                                                      String query,
+                                                                      String systemPrompt,
                                                                       String candidateAnswer,
                                                                       AgentAnswerReview review,
                                                                       AnswerDecisionEngine.EvidenceSignal evidenceSignal,
@@ -148,6 +155,8 @@ class AgentAnswerFinalizer {
         values.putAll(decision.metadata());
         recordSelectedAnswerCandidate(values, decision);
         String selectedAnswer = decision.finalAnswer();
+        selectedAnswer = applyTargetedQualityRepair(
+            activeChatModel, query, systemPrompt, selectedAnswer, values, observations);
         String finalAnswer = sanitizeFinalMarkdown(selectedAnswer);
         if (finalAnswer.isBlank()) {
             String metadataReport = deterministicEnterpriseMetadataReport(traces);
@@ -531,7 +540,7 @@ class AgentAnswerFinalizer {
             signal,
             metadata
         );
-        return finishWithDecision(query, finalAnswer, review, signal, quality,
+        return finishWithDecision(activeChatModel, query, systemPrompt, finalAnswer, review, signal, quality,
             effectiveTraces, metadata, effectiveObservations);
     }
 
@@ -567,7 +576,7 @@ class AgentAnswerFinalizer {
             signal,
             metadata
         );
-        return finishWithDecision(query, finalAnswer, review, signal, quality,
+        return finishWithDecision(activeChatModel, query, systemPrompt, finalAnswer, review, signal, quality,
             effectiveTraces, metadata, effectiveObservations);
     }
 
@@ -581,6 +590,7 @@ class AgentAnswerFinalizer {
                                                                 BooleanSupplier cancellationCheck,
                                                                 String stopReason) {
         recordMcpResultEvidencePolicy(metadata, traces);
+        prepareAnswerQualityContext(query, systemPrompt, observations, metadata);
         String finalAnswer = safeAnswer(activeChatModel, answer, query, observations, systemPrompt, metadata);
         FinalSummaryWebSearchEnhancer.Enhancement enhancement = enhanceFinalSummary(
             activeChatModel, query, systemPrompt, finalAnswer, observations, traces, metadata);
@@ -603,7 +613,7 @@ class AgentAnswerFinalizer {
             signal,
             metadata
         );
-        return finishWithDecision(query, finalAnswer, review, signal, quality,
+        return finishWithDecision(activeChatModel, query, systemPrompt, finalAnswer, review, signal, quality,
             effectiveTraces, metadata, effectiveObservations);
     }
 
@@ -622,7 +632,7 @@ class AgentAnswerFinalizer {
         );
         metadata.put("stopReason", "answer_completed_after_cancellation");
         metadata.put("resultRecoveredAtDeadline", true);
-        return finishWithDecision(query, answer, null, null, null,
+        return finishWithDecision(null, query, null, answer, null, null, null,
             traces, metadata, observations);
     }
 
@@ -826,6 +836,119 @@ class AgentAnswerFinalizer {
         }
     }
 
+    private AnswerQualityContext prepareAnswerQualityContext(String query,
+                                                             String systemPrompt,
+                                                             List<String> observations,
+                                                             Map<String, Object> metadata) {
+        AnswerContract contract = answerContractCompiler.compile(query, systemPrompt, metadata);
+        EvidenceSufficiencyGate.Decision gate = evidenceSufficiencyGate.evaluate(contract, observations);
+        if (metadata != null && agentRuntimeProperties.isAnswerQualityPipelineEnabled()) {
+            metadata.put("answerContract", contract.toMap());
+            metadata.put("answerContractVersion", AnswerContract.VERSION);
+            metadata.put("evidenceSufficiencyGate", gate.toMap());
+            metadata.put("evidenceSufficiencyStatus", gate.status());
+            metadata.put("evidenceRetrievalRecommended", gate.retrieveMoreRecommended());
+            metadata.put("businessHardcodingPolicy", "runtime_contract_only");
+        }
+        return new AnswerQualityContext(contract, gate);
+    }
+
+    private String applyTargetedQualityRepair(ChatModel activeChatModel,
+                                              String query,
+                                              String systemPrompt,
+                                              String selectedAnswer,
+                                              Map<String, Object> metadata,
+                                              List<String> observations) {
+        if (!agentRuntimeProperties.isAnswerQualityPipelineEnabled()) {
+            return selectedAnswer;
+        }
+        AnswerQualityContext context = prepareAnswerQualityContext(
+            query, systemPrompt, observations, metadata);
+        if (!agentRuntimeProperties.isAnswerCriticEnabled()
+            || activeChatModel == null
+            || selectedAnswer == null
+            || selectedAnswer.isBlank()) {
+            if (metadata != null) {
+                metadata.put("answerCriticSkippedReason",
+                    !agentRuntimeProperties.isAnswerCriticEnabled()
+                        ? "critic_disabled"
+                        : activeChatModel == null ? "chat_model_unavailable" : "empty_answer");
+            }
+            return selectedAnswer;
+        }
+
+        AnswerCriticRepairer.Result result;
+        try {
+            result = runWithTimeout(
+                "answer_critic_repair",
+                stringValue(metadata == null ? null : metadata.get("agentRunId")),
+                agentRuntimeProperties.answerCriticTimeoutMs(),
+                () -> answerCriticRepairer.review(activeChatModel, context.contract(), context.gate(),
+                    selectedAnswer, observations == null ? List.of() : List.copyOf(observations))
+            );
+        } catch (TimeoutException ex) {
+            if (metadata != null) metadata.put("answerCriticTimedOut", true);
+            return selectedAnswer;
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            if (metadata != null) metadata.put("answerCriticInterrupted", true);
+            return selectedAnswer;
+        } catch (Exception ex) {
+            if (metadata != null) {
+                metadata.put("answerCriticFailed", true);
+                metadata.put("answerCriticFailure", firstNonBlank(ex.getMessage(), ex.getClass().getSimpleName()));
+            }
+            return selectedAnswer;
+        }
+
+        if (metadata != null) metadata.put("answerCritic", result.toMap());
+        if (!result.available() || result.passed() || !agentRuntimeProperties.isAnswerRepairEnabled()
+            || result.repairedAnswer() == null || result.repairedAnswer().isBlank()) {
+            return selectedAnswer;
+        }
+        String repaired = sanitizeFinalMarkdown(result.repairedAnswer());
+        if (repaired.isBlank()) {
+            if (metadata != null) metadata.put("answerTargetedRepairRejectedReason", "invalid_or_internal_protocol");
+            return selectedAnswer;
+        }
+
+        AnswerEvidenceLedgerCompiler.Result originalLedger = answerEvidenceLedgerCompiler.compile(
+            selectedAnswer, metadata, observations, List.of());
+        AnswerEvidenceLedgerCompiler.Result repairedLedger = answerEvidenceLedgerCompiler.compile(
+            repaired, metadata, observations, List.of());
+        boolean safe = evidenceRank(repairedLedger.status()) >= evidenceRank(originalLedger.status())
+            && repairedLedger.criticalUnboundClaims() <= originalLedger.criticalUnboundClaims()
+            && repairedLedger.unknownReferences() <= originalLedger.unknownReferences();
+        if (!safe) {
+            if (metadata != null) {
+                metadata.put("answerTargetedRepairRejectedReason", "evidence_quality_regression");
+                metadata.put("answerTargetedRepairOriginalStatus", originalLedger.status());
+                metadata.put("answerTargetedRepairCandidateStatus", repairedLedger.status());
+            }
+            return selectedAnswer;
+        }
+        if (metadata != null) {
+            metadata.put("answerTargetedRepairApplied", true);
+            metadata.put("answerTargetedRepairContractVersion", AnswerCriticRepairer.VERSION);
+            metadata.put("answerTargetedRepairIssueCodes", result.issues().stream()
+                .map(AnswerCriticRepairer.Issue::code).filter(value -> value != null && !value.isBlank()).toList());
+            metadata.put("answerTargetedRepairOriginalPreview", shortText(selectedAnswer, 1000));
+            metadata.put("answerTargetedRepairPreview", shortText(repaired, 1000));
+        }
+        return repaired;
+    }
+
+    private int evidenceRank(String status) {
+        if ("PASS".equals(status) || "NOT_APPLICABLE".equals(status)) return 3;
+        if ("PARTIAL".equals(status)) return 2;
+        if ("FAIL".equals(status)) return 1;
+        return 0;
+    }
+
+    private record AnswerQualityContext(AnswerContract contract,
+                                        EvidenceSufficiencyGate.Decision gate) {
+    }
+
     private String safeAnswer(ChatModel activeChatModel,
                               String answer,
                               String query,
@@ -856,28 +979,32 @@ class AgentAnswerFinalizer {
             }
             return "";
         }
+        AnswerQualityContext qualityContext = prepareAnswerQualityContext(
+            query, systemPrompt, observations, metadata);
         StringBuilder prompt = new StringBuilder();
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             prompt.append("System instruction: ").append(systemPrompt).append("\n\n");
         }
-        prompt.append("Use the observations below and answer the user question in Chinese, like a high-quality ChatGPT answer.\n");
-        prompt.append("Return a polished Markdown document, not a single plain paragraph. Use concise headings and lists when they improve readability.\n");
-        prompt.append("Do not wrap the Markdown in code fences and do not output JSON.\n");
+        prompt.append("Produce the highest-quality user-facing answer that satisfies the Answer Contract.\n");
+        prompt.append("Answer Contract:\n").append(qualityContext.contract().promptText()).append("\n");
+        prompt.append("Evidence sufficiency gate:\n").append(qualityContext.gate().promptText()).append("\n");
+        prompt.append("Follow outputFormat and language from the Answer Contract exactly. For AUTO or MARKDOWN, use polished Markdown with concise headings and lists when useful.\n");
+        prompt.append("Do not wrap the response in code fences. Output JSON only when the Answer Contract explicitly requires JSON.\n");
         prompt.append("First understand the user's intent, then synthesize the evidence into a clear explanation instead of copying tool output or internal execution reports.\n");
-        prompt.append("For document QA, use natural Chinese section titles such as phenomenon summary, key evidence, troubleshooting steps, fix suggestions, and risk notes when they are relevant.\n");
-        prompt.append("Use SQL snippets and document citations as support, but do not let raw SQL or chunk titles replace the actual explanation.\n");
-        prompt.append("If a tool or SQL query returned structured rows, preserve and display the returned data even when it is incomplete, unexpected, or does not satisfy the user's requested metric definition. Do not suppress returned rows only because fields are missing or quality is uncertain; present the data first, then explain gaps, uncertainty, and next checks separately.\n");
-        prompt.append("Hard Runtime policy: when any MCP tool successfully returned a non-empty query result, analysis is mandatory. Evidence completeness may lower confidence and add limitations, but MUST NOT produce an insufficient-evidence refusal.\n");
-        prompt.append("Keep execution coverage separate from diagnostic evidence quality. Missing requiredMetrics limits assessment quality but does not erase a successful query result or its execution coverage.\n");
-        prompt.append("Honor template purpose, healthCapability, and assessmentCapability. Inventory-only evidence cannot support a complete health conclusion.\n");
-        prompt.append("Honor timeSemantics: cumulative SINCE_INSTANCE_START counters are not real-time pressure. Without required uptime/sample-window context, report only the cumulative observation and explicitly withhold a current bottleneck conclusion.\n");
-        prompt.append("Describe session and lock results as a current sample or sampling-window observation; do not infer a historical trend from one sample.\n");
+        prompt.append("Preserve successful structured results even when incomplete or unexpected; present observed data before limitations and next checks.\n");
+        prompt.append("Keep execution success separate from evidence sufficiency. A successful result remains reportable while weak coverage lowers confidence.\n");
+        prompt.append("Respect evidence semantics supplied at runtime, including scope, time basis, completeness, capability and source role. Do not infer beyond them.\n");
         prompt.append("If any tool observation reports failure, explicitly state that this source was unavailable and do not treat it as evidence.\n");
         prompt.append("If observations include evidence_v1 Unified evidence context, use only those EvidenceChunk entries as grounded evidence and keep the matching citation near every claim that relies on that evidence.\n");
         prompt.append("When both internal document and web search observations are available, separate internal document evidence from web verification evidence and explain conflicts instead of merging them silently.\n");
         prompt.append("If observations include document_evidence_v1, document evidence context, or document citations, keep the matching document citation near every claim that relies on that evidence.\n");
         prompt.append("If observations include evidence_v1 or document_evidence_v1, use the evidence to write Markdown; do not emit an EvidenceAnswer object.\n");
         prompt.append("If observations include evidence_execution_contract_v2_2 Deterministic answer lock, treat lockedAnswer and reasoningPayload as grounded evidence constraints, not as text to copy verbatim.\n");
+        if (!qualityContext.gate().strongClaimsAllowed()) {
+            prompt.append("Evidence gate policy: do not make strong factual conclusions. State the evidence gap and provide only supported observations or a bounded next step.\n");
+        } else if (qualityContext.gate().retrieveMoreRecommended()) {
+            prompt.append("Evidence gate policy: answer from usable evidence, identify unresolved gaps explicitly, and avoid filling them with assumptions.\n");
+        }
         prompt.append("If observations include web citation labels, append the matching label immediately after every sentence that relies on that web source.\n");
         prompt.append("Do not invent citations or cite URLs that are not listed in the observations.\n");
         prompt.append("Before writing, internally enumerate every material factual claim. Bind each numeric, date, causal, comparative, and definitive claim to the exact returned evidence reference, and keep that reference immediately after the supported sentence. If returned evidence does not support a claim, weaken it explicitly or move it to limitations instead of presenting it as fact.\n");

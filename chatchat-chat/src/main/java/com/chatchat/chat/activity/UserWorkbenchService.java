@@ -105,8 +105,13 @@ public class UserWorkbenchService {
     }
 
     @Transactional
-    public void removeFavorite(String favoriteId) {
-        favoriteRepository.deleteById(requireText(favoriteId, "Favorite ID cannot be empty"));
+    public void removeFavorite(String favoriteId, String tenantId, String userId) {
+        UserFavoriteEntity favorite = favoriteRepository.findByIdAndTenantIdAndUserId(
+            requireText(favoriteId, "Favorite ID cannot be empty"),
+            requireText(tenantId, "Tenant ID cannot be empty"),
+            requireText(userId, "User ID cannot be empty")
+        ).orElseThrow(() -> new IllegalArgumentException("Favorite does not exist for the current tenant and user"));
+        favoriteRepository.delete(favorite);
     }
 
     @Transactional

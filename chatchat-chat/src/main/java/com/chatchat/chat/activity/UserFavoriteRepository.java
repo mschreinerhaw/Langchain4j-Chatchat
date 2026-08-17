@@ -8,6 +8,8 @@ import java.util.Optional;
 
 public interface UserFavoriteRepository extends JpaRepository<UserFavoriteEntity, String> {
 
+    Optional<UserFavoriteEntity> findByIdAndTenantIdAndUserId(String id, String tenantId, String userId);
+
     Optional<UserFavoriteEntity> findByTenantIdAndUserIdAndTargetTypeAndTargetId(
         String tenantId,
         String userId,

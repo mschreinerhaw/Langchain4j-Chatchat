@@ -703,8 +703,16 @@ export function addUserFavorite(payload) {
   });
 }
 
-export function removeUserFavorite(favoriteId) {
-  return apiRequest(`/data/workbench/favorites/${encodeURIComponent(favoriteId)}`, {
+export function removeUserFavorite(favoriteId, filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.tenantId) {
+    params.set("tenantId", filters.tenantId);
+  }
+  if (filters.userId) {
+    params.set("userId", filters.userId);
+  }
+  const query = params.toString();
+  return apiRequest(`/data/workbench/favorites/${encodeURIComponent(favoriteId)}${query ? `?${query}` : ""}`, {
     method: "DELETE"
   });
 }

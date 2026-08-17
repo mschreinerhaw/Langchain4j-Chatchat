@@ -139,6 +139,31 @@
   color: #435064;
 }
 
+.right-module header .module-collapse-toggle {
+  min-width: 0;
+  justify-content: flex-start;
+  padding: 2px 4px;
+  border-radius: 6px;
+  text-align: left;
+}
+
+.right-module header .module-collapse-toggle:hover {
+  background: #f2f5fb;
+  color: var(--primary);
+}
+
+.right-module header .module-collapse-toggle::after {
+  content: none;
+}
+
+.module-collapse-toggle > svg:last-child {
+  transition: transform 0.18s ease;
+}
+
+.module-collapse-toggle > svg:last-child.collapsed {
+  transform: rotate(-90deg);
+}
+
 .module-count {
   min-width: 18px;
   height: 18px;
@@ -178,7 +203,14 @@
   transform: rotate(45deg);
 }
 
-.todo-module .todo-refresh {
+.right-module-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.right-module .module-refresh {
   width: 26px;
   height: 26px;
   justify-content: center;
@@ -186,16 +218,40 @@
   border-radius: 6px;
 }
 
-.todo-module .todo-refresh::after {
+.right-module .module-add {
+  width: 26px;
+  height: 26px;
+  justify-content: center;
+  padding: 0;
+  border-radius: 6px;
+  background: #eef4ff;
+  color: var(--primary);
+}
+
+.right-module .module-add:hover {
+  background: #dce9ff;
+  color: var(--primary-strong);
+}
+
+.right-module .module-add::after {
   content: none;
 }
 
-.todo-module .todo-refresh:disabled {
+.right-module .module-refresh:hover:not(:disabled) {
+  background: #f2f5fb;
+  color: var(--primary);
+}
+
+.right-module .module-refresh::after {
+  content: none;
+}
+
+.right-module .module-refresh:disabled {
   cursor: default;
   opacity: 0.62;
 }
 
-.todo-module .spinning {
+.right-module .spinning {
   animation: recent-spin 0.85s linear infinite;
 }
 

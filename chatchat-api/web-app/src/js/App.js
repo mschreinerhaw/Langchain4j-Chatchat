@@ -124,6 +124,7 @@ export default {
       tenantId: resolveSessionTenantId(authSession, sessionUser.username || sessionUser.id || USER_ID),
       tenantName: sessionUser.tenantName || sessionUser.tenant_name || "",
       historyLoading: false,
+      historyDeleting: false,
       historyError: "",
       conversationHistory: [],
       historyHasMore: true,
@@ -837,6 +838,42 @@ export default {
         await this.loadConversationHistory();
       }
     },
+    async deleteConversations(conversations = []) {
+      const uniqueConversations = conversations.filter((conversation, index, items) => {
+        const id = conversation?.id;
+        return id && items.findIndex((item) => item?.id === id) === index;
+      });
+      if (uniqueConversations.length === 0 || this.historyDeleting) {
+        return;
+      }
+
+      const deletedIds = new Set(uniqueConversations.map((conversation) => conversation.id));
+      const deletedActiveConversation = uniqueConversations.some((conversation) => (
+        this.isActiveConversationId(conversation.id, conversation.conversationId || "")
+      ));
+      this.historyDeleting = true;
+      this.historyError = "";
+      this.conversationHistory = this.conversationHistory.filter((item) => !deletedIds.has(item.id));
+      if (deletedActiveConversation) {
+        this.resetCurrentConversationView();
+      }
+
+      try {
+        const results = await Promise.allSettled(uniqueConversations.map((conversation) => (
+          deleteConversationHistory(this.userId, conversation.id, this.tenantId)
+        )));
+        const failedCount = results.filter((result) => result.status === "rejected").length;
+        if (failedCount > 0) {
+          await this.loadConversationHistory({ suppressError: true });
+          const succeededCount = uniqueConversations.length - failedCount;
+          this.historyError = succeededCount > 0
+            ? `已删除 ${succeededCount} 条，${failedCount} 条删除失败，请重试`
+            : "批量删除历史会话失败，请重试";
+        }
+      } finally {
+        this.historyDeleting = false;
+      }
+    },
     async favoriteConversation(conversation) {
       const targetId = conversation?.conversationId || conversation?.id || "";
       if (!targetId || this.favoriteSavingIds[targetId]) {
@@ -858,7 +895,10 @@ export default {
           if (!favoriteId) {
             throw new Error("未找到收藏记录，请刷新后重试");
           }
-          await removeUserFavorite(favoriteId);
+          await removeUserFavorite(favoriteId, {
+            tenantId: this.tenantId,
+            userId: this.userId
+          });
           this.favoriteConversationIds = this.favoriteConversationIds.filter((id) => id !== targetId);
           const nextRecordIds = { ...this.favoriteConversationRecordIds };
           delete nextRecordIds[targetId];

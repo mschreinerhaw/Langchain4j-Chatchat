@@ -1,11 +1,13 @@
 package com.chatchat.api.controller;
 
+import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.chat.activity.UserWorkbenchService;
 import com.chatchat.chat.activity.PersonalTodoService;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,10 +34,16 @@ public class UserWorkbenchController {
         @RequestParam("tenantId") String tenantId,
         @RequestParam("userId") String userId,
         @RequestParam(value = "includeCompleted", defaultValue = "false") boolean includeCompleted,
-        @RequestParam(value = "limit", defaultValue = "20") int limit
+        @RequestParam(value = "limit", defaultValue = "20") int limit,
+        HttpServletRequest servletRequest
     ) {
         try {
-            return ApiResponse.success(personalTodoService.list(tenantId, userId, includeCompleted, limit));
+            return ApiResponse.success(personalTodoService.list(
+                resolveTenantId(servletRequest, tenantId),
+                resolveUserId(servletRequest, userId),
+                includeCompleted,
+                limit
+            ));
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         }
@@ -44,10 +52,11 @@ public class UserWorkbenchController {
     @PostMapping("/todos")
     @Operation(summary = "Create one personal sticky-note todo")
     public ApiResponse<PersonalTodoService.TodoItem> createTodo(
-        @RequestBody PersonalTodoService.TodoCreateRequest request
+        @RequestBody PersonalTodoService.TodoCreateRequest request,
+        HttpServletRequest servletRequest
     ) {
         try {
-            return ApiResponse.success(personalTodoService.create(request));
+            return ApiResponse.success(personalTodoService.create(scopeTodoCreate(request, servletRequest)));
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         }
@@ -57,10 +66,11 @@ public class UserWorkbenchController {
     @Operation(summary = "Update one personal sticky-note todo")
     public ApiResponse<PersonalTodoService.TodoItem> updateTodo(
         @PathVariable("todoId") String todoId,
-        @RequestBody PersonalTodoService.TodoUpdateRequest request
+        @RequestBody PersonalTodoService.TodoUpdateRequest request,
+        HttpServletRequest servletRequest
     ) {
         try {
-            return ApiResponse.success(personalTodoService.update(todoId, request));
+            return ApiResponse.success(personalTodoService.update(todoId, scopeTodoUpdate(request, servletRequest)));
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         }
@@ -71,10 +81,15 @@ public class UserWorkbenchController {
     public ApiResponse<Void> deleteTodo(
         @PathVariable("todoId") String todoId,
         @RequestParam("tenantId") String tenantId,
-        @RequestParam("userId") String userId
+        @RequestParam("userId") String userId,
+        HttpServletRequest servletRequest
     ) {
         try {
-            personalTodoService.delete(todoId, tenantId, userId);
+            personalTodoService.delete(
+                todoId,
+                resolveTenantId(servletRequest, tenantId),
+                resolveUserId(servletRequest, userId)
+            );
             return ApiResponse.success(null, "Todo deleted");
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
@@ -89,10 +104,18 @@ public class UserWorkbenchController {
         @RequestParam(value = "limit", defaultValue = "5") int limit,
         @RequestParam(value = "category", required = false) String category,
         @RequestParam(value = "targetType", required = false) String targetType,
-        @RequestParam(value = "keyword", required = false) String keyword
+        @RequestParam(value = "keyword", required = false) String keyword,
+        HttpServletRequest servletRequest
     ) {
         try {
-            return ApiResponse.success(workbenchService.shortcuts(tenantId, userId, limit, category, targetType, keyword));
+            return ApiResponse.success(workbenchService.shortcuts(
+                resolveTenantId(servletRequest, tenantId),
+                resolveUserId(servletRequest, userId),
+                limit,
+                category,
+                targetType,
+                keyword
+            ));
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         }
@@ -101,10 +124,11 @@ public class UserWorkbenchController {
     @PostMapping("/activities")
     @Operation(summary = "Record one user activity shortcut signal")
     public ApiResponse<UserWorkbenchService.ShortcutItem> recordActivity(
-        @RequestBody UserWorkbenchService.ActivityRequest request
+        @RequestBody UserWorkbenchService.ActivityRequest request,
+        HttpServletRequest servletRequest
     ) {
         try {
-            return ApiResponse.success(workbenchService.recordActivity(request));
+            return ApiResponse.success(workbenchService.recordActivity(scopeActivity(request, servletRequest)));
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         }
@@ -113,10 +137,11 @@ public class UserWorkbenchController {
     @PostMapping("/favorites")
     @Operation(summary = "Add one favorite shortcut")
     public ApiResponse<UserWorkbenchService.ShortcutItem> addFavorite(
-        @RequestBody UserWorkbenchService.FavoriteRequest request
+        @RequestBody UserWorkbenchService.FavoriteRequest request,
+        HttpServletRequest servletRequest
     ) {
         try {
-            return ApiResponse.success(workbenchService.addFavorite(request));
+            return ApiResponse.success(workbenchService.addFavorite(scopeFavorite(request, servletRequest)));
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         }
@@ -124,9 +149,16 @@ public class UserWorkbenchController {
 
     @DeleteMapping("/favorites/{favoriteId}")
     @Operation(summary = "Remove one favorite shortcut")
-    public ApiResponse<Void> removeFavorite(@PathVariable("favoriteId") String favoriteId) {
+    public ApiResponse<Void> removeFavorite(@PathVariable("favoriteId") String favoriteId,
+                                            @RequestParam(value = "tenantId", required = false) String tenantId,
+                                            @RequestParam(value = "userId", required = false) String userId,
+                                            HttpServletRequest servletRequest) {
         try {
-            workbenchService.removeFavorite(favoriteId);
+            workbenchService.removeFavorite(
+                favoriteId,
+                resolveTenantId(servletRequest, tenantId),
+                resolveUserId(servletRequest, userId)
+            );
             return ApiResponse.success(null, "Favorite removed");
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
@@ -136,10 +168,11 @@ public class UserWorkbenchController {
     @PostMapping("/favorite-categories")
     @Operation(summary = "Create one personal favorite category")
     public ApiResponse<UserWorkbenchService.FavoriteCategory> createFavoriteCategory(
-        @RequestBody UserWorkbenchService.FavoriteCategoryRequest request
+        @RequestBody UserWorkbenchService.FavoriteCategoryRequest request,
+        HttpServletRequest servletRequest
     ) {
         try {
-            return ApiResponse.success(workbenchService.createFavoriteCategory(request));
+            return ApiResponse.success(workbenchService.createFavoriteCategory(scopeFavoriteCategory(request, servletRequest)));
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         }
@@ -149,12 +182,144 @@ public class UserWorkbenchController {
     @Operation(summary = "Move one favorite into a category")
     public ApiResponse<UserWorkbenchService.ShortcutItem> updateFavoriteCategory(
         @PathVariable("favoriteId") String favoriteId,
-        @RequestBody UserWorkbenchService.FavoriteCategoryUpdateRequest request
+        @RequestBody UserWorkbenchService.FavoriteCategoryUpdateRequest request,
+        HttpServletRequest servletRequest
     ) {
         try {
-            return ApiResponse.success(workbenchService.updateFavoriteCategory(favoriteId, request));
+            return ApiResponse.success(workbenchService.updateFavoriteCategory(
+                favoriteId,
+                scopeFavoriteCategoryUpdate(request, servletRequest)
+            ));
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         }
+    }
+
+    private PersonalTodoService.TodoCreateRequest scopeTodoCreate(
+        PersonalTodoService.TodoCreateRequest request,
+        HttpServletRequest servletRequest
+    ) {
+        if (request == null) {
+            return null;
+        }
+        return new PersonalTodoService.TodoCreateRequest(
+            resolveTenantId(servletRequest, request.tenantId()),
+            resolveUserId(servletRequest, request.userId()),
+            request.title(),
+            request.notes(),
+            request.dueAt(),
+            request.important()
+        );
+    }
+
+    private PersonalTodoService.TodoUpdateRequest scopeTodoUpdate(
+        PersonalTodoService.TodoUpdateRequest request,
+        HttpServletRequest servletRequest
+    ) {
+        if (request == null) {
+            return null;
+        }
+        return new PersonalTodoService.TodoUpdateRequest(
+            resolveTenantId(servletRequest, request.tenantId()),
+            resolveUserId(servletRequest, request.userId()),
+            request.title(),
+            request.notes(),
+            request.dueAt(),
+            request.dueAtChanged(),
+            request.completed(),
+            request.important()
+        );
+    }
+
+    private UserWorkbenchService.ActivityRequest scopeActivity(
+        UserWorkbenchService.ActivityRequest request,
+        HttpServletRequest servletRequest
+    ) {
+        if (request == null) {
+            return null;
+        }
+        return new UserWorkbenchService.ActivityRequest(
+            resolveTenantId(servletRequest, request.tenantId()),
+            resolveUserId(servletRequest, request.userId()),
+            request.targetType(),
+            request.targetId(),
+            request.actionType(),
+            request.title(),
+            request.summary(),
+            request.extra()
+        );
+    }
+
+    private UserWorkbenchService.FavoriteRequest scopeFavorite(
+        UserWorkbenchService.FavoriteRequest request,
+        HttpServletRequest servletRequest
+    ) {
+        if (request == null) {
+            return null;
+        }
+        return new UserWorkbenchService.FavoriteRequest(
+            resolveTenantId(servletRequest, request.tenantId()),
+            resolveUserId(servletRequest, request.userId()),
+            request.targetType(),
+            request.targetId(),
+            request.title(),
+            request.category()
+        );
+    }
+
+    private UserWorkbenchService.FavoriteCategoryRequest scopeFavoriteCategory(
+        UserWorkbenchService.FavoriteCategoryRequest request,
+        HttpServletRequest servletRequest
+    ) {
+        if (request == null) {
+            return null;
+        }
+        return new UserWorkbenchService.FavoriteCategoryRequest(
+            resolveTenantId(servletRequest, request.tenantId()),
+            resolveUserId(servletRequest, request.userId()),
+            request.name()
+        );
+    }
+
+    private UserWorkbenchService.FavoriteCategoryUpdateRequest scopeFavoriteCategoryUpdate(
+        UserWorkbenchService.FavoriteCategoryUpdateRequest request,
+        HttpServletRequest servletRequest
+    ) {
+        if (request == null) {
+            return null;
+        }
+        return new UserWorkbenchService.FavoriteCategoryUpdateRequest(
+            resolveTenantId(servletRequest, request.tenantId()),
+            resolveUserId(servletRequest, request.userId()),
+            request.category()
+        );
+    }
+
+    private String resolveTenantId(HttpServletRequest request, String requestedTenantId) {
+        return firstText(requestAttribute(request, ApiAuthenticationFilter.CURRENT_TENANT_ID), requestedTenantId);
+    }
+
+    private String resolveUserId(HttpServletRequest request, String requestedUserId) {
+        return firstText(
+            requestAttribute(request, ApiAuthenticationFilter.CURRENT_USERNAME),
+            requestAttribute(request, ApiAuthenticationFilter.CURRENT_USER_ID),
+            requestedUserId
+        );
+    }
+
+    private String requestAttribute(HttpServletRequest request, String name) {
+        Object value = request == null ? null : request.getAttribute(name);
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private String firstText(String... values) {
+        if (values != null) {
+            for (String value : values) {
+                if (value != null && !value.isBlank()) {
+                    return value.trim();
+                }
+            }
+        }
+        return "";
     }
 }

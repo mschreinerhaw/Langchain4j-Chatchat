@@ -16,8 +16,11 @@ import {
   Settings,
   Star,
   Trash2,
-  Wrench
+  Wrench,
+  X
 } from "@lucide/vue";
+
+const HISTORY_MANAGER_PAGE_SIZE = 10;
 
 export default {
   name: "AssistantSidebar",
@@ -29,7 +32,8 @@ export default {
     PanelLeftOpen,
     Search,
     Star,
-    Trash2
+    Trash2,
+    X
   },
   props: {
     activeView: {
@@ -56,6 +60,10 @@ export default {
       type: Boolean,
       default: false
     },
+    historyDeleting: {
+      type: Boolean,
+      default: false
+    },
     favoriteConversationIds: {
       type: Array,
       default: () => []
@@ -79,6 +87,7 @@ export default {
   },
   emits: [
     "delete-conversation",
+    "delete-conversations",
     "favorite-conversation",
     "logout",
     "load-more-history",
@@ -94,6 +103,10 @@ export default {
       },
       agentRuntimeLogo: "/lingdong-insight-logo.svg",
       historyKeyword: "",
+      historyManagerOpen: false,
+      managerKeyword: "",
+      managerCurrentPage: 1,
+      selectedHistoryKeys: [],
       showAllHistory: false
     };
   },
@@ -128,11 +141,70 @@ export default {
     visibleConversations() {
       return this.showAllHistory ? this.filteredConversations : this.filteredConversations.slice(0, 5);
     },
+    historyCountLabel() {
+      return this.recentConversations.length > 99 ? "99+" : String(this.recentConversations.length);
+    },
+    managerFilteredConversations() {
+      const keyword = this.managerKeyword.trim().toLowerCase();
+      if (!keyword) {
+        return this.recentConversations;
+      }
+      return this.recentConversations.filter((conversation) => [
+        conversation.question,
+        conversation.id,
+        conversation.conversationId,
+        this.statusLabel(conversation),
+        this.resolveStatus(conversation)
+      ].some((field) => String(field || "").toLowerCase().includes(keyword)));
+    },
+    selectedManagerConversations() {
+      const selected = new Set(this.selectedHistoryKeys);
+      return this.recentConversations.filter((conversation) => selected.has(this.conversationKey(conversation)));
+    },
+    managerPageCount() {
+      return Math.max(1, Math.ceil(this.managerFilteredConversations.length / HISTORY_MANAGER_PAGE_SIZE));
+    },
+    managerPageStart() {
+      return (this.managerCurrentPage - 1) * HISTORY_MANAGER_PAGE_SIZE;
+    },
+    managerPageEnd() {
+      return Math.min(this.managerPageStart + HISTORY_MANAGER_PAGE_SIZE, this.managerFilteredConversations.length);
+    },
+    managerPageConversations() {
+      return this.managerFilteredConversations.slice(this.managerPageStart, this.managerPageEnd);
+    },
+    allManagerConversationsSelected() {
+      return this.managerPageConversations.length > 0
+        && this.managerPageConversations.every((conversation) => this.selectedHistoryKeys.includes(this.conversationKey(conversation)));
+    },
+    someManagerConversationsSelected() {
+      if (this.allManagerConversationsSelected) {
+        return false;
+      }
+      return this.managerPageConversations.some((conversation) => this.selectedHistoryKeys.includes(this.conversationKey(conversation)));
+    },
     displayUserId() {
       return this.userId || "default-user";
     },
     userAvatarLabel() {
       return this.displayUserId.slice(0, 2).toUpperCase();
+    }
+  },
+  watch: {
+    managerKeyword() {
+      this.managerCurrentPage = 1;
+    },
+    historyDeleting(deleting) {
+      if (!deleting && this.historyManagerOpen && this.selectedManagerConversations.length === 0) {
+        this.closeHistoryManager();
+      }
+    },
+    recentConversations(conversations) {
+      const availableKeys = new Set(conversations.map((conversation) => this.conversationKey(conversation)));
+      this.selectedHistoryKeys = this.selectedHistoryKeys.filter((key) => availableKeys.has(key));
+      this.$nextTick(() => {
+        this.managerCurrentPage = Math.min(this.managerCurrentPage, this.managerPageCount);
+      });
     }
   },
   methods: {
@@ -244,6 +316,39 @@ export default {
     },
     deleteConversation(conversation) {
       this.$emit("delete-conversation", conversation);
+    },
+    openHistoryManager() {
+      this.managerKeyword = "";
+      this.managerCurrentPage = 1;
+      this.selectedHistoryKeys = [];
+      this.historyManagerOpen = true;
+      this.$nextTick(() => this.$refs.historyManagerSearch?.focus());
+    },
+    closeHistoryManager() {
+      if (this.historyDeleting) {
+        return;
+      }
+      this.historyManagerOpen = false;
+      this.selectedHistoryKeys = [];
+    },
+    toggleAllManagerConversations(event) {
+      const visibleKeys = this.managerPageConversations.map((conversation) => this.conversationKey(conversation));
+      const selected = new Set(this.selectedHistoryKeys);
+      if (event.target.checked) {
+        visibleKeys.forEach((key) => selected.add(key));
+      } else {
+        visibleKeys.forEach((key) => selected.delete(key));
+      }
+      this.selectedHistoryKeys = [...selected];
+    },
+    changeManagerPage(page) {
+      this.managerCurrentPage = Math.max(1, Math.min(this.managerPageCount, page));
+    },
+    deleteSelectedHistory() {
+      if (this.selectedManagerConversations.length === 0 || this.historyDeleting) {
+        return;
+      }
+      this.$emit("delete-conversations", [...this.selectedManagerConversations]);
     }
   }
 };

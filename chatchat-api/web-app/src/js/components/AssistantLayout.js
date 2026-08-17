@@ -33,6 +33,10 @@ export default {
       type: Boolean,
       default: false
     },
+    historyDeleting: {
+      type: Boolean,
+      default: false
+    },
     favoriteConversationIds: {
       type: Array,
       default: () => []
@@ -56,6 +60,7 @@ export default {
   },
   emits: [
     "delete-conversation",
+    "delete-conversations",
     "favorite-conversation",
     "logout",
     "load-more-history",

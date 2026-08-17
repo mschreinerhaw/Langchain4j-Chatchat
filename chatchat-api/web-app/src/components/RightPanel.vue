@@ -35,35 +35,37 @@
         <p v-if="error" class="right-panel-error">{{ error }}</p>
         <section class="right-module todo-module">
           <header>
-            <span class="right-module-title">
+            <button type="button" class="module-collapse-toggle right-module-title" :aria-expanded="!collapsedModules.todos" @click="toggleModule('todos')">
               <ClipboardList :size="16" stroke-width="2" />
               <strong>我的待办</strong>
               <span v-if="activeTodoCount" class="module-count">{{ activeTodoCount }}</span>
-            </span>
-            <button
-              type="button"
-              class="todo-refresh"
-              :disabled="todoLoading"
-              aria-label="刷新个人待办"
-              title="刷新个人待办"
-              @click="loadTodos"
-            >
-              <RefreshCw :class="{ spinning: todoLoading }" :size="14" stroke-width="2" />
+              <ChevronDown :class="{ collapsed: collapsedModules.todos }" :size="15" stroke-width="2" />
             </button>
+            <span class="right-module-actions">
+              <button
+                type="button"
+                class="module-add"
+                aria-label="新建便签"
+                title="新建便签"
+                @click="openNewTodoEditor"
+              >
+                <Plus :size="16" stroke-width="2.2" />
+              </button>
+              <button
+                type="button"
+                class="module-refresh todo-refresh"
+                :disabled="todoLoading"
+                aria-label="刷新个人待办"
+                title="刷新个人待办"
+                @click="loadTodos"
+              >
+                <RefreshCw :class="{ spinning: todoLoading }" :size="14" stroke-width="2" />
+              </button>
+            </span>
           </header>
-          <div class="right-module-body">
-            <form class="todo-quick-add" @submit.prevent="createTodo">
-              <Plus :size="16" stroke-width="2.2" />
-              <input
-                v-model="newTodoTitle"
-                maxlength="300"
-                placeholder="添加任务，按 Enter 保存"
-                aria-label="添加待办任务"
-              />
-              <button type="submit" :disabled="todoSaving || !newTodoTitle.trim()">添加</button>
-            </form>
+          <div v-show="!collapsedModules.todos" class="right-module-body">
             <p v-if="todoError" class="todo-error">{{ todoError }}</p>
-            <p v-else-if="!todoLoading && activeTodoCount === 0" class="todo-empty">今天没有待办，添加一条便签吧</p>
+            <p v-else-if="!todoLoading && activeTodoCount === 0" class="todo-empty">暂无便签，点击右上角 ＋ 新建</p>
             <article
               v-for="todo in visibleTodos"
               :key="todo.id"
@@ -94,13 +96,26 @@
 
         <section class="right-module">
           <header>
-            <span class="right-module-title">
+            <button type="button" class="module-collapse-toggle right-module-title" :aria-expanded="!collapsedModules.reports" @click="toggleModule('reports')">
               <FileText :size="16" stroke-width="2" />
               <strong>最近文档</strong>
+              <ChevronDown :class="{ collapsed: collapsedModules.reports }" :size="15" stroke-width="2" />
+            </button>
+            <span class="right-module-actions">
+              <button
+                type="button"
+                class="module-refresh"
+                :disabled="loading"
+                aria-label="刷新最近文档"
+                title="刷新最近文档"
+                @click="loadShortcuts"
+              >
+                <RefreshCw :class="{ spinning: loading }" :size="14" stroke-width="2" />
+              </button>
+              <button type="button" @click="$emit('navigate', 'library')">全部</button>
             </span>
-            <button type="button" @click="$emit('navigate', 'library')">全部</button>
           </header>
-          <div class="right-module-body">
+          <div v-show="!collapsedModules.reports" class="right-module-body">
             <article v-for="document in recentDocuments" :key="`${document.targetId}-${document.createdAt}`" class="report-item shortcut-item">
               <span class="file-badge" :class="docBadgeClass(document)">{{ docMark(document) }}</span>
               <div>
@@ -125,13 +140,26 @@
 
         <section class="right-module">
           <header>
-            <span class="right-module-title">
+            <button type="button" class="module-collapse-toggle right-module-title" :aria-expanded="!collapsedModules.favorites" @click="toggleModule('favorites')">
               <Star :size="16" stroke-width="2" />
               <strong>收藏夹</strong>
+              <ChevronDown :class="{ collapsed: collapsedModules.favorites }" :size="15" stroke-width="2" />
+            </button>
+            <span class="right-module-actions">
+              <button
+                type="button"
+                class="module-refresh"
+                :disabled="loading"
+                aria-label="刷新收藏夹"
+                title="刷新收藏夹"
+                @click="loadShortcuts"
+              >
+                <RefreshCw :class="{ spinning: loading }" :size="14" stroke-width="2" />
+              </button>
+              <button type="button" @click="$emit('navigate', 'favorites')">全部</button>
             </span>
-            <button type="button" @click="$emit('navigate', 'favorites')">全部</button>
           </header>
-          <div class="right-module-body">
+          <div v-show="!collapsedModules.favorites" class="right-module-body">
             <article v-for="favorite in favorites" :key="favorite.id || favorite.targetId" class="simple-row shortcut-item">
               <span class="favorite-star"></span>
               <div>
@@ -156,13 +184,26 @@
 
         <section class="right-module">
           <header>
-            <span class="right-module-title">
+            <button type="button" class="module-collapse-toggle right-module-title" :aria-expanded="!collapsedModules.agents" @click="toggleModule('agents')">
               <Bot :size="16" stroke-width="2" />
               <strong>最近使用Agent</strong>
+              <ChevronDown :class="{ collapsed: collapsedModules.agents }" :size="15" stroke-width="2" />
+            </button>
+            <span class="right-module-actions">
+              <button
+                type="button"
+                class="module-refresh"
+                :disabled="loading"
+                aria-label="刷新最近使用 Agent"
+                title="刷新最近使用 Agent"
+                @click="loadShortcuts"
+              >
+                <RefreshCw :class="{ spinning: loading }" :size="14" stroke-width="2" />
+              </button>
+              <button type="button" @click="$emit('navigate', 'agents')">全部</button>
             </span>
-            <button type="button" @click="$emit('navigate', 'agents')">全部</button>
           </header>
-          <div class="right-module-body">
+          <div v-show="!collapsedModules.agents" class="right-module-body">
             <article v-for="agent in recentAgents" :key="agent.targetId" class="agent-row shortcut-item">
               <span>{{ agentShortName(agent) }}</span>
               <div>
@@ -185,22 +226,24 @@
         <header>
           <div>
             <span class="todo-dialog-kicker">个人便签</span>
-            <h2>{{ editingTodo ? "编辑待办" : "我的待办" }}</h2>
+            <h2>{{ todoEditorMode === "create" ? "新建便签" : todoEditorMode === "edit" ? "编辑便签" : "我的便签" }}</h2>
           </div>
           <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeTodoManager">
             <XCircle :size="18" stroke-width="2" />
           </button>
         </header>
-        <form v-if="editingTodo" class="todo-editor" @submit.prevent="saveEditedTodo">
-          <label>任务内容<input v-model="todoDraft.title" maxlength="300" required /></label>
+        <form v-if="todoEditorMode !== 'list'" class="todo-editor" @submit.prevent="saveTodoEditor">
+          <label>便签内容<input ref="todoTitleInput" v-model="todoDraft.title" maxlength="300" placeholder="写下要做的事情" required /></label>
           <label>备注<textarea v-model="todoDraft.notes" maxlength="2000" rows="4" placeholder="补充说明（可选）"></textarea></label>
           <label>截止日期<input v-model="todoDraft.dueAt" type="datetime-local" /></label>
           <label class="todo-important-field"><input v-model="todoDraft.important" type="checkbox" /> 标记为重要</label>
+          <p v-if="todoError" class="todo-error">{{ todoError }}</p>
           <div class="todo-editor-actions">
-            <button type="button" class="danger" @click="removeTodo(editingTodo)"><Trash2 :size="15" />删除</button>
+            <button v-if="todoEditorMode === 'edit'" type="button" class="danger" @click="removeTodo(editingTodo)"><Trash2 :size="15" />删除</button>
+            <span v-else></span>
             <span></span>
-            <button type="button" @click="editingTodo = null">返回列表</button>
-            <button type="submit" class="primary" :disabled="todoSaving">保存</button>
+            <button type="button" @click="returnToTodoList">返回列表</button>
+            <button type="submit" class="primary" :disabled="todoSaving || !todoDraft.title.trim()">{{ todoSaving ? "保存中" : "保存" }}</button>
           </div>
         </form>
         <div v-else class="todo-manager-list">

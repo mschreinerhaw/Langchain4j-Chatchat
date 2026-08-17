@@ -11,6 +11,34 @@ import {
 } from "../utils/documentPreview.js";
 
 const DEFAULT_CATEGORY = "默认";
+const CATEGORY_SELECT_MIN_WIDTH = 96;
+const CATEGORY_SELECT_CHROME_WIDTH = 54;
+const CATEGORY_SELECT_MAX_WIDTH = 520;
+let categoryMeasureContext = null;
+
+function categoryTextWidth(value) {
+  const text = String(value || "");
+  if (typeof document !== "undefined") {
+    try {
+      if (!categoryMeasureContext) {
+        const canvas = document.createElement("canvas");
+        categoryMeasureContext = canvas.getContext("2d");
+      }
+      if (categoryMeasureContext) {
+        categoryMeasureContext.font = '600 13px Inter, "PingFang SC", "Microsoft YaHei", sans-serif';
+        return categoryMeasureContext.measureText(text).width;
+      }
+    } catch {
+      categoryMeasureContext = null;
+    }
+  }
+  return Array.from(text).reduce((width, character) => {
+    if (/[^\u0000-\u00ff]/.test(character)) return width + 13;
+    if (/[MWmw@%]/.test(character)) return width + 10.5;
+    if (/[ilI1.,'`|]/.test(character)) return width + 4.5;
+    return width + 7.2;
+  }, 0);
+}
 
 export default {
   name: "FavoritesView",
@@ -171,7 +199,10 @@ export default {
     async removeFavorite(favorite) {
       if (!favorite?.id) return;
       try {
-        await removeUserFavorite(favorite.id);
+        await removeUserFavorite(favorite.id, {
+          tenantId: this.effectiveTenantId,
+          userId: this.userId
+        });
         this.favorites = this.favorites.filter((item) => item.id !== favorite.id);
         this.normalizeCategory();
       } catch (error) {
@@ -205,11 +236,8 @@ export default {
     },
     favoriteCategorySelectWidth(favorite) {
       const category = String(this.favoriteCategory(favorite) || DEFAULT_CATEGORY);
-      const textWidth = Array.from(category).reduce(
-        (width, character) => width + (/[^\u0000-\u00ff]/.test(character) ? 14 : 7.5),
-        0
-      );
-      return `${Math.max(120, Math.min(280, Math.ceil(textWidth + 48)))}px`;
+      const width = Math.ceil(categoryTextWidth(category) + CATEGORY_SELECT_CHROME_WIDTH);
+      return `${Math.max(CATEGORY_SELECT_MIN_WIDTH, Math.min(CATEGORY_SELECT_MAX_WIDTH, width))}px`;
     },
     favoriteTypeClass(favorite) {
       return `type-${String(favorite?.targetType || "favorite").toLowerCase()}`;

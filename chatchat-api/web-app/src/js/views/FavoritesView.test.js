@@ -39,9 +39,12 @@ describe("FavoritesView", () => {
 
   it("sizes the category selector from the current category name", () => {
     const context = { favoriteCategory: FavoritesView.methods.favoriteCategory };
+    const shortWidth = Number.parseInt(FavoritesView.methods.favoriteCategorySelectWidth.call(context, { category: "默认" }), 10);
+    const mixedWidth = Number.parseInt(FavoritesView.methods.favoriteCategorySelectWidth.call(context, { category: "livegateway部署文档" }), 10);
+    const longWidth = Number.parseInt(FavoritesView.methods.favoriteCategorySelectWidth.call(context, { category: "超长分类名称".repeat(50) }), 10);
 
-    expect(FavoritesView.methods.favoriteCategorySelectWidth.call(context, { category: "默认" })).toBe("120px");
-    expect(FavoritesView.methods.favoriteCategorySelectWidth.call(context, { category: "livegateway部署文档" })).toBe("187px");
-    expect(FavoritesView.methods.favoriteCategorySelectWidth.call(context, { category: "超长分类名称".repeat(20) })).toBe("280px");
+    expect(shortWidth).toBe(96);
+    expect(mixedWidth).toBeGreaterThan(shortWidth);
+    expect(longWidth).toBe(520);
   });
 });

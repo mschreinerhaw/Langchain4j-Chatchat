@@ -244,6 +244,8 @@
 }
 
 .favorites-view .favorite-actions {
+  min-width: 0;
+  max-width: 100%;
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -251,10 +253,12 @@
 }
 
 .favorites-view .favorite-category-select {
+  min-width: 0;
+  max-width: 100%;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
 }
 
 .favorites-view .favorite-category-select > span {
@@ -266,8 +270,9 @@
 
 .favorites-view .favorite-category-select select {
   width: var(--favorite-category-width, 160px);
+  min-width: 0;
   min-height: 32px;
-  max-width: min(280px, 32vw);
+  max-width: calc(100% - 36px);
   border: 1px solid var(--line);
   border-radius: 7px;
   padding: 0 32px 0 11px;
@@ -275,6 +280,7 @@
   color: #202939;
   font-size: 13px;
   font-weight: 600;
+  text-overflow: ellipsis;
 }
 
 .favorites-view .library-list button {

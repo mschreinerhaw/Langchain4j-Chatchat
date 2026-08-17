@@ -250,17 +250,6 @@ public class InterpretationPlanRuntime {
                 elapsed(startedAt)
             ), executableRequest, planStepIds(executablePlan));
         }
-        if (dagExecutionController == null) {
-            return withDiagnosticRun(ExecutionResult.failed(
-                "DAG_CONTROLLER_REQUIRED",
-                "InterpretationPlan DAG execution requires an LLM decision controller",
-                List.of(),
-                Map.of("validationIssues", validation.issues()),
-                null,
-                elapsed(startedAt)
-            ), executableRequest, planStepIds(executablePlan));
-        }
-
         Map<Integer, InterpretationPlan.Step> stepsById = executablePlan.steps().stream()
             .filter(step -> step != null && step.id() != null)
             .collect(Collectors.toMap(
@@ -280,12 +269,14 @@ public class InterpretationPlanRuntime {
         reusedPlanStepIds.addAll(checkpointRecovery.stepIds());
         List<StepExecution> toleratedFailures = new ArrayList<>();
         Set<Integer> failureRegionSkippedStepIds = new LinkedHashSet<>();
+        Set<Integer> semanticBranchSkippedStepIds = new LinkedHashSet<>();
         String finalAnswer = completed.values().stream()
             .map(StepExecution::finalAnswer)
             .filter(value -> value != null && !value.isBlank())
             .reduce((ignored, value) -> value)
             .orElse(null);
         int decisionCount = 0;
+        int llmDecisionCount = 0;
 
         while (!remaining.isEmpty()) {
             InterpretationPlanEventState eventState = !"NONE".equals(checkpointRecovery.status())
@@ -315,31 +306,85 @@ public class InterpretationPlanRuntime {
                 currentDecisionCount,
                 executionTraceId
             );
+            List<Integer> readyStepIds = readyStepIds(remaining, stepsById, completedStepIds);
+            SemanticBranch semanticBranch = semanticBranch(executablePlan, readyStepIds);
+            String decisionPurpose = "DETERMINISTIC_SCHEDULING";
             if (decision == null) {
-                decision = deterministicReadyToolDecision(
+                decision = deterministicReadyDecision(
                     executablePlan,
-                    remaining,
+                    readyStepIds,
                     stepsById,
                     completed,
-                    completedStepIds,
+                    semanticBranch,
                     currentDecisionCount,
                     executionTraceId
                 );
             }
             if (decision == null) {
-                decision = dagExecutionController.decide(new DagDecisionRequest(
-                    executablePlan,
-                    new LinkedHashSet<>(remaining),
-                    Map.copyOf(completed),
-                    List.copyOf(executions),
-                    completedStepIds,
-                    currentDecisionCount,
-                    InterpretationExecutionProtocol.VERSION,
-                    executionTraceId,
-                    finalAnswer
-                ));
+                decisionPurpose = semanticBranch.required()
+                    ? "SEMANTIC_BRANCH_ARBITRATION" : "TEMPLATE_PARAMETER_BINDING";
+                List<Integer> legalCandidateStepIds = semanticBranch.required()
+                    ? semanticBranch.candidateStepIds()
+                    : readyStepIds.stream()
+                        .filter(stepId -> requiresModelTemplateParameterProtocol(stepsById.get(stepId), completed))
+                        .toList();
+                if (legalCandidateStepIds.isEmpty()) {
+                    decision = DagDecision.rewritePlan(
+                        "Runtime found no Ready nodes while unfinished DAG nodes remain; repair is required."
+                    );
+                    decisionPurpose = "DAG_REPAIR";
+                } else if (dagExecutionController == null) {
+                    return withDiagnosticRun(ExecutionResult.failed(
+                        "DAG_CONTROLLER_REQUIRED",
+                        "LLM arbitration is required for Ready nodes " + legalCandidateStepIds,
+                        executions,
+                        Map.of(
+                            "readyStepIds", legalCandidateStepIds,
+                            "decisionPurpose", decisionPurpose,
+                            "remainingStepIds", new ArrayList<>(remaining)
+                        ),
+                        finalAnswer,
+                        elapsed(startedAt)
+                    ), executableRequest, remaining);
+                } else {
+                    llmDecisionCount++;
+                    decision = dagExecutionController.decide(new DagDecisionRequest(
+                        executablePlan,
+                        new LinkedHashSet<>(remaining),
+                        new LinkedHashSet<>(legalCandidateStepIds),
+                        Map.copyOf(completed),
+                        List.copyOf(executions),
+                        completedStepIds,
+                        currentDecisionCount,
+                        InterpretationExecutionProtocol.VERSION,
+                        executionTraceId,
+                        finalAnswer,
+                        decisionPurpose
+                    ));
+                }
             }
-            DecisionValidation decisionValidation = validateDecision(decision, executablePlan, remaining, stepsById, completedStepIds);
+            List<Integer> legalReadyList = semanticBranch.required()
+                && "SEMANTIC_BRANCH_ARBITRATION".equals(decisionPurpose)
+                ? semanticBranch.candidateStepIds()
+                : "TEMPLATE_PARAMETER_BINDING".equals(decisionPurpose)
+                    ? readyStepIds.stream()
+                        .filter(stepId -> requiresModelTemplateParameterProtocol(stepsById.get(stepId), completed))
+                        .toList()
+                    : readyStepIds;
+            Set<Integer> legalReadyStepIds = new LinkedHashSet<>(legalReadyList);
+            DecisionValidation decisionValidation = validateDecision(
+                decision, executablePlan, remaining, stepsById, completedStepIds, legalReadyStepIds);
+            if (decisionValidation.valid()
+                && semanticBranch.required()
+                && "SEMANTIC_BRANCH_ARBITRATION".equals(decisionPurpose)
+                && !Set.of("abort", "rewrite_plan").contains(decisionValidation.action())
+                && decisionValidation.steps().size() != 1) {
+                decisionValidation = DecisionValidation.invalid(
+                    "DAG_DECISION_REJECTED",
+                    "Semantic branch arbitration must select exactly one Ready candidate from "
+                        + semanticBranch.candidateStepIds()
+                );
+            }
             recordControllerDecision(
                 executableRequest,
                 executionTraceId,
@@ -407,6 +452,17 @@ public class InterpretationPlanRuntime {
                 decisionValidation.steps(),
                 decision
             );
+            if (semanticBranch.required() && "SEMANTIC_BRANCH_ARBITRATION".equals(decisionPurpose)) {
+                Set<Integer> selectedStepIds = selected.stream()
+                    .map(InterpretationPlan.Step::id)
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+                Set<Integer> skipped = new LinkedHashSet<>(semanticBranch.candidateStepIds());
+                skipped.removeAll(selectedStepIds);
+                remaining.removeAll(skipped);
+                semanticBranchSkippedStepIds.addAll(skipped);
+                log.info("InterpretationPlan semantic branch resolved: traceId={}, targetStepId={}, selectedStepIds={}, skippedStepIds={}",
+                    executionTraceId, semanticBranch.targetStepId(), selectedStepIds, skipped);
+            }
             String executionEpoch = executionTraceId + ":epoch:" + currentDecisionCount;
             List<StepExecution> waveResults = executeWave(
                 selected, executableRequest, completed, executionEpoch);
@@ -577,10 +633,12 @@ public class InterpretationPlanRuntime {
                 "remainingPlanStepIds", new ArrayList<>(remaining),
                 "parallel", allowParallel(executablePlan),
                 "decisionCount", decisionCount,
-                "llmDagController", true,
+                "llmDagController", llmDecisionCount > 0,
+                "llmDagDecisionCount", llmDecisionCount,
                 "optimizationPasses", optimization.appliedPasses(),
                 "continuedFailureStepIds", toleratedFailures.stream().map(StepExecution::stepId).toList(),
                 "failureRegionSkippedStepIds", new ArrayList<>(failureRegionSkippedStepIds),
+                "semanticBranchSkippedStepIds", new ArrayList<>(semanticBranchSkippedStepIds),
                 "partialEvidence", !toleratedFailures.isEmpty()
             ),
             elapsed(startedAt)
@@ -1160,40 +1218,93 @@ public class InterpretationPlanRuntime {
             .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
-    private DagDecision deterministicReadyToolDecision(InterpretationPlan plan,
-                                                       Set<Integer> remaining,
-                                                       Map<Integer, InterpretationPlan.Step> stepsById,
-                                                       Map<Integer, StepExecution> completed,
-                                                       Set<Integer> completedStepIds,
-                                                       int decisionCount,
-                                                       String executionTraceId) {
+    private List<Integer> readyStepIds(Set<Integer> remaining,
+                                       Map<Integer, InterpretationPlan.Step> stepsById,
+                                       Set<Integer> completedStepIds) {
         if (remaining == null || remaining.isEmpty() || stepsById == null || stepsById.isEmpty()) {
-            return null;
+            return List.of();
         }
-        List<Integer> readyToolStepIds = remaining.stream()
-            .filter(stepId -> stepId != null)
+        Set<Integer> completedIds = completedStepIds == null ? Set.of() : completedStepIds;
+        return remaining.stream()
+            .filter(Objects::nonNull)
             .sorted()
             .map(stepsById::get)
-            .filter(step -> step != null && step.mcpToolAction())
-            .filter(step -> completedStepIds != null && completedStepIds.containsAll(safeIntegerList(step.dependsOn())))
+            .filter(Objects::nonNull)
+            .filter(step -> completedIds.containsAll(safeIntegerList(step.dependsOn())))
+            .map(InterpretationPlan.Step::id)
+            .toList();
+    }
+
+    private SemanticBranch semanticBranch(InterpretationPlan plan, List<Integer> readyStepIds) {
+        if (plan == null || plan.plan() == null || plan.plan().dependencyContracts() == null
+            || readyStepIds == null || readyStepIds.size() < 2) {
+            return SemanticBranch.none();
+        }
+        Set<Integer> ready = new LinkedHashSet<>(readyStepIds);
+        Map<Integer, List<Integer>> optionalSourcesByTarget = new LinkedHashMap<>();
+        for (InterpretationPlan.DependencyContract contract : plan.plan().dependencyContracts()) {
+            if (contract == null || !Boolean.FALSE.equals(contract.required())
+                || contract.condition() == null || contract.condition().isBlank()
+                || contract.from() == null || contract.to() == null || !ready.contains(contract.from())) {
+                continue;
+            }
+            optionalSourcesByTarget.computeIfAbsent(contract.to(), ignored -> new ArrayList<>())
+                .add(contract.from());
+        }
+        return optionalSourcesByTarget.entrySet().stream()
+            .map(entry -> new SemanticBranch(
+                entry.getKey(),
+                entry.getValue().stream().distinct().sorted().toList(),
+                entry.getValue().stream().distinct().count() > 1
+            ))
+            .filter(SemanticBranch::required)
+            .sorted(java.util.Comparator.comparing(SemanticBranch::targetStepId))
+            .findFirst()
+            .orElseGet(SemanticBranch::none);
+    }
+
+    private DagDecision deterministicReadyDecision(InterpretationPlan plan,
+                                                    List<Integer> readyStepIds,
+                                                    Map<Integer, InterpretationPlan.Step> stepsById,
+                                                    Map<Integer, StepExecution> completed,
+                                                    SemanticBranch semanticBranch,
+                                                    int decisionCount,
+                                                    String executionTraceId) {
+        if (readyStepIds == null || readyStepIds.isEmpty() || stepsById == null || stepsById.isEmpty()) {
+            return null;
+        }
+        Set<Integer> semanticCandidates = semanticBranch == null
+            ? Set.of() : new LinkedHashSet<>(semanticBranch.candidateStepIds());
+        List<Integer> deterministicStepIds = readyStepIds.stream()
+            .map(stepsById::get)
+            .filter(Objects::nonNull)
+            .filter(step -> !semanticCandidates.contains(step.id()))
+            .filter(step -> semanticBranch == null || !semanticBranch.required()
+                || !Objects.equals(step.id(), semanticBranch.targetStepId()))
+            .filter(step -> !step.finalAnswerAction() || readyStepIds.size() == 1)
             .filter(step -> !requiresModelTemplateParameterProtocol(step, completed))
             .map(InterpretationPlan.Step::id)
             .toList();
-        if (readyToolStepIds.isEmpty()) {
+        if (deterministicStepIds.isEmpty()) {
             return null;
         }
-        List<Integer> selected = allowParallel(plan) ? readyToolStepIds : List.of(readyToolStepIds.get(0));
-        String action = selected.size() > 1 ? "execute_parallel_steps" : "execute_step";
-        log.info("InterpretationPlan deterministic tool scheduling: traceId={}, decisionCount={}, action={}, stepIds={}",
-            executionTraceId, decisionCount, action, selected);
+        List<Integer> selected = allowParallel(plan)
+            ? deterministicStepIds : List.of(deterministicStepIds.get(0));
+        InterpretationPlan.Step onlyStep = selected.size() == 1 ? stepsById.get(selected.get(0)) : null;
+        String action = onlyStep != null && onlyStep.finalAnswerAction()
+            ? "final_answer"
+            : selected.size() > 1 ? "execute_parallel_steps" : "execute_step";
+        log.info("InterpretationPlan Java Ready-node scheduling: traceId={}, decisionCount={}, action={}, readyStepIds={}, selectedStepIds={}",
+            executionTraceId, decisionCount, action, readyStepIds, selected);
         return new DagDecision(
             InterpretationExecutionProtocol.VERSION,
             action,
             selected,
-            "Runtime selected ready mcp_tool step(s) deterministically; required tool execution must not be skipped.",
+            "Java Runtime selected Ready node(s) deterministically.",
             null,
             mapOf(
                 "runtimeDeterministicScheduling", true,
+                "readyStepIds", readyStepIds,
                 "decisionCount", decisionCount,
                 "executionTraceId", executionTraceId
             )
@@ -1234,6 +1345,7 @@ public class InterpretationPlanRuntime {
             .collect(Collectors.toCollection(LinkedHashSet::new));
         List<StepExecution> completedInReverseOrder = new ArrayList<>(completed.values());
         java.util.Collections.reverse(completedInReverseOrder);
+        Set<String> laterCompletedTools = new LinkedHashSet<>();
         for (StepExecution execution : completedInReverseOrder) {
             if (execution == null) {
                 continue;
@@ -1247,6 +1359,7 @@ public class InterpretationPlanRuntime {
                     evaluation, "shouldExpandQuery", "should_expand_query")));
             if (!execution.success() || !expansionRequested
                 || !(metadata.get("nextActions") instanceof Iterable<?> actions)) {
+                laterCompletedTools.add(toolSemanticKey(execution.toolName()));
                 continue;
             }
             for (Object item : actions) {
@@ -1258,6 +1371,7 @@ public class InterpretationPlanRuntime {
                     action, "input_changes", "inputChanges",
                     "retry_input_changes", "retryInputChanges"));
                 if (semanticTool.isBlank() || inputChanges.isEmpty()
+                    || laterCompletedTools.contains(semanticTool)
                     || !validRecoveryActionContract(action, request, execution)
                     || (!allowedTools.isEmpty() && !allowedTools.contains(semanticTool))
                     || remainingTools.contains(semanticTool)) {
@@ -1284,6 +1398,7 @@ public class InterpretationPlanRuntime {
                     )
                 );
             }
+            laterCompletedTools.add(toolSemanticKey(execution.toolName()));
         }
         return null;
     }
@@ -8488,6 +8603,16 @@ public class InterpretationPlanRuntime {
                                                 Set<Integer> remaining,
                                                 Map<Integer, InterpretationPlan.Step> stepsById,
                                                 Set<Integer> completedStepIds) {
+        Set<Integer> ready = new LinkedHashSet<>(readyStepIds(remaining, stepsById, completedStepIds));
+        return validateDecision(decision, plan, remaining, stepsById, completedStepIds, ready);
+    }
+
+    private DecisionValidation validateDecision(DagDecision decision,
+                                                InterpretationPlan plan,
+                                                Set<Integer> remaining,
+                                                Map<Integer, InterpretationPlan.Step> stepsById,
+                                                Set<Integer> completedStepIds,
+                                                Set<Integer> readyStepIds) {
         if (decision == null) {
             return DecisionValidation.invalid("DAG_DECISION_FAILED", "LLM DAG controller returned no decision");
         }
@@ -8513,6 +8638,13 @@ public class InterpretationPlanRuntime {
         }
         List<InterpretationPlan.Step> selected = new ArrayList<>();
         for (Integer stepId : stepIds) {
+            if (readyStepIds == null || !readyStepIds.contains(stepId)) {
+                return DecisionValidation.invalid(
+                    "DAG_DECISION_REJECTED",
+                    "DAG controller selected step " + stepId + " outside the Runtime Ready set: "
+                        + (readyStepIds == null ? List.of() : readyStepIds)
+                );
+            }
             if (!remaining.contains(stepId)) {
                 return DecisionValidation.invalid("DAG_DECISION_REJECTED", "DAG controller selected a step that is not remaining: " + stepId);
             }
@@ -8816,14 +8948,28 @@ public class InterpretationPlanRuntime {
     public record DagDecisionRequest(
         InterpretationPlan plan,
         Set<Integer> remainingStepIds,
+        Set<Integer> readyStepIds,
         Map<Integer, StepExecution> completed,
         List<StepExecution> executions,
         Set<Integer> completedStepIds,
         int decisionCount,
         String protocolVersion,
         String executionTraceId,
-        String finalAnswer
+        String finalAnswer,
+        String decisionPurpose
     ) {
+        public DagDecisionRequest(InterpretationPlan plan,
+                                  Set<Integer> remainingStepIds,
+                                  Map<Integer, StepExecution> completed,
+                                  List<StepExecution> executions,
+                                  Set<Integer> completedStepIds,
+                                  int decisionCount,
+                                  String protocolVersion,
+                                  String executionTraceId,
+                                  String finalAnswer) {
+            this(plan, remainingStepIds, remainingStepIds, completed, executions, completedStepIds,
+                decisionCount, protocolVersion, executionTraceId, finalAnswer, "LEGACY_ARBITRATION");
+        }
     }
 
     public record DagDecision(
@@ -8884,6 +9030,20 @@ public class InterpretationPlanRuntime {
 
         private static DecisionValidation executable(String action, List<InterpretationPlan.Step> steps) {
             return new DecisionValidation(true, null, null, action, steps == null ? List.of() : steps);
+        }
+    }
+
+    private record SemanticBranch(
+        Integer targetStepId,
+        List<Integer> candidateStepIds,
+        boolean required
+    ) {
+        private SemanticBranch {
+            candidateStepIds = candidateStepIds == null ? List.of() : List.copyOf(candidateStepIds);
+        }
+
+        private static SemanticBranch none() {
+            return new SemanticBranch(null, List.of(), false);
         }
     }
 

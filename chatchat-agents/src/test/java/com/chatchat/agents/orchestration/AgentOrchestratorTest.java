@@ -3801,10 +3801,9 @@ class AgentOrchestratorTest {
             .contains(mcpDocumentSearch)
             .contains(mcpWebSearch);
         assertThat(chatModel.messages().stream()
-            .anyMatch(message -> message.contains("Decision protocol:")
-                && message.contains(InterpretationExecutionProtocol.VERSION)
-                && message.contains("\"action\": \"execute_step | execute_parallel_steps | final_answer | rewrite_plan | abort\"")
-                && message.contains("Observation contract used for replay/debug")))
+            .noneMatch(message -> message.contains("Decision protocol:")
+                && message.contains(InterpretationExecutionProtocol.VERSION)))
+            .as("ordinary Ready nodes must be scheduled by Java without an LLM DAG decision")
             .isTrue();
     }
 

@@ -2049,9 +2049,11 @@ public class AgentOrchestrator implements AgentRunExecutor {
         }
         String prompt = buildInterpretationPlanDagDecisionPrompt(query, systemPrompt, request);
         long startedAt = System.currentTimeMillis();
-        log.info("agentModelRequest phase=interpretation_plan_dag_decision decisionCount={} promptChars={} remainingStepCount={} completedStepCount={} modelClass={}",
+        log.info("agentModelRequest phase=interpretation_plan_dag_decision decisionCount={} purpose={} promptChars={} readyStepCount={} remainingStepCount={} completedStepCount={} modelClass={}",
             request.decisionCount(),
+            request.decisionPurpose(),
             prompt.length(),
+            request.readyStepIds() == null ? 0 : request.readyStepIds().size(),
             request.remainingStepIds() == null ? 0 : request.remainingStepIds().size(),
             request.completedStepIds() == null ? 0 : request.completedStepIds().size(),
             activeChatModel.getClass().getName());
@@ -2108,6 +2110,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("raw", preview(raw));
         metadata.put("controllerPhase", "llm_decision");
+        metadata.put("decisionPurpose", request.decisionPurpose());
+        metadata.put("readyStepIds", request.readyStepIds() == null ? List.of() : request.readyStepIds());
         metadata.put("modelReason", modelReason);
         metadata.put("runtimeStatusGrounded", true);
         if (reviewAnswer != null && !reviewAnswer.isBlank()) {
@@ -2172,7 +2176,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("System policy inheritance: the validated plan already carries the user intent, scope, "
             + "constraints, and approved tools. This controller may narrow execution but must not expand that scope.\n\n");
         prompt.append("You are the responsible Agent Runtime DAG execution controller.\n");
-        prompt.append("You, not Java code, decide which DAG node should run next.\n");
+        prompt.append("Java Runtime has already computed the authoritative Ready node set. ")
+            .append("Your role is limited to semantic arbitration among those legal candidates; Java owns ordinary scheduling.\n");
         prompt.append("Decision protocol:\n")
             .append(InterpretationExecutionProtocol.DECISION_SCHEMA)
             .append("\n");
@@ -2183,7 +2188,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
             .append(InterpretationExecutionProtocol.OBSERVATION_SCHEMA)
             .append("\n");
         prompt.append("Rules:\n");
-        prompt.append("- Select only step ids from remaining_step_ids.\n");
+        prompt.append("- Select only step ids from ready_step_ids. remaining_step_ids is context, not an executable candidate set.\n");
+        prompt.append("- Never select, suggest, or substitute a node outside ready_step_ids. Runtime will reject it even when its dependencies appear satisfiable to you.\n");
+        prompt.append("- When decision_purpose is SEMANTIC_BRANCH_ARBITRATION, select exactly one Ready candidate. Unselected alternatives are recorded as skipped semantic branches.\n");
         prompt.append("- Keep decisions within the current user query. Capability exclusions, notAssessedClaims, unsupportedClaims, and other tool contract boundaries are not pending work unless they block an explicitly requested deliverable.\n");
         prompt.append("- completed_step_ids and executionLock are authoritative runtime state. Never re-run or override a completed/locked step, even if you think the state is contradictory.\n");
         prompt.append("- A completed step record with success=true means the tool execution succeeded. This status is authoritative and may not be rewritten as failed by reason or review_answer.\n");
@@ -2213,6 +2220,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("- Do not call tools directly; Java will only execute the step ids you choose after safety validation.\n\n");
         prompt.append("User query:\n").append(query == null ? "" : query).append("\n\n");
         prompt.append("decision_count: ").append(request.decisionCount()).append("\n");
+        prompt.append("decision_purpose: ").append(request.decisionPurpose()).append("\n");
+        prompt.append("ready_step_ids: ").append(request.readyStepIds() == null ? List.of() : request.readyStepIds()).append("\n");
         prompt.append("remaining_step_ids: ").append(request.remainingStepIds() == null ? List.of() : request.remainingStepIds()).append("\n");
         prompt.append("completed_step_ids: ").append(request.completedStepIds() == null ? List.of() : request.completedStepIds()).append("\n");
         prompt.append("context_compression: ")

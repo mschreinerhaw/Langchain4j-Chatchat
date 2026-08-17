@@ -7287,20 +7287,33 @@ class InterpretationPlanRuntimeTest {
             Map.of()
         ));
         InMemoryAgentRunStore runStore = new InMemoryAgentRunStore();
+        AtomicInteger rewriteReviewCalls = new AtomicInteger();
         InterpretationPlanRuntime.StepResultReviewer reviewer = request -> InterpretationPlanRuntime.StepReview.accepted(
             "sufficient evidence",
-            Map.of("evidenceEvaluation", Map.of(
-                "relevance", 0.95,
-                "answerability", 0.95,
-                "usefulness", "HIGH"
-            ))
+            rewriteReviewCalls.getAndIncrement() == 0 ? Map.of(
+                "evidenceEvaluation", Map.of(
+                    "relevance", 0.95,
+                    "answerability", 0.95,
+                    "usefulness", "HIGH"
+                ),
+                "shouldExpandQuery", true,
+                "nextActions", List.of(Map.of(
+                    "tool", "document_search",
+                    "input_changes", Map.of("query", "refined locked evidence"),
+                    "scope_basis", Map.of("source", "tool_result", "reference", "$.results[0]"),
+                    "capability_basis", Map.of("source", "tool_result", "reference", "$.results[0]"),
+                    "expected_evidence_types", List.of("document")
+                ))
+            ) : Map.of()
         );
         InterpretationPlanRuntime firstRuntime = new InterpretationPlanRuntime(
             toolRuntimeService,
             new InterpretationPlanValidator(),
             runStore,
             reviewer,
-            request -> InterpretationPlanRuntime.DagDecision.rewritePlan("rewrite after locked evidence")
+            request -> {
+                throw new AssertionError("Deterministic repair detection must not call the DAG scheduler model");
+            }
         );
 
         InterpretationPlanRuntime.ExecutionResult rewriteRequested = firstRuntime.execute(new InterpretationPlanRuntime.ExecutionRequest(
@@ -7388,14 +7401,26 @@ class InterpretationPlanRuntimeTest {
             Map.of()
         ));
         InMemoryAgentRunStore runStore = new InMemoryAgentRunStore();
+        AtomicInteger attemptReviewCalls = new AtomicInteger();
         InterpretationPlanRuntime.StepResultReviewer reviewer = request ->
-            InterpretationPlanRuntime.StepReview.accepted("usable", Map.of());
+            InterpretationPlanRuntime.StepReview.accepted("usable", attemptReviewCalls.getAndIncrement() == 0 ? Map.of(
+                "shouldExpandQuery", true,
+                "nextActions", List.of(Map.of(
+                    "tool", "document_search",
+                    "input_changes", Map.of("query", "refined attempt evidence"),
+                    "scope_basis", Map.of("source", "tool_result", "reference", "$.results[0]"),
+                    "capability_basis", Map.of("source", "tool_result", "reference", "$.results[0]"),
+                    "expected_evidence_types", List.of("document")
+                ))
+            ) : Map.of());
         InterpretationPlanRuntime firstRuntime = new InterpretationPlanRuntime(
             toolRuntimeService,
             new InterpretationPlanValidator(),
             runStore,
             reviewer,
-            request -> InterpretationPlanRuntime.DagDecision.rewritePlan("start a new plan revision")
+            request -> {
+                throw new AssertionError("Deterministic repair detection must not call the DAG scheduler model");
+            }
         );
 
         InterpretationPlanRuntime.ExecutionResult first = firstRuntime.execute(
@@ -8829,6 +8854,120 @@ class InterpretationPlanRuntimeTest {
             }
             return InterpretationPlanRuntime.DagDecision.abort("No scripted DAG decision remains");
         };
+    }
+
+    @Test
+    void schedulesOrdinaryReadyNodesWithoutDagController() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.hasTool("document_search")).thenReturn(true);
+        when(registry.getToolMetadata("document_search"))
+            .thenReturn(ToolMetadata.builder().riskLevel("low").build());
+        ToolRuntimeService service = mock(ToolRuntimeService.class);
+        when(service.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of("results", List.of("evidence"))),
+            ToolMetadata.builder().id("document_search").build(), null, "success", Map.of()));
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            service, new InterpretationPlanValidator(),
+            (InterpretationPlanRuntime.DagExecutionController) null);
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                serialPlan(), registry, List.of("document_search"), "tenant-1",
+                "request-java-scheduler", "conversation-java-scheduler", "user-1", Map.of()));
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.steps()).extracting(InterpretationPlanRuntime.StepExecution::stepId)
+            .containsExactly(1, 2);
+        assertThat(result.metadata())
+            .containsEntry("llmDagController", false)
+            .containsEntry("llmDagDecisionCount", 0);
+    }
+
+    @Test
+    void asksModelOnlyToArbitrateAmongReadySemanticBranches() {
+        ToolRegistry registry = semanticBranchRegistry();
+        ToolRuntimeService service = successfulSemanticBranchService();
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            service, new InterpretationPlanValidator(), request -> {
+                assertThat(request.decisionPurpose()).isEqualTo("SEMANTIC_BRANCH_ARBITRATION");
+                assertThat(request.readyStepIds()).containsExactly(1, 2);
+                assertThat(request.remainingStepIds()).containsExactlyInAnyOrder(1, 2, 3);
+                return InterpretationPlanRuntime.DagDecision.executeStep(2, "semantic condition selected branch B");
+            });
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                semanticBranchPlan(), registry, List.of("branch_a", "branch_b"), "tenant-1",
+                "request-semantic-branch", "conversation-semantic-branch", "user-1", Map.of()));
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.steps()).extracting(InterpretationPlanRuntime.StepExecution::stepId)
+            .containsExactly(2, 3);
+        assertThat(result.metadata())
+            .containsEntry("llmDagDecisionCount", 1)
+            .containsEntry("semanticBranchSkippedStepIds", List.of(1));
+    }
+
+    @Test
+    void rejectsModelSelectionOutsideRuntimeReadySet() {
+        ToolRegistry registry = semanticBranchRegistry();
+        ToolRuntimeService service = successfulSemanticBranchService();
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            service, new InterpretationPlanValidator(), request ->
+                InterpretationPlanRuntime.DagDecision.finalAnswer(3, "illegal", "skip Ready branches"));
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                semanticBranchPlan(), registry, List.of("branch_a", "branch_b"), "tenant-1",
+                "request-ready-guard", "conversation-ready-guard", "user-1", Map.of()));
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.status()).isEqualTo("DAG_DECISION_REJECTED");
+        assertThat(result.errorMessage()).contains("outside the Runtime Ready set").contains("[1, 2]");
+        verify(service, never()).execute(any());
+    }
+
+    private ToolRegistry semanticBranchRegistry() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.hasTool(any())).thenReturn(true);
+        when(registry.getToolMetadata(any()))
+            .thenReturn(ToolMetadata.builder().riskLevel("low").build());
+        return registry;
+    }
+
+    private ToolRuntimeService successfulSemanticBranchService() {
+        ToolRuntimeService service = mock(ToolRuntimeService.class);
+        when(service.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest request = invocation.getArgument(0);
+            return new ToolRuntimeExecution(
+                ToolOutput.success(Map.of("branch", request.getToolName())),
+                ToolMetadata.builder().id(request.getToolName()).build(), null, "success", Map.of());
+        });
+        return service;
+    }
+
+    private InterpretationPlan semanticBranchPlan() {
+        return new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("routing", "choose a legal semantic path", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", "branch_a", Map.of(), List.of(), null, null),
+                    new InterpretationPlan.Step(2, "mcp_tool", "branch_b", Map.of(), List.of(), null, null),
+                    new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(), null, null)
+                ),
+                List.of(),
+                List.of(
+                    new InterpretationPlan.DependencyContract(1, 3, false, "when source A is authoritative", "route A", "skip"),
+                    new InterpretationPlan.DependencyContract(2, 3, false, "when source B is authoritative", "route B", "skip")
+                ),
+                List.of(),
+                null
+            ),
+            new InterpretationPlan.ExecutionPolicy(3, false, List.of("branch_a", "branch_b"), List.of(), 30_000),
+            review()
+        );
     }
 
     private static final class RecordingNodeAttemptStore implements NodeAttemptStore {

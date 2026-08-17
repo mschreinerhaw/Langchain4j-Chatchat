@@ -6,7 +6,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Stable contract for LLM-controlled InterpretationPlan execution.
+ * Stable contract for Java-scheduled InterpretationPlan execution with bounded
+ * LLM arbitration over Runtime-computed Ready nodes.
  */
 public final class InterpretationExecutionProtocol {
 

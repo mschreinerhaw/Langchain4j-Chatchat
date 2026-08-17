@@ -32,7 +32,9 @@ class InterpretationPlanRecoveryExecutionTest {
         InterpretationPlanRuntime.ExecutionResult failed = scenario.runtime().execute(
             scenario.request(Map.of()));
 
-        assertThat(failed.success()).isFalse();
+        assertThat(failed.success())
+            .as("status=%s error=%s metadata=%s", failed.status(), failed.errorMessage(), failed.metadata())
+            .isFalse();
         assertThat(failed.metadata().get("resumeToken")).asString().startsWith("resume.v1.");
         assertThat(failed.metadata()).containsEntry("recoveryStatus", "AVAILABLE");
 
@@ -84,7 +86,7 @@ class InterpretationPlanRecoveryExecutionTest {
 
     @Test
     void resumesWholeCommittedParallelEpochWithoutRepeatingTools() {
-        ToolRegistry registry = registry(FIRST_TOOL, SECOND_TOOL);
+        ToolRegistry registry = registry(FIRST_TOOL, SECOND_TOOL, BRANCH_A_TOOL, BRANCH_B_TOOL);
         ToolRuntimeService tools = mock(ToolRuntimeService.class);
         AtomicInteger calls = new AtomicInteger();
         when(tools.execute(any())).thenAnswer(invocation -> {
@@ -99,13 +101,17 @@ class InterpretationPlanRecoveryExecutionTest {
             tools, new InterpretationPlanValidator(), store,
             request -> abort.getAndSet(false)
                 ? InterpretationPlanRuntime.DagDecision.abort("simulated crash after committed wave")
-                : InterpretationPlanRuntime.DagDecision.finalAnswer(3, "done", "resume"));
+                : InterpretationPlanRuntime.DagDecision.executeStep(3, "resume semantic branch"));
         runtime.setNodeAttemptStore(attempts);
-        InterpretationPlan plan = parallelPlan();
+        InterpretationPlan plan = parallelRecoveryPlan();
 
         InterpretationPlanRuntime.ExecutionResult failed = runtime.execute(request(plan, registry, Map.of()));
-        assertThat(failed.success()).isFalse();
-        assertThat(calls).hasValue(2);
+        assertThat(failed.success())
+            .as("status=%s error=%s metadata=%s", failed.status(), failed.errorMessage(), failed.metadata())
+            .isFalse();
+        assertThat(calls)
+            .as("status=%s error=%s metadata=%s", failed.status(), failed.errorMessage(), failed.metadata())
+            .hasValue(2);
 
         InterpretationPlanRuntime.ExecutionResult resumed = runtime.execute(request(
             plan, registry, Map.of("resumeToken", failed.metadata().get("resumeToken"))));
@@ -113,8 +119,8 @@ class InterpretationPlanRecoveryExecutionTest {
         assertThat(resumed.success()).isTrue();
         assertThat(resumed.metadata()).containsEntry("resumedPlanStepIds", List.of(1, 2));
         assertThat(resumed.steps()).extracting(InterpretationPlanRuntime.StepExecution::stepId)
-            .containsExactly(3);
-        assertThat(calls).hasValue(2);
+            .containsExactly(3, 5);
+        assertThat(calls).hasValue(3);
     }
 
     private SerialScenario serialScenario() {
@@ -172,7 +178,7 @@ class InterpretationPlanRecoveryExecutionTest {
         attributes.put("checkpointExecutionEnvironment", Map.of("env", "DEV"));
         attributes.putAll(additions);
         return new InterpretationPlanRuntime.ExecutionRequest(
-            plan, registry, List.of(FIRST_TOOL, SECOND_TOOL), "tenant", "request",
+            plan, registry, List.of(FIRST_TOOL, SECOND_TOOL, BRANCH_A_TOOL, BRANCH_B_TOOL), "tenant", "request",
             "conversation", "user", Map.copyOf(attributes));
     }
 
@@ -183,11 +189,31 @@ class InterpretationPlanRecoveryExecutionTest {
             new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null));
     }
 
-    private InterpretationPlan parallelPlan() {
-        return plan(true,
+    private InterpretationPlan parallelRecoveryPlan() {
+        List<InterpretationPlan.Step> steps = List.of(
             new InterpretationPlan.Step(1, "mcp_tool", FIRST_TOOL, Map.of(), List.of(), null, null),
             new InterpretationPlan.Step(2, "mcp_tool", SECOND_TOOL, Map.of(), List.of(), null, null),
-            new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(1, 2), null, null));
+            new InterpretationPlan.Step(3, "mcp_tool", BRANCH_A_TOOL, Map.of(), List.of(1, 2), null, null),
+            new InterpretationPlan.Step(4, "mcp_tool", BRANCH_B_TOOL, Map.of(), List.of(1, 2), null, null),
+            new InterpretationPlan.Step(5, "final_answer", "", Map.of("answer", "done"), List.of(), null, null)
+        );
+        return new InterpretationPlan(
+            "1.0", new InterpretationPlan.Intent("generic", "recover", "low"),
+            new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
+            new InterpretationPlan.Plan(
+                steps,
+                List.of(),
+                List.of(
+                    new InterpretationPlan.DependencyContract(3, 5, false, "use recovery path A", "path A", "skip"),
+                    new InterpretationPlan.DependencyContract(4, 5, false, "use recovery path B", "path B", "skip")
+                ),
+                List.of(),
+                null
+            ),
+            new InterpretationPlan.ExecutionPolicy(
+                5, true, List.of(FIRST_TOOL, SECOND_TOOL, BRANCH_A_TOOL, BRANCH_B_TOOL), List.of(), 30000),
+            new InterpretationPlan.Review(
+                new InterpretationPlan.SelfCheck(0.8, 0.1, true, List.of()), List.of()));
     }
 
     private InterpretationPlan plan(boolean parallel, InterpretationPlan.Step... steps) {
@@ -283,4 +309,6 @@ class InterpretationPlanRecoveryExecutionTest {
     private static final String RUN_ID = "recoverable-execution-run";
     private static final String FIRST_TOOL = "first_query";
     private static final String SECOND_TOOL = "second_query";
+    private static final String BRANCH_A_TOOL = "recovery_branch_a";
+    private static final String BRANCH_B_TOOL = "recovery_branch_b";
 }

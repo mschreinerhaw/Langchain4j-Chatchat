@@ -374,6 +374,7 @@ class AgentPlanner {
         prompt.append("- Use plan.stability to lock critical nodes/tools/edges that optimizer and rewriter must preserve.\n");
         prompt.append("- Use plan.dependency_contracts to declare dependency semantics. depends_on is hard DAG ordering only; dependency_contracts.required=true means the upstream step must be executed before the target, while required=false means the upstream step is optional and should be planned only when its condition is needed.\n");
         prompt.append("- Required dependency_contracts MUST also appear in the target step depends_on. Optional dependency_contracts MUST include condition or reason; do not add optional tools as depends_on unless you decide they are needed for this user request.\n");
+        prompt.append("- For mutually exclusive semantic paths, declare each alternative as required=false with a non-empty, mutually exclusive condition and the same target step. Runtime will ask the model to choose only among those Ready alternatives. Do not use this pattern for additive work where every step must run.\n");
         prompt.append("- Add plan.edge_contracts when a later step needs a typed field from an earlier tool output.\n");
         prompt.append("- If information is missing, add missing_info and plan the smallest safe retrieval/tool step instead of inventing facts.\n\n");
         prompt.append("Diagnostic coverage contract:\n");

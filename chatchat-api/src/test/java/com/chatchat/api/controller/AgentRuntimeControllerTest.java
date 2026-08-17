@@ -11,6 +11,8 @@ import com.chatchat.agents.runtime.AgentRunStep;
 import com.chatchat.agents.runtime.AgentRuntime;
 import com.chatchat.agents.runtime.AgentRuntimeSnapshot;
 import com.chatchat.agents.runtime.evaluation.AgentEvaluationService;
+import com.chatchat.agents.runtime.evaluation.AgentProductionQualityService;
+import com.chatchat.agents.runtime.evaluation.AgentProductionQualitySnapshot;
 import com.chatchat.agents.runtime.trace.AgentRunTraceBuilder;
 import com.chatchat.api.runtime.AgentRuntimeEventStreamService;
 import com.chatchat.api.security.ApiAuthenticationFilter;
@@ -53,6 +55,44 @@ class AgentRuntimeControllerTest {
             .andExpect(jsonPath("$.data[0].status").value("COMPLETED"));
 
         verify(runtime).list(new AgentRunQuery(AgentRunStatus.COMPLETED, "tenant-a", null, null, 10, 0));
+    }
+
+    @Test
+    void returnsTenantScopedProductionQualityAndRejectsTenantOverride() throws Exception {
+        AgentRuntime runtime = mock(AgentRuntime.class);
+        AgentProductionQualityService qualityService = mock(AgentProductionQualityService.class);
+        AgentRun tenantRun = run("quality-run", AgentRunStatus.COMPLETED, "tenant-a");
+        AgentProductionQualitySnapshot snapshot = new AgentProductionQualitySnapshot(
+            "agent_production_quality_v1", "tenant-a", 200L, 100L, 24,
+            1, 1, 1, 1,
+            Map.of("claimAuditPassRate", 1.0), Map.of("averageClaimCoverage", 1.0),
+            Map.of("COMPLETED", 1L), Map.of("PASS", 1L), List.of(), List.of(), List.of());
+        when(runtime.list(any(AgentRunQuery.class))).thenReturn(List.of(tenantRun));
+        when(qualityService.summarize(List.of(tenantRun), "tenant-a", 24)).thenReturn(snapshot);
+        MockMvc mockMvc = mockMvc(runtime, qualityService);
+
+        mockMvc.perform(get("/api/v1/agent/runtime/quality")
+                .requestAttr(ApiAuthenticationFilter.CURRENT_TENANT_ID, "tenant-a")
+                .param("tenantId", "tenant-b")
+                .param("windowHours", "24"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.contractVersion").value("agent_production_quality_v1"))
+            .andExpect(jsonPath("$.data.tenantId").value("tenant-a"))
+            .andExpect(jsonPath("$.data.rates.claimAuditPassRate").value(1.0));
+
+        verify(runtime).list(new AgentRunQuery(null, "tenant-a", null, null, 1000, 0));
+        verify(qualityService).summarize(List.of(tenantRun), "tenant-a", 24);
+    }
+
+    @Test
+    void requiresTenantForProductionQualityWithoutAuthenticatedScope() throws Exception {
+        AgentRuntime runtime = mock(AgentRuntime.class);
+        MockMvc mockMvc = mockMvc(runtime);
+
+        mockMvc.perform(get("/api/v1/agent/runtime/quality"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(400))
+            .andExpect(jsonPath("$.message").value("tenantId is required for production quality analytics"));
     }
 
     @Test
@@ -193,7 +233,8 @@ class AgentRuntimeControllerTest {
             runtime,
             streamService,
             mock(AgentRunTraceBuilder.class),
-            mock(AgentEvaluationService.class)
+            mock(AgentEvaluationService.class),
+            mock(AgentProductionQualityService.class)
         )).build();
 
         mockMvc.perform(get("/api/v1/agent/runtime/runs/runtime-run-4/events/stream")
@@ -222,11 +263,16 @@ class AgentRuntimeControllerTest {
     }
 
     private MockMvc mockMvc(AgentRuntime runtime) {
+        return mockMvc(runtime, mock(AgentProductionQualityService.class));
+    }
+
+    private MockMvc mockMvc(AgentRuntime runtime, AgentProductionQualityService qualityService) {
         return standaloneSetup(new AgentRuntimeController(
             runtime,
             mock(AgentRuntimeEventStreamService.class),
             mock(AgentRunTraceBuilder.class),
-            mock(AgentEvaluationService.class)
+            mock(AgentEvaluationService.class),
+            qualityService
         )).build();
     }
 }

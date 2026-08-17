@@ -493,7 +493,7 @@ public class AgentTaskController {
      */
     @GetMapping("/runtime/effects")
     @Operation(summary = "Get Agent effect analytics from user feedback")
-    public ApiResponse<AgentEffectAnalytics> effects(@RequestParam("tenantId") String tenantId,
+    public ApiResponse<AgentEffectAnalytics> effects(@RequestParam(value = "tenantId", required = false) String tenantId,
                                                      @RequestParam(value = "lowScoreLimit", defaultValue = "10") int lowScoreLimit,
                                                      HttpServletRequest servletRequest) {
         try {

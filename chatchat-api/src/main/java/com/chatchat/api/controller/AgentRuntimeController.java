@@ -11,6 +11,8 @@ import com.chatchat.agents.runtime.AgentRuntimeSnapshot;
 import com.chatchat.agents.runtime.evaluation.AgentEvaluationCase;
 import com.chatchat.agents.runtime.evaluation.AgentEvaluationReport;
 import com.chatchat.agents.runtime.evaluation.AgentEvaluationService;
+import com.chatchat.agents.runtime.evaluation.AgentProductionQualityService;
+import com.chatchat.agents.runtime.evaluation.AgentProductionQualitySnapshot;
 import com.chatchat.agents.runtime.trace.AgentRunTrace;
 import com.chatchat.agents.runtime.trace.AgentRunTraceBuilder;
 import com.chatchat.api.runtime.AgentRuntimeEventStreamService;
@@ -46,6 +48,31 @@ public class AgentRuntimeController {
     private final AgentRuntimeEventStreamService eventStreamService;
     private final AgentRunTraceBuilder traceBuilder;
     private final AgentEvaluationService evaluationService;
+    private final AgentProductionQualityService productionQualityService;
+
+    @GetMapping("/quality")
+    @Operation(summary = "Get tenant-scoped production Agent answer quality")
+    public ApiResponse<AgentProductionQualitySnapshot> quality(
+        @RequestParam(value = "tenantId", required = false) String tenantId,
+        @RequestParam(value = "windowHours", defaultValue = "24") int windowHours,
+        @RequestParam(value = "sampleLimit", defaultValue = "1000") int sampleLimit,
+        HttpServletRequest request
+    ) {
+        try {
+            String scopedTenantId = firstText(currentTenantId(request), tenantId);
+            if (scopedTenantId == null || scopedTenantId.isBlank()) {
+                return ApiResponse.badRequest("tenantId is required for production quality analytics");
+            }
+            int normalizedLimit = Math.max(1, Math.min(sampleLimit, 5_000));
+            List<AgentRun> runs = agentRuntime.list(new AgentRunQuery(
+                null, scopedTenantId, null, null, normalizedLimit, 0));
+            return ApiResponse.success(productionQualityService.summarize(runs, scopedTenantId, windowHours));
+        } catch (IllegalArgumentException ex) {
+            return ApiResponse.badRequest(ex.getMessage());
+        } catch (RuntimeException ex) {
+            return runtimeUnavailable(ex);
+        }
+    }
 
     @GetMapping("/snapshot")
     @Operation(summary = "Get Agent runtime snapshot")

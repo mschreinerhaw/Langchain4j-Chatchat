@@ -24,12 +24,14 @@ import {
 } from "@lucide/vue";
 import {
   cancelGenericAgentRun,
+  fetchAgentEffectAnalytics,
   deleteChunkTypeRule,
   deleteExpandRule,
   deleteIntentRule,
   fetchRetrievalRules,
   fetchGenericAgentRunTimeline,
   fetchGenericAgentRunTrace,
+  fetchGenericAgentProductionQuality,
   fetchGenericAgentRuntimeSnapshot,
   fetchGenericAgentRuns,
   refreshRetrievalRules,
@@ -86,6 +88,9 @@ export default {
       timelineLoading: false,
       error: "",
       snapshot: null,
+      productionQuality: null,
+      effectAnalytics: null,
+      qualityWindowHours: 24,
       runs: [],
       selectedRunId: "",
       timeline: {
@@ -187,6 +192,38 @@ export default {
         { label: "Cancelled", value: snapshot.cancelledRuns || 0, icon: CircleDot },
         { label: "Avg", value: this.formatDuration(snapshot.averageDurationMs || 0), icon: Zap }
       ];
+    },
+    qualityMetrics() {
+      const quality = this.productionQuality || {};
+      return [
+        { label: "结论审计通过率", value: this.percent(quality.rates?.claimAuditPassRate), tone: "pass" },
+        { label: "平均证据覆盖率", value: this.percent(quality.measurements?.averageClaimCoverage), tone: "coverage" },
+        { label: "答案可信通过率", value: this.percent(quality.rates?.groundedRate), tone: "grounded" },
+        { label: "工具成功率", value: this.percent(quality.rates?.toolSuccessRate), tone: "tools" },
+        { label: "P95 响应时间", value: this.formatDuration(quality.measurements?.p95LatencyMs), tone: "latency" }
+      ];
+    },
+    qualityFailureReasons() {
+      return Array.isArray(this.productionQuality?.failureReasons)
+        ? this.productionQuality.failureReasons.slice(0, 8)
+        : [];
+    },
+    qualityTrend() {
+      return Array.isArray(this.productionQuality?.trend) ? this.productionQuality.trend : [];
+    },
+    qualityRecentFailures() {
+      return Array.isArray(this.productionQuality?.recentFailures)
+        ? this.productionQuality.recentFailures.slice(0, 10)
+        : [];
+    },
+    qualityFeedbackSummary() {
+      const effects = this.effectAnalytics || {};
+      return {
+        total: Number(effects.feedbackTasks || 0),
+        usefulRate: this.storedPercent(effects.usefulRate),
+        adoptedRate: this.storedPercent(effects.adoptedRate),
+        resolvedRate: this.storedPercent(effects.resolvedRate)
+      };
     },
     detailTabs() {
       return [
@@ -305,7 +342,7 @@ export default {
       this.loading = true;
       this.error = "";
       try {
-        const [snapshot, runs] = await Promise.all([
+        const [snapshot, runs, productionQuality, effectAnalytics] = await Promise.all([
           fetchGenericAgentRuntimeSnapshot(),
           fetchGenericAgentRuns({
             status: this.filters.status,
@@ -314,9 +351,20 @@ export default {
             conversationId: this.filters.conversationId,
             limit: this.filters.limit,
             offset: this.filters.offset
-          })
+          }),
+          fetchGenericAgentProductionQuality({
+            tenantId: this.filters.tenantId,
+            windowHours: this.qualityWindowHours,
+            sampleLimit: 1000
+          }).catch(() => null),
+          fetchAgentEffectAnalytics({
+            tenantId: this.filters.tenantId,
+            lowScoreLimit: 5
+          }).catch(() => null)
         ]);
         this.snapshot = snapshot || {};
+        this.productionQuality = productionQuality || null;
+        this.effectAnalytics = effectAnalytics || null;
         this.runs = Array.isArray(runs) ? runs : [];
         if (!this.selectedRunId || !this.runs.some((run) => run.runId === this.selectedRunId)) {
           this.selectedRunId = this.runs[0]?.runId || "";
@@ -545,6 +593,39 @@ export default {
       this.filters.offset = 0;
       this.stopStream();
       this.loadRuntime();
+    },
+    selectQualityWindow(windowHours) {
+      const value = Number(windowHours);
+      this.qualityWindowHours = Number.isFinite(value) && value > 0 ? value : 24;
+      this.loadRuntime();
+    },
+    qualityBarHeight(point) {
+      const coverage = Number(point?.averageClaimCoverage || 0);
+      return `${Math.max(6, Math.min(100, coverage * 100))}%`;
+    },
+    failureLabel(code) {
+      const labels = {
+        CLAIM_AUDIT_FAILED: "结论审计失败",
+        CLAIM_COVERAGE_PARTIAL: "结论覆盖不完整",
+        CRITICAL_CLAIM_UNBOUND: "关键结论未绑定证据",
+        UNKNOWN_EVIDENCE_REFERENCE: "引用不存在",
+        GROUNDING_NEEDS_REVIEW: "答案需要复核",
+        TOOL_EXECUTION_FAILED: "工具执行失败",
+        EXECUTION_FAILED: "任务执行失败",
+        EXECUTION_CANCELLED: "任务已取消"
+      };
+      return labels[code] || code || "未知原因";
+    },
+    percent(value) {
+      if (value === null || value === undefined || value === "") {
+        return "-";
+      }
+      const number = Number(value);
+      return Number.isFinite(number) ? `${Math.round(number * 1000) / 10}%` : "-";
+    },
+    storedPercent(value) {
+      const number = Number(value || 0);
+      return `${number.toFixed(number % 1 === 0 ? 0 : 1)}%`;
     },
     pageBack() {
       if (!this.canPageBack) {

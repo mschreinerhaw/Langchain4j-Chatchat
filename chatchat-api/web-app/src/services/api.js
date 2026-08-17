@@ -425,6 +425,21 @@ export function fetchGenericAgentRuntimeSnapshot() {
   return apiRequest("/agent/runtime/snapshot");
 }
 
+export function fetchGenericAgentProductionQuality(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.tenantId) {
+    params.set("tenantId", filters.tenantId);
+  }
+  if (filters.windowHours) {
+    params.set("windowHours", String(filters.windowHours));
+  }
+  if (filters.sampleLimit) {
+    params.set("sampleLimit", String(filters.sampleLimit));
+  }
+  const query = params.toString();
+  return apiRequest(`/agent/runtime/quality${query ? `?${query}` : ""}`);
+}
+
 export function fetchGenericAgentRuns(filters = {}) {
   const params = new URLSearchParams();
   if (filters.status) {

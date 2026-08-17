@@ -27,6 +27,90 @@
       </article>
     </section>
 
+    <section v-if="!embedded" class="production-quality" aria-label="Production answer quality">
+      <header class="production-quality-head">
+        <div>
+          <p>Production Quality</p>
+          <h2>答案可信度与证据覆盖</h2>
+          <span>
+            {{ productionQuality?.sampledRuns || 0 }} 次运行 ·
+            {{ productionQuality?.applicableAudits || 0 }} 次有效结论审计 ·
+            {{ qualityFeedbackSummary.total }} 条反馈 ·
+            有用率 {{ qualityFeedbackSummary.usefulRate }} · 采纳率 {{ qualityFeedbackSummary.adoptedRate }}
+          </span>
+        </div>
+        <nav aria-label="Quality time window">
+          <button
+            v-for="window in [24, 168, 720]"
+            :key="window"
+            type="button"
+            :class="{ active: qualityWindowHours === window }"
+            :disabled="loading"
+            @click="selectQualityWindow(window)"
+          >
+            {{ window === 24 ? "24 小时" : window === 168 ? "7 天" : "30 天" }}
+          </button>
+        </nav>
+      </header>
+
+      <div class="production-quality-metrics">
+        <article v-for="metric in qualityMetrics" :key="metric.label" :class="metric.tone">
+          <span>{{ metric.label }}</span>
+          <strong>{{ metric.value }}</strong>
+        </article>
+      </div>
+
+      <div class="production-quality-grid">
+        <article class="quality-trend-card">
+          <header>
+            <strong>证据覆盖趋势</strong>
+            <span>柱高代表平均 Claim Coverage</span>
+          </header>
+          <div class="quality-bars">
+            <div v-for="point in qualityTrend" :key="point.bucketStartedAt" class="quality-bar-item">
+              <span :style="{ height: qualityBarHeight(point) }" :title="percent(point.averageClaimCoverage)"></span>
+              <small>{{ formatTime(point.bucketStartedAt) }}</small>
+            </div>
+            <p v-if="!qualityTrend.length" class="agent-runtime-empty">当前时间窗口暂无质量数据。</p>
+          </div>
+        </article>
+
+        <article class="quality-failure-card">
+          <header>
+            <strong>主要失败原因</strong>
+            <span>确定性规则归因</span>
+          </header>
+          <ol>
+            <li v-for="reason in qualityFailureReasons" :key="reason.code">
+              <span>{{ failureLabel(reason.code) }}</span>
+              <strong>{{ reason.total }}</strong>
+              <small>{{ percent(reason.share) }}</small>
+            </li>
+            <li v-if="!qualityFailureReasons.length" class="quality-empty-success">暂无质量失败记录</li>
+          </ol>
+        </article>
+      </div>
+
+      <div v-if="qualityRecentFailures.length" class="quality-failure-table">
+        <header>
+          <span>运行</span><span>Agent</span><span>结论状态</span><span>覆盖率</span><span>原因</span><span>时间</span>
+        </header>
+        <button
+          v-for="run in qualityRecentFailures"
+          :key="run.runId"
+          type="button"
+          @click="selectRun({ runId: run.runId })"
+        >
+          <strong>{{ shortId(run.runId) }}</strong>
+          <span>{{ run.agentId || "-" }}</span>
+          <span :class="statusClass(run.claimStatus)">{{ run.claimStatus || "-" }}</span>
+          <span>{{ percent(run.claimCoverage) }}</span>
+          <span>{{ (run.failureReasons || []).map(failureLabel).join("、") }}</span>
+          <time>{{ formatTime(run.startedAt) }}</time>
+        </button>
+      </div>
+    </section>
+
     <section class="agent-runtime-filters" aria-label="Run filters">
       <label>
         <span>Status</span>

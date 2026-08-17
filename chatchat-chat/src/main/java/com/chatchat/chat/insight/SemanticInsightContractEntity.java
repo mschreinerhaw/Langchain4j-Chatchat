@@ -24,8 +24,10 @@ import java.time.Instant;
     indexes = {
         @Index(name = "idx_semantic_contract_active",
             columnList = "tenant_id,status,enabled,priority"),
-        @Index(name = "idx_semantic_contract_binding",
-            columnList = "tenant_id,agent_id,tool_name,dataset_key,task_type")
+        @Index(name = "idx_semantic_contract_agent_tool",
+            columnList = "tenant_id,agent_id,tool_name"),
+        @Index(name = "idx_semantic_contract_dataset_task",
+            columnList = "tenant_id,dataset_key,task_type")
     })
 public class SemanticInsightContractEntity {
     @Id

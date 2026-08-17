@@ -110,6 +110,7 @@ public class DefaultAgentAnswerReviewer implements AgentAnswerReviewer {
         prompt.append("Reject an answer that substitutes an inferred failure cause for the observed error code/message. A recorded executor tool trace contradicts a claim that the tool was unregistered; UNAVAILABLE/NameResolver must remain a transport/address-resolution failure, and parameter-evidence rejection must not be relabeled as a schema-name mismatch without explicit schema evidence.\n");
         prompt.append("If observations include web citation labels such as [网页1], web-derived claims in the answer must keep the matching labels; reject and revise answers that omit those labels.\n");
         prompt.append("Do not remove citation markers that prove which web page supports a statement.\n");
+        prompt.append("If observations contain claim_ledger_v1 Answer evidence preflight with FAIL or PARTIAL status, reject any numeric, date, causal, comparative, or definitive claim that lacks a returned evidence reference near that claim. Never approve an unknown reference.\n");
         prompt.append("Report concrete issues and optional enhancement suggestions. Missing optional context is a limitation, not automatic grounds for refusal.\n\n");
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             prompt.append("System instruction:\n").append(systemPrompt).append("\n\n");

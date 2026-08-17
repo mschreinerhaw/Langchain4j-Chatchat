@@ -36,6 +36,44 @@ import static org.mockito.Mockito.when;
 class AgentTaskServiceTest {
 
     @Test
+    @SuppressWarnings("unchecked")
+    void exposesClaimLedgerAndEvidenceManifestInPersistedResultPayload() throws Exception {
+        AgentTaskService service = taskService(
+            mock(AgentEventBus.class), mock(AgentEventStore.class), mock(AgentTaskLatestRepository.class),
+            mock(TaskConfirmRepository.class), new ObjectMapper());
+        Map<String, Object> claimLedger = Map.of(
+            "contractVersion", "claim_ledger_v1", "status", "PASS", "coverage", 1.0);
+        Map<String, Object> evidenceManifest = Map.of(
+            "contractVersion", "evidence_manifest_v1", "evidenceCount", 1, "manifestHash", "hash-1");
+        InteractionResponse response = InteractionResponse.builder()
+            .answer("已基于证据完成回答。")
+            .metadata(Map.of("agent", Map.of(
+                "claimLedger", claimLedger,
+                "evidenceManifest", evidenceManifest,
+                "claimCoverage", 1.0,
+                "claimCoverageStatus", "PASS",
+                "answerClaimAuditPassed", true
+            )))
+            .build();
+        Method compile = AgentTaskService.class.getDeclaredMethod("compileExecutionResult", InteractionResponse.class);
+        compile.setAccessible(true);
+        Object contract = compile.invoke(service, response);
+        Method payloadMethod = contract.getClass().getDeclaredMethod("payload", InteractionResponse.class);
+        payloadMethod.setAccessible(true);
+
+        Map<String, Object> payload = (Map<String, Object>) payloadMethod.invoke(contract, response);
+
+        assertThat(payload)
+            .containsEntry("claimLedger", claimLedger)
+            .containsEntry("evidenceManifest", evidenceManifest)
+            .containsEntry("claimCoverage", 1.0)
+            .containsEntry("claimCoverageStatus", "PASS");
+        assertThat((Map<String, Object>) payload.get("metadata"))
+            .containsKey("agent")
+            .doesNotContainKeys("observations", "toolResultEvidence");
+    }
+
+    @Test
     void failedToolResultDoesNotOverrideLaterPartialTaskCompletion() throws Exception {
         AgentTaskService service = taskService(
             mock(AgentEventBus.class), mock(AgentEventStore.class), mock(AgentTaskLatestRepository.class),

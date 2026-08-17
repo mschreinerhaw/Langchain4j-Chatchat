@@ -2672,6 +2672,10 @@ public class AgentTaskService {
             putIfPresent(agentDebug, "plannerSteps", agentMap.get("plannerSteps"));
             putIfPresent(agentDebug, "observations", agentMap.get("observations"));
             putIfPresent(agentDebug, "events", agentMap.get("events"));
+            putIfPresent(agentDebug, "claimLedger", agentMap.get("claimLedger"));
+            putIfPresent(agentDebug, "evidenceManifest", agentMap.get("evidenceManifest"));
+            putIfPresent(agentDebug, "claimCoverage", agentMap.get("claimCoverage"));
+            putIfPresent(agentDebug, "claimCoverageStatus", agentMap.get("claimCoverageStatus"));
             if (!agentDebug.isEmpty()) {
                 debug.put("agent", agentDebug);
             }
@@ -3317,6 +3321,13 @@ public class AgentTaskService {
             payload.put("sources", response == null || response.getSources() == null ? List.of() : response.getSources());
             payload.put("toolTraces", response == null || response.getToolTraces() == null ? List.of() : response.getToolTraces());
             payload.put("metadata", metadata);
+            Object agent = metadata.get("agent");
+            if (agent instanceof Map<?, ?> agentMetadata) {
+                putNonNull(payload, "claimLedger", agentMetadata.get("claimLedger"));
+                putNonNull(payload, "evidenceManifest", agentMetadata.get("evidenceManifest"));
+                putNonNull(payload, "claimCoverage", agentMetadata.get("claimCoverage"));
+                putNonNull(payload, "claimCoverageStatus", agentMetadata.get("claimCoverageStatus"));
+            }
             payload.put("latencyMs", response == null ? null : response.getLatencyMs());
             payload.put("timestamp", response == null || response.getTimestamp() == null ? System.currentTimeMillis() : response.getTimestamp());
             payload.put("uiResponse", uiResponseView());
@@ -3357,10 +3368,34 @@ public class AgentTaskService {
             copyMetadataValue(safe, metadata, "historyUsed");
             copyMetadataValue(safe, metadata, "summaryUsed");
             copyMetadataValue(safe, metadata, "experienceHintsUsed");
+            Object agent = metadata.get("agent");
+            if (agent instanceof Map<?, ?> agentMetadata) {
+                Map<String, Object> governance = new LinkedHashMap<>();
+                copyRawMetadataValue(governance, agentMetadata, "claimLedger");
+                copyRawMetadataValue(governance, agentMetadata, "evidenceManifest");
+                copyRawMetadataValue(governance, agentMetadata, "claimCoverage");
+                copyRawMetadataValue(governance, agentMetadata, "claimCoverageStatus");
+                copyRawMetadataValue(governance, agentMetadata, "answerClaimAuditPassed");
+                if (!governance.isEmpty()) {
+                    safe.put("agent", governance);
+                }
+            }
             return safe;
         }
 
+        private static void putNonNull(Map<String, Object> target, String key, Object value) {
+            if (value != null) {
+                target.put(key, value);
+            }
+        }
+
         private static void copyMetadataValue(Map<String, Object> target, Map<String, Object> metadata, String key) {
+            if (metadata.containsKey(key)) {
+                target.put(key, metadata.get(key));
+            }
+        }
+
+        private static void copyRawMetadataValue(Map<String, Object> target, Map<?, ?> metadata, String key) {
             if (metadata.containsKey(key)) {
                 target.put(key, metadata.get(key));
             }

@@ -80,6 +80,8 @@ class AgentAnswerFinalizer {
     private final AnswerCandidateCollector answerCandidateCollector = new AnswerCandidateCollector();
     private final AnalysisSummaryGovernanceBridge analysisSummaryGovernanceBridge =
         new AnalysisSummaryGovernanceBridge();
+    private final AnswerEvidenceLedgerCompiler answerEvidenceLedgerCompiler =
+        new AnswerEvidenceLedgerCompiler();
     private final FinalSummaryWebSearchEnhancer finalSummaryWebSearchEnhancer;
     private final AgentRuntimeProperties agentRuntimeProperties;
 
@@ -215,6 +217,8 @@ class AgentAnswerFinalizer {
         attachAnswerAssemblyPolicy(values, observations);
         attachTaskResultAssessment(values, traces, observations);
         attachEvidenceAnswerContract(finalAnswer, values, observations);
+        finalAnswer = attachAnswerEvidenceLedger(finalAnswer, values, observations, toolEvidence);
+        values.put("finalAnswerPreview", shortText(finalAnswer, 1000));
         attachGovernedSummaryResult(finalAnswer, values, traces, observations);
         return new AgentOrchestrator.AgentExecutionResult(
             finalAnswer,
@@ -876,6 +880,8 @@ class AgentAnswerFinalizer {
         prompt.append("If observations include evidence_execution_contract_v2_2 Deterministic answer lock, treat lockedAnswer and reasoningPayload as grounded evidence constraints, not as text to copy verbatim.\n");
         prompt.append("If observations include web citation labels, append the matching label immediately after every sentence that relies on that web source.\n");
         prompt.append("Do not invent citations or cite URLs that are not listed in the observations.\n");
+        prompt.append("Before writing, internally enumerate every material factual claim. Bind each numeric, date, causal, comparative, and definitive claim to the exact returned evidence reference, and keep that reference immediately after the supported sentence. If returned evidence does not support a claim, weaken it explicitly or move it to limitations instead of presenting it as fact.\n");
+        prompt.append("Do not use one citation as decoration for a paragraph containing unrelated claims. Preserve conflicts and distinguish verified facts, reasoned interpretation, and missing evidence.\n");
         prompt.append("If an Evidence trust policy asks for more evidence, avoid strong claims and say that trusted evidence is insufficient.\n");
         prompt.append(AgentRuntimeFactGroundingContract.promptSection());
         if (containsEvidence(observations == null ? List.of() : observations)
@@ -1885,7 +1891,18 @@ class AgentAnswerFinalizer {
                                            String finalAnswer,
                                            Map<String, Object> metadata) {
         String runId = stringValue(metadata == null ? null : metadata.get("agentRunId"));
-        List<String> reviewObservations = modelAnalysisReviewObservations(observations, metadata);
+        List<String> reviewObservations = new ArrayList<>(
+            modelAnalysisReviewObservations(observations, metadata));
+        AnswerEvidenceLedgerCompiler.Result preflight = answerEvidenceLedgerCompiler.compile(
+            finalAnswer, metadata, reviewObservations, List.of());
+        if ("FAIL".equals(preflight.status()) || "PARTIAL".equals(preflight.status())) {
+            reviewObservations.add(preflight.reviewerContext());
+        }
+        if (metadata != null) {
+            metadata.put("answerEvidencePreflight", preflight.claimLedger());
+            metadata.put("answerEvidencePreflightStatus", preflight.status());
+            metadata.put("answerEvidencePreflightCoverage", preflight.coverage());
+        }
         if (finalAnswer == null || finalAnswer.isBlank() || activeChatModel == null) {
             log.info("agentModelSkipped phase=review runId={} reason={} answerChars={} observationCount={}",
                 firstNonBlank(runId, ""),
@@ -1907,7 +1924,8 @@ class AgentAnswerFinalizer {
                 "review",
                 runId,
                 timeoutMs,
-                () -> answerReviewer.review(activeChatModel, query, systemPrompt, reviewObservations, finalAnswer)
+                () -> answerReviewer.review(activeChatModel, query, systemPrompt,
+                    List.copyOf(reviewObservations), finalAnswer)
             );
         } catch (TimeoutException ex) {
             if (metadata != null) {
@@ -2085,6 +2103,48 @@ class AgentAnswerFinalizer {
         metadata.put("evidenceAnswer", result.evidenceAnswer().toMap());
         metadata.put("availableEvidenceCitations", result.availableCitations());
         metadata.put("groundingStatus", result.groundingStatus());
+    }
+
+    private String attachAnswerEvidenceLedger(String answer,
+                                              Map<String, Object> metadata,
+                                              List<String> observations,
+                                              List<Map<String, Object>> toolEvidence) {
+        if (metadata == null) {
+            return answer;
+        }
+        AnswerEvidenceLedgerCompiler.Result result = answerEvidenceLedgerCompiler.compile(
+            answer, metadata, observations, toolEvidence);
+        metadata.put("claimLedger", result.claimLedger());
+        metadata.put("claimLedgerVersion", AnswerEvidenceLedgerCompiler.CLAIM_LEDGER_VERSION);
+        metadata.put("evidenceManifest", result.evidenceManifest());
+        metadata.put("evidenceManifestVersion", AnswerEvidenceLedgerCompiler.EVIDENCE_MANIFEST_VERSION);
+        metadata.put("claimCoverage", result.coverage());
+        metadata.put("claimCoverageStatus", result.status());
+        metadata.put("answerClaimAuditPassed",
+            "PASS".equals(result.status()) || "NOT_APPLICABLE".equals(result.status()));
+        if ("FAIL".equals(result.status())) {
+            metadata.putIfAbsent("groundingStatus", "needs_review");
+            metadata.putIfAbsent("answerEvidenceStatus", "PARTIAL");
+            metadata.putIfAbsent("answerEvidenceUserVisible", true);
+            List<String> limitations = new ArrayList<>();
+            Object existing = metadata.get("answerEvidenceLimitations");
+            if (existing instanceof List<?> values) {
+                values.stream().filter(value -> value != null).map(String::valueOf)
+                    .forEach(limitations::add);
+            }
+            if (result.criticalUnboundClaims() > 0) {
+                limitations.add("CRITICAL_CLAIM_WITHOUT_EVIDENCE_BINDING");
+            }
+            if (result.unknownReferences() > 0) {
+                limitations.add("UNKNOWN_EVIDENCE_REFERENCE");
+            }
+            metadata.put("answerEvidenceLimitations", limitations.stream().distinct().toList());
+            if (answer != null && !answer.contains("证据完整性提示")) {
+                return answer + "\n\n> **证据完整性提示**：部分关键结论尚未与本次返回证据逐条绑定，"
+                    + "或引用无法核验。相关内容应视为待核验分析，不宜直接作为决策依据。";
+            }
+        }
+        return answer;
     }
 
     private boolean nonBlankString(Object value) {

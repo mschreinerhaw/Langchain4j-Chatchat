@@ -902,6 +902,43 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
         assertThat(assemblyPolicy)
             .containsEntry("contractVersion", "answer_assembly_policy_v1")
             .containsEntry("mode", "FULL");
+        Map<String, Object> claimLedger = (Map<String, Object>) result.metadata().get("claimLedger");
+        Map<String, Object> evidenceManifest = (Map<String, Object>) result.metadata().get("evidenceManifest");
+        assertThat(claimLedger)
+            .containsEntry("contractVersion", "claim_ledger_v1")
+            .containsEntry("status", "PASS")
+            .containsEntry("coverage", 1.0);
+        assertThat(evidenceManifest)
+            .containsEntry("contractVersion", "evidence_manifest_v1")
+            .containsEntry("evidenceCount", 1);
+        assertThat(String.valueOf(evidenceManifest.get("manifestHash"))).hasSize(64);
+    }
+
+    @Test
+    void addsVisibleTrustBoundaryWhenAHighRiskClaimCannotBeBound() {
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            (chatModel, query, systemPrompt, observations, answer) ->
+                new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok"),
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishExecution(
+            "当前客户数量为 42 家。",
+            List.of(),
+            new LinkedHashMap<>(),
+            List.of("""
+                [Evidence 1]
+                citation: doc://customer-report#chunk=1
+                content: 当前客户数量为 41 家。
+                """)
+        );
+
+        assertThat(result.answer()).contains("证据完整性提示", "待核验分析");
+        assertThat(result.metadata())
+            .containsEntry("claimCoverageStatus", "FAIL")
+            .containsEntry("answerClaimAuditPassed", false);
+        assertThat(result.metadata().get("answerEvidenceLimitations").toString())
+            .contains("CRITICAL_CLAIM_WITHOUT_EVIDENCE_BINDING");
     }
 
     @Test

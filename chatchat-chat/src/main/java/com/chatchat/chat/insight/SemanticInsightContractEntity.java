@@ -54,7 +54,7 @@ public class SemanticInsightContractEntity {
     @Column(nullable = false)
     private int priority;
     @Lob
-    @Column(name = "contract_json", nullable = false)
+    @Column(name = "contract_json", nullable = false, columnDefinition = "LONGTEXT")
     private String contractJson;
     @Column(name = "effective_from")
     private Instant effectiveFrom;

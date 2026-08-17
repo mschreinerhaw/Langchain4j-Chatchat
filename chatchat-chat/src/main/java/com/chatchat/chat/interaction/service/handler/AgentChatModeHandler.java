@@ -453,6 +453,21 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             if (resultHandlingPolicy instanceof Map<?, ?>) {
                 attributes.put("resultHandlingPolicy", resultHandlingPolicy);
             }
+            Object semanticInsightRequested = firstPresent(
+                skill.workflowConfig().get("semanticInsightRequested"),
+                skill.workflowConfig().get("semantic_insight_requested")
+            );
+            if (Boolean.TRUE.equals(semanticInsightRequested)
+                || "true".equalsIgnoreCase(String.valueOf(semanticInsightRequested))) {
+                attributes.put("semanticInsightRequested", true);
+            }
+            Object semanticInsightContractIds = firstPresent(
+                skill.workflowConfig().get("semanticInsightContractIds"),
+                skill.workflowConfig().get("semantic_insight_contract_ids")
+            );
+            if (semanticInsightContractIds instanceof List<?> ids && !ids.isEmpty()) {
+                attributes.put("semanticInsightContractIds", List.copyOf(ids));
+            }
         }
         if (skill != null && skill.workflowConfig() != null
             && skill.workflowConfig().get("requiredToolParameters") instanceof Map<?, ?> requiredToolParameters) {

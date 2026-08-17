@@ -380,6 +380,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (request.getRunId() != null && !request.getRunId().isBlank()) {
             attributes.put(AGENT_RUN_ID_ATTRIBUTE, request.getRunId());
         }
+        if (request.getSkillId() != null && !request.getSkillId().isBlank()) {
+            attributes.putIfAbsent("agentId", request.getSkillId().trim());
+        }
         if (request.getMaxSteps() != null) {
             attributes.put(AGENT_MAX_STEPS_ATTRIBUTE, request.getMaxSteps());
         }

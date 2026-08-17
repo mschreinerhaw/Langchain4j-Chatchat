@@ -1059,5 +1059,7 @@
     );
     create index idx_semantic_contract_active
        on runtime_semantic_insight_contract (tenant_id, status, enabled, priority);
-    create index idx_semantic_contract_binding
-       on runtime_semantic_insight_contract (tenant_id, agent_id, tool_name, dataset_key, task_type);
+    create index idx_semantic_contract_agent_tool
+       on runtime_semantic_insight_contract (tenant_id, agent_id, tool_name);
+    create index idx_semantic_contract_dataset_task
+       on runtime_semantic_insight_contract (tenant_id, dataset_key, task_type);

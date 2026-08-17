@@ -22,20 +22,29 @@ public class DefaultAgentRuntime implements AgentRuntime {
     private final AgentRunExecutor runExecutor;
     private final AgentRunStore runStore;
     private final Executor executor;
+    private final TenantFairExecutor tenantExecutor;
     private final Map<String, AtomicBoolean> cancellationSignals = new ConcurrentHashMap<>();
     private final Map<String, Thread> runningThreads = new ConcurrentHashMap<>();
 
     public DefaultAgentRuntime(AgentRunExecutor runExecutor, AgentRunStore runStore) {
-        this(runExecutor, runStore, ForkJoinPool.commonPool());
+        this(runExecutor, runStore, ForkJoinPool.commonPool(), new AgentRuntimeProperties());
+    }
+
+    public DefaultAgentRuntime(AgentRunExecutor runExecutor,
+                               AgentRunStore runStore,
+                               @Qualifier(AgentRuntimeExecutorConfig.AGENT_RUNTIME_EXECUTOR) Executor executor) {
+        this(runExecutor, runStore, executor, new AgentRuntimeProperties());
     }
 
     @Autowired
     public DefaultAgentRuntime(AgentRunExecutor runExecutor,
                                AgentRunStore runStore,
-                               @Qualifier(AgentRuntimeExecutorConfig.AGENT_RUNTIME_EXECUTOR) Executor executor) {
+                               @Qualifier(AgentRuntimeExecutorConfig.AGENT_RUNTIME_EXECUTOR) Executor executor,
+                               AgentRuntimeProperties properties) {
         this.runExecutor = runExecutor;
         this.runStore = runStore;
         this.executor = executor == null ? ForkJoinPool.commonPool() : executor;
+        this.tenantExecutor = new TenantFairExecutor(this.executor, properties);
     }
 
     @Override
@@ -48,21 +57,23 @@ public class DefaultAgentRuntime implements AgentRuntime {
         AgentRun submitted = runStore.submit(request);
         AtomicBoolean cancellationSignal = installCancellationSignal(request, submitted.runId());
         try {
-            CompletableFuture<AgentRunResult> completion = CompletableFuture.supplyAsync(
-                () -> {
+            CompletableFuture<AgentRunResult> completion = new CompletableFuture<>();
+            tenantExecutor.execute(request == null ? null : request.getTenantId(), () -> {
                     runningThreads.put(submitted.runId(), Thread.currentThread());
                     try {
                         if (cancellationSignal.get()) {
-                            return cancelledRunResult(runStore.cancel(submitted.runId(), "Agent run cancellation requested"));
+                            completion.complete(cancelledRunResult(
+                                runStore.cancel(submitted.runId(), "Agent run cancellation requested")));
+                            return;
                         }
-                        return runExecutor.execute(request);
+                        completion.complete(runExecutor.execute(request));
+                    } catch (Throwable failure) {
+                        completion.completeExceptionally(failure);
                     } finally {
                         runningThreads.remove(submitted.runId());
                         cancellationSignals.remove(submitted.runId());
                     }
-                },
-                executor
-            );
+                });
             return new AgentRunHandle(submitted.runId(), completion);
         } catch (RejectedExecutionException ex) {
             cancellationSignals.remove(submitted.runId());

@@ -25,7 +25,8 @@ import java.time.Instant;
     ),
     indexes = {
         @Index(name = "idx_dag_node_attempt_run", columnList = "tenant_id, run_id, node_id"),
-        @Index(name = "idx_dag_node_attempt_state", columnList = "tenant_id, state, updated_at")
+        @Index(name = "idx_dag_node_attempt_state", columnList = "tenant_id, state, updated_at"),
+        @Index(name = "idx_dag_node_attempt_lease", columnList = "state, lease_expires_at")
     }
 )
 public class NodeAttemptEntity {
@@ -66,6 +67,18 @@ public class NodeAttemptEntity {
 
     @Column(name = "committed_at")
     private Instant committedAt;
+
+    @Column(name = "worker_id", length = 128)
+    private String workerId;
+
+    @Column(name = "lease_token", length = 64)
+    private String leaseToken;
+
+    @Column(name = "heartbeat_at")
+    private Instant heartbeatAt;
+
+    @Column(name = "lease_expires_at")
+    private Instant leaseExpiresAt;
 
     @Column(name = "node_definition_fingerprint", length = 64)
     private String nodeDefinitionFingerprint;

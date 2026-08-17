@@ -114,7 +114,9 @@ public class InterpretationPlanOptimizer {
                 remapDependencyContractsForRenumber(steps, dependencyContracts),
                 remapBindingsForRenumber(steps, bindings),
                 remapStabilityForRenumber(steps, plan.plan().stability()),
-                remapDiagnosticProfileForRenumber(steps, plan.plan().diagnosticProfile())
+                remapDiagnosticProfileForRenumber(steps, plan.plan().diagnosticProfile()),
+                remapConditionalEdgesForRenumber(steps, plan.plan().conditionalEdges()),
+                remapBranchGroupsForRenumber(steps, plan.plan().branchGroups())
             ),
             retrievalPolicy.executionPolicy(),
             plan.review()
@@ -816,6 +818,43 @@ public class InterpretationPlanOptimizer {
                 contract.onFailure()
             ))
             .toList();
+    }
+
+    private List<InterpretationPlan.ConditionalEdge> remapConditionalEdgesForRenumber(
+        List<InterpretationPlan.Step> originalSteps, List<InterpretationPlan.ConditionalEdge> edges) {
+        if (edges == null) {
+            return List.of();
+        }
+        Map<Integer, Integer> idMap = renumberMap(originalSteps);
+        return edges.stream().filter(Objects::nonNull)
+            .map(edge -> new InterpretationPlan.ConditionalEdge(
+                idMap.getOrDefault(edge.from(), edge.from()), idMap.getOrDefault(edge.to(), edge.to()),
+                edge.branchGroupId(), edge.condition(), edge.priority(), edge.defaultEdge()))
+            .toList();
+    }
+
+    private List<InterpretationPlan.BranchGroup> remapBranchGroupsForRenumber(
+        List<InterpretationPlan.Step> originalSteps, List<InterpretationPlan.BranchGroup> groups) {
+        if (groups == null) {
+            return List.of();
+        }
+        Map<Integer, Integer> idMap = renumberMap(originalSteps);
+        return groups.stream().filter(Objects::nonNull)
+            .map(group -> new InterpretationPlan.BranchGroup(group.id(),
+                group.candidateStepIds() == null ? List.of() : group.candidateStepIds().stream()
+                    .map(id -> idMap.getOrDefault(id, id)).toList(),
+                idMap.getOrDefault(group.targetStepId(), group.targetStepId()),
+                group.mode(), group.selectionStrategy()))
+            .toList();
+    }
+
+    private Map<Integer, Integer> renumberMap(List<InterpretationPlan.Step> steps) {
+        Map<Integer, Integer> idMap = new LinkedHashMap<>();
+        int next = 1;
+        for (InterpretationPlan.Step step : steps) {
+            idMap.put(step.id(), next++);
+        }
+        return idMap;
     }
 
     private InterpretationPlan.Stability remapStabilityForRenumber(List<InterpretationPlan.Step> originalSteps,

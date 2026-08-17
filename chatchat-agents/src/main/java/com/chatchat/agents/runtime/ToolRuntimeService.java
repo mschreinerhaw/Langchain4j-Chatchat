@@ -618,7 +618,7 @@ public class ToolRuntimeService {
                 executionPlan,
                 policyDecision);
         }
-        if (isRateLimited(toolName, metadata, toolInput.getUserId(), policy)) {
+        if (isRateLimited(toolName, metadata, request.getTenantId(), toolInput.getUserId(), policy)) {
             return rejectedExecution(toolName, request, metadata,
                 "Tool rate limit exceeded: " + toolName,
                 "TOOL_RATE_LIMITED",
@@ -1300,20 +1300,32 @@ public class ToolRuntimeService {
      * @param policy the policy value
      * @return whether the condition is satisfied
      */
-    private boolean isRateLimited(String toolName, ToolMetadata metadata, String userId, ToolRuntimePolicy policy) {
+    private boolean isRateLimited(String toolName,
+                                  ToolMetadata metadata,
+                                  String tenantId,
+                                  String userId,
+                                  ToolRuntimePolicy policy) {
         int limit = metadata != null && metadata.isRateLimited() && metadata.getMaxCallsPerMinute() > 0
             ? metadata.getMaxCallsPerMinute()
             : properties.getDefaultMaxCallsPerMinute();
         if (policy != null && policy.maxCallsPerMinute() != null) {
             limit = policy.maxCallsPerMinute();
         }
+        int qpsLimit = Math.max(0, properties.getDefaultMaxCallsPerSecond());
+        String actor = normalizeText(userId);
+        String tenant = normalizeText(tenantId);
+        String tenantToolKey = (tenant == null ? "default" : tenant) + "::" + toolName;
+        String actorKey = tenantToolKey + "::" + (actor == null ? "anonymous" : actor);
+        long now = System.currentTimeMillis();
+        return exceedsRateWindow(actorKey + "::minute", now, 60_000L, limit)
+            || exceedsRateWindow(tenantToolKey + "::second", now, 1_000L, qpsLimit);
+    }
+
+    private boolean exceedsRateWindow(String key, long now, long windowMs, int limit) {
         if (limit <= 0) {
             return false;
         }
-        String actor = normalizeText(userId);
-        String key = toolName + "::" + (actor == null ? "anonymous" : actor);
-        long now = System.currentTimeMillis();
-        long threshold = now - 60_000L;
+        long threshold = now - windowMs;
         Deque<Long> window = rateWindows.computeIfAbsent(key, ignored -> new ArrayDeque<>());
         synchronized (window) {
             while (!window.isEmpty() && window.peekFirst() < threshold) {

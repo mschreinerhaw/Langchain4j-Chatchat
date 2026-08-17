@@ -372,8 +372,8 @@ class AgentPlanner {
         prompt.append("- Every execution_policy.tool_priority value MUST be a number from 0.0 to 1.0. Higher priority means closer to 1.0; never use rank numbers such as 2.0.\n");
         prompt.append("- execution_policy.accuracy_vs_speed MUST also be from 0.0 to 1.0.\n");
         prompt.append("- Use plan.stability to lock critical nodes/tools/edges that optimizer and rewriter must preserve.\n");
-        prompt.append("- Use plan.dependency_contracts to declare dependency semantics. depends_on is hard DAG ordering only; dependency_contracts.required=true means the upstream step must be executed before the target, while required=false means the upstream step is optional and should be planned only when its condition is needed.\n");
-        prompt.append("- Required dependency_contracts MUST also appear in the target step depends_on. Optional dependency_contracts MUST include condition or reason; do not add optional tools as depends_on unless you decide they are needed for this user request.\n");
+        prompt.append("- Use plan.dependency_contracts only for dependency semantics. Required dependencies MUST also appear in target depends_on; optional dependencies need condition or reason.\n");
+        prompt.append("- Mutually exclusive semantic paths MUST use first-class plan.branch_groups plus plan.conditional_edges, never optional dependency_contracts. Java computes Ready nodes; selection_strategy=llm may choose only from ready candidate_step_ids.\n");
         prompt.append("- For mutually exclusive semantic paths, declare each alternative as required=false with a non-empty, mutually exclusive condition and the same target step. Runtime will ask the model to choose only among those Ready alternatives. Do not use this pattern for additive work where every step must run.\n");
         prompt.append("- Add plan.edge_contracts when a later step needs a typed field from an earlier tool output.\n");
         prompt.append("- If information is missing, add missing_info and plan the smallest safe retrieval/tool step instead of inventing facts.\n\n");
@@ -1153,6 +1153,31 @@ class AgentPlanner {
         if (!plan.isEmpty()) {
             alias(plan, "edgeContracts", "edge_contracts");
             alias(plan, "dependencyContracts", "dependency_contracts");
+            alias(plan, "conditionalEdges", "conditional_edges");
+            alias(plan, "branchGroups", "branch_groups");
+            Object rawConditionalEdges = plan.get("conditional_edges");
+            if (rawConditionalEdges instanceof List<?> edges) {
+                List<Object> normalizedEdges = new ArrayList<>();
+                for (Object rawEdge : edges) {
+                    Map<String, Object> edge = mutableMap(rawEdge);
+                    alias(edge, "branchGroupId", "branch_group_id");
+                    alias(edge, "defaultEdge", "default_edge");
+                    normalizedEdges.add(edge.isEmpty() ? rawEdge : edge);
+                }
+                plan.put("conditional_edges", normalizedEdges);
+            }
+            Object rawBranchGroups = plan.get("branch_groups");
+            if (rawBranchGroups instanceof List<?> groups) {
+                List<Object> normalizedGroups = new ArrayList<>();
+                for (Object rawGroup : groups) {
+                    Map<String, Object> group = mutableMap(rawGroup);
+                    alias(group, "candidateStepIds", "candidate_step_ids");
+                    alias(group, "targetStepId", "target_step_id");
+                    alias(group, "selectionStrategy", "selection_strategy");
+                    normalizedGroups.add(group.isEmpty() ? rawGroup : group);
+                }
+                plan.put("branch_groups", normalizedGroups);
+            }
             Object rawDependencyContracts = plan.get("dependency_contracts");
             if (rawDependencyContracts instanceof List<?> contracts) {
                 List<Object> normalizedContracts = new ArrayList<>();
@@ -2819,7 +2844,9 @@ class AgentPlanner {
             originalPlan == null ? List.of() : originalPlan.dependencyContracts(),
             originalPlan == null ? List.of() : originalPlan.bindings(),
             originalPlan == null ? null : originalPlan.stability(),
-            originalPlan == null ? null : originalPlan.diagnosticProfile()
+            originalPlan == null ? null : originalPlan.diagnosticProfile(),
+            originalPlan == null ? List.of() : originalPlan.conditionalEdges(),
+            originalPlan == null ? List.of() : originalPlan.branchGroups()
         );
         return new InterpretationPlan(
             plan.version(),

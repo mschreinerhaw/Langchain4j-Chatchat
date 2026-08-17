@@ -6,6 +6,8 @@ import org.springframework.data.jpa.repository.Lock;
 
 import java.util.Optional;
 import java.util.List;
+import java.time.Instant;
+import org.springframework.data.domain.Pageable;
 
 public interface NodeAttemptRepository extends JpaRepository<NodeAttemptEntity, String> {
 
@@ -21,4 +23,8 @@ public interface NodeAttemptRepository extends JpaRepository<NodeAttemptEntity, 
 
     List<NodeAttemptEntity> findAllByTenantIdAndRunIdAndStateOrderByCommittedAtAscNodeIdAsc(
         String tenantId, String runId, String state);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    List<NodeAttemptEntity> findAllByStateAndLeaseExpiresAtBeforeOrderByLeaseExpiresAtAsc(
+        String state, Instant now, Pageable pageable);
 }

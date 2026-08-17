@@ -110,6 +110,10 @@ chatchat:
         port: 0
         type: http
   agent-runtime:
+    max-concurrent-per-tenant: ${CHATCHAT_AGENT_MAX_CONCURRENT_PER_TENANT:4}
+    max-queued-per-tenant: ${CHATCHAT_AGENT_MAX_QUEUED_PER_TENANT:50}
+    tenant-fair-scheduling-enabled: true
+    lease-recovery-scan-ms: ${CHATCHAT_AGENT_LEASE_RECOVERY_SCAN_MS:5000}
     store-type: rocksdb
     rocks-db-path: ./data/agent-runtime-rocksdb
     rocks-db-create-if-missing: true
@@ -263,6 +267,7 @@ chatchat:
       parameter-policy:
         path: ask_before_execute
   tool-runtime:
+    default-max-calls-per-second: ${CHATCHAT_TOOL_DEFAULT_QPS:10}
     enforce-allowed-tools: true
     enforce-authentication: true
     default-max-calls-per-minute: 0

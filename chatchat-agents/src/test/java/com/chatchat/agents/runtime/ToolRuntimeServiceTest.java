@@ -1509,6 +1509,31 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
+    void qpsLimitIsSharedWithinTenantButIsolatedAcrossTenants() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getToolMetadata("shared_tool")).thenReturn(ToolMetadata.builder()
+            .id("shared_tool").title("Shared Tool").build());
+        when(registry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.success("ok"));
+        ToolRuntimeProperties runtimeProperties = properties();
+        runtimeProperties.setDefaultMaxCallsPerSecond(1);
+        ToolRuntimeService service = new ToolRuntimeService(registry, new ObjectMapper(), runtimeProperties, List.of(), List.of());
+        try {
+            java.util.function.BiFunction<String, String, ToolRuntimeExecution> call = (tenant, user) ->
+                service.execute(ToolRuntimeRequest.builder().toolName("shared_tool").runtimeMode("tool_direct")
+                    .requestId(tenant + user).conversationId("conv").tenantId(tenant).userId(user)
+                    .allowedTools(List.of("shared_tool"))
+                    .toolInput(ToolInput.builder().userId(user).parameters(Map.of()).build()).build());
+
+            assertThat(call.apply("tenant-a", "user-1").output().isSuccess()).isTrue();
+            assertThat(call.apply("tenant-a", "user-2").output().isSuccess()).isFalse();
+            assertThat(call.apply("tenant-b", "user-1").output().isSuccess()).isTrue();
+            verify(registry, times(2)).executeEnhancedTool(any(), any());
+        } finally {
+            service.shutdown();
+        }
+    }
+
+    @Test
     void oversizedBatchChildRemainsFullyReviewableWhenExternalStoreIsDisabled() {
         ToolRegistry registry = mock(ToolRegistry.class);
         when(registry.getToolMetadata("large_tool")).thenReturn(ToolMetadata.builder()

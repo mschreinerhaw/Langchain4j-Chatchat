@@ -58,6 +58,26 @@ public interface NodeAttemptStore {
         return List.of();
     }
 
+    /** Whether this store provides distributed worker leases and stale-owner fencing. */
+    default boolean supportsLeases() {
+        return false;
+    }
+
+    default LeaseSnapshot acquireLease(String tenantId, String attemptId, String workerId,
+                                       Instant now, long leaseDurationMs) {
+        throw new UnsupportedOperationException("Node attempt leases are not supported");
+    }
+
+    default LeaseSnapshot heartbeat(String tenantId, String attemptId, String workerId,
+                                    String leaseToken, Instant now, long leaseDurationMs) {
+        throw new UnsupportedOperationException("Node attempt leases are not supported");
+    }
+
+    /** Fences expired owners and makes their attempts terminal so another worker may retry the node. */
+    default List<AttemptSnapshot> reclaimExpiredLeases(String recoveryWorkerId, Instant now, int limit) {
+        return List.of();
+    }
+
     record AttemptCommand(
         String tenantId,
         String runId,
@@ -80,6 +100,15 @@ public interface NodeAttemptStore {
         long revision,
         Instant createdAt,
         Instant updatedAt
+    ) {
+    }
+
+    record LeaseSnapshot(
+        String attemptId,
+        String workerId,
+        String leaseToken,
+        Instant heartbeatAt,
+        Instant expiresAt
     ) {
     }
 

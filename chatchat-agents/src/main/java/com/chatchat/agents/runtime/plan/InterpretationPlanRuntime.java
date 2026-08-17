@@ -38,6 +38,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.security.MessageDigest;
 import java.util.Base64;
 import java.util.regex.Matcher;
@@ -46,6 +50,8 @@ import java.util.stream.Collectors;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.Instant;
+import java.util.UUID;
 
 /**
  * Executes validated InterpretationPlan DAGs against the MCP tool runtime.
@@ -85,6 +91,13 @@ public class InterpretationPlanRuntime {
     );
     private static final ObjectMapper RESULT_OBJECT_MAPPER = new ObjectMapper();
     private static final ToolArgumentCompiler TOOL_ARGUMENT_COMPILER = new ToolArgumentCompiler();
+    private static final String RUNTIME_WORKER_ID = "worker-" + UUID.randomUUID();
+    private static final long DEFAULT_NODE_LEASE_MS = 30_000L;
+    private static final ScheduledExecutorService LEASE_HEARTBEATS = Executors.newScheduledThreadPool(1, runnable -> {
+        Thread thread = new Thread(runnable, "dag-node-lease-heartbeat");
+        thread.setDaemon(true);
+        return thread;
+    });
     private static final ContextualToolArgumentResolver CONTEXT_ARGUMENT_RESOLVER =
         new ContextualToolArgumentResolver();
     private static final TemplateInvocationBridge TEMPLATE_INVOCATION_BRIDGE =
@@ -1236,11 +1249,36 @@ public class InterpretationPlanRuntime {
     }
 
     private SemanticBranch semanticBranch(InterpretationPlan plan, List<Integer> readyStepIds) {
-        if (plan == null || plan.plan() == null || plan.plan().dependencyContracts() == null
-            || readyStepIds == null || readyStepIds.size() < 2) {
+        if (plan == null || plan.plan() == null || readyStepIds == null || readyStepIds.size() < 2) {
             return SemanticBranch.none();
         }
         Set<Integer> ready = new LinkedHashSet<>(readyStepIds);
+        if (plan.plan().branchGroups() != null) {
+            SemanticBranch declared = plan.plan().branchGroups().stream()
+                .filter(Objects::nonNull)
+                .filter(group -> group.candidateStepIds() != null)
+                .map(group -> new SemanticBranch(
+                    group.targetStepId(),
+                    group.candidateStepIds().stream()
+                        .filter(ready::contains)
+                        .distinct()
+                        .sorted()
+                        .toList(),
+                    "exclusive".equalsIgnoreCase(group.mode())
+                ))
+                .filter(branch -> branch.required() && branch.candidateStepIds().size() > 1)
+                .sorted(java.util.Comparator.comparing(SemanticBranch::targetStepId,
+                    java.util.Comparator.nullsLast(Integer::compareTo)))
+                .findFirst()
+                .orElse(null);
+            if (declared != null) {
+                return declared;
+            }
+        }
+        // Backward compatibility for plans persisted before branch_groups became first-class.
+        if (plan.plan().dependencyContracts() == null) {
+            return SemanticBranch.none();
+        }
         Map<Integer, List<Integer>> optionalSourcesByTarget = new LinkedHashMap<>();
         for (InterpretationPlan.DependencyContract contract : plan.plan().dependencyContracts()) {
             if (contract == null || !Boolean.FALSE.equals(contract.required())
@@ -1437,12 +1475,42 @@ public class InterpretationPlanRuntime {
         );
         try {
             attempt = transitionAttempt(attempt, NodeAttemptStore.State.READY, "dependencies committed", Map.of());
+            NodeAttemptStore.LeaseSnapshot lease = null;
+            ScheduledFuture<?> heartbeat = null;
+            if (nodeAttemptStore.supportsLeases()) {
+                String workerId = request.attributes() == null
+                    ? RUNTIME_WORKER_ID : firstText(stringValue(request.attributes().get("workerId")), RUNTIME_WORKER_ID);
+                long leaseMs = longAttribute(request.attributes(), "nodeLeaseMs", DEFAULT_NODE_LEASE_MS);
+                lease = nodeAttemptStore.acquireLease(request.tenantId(), attempt.attemptId(), workerId,
+                    Instant.now(), leaseMs);
+                NodeAttemptStore.LeaseSnapshot ownedLease = lease;
+                heartbeat = LEASE_HEARTBEATS.scheduleAtFixedRate(() -> {
+                    try {
+                        nodeAttemptStore.heartbeat(request.tenantId(), ownedLease.attemptId(), ownedLease.workerId(),
+                            ownedLease.leaseToken(), Instant.now(), leaseMs);
+                    } catch (RuntimeException ex) {
+                        log.warn("DAG node lease heartbeat rejected. attemptId={} workerId={} error={}",
+                            ownedLease.attemptId(), ownedLease.workerId(), ex.getMessage());
+                    }
+                }, Math.max(250L, leaseMs / 3), Math.max(250L, leaseMs / 3), TimeUnit.MILLISECONDS);
+            }
             attempt = transitionAttempt(attempt, NodeAttemptStore.State.RUNNING, "node execution started", Map.of());
-            StepExecution execution = executeStepBody(step, request, completed);
+            StepExecution execution;
+            try {
+                execution = executeStepBody(step, request, completed);
+            } finally {
+                if (heartbeat != null) {
+                    heartbeat.cancel(false);
+                }
+            }
             if (!execution.success()) {
                 attempt = transitionAttempt(attempt, NodeAttemptStore.State.FAILED,
                     firstText(execution.errorMessage(), "node execution failed"), Map.of());
                 return withAttemptMetadata(execution, attempt, NodeAttemptStore.State.FAILED);
+            }
+            if (lease != null) {
+                nodeAttemptStore.heartbeat(request.tenantId(), lease.attemptId(), lease.workerId(),
+                    lease.leaseToken(), Instant.now(), longAttribute(request.attributes(), "nodeLeaseMs", DEFAULT_NODE_LEASE_MS));
             }
             attempt = transitionAttempt(attempt, NodeAttemptStore.State.PREPARED,
                 "node result validated; awaiting commit barrier", Map.of(
@@ -1464,6 +1532,17 @@ public class InterpretationPlanRuntime {
                 "NODE_ATTEMPT_PERSISTENCE_FAILED: " + firstText(ex.getMessage(), ex.getClass().getSimpleName()),
                 null, null, 0L, Map.of("nodeAttemptState", "FAILED")
             );
+        }
+    }
+
+    private long longAttribute(Map<String, Object> attributes, String name, long fallback) {
+        if (attributes == null || attributes.get(name) == null) {
+            return fallback;
+        }
+        try {
+            return Math.max(1000L, Long.parseLong(String.valueOf(attributes.get(name))));
+        } catch (NumberFormatException ignored) {
+            return fallback;
         }
     }
 

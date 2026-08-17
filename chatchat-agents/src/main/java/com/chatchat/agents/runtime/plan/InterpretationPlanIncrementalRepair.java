@@ -86,7 +86,11 @@ final class InterpretationPlanIncrementalRepair {
             mergeFrozenBindings(originalBody.bindings(), candidateBody.bindings(), region.frozenStepIds()),
             mergeStability(originalBody.stability(), candidateBody.stability(), region.frozenStepIds()),
             candidateBody.diagnosticProfile() == null
-                ? originalBody.diagnosticProfile() : candidateBody.diagnosticProfile()
+                ? originalBody.diagnosticProfile() : candidateBody.diagnosticProfile(),
+            candidateBody.conditionalEdges() == null
+                ? originalBody.conditionalEdges() : candidateBody.conditionalEdges(),
+            candidateBody.branchGroups() == null
+                ? originalBody.branchGroups() : candidateBody.branchGroups()
         );
         return new InterpretationPlan(
             original.version(),

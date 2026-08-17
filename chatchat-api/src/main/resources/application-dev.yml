@@ -107,12 +107,17 @@ chatchat:
       max-concurrent-tasks-per-tenant: 4
       execution-timeout-ms: 3600000
   tool-runtime:
+    default-max-calls-per-second: ${CHATCHAT_TOOL_DEFAULT_QPS:10}
     default-tool-timeout-ms: 1800000
     max-batch-calls: 32
     max-batch-payload-bytes: 262144
     max-output-bytes: ${CHATCHAT_TOOL_MAX_OUTPUT_BYTES:262144}
     max-output-preview-chars: ${CHATCHAT_TOOL_MAX_OUTPUT_PREVIEW_CHARS:16000}
   agent-runtime:
+    max-concurrent-per-tenant: ${CHATCHAT_AGENT_MAX_CONCURRENT_PER_TENANT:4}
+    max-queued-per-tenant: ${CHATCHAT_AGENT_MAX_QUEUED_PER_TENANT:50}
+    tenant-fair-scheduling-enabled: true
+    lease-recovery-scan-ms: ${CHATCHAT_AGENT_LEASE_RECOVERY_SCAN_MS:5000}
     final-summary-web-search-enabled: true
     final-summary-web-search-max-keywords: 2
     final-summary-web-search-result-limit: 6

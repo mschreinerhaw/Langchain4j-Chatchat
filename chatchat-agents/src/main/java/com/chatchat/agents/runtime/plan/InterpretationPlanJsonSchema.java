@@ -103,6 +103,39 @@ public final class InterpretationPlanJsonSchema {
                     }
                   }
                 },
+                "branch_groups": {
+                  "type": "array",
+                  "description": "First-class mutually exclusive routing groups. Java computes Ready nodes; LLM may only select from ready candidates.",
+                  "items": {
+                    "type": "object",
+                    "required": ["id", "candidate_step_ids", "target_step_id", "mode", "selection_strategy"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {"type": "string"},
+                      "candidate_step_ids": {"type": "array", "minItems": 2, "uniqueItems": true, "items": {"type": "integer"}},
+                      "target_step_id": {"type": "integer"},
+                      "mode": {"type": "string", "enum": ["exclusive"]},
+                      "selection_strategy": {"type": "string", "enum": ["llm"]}
+                    }
+                  }
+                },
+                "conditional_edges": {
+                  "type": "array",
+                  "description": "Conditional candidate-to-target edges belonging to a branch group. Conditions are semantic predicates, not executable code.",
+                  "items": {
+                    "type": "object",
+                    "required": ["from", "to", "branch_group_id"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "from": {"type": "integer"},
+                      "to": {"type": "integer"},
+                      "branch_group_id": {"type": "string"},
+                      "condition": {"type": "string"},
+                      "priority": {"type": "integer"},
+                      "default_edge": {"type": "boolean"}
+                    }
+                  }
+                },
                 "edge_contracts": {
                   "type": "array",
                   "items": {

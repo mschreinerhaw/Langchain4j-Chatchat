@@ -16,6 +16,11 @@ public class AgentRuntimeProperties {
     private int corePoolSize = 4;
     private int maxPoolSize = 16;
     private int queueCapacity = 100;
+    /** Maximum delegated/running Agent runs for one tenant. */
+    private int maxConcurrentPerTenant = 4;
+    /** Bounded waiting room per tenant; overflow is rejected as backpressure. */
+    private int maxQueuedPerTenant = 50;
+    private boolean tenantFairSchedulingEnabled = true;
     private int keepAliveSeconds = 60;
     private String threadNamePrefix = "agent-runtime-";
     private int maxStoredRuns = 10_000;
@@ -59,6 +64,14 @@ public class AgentRuntimeProperties {
 
     public int queueCapacity() {
         return Math.max(1, queueCapacity);
+    }
+
+    public int maxConcurrentPerTenant() {
+        return Math.max(1, maxConcurrentPerTenant);
+    }
+
+    public int maxQueuedPerTenant() {
+        return Math.max(1, Math.min(queueCapacity(), maxQueuedPerTenant));
     }
 
     public int keepAliveSeconds() {

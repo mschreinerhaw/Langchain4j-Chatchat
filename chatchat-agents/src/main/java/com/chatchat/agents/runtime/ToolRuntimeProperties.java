@@ -17,6 +17,8 @@ public class ToolRuntimeProperties {
     private boolean enforceAllowedTools = true;
     private boolean enforceAuthentication = true;
     private int defaultMaxCallsPerMinute = 0;
+    /** Per tenant/tool burst ceiling. Zero disables the QPS gate. */
+    private int defaultMaxCallsPerSecond = 0;
     private int circuitBreakerFailureThreshold = 3;
     private int circuitBreakerOpenSeconds = 60;
     private int topToolLimit = 6;

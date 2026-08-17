@@ -16,6 +16,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -114,6 +115,7 @@ public class InterpretationPlanValidator {
         validateDiagnosticProfile(plan, stepsById, state);
         validateStability(plan, stepsById, toolRegistry, availableTools, state);
         validateDependencyContracts(plan, stepsById, state);
+        validateConditionalRouting(plan, stepsById, state);
         validateEdgeContracts(plan, stepsById, state);
         validateBindings(plan, stepsById, state);
         validateTemplateExecutionEvidenceChains(
@@ -1016,6 +1018,90 @@ public class InterpretationPlanValidator {
             if (!blank(contract.onFailure())
                 && !Set.of("stop", "skip", "continue_with_partial_evidence", "replan").contains(normalize(contract.onFailure()))) {
                 state.error(path + ".on_failure", "Unsupported dependency failure policy: " + contract.onFailure());
+            }
+        }
+    }
+
+    private void validateConditionalRouting(InterpretationPlan plan,
+                                            Map<Integer, InterpretationPlan.Step> stepsById,
+                                            ValidationState state) {
+        if (plan == null || plan.plan() == null) {
+            return;
+        }
+        Map<String, InterpretationPlan.BranchGroup> groups = new LinkedHashMap<>();
+        List<InterpretationPlan.BranchGroup> branchGroups = plan.plan().branchGroups() == null
+            ? List.of() : plan.plan().branchGroups();
+        for (int index = 0; index < branchGroups.size(); index++) {
+            InterpretationPlan.BranchGroup group = branchGroups.get(index);
+            String path = "plan.branch_groups[" + index + "]";
+            if (group == null) {
+                state.error(path, "Branch group cannot be null");
+                continue;
+            }
+            if (blank(group.id())) {
+                state.error(path + ".id", "Branch group id is required");
+            } else if (groups.putIfAbsent(group.id(), group) != null) {
+                state.error(path + ".id", "Branch group id must be unique: " + group.id());
+            }
+            List<Integer> candidates = group.candidateStepIds() == null ? List.of() : group.candidateStepIds();
+            if (candidates.stream().filter(Objects::nonNull).distinct().count() < 2) {
+                state.error(path + ".candidate_step_ids", "Branch group requires at least two distinct candidates");
+            }
+            for (Integer candidate : candidates) {
+                if (candidate == null || !stepsById.containsKey(candidate)) {
+                    state.error(path + ".candidate_step_ids", "Branch candidate step does not exist: " + candidate);
+                } else if (stepsById.get(candidate).finalAnswerAction()) {
+                    state.error(path + ".candidate_step_ids", "Final answer cannot be a branch candidate: " + candidate);
+                }
+            }
+            if (group.targetStepId() == null || !stepsById.containsKey(group.targetStepId())) {
+                state.error(path + ".target_step_id", "Branch target step does not exist: " + group.targetStepId());
+            } else if (candidates.contains(group.targetStepId())) {
+                state.error(path + ".target_step_id", "Branch target cannot also be a candidate");
+            } else {
+                InterpretationPlan.Step target = stepsById.get(group.targetStepId());
+                if (target.dependsOn() != null && target.dependsOn().stream().anyMatch(candidates::contains)) {
+                    state.error(path + ".target_step_id",
+                        "Branch target must not hard-depend on mutually exclusive candidates; the branch group supplies that join contract");
+                }
+            }
+            if (!"exclusive".equals(normalize(group.mode()))) {
+                state.error(path + ".mode", "Only exclusive branch mode is currently supported");
+            }
+            if (!"llm".equals(normalize(group.selectionStrategy()))) {
+                state.error(path + ".selection_strategy", "Semantic branch selection_strategy must be llm");
+            }
+        }
+        Map<String, Integer> defaultsByGroup = new LinkedHashMap<>();
+        List<InterpretationPlan.ConditionalEdge> edges = plan.plan().conditionalEdges() == null
+            ? List.of() : plan.plan().conditionalEdges();
+        for (int index = 0; index < edges.size(); index++) {
+            InterpretationPlan.ConditionalEdge edge = edges.get(index);
+            String path = "plan.conditional_edges[" + index + "]";
+            if (edge == null) {
+                state.error(path, "Conditional edge cannot be null");
+                continue;
+            }
+            InterpretationPlan.BranchGroup group = groups.get(edge.branchGroupId());
+            if (group == null) {
+                state.error(path + ".branch_group_id", "Conditional edge references an unknown branch group: " + edge.branchGroupId());
+            }
+            if (edge.from() == null || !stepsById.containsKey(edge.from())) {
+                state.error(path + ".from", "Conditional edge source step does not exist: " + edge.from());
+            }
+            if (edge.to() == null || !stepsById.containsKey(edge.to())) {
+                state.error(path + ".to", "Conditional edge target step does not exist: " + edge.to());
+            }
+            if (group != null && ((group.candidateStepIds() == null || !group.candidateStepIds().contains(edge.from()))
+                || !Objects.equals(group.targetStepId(), edge.to()))) {
+                state.error(path, "Conditional edge must connect a declared candidate to its branch target");
+            }
+            boolean defaultEdge = Boolean.TRUE.equals(edge.defaultEdge());
+            if (!defaultEdge && blank(edge.condition())) {
+                state.error(path + ".condition", "A non-default conditional edge requires a condition");
+            }
+            if (defaultEdge && defaultsByGroup.merge(edge.branchGroupId(), 1, Integer::sum) > 1) {
+                state.error(path + ".default_edge", "A branch group can declare at most one default edge");
             }
         }
     }

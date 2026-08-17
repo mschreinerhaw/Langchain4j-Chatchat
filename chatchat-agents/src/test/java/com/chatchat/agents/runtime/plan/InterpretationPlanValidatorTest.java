@@ -19,6 +19,30 @@ class InterpretationPlanValidatorTest {
     private final InterpretationPlanValidator validator = new InterpretationPlanValidator();
 
     @Test
+    void acceptsFirstClassExclusiveBranchWithoutOptionalDependencyHack() {
+        List<InterpretationPlan.Step> steps = List.of(
+            new InterpretationPlan.Step(1, "reasoning", null, Map.of(), List.of(), null, null),
+            new InterpretationPlan.Step(2, "reasoning", null, Map.of(), List.of(), null, null),
+            finalStep(3, List.of())
+        );
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0", new InterpretationPlan.Intent("routing", "choose evidence path", "low"), context(),
+            new InterpretationPlan.Plan(steps, List.of(), List.of(), List.of(), null, null,
+                List.of(
+                    new InterpretationPlan.ConditionalEdge(1, 3, "evidence-route", "internal evidence available", 1, false),
+                    new InterpretationPlan.ConditionalEdge(2, 3, "evidence-route", null, 2, true)),
+                List.of(new InterpretationPlan.BranchGroup(
+                    "evidence-route", List.of(1, 2), 3, "exclusive", "llm"))),
+            new InterpretationPlan.ExecutionPolicy(3, false, List.of(), List.of(), 30_000), review(true));
+
+        InterpretationPlanValidator.ValidationResult result = validator.validate(
+            plan, mock(ToolRegistry.class), Set.of());
+
+        assertThat(result.valid()).isTrue();
+        assertThat(plan.plan().dependencyContracts()).isEmpty();
+    }
+
+    @Test
     void rejectsPlanThatOmitsUserDefinedTaskWorkflowNode() {
         InterpretationPlan plan = new InterpretationPlan(
             "1.0",

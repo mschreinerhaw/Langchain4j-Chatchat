@@ -199,7 +199,7 @@ public class InterpretationPlanRewriter {
         prompt.append("- Preserve or tighten execution_policy.max_rewrite_times and fallback_mode.\n");
         prompt.append("- Preserve execution_policy tool priority/cost/latency/accuracy constraints unless the failure proves they are impossible.\n");
         prompt.append("- Preserve plan.stability stable_nodes, critical_tools, and locked_edges; do not alter locked edges.\n");
-        prompt.append("- Preserve plan.dependency_contracts. Required dependency_contracts must appear in target depends_on; optional dependency_contracts must keep condition/reason and should only be converted into executable steps when the user request needs them.\n");
+        prompt.append("- Preserve plan.dependency_contracts, plan.branch_groups, and plan.conditional_edges. Mutually exclusive paths must use branch groups, not optional dependencies.\n");
         prompt.append("- Preserve plan.diagnostic_profile check IDs, capabilities, dimensions, and required flags. Update step_ids when steps change; keep an uncovered required check with step_ids=[] instead of deleting it.\n");
         prompt.append("- Use diagnosticRun missing/failed checks as evidence refinement targets. Do not invent a score for an uncovered check, and do not replace a missing check with a different capability merely to increase coverage.\n");
         prompt.append("- Add or update plan.edge_contracts when the failure was caused by missing or mistyped tool output fields.\n");
@@ -338,6 +338,10 @@ public class InterpretationPlanRewriter {
                 .filter(contract -> region.affectedStepIds().contains(contract.from())
                     || region.affectedStepIds().contains(contract.to()))
                 .toList());
+        projection.put("branch_groups", original.plan().branchGroups() == null ? List.of()
+            : original.plan().branchGroups());
+        projection.put("conditional_edges", original.plan().conditionalEdges() == null ? List.of()
+            : original.plan().conditionalEdges());
         projection.put("bindings", original.plan().bindings() == null ? List.of()
             : original.plan().bindings().stream()
                 .filter(Objects::nonNull)
@@ -626,7 +630,9 @@ public class InterpretationPlanRewriter {
                     ? originalPlan == null || originalPlan.plan() == null ? null : originalPlan.plan().diagnosticProfile()
                     : body.diagnosticProfile(),
                 normalizedSteps
-            )
+            ),
+            body == null || body.conditionalEdges() == null ? List.of() : body.conditionalEdges(),
+            body == null || body.branchGroups() == null ? List.of() : body.branchGroups()
         );
         InterpretationPlan.ExecutionPolicy executionPolicy = rewrittenPlan.executionPolicy() == null
             && originalPlan != null
@@ -790,7 +796,9 @@ public class InterpretationPlanRewriter {
                     ? originalPlan.plan() == null ? null : originalPlan.plan().diagnosticProfile()
                     : rewrittenBody.diagnosticProfile(),
                 mergedSteps
-            )
+            ),
+            rewrittenBody == null || rewrittenBody.conditionalEdges() == null ? List.of() : rewrittenBody.conditionalEdges(),
+            rewrittenBody == null || rewrittenBody.branchGroups() == null ? List.of() : rewrittenBody.branchGroups()
         );
         return new InterpretationPlan(
             rewrittenPlan.version(),
@@ -900,7 +908,9 @@ public class InterpretationPlanRewriter {
                 normalizeDiagnosticProfile(
                     rewrittenPlan.plan() == null ? null : rewrittenPlan.plan().diagnosticProfile(),
                     List.of(detachedFinal)
-                )
+                ),
+                List.of(),
+                List.of()
             ),
             evidenceOnlyPolicy, rewrittenPlan.review());
     }

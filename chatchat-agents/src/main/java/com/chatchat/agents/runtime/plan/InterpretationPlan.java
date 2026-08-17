@@ -54,22 +54,26 @@ public record InterpretationPlan(
         List<Binding> bindings,
         Stability stability,
         @JsonProperty("diagnostic_profile")
-        DiagnosticProfile diagnosticProfile
+        DiagnosticProfile diagnosticProfile,
+        @JsonProperty("conditional_edges")
+        List<ConditionalEdge> conditionalEdges,
+        @JsonProperty("branch_groups")
+        List<BranchGroup> branchGroups
     ) {
         public Plan(List<Step> steps) {
-            this(steps, List.of(), List.of(), List.of(), null, null);
+            this(steps, List.of(), List.of(), List.of(), null, null, List.of(), List.of());
         }
 
         public Plan(List<Step> steps, List<EdgeContract> edgeContracts) {
-            this(steps, edgeContracts, List.of(), List.of(), null, null);
+            this(steps, edgeContracts, List.of(), List.of(), null, null, List.of(), List.of());
         }
 
         public Plan(List<Step> steps, List<EdgeContract> edgeContracts, Stability stability) {
-            this(steps, edgeContracts, List.of(), List.of(), stability, null);
+            this(steps, edgeContracts, List.of(), List.of(), stability, null, List.of(), List.of());
         }
 
         public Plan(List<Step> steps, List<EdgeContract> edgeContracts, List<Binding> bindings, Stability stability) {
-            this(steps, edgeContracts, List.of(), bindings, stability, null);
+            this(steps, edgeContracts, List.of(), bindings, stability, null, List.of(), List.of());
         }
 
         public Plan(List<Step> steps,
@@ -77,7 +81,17 @@ public record InterpretationPlan(
                     List<DependencyContract> dependencyContracts,
                     List<Binding> bindings,
                     Stability stability) {
-            this(steps, edgeContracts, dependencyContracts, bindings, stability, null);
+            this(steps, edgeContracts, dependencyContracts, bindings, stability, null, List.of(), List.of());
+        }
+
+        public Plan(List<Step> steps,
+                    List<EdgeContract> edgeContracts,
+                    List<DependencyContract> dependencyContracts,
+                    List<Binding> bindings,
+                    Stability stability,
+                    DiagnosticProfile diagnosticProfile) {
+            this(steps, edgeContracts, dependencyContracts, bindings, stability, diagnosticProfile,
+                List.of(), List.of());
         }
     }
 
@@ -226,6 +240,32 @@ public record InterpretationPlan(
         String reason,
         @JsonProperty("on_failure")
         String onFailure
+    ) {
+    }
+
+    /** A first-class conditional route. Conditions are semantic predicates, not executable code. */
+    public record ConditionalEdge(
+        Integer from,
+        Integer to,
+        @JsonProperty("branch_group_id")
+        String branchGroupId,
+        String condition,
+        Integer priority,
+        @JsonProperty("default_edge")
+        Boolean defaultEdge
+    ) {
+    }
+
+    /** Mutually exclusive candidate nodes converging on one downstream target. */
+    public record BranchGroup(
+        String id,
+        @JsonProperty("candidate_step_ids")
+        List<Integer> candidateStepIds,
+        @JsonProperty("target_step_id")
+        Integer targetStepId,
+        String mode,
+        @JsonProperty("selection_strategy")
+        String selectionStrategy
     ) {
     }
 

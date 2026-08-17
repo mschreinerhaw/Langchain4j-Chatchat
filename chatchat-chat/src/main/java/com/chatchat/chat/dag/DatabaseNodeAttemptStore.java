@@ -11,7 +11,10 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.time.Instant;
+import org.springframework.data.domain.PageRequest;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +26,62 @@ public class DatabaseNodeAttemptStore implements NodeAttemptStore {
     @Override
     public boolean supportsRecoveryQueries() {
         return true;
+    }
+
+    @Override
+    public boolean supportsLeases() {
+        return true;
+    }
+
+    @Override
+    @Transactional
+    public LeaseSnapshot acquireLease(String tenantId, String attemptId, String workerId,
+                                      Instant now, long leaseDurationMs) {
+        NodeAttemptEntity entity = locked(tenantId, attemptId);
+        require(State.READY.name().equals(entity.getState()), "Only READY attempts can be leased");
+        Instant clock = now == null ? Instant.now() : now;
+        boolean activeOtherOwner = entity.getLeaseExpiresAt() != null
+            && entity.getLeaseExpiresAt().isAfter(clock)
+            && entity.getWorkerId() != null
+            && !entity.getWorkerId().equals(required(workerId, "workerId"));
+        require(!activeOtherOwner, "Node attempt already has an active lease");
+        entity.setWorkerId(required(workerId, "workerId"));
+        entity.setLeaseToken(UUID.randomUUID().toString());
+        entity.setHeartbeatAt(clock);
+        entity.setLeaseExpiresAt(clock.plusMillis(Math.max(1000L, leaseDurationMs)));
+        return lease(repository.saveAndFlush(entity));
+    }
+
+    @Override
+    @Transactional
+    public LeaseSnapshot heartbeat(String tenantId, String attemptId, String workerId,
+                                   String leaseToken, Instant now, long leaseDurationMs) {
+        NodeAttemptEntity entity = locked(tenantId, attemptId);
+        require(required(workerId, "workerId").equals(entity.getWorkerId()), "Worker does not own node lease");
+        require(required(leaseToken, "leaseToken").equals(entity.getLeaseToken()), "Stale node lease token");
+        require(Set.of(State.READY.name(), State.RUNNING.name(), State.PREPARED.name()).contains(entity.getState()),
+            "Terminal node attempt cannot be heartbeated");
+        Instant clock = now == null ? Instant.now() : now;
+        require(entity.getLeaseExpiresAt() == null || !entity.getLeaseExpiresAt().isBefore(clock),
+            "Node lease has expired");
+        entity.setHeartbeatAt(clock);
+        entity.setLeaseExpiresAt(clock.plusMillis(Math.max(1000L, leaseDurationMs)));
+        return lease(repository.saveAndFlush(entity));
+    }
+
+    @Override
+    @Transactional
+    public List<AttemptSnapshot> reclaimExpiredLeases(String recoveryWorkerId, Instant now, int limit) {
+        Instant clock = now == null ? Instant.now() : now;
+        List<NodeAttemptEntity> expired = repository.findAllByStateAndLeaseExpiresAtBeforeOrderByLeaseExpiresAtAsc(
+            State.RUNNING.name(), clock, PageRequest.of(0, Math.max(1, Math.min(limit, 1000))));
+        for (NodeAttemptEntity entity : expired) {
+            entity.setState(State.FAILED.name());
+            entity.setStateReason("worker lease expired; fenced and reclaimed by " + required(recoveryWorkerId, "recoveryWorkerId"));
+            entity.setLeaseToken(null);
+            entity.setLeaseExpiresAt(null);
+        }
+        return repository.saveAllAndFlush(expired).stream().map(this::snapshot).toList();
     }
 
     @Override
@@ -145,6 +204,16 @@ public class DatabaseNodeAttemptStore implements NodeAttemptStore {
             entity.getAttemptNumber(), State.valueOf(entity.getState()),
             entity.getRevision() == null ? 0L : entity.getRevision(), entity.getCreatedAt(), entity.getUpdatedAt()
         );
+    }
+
+    private LeaseSnapshot lease(NodeAttemptEntity entity) {
+        return new LeaseSnapshot(entity.getAttemptId(), entity.getWorkerId(), entity.getLeaseToken(),
+            entity.getHeartbeatAt(), entity.getLeaseExpiresAt());
+    }
+
+    private NodeAttemptEntity locked(String tenantId, String attemptId) {
+        return repository.findByTenantIdAndAttemptId(required(tenantId, "tenantId"), required(attemptId, "attemptId"))
+            .orElseThrow(() -> new IllegalStateException("Node attempt not found: " + attemptId));
     }
 
     @SuppressWarnings("unchecked")

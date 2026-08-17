@@ -196,20 +196,25 @@ class InterpretationPlanSchedulingStressTest {
     }
 
     private InterpretationPlan semanticBranchPlan() {
-        return plan(
-            List.of(
+        List<InterpretationPlan.Step> steps = List.of(
                 toolStep(1, BRANCH_TOOLS.get(0), List.of()),
                 toolStep(2, BRANCH_TOOLS.get(1), List.of()),
                 finalStep(3, List.of())
-            ),
+            );
+        return new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("stress", "verify first-class branch scheduler", "low"),
+            new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
+            new InterpretationPlan.Plan(steps, List.of(), List.of(),
+            List.of(), null, null,
             List.of(
-                new InterpretationPlan.DependencyContract(
-                    1, 3, false, "when source A is authoritative", "route A", "skip"),
-                new InterpretationPlan.DependencyContract(
-                    2, 3, false, "when source B is authoritative", "route B", "skip")
+                new InterpretationPlan.ConditionalEdge(1, 3, "source-route", "source A authoritative", 1, false),
+                new InterpretationPlan.ConditionalEdge(2, 3, "source-route", "source B authoritative", 2, true)
             ),
-            BRANCH_TOOLS,
-            false
+            List.of(new InterpretationPlan.BranchGroup("source-route", List.of(1, 2), 3, "exclusive", "llm"))),
+            new InterpretationPlan.ExecutionPolicy(steps.size(), false, BRANCH_TOOLS, List.of(), 30_000),
+            new InterpretationPlan.Review(
+                new InterpretationPlan.SelfCheck(1.0, 0.0, true, List.of()), List.of())
         );
     }
 

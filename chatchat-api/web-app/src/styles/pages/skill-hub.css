@@ -3672,6 +3672,24 @@
   outline: 0;
 }
 
+.mcp-center-view .mcp-tool-search-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.mcp-center-view .mcp-tool-search-field svg {
+  position: absolute;
+  left: 13px;
+  color: #8796ad;
+  pointer-events: none;
+}
+
+.mcp-center-view .mcp-tool-search-field input {
+  width: 100%;
+  padding-left: 40px;
+}
+
 .mcp-center-view .mcp-tool-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

@@ -1,7 +1,8 @@
-import { DownloadCloud, RefreshCw } from "@lucide/vue";
+import { DownloadCloud, RefreshCw, Search } from "@lucide/vue";
+import AppPagination from "../../components/AppPagination.vue";
+import { errorMessage, formatDateTime } from "../utils/uiFormatters";
 import {
   fetchMcpCenterStatus,
-  fetchMcpRegisteredTools,
   fetchMcpServices,
   fetchMcpToolCards,
   syncMcpCenter
@@ -11,14 +12,15 @@ import "../../styles/pages/skill-hub.css";
 export default {
   name: "McpCenterView",
   components: {
+    AppPagination,
     DownloadCloud,
-    RefreshCw
+    RefreshCw,
+    Search
   },
   data() {
     return {
       centerStatus: null,
       services: [],
-      tools: [],
       toolCards: [],
       toolTotal: 0,
       mcpToolTotal: 0,
@@ -34,9 +36,12 @@ export default {
       toolPage: 1,
       toolPageSize: 6,
       loading: false,
+      toolLoading: false,
       syncing: false,
       error: "",
-      syncMessage: ""
+      syncMessage: "",
+      toolSearchTimer: null,
+      toolRequestSequence: 0
     };
   },
   computed: {
@@ -48,9 +53,6 @@ export default {
     },
     centerEndpoint() {
       return this.centerStatus?.standaloneMcpEndpoint || "-";
-    },
-    syncedMcpToolCards() {
-      return this.toolCards;
     },
     toolServiceOptions() {
       return this.toolServiceOptionsData.length
@@ -102,22 +104,13 @@ export default {
       return [...groups.values()].sort((left, right) => left.label.localeCompare(right.label));
     },
     toolFilterSummary() {
-      if (!this.syncedMcpToolCards.length) {
+      if (!this.mcpToolTotal) {
         return "暂无已注册工具";
       }
       return `${this.toolTotal} / ${this.mcpToolTotal} 个 · ${this.filteredToolGroupCount} 个${this.toolGroupModeLabel}分组 · 每页 ${this.toolPageSize} 条`;
     },
     toolPageCount() {
       return this.toolPageTotal;
-    },
-    toolPageStart() {
-      if (!this.filteredToolCards.length) {
-        return 0;
-      }
-      return (this.toolPage - 1) * this.toolPageSize + 1;
-    },
-    toolPageEnd() {
-      return Math.min(this.toolPage * this.toolPageSize, this.toolTotal);
     },
     activeToolSchemaText() {
       if (!this.activeTool?.inputSchema || !Object.keys(this.activeTool.inputSchema).length) {
@@ -132,7 +125,8 @@ export default {
   watch: {
     toolSearchQuery() {
       this.toolPage = 1;
-      this.loadToolCards();
+      window.clearTimeout(this.toolSearchTimer);
+      this.toolSearchTimer = window.setTimeout(() => this.loadToolCards(), 300);
     },
     toolServiceFilter() {
       this.toolPage = 1;
@@ -147,25 +141,36 @@ export default {
       this.loadToolCards();
     }
   },
+  beforeUnmount() {
+    window.clearTimeout(this.toolSearchTimer);
+    this.toolRequestSequence += 1;
+  },
   methods: {
     async loadMcpCenter() {
+      const requestSequence = ++this.toolRequestSequence;
       this.loading = true;
+      this.toolLoading = true;
       this.error = "";
       try {
-        const [centerStatus, services, tools, toolCards] = await Promise.all([
+        const [centerStatus, services, toolCards] = await Promise.all([
           fetchMcpCenterStatus(),
           fetchMcpServices(),
-          fetchMcpRegisteredTools(),
           fetchMcpToolCards(this.toolCardQuery())
         ]);
-        this.centerStatus = centerStatus;
-        this.services = Array.isArray(services) ? services : [];
-        this.tools = Array.isArray(tools) ? tools : [];
-        this.applyToolPage(toolCards);
+        if (requestSequence === this.toolRequestSequence) {
+          this.centerStatus = centerStatus;
+          this.services = Array.isArray(services) ? services : [];
+          this.applyToolPage(toolCards);
+        }
       } catch (error) {
-        this.error = error.message || "MCP 数据加载失败";
+        if (requestSequence === this.toolRequestSequence) {
+          this.error = errorMessage(error, "MCP 数据加载失败，请稍后重试");
+        }
       } finally {
-        this.loading = false;
+        if (requestSequence === this.toolRequestSequence) {
+          this.loading = false;
+          this.toolLoading = false;
+        }
       }
     },
     async syncCenter() {
@@ -181,16 +186,28 @@ export default {
           : `已同步 ${imported} 个服务`;
         await this.loadMcpCenter();
       } catch (error) {
-        this.error = error.message || "MCP服务同步失败";
+        this.error = errorMessage(error, "MCP 服务同步失败，请稍后重试");
       } finally {
         this.syncing = false;
       }
     },
     async loadToolCards() {
+      const requestSequence = ++this.toolRequestSequence;
+      this.toolLoading = true;
+      this.error = "";
       try {
-        this.applyToolPage(await fetchMcpToolCards(this.toolCardQuery()));
+        const payload = await fetchMcpToolCards(this.toolCardQuery());
+        if (requestSequence === this.toolRequestSequence) {
+          this.applyToolPage(payload);
+        }
       } catch (error) {
-        this.error = error.message || "MCP 工具加载失败";
+        if (requestSequence === this.toolRequestSequence) {
+          this.error = errorMessage(error, "MCP 工具加载失败，请稍后重试");
+        }
+      } finally {
+        if (requestSequence === this.toolRequestSequence) {
+          this.toolLoading = false;
+        }
       }
     },
     toolCardQuery() {
@@ -245,11 +262,9 @@ export default {
       return protocol;
     },
     serviceToolCount(service) {
-      const cardCount = this.syncedMcpToolCards.filter((tool) => tool.serviceId === service.id).length;
-      if (cardCount > 0) {
-        return cardCount;
-      }
-      return this.tools.filter((tool) => tool.serviceId === service.id).length;
+      return this.toolServiceOptionsData.find((option) => (
+        option.value === service.id || option.label === service.name
+      ))?.count || 0;
     },
     resolveToolGroup(tool) {
       if (this.toolGroupMode === "category") {
@@ -342,6 +357,7 @@ export default {
     },
     openToolDetail(tool) {
       this.activeTool = tool || null;
+      this.$nextTick(() => this.$refs.toolDetailPanel?.focus());
     },
     closeToolDetail() {
       this.activeTool = null;
@@ -354,12 +370,6 @@ export default {
       this.toolPage = Math.max(1, Math.min(this.toolPageCount, target));
       this.loadToolCards();
     },
-    nextToolPage() {
-      this.setToolPage(this.toolPage + 1);
-    },
-    previousToolPage() {
-      this.setToolPage(this.toolPage - 1);
-    },
     clampToolPage() {
       if (this.toolPage > this.toolPageCount) {
         this.toolPage = this.toolPageCount;
@@ -369,10 +379,7 @@ export default {
       }
     },
     formatTime(value) {
-      if (!value) {
-        return "-";
-      }
-      return new Date(value).toLocaleString();
+      return formatDateTime(value, "-");
     }
   }
 };

@@ -21,7 +21,7 @@
       </article>
       <article>
         <span>已注册工具</span>
-        <strong>{{ syncedMcpToolCards.length }}</strong>
+        <strong>{{ mcpToolTotal }}</strong>
       </article>
     </section>
 
@@ -73,11 +73,11 @@
           <span>{{ toolFilterSummary }}</span>
         </div>
         <div class="mcp-actions">
-          <button type="button" class="light-button" :disabled="loading" title="刷新 MCP 数据" @click="loadMcpCenter">
+          <button type="button" class="light-button" :disabled="loading || syncing" title="刷新 MCP 数据" @click="loadMcpCenter">
             <RefreshCw :size="17" />
             <span>{{ loading ? "刷新中" : "刷新" }}</span>
           </button>
-          <button type="button" class="primary-button" :disabled="syncing" title="从独立 MCP服务同步" @click="syncCenter">
+          <button type="button" class="primary-button" :disabled="syncing || loading" title="从独立 MCP 服务同步" @click="syncCenter">
             <DownloadCloud :size="17" />
             <span>{{ syncing ? "同步中" : "同步中心" }}</span>
           </button>
@@ -87,11 +87,14 @@
       <div class="mcp-tool-filters">
         <label>
           <span>检索工具</span>
-          <input
-            v-model.trim="toolSearchQuery"
-            type="search"
-            placeholder="搜索名称、服务、描述、参数或标签"
-          >
+          <div class="mcp-tool-search-field">
+            <Search :size="17" stroke-width="2" aria-hidden="true" />
+            <input
+              v-model="toolSearchQuery"
+              type="search"
+              placeholder="搜索名称、服务、描述、参数或标签"
+            >
+          </div>
         </label>
         <label>
           <span>来源服务</span>
@@ -119,7 +122,9 @@
         </label>
       </div>
 
-      <template v-if="toolTotal">
+      <p v-if="toolLoading" class="mcp-empty" role="status">正在加载 MCP 工具…</p>
+
+      <template v-else-if="toolTotal">
         <div class="mcp-tool-group-list">
           <section v-for="group in pagedToolGroups" :key="group.key" class="mcp-tool-group">
             <header>
@@ -172,24 +177,33 @@
           </section>
         </div>
 
-        <div class="mcp-tool-pagination">
-          <span>显示 {{ toolPageStart }}-{{ toolPageEnd }} 条，共 {{ toolTotal }} 条</span>
-          <div>
-            <button type="button" :disabled="toolPage <= 1" @click="previousToolPage">上一页</button>
-            <strong>第 {{ toolPage }} / {{ toolPageCount }} 页</strong>
-            <button type="button" :disabled="toolPage >= toolPageCount" @click="nextToolPage">下一页</button>
-          </div>
-        </div>
+        <AppPagination
+          :page="toolPage"
+          :page-size="toolPageSize"
+          :total="toolTotal"
+          :page-count="toolPageCount"
+          :disabled="toolLoading"
+          aria-label="MCP 工具分页"
+          @change="setToolPage"
+        />
       </template>
       <p v-else>{{ mcpToolTotal ? "没有匹配的工具，请换一个关键词。" : "暂无已注册 MCP 工具，请先同步中心。" }}</p>
     </section>
 
-    <div v-if="activeTool" class="mcp-tool-detail-backdrop">
-      <aside class="mcp-tool-detail-panel">
+    <div v-if="activeTool" class="mcp-tool-detail-backdrop" @mousedown.self="closeToolDetail">
+      <aside
+        ref="toolDetailPanel"
+        class="mcp-tool-detail-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mcp-tool-detail-title"
+        tabindex="-1"
+        @keydown.esc="closeToolDetail"
+      >
         <header>
           <div>
             <p>工具详情</p>
-            <h2>{{ activeTool.displayName || activeTool.localToolName }}</h2>
+            <h2 id="mcp-tool-detail-title">{{ activeTool.displayName || activeTool.localToolName }}</h2>
             <span>{{ activeTool.localToolName }}</span>
           </div>
           <button type="button" class="app-dialog-close" aria-label="关闭详情" title="关闭详情" @click="closeToolDetail">×</button>

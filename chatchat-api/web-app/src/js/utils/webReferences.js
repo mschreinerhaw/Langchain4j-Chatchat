@@ -114,10 +114,7 @@ export function extractWebCitationPages(citations = []) {
     .map(({ isWeb, ...item }) => item));
 }
 
-/**
- * Removes numbered evidence markers from the visible answer. References remain
- * available in the collapsed source list and stored answers remain unchanged.
- */
+/** Converts numbered evidence markers into compact inline citation cards. */
 export function inlineWebCitationLinks(content, pages = []) {
   const text = String(content || "");
   if (!text || !Array.isArray(pages)) {
@@ -136,6 +133,11 @@ export function inlineWebCitationLinks(content, pages = []) {
     const url = safeWebUrl(page.url) || safeWebUrl(match[5]);
     if (url) {
       citationUrls.push(url);
+      const preview = String(page.snippet || page.title || url)
+        .replace(/[\r\n]+/g, " ")
+        .replace(/["<>]/g, "")
+        .slice(0, 160);
+      output += `[来源${rank}](${url} "${preview}")`;
     }
   }
   output += text.slice(cursor);

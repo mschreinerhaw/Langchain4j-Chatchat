@@ -40,6 +40,7 @@ public class AgentRuntimeProperties {
     private int finalSummaryWebSearchResultLimit = 6;
     private int finalSummaryWebSearchEvidenceMaxChars = 16_000;
     private long finalSummaryWebSearchTimeoutMs = 45_000;
+    private int evidenceCompletionMaxRounds = 3;
     /** Enables the business-neutral Answer Contract, evidence gate, critic and targeted repair loop. */
     private boolean answerQualityPipelineEnabled = true;
     private boolean answerCriticEnabled = true;
@@ -129,6 +130,10 @@ public class AgentRuntimeProperties {
 
     public long finalSummaryWebSearchTimeoutMs() {
         return Math.max(5_000L, finalSummaryWebSearchTimeoutMs);
+    }
+
+    public int evidenceCompletionMaxRounds() {
+        return Math.max(1, Math.min(5, evidenceCompletionMaxRounds));
     }
 
     public long answerCriticTimeoutMs() {

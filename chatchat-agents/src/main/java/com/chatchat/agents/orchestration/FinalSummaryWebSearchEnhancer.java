@@ -57,6 +57,9 @@ class FinalSummaryWebSearchEnhancer {
             || toolRegistry == null || toolRuntimeService == null) {
             return Enhancement.skipped(observations, traces);
         }
+        Enhancement configured = enhanceConfiguredSources(
+            chatModel, query, systemPrompt, candidateAnswer, observations, traces, metadata);
+        if (configured.attempted()) return configured;
         String toolName = resolveInternalWebSearchTool();
         if (toolName == null || toolName.isBlank()) {
             record(metadata, "finalSummaryWebSearchSkippedReason", "web_search_unavailable");
@@ -130,6 +133,71 @@ class FinalSummaryWebSearchEnhancer {
         );
     }
 
+    @SuppressWarnings("unchecked")
+    private Enhancement enhanceConfiguredSources(ChatModel model, String query, String systemPrompt,
+                                                  String candidateAnswer, List<String> observations,
+                                                  List<InteractionToolTrace> traces,
+                                                  Map<String, Object> metadata) {
+        Object raw = metadata == null ? null : metadata.get("answerEvidenceRetrievalTools");
+        if (!(raw instanceof Iterable<?> values)) return Enhancement.skipped(observations, traces);
+        List<EvidenceCompletionLoop.SourceContract> sources = new ArrayList<>();
+        for (Object value : values) {
+            if (!(value instanceof Map<?, ?> item) || !Boolean.TRUE.equals(item.get("readOnly"))) continue;
+            String toolName = String.valueOf(item.get("toolName"));
+            if (toolName.isBlank() || "null".equals(toolName) || !toolRegistry.getAllToolNames().contains(toolName)) continue;
+            String id = item.get("id") == null ? toolName : String.valueOf(item.get("id"));
+            String kind = item.get("sourceKind") == null ? "unspecified" : String.valueOf(item.get("sourceKind"));
+            Map<String, Object> parameters = item.get("parameters") instanceof Map<?, ?> map
+                ? (Map<String, Object>) map : Map.of();
+            Map<String, Object> contract = new LinkedHashMap<>(parameters);
+            contract.put("toolName", toolName);
+            sources.add(new EvidenceCompletionLoop.SourceContract(id, kind, contract));
+        }
+        if (sources.isEmpty()) return Enhancement.skipped(observations, traces);
+
+        List<InteractionToolTrace> augmentedTraces = new ArrayList<>(traces == null ? List.of() : traces);
+        EvidenceCompletionLoop.Result result = new EvidenceCompletionLoop().run(
+            new EvidenceCompletionLoop.Request(query, properties.evidenceCompletionMaxRounds(), sources, List.of()),
+            request -> {
+                String toolName = String.valueOf(request.source().parameters().get("toolName"));
+                Map<String, Object> parameters = new LinkedHashMap<>(request.source().parameters());
+                parameters.remove("toolName");
+                parameters.putIfAbsent("query", request.query());
+                parameters.put("evidence_round", request.round());
+                ToolRuntimeExecution execution = execute(toolName, parameters, metadata);
+                if (execution != null && execution.trace() != null) augmentedTraces.add(execution.trace());
+                ToolOutput output = execution == null ? null : execution.output();
+                if (output == null || !output.isSuccess() || output.getData() == null) return List.of();
+                String text;
+                try { text = objectMapper.writeValueAsString(output.getData()); }
+                catch (Exception ex) { text = String.valueOf(output.getData()); }
+                return List.of(new EvidenceCompletionLoop.EvidenceItem(
+                    request.source().id() + ":" + request.round(), request.source().id(),
+                    request.source().kind(), text, toolName, Map.of("round", request.round())));
+            },
+            (ignored, evidence) -> {
+                List<String> missing = sources.stream().map(EvidenceCompletionLoop.SourceContract::id)
+                    .filter(id -> evidence.stream().noneMatch(item -> id.equals(item.sourceId()))).toList();
+                return new EvidenceCompletionLoop.Assessment(missing.isEmpty(),
+                    ((double) sources.size() - missing.size()) / sources.size(), missing,
+                    missing.isEmpty() ? List.of() : List.of("required source coverage incomplete"));
+            });
+        record(metadata, "evidenceCompletionRounds", result.rounds().size());
+        record(metadata, "evidenceCompletionStopReason", result.stopReason());
+        record(metadata, "evidenceCompletionAssessment", result.assessment());
+        if (result.evidence().isEmpty()) {
+            return new Enhancement(null, copy(observations), List.copyOf(augmentedTraces), true, false);
+        }
+        String evidenceText = preview(result.evidence().stream()
+            .map(item -> "[" + item.sourceKind() + "/" + item.sourceId() + "] " + item.text())
+            .collect(java.util.stream.Collectors.joining("\n")), properties.finalSummaryWebSearchEvidenceMaxChars());
+        String enhanced = synthesize(model, query, systemPrompt, candidateAnswer, observations, evidenceText);
+        List<String> augmentedObservations = new ArrayList<>(copy(observations));
+        augmentedObservations.add(evidenceText);
+        return new Enhancement(enhanced, List.copyOf(augmentedObservations), List.copyOf(augmentedTraces),
+            true, enhanced != null && !enhanced.isBlank());
+    }
+
     private SearchDecision decide(ChatModel model,
                                   String query,
                                   String systemPrompt,
@@ -184,6 +252,13 @@ class FinalSummaryWebSearchEnhancer {
     }
 
     private ToolRuntimeExecution execute(String toolName, String keyword, Map<String, Object> metadata) {
+        return execute(toolName, Map.of(
+            "query", keyword,
+            "num_results", properties.finalSummaryWebSearchResultLimit()), metadata);
+    }
+
+    private ToolRuntimeExecution execute(String toolName, Map<String, Object> parameters,
+                                         Map<String, Object> metadata) {
         String runId = text(metadata, "agentRunId", "__agentRunId");
         String requestId = firstNonBlank(text(metadata, "requestId"), runId);
         String conversationId = text(metadata, "conversationId");
@@ -198,9 +273,7 @@ class FinalSummaryWebSearchEnhancer {
             .requestId(requestId)
             .conversationId(conversationId)
             .userId(userId)
-            .parameters(Map.of(
-                "query", keyword,
-                "num_results", properties.finalSummaryWebSearchResultLimit()))
+            .parameters(parameters)
             .context(context)
             .build();
         Map<String, Object> attributes = new LinkedHashMap<>();

@@ -36,6 +36,10 @@ export default {
       type: Array,
       default: () => []
     },
+    conflicts: {
+      type: Array,
+      default: () => []
+    },
     compact: {
       type: Boolean,
       default: false
@@ -47,7 +51,8 @@ export default {
         open: false,
         title: "",
         pages: []
-      }
+      },
+      sourcePanelOpen: false
     };
   },
   computed: {
@@ -55,7 +60,23 @@ export default {
       return this.evidencePremiseRows.length
         || this.documentReferenceRows.length
         || this.webPageRows.length
-        || this.toolTraceRows.length;
+        || this.toolTraceRows.length
+        || this.conflictRows.length;
+    },
+    allSourceRows() {
+      return [
+        ...this.webPageRows.map((item) => ({ ...item, kind: "web" })),
+        ...this.documentReferenceRows.map((item) => ({ ...item, kind: "document" }))
+      ];
+    },
+    conflictRows() {
+      return this.conflicts.map((item, index) => ({
+        id: item?.id || `conflict-${index + 1}`,
+        claim: cleanReferenceText(item?.claim || item?.topic || item?.text || ""),
+        left: cleanReferenceText(item?.left || item?.sourceA || item?.first || item?.evidenceA || ""),
+        right: cleanReferenceText(item?.right || item?.sourceB || item?.second || item?.evidenceB || ""),
+        resolution: cleanReferenceText(item?.resolution || item?.decision || item?.reason || "")
+      })).filter((item) => item.claim || item.left || item.right);
     },
     evidencePremiseRows() {
       return this.evidencePremises
@@ -146,7 +167,8 @@ export default {
         rank: source.rank || index + 1,
         docId,
         title: documentReferenceTitle(source, docId),
-        url: this.sourceUrl(source),
+        url: this.preciseSourceUrl(source),
+        location: source.section || source.heading || source.page || source.pageNumber || source.chunkIndex || "",
         snippet: cleanReferenceText(source.snippet || source.content || source.summary || "")
       };
     },
@@ -168,6 +190,22 @@ export default {
       }
       const sourceName = source?.source;
       return /^https?:\/\//i.test(sourceName || "") ? sourceName : "";
+    },
+    preciseSourceUrl(source = {}) {
+      const explicit = source.deepLink || source.deep_link || source.locatorUrl || source.detailPath;
+      if (explicit) return explicit;
+      const base = this.sourceUrl(source);
+      if (!base || base.includes("#")) return base;
+      const page = source.page || source.pageNumber;
+      const section = source.section || source.heading;
+      const chunk = source.chunkIndex ?? source.chunk_index;
+      if (page !== undefined && page !== "") return `${base}#page=${encodeURIComponent(page)}`;
+      if (section) return `${base}#section=${encodeURIComponent(section)}`;
+      if (chunk !== undefined && chunk !== "") return `${base}#chunk=${encodeURIComponent(chunk)}`;
+      return base;
+    },
+    toggleSourcePanel() {
+      this.sourcePanelOpen = !this.sourcePanelOpen;
     },
     openWebPagesDialog(trace) {
       this.webPagesDialog = {

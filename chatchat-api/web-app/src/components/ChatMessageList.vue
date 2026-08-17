@@ -235,6 +235,7 @@
           :citations="[...(message.uiResponse?.citations || []), ...(message.citations || [])]"
           :evidence-premises="message.evidencePremises || []"
           :tool-traces="message.traces || []"
+          :conflicts="message.evidenceConflicts || message.evidenceManifest?.conflicts || message.uiResponse?.evidenceConflicts || []"
           compact
         />
         <div

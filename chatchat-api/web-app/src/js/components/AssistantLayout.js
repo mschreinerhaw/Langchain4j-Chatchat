@@ -37,6 +37,12 @@ export default {
       type: Boolean,
       default: false
     },
+    historyManagerItems: { type: Array, default: () => [] },
+    historyManagerTotal: { type: Number, default: 0 },
+    historyManagerPage: { type: Number, default: 1 },
+    historyManagerPageSize: { type: Number, default: 10 },
+    historyManagerPageCount: { type: Number, default: 1 },
+    historyManagerLoading: { type: Boolean, default: false },
     favoriteConversationIds: {
       type: Array,
       default: () => []
@@ -64,6 +70,7 @@ export default {
     "favorite-conversation",
     "logout",
     "load-more-history",
+    "load-history-manager",
     "navigate",
     "refresh-history",
     "select-conversation"

@@ -1,4 +1,5 @@
 import { nextTick } from "vue";
+import AppPagination from "../../components/AppPagination.vue";
 import { MoreHorizontal, Pencil, RefreshCw, Trash2 } from "@lucide/vue";
 import MarkdownIt from "markdown-it";
 import * as XLSX from "xlsx";
@@ -43,6 +44,7 @@ const MESSAGE_TEXT = {
 export default {
   name: "LibraryView",
   components: {
+    AppPagination,
     MoreHorizontal,
     Pencil,
     RefreshCw,

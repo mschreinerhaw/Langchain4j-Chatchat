@@ -23,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Page;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
@@ -277,6 +278,34 @@ public class AgentTaskService {
         return latestRepository.findByTenantIdOrderByCreateTimeDesc(normalizedTenant, pageable).stream()
             .map(AgentTaskResponse::from)
             .toList();
+    }
+
+    public AgentTaskPage listPage(String tenantId, String keyword, String status, int page, int pageSize) {
+        String normalizedTenant = requireTenant(tenantId);
+        int normalizedPage = Math.max(1, page);
+        int normalizedSize = Math.max(1, Math.min(100, pageSize));
+        Page<AgentTaskLatestEntity> result = latestRepository.searchPage(
+            normalizedTenant,
+            keyword == null ? "" : keyword.trim(),
+            status == null ? "" : status.trim(),
+            PageRequest.of(normalizedPage - 1, normalizedSize)
+        );
+        return new AgentTaskPage(
+            result.getContent().stream().map(AgentTaskResponse::from).toList(),
+            result.getTotalElements(),
+            normalizedPage,
+            normalizedSize,
+            result.getTotalPages()
+        );
+    }
+
+    public record AgentTaskPage(
+        List<AgentTaskResponse> items,
+        long total,
+        int page,
+        int pageSize,
+        int totalPages
+    ) {
     }
 
     /**

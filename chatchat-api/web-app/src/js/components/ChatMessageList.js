@@ -1,7 +1,7 @@
 import MarkdownIt from "markdown-it";
 import { Check, ChevronDown, ChevronRight, CircleCheck, CircleX, Copy, FileDown, RefreshCw, TriangleAlert, Wrench } from "@lucide/vue";
 import ResponseReferences from "../../components/ResponseReferences.vue";
-import EnterpriseUiArtifactRenderer from "../../components/EnterpriseUiArtifactRenderer.vue";
+import { defineAsyncComponent } from "vue";
 import chartAnalysisMixin from "./ChatMessageListChartAnalysis.js";
 import {
   extractDocumentSearchPagesFromTraces,
@@ -23,6 +23,7 @@ const markdown = new MarkdownIt({
   typographer: true,
   breaks: true
 });
+const EnterpriseUiArtifactRenderer = defineAsyncComponent(() => import("../../components/EnterpriseUiArtifactRenderer.vue"));
 const FENCE_RE = /^(\s*)(`{3,}|~{3,})(\s*)([A-Za-z0-9_-]*)\s*$/;
 const SQL_START_RE = /^\s*(CREATE|WITH|SELECT|INSERT|UPDATE|DELETE|MERGE|ALTER|DROP|TRUNCATE|SET)\b/i;
 const SQL_CONTINUATION_RE = /^\s*(USING|OPTIONS\s*\(|PARTITIONED\s+BY|TBLPROPERTIES\s*\(|LOCATION\b|COMMENT\b|AS\b|FROM\b|WHERE\b|JOIN\b|LEFT\b|RIGHT\b|INNER\b|OUTER\b|ON\b|GROUP\b|ORDER\b|HAVING\b|LIMIT\b|VALUES\b|URL\b|DBTABLE\b|USER\b|PASSWORD\b|DRIVER\b|PARTITIONCOLUMN\b|LOWERBOUND\b|UPPERBOUND\b|NUMPARTITIONS\b|FETCHSIZE\b|SESSIONINITSTATEMENT\b|\)|;|,)/i;

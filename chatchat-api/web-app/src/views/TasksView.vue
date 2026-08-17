@@ -65,7 +65,7 @@
 
       <div class="task-table">
         <button
-          v-for="task in pagedRows(filteredTasks, 'tasks')"
+          v-for="task in tasks"
           :key="task.taskId"
           :class="{ active: selectedTaskId === task.taskId }"
           type="button"
@@ -90,39 +90,17 @@
             {{ isCancellingTask(task) ? "停止中" : "停止" }}
           </span>
         </button>
-        <p v-if="!loading && filteredTasks.length === 0" class="runtime-empty">没有匹配的任务实例。</p>
+        <p v-if="!loading && tasks.length === 0" class="runtime-empty">没有匹配的任务实例。</p>
       </div>
-      <nav v-if="showRuntimePagination(filteredTasks.length)" class="runtime-pagination" aria-label="任务分页">
-        <span>
-          显示第 {{ runtimePageStart('tasks', filteredTasks.length) }}-{{ runtimePageEnd('tasks', filteredTasks.length) }} 条，
-          共 {{ filteredTasks.length }} 条，每页 {{ pageSize }} 条
-        </span>
-        <div>
-          <button
-            type="button"
-            :disabled="clampedRuntimePage('tasks', filteredTasks.length) <= 1"
-            @click="goRuntimePage('tasks', clampedRuntimePage('tasks', filteredTasks.length) - 1, filteredTasks.length)"
-          >
-            上一页
-          </button>
-          <button
-            v-for="pageNumber in runtimePageButtons('tasks', filteredTasks.length)"
-            :key="`tasks-${pageNumber}`"
-            type="button"
-            :class="{ active: pageNumber === clampedRuntimePage('tasks', filteredTasks.length) }"
-            @click="goRuntimePage('tasks', pageNumber, filteredTasks.length)"
-          >
-            {{ pageNumber }}
-          </button>
-          <button
-            type="button"
-            :disabled="clampedRuntimePage('tasks', filteredTasks.length) >= runtimePageCount(filteredTasks.length)"
-            @click="goRuntimePage('tasks', clampedRuntimePage('tasks', filteredTasks.length) + 1, filteredTasks.length)"
-          >
-            下一页
-          </button>
-        </div>
-      </nav>
+      <AppPagination
+        :page="runtimePages.tasks"
+        :page-size="pageSize"
+        :total="taskTotal"
+        :page-count="taskPageCount"
+        :disabled="loading"
+        aria-label="任务分页"
+        @change="loadTaskPage"
+      />
     </section>
 
     <section v-else-if="activeTab === 'effects'" class="runtime-panel">

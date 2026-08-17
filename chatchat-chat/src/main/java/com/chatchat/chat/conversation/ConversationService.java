@@ -1,6 +1,7 @@
 package com.chatchat.chat.conversation;
 
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -158,6 +159,46 @@ public class ConversationService {
             ).stream()
             .map(session -> toConversation(session, List.of()))
             .toList();
+    }
+
+    /**
+     * Returns a searchable conversation page without hydrating message bodies.
+     */
+    @Transactional(readOnly = true)
+    public ConversationPage listUserConversationSummaryPage(String tenantId,
+                                                             String userId,
+                                                             String keyword,
+                                                             int page,
+                                                             int pageSize) {
+        int normalizedPage = Math.max(1, page);
+        int normalizedPageSize = Math.max(1, Math.min(pageSize, 100));
+        String normalizedTenantId = normalizeTenantId(tenantId);
+        String normalizedUserId = normalize(userId, DEFAULT_USER_ID);
+        String normalizedKeyword = keyword == null ? "" : keyword.trim();
+        PageRequest pageable = PageRequest.of(normalizedPage - 1, normalizedPageSize);
+        Page<ChatSessionEntity> result = normalizedKeyword.isBlank()
+            ? sessionRepository.findPageByTenantIdAndUserIdOrderByUpdatedAtDesc(
+                normalizedTenantId, normalizedUserId, pageable
+            )
+            : sessionRepository.findPageByTenantIdAndUserIdAndTitleContainingIgnoreCaseOrderByUpdatedAtDesc(
+                normalizedTenantId, normalizedUserId, normalizedKeyword, pageable
+            );
+        return new ConversationPage(
+            result.getContent().stream().map(session -> toConversation(session, List.of())).toList(),
+            result.getTotalElements(),
+            normalizedPage,
+            normalizedPageSize,
+            result.getTotalPages()
+        );
+    }
+
+    public record ConversationPage(
+        List<Conversation> items,
+        long total,
+        int page,
+        int pageSize,
+        int totalPages
+    ) {
     }
 
     /**

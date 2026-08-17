@@ -149,6 +149,25 @@ public class AgentTaskController {
         }
     }
 
+    @GetMapping("/page")
+    @Operation(summary = "Page and search Agent tasks")
+    public ApiResponse<AgentTaskService.AgentTaskPage> page(
+        @RequestParam("tenantId") String tenantId,
+        @RequestParam(value = "keyword", required = false) String keyword,
+        @RequestParam(value = "status", required = false) String status,
+        @RequestParam(value = "page", defaultValue = "1") int page,
+        @RequestParam(value = "pageSize", defaultValue = "10") int pageSize,
+        HttpServletRequest servletRequest
+    ) {
+        try {
+            return ApiResponse.success(taskService.listPage(
+                scopedTenantId(servletRequest, tenantId), keyword, status, page, pageSize
+            ));
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.badRequest(e.getMessage());
+        }
+    }
+
     /**
      * Runs the configured startup logic.
      *

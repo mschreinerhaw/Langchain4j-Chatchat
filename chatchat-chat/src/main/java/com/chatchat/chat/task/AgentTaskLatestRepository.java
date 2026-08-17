@@ -1,6 +1,7 @@
 package com.chatchat.chat.task;
 
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -39,6 +40,24 @@ public interface AgentTaskLatestRepository extends JpaRepository<AgentTaskLatest
      * @return the matching by tenant id and session id order by create time desc
      */
     List<AgentTaskLatestEntity> findByTenantIdAndSessionIdOrderByCreateTimeDesc(String tenantId, String sessionId, Pageable pageable);
+
+    @Query("""
+        select t from AgentTaskLatestEntity t
+        where t.tenantId = :tenantId
+          and (:status = '' or upper(t.status) = upper(:status))
+          and (:keyword = ''
+            or lower(t.taskId) like lower(concat('%', :keyword, '%'))
+            or lower(coalesce(t.question, '')) like lower(concat('%', :keyword, '%'))
+            or lower(coalesce(t.agentId, '')) like lower(concat('%', :keyword, '%'))
+            or lower(coalesce(t.sessionId, '')) like lower(concat('%', :keyword, '%')))
+        order by t.createTime desc
+        """)
+    Page<AgentTaskLatestEntity> searchPage(
+        @Param("tenantId") String tenantId,
+        @Param("keyword") String keyword,
+        @Param("status") String status,
+        Pageable pageable
+    );
 
     /**
      * Finds low-score tasks with explicit user feedback.

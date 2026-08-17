@@ -2,6 +2,7 @@ package com.chatchat.chat.conversation;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Page;
 
 import java.util.List;
 
@@ -18,6 +19,19 @@ public interface ChatSessionRepository extends JpaRepository<ChatSessionEntity, 
     List<ChatSessionEntity> findByTenantIdAndUserIdOrderByUpdatedAtDesc(String tenantId, String userId);
 
     List<ChatSessionEntity> findByTenantIdAndUserIdOrderByUpdatedAtDesc(String tenantId, String userId, Pageable pageable);
+
+    Page<ChatSessionEntity> findPageByTenantIdAndUserIdOrderByUpdatedAtDesc(
+        String tenantId,
+        String userId,
+        Pageable pageable
+    );
+
+    Page<ChatSessionEntity> findPageByTenantIdAndUserIdAndTitleContainingIgnoreCaseOrderByUpdatedAtDesc(
+        String tenantId,
+        String userId,
+        String title,
+        Pageable pageable
+    );
 
     java.util.Optional<ChatSessionEntity> findBySessionIdAndTenantId(String sessionId, String tenantId);
 }

@@ -14,11 +14,13 @@ import {
   XCircle
 } from "@lucide/vue";
 import { defineAsyncComponent } from "vue";
+import AppPagination from "../../components/AppPagination.vue";
 import {
   cancelAgentTask,
   fetchAgentEffectAnalytics,
   fetchAgentExperiences,
   fetchAgentRuntimeSummary,
+  fetchAgentTaskPage,
   fetchAgentRuntimeToolAudits,
   fetchAgentTaskEvents,
   fetchAgentTaskPlanDag,
@@ -39,6 +41,7 @@ const PLAN_NODE_HORIZONTAL_PADDING = 40;
 export default {
   name: "TasksView",
   components: {
+    AppPagination,
     Activity,
     Database,
     GitBranch,
@@ -90,6 +93,10 @@ export default {
       runtimeRefreshTimer: null,
       runtimeRefreshing: false,
       pageSize: DEFAULT_RUNTIME_PAGE_SIZE,
+      taskPageItems: [],
+      taskTotal: 0,
+      taskPageCount: 1,
+      taskSearchTimer: null,
       runtimePages: {
         tasks: 1,
         agentEffects: 1,
@@ -164,7 +171,7 @@ export default {
       ];
     },
     tasks() {
-      return Array.isArray(this.summary?.latestTasks) ? this.summary.latestTasks : [];
+      return this.taskPageItems;
     },
     topTools() {
       return Array.isArray(this.summary?.toolRuntime?.topTools) ? this.summary.toolRuntime.topTools : [];
@@ -449,6 +456,7 @@ export default {
   },
   beforeUnmount() {
     this.stopRuntimePolling();
+    window.clearTimeout(this.taskSearchTimer);
   },
   watch: {
     tenantId(value) {
@@ -464,10 +472,13 @@ export default {
       }
     },
     taskSearchQuery() {
-      this.resetRuntimePage("tasks");
+      this.runtimePages.tasks = 1;
+      window.clearTimeout(this.taskSearchTimer);
+      this.taskSearchTimer = window.setTimeout(() => this.loadTaskPage(1), 300);
     },
     statusFilter() {
-      this.resetRuntimePage("tasks");
+      this.runtimePages.tasks = 1;
+      this.loadTaskPage(1);
     },
     eventSearchQuery() {
       this.resetRuntimePage("events");
@@ -556,10 +567,17 @@ export default {
       }
       try {
         const selectedTaskId = this.selectedTask?.taskId || "";
-        const [summary, audits, effects, experiences, governance] = await Promise.all([
+        const [summary, taskPage, audits, effects, experiences, governance] = await Promise.all([
           fetchAgentRuntimeSummary({
             tenantId: this.runtimeTenantId,
-            latestLimit: 100
+            latestLimit: 1
+          }),
+          fetchAgentTaskPage({
+            tenantId: this.runtimeTenantId,
+            keyword: this.taskSearchQuery.trim(),
+            status: this.statusFilter,
+            page: this.runtimePages.tasks,
+            pageSize: this.pageSize
           }),
           fetchAgentRuntimeToolAudits({
             tenantId: this.runtimeTenantId,
@@ -578,6 +596,10 @@ export default {
           })
         ]);
         this.summary = summary;
+        this.taskPageItems = Array.isArray(taskPage?.items) ? taskPage.items : [];
+        this.taskTotal = Number(taskPage?.total) || 0;
+        this.runtimePages.tasks = Number(taskPage?.page) || this.runtimePages.tasks;
+        this.taskPageCount = Math.max(1, Number(taskPage?.totalPages) || 1);
         this.effectAnalytics = effects;
         this.experienceSummary = experiences;
         this.toolGovernance = governance;
@@ -598,21 +620,9 @@ export default {
             if (this.planLoadedTaskId !== refreshedTask.taskId) {
               await this.loadPlanDag({ silent: true });
             }
-          } else {
-            this.selectedTask = null;
-            this.selectedEvents = [];
-            this.selectedPlanDag = null;
-            this.selectedPlanVersions = [];
-            this.planLoadedTaskId = "";
           }
         } else if (!this.selectedTask && this.tasks.length > 0) {
           await this.selectTask(this.tasks[0]);
-        } else if (this.selectedTask && !this.tasks.some((task) => task.taskId === this.selectedTask.taskId)) {
-          this.selectedTask = null;
-          this.selectedEvents = [];
-          this.selectedPlanDag = null;
-          this.selectedPlanVersions = [];
-          this.planLoadedTaskId = "";
         }
       } catch (error) {
         if (!silent) {
@@ -743,6 +753,27 @@ export default {
         this.selectedPlanNodeId = "";
       }
     },
+    async loadTaskPage(page = this.runtimePages.tasks) {
+      this.loading = true;
+      this.error = "";
+      try {
+        const payload = await fetchAgentTaskPage({
+          tenantId: this.runtimeTenantId,
+          keyword: this.taskSearchQuery.trim(),
+          status: this.statusFilter,
+          page,
+          pageSize: this.pageSize
+        });
+        this.taskPageItems = Array.isArray(payload?.items) ? payload.items : [];
+        this.taskTotal = Number(payload?.total) || 0;
+        this.runtimePages.tasks = Number(payload?.page) || page;
+        this.taskPageCount = Math.max(1, Number(payload?.totalPages) || 1);
+      } catch (error) {
+        this.error = error.message || "加载任务列表失败。";
+      } finally {
+        this.loading = false;
+      }
+    },
     focusPlanNode(nodeId) {
       this.selectedPlanNodeId = String(nodeId || "");
       this.$nextTick(() => {
@@ -868,7 +899,7 @@ export default {
     clampRuntimePages() {
       this.runtimePages = {
         ...this.runtimePages,
-        tasks: this.clampedRuntimePage("tasks", this.filteredTasks.length),
+        tasks: Math.min(Math.max(1, this.runtimePages.tasks), this.taskPageCount),
         agentEffects: this.clampedRuntimePage("agentEffects", this.agentEffectRows.length),
         lowScores: this.clampedRuntimePage("lowScores", this.lowScoreTasks.length),
         reasonMetrics: this.clampedRuntimePage("reasonMetrics", this.reasonMetrics.length),

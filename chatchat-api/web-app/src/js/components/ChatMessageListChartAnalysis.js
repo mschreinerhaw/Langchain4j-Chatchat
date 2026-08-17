@@ -1,6 +1,8 @@
 import { ChevronDown, ChevronRight, Maximize2, Minimize2, Pin, PinOff, X } from "@lucide/vue";
-import VisualizationRenderer from "../../components/VisualizationRenderer.vue";
+import { defineAsyncComponent } from "vue";
 import { coerceChartMetricRows, parseChartNumber, selectChartMetricKey } from "../utils/chartDatasetTypes.js";
+
+const VisualizationRenderer = defineAsyncComponent(() => import("../../components/VisualizationRenderer.vue"));
 
 function makeDatasetId(index) {
   return `dataset_${index + 1}`;

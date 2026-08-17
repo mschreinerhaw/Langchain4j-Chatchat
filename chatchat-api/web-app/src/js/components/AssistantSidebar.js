@@ -19,12 +19,13 @@ import {
   Wrench,
   X
 } from "@lucide/vue";
-
-const HISTORY_MANAGER_PAGE_SIZE = 10;
+import AppPagination from "../../components/AppPagination.vue";
+import { formatDateTime } from "../utils/uiFormatters";
 
 export default {
   name: "AssistantSidebar",
   components: {
+    AppPagination,
     ChevronDown,
     LogOut,
     MessageCircle,
@@ -64,6 +65,30 @@ export default {
       type: Boolean,
       default: false
     },
+    historyManagerItems: {
+      type: Array,
+      default: () => []
+    },
+    historyManagerTotal: {
+      type: Number,
+      default: 0
+    },
+    historyManagerPage: {
+      type: Number,
+      default: 1
+    },
+    historyManagerPageSize: {
+      type: Number,
+      default: 10
+    },
+    historyManagerPageCount: {
+      type: Number,
+      default: 1
+    },
+    historyManagerLoading: {
+      type: Boolean,
+      default: false
+    },
     favoriteConversationIds: {
       type: Array,
       default: () => []
@@ -91,6 +116,7 @@ export default {
     "favorite-conversation",
     "logout",
     "load-more-history",
+    "load-history-manager",
     "navigate",
     "refresh-history",
     "select-conversation",
@@ -106,6 +132,8 @@ export default {
       historyManagerOpen: false,
       managerKeyword: "",
       managerCurrentPage: 1,
+      managerSearchTimer: null,
+      deleteConfirmOpen: false,
       selectedHistoryKeys: [],
       showAllHistory: false
     };
@@ -144,34 +172,12 @@ export default {
     historyCountLabel() {
       return this.recentConversations.length > 99 ? "99+" : String(this.recentConversations.length);
     },
-    managerFilteredConversations() {
-      const keyword = this.managerKeyword.trim().toLowerCase();
-      if (!keyword) {
-        return this.recentConversations;
-      }
-      return this.recentConversations.filter((conversation) => [
-        conversation.question,
-        conversation.id,
-        conversation.conversationId,
-        this.statusLabel(conversation),
-        this.resolveStatus(conversation)
-      ].some((field) => String(field || "").toLowerCase().includes(keyword)));
-    },
     selectedManagerConversations() {
       const selected = new Set(this.selectedHistoryKeys);
-      return this.recentConversations.filter((conversation) => selected.has(this.conversationKey(conversation)));
-    },
-    managerPageCount() {
-      return Math.max(1, Math.ceil(this.managerFilteredConversations.length / HISTORY_MANAGER_PAGE_SIZE));
-    },
-    managerPageStart() {
-      return (this.managerCurrentPage - 1) * HISTORY_MANAGER_PAGE_SIZE;
-    },
-    managerPageEnd() {
-      return Math.min(this.managerPageStart + HISTORY_MANAGER_PAGE_SIZE, this.managerFilteredConversations.length);
+      return this.historyManagerItems.filter((conversation) => selected.has(this.conversationKey(conversation)));
     },
     managerPageConversations() {
-      return this.managerFilteredConversations.slice(this.managerPageStart, this.managerPageEnd);
+      return this.historyManagerItems;
     },
     allManagerConversationsSelected() {
       return this.managerPageConversations.length > 0
@@ -193,19 +199,25 @@ export default {
   watch: {
     managerKeyword() {
       this.managerCurrentPage = 1;
+      this.deleteConfirmOpen = false;
+      window.clearTimeout(this.managerSearchTimer);
+      this.managerSearchTimer = window.setTimeout(() => this.requestHistoryManagerPage(1), 300);
     },
     historyDeleting(deleting) {
       if (!deleting && this.historyManagerOpen && this.selectedManagerConversations.length === 0) {
         this.closeHistoryManager();
       }
     },
-    recentConversations(conversations) {
+    historyManagerItems(conversations) {
       const availableKeys = new Set(conversations.map((conversation) => this.conversationKey(conversation)));
       this.selectedHistoryKeys = this.selectedHistoryKeys.filter((key) => availableKeys.has(key));
       this.$nextTick(() => {
-        this.managerCurrentPage = Math.min(this.managerCurrentPage, this.managerPageCount);
+        this.managerCurrentPage = Math.min(this.historyManagerPage, this.historyManagerPageCount);
       });
     }
+  },
+  beforeUnmount() {
+    window.clearTimeout(this.managerSearchTimer);
   },
   methods: {
     iconComponent(icon) {
@@ -253,11 +265,7 @@ export default {
     },
     formatConversationCreatedAt(conversation) {
       const date = this.conversationCreatedAt(conversation);
-      if (!date) {
-        return "时间未知";
-      }
-      const pad = (value) => String(value).padStart(2, "0");
-      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+      return formatDateTime(date);
     },
     conversationCreatedAtIso(conversation) {
       return this.conversationCreatedAt(conversation)?.toISOString() || "";
@@ -321,7 +329,9 @@ export default {
       this.managerKeyword = "";
       this.managerCurrentPage = 1;
       this.selectedHistoryKeys = [];
+      this.deleteConfirmOpen = false;
       this.historyManagerOpen = true;
+      this.requestHistoryManagerPage(1);
       this.$nextTick(() => this.$refs.historyManagerSearch?.focus());
     },
     closeHistoryManager() {
@@ -330,6 +340,7 @@ export default {
       }
       this.historyManagerOpen = false;
       this.selectedHistoryKeys = [];
+      this.deleteConfirmOpen = false;
     },
     toggleAllManagerConversations(event) {
       const visibleKeys = this.managerPageConversations.map((conversation) => this.conversationKey(conversation));
@@ -342,10 +353,24 @@ export default {
       this.selectedHistoryKeys = [...selected];
     },
     changeManagerPage(page) {
-      this.managerCurrentPage = Math.max(1, Math.min(this.managerPageCount, page));
+      this.managerCurrentPage = Math.max(1, Math.min(this.historyManagerPageCount, page));
+      this.selectedHistoryKeys = [];
+      this.deleteConfirmOpen = false;
+      this.requestHistoryManagerPage(this.managerCurrentPage);
+    },
+    requestHistoryManagerPage(page = this.managerCurrentPage) {
+      this.$emit("load-history-manager", {
+        page,
+        pageSize: this.historyManagerPageSize,
+        keyword: this.managerKeyword.trim()
+      });
     },
     deleteSelectedHistory() {
       if (this.selectedManagerConversations.length === 0 || this.historyDeleting) {
+        return;
+      }
+      if (!this.deleteConfirmOpen) {
+        this.deleteConfirmOpen = true;
         return;
       }
       this.$emit("delete-conversations", [...this.selectedManagerConversations]);

@@ -717,6 +717,39 @@ export function removeUserFavorite(favoriteId, filters = {}) {
   });
 }
 
+export function fetchAgentTaskPage(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.tenantId) params.set("tenantId", filters.tenantId);
+  if (filters.keyword) params.set("keyword", filters.keyword);
+  if (filters.status) params.set("status", filters.status);
+  params.set("page", String(Math.max(1, Number(filters.page) || 1)));
+  params.set("pageSize", String(Math.max(1, Number(filters.pageSize) || 10)));
+  return apiRequest(`/agent/tasks/page?${params.toString()}`);
+}
+
+export async function fetchConversationHistoryPage(userId, filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.tenantId) params.set("tenantId", filters.tenantId);
+  if (filters.keyword) params.set("keyword", filters.keyword);
+  params.set("page", String(Math.max(1, Number(filters.page) || 1)));
+  params.set("pageSize", String(Math.max(1, Number(filters.pageSize) || 10)));
+  const payload = await apiRequest(
+    `/conversations/user/${encodeURIComponent(userId)}/summaries/page?${params.toString()}`
+  );
+  return {
+    ...payload,
+    items: (Array.isArray(payload?.items) ? payload.items : []).map((summary) => ({
+      ...summary,
+      question: summary.title || "未命名会话",
+      conversationId: summary.id || "",
+      timestamp: summary.updatedAt,
+      messages: [],
+      analysisTree: {},
+      detailsLoaded: false
+    }))
+  };
+}
+
 export function fetchPersonalTodos(filters = {}) {
   const params = new URLSearchParams();
   params.set("tenantId", filters.tenantId || "");

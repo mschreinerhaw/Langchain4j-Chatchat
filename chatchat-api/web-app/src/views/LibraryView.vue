@@ -194,22 +194,15 @@
           当前没有可展示文档。
         </p>
 
-        <nav v-if="total > pageSize" class="library-pagination" aria-label="文档分页">
-          <span>第 {{ page }} / {{ pageCount }} 页，每页 {{ pageSize }} 份</span>
-          <div>
-            <button type="button" :disabled="page <= 1" @click="goPage(page - 1)">上一页</button>
-            <button
-              v-for="pageNumber in pageButtons"
-              :key="pageNumber"
-              type="button"
-              :class="{ active: pageNumber === page }"
-              @click="goPage(pageNumber)"
-            >
-              {{ pageNumber }}
-            </button>
-            <button type="button" :disabled="page >= pageCount" @click="goPage(page + 1)">下一页</button>
-          </div>
-        </nav>
+        <AppPagination
+          :page="page"
+          :page-size="pageSize"
+          :total="total"
+          :page-count="pageCount"
+          :disabled="loading"
+          aria-label="文档分页"
+          @change="goPage"
+        />
       </section>
     </div>
 

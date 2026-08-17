@@ -166,7 +166,7 @@
           <header class="history-manager-header">
             <div>
               <h2 id="history-manager-title">历史记录</h2>
-              <p>当前已加载 {{ recentConversations.length }} 条记录</p>
+              <p>共 {{ historyManagerTotal }} 条记录，每页 {{ historyManagerPageSize }} 条</p>
             </div>
             <button type="button" aria-label="关闭历史记录弹窗" title="关闭" @click="closeHistoryManager">
               <X :size="19" stroke-width="2" />
@@ -188,7 +188,7 @@
                 type="checkbox"
                 :checked="allManagerConversationsSelected"
                 :indeterminate.prop="someManagerConversationsSelected"
-                :disabled="managerFilteredConversations.length === 0 || historyDeleting"
+                :disabled="managerPageConversations.length === 0 || historyDeleting || historyManagerLoading"
                 @change="toggleAllManagerConversations"
               />
               <span>全选本页</span>
@@ -196,8 +196,8 @@
           </div>
 
           <div class="history-manager-list">
-            <p v-if="historyLoading && recentConversations.length === 0" class="history-manager-state">正在加载历史记录…</p>
-            <p v-else-if="managerFilteredConversations.length === 0" class="history-manager-state">
+            <p v-if="historyManagerLoading" class="history-manager-state">正在加载历史记录…</p>
+            <p v-else-if="managerPageConversations.length === 0" class="history-manager-state">
               {{ managerKeyword.trim() ? "没有匹配的历史记录" : "暂无历史记录" }}
             </p>
             <label
@@ -223,30 +223,15 @@
             </label>
           </div>
 
-          <nav v-if="managerFilteredConversations.length > 0" class="history-manager-pagination" aria-label="历史记录分页">
-            <span>
-              {{ managerPageStart + 1 }}–{{ managerPageEnd }} / {{ managerFilteredConversations.length }} 条
-            </span>
-            <div>
-              <button
-                type="button"
-                :disabled="managerCurrentPage <= 1 || historyDeleting"
-                aria-label="上一页"
-                @click="changeManagerPage(managerCurrentPage - 1)"
-              >
-                上一页
-              </button>
-              <strong>第 {{ managerCurrentPage }} / {{ managerPageCount }} 页</strong>
-              <button
-                type="button"
-                :disabled="managerCurrentPage >= managerPageCount || historyDeleting"
-                aria-label="下一页"
-                @click="changeManagerPage(managerCurrentPage + 1)"
-              >
-                下一页
-              </button>
-            </div>
-          </nav>
+          <AppPagination
+            :page="historyManagerPage"
+            :page-size="historyManagerPageSize"
+            :total="historyManagerTotal"
+            :page-count="historyManagerPageCount"
+            :disabled="historyDeleting || historyManagerLoading"
+            aria-label="历史记录分页"
+            @change="changeManagerPage"
+          />
 
           <footer class="history-manager-footer">
             <span>已选择 {{ selectedManagerConversations.length }} 条</span>
@@ -259,7 +244,7 @@
                 @click="deleteSelectedHistory"
               >
                 <Trash2 :size="15" stroke-width="2" />
-                {{ historyDeleting ? "删除中…" : `删除所选（${selectedManagerConversations.length}）` }}
+                {{ historyDeleting ? "删除中…" : deleteConfirmOpen ? `确认删除（${selectedManagerConversations.length}）` : `删除所选（${selectedManagerConversations.length}）` }}
               </button>
             </div>
           </footer>

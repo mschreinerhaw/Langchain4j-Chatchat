@@ -1,20 +1,8 @@
 import AssistantLayout from "../components/AssistantLayout.vue";
 import RightPanel from "../components/RightPanel.vue";
 import LoginView from "../views/LoginView.vue";
-import ChatAssistantView from "../views/ChatAssistantView.vue";
-import CapabilityMarketView from "../views/CapabilityMarketView.vue";
-import AiSearchView from "../views/AiSearchView.vue";
-import LibraryView from "../views/LibraryView.vue";
-import FavoritesView from "../views/FavoritesView.vue";
-import McpCenterView from "../views/McpCenterView.vue";
-import AgentWorkshopView from "../views/AgentWorkshopView.vue";
-import AgentScheduleView from "../views/AgentScheduleView.vue";
-import AgentRuntimeView from "../views/AgentRuntimeView.vue";
-import RetrievalRulesView from "../views/RetrievalRulesView.vue";
-import EvidenceDebuggerView from "../views/EvidenceDebuggerView.vue";
-import SystemManagementView from "../views/SystemManagementView.vue";
-import TasksView from "../views/TasksView.vue";
-import AccessDeniedView from "../views/AccessDeniedView.vue";
+import AsyncViewState from "../components/AsyncViewState.vue";
+import { defineAsyncComponent } from "vue";
 import { Plus } from "@lucide/vue";
 import {
   actAgentTodo,
@@ -25,6 +13,7 @@ import {
   fetchAgentTodos,
   fetchConversationDetail,
   fetchConversationHistory,
+  fetchConversationHistoryPage,
   fetchCurrentEnterpriseUser,
   fetchTrendSemanticConfig,
   fetchWorkbenchShortcuts,
@@ -37,6 +26,7 @@ import {
 import { notifyAgentTaskCancelled, onAgentTaskCancelled } from "./utils/agentTaskEvents";
 import { clearChatRuntimeState, mergeChatRuntimeState } from "./utils/chatRuntimeState";
 import { configureTrendSemantics } from "./utils/trendSemantics";
+import { errorMessage } from "./utils/uiFormatters";
 import floatingDrag from "./directives/floatingDrag";
 import "../styles/app.css";
 import "../styles/components/dialog-close.css";
@@ -50,6 +40,28 @@ const ACTIVITY_EVENTS = ["click", "keydown", "mousemove", "mousedown", "scroll",
 const DEFAULT_VIEW = "chat";
 const LOGIN_ROUTE = "login";
 const REDIRECT_VIEW_KEY = "chatchat.auth.redirectView";
+const asyncView = (loader) => defineAsyncComponent({
+  loader,
+  loadingComponent: AsyncViewState,
+  errorComponent: AsyncViewState,
+  delay: 120,
+  timeout: 30000,
+  suspensible: false
+});
+const ChatAssistantView = asyncView(() => import("../views/ChatAssistantView.vue"));
+const CapabilityMarketView = asyncView(() => import("../views/CapabilityMarketView.vue"));
+const AiSearchView = asyncView(() => import("../views/AiSearchView.vue"));
+const LibraryView = asyncView(() => import("../views/LibraryView.vue"));
+const FavoritesView = asyncView(() => import("../views/FavoritesView.vue"));
+const McpCenterView = asyncView(() => import("../views/McpCenterView.vue"));
+const AgentWorkshopView = asyncView(() => import("../views/AgentWorkshopView.vue"));
+const AgentScheduleView = asyncView(() => import("../views/AgentScheduleView.vue"));
+const AgentRuntimeView = asyncView(() => import("../views/AgentRuntimeView.vue"));
+const RetrievalRulesView = asyncView(() => import("../views/RetrievalRulesView.vue"));
+const EvidenceDebuggerView = asyncView(() => import("../views/EvidenceDebuggerView.vue"));
+const SystemManagementView = asyncView(() => import("../views/SystemManagementView.vue"));
+const TasksView = asyncView(() => import("../views/TasksView.vue"));
+const AccessDeniedView = asyncView(() => import("../views/AccessDeniedView.vue"));
 const VIEW_PERMISSIONS = {
   chat: "workspace:chat",
   search: "workspace:search",
@@ -129,6 +141,13 @@ export default {
       conversationHistory: [],
       historyHasMore: true,
       historyNextPage: 0,
+      historyManagerItems: [],
+      historyManagerTotal: 0,
+      historyManagerPage: 1,
+      historyManagerPageSize: 10,
+      historyManagerPageCount: 1,
+      historyManagerLoading: false,
+      historyManagerKeyword: "",
       favoriteConversationIds: [],
       favoriteConversationRecordIds: {},
       favoriteSavingIds: {},
@@ -561,6 +580,35 @@ export default {
     loadMoreConversationHistory() {
       return this.loadConversationHistory({ append: true });
     },
+    async loadHistoryManager(filters = {}) {
+      if (!this.authSession || !this.userId) {
+        return;
+      }
+      const page = Math.max(1, Number(filters.page) || 1);
+      const pageSize = Math.max(1, Number(filters.pageSize) || this.historyManagerPageSize);
+      const keyword = String(filters.keyword || "").trim();
+      this.historyManagerLoading = true;
+      this.historyError = "";
+      try {
+        const payload = await fetchConversationHistoryPage(this.userId, {
+          tenantId: this.tenantId,
+          page,
+          pageSize,
+          keyword
+        });
+        this.historyManagerItems = Array.isArray(payload?.items) ? payload.items : [];
+        this.historyManagerTotal = Number(payload?.total) || 0;
+        this.historyManagerPage = Number(payload?.page) || page;
+        this.historyManagerPageSize = Number(payload?.pageSize) || pageSize;
+        this.historyManagerPageCount = Math.max(1, Number(payload?.totalPages) || 1);
+        this.historyManagerKeyword = keyword;
+      } catch (error) {
+        this.historyManagerItems = [];
+        this.historyError = errorMessage(error, "历史记录加载失败，请稍后重试");
+      } finally {
+        this.historyManagerLoading = false;
+      }
+    },
     async loadFavoriteConversationIds() {
       if (!this.authSession || !this.userId) {
         return;
@@ -863,13 +911,18 @@ export default {
           deleteConversationHistory(this.userId, conversation.id, this.tenantId)
         )));
         const failedCount = results.filter((result) => result.status === "rejected").length;
+        const succeededCount = uniqueConversations.length - failedCount;
         if (failedCount > 0) {
           await this.loadConversationHistory({ suppressError: true });
-          const succeededCount = uniqueConversations.length - failedCount;
           this.historyError = succeededCount > 0
             ? `已删除 ${succeededCount} 条，${failedCount} 条删除失败，请重试`
             : "批量删除历史会话失败，请重试";
         }
+        await this.loadHistoryManager({
+          page: Math.min(this.historyManagerPage, Math.max(1, Math.ceil((this.historyManagerTotal - succeededCount) / this.historyManagerPageSize))),
+          pageSize: this.historyManagerPageSize,
+          keyword: this.historyManagerKeyword
+        });
       } finally {
         this.historyDeleting = false;
       }

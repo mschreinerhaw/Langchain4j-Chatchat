@@ -6,7 +6,8 @@ export default defineConfig({
   plugins: [vue()],
   build: {
     outDir: "../src/main/resources/static",
-    emptyOutDir: true
+    emptyOutDir: true,
+    chunkSizeWarningLimit: 900
   },
   server: {
     port: 5173,

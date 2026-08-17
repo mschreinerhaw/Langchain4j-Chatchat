@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * REST API controller for conversation management
@@ -85,6 +86,33 @@ public class ConversationController {
             .map(ConversationListItem::from)
             .toList();
         return ApiResponse.success(summaries);
+    }
+
+    /**
+     * Searchable, tenant-scoped page used by the history management dialog.
+     */
+    @GetMapping("/user/{userId}/summaries/page")
+    @Operation(summary = "Page and search lightweight user conversation summaries")
+    public ApiResponse<Map<String, Object>> pageUserConversationSummaries(
+        @PathVariable("userId") String userId,
+        @RequestParam(value = "tenantId", required = false) String tenantId,
+        @RequestParam(value = "keyword", required = false) String keyword,
+        @RequestParam(value = "page", defaultValue = "1") Integer page,
+        @RequestParam(value = "pageSize", defaultValue = "10") Integer pageSize,
+        HttpServletRequest servletRequest
+    ) {
+        int normalizedPage = page == null ? 1 : Math.max(1, page);
+        int normalizedPageSize = pageSize == null ? 10 : Math.max(1, Math.min(pageSize, 100));
+        ConversationService.ConversationPage result = conversationService.listUserConversationSummaryPage(
+            resolveTenantId(servletRequest, tenantId), userId, keyword, normalizedPage, normalizedPageSize
+        );
+        return ApiResponse.success(Map.of(
+            "items", result.items().stream().map(ConversationListItem::from).toList(),
+            "total", result.total(),
+            "page", result.page(),
+            "pageSize", result.pageSize(),
+            "totalPages", result.totalPages()
+        ));
     }
 
     /**

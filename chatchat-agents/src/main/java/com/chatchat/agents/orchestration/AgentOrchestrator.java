@@ -135,9 +135,13 @@ public class AgentOrchestrator implements AgentRunExecutor {
     private final ContextEvidenceAggregator contextEvidenceAggregator = new ContextEvidenceAggregator();
     private final AnalysisSummaryGovernanceBridge analysisSummaryGovernanceBridge =
         new AnalysisSummaryGovernanceBridge();
+    private final DeterministicInsightEngine deterministicInsightEngine =
+        new DeterministicInsightEngine();
     private final McpAnalysisContextAdapter mcpAnalysisContextAdapter;
     private DagGovernanceContractProvider dagGovernanceContractProvider =
         DagGovernanceContractProvider.builtInFallback();
+    private SemanticInsightContractProvider semanticInsightContractProvider =
+        SemanticInsightContractProvider.disabled();
     private NodeAttemptStore nodeAttemptStore;
     private AnalysisEvidenceSpillStore analysisEvidenceSpillStore = AnalysisEvidenceSpillStore.disabled();
 
@@ -277,6 +281,13 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (provider != null) {
             this.dagGovernanceContractProvider = provider;
         }
+    }
+
+    /** Production supplies the database-backed semantic formula provider; default is fail-closed. */
+    @Autowired(required = false)
+    public void setSemanticInsightContractProvider(SemanticInsightContractProvider provider) {
+        this.semanticInsightContractProvider = provider == null
+            ? SemanticInsightContractProvider.disabled() : provider;
     }
 
     /** Production supplies the database-backed node attempt journal. */
@@ -3236,6 +3247,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
         long spilledByteCount = 0;
         Map<String, Integer> datasetOccurrences = new LinkedHashMap<>();
         List<AnalysisSummaryResult> governedSummaryResults = new ArrayList<>();
+        List<Map<String, Object>> deterministicInsightResults = new ArrayList<>();
+        List<DeterministicInsightEngine.DatasetInput> deterministicInsightDatasets = new ArrayList<>();
+        List<Map<String, Object>> deterministicInsightDecisions = new ArrayList<>();
         for (BatchRecordSet recordSet : recordSets) {
             int datasetOccurrence = datasetOccurrences.merge(recordSet.reference(), 1, Integer::sum);
             String evidenceReference = datasetOccurrence == 1
@@ -3253,6 +3267,32 @@ public class AgentOrchestrator implements AgentRunExecutor {
             iterative |= oversized;
             Map<String, Object> governedContext = analysisSummaryGovernanceBridge.govern(
                 evidenceReference, recordSet.analysisContext(), recordSet.records());
+            SemanticInsightContractProvider.Resolution insightResolution =
+                resolveSemanticInsightContracts(isolationScope, evidenceReference,
+                    governedContext, runtimeAttributes, metadata);
+            deterministicInsightDecisions.add(metadataOf(
+                "dataset", evidenceReference,
+                "status", insightResolution.status(),
+                "reason", insightResolution.reason(),
+                "contractIds", insightResolution.contracts().stream()
+                    .map(SemanticInsightContract::contractId).toList()
+            ));
+            for (SemanticInsightContract contract : insightResolution.contracts()) {
+                DeterministicInsightEngine.Result insightResult = deterministicInsightEngine.analyze(
+                    isolationScope, evidenceReference, contract, recordSet.records());
+                deterministicInsightDatasets.add(new DeterministicInsightEngine.DatasetInput(
+                    evidenceReference, contract, recordSet.records()));
+                if (!insightResult.executed()) continue;
+                deterministicInsightResults.add(insightResult.toMap());
+                promptEvidence.append("- ").append(evidenceReference)
+                    .append(" deterministic findings (authoritative calculations; the model may explain but must not recalculate or alter them): ")
+                    .append(ModelProtocolJson.compact(insightResult.toMap())).append("\n");
+                runResultAdapter.recordRuntimeObservation(runtimeAttributes, AGENT_RUN_ID_ATTRIBUTE,
+                    "Deterministic semantic insights recorded for " + evidenceReference + ".",
+                    "deterministic_insights", metadataOf("type", "deterministic_insights",
+                        "result", insightResult.toMap(), "tenantId", isolationScope.tenantId(),
+                        "runId", isolationScope.runId()));
+            }
             promptEvidence.append("- ").append(evidenceReference)
                 .append(" analysisContext: ").append(stringify(governedContext)).append("\n");
             appendix.append("### ").append(evidenceReference).append("\n\n");
@@ -3359,6 +3399,14 @@ public class AgentOrchestrator implements AgentRunExecutor {
             }
             appendix.append("\n");
         }
+        DeterministicInsightEngine.Result bundleInsightResult = deterministicInsightEngine.analyzeBundle(
+            isolationScope, deterministicInsightDatasets);
+        if (bundleInsightResult.executed()
+            && (!bundleInsightResult.findings().isEmpty() || !bundleInsightResult.issues().isEmpty())) {
+            deterministicInsightResults.add(bundleInsightResult.toMap());
+            promptEvidence.append("Cross-dataset deterministic findings (authoritative calculations): ")
+                .append(ModelProtocolJson.compact(bundleInsightResult.toMap())).append("\n");
+        }
         boolean coverageComplete = processedRecordCount == returnedRecordCount;
         boolean evidenceTraceComplete = governedSummaryResults.size() == iterations
             && governedSummaryResults.stream().allMatch(this::hasTraceableChunkEvidence)
@@ -3391,12 +3439,41 @@ public class AgentOrchestrator implements AgentRunExecutor {
             metadata.put("analysisSummaryGovernanceBridge",
                 analysisSummaryGovernanceBridge.ledger(governedSummaryResults,
                     returnedRecordCount, processedRecordCount, coverageComplete));
+            metadata.put("deterministicInsightContractVersion", DeterministicInsightEngine.RESULT_VERSION);
+            metadata.put("deterministicInsightResults", List.copyOf(deterministicInsightResults));
+            metadata.put("deterministicInsightApplicability", List.copyOf(deterministicInsightDecisions));
+            metadata.put("deterministicInsightFindingCount", deterministicInsightResults.stream()
+                .mapToInt(item -> {
+                    Object findings = item.get("findings");
+                    return findings instanceof List<?> list ? list.size() : 0;
+                }).sum());
         }
         return new RecordCoverageBundle(
             promptEvidence.toString(), appendix.toString(), List.copyOf(recordValueGroups),
             returnedRecordCount, processedRecordCount, iterations, iterative, coverageComplete,
             sourceContentComplete, evidenceTraceComplete, rawReplayChunkCount,
             List.copyOf(governedSummaryResults));
+    }
+
+    private SemanticInsightContractProvider.Resolution resolveSemanticInsightContracts(
+        GovernanceIsolationScope scope, String datasetReference, Map<String, Object> governedContext,
+        Map<String, Object> runtimeAttributes, Map<String, Object> metadata
+    ) {
+        Map<String, Object> attributes = runtimeAttributes == null ? Map.of() : runtimeAttributes;
+        List<String> requestedIds = stringList(firstObject(attributes,
+            "semanticInsightContractIds", "semantic_insight_contract_ids"));
+        boolean explicitlyRequested = !requestedIds.isEmpty() || booleanValue(firstObject(attributes,
+            "semanticInsightRequested", "semantic_insight_requested"));
+        Map<String, Object> source = objectMap(governedContext == null ? null : governedContext.get("source"));
+        String toolName = firstNonBlank(stringValue(source.get("remoteToolName")),
+            stringValue(source.get("id")));
+        String agentId = firstNonBlank(stringValue(attributes.get("agentId")),
+            stringValue(attributes.get("agent_id")));
+        String taskType = firstNonBlank(metadata == null ? null : stringValue(metadata.get("taskType")),
+            stringValue(attributes.get("taskType")));
+        return semanticInsightContractProvider.resolve(new SemanticInsightContractProvider.Request(
+            scope == null ? null : scope.tenantId(), agentId, taskType, toolName,
+            datasetReference, explicitlyRequested, requestedIds));
     }
 
     private boolean hasTraceableChunkEvidence(AnalysisSummaryResult summary) {

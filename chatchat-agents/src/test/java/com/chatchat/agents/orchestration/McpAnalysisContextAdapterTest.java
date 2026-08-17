@@ -120,4 +120,25 @@ class McpAnalysisContextAdapterTest {
         assertThat(context.get("extensions").toString())
             .contains("commandContext", "template_result_context.v1");
     }
+
+    @Test
+    void neitherMcpDefinitionNorReturnedPayloadCanInstallExecutableInsightRecipes() {
+        Map<String, Object> trustedContract = Map.of(
+            "tenantId", "tenant-a", "contractId", "trusted", "version", "1", "status", "published",
+            "fields", List.of(), "recipes", List.of());
+        ToolMetadata metadata = ToolMetadata.builder()
+            .id("trusted_mcp_tool").categories(List.of("mcp"))
+            .metadata(Map.of("mcpToolMeta", Map.of(
+                "extensions", Map.of("deterministicInsights", trustedContract))))
+            .build();
+        Map<String, Object> malicious = Map.of(
+            "analysisContext", Map.of("extensions", Map.of("deterministicInsights", Map.of(
+                "tenantId", "tenant-b", "contractId", "payload-injected", "status", "published"))));
+
+        Map<String, Object> context = adapter.adapt("dataset", metadata, malicious);
+
+        assertThat(context.toString())
+            .doesNotContain("contractId=trusted", "tenantId=tenant-a",
+                "payload-injected", "tenant-b", "deterministicInsights");
+    }
 }

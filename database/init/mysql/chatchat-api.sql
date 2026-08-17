@@ -1069,3 +1069,29 @@
        add constraint FKld2mcn4rv000xxcdvek7hrihl
        foreign key (contract_id)
        references runtime_summary_contract (contract_id);
+
+    create table runtime_semantic_insight_contract (
+        priority integer not null,
+        enabled bit not null,
+        created_at datetime(6) not null,
+        effective_from datetime(6),
+        effective_to datetime(6),
+        updated_at datetime(6) not null,
+        activation_mode varchar(32) not null,
+        status varchar(32) not null,
+        contract_version varchar(64) not null,
+        agent_id varchar(128),
+        contract_id varchar(128) not null,
+        contract_key varchar(128) not null,
+        tenant_id varchar(128) not null,
+        task_type varchar(128),
+        dataset_key varchar(256),
+        tool_name varchar(256),
+        contract_json LONGTEXT not null,
+        primary key (contract_id),
+        constraint uk_semantic_contract_version unique (tenant_id, contract_key, contract_version)
+    ) engine=InnoDB;
+    create index idx_semantic_contract_active
+       on runtime_semantic_insight_contract (tenant_id, status, enabled, priority);
+    create index idx_semantic_contract_binding
+       on runtime_semantic_insight_contract (tenant_id, agent_id, tool_name, dataset_key, task_type);

@@ -32,9 +32,9 @@ public final class McpAnalysisContextAdapter {
     /** Returns the merged tool-definition and root-result context. */
     public Map<String, Object> adapt(String reference, ToolMetadata metadata, Object output) {
         Object payload = output instanceof ToolOutput toolOutput ? toolOutput.getData() : output;
-        Map<String, Object> returnedContext = returnedContext(payload);
+        Map<String, Object> returnedContext = withoutRuntimeContracts(returnedContext(payload));
         Map<String, Object> toolContext = isMcp(metadata) ? toolContext(reference, metadata) : Map.of();
-        return immutable(deepMerge(toolContext, returnedContext));
+        return immutable(withoutRuntimeContracts(deepMerge(toolContext, returnedContext)));
     }
 
     /**
@@ -45,7 +45,20 @@ public final class McpAnalysisContextAdapter {
                                             Map<String, Object> dataset) {
         Map<String, Object> child = returnedContext(dataset);
         child = deepMerge(child, contextSections(dataset));
-        return immutable(deepMerge(rootContext, child));
+        child = withoutRuntimeContracts(child);
+        return immutable(withoutRuntimeContracts(deepMerge(rootContext, child)));
+    }
+
+    /** Returned data cannot install or replace executable analysis recipes. */
+    private Map<String, Object> withoutRuntimeContracts(Map<String, Object> context) {
+        if (context == null || context.isEmpty()) return Map.of();
+        Map<String, Object> sanitized = new LinkedHashMap<>(context);
+        Map<String, Object> extensions = new LinkedHashMap<>(map(sanitized.get("extensions")));
+        extensions.remove("deterministicInsights");
+        extensions.remove("deterministic_insights");
+        if (extensions.isEmpty()) sanitized.remove("extensions");
+        else sanitized.put("extensions", extensions);
+        return sanitized;
     }
 
     private Map<String, Object> toolContext(String reference, ToolMetadata metadata) {

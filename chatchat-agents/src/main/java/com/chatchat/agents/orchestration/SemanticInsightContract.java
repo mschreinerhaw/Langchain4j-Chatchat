@@ -51,12 +51,54 @@ public record SemanticInsightContract(
         boolean valid() { return field != null && !field.isBlank() && semantic != null && !semantic.isBlank(); }
     }
 
-    public record Recipe(String id, String operator, String label, Map<String, Object> parameters) {
+    public record Recipe(String id, String operator, String label, Map<String, Object> parameters,
+                         Presentation presentation) {
+        public Recipe(String id, String operator, String label, Map<String, Object> parameters) {
+            this(id, operator, label, parameters, Presentation.defaultPolicy());
+        }
+
+        public Recipe {
+            parameters = parameters == null ? Map.of() : Map.copyOf(parameters);
+            presentation = presentation == null ? Presentation.defaultPolicy() : presentation;
+        }
+
         static Recipe from(Map<String, Object> value) {
             Map<String, Object> parameters = new LinkedHashMap<>(value);
-            parameters.keySet().removeAll(List.of("id", "operator", "label"));
+            parameters.keySet().removeAll(List.of(
+                "id", "operator", "label", "presentationMode", "conclusionEligible",
+                "presentationPriority", "section", "relevanceHint"));
             return new Recipe(text(value.get("id")), text(value.get("operator")),
-                text(value.get("label")), Collections.unmodifiableMap(parameters));
+                text(value.get("label")), Collections.unmodifiableMap(parameters),
+                new Presentation(text(value.get("presentationMode")),
+                    booleanValue(value.get("conclusionEligible"), true),
+                    integer(value.get("presentationPriority"), 0), text(value.get("section")),
+                    text(value.get("relevanceHint"))));
+        }
+    }
+
+    /** Controls answer placement; it does not decide or alter the numeric result. */
+    public record Presentation(String mode, boolean conclusionEligible, int priority,
+                               String section, String relevanceHint) {
+        public Presentation {
+            mode = mode == null || mode.isBlank() ? "WHEN_RELEVANT" : mode.trim().toUpperCase();
+            if (!List.of("ALWAYS", "WHEN_RELEVANT", "EXCEPTION_ONLY", "SUPPORTING").contains(mode)) {
+                mode = "SUPPORTING";
+                conclusionEligible = false;
+            }
+        }
+
+        static Presentation defaultPolicy() {
+            return new Presentation("WHEN_RELEVANT", true, 0, null, null);
+        }
+
+        public Map<String, Object> toMap() {
+            Map<String, Object> values = new LinkedHashMap<>();
+            values.put("mode", mode);
+            values.put("conclusionEligible", conclusionEligible);
+            values.put("priority", priority);
+            if (section != null && !section.isBlank()) values.put("section", section);
+            if (relevanceHint != null && !relevanceHint.isBlank()) values.put("relevanceHint", relevanceHint);
+            return Map.copyOf(values);
         }
     }
 
@@ -77,5 +119,16 @@ public record SemanticInsightContract(
     static String text(Object value) { return value == null ? null : String.valueOf(value).trim(); }
     static boolean truthy(Object value) {
         return Boolean.TRUE.equals(value) || "true".equalsIgnoreCase(String.valueOf(value));
+    }
+    static boolean booleanValue(Object value, boolean fallback) {
+        if (value == null) return fallback;
+        if (value instanceof Boolean bool) return bool;
+        if ("true".equalsIgnoreCase(String.valueOf(value))) return true;
+        if ("false".equalsIgnoreCase(String.valueOf(value))) return false;
+        return fallback;
+    }
+    static int integer(Object value, int fallback) {
+        try { return Integer.parseInt(String.valueOf(value)); }
+        catch (Exception ignored) { return fallback; }
     }
 }

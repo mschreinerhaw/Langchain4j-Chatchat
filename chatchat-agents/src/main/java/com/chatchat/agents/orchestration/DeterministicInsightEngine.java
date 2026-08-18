@@ -27,6 +27,12 @@ public final class DeterministicInsightEngine {
         List<Finding> findings = new ArrayList<>();
         List<RecipeIssue> issues = new ArrayList<>();
         for (SemanticInsightContract.Recipe recipe : contract.recipes()) {
+            List<String> validationIssues = SemanticInsightRecipeCatalog.validate(recipe);
+            if (!validationIssues.isEmpty()) {
+                issues.add(new RecipeIssue(recipe.id(), "recipe_configuration_invalid",
+                    String.join("; ", validationIssues)));
+                continue;
+            }
             try {
                 findings.addAll(execute(datasetReference, contract, recipe, safeRecords));
             } catch (RuntimeException ex) {
@@ -90,6 +96,12 @@ public final class DeterministicInsightEngine {
         java.util.Set<String> executedIds = new java.util.LinkedHashSet<>();
         for (SemanticInsightContract.Recipe recipe : recipes) {
             if (!executedIds.add(recipe.id())) continue;
+            List<String> validationIssues = SemanticInsightRecipeCatalog.validate(recipe);
+            if (!validationIssues.isEmpty()) {
+                issues.add(new RecipeIssue(recipe.id(), "bundle_recipe_configuration_invalid",
+                    String.join("; ", validationIssues)));
+                continue;
+            }
             try {
                 String operator = recipe.operator().toUpperCase(Locale.ROOT);
                 String leftExpression = parameter(recipe, "leftExpression");
@@ -208,7 +220,8 @@ public final class DeterministicInsightEngine {
         Map<String, Object> values = new LinkedHashMap<>(recipe.parameters());
         values.putIfAbsent("absoluteValues", true);
         SemanticInsightContract.Recipe delegated = new SemanticInsightContract.Recipe(
-            recipe.id(), "CONTRIBUTION", recipe.label(), Collections.unmodifiableMap(values));
+            recipe.id(), "CONTRIBUTION", recipe.label(), Collections.unmodifiableMap(values),
+            recipe.presentation());
         Finding result = topN(dataset, contract, delegated, records, true);
         return new Finding(result.id(), "concentration", result.label(), result.value(), result.unit(),
             result.calculation(), result.evidenceRefs(), result.details());
@@ -317,9 +330,11 @@ public final class DeterministicInsightEngine {
 
     private Finding finding(SemanticInsightContract.Recipe recipe, String type, BigDecimal value, String unit,
                             String calculation, List<String> refs, Map<String, Object> details) {
+        Map<String, Object> governedDetails = new LinkedHashMap<>(details);
+        governedDetails.put("presentation", recipe.presentation().toMap());
         return new Finding(required(recipe.id(), "recipe id"), type,
             recipe.label() == null || recipe.label().isBlank() ? recipe.id() : recipe.label(),
-            value, unit, calculation, List.copyOf(refs), Map.copyOf(details));
+            value, unit, calculation, List.copyOf(refs), Map.copyOf(governedDetails));
     }
 
     private SemanticInsightContract.Field field(SemanticInsightContract contract, String semantic) {

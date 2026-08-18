@@ -716,6 +716,9 @@ class AgentOrchestratorTest {
         assertThat(coverage.iterative()).isTrue();
         assertThat(coverage.iterations()).isGreaterThan(1);
         assertThat(coverage.rawReplayChunkCount()).isEqualTo(coverage.iterations());
+        assertThat(coverage.promptEvidence())
+            .contains("business semantic view", "analysis_context_presentation.v1")
+            .contains("Position detail API", "Returns account positions", "Position value");
         assertThat(coverage.summaryResults()).hasSize(coverage.iterations())
             .allSatisfy(entry -> assertThat(entry.toMap().toString())
                 .contains("schemaVersion=analysis_summary_result.v1", "scope=DATASET_CHUNK")
@@ -733,8 +736,11 @@ class AgentOrchestratorTest {
             .containsEntry("recordAnalysisProcessedRecordCount", 60)
             .containsEntry("recordAnalysisEvidenceTraceComplete", true)
             .containsEntry("recordAnalysisRawReplayChunkCount", coverage.iterations())
+            .containsEntry("analysisContextPresentationVersion", "analysis_context_presentation.v1")
             .containsEntry("recordAnalysisCoverageAppendixApplied", false)
             .containsEntry("recordAnalysisNarrativeCoverageApplied", true);
+        assertThat(metadata.get("analysisContextPresentationViews").toString())
+            .contains("Position detail API", "Position value");
         assertThat(metadata.get("analysisSummaryGovernanceBridge").toString())
             .contains("analysis_summary_bridge.v1", "summary_governance.v1")
             .contains("analysis_summary_result.v1", "scope=DATASET_CHUNK")
@@ -746,7 +752,7 @@ class AgentOrchestratorTest {
                 && prompt.contains("Position detail API")
                 && prompt.contains("Returns account positions")
                 && prompt.contains("Position value")
-                && prompt.contains("Field comments are not display labels")
+                && prompt.contains("authoritative business display metadata")
                 && prompt.contains("Analysis summary bridge position")));
     }
 

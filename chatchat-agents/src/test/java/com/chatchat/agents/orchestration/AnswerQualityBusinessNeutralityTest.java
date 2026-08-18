@@ -16,7 +16,9 @@ class AnswerQualityBusinessNeutralityTest {
         "AnswerContract.java",
         "AnswerContractCompiler.java",
         "EvidenceSufficiencyGate.java",
-        "AnswerCriticRepairer.java"
+        "AnswerCriticRepairer.java",
+        "AnalysisContextPresentationContract.java",
+        "SemanticInsightRecipeCatalog.java"
     );
 
     private static final List<String> FORBIDDEN_BUSINESS_LITERALS = List.of(

@@ -53,10 +53,13 @@ public class SemanticInsightContractEntity {
     private String datasetKey;
     @Column(name = "task_type", length = 128)
     private String taskType;
+    @Column(name = "dataset_alias", length = 128)
+    private String datasetAlias;
     @Column(nullable = false)
     private int priority;
     @Lob
-    @Column(name = "contract_json", nullable = false, columnDefinition = "LONGTEXT")
+    /** Legacy migration snapshot. Structured child tables are the active source of truth. */
+    @Column(name = "contract_json", columnDefinition = "LONGTEXT")
     private String contractJson;
     @Column(name = "effective_from")
     private Instant effectiveFrom;

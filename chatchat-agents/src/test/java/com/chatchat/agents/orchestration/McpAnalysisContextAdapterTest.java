@@ -86,6 +86,37 @@ class McpAnalysisContextAdapterTest {
     }
 
     @Test
+    void preservesReturnedStructuredFieldDescriptionsForGenericPresentation() {
+        ToolMetadata metadata = ToolMetadata.builder()
+            .id("structured_result_executor")
+            .title("Structured result executor")
+            .categories(List.of("mcp"))
+            .metadata(Map.of("remoteToolName", "structured_result_executor"))
+            .build();
+        Map<String, Object> context = adapter.adapt("dataset-alpha", metadata, Map.of(
+            "payload", Map.of("analysisContext", Map.of(
+                "source", Map.of(
+                    "id", "configuration-1",
+                    "toolName", "capacity_snapshot",
+                    "displayName", "Capacity snapshot",
+                    "description", "Returns current capacity measures"),
+                "schema", Map.of("fields", List.of(Map.of(
+                    "name", "RAW_AVAILABLE",
+                    "technicalName", "RAW_AVAILABLE",
+                    "description", "Available capacity",
+                    "comment", "Quantity available for use",
+                    "type", "decimal",
+                    "source", "runtime_output_schema")))))));
+
+        Map<String, Object> view = AnalysisContextPresentationContract.semanticView("dataset-alpha", context);
+
+        assertThat(context.get("source").toString())
+            .contains("structured_result_executor", "capacity_snapshot", "Returns current capacity measures");
+        assertThat(view.toString())
+            .contains("Capacity snapshot", "RAW_AVAILABLE", "Available capacity", "decimal");
+    }
+
+    @Test
     void ordinaryNonMcpToolMetadataDoesNotTurnProtocolRowsIntoBusinessAnalysis() {
         ToolMetadata metadata = ToolMetadata.builder()
             .id("document_parser")

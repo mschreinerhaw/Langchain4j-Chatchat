@@ -12,8 +12,13 @@ import static org.mockito.Mockito.*;
 
 class DatabaseSemanticInsightContractProviderTest {
     private final SemanticInsightContractRepository repository = mock(SemanticInsightContractRepository.class);
+    private final SemanticInsightFieldRepository fieldRepository = mock(SemanticInsightFieldRepository.class);
+    private final SemanticInsightRecipeRepository recipeRepository = mock(SemanticInsightRecipeRepository.class);
+    private final SemanticInsightRecipeParameterRepository parameterRepository =
+        mock(SemanticInsightRecipeParameterRepository.class);
     private final DatabaseSemanticInsightContractProvider provider =
-        new DatabaseSemanticInsightContractProvider(repository, new ObjectMapper());
+        new DatabaseSemanticInsightContractProvider(repository, new ObjectMapper(),
+            fieldRepository, recipeRepository, parameterRepository);
 
     @Test
     void ordinaryAgentRuntimeDoesNotQueryOrExecuteFormulaContracts() {
@@ -53,6 +58,82 @@ class DatabaseSemanticInsightContractProviderTest {
             "tenant-a", "PUBLISHED")).thenReturn(List.of(unbound));
         var result = provider.resolve(request("tenant-a", true, List.of(), "any-agent", "any-dataset"));
         assertThat(result.resolved()).isFalse();
+    }
+
+    @Test
+    void matchesProviderNamespacedDatasetToRuntimeReference() {
+        when(repository.findByTenantIdAndStatusIgnoreCaseAndEnabledTrueOrderByPriorityDescUpdatedAtDesc(
+            "tenant-a", "PUBLISHED")).thenReturn(List.of(
+                contract("contract-a", "tenant-a", "finance-agent", "provider_kind:positions", null)));
+
+        var result = provider.resolve(request(
+            "tenant-a", true, List.of("contract-a"), "finance-agent", "positions#occurrence-2"));
+
+        assertThat(result.resolved()).isTrue();
+        assertThat(result.contracts()).extracting(contract -> contract.contractId())
+            .containsExactly("contract-a");
+    }
+
+    @Test
+    void doesNotCollapseTwoDifferentProviderNamespaces() {
+        when(repository.findByTenantIdAndStatusIgnoreCaseAndEnabledTrueOrderByPriorityDescUpdatedAtDesc(
+            "tenant-a", "PUBLISHED")).thenReturn(List.of(
+                contract("contract-a", "tenant-a", "finance-agent", "provider_one:positions", null)));
+
+        var result = provider.resolve(request(
+            "tenant-a", true, List.of("contract-a"), "finance-agent", "provider_two:positions"));
+
+        assertThat(result.resolved()).isFalse();
+    }
+
+    @Test
+    void loadsMaintainableStructuredRowsInsteadOfLegacyJson() {
+        SemanticInsightContractEntity header = contract(
+            "contract-a", "tenant-a", "runtime-agent", "measurements", null);
+        header.setDatasetAlias("snapshot");
+        header.setContractJson("{not-valid-json");
+        when(repository.findByTenantIdAndStatusIgnoreCaseAndEnabledTrueOrderByPriorityDescUpdatedAtDesc(
+            "tenant-a", "PUBLISHED")).thenReturn(List.of(header));
+
+        SemanticInsightFieldEntity field = new SemanticInsightFieldEntity();
+        field.setFieldId("field-a"); field.setContractId("contract-a");
+        field.setPhysicalField("RAW_VALUE"); field.setSemanticKey("measure");
+        field.setDisplayLabel("Measured value"); field.setUnit("items"); field.setAggregation("SUM");
+        when(fieldRepository.findByContractIdOrderByDisplayOrderAscFieldIdAsc("contract-a"))
+            .thenReturn(List.of(field));
+
+        SemanticInsightRecipeEntity recipe = new SemanticInsightRecipeEntity();
+        recipe.setRecipeId("recipe-row-a"); recipe.setContractId("contract-a");
+        recipe.setRecipeKey("measure-total"); recipe.setOperator("SUM"); recipe.setLabel("Total measure");
+        recipe.setEnabled(true); recipe.setPresentationMode("SUPPORTING");
+        recipe.setConclusionEligible(false); recipe.setPresentationPriority(20);
+        recipe.setSectionKey("details"); recipe.setRelevanceHint("Use only when totals are requested");
+        when(recipeRepository.findByContractIdOrderByDisplayOrderAscRecipeIdAsc("contract-a"))
+            .thenReturn(List.of(recipe));
+
+        SemanticInsightRecipeParameterEntity parameter = new SemanticInsightRecipeParameterEntity();
+        parameter.setParameterId("parameter-a"); parameter.setRecipeId("recipe-row-a");
+        parameter.setParameterKey("metric"); parameter.setValueType("STRING");
+        parameter.setStringValue("measure");
+        when(parameterRepository.findByRecipeIdInOrderByRecipeIdAscDisplayOrderAscParameterIdAsc(
+            List.of("recipe-row-a"))).thenReturn(List.of(parameter));
+
+        var result = provider.resolve(new SemanticInsightContractProvider.Request(
+            "tenant-a", "runtime-agent", "analysis", "asset-tool", "measurements",
+            true, List.of("contract-a")));
+
+        assertThat(result.resolved()).isTrue();
+        var resolved = result.contracts().get(0);
+        assertThat(resolved.datasetAlias()).isEqualTo("snapshot");
+        assertThat(resolved.fields()).extracting(fieldValue -> fieldValue.semantic())
+            .containsExactly("measure");
+        assertThat(resolved.recipes()).hasSize(1);
+        assertThat(resolved.recipes().get(0).parameters()).containsEntry("metric", "measure");
+        assertThat(resolved.recipes().get(0).presentation().toMap())
+            .containsEntry("mode", "SUPPORTING")
+            .containsEntry("conclusionEligible", false)
+            .containsEntry("priority", 20)
+            .containsEntry("section", "details");
     }
 
     private SemanticInsightContractProvider.Request request(String tenant, boolean explicit,

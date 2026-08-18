@@ -2820,7 +2820,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             prompt.append("System instruction:\n").append(systemPrompt).append("\n\n");
         }
-        prompt.append("You are the final step-by-step answer synthesizer for MCP InterpretationPlan attempts.\n");
+        prompt.append("You are the final step-by-step answer synthesizer for Agent Runtime InterpretationPlan attempts.\n");
         prompt.append("Answer the user in Chinese using only the executed attempt records, model review decisions, and stored observations.\n");
         prompt.append("Return a polished Markdown document, not a single plain paragraph. Use concise headings and lists when they improve readability.\n");
         prompt.append("Do not wrap the Markdown in code fences and do not output JSON.\n");
@@ -2846,7 +2846,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("- Use evidence_graph_v1 as the authoritative Evidence-to-Hypothesis relationship layer. Only ACTIVE SUPPORTS or CONTRADICTS relations with existing Evidence nodes may justify a hypothesis; rejectedRelations are audit findings, not evidence.\n");
         prompt.append("- Use plan_evolution_v1 only to explain why the runtime changed its retrieval or execution path. A plan change is not evidence for the user's factual answer.\n");
         prompt.append("- Treat template_selection_feedback.v1 and runtimeTemplateCandidateEvaluations as the decision ledger for template changes. When a previously preferred or more precise template was rejected, state its evidence-backed rejection reason; when another template was selected or queried, state the evidence gap it was chosen to close. Do not imply that a service was unavailable when the trace shows a binding, contract, parameter-evidence, policy, or pre-invocation failure.\n");
-        prompt.append("- The final answer must be grounded in the cumulative MCP results from every iteration. Do not treat an intermediate model conclusion as evidence unless its referenced evidenceId exists in an executed tool result.\n");
+        prompt.append("- The final answer must be grounded in cumulative executed tool results from every iteration, regardless of source type. Do not treat an intermediate model conclusion as evidence unless its referenced evidenceId exists in an executed tool result.\n");
         prompt.append("- System instructions and conversation history provide behavior and context only. A documentId, timestamp, metric, command output, or concrete result appearing there is not current-turn evidence unless the executed attempts below return the same value.\n");
         prompt.append("- Resolve conflicts explicitly. If three iterations still leave a material gap, report that gap instead of filling it with model knowledge.\n");
         prompt.append("- Do not hide earlier partial or failed attempts when they contain usable evidence. State unresolved limitations after considering all attempts.\n");
@@ -3253,6 +3253,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         List<Map<String, Object>> deterministicInsightResults = new ArrayList<>();
         List<DeterministicInsightEngine.DatasetInput> deterministicInsightDatasets = new ArrayList<>();
         List<Map<String, Object>> deterministicInsightDecisions = new ArrayList<>();
+        List<Map<String, Object>> semanticPresentationViews = new ArrayList<>();
         for (BatchRecordSet recordSet : recordSets) {
             int datasetOccurrence = datasetOccurrences.merge(recordSet.reference(), 1, Integer::sum);
             String evidenceReference = datasetOccurrence == 1
@@ -3270,6 +3271,13 @@ public class AgentOrchestrator implements AgentRunExecutor {
             iterative |= oversized;
             Map<String, Object> governedContext = analysisSummaryGovernanceBridge.govern(
                 evidenceReference, recordSet.analysisContext(), recordSet.records());
+            Map<String, Object> semanticPresentationView =
+                AnalysisContextPresentationContract.semanticView(evidenceReference, governedContext);
+            semanticPresentationViews.add(semanticPresentationView);
+            promptEvidence.append("- ").append(evidenceReference)
+                .append(" business semantic view: ")
+                .append(ModelProtocolJson.compact(semanticPresentationView))
+                .append("\n");
             SemanticInsightContractProvider.Resolution insightResolution =
                 resolveSemanticInsightContracts(isolationScope, evidenceReference,
                     governedContext, runtimeAttributes, metadata);
@@ -3445,6 +3453,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
             metadata.put("deterministicInsightContractVersion", DeterministicInsightEngine.RESULT_VERSION);
             metadata.put("deterministicInsightResults", List.copyOf(deterministicInsightResults));
             metadata.put("deterministicInsightApplicability", List.copyOf(deterministicInsightDecisions));
+            metadata.put("analysisContextPresentationVersion", AnalysisContextPresentationContract.VERSION);
+            metadata.put("analysisContextPresentationViews", List.copyOf(semanticPresentationViews));
             metadata.put("deterministicInsightFindingCount", deterministicInsightResults.stream()
                 .mapToInt(item -> {
                     Object findings = item.get("findings");
@@ -3469,7 +3479,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
             "semanticInsightRequested", "semantic_insight_requested"));
         Map<String, Object> source = objectMap(governedContext == null ? null : governedContext.get("source"));
         String toolName = firstNonBlank(stringValue(source.get("remoteToolName")),
-            stringValue(source.get("id")));
+            firstNonBlank(stringValue(source.get("toolName")), stringValue(source.get("id"))));
         String agentId = firstNonBlank(stringValue(attributes.get("agentId")),
             stringValue(attributes.get("agent_id")));
         String taskType = firstNonBlank(metadata == null ? null : stringValue(metadata.get("taskType")),

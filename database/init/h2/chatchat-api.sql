@@ -1051,9 +1051,10 @@
         contract_key varchar(128) not null,
         tenant_id varchar(128) not null,
         task_type varchar(128),
+        dataset_alias varchar(128),
         dataset_key varchar(256),
         tool_name varchar(256),
-        contract_json CLOB not null,
+        contract_json CLOB,
         primary key (contract_id),
         constraint uk_semantic_contract_version unique (tenant_id, contract_key, contract_version)
     );
@@ -1063,3 +1064,60 @@
        on runtime_semantic_insight_contract (tenant_id, agent_id, tool_name);
     create index idx_semantic_contract_dataset_task
        on runtime_semantic_insight_contract (tenant_id, dataset_key, task_type);
+
+    create table runtime_semantic_insight_field (
+        sensitive boolean not null,
+        display_order integer not null,
+        aggregation varchar(32),
+        unit varchar(64),
+        contract_id varchar(128) not null,
+        field_id varchar(128) not null,
+        semantic_key varchar(128) not null,
+        physical_field varchar(256) not null,
+        display_label varchar(512),
+        primary key (field_id),
+        constraint uk_semantic_field_key unique (contract_id, semantic_key),
+        constraint fk_semantic_field_contract foreign key (contract_id)
+            references runtime_semantic_insight_contract (contract_id)
+    );
+    create index idx_semantic_field_contract_order
+        on runtime_semantic_insight_field (contract_id, display_order);
+
+    create table runtime_semantic_insight_recipe (
+        conclusion_eligible boolean not null,
+        display_order integer not null,
+        enabled boolean not null,
+        presentation_priority integer not null,
+        presentation_mode varchar(32) not null,
+        operator varchar(64) not null,
+        contract_id varchar(128) not null,
+        recipe_id varchar(128) not null,
+        recipe_key varchar(128) not null,
+        section_key varchar(128),
+        label varchar(512),
+        relevance_hint varchar(1000),
+        primary key (recipe_id),
+        constraint uk_semantic_recipe_key unique (contract_id, recipe_key),
+        constraint fk_semantic_recipe_contract foreign key (contract_id)
+            references runtime_semantic_insight_contract (contract_id)
+    );
+    create index idx_semantic_recipe_contract_order
+        on runtime_semantic_insight_recipe (contract_id, display_order);
+
+    create table runtime_semantic_insight_recipe_parameter (
+        boolean_value boolean,
+        decimal_value decimal(38,10),
+        display_order integer not null,
+        integer_value bigint,
+        value_type varchar(16) not null,
+        parameter_id varchar(128) not null,
+        parameter_key varchar(128) not null,
+        recipe_id varchar(128) not null,
+        string_value varchar(2000),
+        primary key (parameter_id),
+        constraint uk_semantic_recipe_parameter unique (recipe_id, parameter_key),
+        constraint fk_semantic_parameter_recipe foreign key (recipe_id)
+            references runtime_semantic_insight_recipe (recipe_id)
+    );
+    create index idx_semantic_parameter_recipe_order
+        on runtime_semantic_insight_recipe_parameter (recipe_id, display_order);

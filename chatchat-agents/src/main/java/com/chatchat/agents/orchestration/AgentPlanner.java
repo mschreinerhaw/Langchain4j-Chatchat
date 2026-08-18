@@ -4,6 +4,7 @@ import com.chatchat.agents.assessment.RuntimeAnswerCandidate;
 import com.chatchat.agents.assessment.TaskContract;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.protocol.McpToolProtocolRole;
+import com.chatchat.agents.protocol.ToolProtocolContractResolver;
 import com.chatchat.agents.runtime.AgentRuntimeFactGroundingContract;
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
@@ -55,6 +56,7 @@ class AgentPlanner {
     private final ObjectMapper objectMapper;
     private final Clock clock;
     private final InterpretationPlanValidator interpretationPlanValidator = new InterpretationPlanValidator();
+    private final ToolProtocolContractResolver toolProtocolContracts = new ToolProtocolContractResolver();
 
     AgentPlanner(ToolRegistry toolRegistry, ObjectMapper objectMapper) {
         this(toolRegistry, objectMapper, Clock.systemDefaultZone());
@@ -397,13 +399,13 @@ class AgentPlanner {
         prompt.append("MCP interaction contract:\n");
         prompt.append("- The user-bound workflow tool names, required flags, dependencies, and order are the execution contract. Do not insert, replace, or reorder tools based on intent, keywords, metadata, or returned template names.\n");
         prompt.append("- Template ids, template names, mcpToolName, and execution.callTool values returned by discovery are template names, not Agent Runtime workflow tool names.\n");
-        prompt.append("- Do not put a returned template name into plan.steps[].tool_name. Put it into template/templateId and call the declared executor tool such as sql_query_execute, database_query_execute, linux_command_execute, or http_request_execute.\n");
+        prompt.append("- Do not put a returned template name into plan.steps[].tool_name. Put it into the template selector declared by the selected template contract and call only its configured workflow executor.\n");
         prompt.append("- Finding a template or asset is not execution evidence. final_answer must depend on the actual executor step or an explicit error/permission observation.\n\n");
         prompt.append("Sequential MCP batch contract:\n");
-        prompt.append("- When two or more independent templates must be executed through sql_query_execute, ssh_linux_execute, api_query_execute, or their configured aliases, prefer one mcp_tool step whose input is {batchId, executionMode:\"SEQUENTIAL\", stopOnFailure:false, calls:[{callId,toolName,arguments}]}.\n");
+        prompt.append("- When two or more governed templates use an executor that declares template_execution and batch_execution, prefer one mcp_tool step whose input is {batchId, executionMode:\"SEQUENTIAL\", stopOnFailure:false, calls:[{callId,toolName,arguments}]}.\n");
         prompt.append("- Runtime owns a failure-isolated template execution layer: every compiled child must receive SUCCESS, EMPTY/RESULT_MISSING, BLOCKED, FAILED, or NOT_EXECUTED evidence. A child error must not stop later templates; stopOnFailure is compatibility-only and must be false.\n");
         prompt.append("- When one batch step supplies multiple diagnostic_profile checks, set every child callId to the exact diagnostic check_id it proves. Never map multiple checks to a single non-batch executor call; one successful scalar call is evidence for only its explicitly identified check.\n");
-        prompt.append("- Keep calls in diagnostic priority order. Each call arguments object must satisfy that executor's normal authorized template contract; never include raw SQL, shell commands, URLs, credentials, or transport fields.\n");
+        prompt.append("- Keep calls in diagnostic priority order. Each call arguments object must satisfy that executor's normal authorized template contract; never include raw transport payloads, credentials, or fields forbidden by the tool-published protocol.\n");
         prompt.append("- A batch is one model planning decision but each child is one real remote tool invocation. Runtime validates and audits every child independently, persists its evidence immediately, continues after individual failures by default, and returns one ordered structured batch result.\n");
         prompt.append("- For diagnostic_profile checks backed by discovered templates, do not add a reasoning/aggregation step that copies template ids into named output fields and do not create edge contracts or bindings for such model-generated fields. Map the checks to the shared executor step; Runtime deterministically matches only the discovered, asset-scoped, authorized template metadata and compiles the child calls.\n");
         prompt.append("- Do not create one plan/rewrite/model round per template when all required template identifiers and parameters are already known. final_answer must depend on the single batch step.\n\n");
@@ -412,7 +414,7 @@ class AgentPlanner {
         prompt.append("- Use only the exact tools present in Available tools and the configured workflow; tool metadata may describe input/output contracts but must not cause tool substitution.\n");
         prompt.append("- Model output is an untrusted candidate plan. Runtime owns argument compilation and rejects values that do not satisfy this contract before any MCP call.\n");
         prompt.append("- Use the fixed semantic ToolCall DSL: input.toolCall={toolName,action,parameters,context}. You select the workflow tool/action and state business values; Runtime resolves MCP metadata and compiles the concrete executor request.\n");
-        prompt.append("- toolCall.parameters contains semantic business values only. toolCall.context contains purpose/step/dependency context and an optional logical target. Do not construct MCP transport fields, template parameter containers, HTTP, JSON-RPC, SQL binding positions, retries, or authorization fields.\n");
+        prompt.append("- toolCall.parameters contains semantic business values only. toolCall.context contains purpose/step/dependency context and an optional logical target. Do not construct MCP transport fields, template parameter containers, binding positions, retries, or authorization fields.\n");
         prompt.append("- When a template must be discovered at runtime, plan template discovery before execution and do not guess undeclared parameter names. After discovery, the DAG controller emits ")
             .append(InterpretationExecutionProtocol.TEMPLATE_PARAMETER_PROTOCOL_VERSION)
             .append(" as an evidence-based parameter profile from the current user query and successful completed tool outputs; Runtime verifies every evidence reference and compiles it against the returned parameterSchema.\n");
@@ -431,17 +433,8 @@ class AgentPlanner {
         prompt.append("- Template execution must include the logical execution context declared by asset discovery, template routing metadata, metadata-location evidence, or an observed invocation example.\n");
         prompt.append("- Do not put JSONPath strings such as $.assets[0].asset.name inside executionContext. Use plan.bindings only when a prior observed step really returns that field.\n");
         prompt.append("- Do not put binding placeholders such as {{bindings.assetName}}, ${step1.value}, or empty stand-ins anywhere in step input. Use explicit bindings only and set input_path/input_field to the complete destination path, for example $.filters.assetName or $.executionContext.assetName.\n");
-        prompt.append("- Never put a raw command/query inside a discovered template's parameter container unless that exact field is declared by its parameter schema.\n");
-        prompt.append("- Do not invent template names or bind an asset display name as a database/schema name; use only structured discovery outputs.\n\n");
-        prompt.append("Template-governed HTTP/API/SSH execution contract:\n");
-        prompt.append("- HTTP/API/SSH execution must follow the same template governance as SQL: discover/select a registered template, read templates[].parameterSchema/requiredParameters/parameterContract/invocationExample, then call the execution tool with only declared parameters.\n");
-        prompt.append("- For http_request_execute, use template from http_endpoint_template_query.templates[].templateId and put all endpoint arguments under input.parameters. Do not pass raw url, uri, method, headers, body, host, hostname, ip, or endpointId.\n");
-        prompt.append("- For API templates returned by api_template_query, call api_template_execute, copy templates[].templateId into templateId, and pass only arguments declared by templates[].parameterSchema under parameters. Use capabilitySpec/outputSchema/dependencySpec to check requirement coverage and ordering. Do not invent raw URL, headers, or body fields.\n");
-        prompt.append("- API template parameter policy is run-first: include only schema-declared overrides grounded in the user query or completed tool evidence. Omit unresolved, unmatched, or unverified parameters so Runtime applies authoritative template defaults. Only a required parameter with no default may fail that child; never block sibling template calls.\n");
-        prompt.append("- When the user asks which APIs are needed for a broad requirement, first emit semantic requirement steps and call api_requirement_analyze. Treat CANDIDATES_FOUND only as candidates: review coverage, refine rejected candidates, and execute only accepted templateIds.\n");
-        prompt.append("- For requirements implemented by maintained HTTP endpoint assets, call http_requirement_analyze, review capabilitySpec/outputSchema/dependencySpec, then discover through http_endpoint_template_query and execute accepted template ids through http_request_execute. Rejected ids must be excluded from bounded retries.\n");
-        prompt.append("- For linux_command_execute, use template from ssh_template_query.templates[].templateId and put all command arguments under input.parameters. Do not pass command, rawCommand, shell, host, hostname, ip, or hostId.\n");
-        prompt.append("- A template-declared default is authoritative contract evidence and needs no user/tool evidence. Pass only evidence-backed overrides; Runtime may fill omitted parameters from parameterSchema defaults. If a required parameter has no default, bind it from user input/tool output before execution.\n\n");
+        prompt.append("- Never put a raw transport payload inside a discovered template's parameter container unless that exact field is declared by its parameter schema and allowed by its Protocol Driver.\n");
+        prompt.append("- Do not invent template names or reuse an asset display name as an unrelated execution parameter; use only typed structured discovery outputs.\n\n");
         if (requireToolBeforeFinal) {
             prompt.append("Mandatory tool policy:\n");
             prompt.append("- This agent is bound to required runtime tools. Your response MUST be an InterpretationPlan that includes the required tool steps.\n");
@@ -455,6 +448,7 @@ class AgentPlanner {
         }
         appendMcpWorkflowOrchestrationContract(prompt, runtimeAttributes);
         appendMcpControlPlaneToolContracts(prompt, availableTools);
+        prompt.append(toolProtocolContracts.plannerSection(availableTools, toolRegistry));
         prompt.append("Respond with strict JSON only.\n");
         prompt.append("You MUST output ONLY a valid InterpretationPlan JSON following schema. No natural language.\n");
         prompt.append("If you cannot produce a valid plan, output a final_answer step whose input.answer explains the missing requirement.\n");
@@ -508,7 +502,7 @@ class AgentPlanner {
                 + "The external provider remains an internal implementation detail, not a separate tool.\n\n");
             prompt.append("Crawler input contract:\n");
             prompt.append("- Never use ").append(crawlerTool).append(" as a search tool. It cannot accept a free-text query.\n");
-            prompt.append("- ").append(crawlerTool).append(" may only be called with an HTTP/HTTPS url selected from prior web discovery results, for example {\"url\":\"https://example.com/page\"}.\n");
+            prompt.append("- ").append(crawlerTool).append(" may only be called with an absolute URL selected from prior web discovery results and accepted by its published input schema.\n");
             prompt.append("- If no URL has been observed yet, call a web discovery tool first and do not call ").append(crawlerTool).append(".\n\n");
             prompt.append("Binding contract:\n");
             prompt.append("- Use plan.bindings for data flow from one step output to another step input. edge_contracts only validate data shape; they do not populate inputs.\n");
@@ -658,21 +652,21 @@ class AgentPlanner {
             prompt.append("- Use ").append(assetQueryTool)
                 .append(" only for read-only discovery of redacted asset metadata.\n");
             prompt.append("- Before calling ").append(assetQueryTool)
-                .append(", produce a routing candidate set and finalDecision. candidates[] must contain targetKind/confidence pairs, and finalDecision must be one of the candidates. Use database for database/SQL datasource assets, host for OS/server/service host assets, http for HTTP endpoint assets, and api for API service assets. For document, use the document search tool instead of asset discovery.\n");
+                .append(", produce a routing candidate set and finalDecision. candidates[] must contain targetKind/confidence pairs, finalDecision must be one candidate, and every targetKind must come from the tool-published schema/metadata. For document content, use the configured document search tool instead of asset discovery.\n");
             prompt.append("- ").append(assetQueryTool)
                 .append(" input should contain filters or executionContext when exact logical context is known; use {\"filters\":{},\"limit\":10} for capped redacted candidate discovery when the user did not provide assetName/env/cluster/service.\n");
             prompt.append("- Asset names and routing labels are exact-match. Do not derive assetName, service, cluster, target, or labels unless that exact value appears in the current-turn user request or a prior tool observation returned it. Historical conversation targets and model-generated plan text are not valid asset-name evidence.\n");
             prompt.append("- Model intent recognition is required before asset discovery. When the user asks a high-level or aggregated question, produce filters.intentCandidates sorted by score/confidence. Include every candidate with score >= 0.75 in filters.queryTerms/retrievalSignals; if none reaches 0.75, use the top two candidates. Add the original user question too. Each candidate may include multi-query expansions under queries/queryTerms/expandedQueries/keywords for the resolver to retrieve across the intent ensemble. Also keep the semantic target and task under filters.intent, filters.goal, filters.keywords, and when useful filters.bilingualIntent/intentAliases/intentZh/intentEn. These fields are retrieval signals, not exact routing labels.\n");
-            prompt.append("- When the request explicitly states a value for a logical filter dimension published by the tool, preserve it in that canonical filter field as well as in retrieval terms (for example databaseType=oracle, dialect=postgresql, or env=DEV). Never infer an exact assetName, service, cluster, endpoint, or physical target from descriptive intent.\n");
-            prompt.append("- Generate abbreviation-aware retrieval terms for short candidate asset names and capability phrases. Add at most 4 lowercase aliases to filters.queryTerms/keywords: Chinese phrases use pinyin initials (for example, \u6570\u636e\u670d\u52a1\u4e2d\u5fc3 -> sjfwzx); multi-word, camelCase, snake_case, or kebab-case English names use word initials (Example Metric Service/example_metric_service -> ems). Keep every original phrase beside its alias, limit generated aliases to 2-16 characters, and never abbreviate a full user sentence, description, command, or SQL text. Generated aliases are weak retrieval signals only; never put them in assetName, service, cluster, labels, template, or templateId. If the user supplied a compact abbreviation, preserve it and add a plausible full phrase only when supported by the request; do not guess an exact registered identity.\n");
+            prompt.append("- When the request explicitly states a value for a logical filter dimension published by the tool, preserve it in that canonical filter field as well as in retrieval terms. Never infer an exact assetName, service, cluster, endpoint, or physical target from descriptive intent.\n");
+            prompt.append("- Generate abbreviation-aware retrieval terms for short candidate asset names and capability phrases. Add at most 4 lowercase aliases to filters.queryTerms/keywords: Chinese phrases use pinyin initials (for example, \u6570\u636e\u670d\u52a1\u4e2d\u5fc3 -> sjfwzx); multi-word, camelCase, snake_case, or kebab-case English names use word initials (Example Metric Service/example_metric_service -> ems). Keep every original phrase beside its alias, limit generated aliases to 2-16 characters, and never abbreviate a full user sentence, description, or executable payload. Generated aliases are weak retrieval signals only; never put them in assetName, service, cluster, labels, template, or templateId. If the user supplied a compact abbreviation, preserve it and add a plausible full phrase only when supported by the request; do not guess an exact registered identity.\n");
             prompt.append("- Never concatenate an assetName with descriptive text, asset type, capability, or assumption. For example, keep the user-provided asset phrase unchanged; if the exact asset name is uncertain, omit filters.assetName and use semantic retrieval filters instead of pretending the phrase is an exact registered name.\n");
             prompt.append("- Do not invent service labels such as service:<topic> from natural-language topic words until an asset/tool observation proves they are registered routing labels.\n");
-            prompt.append("- Valid input example when no exact target clue is known: {\"candidates\":[{\"targetKind\":\"database\",\"confidence\":0.82},{\"targetKind\":\"http\",\"confidence\":0.42}],\"finalDecision\":\"database\",\"filters\":{},\"trace\":{\"plannerVersion\":\"v1.1\",\"model\":\"<model>\"},\"limit\":10}.\n");
-            prompt.append("- Valid input example when the user provides only an aggregated host clue and task intent: {\"candidates\":[{\"targetKind\":\"host\",\"confidence\":0.9}],\"finalDecision\":\"host\",\"filters\":{\"intent\":\"分析MySQL服务器管理进程信息\",\"intentCandidates\":[{\"intent\":\"MySQL服务器管理进程\",\"score\":0.92,\"queries\":[\"mysqld process\",\"MySQL management process\"]},{\"intent\":\"mysqld process status\",\"score\":0.87,\"queries\":[\"ps aux mysqld\",\"systemctl status mysql\"]},{\"intent\":\"Linux service status\",\"score\":0.61}],\"queryTerms\":[\"MySQL服务器管理进程\",\"mysqld process status\",\"分析MySQL服务器管理进程信息\"],\"keywords\":[\"MySQL\",\"mysqld\",\"process\",\"进程\",\"服务状态\"]},\"trace\":{\"plannerVersion\":\"v1.1\",\"model\":\"<model>\"},\"limit\":10}.\n");
-            prompt.append("- Valid input example when the host asset name is explicitly known: {\"candidates\":[{\"targetKind\":\"host\",\"confidence\":0.9}],\"finalDecision\":\"host\",\"filters\":{\"assetName\":\"<existing-asset-name>\"},\"trace\":{\"plannerVersion\":\"v1.1\",\"model\":\"<model>\"},\"limit\":10}.\n");
-            prompt.append("- Valid input example when using labels already returned by asset metadata or explicitly provided by the user: {\"targetKind\":\"host\",\"confidence\":0.86,\"filters\":{\"env\":\"<existing-env>\",\"service\":\"<existing-service-label>\"},\"trace\":{\"plannerVersion\":\"v1.0\",\"model\":\"<model>\"},\"limit\":10}.\n");
+            prompt.append("- Valid input shape when no exact target clue is known: {\"candidates\":[{\"targetKind\":\"<kind-from-tool-metadata>\",\"confidence\":0.82}],\"finalDecision\":\"<same-kind>\",\"filters\":{},\"trace\":{\"plannerVersion\":\"v1.1\",\"model\":\"<model>\"},\"limit\":10}.\n");
+            prompt.append("- When only an aggregate target clue and task intent are known, keep the clue under semantic intentCandidates/queryTerms and omit exact routing labels until discovery returns them.\n");
+            prompt.append("- When an exact asset identity is user-provided or previously observed, use the tool-published targetKind and canonical identity filter without altering the value.\n");
+            prompt.append("- Use routing labels only when they were explicitly provided by the user or returned by asset metadata, and only in fields published by the tool schema.\n");
             prompt.append("- The response contains the single canonical asset view in assets[]. Use assets[0].asset.type for asset type, assets[0].asset.environment, assets[0].asset.name, assets[0].asset.toolName, and assets[0].capabilities.allowedCommandTemplates[].templateId or allowedCommandTemplateIds[] only as authorization context, not as semantic ranking. Do not require top-level assetType because it is query scope and may be null when the request did not preselect an asset type.\n");
-            prompt.append("- Do not pass hostname, host, ip, url, jdbcUrl, datasourceId, endpointId, or other concrete target fields.\n\n");
+            prompt.append("- Do not pass concrete physical target or connection fields forbidden by the tool-published contract.\n\n");
             prompt.append("- Do not replace ").append(assetQueryTool)
                 .append(" with a reasoning step that guesses env, service, cluster, or target. If broad discovery returns multiple plausible assets, ask the user for logical context.\n\n");
         }
@@ -684,43 +678,18 @@ class AgentPlanner {
             prompt.append("- Before calling ").append(templateQueryTool)
                 .append(", produce a routing candidate set and finalDecision. candidates[] must contain targetKind/confidence pairs, and finalDecision must be one of the candidates. Runtime resolves the selected target kind from the tool metadata and user-selected scope. For document, use document search instead of template discovery.\n");
             prompt.append("- ").append(templateQueryTool)
-                .append(" returns the single canonical template view in templates[]. It never returns raw shell commands or executionSpec.\n");
+                .append(" returns the single canonical template view in templates[]. It never returns raw executable payloads or executionSpec.\n");
             prompt.append("- Query it when the plan/user-configured dependency requires template discovery before execution. Prefer filters.assetName and filters.env from the prior typed asset discovery result.\n");
             prompt.append("- If the user asks for a capability and no exact asset context is known, query by candidate set plus intent, for example {\"candidates\":[{\"targetKind\":\"host\",\"confidence\":0.82},{\"targetKind\":\"database\",\"confidence\":0.51}],\"finalDecision\":\"host\",\"filters\":{\"intent\":\"<user-capability-intent>\"},\"trace\":{\"plannerVersion\":\"v1.1\",\"model\":\"<model>\"},\"limit\":10}; still use a returned templateId exactly.\n");
             prompt.append("- Valid host input example: {\"candidates\":[{\"targetKind\":\"host\",\"confidence\":0.9}],\"finalDecision\":\"host\",\"filters\":{\"assetName\":\"<asset-name-from-typed-asset-discovery>\",\"env\":\"<env-from-typed-asset-discovery>\",\"intent\":\"<user-capability-intent>\"},\"trace\":{\"plannerVersion\":\"v1.1\",\"model\":\"<model>\"},\"limit\":10}.\n");
             prompt.append("- For template discovery filters, if the user intent contains database/component/metric/action names, include both Chinese and English retrieval terms. filters.intent keeps the user's original natural-language intent; filters.bilingualIntent must include Chinese aliases and English technical terms; filters.intentZh and filters.intentEn should split the primary Chinese/English intent; filters.intentAliases must include Chinese aliases plus English technical terms; filters.keywords must include canonical DB/component keywords, command names, metric names, and common aliases. Do not rely on Chinese-only or English-only intent for template retrieval.\n");
-            prompt.append("- Apply the same abbreviation-aware expansion used by asset discovery to template naming/capability phrases: add at most 4 lowercase Chinese pinyin-initial or English word-initial aliases to filters.queryTerms/keywords, retain the original phrases, and keep each alias between 2 and 16 characters. Never generate an alias as template/templateId or use abbreviations derived from descriptions, commands, SQL, or the whole user sentence.\n");
+            prompt.append("- Apply the same abbreviation-aware expansion used by asset discovery to template naming/capability phrases: add at most 4 lowercase Chinese pinyin-initial or English word-initial aliases to filters.queryTerms/keywords, retain the original phrases, and keep each alias between 2 and 16 characters. Never generate an alias as template/templateId or use abbreviations derived from descriptions, executable payloads, or the whole user sentence.\n");
             prompt.append("- Valid database input example: {\"candidates\":[{\"targetKind\":\"database\",\"confidence\":0.9}],\"finalDecision\":\"database\",\"filters\":{\"assetName\":\"<asset-name-from-typed-asset-discovery>\",\"env\":\"<env-from-typed-asset-discovery>\",\"intent\":\"<database-query-intent>\",\"bilingualIntent\":[\"<Chinese alias>\",\"<English technical term>\"],\"intentZh\":\"<Chinese intent>\",\"intentEn\":\"<English technical intent>\",\"intentAliases\":[\"<Chinese alias>\",\"<English technical term>\"],\"keywords\":[\"<canonical command or metric>\",\"<Chinese keyword>\",\"<English keyword>\"]},\"trace\":{\"plannerVersion\":\"v1.1\",\"model\":\"<model>\"},\"limit\":10}.\n");
             prompt.append("- templates[] is ranked by relevanceScore. Choose the returned template whose name, description, intentSignals, matchReasons, and asset type best match the user intent; do not blindly bind the first asset allowedCommandTemplates item.\n");
             prompt.append("- If the selected template's parameterSchema.required is non-empty, include a parameters object in the execution tool input with exactly those required fields; never place template parameters at the top level.\n");
-            prompt.append("- Also read templates[].requiredParameters, templates[].parameterContract, and templates[].invocationExample. These fields are authoritative. For SQL/HTTP/SSH gateway tools, required values must be placed under the execution step's input.parameters; for direct API tools, follow parameterContract.argumentContainer.\n");
+            prompt.append("- Also read templates[].requiredParameters, templates[].parameterContract, and templates[].invocationExample. These fields are authoritative. Put required values only in parameterContract.argumentContainer.\n");
             prompt.append("- Do not invent template ids if ").append(templateQueryTool)
                 .append(" returns no suitable template; ask the user/admin to register or allow one.\n\n");
-        }
-        String linuxCommandTool = matchingAvailableTool(availableTools, "linux_command_execute");
-        if (linuxCommandTool != null) {
-            prompt.append("Linux command gateway contract:\n");
-            prompt.append("- Use ").append(linuxCommandTool)
-                .append(" only with a registered template id and logical executionContext.\n");
-            prompt.append("- Input MUST use field template, not command, command_template, shell, host, hostname, or ip.\n");
-            prompt.append("- The template value MUST be copied exactly from configured template metadata: typed template discovery templates[].templateId when that step is part of the plan, otherwise typed asset discovery allowedCommandTemplates[].templateId or allowedCommandTemplateIds[]. Never synthesize aliases or alternate names.\n");
-            prompt.append("- Template arguments MUST be passed under parameters and must satisfy the selected template's parameterSchema, for example {\"template\":\"<templateId>\",\"parameters\":{\"<requiredParam>\":\"<value>\"},\"executionContext\":{\"assetName\":\"<asset>\"}}.\n");
-            prompt.append("- Prefer executionContext.assetName from asset discovery for exact routing, plus env when available. Example: {\"template\":\"<templateId-from-typed-template-discovery>\",\"executionContext\":{\"assetName\":\"<asset-name-from-typed-asset-discovery>\",\"env\":\"<env-from-typed-asset-discovery>\"},\"reason\":\"inspect host state\"}.\n");
-            prompt.append("- Follow the dependency order configured by the user/runtime. Do not insert a hard-coded template discovery step unless the plan needs template discovery or configured dependencies require it.\n");
-            prompt.append("- If typed asset discovery returns allowedCommandTemplates and no template discovery step is configured, choose the safest matching registered template from that authorized list and then call ")
-                .append(linuxCommandTool)
-                .append("; do not stop after discovery when the user asked for live system analysis.\n");
-            prompt.append("- If no suitable command template is known or returned, produce a final answer asking the user/admin to register a safe template; do not invent raw shell commands.\n\n");
-        }
-        String httpRequestTool = matchingAvailableTool(availableTools, "http_request_execute");
-        if (httpRequestTool != null) {
-            prompt.append("HTTP request gateway contract:\n");
-            prompt.append("- Use ").append(httpRequestTool)
-                .append(" only with a registered HTTP template id and logical executionContext.\n");
-            prompt.append("- Input MUST use field template plus parameters; never use url, uri, method, headers, body, host, hostname, ip, or endpointId.\n");
-            prompt.append("- The template value MUST be copied exactly from http_endpoint_template_query.templates[].templateId or typed API/HTTP discovery metadata.\n");
-            prompt.append("- Template arguments MUST be passed under parameters and must satisfy templates[].parameterSchema/requiredParameters. Missing required fields must be bound before execution.\n");
-            prompt.append("- Prefer executionContext.assetName from asset discovery for exact routing, plus env when available.\n\n");
         }
     }
 
@@ -752,13 +721,13 @@ class AgentPlanner {
     }
 
     private void appendBatchInputSchema(StringBuilder prompt, String toolName, ToolMetadata metadata) {
-        if (prompt == null || metadata == null || !ToolCallBatchSchema.supports(toolName)) {
+        if (prompt == null || metadata == null || !ToolCallBatchSchema.supports(toolName, metadata)) {
             return;
         }
         Map<String, Object> values = asMap(metadata.getMetadata());
         Map<String, Object> schema = asMap(values.get("inputSchema"));
         if (schema.isEmpty()) {
-            schema = ToolCallBatchSchema.augment(toolName, Map.of());
+            schema = ToolCallBatchSchema.augmentDeclared(Map.of());
         }
         try {
             prompt.append("  Formal runtime inputSchema: ")

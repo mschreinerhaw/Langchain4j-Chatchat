@@ -19,6 +19,44 @@ class InterpretationPlanValidatorTest {
     private final InterpretationPlanValidator validator = new InterpretationPlanValidator();
 
     @Test
+    void validatesBatchFromDeclaredCapabilityWithoutRecognizedToolName() {
+        String toolName = "tenant_operation_gateway";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(toolName)).thenReturn(true);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName)
+            .riskLevel("low")
+            .metadata(Map.of("capabilities", List.of("template_execution", "batch_execution")))
+            .build());
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("operation", "Run maintained contracts", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", toolName, Map.of(
+                        "executionMode", "SEQUENTIAL",
+                        "calls", List.of(Map.of(
+                            "callId", "one",
+                            "toolName", toolName,
+                            "arguments", Map.of("templateId", "contract-1")
+                        ))
+                    ), List.of(), null, null),
+                    finalStep(2, List.of(1))
+                ),
+                List.of(), List.of(), null
+            ),
+            new InterpretationPlan.ExecutionPolicy(2, false, List.of(toolName), List.of(), 30_000),
+            review(true)
+        );
+
+        InterpretationPlanValidator.ValidationResult result = validator.validate(
+            plan, toolRegistry, Set.of(toolName));
+
+        assertThat(result.valid()).isTrue();
+    }
+
+    @Test
     void acceptsFirstClassExclusiveBranchWithoutOptionalDependencyHack() {
         List<InterpretationPlan.Step> steps = List.of(
             new InterpretationPlan.Step(1, "reasoning", null, Map.of(), List.of(), null, null),

@@ -1,8 +1,9 @@
 package com.chatchat.agents.runtime.batch;
 
+import com.chatchat.common.tool.ToolMetadata;
+
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -17,15 +18,11 @@ public final class ToolCallBatchSchema {
     }
 
     public static boolean supports(String toolName) {
-        String normalized = toolName == null
-            ? ""
-            : toolName.trim().toLowerCase(Locale.ROOT).replace('-', '_');
-        return matches(normalized, "sql_query_execute")
-            || matches(normalized, "ssh_linux_execute")
-            || matches(normalized, "linux_command_execute")
-            || matches(normalized, "api_query_execute")
-            || matches(normalized, "api_template_execute")
-            || matches(normalized, "http_request_execute");
+        return ToolExecutionCapabilities.supportsBatch(toolName, null);
+    }
+
+    public static boolean supports(String toolName, ToolMetadata metadata) {
+        return ToolExecutionCapabilities.supportsBatch(toolName, metadata);
     }
 
     public static Map<String, Object> augment(String toolName, Map<String, Object> originalSchema) {
@@ -35,20 +32,27 @@ public final class ToolCallBatchSchema {
         if (!supports(toolName)) {
             return original;
         }
+        return augmentDeclared(original);
+    }
+
+    /** Adds the batch transport schema after capability admission has already succeeded. */
+    public static Map<String, Object> augmentDeclared(Map<String, Object> originalSchema) {
+        Map<String, Object> original = originalSchema == null
+            ? Map.of()
+            : new LinkedHashMap<>(originalSchema);
         Map<String, Object> schema = new LinkedHashMap<>();
         schema.put("type", "object");
         schema.put("description",
             "Accepts the normal single-call input or a runtime-managed failure-isolated ordered template batch.");
         schema.put("anyOf", List.of(original, batchSchema()));
-        schema.put("x-chatchat-batch", Map.of(
+        schema.put(ToolExecutionCapabilities.BATCH_SCHEMA_EXTENSION, Map.of(
+            "capability", ToolExecutionCapabilities.BATCH_EXECUTION,
+            "governance", ToolExecutionCapabilities.TEMPLATE_EXECUTION,
             "executionMode", "SEQUENTIAL",
             "maxCalls", DEFAULT_MAX_CALLS,
             "maxPayloadBytes", DEFAULT_MAX_PAYLOAD_BYTES,
             "nestedBatchAllowed", false,
-            "failureIsolation", true,
-            "allowedToolFamilies", List.of(
-                "sql_query_execute", "ssh_linux_execute", "api_query_execute",
-                "api_template_execute", "http_request_execute")
+            "failureIsolation", true
         ));
         return schema;
     }
@@ -62,7 +66,7 @@ public final class ToolCallBatchSchema {
         callProperties.put("callId", Map.of("type", "string", "minLength", 1, "maxLength", 128));
         callProperties.put("toolName", Map.of(
                 "type", "string",
-                "description", "A registered SQL/SSH/API template executor from the Agent allow-list."
+                "description", "A registered template batch-capable executor from the Agent allow-list."
             ));
         callProperties.put("emptyResultIsSuccess", Map.of(
                 "type", "boolean",
@@ -102,7 +106,7 @@ public final class ToolCallBatchSchema {
             ));
         callProperties.put("arguments", Map.of(
                 "type", "object",
-                "description", "The normal authorized input schema for the selected child executor."
+                "description", "The authorized input schema for the selected governed template."
             ));
         callSchema.put("properties", callProperties);
 
@@ -126,9 +130,5 @@ public final class ToolCallBatchSchema {
             )
         ));
         return schema;
-    }
-
-    private static boolean matches(String candidate, String semanticName) {
-        return candidate.equals(semanticName) || candidate.endsWith("_" + semanticName);
     }
 }

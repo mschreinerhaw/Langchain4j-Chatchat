@@ -1,5 +1,6 @@
 package com.chatchat.agents.runtime.batch;
 
+import com.chatchat.common.tool.ToolMetadata;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -43,5 +44,61 @@ class ToolCallBatchSchemaTest {
         assertThat(ToolCallBatchSchema.augment("document_search", original))
             .isEqualTo(original)
             .doesNotContainKey("x-chatchat-batch");
+    }
+
+    @Test
+    void admitsArbitraryExecutorThroughDeclaredCapabilityInsteadOfToolName() {
+        ToolMetadata metadata = ToolMetadata.builder()
+            .id("tenant_operation_gateway")
+            .metadata(Map.of("capabilities", List.of("template_execution", "batch_execution")))
+            .build();
+
+        assertThat(ToolCallBatchSchema.supports("tenant_operation_gateway", metadata)).isTrue();
+        assertThat(ToolCallBatchSchema.supports("tenant_operation_gateway")).isFalse();
+        assertThat(ToolCallBatchSchema.augmentDeclared(Map.of("type", "object")))
+            .containsKey("x-chatchat-batch");
+    }
+
+    @Test
+    void acceptsCapabilityFromSchemaExtensionAndStructuredCapabilityMap() {
+        ToolMetadata schemaDeclared = ToolMetadata.builder()
+            .id("schema_executor")
+            .metadata(Map.of("inputSchema", Map.of("x-chatchat-batch", Map.of())))
+            .build();
+        ToolMetadata mapDeclared = ToolMetadata.builder()
+            .id("map_executor")
+            .metadata(Map.of("capabilities", Map.of(
+                "batchExecution", true,
+                "templateExecution", true)))
+            .build();
+
+        assertThat(ToolCallBatchSchema.supports("schema_executor", schemaDeclared)).isTrue();
+        assertThat(ToolCallBatchSchema.supports("map_executor", mapDeclared)).isTrue();
+    }
+
+    @Test
+    void rejectsBatchTransportDeclarationWithoutTemplateGovernance() {
+        ToolMetadata metadata = ToolMetadata.builder()
+            .id("unmanaged_batch_gateway")
+            .metadata(Map.of("capabilities", List.of("batch_execution")))
+            .build();
+
+        assertThat(ToolCallBatchSchema.supports("unmanaged_batch_gateway", metadata)).isFalse();
+    }
+
+    @Test
+    void capabilityAdmissionDoesNotDependOnGeneratedToolFamilyNamesUnderLoad() {
+        for (int index = 0; index < 10_000; index++) {
+            String toolName = "tenant_" + index + "_operation_gateway";
+            boolean declared = index % 2 == 0;
+            ToolMetadata metadata = ToolMetadata.builder()
+                .id(toolName)
+                .metadata(declared
+                    ? Map.of("capabilities", List.of("template_execution", "batch_execution"))
+                    : Map.of("capabilities", List.of("single_execution")))
+                .build();
+
+            assertThat(ToolCallBatchSchema.supports(toolName, metadata)).isEqualTo(declared);
+        }
     }
 }

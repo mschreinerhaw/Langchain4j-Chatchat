@@ -2,26 +2,25 @@ package com.chatchat.agents.runtime.plan;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /** Projects model-reviewed asset ids onto the authorized MCP routing candidates. */
 public final class EvidenceBasedAssetCandidateEvaluator {
+
+    private static final SemanticCandidateAdmissionPolicy ADMISSION_POLICY =
+        new SemanticCandidateAdmissionPolicy();
 
     public Evaluation evaluate(Object output, Map<String, Object> reviewMetadata) {
         List<String> selected = strings(reviewMetadata == null ? null : reviewMetadata.get("selectedAssetIds"));
         List<String> rejected = strings(reviewMetadata == null ? null : reviewMetadata.get("rejectedAssetIds"));
         List<Map<String, Object>> evaluations = maps(reviewMetadata == null ? null : reviewMetadata.get("assetEvaluations"));
-        if (reviewMetadata != null
+        boolean reviewerUnavailable = reviewMetadata != null
             && (Boolean.TRUE.equals(reviewMetadata.get("toolResultReviewUnavailable"))
-            || Boolean.TRUE.equals(reviewMetadata.get("toolResultReviewSkipped")))) {
-            return new Evaluation(output, 0, 0, List.of(), evaluations, false,
-                "Model candidate reviewer was unavailable.");
-        }
-        Projection projection = project(output, selected, rejected, evaluations, 0);
+            || Boolean.TRUE.equals(reviewMetadata.get("toolResultReviewSkipped")));
+        Projection projection = project(output, selected, rejected, evaluations, reviewerUnavailable, 0);
         if (!projection.applied()) {
             return new Evaluation(output, 0, 0, List.of(), evaluations, false,
                 "No evidence-reviewed asset selection could be projected onto the authorized candidate set.");
@@ -33,25 +32,27 @@ public final class EvidenceBasedAssetCandidateEvaluator {
 
     @SuppressWarnings("unchecked")
     private Projection project(Object output, List<String> selectedIds, List<String> rejectedIds,
-                               List<Map<String, Object>> evaluations, int depth) {
+                               List<Map<String, Object>> evaluations,
+                               boolean reviewerUnavailable,
+                               int depth) {
         if (!(output instanceof Map<?, ?> raw) || depth > 7) return Projection.none(output);
         Map<String, Object> map = new LinkedHashMap<>((Map<String, Object>) raw);
         if (map.get("assets") instanceof List<?> candidates) {
             List<Map<String, Object>> assets = candidates.stream().filter(Map.class::isInstance)
                 .map(item -> (Map<String, Object>) new LinkedHashMap<>((Map<String, Object>) item)).toList();
-            boolean uniqueCandidateFallback = selectedIds.isEmpty() && assets.size() == 1;
-            if (uniqueCandidateFallback) {
-                // A generic cumulative-review rejection is not a candidate-level rejection.
-                // Preserve the unique routing fact unless the reviewer explicitly rejected its id.
-                selectedIds = List.of(identity(assets.get(0)));
-            }
-            if (selectedIds.isEmpty()) return Projection.none(output);
-            Set<String> selected = normalized(selectedIds);
-            Set<String> rejected = normalized(rejectedIds);
+            List<String> candidateIds = assets.stream().map(this::identity).toList();
+            SemanticCandidateAdmissionPolicy.Decision admission = ADMISSION_POLICY.decide(
+                candidateIds, selectedIds, rejectedIds, reviewerUnavailable);
+            if (!admission.decided()) return Projection.none(output);
+            Set<String> selected = admission.selectedIds().stream()
+                .map(this::normalize)
+                .collect(Collectors.toSet());
             List<Map<String, Object>> projected = assets.stream()
                 .filter(item -> selected.contains(normalize(identity(item))))
-                .filter(item -> !rejected.contains(normalize(identity(item))))
                 .toList();
+            // Preserve the asset adapter's existing external contract: rejecting all
+            // candidates is represented as no projection, while the generic policy
+            // still records it as a completed admission decision internally.
             if (projected.isEmpty()) return Projection.none(output);
             List<String> ids = projected.stream().map(this::identity).toList();
             map.put("assets", projected);
@@ -61,16 +62,17 @@ public final class EvidenceBasedAssetCandidateEvaluator {
                 "candidateCount", assets.size(),
                 "selectedCount", projected.size(),
                 "selectedAssetIds", ids,
+                "rejectedAssetIds", rejectedIds,
                 "candidateEvaluations", evaluations,
-                "selectionAuthority", uniqueCandidateFallback
-                    ? "runtime_unique_candidate" : "runtime_evidence_model_review",
+                "selectionAuthority", admission.authority(),
                 "candidateIsObservation", false
             ));
             return new Projection(map, assets.size(), ids, true);
         }
         for (String key : List.of("structuredContent", "structured_content", "data", "result", "payload",
             "body", "output", "routingProjection")) {
-            Projection nested = project(map.get(key), selectedIds, rejectedIds, evaluations, depth + 1);
+            Projection nested = project(
+                map.get(key), selectedIds, rejectedIds, evaluations, reviewerUnavailable, depth + 1);
             if (nested.applied()) {
                 map.put(key, nested.output());
                 return new Projection(map, nested.candidateCount(), nested.selectedIds(), true);
@@ -94,14 +96,8 @@ public final class EvidenceBasedAssetCandidateEvaluator {
         return new LinkedHashMap<>((Map<String, Object>) value);
     }
 
-    private Set<String> normalized(List<String> values) {
-        Set<String> result = new LinkedHashSet<>();
-        values.forEach(value -> result.add(normalize(value)));
-        return result;
-    }
-
     private String normalize(String value) {
-        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+        return value == null ? "" : value.trim().toLowerCase(java.util.Locale.ROOT);
     }
 
     private List<String> strings(Object value) {

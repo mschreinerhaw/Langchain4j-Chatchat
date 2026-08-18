@@ -1835,7 +1835,7 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
-    void templateExecutionLayerIgnoresLegacyStopFlagAndReturnsEveryFailure() {
+    void failureIsolatedBatchLayerIgnoresLegacyStopFlagAndReturnsEveryFailure() {
         String toolName = "sql_query_execute";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
@@ -1864,6 +1864,7 @@ class ToolRuntimeServiceTest {
         assertThat(result.results()).allSatisfy(item ->
             assertThat(item.error()).containsEntry("message", "first failed"));
         assertThat(execution.audit())
+            .containsEntry("failureIsolatedBatchExecution", true)
             .containsEntry("templateExecutionLayer", true)
             .containsEntry("failureIsolation", true)
             .containsEntry("requestedStopOnFailureIgnored", true);
@@ -1937,6 +1938,48 @@ class ToolRuntimeServiceTest {
         assertThat(result.results()).singleElement().satisfies(child ->
             assertThat(child.toolName()).isEqualTo(registeredTool));
         verify(toolRegistry).executeEnhancedTool(eq(registeredTool), any());
+    }
+
+    @Test
+    void executesBatchForCapabilityDeclaredExecutorWithNoKnownToolFamilyName() {
+        String toolName = "tenant_operation_gateway";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName)
+            .title("Tenant operation gateway")
+            .metadata(Map.of("capabilities", List.of("template_execution", "batch_execution")))
+            .build());
+        when(toolRegistry.executeEnhancedTool(eq(toolName), any()))
+            .thenReturn(ToolOutput.success(Map.of("records", List.of(Map.of("status", "ok")))));
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), properties(), new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of());
+        ToolRuntimeRequest request = ToolRuntimeRequest.builder()
+            .toolName(toolName)
+            .runtimeMode("interpretation_plan")
+            .requestId("capability-batch")
+            .conversationId("capability-conversation")
+            .tenantId("tenant-1")
+            .userId("user-1")
+            .allowedTools(List.of(toolName))
+            .toolInput(ToolInput.builder().parameters(Map.of(
+                "executionMode", "SEQUENTIAL",
+                "calls", List.of(Map.of(
+                    "callId", "operation-1",
+                    "toolName", toolName,
+                    "arguments", Map.of("templateId", "maintained-contract")
+                ))
+            )).build())
+            .build();
+
+        ToolRuntimeExecution execution = service.execute(request);
+        ToolCallBatchResult result = (ToolCallBatchResult) execution.output().getData();
+
+        assertThat(execution.output().isSuccess()).isTrue();
+        assertThat(result.summary().success()).isEqualTo(1);
+        assertThat(result.results()).singleElement().satisfies(child ->
+            assertThat(child.toolName()).isEqualTo(toolName));
+        verify(toolRegistry).executeEnhancedTool(eq(toolName), any());
     }
 
     @Test

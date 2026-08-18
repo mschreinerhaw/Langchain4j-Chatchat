@@ -713,9 +713,9 @@ public class InterpretationPlanValidator {
                                         Set<String> availableTools,
                                         Set<String> allowTools,
                                         ValidationState state) {
-        if (step == null || !ToolCallBatchSchema.supports(step.toolName())) {
+        if (step == null || !batchCapable(step.toolName(), toolRegistry)) {
             state.error(path + ".tool_name",
-                "Only registered SQL, SSH, or API template executors may carry a tool call batch.");
+                "Only registered batch-capable executors may carry a tool call batch.");
             return;
         }
         Object mode = firstPresent(step.input(), "executionMode", "execution_mode");
@@ -747,9 +747,9 @@ public class InterpretationPlanValidator {
             }
             Object rawTool = batchValue(call, "toolName", "tool_name");
             String toolName = rawTool == null ? step.toolName() : String.valueOf(rawTool);
-            if (!ToolCallBatchSchema.supports(toolName)) {
+            if (!batchCapable(toolName, toolRegistry)) {
                 state.error(callPath + ".toolName",
-                    "Batch child tool must be a SQL, SSH, or API template executor.");
+                    "Batch child tool must declare the batch_execution capability.");
             } else if (!toolExists(toolName, toolRegistry, availableTools)) {
                 state.error(callPath + ".toolName",
                     "Batch child tool is not registered or available: " + toolName);
@@ -1020,6 +1020,12 @@ public class InterpretationPlanValidator {
                 state.error(path + ".on_failure", "Unsupported dependency failure policy: " + contract.onFailure());
             }
         }
+    }
+
+    private boolean batchCapable(String toolName, ToolRegistry toolRegistry) {
+        ToolMetadata metadata = toolName == null || toolRegistry == null
+            ? null : toolRegistry.getToolMetadata(toolName);
+        return ToolCallBatchSchema.supports(toolName, metadata);
     }
 
     private void validateConditionalRouting(InterpretationPlan plan,

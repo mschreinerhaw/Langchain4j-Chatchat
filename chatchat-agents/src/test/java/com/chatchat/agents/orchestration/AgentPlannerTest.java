@@ -6,6 +6,7 @@ import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolParameter;
+import com.chatchat.common.tool.ToolProtocolDriverContract;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.model.chat.ChatModel;
@@ -501,6 +502,25 @@ class AgentPlannerTest {
     }
 
     @Test
+    void plannerLoadsProtocolRulesPublishedByAnUnknownAvailableTool() throws Exception {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        Method method = AgentPlanner.class.getDeclaredMethod(
+            "buildPlannerPrompt", String.class, String.class, List.class, List.class, List.class,
+            List.class, List.class, boolean.class, boolean.class, String.class, String.class, Map.class);
+        method.setAccessible(true);
+
+        String prompt = (String) method.invoke(
+            planner, "run tenant protocol", "", List.of("tenant_semantic_gateway"),
+            List.of(), List.of(), List.of(), List.of(), false, false, null, null, Map.of());
+
+        assertThat(prompt)
+            .contains("Tool-published Protocol Driver contracts")
+            .contains("tenant.semantic.v1 via tenant_semantic_gateway")
+            .contains("Use the signed semantic selector")
+            .doesNotContain("SQL template repair rules", "HTTP/API/SSH template repair rules");
+    }
+
+    @Test
     void plannerDescribesGenericRuntimeRequiredToolParameters() throws Exception {
         AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
         Method method = AgentPlanner.class.getDeclaredMethod(
@@ -563,8 +583,8 @@ class AgentPlannerTest {
             .doesNotContain("service:docker", "docker_service")
             .contains("Do not invent service labels such as service:<topic>")
             .contains("{\"filters\":{},\"limit\":10}")
-            .contains("<existing-service-label>")
-            .contains("<asset-name-from-typed-asset-discovery>")
+            .contains("<kind-from-tool-metadata>")
+            .contains("tool-published targetKind")
             .contains("Never concatenate an assetName with descriptive text")
             .contains("Model intent recognition is required before asset discovery")
             .contains("filters.queryTerms")
@@ -572,7 +592,7 @@ class AgentPlannerTest {
             .contains("score >= 0.75")
             .contains("if none reaches 0.75, use the top two candidates")
             .contains("semantic retrieval filters")
-            .contains("分析MySQL服务器管理进程信息")
+            .doesNotContain("mysqld process", "systemctl status mysql")
             .contains("templates[] is ranked by relevanceScore")
             .contains("filters.intentAliases")
             .contains("filters.keywords")
@@ -588,7 +608,8 @@ class AgentPlannerTest {
             .contains("Apply the same abbreviation-aware expansion used by asset discovery")
             .contains("Do not rely on Chinese-only or English-only intent")
             .contains("not as semantic ranking")
-            .contains("Follow the dependency order configured by the user/runtime")
+            .doesNotContain("Linux command gateway contract")
+            .doesNotContain("HTTP request gateway contract")
             .doesNotContain("Required execution flow for live host analysis");
     }
 
@@ -1414,7 +1435,8 @@ class AgentPlannerTest {
             "mcp_chatchat_mcp_server_sql_datasource_asset_query",
             "mcp_chatchat_mcp_server_sql_datasource_template_query",
             "mcp_chatchat_mcp_server_sql_query_execute",
-            "mcp_chatchat_mcp_server_linux_command_execute"
+            "mcp_chatchat_mcp_server_linux_command_execute",
+            "tenant_semantic_gateway"
         );
 
         private TestToolRegistry() {
@@ -1452,6 +1474,13 @@ class AgentPlannerTest {
                 .id(toolName)
                 .riskLevel("low")
                 .parameters(parameters(toolName));
+            if ("tenant_semantic_gateway".equals(toolName)) {
+                builder.metadata(Map.of(ToolProtocolDriverContract.METADATA_KEY,
+                    ToolProtocolDriverContract.of(
+                        "tenant.semantic.v1",
+                        List.of("Use the signed semantic selector."),
+                        List.of("Preserve the signed semantic selector."))));
+            }
             if (includeApplicability && "mcp_chatchat_mcp_server_sql_query_execute".equals(toolName)) {
                 builder.description("SQL execution gateway").metadata(Map.of(
                     "mcpToolMeta", Map.of(

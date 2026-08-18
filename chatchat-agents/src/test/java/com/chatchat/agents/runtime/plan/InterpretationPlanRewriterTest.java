@@ -1,6 +1,8 @@
 package com.chatchat.agents.runtime.plan;
 
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.common.tool.ToolMetadata;
+import com.chatchat.common.tool.ToolProtocolDriverContract;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
 import org.junit.jupiter.api.Test;
@@ -99,13 +101,40 @@ class InterpretationPlanRewriterTest {
             .contains("bounded abbreviation aliases")
             .contains("sjfwzx")
             .contains("Example Metric Service -> ems")
-            .contains("never write generated aliases to assetName")
+            .contains("never write them into exact routing or template identity fields")
             .contains("Preserve a user-supplied abbreviation")
             .contains("originalChars")
             .contains("full evidence remains Runtime-owned")
             .contains("fullEvidenceRetainedByRuntime")
             .contains("evidenceRef")
             .hasSizeLessThan(50_000);
+    }
+
+    @Test
+    void rewriterLoadsOnlyTheRewritePhaseFromToolPublishedProtocolContract() throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        CapturingChatModel chatModel = new CapturingChatModel(objectMapper.writeValueAsString(originalPlan()));
+        ToolRegistry registry = mock(ToolRegistry.class);
+        String tool = "tenant_semantic_gateway";
+        when(registry.getToolMetadata(tool)).thenReturn(ToolMetadata.builder()
+            .id(tool)
+            .metadata(Map.of(ToolProtocolDriverContract.METADATA_KEY,
+                ToolProtocolDriverContract.of(
+                    "tenant.semantic.v1",
+                    List.of("PLANNER_ONLY_RULE"),
+                    List.of("REWRITER_ONLY_RULE"))))
+            .build());
+        InterpretationPlanRewriter rewriter = new InterpretationPlanRewriter(
+            chatModel, objectMapper, new InterpretationPlanValidator());
+
+        rewriter.rewrite(new InterpretationPlanRewriter.RewriteRequest(
+            originalPlan(), originalPlan().steps().get(0), "repair",
+            List.of(), List.of(tool), registry));
+
+        assertThat(chatModel.lastPrompt())
+            .contains("tenant.semantic.v1 via " + tool)
+            .contains("REWRITER_ONLY_RULE")
+            .doesNotContain("PLANNER_ONLY_RULE", "SQL template repair rules", "HTTP/API/SSH template repair rules");
     }
 
     @Test
@@ -498,11 +527,13 @@ class InterpretationPlanRewriterTest {
             .doesNotContain("mcp_chatchat_mcp_server_database_ops_template_search",
                 "mcp_chatchat_mcp_server_sql_datasource_template_query", "template_query");
         assertThat(chatModel.lastPrompt())
-            .contains("No template discovery tool is available")
-            .contains("Do not add database_ops_template_search/template_query steps")
+            .contains("legacy.sql-template.v1 via mcp_chatchat_mcp_server_sql_query_execute")
+            .contains("If no discovery path or observed compatible template contract exists, return a partial final answer")
+            .contains("Use only available tools")
             .contains("Preserve a decision ledger for changed retrieval or template choices")
             .contains("Distinguish availability from usability")
-            .contains("explicitly justify the change from observed parameter compatibility");
+            .contains("explicitly justify the change from observed parameter compatibility")
+            .doesNotContain("SQL template repair rules", "HTTP/API/SSH template repair rules");
     }
 
     @Test

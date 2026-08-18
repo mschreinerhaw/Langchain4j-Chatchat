@@ -1703,11 +1703,11 @@ public class InterpretationPlanRuntime {
                     : step.toolName();
                 List<String> allowedTools = new ArrayList<>(safeList(request.allowedTools()));
                 TemplateExecutorInvocation templateInvocation = diagnosticBatchInvocation(
-                    step, request.plan(), completed, resolvedInput, allowedTools
+                    step, request.plan(), completed, resolvedInput, allowedTools, request.toolRegistry()
                 );
                 if (templateInvocation == null) {
                     templateInvocation = reviewedTemplateBatchInvocation(
-                        step, completed, resolvedInput, allowedTools
+                        step, completed, resolvedInput, allowedTools, request.toolRegistry()
                     );
                 }
                 if (templateInvocation == null) {
@@ -5065,7 +5065,8 @@ public class InterpretationPlanRuntime {
         InterpretationPlan plan,
         Map<Integer, StepExecution> completed,
         Map<String, Object> input,
-        List<String> allowedTools
+        List<String> allowedTools,
+        com.chatchat.agents.tool.ToolRegistry toolRegistry
     ) {
         if (step == null || step.id() == null || plan == null || plan.plan() == null
             || plan.plan().diagnosticProfile() == null
@@ -5099,7 +5100,7 @@ public class InterpretationPlanRuntime {
                 Map<String, Object> template = new LinkedHashMap<>((Map<String, Object>) map);
                 String executor = templateExecutorTool(template);
                 String resolvedExecutor = resolveExecutionToolName(executor, allowedTools);
-                if (resolvedExecutor != null && ToolCallBatchSchema.supports(resolvedExecutor)) {
+                if (resolvedExecutor != null && batchCapable(resolvedExecutor, toolRegistry)) {
                     templates.add(template);
                 }
             }
@@ -5288,7 +5289,8 @@ public class InterpretationPlanRuntime {
         InterpretationPlan.Step step,
         Map<Integer, StepExecution> completed,
         Map<String, Object> input,
-        List<String> allowedTools
+        List<String> allowedTools,
+        com.chatchat.agents.tool.ToolRegistry toolRegistry
     ) {
         if (!runtimeOwnedReviewedTemplateBatch(step, completed)) {
             return null;
@@ -5310,7 +5312,7 @@ public class InterpretationPlanRuntime {
             if (template.isEmpty()) {
                 call.put("preflightErrorCode", "ADMITTED_TEMPLATE_METADATA_UNAVAILABLE");
                 call.put("preflightMessage", "The admitted template metadata was unavailable at execution preflight");
-            } else if (childTool == null || !ToolCallBatchSchema.supports(childTool)) {
+            } else if (childTool == null || !batchCapable(childTool, toolRegistry)) {
                 call.put("preflightErrorCode", "TEMPLATE_EXECUTOR_UNAVAILABLE");
                 call.put("preflightMessage", "No authorized batch-capable executor was available for the admitted template");
             } else {
@@ -5332,7 +5334,7 @@ public class InterpretationPlanRuntime {
                     + "was available; admitted=" + selectedIds);
         }
         outerTool = firstText(outerTool, resolveExecutionToolName(step.toolName(), allowedTools));
-        if (outerTool == null || !ToolCallBatchSchema.supports(outerTool)) {
+        if (outerTool == null || !batchCapable(outerTool, toolRegistry)) {
             throw new IllegalStateException(
                 "REVIEWED_TEMPLATE_BATCH_EXECUTOR_UNAVAILABLE: no authorized batch transport exists");
         }
@@ -5347,6 +5349,13 @@ public class InterpretationPlanRuntime {
             calls.stream().filter(call -> call.containsKey("preflightErrorCode")).count(),
             calls.stream().map(call -> call.get("callId")).toList());
         return new TemplateExecutorInvocation(outerTool, batch);
+    }
+
+    private boolean batchCapable(String toolName,
+                                 com.chatchat.agents.tool.ToolRegistry toolRegistry) {
+        ToolMetadata metadata = toolName == null || toolRegistry == null
+            ? null : toolRegistry.getToolMetadata(toolName);
+        return ToolCallBatchSchema.supports(toolName, metadata);
     }
 
     private List<String> reviewedSelectedTemplateIds(Map<Integer, StepExecution> completed) {

@@ -1,8 +1,10 @@
 package com.chatchat.agents.runtime.plan;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
+import com.chatchat.agents.protocol.ToolProtocolContractResolver;
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.common.tool.ToolMetadata;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +29,7 @@ public class InterpretationPlanRewriter {
     private final ObjectMapper objectMapper;
     private final InterpretationPlanValidator validator;
     private final EvidenceCompressionGate evidenceCompressionGate;
+    private final ToolProtocolContractResolver toolProtocolContracts = new ToolProtocolContractResolver();
     private final InterpretationPlanIncrementalRepair incrementalRepair =
         new InterpretationPlanIncrementalRepair();
 
@@ -90,7 +93,7 @@ public class InterpretationPlanRewriter {
         try {
             InterpretationPlan rewrittenPlan = objectMapper.readValue(extractJson(raw), InterpretationPlan.class);
             rewrittenPlan = normalizeRewritePlan(
-                request.originalPlan(), rewrittenPlan, request.availableTools());
+                request.originalPlan(), rewrittenPlan, request.availableTools(), request.toolRegistry());
             InterpretationPlanIncrementalRepair.RepairRegion repairRegion =
                 incrementalRepair.region(request.originalPlan(), request.failedStep());
             rewrittenPlan = incrementalRepair.apply(
@@ -207,9 +210,9 @@ public class InterpretationPlanRewriter {
         prompt.append("- Preserve the exact output-contract violations from the previous execution error while repairing. Do not replace a missing structured field with explanatory prose.\n");
         prompt.append("- Keep execution_policy.deny_tool for tools that failed due to policy, permission, or safety.\n\n");
         prompt.append("Sequential MCP batch repair contract:\n");
-        prompt.append("- When multiple remaining authorized template executions use sql_query_execute, ssh_linux_execute, api_query_execute, or configured aliases, combine them into one mcp_tool input {batchId,executionMode:\"SEQUENTIAL\",stopOnFailure:false,calls:[{callId,toolName,arguments}]} instead of creating one model round per call.\n");
+        prompt.append("- When multiple remaining authorized template executions use an executor that publishes template_execution and batch_execution capabilities, combine them into one mcp_tool input {batchId,executionMode:\"SEQUENTIAL\",stopOnFailure:false,calls:[{callId,toolName,arguments}]} instead of creating one model round per call.\n");
         prompt.append("- Template execution is failure-isolated by Runtime. Preserve every remaining child in the batch and never stop or omit later templates because an earlier template failed or returned no rows.\n");
-        prompt.append("- Preserve original diagnostic order and exact discovered template identifiers/arguments. Runtime validates, executes, audits, and persists each child independently; do not inline raw SQL, shell commands, URLs, credentials, or transport fields.\n\n");
+        prompt.append("- Preserve original diagnostic order and exact discovered template identifiers/arguments. Runtime validates, executes, audits, and persists each child independently; do not inline raw transport payloads, credentials, or fields forbidden by the tool-published protocol.\n\n");
         prompt.append("- Never repair a diagnostic batch by adding a reasoning/aggregation step that copies discovered template ids into invented output fields. Map diagnostic checks to the executor step and let Runtime deterministically resolve only asset-scoped authorized template metadata.\n\n");
         if (request.budgetCeilings() != null) {
             prompt.append("Agent-configured budget ceilings (authoritative): ")
@@ -232,37 +235,16 @@ public class InterpretationPlanRewriter {
             prompt.append("- execution_policy.allow_tool must include every required tool unless allow_tool is intentionally omitted by schema.\n");
             prompt.append("requiredToolExecutions: ").append(toJson(requiredExecutions)).append("\n\n");
         }
-        boolean templateDiscoveryAvailable = hasAvailableSemanticTool(request.availableTools(), "template_discovery");
-        boolean metadataSearchAvailable = hasAvailableSemanticTool(request.availableTools(), "sql_metadata_search");
         prompt.append("Asset discovery repair rules:\n");
-        prompt.append("- Model intent recognition belongs in the plan. When repairing an asset_query/database_asset_search/ssh/http/api asset discovery step for a high-level user request, preserve or add scored intentCandidates sorted by score/confidence. Include every candidate with score >= 0.75 in queryTerms/retrievalSignals; if none reaches 0.75, use the top two candidates. Add the original user question and useful multi-query expansions under queries/queryTerms/expandedQueries/keywords, alongside semantic filters such as intent, goal, keywords, bilingualIntent, intentAliases, intentZh, and intentEn.\n");
-        prompt.append("- Preserve any user-explicit value for a tool-published logical filter dimension in its canonical filter field as well as in retrieval terms (for example databaseType=oracle, dialect=postgresql, or env=DEV). Do not turn descriptive intent into an invented assetName, service, cluster, endpoint, or physical target.\n");
-        prompt.append("- Repair asset and template retrieval with bounded abbreviation aliases when useful. Add at most 4 lowercase aliases to queryTerms/keywords while retaining their original phrases: use Chinese pinyin initials (\u6570\u636e\u670d\u52a1\u4e2d\u5fc3 -> sjfwzx) and English word initials across multi-word/camelCase/snake_case/kebab-case names (Example Metric Service -> ems). Aliases must be 2-16 characters and come only from short candidate names or capability phrases, never a full sentence, description, command, or SQL text. Treat them as weak retrieval signals; never write generated aliases to assetName, service, cluster, labels, template, or templateId. Preserve a user-supplied abbreviation and expand it only when the full phrase is supported by request or observation evidence.\n");
+        prompt.append("- Model intent recognition belongs in the plan. When repairing an asset discovery step for a high-level user request, preserve or add scored intentCandidates sorted by score/confidence. Include every candidate with score >= 0.75 in queryTerms/retrievalSignals; if none reaches 0.75, use the top two candidates. Add the original user question and useful multi-query expansions under queries/queryTerms/expandedQueries/keywords, alongside semantic filters published by that tool.\n");
+        prompt.append("- Preserve any user-explicit value for a tool-published logical filter dimension in its canonical filter field as well as in retrieval terms. Do not turn descriptive intent into an invented exact routing identity or physical target.\n");
+        prompt.append("- Repair asset and template retrieval with bounded abbreviation aliases when useful. Add at most 4 lowercase aliases to queryTerms/keywords while retaining their original phrases: use Chinese pinyin initials (\u6570\u636e\u670d\u52a1\u4e2d\u5fc3 -> sjfwzx) and English word initials across multi-word/camelCase/snake_case/kebab-case names (Example Metric Service -> ems). Aliases must be 2-16 characters and come only from short candidate names or capability phrases, never a full sentence, description, or executable payload. Treat them as weak retrieval signals and never write them into exact routing or template identity fields. Preserve a user-supplied abbreviation and expand it only when the full phrase is supported by request or observation evidence.\n");
         prompt.append("- enterprise_metadata_search uses canonical top-level queryTerms (or query). Do not emit keywords alone for this tool; keywords is accepted only as a legacy alias and Runtime normalizes it to queryTerms.\n");
         prompt.append("- Preserve runtime-required tool parameters declared in the execution context. Do not invent hidden source identifiers or dataset codes.\n");
-        prompt.append("- Do not convert a natural-language phrase such as MySQL server/database/host into filters.assetName unless the exact registered asset name appears in the current-turn user request or was returned by a prior observation. Ignore historical conversation targets and model-generated plan text as asset-name evidence.\n");
+        prompt.append("- Do not convert a natural-language target phrase into an exact routing filter unless that registered value appears in the current-turn user request or a prior observation. Ignore historical conversation targets and model-generated plan text as identity evidence.\n");
         prompt.append("- Treat DEV/TEST/UAT/PROD as hard environment filters only when the user explicitly states an environment constraint (for example, TEST environment or \u6d4b\u8bd5\u73af\u5883), or when a prior asset observation returns that environment. Do not infer env from a word inside an asset proper name such as 248\u6d4b\u8bd5\u6570\u636e\u5e93; preserve the complete proper name as a retrieval signal.\n");
         prompt.append("- If exact assetName/env/service labels are uncertain but the request contains target clues, omit filters.assetName and use semantic retrieval filters; use filters={} only when no target clue or task clue exists.\n\n");
         prompt.append("- The canonical asset result view is assets[].asset: use assets[0].asset.name for executionContext.assetName and assets[0].asset.environment for executionContext.env. Do not guess abbreviated paths such as assets[0].assetName or assets[0].name.\n\n");
-        prompt.append("SQL template repair rules:\n");
-        if (templateDiscoveryAvailable) {
-            prompt.append("- If a failed sql_query_execute step used input.parameters.sql/rawSql/query/statement, remove that raw SQL parameter and replan through the available sql datasource template_query tool.\n");
-            prompt.append("- Bind the scalar leaf templates[i].templateId into sql_query_execute.templateId; never bind templates[i] or any template object. Pass execution values only under input.parameters.\n");
-        } else {
-            prompt.append("- No template discovery tool is available in this rewrite request. Do not add database_ops_template_search/template_query steps. Remove raw SQL fields, then call sql_query_execute only when a concrete templateId and parameter contract already appear in observations or available tool metadata; otherwise produce a final_answer step explaining that template discovery is unavailable.\n");
-            prompt.append("- If prior observations already contain structured sql_metadata_search columns/types/comments, preserve that evidence and do not re-add metadata search unless more data is explicitly missing and the tool is available.\n");
-        }
-        prompt.append("- Read templates[].requiredParameters, templates[].parameterContract, and templates[].invocationExample as authoritative. If requiredParameters contains tableName, fill sql_query_execute.input.parameters.tableName from the user request, sql_metadata_search result, or table-location result.\n");
-        prompt.append("- Template-declared defaults are authoritative contract evidence. Pass only evidence-backed overrides and let Runtime apply omitted defaults; add/bind only required parameters that have no usable default.\n");
-        prompt.append("- sql_query_execute must include executionContext from typed asset discovery, user context, template routing metadata, sql_metadata_search/table-location evidence, or an observed invocationExample. Use database_asset_search when datasource asset confirmation is needed, unless a prior template discovery observation supplies executable routing metadata.\n");
-        prompt.append("- Do not inline JSONPath placeholders such as $.assets[0].asset.name inside executionContext; use bindings only when a prior observed step really returns that field.\n");
-        if (metadataSearchAvailable) {
-            prompt.append("- When schema/database is unknown, add sql_metadata_search before any available template_query/sql_query_execute. Pass tableName and includeColumns=true for table analysis, then bind from results[].sqlExecutionBinding.\n");
-        } else {
-            prompt.append("- sql_metadata_search is not available; do not guess schema/database from free text or from assetName. Use only already observed table-location evidence.\n");
-        }
-        prompt.append("- Never bind asset_query assets[].asset.name into parameters.schemaName. Asset name is routing context; schemaName/databaseName must come from sql_metadata_search or a table-location template.\n");
-        prompt.append("- Do not invent SQL or template IDs; use an already observed template_query result, or add a new template_query step only when that tool is listed in Available tools.\n\n");
         prompt.append("Strict template argument contract:\n");
         prompt.append("- Model output is untrusted. template/templateId must be one scalar string from templates[i].templateId; parameters must be an object of execution values; executionContext must be an object.\n");
         prompt.append("- Use input.toolCall={toolName,action,parameters,context}. Runtime, not the model, compiles this semantic DSL into concrete MCP executor parameters and may query allowed MCP metadata/resolver tools within its bounded repair policy.\n");
@@ -273,17 +255,11 @@ public class InterpretationPlanRewriter {
         prompt.append("- For missing direct non-template tool arguments, use contextParameterEvidence with parameter/source and either stepId+outputPath or quote+value; preserve or add the dependency on the cited completed step. Runtime verifies every proposal and never trusts a model-supplied value by itself.\n");
         prompt.append("- parameterSchema, requiredParameters, parameterContract, invocationExample, selectedTemplate, and an entire templates[i] object are read-only discovery metadata. Never pass any of them as templateId or parameters.\n");
         prompt.append("- A binding targeting template/templateId must use an output_path ending in the scalar identifier field templateId (or the discovery contract's explicit scalar id field).\n\n");
-        prompt.append("HTTP/API/SSH template repair rules:\n");
-        prompt.append("- For http_request_execute and linux_command_execute, bind a returned templates[].templateId into input.template and pass only parameters declared by templates[].parameterSchema under input.parameters.\n");
-        prompt.append("- For API templates returned by api_template_query, call api_template_execute with the returned scalar templateId and pass only arguments declared by templates[].parameterSchema/parameterContract under parameters.\n");
-        prompt.append("- Prefer execution over speculative parameter repair: retain only evidence-backed schema parameter overrides and omit everything else so authoritative template defaults apply. A missing optional/defaulted value must never prevent template execution.\n");
-        prompt.append("- When template discovery returned candidates but semantic review rejected them, preserve the rejection reason, add their ids to excludeTemplateIds, refine intent/goal/keywords, and query again. Never repeat an identical template query.\n");
-        prompt.append("- When changing from a precise-looking candidate to a broader or different template query, explicitly justify the change from observed parameter compatibility, execution failure, missing evidence, or semantic mismatch. Retrieval rank or a template name alone is not sufficient justification.\n");
-        prompt.append("- Treat template_execution_satisfaction.v1 as an authoritative retry contract. A failed template execution may be repaired exactly once: apply only evidence-proven retryInputChanges, bind every missingParameter, or re-run template discovery so the Runtime candidate evaluation layer can select another authorized template.\n");
-        prompt.append("- If templateReselectionRequired=true, do not retry the same templateId. Feed the execution failure, missing parameters, and rejected template id back into template discovery/evaluation and materially change the candidate selection.\n");
-        prompt.append("- When the failed discovery resultCode/reason is QUERY_CLAUSE_LIMIT_EXCEEDED, the model must audit the original user intent and retry the same template discovery tool with a compact query: keep one precise intent phrase, at most 8 discriminative keywords and at most 4 aliases; remove registry/template descriptions and repeated bilingual expansions. Do not proceed to any executor until the retry returns an executable template.\n");
-        prompt.append("- Remove raw HTTP fields url/uri/method/headers/body/endpointId and raw SSH fields command/rawCommand/shell/host/hostname/ip/hostId from execution inputs. Replan through template discovery if needed.\n");
-        prompt.append("- For HTTP/API/SSH templates, omitted parameters with declared defaults need no model evidence. Add/bind only required parameters that have no usable default; never invent an override.\n\n");
+        prompt.append("- When template discovery candidates are rejected, preserve the evidence-backed rejection reason, exclude their ids from bounded retries, and materially refine the request. Never repeat an identical discovery query.\n");
+        prompt.append("- When changing from a precise-looking candidate to a broader or different query, explicitly justify the change from observed parameter compatibility, execution failure, missing evidence, or semantic mismatch. Retrieval rank or a template name alone is insufficient.\n");
+        prompt.append("- Treat template_execution_satisfaction.v1 as an authoritative retry contract. Apply only evidence-proven retryInputChanges and bind missing required parameters; when reselection is required, never retry the same template id unchanged.\n");
+        prompt.append("- Omitted parameters with declared defaults need no model evidence. Add or bind only required parameters that have no usable default; never invent an override.\n\n");
+        prompt.append(toolProtocolContracts.rewriterSection(request.availableTools(), request.toolRegistry()));
         prompt.append("InterpretationPlan JSON Schema:\n").append(InterpretationPlanJsonSchema.SCHEMA).append("\n\n");
         prompt.append("Available tools:\n").append(request.availableTools() == null ? List.of() : request.availableTools()).append("\n");
         prompt.append("Failed step:\n").append(toJson(failedStep(request))).append("\n");
@@ -558,7 +534,8 @@ public class InterpretationPlanRewriter {
      */
     private InterpretationPlan normalizeRewritePlan(InterpretationPlan originalPlan,
                                                     InterpretationPlan rewrittenPlan,
-                                                    List<String> availableTools) {
+                                                    List<String> availableTools,
+                                                    ToolRegistry toolRegistry) {
         if (rewrittenPlan == null) {
             return null;
         }
@@ -587,7 +564,8 @@ public class InterpretationPlanRewriter {
             Map<String, Object> normalizedInput = normalizeBatchChildToolNames(
                 step,
                 step.input() == null ? Map.of() : step.input(),
-                availableTools
+                availableTools,
+                toolRegistry
             );
             normalizedSteps.add(new InterpretationPlan.Step(
                 step.id(),
@@ -652,8 +630,11 @@ public class InterpretationPlanRewriter {
     @SuppressWarnings("unchecked")
     private Map<String, Object> normalizeBatchChildToolNames(InterpretationPlan.Step step,
                                                              Map<String, Object> input,
-                                                             List<String> availableTools) {
-        if (step == null || input == null || !ToolCallBatchSchema.supports(step.toolName())) {
+                                                             List<String> availableTools,
+                                                             ToolRegistry toolRegistry) {
+        ToolMetadata metadata = step == null || toolRegistry == null
+            ? null : toolRegistry.getToolMetadata(step.toolName());
+        if (step == null || input == null || !ToolCallBatchSchema.supports(step.toolName(), metadata)) {
             return input == null ? Map.of() : input;
         }
         Object rawCalls = input.get("calls");

@@ -2,6 +2,7 @@ package com.chatchat.mcpserver.api;
 
 import com.chatchat.mcpserver.mcp.McpToolApplicability;
 import com.chatchat.agents.protocol.ModelProtocolJson;
+import com.chatchat.common.tool.ToolProtocolDriverContract;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -44,13 +45,7 @@ public class ApiToolSpecFactory {
                 "purpose", Map.of("type", "string"),
                 "sourceTaskId", Map.of("type", "string")
             ), List.of("templateId", "parameters"), false, null, null))
-            .meta(Map.of(
-                "schemaVersion", "api_template_execute.v1",
-                "runtime_action", "execute",
-                "runtimeAction", "execute",
-                "templateGoverned", true,
-                "templateDiscoveryTool", ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME
-            ))
+            .meta(apiTemplateGatewayMeta())
             .build();
         return McpServerFeatures.SyncToolSpecification.builder()
             .tool(tool)
@@ -72,6 +67,29 @@ public class ApiToolSpecFactory {
                     return toCallToolResult(config, invokeService.invoke(config, request.arguments()));
                 }))
             .build();
+    }
+
+    private Map<String, Object> apiTemplateGatewayMeta() {
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("schemaVersion", "api_template_execute.v1");
+        meta.put("runtime_action", "execute");
+        meta.put("runtimeAction", "execute");
+        meta.put("templateGoverned", true);
+        meta.put("templateDiscoveryTool", ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME);
+        meta.put(ToolProtocolDriverContract.METADATA_KEY, ToolProtocolDriverContract.of(
+            "mcp.api-template.v1",
+            List.of(
+                "Execute only a template accepted by the configured API template discovery/review flow; copy templates[].templateId into templateId and pass schema-declared values under parameters.",
+                "Use capabilitySpec, outputSchema and dependencySpec for requirement coverage and ordering; candidate discovery alone is not execution evidence.",
+                "Include only evidence-backed schema overrides. Omit unresolved optional/defaulted values so the authoritative template defaults apply."
+            ),
+            List.of(
+                "Retain only evidence-backed schema overrides and omit optional/defaulted values so authoritative template defaults apply.",
+                "A semantically rejected or incompatible template must not be retried unchanged; preserve rejection evidence and reselect from authorized candidates.",
+                "Only a required parameter without a usable default may block that child; never invent raw URL, method, headers, or body fields."
+            )
+        ));
+        return Map.copyOf(meta);
     }
 
     /**

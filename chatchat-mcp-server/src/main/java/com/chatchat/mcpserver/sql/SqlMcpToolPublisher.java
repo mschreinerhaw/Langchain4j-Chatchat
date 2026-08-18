@@ -1,6 +1,7 @@
 package com.chatchat.mcpserver.sql;
 
 import com.chatchat.common.tool.ToolOutput;
+import com.chatchat.common.tool.ToolProtocolDriverContract;
 import com.chatchat.mcpserver.config.ChatChatMcpServerProperties;
 import com.chatchat.mcpserver.database.DatabaseQueryConfig;
 import com.chatchat.mcpserver.database.DatabaseQueryConfigService;
@@ -752,7 +753,26 @@ public class SqlMcpToolPublisher {
             List.of("datasourceId", "jdbcUrl", "url", "connectionString")
         ));
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta("sql_query_execute", "sql"));
+        meta.put(ToolProtocolDriverContract.METADATA_KEY, sqlProtocolDriver());
         return meta;
+    }
+
+    private Map<String, Object> sqlProtocolDriver() {
+        return ToolProtocolDriverContract.of(
+            "mcp.sql-template.v1",
+            List.of(
+                "Use only a registered template selected by the configured template discovery tool; never invent template ids or raw SQL.",
+                "Copy the selected scalar templates[].templateId into template/templateId and place only parameterSchema-declared business values under parameters.",
+                "Use logical executionContext routing. Asset identity is routing context; schema/database values must come from authoritative metadata or template evidence.",
+                "Template-declared defaults are authoritative. Supply only evidence-backed overrides and bind required parameters that have no usable default."
+            ),
+            List.of(
+                "Remove sql/rawSql/query/statement payloads that bypass template governance and repair through an available configured template discovery path.",
+                "Preserve authoritative metadata-location evidence and bind only the scalar template id plus required parameters without usable defaults.",
+                "Do not bind an asset display name as schemaName/databaseName; use only explicit metadata-location or template-routing evidence.",
+                "If no discovery path or observed compatible template contract exists, return a partial final answer instead of inventing SQL, schema, database, or template ids."
+            )
+        );
     }
 
     private Map<String, Object> scriptGatewayMeta() {
@@ -794,6 +814,7 @@ public class SqlMcpToolPublisher {
             List.of("datasourceId", "jdbcUrl", "url", "connectionString")
         ));
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta("sql_script_execute", "sql_script"));
+        meta.put(ToolProtocolDriverContract.METADATA_KEY, sqlProtocolDriver());
         return meta;
     }
 

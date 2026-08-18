@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.ops;
 
+import com.chatchat.common.tool.ToolProtocolDriverContract;
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import com.chatchat.mcpserver.tool.StandardToolExecutionResultFactory;
@@ -340,6 +341,19 @@ public class OpsMcpToolPublisher {
             List.of("hostId", "host", "hostname", "ip", "ipAddress", "address")
         ));
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta("linux_command_execute", "ssh"));
+        meta.put(ToolProtocolDriverContract.METADATA_KEY, ToolProtocolDriverContract.of(
+            "mcp.ssh-template.v1",
+            List.of(
+                "Execute only a registered command template authorized for the logical target; copy templates[].templateId into template and pass declared values under parameters.",
+                "Never pass command, rawCommand, shell, host, hostname, ip, or hostId; use logical executionContext routing.",
+                "Follow the Agent-bound workflow dependencies. Template discovery is required only when the configured workflow or missing template evidence requires it."
+            ),
+            List.of(
+                "Remove raw command and concrete host fields, retain only evidence-backed template parameter overrides, and let authoritative defaults apply.",
+                "If a candidate is rejected or incompatible, preserve the reason and reselect from authorized templates; never retry an unchanged rejected template.",
+                "If no suitable authorized command template is available, report the missing template contract instead of inventing a command."
+            )
+        ));
         return meta;
     }
 
@@ -368,6 +382,19 @@ public class OpsMcpToolPublisher {
             List.of("endpointId", "url", "uri", "host", "hostname", "ip", "ipAddress", "address")
         ));
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta("http_request_execute", "http"));
+        meta.put(ToolProtocolDriverContract.METADATA_KEY, ToolProtocolDriverContract.of(
+            "mcp.http-template.v1",
+            List.of(
+                "Execute only an accepted registered endpoint template; copy templates[].templateId into template and pass only parameterSchema-declared values under parameters.",
+                "Never send raw url, uri, method, headers, body, endpointId, host, hostname, or ip fields; routing is logical executionContext.",
+                "Use capabilitySpec, outputSchema and dependencySpec when the discovery contract publishes them; candidate discovery alone is not execution evidence."
+            ),
+            List.of(
+                "Remove raw transport and endpoint fields, retain only evidence-backed template parameter overrides, and let authoritative defaults apply.",
+                "If discovery rejected a candidate, preserve its rejection reason, exclude that template id, and materially refine the bounded discovery request.",
+                "Do not retry the same template unchanged when execution evidence requires reselection."
+            )
+        ));
         return meta;
     }
 

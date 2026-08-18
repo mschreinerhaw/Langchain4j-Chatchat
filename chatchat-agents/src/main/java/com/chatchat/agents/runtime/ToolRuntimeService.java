@@ -314,7 +314,7 @@ public class ToolRuntimeService {
                     return TemplateExecutionLayer.Invocation.failed(
                         "FAILED",
                         "BATCH_TOOL_NOT_ALLOWED",
-                        "Batch calls support authorized SQL, SSH, HTTP, and API template executors"
+                        "Template batch calls require a registered template batch-capable executor"
                     );
                 }
                 ToolRuntimeRequest childRequest = batchChildRequest(
@@ -518,6 +518,7 @@ public class ToolRuntimeService {
         runtimeMetadata.put("remoteToolInvoked", false);
         runtimeMetadata.put("remoteToolInvocationCount", result.summary().remoteToolInvocations());
         runtimeMetadata.put("batchExecution", true);
+        runtimeMetadata.put("failureIsolatedBatchExecution", true);
         runtimeMetadata.put("templateExecutionLayer", true);
         runtimeMetadata.put("failureIsolation", true);
         runtimeMetadata.put("resultHandlingPolicy", summarizeAvailable
@@ -1632,9 +1633,9 @@ public class ToolRuntimeService {
                 "Nested tool call batches are not allowed");
         }
         String outerTool = normalizeText(request.getToolName());
-        if (!ToolCallBatchSchema.supports(outerTool)) {
+        if (!batchCapableTool(outerTool)) {
             return BatchValidation.invalid("BATCH_TOOL_NOT_ALLOWED",
-                "The outer batch tool must be an allowed SQL, SSH, or API template executor");
+                "The outer batch tool must be a registered batch-capable executor");
         }
         try {
             if (objectMapper.writeValueAsBytes(parameters).length > properties.safeMaxBatchPayloadBytes()) {
@@ -1676,9 +1677,9 @@ public class ToolRuntimeService {
                 stringValue(firstPresent(call.get("toolName"), call.get("tool_name"))),
                 outerTool
             );
-            if (!ToolCallBatchSchema.supports(toolName)) {
+            if (!batchCapableTool(toolName)) {
                 return BatchValidation.invalid("BATCH_TOOL_NOT_ALLOWED",
-                    "Batch call " + callId + " is not an allowed SQL, SSH, or API template executor");
+                    "Batch call " + callId + " is not a registered batch-capable executor");
             }
             Object rawArguments = firstPresent(call.get("arguments"), call.get("input"), call.get("parameters"));
             if (!(rawArguments instanceof Map<?, ?> arguments)) {
@@ -1731,9 +1732,9 @@ public class ToolRuntimeService {
                 return BatchValidation.invalid("BATCH_CALL_ID_INVALID",
                     "Batch call ids must be unique strings of at most 128 characters");
             }
-            if (call == null || !ToolCallBatchSchema.supports(call.toolName())) {
+            if (call == null || !batchCapableTool(call.toolName())) {
                 return BatchValidation.invalid("BATCH_TOOL_NOT_ALLOWED",
-                    "Batch call " + callId + " is not an allowed SQL, SSH, or API template executor");
+                    "Batch call " + callId + " is not a registered batch-capable executor");
             }
             if (containsBatchEnvelope(call.arguments())) {
                 return BatchValidation.invalid("BATCH_NESTING_NOT_ALLOWED",
@@ -1762,9 +1763,9 @@ public class ToolRuntimeService {
             return BatchValidation.invalid("BATCH_PAYLOAD_INVALID",
                 "Tool call batch payload cannot be serialized");
         }
-        if (context != null && !ToolCallBatchSchema.supports(context.getToolName())) {
+        if (context != null && !batchCapableTool(context.getToolName())) {
             return BatchValidation.invalid("BATCH_TOOL_NOT_ALLOWED",
-                "The outer batch tool must be an allowed SQL, SSH, or API template executor");
+                "The outer batch tool must be a registered batch-capable executor");
         }
         return BatchValidation.accepted();
     }
@@ -1841,7 +1842,9 @@ public class ToolRuntimeService {
     }
 
     private boolean batchCapableTool(String toolName) {
-        return ToolCallBatchSchema.supports(toolName);
+        ToolMetadata metadata = toolName == null || toolRegistry == null
+            ? null : toolRegistry.getToolMetadata(toolName);
+        return ToolCallBatchSchema.supports(toolName, metadata);
     }
 
     private ToolCallResult skippedBatchResult(ToolRuntimeRequest context,

@@ -1,5 +1,6 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.protocol.AgentProtocolCatalog;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -10,6 +11,47 @@ import static org.assertj.core.api.Assertions.assertThat;
 class McpParamBindingResolverTest {
 
     private final McpParamBindingResolver resolver = new McpParamBindingResolver();
+
+    @Test
+    void createsReplayableRuntimeTraceForAssetDiscoveryWithExplicitFilters() {
+        Map<String, Object> result = resolver.resolve(
+            "mcp_chatchat_mcp_server_database_asset_search",
+            null,
+            Map.of(
+                "filters", Map.of("env", "DEV", "databaseType", "oracle"),
+                "finalDecision", "database",
+                "confidence", 0.95
+            ),
+            "分析 DEV 环境 Oracle 数据库健康状态"
+        );
+
+        assertThat(result).doesNotContainKey(McpParamBindingResolver.STATUS_KEY);
+        assertThat(result.get("trace")).isInstanceOfSatisfying(Map.class, trace -> assertThat(trace)
+            .containsEntry("schemaVersion", AgentProtocolCatalog.ROUTING_TRACE)
+            .containsEntry("source", "agent_runtime_param_binding")
+            .containsEntry("finalDecision", "database")
+            .containsEntry("decisionSource", "published_tool_contract"));
+    }
+
+    @Test
+    void preservesPlannerRoutingTraceInsteadOfReplacingIt() {
+        Map<String, Object> plannerTrace = Map.of("taskId", "task-1", "promptVersion", "v3");
+
+        Map<String, Object> result = resolver.resolve(
+            "mcp_chatchat_mcp_server_database_ops_template_search",
+            null,
+            Map.of(
+                "filters", Map.of("env", "DEV", "intent", "Oracle health"),
+                "finalDecision", "database",
+                "confidence", 0.95,
+                "trace", plannerTrace
+            ),
+            "分析 DEV 环境 Oracle 数据库健康状态"
+        );
+
+        assertThat(result).doesNotContainKey(McpParamBindingResolver.STATUS_KEY);
+        assertThat(result.get("trace")).isEqualTo(plannerTrace);
+    }
 
     @Test
     void doesNotInferEnvironmentFromDatabaseAssetProperName() {

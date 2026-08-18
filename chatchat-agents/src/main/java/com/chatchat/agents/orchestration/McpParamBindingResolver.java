@@ -252,6 +252,7 @@ class McpParamBindingResolver {
             finalDecision = firstText(firstPresent(values, "finalDecision", "final_decision", "selectedTargetKind", "selected_target_kind"));
         }
         Object explicitFilterEnvelope = firstPresent(values, "filters", "executionContext", "mcpExecutionContext");
+        boolean synthesizedLegacyFilterEnvelope = false;
         if (!(explicitFilterEnvelope instanceof Map<?, ?>)) {
             if (hasText(values.get("query")) && toolTargetKind != null) {
                 targetKind = firstNonBlank(targetKind, toolTargetKind);
@@ -266,11 +267,7 @@ class McpParamBindingResolver {
                 values.putIfAbsent("candidates", List.of(Map.of("targetKind", targetKind, "confidence", 0.9)));
                 values.putIfAbsent("finalDecision", targetKind);
                 values.putIfAbsent("confidence", 0.9);
-                values.putIfAbsent("trace", Map.of(
-                    "schemaVersion", AgentProtocolCatalog.ROUTING_TRACE,
-                    "source", "agent_tool_argument_resolver",
-                    "toolName", toolName == null ? "" : toolName
-                ));
+                synthesizedLegacyFilterEnvelope = true;
                 explicitFilterEnvelope = filters;
                 rawCandidates = firstPresent(values, "candidates", "routingCandidates", "routing_candidates");
                 finalDecision = firstText(firstPresent(values, "finalDecision", "final_decision", "selectedTargetKind", "selected_target_kind"));
@@ -338,6 +335,9 @@ class McpParamBindingResolver {
         if (confidence < 0.0 || confidence > 1.0) {
             return denied(values, "confidence must be between 0.0 and 1.0: " + confidence);
         }
+        ensureRuntimeRoutingTrace(values, toolName, targetKind, confidence,
+            synthesizedLegacyFilterEnvelope ? "agent_tool_argument_resolver" : "agent_runtime_param_binding",
+            toolTargetKind == null ? "planner_decision" : "published_tool_contract");
         if (!(firstPresent(values, "trace", "routingTrace", "routing_trace") instanceof Map<?, ?> trace) || trace.isEmpty()) {
             return denied(values, (templateQuery ? "template_query" : "asset_query")
                 + " requires trace object for replayable routing.");
@@ -383,6 +383,29 @@ class McpParamBindingResolver {
         values.putIfAbsent("limit", 10);
         values.remove("query");
         return values;
+    }
+
+    private void ensureRuntimeRoutingTrace(Map<String, Object> values,
+                                           String toolName,
+                                           String targetKind,
+                                           double confidence,
+                                           String source,
+                                           String decisionSource) {
+        Object existing = firstPresent(values, "trace", "routingTrace", "routing_trace");
+        if (existing instanceof Map<?, ?> trace && !trace.isEmpty()) {
+            return;
+        }
+        Map<String, Object> trace = new LinkedHashMap<>();
+        trace.put("schemaVersion", AgentProtocolCatalog.ROUTING_TRACE);
+        trace.put("source", source);
+        trace.put("toolName", toolName == null ? "" : toolName);
+        trace.put("finalDecision", firstNonBlank(normalizeTargetKind(targetKind), ""));
+        trace.put("confidence", confidence);
+        trace.put("decisionSource", decisionSource);
+        trace.put("filtersSchemaVersion", FILTERS_SCHEMA_VERSION);
+        values.put("trace", Map.copyOf(trace));
+        values.remove("routingTrace");
+        values.remove("routing_trace");
     }
 
     /**

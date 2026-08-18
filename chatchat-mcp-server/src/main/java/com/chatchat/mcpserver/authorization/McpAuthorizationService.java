@@ -8,10 +8,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import jakarta.annotation.PostConstruct;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -50,12 +51,14 @@ public class McpAuthorizationService {
         .connectTimeout(Duration.ofSeconds(5))
         .build();
     private final AtomicReference<Snapshot> snapshotRef = new AtomicReference<>(Snapshot.empty());
+    private final Object snapshotRefreshMonitor = new Object();
+    private volatile long lastUnavailableRefreshAttemptMs = Long.MIN_VALUE;
     private volatile String bearerToken;
 
-    @PostConstruct
+    @EventListener(ApplicationReadyEvent.class)
     public void initialize() {
         if (properties.isEnabled()) {
-            refreshSafely();
+            refreshSnapshotSafely("application_ready");
         }
     }
 
@@ -64,10 +67,43 @@ public class McpAuthorizationService {
         if (!properties.isEnabled()) {
             return;
         }
+        refreshSnapshotSafely("scheduled");
+    }
+
+    private boolean refreshSnapshotSafely(String trigger) {
+        synchronized (snapshotRefreshMonitor) {
+            return refreshSnapshotUnderLock(trigger);
+        }
+    }
+
+    private Snapshot recoverUnavailableSnapshot() {
+        Snapshot snapshot = snapshotRef.get();
+        if (snapshot.usable()) {
+            return snapshot;
+        }
+        synchronized (snapshotRefreshMonitor) {
+            snapshot = snapshotRef.get();
+            if (snapshot.usable()) {
+                return snapshot;
+            }
+            long now = System.currentTimeMillis();
+            long retryIntervalMs = Math.max(0L, properties.getUnavailableRetryIntervalMs());
+            long lastAttempt = lastUnavailableRefreshAttemptMs;
+            if (lastAttempt != Long.MIN_VALUE && now - lastAttempt < retryIntervalMs) {
+                return snapshot;
+            }
+            refreshSnapshotUnderLock("authorization_request");
+            return snapshotRef.get();
+        }
+    }
+
+    private boolean refreshSnapshotUnderLock(String trigger) {
+        lastUnavailableRefreshAttemptMs = System.currentTimeMillis();
         try {
             Snapshot snapshot = fetchSnapshot();
             snapshotRef.set(snapshot);
             synchronizeRoles(snapshot);
+            return snapshot.usable();
         } catch (Exception ex) {
             if (ex instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
@@ -75,9 +111,10 @@ public class McpAuthorizationService {
             String detail = ex.getMessage() == null || ex.getMessage().isBlank()
                 ? ex.getClass().getSimpleName()
                 : ex.getMessage();
-            log.warn("Failed to refresh MCP authorization snapshot: type={} detail={}",
-                ex.getClass().getSimpleName(), detail);
+            log.warn("Failed to refresh MCP authorization snapshot: trigger={} type={} detail={}",
+                trigger, ex.getClass().getSimpleName(), detail);
             log.debug("MCP authorization snapshot refresh stack trace", ex);
+            return false;
         }
     }
 
@@ -85,7 +122,7 @@ public class McpAuthorizationService {
         if (!properties.isEnabled()) {
             return AuthorizationDecision.allowDecision();
         }
-        Snapshot snapshot = snapshotRef.get();
+        Snapshot snapshot = recoverUnavailableSnapshot();
         if (!snapshot.usable()) {
             if (properties.isFailOpen()) {
                 return AuthorizationDecision.allowDecision();

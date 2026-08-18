@@ -78,6 +78,7 @@ chatchat:
     authorization:
       enabled: true
       fail-open: false
+      unavailable-retry-interval-ms: 1000
       require-tenant-context: true
       api-base-url: http://localhost:8080
       auth:

@@ -1444,7 +1444,7 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
-    void sequentialBatchPreservesOrderAndContinuesAfterOneFailure() {
+    void sequentialBatchPreservesOrderAndContinuesAfterOneFailure() throws Exception {
         String shortName = "sql_query_execute";
         String fullName = "mcp_chatchat_mcp_server_sql_query_execute";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
@@ -1506,6 +1506,14 @@ class ToolRuntimeServiceTest {
             "ORACLE_SYSTEM_EVENTS",
             "ORACLE_TABLESPACE_SIZE"
         );
+        assertThat(execution.trace().getOutput())
+            .startsWith("{")
+            .contains("\"batchId\"")
+            .contains("\"templateCode\":\"ORACLE_INSTANCE_STATUS\"")
+            .contains("\"templateCode\":\"ORACLE_TABLESPACE_SIZE\"")
+            .doesNotContain("ToolCallBatchResult[");
+        assertThat(new ObjectMapper().readTree(execution.trace().getOutput()).path("results"))
+            .hasSize(5);
     }
 
     @Test

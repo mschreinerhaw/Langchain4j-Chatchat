@@ -40,7 +40,6 @@ class ToolObservationBuilder {
     private static final String DOCUMENT_SEARCH_TOOL = "document_search";
     private static final String WEB_SEARCH_TOOL = "web_search";
     private static final String SEARCH_AND_EXTRACT_TOOL = "search_and_extract";
-    private static final int BATCH_REPRESENTATIVE_ROWS_PER_CHILD = 1;
     private static final int BATCH_NUMERIC_PROFILE_COLUMNS_PER_CHILD = 12;
 
     private final EvidenceTrustEvaluator evidenceTrustEvaluator;
@@ -347,8 +346,8 @@ class ToolObservationBuilder {
                                                   ToolOutput output,
                                                   ToolCallBatchResult batch) {
         List<Map<String, Object>> children = new ArrayList<>();
-        for (ToolCallResult result : batch.results()) {
-            children.add(batchChildProjection(result));
+        for (int index = 0; index < batch.results().size(); index++) {
+            children.add(batchChildProjection(batch.batchId(), batch.results().get(index), index));
         }
         Map<String, Object> projection = new LinkedHashMap<>();
         projection.put("schemaVersion", "batch_execution_evidence.v1");
@@ -364,9 +363,16 @@ class ToolObservationBuilder {
             "summary", batch.summary()
         ));
         projection.put("results", List.copyOf(children));
+        projection.put("resultSetContract", Map.of(
+            "mode", "ONE_TEMPLATE_ONE_RESULT_SET",
+            "resultSetCount", children.size(),
+            "templateIdentityPreserved", true
+        ));
         projection.put("projection", Map.of(
             "completeChildSetIncluded", true,
-            "representativeRowsPerChild", BATCH_REPRESENTATIVE_ROWS_PER_CHILD,
+            "completeRowsIncluded", true,
+            "recordRowsField", "results[].dataset.rows",
+            "analysisMode", "LOSSLESS_CHUNK_SUMMARY",
             "maximumNumericProfileColumnsPerChild", BATCH_NUMERIC_PROFILE_COLUMNS_PER_CHILD,
             "allRawRowsLocation", "toolTrace",
             "numericProfilesUseAllReturnedRows", true,
@@ -375,8 +381,15 @@ class ToolObservationBuilder {
         return ModelProtocolJson.compact(projection);
     }
 
-    private Map<String, Object> batchChildProjection(ToolCallResult result) {
+    private Map<String, Object> batchChildProjection(String batchId,
+                                                     ToolCallResult result,
+                                                     int resultSetOrdinal) {
         Map<String, Object> projection = new LinkedHashMap<>();
+        String resultSetId = firstNonBlank(result.evidenceId(),
+            firstNonBlank(batchId, "batch") + ":" + firstNonBlank(result.callId(), String.valueOf(resultSetOrdinal)));
+        projection.put("resultSetId", resultSetId);
+        projection.put("resultSetOrdinal", resultSetOrdinal);
+        projection.put("resultSetMode", "SINGLE_TEMPLATE");
         projection.put("callId", result.callId());
         projection.put("templateId", firstNonBlank(result.templateId(), result.templateCode()));
         projection.put("toolName", firstNonBlank(result.normalizedToolName(), result.toolName()));
@@ -397,24 +410,71 @@ class ToolObservationBuilder {
         putIfPresent(projection, "analysisContext", output.get("analysisContext"));
         Map<String, Object> data = asMap(output.get("data"));
         putIfPresent(projection, "statusCode", data.get("statusCode"));
-        Object bodyValue = data.get("body");
-        Map<String, Object> body = asMap(bodyValue);
-        List<Map<String, Object>> records = mapList(body.get("records"));
-        if (records.isEmpty()) {
-            records = mapList(bodyValue);
-        }
-        if (!records.isEmpty()) {
-            projection.put("dataset", batchDatasetProjection(records, body));
-        } else if (!body.isEmpty()) {
-            Map<String, Object> returnedBody = new LinkedHashMap<>(body);
-            returnedBody.remove("rawBody");
-            projection.put("returnedBody", returnedBody);
+        BatchDatasetSource dataset = findBatchDataset(result.output(), 0);
+        if (dataset.present()) {
+            projection.put("dataset", batchDatasetProjection(dataset.records(), dataset.metadata()));
+            projection.put("resultSetState", dataset.records().isEmpty() ? "EMPTY" : "RETURNED");
+            projection.put("emptyResult", dataset.records().isEmpty());
         } else {
-            Map<String, Object> returnedOutput = new LinkedHashMap<>(output);
-            returnedOutput.remove("rawBody");
-            projection.put("returnedOutput", returnedOutput);
+            Object bodyValue = data.get("body");
+            Map<String, Object> body = asMap(bodyValue);
+            projection.put("resultSetState", result.evidenceUsable() ? "NON_TABULAR" : "UNAVAILABLE");
+            if (!body.isEmpty()) {
+                Map<String, Object> returnedBody = new LinkedHashMap<>(body);
+                returnedBody.remove("rawBody");
+                projection.put("returnedBody", returnedBody);
+            } else {
+                Map<String, Object> returnedOutput = new LinkedHashMap<>(output);
+                returnedOutput.remove("rawBody");
+                projection.put("returnedOutput", returnedOutput);
+            }
         }
         return Map.copyOf(projection);
+    }
+
+    private BatchDatasetSource findBatchDataset(Object value, int depth) {
+        if (depth > 8 || !(value instanceof Map<?, ?>)) {
+            return BatchDatasetSource.absent();
+        }
+        Map<String, Object> map = asMap(value);
+        for (String rowsKey : List.of("rows", "records")) {
+            if (map.containsKey(rowsKey) && map.get(rowsKey) instanceof Collection<?>) {
+                return new BatchDatasetSource(true, batchRows(map.get(rowsKey), map.get("columns")), map);
+            }
+        }
+        for (String key : List.of("data", "result", "payload", "structuredContent", "body")) {
+            BatchDatasetSource nested = findBatchDataset(map.get(key), depth + 1);
+            if (nested.present()) {
+                return nested;
+            }
+        }
+        return BatchDatasetSource.absent();
+    }
+
+    private List<Map<String, Object>> batchRows(Object rowsValue, Object columnsValue) {
+        List<Map<String, Object>> mappedRows = mapList(rowsValue);
+        if (!mappedRows.isEmpty() || !(rowsValue instanceof Collection<?> rows)) {
+            return mappedRows;
+        }
+        List<String> columns = columnsValue instanceof Collection<?> values
+            ? values.stream().map(String::valueOf).toList()
+            : List.of();
+        if (columns.isEmpty()) {
+            return mappedRows;
+        }
+        List<Map<String, Object>> values = new ArrayList<>();
+        for (Object rowValue : rows) {
+            if (!(rowValue instanceof Collection<?> cells)) {
+                continue;
+            }
+            List<?> cellValues = new ArrayList<>(cells);
+            Map<String, Object> row = new LinkedHashMap<>();
+            for (int index = 0; index < columns.size() && index < cellValues.size(); index++) {
+                row.put(columns.get(index), cellValues.get(index));
+            }
+            values.add(row);
+        }
+        return List.copyOf(values);
     }
 
     private Map<String, Object> batchDatasetProjection(List<Map<String, Object>> records,
@@ -424,13 +484,10 @@ class ToolObservationBuilder {
         Map<String, Object> dataset = new LinkedHashMap<>();
         dataset.put("recordCount", records.size());
         dataset.put("columns", List.copyOf(columns));
-        dataset.put("representativeRows", records.stream()
-            .limit(BATCH_REPRESENTATIVE_ROWS_PER_CHILD)
-            .toList());
-        dataset.put("omittedRecordCount",
-            Math.max(0, records.size() - BATCH_REPRESENTATIVE_ROWS_PER_CHILD));
+        dataset.put("rows", List.copyOf(records));
         Map<String, Object> responseMetadata = new LinkedHashMap<>(body);
         responseMetadata.remove("records");
+        responseMetadata.remove("rows");
         responseMetadata.remove("rawBody");
         if (!responseMetadata.isEmpty()) {
             dataset.put("responseMetadata", responseMetadata);
@@ -440,6 +497,14 @@ class ToolObservationBuilder {
             dataset.put("numericProfiles", numericProfiles);
         }
         return Map.copyOf(dataset);
+    }
+
+    private record BatchDatasetSource(boolean present,
+                                      List<Map<String, Object>> records,
+                                      Map<String, Object> metadata) {
+        private static BatchDatasetSource absent() {
+            return new BatchDatasetSource(false, List.of(), Map.of());
+        }
     }
 
     private Map<String, Object> numericProfiles(List<Map<String, Object>> records,

@@ -102,12 +102,17 @@ class ToolObservationBuilderEvidenceTest {
         assertThat(evidence)
             .contains("\"schemaVersion\":\"batch_execution_evidence.v1\"")
             .contains("\"batchId\":\"reviewed-template-step-3\"")
+            .contains("\"mode\":\"ONE_TEMPLATE_ONE_RESULT_SET\"")
+            .contains("\"resultSetCount\":1")
+            .contains("\"resultSetId\":\"evidence-orders\"")
+            .contains("\"resultSetMode\":\"SINGLE_TEMPLATE\"")
             .contains("\"schemaVersion\":\"data_analysis_context.v1\"")
             .contains("\"displayName\":\"Order details API\"")
             .contains("\"description\":\"Returns entrusted orders\"")
             .contains("\"description\":\"Security code\"")
             .contains("\"recordCount\":3")
-            .contains("\"omittedRecordCount\":2")
+            .contains("\"completeRowsIncluded\":true")
+            .contains("\"analysisMode\":\"LOSSLESS_CHUNK_SUMMARY\"")
             .contains("\"KHH\":\"070200046604\"")
             .contains("\"ZQDM\":\"300805\"")
             .contains("\"WTSL\":2000")
@@ -115,6 +120,43 @@ class ToolObservationBuilderEvidenceTest {
             .contains("\"numericProfileSemantics\":\"MECHANICAL_NO_ADDITIVITY_INFERENCE\"")
             .contains("\"sum\":4000.0")
             .doesNotContain("RAW_BODY_MUST_NOT_BE_DUPLICATED", "ToolCallBatchResult[");
+    }
+
+    @Test
+    void batchExecutionKeepsEachSqlTemplateAsAnIndependentResultSetIncludingEmptySuccess() {
+        ToolCallBatchResult batch = new ToolCallBatchResult(
+            "oracle-health", "SEQUENTIAL", "start", "end", "SUCCESS",
+            new ToolCallBatchResult.Summary(2, 2, 0, 0, 0, 2),
+            List.of(
+                new ToolCallResult(
+                    "instance", "sql_query_execute", "ORACLE_INSTANCE_STATUS", "asset-oracle",
+                    "SUCCESS", 10L, "e-instance",
+                    Map.of("columns", List.of("INSTANCE_NAME", "STATUS"),
+                        "rows", java.util.stream.IntStream.rangeClosed(1, 25)
+                            .mapToObj(index -> List.of("oraclewind-" + index, "OPEN"))
+                            .toList()),
+                    Map.of()),
+                new ToolCallResult(
+                    "locks", "sql_query_execute", "ORACLE_LOCKS", "asset-oracle",
+                    "SUCCESS", 11L, "e-locks",
+                    Map.of("columns", List.of("SID", "BLOCK"), "rows", List.of(), "rowCount", 0),
+                    Map.of())
+            ));
+
+        String evidence = builder.buildAuthoritativeExecutionEvidence("sql_query_execute", batch);
+
+        assertThat(evidence)
+            .contains("\"resultSetCount\":2")
+            .contains("\"resultSetId\":\"e-instance\"")
+            .contains("\"templateId\":\"ORACLE_INSTANCE_STATUS\"")
+            .contains("\"recordCount\":25")
+            .contains("\"INSTANCE_NAME\":\"oraclewind-25\"")
+            .contains("\"STATUS\":\"OPEN\"")
+            .contains("\"resultSetId\":\"e-locks\"")
+            .contains("\"templateId\":\"ORACLE_LOCKS\"")
+            .contains("\"resultSetState\":\"EMPTY\"")
+            .contains("\"emptyResult\":true")
+            .doesNotContain("ToolCallBatchResult[");
     }
 
     @Test

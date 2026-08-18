@@ -9,6 +9,7 @@ public class McpAuthorizationProperties {
     private String apiBaseUrl = "http://localhost:8080";
     private String snapshotPath = "/api/v1/enterprise/mcp-auth/snapshot";
     private long refreshIntervalMs = 60000L;
+    private long unavailableRetryIntervalMs = 1000L;
     private long staleTtlSeconds = 3600L;
     private boolean failOpen = false;
     private boolean requireTenantContext = true;
@@ -44,6 +45,14 @@ public class McpAuthorizationProperties {
 
     public void setRefreshIntervalMs(long refreshIntervalMs) {
         this.refreshIntervalMs = refreshIntervalMs;
+    }
+
+    public long getUnavailableRetryIntervalMs() {
+        return unavailableRetryIntervalMs;
+    }
+
+    public void setUnavailableRetryIntervalMs(long unavailableRetryIntervalMs) {
+        this.unavailableRetryIntervalMs = unavailableRetryIntervalMs;
     }
 
     public long getStaleTtlSeconds() {

@@ -1421,6 +1421,12 @@ class AgentAnswerFinalizer {
             return item;
         }
 
+        Map<String, Object> batchEvidence = batchResultSetEvidence(output);
+        if (!batchEvidence.isEmpty()) {
+            item.putAll(batchEvidence);
+            return compactEvidence(item);
+        }
+
         Map<String, Object> table = firstTabularData(output);
         if (!table.isEmpty()) {
             List<Map<String, Object>> rows = rowMaps(table.get("rows"), table.get("columns"));
@@ -1460,6 +1466,49 @@ class AgentAnswerFinalizer {
         item.put("keys", new ArrayList<>(output.keySet()));
         item.put("outputPreview", previewStructured(output));
         return compactEvidence(item);
+    }
+
+    private Map<String, Object> batchResultSetEvidence(Map<String, Object> output) {
+        Object rawResults = output == null ? null : output.get("results");
+        if (!(rawResults instanceof List<?> results) || results.isEmpty()
+            || (!output.containsKey("batchId") && !output.containsKey("cardinality"))) {
+            return Map.of();
+        }
+        List<String> templateIds = new ArrayList<>();
+        int returnedRows = 0;
+        int usableResultSets = 0;
+        for (Object value : results) {
+            if (!(value instanceof Map<?, ?> rawResult)) {
+                continue;
+            }
+            Map<String, Object> result = copyMap(rawResult);
+            String templateId = firstNonBlank(
+                stringValue(result.get("templateId")), stringValue(result.get("templateCode")));
+            if (!templateId.isBlank()) {
+                templateIds.add(templateId);
+            }
+            if (Boolean.TRUE.equals(result.get("evidenceUsable"))) {
+                usableResultSets++;
+            }
+            Object rawOutput = firstPresent(result.get("output"), result.get("finding"));
+            Map<String, Object> childOutput = rawOutput instanceof Map<?, ?> map
+                ? copyMap(map)
+                : rawOutput instanceof String text ? parseObject(text) : Map.of();
+            Map<String, Object> table = firstTabularData(childOutput);
+            if (!table.isEmpty()) {
+                returnedRows += rowMaps(table.get("rows"), table.get("columns")).size();
+            }
+        }
+        Map<String, Object> evidence = new LinkedHashMap<>();
+        evidence.put("evidenceType", "result_set_batch");
+        evidence.put("resultSetCount", results.size());
+        evidence.put("usableResultSetCount", usableResultSets);
+        evidence.put("returnedRowCount", returnedRows);
+        evidence.put("templateIds", List.copyOf(templateIds));
+        if (output.get("status") != null) {
+            evidence.put("batchStatus", output.get("status"));
+        }
+        return Map.copyOf(evidence);
     }
 
     private Map<String, Object> primaryData(Map<String, Object> output) {
@@ -1787,6 +1836,8 @@ class AgentAnswerFinalizer {
                 .append("，证据类型 `").append(escapeInline(firstNonBlank(stringValue(item.get("evidenceType")), "unknown"))).append("`");
             appendEvidenceField(section, "行数", item.get("rowCount"));
             appendEvidenceField(section, "返回行数", item.get("returnedRowCount"));
+            appendEvidenceField(section, "结果集", item.get("resultSetCount"));
+            appendEvidenceField(section, "模板", compactListText(item.get("templateIds"), 8));
             appendEvidenceField(section, "退出码", item.get("exitCode"));
             appendEvidenceField(section, "HTTP 状态", item.get("statusCode"));
             appendEvidenceField(section, "耗时 ms", item.get("durationMs"));
@@ -1848,6 +1899,9 @@ class AgentAnswerFinalizer {
         }
         if ("http_response".equals(type)) {
             return "HTTP 调用完成";
+        }
+        if ("result_set_batch".equals(type)) {
+            return "已按模板返回 " + firstPresent(item.get("resultSetCount"), 0) + " 个独立结果集";
         }
         if ("json".equals(type)) {
             return "已返回结构化 JSON";

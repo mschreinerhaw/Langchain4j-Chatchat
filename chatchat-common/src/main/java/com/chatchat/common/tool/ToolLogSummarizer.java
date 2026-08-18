@@ -1,6 +1,7 @@
 package com.chatchat.common.tool;
 
 import java.lang.reflect.Array;
+import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
@@ -233,6 +234,19 @@ public final class ToolLogSummarizer {
                 List<Object> redacted = new ArrayList<>(length);
                 for (int i = 0; i < length; i++) {
                     redacted.add(redactCompleteValue(Array.get(value, i), null, ancestors));
+                }
+                return redacted;
+            }
+            if (value.getClass().isRecord()) {
+                Map<String, Object> redacted = new LinkedHashMap<>();
+                for (RecordComponent component : value.getClass().getRecordComponents()) {
+                    String name = component.getName();
+                    try {
+                        Object componentValue = component.getAccessor().invoke(value);
+                        redacted.put(name, redactCompleteValue(componentValue, name, ancestors));
+                    } catch (ReflectiveOperationException ex) {
+                        redacted.put(name, "[unavailable]");
+                    }
                 }
                 return redacted;
             }

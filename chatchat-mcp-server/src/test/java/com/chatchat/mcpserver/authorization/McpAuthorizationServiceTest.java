@@ -2,12 +2,15 @@ package com.chatchat.mcpserver.authorization;
 
 import com.chatchat.common.security.InternalCredentialProperties;
 import com.chatchat.mcpserver.mcp.McpInvocationContext;
+import com.sun.net.httpserver.HttpServer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -15,6 +18,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,6 +32,53 @@ import static org.mockito.Mockito.when;
 class McpAuthorizationServiceTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @Test
+    void unavailableSnapshotIsRecoveredOnFirstAuthorizationRequest() throws Exception {
+        AtomicInteger requests = new AtomicInteger();
+        HttpServer server = authorizationSnapshotServer(requests, 0L);
+        try {
+            McpAuthorizationService service = serviceWithRemoteSnapshot(server);
+
+            McpAuthorizationService.AuthorizationDecision decision = service.authorize(
+                "database_asset_search",
+                Map.of("userId", "user-admin-id", "username", "admin", "tenantId", "tenant-1")
+            );
+
+            assertThat(decision.allowed()).isTrue();
+            assertThat(requests).hasValue(1);
+            assertThat(service.currentView().snapshotAvailable()).isTrue();
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void concurrentAuthorizationRequestsUseSingleSnapshotRecovery() throws Exception {
+        AtomicInteger requests = new AtomicInteger();
+        HttpServer server = authorizationSnapshotServer(requests, 100L);
+        ExecutorService executor = Executors.newFixedThreadPool(12);
+        try {
+            McpAuthorizationService service = serviceWithRemoteSnapshot(server);
+            List<Callable<McpAuthorizationService.AuthorizationDecision>> calls =
+                java.util.stream.IntStream.range(0, 12)
+                    .mapToObj(index -> (Callable<McpAuthorizationService.AuthorizationDecision>) () ->
+                        service.authorize("database_asset_search", Map.of(
+                            "userId", "user-admin-id",
+                            "username", "admin",
+                            "tenantId", "tenant-1"
+                        )))
+                    .toList();
+
+            List<Future<McpAuthorizationService.AuthorizationDecision>> futures = executor.invokeAll(calls);
+
+            assertThat(futures).allSatisfy(future -> assertThat(future.get().allowed()).isTrue());
+            assertThat(requests).hasValue(1);
+        } finally {
+            executor.shutdownNow();
+            server.stop(0);
+        }
+    }
 
     @Test
     void deniesRoleWithoutAnyAssetAuthorization() throws Exception {
@@ -492,6 +543,49 @@ class McpAuthorizationServiceTest {
 
     private McpAuthorizationService service(Object snapshot) throws Exception {
         return service(snapshot, mock(McpSynchronizedRoleRepository.class));
+    }
+
+    private McpAuthorizationService serviceWithRemoteSnapshot(HttpServer server) {
+        McpAuthorizationProperties properties = new McpAuthorizationProperties();
+        properties.setEnabled(true);
+        properties.setFailOpen(false);
+        properties.setRequireTenantContext(true);
+        properties.setUnavailableRetryIntervalMs(0L);
+        properties.setApiBaseUrl("http://127.0.0.1:" + server.getAddress().getPort());
+        properties.getAuth().setEnabled(false);
+        return new McpAuthorizationService(
+            properties,
+            mock(InternalCredentialProperties.class),
+            objectMapper,
+            mock(McpSynchronizedRoleRepository.class)
+        );
+    }
+
+    private HttpServer authorizationSnapshotServer(AtomicInteger requests, long delayMs) throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/api/v1/enterprise/mcp-auth/snapshot", exchange -> {
+            requests.incrementAndGet();
+            if (delayMs > 0L) {
+                try {
+                    Thread.sleep(delayMs);
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+            byte[] body = """
+                {"data":{
+                  "users":[{"id":"user-admin-id","tenantId":"tenant-1","tenantNo":100000,"username":"admin","roleIds":[]}],
+                  "roles":[],"tenants":[],"tools":[],"permissions":[]
+                }}
+                """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            try (var output = exchange.getResponseBody()) {
+                output.write(body);
+            }
+        });
+        server.start();
+        return server;
     }
 
     private McpAuthorizationService service(

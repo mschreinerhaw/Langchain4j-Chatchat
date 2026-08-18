@@ -160,4 +160,23 @@ class ToolLogSummarizerTest {
             });
         });
     }
+
+    @Test
+    void completeEvidenceRedactionPreservesRecordsAsStructuredObjects() {
+        record ResultSet(String templateId, List<Map<String, Object>> rows, String password) {
+        }
+
+        Object redacted = ToolLogSummarizer.redactComplete(new ResultSet(
+            "ORACLE_INSTANCE_STATUS",
+            List.of(Map.of("STATUS", "OPEN")),
+            "must-not-leak"
+        ));
+
+        assertThat(redacted).isInstanceOfSatisfying(Map.class, result -> {
+            assertThat(result)
+                .containsEntry("templateId", "ORACLE_INSTANCE_STATUS")
+                .containsEntry("password", "***");
+            assertThat(result.get("rows")).isEqualTo(List.of(Map.of("STATUS", "OPEN")));
+        });
+    }
 }

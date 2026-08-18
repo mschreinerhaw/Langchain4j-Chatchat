@@ -1064,7 +1064,6 @@
        on runtime_semantic_insight_contract (tenant_id, agent_id, tool_name);
     create index idx_semantic_contract_dataset_task
        on runtime_semantic_insight_contract (tenant_id, dataset_key, task_type);
-
     create table runtime_semantic_insight_field (
         sensitive boolean not null,
         display_order integer not null,

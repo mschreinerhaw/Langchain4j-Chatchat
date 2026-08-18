@@ -67,6 +67,9 @@ public class InterpretationPlanValidator {
     private static final Set<String> ACTION_TYPES = Set.of(
         "mcp_tool", "reasoning", "retrieval", "aggregation", "validation", "final_answer"
     );
+    private static final Set<String> RUNTIME_OWNED_DISCOVERY_INPUT_KEYS = Set.of(
+        "filters", "filtersschemaversion", "trace"
+    );
 
     /**
      * Validates a plan against the current tool registry.
@@ -1445,10 +1448,22 @@ public class InterpretationPlanValidator {
     private boolean runtimeBindableRequiredInput(InterpretationPlan plan,
                                                  InterpretationPlan.Step step,
                                                  String parameterName) {
-        if (plan == null || step == null || blank(parameterName) || !templateExecutionTool(step.toolName())) {
+        if (plan == null || step == null || blank(parameterName)) {
             return false;
         }
-        String key = parameterName.replace("_", "").replace("-", "").trim().toLowerCase(Locale.ROOT);
+        String key = normalizeField(parameterName);
+        // Discovery routing envelopes are protocol state owned by the Runtime, not semantic
+        // arguments owned by the planner. InterpretationPlanRuntime always materializes these
+        // fields before published-schema compilation and MCP invocation. Treating them as model
+        // requirements here makes the preflight validator reject a plan that the executor can
+        // deterministically compile (most visibly for the required routing trace).
+        if (routingDiscoveryTool(step.toolName())
+            && RUNTIME_OWNED_DISCOVERY_INPUT_KEYS.contains(key)) {
+            return true;
+        }
+        if (!templateExecutionTool(step.toolName())) {
+            return false;
+        }
         if (!"template".equals(key) && !"templateid".equals(key) && !"templatecode".equals(key)) {
             return invocationValue(step.input(), "arguments", "parameters", "params", "target", "executionContext") != null;
         }
@@ -1469,6 +1484,10 @@ public class InterpretationPlanValidator {
         String semantic = semanticToolName(toolName);
         return McpToolProtocolRole.TEMPLATE_QUERY.matches(semantic)
             || semantic.endsWith("_template_search");
+    }
+
+    private boolean routingDiscoveryTool(String toolName) {
+        return isAssetDiscoveryTool(toolName) || templateDiscoveryTool(toolName);
     }
 
     private boolean templateExecutionTool(String toolName) {

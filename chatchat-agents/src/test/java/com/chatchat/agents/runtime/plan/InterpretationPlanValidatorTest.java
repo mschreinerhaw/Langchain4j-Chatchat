@@ -298,6 +298,74 @@ class InterpretationPlanValidatorTest {
     }
 
     @Test
+    void acceptsRuntimeOwnedRoutingFieldsMissingFromDiscoveryPlan() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        for (String toolName : List.of(
+            "mcp_chatchat_mcp_server_database_asset_search",
+            "mcp_chatchat_mcp_server_database_ops_template_search"
+        )) {
+            when(toolRegistry.hasTool(toolName)).thenReturn(true);
+            when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+                .id(toolName)
+                .riskLevel("low")
+                .parameters(List.of(
+                    requiredParameter("filters", "object"),
+                    requiredParameter("filtersSchemaVersion", "string"),
+                    requiredParameter("trace", "object")
+                ))
+                .build());
+
+            InterpretationPlan plan = new InterpretationPlan(
+                "1.0",
+                new InterpretationPlan.Intent("discovery", "Find a governed runtime candidate", "low"),
+                context(),
+                new InterpretationPlan.Plan(List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", toolName, Map.of(), List.of(), null, null),
+                    finalStep(2, List.of(1))
+                )),
+                new InterpretationPlan.ExecutionPolicy(2, false, List.of(toolName), List.of(), 30000),
+                review(true)
+            );
+
+            InterpretationPlanValidator.ValidationResult result = validator.validate(
+                plan, toolRegistry, Set.of(toolName));
+
+            assertThat(result.valid()).as(toolName).isTrue();
+        }
+    }
+
+    @Test
+    void doesNotExemptRuntimeFieldNamesForNonDiscoveryTools() {
+        String toolName = "custom_contract_tool";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(toolName)).thenReturn(true);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName)
+            .riskLevel("low")
+            .parameters(List.of(requiredParameter("trace", "object")))
+            .build());
+
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("custom", "Run custom contract", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", toolName, Map.of(), List.of(), null, null),
+                finalStep(2, List.of(1))
+            )),
+            new InterpretationPlan.ExecutionPolicy(2, false, List.of(toolName), List.of(), 30000),
+            review(true)
+        );
+
+        InterpretationPlanValidator.ValidationResult result = validator.validate(
+            plan, toolRegistry, Set.of(toolName));
+
+        assertThat(result.valid()).isFalse();
+        assertThat(result.errors()).extracting(InterpretationPlanValidator.ValidationIssue::message)
+            .anyMatch(message -> message.contains("Required tool input is missing for custom_contract_tool: trace"));
+    }
+
+    @Test
     void allowsRequiredToolInputProvidedByBinding() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("web_search")).thenReturn(true);
@@ -1284,6 +1352,14 @@ class InterpretationPlanValidatorTest {
             new InterpretationPlan.ExecutionPolicy(5, false, allowTools, denyTools, 30000),
             review(true)
         );
+    }
+
+    private ToolParameter requiredParameter(String name, String type) {
+        return ToolParameter.builder()
+            .name(name)
+            .type(type)
+            .required(true)
+            .build();
     }
 
     private InterpretationPlan.Context context() {

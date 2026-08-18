@@ -363,7 +363,7 @@ public class InterpretationPlanValidator {
             && !hasBindingForInput(plan, step.id(), "executionContext")
             && !hasBindingForInput(plan, step.id(), "mcpExecutionContext")
             && !dependsOnAssetDiscovery(plan, step)
-            && !dependsOnBusinessTemplateDiscovery(plan, step)) {
+            && !dependsOnTemplateDiscovery(plan, step)) {
             state.error(path + ".input.executionContext",
                 "sql_query_execute requires logical executionContext, for example {assetName, env}, from user context, template routing metadata, sql_metadata_search/table-location evidence, or an observed invocationExample; do not rely on template parameters for datasource routing.");
         }
@@ -662,24 +662,6 @@ public class InterpretationPlanValidator {
         return plan.steps().stream()
             .filter(candidate -> candidate != null && step.dependsOn().contains(candidate.id()))
             .anyMatch(candidate -> isAssetDiscoveryTool(candidate.toolName()));
-    }
-
-    private boolean dependsOnBusinessTemplateDiscovery(InterpretationPlan plan, InterpretationPlan.Step step) {
-        if (plan == null || step == null || step.dependsOn() == null || step.dependsOn().isEmpty()) {
-            return false;
-        }
-        return plan.steps().stream()
-            .filter(candidate -> candidate != null && step.dependsOn().contains(candidate.id()))
-            .anyMatch(candidate -> isBusinessTemplateDiscoveryTool(candidate.toolName()));
-    }
-
-    private boolean isBusinessTemplateDiscoveryTool(String toolName) {
-        if (toolName == null || toolName.isBlank()) {
-            return false;
-        }
-        String normalized = toolName.trim().toLowerCase(Locale.ROOT).replace('-', '_');
-        return normalized.endsWith("business_query_template_search")
-            || normalized.endsWith("database_query_template_query");
     }
 
     private boolean missingRequiredValue(Object value) {

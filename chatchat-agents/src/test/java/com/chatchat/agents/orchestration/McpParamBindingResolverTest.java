@@ -136,7 +136,7 @@ class McpParamBindingResolverTest {
     @Test
     void dedicatedBusinessQueryTemplateToolOverridesMismatchedPlannerTargetKind() {
         Map<String, Object> result = resolver.resolve(
-            "mcp_chatchat_mcp_server_business_query_template_search",
+            "mcp_chatchat_mcp_server_database_query_template_query",
             null,
             Map.of(
                 "candidates", List.of(Map.of("targetKind", "database", "confidence", 0.9)),

@@ -754,10 +754,10 @@ class InterpretationPlanValidatorTest {
                 .id("mcp_chatchat_mcp_server_api_asset_query")
                 .riskLevel("low")
                 .build());
-        when(toolRegistry.hasTool("mcp_chatchat_mcp_server_business_query_template_search")).thenReturn(true);
-        when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_business_query_template_search"))
+        when(toolRegistry.hasTool("mcp_chatchat_mcp_server_database_query_template_query")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_database_query_template_query"))
             .thenReturn(ToolMetadata.builder()
-                .id("mcp_chatchat_mcp_server_business_query_template_search")
+                .id("mcp_chatchat_mcp_server_database_query_template_query")
                 .riskLevel("low")
                 .build());
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_sql_query_execute")).thenReturn(true);
@@ -785,7 +785,7 @@ class InterpretationPlanValidatorTest {
                     new InterpretationPlan.Step(
                         2,
                         "mcp_tool",
-                        "mcp_chatchat_mcp_server_business_query_template_search",
+                        "mcp_chatchat_mcp_server_database_query_template_query",
                         Map.of("filters", Map.of("intent", "行情数据大幅波动时异常提醒")),
                         List.of(1),
                         null,
@@ -811,7 +811,7 @@ class InterpretationPlanValidatorTest {
                 4,
                 false,
                 List.of("mcp_chatchat_mcp_server_api_asset_query",
-                    "mcp_chatchat_mcp_server_business_query_template_search",
+                    "mcp_chatchat_mcp_server_database_query_template_query",
                     "mcp_chatchat_mcp_server_sql_query_execute"),
                 List.of(),
                 30000
@@ -823,7 +823,63 @@ class InterpretationPlanValidatorTest {
             plan,
             toolRegistry,
             Set.of("mcp_chatchat_mcp_server_api_asset_query",
-                "mcp_chatchat_mcp_server_business_query_template_search",
+                "mcp_chatchat_mcp_server_database_query_template_query",
+                "mcp_chatchat_mcp_server_sql_query_execute")
+        );
+
+        assertThat(result.valid()).isTrue();
+    }
+
+    @Test
+    void allowsDatabaseOpsTemplateBridgeToResolveAssetContextAtRuntime() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        for (String toolName : List.of(
+            "mcp_chatchat_mcp_server_database_asset_search",
+            "mcp_chatchat_mcp_server_database_ops_template_search",
+            "mcp_chatchat_mcp_server_sql_query_execute")) {
+            when(toolRegistry.hasTool(toolName)).thenReturn(true);
+            when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+                .id(toolName).riskLevel("low").build());
+        }
+
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("tool_chain", "Analyze DEV Oracle health", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(
+                        1, "mcp_tool", "mcp_chatchat_mcp_server_database_asset_search",
+                        Map.of("filters", Map.of("env", "DEV")), List.of(), null, null),
+                    new InterpretationPlan.Step(
+                        2, "mcp_tool", "mcp_chatchat_mcp_server_database_ops_template_search",
+                        Map.of("filters", Map.of("env", "DEV")), List.of(1), null, null),
+                    new InterpretationPlan.Step(
+                        3, "mcp_tool", "mcp_chatchat_mcp_server_sql_query_execute",
+                        Map.of("parameters", Map.of(), "executionContext", Map.of("env", "DEV")),
+                        List.of(2), null, null),
+                    finalStep(4, List.of(3))
+                ),
+                List.of(),
+                List.of(new InterpretationPlan.Binding(
+                    2, "$.templates[0].templateId", 3, "$.templateId", "jsonpath", true)),
+                null
+            ),
+            new InterpretationPlan.ExecutionPolicy(
+                4, false,
+                List.of(
+                    "mcp_chatchat_mcp_server_database_asset_search",
+                    "mcp_chatchat_mcp_server_database_ops_template_search",
+                    "mcp_chatchat_mcp_server_sql_query_execute"),
+                List.of(), 30000),
+            review(true)
+        );
+
+        InterpretationPlanValidator.ValidationResult result = validator.validate(
+            plan, toolRegistry,
+            Set.of(
+                "mcp_chatchat_mcp_server_database_asset_search",
+                "mcp_chatchat_mcp_server_database_ops_template_search",
                 "mcp_chatchat_mcp_server_sql_query_execute")
         );
 

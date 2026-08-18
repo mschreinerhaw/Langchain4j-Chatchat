@@ -24,7 +24,7 @@ class McpToolRouterTest {
             ),
             List.of(
                 requested,
-                "mcp_chatchat_mcp_server_business_query_template_search"
+                "mcp_chatchat_mcp_server_database_query_template_query"
             ),
             "tenant-a",
             List.of()
@@ -53,7 +53,7 @@ class McpToolRouterTest {
 
     @Test
     void deniesTypedToolThatIsNotBoundToWorkflow() {
-        String requested = "mcp_chatchat_mcp_server_business_query_template_search";
+        String requested = "mcp_chatchat_mcp_server_database_query_template_query";
 
         McpToolRouter.RoutingDecision decision = router.route(
             requested,

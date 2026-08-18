@@ -2949,7 +2949,7 @@ class InterpretationPlanRuntimeTest {
         ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
         when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
             ToolRuntimeRequest toolRequest = invocation.getArgument(0);
-            if ("mcp_chatchat_mcp_server_business_query_template_search".equals(toolRequest.getToolName())) {
+            if ("mcp_chatchat_mcp_server_database_query_template_query".equals(toolRequest.getToolName())) {
                 return new ToolRuntimeExecution(
                     ToolOutput.success(Map.of(
                         "templates", List.of(Map.of(
@@ -2990,7 +2990,7 @@ class InterpretationPlanRuntimeTest {
             new InterpretationPlan.Intent("data_query", "分析行情波动提醒", "low"),
             new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
             new InterpretationPlan.Plan(List.of(
-                new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_business_query_template_search",
+                new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_database_query_template_query",
                     Map.of(
                         "finalDecision", "business_database_query",
                         "candidates", List.of(Map.of("targetKind", "business_database_query", "confidence", 0.95)),
@@ -3001,7 +3001,7 @@ class InterpretationPlanRuntimeTest {
                 new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
             )),
             new InterpretationPlan.ExecutionPolicy(3, false,
-                List.of("mcp_chatchat_mcp_server_business_query_template_search",
+                List.of("mcp_chatchat_mcp_server_database_query_template_query",
                     "mcp_chatchat_mcp_server_sql_query_execute"),
                 List.of(),
                 30000),
@@ -3011,7 +3011,7 @@ class InterpretationPlanRuntimeTest {
         InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
             plan,
             toolRegistry,
-            List.of("mcp_chatchat_mcp_server_business_query_template_search",
+            List.of("mcp_chatchat_mcp_server_database_query_template_query",
                 "mcp_chatchat_mcp_server_sql_query_execute"),
             "tenant-1",
             "req-business-query-context",
@@ -3024,7 +3024,7 @@ class InterpretationPlanRuntimeTest {
         ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
         verify(toolRuntimeService, times(2)).execute(captor.capture());
         assertThat(captor.getAllValues()).extracting(ToolRuntimeRequest::getToolName)
-            .containsExactly("mcp_chatchat_mcp_server_business_query_template_search",
+            .containsExactly("mcp_chatchat_mcp_server_database_query_template_query",
                 "mcp_chatchat_mcp_server_sql_query_execute");
         assertThat(captor.getAllValues().get(1).getToolInput().getParameters())
             .containsEntry("executionContext", Map.of(
@@ -3043,7 +3043,7 @@ class InterpretationPlanRuntimeTest {
         ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
         when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
             ToolRuntimeRequest toolRequest = invocation.getArgument(0);
-            if ("mcp_chatchat_mcp_server_business_query_template_search".equals(toolRequest.getToolName())) {
+            if ("mcp_chatchat_mcp_server_database_query_template_query".equals(toolRequest.getToolName())) {
                 return new ToolRuntimeExecution(
                     ToolOutput.success(Map.of(
                         "indexType", "database_query",
@@ -3099,14 +3099,14 @@ class InterpretationPlanRuntimeTest {
             new InterpretationPlan.Intent("data_query", "行情提醒", "low"),
             new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
             new InterpretationPlan.Plan(List.of(
-                new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_business_query_template_search",
+                new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_database_query_template_query",
                     Map.of("filters", Map.of("intent", "行情提醒")), List.of(), null, null),
                 new InterpretationPlan.Step(2, "mcp_tool", "mcp_chatchat_mcp_server_sql_query_execute",
                     Map.of("templateId", "query_edayQuqtMoni", "parameters", Map.of()), List.of(1), null, null),
                 new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
             )),
             new InterpretationPlan.ExecutionPolicy(3, false,
-                List.of("mcp_chatchat_mcp_server_business_query_template_search",
+                List.of("mcp_chatchat_mcp_server_database_query_template_query",
                     "mcp_chatchat_mcp_server_sql_query_execute"),
                 List.of(),
                 30000),
@@ -3116,7 +3116,7 @@ class InterpretationPlanRuntimeTest {
         InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
             plan,
             toolRegistry,
-            List.of("mcp_chatchat_mcp_server_business_query_template_search",
+            List.of("mcp_chatchat_mcp_server_database_query_template_query",
                 "mcp_chatchat_mcp_server_sql_query_execute"),
             "tenant-1",
             "req-business-query-search-index",
@@ -3129,7 +3129,7 @@ class InterpretationPlanRuntimeTest {
         ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
         verify(toolRuntimeService, times(2)).execute(captor.capture());
         assertThat(captor.getAllValues()).extracting(ToolRuntimeRequest::getToolName)
-            .containsExactly("mcp_chatchat_mcp_server_business_query_template_search",
+            .containsExactly("mcp_chatchat_mcp_server_database_query_template_query",
                 "mcp_chatchat_mcp_server_sql_query_execute");
         assertThat(captor.getAllValues().get(1).getToolInput().getParameters())
             .containsEntry("executionContext", Map.of(
@@ -3153,7 +3153,7 @@ class InterpretationPlanRuntimeTest {
         ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
         when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
             ToolRuntimeRequest toolRequest = invocation.getArgument(0);
-            if ("mcp_chatchat_mcp_server_business_query_template_search".equals(toolRequest.getToolName())) {
+            if ("mcp_chatchat_mcp_server_database_query_template_query".equals(toolRequest.getToolName())) {
                 return new ToolRuntimeExecution(
                     ToolOutput.success(Map.of(
                         "results", List.of(Map.of(
@@ -3198,7 +3198,7 @@ class InterpretationPlanRuntimeTest {
             new InterpretationPlan.Intent("sql_query", "行情波动提醒", "low"),
             new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
             new InterpretationPlan.Plan(List.of(
-                new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_business_query_template_search",
+                new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_database_query_template_query",
                     Map.of(
                         "finalDecision", "business_database_query",
                         "candidates", List.of(Map.of("targetKind", "business_database_query", "confidence", 0.95)),
@@ -3209,7 +3209,7 @@ class InterpretationPlanRuntimeTest {
                 new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
             )),
             new InterpretationPlan.ExecutionPolicy(3, false,
-                List.of("mcp_chatchat_mcp_server_business_query_template_search",
+                List.of("mcp_chatchat_mcp_server_database_query_template_query",
                     "mcp_chatchat_mcp_server_sql_query_execute"),
                 List.of(),
                 30000),
@@ -3219,7 +3219,7 @@ class InterpretationPlanRuntimeTest {
         InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
             plan,
             toolRegistry,
-            List.of("mcp_chatchat_mcp_server_business_query_template_search",
+            List.of("mcp_chatchat_mcp_server_database_query_template_query",
                 "mcp_chatchat_mcp_server_sql_query_execute"),
             "tenant-1",
             "req-template-placeholder",
@@ -3232,7 +3232,7 @@ class InterpretationPlanRuntimeTest {
         ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
         verify(toolRuntimeService, times(2)).execute(captor.capture());
         assertThat(captor.getAllValues()).extracting(ToolRuntimeRequest::getToolName)
-            .containsExactly("mcp_chatchat_mcp_server_business_query_template_search",
+            .containsExactly("mcp_chatchat_mcp_server_database_query_template_query",
                 "mcp_chatchat_mcp_server_sql_query_execute");
         assertThat(captor.getAllValues().get(1).getToolInput().getParameters())
             .containsEntry("templateId", "query_edayQuqtMoni")
@@ -3255,7 +3255,7 @@ class InterpretationPlanRuntimeTest {
         ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
         when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
             ToolRuntimeRequest toolRequest = invocation.getArgument(0);
-            if ("mcp_chatchat_mcp_server_business_query_template_search".equals(toolRequest.getToolName())) {
+            if ("mcp_chatchat_mcp_server_database_query_template_query".equals(toolRequest.getToolName())) {
                 return new ToolRuntimeExecution(
                     ToolOutput.success(Map.of(
                         "results", List.of(Map.of(
@@ -3302,14 +3302,14 @@ class InterpretationPlanRuntimeTest {
             new InterpretationPlan.Intent("sql_query", "market event monitor", "low"),
             new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
             new InterpretationPlan.Plan(List.of(
-                new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_business_query_template_search",
+                new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_database_query_template_query",
                     Map.of("filters", Map.of("intent", "market event monitor")), List.of(), null, null),
                 new InterpretationPlan.Step(2, "mcp_tool", "query_mktInfoEvtMoni",
                     Map.of("parameters", Map.of()), List.of(1), null, null),
                 new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
             )),
             new InterpretationPlan.ExecutionPolicy(3, false,
-                List.of("mcp_chatchat_mcp_server_business_query_template_search",
+                List.of("mcp_chatchat_mcp_server_database_query_template_query",
                     "mcp_chatchat_mcp_server_sql_query_execute"),
                 List.of(),
                 30000),
@@ -3319,7 +3319,7 @@ class InterpretationPlanRuntimeTest {
         InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
             plan,
             toolRegistry,
-            List.of("mcp_chatchat_mcp_server_business_query_template_search",
+            List.of("mcp_chatchat_mcp_server_database_query_template_query",
                 "mcp_chatchat_mcp_server_sql_query_execute"),
             "tenant-1",
             "req-template-executor",
@@ -3332,7 +3332,7 @@ class InterpretationPlanRuntimeTest {
         ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
         verify(toolRuntimeService, times(2)).execute(captor.capture());
         assertThat(captor.getAllValues()).extracting(ToolRuntimeRequest::getToolName)
-            .containsExactly("mcp_chatchat_mcp_server_business_query_template_search",
+            .containsExactly("mcp_chatchat_mcp_server_database_query_template_query",
                 "mcp_chatchat_mcp_server_sql_query_execute");
         assertThat(captor.getAllValues().get(1).getToolInput().getParameters())
             .containsEntry("templateId", "query_mktInfoEvtMoni")
@@ -3374,7 +3374,7 @@ class InterpretationPlanRuntimeTest {
             new InterpretationPlan.Intent("sql_query", "行情波动提醒", "low"),
             new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
             new InterpretationPlan.Plan(List.of(
-                new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_business_query_template_search",
+                new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_database_query_template_query",
                     Map.of(
                         "candidates", List.of(Map.of("targetKind", "database", "confidence", 0.95)),
                         "finalDecision", "database",
@@ -3384,7 +3384,7 @@ class InterpretationPlanRuntimeTest {
                 new InterpretationPlan.Step(2, "final_answer", "", Map.of("answer", "done"), List.of(1), null, null)
             )),
             new InterpretationPlan.ExecutionPolicy(2, false,
-                List.of("mcp_chatchat_mcp_server_business_query_template_search"),
+                List.of("mcp_chatchat_mcp_server_database_query_template_query"),
                 List.of(),
                 30000),
             review()
@@ -3393,7 +3393,7 @@ class InterpretationPlanRuntimeTest {
         InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
             plan,
             toolRegistry,
-            List.of("mcp_chatchat_mcp_server_business_query_template_search"),
+            List.of("mcp_chatchat_mcp_server_database_query_template_query"),
             "tenant-1",
             "req-normalize-business-template-target",
             "conv-normalize-business-template-target",
@@ -3413,7 +3413,7 @@ class InterpretationPlanRuntimeTest {
     @Test
     void executesExactUserBoundDatabaseOpsTemplateToolWithoutBusinessSubstitution() {
         String requestedTool = "mcp_chatchat_mcp_server_database_ops_template_search";
-        String otherTool = "mcp_chatchat_mcp_server_business_query_template_search";
+        String otherTool = "mcp_chatchat_mcp_server_database_query_template_query";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool(any())).thenReturn(true);
         when(toolRegistry.getToolMetadata(any())).thenAnswer(invocation ->

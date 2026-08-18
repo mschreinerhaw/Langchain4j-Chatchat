@@ -814,8 +814,8 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
             new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
         );
         InteractionToolTrace trace = InteractionToolTrace.builder()
-            .toolName("mcp_chatchat_mcp_server_business_query_template_search")
-            .displayName("business_query_template_search")
+            .toolName("mcp_chatchat_mcp_server_database_query_template_query")
+            .displayName("database_query_template_query")
             .success(true)
             .durationMs(394L)
             .output("""
@@ -848,7 +848,7 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
 
         assertThat(result.answer())
             .contains("## 工具执行证据")
-            .contains("mcp_chatchat_mcp_server_business_query_template_search")
+            .contains("mcp_chatchat_mcp_server_database_query_template_query")
             .contains("证据类型 `json`")
             .contains("输出键=schemaVersion, querySchemaVersion")
             .contains("已返回结构化 JSON")

@@ -29,7 +29,7 @@ const SQL_START_RE = /^\s*(CREATE|WITH|SELECT|INSERT|UPDATE|DELETE|MERGE|ALTER|D
 const SQL_CONTINUATION_RE = /^\s*(USING|OPTIONS\s*\(|PARTITIONED\s+BY|TBLPROPERTIES\s*\(|LOCATION\b|COMMENT\b|AS\b|FROM\b|WHERE\b|JOIN\b|LEFT\b|RIGHT\b|INNER\b|OUTER\b|ON\b|GROUP\b|ORDER\b|HAVING\b|LIMIT\b|VALUES\b|URL\b|DBTABLE\b|USER\b|PASSWORD\b|DRIVER\b|PARTITIONCOLUMN\b|LOWERBOUND\b|UPPERBOUND\b|NUMPARTITIONS\b|FETCHSIZE\b|SESSIONINITSTATEMENT\b|\)|;|,)/i;
 const SECTION_BOUNDARY_RE = /^\s*(#{1,6}\s+|[-*]\s+\d+[.)]\s+|\d+[.)]\s+|[\[(].+[\])]\s*$)/;
 const JSON_START_RE = /^\s*[{[]\s*$/;
-const EXECUTED_SQL_CONTEXT_RE = /(business_query_template_search|sql_query_execute|sql_script_execute|\u6267\u884c\u7684?\s*SQL|\u5b9e\u9645\u6267\u884c\u8bed\u53e5|\u67e5\u8be2\u8bed\u53e5|\u5177\u4f53\u8bed\u53e5|operation\.statement|Executed\s+SQL|SQL\s+Statement)/i;
+const EXECUTED_SQL_CONTEXT_RE = /(database_query_template_query|sql_query_execute|sql_script_execute|\u6267\u884c\u7684?\s*SQL|\u5b9e\u9645\u6267\u884c\u8bed\u53e5|\u67e5\u8be2\u8bed\u53e5|\u5177\u4f53\u8bed\u53e5|operation\.statement|Executed\s+SQL|SQL\s+Statement)/i;
 
 function renderNormalizedMarkdown(source = "", env = {}) {
   return markdown.render(normalizeMarkdownTables(String(source || "")), env);

@@ -55,7 +55,7 @@ class AgentScenarioCatalogTest {
             List.of("sql_query_execute"),
             List.of(),
             Map.of("steps", List.of(
-                Map.of("step", 1, "tool", "business_query_template_search", "required", true),
+                Map.of("step", 1, "tool", "database_query_template_query", "required", true),
                 Map.of("step", 2, "tool", "sql_query_execute", "required", true)
             ))
         );
@@ -66,7 +66,7 @@ class AgentScenarioCatalogTest {
             .anySatisfy(issue -> {
                 assertThat(issue.agentId()).isEqualTo("business-query");
                 assertThat(issue.code()).isEqualTo("WORKFLOW_TOOL_NOT_BOUND");
-                assertThat(issue.message()).contains("business_query_template_search");
+                assertThat(issue.message()).contains("database_query_template_query");
             });
     }
 

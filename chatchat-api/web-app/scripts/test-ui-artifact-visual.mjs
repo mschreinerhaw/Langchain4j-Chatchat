@@ -39,9 +39,9 @@ try {
   await page.goto(`http://127.0.0.1:${port}/tests/ui-artifact-regression.html`, { waitUntil: "networkidle" });
   await page.locator('[data-case="panel"] canvas').waitFor({ state: "visible" });
 
-  assert(await page.locator(".regression-case").count() === 16, "回归夹具数量不完整");
-  assert(await page.locator(".query-result-table-card:not(.query-result-multi-dataset-card) table").count() === 8, "所有可恢复输入都应形成可用表格");
-  assert(await page.locator(".query-result-chart-button").count() === 9, "单表及多表可视化入口数量不正确");
+  assert(await page.locator(".regression-case").count() === 17, "回归夹具数量不完整");
+  assert(await page.locator(".query-result-table-card:not(.query-result-multi-dataset-card) table").count() === 9, "所有可恢复输入都应形成可用表格");
+  assert(await page.locator(".query-result-chart-button").count() === 10, "单表及多表可视化入口数量不正确");
   assert(await page.locator("text=|---|---|---:|").count() === 0, "旧管道表格仍显示为原始文本");
   assert(await page.locator("text=doc://20260804_5eee01fd").count() === 0, "内部文档定位符仍显示在报告中");
   assert(await page.locator("text=records[1…2]").count() === 0, "内部记录范围仍显示在报告中");
@@ -58,6 +58,11 @@ try {
     return payload.rows.find((row) => row["返回字段"] === "KHH")?.["返回值"];
   });
   assert(historicalAccount === "070200046604", "历史两列表未恢复或账号前导零丢失");
+
+  const structuredAnswer = page.locator('[data-case="structured-answer-block"]');
+  assert(await structuredAnswer.locator("table").count() === 1, "结构化答案块中的破损表格未恢复");
+  assert(await structuredAnswer.locator("thead th").count() === 6, "结构化答案块修复后列数不正确");
+  assert(await structuredAnswer.locator("tbody tr").count() === 2, "结构化答案块修复后数据行丢失");
 
   const wideLayout = await page.locator('[data-case="markdown-server"] .query-result-table-card').evaluate((card) => ({
     scrollable: card.scrollWidth > card.clientWidth,

@@ -178,7 +178,7 @@ const EvidenceResource = resourceComponent("ArtifactEvidence", (value, props) =>
           ]),
           text ? h("div", {
             class: "artifact-evidence-content message-markdown",
-            innerHTML: stripWebCitationMarkersFromHtml(markdown.render(String(text)))
+            innerHTML: stripWebCitationMarkersFromHtml(markdown.render(normalizeMarkdownTables(String(text))))
           }) : null
         ])
       ]);

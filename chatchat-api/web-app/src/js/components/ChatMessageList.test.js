@@ -60,6 +60,35 @@ describe("tool execution evidence", () => {
     expect(contractHtml).not.toContain("&#91;");
   });
 
+  it("repairs uneven Markdown tables inside structured answer blocks", () => {
+    const report = [
+      "## 当前持仓明细",
+      "返回 2 条当前持仓。",
+      "| 证券代码 (ZQDM) | 证券名称 (ZQMC) | 证券数量 (ZQSL) | 证券市值 (ZXSZ) | 当日盈亏 (DRYK) | 累计实现盈亏 (LJYK) |",
+      "|---|---:|---:|---:|---:|",
+      "| 600693 | 东百集团 | 2600 | 24544.00 | 749.61 | 5229.59 |",
+      "| 000155 | 川能动力 | 800 | 9808.00 | 0.00 | 1033.50 |"
+    ].join("\n");
+
+    const html = methods.renderMarkdown.call(context, report, {
+      role: "assistant",
+      sources: [],
+      traces: [],
+      uiResponse: {
+        contractVersion: "ui_response_v1",
+        answerBlocks: [{ type: "markdown", text: report }],
+        citations: []
+      }
+    });
+    const root = new DOMParser().parseFromString(`<main>${html}</main>`, "text/html").body.firstElementChild;
+
+    expect(root.querySelectorAll("table")).toHaveLength(1);
+    expect(root.querySelectorAll("thead th")).toHaveLength(6);
+    expect(root.querySelectorAll("tbody tr")).toHaveLength(2);
+    expect(root.querySelector(".query-result-table-toolbar")?.textContent).toContain("2 行 / 6 列");
+    expect(root.textContent).not.toContain("|---|");
+  });
+
   it("keeps tool execution evidence collapsed by default", () => {
     const element = render([
       "## 回答结论",

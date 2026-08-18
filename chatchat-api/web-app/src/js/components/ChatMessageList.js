@@ -31,6 +31,10 @@ const SECTION_BOUNDARY_RE = /^\s*(#{1,6}\s+|[-*]\s+\d+[.)]\s+|\d+[.)]\s+|[\[(].+
 const JSON_START_RE = /^\s*[{[]\s*$/;
 const EXECUTED_SQL_CONTEXT_RE = /(business_query_template_search|sql_query_execute|sql_script_execute|\u6267\u884c\u7684?\s*SQL|\u5b9e\u9645\u6267\u884c\u8bed\u53e5|\u67e5\u8be2\u8bed\u53e5|\u5177\u4f53\u8bed\u53e5|operation\.statement|Executed\s+SQL|SQL\s+Statement)/i;
 
+function renderNormalizedMarkdown(source = "", env = {}) {
+  return markdown.render(normalizeMarkdownTables(String(source || "")), env);
+}
+
 function escapeHtml(value) {
   return String(value || "")
     .replace(/&/g, "&amp;")
@@ -607,7 +611,7 @@ export default {
           this.collapseToolEvidenceHtml(this.enhanceResultTables(rendered))
         );
       }
-      const rendered = stripWebCitationMarkersFromHtml(markdown.render(normalizeMarkdownTables(prepared.content), {
+      const rendered = stripWebCitationMarkersFromHtml(renderNormalizedMarkdown(prepared.content, {
         webCitationUrls: new Set(prepared.citationUrls)
       }));
       return collapseRecordCoverageEvidenceHtml(
@@ -1294,7 +1298,7 @@ export default {
           }
           const linked = inlineWebCitationLinks(text, pages);
           linked.citationUrls.forEach((url) => citationUrls.add(url));
-          return `<section class="ui-render-answer-block">${markdown.render(linked.content, env)}</section>`;
+          return `<section class="ui-render-answer-block">${renderNormalizedMarkdown(linked.content, env)}</section>`;
         })
         .join("");
       const confidence = this.formatConfidencePercent(contract.confidence);
@@ -1756,7 +1760,7 @@ export default {
       const fallback = this.parseEvidenceExecutionAnswer(cleaned);
       const body = fallback
         ? this.renderEvidenceExecutionAnswer(fallback, citationUrls)
-        : markdown.render(cleaned, env);
+        : renderNormalizedMarkdown(cleaned, env);
       const reason = Array.isArray(errors) && errors.length
         ? `<span>${escapeHtml(errors.slice(0, 3).join("; "))}</span>`
         : "";

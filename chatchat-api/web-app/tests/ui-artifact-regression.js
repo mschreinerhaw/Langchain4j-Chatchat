@@ -6,12 +6,15 @@ import { enhanceResultTables } from "../src/js/utils/resultTableEnhancer.js";
 import { normalizeArtifactHtml } from "../src/js/utils/artifactHtmlNormalizer.js";
 import { stripInternalDocumentRefs } from "../src/js/utils/internalDocumentRefs.js";
 import { normalizeMarkdownTables } from "../src/js/utils/markdownTableNormalizer.js";
+import ChatMessageList from "../src/js/components/ChatMessageList.js";
 import VisualizationRenderer from "../src/components/VisualizationRenderer.vue";
 import PlanDagGraph from "../src/components/PlanDagGraph.vue";
 
 const markdown = new MarkdownIt({ html: false, linkify: true, typographer: true });
 const render = (source) => markdown.render(source);
 const renderReport = (source) => enhanceResultTables(render(normalizeMarkdownTables(stripInternalDocumentRefs(source))));
+const chatMethods = ChatMessageList.methods;
+const chatContext = Object.fromEntries(Object.entries(chatMethods).map(([name, method]) => [name, method]));
 
 const holdings = [
   "### 持仓明细：宽表与前导零",
@@ -84,6 +87,25 @@ const edgeValues = [
   "| 产品 C | 0 | 0% | null |"
 ].join("\n");
 
+const structuredAnswer = [
+  "### 结构化答案块：列数不一致自动修复",
+  "返回 2 条当前持仓。",
+  "| 证券代码 (ZQDM) | 证券名称 (ZQMC) | 证券数量 (ZQSL) | 证券市值 (ZXSZ) | 当日盈亏 (DRYK) | 累计实现盈亏 (LJYK) |",
+  "|---|---:|---:|---:|---:|",
+  "| 600693 | 东百集团 | 2600 | 24544.00 | 749.61 | 5229.59 |",
+  "| 000155 | 川能动力 | 800 | 9808.00 | 0.00 | 1033.50 |"
+].join("\n");
+const structuredAnswerHtml = chatMethods.renderMarkdown.call(chatContext, structuredAnswer, {
+  role: "assistant",
+  sources: [],
+  traces: [],
+  uiResponse: {
+    contractVersion: "ui_response_v1",
+    answerBlocks: [{ type: "markdown", text: structuredAnswer }],
+    citations: []
+  }
+});
+
 const cases = [
   ["markdown-holdings", "历史 Markdown 宽表（缺失分隔行）", renderReport(holdings)],
   ["markdown-server", "Markdown 配置表", renderReport(servers)],
@@ -92,7 +114,8 @@ const cases = [
   ["legacy-native", "旧 Artifact 原生 HTML", normalizeArtifactHtml(legacyHtml, render)],
   ["legacy-pipe", "旧 Artifact 管道文本", normalizeArtifactHtml(brokenHtml, render)],
   ["professional-report", "专业报告层级与内部标识清理", renderReport(professionalReport)],
-  ["edge-values", "空值 / 异常值 / 涨跌色", renderReport(edgeValues)]
+  ["edge-values", "空值 / 异常值 / 涨跌色", renderReport(edgeValues)],
+  ["structured-answer-block", "结构化答案块的破损表格恢复", structuredAnswerHtml]
 ];
 
 document.querySelector("#app").innerHTML = `

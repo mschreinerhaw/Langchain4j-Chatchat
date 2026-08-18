@@ -166,6 +166,13 @@ class AgentPlanner {
                 lastDecision = decision;
             }
             candidates.add(planCandidate(attempt, raw, lastDecision, validationContext));
+            if (shouldDeferInvalidPlanToAuthoritativeRuntime(lastDecision, validationContext)) {
+                log.info("agentPlannerAuthoritativeFallback phase=planner_parse runId={} attempt={}/{} "
+                        + "reason=invalid_plan_with_authoritative_workflow mandatoryToolCount={}",
+                    logRunId, attempt, maxAttempts,
+                    normalizeList(validationContext.mandatoryTools()).size());
+                break;
+            }
             if (hasPresentableRecoveredAnswer(lastDecision)
                 && normalizeList(validationContext.mandatoryTools()).isEmpty()) {
                 log.info("agentPlannerAcceptedPresentableAnswer phase=planner_parse runId={} attempt={}/{} "
@@ -656,6 +663,7 @@ class AgentPlanner {
                 .append(" input should contain filters or executionContext when exact logical context is known; use {\"filters\":{},\"limit\":10} for capped redacted candidate discovery when the user did not provide assetName/env/cluster/service.\n");
             prompt.append("- Asset names and routing labels are exact-match. Do not derive assetName, service, cluster, target, or labels unless that exact value appears in the current-turn user request or a prior tool observation returned it. Historical conversation targets and model-generated plan text are not valid asset-name evidence.\n");
             prompt.append("- Model intent recognition is required before asset discovery. When the user asks a high-level or aggregated question, produce filters.intentCandidates sorted by score/confidence. Include every candidate with score >= 0.75 in filters.queryTerms/retrievalSignals; if none reaches 0.75, use the top two candidates. Add the original user question too. Each candidate may include multi-query expansions under queries/queryTerms/expandedQueries/keywords for the resolver to retrieve across the intent ensemble. Also keep the semantic target and task under filters.intent, filters.goal, filters.keywords, and when useful filters.bilingualIntent/intentAliases/intentZh/intentEn. These fields are retrieval signals, not exact routing labels.\n");
+            prompt.append("- When the request explicitly states a value for a logical filter dimension published by the tool, preserve it in that canonical filter field as well as in retrieval terms (for example databaseType=oracle, dialect=postgresql, or env=DEV). Never infer an exact assetName, service, cluster, endpoint, or physical target from descriptive intent.\n");
             prompt.append("- Generate abbreviation-aware retrieval terms for short candidate asset names and capability phrases. Add at most 4 lowercase aliases to filters.queryTerms/keywords: Chinese phrases use pinyin initials (for example, \u6570\u636e\u670d\u52a1\u4e2d\u5fc3 -> sjfwzx); multi-word, camelCase, snake_case, or kebab-case English names use word initials (Example Metric Service/example_metric_service -> ems). Keep every original phrase beside its alias, limit generated aliases to 2-16 characters, and never abbreviate a full user sentence, description, command, or SQL text. Generated aliases are weak retrieval signals only; never put them in assetName, service, cluster, labels, template, or templateId. If the user supplied a compact abbreviation, preserve it and add a plausible full phrase only when supported by the request; do not guess an exact registered identity.\n");
             prompt.append("- Never concatenate an assetName with descriptive text, asset type, capability, or assumption. For example, keep the user-provided asset phrase unchanged; if the exact asset name is uncertain, omit filters.assetName and use semantic retrieval filters instead of pretending the phrase is an exact registered name.\n");
             prompt.append("- Do not invent service labels such as service:<topic> from natural-language topic words until an asset/tool observation proves they are registered routing labels.\n");
@@ -1051,15 +1059,22 @@ class AgentPlanner {
             validationMetadata.put("interpretationPlanOptimizationPasses", optimization.appliedPasses());
         }
         if (optimization.appliedPasses().contains("AuthoritativeWorkflowDagPass")) {
+            boolean repairedCandidateValid = validation.valid() && runtimeIssues.isEmpty();
+            String repairState = repairedCandidateValid ? "APPLIED" : "REJECTED";
+            String repairCode = repairedCandidateValid
+                ? "AUTHORITATIVE_WORKFLOW_DAG_RESTORED"
+                : "AUTHORITATIVE_WORKFLOW_DAG_RESTORED_PLAN_INVALID";
             Map<String, Object> repairEvent = Map.of(
                 "contractVersion", "runtime_dag_governance.v1",
                 "eventKind", "DAG_REPAIR",
-                "eventState", "APPLIED",
-                "repairCode", "AUTHORITATIVE_WORKFLOW_DAG_RESTORED",
+                "eventState", repairState,
+                "repairCode", repairCode,
+                "topologyRestored", true,
+                "candidateValid", repairedCandidateValid,
                 "source", "user_defined_mcp_workflow"
             );
             validationMetadata.put("eventKind", "DAG_REPAIR");
-            validationMetadata.put("eventState", "APPLIED");
+            validationMetadata.put("eventState", repairState);
             validationMetadata.put("repairEvent", repairEvent);
         }
         if (validationContext != null && validationContext.budgetCaps() != null
@@ -1792,6 +1807,14 @@ class AgentPlanner {
             && ("non_json_response".equals(decision.reason())
             || plannerPlanInvalid(decision) || (requiresStrictInterpretationPlan(context)
             && "legacy_action_not_allowed".equals(decision.reason())));
+    }
+
+    private boolean shouldDeferInvalidPlanToAuthoritativeRuntime(AgentDecision decision,
+                                                                  PlannerValidationContext context) {
+        return plannerPlanInvalid(decision)
+            && context != null
+            && !normalizeList(context.mandatoryTools()).isEmpty()
+            && !authoritativeWorkflowNodes(context.authoritativeWorkflowDag()).isEmpty();
     }
 
     private void logPlannerRawOutput(String runId, int attempt, int maxAttempts, String raw) {

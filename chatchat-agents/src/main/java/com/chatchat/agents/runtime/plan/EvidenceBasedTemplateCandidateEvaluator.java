@@ -17,13 +17,17 @@ import java.util.Set;
  * selected, and model decisions are projected onto the candidate list before any
  * downstream template binding is resolved.</p>
  */
-final class EvidenceBasedTemplateCandidateEvaluator {
+public final class EvidenceBasedTemplateCandidateEvaluator {
 
-    Evaluation evaluate(Object output, Map<String, Object> reviewMetadata) {
+    public Evaluation evaluate(Object output, Map<String, Object> reviewMetadata) {
         Map<String, Object> metadata = reviewMetadata == null ? Map.of() : reviewMetadata;
         List<String> selectedIds = strings(metadata.get("selectedTemplateIds"));
         List<String> rejectedIds = strings(metadata.get("rejectedTemplateIds"));
         List<Map<String, Object>> evaluations = maps(metadata.get("templateEvaluations"));
+        if (Boolean.TRUE.equals(metadata.get("toolResultReviewUnavailable"))
+            || Boolean.TRUE.equals(metadata.get("toolResultReviewSkipped"))) {
+            return Evaluation.notApplied(output, "Model candidate reviewer was unavailable.");
+        }
         if (selectedIds.isEmpty()) {
             selectedIds = evaluations.stream()
                 .filter(this::acceptedEvaluation)
@@ -37,10 +41,6 @@ final class EvidenceBasedTemplateCandidateEvaluator {
                 .map(item -> text(first(item, "templateId", "template_id")))
                 .filter(Objects::nonNull)
                 .toList();
-        }
-        if (selectedIds.isEmpty() && rejectedIds.isEmpty()) {
-            return Evaluation.notApplied(output,
-                "model review returned no candidate admission decision");
         }
         Projection projection = project(output, selectedIds, rejectedIds, evaluations, 0);
         if (!projection.applied()) {
@@ -109,20 +109,32 @@ final class EvidenceBasedTemplateCandidateEvaluator {
                 .filter(Objects::nonNull)
                 .map(this::normalize)
                 .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+            boolean uniqueCandidateFallback = selectedIds.isEmpty()
+                && rejectedIds.isEmpty() && byId.size() == 1;
+            List<String> effectiveSelectedIds = uniqueCandidateFallback
+                ? List.copyOf(byId.keySet()) : selectedIds;
             List<Map<String, Object>> selected = new ArrayList<>();
-            if (!selectedIds.isEmpty()) {
-                for (String id : selectedIds) {
+            if (!effectiveSelectedIds.isEmpty()) {
+                for (String id : effectiveSelectedIds) {
                     Map<String, Object> template = id == null ? null : byId.get(normalize(id));
                     if (template != null && !selected.contains(template)) {
                         selected.add(template);
                     }
                 }
+            } else if (!rejected.isEmpty()) {
+                // Rejection-only review is decisive only when elimination leaves one
+                // candidate (or none). Keeping several survivors would silently turn
+                // an incomplete model decision into Java-side semantic selection.
+                List<Map<String, Object>> survivors = byId.entrySet().stream()
+                    .filter(entry -> !rejected.contains(entry.getKey()))
+                    .map(Map.Entry::getValue)
+                    .toList();
+                if (survivors.size() > 1) {
+                    return new Projection(output, templates.size(), 0, List.of(), false);
+                }
+                selected.addAll(survivors);
             } else {
-                byId.forEach((id, template) -> {
-                    if (!rejected.contains(id)) {
-                        selected.add(template);
-                    }
-                });
+                return new Projection(output, templates.size(), 0, List.of(), false);
             }
             if (selected.isEmpty()) {
                 boolean reviewedAndRejectedAll = !byId.isEmpty()
@@ -157,7 +169,8 @@ final class EvidenceBasedTemplateCandidateEvaluator {
                 "selectedTemplateIds", projectedIds,
                 "rejectedTemplateIds", rejectedIds,
                 "candidateEvaluations", evaluations,
-                "selectionAuthority", "runtime_evidence_model_review",
+                "selectionAuthority", uniqueCandidateFallback
+                    ? "runtime_unique_candidate" : "runtime_evidence_model_review",
                 "mcpScoresAreWeakPriors", true
             ));
             return new Projection(map, templates.size(), selected.size(), projectedIds, true);
@@ -260,7 +273,7 @@ final class EvidenceBasedTemplateCandidateEvaluator {
         return List.copyOf(values);
     }
 
-    record Evaluation(
+    public record Evaluation(
         Object output,
         int candidateCount,
         int selectedCount,

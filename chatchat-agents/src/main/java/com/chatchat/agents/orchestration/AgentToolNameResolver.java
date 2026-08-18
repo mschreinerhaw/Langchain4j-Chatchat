@@ -106,6 +106,14 @@ class AgentToolNameResolver {
         return toolName != null && toolName.toLowerCase(Locale.ROOT).contains(DOCUMENT_SEARCH_TOOL);
     }
 
+    boolean isAssetDiscoveryToolName(String toolName) {
+        return McpToolRouter.ASSET_DISCOVERY.equals(toolSemanticKey(toolName));
+    }
+
+    boolean isTemplateDiscoveryToolName(String toolName) {
+        return McpToolRouter.TEMPLATE_DISCOVERY.equals(toolSemanticKey(toolName));
+    }
+
     private String normalizeKnownToolAlias(String toolName) {
         if (toolName == null || toolName.isBlank()) {
             return null;

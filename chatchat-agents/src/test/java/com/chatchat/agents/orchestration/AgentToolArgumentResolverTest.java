@@ -1039,6 +1039,109 @@ class AgentToolArgumentResolverTest {
     }
 
     @Test
+    void mandatoryRecoveryCompilesEveryCompatibleAdmittedTemplateIntoBatch() {
+        String firstId = "runtime_health_a_" + System.nanoTime();
+        String secondId = "runtime_health_b_" + System.nanoTime();
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .toolName("mcp_runtime_database_template_query")
+            .success(true)
+            .output("""
+                {"templates":[
+                  {"templateId":"%s","parameterContract":{"executionTool":"sql_query_execute"},
+                   "parameterSchema":{"type":"object","properties":{},"required":[]}},
+                  {"templateId":"%s","parameterContract":{"executionTool":"sql_query_execute"},
+                   "parameterSchema":{"type":"object","properties":{},"required":[]}},
+                  {"templateId":"runtime_script","parameterContract":{"executionTool":"sql_script_execute"},
+                   "parameterSchema":{"type":"object","properties":{},"required":[]}}
+                ]}
+                """.formatted(firstId, secondId))
+            .build();
+
+        Map<String, Object> result = resolver.applyDeterministicDependencyContracts(
+            "mcp_runtime_sql_query_execute",
+            Map.of("purpose", "run the admitted health checks"),
+            List.of(discovery),
+            "run the admitted health checks"
+        );
+
+        assertThat(result)
+            .containsEntry("executionMode", "SEQUENTIAL")
+            .containsEntry("stopOnFailure", false)
+            .doesNotContainKeys("template", "templateId", "__runtimeParamBindingStatus");
+        assertThat(result.get("calls")).isInstanceOfSatisfying(List.class, calls -> {
+            assertThat(calls).hasSize(2);
+            assertThat(calls.toString()).contains(firstId, secondId).doesNotContain("runtime_script");
+        });
+    }
+
+    @Test
+    void mandatoryRecoveryRejectsExecutorWithoutCompatibleDiscoveredTemplate() {
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .toolName("mcp_runtime_database_template_search")
+            .success(true)
+            .output("""
+                {"templates":[{
+                  "templateId":"runtime_scalar_query",
+                  "parameterContract":{"executionTool":"sql_query_execute"},
+                  "parameterSchema":{"type":"object","properties":{},"required":[]}
+                }]}
+                """)
+            .build();
+
+        Map<String, Object> result = resolver.applyDeterministicDependencyContracts(
+            "mcp_runtime_sql_script_execute",
+            Map.of("purpose", "run the configured workflow"),
+            List.of(discovery),
+            "run the configured workflow"
+        );
+
+        assertThat(result)
+            .containsEntry("__runtimeParamBindingStatus", "DENIED")
+            .containsEntry("__runtimeParamBindingCode", "NO_COMPATIBLE_TEMPLATE_EXECUTOR");
+        assertThat(result.get("__runtimeParamBindingError").toString())
+            .contains("sql_script_execute", "sql_query_execute");
+    }
+
+    @Test
+    void mandatoryRecoveryDoesNotApplyTemplateContractToIndependentMetadataTool() {
+        String metadataTool = "mcp_runtime_sql_metadata_search";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getToolMetadata(metadataTool)).thenReturn(ToolMetadata.builder()
+            .id(metadataTool)
+            .metadata(Map.of("mcpToolMeta", Map.of(
+                "doesNotExecuteSql", true,
+                "applicability", Map.of("scopeLabel", "sql_datasource:schema_discovery")
+            )))
+            .build());
+        AgentToolArgumentResolver contractResolver =
+            new AgentToolArgumentResolver(new AgentToolNameResolver(), 5, registry);
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .toolName("mcp_runtime_database_template_search")
+            .success(true)
+            .output("""
+                {"templates":[{
+                  "templateId":"ORACLE_SESSION_OVERVIEW",
+                  "parameterContract":{"executionTool":"sql_query_execute"},
+                  "parameterSchema":{"type":"object","properties":{},"required":[]}
+                }]}
+                """)
+            .build();
+
+        Map<String, Object> result = contractResolver.applyDeterministicDependencyContracts(
+            metadataTool,
+            Map.of("query", "Oracle risk-control schema"),
+            List.of(discovery),
+            "inspect Oracle risk-control metadata"
+        );
+
+        assertThat(result)
+            .containsEntry("query", "Oracle risk-control schema")
+            .doesNotContainKeys("__runtimeParamBindingStatus", "__runtimeParamBindingCode",
+                "__runtimeParamBindingError", "template", "calls");
+    }
+
+
+    @Test
     void notificationToolBindsMessageDefaultsFromUserQuery() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         String toolName = "mcp_chatchat_mcp_server_notify_ops";

@@ -39,6 +39,8 @@ import com.chatchat.agents.runtime.plan.InterpretationPlanStore;
 import com.chatchat.agents.runtime.plan.NodeAttemptStore;
 import com.chatchat.agents.runtime.plan.InterpretationPlanOptimizer;
 import com.chatchat.agents.runtime.plan.InterpretationPlanValidator;
+import com.chatchat.agents.runtime.plan.EvidenceBasedAssetCandidateEvaluator;
+import com.chatchat.agents.runtime.plan.EvidenceBasedTemplateCandidateEvaluator;
 import com.chatchat.agents.runtime.plan.RetrievalQualityGate;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.interaction.InteractionToolTrace;
@@ -760,6 +762,26 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 )
             );
 
+            boolean authoritativeRuntimeFallback = decision.interpretationPlan() != null
+                && "invalid_interpretation_plan".equals(decision.reason())
+                && !authoritativeWorkflowDag.isEmpty()
+                && !plannerMandatoryTools.isEmpty();
+            if (authoritativeRuntimeFallback) {
+                metadata.put("authoritativeRuntimeFallbackAfterInvalidPlan", true);
+                metadata.put("authoritativeRuntimeFallbackStep", step);
+                metadata.put("authoritativeRuntimeFallbackPendingTools", List.copyOf(plannerMandatoryTools));
+                Map<String, Map<String, Object>> candidateInputs =
+                    authoritativeWorkflowCandidateInputs(decision.interpretationPlan(), authoritativeWorkflowDag);
+                if (!candidateInputs.isEmpty()) {
+                    requestRuntimeAttributes.put("authoritativeWorkflowCandidateInputs", candidateInputs);
+                    metadata.put("authoritativeWorkflowCandidateInputTools", List.copyOf(candidateInputs.keySet()));
+                }
+                observations.add("Planner candidate remained invalid after authoritative DAG topology repair. "
+                    + "Runtime stopped model replanning and delegated the pending Ready workflow tools to the "
+                    + "deterministic Java scheduler: " + plannerMandatoryTools + ".");
+                break;
+            }
+
             if (decision.interpretationPlan() != null
                 && Boolean.TRUE.equals(decision.executionPlan().get("interpretationPlanValid"))) {
                 Set<String> eventCompletedTools = completedWorkflowToolsFromEvents(
@@ -938,7 +960,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
             runtimeGuard.checkCancelled(cancellationCheck);
         }
 
-        if (requireToolBeforeFinal && traces.isEmpty()) {
+        if (requireToolBeforeFinal && traces.isEmpty() && authoritativeWorkflowDag.isEmpty()) {
             runtimeGuard.checkCancelled(cancellationCheck);
             String fallbackTool = mandatoryTools.get(0);
             Map<String, Object> fallbackArguments = toolArguments.applyToolDefaults(
@@ -992,7 +1014,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 webSearchResultLimit,
                 metadata,
                 requestRuntimeAttributes,
-                maxToolCalls
+                maxToolCalls,
+                systemPrompt,
+                cancellationCheck
             );
             if (Boolean.TRUE.equals(metadata.get("confirmationRequired"))) {
                 return answerFinalizer.finishExecution("", traces, metadata, observations);
@@ -1602,7 +1626,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
             webSearchResultLimit,
             metadata,
             runtimeAttributes,
-            maxToolCalls
+            maxToolCalls,
+            systemPrompt,
+            cancellationCheck
         );
         if (Boolean.TRUE.equals(metadata.get("confirmationRequired"))) {
             return answerFinalizer.finishExecution("", traces, metadata, observations);
@@ -1912,6 +1938,14 @@ public class AgentOrchestrator implements AgentRunExecutor {
             + ".");
         metadata.put("failureSummaryRequiresToolCompletionContext", true);
         metadata.put("deterministicMandatoryWorkflowFailure", true);
+        String workflowContractError = stringValue(metadata.get("mandatoryWorkflowContractError"));
+        if (workflowContractError != null && !workflowContractError.isBlank()) {
+            String contractFailure = "必需工具 " + String.join(", ", missingMandatoryTools)
+                + " 未执行：模板发现结果没有提供与该执行器兼容的运行时合同。"
+                + " 已完成的工具证据均已保留；请检查工作流必需工具配置或维护匹配的模板。"
+                + " 技术原因：" + workflowContractError;
+            return answerFinalizer.finishExecution(contractFailure, traces, metadata, observations);
+        }
         String deterministicFailure = "必需工具 "
             + String.join(", ", missingMandatoryTools)
             + " 未执行到终态，本次执行被工作流依赖校验阻断。"
@@ -4605,8 +4639,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("- Treat retrieval score as a weak prior only. Your semantic evidence evaluation must state relevance, answerability, supported aspects, missing aspects, usefulness, and whether another query expansion is needed.\n");
         prompt.append("- For template discovery and API/HTTP requirement analysis, compare title, description, capabilitySpec, outputSchema, dependencySpec and required parameters with the current requirement. Return only ids present in the tool output under selected_template_ids/rejected_template_ids. If candidates do not cover the requirement, set satisfied=false and provide refined_intent.\n");
         prompt.append("- When the plan has diagnostic_profile checks, selected templates must cover those checks by their full declared capability and dimension meaning. A single generic shared token is insufficient. Prefer the candidate that matches the check-specific template metadata; reject unrelated substitutes and request refined retrieval when the intended capability is absent.\n");
-        prompt.append("- For asset discovery with multiple candidates, compare only returned routing metadata with the current target. Return selected_asset_ids/rejected_asset_ids and one asset_evaluations entry per candidate. Asset discovery proves routing eligibility, never target health or business state.\n");
-        prompt.append("- Template retrieval scores and ordering are weak recall priors, never acceptance decisions. Semantically review every returned template candidate.\n");
+        prompt.append("- For every asset discovery result, including a single candidate, compare only returned routing metadata with the current target. Return at least one id present in the result under selected_asset_ids when satisfied=true, plus rejected_asset_ids and one asset_evaluations entry per candidate. Asset discovery proves routing eligibility, never target health or business state.\n");
+        prompt.append("- Template retrieval scores and ordering are weak recall priors, never acceptance decisions. Semantically review every returned template candidate, including a single candidate. satisfied=true requires at least one returned id in selected_template_ids or an accept template_evaluations decision.\n");
         prompt.append("- When governed template discovery returns multiple admitted templates, every template remaining in that discovery result is execution-required. A scalar templates[0] plan binding does not reduce this set: Runtime compiles all admitted templates into a failure-isolated batch and final synthesis must wait for a terminal result from every call. selected_template_ids may order or narrow candidates only during the discovery admission decision; it may never be used after admission to skip physical execution.\n");
         prompt.append("- Put unrelated or materially weaker candidates in rejected_template_ids. Do not select a template merely because Lucene ranked it first or its score ties another candidate.\n");
         prompt.append("- For each returned template candidate, emit template_evaluations with evidence-based relevance, evidence_fit, parameter_readiness, total_score, decision, reasons, and missing_parameters. Scores are 0..1 and must be justified by returned metadata and the current user request.\n");
@@ -6577,19 +6611,24 @@ public class AgentOrchestrator implements AgentRunExecutor {
         }
         String repairCode = firstNonBlank(
             stringValue(repairEvent.get("repairCode")), "AUTHORITATIVE_DAG_REPAIR");
+        String eventState = firstNonBlank(
+            stringValue(repairEvent.get("eventState")), "APPLIED");
+        boolean applied = "APPLIED".equalsIgnoreCase(eventState);
         runResultAdapter.recordRuntimeObservation(
             runtimeAttributes,
             AGENT_RUN_ID_ATTRIBUTE,
-            "Runtime restored the planner DAG from the authoritative workflow contract ("
-                + repairCode + ").",
+            applied
+                ? "Runtime restored and validated the planner DAG from the authoritative workflow contract ("
+                    + repairCode + ")."
+                : "Runtime restored the authoritative workflow topology, but the planner candidate remained invalid ("
+                    + repairCode + "); deterministic Java scheduling will evaluate the pending Ready tools.",
             "interpretation_plan_repair",
             metadataOf(
                 "type", "repair",
                 "workflow", "interpretation_plan",
                 "lifecyclePhase", "dag_repair",
                 "eventKind", "DAG_REPAIR",
-                "eventState", firstNonBlank(
-                    stringValue(repairEvent.get("eventState")), "APPLIED"),
+                "eventState", eventState,
                 "repairEvent", repairEvent
             )
         );
@@ -7460,7 +7499,10 @@ public class AgentOrchestrator implements AgentRunExecutor {
                                                   int webSearchResultLimit,
                                                   Map<String, Object> metadata,
                                                   Map<String, Object> runtimeAttributes,
-                                                  int maxToolCalls) {
+                                                  int maxToolCalls,
+                                                  String systemPrompt,
+                                                  BooleanSupplier cancellationCheck) {
+        Map<String, InteractionToolTrace> reviewedDiscoveryTraces = new LinkedHashMap<>();
         List<String> fallbackTools = new ArrayList<>();
         Set<String> completedTools = completedWorkflowToolsFromEvents(
             runtimeAttributes,
@@ -7509,7 +7551,13 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 return;
             }
             List<InteractionToolTrace> predecessorTraces =
-                mandatoryPredecessorTraces(mandatoryTools, fallbackTool, traces);
+                mandatoryPredecessorTraces(
+                    runtimeAttributes == null ? null : runtimeAttributes.get("authoritativeWorkflowDag"),
+                    mandatoryTools,
+                    fallbackTool,
+                    traces
+                );
+            predecessorTraces = reviewedDependencyTraces(predecessorTraces, reviewedDiscoveryTraces);
             Map<String, Object> predecessorReview =
                 mandatoryWorkflowPredecessorReview(fallbackTool, predecessorTraces);
             if (!Boolean.TRUE.equals(predecessorReview.get("satisfied"))) {
@@ -7520,9 +7568,13 @@ public class AgentOrchestrator implements AgentRunExecutor {
                     + stringify(predecessorReview));
                 return;
             }
+            Map<String, Object> candidateArguments = authoritativeWorkflowCandidateInput(
+                runtimeAttributes, fallbackTool);
             Map<String, Object> fallbackArguments = toolArguments.applyToolDefaults(
                 fallbackTool,
-                toolArguments.defaultToolArguments(fallbackTool, query, webSearchResultLimit),
+                candidateArguments.isEmpty()
+                    ? toolArguments.defaultToolArguments(fallbackTool, query, webSearchResultLimit)
+                    : candidateArguments,
                 documentIds,
                 documentTags,
                 query,
@@ -7534,6 +7586,21 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 predecessorTraces,
                 query
             );
+            if ("DENIED".equals(fallbackArguments.get(McpParamBindingResolver.STATUS_KEY))) {
+                String contractCode = firstNonBlank(
+                    stringValue(fallbackArguments.get(McpParamBindingResolver.CODE_KEY)),
+                    "INVALID_TOOL_ARGUMENTS");
+                String contractError = firstNonBlank(
+                    stringValue(fallbackArguments.get(McpParamBindingResolver.ERROR_KEY)),
+                    "The predecessor evidence did not authorize a compatible invocation contract.");
+                metadata.put("mandatoryWorkflowStoppedOnFailure", fallbackTool);
+                metadata.put("mandatoryWorkflowContractCode", contractCode);
+                metadata.put("mandatoryWorkflowContractError", contractError);
+                observations.add("Mandatory workflow fallback did not invoke " + fallbackTool
+                    + " because its runtime-owned dependency contract was not executable: "
+                    + contractCode + " - " + contractError);
+                return;
+            }
             List<String> missingRequiredInputs = missingRequiredToolInputs(fallbackTool, fallbackArguments);
             if (!missingRequiredInputs.isEmpty()) {
                 metadata.put("mandatoryWorkflowStoppedOnFailure", fallbackTool);
@@ -7561,7 +7628,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 tenantId,
                 tools,
                 Map.of(),
-                traces,
+                reviewedDependencyTraces(traces, reviewedDiscoveryTraces),
                 workflowStateTracker.attributesWithCompletedTools(runtimeAttributes, completedTools)
             );
             RetrievalQualityGate.Evaluation enhancedQuality = enrichment.qualityGate().isEmpty()
@@ -7579,7 +7646,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
                     tenantId,
                     tools,
                     Map.of(),
-                    traces,
+                    reviewedDependencyTraces(traces, reviewedDiscoveryTraces),
                     workflowStateTracker.attributesWithCompletedTools(runtimeAttributes, completedTools)
                 );
                 originalQuality = RetrievalQualityGate.evaluate(
@@ -7618,6 +7685,31 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 metadata.put("mandatoryWorkflowStoppedOnFailure", fallbackTool);
                 return;
             }
+            MandatoryCandidateReview semanticReview = reviewMandatoryDiscoveryCandidates(
+                activeChatModel,
+                query,
+                systemPrompt,
+                cancellationCheck,
+                fallbackTool,
+                fallbackArguments,
+                execution.output(),
+                runtimeAttributes
+            );
+            if (semanticReview.required()) {
+                appendMandatorySemanticCandidateReview(metadata, semanticReview);
+                observations.add("Mandatory workflow semantic candidate review: "
+                    + stringify(semanticReview.auditMetadata()));
+                if (!semanticReview.satisfied()) {
+                    metadata.put("mandatoryWorkflowStoppedOnFailure", fallbackTool);
+                    metadata.put("mandatoryWorkflowSemanticReviewBlocked", true);
+                    metadata.put("mandatoryWorkflowSemanticReviewReason", semanticReview.reason());
+                    return;
+                }
+                reviewedDiscoveryTraces.put(
+                    fallbackTool,
+                    projectedDependencyTrace(execution.trace(), semanticReview.projectedOutput(), semanticReview)
+                );
+            }
             runtimeAttributes = workflowStateTracker.attributesWithCompletedTools(
                 runtimeAttributes,
                 completedWorkflowToolsFromEvents(runtimeAttributes, workflowStateTracker.completedToolsFromTraces(traces))
@@ -7632,6 +7724,177 @@ public class AgentOrchestrator implements AgentRunExecutor {
             metadata.put("mandatoryWorkflowRecoveredAfterPlan", true);
         } else {
             metadata.put("mandatoryWorkflowStillMissingAfterFallback", remainingMandatoryTools);
+        }
+    }
+
+    MandatoryCandidateReview reviewMandatoryDiscoveryCandidates(
+        ChatModel activeChatModel,
+        String query,
+        String systemPrompt,
+        BooleanSupplier cancellationCheck,
+        String toolName,
+        Map<String, Object> input,
+        ToolOutput output,
+        Map<String, Object> runtimeAttributes
+    ) {
+        boolean assetDiscovery = toolNames.isAssetDiscoveryToolName(toolName);
+        boolean templateDiscovery = toolNames.isTemplateDiscoveryToolName(toolName);
+        if (!assetDiscovery && !templateDiscovery) {
+            return MandatoryCandidateReview.notRequired();
+        }
+        if (output == null || !output.isSuccess()) {
+            return MandatoryCandidateReview.rejected(
+                "candidate discovery did not return a successful ToolOutput", Map.of());
+        }
+        Map<String, Object> factMetadata = new LinkedHashMap<>();
+        factMetadata.put("localDecisionPhase", "fact_check");
+        factMetadata.put("localFactCheckSatisfied", true);
+        factMetadata.put("localFactCheckHasEvidence", true);
+        factMetadata.put("localFactCheckEvidenceType", assetDiscovery
+            ? "asset_discovery" : "template_discovery");
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            1, "mcp_tool", toolName,
+            input == null ? Map.of() : new LinkedHashMap<>(input),
+            List.of(), null, null
+        );
+        InterpretationPlanRuntime.StepExecution stepExecution = new InterpretationPlanRuntime.StepExecution(
+            1, "mcp_tool", toolName, true, output.getData(), null,
+            null, null, output.getExecutionTimeMs() == null ? 0L : output.getExecutionTimeMs(),
+            factMetadata
+        );
+        InterpretationPlanRuntime.StepReview review = reviewInterpretationPlanToolResult(
+            activeChatModel,
+            query,
+            systemPrompt,
+            cancellationCheck,
+            new InterpretationPlanRuntime.StepReviewRequest(
+                null, step, stepExecution, Map.of(), 1, 1,
+                runtimeAttributes == null ? null : stringValue(runtimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE))
+            )
+        );
+        if (review == null) {
+            return MandatoryCandidateReview.rejected(
+                "model candidate reviewer returned no decision", Map.of()
+            );
+        }
+        if (assetDiscovery) {
+            EvidenceBasedAssetCandidateEvaluator.Evaluation evaluation =
+                new EvidenceBasedAssetCandidateEvaluator().evaluate(output.getData(), review.metadata());
+            boolean accepted = evaluation.applied() && evaluation.selectedCount() > 0;
+            Map<String, Object> audit = new LinkedHashMap<>(review.metadata());
+            audit.put("reviewerSatisfied", review.satisfied());
+            audit.put("candidateType", "ASSET");
+            audit.put("candidateCount", evaluation.candidateCount());
+            audit.put("selectedCount", evaluation.selectedCount());
+            audit.put("selectedIds", evaluation.selectedIds());
+            audit.put("projectionApplied", evaluation.applied());
+            return accepted
+                ? MandatoryCandidateReview.accepted(review.reason(), evaluation.output(), audit)
+                : MandatoryCandidateReview.rejected(
+                    "model review did not admit any asset id from the returned candidate set",
+                    audit
+                );
+        }
+        EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
+            new EvidenceBasedTemplateCandidateEvaluator().evaluate(output.getData(), review.metadata());
+        boolean accepted = evaluation.applied() && evaluation.selectedCount() > 0;
+        Map<String, Object> audit = new LinkedHashMap<>(review.metadata());
+        audit.put("reviewerSatisfied", review.satisfied());
+        audit.put("candidateType", "TEMPLATE");
+        audit.put("candidateCount", evaluation.candidateCount());
+        audit.put("selectedCount", evaluation.selectedCount());
+        audit.put("selectedIds", evaluation.selectedIds());
+        audit.put("projectionApplied", evaluation.applied());
+        return accepted
+            ? MandatoryCandidateReview.accepted(review.reason(), evaluation.output(), audit)
+            : MandatoryCandidateReview.rejected(
+                "model review did not admit any template id from the returned candidate set",
+                audit
+            );
+    }
+
+    private List<InteractionToolTrace> reviewedDependencyTraces(
+        List<InteractionToolTrace> traces,
+        Map<String, InteractionToolTrace> reviewedDiscoveryTraces
+    ) {
+        if (traces == null || traces.isEmpty() || reviewedDiscoveryTraces == null
+            || reviewedDiscoveryTraces.isEmpty()) {
+            return traces == null ? List.of() : traces;
+        }
+        List<InteractionToolTrace> projected = new ArrayList<>(traces.size());
+        for (InteractionToolTrace trace : traces) {
+            InteractionToolTrace replacement = trace == null ? null
+                : reviewedDiscoveryTraces.entrySet().stream()
+                    .filter(entry -> toolNames.sameToolName(entry.getKey(), trace.getToolName()))
+                    .map(Map.Entry::getValue)
+                    .findFirst()
+                    .orElse(null);
+            projected.add(replacement == null ? trace : replacement);
+        }
+        return List.copyOf(projected);
+    }
+
+    private InteractionToolTrace projectedDependencyTrace(
+        InteractionToolTrace original,
+        Object projectedOutput,
+        MandatoryCandidateReview review
+    ) {
+        Map<String, Object> runtimeMetadata = new LinkedHashMap<>(
+            original == null || original.getRuntimeMetadata() == null
+                ? Map.of() : original.getRuntimeMetadata());
+        runtimeMetadata.put("semanticCandidateReviewSatisfied", true);
+        runtimeMetadata.put("semanticCandidateReview", review.auditMetadata());
+        return InteractionToolTrace.builder()
+            .toolName(original == null ? null : original.getToolName())
+            .displayName(original == null ? null : original.getDisplayName())
+            .serviceId(original == null ? null : original.getServiceId())
+            .serviceName(original == null ? null : original.getServiceName())
+            .success(original == null || original.isSuccess())
+            .input(original == null ? Map.of() : original.getInput())
+            .output(stringify(projectedOutput))
+            .errorMessage(original == null ? null : original.getErrorMessage())
+            .durationMs(original == null ? null : original.getDurationMs())
+            .startedAt(original == null ? null : original.getStartedAt())
+            .finishedAt(original == null ? null : original.getFinishedAt())
+            .runtimeMetadata(runtimeMetadata)
+            .build();
+    }
+
+    @SuppressWarnings("unchecked")
+    private void appendMandatorySemanticCandidateReview(Map<String, Object> metadata,
+                                                        MandatoryCandidateReview review) {
+        List<Map<String, Object>> reviews = metadata.get("mandatorySemanticCandidateReviews") instanceof List<?> existing
+            ? new ArrayList<>((List<Map<String, Object>>) existing)
+            : new ArrayList<>();
+        Map<String, Object> audit = new LinkedHashMap<>(review.auditMetadata());
+        audit.put("schemaVersion", "mandatory_semantic_candidate_review.v1");
+        audit.put("satisfied", review.satisfied());
+        audit.put("reason", review.reason());
+        reviews.add(Map.copyOf(audit));
+        metadata.put("mandatorySemanticCandidateReviews", List.copyOf(reviews));
+    }
+
+    record MandatoryCandidateReview(
+        boolean required,
+        boolean satisfied,
+        String reason,
+        Object projectedOutput,
+        Map<String, Object> auditMetadata
+    ) {
+        MandatoryCandidateReview {
+            auditMetadata = auditMetadata == null ? Map.of() : Map.copyOf(auditMetadata);
+        }
+
+        static MandatoryCandidateReview notRequired() {
+            return new MandatoryCandidateReview(false, true, "not a candidate discovery tool", null, Map.of());
+        }
+
+        static MandatoryCandidateReview accepted(String reason, Object output, Map<String, Object> metadata) {
+            return new MandatoryCandidateReview(true, true, reason, output, metadata);
+        }
+
+        static MandatoryCandidateReview rejected(String reason, Map<String, Object> metadata) {
+            return new MandatoryCandidateReview(true, false, reason, null, metadata);
         }
     }
 
@@ -7700,13 +7963,22 @@ public class AgentOrchestrator implements AgentRunExecutor {
         return null;
     }
 
-    private List<InteractionToolTrace> mandatoryPredecessorTraces(List<String> mandatoryTools,
-                                                                  String fallbackTool,
-                                                                  List<InteractionToolTrace> traces) {
+    List<InteractionToolTrace> mandatoryPredecessorTraces(Object authoritativeWorkflowDag,
+                                                           List<String> mandatoryTools,
+                                                           String fallbackTool,
+                                                           List<InteractionToolTrace> traces) {
         if (mandatoryTools == null || mandatoryTools.isEmpty()
             || fallbackTool == null || traces == null || traces.isEmpty()) {
             return List.of();
         }
+        List<String> configuredDependencies = authoritativeWorkflowDependencies(
+            authoritativeWorkflowDag, fallbackTool);
+        if (configuredDependencies != null) {
+            return successfulToolTraces(configuredDependencies, traces);
+        }
+
+        // Backward compatibility for callers without a persisted DAG. A configured
+        // authoritative DAG always wins; list order must never create dependencies.
         int fallbackIndex = -1;
         for (int index = 0; index < mandatoryTools.size(); index++) {
             if (toolNames.sameToolName(fallbackTool, mandatoryTools.get(index))) {
@@ -7718,13 +7990,52 @@ public class AgentOrchestrator implements AgentRunExecutor {
             return List.of();
         }
         List<String> predecessors = mandatoryTools.subList(0, fallbackIndex);
+        return successfulToolTraces(predecessors, traces);
+    }
+
+    private List<InteractionToolTrace> successfulToolTraces(List<String> dependencyTools,
+                                                             List<InteractionToolTrace> traces) {
+        if (dependencyTools == null || dependencyTools.isEmpty() || traces == null || traces.isEmpty()) {
+            return List.of();
+        }
         return traces.stream()
             .filter(Objects::nonNull)
             .filter(InteractionToolTrace::isSuccess)
             .filter(trace -> trace.getOutput() != null && !trace.getOutput().isBlank())
-            .filter(trace -> predecessors.stream()
+            .filter(trace -> dependencyTools.stream()
                 .anyMatch(tool -> toolNames.sameToolName(tool, trace.getToolName())))
             .toList();
+    }
+
+    /**
+     * Returns null only when no authoritative node exists for the requested tool.
+     * An empty list means the configured node deliberately has no dependencies.
+     */
+    private List<String> authoritativeWorkflowDependencies(Object rawDag, String fallbackTool) {
+        if (!(rawDag instanceof Iterable<?> nodes) || fallbackTool == null || fallbackTool.isBlank()) {
+            return null;
+        }
+        for (Object rawNode : nodes) {
+            Map<String, Object> node = asMap(rawNode);
+            String nodeTool = firstNonBlank(
+                stringValue(node.get("tool")), stringValue(node.get("toolName")));
+            if (!toolNames.sameToolName(fallbackTool, nodeTool)) {
+                continue;
+            }
+            Object rawDependencies = firstObject(node, "dependsOnTools", "depends_on_tools", "dependsOn");
+            if (!(rawDependencies instanceof Iterable<?> dependencies)) {
+                return List.of();
+            }
+            List<String> values = new ArrayList<>();
+            for (Object dependency : dependencies) {
+                String value = stringValue(dependency);
+                if (value != null && !value.isBlank()) {
+                    values.add(value);
+                }
+            }
+            return List.copyOf(values);
+        }
+        return null;
     }
 
     private Map<String, Object> mandatoryWorkflowResultReview(String toolName, ToolOutput output) {
@@ -7735,6 +8046,17 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (output == null || !output.isSuccess()) {
             review.put("satisfied", false);
             review.put("reason", "Mandatory workflow tool did not return a successful ToolOutput.");
+            return review;
+        }
+        Integer assetCount = assetDiscoveryResultCount(toolName, output.getData());
+        if (assetCount != null) {
+            boolean satisfied = assetCount > 0;
+            review.put("satisfied", satisfied);
+            review.put("resultCode", satisfied ? "ASSET_MATCHED" : "NO_MATCHING_ASSET");
+            review.put("returnedCount", assetCount);
+            review.put("reason", satisfied
+                ? "Asset discovery returned at least one candidate for semantic model review."
+                : "Asset discovery completed but returned no candidate; dependent workflow tools are blocked.");
             return review;
         }
         Integer templateCount = templateDiscoveryResultCount(toolName, output.getData());
@@ -7819,21 +8141,28 @@ public class AgentOrchestrator implements AgentRunExecutor {
         return Map.of("satisfied", true);
     }
 
+    private Integer assetDiscoveryResultCount(String toolName, Object data) {
+        if (!toolNames.isAssetDiscoveryToolName(toolName)) {
+            return null;
+        }
+        return discoveryResultCount(data, "assets", 0);
+    }
+
     private Integer templateDiscoveryResultCount(String toolName, Object data) {
         String normalized = toolName == null ? "" : toolName.toLowerCase(java.util.Locale.ROOT);
         if (!(normalized.contains("template_query") || normalized.contains("template_search"))) {
             return null;
         }
-        return templateDiscoveryResultCount(data, 0);
+        return discoveryResultCount(data, "templates", 0);
     }
 
-    private Integer templateDiscoveryResultCount(Object value, int depth) {
+    private Integer discoveryResultCount(Object value, String collectionKey, int depth) {
         if (value == null || depth > 5) {
             return null;
         }
         if (value instanceof String text) {
             Map<String, Object> parsed = asMap(text);
-            return parsed.isEmpty() ? null : templateDiscoveryResultCount(parsed, depth + 1);
+            return parsed.isEmpty() ? null : discoveryResultCount(parsed, collectionKey, depth + 1);
         }
         if (!(value instanceof Map<?, ?> raw)) {
             return null;
@@ -7843,16 +8172,62 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (explicit != null) {
             return explicit;
         }
-        if (map.get("templates") instanceof java.util.Collection<?> templates) {
-            return templates.size();
+        if (map.get(collectionKey) instanceof java.util.Collection<?> candidates) {
+            return candidates.size();
         }
-        for (String key : List.of("structuredContent", "data", "result", "payload", "body", "output")) {
-            Integer nested = templateDiscoveryResultCount(map.get(key), depth + 1);
+        for (String key : List.of("preview", "structuredContent", "data", "result", "payload", "body", "output")) {
+            Integer nested = discoveryResultCount(map.get(key), collectionKey, depth + 1);
             if (nested != null) {
                 return nested;
             }
         }
         return null;
+    }
+
+    private Map<String, Map<String, Object>> authoritativeWorkflowCandidateInputs(
+        InterpretationPlan plan,
+        List<Map<String, Object>> authoritativeWorkflowDag
+    ) {
+        if (plan == null || plan.plan() == null || plan.plan().steps() == null
+            || authoritativeWorkflowDag == null || authoritativeWorkflowDag.isEmpty()) {
+            return Map.of();
+        }
+        List<String> configuredTools = authoritativeWorkflowDag.stream()
+            .map(node -> firstNonBlank(stringValue(node.get("tool")), stringValue(node.get("toolName"))))
+            .filter(Objects::nonNull)
+            .toList();
+        Map<String, Map<String, Object>> inputs = new LinkedHashMap<>();
+        for (InterpretationPlan.Step step : plan.plan().steps()) {
+            if (step == null || !step.mcpToolAction() || step.toolName() == null || step.input() == null) {
+                continue;
+            }
+            String configuredTool = configuredTools.stream()
+                .filter(tool -> toolNames.sameToolName(tool, step.toolName()))
+                .findFirst()
+                .orElse(null);
+            if (configuredTool != null) {
+                inputs.putIfAbsent(configuredTool, new LinkedHashMap<>(step.input()));
+            }
+        }
+        return inputs.isEmpty() ? Map.of() : Map.copyOf(inputs);
+    }
+
+    private Map<String, Object> authoritativeWorkflowCandidateInput(
+        Map<String, Object> runtimeAttributes,
+        String toolName
+    ) {
+        if (runtimeAttributes == null || toolName == null
+            || !(runtimeAttributes.get("authoritativeWorkflowCandidateInputs") instanceof Map<?, ?> rawInputs)) {
+            return Map.of();
+        }
+        for (Map.Entry<?, ?> entry : rawInputs.entrySet()) {
+            if (!toolNames.sameToolName(toolName, stringValue(entry.getKey()))
+                || !(entry.getValue() instanceof Map<?, ?> rawInput)) {
+                continue;
+            }
+            return new LinkedHashMap<>(asStringObjectMap(rawInput));
+        }
+        return Map.of();
     }
 
     @SuppressWarnings("unchecked")

@@ -651,7 +651,193 @@ class AgentToolArgumentResolver {
     ) {
         Map<String, Object> resolved = applyPublishedDependencyEvidenceContract(
             toolName, arguments, dependencyTraces);
+        // A template discovery trace may be an earlier workflow predecessor of an
+        // independent tool (for example metadata lookup). Only tools whose own
+        // published contract says that they consume templates may be compiled or
+        // rejected against template candidates.
+        if (!requiresObservedTemplateContract(toolName)) {
+            return resolved;
+        }
+        Map<String, Object> batch = applyObservedTemplateSetContract(
+            toolName, resolved, dependencyTraces, userQuery);
+        if (batch != null) {
+            return batch;
+        }
+        String incompatibility = observedTemplateExecutorIncompatibility(toolName, dependencyTraces);
+        if (incompatibility != null) {
+            Map<String, Object> denied = new LinkedHashMap<>(resolved);
+            denied.put(McpParamBindingResolver.STATUS_KEY, "DENIED");
+            denied.put(McpParamBindingResolver.CODE_KEY, "NO_COMPATIBLE_TEMPLATE_EXECUTOR");
+            denied.put(McpParamBindingResolver.ERROR_KEY, incompatibility);
+            return denied;
+        }
         return applyObservedTemplateContract(toolName, resolved, dependencyTraces, userQuery);
+    }
+
+    private boolean requiresObservedTemplateContract(String toolName) {
+        if (toolName == null || toolName.isBlank()
+            || toolNames.isAssetDiscoveryToolName(toolName)
+            || toolNames.isTemplateDiscoveryToolName(toolName)) {
+            return false;
+        }
+        // Legacy/unit registries did not publish applicability metadata. Preserve
+        // their fail-closed behaviour; production MCP tools publish the contract.
+        if (toolRegistry == null) {
+            return true;
+        }
+        ToolMetadata metadata = toolRegistry.getToolMetadata(toolName);
+        if (metadata == null) {
+            return true;
+        }
+        Map<String, Object> extra = metadata.getMetadata() == null
+            ? Map.of() : metadata.getMetadata();
+        Map<String, Object> mcpMeta = mutableMap(extra.get("mcpToolMeta"));
+        if (booleanValue(mcpMeta.get("doesNotExecuteSql"))) {
+            return false;
+        }
+        if (booleanValue(mcpMeta.get("templateRegistrySupported"))) {
+            return true;
+        }
+        Map<String, Object> applicability = mutableMap(mcpMeta.get("applicability"));
+        String scope = scalarText(firstPresent(applicability, "scopeLabel", "scope_label"));
+        if (scope != null) {
+            String normalized = scope.toLowerCase(Locale.ROOT);
+            if (normalized.contains("template_execution") || normalized.contains("script_execution")) {
+                return true;
+            }
+            if (normalized.contains("discovery") || normalized.contains("search")) {
+                return false;
+            }
+        }
+        if (metadata.getParameters() != null && metadata.getParameters().stream()
+            .filter(Objects::nonNull)
+            .map(parameter -> parameter.getName() == null ? "" : parameter.getName())
+            .map(name -> name.replace("_", "").toLowerCase(Locale.ROOT))
+            .anyMatch(name -> "template".equals(name) || "templateid".equals(name)
+                || "commandtemplate".equals(name))) {
+            return true;
+        }
+        return false;
+    }
+
+    private boolean booleanValue(Object value) {
+        return value instanceof Boolean bool ? bool
+            : value != null && Boolean.parseBoolean(String.valueOf(value));
+    }
+
+    private String observedTemplateExecutorIncompatibility(
+        String toolName,
+        List<InteractionToolTrace> traces
+    ) {
+        if (toolName == null || traces == null || traces.isEmpty()) {
+            return null;
+        }
+        for (int index = traces.size() - 1; index >= 0; index--) {
+            InteractionToolTrace trace = traces.get(index);
+            if (trace == null || !trace.isSuccess() || !templateDiscoveryTool(trace.getToolName())
+                || trace.getOutput() == null || trace.getOutput().isBlank()) {
+                continue;
+            }
+            Object output = parseJson(trace.getOutput());
+            List<Map<String, Object>> templates = discoveredTemplates(output);
+            if (templates.isEmpty()) {
+                continue;
+            }
+            if (templates.stream().anyMatch(template -> sameExecutor(toolName, discoveredExecutor(template)))) {
+                return null;
+            }
+            List<String> declaredExecutors = templates.stream()
+                .map(this::discoveredExecutor)
+                .filter(value -> value != null && !value.isBlank())
+                .distinct()
+                .toList();
+            return "Template discovery " + trace.getToolName() + " returned " + templates.size()
+                + " admitted template(s), but none declares executor " + toolName
+                + ". Declared executors: " + declaredExecutors + ".";
+        }
+        return null;
+    }
+
+    /**
+     * Compiles every contract-compatible template admitted by one discovery result
+     * when deterministic workflow recovery has no model-selected scalar template.
+     * The executor declaration in each template is the branch discriminator; no
+     * template id, datasource type, or business capability is encoded here.
+     */
+    private Map<String, Object> applyObservedTemplateSetContract(
+        String toolName,
+        Map<String, Object> arguments,
+        List<InteractionToolTrace> traces,
+        String userQuery
+    ) {
+        Map<String, Object> values = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
+        if (traces == null || traces.isEmpty() || batchCalls(values) != null
+            || scalarText(firstPresent(values, "template", "templateId", "template_id",
+                "commandTemplate", "command_template")) != null) {
+            return null;
+        }
+        for (int traceIndex = traces.size() - 1; traceIndex >= 0; traceIndex--) {
+            InteractionToolTrace trace = traces.get(traceIndex);
+            if (trace == null || !trace.isSuccess() || trace.getOutput() == null || trace.getOutput().isBlank()) {
+                continue;
+            }
+            Object output = parseJson(trace.getOutput());
+            if (output == null) {
+                continue;
+            }
+            Map<String, Map<String, Object>> uniqueCandidates = new LinkedHashMap<>();
+            for (Map<String, Object> template : discoveredTemplates(output)) {
+                String templateId = templateId(template);
+                if (templateId != null && sameExecutor(toolName, discoveredExecutor(template))) {
+                    uniqueCandidates.putIfAbsent(templateId.toLowerCase(Locale.ROOT), template);
+                }
+            }
+            if (uniqueCandidates.size() < 2) {
+                continue;
+            }
+            List<Map<String, Object>> calls = new ArrayList<>();
+            int callIndex = 1;
+            for (Map<String, Object> template : uniqueCandidates.values()) {
+                String templateId = templateId(template);
+                Map<String, Object> candidateInput = new LinkedHashMap<>(values);
+                if (apiTemplateExecutor(toolName)) {
+                    candidateInput.put("templateId", templateId);
+                } else {
+                    candidateInput.put("template", templateId);
+                }
+                try {
+                    TemplateInvocationBridge.BridgeResult bridged = TEMPLATE_INVOCATION_BRIDGE.prepare(
+                        new TemplateInvocationBridge.BridgeRequest(
+                            toolName, null, templateId, template, candidateInput,
+                            parameterProtocol(candidateInput), false, true,
+                            new TemplateInvocationBridge.EvidenceContext(userQuery, Map.of())
+                        )
+                    );
+                    Map<String, Object> compiledInput = new LinkedHashMap<>(bridged.executorInput());
+                    mergeObservedExecutionContext(compiledInput, template);
+                    finishObservedTemplateInput(toolName, compiledInput, output);
+                    calls.add(Map.of(
+                        "callId", "template-" + callIndex++,
+                        "toolName", toolName,
+                        "arguments", compiledInput
+                    ));
+                } catch (TemplateInvocationBridge.TemplateBridgeException ignored) {
+                    // Scalar compilation below preserves the existing fail-closed error
+                    // when fewer than two admitted templates are currently executable.
+                }
+            }
+            if (calls.size() < 2) {
+                continue;
+            }
+            Map<String, Object> batch = new LinkedHashMap<>(values);
+            batch.put("executionMode", "SEQUENTIAL");
+            batch.put("stopOnFailure", false);
+            batch.put("calls", List.copyOf(calls));
+            log.info("Agent deterministic workflow compiled admitted template set: tool={}, sourceTool={}, callCount={}",
+                toolName, trace.getToolName(), calls.size());
+            return batch;
+        }
+        return null;
     }
 
     private Object parseJson(String text) {

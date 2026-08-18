@@ -58,6 +58,231 @@ import static org.mockito.Mockito.when;
 class AgentOrchestratorTest {
 
     @Test
+    void mandatoryFallbackModelReviewProjectsOracleAssetAndRejectsMysqlCandidate() {
+        ChatModel reviewer = mock(ChatModel.class);
+        when(reviewer.chat(any(String.class))).thenReturn("""
+            {
+              "satisfied": true,
+              "reason": "oracle-risk-prod is the Oracle risk-control database requested by the user",
+              "selected_asset_ids": ["oracle-risk-prod"],
+              "rejected_asset_ids": ["mysql-app-config"],
+              "asset_evaluations": [
+                {"asset_id":"oracle-risk-prod","relevance":1.0,"decision":"accept","reasons":["Oracle and risk-control metadata match"]},
+                {"asset_id":"mysql-app-config","relevance":0.0,"decision":"reject","reasons":["MySQL application configuration is the wrong database and purpose"]}
+              ]
+            }
+            """);
+        AgentOrchestrator orchestrator = newOrchestrator(reviewer);
+        ToolOutput output = ToolOutput.success(Map.of(
+            "schemaVersion", "asset_query_result.v1",
+            "returnedCount", 2,
+            "assets", List.of(
+                Map.of("asset", Map.of(
+                    "id", "mysql-app-config", "name", "application-config",
+                    "databaseType", "mysql", "description", "application configuration database")),
+                Map.of("asset", Map.of(
+                    "id", "oracle-risk-prod", "name", "risk-control-oracle",
+                    "databaseType", "oracle", "description", "risk-control production database"))
+            )
+        ));
+
+        AgentOrchestrator.MandatoryCandidateReview review =
+            orchestrator.reviewMandatoryDiscoveryCandidates(
+                reviewer,
+                "检查风控 Oracle 数据库连接状态",
+                "",
+                () -> false,
+                "mcp_chatchat_mcp_server_database_asset_search",
+                Map.of("filters", Map.of("intent", "风控 Oracle 数据库")),
+                output,
+                Map.of("__agentRunId", "run-oracle-asset-review")
+            );
+
+        assertThat(review.required()).isTrue();
+        assertThat(review.satisfied()).isTrue();
+        assertThat(review.auditMetadata())
+            .containsEntry("candidateType", "ASSET")
+            .containsEntry("selectedCount", 1)
+            .containsEntry("selectedIds", List.of("oracle-risk-prod"));
+        Map<?, ?> projected = (Map<?, ?>) review.projectedOutput();
+        assertThat((List<?>) projected.get("assets"))
+            .singleElement()
+            .satisfies(candidate -> {
+                Map<?, ?> asset = (Map<?, ?>) ((Map<?, ?>) candidate).get("asset");
+                assertThat(asset.get("id")).isEqualTo("oracle-risk-prod");
+                assertThat(asset.get("name")).isEqualTo("risk-control-oracle");
+            });
+    }
+
+    @Test
+    void mandatoryFallbackBlocksAssetDiscoveryWhenModelSelectsIdOutsideReturnedSet() {
+        ChatModel reviewer = mock(ChatModel.class);
+        when(reviewer.chat(any(String.class))).thenReturn("""
+            {"satisfied":true,"reason":"use another asset","selected_asset_ids":["invented-oracle"]}
+            """);
+        AgentOrchestrator orchestrator = newOrchestrator(reviewer);
+
+        AgentOrchestrator.MandatoryCandidateReview review =
+            orchestrator.reviewMandatoryDiscoveryCandidates(
+                reviewer,
+                "检查风控 Oracle 数据库",
+                "",
+                () -> false,
+                "mcp_chatchat_mcp_server_database_asset_search",
+                Map.of(),
+                ToolOutput.success(Map.of(
+                    "returnedCount", 1,
+                    "assets", List.of(Map.of("asset", Map.of(
+                        "id", "mysql-only", "name", "mysql-config", "databaseType", "mysql")))
+                )),
+                Map.of()
+            );
+
+        assertThat(review.required()).isTrue();
+        assertThat(review.satisfied()).isFalse();
+        assertThat(review.reason()).contains("did not admit any asset id from the returned candidate set");
+        assertThat(review.auditMetadata()).containsEntry("projectionApplied", false);
+    }
+
+    @Test
+    void mandatoryFallbackPreservesAllAssetsSelectedByModelReviewer() {
+        ChatModel reviewer = mock(ChatModel.class);
+        when(reviewer.chat(any(String.class))).thenReturn("""
+            {
+              "satisfied":true,
+              "reason":"both Oracle assets are required for the requested comparison",
+              "selected_asset_ids":["oracle-risk-primary","oracle-risk-standby"],
+              "rejected_asset_ids":["mysql-config"]
+            }
+            """);
+        AgentOrchestrator orchestrator = newOrchestrator(reviewer);
+
+        AgentOrchestrator.MandatoryCandidateReview review =
+            orchestrator.reviewMandatoryDiscoveryCandidates(
+                reviewer,
+                "compare the primary and standby Oracle risk-control databases",
+                "",
+                () -> false,
+                "mcp_chatchat_mcp_server_database_asset_search",
+                Map.of(),
+                ToolOutput.success(Map.of(
+                    "returnedCount", 3,
+                    "assets", List.of(
+                        Map.of("asset", Map.of("id", "mysql-config", "databaseType", "mysql")),
+                        Map.of("asset", Map.of("id", "oracle-risk-primary", "databaseType", "oracle")),
+                        Map.of("asset", Map.of("id", "oracle-risk-standby", "databaseType", "oracle"))
+                    )
+                )),
+                Map.of()
+            );
+
+        assertThat(review.satisfied()).isTrue();
+        assertThat(review.auditMetadata())
+            .containsEntry("selectedCount", 2)
+            .containsEntry("selectedIds", List.of("oracle-risk-primary", "oracle-risk-standby"));
+        Map<?, ?> projected = (Map<?, ?>) review.projectedOutput();
+        assertThat((List<?>) projected.get("assets")).hasSize(2);
+    }
+
+    @Test
+    void mandatoryFallbackBlocksTemplateDiscoveryWhenReviewerIsUnavailable() {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+
+        AgentOrchestrator.MandatoryCandidateReview review =
+            orchestrator.reviewMandatoryDiscoveryCandidates(
+                null,
+                "检查风控 Oracle 数据库",
+                "",
+                () -> false,
+                "mcp_chatchat_mcp_server_database_ops_template_search",
+                Map.of(),
+                ToolOutput.success(Map.of(
+                    "returnedCount", 1,
+                    "templates", List.of(Map.of(
+                        "templateId", "MYSQL_CONNECTION_STATUS",
+                        "description", "MySQL connection status"))
+                )),
+                Map.of()
+            );
+
+        assertThat(review.required()).isTrue();
+        assertThat(review.satisfied()).isFalse();
+        assertThat(review.reason()).contains("did not admit any template id");
+    }
+
+    @Test
+    void mandatoryFallbackSemanticReviewRemainsStableUnderMixedCandidateLoad() {
+        ChatModel reviewer = mock(ChatModel.class);
+        when(reviewer.chat(any(String.class))).thenReturn("""
+            {
+              "satisfied":true,
+              "reason":"Oracle risk-control candidate is the semantic match",
+              "selected_asset_ids":["oracle-risk"],
+              "rejected_asset_ids":["mysql-config"]
+            }
+            """);
+        AgentOrchestrator orchestrator = newOrchestrator(reviewer);
+        Map<String, Object> oracle = Map.of("asset", Map.of(
+            "id", "oracle-risk", "name", "risk-control", "databaseType", "oracle"));
+        Map<String, Object> mysql = Map.of("asset", Map.of(
+            "id", "mysql-config", "name", "app-config", "databaseType", "mysql"));
+
+        for (int iteration = 0; iteration < 50; iteration++) {
+            List<Map<String, Object>> candidates = iteration % 2 == 0
+                ? List.of(mysql, oracle) : List.of(oracle, mysql);
+            AgentOrchestrator.MandatoryCandidateReview review =
+                orchestrator.reviewMandatoryDiscoveryCandidates(
+                    reviewer,
+                    "检查风控 Oracle 数据库连接",
+                    "",
+                    () -> false,
+                    "mcp_chatchat_mcp_server_database_asset_search",
+                    Map.of("filters", Map.of("intent", "风控 Oracle")),
+                    ToolOutput.success(Map.of("returnedCount", 2, "assets", candidates)),
+                    Map.of("__agentRunId", "stress-" + iteration)
+                );
+            assertThat(review.satisfied()).isTrue();
+            Map<?, ?> projected = (Map<?, ?>) review.projectedOutput();
+            List<?> assets = (List<?>) projected.get("assets");
+            assertThat(assets).hasSize(1);
+            Map<?, ?> selected = (Map<?, ?>) ((Map<?, ?>) assets.get(0)).get("asset");
+            assertThat(selected.get("id")).isEqualTo("oracle-risk");
+        }
+        verify(reviewer, times(50)).chat(any(String.class));
+    }
+
+    @Test
+    void mandatoryFallbackUsesConfiguredDagDependenciesInsteadOfToolListOrder() {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        String asset = "mcp_runtime_database_asset_search";
+        String template = "mcp_runtime_database_ops_template_search";
+        String metadata = "mcp_runtime_sql_metadata_search";
+        String query = "mcp_runtime_sql_query_execute";
+        String script = "mcp_runtime_sql_script_execute";
+        List<String> tools = List.of(asset, template, metadata, query, script);
+        List<Map<String, Object>> dag = List.of(
+            Map.of("id", "asset", "tool", asset, "dependsOnTools", List.of()),
+            Map.of("id", "template", "tool", template, "dependsOnTools", List.of(asset)),
+            Map.of("id", "metadata", "tool", metadata, "dependsOnTools", List.of()),
+            Map.of("id", "query", "tool", query, "dependsOnTools", List.of(template)),
+            Map.of("id", "script", "tool", script, "dependsOnTools", List.of(template))
+        );
+        List<InteractionToolTrace> traces = tools.stream()
+            .map(tool -> InteractionToolTrace.builder()
+                .toolName(tool).success(true).output("{\"tool\":\"" + tool + "\"}").build())
+            .toList();
+
+        assertThat(orchestrator.mandatoryPredecessorTraces(dag, tools, metadata, traces)).isEmpty();
+        assertThat(orchestrator.mandatoryPredecessorTraces(dag, tools, template, traces))
+            .extracting(InteractionToolTrace::getToolName).containsExactly(asset);
+        assertThat(orchestrator.mandatoryPredecessorTraces(dag, tools, query, traces))
+            .extracting(InteractionToolTrace::getToolName).containsExactly(template);
+        assertThat(orchestrator.mandatoryPredecessorTraces(dag, tools, script, traces))
+            .extracting(InteractionToolTrace::getToolName).containsExactly(template);
+    }
+
+
+    @Test
     void suppressesScalarMandatoryFallbackAfterGovernedDiagnosticExecutorFailure() {
         AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
         Map<String, Object> metadata = new LinkedHashMap<>();
@@ -1479,6 +1704,24 @@ class AgentOrchestratorTest {
                 .containsEntry("resultCode", "NO_MATCHING_TEMPLATE")
                 .containsEntry("returnedCount", 0);
         }
+
+        Map<String, Object> emptyAssetReview = (Map<String, Object>) method.invoke(
+            orchestrator,
+            "mcp_chatchat_mcp_server_database_asset_search",
+            ToolOutput.success(Map.of(
+                "schemaVersion", "tool_result_summary.v1",
+                "preview", Map.of(
+                    "schemaVersion", "asset_query_result.v1",
+                    "success", true,
+                    "returnedCount", 0,
+                    "assets", List.of()
+                )
+            ))
+        );
+        assertThat(emptyAssetReview)
+            .containsEntry("satisfied", false)
+            .containsEntry("resultCode", "NO_MATCHING_ASSET")
+            .containsEntry("returnedCount", 0);
 
         Map<String, Object> failureReview = (Map<String, Object>) method.invoke(
             orchestrator,
@@ -3936,6 +4179,195 @@ class AgentOrchestratorTest {
             .anySatisfy(node -> assertThat(node)
                 .containsEntry("tool", assetTool)
                 .containsEntry("dependsOnTools", List.of(profileTool)));
+    }
+
+    @Test
+    void invalidPlannerDagHandsAuthoritativeWorkflowToJavaWithoutOuterReplanLoop() {
+        String firstTool = "mcp_test_first_lookup";
+        String secondTool = "mcp_test_second_lookup";
+        String invalidPlan = """
+            {
+              "version":"1.0",
+              "intent":{"type":"data_query","goal":"run configured workflow","risk_level":"low"},
+              "context":{"key_facts":[],"assumptions":[],"missing_info":[],"constraints":[]},
+              "plan":{
+                "steps":[
+                  {"id":1,"action_type":"mcp_tool","tool_name":"mcp_test_first_lookup","input":{"semanticScope":"oracle-dev"},"depends_on":[]},
+                  {"id":2,"action_type":"mcp_tool","tool_name":"mcp_test_second_lookup","input":{"analysisMode":"health"},"depends_on":[1]},
+                  {"id":3,"action_type":"final_answer","tool_name":"","input":{"answer":"done"},"depends_on":[1]}
+                ],
+                "dependency_contracts":[{"from":1,"to":2,"required":true}],
+                "edge_contracts":[],
+                "bindings":[]
+              },
+              "execution_policy":{"max_steps":3,"allow_parallel":false,
+                "allow_tool":["mcp_test_first_lookup","mcp_test_second_lookup"],"deny_tool":[]},
+              "review":{"self_check":{"completeness_score":0.4,"hallucination_risk":0.1,
+                "tool_sufficiency":false,"missing_steps":["mcp_test_second_lookup"]},"fallback_plan":[]}
+            }
+            """;
+        CapturingQueueChatModel chatModel = new CapturingQueueChatModel(
+            invalidPlan,
+            "{\"accepted\":true,\"feedback\":\"The deterministic workflow evidence is sufficient.\",\"revisedAnswer\":\"\"}"
+        );
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        Map<String, Map<String, Object>> executionInputs = new ConcurrentHashMap<>();
+        for (String tool : List.of(firstTool, secondTool)) {
+            when(toolRegistry.hasTool(tool)).thenReturn(true);
+            when(toolRegistry.getToolMetadata(tool)).thenReturn(ToolMetadata.builder()
+                .id(tool)
+                .title(tool)
+                .description("Test authoritative workflow tool")
+                .build());
+            when(toolRegistry.executeEnhancedTool(eq(tool), any()))
+                .thenAnswer(invocation -> {
+                    ToolInput input = invocation.getArgument(1);
+                    executionInputs.put(tool, new LinkedHashMap<>(input.getParameters()));
+                    return ToolOutput.success(Map.of("tool", tool, "status", "ok"));
+                });
+        }
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            chatModel,
+            toolRegistry,
+            new ToolRuntimeService(
+                toolRegistry,
+                new ObjectMapper(),
+                toolRuntimeProperties(),
+                List.of(),
+                List.of()
+            ),
+            new ObjectMapper(),
+            new ModelsConfig()
+        );
+        Map<String, Object> workflowConfig = Map.of(
+            "enabled", true,
+            "workflow", "invalid_planner_fallback",
+            "executionStrategy", Map.of("mode", "sequential", "stopOnError", true, "maxSteps", 7),
+            "steps", List.of(
+                Map.of("step", 1, "tool", firstTool, "required", true, "confirmation", "auto_execute"),
+                Map.of("step", 2, "tool", secondTool, "required", true, "confirmation", "auto_execute")
+            )
+        );
+
+        AgentOrchestrator.AgentExecutionResult result = orchestrator.executeAgent(
+            "Run the configured checks.",
+            "tenant-1",
+            List.of(firstTool, secondTool),
+            "Follow the selected Agent tool workflow.",
+            null,
+            List.of(),
+            List.of(),
+            "invalid_planner_fallback",
+            "req-invalid-planner-fallback",
+            "conv-invalid-planner-fallback",
+            "user-1",
+            10,
+            List.of(),
+            true,
+            Map.of(
+                "mcpWorkflow", workflowConfig,
+                "plannerMaxRepairAttempts", 3
+            )
+        );
+
+        assertThat(result.toolTraces())
+            .extracting(InteractionToolTrace::getToolName)
+            .containsExactly(firstTool, secondTool);
+        assertThat(result.metadata())
+            .containsEntry("authoritativeRuntimeFallbackAfterInvalidPlan", true)
+            .containsEntry("authoritativeRuntimeFallbackStep", 1)
+            .containsEntry("mandatoryWorkflowRecoveredAfterPlan", true);
+        assertThat((List<String>) result.metadata().get("authoritativeWorkflowCandidateInputTools"))
+            .containsExactlyInAnyOrder(firstTool, secondTool);
+        assertThat(executionInputs.get(firstTool)).containsEntry("semanticScope", "oracle-dev");
+        assertThat(executionInputs.get(secondTool)).containsEntry("analysisMode", "health");
+        assertThat(chatModel.messages().stream()
+            .filter(message -> message.contains("You are an agent planner.")))
+            .hasSize(1);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void authoritativeFallbackStopsAtEmptyAssetInsteadOfRunningTemplateDiscovery() {
+        String assetTool = "mcp_chatchat_mcp_server_database_asset_search";
+        String templateTool = "mcp_chatchat_mcp_server_database_ops_template_search";
+        String invalidPlan = """
+            {
+              "version":"1.0",
+              "intent":{"type":"data_query","goal":"review Oracle health","risk_level":"low"},
+              "context":{"key_facts":[],"assumptions":[],"missing_info":[],"constraints":[]},
+              "plan":{"steps":[
+                {"id":1,"action_type":"mcp_tool","tool_name":"mcp_chatchat_mcp_server_database_asset_search",
+                 "input":{"finalDecision":"database","confidence":0.9,
+                   "candidates":[{"targetKind":"database","confidence":0.9}],
+                   "trace":{"source":"planner"},
+                   "filters":{"env":"DEV","databaseType":"oracle","queryTerms":["risk oracle"]}},
+                 "depends_on":[]},
+                {"id":2,"action_type":"mcp_tool","tool_name":"mcp_chatchat_mcp_server_database_ops_template_search",
+                 "input":{"finalDecision":"database","confidence":0.9,
+                   "candidates":[{"targetKind":"database","confidence":0.9}],
+                   "trace":{"source":"planner"},"filters":{"env":"DEV","databaseType":"oracle"}},
+                 "depends_on":[1]},
+                {"id":3,"action_type":"final_answer","tool_name":"","input":{"answer":"done"},"depends_on":[1]}
+              ],"dependency_contracts":[],"edge_contracts":[],"bindings":[]},
+              "execution_policy":{"max_steps":3,"allow_parallel":false,
+                "allow_tool":["mcp_chatchat_mcp_server_database_asset_search","mcp_chatchat_mcp_server_database_ops_template_search"],
+                "deny_tool":[]},
+              "review":{"self_check":{"completeness_score":0.4,"hallucination_risk":0.1,
+                "tool_sufficiency":false,"missing_steps":["template discovery"]},"fallback_plan":[]}
+            }
+            """;
+        CapturingQueueChatModel chatModel = new CapturingQueueChatModel(invalidPlan);
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        for (String tool : List.of(assetTool, templateTool)) {
+            when(toolRegistry.hasTool(tool)).thenReturn(true);
+            when(toolRegistry.getToolMetadata(tool)).thenReturn(ToolMetadata.builder()
+                .id(tool).title(tool).description("Database discovery tool").build());
+        }
+        when(toolRegistry.executeEnhancedTool(eq(assetTool), any())).thenReturn(ToolOutput.success(Map.of(
+            "schemaVersion", "tool_result_summary.v1",
+            "preview", Map.of(
+                "schemaVersion", "asset_query_result.v1",
+                "success", true,
+                "returnedCount", 0,
+                "assets", List.of()
+            )
+        )));
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            chatModel,
+            toolRegistry,
+            new ToolRuntimeService(toolRegistry, new ObjectMapper(), toolRuntimeProperties(), List.of(), List.of()),
+            new ObjectMapper(),
+            new ModelsConfig()
+        );
+        Map<String, Object> workflowConfig = Map.of(
+            "enabled", true,
+            "workflow", "oracle_health",
+            "executionStrategy", Map.of("mode", "sequential", "stopOnError", true, "maxSteps", 5),
+            "steps", List.of(
+                Map.of("step", 1, "tool", assetTool, "required", true),
+                Map.of("step", 2, "tool", templateTool, "required", true, "dependsOn", List.of(assetTool))
+            )
+        );
+
+        AgentOrchestrator.AgentExecutionResult result = orchestrator.executeAgent(
+            "Analyze DEV risk-control Oracle health.",
+            "tenant-1", List.of(assetTool, templateTool), "Follow configured workflow.", null,
+            List.of(), List.of(), "oracle_health", "req-empty-asset", "conv-empty-asset", "user-1",
+            10, List.of(), true, Map.of("mcpWorkflow", workflowConfig)
+        );
+
+        assertThat(result.toolTraces()).extracting(InteractionToolTrace::getToolName)
+            .containsExactly(assetTool);
+        verify(toolRegistry, never()).executeEnhancedTool(eq(templateTool), any());
+        assertThat((List<Map<String, Object>>) result.metadata().get("mandatoryWorkflowResultReviews"))
+            .anySatisfy(review -> assertThat(review)
+                .containsEntry("resultCode", "NO_MATCHING_ASSET")
+                .containsEntry("satisfied", false));
+        assertThat(result.metadata())
+            .containsEntry("mandatoryWorkflowStoppedOnFailure", assetTool);
+        assertThat((List<String>) result.metadata().get("authoritativeWorkflowCandidateInputTools"))
+            .containsExactlyInAnyOrder(assetTool, templateTool);
     }
 
     @Test

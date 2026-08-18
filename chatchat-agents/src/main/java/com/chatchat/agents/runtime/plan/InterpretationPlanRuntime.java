@@ -2612,7 +2612,8 @@ public class InterpretationPlanRuntime {
                 metadata.put("toolResultReviewAttempts", attempt);
                 metadata.putAll(lastReview.metadata() == null ? Map.of() : lastReview.metadata());
                 if (!lastReview.satisfied() && localReview != null && localReview.satisfied()
-                    && Boolean.TRUE.equals(metadata.get("toolResultReviewUnavailable"))) {
+                    && Boolean.TRUE.equals(metadata.get("toolResultReviewUnavailable"))
+                    && !isSemanticCandidateDiscovery(execution.toolName())) {
                     metadata.put("toolResultReviewSkipped", true);
                     metadata.put("toolResultReviewSatisfied", true);
                     metadata.put("toolResultReviewReason",
@@ -2623,13 +2624,27 @@ public class InterpretationPlanRuntime {
                 if (lastReview.satisfied()) {
                     execution = applyRuntimeAssetSelection(execution, lastReview, metadata, startedAt);
                     execution = applyRuntimeTemplateSelection(execution, lastReview, metadata, startedAt);
+                    String selectionError = semanticCandidateSelectionError(execution, metadata);
+                    if (selectionError != null) {
+                        metadata.put("semanticCandidateReviewSatisfied", false);
+                        metadata.put("semanticCandidateReviewError", selectionError);
+                        return new StepExecution(
+                            execution.stepId(), execution.actionType(), execution.toolName(), false,
+                            execution.output(), "Tool result rejected by semantic candidate gate: " + selectionError,
+                            execution.toolExecution(), execution.finalAnswer(), elapsed(startedAt), metadata
+                        );
+                    }
+                    if (isSemanticCandidateDiscovery(execution.toolName())) {
+                        metadata.put("semanticCandidateReviewSatisfied", true);
+                    }
                     Map<String, Object> lock = executionLock(step, lastReview);
                     if (!lock.isEmpty()) {
                         metadata.put("executionLock", lock);
                     }
                     return execution.withMetadata(metadata, elapsed(startedAt));
                 }
-                if (reviewContradictsLocalFacts(lastReview, metadata)) {
+                if (reviewContradictsLocalFacts(lastReview, metadata)
+                    && !isSemanticCandidateDiscovery(execution.toolName())) {
                     metadata.put("toolResultReviewContradictedLocalFacts", true);
                     metadata.put("toolResultReviewContradictionReason", lastReview.reason());
                     metadata.put("toolResultReviewSatisfied", true);
@@ -2642,6 +2657,33 @@ public class InterpretationPlanRuntime {
         String reason = lastReview == null || lastReview.reason() == null || lastReview.reason().isBlank()
             ? "Tool result did not satisfy the plan step after model review."
             : lastReview.reason();
+        if (isSemanticCandidateDiscovery(execution.toolName())) {
+            if (lastReview != null) {
+                execution = applyRuntimeAssetSelection(execution, lastReview, metadata, startedAt);
+                execution = applyRuntimeTemplateSelection(execution, lastReview, metadata, startedAt);
+            }
+            String selectionError = semanticCandidateSelectionError(execution, metadata);
+            if (selectionError != null) {
+                metadata.put("semanticCandidateReviewSatisfied", false);
+                metadata.put("semanticCandidateReviewError", selectionError);
+                return new StepExecution(
+                    execution.stepId(), execution.actionType(), execution.toolName(), false,
+                    execution.output(), "Tool result rejected by semantic candidate review: " + selectionError,
+                    execution.toolExecution(), execution.finalAnswer(), elapsed(startedAt), metadata
+                );
+            }
+            // The reviewer may mark the cumulative request incomplete while still
+            // explicitly admitting candidates for this discovery step. Preserve that
+            // distinction: selected candidates may continue, but the evidence gap stays
+            // visible to final synthesis and later retrieval iterations.
+            metadata.put("semanticCandidateReviewSatisfied", true);
+            metadata.put("toolResultReviewPartialAccepted", true);
+            metadata.put("toolResultReviewPartialReason", reason);
+            metadata.put("partialEvidence", true);
+            metadata.put("evidenceSufficiency", "INSUFFICIENT");
+            metadata.put("stepFulfillmentStatus", "PARTIAL");
+            return execution.withMetadata(metadata, elapsed(startedAt));
+        }
         if (shouldPreservePartialToolResult(execution)
             || reviewRequestsEvidenceRecovery(lastReview)) {
             metadata.put("toolResultReviewPartialAccepted", true);
@@ -2762,6 +2804,36 @@ public class InterpretationPlanRuntime {
         );
     }
 
+    private boolean isSemanticCandidateDiscovery(String toolName) {
+        return isAssetDiscoveryTool(toolName) || isTemplateDiscoveryTool(toolName);
+    }
+
+    private String semanticCandidateSelectionError(StepExecution execution,
+                                                   Map<String, Object> metadata) {
+        if (execution == null || metadata == null) {
+            return null;
+        }
+        if (isAssetDiscoveryTool(execution.toolName())) {
+            if (!Boolean.TRUE.equals(metadata.get("runtimeAssetSelectionApplied"))) {
+                return "the model did not select an asset id from the returned candidate set";
+            }
+            Integer selected = integerValue(metadata.get("runtimeAssetSelectedCount"));
+            if (selected == null || selected < 1) {
+                return "the model selected no usable asset candidate";
+            }
+        }
+        if (isTemplateDiscoveryTool(execution.toolName())) {
+            if (!Boolean.TRUE.equals(metadata.get("runtimeTemplateSelectionApplied"))) {
+                return "the model did not select a template id from the returned candidate set";
+            }
+            Integer selected = integerValue(metadata.get("runtimeTemplateSelectedCount"));
+            if (selected == null || selected < 1) {
+                return "the model selected no usable template candidate";
+            }
+        }
+        return null;
+    }
+
 
     private boolean requiresModelTemplateParameterProtocol(InterpretationPlan.Step step,
                                                             Map<Integer, StepExecution> completed) {
@@ -2848,17 +2920,15 @@ public class InterpretationPlanRuntime {
         }
         String evidenceType = stringValue(metadata.get("localFactCheckEvidenceType"));
         if ("asset_discovery".equals(evidenceType)) {
-            Integer returnedCount = integerValue(metadata.get("assetDiscoveryReturnedCount"));
-            // A configured workflow owns both candidate fan-out and the downstream
-            // selection step. A model reviewer must not reject this routing fact merely
-            // because the remaining configured nodes have not run yet.
-            return returnedCount != null && returnedCount > 0
-                && (returnedCount == 1 || authoritativeWorkflowGoverns(request, step));
+            // Structural success only proves that routing candidates exist. It cannot
+            // prove that even a single returned asset is the target requested by the
+            // user. Semantic admission therefore always belongs to the model reviewer.
+            return false;
         }
         if ("template_discovery".equals(evidenceType)) {
-            Integer returnedCount = integerValue(metadata.get("templateDiscoveryReturnedCount"));
-            return returnedCount != null && returnedCount > 0
-                && (returnedCount == 1 || authoritativeWorkflowGoverns(request, step));
+            // A template can be structurally executable and still describe the wrong
+            // database, capability, or business intent. Never bypass semantic review.
+            return false;
         }
         // The local check only accepts a successful, non-empty typed result. Once
         // that contract is satisfied, semantic completeness belongs to the final

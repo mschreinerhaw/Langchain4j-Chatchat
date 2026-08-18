@@ -1424,6 +1424,50 @@ class CommandTemplateDiscoveryServiceTest {
     }
 
     @Test
+    void infersRegisteredDatabaseTypeFromIntentInsteadOfUsingFirstEnvironmentDatasource() {
+        SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        CommandTemplateDiscoveryService service = new CommandTemplateDiscoveryService(
+            mock(CommandTemplateService.class),
+            mock(SshHostConfigService.class),
+            sqlTemplateService,
+            datasourceService,
+            mock(HttpEndpointConfigService.class),
+            new ObjectMapper(),
+            new TemplateDiscoveryProperties()
+        );
+        SqlDatasourceConfig mysql = datasource("ds-mysql", "configuration database", "DEV");
+        mysql.setDatabaseType("mysql");
+        mysql.setAllowedTemplatesJson("[\"MYSQL_STATUS\"]");
+        SqlDatasourceConfig oracle = datasource("ds-oracle", "risk database", "DEV");
+        oracle.setDatabaseType("oracle");
+        oracle.setAllowedTemplatesJson("[\"ORACLE_STATUS\"]");
+        when(datasourceService.listEnabled()).thenReturn(List.of(mysql, oracle));
+        when(sqlTemplateService.listEnabled()).thenReturn(List.of(
+            sqlTemplate("MYSQL_STATUS", "SHOW STATUS", "MySQL status", "MySQL health status",
+                "mysql", "maintenance_instance", "[\"status\",\"health\"]"),
+            sqlTemplate("ORACLE_STATUS", "SELECT status FROM v$instance", "Oracle status", "Oracle instance health",
+                "oracle", "maintenance_instance", "[\"oracle\",\"instance\",\"status\"]")
+        ));
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "database",
+            "confidence", 0.9,
+            "filters", Map.of("env", "DEV", "intent", "inspect Oracle instance health status"),
+            "trace", trace(),
+            "limit", 10
+        ));
+
+        assertThat(result).containsEntry("returnedCount", 1);
+        assertThat(result.get("templates").toString())
+            .contains("ORACLE_STATUS")
+            .doesNotContain("MYSQL_STATUS");
+        assertThat(result.get("queryIr").toString())
+            .contains("ds-oracle", "oracle")
+            .doesNotContain("ds-mysql");
+    }
+
+    @Test
     void enrichesDatabaseQueryRetrievalWithScopedDatasourceSignals() {
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
         DatabaseQueryConfigService databaseQueryService = mock(DatabaseQueryConfigService.class);

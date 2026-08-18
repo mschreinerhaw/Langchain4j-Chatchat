@@ -115,4 +115,90 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
             .contains("R1_SELECTED", "selectedCount=0")
             .doesNotContain("templateId=R1_REJECTED", "templateId=R2_REJECTED");
     }
+
+    @Test
+    void preservesUniqueCandidateWhenReviewContainsNoCandidateLevelDecision() {
+        EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
+            new EvidenceBasedTemplateCandidateEvaluator().evaluate(
+                Map.of("templates", List.of(Map.of(
+                    "templateId", "oracle-risk-session",
+                    "executorTool", "sql_query_execute"
+                ))),
+                Map.of("reason", "downstream execution has not run yet")
+            );
+
+        assertThat(evaluation.applied()).isTrue();
+        assertThat(evaluation.selectedIds()).containsExactly("oracle-risk-session");
+        assertThat(evaluation.output().toString()).contains("selectionAuthority=runtime_unique_candidate");
+    }
+
+    @Test
+    void honorsExplicitRejectionOfUniqueCandidate() {
+        EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
+            new EvidenceBasedTemplateCandidateEvaluator().evaluate(
+                Map.of("templates", List.of(Map.of("templateId", "mysql-session"))),
+                Map.of("rejectedTemplateIds", List.of("mysql-session"))
+            );
+
+        assertThat(evaluation.applied()).isTrue();
+        assertThat(evaluation.selectedCount()).isZero();
+    }
+
+    @Test
+    void requiresCandidateLevelDecisionWhenMultipleTemplatesRemain() {
+        EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
+            new EvidenceBasedTemplateCandidateEvaluator().evaluate(
+                Map.of("templates", List.of(
+                    Map.of("templateId", "oracle-session"),
+                    Map.of("templateId", "mysql-session")
+                )),
+                Map.of("reason", "request is not complete")
+            );
+
+        assertThat(evaluation.applied()).isFalse();
+        assertThat(evaluation.selectedCount()).isZero();
+    }
+
+    @Test
+    void doesNotTreatPartialRejectionAsSelectionWhenSeveralCandidatesSurvive() {
+        EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
+            new EvidenceBasedTemplateCandidateEvaluator().evaluate(
+                Map.of("templates", List.of(
+                    Map.of("templateId", "oracle-session"),
+                    Map.of("templateId", "oracle-lock"),
+                    Map.of("templateId", "mysql-session")
+                )),
+                Map.of("rejectedTemplateIds", List.of("mysql-session"))
+            );
+
+        assertThat(evaluation.applied()).isFalse();
+        assertThat(evaluation.selectedCount()).isZero();
+    }
+
+    @Test
+    void admitsTheOnlyCandidateLeftByExplicitRejection() {
+        EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
+            new EvidenceBasedTemplateCandidateEvaluator().evaluate(
+                Map.of("templates", List.of(
+                    Map.of("templateId", "oracle-session"),
+                    Map.of("templateId", "mysql-session")
+                )),
+                Map.of("rejectedTemplateIds", List.of("mysql-session"))
+            );
+
+        assertThat(evaluation.applied()).isTrue();
+        assertThat(evaluation.selectedIds()).containsExactly("oracle-session");
+    }
+
+    @Test
+    void doesNotAdmitUniqueCandidateWhenModelReviewerWasSkipped() {
+        EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
+            new EvidenceBasedTemplateCandidateEvaluator().evaluate(
+                Map.of("templates", List.of(Map.of("templateId", "oracle-session"))),
+                Map.of("toolResultReviewSkipped", true)
+            );
+
+        assertThat(evaluation.applied()).isFalse();
+        assertThat(evaluation.selectedCount()).isZero();
+    }
 }

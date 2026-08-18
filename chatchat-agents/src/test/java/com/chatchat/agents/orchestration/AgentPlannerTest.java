@@ -124,6 +124,65 @@ class AgentPlannerTest {
     }
 
     @Test
+    void invalidCandidateWithAuthoritativeWorkflowStopsModelRepairAndDefersToRuntime() {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        String firstTool = "workflow_first_lookup";
+        String secondTool = "workflow_second_lookup";
+        String response = """
+            {
+              "version":"1.0",
+              "intent":{"type":"data_query","goal":"run configured workflow","risk_level":"low"},
+              "context":{"key_facts":[],"assumptions":[],"missing_info":[],"constraints":[]},
+              "plan":{
+                "steps":[
+                  {"id":1,"action_type":"mcp_tool","tool_name":"workflow_first_lookup","input":{},"depends_on":[]},
+                  {"id":2,"action_type":"mcp_tool","tool_name":"workflow_second_lookup","input":{},"depends_on":[1]},
+                  {"id":3,"action_type":"final_answer","tool_name":"","input":{"answer":"done"},"depends_on":[1]}
+                ],
+                "dependency_contracts":[{"from":1,"to":2,"required":true}],
+                "edge_contracts":[],
+                "bindings":[]
+              },
+              "execution_policy":{"max_steps":3,"allow_parallel":false,
+                "allow_tool":["workflow_first_lookup","workflow_second_lookup"],"deny_tool":[]},
+              "review":{"self_check":{"completeness_score":0.4,"hallucination_risk":0.1,
+                "tool_sufficiency":false,"missing_steps":["workflow_second_lookup"]},"fallback_plan":[]}
+            }
+            """;
+        AtomicInteger calls = new AtomicInteger();
+        ChatModel model = new ChatModel() {
+            @Override
+            public String chat(String message) {
+                calls.incrementAndGet();
+                return response;
+            }
+        };
+        List<Map<String, Object>> authoritativeDag = List.of(
+            Map.of("tool", firstTool, "dependsOnTools", List.of()),
+            Map.of("tool", secondTool, "dependsOnTools", List.of())
+        );
+
+        PlannerExecutionResult result = planner.decideNextAction(
+            model, "run workflow", "",
+            List.of(firstTool, secondTool), List.of(), List.of(), List.of(),
+            List.of(firstTool, secondTool), true,
+            false, null, null,
+            Map.of("plannerMaxRepairAttempts", 3, "authoritativeWorkflowDag", authoritativeDag));
+
+        assertThat(calls).hasValue(1);
+        assertThat(result.decision().reason()).isEqualTo("invalid_interpretation_plan");
+        assertThat(result.decision().executionPlan())
+            .containsEntry("eventKind", "DAG_REPAIR")
+            .containsEntry("eventState", "REJECTED")
+            .containsEntry("plannerGenerationCount", 1);
+        Map<?, ?> repairEvent = (Map<?, ?>) result.decision().executionPlan().get("repairEvent");
+        assertThat(repairEvent.get("repairCode"))
+            .isEqualTo("AUTHORITATIVE_WORKFLOW_DAG_RESTORED_PLAN_INVALID");
+        assertThat(repairEvent.get("topologyRestored")).isEqualTo(true);
+        assertThat(repairEvent.get("candidateValid")).isEqualTo(false);
+    }
+
+    @Test
     void repairsUnescapedQuotesInsideInterpretationPlanMarkdownAnswer() throws Exception {
         AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
         String raw = """

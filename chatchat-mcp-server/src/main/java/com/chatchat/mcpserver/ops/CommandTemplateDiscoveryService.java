@@ -3416,16 +3416,46 @@ public class CommandTemplateDiscoveryService {
         if (!assetScoped || datasources == null || datasources.isEmpty()) {
             return null;
         }
-        return datasources.stream()
+        List<String> databaseTypes = datasources.stream()
             .map(SqlDatasourceConfig::getDatabaseType)
             .filter(value -> value != null && !value.isBlank())
-            .findFirst()
-            .orElse(null);
+            .map(SqlDatasourceConfigService::normalizeDatabaseTypeToken)
+            .filter(value -> value != null && !value.isBlank())
+            .distinct()
+            .toList();
+        // Environment-only scope commonly contains heterogeneous datasource types.
+        // Repository order is not routing evidence, so only publish an asset type when
+        // every remaining candidate agrees on one normalized type.
+        return databaseTypes.size() == 1 ? databaseTypes.get(0) : null;
     }
 
     private String requestedDatabaseType(Map<String, Object> filters) {
         String value = text(firstValue(filters, "databaseType", "dbType", "dialect"));
-        return value == null ? null : SqlDatasourceConfigService.normalizeDatabaseTypeToken(value);
+        if (value != null) {
+            return SqlDatasourceConfigService.normalizeDatabaseTypeToken(value);
+        }
+        if (filters == null || filters.isEmpty() || datasourceConfigService == null) {
+            return null;
+        }
+        Set<String> registeredTypes = datasourceConfigService.listEnabled().stream()
+            .map(SqlDatasourceConfig::getDatabaseType)
+            .filter(type -> type != null && !type.isBlank())
+            .map(SqlDatasourceConfigService::normalizeDatabaseTypeToken)
+            .filter(type -> type != null && !type.isBlank())
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        if (registeredTypes.isEmpty()) {
+            return null;
+        }
+        LinkedHashSet<String> querySignals = new LinkedHashSet<>(intentTokens(filters));
+        querySignals.addAll(bilingualIntentTokens(filters));
+        LinkedHashSet<String> matchedTypes = querySignals.stream()
+            .map(SqlDatasourceConfigService::normalizeDatabaseTypeToken)
+            .filter(registeredTypes::contains)
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        // A type inferred from free text is authoritative only when it is both registered
+        // for the current tenant and unambiguous. This keeps routing metadata-driven and
+        // prevents an environment filter from silently selecting the first datasource.
+        return matchedTypes.size() == 1 ? matchedTypes.iterator().next() : null;
     }
 
     private Map<String, Object> sqlTemplateBindingMetadata(SqlTemplateConfig template) {

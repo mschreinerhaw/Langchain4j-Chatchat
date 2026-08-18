@@ -9,12 +9,18 @@ import java.util.Map;
 import java.util.Set;
 
 /** Projects model-reviewed asset ids onto the authorized MCP routing candidates. */
-final class EvidenceBasedAssetCandidateEvaluator {
+public final class EvidenceBasedAssetCandidateEvaluator {
 
-    Evaluation evaluate(Object output, Map<String, Object> reviewMetadata) {
+    public Evaluation evaluate(Object output, Map<String, Object> reviewMetadata) {
         List<String> selected = strings(reviewMetadata == null ? null : reviewMetadata.get("selectedAssetIds"));
         List<String> rejected = strings(reviewMetadata == null ? null : reviewMetadata.get("rejectedAssetIds"));
         List<Map<String, Object>> evaluations = maps(reviewMetadata == null ? null : reviewMetadata.get("assetEvaluations"));
+        if (reviewMetadata != null
+            && (Boolean.TRUE.equals(reviewMetadata.get("toolResultReviewUnavailable"))
+            || Boolean.TRUE.equals(reviewMetadata.get("toolResultReviewSkipped")))) {
+            return new Evaluation(output, 0, 0, List.of(), evaluations, false,
+                "Model candidate reviewer was unavailable.");
+        }
         Projection projection = project(output, selected, rejected, evaluations, 0);
         if (!projection.applied()) {
             return new Evaluation(output, 0, 0, List.of(), evaluations, false,
@@ -33,7 +39,12 @@ final class EvidenceBasedAssetCandidateEvaluator {
         if (map.get("assets") instanceof List<?> candidates) {
             List<Map<String, Object>> assets = candidates.stream().filter(Map.class::isInstance)
                 .map(item -> (Map<String, Object>) new LinkedHashMap<>((Map<String, Object>) item)).toList();
-            if (selectedIds.isEmpty() && assets.size() == 1) selectedIds = List.of(identity(assets.get(0)));
+            boolean uniqueCandidateFallback = selectedIds.isEmpty() && assets.size() == 1;
+            if (uniqueCandidateFallback) {
+                // A generic cumulative-review rejection is not a candidate-level rejection.
+                // Preserve the unique routing fact unless the reviewer explicitly rejected its id.
+                selectedIds = List.of(identity(assets.get(0)));
+            }
             if (selectedIds.isEmpty()) return Projection.none(output);
             Set<String> selected = normalized(selectedIds);
             Set<String> rejected = normalized(rejectedIds);
@@ -51,7 +62,8 @@ final class EvidenceBasedAssetCandidateEvaluator {
                 "selectedCount", projected.size(),
                 "selectedAssetIds", ids,
                 "candidateEvaluations", evaluations,
-                "selectionAuthority", "runtime_evidence_model_review",
+                "selectionAuthority", uniqueCandidateFallback
+                    ? "runtime_unique_candidate" : "runtime_evidence_model_review",
                 "candidateIsObservation", false
             ));
             return new Projection(map, assets.size(), ids, true);
@@ -107,8 +119,8 @@ final class EvidenceBasedAssetCandidateEvaluator {
         return List.copyOf(result);
     }
 
-    record Evaluation(Object output, int candidateCount, int selectedCount, List<String> selectedIds,
-                      List<Map<String, Object>> candidateEvaluations, boolean applied, String reason) {}
+    public record Evaluation(Object output, int candidateCount, int selectedCount, List<String> selectedIds,
+                             List<Map<String, Object>> candidateEvaluations, boolean applied, String reason) {}
 
     private record Projection(Object output, int candidateCount, List<String> selectedIds, boolean applied) {
         static Projection none(Object output) { return new Projection(output, 0, List.of(), false); }

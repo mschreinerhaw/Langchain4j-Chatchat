@@ -1212,7 +1212,7 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
-    void authoritativeWorkflowAcceptsNonEmptyDiscoveryWithoutModelReview() {
+    void authoritativeWorkflowStillRequiresSemanticAssetReview() {
         String assetTool = "mcp_runtime_api_asset_query";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool(assetTool)).thenReturn(true);
@@ -1252,7 +1252,13 @@ class InterpretationPlanRuntimeTest {
             null,
             request -> {
                 reviewerCalls.incrementAndGet();
-                return InterpretationPlanRuntime.StepReview.rejected("downstream work is incomplete", Map.of());
+                return InterpretationPlanRuntime.StepReview.accepted("asset-b matches the requested target", Map.of(
+                    "selectedAssetIds", List.of("asset-b"),
+                    "assetEvaluations", List.of(
+                        Map.of("asset_id", "asset-a", "decision", "reject", "relevance", 0.1),
+                        Map.of("asset_id", "asset-b", "decision", "accept", "relevance", 1.0)
+                    )
+                ));
             },
             scriptedController(List.of(List.of(1), List.of(2)))
         );
@@ -1273,16 +1279,17 @@ class InterpretationPlanRuntimeTest {
         );
 
         assertThat(result.success()).isTrue();
-        assertThat(reviewerCalls).hasValue(0);
+        assertThat(reviewerCalls).hasValue(1);
         assertThat(result.steps().get(0).metadata())
             .containsEntry("assetDiscoveryReturnedCount", 2)
-            .containsEntry("toolResultReviewSkipped", true)
-            .containsEntry("toolResultReviewSkipReason",
-                "deterministic discovery fact check accepted non-empty structured results");
+            .containsEntry("toolResultReviewSatisfied", true)
+            .containsEntry("runtimeAssetSelectionApplied", true)
+            .containsEntry("runtimeAssetSelectedCount", 1)
+            .doesNotContainKey("toolResultReviewSkipped");
     }
 
     @Test
-    void preservesFactCheckedTemplateDiscoveryWhenModelReviewerIsUnavailable() {
+    void blocksTemplateDiscoveryWhenModelReviewerIsUnavailable() {
         String toolName = "mcp_chatchat_mcp_server_ssh_template_query";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool(toolName)).thenReturn(true);
@@ -1338,12 +1345,12 @@ class InterpretationPlanRuntimeTest {
             )
         );
 
-        assertThat(result.success()).isTrue();
+        assertThat(result.success()).isFalse();
         assertThat(result.steps().get(0).metadata())
             .containsEntry("localFactCheckHasEvidence", true)
             .containsEntry("toolResultReviewUnavailable", true)
-            .containsEntry("toolResultReviewSkipped", true)
-            .containsEntry("toolResultReviewSatisfied", true);
+            .containsEntry("semanticCandidateReviewSatisfied", false);
+        assertThat(result.errorMessage()).contains("model did not select a template id");
         assertThat(result.steps().get(0).output().toString())
             .contains("check_cpu", "check_docker_overview");
     }
@@ -5757,7 +5764,7 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
-    void skipsCumulativeModelReviewForUniqueAssetAndExecutesDependentLinuxCommand() {
+    void reviewsUniqueAssetAndExecutesDependentLinuxCommand() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_ssh_asset_query")).thenReturn(true);
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_linux_command_execute")).thenReturn(true);
@@ -5810,8 +5817,10 @@ class InterpretationPlanRuntimeTest {
         InterpretationPlanRuntime.StepResultReviewer reviewer = request -> {
             if ("mcp_chatchat_mcp_server_ssh_asset_query".equals(request.execution().toolName())) {
                 assetReviewCalls.incrementAndGet();
-                return InterpretationPlanRuntime.StepReview.rejected(
-                    "the overall diagnostic request still lacks resource evidence", Map.of());
+                return InterpretationPlanRuntime.StepReview.accepted(
+                    "the returned host matches the requested docker service", Map.of(
+                        "selectedAssetIds", List.of("Docker Service Host")
+                    ));
             }
             return InterpretationPlanRuntime.StepReview.accepted("command output usable", Map.of());
         };
@@ -5870,11 +5879,12 @@ class InterpretationPlanRuntimeTest {
         verify(toolRuntimeService, times(2)).execute(captor.capture());
         Map<?, ?> linuxParameters = captor.getAllValues().get(1).getToolInput().getParameters();
         Map<?, ?> executionContext = (Map<?, ?>) linuxParameters.get("executionContext");
-        assertThat(assetReviewCalls).hasValue(0);
+        assertThat(assetReviewCalls).hasValue(1);
         assertThat(result.steps().get(0).metadata())
             .containsEntry("localFactCheckHasEvidence", true)
             .containsEntry("assetDiscoveryReturnedCount", 1)
-            .containsEntry("toolResultReviewSkipped", true);
+            .containsEntry("semanticCandidateReviewSatisfied", true)
+            .doesNotContainKey("toolResultReviewSkipped");
         assertThat(captor.getAllValues().get(1).getToolName()).isEqualTo("mcp_chatchat_mcp_server_linux_command_execute");
         assertThat(linuxParameters.get("template")).isEqualTo("CHECK_SYSTEM_OVERVIEW");
         assertThat(executionContext.get("assetName")).isEqualTo("Docker Service Host");
@@ -5924,7 +5934,9 @@ class InterpretationPlanRuntimeTest {
             toolRuntimeService,
             new InterpretationPlanValidator(),
             null,
-            request -> InterpretationPlanRuntime.StepReview.accepted("usable", Map.of()),
+            request -> InterpretationPlanRuntime.StepReview.accepted("worker11 is the requested asset", Map.of(
+                "selectedAssetIds", List.of("worker11-id")
+            )),
             scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
         );
 
@@ -6128,7 +6140,7 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
-    void skipsReviewerForUniqueDeterministicAssetFacts() {
+    void requiresReviewerForUniqueDeterministicAssetFacts() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_sql_datasource_asset_query")).thenReturn(true);
         when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_sql_datasource_asset_query"))
@@ -6155,9 +6167,9 @@ class InterpretationPlanRuntimeTest {
         AtomicInteger reviewerCalls = new AtomicInteger();
         InterpretationPlanRuntime.StepResultReviewer reviewer = request -> {
             reviewerCalls.incrementAndGet();
-            return InterpretationPlanRuntime.StepReview.rejected(
-                "Asset query returned zero results and no matching asset.",
-                Map.of("reviewed", true)
+            return InterpretationPlanRuntime.StepReview.accepted(
+                "the candidate matches the requested database asset",
+                Map.of("reviewed", true, "selectedAssetIds", List.of("248-test-db"))
             );
         };
         InterpretationPlan plan = new InterpretationPlan(
@@ -6210,12 +6222,13 @@ class InterpretationPlanRuntimeTest {
         assertThat(result.success())
             .as(result.status() + ": " + result.errorMessage() + " steps=" + result.steps())
             .isTrue();
-        assertThat(reviewerCalls).hasValue(0);
+        assertThat(reviewerCalls).hasValue(1);
         assertThat(result.finalAnswer()).isEqualTo("done");
         assertThat(result.steps().get(0).metadata())
             .containsEntry("localFactCheckHasEvidence", true)
             .containsEntry("assetDiscoveryReturnedCount", 1)
-            .containsEntry("toolResultReviewSkipped", true);
+            .containsEntry("semanticCandidateReviewSatisfied", true)
+            .doesNotContainKey("toolResultReviewSkipped");
     }
 
     @Test
@@ -7487,7 +7500,9 @@ class InterpretationPlanRuntimeTest {
             toolRuntimeService,
             new InterpretationPlanValidator(),
             runStore,
-            request -> InterpretationPlanRuntime.StepReview.accepted("usable", Map.of()),
+            request -> InterpretationPlanRuntime.StepReview.accepted("asset matches the requested docker host", Map.of(
+                "selectedAssetIds", List.of("asset-17")
+            )),
             request -> InterpretationPlanRuntime.DagDecision.finalAnswer(
                 2, "done", "current scoped DAG completed")
         );
@@ -8048,7 +8063,9 @@ class InterpretationPlanRuntimeTest {
             review());
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(service,
             new InterpretationPlanValidator(), null,
-            request -> InterpretationPlanRuntime.StepReview.accepted("usable", Map.of()),
+            request -> InterpretationPlanRuntime.StepReview.accepted("asset matches the requested docker host", Map.of(
+                "selectedAssetIds", List.of("asset-17")
+            )),
             scriptedController(List.of(List.of(1), List.of(2), List.of(3))));
 
         InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
@@ -8133,7 +8150,9 @@ class InterpretationPlanRuntimeTest {
             toolRuntimeService,
             new InterpretationPlanValidator(),
             null,
-            request -> InterpretationPlanRuntime.StepReview.accepted("usable", Map.of()),
+            request -> InterpretationPlanRuntime.StepReview.accepted("both snapshot templates are required", Map.of(
+                "selectedTemplateIds", List.of(firstTemplate, secondTemplate)
+            )),
             scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
         );
 
@@ -8613,7 +8632,10 @@ class InterpretationPlanRuntimeTest {
             null,
             request -> InterpretationPlanRuntime.StepReview.rejected(
                 "available templates cover useful checks but another diagnostic aspect is missing",
-                Map.of("refinedIntent", "find the remaining diagnostic capability")
+                Map.of(
+                    "refinedIntent", "find the remaining diagnostic capability",
+                    "selectedTemplateIds", templateIds
+                )
             ),
             scriptedController(List.of(List.of(1), List.of(2), List.of(3), List.of(4)))
         );

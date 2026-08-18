@@ -220,6 +220,52 @@ class SkillCatalogServiceTest {
             .containsEntry("overrideAllowed", false);
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void migratesLegacySqlScriptBindingToUnifiedQueryGateway() {
+        SkillConfigRepository repository = mock(SkillConfigRepository.class);
+        SkillConfigVersionRepository versionRepository = mock(SkillConfigVersionRepository.class);
+        when(repository.findById("db_ops_assistant")).thenReturn(Optional.empty());
+        when(repository.save(any(SkillConfigEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(versionRepository.save(any(SkillConfigVersionEntity.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        SkillCatalogService service = new SkillCatalogService(
+            repository, versionRepository, new ObjectMapper(), mock(JdbcTemplate.class), summaryContractService());
+        String queryTool = "mcp_chatchat_mcp_server_sql_query_execute";
+        String scriptTool = "mcp_chatchat_mcp_server_sql_script_execute";
+        SkillDefinition draft = new SkillDefinition(
+            "db_ops_assistant", "Database operations", null, List.of(), List.of(), "agent_chat",
+            null, null, null, List.of(), List.of(), List.of(queryTool, scriptTool),
+            List.of(), List.of(),
+            List.of(
+                new SkillToolConfig(queryTool, "SQL query", "mcp", null, List.of(), "read", 5, true),
+                new SkillToolConfig(scriptTool, "SQL script", "mcp", null, List.of(), "read", 5, true)
+            ),
+            null,
+            Map.of("steps", List.of(
+                Map.of("step", 1, "tool", "asset_search", "required", true),
+                Map.of("step", 2, "tool", queryTool, "required", true,
+                    "dependsOn", List.of("asset_search")),
+                Map.of("step", 3, "tool", scriptTool, "required", true,
+                    "dependsOn", List.of(queryTool),
+                    "templateId", "risk_sql_script_execute")
+            )),
+            null, null, List.of(), SkillCatalogService.MARKET_STATUS_DRAFT, false
+        );
+
+        SkillDefinition saved = service.upsert(draft);
+
+        assertThat(saved.boundMcpToolNames()).containsExactly(queryTool);
+        assertThat(saved.toolConfigs()).extracting(SkillToolConfig::toolName).containsExactly(queryTool);
+        List<Map<String, Object>> steps = (List<Map<String, Object>>) saved.workflowConfig().get("steps");
+        assertThat(steps).extracting(step -> step.get("tool"))
+            .containsExactly("asset_search", queryTool);
+        assertThat(steps.get(1).get("dependsOn")).isEqualTo(List.of("asset_search"));
+        assertThat(steps.get(1).get("templateId")).isEqualTo("risk_sql_script_execute");
+        assertThat(saved.workflowConfig().toString())
+            .doesNotContain("mcp_chatchat_mcp_server_sql_script_execute");
+    }
+
     private SkillDefinition draftWithEnvironment(String environment) {
         return draftWithWorkflow(Map.of("enabled", true, "runtimeEnvironment", environment));
     }

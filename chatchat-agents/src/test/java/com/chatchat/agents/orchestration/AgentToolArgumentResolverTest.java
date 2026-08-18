@@ -67,6 +67,84 @@ class AgentToolArgumentResolverTest {
     }
 
     @Test
+    void resolvesPublishedAssetReferencesForFallbackTemplateDiscovery() {
+        InteractionToolTrace assetDiscovery = InteractionToolTrace.builder()
+            .toolName("mcp_chatchat_mcp_server_database_asset_search")
+            .success(true)
+            .output("""
+                {"assets":[{"asset":{"id":"oracle-risk-dev","name":"Risk Control Oracle",
+                "environment":"DEV","toolName":"oracle_risk_control"}}]}
+                """)
+            .build();
+
+        Map<String, Object> result = resolver.enforceObservedAssetContinuity(
+            "mcp_chatchat_mcp_server_database_ops_template_search",
+            Map.of("filters", Map.of(
+                "assetName", "$.assets[0].asset.name",
+                "env", "$.assets[0].asset.environment",
+                "intent", "database health"
+            )),
+            List.of(assetDiscovery)
+        );
+
+        assertThat(result).doesNotContainKey("__runtimeParamBindingStatus");
+        Map<?, ?> filters = (Map<?, ?>) result.get("filters");
+        assertThat(filters.get("assetName")).isEqualTo("Risk Control Oracle");
+        assertThat(filters.get("env")).isEqualTo("DEV");
+    }
+
+    @Test
+    void resolvesPublishedAssetReferencesForFallbackExecutor() {
+        InteractionToolTrace assetDiscovery = InteractionToolTrace.builder()
+            .toolName("mcp_chatchat_mcp_server_database_asset_search")
+            .success(true)
+            .output("""
+                {"assets":[{"asset":{"id":"oracle-risk-dev","name":"Risk Control Oracle",
+                "environment":"DEV","toolName":"oracle_risk_control"}}]}
+                """)
+            .build();
+
+        Map<String, Object> result = resolver.enforceObservedAssetContinuity(
+            "mcp_chatchat_mcp_server_sql_query_execute",
+            Map.of("executionContext", Map.of(
+                "assetId", "$.assets[0].asset.id",
+                "assetName", "$.assets[0].asset.name",
+                "env", "$.assets[0].asset.environment"
+            )),
+            List.of(assetDiscovery)
+        );
+
+        assertThat(result).doesNotContainKey("__runtimeParamBindingStatus");
+        Map<?, ?> context = (Map<?, ?>) result.get("executionContext");
+        assertThat(context.get("assetId")).isEqualTo("oracle-risk-dev");
+        assertThat(context.get("assetName")).isEqualTo("Risk Control Oracle");
+        assertThat(context.get("assetToolName")).isEqualTo("oracle_risk_control");
+        assertThat(context.get("env")).isEqualTo("DEV");
+    }
+
+    @Test
+    void rejectsUnpublishedAssetReferenceForFallbackContinuation() {
+        InteractionToolTrace assetDiscovery = InteractionToolTrace.builder()
+            .toolName("mcp_chatchat_mcp_server_database_asset_search")
+            .success(true)
+            .output("""
+                {"assets":[{"asset":{"id":"oracle-risk-dev","name":"Risk Control Oracle",
+                "environment":"DEV"}}]}
+                """)
+            .build();
+
+        Map<String, Object> result = resolver.enforceObservedAssetContinuity(
+            "mcp_chatchat_mcp_server_database_ops_template_search",
+            Map.of("filters", Map.of("assetName", "$.assets[1].asset.name")),
+            List.of(assetDiscovery)
+        );
+
+        assertThat(result)
+            .containsEntry("__runtimeParamBindingStatus", "DENIED")
+            .containsEntry("__runtimeParamBindingCode", "ASSET_CONTEXT_MISMATCH");
+    }
+
+    @Test
     void deniesFallbackExecutorWhenTemplateDiscoveryDriftsFromUniqueObservedAsset() {
         InteractionToolTrace assetDiscovery = InteractionToolTrace.builder()
             .toolName("mcp_chatchat_mcp_server_ssh_asset_query")

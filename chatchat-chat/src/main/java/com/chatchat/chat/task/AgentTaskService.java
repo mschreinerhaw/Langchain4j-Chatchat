@@ -136,7 +136,9 @@ public class AgentTaskService {
         latest.setUserId(normalized.getUserId());
         latest.setAgentId(normalized.getAgentId());
         latest.setSessionId(normalized.getSessionId());
-        latest.setStatus("PENDING");
+        // A task must not become visible to database workers until its durable
+        // request snapshot and QUESTION event are both ready.
+        latest.setStatus("SUBMITTING");
         latest.setQuestion(normalized.getQuery());
         latest.setRequestPayloadJson(writePayload(new AgentTaskPayload(normalized)));
         latest.setCreateTime(Instant.now());
@@ -146,7 +148,7 @@ public class AgentTaskService {
         latest.setMaxAttempts(Math.max(1, properties.getTaskMaxAttempts()));
         applyWorkerRequirements(latest, normalized);
         try {
-            latestRepository.save(latest);
+            latest = saveTask(latest);
         } catch (DataIntegrityViolationException duplicate) {
             AgentTaskLatestEntity existing = latestRepository
                 .findByTenantIdAndIdempotencyKey(normalized.getTenantId(), idempotencyKey)
@@ -155,8 +157,8 @@ public class AgentTaskService {
             return AgentTaskResponse.from(existing);
         }
 
-        queueQuestion(latest, normalized);
-        return AgentTaskResponse.from(latest);
+        AgentTaskLatestEntity queued = queueQuestion(latest, normalized);
+        return AgentTaskResponse.from(queued);
     }
 
     /** Freezes the user-defined MCP workflow against the task id before the task is persisted. */
@@ -747,15 +749,15 @@ public class AgentTaskService {
         resumed.setAgentId(firstText(confirmationRequest == null ? null : confirmationRequest.getAgentId(), task.getAgentId()));
         resumed.setQuery(firstText(confirmationRequest == null ? null : confirmationRequest.getQuery(), task.getQuestion()));
 
-        task.setStatus("PENDING");
+        task.setStatus("SUBMITTING");
         task.setErrorMessage(null);
         task.setUpdateTime(Instant.now());
-        latestRepository.save(task);
+        task = saveTask(task);
         markLatestConfirmation(task.getTaskId(), "CONFIRMED", resumed.getUserId());
         eventBus.clearResults(task.getTaskId());
         saveStatusEvent(task, "PENDING", Map.of("message", "Confirmed MCP execution queued for durable resume"));
-        queueQuestion(task, resumed, false);
-        return AgentTaskResponse.from(task);
+        AgentTaskLatestEntity queued = queueQuestion(task, resumed, false);
+        return AgentTaskResponse.from(queued);
     }
 
     @SuppressWarnings("unchecked")
@@ -1690,8 +1692,8 @@ public class AgentTaskService {
      * @param latest the latest value
      * @param request the request value
      */
-    private void queueQuestion(AgentTaskLatestEntity latest, AgentTaskSubmitRequest request) {
-        queueQuestion(latest, request, true);
+    private AgentTaskLatestEntity queueQuestion(AgentTaskLatestEntity latest, AgentTaskSubmitRequest request) {
+        return queueQuestion(latest, request, true);
     }
 
     /**
@@ -1701,10 +1703,11 @@ public class AgentTaskService {
      * @param request the request value
      * @param persistQuestionEvent the persist question event value
      */
-    private void queueQuestion(AgentTaskLatestEntity latest, AgentTaskSubmitRequest request, boolean persistQuestionEvent) {
+    private AgentTaskLatestEntity queueQuestion(AgentTaskLatestEntity latest,
+                                                AgentTaskSubmitRequest request,
+                                                boolean persistQuestionEvent) {
         String requestPayload = writePayload(new AgentTaskPayload(request));
         latest.setRequestPayloadJson(requestPayload);
-        latestRepository.save(latest);
         AgentEvent question = AgentEvent.builder()
             .taskId(latest.getTaskId())
             .tenantId(latest.getTenantId())
@@ -1719,19 +1722,33 @@ public class AgentTaskService {
         if (persistQuestionEvent) {
             eventStore.save(question);
         }
+        latest.setStatus("PENDING");
+        latest.setAvailableAt(Instant.now());
+        latest.setClaimWorkerId(null);
+        latest.setClaimToken(null);
+        latest.setHeartbeatAt(null);
+        latest.setLeaseExpiresAt(null);
+        AgentTaskLatestEntity queued = saveTask(latest);
         if (databaseQueueEnabled()) {
-            latest.setStatus("PENDING");
-            latest.setAvailableAt(Instant.now());
-            latest.setClaimWorkerId(null);
-            latest.setClaimToken(null);
-            latest.setHeartbeatAt(null);
-            latest.setLeaseExpiresAt(null);
-            latestRepository.save(latest);
-            dispatchPersistentTasks();
-            return;
+            try {
+                dispatchPersistentTasks();
+            } catch (RuntimeException ex) {
+                // The durable PENDING row is authoritative. The scheduled poller
+                // will retry dispatch, so a transient dispatch failure must not
+                // turn a successfully accepted submission into a client error.
+                log.warn("Deferred database Agent dispatch after submission. taskId={} error={}",
+                    latest.getTaskId(), ex.getMessage());
+            }
+            return queued;
         }
         eventBus.publish(question);
         startWorkers(latest.getTenantId());
+        return queued;
+    }
+
+    private AgentTaskLatestEntity saveTask(AgentTaskLatestEntity task) {
+        AgentTaskLatestEntity saved = latestRepository.save(task);
+        return saved == null ? task : saved;
     }
 
     public int dispatchPersistentTasks() {
@@ -1755,6 +1772,10 @@ public class AgentTaskService {
 
     public int recoverExpiredDatabaseClaims() {
         return databaseQueueEnabled() ? queueCoordinator.recoverExpiredClaims() : 0;
+    }
+
+    public int reconcileDatabaseQueueQuotas() {
+        return databaseQueueEnabled() ? queueCoordinator.reconcileQuotaCounters() : 0;
     }
 
     private void executeDatabaseClaim(AgentTaskQueueCoordinator.ClaimedTask claim) {

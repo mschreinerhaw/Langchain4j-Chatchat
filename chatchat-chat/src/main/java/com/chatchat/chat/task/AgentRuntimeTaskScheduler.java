@@ -53,4 +53,16 @@ public class AgentRuntimeTaskScheduler {
             log.warn("Failed to recover expired database Agent claims: {}", ex.getMessage());
         }
     }
+
+    @Scheduled(fixedDelayString = "${chatchat.agent.task.database-quota-reconcile-ms:30000}")
+    public void reconcileDatabaseQueueQuotas() {
+        try {
+            int corrected = taskService.reconcileDatabaseQueueQuotas();
+            if (corrected > 0) {
+                log.warn("Reconciled {} stale database Agent quota records", corrected);
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to reconcile database Agent quotas: {}", ex.getMessage());
+        }
+    }
 }

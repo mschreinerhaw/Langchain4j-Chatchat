@@ -173,7 +173,8 @@ public class SqlQueryExecuteService {
             throw new IllegalArgumentException("SQL cannot be empty");
         }
         if (statements.size() > 1) {
-            throw new IllegalArgumentException("Multiple SQL statements should be executed with sql_script_execute");
+            throw new IllegalArgumentException(
+                "Multiple SQL statements must be routed through the sql_query_execute internal script bridge");
         }
         return statements.get(0);
     }

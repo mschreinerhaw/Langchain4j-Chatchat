@@ -239,7 +239,7 @@ public class StandardToolExecutionResultFactory {
             "diagnostics", safeDiagnostics
         ));
         payload.put("execution", execution(
-            "sql_script_execute",
+            "sql_query_execute",
             result.durationMs(),
             IntStream.range(0, result.results().size())
                 .mapToObj(position -> {
@@ -1140,7 +1140,7 @@ public class StandardToolExecutionResultFactory {
         return sourceMetadata(
             "SQL_SCRIPT_STEP",
             "sql_statement",
-            "sql_script_execute",
+            "sql_query_execute",
             Map.of(),
             mapOf("statementIndex", result.statementIndex(), "stepCode", result.stepCode(),
                 "statementHash", sha256(result.sql())),

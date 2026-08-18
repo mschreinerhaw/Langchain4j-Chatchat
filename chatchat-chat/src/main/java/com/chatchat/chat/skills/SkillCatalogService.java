@@ -19,6 +19,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -35,6 +36,8 @@ public class SkillCatalogService {
     public static final String MARKET_STATUS_DRAFT = "draft";
     public static final String MARKET_STATUS_PUBLISHED = "published";
     public static final String MARKET_STATUS_RECALLED = "recalled";
+    private static final String LEGACY_SQL_SCRIPT_EXECUTOR = "sql_script_execute";
+    private static final String SQL_QUERY_GATEWAY = "sql_query_execute";
     private static final Pattern SKILL_ID_PATTERN = Pattern.compile("^[a-z0-9_-]{2,64}$");
     private static final List<String> CUSTOM_EDITABLE_FIELDS = List.of(
         "label",
@@ -70,6 +73,7 @@ public class SkillCatalogService {
         ensureSkillSchemaCompatibility();
         ensureDefaultAgentPresent();
         ensureResultHandlingPolicyPersisted();
+        ensureUnifiedSqlGatewayPersisted();
     }
 
     /**
@@ -257,7 +261,7 @@ public class SkillCatalogService {
                 .filter(name -> name != null && !name.isBlank())
                 .distinct()
                 .toList()
-            : normalizeList(draft.boundMcpToolNames());
+            : normalizeSqlGatewayToolNames(draft.boundMcpToolNames());
 
         SkillConfigEntity existing = repository.findById(id).orElse(null);
         String marketStatus = normalizeMarketStatus(draft.marketStatus());
@@ -494,7 +498,7 @@ public class SkillCatalogService {
             normalizeText(entity.getFirstUseGreeting()),
             readListJson(entity.getPreferredToolPrefixesJson()),
             readListJson(entity.getBoundMcpServiceIdsJson()),
-            readListJson(entity.getBoundMcpToolNamesJson()),
+            normalizeSqlGatewayToolNames(readListJson(entity.getBoundMcpToolNamesJson())),
             readListJson(entity.getBoundDocumentIdsJson()),
             readListJson(entity.getBoundDocumentTagsJson()),
             readToolConfigsJson(entity.getToolConfigsJson()),
@@ -615,6 +619,39 @@ public class SkillCatalogService {
                 raw, RESULT_HANDLING_POLICY, "result_handling_policy")));
             if (!raw.equals(updated)) {
                 entity.setWorkflowConfigJson(writeRawWorkflowConfigJson(updated));
+                changed.add(entity);
+            }
+        }
+        if (!changed.isEmpty()) {
+            repository.saveAll(changed);
+        }
+    }
+
+    /** Migrates current Agent bindings from the retired public script tool to the unified SQL gateway. */
+    void ensureUnifiedSqlGatewayPersisted() {
+        List<SkillConfigEntity> changed = new ArrayList<>();
+        for (SkillConfigEntity entity : repository.findAll()) {
+            boolean updated = false;
+            List<String> boundTools = readListJson(entity.getBoundMcpToolNamesJson());
+            List<String> migratedBoundTools = normalizeSqlGatewayToolNames(boundTools);
+            if (!boundTools.equals(migratedBoundTools)) {
+                entity.setBoundMcpToolNamesJson(writeListJson(migratedBoundTools));
+                updated = true;
+            }
+            List<SkillToolConfig> toolConfigs = readToolConfigsJson(entity.getToolConfigsJson());
+            List<SkillToolConfig> migratedToolConfigs = normalizeToolConfigs(toolConfigs);
+            if (containsLegacySqlScriptTool(entity.getToolConfigsJson())
+                || !toolConfigs.equals(migratedToolConfigs)) {
+                entity.setToolConfigsJson(writeToolConfigsJson(migratedToolConfigs));
+                updated = true;
+            }
+            Map<String, Object> workflow = readRawWorkflowConfigJson(entity.getWorkflowConfigJson());
+            Map<String, Object> migratedWorkflow = upgradeLegacySqlWorkflow(workflow);
+            if (!workflow.equals(migratedWorkflow)) {
+                entity.setWorkflowConfigJson(writeRawWorkflowConfigJson(migratedWorkflow));
+                updated = true;
+            }
+            if (updated) {
                 changed.add(entity);
             }
         }
@@ -875,8 +912,8 @@ public class SkillCatalogService {
             if (config == null) {
                 continue;
             }
-            String toolName = normalizeText(config.toolName());
-            if (toolName == null || !seen.add(toolName)) {
+            String toolName = canonicalSqlGatewayToolName(normalizeText(config.toolName()));
+            if (toolName == null || !seen.add(toolName.toLowerCase(Locale.ROOT))) {
                 continue;
             }
             normalized.add(new SkillToolConfig(
@@ -891,6 +928,198 @@ public class SkillCatalogService {
             ));
         }
         return List.copyOf(normalized);
+    }
+
+    private List<String> normalizeSqlGatewayToolNames(List<String> input) {
+        if (input == null || input.isEmpty()) {
+            return List.of();
+        }
+        LinkedHashMap<String, String> normalized = new LinkedHashMap<>();
+        for (String item : input) {
+            String toolName = canonicalSqlGatewayToolName(normalizeText(item));
+            if (toolName != null) {
+                normalized.putIfAbsent(toolName.toLowerCase(Locale.ROOT), toolName);
+            }
+        }
+        return List.copyOf(normalized.values());
+    }
+
+    private String canonicalSqlGatewayToolName(String toolName) {
+        if (toolName == null || toolName.isBlank()) {
+            return toolName;
+        }
+        String normalized = toolName.trim();
+        String lower = normalized.toLowerCase(Locale.ROOT);
+        if (LEGACY_SQL_SCRIPT_EXECUTOR.equals(lower)) {
+            return SQL_QUERY_GATEWAY;
+        }
+        String suffix = "_" + LEGACY_SQL_SCRIPT_EXECUTOR;
+        if (lower.endsWith(suffix)) {
+            return normalized.substring(0, normalized.length() - LEGACY_SQL_SCRIPT_EXECUTOR.length())
+                + SQL_QUERY_GATEWAY;
+        }
+        return normalized;
+    }
+
+    /**
+     * Upgrades only protocol identifiers. Descriptions and business parameters are
+     * untouched. When an old workflow contained both query and script nodes, the
+     * nodes collapse into the single public gateway and their dependencies merge.
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> upgradeLegacySqlWorkflow(Map<String, Object> workflow) {
+        if (workflow == null || workflow.isEmpty()) {
+            return workflow == null ? Map.of() : new LinkedHashMap<>(workflow);
+        }
+        return (Map<String, Object>) upgradeLegacySqlWorkflowValue(workflow, null);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Object upgradeLegacySqlWorkflowValue(Object value, String fieldName) {
+        if (value instanceof Map<?, ?> rawMap) {
+            Map<String, Object> upgraded = new LinkedHashMap<>();
+            rawMap.forEach((rawKey, rawValue) -> {
+                String key = canonicalSqlGatewayToolName(String.valueOf(rawKey));
+                Object migratedValue = upgradeLegacySqlWorkflowValue(rawValue, String.valueOf(rawKey));
+                Object existing = upgraded.get(key);
+                upgraded.put(key, mergeLegacyWorkflowValues(existing, migratedValue));
+            });
+            return upgraded;
+        }
+        if (value instanceof List<?> list) {
+            boolean containsLegacyStep = list.stream()
+                .filter(Map.class::isInstance)
+                .map(Map.class::cast)
+                .map(step -> firstObjectFromMap(step, "tool", "toolName"))
+                .filter(Objects::nonNull)
+                .map(String::valueOf)
+                .anyMatch(this::legacySqlScriptToolName);
+            List<Object> upgraded = list.stream()
+                .map(item -> upgradeLegacySqlWorkflowValue(item, fieldName))
+                .toList();
+            return containsLegacyStep ? collapseUnifiedSqlGatewaySteps(upgraded) : upgraded;
+        }
+        if (value instanceof String text) {
+            return isWorkflowToolReferenceField(fieldName)
+                ? canonicalSqlGatewayToolName(text)
+                : text;
+        }
+        return value;
+    }
+
+    private boolean isWorkflowToolReferenceField(String fieldName) {
+        if (fieldName == null || fieldName.isBlank()) {
+            return false;
+        }
+        String normalized = fieldName.trim().toLowerCase(Locale.ROOT)
+            .replace("_", "")
+            .replace("-", "");
+        return normalized.equals("tool")
+            || normalized.equals("toolname")
+            || normalized.equals("mcptoolname")
+            || normalized.equals("calltool")
+            || normalized.equals("executor")
+            || normalized.equals("executiontool")
+            || normalized.equals("dependson")
+            || normalized.equals("dependencies")
+            || normalized.equals("requires")
+            || normalized.equals("after")
+            || normalized.equals("requiredtools")
+            || normalized.equals("mandatorytools")
+            || normalized.equals("allowedtools")
+            || normalized.equals("stepid")
+            || normalized.equals("nodeid");
+    }
+
+    private Object mergeLegacyWorkflowValues(Object existing, Object incoming) {
+        if (existing == null) {
+            return incoming;
+        }
+        if (existing instanceof List<?> left && incoming instanceof List<?> right) {
+            LinkedHashSet<Object> merged = new LinkedHashSet<>(left);
+            merged.addAll(right);
+            return List.copyOf(merged);
+        }
+        if (existing instanceof Map<?, ?> left && incoming instanceof Map<?, ?> right) {
+            Map<String, Object> merged = new LinkedHashMap<>();
+            left.forEach((key, value) -> merged.put(String.valueOf(key), value));
+            right.forEach((key, value) -> merged.merge(String.valueOf(key), value,
+                this::mergeLegacyWorkflowValues));
+            return merged;
+        }
+        return existing;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Object> collapseUnifiedSqlGatewaySteps(List<Object> steps) {
+        List<Object> collapsed = new ArrayList<>();
+        Integer gatewayIndex = null;
+        for (Object item : steps) {
+            if (!(item instanceof Map<?, ?> rawStep)) {
+                collapsed.add(item);
+                continue;
+            }
+            Map<String, Object> step = new LinkedHashMap<>((Map<String, Object>) rawStep);
+            String toolName = normalizeText(String.valueOf(firstObject(step, "tool", "toolName")));
+            if (toolName == null || !isSqlQueryGateway(toolName)) {
+                collapsed.add(step);
+                continue;
+            }
+            if (gatewayIndex == null) {
+                gatewayIndex = collapsed.size();
+                collapsed.add(step);
+                continue;
+            }
+            Map<String, Object> existing = new LinkedHashMap<>((Map<String, Object>) collapsed.get(gatewayIndex));
+            mergeWorkflowStep(existing, step, toolName);
+            collapsed.set(gatewayIndex, existing);
+        }
+        return List.copyOf(collapsed);
+    }
+
+    private void mergeWorkflowStep(Map<String, Object> target,
+                                   Map<String, Object> duplicate,
+                                   String gatewayTool) {
+        duplicate.forEach(target::putIfAbsent);
+        boolean required = booleanValue(firstObject(target, "required"))
+            || booleanValue(firstObject(duplicate, "required"));
+        if (required) {
+            target.put("required", true);
+        }
+        LinkedHashSet<String> dependencies = new LinkedHashSet<>();
+        dependencies.addAll(stringValues(firstObject(target,
+            "dependsOn", "depends_on", "dependencies", "requires", "after")));
+        dependencies.addAll(stringValues(firstObject(duplicate,
+            "dependsOn", "depends_on", "dependencies", "requires", "after")));
+        dependencies.removeIf(item -> isSqlQueryGateway(item)
+            || item.equalsIgnoreCase(gatewayTool));
+        if (dependencies.isEmpty()) {
+            target.remove("dependsOn");
+        } else {
+            target.put("dependsOn", List.copyOf(dependencies));
+        }
+    }
+
+    private boolean legacySqlScriptToolName(String toolName) {
+        if (toolName == null) {
+            return false;
+        }
+        String normalized = toolName.trim().toLowerCase(Locale.ROOT);
+        return LEGACY_SQL_SCRIPT_EXECUTOR.equals(normalized)
+            || normalized.endsWith("_" + LEGACY_SQL_SCRIPT_EXECUTOR);
+    }
+
+    private boolean containsLegacySqlScriptTool(String json) {
+        return json != null && json.toLowerCase(Locale.ROOT).contains(LEGACY_SQL_SCRIPT_EXECUTOR);
+    }
+
+    private boolean isSqlQueryGateway(String toolName) {
+        if (toolName == null) {
+            return false;
+        }
+        String normalized = toolName.trim().toLowerCase(Locale.ROOT);
+        return SQL_QUERY_GATEWAY.equals(normalized)
+            || normalized.endsWith("_" + SQL_QUERY_GATEWAY);
     }
 
     /**
@@ -919,7 +1148,7 @@ public class SkillCatalogService {
      */
     @SuppressWarnings("unchecked")
     private Map<String, Object> normalizeWorkflowConfig(Map<String, Object> config) {
-        Map<String, Object> source = config == null ? Map.of() : config;
+        Map<String, Object> source = upgradeLegacySqlWorkflow(config == null ? Map.of() : config);
         Map<String, Object> normalized = new LinkedHashMap<>();
         Object enabled = source.get("enabled");
         normalized.put("enabled", !(enabled instanceof Boolean bool) || bool);

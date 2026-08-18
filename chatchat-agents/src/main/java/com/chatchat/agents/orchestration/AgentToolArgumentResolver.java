@@ -346,7 +346,9 @@ class AgentToolArgumentResolver {
                                  List<InteractionToolTrace> traces) {
         String canonicalId = scalarText(firstPresent(canonical, "id", "assetId", "asset_id"));
         String suppliedId = scalarText(firstPresent(supplied, "assetId", "asset_id"));
-        if (canonicalId != null && suppliedId != null && !canonicalId.equals(suppliedId)) {
+        if (canonicalId != null && suppliedId != null
+            && !canonicalId.equals(suppliedId)
+            && !canonicalAssetReference(suppliedId, "id", "assetId")) {
             return "Asset continuation supplied assetId=" + suppliedId
                 + " but prior unique discovery established assetId=" + canonicalId;
         }
@@ -354,17 +356,39 @@ class AgentToolArgumentResolver {
         String suppliedName = scalarText(firstPresent(supplied, "assetName", "asset_name", "name"));
         if (canonicalName != null && suppliedName != null
             && !sameAssetIdentityText(canonicalName, suppliedName)
+            && !canonicalAssetReference(suppliedName, "name")
             && !verifiedObservedAssetAlias(canonical, suppliedName, traces)) {
             return "Asset continuation supplied assetName=" + suppliedName
                 + " but prior unique discovery established assetName=" + canonicalName;
         }
         String canonicalEnv = scalarText(firstPresent(canonical, "environment", "env"));
         String suppliedEnv = scalarText(firstPresent(supplied, "environment", "env"));
-        if (canonicalEnv != null && suppliedEnv != null && !canonicalEnv.equalsIgnoreCase(suppliedEnv)) {
+        if (canonicalEnv != null && suppliedEnv != null
+            && !canonicalEnv.equalsIgnoreCase(suppliedEnv)
+            && !canonicalAssetReference(suppliedEnv, "environment", "env")) {
             return "Asset continuation supplied env=" + suppliedEnv
                 + " but prior unique discovery established env=" + canonicalEnv;
         }
         return null;
+    }
+
+    /**
+     * A fallback agent continuation can carry the canonical discovery path before
+     * the plan binding layer has materialized it. Treat only published asset-view
+     * paths as deferred references; arbitrary JSONPath remains a context mismatch.
+     * The caller subsequently replaces the reference with the reviewed asset value.
+     */
+    private boolean canonicalAssetReference(String value, String... fields) {
+        if (value == null || fields == null) {
+            return false;
+        }
+        String normalized = value.trim();
+        for (String field : fields) {
+            if (("$.assets[0].asset." + field).equals(normalized)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean verifiedObservedAssetAlias(Map<String, Object> canonical,

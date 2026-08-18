@@ -74,10 +74,9 @@ public class SqlMcpToolPublisher {
             mcpSyncServer, sqlMetadataSearchTool());
         com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
             mcpSyncServer, sqlQueryGatewayTool());
-        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
-            mcpSyncServer, sqlScriptGatewayTool());
         mcpSyncServer.notifyToolsListChanged();
-        log.info("SQL MCP gateway tools refreshed: sql_metadata_search, sql_query_execute, sql_script_execute");
+        log.info("SQL MCP gateway tools refreshed: sql_metadata_search, sql_query_execute "
+            + "(single-query and internal script/workflow bridge)");
     }
 
     private McpServerFeatures.SyncToolSpecification toToolSpecification(SqlDatasourceConfig datasource) {
@@ -119,40 +118,6 @@ public class SqlMcpToolPublisher {
                 request.arguments(),
                 () -> executeSqlGateway(request.arguments())))
             .build();
-    }
-
-    private McpServerFeatures.SyncToolSpecification sqlScriptGatewayTool() {
-        McpSchema.Tool tool = McpSchema.Tool.builder()
-            .name("sql_script_execute")
-            .title("SQL read-only script execution gateway")
-            .description("Execute a semicolon-separated read-only SQL analysis script and return organized result sets. "
-                + "Registered multi-SQL/DAG business templates selected by database_query_template_query execute through this unified gateway while preserving their configured dependency graph. "
-                + "Every statement must be SELECT, SHOW, DESCRIBE/DESC, or EXPLAIN. Writes, DDL, permissions, comments, stored procedures, SET/USE, and database admin operations are forbidden. "
-                + "Use this when one SQL statement is not enough for business analysis and several independent result sets are needed. "
-                + "Do not pass datasourceId, JDBC URL, or any concrete database endpoint.")
-            .inputSchema(scriptGatewayInputSchema())
-            .meta(scriptGatewayMeta())
-            .build();
-        return McpServerFeatures.SyncToolSpecification.builder()
-            .tool(tool)
-            .callHandler((exchange, request) -> concurrencyManager.execute(
-                "sql_script_execute",
-                "sql_script",
-                request.arguments(),
-                () -> executeSqlScriptGateway(request.arguments())))
-            .build();
-    }
-
-    private McpSchema.CallToolResult executeSqlScriptGateway(Map<String, Object> arguments) {
-        validateTemplateArgumentContract(arguments);
-        validateExecutableSelector(arguments);
-        DatabaseQueryConfig databaseQuery = businessDatabaseQueryTemplate(arguments);
-        if (databaseQuery != null) {
-            Map<String, Object> queryArguments = databaseQueryArguments(arguments);
-            return toDatabaseQueryCallToolResult(databaseQuery, queryArguments,
-                databaseQueryInvokeService.invoke(databaseQuery, queryArguments));
-        }
-        return toScriptCallToolResult(scriptExecuteService.execute(executionTargetRouter.routeSqlQuery(arguments)));
     }
 
     private String sqlGatewayRuntimeLevel(Map<String, Object> arguments) {
@@ -639,27 +604,6 @@ public class SqlMcpToolPublisher {
         ), List.of("executionContext"), false, null, null);
     }
 
-    private McpSchema.JsonSchema scriptGatewayInputSchema() {
-        return new McpSchema.JsonSchema("object", Map.of(
-            "script", Map.of("type", "string", "description", "Semicolon-separated read-only SQL analysis script. Each statement must be SELECT, SHOW, DESCRIBE/DESC, or EXPLAIN. Comments and writes are forbidden."),
-            "template", Map.of("type", "string", "description", "Registered template id returned by database_query_template_query or another authorized template discovery tool. Do not invent names."),
-            "templateId", Map.of("type", "string", "description", "Alias of template for internal compatibility."),
-            "parameters", Map.of(
-                "type", "object",
-                "description", "Parameters for an internally addressed registered template.",
-                "additionalProperties", true
-            ),
-            "executionContext", Map.of(
-                "type", "object",
-                "description", "Logical datasource context such as env, cluster, database, databaseRole, targetType, service, or labels"
-            ),
-            "timeoutSeconds", Map.of("type", "integer", "minimum", 1, "maximum", 300),
-            "maxRowsPerStatement", Map.of("type", "integer", "minimum", executeService.minRowsLimit(), "maximum", executeService.maxRowsLimit()),
-            "purpose", Map.of("type", "string", "description", "Query purpose for confirmation and audit"),
-            "sourceTaskId", Map.of("type", "string")
-        ), List.of("executionContext"), false, null, null);
-    }
-
     private McpSchema.JsonSchema metadataSearchInputSchema() {
         return new McpSchema.JsonSchema("object", Map.ofEntries(
             Map.entry("query", Map.of("type", "string", "description", "Free-text table/database search query, for example a table name, table comment/business meaning, database description, schema.table, or asset.database.table path.")),
@@ -743,6 +687,10 @@ public class SqlMcpToolPublisher {
         ));
         meta.put("allowedStatements", List.of("SELECT", "SHOW", "DESCRIBE", "EXPLAIN"));
         meta.put("templateRegistrySupported", true);
+        meta.put("businessQueryWorkflowSupported", true);
+        meta.put("internalScriptBridge", true);
+        meta.put("returnsMultipleResultSets", true);
+        meta.put("maxStatements", 10);
         meta.put("targetRoutingRequired", true);
         meta.put("authorizedSqlTemplatesByAsset", authorizedSqlTemplatesByAsset());
         meta.put("templateSelectionPolicy", templateSelectionPolicy());
@@ -773,49 +721,6 @@ public class SqlMcpToolPublisher {
                 "If no discovery path or observed compatible template contract exists, return a partial final answer instead of inventing SQL, schema, database, or template ids."
             )
         );
-    }
-
-    private Map<String, Object> scriptGatewayMeta() {
-        Map<String, Object> governance = new LinkedHashMap<>();
-        governance.put("category", "sql_gateway");
-        governance.put("operation_type", "read_sql_script");
-        governance.put("risk_level", "high");
-        governance.put("data_scope", "database:routed");
-        governance.put("user_visible", true);
-        governance.put("confirmation", mutableMap("default", "ask_before_execute", "allow_user_override", false));
-        governance.put("input_policy", mutableMap(
-            "must_show_parameters", true,
-            "required_preview_params", List.of("template", "parameters", "script", "executionContext", "timeoutSeconds", "maxRowsPerStatement", "purpose", "sourceTaskId")
-        ));
-        governance.put("audit", mutableMap("enabled", true, "log_params", true, "log_result_summary", true));
-        Map<String, Object> meta = new LinkedHashMap<>(
-            governanceFactory.toMeta("sql_gateway", "sql_script_execute", governance, null));
-        meta.put("runtime_action", "confirm_required");
-        meta.put("runtimeAction", "confirm_required");
-        meta.put(McpToolApplicability.META_KEY, McpToolApplicability.of(
-            "sql_datasource:script_execution",
-            "Governed read-only SQL script execution",
-            List.of("sql_datasource", "database_query"),
-            "Execute a registered business query DAG/multi-SQL template or a bounded multi-statement read-only SQL script against a logically routed datasource.",
-            List.of("A bound workflow requires a registered DAG/multi-SQL business template or multiple read-only result sets and has a logical target."),
-            List.of("Write or DDL statements", "Schema discovery", "Selecting or replacing Agent-bound tools")
-        ));
-        meta.put("allowedStatements", List.of("SELECT", "SHOW", "DESCRIBE", "DESC", "EXPLAIN"));
-        meta.put("maxStatements", 10);
-        meta.put("returnsMultipleResultSets", true);
-        meta.put("templateRegistrySupported", true);
-        meta.put("businessQueryWorkflowSupported", true);
-        meta.put("targetRoutingRequired", true);
-        meta.put("forbiddenTargetFields", List.of("datasourceId", "jdbcUrl", "url", "connectionString"));
-        meta.put("forbiddenOperations", List.of("INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "CREATE", "TRUNCATE", "SET", "USE", "CALL", "EXEC"));
-        meta.put("assetMetadata", assetMetadataFactory.gateway(
-            "sql_datasource",
-            datasourceConfigService.listEnabled().stream().map(assetMetadataFactory::sqlDatasource).toList(),
-            List.of("datasourceId", "jdbcUrl", "url", "connectionString")
-        ));
-        meta.put("mcp_tool_limit", concurrencyManager.limitMeta("sql_script_execute", "sql_script"));
-        meta.put(ToolProtocolDriverContract.METADATA_KEY, sqlProtocolDriver());
-        return meta;
     }
 
     private Map<String, Object> metadataSearchMeta() {

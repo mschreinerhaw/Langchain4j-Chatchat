@@ -380,7 +380,7 @@ public class DatabaseQueryInvokeService {
             DatabaseQuerySqlStep stepConfig = stepConfigs.get(node.code());
             long stepStartedAt = System.currentTimeMillis();
             Map<String, Object> stepParameters = parametersForSqlStep(config, baseParameters, stepConfig, resolvedParameters);
-            log.info("MCP execution detail: executionType=SQL_QUERY_STEP, source=sql_script_execute, executionNo={}, databaseQueryId={}, tool={}, executionOrder={}, sqlCode={}, sqlName={}, resolvedParameterKeys={}, maxRows={}, timeoutSeconds={}, sql={}",
+            log.info("MCP execution detail: executionType=SQL_QUERY_STEP, source=sql_query_execute_internal_workflow_bridge, executionNo={}, databaseQueryId={}, tool={}, executionOrder={}, sqlCode={}, sqlName={}, resolvedParameterKeys={}, maxRows={}, timeoutSeconds={}, sql={}",
                 workflowExecutionNo, config.getId(), config.getToolName(), stepConfig.getExecutionOrder(), stepConfig.getSqlCode(),
                 stepConfig.getSqlName(), resolvedParameters.keySet(),
                 stepParameters.getOrDefault("max_rows", stepParameters.get("maxRows")),

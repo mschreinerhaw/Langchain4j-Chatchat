@@ -108,6 +108,7 @@ chatchat:
       execution-timeout-ms: 3600000
       database-queue-enabled: ${CHATCHAT_AGENT_DATABASE_QUEUE_ENABLED:true}
       database-queue-poll-ms: ${CHATCHAT_AGENT_DATABASE_QUEUE_POLL_MS:250}
+      database-quota-reconcile-ms: ${CHATCHAT_AGENT_DATABASE_QUOTA_RECONCILE_MS:30000}
       database-queue-claim-batch-size: ${CHATCHAT_AGENT_DATABASE_QUEUE_CLAIM_BATCH_SIZE:16}
       worker-lease-ms: ${CHATCHAT_AGENT_WORKER_LEASE_MS:30000}
       worker-heartbeat-ms: ${CHATCHAT_AGENT_WORKER_HEARTBEAT_MS:10000}

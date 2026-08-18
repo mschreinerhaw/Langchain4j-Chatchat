@@ -35,13 +35,14 @@ public interface AgentTaskLatestRepository extends JpaRepository<AgentTaskLatest
         @Param("workerVersion") String workerVersion,
         Pageable pageable);
 
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Transactional
     @Query("""
         update AgentTaskLatestEntity t
         set t.status = 'CLAIMED', t.claimWorkerId = :workerId, t.claimToken = :claimToken,
             t.heartbeatAt = :now, t.leaseExpiresAt = :leaseExpiresAt,
-            t.attemptCount = coalesce(t.attemptCount, 0) + 1, t.updateTime = :now
+            t.attemptCount = coalesce(t.attemptCount, 0) + 1, t.updateTime = :now,
+            t.revision = t.revision + 1
         where t.taskId = :taskId
           and t.status in ('PENDING', 'RETRY_WAIT')
           and (t.availableAt is null or t.availableAt <= :now)
@@ -53,11 +54,12 @@ public interface AgentTaskLatestRepository extends JpaRepository<AgentTaskLatest
                   @Param("now") Instant now,
                   @Param("leaseExpiresAt") Instant leaseExpiresAt);
 
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Transactional
     @Query("""
         update AgentTaskLatestEntity t
-        set t.heartbeatAt = :now, t.leaseExpiresAt = :leaseExpiresAt, t.updateTime = :now
+        set t.heartbeatAt = :now, t.leaseExpiresAt = :leaseExpiresAt, t.updateTime = :now,
+            t.revision = t.revision + 1
         where t.taskId = :taskId and t.claimToken = :claimToken
           and t.status in ('CLAIMED', 'RUNNING', 'WAIT_MODEL', 'WAIT_TOOL')
         """)
@@ -65,6 +67,15 @@ public interface AgentTaskLatestRepository extends JpaRepository<AgentTaskLatest
                        @Param("claimToken") String claimToken,
                        @Param("now") Instant now,
                        @Param("leaseExpiresAt") Instant leaseExpiresAt);
+
+    @Query("""
+        select count(t) from AgentTaskLatestEntity t
+        where t.tenantId = :tenantId
+          and t.claimToken is not null
+          and t.leaseExpiresAt is not null
+          and t.leaseExpiresAt >= :now
+        """)
+    long countValidClaims(@Param("tenantId") String tenantId, @Param("now") Instant now);
 
     @Query("""
         select t from AgentTaskLatestEntity t

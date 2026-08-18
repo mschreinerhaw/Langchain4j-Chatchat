@@ -13,6 +13,7 @@ import com.chatchat.mcpserver.tool.StandardToolExecutionResultFactory;
 import com.chatchat.tools.builtin.DatabaseToolProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpSyncServer;
+import io.modelcontextprotocol.server.McpServerFeatures;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -24,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -40,6 +42,42 @@ class SqlMcpToolPublisherTest {
     private final AssetMetadataFactory assetMetadataFactory = mock(AssetMetadataFactory.class);
     private final AgentRuntimeGovernanceFactory governanceFactory = mock(AgentRuntimeGovernanceFactory.class);
     private final McpToolConcurrencyManager concurrencyManager = mock(McpToolConcurrencyManager.class);
+
+    @Test
+    void refreshPublishesOnlyUnifiedSqlExecutionGateway() {
+        SqlQueryExecuteService executeService = mock(SqlQueryExecuteService.class);
+        when(executeService.minRowsLimit()).thenReturn(1);
+        when(executeService.maxRowsLimit()).thenReturn(1000);
+        when(mcpSyncServer.listTools()).thenReturn(List.of());
+        when(datasourceConfigService.listAll()).thenReturn(List.of());
+        when(datasourceConfigService.listEnabled()).thenReturn(List.of());
+        when(databaseQueryConfigService.listEnabled()).thenReturn(List.of());
+        when(governanceFactory.toMeta(
+            org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.anyMap(),
+            org.mockito.ArgumentMatchers.isNull()
+        )).thenReturn(Map.of());
+
+        SqlMcpToolPublisher publisher = new SqlMcpToolPublisher(
+            mcpSyncServer, datasourceConfigService, sqlTemplateService, executeService, scriptExecuteService,
+            metadataSearchService, databaseQueryConfigService, databaseQueryInvokeService,
+            executionTargetRouter, assetMetadataFactory, governanceFactory, concurrencyManager,
+            new StandardToolExecutionResultFactory(new DatabaseToolProperties()),
+            new ChatChatMcpServerProperties(), new ObjectMapper()
+        );
+
+        publisher.refresh();
+
+        ArgumentCaptor<McpServerFeatures.SyncToolSpecification> tools =
+            ArgumentCaptor.forClass(McpServerFeatures.SyncToolSpecification.class);
+        verify(mcpSyncServer, times(2)).addTool(tools.capture());
+        assertThat(tools.getAllValues().stream().map(tool -> tool.tool().name()).toList())
+            .containsExactly("sql_metadata_search", "sql_query_execute")
+            .doesNotContain("sql_script_execute");
+        verify(mcpSyncServer).removeTool("sql_script_execute");
+        verify(mcpSyncServer).notifyToolsListChanged();
+    }
 
     @Test
     void sqlGatewayRejectsTemplateObjectBeforeLookupOrRouting() throws Exception {
@@ -261,7 +299,7 @@ class SqlMcpToolPublisherTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void sqlScriptGatewayDelegatesBusinessWorkflowTemplateToDatabaseQueryExecutor() throws Exception {
+    void sqlQueryGatewayBridgesBusinessWorkflowTemplateToInternalExecutor() throws Exception {
         DatabaseQueryConfig config = new DatabaseQueryConfig();
         config.setId("query-dag-1");
         config.setToolName("query_business_dag");
@@ -278,7 +316,7 @@ class SqlMcpToolPublisherTest {
             new ChatChatMcpServerProperties(), new ObjectMapper()
         );
 
-        Method method = SqlMcpToolPublisher.class.getDeclaredMethod("executeSqlScriptGateway", Map.class);
+        Method method = SqlMcpToolPublisher.class.getDeclaredMethod("executeSqlGateway", Map.class);
         method.setAccessible(true);
         Object result = method.invoke(publisher, Map.of(
             "template", "query_business_dag",

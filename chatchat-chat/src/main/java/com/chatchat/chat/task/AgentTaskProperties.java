@@ -29,6 +29,7 @@ public class AgentTaskProperties {
     private long schedulerDefaultRetryDelaySeconds = 60;
     private boolean databaseQueueEnabled = true;
     private long databaseQueuePollMs = 250;
+    private long databaseQuotaReconcileMs = 30_000;
     private int databaseQueueClaimBatchSize = 16;
     private long workerLeaseMs = 30_000;
     private long workerHeartbeatMs = 10_000;

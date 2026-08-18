@@ -152,6 +152,72 @@ class AgentTaskDatabaseQueueScenarioTest {
     }
 
     @Test
+    void staleFullQuotaCannotBlockARealPendingTask() {
+        properties.setMaxConcurrentTasksPerTenant(4);
+        quotaRepository.saveAndFlush(quota("tenant-stale", 4));
+        taskRepository.saveAndFlush(task("stale-blocked-task", "tenant-stale"));
+
+        var claims = coordinator.claimAvailable("repair-worker");
+
+        assertThat(claims).singleElement()
+            .extracting(AgentTaskQueueCoordinator.ClaimedTask::taskId)
+            .isEqualTo("stale-blocked-task");
+        AgentTaskLatestEntity claimed = taskRepository.findById("stale-blocked-task").orElseThrow();
+        assertThat(claimed.getAttemptCount()).isEqualTo(1);
+        assertThat(claimed.getClaimToken()).isNotBlank();
+        assertThat(quotaRepository.findById("tenant-stale").orElseThrow().getActiveRuns()).isEqualTo(1);
+        complete(claims.get(0));
+    }
+
+    @Test
+    void submittingTaskIsInvisibleUntilItsDurablePayloadIsReady() {
+        quotaRepository.saveAndFlush(quota("tenant-staging", 0));
+        AgentTaskLatestEntity staging = task("staging-task", "tenant-staging");
+        staging.setStatus("SUBMITTING");
+        taskRepository.saveAndFlush(staging);
+
+        assertThat(coordinator.claimAvailable("early-worker")).isEmpty();
+        staging.setRequestPayloadJson("{\"query\":\"ready\"}");
+        staging.setStatus("PENDING");
+        taskRepository.saveAndFlush(staging);
+
+        var claims = coordinator.claimAvailable("ready-worker");
+        assertThat(claims).singleElement()
+            .extracting(AgentTaskQueueCoordinator.ClaimedTask::taskId)
+            .isEqualTo("staging-task");
+        complete(claims.get(0));
+    }
+
+    @Test
+    void periodicReconciliationRepairsQuotaWithoutWaitingForAnotherSubmission() {
+        quotaRepository.saveAndFlush(quota("tenant-idle-drift", 4));
+
+        assertThat(coordinator.reconcileQuotaCounters()).isEqualTo(1);
+        assertThat(quotaRepository.findById("tenant-idle-drift").orElseThrow().getActiveRuns()).isZero();
+        assertThat(coordinator.reconcileQuotaCounters()).isZero();
+    }
+
+    @Test
+    void reconciliationKeepsOnlyNonExpiredClaimsAsActiveCapacity() {
+        quotaRepository.saveAndFlush(quota("tenant-mixed-leases", 4));
+        AgentTaskLatestEntity valid = task("valid-lease", "tenant-mixed-leases");
+        valid.setStatus("WAIT_TOOL");
+        valid.setClaimWorkerId("worker-live");
+        valid.setClaimToken("claim-live");
+        valid.setLeaseExpiresAt(Instant.now().plusSeconds(30));
+        taskRepository.saveAndFlush(valid);
+        AgentTaskLatestEntity expired = task("expired-lease", "tenant-mixed-leases");
+        expired.setStatus("WAIT_MODEL");
+        expired.setClaimWorkerId("worker-lost");
+        expired.setClaimToken("claim-expired");
+        expired.setLeaseExpiresAt(Instant.now().minusSeconds(1));
+        taskRepository.saveAndFlush(expired);
+
+        assertThat(coordinator.reconcileQuotaCounters()).isEqualTo(1);
+        assertThat(quotaRepository.findById("tenant-mixed-leases").orElseThrow().getActiveRuns()).isEqualTo(1);
+    }
+
+    @Test
     void expiredLeaseRetriesWithBackoffThenMovesToDeadLetterAndReleasesQuota() {
         quotaRepository.save(quota("tenant-recovery", 1));
         AgentTaskLatestEntity task = task("lease-task", "tenant-recovery");
@@ -163,10 +229,11 @@ class AgentTaskDatabaseQueueScenarioTest {
         task.setMaxAttempts(2);
         taskRepository.saveAndFlush(task);
 
+        Instant recoveryStartedAt = Instant.now();
         assertThat(coordinator.recoverExpiredClaims()).isEqualTo(1);
         AgentTaskLatestEntity retry = taskRepository.findById(task.getTaskId()).orElseThrow();
         assertThat(retry.getStatus()).isEqualTo("RETRY_WAIT");
-        assertThat(retry.getAvailableAt()).isAfter(Instant.now());
+        assertThat(retry.getAvailableAt()).isAfter(recoveryStartedAt);
         assertThat(retry.getClaimToken()).isNull();
         assertThat(quotaRepository.findById("tenant-recovery").orElseThrow().getActiveRuns()).isZero();
 

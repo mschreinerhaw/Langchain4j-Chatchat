@@ -304,6 +304,7 @@ class StandardToolExecutionResultFactoryTest {
         Map<?, ?> output = (Map<?, ?>) step.get("output");
 
         assertThat(data.get("resultSetMode")).isEqualTo("ONE_PER_TEMPLATE_EXECUTION");
+        assertThat(execution.get("toolName")).isEqualTo("sql_query_execute");
         assertThat(output.get("resultSetReference")).isEqualTo("$.data.results[0]");
         assertThat(output.containsKey("rows")).isFalse();
         assertThat(countOccurrences(envelope.toString(), "UNIQUE_SCRIPT_VALUE")).isEqualTo(1);

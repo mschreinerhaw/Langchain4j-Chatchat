@@ -1493,12 +1493,10 @@ public class CommandTemplateDiscoveryService {
     }
 
     private String databaseQueryExecutorTool(DatabaseQueryConfig config) {
-        List<DatabaseQuerySqlStep> steps = databaseQuerySqlSteps(config).stream()
-            .filter(DatabaseQuerySqlStep::enabled)
-            .toList();
-        boolean workflow = steps.size() > 1
-            || steps.stream().anyMatch(step -> Boolean.TRUE.equals(step.getWorkflowEnabled()));
-        return workflow ? "sql_script_execute" : "sql_query_execute";
+        // sql_query_execute is the public protocol gateway. It deterministically
+        // bridges registered multi-step/DAG templates to the internal script
+        // executor, so discovery must never leak that transport implementation.
+        return "sql_query_execute";
     }
 
     private Map<String, Object> databaseQueryExecutionContext(DatabaseQueryConfig config) {

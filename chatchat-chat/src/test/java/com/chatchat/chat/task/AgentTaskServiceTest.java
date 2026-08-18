@@ -17,6 +17,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Field;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -236,6 +237,57 @@ class AgentTaskServiceTest {
 
         assertThat(response.taskId()).isEqualTo(winner.getTaskId());
         verify(eventBus, never()).publish(any(AgentEvent.class));
+    }
+
+    @Test
+    void databaseSubmissionIsStagedBeforeItBecomesDispatchable() throws Exception {
+        AgentEventBus eventBus = mock(AgentEventBus.class);
+        AgentEventStore eventStore = mock(AgentEventStore.class);
+        AgentTaskLatestRepository repository = mock(AgentTaskLatestRepository.class);
+        AgentTaskQueueCoordinator coordinator = mock(AgentTaskQueueCoordinator.class);
+        AgentTaskProperties properties = new AgentTaskProperties();
+        properties.setDatabaseQueueEnabled(true);
+        List<String> lifecycle = new ArrayList<>();
+        when(repository.findByTenantIdAndIdempotencyKey("tenant-1", "message-staged"))
+            .thenReturn(Optional.empty());
+        when(repository.save(any(AgentTaskLatestEntity.class))).thenAnswer(invocation -> {
+            AgentTaskLatestEntity entity = invocation.getArgument(0);
+            lifecycle.add("save:" + entity.getStatus());
+            return entity;
+        });
+        when(eventStore.save(any(AgentEvent.class))).thenAnswer(invocation -> {
+            lifecycle.add("event:QUESTION");
+            return "event-1";
+        });
+        when(coordinator.claimAvailable(any())).thenAnswer(invocation -> {
+            lifecycle.add("dispatch");
+            throw new IllegalStateException("temporary dispatcher failure");
+        });
+        AgentTaskService service = new AgentTaskService(
+            eventBus,
+            eventStore,
+            repository,
+            mock(InteractionOrchestrationService.class),
+            new ObjectMapper(),
+            properties,
+            mock(ToolRuntimeService.class),
+            mock(AgentRuntime.class),
+            mock(AgentTaskCancellationRegistry.class),
+            mock(AgentLearningService.class),
+            mock(TaskConfirmRepository.class),
+            mock(InterpretationPlanStore.class),
+            mock(ThreadPoolTaskExecutor.class)
+        );
+        Field queueCoordinatorField = AgentTaskService.class.getDeclaredField("queueCoordinator");
+        queueCoordinatorField.setAccessible(true);
+        queueCoordinatorField.set(service, coordinator);
+
+        AgentTaskResponse response = service.submit(
+            idempotentRequest("message-staged", "diagnose Oracle health"));
+
+        assertThat(response.status()).isEqualTo("PENDING");
+        assertThat(lifecycle).containsExactly(
+            "save:SUBMITTING", "event:QUESTION", "save:PENDING", "dispatch");
     }
 
     @Test

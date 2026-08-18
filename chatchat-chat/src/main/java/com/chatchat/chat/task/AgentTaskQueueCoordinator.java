@@ -50,7 +50,8 @@ public class AgentTaskQueueCoordinator {
             TenantRuntimeQuotaEntity quota = lockedQuota(candidate.getTenantId());
             int limit = Math.max(1, properties.getMaxConcurrentTasksPerTenant());
             quota.setMaxConcurrentRuns(limit);
-            if (safe(quota.getActiveRuns()) >= limit) {
+            int activeClaims = reconcileQuota(quota, now);
+            if (activeClaims >= limit) {
                 continue;
             }
             String token = UUID.randomUUID().toString();
@@ -58,7 +59,7 @@ public class AgentTaskQueueCoordinator {
             if (taskRepository.claimTask(candidate.getTaskId(), workerId, token, now, expiresAt) != 1) {
                 continue;
             }
-            quota.setActiveRuns(safe(quota.getActiveRuns()) + 1);
+            quota.setActiveRuns(activeClaims + 1);
             quota.setLastDispatchAt(now);
             quotaRepository.save(quota);
             claimed.add(new ClaimedTask(candidate.getTaskId(), candidate.getTenantId(), token, workerId));
@@ -79,14 +80,14 @@ public class AgentTaskQueueCoordinator {
         if (task == null || !claim.claimToken().equals(task.getClaimToken())) {
             return;
         }
-        releaseQuota(task.getTenantId());
         if (isRetryableClaimStatus(task.getStatus())) {
             retryOrDeadLetter(task, "execution ended without a terminal result: "
                 + normalized(task.getErrorMessage(), task.getStatus()));
         } else {
             clearClaim(task);
         }
-        taskRepository.save(task);
+        taskRepository.saveAndFlush(task);
+        reconcileQuota(lockedQuota(task.getTenantId()), Instant.now());
     }
 
     @Transactional
@@ -95,12 +96,12 @@ public class AgentTaskQueueCoordinator {
         if (task == null || !claim.claimToken().equals(task.getClaimToken())) {
             return;
         }
-        releaseQuota(task.getTenantId());
         clearClaim(task);
         task.setStatus("RETRY_WAIT");
         task.setAvailableAt(Instant.now().plusMillis(Math.max(100L, properties.getDatabaseQueuePollMs())));
         task.setErrorMessage(reason);
-        taskRepository.save(task);
+        taskRepository.saveAndFlush(task);
+        reconcileQuota(lockedQuota(task.getTenantId()), Instant.now());
     }
 
     @Transactional
@@ -115,17 +116,37 @@ public class AgentTaskQueueCoordinator {
                 || !task.getLeaseExpiresAt().isBefore(now)) {
                 continue;
             }
-            releaseQuota(task.getTenantId());
             if (isRetryableClaimStatus(task.getStatus())) {
                 retryOrDeadLetter(task, "worker lease expired: "
                     + normalized(task.getClaimWorkerId(), "unknown worker"));
             } else {
                 clearClaim(task);
             }
-            taskRepository.save(task);
+            taskRepository.saveAndFlush(task);
+            reconcileQuota(lockedQuota(task.getTenantId()), now);
             recovered++;
         }
         return recovered;
+    }
+
+    /** Repairs denormalized quota counters from authoritative, non-expired database claims. */
+    @Transactional
+    public int reconcileQuotaCounters() {
+        Instant now = Instant.now();
+        List<String> tenantIds = quotaRepository.findDriftedTenantIds(
+            now, PageRequest.of(0, Math.max(1, properties.getRecoveryBatchSize())));
+        int corrected = 0;
+        for (String tenantId : tenantIds) {
+            TenantRuntimeQuotaEntity quota = lockedQuota(tenantId);
+            int before = safe(quota.getActiveRuns());
+            int after = reconcileQuota(quota, now);
+            if (before != after) {
+                corrected++;
+                log.warn("Reconciled stale Agent runtime quota. tenantId={} activeRunsBefore={} activeRunsAfter={}",
+                    tenantId, before, after);
+            }
+        }
+        return corrected;
     }
 
     private TenantRuntimeQuotaEntity lockedQuota(String tenantId) {
@@ -134,10 +155,13 @@ public class AgentTaskQueueCoordinator {
             .orElseThrow(() -> new IllegalStateException("Unable to provision tenant runtime quota: " + tenantId));
     }
 
-    private void releaseQuota(String tenantId) {
-        TenantRuntimeQuotaEntity quota = lockedQuota(tenantId);
-        quota.setActiveRuns(Math.max(0, safe(quota.getActiveRuns()) - 1));
-        quotaRepository.save(quota);
+    private int reconcileQuota(TenantRuntimeQuotaEntity quota, Instant now) {
+        int activeClaims = Math.toIntExact(taskRepository.countValidClaims(quota.getTenantId(), now));
+        if (safe(quota.getActiveRuns()) != activeClaims) {
+            quota.setActiveRuns(activeClaims);
+            quotaRepository.save(quota);
+        }
+        return activeClaims;
     }
 
     private void retryOrDeadLetter(AgentTaskLatestEntity task, String reason) {

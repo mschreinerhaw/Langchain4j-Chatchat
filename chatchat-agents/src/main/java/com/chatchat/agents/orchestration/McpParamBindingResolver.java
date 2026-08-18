@@ -227,6 +227,7 @@ class McpParamBindingResolver {
                                                    Map<String, Object> values,
                                                    String userQuery,
                                                    boolean templateQuery) {
+        PublishedDiscoveryContract publishedContract = publishedDiscoveryContract(metadata);
         String forbidden = firstPresentField(values, CONCRETE_TARGET_FIELDS);
         if (forbidden != null) {
             return denied(values, "Concrete target field is not allowed for discovery: " + forbidden);
@@ -244,7 +245,9 @@ class McpParamBindingResolver {
         if (targetKind == null) {
             targetKind = finalDecision;
         }
-        String toolTargetKind = targetKindFromDiscoveryToolName(toolName, templateQuery);
+        String toolTargetKind = firstNonBlank(
+            publishedContract.forcedTargetKind(),
+            publishedContract.published() ? null : targetKindFromDiscoveryToolName(toolName, templateQuery));
         if (toolTargetKind != null) {
             targetKind = toolTargetKind;
             forceDiscoveryTargetKind(values, toolTargetKind, rawCandidates);
@@ -254,7 +257,8 @@ class McpParamBindingResolver {
         Object explicitFilterEnvelope = firstPresent(values, "filters", "executionContext", "mcpExecutionContext");
         boolean synthesizedLegacyFilterEnvelope = false;
         if (!(explicitFilterEnvelope instanceof Map<?, ?>)) {
-            if (hasText(values.get("query")) && toolTargetKind != null) {
+            if (hasText(values.get("query"))
+                && (toolTargetKind != null || publishedContract.accepts("filters"))) {
                 targetKind = firstNonBlank(targetKind, toolTargetKind);
                 Map<String, Object> filters = new LinkedHashMap<>();
                 inferLogicalContext(userQuery).forEach(filters::putIfAbsent);
@@ -264,24 +268,26 @@ class McpParamBindingResolver {
                     filters.putIfAbsent("intent", trim(userQuery));
                 }
                 values.put("filters", filters);
-                values.putIfAbsent("candidates", List.of(Map.of("targetKind", targetKind, "confidence", 0.9)));
-                values.putIfAbsent("finalDecision", targetKind);
-                values.putIfAbsent("confidence", 0.9);
+                if (publishedContract.requiresRoutingDecision() && hasText(targetKind)) {
+                    values.putIfAbsent("candidates", List.of(Map.of("targetKind", targetKind, "confidence", 0.9)));
+                    values.putIfAbsent("finalDecision", targetKind);
+                    values.putIfAbsent("confidence", 0.9);
+                }
                 synthesizedLegacyFilterEnvelope = true;
                 explicitFilterEnvelope = filters;
                 rawCandidates = firstPresent(values, "candidates", "routingCandidates", "routing_candidates");
                 finalDecision = firstText(firstPresent(values, "finalDecision", "final_decision", "selectedTargetKind", "selected_target_kind"));
             }
         }
+        if (!(explicitFilterEnvelope instanceof Map<?, ?>)
+            && publishedContract.accepts("filters")
+            && !publishedContract.requires("filters")) {
+            values.put("filters", Map.of());
+            explicitFilterEnvelope = values.get("filters");
+        }
         if (!(explicitFilterEnvelope instanceof Map<?, ?>)) {
             return denied(values, (templateQuery ? "template_query" : "asset_query")
                 + " requires explicit filters object, even when it is empty.");
-        }
-        if (targetKind == null && !hasText(values.get("assetType"))) {
-            return denied(values, (templateQuery ? "template_query" : "asset_query")
-                + " requires explicit finalDecision/targetKind/assetType. Use finalDecision="
-                + (templateQuery ? "host, database, http, java, or business_database_query" : "host, database, or http")
-                + "; use document_search for targetKind=document.");
         }
         DiscoveryParameterNormalizer.Normalization normalizedParameters =
             discoveryParameterNormalizer.normalize(values, inferLogicalContext(userQuery), userQuery);
@@ -320,7 +326,22 @@ class McpParamBindingResolver {
         } else if (values.containsKey("query")) {
             values.put("filters", Map.of());
         }
-        values.putIfAbsent("filtersSchemaVersion", FILTERS_SCHEMA_VERSION);
+        if (publishedContract.accepts("filtersSchemaVersion")) {
+            values.putIfAbsent("filtersSchemaVersion", FILTERS_SCHEMA_VERSION);
+        }
+        if (!publishedContract.requiresRoutingDecision()) {
+            return finishPublishedScopedDiscovery(values, toolName, targetKind, publishedContract,
+                synthesizedLegacyFilterEnvelope);
+        }
+        if (targetKind == null && !hasText(values.get("assetType"))) {
+            return denied(values, (templateQuery ? "template_query" : "asset_query")
+                + " requires explicit finalDecision/targetKind/assetType. Use finalDecision="
+                + (templateQuery ? "host, database, http, java, or business_database_query" : "host, database, or http")
+                + "; use document_search for targetKind=document.");
+        }
+        if (hasText(publishedContract.forcedAssetType())) {
+            values.put("assetType", publishedContract.forcedAssetType());
+        }
         Double confidence = confidence(values.get("confidence"));
         if (confidence == null) {
             confidence = candidateConfidence(rawCandidates, targetKind);
@@ -388,7 +409,7 @@ class McpParamBindingResolver {
     private void ensureRuntimeRoutingTrace(Map<String, Object> values,
                                            String toolName,
                                            String targetKind,
-                                           double confidence,
+                                           Double confidence,
                                            String source,
                                            String decisionSource) {
         Object existing = firstPresent(values, "trace", "routingTrace", "routing_trace");
@@ -400,12 +421,94 @@ class McpParamBindingResolver {
         trace.put("source", source);
         trace.put("toolName", toolName == null ? "" : toolName);
         trace.put("finalDecision", firstNonBlank(normalizeTargetKind(targetKind), ""));
-        trace.put("confidence", confidence);
+        if (confidence != null) {
+            trace.put("confidence", confidence);
+        }
         trace.put("decisionSource", decisionSource);
         trace.put("filtersSchemaVersion", FILTERS_SCHEMA_VERSION);
         values.put("trace", Map.copyOf(trace));
         values.remove("routingTrace");
         values.remove("routing_trace");
+    }
+
+    private Map<String, Object> finishPublishedScopedDiscovery(Map<String, Object> values,
+                                                               String toolName,
+                                                               String targetKind,
+                                                               PublishedDiscoveryContract contract,
+                                                               boolean synthesizedLegacyFilterEnvelope) {
+        Double confidence = confidence(values.get("confidence"));
+        if (confidence != null && (confidence < 0.0 || confidence > 1.0)) {
+            return denied(values, "confidence must be between 0.0 and 1.0: " + confidence);
+        }
+        if (contract.accepts("trace")) {
+            Double traceConfidence = confidence;
+            if (traceConfidence == null && hasText(contract.forcedTargetKind())) {
+                traceConfidence = Double.valueOf(1.0);
+            }
+            ensureRuntimeRoutingTrace(values, toolName, targetKind,
+                traceConfidence,
+                synthesizedLegacyFilterEnvelope ? "agent_tool_argument_resolver" : "agent_runtime_param_binding",
+                hasText(contract.forcedTargetKind()) ? "published_tool_contract" : "published_service_scope");
+        }
+        removeUnsupportedRoutingFields(values, contract);
+        if (contract.accepts("limit")) {
+            values.putIfAbsent("limit", 10);
+        }
+        values.remove("query");
+        return values;
+    }
+
+    private void removeUnsupportedRoutingFields(Map<String, Object> values,
+                                                PublishedDiscoveryContract contract) {
+        for (String field : List.of(
+            "candidates", "routingCandidates", "routing_candidates",
+            "finalDecision", "final_decision", "selectedTargetKind", "selected_target_kind",
+            "targetKind", "target_kind", "assetType", "asset_type", "confidence",
+            "trace", "routingTrace", "routing_trace", "filtersSchemaVersion", "filters_schema_version")) {
+            if (!contract.accepts(field)) {
+                values.remove(field);
+            }
+        }
+    }
+
+    private PublishedDiscoveryContract publishedDiscoveryContract(ToolMetadata metadata) {
+        if (metadata == null || metadata.getMetadata() == null) {
+            return PublishedDiscoveryContract.legacy();
+        }
+        Map<String, Object> extra = metadata.getMetadata();
+        Map<String, Object> inputSchema = asMap(extra.get("inputSchema"));
+        Map<String, Object> properties = asMap(inputSchema.get("properties"));
+        Map<String, Object> mcpMeta = asMap(extra.get("mcpToolMeta"));
+        if (inputSchema.isEmpty() && mcpMeta.isEmpty()) {
+            return PublishedDiscoveryContract.legacy();
+        }
+        java.util.LinkedHashSet<String> accepted = new java.util.LinkedHashSet<>();
+        properties.keySet().stream().map(this::canonicalField).filter(key -> !key.isBlank()).forEach(accepted::add);
+        java.util.LinkedHashSet<String> required = new java.util.LinkedHashSet<>();
+        if (inputSchema.get("required") instanceof Iterable<?> fields) {
+            for (Object field : fields) {
+                String canonical = canonicalField(field == null ? null : String.valueOf(field));
+                if (!canonical.isBlank()) {
+                    required.add(canonical);
+                }
+            }
+        }
+        Map<String, Object> routingProtocol = asMap(mcpMeta.get("routingProtocol"));
+        Map<String, Object> toolBoundary = asMap(mcpMeta.get("toolBoundary"));
+        String forcedTargetKind = firstNonBlank(
+            firstText(firstPresent(routingProtocol, "forcedTargetKind", "targetKind")),
+            firstNonBlank(
+                firstText(firstPresent(toolBoundary, "forcedTargetKind", "targetKind")),
+                firstText(firstPresent(mcpMeta, "targetKind"))));
+        String forcedAssetType = firstNonBlank(
+            firstText(firstPresent(routingProtocol, "forcedAssetType", "assetType")),
+            firstNonBlank(
+                firstText(firstPresent(toolBoundary, "forcedAssetType", "assetType")),
+                firstText(firstPresent(mcpMeta, "assetType"))));
+        boolean requiresRoutingDecision = accepted.contains(canonicalField("finalDecision"))
+            || accepted.contains(canonicalField("candidates"));
+        return new PublishedDiscoveryContract(true, Set.copyOf(accepted), Set.copyOf(required),
+            forcedTargetKind, forcedAssetType, requiresRoutingDecision);
     }
 
     /**
@@ -1153,5 +1256,29 @@ class McpParamBindingResolver {
     }
 
     private record IntentCandidate(List<String> terms, double score) {
+    }
+
+    private record PublishedDiscoveryContract(boolean published,
+                                               Set<String> acceptedFields,
+                                               Set<String> requiredFields,
+                                               String forcedTargetKind,
+                                               String forcedAssetType,
+                                               boolean requiresRoutingDecision) {
+        private static PublishedDiscoveryContract legacy() {
+            return new PublishedDiscoveryContract(false, Set.of(), Set.of(), null, null, true);
+        }
+
+        private boolean accepts(String field) {
+            return !published || acceptedFields.contains(canonical(field));
+        }
+
+        @SuppressWarnings("unused")
+        private boolean requires(String field) {
+            return requiredFields.contains(canonical(field));
+        }
+
+        private static String canonical(String field) {
+            return field == null ? "" : field.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
+        }
     }
 }

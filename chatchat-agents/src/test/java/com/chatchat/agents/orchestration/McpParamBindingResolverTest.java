@@ -1,6 +1,7 @@
 package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.protocol.AgentProtocolCatalog;
+import com.chatchat.common.tool.ToolMetadata;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -51,6 +52,92 @@ class McpParamBindingResolverTest {
 
         assertThat(result).doesNotContainKey(McpParamBindingResolver.STATUS_KEY);
         assertThat(result.get("trace")).isEqualTo(plannerTrace);
+    }
+
+    @Test
+    void usesPublishedJmxContractWithoutRequiringModelRoutingFields() {
+        Map<String, Object> result = resolver.resolve(
+            "mcp_chatchat_mcp_server_jmx_template_query",
+            publishedDiscoveryMetadata(
+                "jmx_template_query",
+                List.of("filters", "filtersSchemaVersion", "trace", "candidates", "finalDecision",
+                    "confidence", "assetType", "targetKind", "limit"),
+                List.of("filters", "trace"),
+                Map.of("forcedTargetKind", "java", "forcedAssetType", "jmx_endpoint")),
+            Map.of("filters", Map.of("env", "DEV", "intent", "JVM health")),
+            "检查 DEV JVM 健康状态"
+        );
+
+        assertThat(result)
+            .doesNotContainKey(McpParamBindingResolver.STATUS_KEY)
+            .containsEntry("targetKind", "java")
+            .containsEntry("finalDecision", "java")
+            .containsEntry("assetType", "jmx_endpoint");
+        assertThat(result.get("trace")).isInstanceOf(Map.class);
+    }
+
+    @Test
+    void usesPublishedMicroserviceContractWithoutNameBasedTargetInference() {
+        Map<String, Object> result = resolver.resolve(
+            "mcp_chatchat_mcp_server_microservice_asset_query",
+            publishedDiscoveryMetadata(
+                "microservice_asset_query",
+                List.of("filters", "filtersSchemaVersion", "trace", "candidates", "finalDecision",
+                    "confidence", "assetType", "targetKind", "limit"),
+                List.of("filters", "trace"),
+                Map.of("forcedTargetKind", "http", "forcedAssetType", "http_endpoint")),
+            Map.of("filters", Map.of("env", "DEV", "service", "risk-gateway")),
+            "查找 DEV 风控网关"
+        );
+
+        assertThat(result)
+            .doesNotContainKey(McpParamBindingResolver.STATUS_KEY)
+            .containsEntry("targetKind", "http")
+            .containsEntry("assetType", "http_endpoint");
+    }
+
+    @Test
+    void keepsApiDiscoveryInsideItsPublishedApiServiceSchema() {
+        Map<String, Object> result = resolver.resolve(
+            "mcp_chatchat_mcp_server_api_asset_query",
+            publishedDiscoveryMetadata(
+                "api_asset_query",
+                List.of("filters", "filtersSchemaVersion", "limit"),
+                List.of("filters"),
+                Map.of("forcedTargetKind", "api_service", "forcedAssetType", "api_service")),
+            Map.of(
+                "filters", Map.of("businessGroup", "risk"),
+                "finalDecision", "database",
+                "confidence", 0.88,
+                "candidates", List.of(Map.of("targetKind", "database", "confidence", 0.88))
+            ),
+            "查找风控 API"
+        );
+
+        assertThat(result)
+            .doesNotContainKey(McpParamBindingResolver.STATUS_KEY)
+            .containsKeys("filters", "filtersSchemaVersion", "limit")
+            .doesNotContainKeys("targetKind", "finalDecision", "assetType", "confidence", "candidates", "trace");
+    }
+
+    @Test
+    void letsDynamicTemplatePublicationOwnItsServerManagedScope() {
+        Map<String, Object> result = resolver.resolve(
+            "mcp_chatchat_mcp_server_tenant_authorized_template_query",
+            publishedDiscoveryMetadata(
+                "tenant_authorized_template_query",
+                List.of("assetType", "filters", "trace", "limit"),
+                List.of(),
+                Map.of()),
+            Map.of("query", "customer snapshot"),
+            "查询客户快照"
+        );
+
+        assertThat(result)
+            .doesNotContainKey(McpParamBindingResolver.STATUS_KEY)
+            .containsKeys("filters", "trace", "limit")
+            .doesNotContainKeys("targetKind", "finalDecision", "confidence", "candidates");
+        assertThat((Map<String, Object>) result.get("filters")).containsEntry("intent", "查询客户快照");
     }
 
     @Test
@@ -327,6 +414,25 @@ class McpParamBindingResolverTest {
             .containsEntry("assetName", "authoritative-db")
             .containsEntry("env", "PROD");
         assertThat(result).doesNotContainKeys("executionContext", "mcpExecutionContext");
+    }
+
+    private ToolMetadata publishedDiscoveryMetadata(String remoteToolName,
+                                                     List<String> fields,
+                                                     List<String> required,
+                                                     Map<String, Object> routingProtocol) {
+        Map<String, Object> properties = new java.util.LinkedHashMap<>();
+        fields.forEach(field -> properties.put(field, Map.of("type", "object")));
+        return ToolMetadata.builder()
+            .id("mcp_chatchat_mcp_server_" + remoteToolName)
+            .categories(List.of("mcp"))
+            .metadata(Map.of(
+                "remoteToolName", remoteToolName,
+                "inputSchema", Map.of(
+                    "type", "object",
+                    "properties", properties,
+                    "required", required),
+                "mcpToolMeta", Map.of("routingProtocol", routingProtocol)))
+            .build();
     }
 
     private List<String> strings(Object value) {

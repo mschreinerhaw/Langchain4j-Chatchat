@@ -1,9 +1,6 @@
 package com.chatchat.mcpserver.metadata;
 
-import com.chatchat.mcpserver.mcp.McpToolApplicability;
-import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
-import io.modelcontextprotocol.spec.McpSchema;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -12,20 +9,15 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class MetadataGovernanceMcpToolPublisher {
 
-    public static final String ANNOTATE_TOOL = "enterprise_metadata_annotate_ddl";
+    public static final String RETIRED_ANNOTATE_TOOL = "enterprise_metadata_annotate_ddl";
     public static final String RETIRED_COMPARE_TOOL = "enterprise_metadata_compare";
 
     private final McpSyncServer mcpSyncServer;
-    private final MetadataGovernanceAnalysisService analysisService;
     private final EnterpriseMetadataProperties properties;
 
     @Order(Ordered.LOWEST_PRECEDENCE)
@@ -35,89 +27,11 @@ public class MetadataGovernanceMcpToolPublisher {
     }
 
     public synchronized void refresh() {
-        remove(ANNOTATE_TOOL);
+        remove(RETIRED_ANNOTATE_TOOL);
         remove(RETIRED_COMPARE_TOOL);
-        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
-            mcpSyncServer, annotationSpecification());
         mcpSyncServer.notifyToolsListChanged();
-        log.info("Enterprise metadata governance capabilities registered tools={}; retiredToolRemoved={}",
-            ANNOTATE_TOOL, RETIRED_COMPARE_TOOL);
-    }
-
-    private McpServerFeatures.SyncToolSpecification annotationSpecification() {
-        McpSchema.Tool tool = McpSchema.Tool.builder()
-            .name(ANNOTATE_TOOL)
-            .title("Annotate CREATE TABLE with enterprise metadata")
-            .description("Parse one CREATE TABLE statement without executing it, then annotate every physical column "
-                + "using the maintained enterprise standard-field, term-root and dictionary catalog. "
-                + "Returns deterministic matches, confidence, unmatched name terms and catalog evidence.")
-            .inputSchema(new McpSchema.JsonSchema("object", mapOf(
-                "ddl", Map.of(
-                    "type", "string",
-                    "description", "One CREATE TABLE statement. It is parsed only and is never executed."
-                )
-            ), List.of("ddl"), false, null, null))
-            .meta(meta("enterprise_metadata:annotate_ddl",
-                MetadataGovernanceAnalysisService.ANNOTATION_SCHEMA_VERSION))
-            .build();
-        return McpServerFeatures.SyncToolSpecification.builder()
-            .tool(tool)
-            .callHandler((exchange, request) -> result(() -> {
-                Map<String, Object> arguments = request.arguments() == null ? Map.of() : request.arguments();
-                return analysisService.annotateDdl(text(arguments.get("ddl")));
-            }))
-            .build();
-    }
-
-    private McpSchema.CallToolResult result(AnalysisCall call) {
-        try {
-            Map<String, Object> structured = call.run();
-            return McpSchema.CallToolResult.builder()
-                .addTextContent("Metadata governance analysis completed: table="
-                    + structured.getOrDefault("table", "-") + ", columns="
-                    + structured.getOrDefault("columnCount", 0) + ", differences="
-                    + structured.getOrDefault("differenceCount", 0) + ".")
-                .structuredContent(structured)
-                .isError(false)
-                .build();
-        } catch (Exception ex) {
-            return McpSchema.CallToolResult.builder()
-                .addTextContent(ex.getMessage())
-                .structuredContent(Map.of("success", false, "error", ex.getMessage()))
-                .isError(true)
-                .build();
-        }
-    }
-
-    private Map<String, Object> meta(String capabilityId, String schemaVersion) {
-        return mapOf(
-            "schemaVersion", schemaVersion,
-            "kind", "enterprise_metadata_governance",
-            "capabilityType", "metadata",
-            "runtime_action", "read_only",
-            "runtimeAction", "read_only",
-            "readOnly", true,
-            "riskLevel", "low",
-            "confirmation", mapOf("default", "auto_execute", "allow_user_override", false),
-            McpToolApplicability.META_KEY, McpToolApplicability.of(
-                capabilityId,
-                "Enterprise metadata annotation and conformance analysis",
-                List.of("enterprise_metadata", "data_model", "sql_datasource"),
-                "Produce evidence-backed metadata annotations or schema differences.",
-                List.of("Annotate a CREATE TABLE draft", "Assess an existing registered table"),
-                List.of("Executing DDL", "Changing a physical schema", "Inventing absent standards")
-            ),
-            "evidenceContract", mapOf(
-                "columnEvidencePath", "columns[]",
-                "differenceEvidencePath", "differences[]",
-                "catalogEvidencePath", "catalogEvidence",
-                "factBoundary", "maintained_enterprise_metadata_catalog"
-            )
-        );
-    }
-
-    private String text(Object value) {
-        return value == null || String.valueOf(value).isBlank() ? null : String.valueOf(value).trim();
+        log.info("Retired enterprise metadata MCP tools removed tools=[{}, {}]",
+            RETIRED_ANNOTATE_TOOL, RETIRED_COMPARE_TOOL);
     }
 
     private void remove(String toolName) {
@@ -128,16 +42,4 @@ public class MetadataGovernanceMcpToolPublisher {
         }
     }
 
-    private Map<String, Object> mapOf(Object... values) {
-        Map<String, Object> result = new LinkedHashMap<>();
-        for (int index = 0; index + 1 < values.length; index += 2) {
-            result.put(String.valueOf(values[index]), values[index + 1]);
-        }
-        return result;
-    }
-
-    @FunctionalInterface
-    private interface AnalysisCall {
-        Map<String, Object> run();
-    }
 }

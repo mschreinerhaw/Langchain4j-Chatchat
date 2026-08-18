@@ -1,23 +1,9 @@
 # Enterprise metadata governance capabilities
 
-The MCP server exposes one read-only metadata-governance tool. It uses the
-maintained enterprise metadata catalog as its factual boundary and never
-executes DDL.
-
-## `enterprise_metadata_annotate_ddl`
-
-Input: one `CREATE TABLE` statement in `ddl`.
-
-The result parses every physical column and returns:
-
-- the matched standard field and match confidence;
-- standard term/root matches for physical-name tokens;
-- associated maintained dictionary items;
-- unmatched name tokens;
-- catalog counts and status as retrieval evidence.
-
-The output schema is `metadata_ddl_annotation.v1` and always declares
-`executionStatus=NOT_EXECUTED`.
+The metadata-governance analysis implementation remains an internal runtime
+capability. The retired `enterprise_metadata_annotate_ddl` and
+`enterprise_metadata_compare` tools are removed from the MCP tool surface at
+application startup and are not republished.
 
 ## Runtime governance boundary
 

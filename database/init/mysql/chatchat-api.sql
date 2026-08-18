@@ -1099,7 +1099,7 @@
     create index idx_semantic_contract_dataset_task
        on runtime_semantic_insight_contract (tenant_id, dataset_key, task_type);
     create table runtime_semantic_insight_field (
-        sensitive bit not null,
+        sensitive_flag bit not null,
         display_order integer not null,
         aggregation varchar(32),
         unit varchar(64),

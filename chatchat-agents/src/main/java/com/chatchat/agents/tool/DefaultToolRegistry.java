@@ -74,7 +74,7 @@ public class DefaultToolRegistry implements ToolRegistry {
      */
     @Override
     public Tool getTool(String toolName) {
-        return simpleTools.get(toolName);
+        return toolName == null || toolName.isBlank() ? null : simpleTools.get(toolName);
     }
 
     /**
@@ -85,7 +85,7 @@ public class DefaultToolRegistry implements ToolRegistry {
      */
     @Override
     public EnhancedTool getEnhancedTool(String toolName) {
-        return enhancedTools.get(toolName);
+        return toolName == null || toolName.isBlank() ? null : enhancedTools.get(toolName);
     }
 
     /**
@@ -96,7 +96,7 @@ public class DefaultToolRegistry implements ToolRegistry {
      */
     @Override
     public ToolMetadata getToolMetadata(String toolName) {
-        return toolMetadata.get(toolName);
+        return toolName == null || toolName.isBlank() ? null : toolMetadata.get(toolName);
     }
 
     /**
@@ -216,6 +216,7 @@ public class DefaultToolRegistry implements ToolRegistry {
      */
     @Override
     public boolean hasTool(String toolName) {
+        if (toolName == null || toolName.isBlank()) return false;
         return simpleTools.containsKey(toolName) || enhancedTools.containsKey(toolName);
     }
 
@@ -239,6 +240,7 @@ public class DefaultToolRegistry implements ToolRegistry {
      */
     @Override
     public void unregisterTool(String toolName) {
+        if (toolName == null || toolName.isBlank()) return;
         log.info("Unregistering tool: {}", toolName);
         simpleTools.remove(toolName);
         enhancedTools.remove(toolName);

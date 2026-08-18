@@ -42,6 +42,7 @@ public class SemanticInsightFieldEntity {
     private String unit;
     @Column(length = 32)
     private String aggregation;
-    @Column(nullable = false)
+    // `sensitive` is reserved by some supported MySQL versions.
+    @Column(name = "sensitive_flag", nullable = false)
     private boolean sensitive;
 }

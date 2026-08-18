@@ -1,6 +1,7 @@
 package com.chatchat.chat.insight;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.Column;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.boot.DefaultApplicationArguments;
@@ -23,6 +24,15 @@ class SemanticInsightContractStructureMigratorTest {
     private final SemanticInsightContractStructureMigrator migrator =
         new SemanticInsightContractStructureMigrator(
             contracts, fields, recipes, parameters, new ObjectMapper());
+
+    @Test
+    void mapsSensitiveFlagToMysqlCompatiblePhysicalColumn() throws NoSuchFieldException {
+        Column column = SemanticInsightFieldEntity.class.getDeclaredField("sensitive")
+            .getAnnotation(Column.class);
+
+        assertThat(column.name()).isEqualTo("sensitive_flag");
+        assertThat(column.nullable()).isFalse();
+    }
 
     @Test
     void materializesReadableTypedRowsWithoutDeletingLegacySnapshot() {

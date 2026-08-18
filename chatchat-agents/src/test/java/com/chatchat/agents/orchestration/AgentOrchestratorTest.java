@@ -22,6 +22,7 @@ import com.chatchat.agents.runtime.plan.InterpretationExecutionProtocol;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.agents.tool.DefaultToolRegistry;
 import com.chatchat.common.config.ModelsConfig;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.tool.ToolMetadata;
@@ -631,12 +632,13 @@ class AgentOrchestratorTest {
         InterpretationPlanRuntime.ExecutionResult repairedAttempt = new InterpretationPlanRuntime.ExecutionResult(
             "completed_with_partial_evidence", true, false, null, null,
             List.of(new InterpretationPlanRuntime.StepExecution(
-                4, "final_answer", null, true, null, null, null,
+                4, "final_answer", null, true,
+                Map.of("records", List.of(Map.of("MODEL_TEXT", "not executed evidence"))), null, null,
                 "templates succeeded", 1L, Map.of("reusedPlanStepIds", List.of(1, 2, 3)))),
             Map.of(), 1L
         );
         ChatModel model = mock(ChatModel.class);
-        AgentOrchestrator orchestrator = newOrchestrator(model);
+        AgentOrchestrator orchestrator = newOrchestrator(model, new DefaultToolRegistry());
         InterpretationPlanRuntime.ExecutionResult cumulative = orchestrator.cumulativeEvidenceResult(
             repairedAttempt, List.of(firstAttempt, repairedAttempt));
         Map<String, Object> metadata = new LinkedHashMap<>();
@@ -652,10 +654,41 @@ class AgentOrchestratorTest {
 
         assertThat(coverage.returnedRecordCount()).isEqualTo(1);
         assertThat(coverage.processedRecordCount()).isEqualTo(1);
+        assertThat(coverage.promptEvidence()).doesNotContain("not executed evidence", "MODEL_TEXT");
         assertThat(answer).contains("847174.25", "42263.81", "asset-template");
         assertThat(metadata)
             .containsEntry("recordAnalysisCoverageComplete", true)
             .containsEntry("concreteBatchEvidencePresentationFallback", true);
+    }
+
+    @Test
+    void recordCoverageStressSkipsSuccessfulNonToolNodesWithoutLosingToolEvidence() {
+        List<InterpretationPlanRuntime.StepExecution> steps = new ArrayList<>();
+        steps.add(new InterpretationPlanRuntime.StepExecution(
+            1, "mcp_tool", "generic_data_query", true,
+            Map.of("records", List.of(Map.of("VALUE", "authoritative"))),
+            null, null, null, 1L, Map.of()));
+        for (int index = 0; index < 1_000; index++) {
+            steps.add(new InterpretationPlanRuntime.StepExecution(
+                index + 2, index % 2 == 0 ? "final_answer" : "reasoning", null, true,
+                Map.of("records", List.of(Map.of("VALUE", "model-product-" + index))),
+                null, null, "model product", 1L, Map.of()));
+        }
+        InterpretationPlanRuntime.ExecutionResult result =
+            new InterpretationPlanRuntime.ExecutionResult(
+                "success", true, false, null, null, steps, Map.of(), 1_001L);
+        AgentOrchestrator orchestrator = newOrchestrator(
+            mock(ChatModel.class), new DefaultToolRegistry());
+
+        AgentOrchestrator.RecordCoverageBundle coverage = orchestrator.buildRecordCoverageBundle(
+            mock(ChatModel.class), "analyze returned data", result, Map.of(),
+            new LinkedHashMap<>(), () -> false);
+
+        assertThat(coverage.returnedRecordCount()).isEqualTo(1);
+        assertThat(coverage.processedRecordCount()).isEqualTo(1);
+        assertThat(coverage.promptEvidence())
+            .contains("authoritative")
+            .doesNotContain("model-product-");
     }
 
     @Test

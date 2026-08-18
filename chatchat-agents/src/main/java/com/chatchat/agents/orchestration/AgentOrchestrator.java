@@ -3515,6 +3515,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
         }
         List<BatchRecordSet> sets = new ArrayList<>();
         for (InterpretationPlanRuntime.StepExecution step : result.steps()) {
+            if (step == null || !step.success()) {
+                continue;
+            }
             Object resolvedStepOutput = resolvedEvidenceData(step);
             if (resolvedStepOutput instanceof ToolCallBatchResult batch) {
                 for (ToolCallResult child : batch.results()) {
@@ -3524,18 +3527,22 @@ public class AgentOrchestrator implements AgentRunExecutor {
                     String reference = firstNonBlank(child.templateId(),
                         firstNonBlank(child.templateCode(), firstNonBlank(child.callId(), "result")));
                     sets.addAll(outputRecordSets(child.output(), reference,
-                        toolRegistry.getToolMetadata(child.toolName())));
+                        toolMetadataOrNull(child.toolName())));
                 }
                 continue;
             }
-            if (step.success()) {
-                Object evidenceOutput = resolvedStepOutput;
-                sets.addAll(outputRecordSets(
-                    evidenceOutput, firstNonBlank(step.toolName(), "step-" + step.stepId()),
-                    toolRegistry.getToolMetadata(step.toolName())));
-            }
+            // final_answer/reasoning nodes are model products, not executed evidence.
+            // They intentionally have no tool name and must never enter record coverage.
+            if (step.toolName() == null || step.toolName().isBlank()) continue;
+            sets.addAll(outputRecordSets(
+                resolvedStepOutput, step.toolName(), toolMetadataOrNull(step.toolName())));
         }
         return List.copyOf(sets);
+    }
+
+    private ToolMetadata toolMetadataOrNull(String toolName) {
+        return toolName == null || toolName.isBlank()
+            ? null : toolRegistry.getToolMetadata(toolName);
     }
 
     private List<BatchRecordSet> outputRecordSets(Object output,

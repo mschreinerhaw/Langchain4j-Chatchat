@@ -5,82 +5,135 @@ const SEARCH_INDEX_URL = `${API_BASE}/mcp-search-index`;
 
 export const authApi = {
   currentUser: () => apiFetch(`${API_BASE}/admin/auth/me`),
-  loginAudits: params => {
+  loginAudits: (params) => {
     const query = new URLSearchParams();
     Object.entries(params || {}).forEach(([key, value]) => {
       if (value !== undefined && value !== null && String(value) !== '') query.set(key, value);
     });
     return apiFetch(`${API_BASE}/admin/login-audits${query.toString() ? `?${query}` : ''}`);
   },
-  changePassword: (currentPassword, newPassword) => apiFetch(`${API_BASE}/admin/auth/password`, {
-    method: 'POST',
-    body: JSON.stringify({ currentPassword, newPassword })
-  }),
-  changeManagedPassword: payload => apiFetch(`${API_BASE}/admin/auth/password`, {
-    method: 'POST',
-    body: JSON.stringify(payload || {})
-  })
+  changePassword: (currentPassword, newPassword) =>
+    apiFetch(`${API_BASE}/admin/auth/password`, {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword })
+    }),
+  changeManagedPassword: (payload) =>
+    apiFetch(`${API_BASE}/admin/auth/password`, {
+      method: 'POST',
+      body: JSON.stringify(payload || {})
+    })
 };
 
 export const pythonApi = {
   environments: () => apiFetch(`${API_BASE}/python/environments`),
-  saveEnvironment: environment => apiFetch(`${API_BASE}/python/environments${environment.id ? `/${encodeURIComponent(environment.id)}` : ''}`, {
-    method: environment.id ? 'PUT' : 'POST', body: JSON.stringify(environment)
-  }),
-  publishEnvironment: (id, published) => apiFetch(`${API_BASE}/python/environments/${encodeURIComponent(id)}/published?published=${published}`, { method: 'POST' }),
+  saveEnvironment: (environment) =>
+    apiFetch(
+      `${API_BASE}/python/environments${
+        environment.id ? `/${encodeURIComponent(environment.id)}` : ''
+      }`,
+      {
+        method: environment.id ? 'PUT' : 'POST',
+        body: JSON.stringify(environment)
+      }
+    ),
+  publishEnvironment: (id, published) =>
+    apiFetch(
+      `${API_BASE}/python/environments/${encodeURIComponent(id)}/published?published=${published}`,
+      { method: 'POST' }
+    ),
   templates: () => apiFetch(`${API_BASE}/python/templates`),
   searchTemplates: (query, categoryId = '', limit = 20) => {
-    const params = new URLSearchParams({ query: String(query || ''), categoryId: String(categoryId || ''), limit: String(limit) });
+    const params = new URLSearchParams({
+      query: String(query || ''),
+      categoryId: String(categoryId || ''),
+      limit: String(limit)
+    });
     return apiFetch(`${API_BASE}/python/templates/search?${params}`);
   },
   indexOverview: () => apiFetch(`${API_BASE}/python/templates/index`),
   rebuildIndex: () => apiFetch(`${API_BASE}/python/templates/index/rebuild`, { method: 'POST' }),
-  updateTemplateMetadata: (id, metadata) => apiFetch(`${API_BASE}/python/templates/${encodeURIComponent(id)}/metadata`, { method: 'PUT', body: JSON.stringify(metadata) }),
-  setTemplateEnabled: (id, enabled) => apiFetch(`${API_BASE}/python/templates/${encodeURIComponent(id)}/enabled?enabled=${enabled}`, { method: 'POST' }),
-  executeTemplate: (id, parameters = {}) => apiFetch(`${API_BASE}/python/templates/${encodeURIComponent(id)}/execute`, { method: 'POST', body: JSON.stringify(parameters) })
+  updateTemplateMetadata: (id, metadata) =>
+    apiFetch(`${API_BASE}/python/templates/${encodeURIComponent(id)}/metadata`, {
+      method: 'PUT',
+      body: JSON.stringify(metadata)
+    }),
+  setTemplateEnabled: (id, enabled) =>
+    apiFetch(`${API_BASE}/python/templates/${encodeURIComponent(id)}/enabled?enabled=${enabled}`, {
+      method: 'POST'
+    }),
+  executeTemplate: (id, parameters = {}) =>
+    apiFetch(`${API_BASE}/python/templates/${encodeURIComponent(id)}/execute`, {
+      method: 'POST',
+      body: JSON.stringify(parameters)
+    })
 };
 
 export const businessCategoriesApi = {
   list: () => apiFetch(`${API_BASE}/business-categories`),
-  save: category => saveEntity(`${API_BASE}/business-categories`, category),
-  remove: id => apiFetch(`${API_BASE}/business-categories/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  save: (category) => saveEntity(`${API_BASE}/business-categories`, category),
+  remove: (id) =>
+    apiFetch(`${API_BASE}/business-categories/${encodeURIComponent(id)}`, { method: 'DELETE' })
 };
 
 export const apiServicesApi = {
   list: () => apiFetch(`${API_BASE}/api-services`),
-  save: service => saveEntity(`${API_BASE}/api-services`, service, toApiServicePayload),
-  remove: id => apiFetch(`${API_BASE}/api-services/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-  batchRemove: ids => apiFetch(`${API_BASE}/api-services/batch-delete`, { method: 'POST', body: JSON.stringify({ ids }) }),
-  setEnabled: (id, enabled) => apiFetch(`${API_BASE}/api-services/${encodeURIComponent(id)}/enabled?enabled=${enabled}`, { method: 'POST' }),
-  test: (id, args) => apiFetch(`${API_BASE}/api-services/${encodeURIComponent(id)}/test`, { method: 'POST', body: JSON.stringify(args || {}) }),
+  save: (service) => saveEntity(`${API_BASE}/api-services`, service, toApiServicePayload),
+  remove: (id) =>
+    apiFetch(`${API_BASE}/api-services/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  batchRemove: (ids) =>
+    apiFetch(`${API_BASE}/api-services/batch-delete`, {
+      method: 'POST',
+      body: JSON.stringify({ ids })
+    }),
+  setEnabled: (id, enabled) =>
+    apiFetch(`${API_BASE}/api-services/${encodeURIComponent(id)}/enabled?enabled=${enabled}`, {
+      method: 'POST'
+    }),
+  test: (id, args) =>
+    apiFetch(`${API_BASE}/api-services/${encodeURIComponent(id)}/test`, {
+      method: 'POST',
+      body: JSON.stringify(args || {})
+    }),
   refresh: () => apiFetch(`${API_BASE}/api-services/refresh`, { method: 'POST' }),
   rebuildIndex: () => apiFetch(`${SEARCH_INDEX_URL}/api-services/rebuild`, { method: 'POST' }),
   listCategories: () => apiFetch(`${API_BASE}/business-categories`),
   listLivedata: () => apiFetch(`${API_BASE}/livedata-apis`),
   getLivedataConfig: () => apiFetch(`${API_BASE}/livedata-apis/config`),
-  saveLivedataConfig: config => apiFetch(`${API_BASE}/livedata-apis/config`, { method: 'PUT', body: JSON.stringify(config || {}) }),
-  registerLivedata: (ids, overwriteExisting) => apiFetch(`${API_BASE}/livedata-apis/register`, {
-    method: 'POST',
-    body: JSON.stringify({ ids, overwriteExisting })
-  }),
-  syncLivedataParameters: () => apiFetch(`${API_BASE}/livedata-apis/sync-parameters`, { method: 'POST' }),
-  testLivedata: (id, args) => apiFetch(`${API_BASE}/livedata-apis/${encodeURIComponent(id)}/test`, {
-    method: 'POST',
-    body: JSON.stringify(args || {})
-  }),
-  deleteLivedataRegistration: id => apiFetch(
-    `${API_BASE}/livedata-apis/${encodeURIComponent(id)}/registration`,
-    { method: 'DELETE' }
-  )
+  saveLivedataConfig: (config) =>
+    apiFetch(`${API_BASE}/livedata-apis/config`, {
+      method: 'PUT',
+      body: JSON.stringify(config || {})
+    }),
+  registerLivedata: (ids, overwriteExisting) =>
+    apiFetch(`${API_BASE}/livedata-apis/register`, {
+      method: 'POST',
+      body: JSON.stringify({ ids, overwriteExisting })
+    }),
+  syncLivedataParameters: () =>
+    apiFetch(`${API_BASE}/livedata-apis/sync-parameters`, { method: 'POST' }),
+  testLivedata: (id, args) =>
+    apiFetch(`${API_BASE}/livedata-apis/${encodeURIComponent(id)}/test`, {
+      method: 'POST',
+      body: JSON.stringify(args || {})
+    }),
+  deleteLivedataRegistration: (id) =>
+    apiFetch(`${API_BASE}/livedata-apis/${encodeURIComponent(id)}/registration`, {
+      method: 'DELETE'
+    })
 };
 
 export const mcpServicesApi = {
   list: () => apiFetch(`${API_BASE}/mcp-services`),
-  save: service => saveEntity(`${API_BASE}/mcp-services`, service),
-  remove: id => apiFetch(`${API_BASE}/mcp-services/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-  setEnabled: (id, enabled) => apiFetch(`${API_BASE}/mcp-services/${encodeURIComponent(id)}/enabled?enabled=${enabled}`, { method: 'POST' }),
+  save: (service) => saveEntity(`${API_BASE}/mcp-services`, service),
+  remove: (id) =>
+    apiFetch(`${API_BASE}/mcp-services/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  setEnabled: (id, enabled) =>
+    apiFetch(`${API_BASE}/mcp-services/${encodeURIComponent(id)}/enabled?enabled=${enabled}`, {
+      method: 'POST'
+    }),
   generateToken: () => apiFetch(`${API_BASE}/mcp-services/generate-token`, { method: 'POST' }),
-  regenerateToken: id => apiFetch(`${API_BASE}/mcp-services/${encodeURIComponent(id)}/token`, { method: 'POST' })
+  regenerateToken: (id) =>
+    apiFetch(`${API_BASE}/mcp-services/${encodeURIComponent(id)}/token`, { method: 'POST' })
 };
 
 export const newsApi = {
@@ -88,88 +141,189 @@ export const newsApi = {
   listPresets: () => apiFetch(`${API_BASE}/news/presets`),
   listCollectionTemplates: () => apiFetch(`${API_BASE}/news/collection-templates`),
   listPatternPresets: () => apiFetch(`${API_BASE}/news/pattern-presets`),
-  getRule: id => apiFetch(`${API_BASE}/news/sources/${encodeURIComponent(id)}/rule`),
-  saveSource: source => saveEntity(`${API_BASE}/news/sources`, source),
-  saveRule: (id, rule) => apiFetch(`${API_BASE}/news/sources/${encodeURIComponent(id)}/rule`, { method: 'PUT', body: JSON.stringify(rule || {}) }),
-  removeSource: id => apiFetch(`${API_BASE}/news/sources/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-    collect: id => apiFetch(`${API_BASE}/news/sources/${encodeURIComponent(id)}/collect`, { method: 'POST' }),
-    checkRobots: id => apiFetch(`${API_BASE}/news/sources/${encodeURIComponent(id)}/robots-check`, { method: 'POST' }),
-  listRecords: params => {
+  getRule: (id) => apiFetch(`${API_BASE}/news/sources/${encodeURIComponent(id)}/rule`),
+  saveSource: (source) => saveEntity(`${API_BASE}/news/sources`, source),
+  saveRule: (id, rule) =>
+    apiFetch(`${API_BASE}/news/sources/${encodeURIComponent(id)}/rule`, {
+      method: 'PUT',
+      body: JSON.stringify(rule || {})
+    }),
+  removeSource: (id) =>
+    apiFetch(`${API_BASE}/news/sources/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  collect: (id) =>
+    apiFetch(`${API_BASE}/news/sources/${encodeURIComponent(id)}/collect`, { method: 'POST' }),
+  checkRobots: (id) =>
+    apiFetch(`${API_BASE}/news/sources/${encodeURIComponent(id)}/robots-check`, { method: 'POST' }),
+  listRecords: (params) => {
     const query = new URLSearchParams();
     Object.entries(params || {}).forEach(([key, value]) => {
       if (value !== undefined && value !== null && String(value) !== '') query.set(key, value);
     });
     return apiFetch(`${API_BASE}/news/records?${query}`);
   },
-  searchIndex: request => apiFetch(`${API_BASE}/news/search`, { method: 'POST', body: JSON.stringify(request || {}) })
+  searchIndex: (request) =>
+    apiFetch(`${API_BASE}/news/search`, { method: 'POST', body: JSON.stringify(request || {}) })
 };
 
 export const assetsApi = {
   listCategories: () => apiFetch(`${API_BASE}/business-categories`),
   listSsh: () => apiFetch(`${API_BASE}/ops/ssh-hosts`),
-  saveSsh: asset => saveEntity(`${API_BASE}/ops/ssh-hosts`, asset),
-  deleteSsh: id => apiFetch(`${API_BASE}/ops/ssh-hosts/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-  testSsh: asset => apiFetch(`${API_BASE}/ops/ssh-hosts/test`, { method: 'POST', body: JSON.stringify(asset) }),
+  saveSsh: (asset) => saveEntity(`${API_BASE}/ops/ssh-hosts`, asset),
+  deleteSsh: (id) =>
+    apiFetch(`${API_BASE}/ops/ssh-hosts/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  testSsh: (asset) =>
+    apiFetch(`${API_BASE}/ops/ssh-hosts/test`, { method: 'POST', body: JSON.stringify(asset) }),
   listHttp: () => apiFetch(`${API_BASE}/ops/http-endpoints`),
-  saveHttp: asset => saveEntity(`${API_BASE}/ops/http-endpoints`, asset),
-  deleteHttp: id => apiFetch(`${API_BASE}/ops/http-endpoints/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-  testHttp: (asset, requestArguments = {}) => apiFetch(`${API_BASE}/ops/http-endpoints/test-with-arguments`, {
-    method: 'POST',
-    body: JSON.stringify({ asset, arguments: requestArguments })
-  }),
+  saveHttp: (asset) => saveEntity(`${API_BASE}/ops/http-endpoints`, asset),
+  deleteHttp: (id) =>
+    apiFetch(`${API_BASE}/ops/http-endpoints/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  testHttp: (asset, requestArguments = {}) =>
+    apiFetch(`${API_BASE}/ops/http-endpoints/test-with-arguments`, {
+      method: 'POST',
+      body: JSON.stringify({ asset, arguments: requestArguments })
+    }),
   refreshOps: () => apiFetch(`${API_BASE}/ops/refresh-tools`, { method: 'POST' }),
   listSql: () => apiFetch(`${API_BASE}/sql/datasources`),
-  saveSql: asset => saveEntity(`${API_BASE}/sql/datasources`, asset),
-  deleteSql: id => apiFetch(`${API_BASE}/sql/datasources/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-  testSql: asset => apiFetch(`${API_BASE}/sql/datasources/test`, { method: 'POST', body: JSON.stringify(asset) }),
+  saveSql: (asset) => saveEntity(`${API_BASE}/sql/datasources`, asset),
+  deleteSql: (id) =>
+    apiFetch(`${API_BASE}/sql/datasources/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  testSql: (asset) =>
+    apiFetch(`${API_BASE}/sql/datasources/test`, { method: 'POST', body: JSON.stringify(asset) }),
   refreshSqlTools: () => apiFetch(`${API_BASE}/sql/refresh-tools`, { method: 'POST' }),
-  refreshSqlMetadata: id => apiFetch(`${API_BASE}/sql/datasources/${encodeURIComponent(id)}/metadata/refresh`, { method: 'POST' }),
+  refreshSqlMetadata: (id) =>
+    apiFetch(`${API_BASE}/sql/datasources/${encodeURIComponent(id)}/metadata/refresh`, {
+      method: 'POST'
+    }),
   listCommandTemplates: () => apiFetch(`${API_BASE}/ops/command-templates`),
-  saveCommandTemplate: template => saveEntity(`${API_BASE}/ops/command-templates`, template),
-  deleteCommandTemplate: id => apiFetch(`${API_BASE}/ops/command-templates/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  saveCommandTemplate: (template) => saveEntity(`${API_BASE}/ops/command-templates`, template),
+  deleteCommandTemplate: (id) =>
+    apiFetch(`${API_BASE}/ops/command-templates/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   listJmxTemplates: () => apiFetch(`${API_BASE}/ops/jmx-templates`),
-  saveJmxTemplate: template => saveEntity(`${API_BASE}/ops/jmx-templates`, template),
-  deleteJmxTemplate: id => apiFetch(`${API_BASE}/ops/jmx-templates/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-  testJmxTemplate: template => apiFetch(`${API_BASE}/ops/jmx-templates/test`, { method: 'POST', body: JSON.stringify(template) }),
+  saveJmxTemplate: (template) => saveEntity(`${API_BASE}/ops/jmx-templates`, template),
+  deleteJmxTemplate: (id) =>
+    apiFetch(`${API_BASE}/ops/jmx-templates/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  testJmxTemplate: (template) =>
+    apiFetch(`${API_BASE}/ops/jmx-templates/test`, {
+      method: 'POST',
+      body: JSON.stringify(template)
+    }),
   listSqlTemplates: () => apiFetch(`${API_BASE}/sql/templates`),
-  saveSqlTemplate: template => saveEntity(`${API_BASE}/sql/templates`, template),
-  deleteSqlTemplate: id => apiFetch(`${API_BASE}/sql/templates/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-  rebuildAssetIndex: assetType => apiFetch(`${SEARCH_INDEX_URL}${assetType ? `/assets/${encodeURIComponent(assetType)}/rebuild` : '/assets/rebuild'}`, { method: 'POST' }),
-  rebuildSelectedSshAssetIndexes: ids => apiFetch(`${SEARCH_INDEX_URL}/assets/ssh_host/rebuild-selected`, { method: 'POST', body: JSON.stringify({ ids: ids || [] }) }),
-  rebuildSelectedSqlAssetIndexes: ids => apiFetch(`${SEARCH_INDEX_URL}/assets/sql_datasource/rebuild-selected`, { method: 'POST', body: JSON.stringify({ ids: ids || [] }) }),
-  rebuildSelectedHttpAssetIndexes: ids => apiFetch(`${SEARCH_INDEX_URL}/assets/http_endpoint/rebuild-selected`, { method: 'POST', body: JSON.stringify({ ids: ids || [] }) }),
+  saveSqlTemplate: (template) => saveEntity(`${API_BASE}/sql/templates`, template),
+  deleteSqlTemplate: (id) =>
+    apiFetch(`${API_BASE}/sql/templates/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  rebuildAssetIndex: (assetType) =>
+    apiFetch(
+      `${SEARCH_INDEX_URL}${
+        assetType ? `/assets/${encodeURIComponent(assetType)}/rebuild` : '/assets/rebuild'
+      }`,
+      { method: 'POST' }
+    ),
+  rebuildSelectedSshAssetIndexes: (ids) =>
+    apiFetch(`${SEARCH_INDEX_URL}/assets/ssh_host/rebuild-selected`, {
+      method: 'POST',
+      body: JSON.stringify({ ids: ids || [] })
+    }),
+  rebuildSelectedSqlAssetIndexes: (ids) =>
+    apiFetch(`${SEARCH_INDEX_URL}/assets/sql_datasource/rebuild-selected`, {
+      method: 'POST',
+      body: JSON.stringify({ ids: ids || [] })
+    }),
+  rebuildSelectedHttpAssetIndexes: (ids) =>
+    apiFetch(`${SEARCH_INDEX_URL}/assets/http_endpoint/rebuild-selected`, {
+      method: 'POST',
+      body: JSON.stringify({ ids: ids || [] })
+    }),
   rebuildTemplateIndex: () => apiFetch(`${SEARCH_INDEX_URL}/templates/rebuild`, { method: 'POST' }),
-  rebuildSelectedCommandTemplateIndexes: ids => apiFetch(`${SEARCH_INDEX_URL}/templates/ssh-command/rebuild-selected`, { method: 'POST', body: JSON.stringify({ ids: ids || [] }) }),
-  rebuildSelectedSqlTemplateIndexes: ids => apiFetch(`${SEARCH_INDEX_URL}/templates/sql/rebuild-selected`, { method: 'POST', body: JSON.stringify({ ids: ids || [] }) }),
-  rebuildSelectedJmxTemplateIndexes: ids => apiFetch(`${SEARCH_INDEX_URL}/templates/jmx/rebuild-selected`, { method: 'POST', body: JSON.stringify({ ids: ids || [] }) }),
-  rebuildEnterpriseMetadataIndex: () => apiFetch(`${SEARCH_INDEX_URL}/enterprise-metadata/rebuild`, { method: 'POST' }),
+  rebuildSelectedCommandTemplateIndexes: (ids) =>
+    apiFetch(`${SEARCH_INDEX_URL}/templates/ssh-command/rebuild-selected`, {
+      method: 'POST',
+      body: JSON.stringify({ ids: ids || [] })
+    }),
+  rebuildSelectedSqlTemplateIndexes: (ids) =>
+    apiFetch(`${SEARCH_INDEX_URL}/templates/sql/rebuild-selected`, {
+      method: 'POST',
+      body: JSON.stringify({ ids: ids || [] })
+    }),
+  rebuildSelectedJmxTemplateIndexes: (ids) =>
+    apiFetch(`${SEARCH_INDEX_URL}/templates/jmx/rebuild-selected`, {
+      method: 'POST',
+      body: JSON.stringify({ ids: ids || [] })
+    }),
+  rebuildEnterpriseMetadataIndex: () =>
+    apiFetch(`${SEARCH_INDEX_URL}/enterprise-metadata/rebuild`, { method: 'POST' }),
   enterpriseMetadataStatus: () => apiFetch(`${API_BASE}/admin/enterprise-metadata/status`),
-  searchIndex: request => apiFetch(`${SEARCH_INDEX_URL}/search`, { method: 'POST', body: JSON.stringify(request || {}) }),
-  validateTemplateDsl: request => apiFetch(`${API_BASE}/template-dsl/validate`, { method: 'POST', body: JSON.stringify(request || {}) }),
-  importTemplateDsl: request => apiFetch(`${API_BASE}/template-dsl/import`, { method: 'POST', body: JSON.stringify(request || {}) })
+  searchIndex: (request) =>
+    apiFetch(`${SEARCH_INDEX_URL}/search`, { method: 'POST', body: JSON.stringify(request || {}) }),
+  validateTemplateDsl: (request) =>
+    apiFetch(`${API_BASE}/template-dsl/validate`, {
+      method: 'POST',
+      body: JSON.stringify(request || {})
+    }),
+  importTemplateDsl: (request) =>
+    apiFetch(`${API_BASE}/template-dsl/import`, {
+      method: 'POST',
+      body: JSON.stringify(request || {})
+    })
 };
 
 export const databaseApi = {
   list: () => apiFetch(`${API_BASE}/database-query`),
   listCategories: () => apiFetch(`${API_BASE}/business-categories`),
-  save: query => saveEntity(`${API_BASE}/database-query`, query),
-  remove: id => apiFetch(`${API_BASE}/database-query/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-  batchRemove: ids => apiFetch(`${API_BASE}/database-query/batch-delete`, { method: 'POST', body: JSON.stringify({ ids }) }),
-  setEnabled: (id, enabled) => apiFetch(`${API_BASE}/database-query/${encodeURIComponent(id)}/enabled?enabled=${enabled}`, { method: 'POST' }),
-  testSaved: (id, params) => apiFetch(`${API_BASE}/database-query/${encodeURIComponent(id)}/test`, { method: 'POST', body: JSON.stringify(params || {}) }),
-  testDraft: payload => apiFetch(`${API_BASE}/database-query/test`, { method: 'POST', body: JSON.stringify(payload) }),
+  save: (query) => saveEntity(`${API_BASE}/database-query`, query),
+  remove: (id) =>
+    apiFetch(`${API_BASE}/database-query/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  batchRemove: (ids) =>
+    apiFetch(`${API_BASE}/database-query/batch-delete`, {
+      method: 'POST',
+      body: JSON.stringify({ ids })
+    }),
+  setEnabled: (id, enabled) =>
+    apiFetch(`${API_BASE}/database-query/${encodeURIComponent(id)}/enabled?enabled=${enabled}`, {
+      method: 'POST'
+    }),
+  testSaved: (id, params) =>
+    apiFetch(`${API_BASE}/database-query/${encodeURIComponent(id)}/test`, {
+      method: 'POST',
+      body: JSON.stringify(params || {})
+    }),
+  testDraft: (payload) =>
+    apiFetch(`${API_BASE}/database-query/test`, { method: 'POST', body: JSON.stringify(payload) }),
   rebuildIndex: () => apiFetch(`${SEARCH_INDEX_URL}/database-queries/rebuild`, { method: 'POST' }),
-  validateDsl: request => apiFetch(`${API_BASE}/template-dsl/database-query/validate`, { method: 'POST', body: JSON.stringify(request || {}) }),
-  importDsl: request => apiFetch(`${API_BASE}/template-dsl/database-query/import`, { method: 'POST', body: JSON.stringify(request || {}) }),
+  validateDsl: (request) =>
+    apiFetch(`${API_BASE}/template-dsl/database-query/validate`, {
+      method: 'POST',
+      body: JSON.stringify(request || {})
+    }),
+  importDsl: (request) =>
+    apiFetch(`${API_BASE}/template-dsl/database-query/import`, {
+      method: 'POST',
+      body: JSON.stringify(request || {})
+    }),
   getTradingCalendar: () => apiFetch(`${API_BASE}/dynamic-date-params/trading-calendar/config`),
-  saveTradingCalendar: config => apiFetch(`${API_BASE}/dynamic-date-params/trading-calendar/config`, { method: 'PUT', body: JSON.stringify(config || {}) }),
-  testTradingCalendar: config => apiFetch(`${API_BASE}/dynamic-date-params/trading-calendar/test`, { method: 'POST', body: JSON.stringify(config || {}) }),
-  testTradingCalendarFunction: config => apiFetch(`${API_BASE}/dynamic-date-params/trading-calendar/function-test`, { method: 'POST', body: JSON.stringify(config || {}) })
+  saveTradingCalendar: (config) =>
+    apiFetch(`${API_BASE}/dynamic-date-params/trading-calendar/config`, {
+      method: 'PUT',
+      body: JSON.stringify(config || {})
+    }),
+  testTradingCalendar: (config) =>
+    apiFetch(`${API_BASE}/dynamic-date-params/trading-calendar/test`, {
+      method: 'POST',
+      body: JSON.stringify(config || {})
+    }),
+  testTradingCalendarFunction: (config) =>
+    apiFetch(`${API_BASE}/dynamic-date-params/trading-calendar/function-test`, {
+      method: 'POST',
+      body: JSON.stringify(config || {})
+    })
 };
 
 export const cacheApi = {
   getConfig: () => apiFetch(`${API_BASE}/cache/database-query/config`),
-  saveConfig: config => apiFetch(`${API_BASE}/cache/database-query/config`, { method: 'PUT', body: JSON.stringify(config) }),
+  saveConfig: (config) =>
+    apiFetch(`${API_BASE}/cache/database-query/config`, {
+      method: 'PUT',
+      body: JSON.stringify(config)
+    }),
   getStats: () => apiFetch(`${API_BASE}/cache/database-query/stats`),
   getDatabaseEntries: () => apiFetch(`${API_BASE}/cache/database-query/entries?limit=200`),
   listTemplates: (filters = {}) => {
@@ -179,64 +333,110 @@ export const cacheApi = {
     const query = params.toString();
     return apiFetch(`${API_BASE}/cache/database-query/templates${query ? `?${query}` : ''}`);
   },
-  saveTemplate: (id, policy) => apiFetch(`${API_BASE}/cache/database-query/templates/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(policy) }),
+  saveTemplate: (id, policy) =>
+    apiFetch(`${API_BASE}/cache/database-query/templates/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(policy)
+    }),
   getRedisConfig: () => apiFetch(`${API_BASE}/cache/database-query/storage/redis`),
-  saveRedisConfig: config => apiFetch(`${API_BASE}/cache/database-query/storage/redis`, { method: 'PUT', body: JSON.stringify(config) }),
-  testRedisConfig: config => apiFetch(`${API_BASE}/cache/database-query/storage/redis/test`, { method: 'POST', body: JSON.stringify(config) }),
-  cleanupExpired: () => apiFetch(`${API_BASE}/cache/database-query/cleanup-expired`, { method: 'POST' }),
+  saveRedisConfig: (config) =>
+    apiFetch(`${API_BASE}/cache/database-query/storage/redis`, {
+      method: 'PUT',
+      body: JSON.stringify(config)
+    }),
+  testRedisConfig: (config) =>
+    apiFetch(`${API_BASE}/cache/database-query/storage/redis/test`, {
+      method: 'POST',
+      body: JSON.stringify(config)
+    }),
+  cleanupExpired: () =>
+    apiFetch(`${API_BASE}/cache/database-query/cleanup-expired`, { method: 'POST' }),
   evictAll: () => apiFetch(`${API_BASE}/cache/database-query/evict`, { method: 'POST' }),
   getFinancialConfig: () => apiFetch(`${API_BASE}/cache/financial-query/config`),
-  saveFinancialConfig: config => apiFetch(`${API_BASE}/cache/financial-query/config`, { method: 'PUT', body: JSON.stringify(config) }),
-  getFinancialEntries: (limit = 200) => apiFetch(`${API_BASE}/cache/financial-query/entries?limit=${encodeURIComponent(limit)}`),
-  cleanupFinancialExpired: () => apiFetch(`${API_BASE}/cache/financial-query/cleanup-expired`, { method: 'POST' }),
+  saveFinancialConfig: (config) =>
+    apiFetch(`${API_BASE}/cache/financial-query/config`, {
+      method: 'PUT',
+      body: JSON.stringify(config)
+    }),
+  getFinancialEntries: (limit = 200) =>
+    apiFetch(`${API_BASE}/cache/financial-query/entries?limit=${encodeURIComponent(limit)}`),
+  cleanupFinancialExpired: () =>
+    apiFetch(`${API_BASE}/cache/financial-query/cleanup-expired`, { method: 'POST' }),
   evictFinancialAll: () => apiFetch(`${API_BASE}/cache/financial-query/evict`, { method: 'POST' })
 };
 
 export const notificationApi = {
   list: () => apiFetch(`${API_BASE}/notifications`),
-  save: channel => saveEntity(`${API_BASE}/notifications`, channel),
-  setEnabled: (id, enabled) => apiFetch(`${API_BASE}/notifications/${encodeURIComponent(id)}/enabled?enabled=${enabled}`, { method: 'POST' }),
-  setRuntimeAction: (id, runtimeAction) => apiFetch(`${API_BASE}/notifications/${encodeURIComponent(id)}/runtime-action?runtimeAction=${encodeURIComponent(runtimeAction)}`, { method: 'POST' }),
-  test: (id, payload) => apiFetch(`${API_BASE}/notifications/${encodeURIComponent(id)}/test`, { method: 'POST', body: JSON.stringify(payload || {}) }),
+  save: (channel) => saveEntity(`${API_BASE}/notifications`, channel),
+  setEnabled: (id, enabled) =>
+    apiFetch(`${API_BASE}/notifications/${encodeURIComponent(id)}/enabled?enabled=${enabled}`, {
+      method: 'POST'
+    }),
+  setRuntimeAction: (id, runtimeAction) =>
+    apiFetch(
+      `${API_BASE}/notifications/${encodeURIComponent(
+        id
+      )}/runtime-action?runtimeAction=${encodeURIComponent(runtimeAction)}`,
+      { method: 'POST' }
+    ),
+  test: (id, payload) =>
+    apiFetch(`${API_BASE}/notifications/${encodeURIComponent(id)}/test`, {
+      method: 'POST',
+      body: JSON.stringify(payload || {})
+    }),
   refresh: () => apiFetch(`${API_BASE}/notifications/refresh`, { method: 'POST' })
 };
 
 export const auditApi = {
-  list: params => {
+  list: (params) => {
     const query = new URLSearchParams();
     Object.entries(params || {}).forEach(([key, value]) => {
       if (value !== undefined && value !== null && String(value) !== '') query.set(key, value);
     });
     return apiFetch(`${API_BASE}/audit-logs${query.toString() ? `?${query}` : ''}`);
   },
-  get: id => apiFetch(`${API_BASE}/audit-logs/${encodeURIComponent(id)}`),
+  get: (id) => apiFetch(`${API_BASE}/audit-logs/${encodeURIComponent(id)}`),
   cleanup: ({ from, to, auditCategory = '' }) => {
     const query = new URLSearchParams({ from: String(from), to: String(to) });
     if (auditCategory) query.set('auditCategory', auditCategory);
     return apiFetch(`${API_BASE}/audit-logs?${query}`, { method: 'DELETE' });
   },
-  listCommands: params => {
+  listCommands: (params) => {
     const query = new URLSearchParams();
     Object.entries(params || {}).forEach(([key, value]) => {
       if (value !== undefined && value !== null && String(value) !== '') query.set(key, value);
     });
     return apiFetch(`${API_BASE}/audit-logs/commands${query.toString() ? `?${query}` : ''}`);
   },
-  getCommand: id => apiFetch(`${API_BASE}/audit-logs/commands/${encodeURIComponent(id)}`)
+  getCommand: (id) => apiFetch(`${API_BASE}/audit-logs/commands/${encodeURIComponent(id)}`)
 };
 
 export const templateQueryPublicationsApi = {
   list: () => apiFetch(`${API_BASE}/template-query-publications`),
-  templates: (roleId, parentToolName) => apiFetch(`${API_BASE}/template-query-publications/templates?roleId=${encodeURIComponent(roleId)}&parentToolName=${encodeURIComponent(parentToolName)}`),
-  members: roleId => apiFetch(`${API_BASE}/template-query-publications/members?roleId=${encodeURIComponent(roleId)}`),
+  templates: (roleId, parentToolName) =>
+    apiFetch(
+      `${API_BASE}/template-query-publications/templates?roleId=${encodeURIComponent(
+        roleId
+      )}&parentToolName=${encodeURIComponent(parentToolName)}`
+    ),
+  members: (roleId) =>
+    apiFetch(
+      `${API_BASE}/template-query-publications/members?roleId=${encodeURIComponent(roleId)}`
+    ),
   parents: () => apiFetch(`${API_BASE}/template-query-publications/parents`),
   roles: () => apiFetch(`${API_BASE}/template-query-publications/roles`),
-  save: binding => saveEntity(`${API_BASE}/template-query-publications`, binding),
-  remove: id => apiFetch(`${API_BASE}/template-query-publications/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-  setEnabled: (id, enabled) => apiFetch(
-    `${API_BASE}/template-query-publications/${encodeURIComponent(id)}/enabled?enabled=${enabled}`,
-    { method: 'POST' }
-  )
+  save: (binding) => saveEntity(`${API_BASE}/template-query-publications`, binding),
+  remove: (id) =>
+    apiFetch(`${API_BASE}/template-query-publications/${encodeURIComponent(id)}`, {
+      method: 'DELETE'
+    }),
+  setEnabled: (id, enabled) =>
+    apiFetch(
+      `${API_BASE}/template-query-publications/${encodeURIComponent(
+        id
+      )}/enabled?enabled=${enabled}`,
+      { method: 'POST' }
+    )
 };
 
 export const authorizationApi = {
@@ -257,12 +457,20 @@ export const authorizationApi = {
     if (tenantId) query.set('tenantId', tenantId);
     return apiFetch(`${API_BASE}/mcp-authorization/role-permissions?${query}`);
   },
-  createRolePermission: payload => apiFetch(`${API_BASE}/mcp-authorization/role-permissions`, { method: 'POST', body: JSON.stringify(payload) }),
-  deleteRolePermission: id => apiFetch(`${API_BASE}/mcp-authorization/role-permissions/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-  deleteRolePermissions: ids => apiFetch(`${API_BASE}/mcp-authorization/role-permissions/batch-delete`, {
-    method: 'POST',
-    body: JSON.stringify({ ids })
-  })
+  createRolePermission: (payload) =>
+    apiFetch(`${API_BASE}/mcp-authorization/role-permissions`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    }),
+  deleteRolePermission: (id) =>
+    apiFetch(`${API_BASE}/mcp-authorization/role-permissions/${encodeURIComponent(id)}`, {
+      method: 'DELETE'
+    }),
+  deleteRolePermissions: (ids) =>
+    apiFetch(`${API_BASE}/mcp-authorization/role-permissions/batch-delete`, {
+      method: 'POST',
+      body: JSON.stringify({ ids })
+    })
 };
 
 export const licenseApi = {
@@ -271,7 +479,7 @@ export const licenseApi = {
   catalog: () => apiFetch(`${API_BASE}/license/menu-catalog`)
 };
 
-function saveEntity(baseUrl, entity, mapper = value => value) {
+function saveEntity(baseUrl, entity, mapper = (value) => value) {
   const body = JSON.stringify(mapper(entity));
   if (entity.id) {
     return apiFetch(`${baseUrl}/${encodeURIComponent(entity.id)}`, { method: 'PUT', body });

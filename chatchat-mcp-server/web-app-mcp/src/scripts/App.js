@@ -12,6 +12,7 @@ import CommandAuditLogsView from '../views/CommandAuditLogsView.vue';
 import SettingsView from '../views/SettingsView.vue';
 import LicenseView from '../views/LicenseView.vue';
 import NewsCollectionView from '../views/NewsCollectionView.vue';
+import PythonManagementView from '../views/PythonManagementView.vue';
 import ModalPanel from '../components/ModalPanel.vue';
 import JsonBlock from '../components/JsonBlock.vue';
 import { ElNotification } from 'element-plus';
@@ -30,6 +31,7 @@ import '../styles/layout.css';
 const menuComponents = {
   apiServices: ApiServicesView,
   mcpServices: McpServicesView,
+  pythonManagement: PythonManagementView,
   templateQueryPublications: TemplateQueryPublicationsView,
   newsCollection: NewsCollectionView,
   assetCenter: AssetCenterView,

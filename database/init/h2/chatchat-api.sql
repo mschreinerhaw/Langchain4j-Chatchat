@@ -1120,3 +1120,53 @@
     );
     create index idx_semantic_parameter_recipe_order
         on runtime_semantic_insight_recipe_parameter (recipe_id, display_order);
+
+    create table ds_python_asset (
+        network_enabled boolean not null, created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null, cpu_limit varchar(24), memory_limit varchar(24),
+        status varchar(24) not null, python_version varchar(32), mcp_environment_version integer not null, id varchar(64) not null, mcp_environment_id varchar(64) not null,
+        owner_id varchar(64) not null, tenant_id varchar(64) not null, container_name varchar(128),
+        name varchar(160) not null, docker_image varchar(300) not null, workspace_path varchar(600),
+        status_message varchar(1000), description varchar(2000), dependencies_json TEXT, primary key (id)
+    );
+    create index idx_python_asset_owner on ds_python_asset (tenant_id, owner_id, status);
+
+    create table ds_python_script (
+        current_version integer not null, last_test_succeeded boolean not null,
+        created_at timestamp(6) with time zone not null, last_tested_at timestamp(6) with time zone,
+        updated_at timestamp(6) with time zone not null, status varchar(24) not null,
+        asset_id varchar(64) not null, id varchar(64) not null, owner_id varchar(64) not null,
+        tenant_id varchar(64) not null, file_name varchar(180) not null, title varchar(300),
+        source_code LONGTEXT not null, primary key (id),
+        constraint uk_python_script_name unique (asset_id, file_name)
+    );
+    create index idx_python_script_owner on ds_python_script (tenant_id, owner_id, updated_at);
+
+    create table ds_python_script_version (
+        version_number integer not null, created_at timestamp(6) with time zone not null,
+        id varchar(64) not null, script_id varchar(64) not null, source_hash varchar(64) not null,
+        source_code LONGTEXT not null, primary key (id),
+        constraint uk_python_script_version unique (script_id, version_number)
+    );
+
+    create table mcp_python_template (
+        script_version integer not null, published_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null, index_status varchar(24) not null, mcp_sync_status varchar(24) not null,
+        runtime_status varchar(24) not null, status varchar(24) not null, version varchar(40) not null,
+        asset_id varchar(64) not null, id varchar(64) not null, owner_id varchar(64) not null,
+        script_id varchar(64) not null, tenant_id varchar(64) not null, domain varchar(120),
+        template_name varchar(200) not null, tool_name varchar(200) not null unique, keywords varchar(1000), mcp_sync_message varchar(1000),
+        description varchar(3000) not null, scenario varchar(4000) not null, input_schema_json TEXT,
+        output_schema_json TEXT, search_text TEXT not null, source_snapshot LONGTEXT not null, primary key (id)
+    );
+    create index idx_python_template_status on mcp_python_template (tenant_id, status, published_at);
+    create index idx_python_template_owner on mcp_python_template (tenant_id, owner_id);
+
+    create table mcp_python_execution (
+        exit_code integer, duration_ms bigint, finished_at timestamp(6) with time zone,
+        started_at timestamp(6) with time zone not null, status varchar(24) not null,
+        asset_id varchar(64) not null, id varchar(64) not null, owner_id varchar(64) not null,
+        script_id varchar(64), template_id varchar(64), tenant_id varchar(64) not null,
+        parameters_json TEXT, result_json LONGTEXT, stderr LONGTEXT, stdout LONGTEXT, primary key (id)
+    );
+    create index idx_python_execution_owner on mcp_python_execution (tenant_id, owner_id, started_at);

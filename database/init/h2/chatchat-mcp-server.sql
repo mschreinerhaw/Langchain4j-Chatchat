@@ -666,3 +666,64 @@
        add constraint fk_metadata_term_scenario 
        foreign key (scenario_id) 
        references mcp_metadata_scenario;
+
+    create table mcp_python_environment (
+        network_enabled boolean not null,
+        timeout_seconds integer not null,
+        version_number integer not null,
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        cpu_limit varchar(24) not null,
+        memory_limit varchar(24) not null,
+        status varchar(24) not null,
+        python_version varchar(32) not null,
+        id varchar(64) not null,
+        name varchar(160) not null,
+        docker_image varchar(300) not null,
+        description varchar(1000),
+        primary key (id)
+    );
+    create index idx_mcp_python_env_status on mcp_python_environment (status, updated_at);
+
+    create table mcp_python_template_asset (
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        status varchar(24) not null,
+        version varchar(40) not null,
+        asset_id varchar(64) not null,
+        environment_id varchar(64) not null,
+        id varchar(64) not null,
+        owner_id varchar(64) not null,
+        source_hash varchar(64) not null,
+        tenant_id varchar(64) not null,
+        domain varchar(120),
+        template_name varchar(200) not null,
+        tool_name varchar(200) not null unique,
+        keywords varchar(1000),
+        description varchar(3000) not null,
+        scenario varchar(4000) not null,
+        input_schema_json TEXT,
+        output_schema_json TEXT,
+        source_ciphertext LONGTEXT not null,
+        primary key (id)
+    );
+    create index idx_mcp_python_template_status on mcp_python_template_asset (tenant_id, status, updated_at);
+    create index idx_mcp_python_template_env on mcp_python_template_asset (environment_id, status);
+
+    create table mcp_python_runtime_execution (
+        exit_code integer,
+        duration_ms bigint,
+        finished_at timestamp(6) with time zone,
+        started_at timestamp(6) with time zone not null,
+        status varchar(24) not null,
+        asset_id varchar(64) not null,
+        environment_id varchar(64) not null,
+        id varchar(64) not null,
+        owner_id varchar(64) not null,
+        template_id varchar(64),
+        tenant_id varchar(64) not null,
+        stderr LONGTEXT,
+        stdout LONGTEXT,
+        primary key (id)
+    );
+    create index idx_mcp_python_exec_asset on mcp_python_runtime_execution (tenant_id, asset_id, started_at);

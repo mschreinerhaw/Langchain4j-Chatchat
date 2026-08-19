@@ -3,6 +3,15 @@
     default: dev
 
 chatchat:
+  data-science:
+    workspace-root: ${CHATCHAT_PYTHON_WORKSPACE_ROOT:./data/python-assets}
+    docker-command: ${CHATCHAT_PYTHON_DOCKER_COMMAND:docker}
+    default-image: ${CHATCHAT_PYTHON_DEFAULT_IMAGE:python:3.12-slim}
+    cpu-limit: ${CHATCHAT_PYTHON_CPU_LIMIT:2}
+    memory-limit: ${CHATCHAT_PYTHON_MEMORY_LIMIT:4g}
+    timeout-seconds: ${CHATCHAT_PYTHON_TIMEOUT_SECONDS:300}
+    output-limit-bytes: ${CHATCHAT_PYTHON_OUTPUT_LIMIT_BYTES:1000000}
+    index-name: ${CHATCHAT_PYTHON_INDEX_NAME:mcp_python_template_index}
   audit:
     default-query-window-days: ${CHATCHAT_AUDIT_DEFAULT_QUERY_WINDOW_DAYS:7}
   ui-artifact:

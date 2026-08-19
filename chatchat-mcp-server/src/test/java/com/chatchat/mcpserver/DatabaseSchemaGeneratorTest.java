@@ -23,8 +23,8 @@ class DatabaseSchemaGeneratorTest {
         Files.createDirectories(output);
         generate("org.hibernate.dialect.MySQLDialect", output.resolve("chatchat-mcp-server-mysql.sql"));
         generate("org.hibernate.dialect.H2Dialect", output.resolve("chatchat-mcp-server-h2.sql"));
-        assertSchemaMatches(output.resolve("chatchat-mcp-server-mysql.sql"), Path.of("..", "database", "init", "mysql", "chatchat-mcp-server.sql"), 33);
-        assertSchemaMatches(output.resolve("chatchat-mcp-server-h2.sql"), Path.of("..", "database", "init", "h2", "chatchat-mcp-server.sql"), 33);
+        assertSchemaMatches(output.resolve("chatchat-mcp-server-mysql.sql"), Path.of("..", "database", "init", "mysql", "chatchat-mcp-server.sql"), 36);
+        assertSchemaMatches(output.resolve("chatchat-mcp-server-h2.sql"), Path.of("..", "database", "init", "h2", "chatchat-mcp-server.sql"), 36);
     }
 
     private void generate(String dialect, Path target) throws Exception {

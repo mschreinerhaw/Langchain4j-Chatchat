@@ -22,6 +22,17 @@ export const authApi = {
   })
 };
 
+export const pythonApi = {
+  environments: () => apiFetch(`${API_BASE}/python/environments`),
+  saveEnvironment: environment => apiFetch(`${API_BASE}/python/environments${environment.id ? `/${encodeURIComponent(environment.id)}` : ''}`, {
+    method: environment.id ? 'PUT' : 'POST', body: JSON.stringify(environment)
+  }),
+  publishEnvironment: (id, published) => apiFetch(`${API_BASE}/python/environments/${encodeURIComponent(id)}/published?published=${published}`, { method: 'POST' }),
+  templates: () => apiFetch(`${API_BASE}/python/templates`),
+  setTemplateEnabled: (id, enabled) => apiFetch(`${API_BASE}/python/templates/${encodeURIComponent(id)}/enabled?enabled=${enabled}`, { method: 'POST' }),
+  executeTemplate: (id, parameters = {}) => apiFetch(`${API_BASE}/python/templates/${encodeURIComponent(id)}/execute`, { method: 'POST', body: JSON.stringify(parameters) })
+};
+
 export const businessCategoriesApi = {
   list: () => apiFetch(`${API_BASE}/business-categories`),
   save: category => saveEntity(`${API_BASE}/business-categories`, category),

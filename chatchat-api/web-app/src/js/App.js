@@ -54,6 +54,8 @@ const AiSearchView = asyncView(() => import("../views/AiSearchView.vue"));
 const LibraryView = asyncView(() => import("../views/LibraryView.vue"));
 const FavoritesView = asyncView(() => import("../views/FavoritesView.vue"));
 const McpCenterView = asyncView(() => import("../views/McpCenterView.vue"));
+const DataScienceView = asyncView(() => import("../views/DataScienceView.vue"));
+const PythonTemplatesView = asyncView(() => import("../views/PythonTemplatesView.vue"));
 const AgentWorkshopView = asyncView(() => import("../views/AgentWorkshopView.vue"));
 const AgentScheduleView = asyncView(() => import("../views/AgentScheduleView.vue"));
 const AgentRuntimeView = asyncView(() => import("../views/AgentRuntimeView.vue"));
@@ -69,6 +71,8 @@ const VIEW_PERMISSIONS = {
   favorites: "capability:market",
   library: "capability:library",
   mcp: "mcp",
+  dataScience: "capability:library",
+  pythonTemplates: "mcp",
   agents: "platform:agents",
   schedules: "platform:schedules",
   runtime: "platform:tasks",
@@ -84,6 +88,8 @@ const views = {
   favorites: FavoritesView,
   library: LibraryView,
   mcp: McpCenterView,
+  dataScience: DataScienceView,
+  pythonTemplates: PythonTemplatesView,
   agents: AgentWorkshopView,
   schedules: AgentScheduleView,
   runtime: AgentRuntimeView,
@@ -178,7 +184,8 @@ export default {
           label: "能力管理",
           items: [
             { id: "market", label: "能力市场", icon: "grid", permissionCode: "capability:market" },
-            { id: "library", label: "文档库", icon: "book", permissionCode: "capability:library" }
+            { id: "library", label: "文档库", icon: "book", permissionCode: "capability:library" },
+            { id: "dataScience", label: "数据科学", icon: "code", permissionCode: "capability:library" }
           ]
         },
         {
@@ -186,6 +193,7 @@ export default {
           label: "平台管理",
           items: [
             { id: "mcp", label: "MCP能力", icon: "mcp", permissionCode: "mcp" },
+            { id: "pythonTemplates", label: "Python模板", icon: "code", permissionCode: "mcp" },
             { id: "agents", label: "Agent管理", icon: "agent", permissionCode: "platform:agents" },
             { id: "schedules", label: "Agent调度", icon: "schedule", permissionCode: "platform:schedules" },
             { id: "rules", label: "关键词规则", icon: "search", permissionCode: "platform:rules" },

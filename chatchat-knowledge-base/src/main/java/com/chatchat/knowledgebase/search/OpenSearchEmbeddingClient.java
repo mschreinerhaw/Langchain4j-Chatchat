@@ -20,13 +20,13 @@ import java.util.Map;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-class OpenSearchEmbeddingClient {
+public class OpenSearchEmbeddingClient {
 
     private final SearchProperties properties;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient = HttpClient.newBuilder().build();
 
-    boolean enabled() {
+    public boolean enabled() {
         SearchProperties.OpenSearch.Embedding config = config();
         return properties.isOpenSearchEngine()
             && config.isEnabled()
@@ -37,12 +37,12 @@ class OpenSearchEmbeddingClient {
             && config.getDimension() > 0;
     }
 
-    boolean configured() {
+    public boolean configured() {
         SearchProperties.OpenSearch.Embedding config = config();
         return config.isEnabled() && hasText(config.getVectorField()) && config.getDimension() > 0;
     }
 
-    List<Float> embed(String input) {
+    public List<Float> embed(String input) {
         if (!enabled() || !hasText(input)) {
             return List.of();
         }

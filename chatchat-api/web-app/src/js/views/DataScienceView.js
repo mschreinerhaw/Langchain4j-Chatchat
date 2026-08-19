@@ -77,7 +77,8 @@ export default {
     "form.sourceCode"(value) { const model = this.editor?.getModel(); if (model && model.getValue() !== value) model.setValue(value || ""); }
   },
   mounted() { this.load(); },
-  beforeUnmount() { this.stopAiProgress(); this.aiDecoration?.clear(); this.editor?.dispose(); this.editor = null; },
+  activated() { if (this.tab === "develop") nextTick(() => { this.initializeEditor(); this.editor?.layout(); }); },
+  beforeUnmount() { this.stopAiProgress(); this.disposeEditor(); },
   methods: {
     async load(silent = false) {
       const background = silent === true;
@@ -92,7 +93,12 @@ export default {
       finally { if (!background) this.loading = false; if (this.tab === "develop") nextTick(() => { this.initializeEditor(); this.editor?.layout(); }); }
     },
     initializeEditor() {
-      if (this.editor || !this.$refs.codeEditor) return;
+      if (!this.$refs.codeEditor) return;
+      if (this.editor) {
+        const node = this.editor.getDomNode?.();
+        if (node?.isConnected && this.$refs.codeEditor.contains(node)) { this.editor.layout(); return; }
+        this.disposeEditor();
+      }
       monaco.editor.defineTheme("chatchat-python", { base: "vs", inherit: true, rules: [
         { token: "comment", foreground: "6B8E6B" }, { token: "keyword", foreground: "7C3AED" }, { token: "string", foreground: "B45309" }
       ], colors: { "editor.background": "#ffffff", "editorLineNumber.foreground": "#a3aec2", "editorLineNumber.activeForeground": "#315b9a", "editor.selectionBackground": "#dbeafe", "editorCursor.foreground": "#2563eb", "editorIndentGuide.background1": "#edf1f7" } });
@@ -106,6 +112,7 @@ export default {
       } });
       this.editor = markRaw(monaco.editor.create(this.$refs.codeEditor, {
         value: this.form.sourceCode || "", language: "python", theme: "chatchat-python", automaticLayout: true, fontSize: 14,
+        readOnly: false, domReadOnly: false,
         fontFamily: "JetBrains Mono, Cascadia Code, Consolas, monospace", lineHeight: 23, minimap: { enabled: true, scale: 0.8 },
         padding: { top: 16, bottom: 16 }, smoothScrolling: true, cursorSmoothCaretAnimation: "on", formatOnPaste: true,
         renderWhitespace: "selection", bracketPairColorization: { enabled: true }, guides: { bracketPairs: true, indentation: true },
@@ -117,6 +124,10 @@ export default {
       this.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => this.save());
       this.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => this.run());
       this.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK, () => { this.aiOpen = true; nextTick(() => this.$refs.aiPrompt?.focus()); });
+    },
+    disposeEditor() {
+      this.aiDecoration?.clear(); this.aiDecoration = null;
+      this.editor?.dispose(); this.editor = null;
     },
     openAssetDialog() { this.assetOpen = true; this.error = ""; },
     async createAsset() { await this.action(async () => { const asset = await createPythonAsset(this.assetForm); this.assetOpen = false; this.message = asset.status === "READY" ? "Python Asset 已就绪" : "环境创建失败，请检查 Docker 服务和镜像配置"; await this.load(); }); },
@@ -206,7 +217,7 @@ export default {
       const decoration = this.editor.createDecorationsCollection([{ range: changedRange, options: { isWholeLine: true, className: "ai-applied-line" } }]);
       this.aiDecoration = markRaw(decoration); setTimeout(() => decoration.clear(), 2200);
       this.aiAppliedInfo = { mode, verb: this.aiSuggestion.action === "continue" ? "插入" : "替换", lines: Math.max(1, code.split("\n").length), at: new Date().toLocaleTimeString() };
-      this.aiStage = "applied"; this.message = `AI 已更新${mode}，请保存后运行验证`; this.editor.focus();
+      this.aiStage = "applied"; this.editor.focus();
     },
     startAiProgress() {
       this.stopAiProgress(); this.aiProgressStep = 1;
@@ -230,6 +241,9 @@ export default {
     clearConsole() { this.consoleText = ""; this.runState = "idle"; this.runFeedback = null; },
     toggleFullscreen() { this.isFullscreen = !this.isFullscreen; nextTick(() => this.editor?.layout()); },
     async action(fn) { this.busy = true; this.error = ""; this.message = ""; try { await fn(); } catch (error) { this.error = errorMessage(error, "操作失败"); } finally { this.busy = false; } },
-    assetName(id) { return this.assets.find(asset => asset.id === id)?.name || id; }, statusClass(status) { return String(status || "").toLowerCase(); }, formatTime(value) { return formatDateTime(value, "-"); }
+    assetName(id) { return this.assets.find(asset => asset.id === id)?.name || id; },
+    assetStatusLabel(status) { return ({ READY: "可用", PROVISIONING: "准备中", FAILED: "不可用", DISABLED: "已停用" })[String(status || "").toUpperCase()] || "准备中"; },
+    environmentStatusMessage(status) { return ({ READY: "环境已就绪，可以开始 Python 开发", PROVISIONING: "环境正在准备中，请稍后再试", FAILED: "环境暂时不可用，请联系管理员", DISABLED: "环境已停用，请联系管理员" })[String(status || "").toUpperCase()] || "环境正在准备中，请稍后再试"; },
+    statusClass(status) { return String(status || "").toLowerCase(); }, formatTime(value) { return formatDateTime(value, "-"); }
   }
 };

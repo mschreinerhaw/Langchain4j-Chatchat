@@ -30,7 +30,7 @@ export default {
     categoryLabel(id) { const item = this.categories.find(category => category.id === id); return item ? `${item.name} / ${item.code}` : (id || '-'); },
     openMetadata(row) { this.metadataForm = { id: row.id, templateName: row.templateName, scenario: row.scenario, description: row.description, categoryId: row.categoryId || '', keywords: row.keywords || '', domain: row.domain || '', inputSchemaJson: row.inputSchemaJson || '{}', outputSchemaJson: row.outputSchemaJson || '{}' }; this.metadataOpen = true; },
     async saveMetadata() { await this.perform(async () => { const { id, ...payload } = this.metadataForm; await pythonApi.updateTemplateMetadata(id, payload); this.metadataOpen = false; await this.load(); }, '模板分类与检索属性已更新'); },
-    async rebuildIndex() { await this.perform(async () => { this.indexOverview = await pythonApi.rebuildIndex(); this.hits = []; this.searched = false; }, 'Python 模板 BM25 + KNN 索引已重建'); },
+    async rebuildIndex() { await this.perform(async () => { this.indexOverview = await pythonApi.rebuildIndex(); this.hits = []; this.searched = false; }, 'Python 模板检索索引已重建'); },
     openEnvironment(row) { this.form = row ? { ...row, requirementsText: this.requirementsText(row.requirementsJson) } : emptyForm(); this.dialogOpen = true; },
     requirementsText(value) { try { return JSON.parse(value || '[]').join('\n'); } catch { return ''; } },
     async saveEnvironment() {

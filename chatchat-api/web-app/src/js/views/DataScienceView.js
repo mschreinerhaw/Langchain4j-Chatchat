@@ -63,6 +63,10 @@ export default {
     consoleText: "",
     parametersText: "{}",
     bottomTab: "console",
+    bottomOpen: false,
+    editorTabs: [],
+    activeEditorTabKey: "",
+    draftSequence: 0,
     explorerQuery: "",
     explorerPage: 1,
     explorerPageSize: 7,
@@ -243,19 +247,18 @@ export default {
     },
     tab(value) {
       if (value !== "develop") return;
-      if (!this.form.id && this.scripts[0]) {
-        const script = this.scripts[0];
-        this.form = {
-          id: script.id,
-          assetId: script.assetId,
-          fileName: script.fileName,
-          title: script.title,
-          sourceCode: script.sourceCode,
-          status: script.status
-        };
-        this.savedSource = script.sourceCode || "";
+      if (!this.editorTabs.length) {
+        if (this.scripts[0]) this.selectScript(this.scripts[0], false);
+        else this.newScript(false);
       }
       nextTick(() => this.initializeEditor());
+    },
+    form: {
+      deep: true,
+      handler(value) {
+        const activeTab = this.editorTabs.find((item) => item.key === this.activeEditorTabKey);
+        if (activeTab) activeTab.form = { ...value };
+      }
     },
     "form.sourceCode"(value) {
       const model = this.editor?.getModel();
@@ -300,6 +303,10 @@ export default {
         if (!this.assetForm.environmentId && this.environmentCatalog[0])
           this.assetForm.environmentId = this.environmentCatalog[0].id;
         if (!this.form.assetId && this.readyAssets[0]) this.form.assetId = this.readyAssets[0].id;
+        if (this.tab === "develop" && !this.editorTabs.length) {
+          if (this.scripts[0]) this.selectScript(this.scripts[0], false);
+          else this.newScript(false);
+        }
       } catch (error) {
         this.error = errorMessage(error, "工作台加载失败");
       } finally {
@@ -419,39 +426,115 @@ export default {
         await this.load();
       });
     },
-    newScript() {
-      this.form = {
+    newScript(navigate = true) {
+      this.captureActiveEditorTab();
+      this.draftSequence += 1;
+      const preferredName =
+        this.draftSequence === 1 ? "analysis.py" : `analysis-${this.draftSequence}.py`;
+      const form = {
         id: "",
         assetId: this.readyAssets[0]?.id || "",
-        fileName: "analysis.py",
+        fileName: preferredName,
         title: "",
         sourceCode: starter,
         status: "DRAFT"
       };
-      this.savedSource = starter;
-      this.clearConsole();
-      this.tab = "develop";
-      nextTick(() => this.editor?.focus());
-    },
-    selectScript(script) {
-      this.form = {
-        id: script.id,
-        assetId: script.assetId,
-        fileName: script.fileName,
-        title: script.title,
-        sourceCode: script.sourceCode,
-        status: script.status
+      const editorTab = {
+        key: `draft-${Date.now()}-${this.draftSequence}`,
+        form,
+        savedSource: starter,
+        consoleText: "",
+        parametersText: "{}",
+        runState: "idle",
+        runFeedback: null
       };
-      this.savedSource = script.sourceCode || "";
-      this.tab = "develop";
-      this.clearConsole();
-      nextTick(() => this.editor?.focus());
+      this.editorTabs.push(editorTab);
+      this.activateEditorTab(editorTab, { capture: false, navigate: navigate !== false });
+    },
+    selectScript(script, navigate = true) {
+      const existingTab = this.editorTabs.find((item) => item.form.id === script.id);
+      if (existingTab) {
+        this.activateEditorTab(existingTab, { navigate: navigate !== false });
+        return;
+      }
+      const editorTab = {
+        key: `script-${script.id}`,
+        form: {
+          id: script.id,
+          assetId: script.assetId,
+          fileName: script.fileName,
+          title: script.title,
+          sourceCode: script.sourceCode,
+          status: script.status
+        },
+        savedSource: script.sourceCode || "",
+        consoleText: "",
+        parametersText: "{}",
+        runState: "idle",
+        runFeedback: null
+      };
+      this.editorTabs.push(editorTab);
+      this.activateEditorTab(editorTab, { navigate: navigate !== false });
+    },
+    activateEditorTab(editorTab, options = {}) {
+      if (!editorTab || editorTab.key === this.activeEditorTabKey) {
+        if (options.navigate !== false) this.tab = "develop";
+        nextTick(() => this.editor?.focus());
+        return;
+      }
+      if (options.capture !== false) this.captureActiveEditorTab();
+      this.activeEditorTabKey = editorTab.key;
+      this.form = { ...editorTab.form };
+      this.savedSource = editorTab.savedSource || "";
+      this.consoleText = editorTab.consoleText || "";
+      this.parametersText = editorTab.parametersText || "{}";
+      this.runState = editorTab.runState || "idle";
+      this.runFeedback = editorTab.runFeedback || null;
+      if (options.navigate !== false) this.tab = "develop";
+      this.resetAiSuggestion();
+      nextTick(() => {
+        this.editor?.layout();
+        this.editor?.focus();
+      });
+    },
+    captureActiveEditorTab() {
+      const activeTab = this.editorTabs.find((item) => item.key === this.activeEditorTabKey);
+      if (!activeTab) return;
+      activeTab.form = { ...this.form };
+      activeTab.savedSource = this.savedSource;
+      activeTab.consoleText = this.consoleText;
+      activeTab.parametersText = this.parametersText;
+      activeTab.runState = this.runState;
+      activeTab.runFeedback = this.runFeedback;
+    },
+    closeEditorTab(editorTab) {
+      if (editorTab.key === this.activeEditorTabKey) this.captureActiveEditorTab();
+      const index = this.editorTabs.findIndex((item) => item.key === editorTab.key);
+      if (index < 0) return;
+      if (
+        editorTab.form.sourceCode !== editorTab.savedSource &&
+        !globalThis.confirm(
+          `“${editorTab.form.fileName || "未命名脚本"}”有未保存修改，仍要关闭吗？`
+        )
+      )
+        return;
+      const wasActive = editorTab.key === this.activeEditorTabKey;
+      this.editorTabs.splice(index, 1);
+      if (!wasActive) return;
+      this.activeEditorTabKey = "";
+      const nextTab = this.editorTabs[index] || this.editorTabs[index - 1];
+      if (nextTab) this.activateEditorTab(nextTab, { capture: false });
+      else this.newScript();
+    },
+    editorTabDirty(editorTab) {
+      return editorTab.form.sourceCode !== editorTab.savedSource;
     },
     async save() {
       await this.action(async () => {
         const saved = await savePythonScript(this.form);
         this.form = { ...this.form, ...saved };
         this.savedSource = saved.sourceCode || this.form.sourceCode;
+        this.captureActiveEditorTab();
         this.message = "脚本已保存为新版本";
         await this.load(true);
       });
@@ -463,6 +546,7 @@ export default {
       } catch (error) {
         this.error = "执行参数必须是合法 JSON";
         this.bottomTab = "parameters";
+        this.bottomOpen = true;
         return;
       }
       if (!this.form.id || this.busy) return;
@@ -471,6 +555,7 @@ export default {
       this.error = "";
       this.message = "";
       this.bottomTab = "console";
+      this.bottomOpen = true;
       this.runState = "running";
       this.runFeedback = { startedAt, status: "RUNNING" };
       this.consoleText = `[${new Date(startedAt).toLocaleTimeString()}] 正在准备隔离执行环境…`;
@@ -480,6 +565,7 @@ export default {
           const saved = await savePythonScript(this.form);
           this.form = { ...this.form, ...saved };
           this.savedSource = saved.sourceCode || this.form.sourceCode;
+          this.captureActiveEditorTab();
         }
         this.consoleText += `\n启动 ${this.form.fileName}…\n`;
         const result = await executePythonScript(this.form.id, parameters);
@@ -508,6 +594,7 @@ export default {
         this.error = message;
       } finally {
         this.busy = false;
+        this.captureActiveEditorTab();
         nextTick(() => this.editor?.layout());
       }
     },
@@ -670,6 +757,11 @@ export default {
       this.consoleText = "";
       this.runState = "idle";
       this.runFeedback = null;
+      this.captureActiveEditorTab();
+    },
+    toggleBottom() {
+      this.bottomOpen = !this.bottomOpen;
+      nextTick(() => this.editor?.layout());
     },
     toggleExplorer() {
       this.explorerOpen = !this.explorerOpen;

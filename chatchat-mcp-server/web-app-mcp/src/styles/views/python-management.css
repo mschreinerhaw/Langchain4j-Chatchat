@@ -1,1 +1,137 @@
-.python-management .python-toolbar{display:flex;justify-content:flex-end;margin-bottom:14px}.python-management .python-search-bar{display:flex;align-items:center;gap:10px;margin-top:14px}.python-management .python-search-bar .el-input{max-width:560px}.python-management .python-search-bar .el-select{min-width:220px}.python-management .python-search-bar span{white-space:nowrap;color:#64748b}.python-management .python-template-table{margin-top:14px}.python-management .python-index-summary{display:flex;align-items:center;gap:16px;padding:16px;border:1px solid #dbe3ef;border-radius:10px;background:#f8fafc}.python-management .python-index-summary>div{display:flex;flex-direction:column;min-width:120px}.python-management .python-index-summary strong{font-size:24px;color:#1d4ed8}.python-management .python-index-summary span{color:#64748b}.python-management .python-index-summary .el-button{margin-left:auto}.python-management .python-result{max-height:460px;overflow:auto;padding:16px;border-radius:8px;background:#111827;color:#d1fae5;white-space:pre-wrap}.python-management code{font-size:12px}
+.python-management {
+  color: var(--text);
+  font-family: "Inter", "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+  font-size: 13px;
+}
+
+.python-management .el-button,
+.python-management .el-input__inner,
+.python-management .el-select__placeholder,
+.python-management .el-tabs__item,
+.python-management .el-table {
+  font-family: inherit;
+}
+
+.python-management .el-button {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.python-management .el-tabs__item {
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.python-management .el-tabs__item.is-active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.python-management .python-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 14px;
+}
+
+.python-management .python-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.python-management .python-search-bar .el-input {
+  max-width: 560px;
+}
+
+.python-management .python-search-bar .el-select {
+  min-width: 220px;
+}
+
+.python-management .python-search-bar > span {
+  color: var(--text-muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.python-management .python-template-table {
+  margin-top: 14px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.python-management .python-template-table th.el-table__cell {
+  color: #42526c;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.python-management .python-index-summary {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.python-management .python-index-summary > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 120px;
+}
+
+.python-management .python-index-summary strong {
+  color: var(--accent);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.python-management .python-index-summary span {
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.python-management .python-index-summary .el-button {
+  margin-left: auto;
+}
+
+.python-management .python-result {
+  max-height: 460px;
+  overflow: auto;
+  padding: 16px;
+  border-radius: 8px;
+  background: #111827;
+  color: #d1fae5;
+  font-family: "Cascadia Code", Consolas, Monaco, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.python-management code {
+  font-family: "Cascadia Code", Consolas, Monaco, monospace;
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .python-management .python-search-bar,
+  .python-management .python-index-summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .python-management .python-search-bar .el-input,
+  .python-management .python-search-bar .el-select {
+    width: 100%;
+    max-width: none;
+  }
+
+  .python-management .python-index-summary .el-button {
+    margin-left: 0;
+  }
+}

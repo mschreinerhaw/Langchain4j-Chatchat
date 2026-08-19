@@ -97,56 +97,96 @@ class TemplateInvocationBridgeTest {
 
     @Test
     void requiredParameterWithoutDefaultStillReturnsChildParameterError() {
-        assertThatThrownBy(() -> bridge.prepare(new TemplateInvocationBridge.BridgeRequest(
-            "api_template_execute",
-            4,
-            "CUSTOMER_QUERY",
-            template(
+        for (String executor : governedExecutors()) {
+            assertThatThrownBy(() -> bridge.prepare(new TemplateInvocationBridge.BridgeRequest(
+                executor,
+                4,
                 "CUSTOMER_QUERY",
-                Map.of("customerId", Map.of("type", "string")),
-                new String[]{"customerId"}
-            ),
-            Map.of("parameters", Map.of("customerId", "C-1001")),
-            null,
-            true,
-            true
-        )))
-            .isInstanceOf(TemplateInvocationBridge.TemplateBridgeException.class)
-            .hasMessageContaining("TEMPLATE_PARAMETER_PROTOCOL_INCOMPLETE")
-            .hasMessageContaining("customerId");
+                template(
+                    "CUSTOMER_QUERY",
+                    Map.of("customerId", Map.of("type", "string")),
+                    new String[]{"customerId"}
+                ),
+                Map.of("parameters", Map.of("customerId", "C-1001")),
+                null,
+                true,
+                true
+            )))
+                .as(executor)
+                .isInstanceOf(TemplateInvocationBridge.TemplateBridgeException.class)
+                .hasMessageContaining("TEMPLATE_PARAMETER_PROTOCOL_INCOMPLETE")
+                .hasMessageContaining("customerId");
+        }
     }
 
     @Test
     void executesWithoutModelProtocolWhenTemplateDefaultsCoverRequiredParameters() {
-        TemplateInvocationBridge.BridgeResult result = bridge.prepare(
-            new TemplateInvocationBridge.BridgeRequest(
-                "api_template_execute",
-                4,
-                "DEFAULTED_QUERY",
-                template(
+        for (String executor : governedExecutors()) {
+            TemplateInvocationBridge.BridgeResult result = bridge.prepare(
+                new TemplateInvocationBridge.BridgeRequest(
+                    executor,
+                    4,
                     "DEFAULTED_QUERY",
-                    Map.of(
-                        "page", Map.of("type", "integer", "default", 1),
-                        "pageSize", Map.of("type", "integer", "defaultValue", 50)
+                    template(
+                        "DEFAULTED_QUERY",
+                        Map.of(
+                            "page", Map.of("type", "integer", "default", 1),
+                            "pageSize", Map.of("type", "integer", "defaultValue", 50)
+                        ),
+                        new String[]{"page", "pageSize"}
                     ),
-                    new String[]{"page", "pageSize"}
-                ),
-                Map.of("parameters", Map.of()),
-                null,
-                true,
-                true
-            )
-        );
+                    Map.of("parameters", Map.of()),
+                    null,
+                    true,
+                    true
+                )
+            );
 
-        assertThat(result.parameters())
-            .containsEntry("page", 1)
-            .containsEntry("pageSize", 50);
-        assertThat(result.modelProtocolApplied()).isFalse();
-        assertThat(result.parameterEvidence())
-            .allSatisfy((name, evidence) -> assertThat(evidence.source())
-                .isEqualTo(TemplateInvocationBridge.TEMPLATE_DEFAULT_SOURCE));
-        assertThat(result.protocolTrace())
-            .containsEntry("templateDefaultParameterCount", 2);
+            assertThat(result.parameters()).as(executor)
+                .containsEntry("page", 1)
+                .containsEntry("pageSize", 50);
+            assertThat(result.modelProtocolApplied()).as(executor).isFalse();
+            assertThat(result.parameterEvidence()).as(executor)
+                .allSatisfy((name, evidence) -> assertThat(evidence.source())
+                    .isEqualTo(TemplateInvocationBridge.TEMPLATE_DEFAULT_SOURCE));
+            assertThat(result.protocolTrace()).as(executor)
+                .containsEntry("templateDefaultParameterCount", 2);
+        }
+    }
+
+    @Test
+    void evidenceBackedRuntimeValueOverridesTemplateDefaultAcrossExecutors() {
+        for (String executor : governedExecutors()) {
+            TemplateInvocationBridge.BridgeResult result = bridge.prepare(
+                new TemplateInvocationBridge.BridgeRequest(
+                    executor,
+                    4,
+                    "CUSTOMER_QUERY",
+                    template(
+                        "CUSTOMER_QUERY",
+                        Map.of(
+                            "customerId", Map.of("type", "string", "default", "C-DEFAULT"),
+                            "page", Map.of("type", "integer", "default", 1)
+                        ),
+                        new String[]{"customerId", "page"}
+                    ),
+                    Map.of("parameters", Map.of("customerId", "C-2002")),
+                    null,
+                    true,
+                    true,
+                    new TemplateInvocationBridge.EvidenceContext(
+                        "Query customer C-2002", Map.of())
+                )
+            );
+
+            assertThat(result.parameters()).as(executor)
+                .containsEntry("customerId", "C-2002")
+                .containsEntry("page", 1);
+            assertThat(result.parameterEvidence().get("customerId").source()).as(executor)
+                .isEqualTo(TemplateInvocationBridge.USER_QUERY_SOURCE);
+            assertThat(result.parameterEvidence().get("page").source()).as(executor)
+                .isEqualTo(TemplateInvocationBridge.TEMPLATE_DEFAULT_SOURCE);
+        }
     }
 
     @Test
@@ -628,5 +668,9 @@ class TemplateInvocationBridgeTest {
                 "additionalProperties", false
             )
         );
+    }
+
+    private List<String> governedExecutors() {
+        return List.of("api_template_execute", "http_request_execute", "sql_query_execute");
     }
 }

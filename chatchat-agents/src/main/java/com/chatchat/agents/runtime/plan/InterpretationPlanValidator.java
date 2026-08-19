@@ -70,6 +70,9 @@ public class InterpretationPlanValidator {
     private static final Set<String> RUNTIME_OWNED_DISCOVERY_INPUT_KEYS = Set.of(
         "filters", "filtersschemaversion", "trace"
     );
+    private static final Set<String> RUNTIME_OWNED_TEMPLATE_INPUT_KEYS = Set.of(
+        "parameters", "params", "arguments"
+    );
 
     /**
      * Validates a plan against the current tool registry.
@@ -1463,6 +1466,14 @@ public class InterpretationPlanValidator {
         }
         if (!templateExecutionTool(step.toolName())) {
             return false;
+        }
+        // The parameter container is compiled only after template discovery has selected and
+        // reviewed the admitted template contract. An empty object in the planner DAG therefore
+        // means "no model-supplied overrides", not "required input missing". The Runtime will
+        // retain it for a zero-argument template or populate it from verified user/tool evidence.
+        if (RUNTIME_OWNED_TEMPLATE_INPUT_KEYS.contains(key)
+            && dependsOnTemplateDiscovery(plan, step)) {
+            return true;
         }
         if (!"template".equals(key) && !"templateid".equals(key) && !"templatecode".equals(key)) {
             return invocationValue(step.input(), "arguments", "parameters", "params", "target", "executionContext") != null;

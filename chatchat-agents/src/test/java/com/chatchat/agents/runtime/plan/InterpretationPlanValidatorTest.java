@@ -335,6 +335,90 @@ class InterpretationPlanValidatorTest {
     }
 
     @Test
+    void acceptsEmptyRuntimeOwnedParametersContainerAfterTemplateDiscovery() {
+        String asset = "mcp_chatchat_mcp_server_api_asset_query";
+        String template = "mcp_chatchat_mcp_server_customer_service_template_query";
+        String execute = "mcp_chatchat_mcp_server_api_template_execute";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        for (String toolName : List.of(asset, template, execute)) {
+            when(toolRegistry.hasTool(toolName)).thenReturn(true);
+            ToolMetadata.ToolMetadataBuilder metadata = ToolMetadata.builder()
+                .id(toolName)
+                .riskLevel("low");
+            if (execute.equals(toolName)) {
+                metadata.parameters(List.of(
+                    requiredParameter("templateId", "string"),
+                    requiredParameter("parameters", "object")
+                ));
+            }
+            when(toolRegistry.getToolMetadata(toolName)).thenReturn(metadata.build());
+        }
+
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("customer_query", "Query governed customer facts", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", asset, Map.of(), List.of(), null, null),
+                    new InterpretationPlan.Step(2, "mcp_tool", template, Map.of(), List.of(1), null, null),
+                    new InterpretationPlan.Step(3, "mcp_tool", execute,
+                        Map.of("parameters", Map.of()), List.of(2), null, null),
+                    finalStep(4, List.of(3))
+                ),
+                List.of(),
+                List.of(new InterpretationPlan.Binding(
+                    2, "$.templates[0].templateId", 3, "templateId", "jsonpath", true)),
+                null
+            ),
+            new InterpretationPlan.ExecutionPolicy(
+                4, false, List.of(asset, template, execute), List.of(), 30000),
+            review(true)
+        );
+
+        InterpretationPlanValidator.ValidationResult result = validator.validate(
+            plan, toolRegistry, Set.of(asset, template, execute));
+
+        assertThat(result.valid()).isTrue();
+    }
+
+    @Test
+    void rejectsEmptyParametersContainerWithoutTemplateDiscoveryProvenance() {
+        String execute = "mcp_chatchat_mcp_server_api_template_execute";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(execute)).thenReturn(true);
+        when(toolRegistry.getToolMetadata(execute)).thenReturn(ToolMetadata.builder()
+            .id(execute)
+            .riskLevel("low")
+            .parameters(List.of(
+                requiredParameter("templateId", "string"),
+                requiredParameter("parameters", "object")
+            ))
+            .build());
+
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("api_execution", "Execute an unproven API template", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", execute,
+                    Map.of("templateId", "model-literal", "parameters", Map.of()), List.of(), null, null),
+                finalStep(2, List.of(1))
+            )),
+            new InterpretationPlan.ExecutionPolicy(2, false, List.of(execute), List.of(), 30000),
+            review(true)
+        );
+
+        InterpretationPlanValidator.ValidationResult result = validator.validate(
+            plan, toolRegistry, Set.of(execute));
+
+        assertThat(result.valid()).isFalse();
+        assertThat(result.errors()).extracting(InterpretationPlanValidator.ValidationIssue::message)
+            .anyMatch(message -> message.contains(
+                "Required tool input is missing for mcp_chatchat_mcp_server_api_template_execute: parameters"));
+    }
+
+    @Test
     void doesNotExemptRuntimeFieldNamesForNonDiscoveryTools() {
         String toolName = "custom_contract_tool";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);

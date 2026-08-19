@@ -176,9 +176,7 @@ public final class AnalysisSummaryGovernanceBridge {
         } catch (RuntimeException ignored) {
             // The immutable returned-record fallback remains authoritative.
         }
-        return AnalysisSummaryResult.chunk(isolationScope, position.toMap(), governedContext,
-            ModelProtocolJson.compact(records), "STRUCTURED_RECORD_FALLBACK",
-            rawEvidence(isolationScope, position, governedContext, records, false, true));
+        return fallback(isolationScope, position, governedContext, records);
     }
 
     private String safeObjective(String value) {
@@ -196,6 +194,15 @@ public final class AnalysisSummaryGovernanceBridge {
         return AnalysisSummaryResult.chunk(isolationScope, position.toMap(), governedContext,
             ModelProtocolJson.compact(records), "STRUCTURED_RECORD_DIRECT",
             rawEvidence(isolationScope, position, governedContext, records, true, false));
+    }
+
+    public AnalysisSummaryResult fallback(GovernanceIsolationScope isolationScope,
+                                          ChunkPosition position,
+                                          Map<String, Object> governedContext,
+                                          List<Map<String, Object>> records) {
+        return AnalysisSummaryResult.chunk(isolationScope, position.toMap(), governedContext,
+            ModelProtocolJson.compact(records), "STRUCTURED_RECORD_FALLBACK",
+            rawEvidence(isolationScope, position, governedContext, records, false, true));
     }
 
     public String finalSynthesisInstruction() {

@@ -144,6 +144,8 @@ chatchat:
     # Lossless processing boundaries; these values never truncate returned evidence.
     record-analysis-chunk-max-chars: ${CHATCHAT_AGENT_RECORD_ANALYSIS_CHUNK_MAX_CHARS:12000}
     record-analysis-chunk-max-rows: ${CHATCHAT_AGENT_RECORD_ANALYSIS_CHUNK_MAX_ROWS:50}
+    analysis-summary-worker-count: ${CHATCHAT_AGENT_ANALYSIS_SUMMARY_WORKER_COUNT:4}
+    analysis-summary-task-timeout-ms: ${CHATCHAT_AGENT_ANALYSIS_SUMMARY_TASK_TIMEOUT_MS:180000}
     analysis-spill-enabled: ${CHATCHAT_AGENT_ANALYSIS_SPILL_ENABLED:true}
     analysis-spill-rocks-db-path: ${CHATCHAT_AGENT_ANALYSIS_SPILL_ROCKSDB_PATH:./data/agent-analysis-spill-rocksdb}
     analysis-spill-rocks-db-create-if-missing: true

@@ -12,6 +12,9 @@ import com.chatchat.agents.runtime.AgentObservation;
 import com.chatchat.agents.runtime.AgentRunRequest;
 import com.chatchat.agents.runtime.AgentRunResult;
 import com.chatchat.agents.runtime.AgentRunStatus;
+import com.chatchat.agents.runtime.AgentRuntimeProperties;
+import com.chatchat.agents.runtime.DefaultAgentAnswerReviewer;
+import com.chatchat.agents.runtime.DefaultAgentObservationPipeline;
 import com.chatchat.agents.runtime.InMemoryAgentRunStore;
 import com.chatchat.agents.runtime.AnalysisEvidenceSpillStore;
 import com.chatchat.agents.runtime.GovernanceIsolationScope;
@@ -43,6 +46,8 @@ import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -56,6 +61,75 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentOrchestratorTest {
+
+    @Test
+    void summarizesIndependentDatasetsWithBoundedParallelWorkersAndPreservesDriverOrder()
+        throws Exception {
+        CountDownLatch workersStarted = new CountDownLatch(2);
+        AtomicInteger activeWorkers = new AtomicInteger();
+        AtomicInteger maximumActiveWorkers = new AtomicInteger();
+        ChatModel model = new ChatModel() {
+            @Override
+            public String chat(String prompt) {
+                int active = activeWorkers.incrementAndGet();
+                maximumActiveWorkers.accumulateAndGet(active, Math::max);
+                workersStarted.countDown();
+                try {
+                    workersStarted.await(2, TimeUnit.SECONDS);
+                    return "parallel dataset summary";
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException(interrupted);
+                } finally {
+                    activeWorkers.decrementAndGet();
+                }
+            }
+        };
+        InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
+            "success", true, false, null, null,
+            List.of(
+                datasetStep(1, "dataset_a", "A"),
+                datasetStep(2, "dataset_b", "B")
+            ), Map.of(), 10L);
+        AgentRuntimeProperties properties = new AgentRuntimeProperties();
+        properties.setAnalysisSummaryWorkerCount(2);
+        properties.setAnalysisSummaryTaskTimeoutMs(5_000);
+        ToolRegistry registry = mock(ToolRegistry.class);
+        ObjectMapper mapper = new ObjectMapper();
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            model, registry,
+            new ToolRuntimeService(registry, mapper, toolRuntimeProperties(), List.of(), List.of()),
+            mapper, new ModelsConfig(), new EvidenceTrustEvaluator(),
+            new InMemoryAgentRunStore(), new DefaultAgentObservationPipeline(),
+            new DefaultAgentAnswerReviewer(mapper), null, properties);
+
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        AgentOrchestrator.RecordCoverageBundle coverage = orchestrator.buildRecordCoverageBundle(
+            model, "analyze both datasets", result, Map.of(), metadata, () -> false);
+
+        assertThat(maximumActiveWorkers.get()).isEqualTo(2);
+        assertThat(coverage.summaryResults()).extracting(summary ->
+            String.valueOf(summary.position().get("datasetReference")))
+            .containsExactly("dataset_a", "dataset_b");
+        assertThat(coverage.coverageComplete()).isTrue();
+        assertThat(metadata)
+            .containsEntry("recordAnalysisSummaryDispatchMode", "LOCAL")
+            .containsEntry("recordAnalysisSummaryScheduledTaskCount", 2)
+            .containsEntry("recordAnalysisSummaryWorkerCount", 2);
+    }
+
+    private InterpretationPlanRuntime.StepExecution datasetStep(
+        int stepId, String reference, String value
+    ) {
+        return new InterpretationPlanRuntime.StepExecution(
+            stepId, "mcp_tool", reference, true,
+            Map.of(
+                "analysisContext", Map.of(
+                    "source", Map.of("displayName", reference),
+                    "schema", Map.of("fields", List.of(Map.of("name", "VALUE")))),
+                "data", Map.of("body", List.of(Map.of("VALUE", value)))),
+            null, null, null, 5L, Map.of());
+    }
 
     @Test
     void mandatoryFallbackModelReviewProjectsOracleAssetAndRejectsMysqlCandidate() {

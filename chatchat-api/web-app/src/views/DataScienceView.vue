@@ -2,7 +2,7 @@
   <section class="ds-page" :class="{'develop-mode':tab==='develop'}">
     <header class="ds-header">
       <div><span>能力管理 / 数据科学</span><h1>Python 数据科学工作台</h1></div>
-      <button class="ds-primary" @click="openAssetDialog">＋ 发布 Python Asset</button>
+      <button class="ds-primary ds-header-action" @click="openAssetDialog">＋ 发布 Python Asset</button>
     </header>
     <nav class="ds-tabs"><button v-for="item in tabs" :key="item.id" :class="{active:tab===item.id}" @click="tab=item.id">{{ item.label }}</button></nav>
     <p v-if="error" class="ds-alert error">{{ error }}</p><p v-if="message&&tab!=='develop'" class="ds-alert success">{{ message }}</p>

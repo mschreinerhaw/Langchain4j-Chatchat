@@ -50,6 +50,10 @@ public class AgentRuntimeProperties {
     private int recordAnalysisChunkMaxChars = 12_000;
     /** Governs lossless analysis chunk boundaries only; every returned record remains covered. */
     private int recordAnalysisChunkMaxRows = 50;
+    /** Maximum model workers used to summarize independent evidence chunks in parallel. */
+    private int analysisSummaryWorkerCount = 4;
+    /** Maximum wait for one chunk worker before deterministic evidence fallback is used. */
+    private long analysisSummaryTaskTimeoutMs = 180_000;
     /** Spills oversized loop-analysis mirrors outside the JVM without truncating source evidence. */
     private boolean analysisSpillEnabled = true;
     /** Must be different from rocksDbPath because RocksDB does not allow two independent handles on one path. */
@@ -146,6 +150,14 @@ public class AgentRuntimeProperties {
 
     public int recordAnalysisChunkMaxRows() {
         return Math.max(1, recordAnalysisChunkMaxRows);
+    }
+
+    public int analysisSummaryWorkerCount() {
+        return Math.max(1, Math.min(16, analysisSummaryWorkerCount));
+    }
+
+    public long analysisSummaryTaskTimeoutMs() {
+        return Math.max(5_000L, analysisSummaryTaskTimeoutMs);
     }
 
     public String analysisSpillRocksDbPath() {

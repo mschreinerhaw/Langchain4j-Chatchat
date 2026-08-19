@@ -417,6 +417,9 @@ public class McpToolConcurrencyManager {
             || name.startsWith("http_") || name.startsWith("livedata_")) {
             return "http";
         }
+        if (name.equals("python_template_execute") || name.startsWith("python_")) {
+            return "python";
+        }
         if (name.contains("notification") || name.startsWith("notify_") || name.startsWith("mail_")
             || name.startsWith("sms_") || name.startsWith("wechat_") || name.startsWith("dingtalk_")) {
             return "notification";

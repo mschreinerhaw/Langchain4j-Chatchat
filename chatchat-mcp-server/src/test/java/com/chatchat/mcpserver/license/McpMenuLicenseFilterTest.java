@@ -1,12 +1,15 @@
 package com.chatchat.mcpserver.license;
 
+import com.chatchat.common.security.InternalCredentialProperties;
 import com.chatchat.license.LicensePayload;
 import com.chatchat.license.LicenseStatus;
+import com.chatchat.mcpserver.admin.AdminAuthService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -41,6 +44,34 @@ class McpMenuLicenseFilterTest {
         assertThat(catalog.menuForPath("/api/v1/business-categories"))
             .get().extracting(McpAdminMenuCatalog.MenuDefinition::key)
             .isEqualTo("businessCategories");
+    }
+
+    @Test
+    void existingMcpOrAssetLicenseExposesPythonManagementAndCategories() {
+        var status = valid(List.of("mcpServices"));
+
+        assertThat(catalog.authorized(status, "pythonManagement")).isTrue();
+        assertThat(catalog.authorized(status, "businessCategories")).isTrue();
+    }
+
+    @Test
+    void internalPythonControlPlaneBypassesBrowserMenuLicense() throws Exception {
+        McpLicenseService licenses = mock(McpLicenseService.class);
+        when(licenses.status()).thenReturn(valid(List.of("databaseMcp")));
+        McpMenuLicenseFilter filter = new McpMenuLicenseFilter(licenses, catalog, objectMapper);
+        AdminAuthService auth = mock(AdminAuthService.class);
+        InternalCredentialProperties credentials = mock(InternalCredentialProperties.class);
+        when(auth.username("internal-token")).thenReturn("chatchat_mcp_internal");
+        when(credentials.resolvedUsername()).thenReturn("chatchat_mcp_internal");
+        ReflectionTestUtils.setField(filter, "adminAuthService", auth);
+        ReflectionTestUtils.setField(filter, "internalCredentials", credentials);
+        MockHttpServletRequest request = request("/api/v1/python/environments", "tenant-a");
+        request.addHeader("Authorization", "Bearer internal-token");
+        AtomicInteger calls = new AtomicInteger();
+
+        filter.doFilter(request, new MockHttpServletResponse(), countingChain(calls));
+
+        assertThat(calls).hasValue(1);
     }
 
     @Test

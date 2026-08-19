@@ -29,6 +29,13 @@ export const pythonApi = {
   }),
   publishEnvironment: (id, published) => apiFetch(`${API_BASE}/python/environments/${encodeURIComponent(id)}/published?published=${published}`, { method: 'POST' }),
   templates: () => apiFetch(`${API_BASE}/python/templates`),
+  searchTemplates: (query, categoryId = '', limit = 20) => {
+    const params = new URLSearchParams({ query: String(query || ''), categoryId: String(categoryId || ''), limit: String(limit) });
+    return apiFetch(`${API_BASE}/python/templates/search?${params}`);
+  },
+  indexOverview: () => apiFetch(`${API_BASE}/python/templates/index`),
+  rebuildIndex: () => apiFetch(`${API_BASE}/python/templates/index/rebuild`, { method: 'POST' }),
+  updateTemplateMetadata: (id, metadata) => apiFetch(`${API_BASE}/python/templates/${encodeURIComponent(id)}/metadata`, { method: 'PUT', body: JSON.stringify(metadata) }),
   setTemplateEnabled: (id, enabled) => apiFetch(`${API_BASE}/python/templates/${encodeURIComponent(id)}/enabled?enabled=${enabled}`, { method: 'POST' }),
   executeTemplate: (id, parameters = {}) => apiFetch(`${API_BASE}/python/templates/${encodeURIComponent(id)}/execute`, { method: 'POST', body: JSON.stringify(parameters) })
 };

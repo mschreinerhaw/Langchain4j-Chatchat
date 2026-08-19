@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.license;
 
+import com.chatchat.common.security.InternalCredentialProperties;
+import com.chatchat.mcpserver.admin.AdminAuthService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -8,6 +10,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -25,11 +29,22 @@ public class McpMenuLicenseFilter extends OncePerRequestFilter {
     private final McpLicenseService licenseService;
     private final McpAdminMenuCatalog menuCatalog;
     private final ObjectMapper objectMapper;
+    @Autowired(required = false) private AdminAuthService adminAuthService;
+    @Autowired(required = false) private InternalCredentialProperties internalCredentials;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         return "OPTIONS".equalsIgnoreCase(request.getMethod())
+            || internalPythonControlPlane(request)
             || menuCatalog.menuForPath(path(request)).isEmpty();
+    }
+
+    private boolean internalPythonControlPlane(HttpServletRequest request) {
+        if (!path(request).startsWith("/api/v1/python/") || adminAuthService == null || internalCredentials == null) return false;
+        String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
+        if (authorization == null || !authorization.regionMatches(true, 0, "Bearer ", 0, 7)) return false;
+        String username = adminAuthService.username(authorization.substring(7).trim());
+        return username != null && username.equalsIgnoreCase(internalCredentials.resolvedUsername());
     }
 
     @Override

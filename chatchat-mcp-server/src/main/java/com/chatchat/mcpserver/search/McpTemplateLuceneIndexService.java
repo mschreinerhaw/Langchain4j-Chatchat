@@ -11,6 +11,7 @@ import com.chatchat.mcpserver.ops.HttpEndpointConfig;
 import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
 import com.chatchat.mcpserver.ops.JmxTemplateConfig;
 import com.chatchat.mcpserver.ops.JmxTemplateService;
+import com.chatchat.mcpserver.python.PythonTemplateSearchService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlTemplateConfig;
@@ -21,6 +22,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -57,6 +59,8 @@ public class McpTemplateLuceneIndexService {
     private final DatabaseQueryConfigService databaseQueryConfigService;
     private final SqlDatasourceConfigService datasourceConfigService;
     private final ObjectMapper objectMapper;
+    @Autowired(required = false)
+    private PythonTemplateSearchService pythonTemplateSearchService;
 
     @Order(Ordered.LOWEST_PRECEDENCE)
     @EventListener(ApplicationReadyEvent.class)
@@ -113,6 +117,9 @@ public class McpTemplateLuceneIndexService {
         safe(httpEndpointConfigService.listEnabled()).stream()
             .map(this::httpTemplateDoc)
             .forEach(docs::add);
+        if (pythonTemplateSearchService != null) {
+            docs.addAll(pythonTemplateSearchService.publishedDocuments());
+        }
         luceneSearchService.indexTemplates(docs);
         log.info("MCP Lucene template index refreshed, indexed {} templates", docs.size());
     }

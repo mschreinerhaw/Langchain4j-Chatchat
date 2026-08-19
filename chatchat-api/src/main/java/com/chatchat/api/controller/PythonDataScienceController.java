@@ -14,13 +14,16 @@ import java.util.*;
 @RequestMapping(AppConstants.API_V1+"/data-science/python")
 public class PythonDataScienceController {
     private final PythonDataScienceService service;
+    private final PythonCodeAssistantService codeAssistant;
 
     @GetMapping("/workbench") public ApiResponse<PythonDataScienceService.Workbench> workbench(HttpServletRequest request){ Scope s=scope(request); return ApiResponse.success(service.workbench(s.tenant(),s.user())); }
     @PostMapping("/assets") public ApiResponse<?> createAsset(@RequestBody PythonDataScienceService.AssetRequest body,HttpServletRequest request){ return call(()->{Scope s=scope(request);return service.createAsset(s.tenant(),s.user(),body);}); }
     @PostMapping("/scripts") public ApiResponse<?> saveScript(@RequestBody PythonDataScienceService.ScriptRequest body,HttpServletRequest request){ return call(()->{Scope s=scope(request);return service.saveScript(s.tenant(),s.user(),body);}); }
-    @GetMapping("/scripts/{id}/versions") public ApiResponse<?> versions(@PathVariable String id,HttpServletRequest request){ return call(()->{Scope s=scope(request);return service.versions(s.tenant(),s.user(),id);}); }
-    @PostMapping("/scripts/{id}/execute") public ApiResponse<?> execute(@PathVariable String id,@RequestBody(required=false) Map<String,Object> body,HttpServletRequest request){ return call(()->{Scope s=scope(request);return service.testScript(s.tenant(),s.user(),id,body);}); }
-    @PostMapping("/scripts/{id}/publish") public ApiResponse<?> publish(@PathVariable String id,@RequestBody PythonDataScienceService.PublishRequest body,HttpServletRequest request){ return call(()->{Scope s=scope(request);return service.publish(s.tenant(),s.user(),id,body);}); }
+    @GetMapping("/scripts/{id}/versions") public ApiResponse<?> versions(@PathVariable("id") String id,HttpServletRequest request){ return call(()->{Scope s=scope(request);return service.versions(s.tenant(),s.user(),id);}); }
+    @PostMapping("/scripts/{id}/execute") public ApiResponse<?> execute(@PathVariable("id") String id,@RequestBody(required=false) Map<String,Object> body,HttpServletRequest request){ return call(()->{Scope s=scope(request);return service.testScript(s.tenant(),s.user(),id,body);}); }
+    @PostMapping("/scripts/{id}/publish") public ApiResponse<?> publish(@PathVariable("id") String id,@RequestBody PythonDataScienceService.PublishRequest body,HttpServletRequest request){ return call(()->{Scope s=scope(request);return service.publish(s.tenant(),s.user(),id,body);}); }
+    @GetMapping("/models") public ApiResponse<?> models(){return ApiResponse.success(codeAssistant.models());}
+    @PostMapping("/assist") public ApiResponse<?> assist(@RequestBody PythonCodeAssistantService.AssistRequest body){return call(()->codeAssistant.assist(body));}
 
     private Scope scope(HttpServletRequest r){ return new Scope(attr(r,ApiAuthenticationFilter.CURRENT_TENANT_ID,"default"),first(attr(r,ApiAuthenticationFilter.CURRENT_USERNAME,""),attr(r,ApiAuthenticationFilter.CURRENT_USER_ID,"default"))); }
     private String attr(HttpServletRequest r,String key,String fallback){Object value=r.getAttribute(key);return value==null||String.valueOf(value).isBlank()?fallback:String.valueOf(value);}

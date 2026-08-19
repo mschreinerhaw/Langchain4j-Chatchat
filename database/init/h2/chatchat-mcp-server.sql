@@ -702,6 +702,7 @@
         owner_id varchar(64) not null,
         source_hash varchar(64) not null,
         tenant_id varchar(64) not null,
+        category_id varchar(64),
         domain varchar(120),
         template_name varchar(200) not null,
         tool_name varchar(200) not null unique,

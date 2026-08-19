@@ -20,6 +20,7 @@ public class PythonTemplate {
     @Column(length=3000,nullable=false) private String description;
     @Column(length=1000) private String keywords;
     @Column(length=120) private String domain;
+    @Column(name="category_id",length=64) private String categoryId;
     @Lob @Column(name="input_schema_json",columnDefinition="TEXT") private String inputSchemaJson;
     @Lob @Column(name="output_schema_json",columnDefinition="TEXT") private String outputSchemaJson;
     @Lob @Column(name="source_ciphertext",nullable=false,columnDefinition="LONGTEXT") private String sourceCiphertext;

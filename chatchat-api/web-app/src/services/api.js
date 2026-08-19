@@ -75,15 +75,13 @@ export function fetchUiArtifactResource(artifactId, resourceId) {
 
 export function fetchPythonWorkbench() { return apiRequest("/data-science/python/workbench"); }
 export function fetchMcpPythonEnvironments() { return apiRequest("/data-science/python/environments"); }
+export function fetchPythonCodeModels() { return apiRequest("/data-science/python/models"); }
 export function createPythonAsset(payload) { return apiRequest("/data-science/python/assets", { method: "POST", body: JSON.stringify(payload) }); }
 export function savePythonScript(payload) { return apiRequest("/data-science/python/scripts", { method: "POST", body: JSON.stringify(payload) }); }
 export function executePythonScript(scriptId, parameters = {}) { return apiRequest(`/data-science/python/scripts/${encodeURIComponent(scriptId)}/execute`, { method: "POST", body: JSON.stringify(parameters) }); }
 export function publishPythonScript(scriptId, payload) { return apiRequest(`/data-science/python/scripts/${encodeURIComponent(scriptId)}/publish`, { method: "POST", body: JSON.stringify(payload) }); }
 export function fetchPythonScriptVersions(scriptId) { return apiRequest(`/data-science/python/scripts/${encodeURIComponent(scriptId)}/versions`); }
-export function fetchPythonTemplates() { return apiRequest("/mcp/python-templates"); }
-export function searchPythonTemplates(query, limit = 20) { const params = new URLSearchParams({ query, limit: String(limit) }); return apiRequest(`/mcp/python-templates/search?${params.toString()}`); }
-export function executePythonTemplate(templateId, parameters = {}) { return apiRequest(`/mcp/python-templates/${encodeURIComponent(templateId)}/execute`, { method: "POST", body: JSON.stringify(parameters) }); }
-export function setPythonTemplateEnabled(templateId, enabled) { return apiRequest(`/mcp/python-templates/${encodeURIComponent(templateId)}/enabled?enabled=${enabled}`, { method: "POST" }); }
+export function requestPythonCodeAssist(payload) { return apiRequest("/data-science/python/assist", { method: "POST", body: JSON.stringify(payload) }); }
 
 export function fetchTrendSemanticConfig() {
   return apiRequest("/ui-display/trend-semantics");

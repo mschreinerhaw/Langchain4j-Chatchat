@@ -7,7 +7,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.HttpHost;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.message.BasicHeader;
+import org.apache.http.ssl.SSLContexts;
 import org.opensearch.client.Request;
 import org.opensearch.client.Response;
 import org.opensearch.client.RestClient;
@@ -15,7 +17,9 @@ import org.opensearch.client.RestClientBuilder;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.util.*;
+import javax.net.ssl.SSLContext;
 
 @Slf4j @Service @RequiredArgsConstructor
 public class PythonTemplateIndexService {
@@ -98,7 +102,8 @@ public class PythonTemplateIndexService {
         fields.put("publishedAt",Map.of("type","date")); fields.put(vectorField(),Map.of("type","knn_vector","dimension",dimension,"method",Map.of("name","hnsw","space_type","cosinesimil","engine","lucene")));
         Request create=new Request("PUT","/"+properties.getIndexName()); create.setJsonEntity(objectMapper.writeValueAsString(Map.of("settings",Map.of("index.knn",true),"mappings",Map.of("properties",fields)))); client.performRequest(create);
     }
-    private RestClient client(){ SearchProperties.OpenSearch c=searchProperties.getOpenSearch(); RestClientBuilder builder=RestClient.builder(HttpHost.create(c.getUrl())); if(c.getUsername()!=null&&!c.getUsername().isBlank()){ String auth=Base64.getEncoder().encodeToString((c.getUsername()+":"+c.getPassword()).getBytes(StandardCharsets.UTF_8)); builder.setDefaultHeaders(new BasicHeader[]{new BasicHeader("Authorization","Basic "+auth)}); } return builder.build(); }
+    private RestClient client(){ SearchProperties.OpenSearch c=searchProperties.getOpenSearch(); RestClientBuilder builder=RestClient.builder(HttpHost.create(c.getUrl())); if(c.getUsername()!=null&&!c.getUsername().isBlank()){ String auth=Base64.getEncoder().encodeToString((c.getUsername()+":"+c.getPassword()).getBytes(StandardCharsets.UTF_8)); builder.setDefaultHeaders(new BasicHeader[]{new BasicHeader("Authorization","Basic "+auth)}); } if(c.isInsecureSsl()){builder.setHttpClientConfigCallback(httpClient->httpClient.setSSLContext(insecureSslContext()).setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE));} return builder.build(); }
+    private SSLContext insecureSslContext(){try{return SSLContexts.custom().loadTrustMaterial(null,(chain,authType)->true).build();}catch(GeneralSecurityException ex){throw new IllegalStateException("Failed to create insecure OpenSearch SSL context",ex);}}
     private boolean openSearchEnabled(){ SearchProperties.OpenSearch c=searchProperties.getOpenSearch(); return searchProperties.isOpenSearchEngine()&&c.isEnabled()&&c.getUrl()!=null&&!c.getUrl().isBlank(); }
     private String vectorField(){ return "embedding"; }
     public record IndexResult(boolean success,String mode,String message){}

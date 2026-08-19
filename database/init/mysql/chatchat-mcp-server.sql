@@ -727,13 +727,19 @@
         created_at datetime(6) not null,
         updated_at datetime(6) not null,
         cpu_limit varchar(24) not null,
+        disk_limit varchar(24) not null,
         memory_limit varchar(24) not null,
+        tmpfs_limit varchar(24) not null,
+        network_policy varchar(24) not null,
         status varchar(24) not null,
         python_version varchar(32) not null,
         id varchar(64) not null,
+        runtime_user varchar(64) not null,
+        network_name varchar(128),
         name varchar(160) not null,
         docker_image varchar(300) not null,
         description varchar(1000),
+        requirements_json TEXT not null,
         primary key (id)
     ) engine=InnoDB;
     create index idx_mcp_python_env_status on mcp_python_environment (status, updated_at);
@@ -771,6 +777,7 @@
         status varchar(24) not null,
         asset_id varchar(64) not null,
         environment_id varchar(64) not null,
+        container_id varchar(128),
         id varchar(64) not null,
         owner_id varchar(64) not null,
         template_id varchar(64),

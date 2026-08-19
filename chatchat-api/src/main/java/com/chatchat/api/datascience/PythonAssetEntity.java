@@ -25,6 +25,10 @@ public class PythonAssetEntity {
     @Column(name = "workspace_path", length = 600) private String workspacePath;
     @Column(name = "cpu_limit", length = 24) private String cpuLimit;
     @Column(name = "memory_limit", length = 24) private String memoryLimit;
+    @Column(name = "disk_limit", length = 24) private String diskLimit;
+    @Column(name = "timeout_seconds") private Integer timeoutSeconds;
+    @Column(name = "runtime_user", length = 64) private String runtimeUser;
+    @Column(name = "network_policy", length = 24) private String networkPolicy;
     @Column(name = "network_enabled", nullable = false) private boolean networkEnabled;
     @Column(name = "dependencies_json", columnDefinition = "TEXT") private String dependenciesJson;
     @Column(name = "status_message", length = 1000) private String statusMessage;

@@ -15,6 +15,7 @@ public class PythonExecutionEntity {
     @Column(name="asset_id",length=64,nullable=false) private String assetId;
     @Column(name="script_id",length=64) private String scriptId;
     @Column(name="template_id",length=64) private String templateId;
+    @Column(name="container_id",length=128) private String containerId;
     @Column(length=24,nullable=false) private String status;
     @Lob @Column(name="parameters_json",columnDefinition="TEXT") private String parametersJson;
     @Lob @Column(columnDefinition="LONGTEXT") private String stdout;

@@ -14,7 +14,7 @@
 
 - API 使用现有 MCP 管理端登录通道获取短期 Bearer Token。
 - 即使通道本身使用 TLS，脚本源码仍以 `ENC(...)` AES-GCM 密文作为业务载荷传输；明文不会出现在 MCP HTTP 请求体或 MCP 数据表。
-- API 通过 `/api/v1/python/environments?published=true` 获取可选环境，通过 `/runtime/assets/provision` 创建用户专属容器，通过 `/runtime/preview` 调试。
+- API 通过 `/api/v1/python/environments?published=true` 获取可选环境；`/runtime/assets/provision` 只校验受控镜像并创建持久 workspace，`/runtime/preview` 才创建单次执行容器。
 - MCP 侧 `mcp_python_template_asset` 是运行时权威快照；执行时才在 MCP 进程内存中解密源码。
 - 两端必须配置相同的内部加密凭据。未配置凭据时客户端拒绝发送源码，MCP 也拒绝明文载荷。
 
@@ -35,7 +35,11 @@ stdout、stderr、退出码、耗时和执行状态会写入 `mcp_python_executi
 
 ## Docker 边界
 
-每个 Asset 对应一个长生命周期容器。默认限制为 2 CPU、4 GB 内存、256 个进程、丢弃 Linux capabilities、禁止提权且关闭网络；workspace 仅挂载到该 Asset 的 `/workspace`。
+Asset 和用户 workspace 持久化，容器不持久化。每次调试或 MCP Tool 调用都执行 `docker run --rm`，完成、失败或超时后销毁；异常退出还会执行一次定向 `docker rm -f` 清理。
+
+默认限制为 2 CPU、4 GB 内存、256 个进程、只读根文件系统、丢弃全部 Linux capabilities、禁止提权、以 `10001:10001` 非 root 用户运行并关闭网络。用户 workspace 只读挂载到 `/workspace`，`/tmp` 和 `/workspace/output` 使用带大小限制的 tmpfs。若需要访问数据库或内部 API，只能选择平台预先创建的 `NAMED` Docker 白名单网络。
+
+Runtime 镜像必须使用固定标签或 digest，禁止 `latest` 和无标签镜像。环境发布后不可修改；升级 Python 或依赖需要构建新镜像并创建新的 MCP 环境。依赖清单只接受 `package==version`，作为镜像能力契约保存，执行期间不会调用 `pip install`。参考镜像位于 `deploy/docker/python-runtime`。
 
 可通过环境变量配置：
 

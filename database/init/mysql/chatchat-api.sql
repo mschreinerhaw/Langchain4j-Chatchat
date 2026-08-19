@@ -1157,9 +1157,9 @@
 
     create table ds_python_asset (
         network_enabled bit not null, created_at datetime(6) not null, updated_at datetime(6) not null,
-        cpu_limit varchar(24), memory_limit varchar(24), status varchar(24) not null,
+        timeout_seconds integer, cpu_limit varchar(24), disk_limit varchar(24), memory_limit varchar(24), network_policy varchar(24), status varchar(24) not null,
         python_version varchar(32), mcp_environment_version integer not null, id varchar(64) not null, mcp_environment_id varchar(64) not null, owner_id varchar(64) not null,
-        tenant_id varchar(64) not null, container_name varchar(128), name varchar(160) not null,
+        tenant_id varchar(64) not null, container_name varchar(128), runtime_user varchar(64), name varchar(160) not null,
         docker_image varchar(300) not null, workspace_path varchar(600), status_message varchar(1000),
         description varchar(2000), dependencies_json TEXT, primary key (id)
     ) engine=InnoDB;
@@ -1196,7 +1196,7 @@
 
     create table mcp_python_execution (
         exit_code integer, duration_ms bigint, finished_at datetime(6), started_at datetime(6) not null,
-        status varchar(24) not null, asset_id varchar(64) not null, id varchar(64) not null,
+        status varchar(24) not null, asset_id varchar(64) not null, id varchar(64) not null, container_id varchar(128),
         owner_id varchar(64) not null, script_id varchar(64), template_id varchar(64),
         tenant_id varchar(64) not null, parameters_json TEXT, result_json LONGTEXT,
         stderr LONGTEXT, stdout LONGTEXT, primary key (id)

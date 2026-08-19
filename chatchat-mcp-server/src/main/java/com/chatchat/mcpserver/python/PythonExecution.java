@@ -15,6 +15,7 @@ public class PythonExecution {
     @Column(name="asset_id",length=64,nullable=false) private String assetId;
     @Column(name="environment_id",length=64,nullable=false) private String environmentId;
     @Column(name="template_id",length=64) private String templateId;
+    @Column(name="container_id",length=128) private String containerId;
     @Column(length=24,nullable=false) private String status;
     @Lob @Column(columnDefinition="LONGTEXT") private String stdout;
     @Lob @Column(columnDefinition="LONGTEXT") private String stderr;

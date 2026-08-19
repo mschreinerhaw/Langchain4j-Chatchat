@@ -1123,9 +1123,9 @@
 
     create table ds_python_asset (
         network_enabled boolean not null, created_at timestamp(6) with time zone not null,
-        updated_at timestamp(6) with time zone not null, cpu_limit varchar(24), memory_limit varchar(24),
+        updated_at timestamp(6) with time zone not null, timeout_seconds integer, cpu_limit varchar(24), disk_limit varchar(24), memory_limit varchar(24), network_policy varchar(24),
         status varchar(24) not null, python_version varchar(32), mcp_environment_version integer not null, id varchar(64) not null, mcp_environment_id varchar(64) not null,
-        owner_id varchar(64) not null, tenant_id varchar(64) not null, container_name varchar(128),
+        owner_id varchar(64) not null, tenant_id varchar(64) not null, container_name varchar(128), runtime_user varchar(64),
         name varchar(160) not null, docker_image varchar(300) not null, workspace_path varchar(600),
         status_message varchar(1000), description varchar(2000), dependencies_json TEXT, primary key (id)
     );
@@ -1135,7 +1135,7 @@
         current_version integer not null, last_test_succeeded boolean not null,
         created_at timestamp(6) with time zone not null, last_tested_at timestamp(6) with time zone,
         updated_at timestamp(6) with time zone not null, status varchar(24) not null,
-        asset_id varchar(64) not null, id varchar(64) not null, owner_id varchar(64) not null,
+        asset_id varchar(64) not null, id varchar(64) not null, container_id varchar(128), owner_id varchar(64) not null,
         tenant_id varchar(64) not null, file_name varchar(180) not null, title varchar(300),
         source_code LONGTEXT not null, primary key (id),
         constraint uk_python_script_name unique (asset_id, file_name)

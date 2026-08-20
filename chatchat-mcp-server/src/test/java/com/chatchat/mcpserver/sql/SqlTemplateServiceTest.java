@@ -206,6 +206,7 @@ class SqlTemplateServiceTest {
             .singleElement()
             .satisfies(template -> {
                 assertThat(template.getSqlTemplate())
+                    .containsIgnoringCase("select distinct")
                     .containsIgnoringCase("dba_data_files")
                     .containsIgnoringCase("dba_free_space")
                     .containsIgnoringCase("used_mb")
@@ -213,6 +214,12 @@ class SqlTemplateServiceTest {
                     .containsIgnoringCase("used_pct");
                 assertThat(template.getIntentSignalsJson()).contains("tablespace usage", "free space", "utilization");
             });
+        assertThat(saved)
+            .filteredOn(template -> template.getCode().endsWith("_TABLESPACE_USAGE")
+                || template.getCode().endsWith("_TABLESPACE_SIZE"))
+            .allSatisfy(template -> assertThat(template.getSqlTemplate())
+                .containsIgnoringCase("select distinct")
+                .containsIgnoringCase("group by"));
         assertThat(saved)
             .filteredOn(template -> template.getCode().startsWith("POSTGRES_"))
             .hasSize(9)

@@ -12,11 +12,25 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class CommandTemplateService {
+
+    private static final Set<String> REQUIRED_MANAGED_TEMPLATE_CODES = Set.of(
+        "CHECK_DOCKER_PS_ALL",
+        "CHECK_DOCKER_IMAGES",
+        "CHECK_DOCKER_STATS",
+        "CHECK_DOCKER_INSPECT",
+        "CHECK_DOCKER_LOGS",
+        "CHECK_DOCKER_TOP",
+        "CHECK_DOCKER_PORTS",
+        "CHECK_DOCKER_SYSTEM_DF",
+        "CHECK_DOCKER_NETWORKS",
+        "CHECK_DOCKER_VOLUMES"
+    );
 
     private static final String JAVA_PROCESS_DETAIL_COMMAND =
         "ps -eo pid,%cpu,%mem,rss,vsz,cmd --no-headers | grep java | grep -v grep";
@@ -91,7 +105,8 @@ public class CommandTemplateService {
     public void ensureDefaults() {
         boolean createMissingDefaults = seedProperties != null && seedProperties.isSeedDefaultsEnabled();
         for (DefaultTemplate template : defaults()) {
-            ensureDefault(template, createMissingDefaults);
+            ensureDefault(template,
+                createMissingDefaults || REQUIRED_MANAGED_TEMPLATE_CODES.contains(template.code()));
         }
         ensureDefault(systemOverviewTemplate(), createMissingDefaults);
     }
@@ -299,6 +314,21 @@ public class CommandTemplateService {
             ),
             "required", List.of("lines", "path")
         );
+        Map<String, Object> dockerContainerSchema = Map.of(
+            "type", "object",
+            "properties", Map.of(
+                "container", Map.of("type", "string", "pattern", "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
+            ),
+            "required", List.of("container")
+        );
+        Map<String, Object> dockerLogSchema = Map.of(
+            "type", "object",
+            "properties", Map.of(
+                "container", Map.of("type", "string", "pattern", "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"),
+                "lines", Map.of("type", "integer", "minimum", 1, "maximum", 2000)
+            ),
+            "required", List.of("container", "lines")
+        );
         return List.of(
             new DefaultTemplate("CHECK_HOSTNAME", "Hostname", "Read host name.", "hostname", empty),
             new DefaultTemplate("CHECK_UPTIME", "Uptime", "Read system uptime.", "uptime", empty),
@@ -470,6 +500,56 @@ public class CommandTemplateService {
                     "echo '=== docker top running containers ==='; if command -v docker >/dev/null 2>&1; then docker ps 2>/dev/null | awk 'NR>1 {print $NF}' | head -20 | while read c; do [ -n \"$c\" ] && echo \"--- $c ---\" && docker top \"$c\" 2>/dev/null | head -20; done || true; else echo 'docker not found'; fi"
                 )),
                 empty),
+            new DefaultTemplate("CHECK_DOCKER_PS_ALL", "Docker container list",
+                "List all Docker containers, including stopped containers.",
+                "docker ps -a",
+                empty,
+                List.of("docker ps -a", "all containers", "stopped containers", "容器列表", "全部容器")),
+            new DefaultTemplate("CHECK_DOCKER_IMAGES", "Docker image list",
+                "List Docker images available on the host.",
+                "docker images",
+                empty,
+                List.of("docker images", "image list", "container images", "镜像列表", "Docker 镜像")),
+            new DefaultTemplate("CHECK_DOCKER_STATS", "Docker resource snapshot",
+                "Read a point-in-time CPU, memory, network and IO snapshot for running containers.",
+                "docker stats --no-stream",
+                empty,
+                List.of("docker stats", "container cpu", "container memory", "容器资源", "容器 CPU", "容器内存")),
+            new DefaultTemplate("CHECK_DOCKER_INSPECT", "Docker container details",
+                "Inspect one Docker container's runtime configuration and state.",
+                "docker inspect {{container}}",
+                dockerContainerSchema,
+                List.of("docker inspect", "container details", "container configuration", "容器详情", "容器配置")),
+            new DefaultTemplate("CHECK_DOCKER_LOGS", "Docker container logs",
+                "Read a bounded timestamped tail of one Docker container's logs.",
+                "docker logs --timestamps --tail {{lines}} {{container}}",
+                dockerLogSchema,
+                List.of("docker logs", "container logs", "error logs", "容器日志", "日志排障")),
+            new DefaultTemplate("CHECK_DOCKER_TOP", "Docker container processes",
+                "Read processes running inside one Docker container.",
+                "docker top {{container}}",
+                dockerContainerSchema,
+                List.of("docker top", "container processes", "process list", "容器进程", "进程列表")),
+            new DefaultTemplate("CHECK_DOCKER_PORTS", "Docker container ports",
+                "Read published port mappings for one Docker container.",
+                "docker port {{container}}",
+                dockerContainerSchema,
+                List.of("docker port", "port mapping", "published ports", "容器端口", "端口映射")),
+            new DefaultTemplate("CHECK_DOCKER_SYSTEM_DF", "Docker storage usage",
+                "Read detailed Docker image, container, volume and build-cache disk usage.",
+                "docker system df -v",
+                empty,
+                List.of("docker system df", "docker disk usage", "container storage", "Docker 磁盘", "存储占用")),
+            new DefaultTemplate("CHECK_DOCKER_NETWORKS", "Docker network list",
+                "List Docker networks and their drivers and scopes.",
+                "docker network ls",
+                empty,
+                List.of("docker network ls", "docker networks", "container network", "Docker 网络", "容器网络")),
+            new DefaultTemplate("CHECK_DOCKER_VOLUMES", "Docker volume list",
+                "List Docker volumes and their drivers.",
+                "docker volume ls",
+                empty,
+                List.of("docker volume ls", "docker volumes", "container volume", "Docker 卷", "容器存储卷")),
             new DefaultTemplate("CHECK_CONTAINER_RUNTIME_OVERVIEW", "Container runtime overview",
                 "Read container runtime services and CLI availability for Docker, containerd, CRI and nerdctl.",
                 writeJson(List.of(

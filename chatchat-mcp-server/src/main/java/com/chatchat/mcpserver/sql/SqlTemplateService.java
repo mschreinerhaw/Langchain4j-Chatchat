@@ -704,7 +704,7 @@ public class SqlTemplateService {
             maintenanceTemplate("ORACLE_TABLESPACE_USAGE", "Oracle tablespace usage",
                 "Summarize Oracle tablespace capacity, used space, free space, and utilization percentage.",
                 "oracle", "storage",
-                "SELECT df.tablespace_name, "
+                "SELECT DISTINCT df.tablespace_name, "
                     + "ROUND(df.total_bytes / 1024 / 1024, 2) AS total_mb, "
                     + "ROUND((df.total_bytes - NVL(fs.free_bytes, 0)) / 1024 / 1024, 2) AS used_mb, "
                     + "ROUND(NVL(fs.free_bytes, 0) / 1024 / 1024, 2) AS free_mb, "
@@ -721,7 +721,8 @@ public class SqlTemplateService {
             maintenanceTemplate("ORACLE_TABLESPACE_SIZE", "Oracle tablespace size",
                 "Summarize Oracle tablespace size in megabytes.",
                 "oracle", "storage",
-                "SELECT tablespace_name, SUM(bytes)/1024/1024 AS size_mb FROM dba_data_files GROUP BY tablespace_name",
+                "SELECT DISTINCT tablespace_name, SUM(bytes)/1024/1024 AS size_mb "
+                    + "FROM dba_data_files GROUP BY tablespace_name",
                 List.of("tablespace", "storage", "space", "database size", "storage_check"),
                 evidencePolicy(
                     "capacity_inventory", false,
@@ -1096,7 +1097,8 @@ public class SqlTemplateService {
             maintenanceTemplate("DM_TABLESPACE_SIZE", "Dameng tablespace size",
                 "Summarize Dameng tablespace data file size in megabytes.",
                 "dm", "storage",
-                "SELECT TABLESPACE_NAME, SUM(BYTES)/1024/1024 AS SIZE_MB FROM DBA_DATA_FILES GROUP BY TABLESPACE_NAME",
+                "SELECT DISTINCT TABLESPACE_NAME, SUM(BYTES)/1024/1024 AS SIZE_MB "
+                    + "FROM DBA_DATA_FILES GROUP BY TABLESPACE_NAME",
                 List.of("dameng", "dm", "tablespace", "storage", "space", "database size", "storage_check")),
             maintenanceTemplate("DM_ACTIVE_SESSIONS", "Dameng active sessions",
                 "Read Dameng active sessions for runtime connection and wait inspection.",
@@ -1130,7 +1132,7 @@ public class SqlTemplateService {
                 "Summarize Dameng tablespace data file capacity for storage inspection.",
                 "dm", "storage",
                 """
-                    SELECT TABLESPACE_NAME,
+                    SELECT DISTINCT TABLESPACE_NAME,
                            ROUND(SUM(BYTES) / 1024 / 1024, 2) AS TOTAL_MB
                     FROM DBA_DATA_FILES
                     GROUP BY TABLESPACE_NAME

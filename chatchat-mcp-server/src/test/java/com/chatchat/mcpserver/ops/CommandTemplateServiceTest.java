@@ -10,7 +10,6 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -19,7 +18,7 @@ class CommandTemplateServiceTest {
     private final CommandTemplateConfigRepository repository = mock(CommandTemplateConfigRepository.class);
 
     @Test
-    void doesNotSeedDefaultTemplatesUnlessExplicitlyEnabled() {
+    void onlyRequiredManagedTemplatesSeedWhenBulkDefaultsAreDisabled() {
         CommandTemplateSeedProperties properties = new CommandTemplateSeedProperties();
         CommandTemplateService service = new CommandTemplateService(repository, new ObjectMapper(), properties);
         when(repository.findByCode(anyString())).thenReturn(Optional.empty());
@@ -27,7 +26,15 @@ class CommandTemplateServiceTest {
 
         service.listEnabled();
 
-        verify(repository, never()).save(org.mockito.ArgumentMatchers.any());
+        ArgumentCaptor<CommandTemplateConfig> captor = ArgumentCaptor.forClass(CommandTemplateConfig.class);
+        verify(repository, org.mockito.Mockito.times(10)).save(captor.capture());
+        assertThat(captor.getAllValues())
+            .extracting(CommandTemplateConfig::getCode)
+            .containsExactlyInAnyOrder(
+                "CHECK_DOCKER_PS_ALL", "CHECK_DOCKER_IMAGES", "CHECK_DOCKER_STATS",
+                "CHECK_DOCKER_INSPECT", "CHECK_DOCKER_LOGS", "CHECK_DOCKER_TOP",
+                "CHECK_DOCKER_PORTS", "CHECK_DOCKER_SYSTEM_DF", "CHECK_DOCKER_NETWORKS",
+                "CHECK_DOCKER_VOLUMES");
     }
 
     @Test
@@ -65,6 +72,16 @@ class CommandTemplateServiceTest {
                 "CHECK_NGINX_OVERVIEW",
                 "CHECK_DOCKER_OVERVIEW",
                 "CHECK_DOCKER_CONTAINERS",
+                "CHECK_DOCKER_PS_ALL",
+                "CHECK_DOCKER_IMAGES",
+                "CHECK_DOCKER_STATS",
+                "CHECK_DOCKER_INSPECT",
+                "CHECK_DOCKER_LOGS",
+                "CHECK_DOCKER_TOP",
+                "CHECK_DOCKER_PORTS",
+                "CHECK_DOCKER_SYSTEM_DF",
+                "CHECK_DOCKER_NETWORKS",
+                "CHECK_DOCKER_VOLUMES",
                 "CHECK_CONTAINER_RUNTIME_OVERVIEW",
                 "CHECK_K8S_NODE_OVERVIEW",
                 "CHECK_K8S_NODE_DETAIL",
@@ -76,6 +93,39 @@ class CommandTemplateServiceTest {
                 "CHECK_K8S_ROLLOUT",
                 "CHECK_MOUNT_DISK_USAGE"
             );
+        assertThat(saved)
+            .filteredOn(template -> "CHECK_DOCKER_PS_ALL".equals(template.getCode()))
+            .singleElement()
+            .satisfies(template -> assertThat(template.getCommandTemplate()).isEqualTo("docker ps -a"));
+        assertThat(saved)
+            .filteredOn(template -> "CHECK_DOCKER_IMAGES".equals(template.getCode()))
+            .singleElement()
+            .satisfies(template -> assertThat(template.getCommandTemplate()).isEqualTo("docker images"));
+        assertThat(saved)
+            .filteredOn(template -> template.getCode().startsWith("CHECK_DOCKER_"))
+            .allSatisfy(template -> {
+                assertThat(template.getRiskLevel()).isEqualTo("LOW");
+                assertThat(template.getCategory()).isEqualTo("container_diagnostic");
+                assertThat(template.getRuntimeAction()).isEqualTo("confirm_required");
+            });
+        assertThat(saved)
+            .filteredOn(template -> "CHECK_DOCKER_STATS".equals(template.getCode()))
+            .singleElement()
+            .satisfies(template -> assertThat(template.getCommandTemplate())
+                .isEqualTo("docker stats --no-stream"));
+        assertThat(saved)
+            .filteredOn(template -> "CHECK_DOCKER_LOGS".equals(template.getCode()))
+            .singleElement()
+            .satisfies(template -> {
+                assertThat(template.getCommandTemplate())
+                    .isEqualTo("docker logs --timestamps --tail {{lines}} {{container}}");
+                assertThat(template.getParameterSchemaJson()).contains("container", "lines", "maximum");
+            });
+        assertThat(saved)
+            .filteredOn(template -> "CHECK_DOCKER_INSPECT".equals(template.getCode())
+                || "CHECK_DOCKER_TOP".equals(template.getCode())
+                || "CHECK_DOCKER_PORTS".equals(template.getCode()))
+            .allSatisfy(template -> assertThat(template.getParameterSchemaJson()).contains("container", "pattern"));
         assertThat(saved)
             .allSatisfy(template -> assertThat(template.getCommandTemplate().length())
                 .as("command template length for %s", template.getCode())
@@ -386,8 +436,11 @@ class CommandTemplateServiceTest {
         service.listEnabled();
 
         ArgumentCaptor<CommandTemplateConfig> captor = ArgumentCaptor.forClass(CommandTemplateConfig.class);
-        verify(repository).save(captor.capture());
-        CommandTemplateConfig saved = captor.getValue();
+        verify(repository, org.mockito.Mockito.atLeastOnce()).save(captor.capture());
+        CommandTemplateConfig saved = captor.getAllValues().stream()
+            .filter(template -> "CHECK_BLOCK".equals(template.getCode()))
+            .findFirst()
+            .orElseThrow();
         assertThat(saved.getCode()).isEqualTo("CHECK_BLOCK");
         assertThat(saved.getTitle()).isEqualTo("Block devices");
         assertThat(saved.getDescription()).isEqualTo("Read block devices.");

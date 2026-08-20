@@ -90,7 +90,7 @@
   line-height: 1.3;
 }
 
-.python-management .python-index-summary span {
+.python-management .python-index-summary > div > span {
   color: var(--text-muted);
   font-size: 13px;
   line-height: 1.5;

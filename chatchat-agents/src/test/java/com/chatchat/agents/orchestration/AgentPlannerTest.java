@@ -125,7 +125,7 @@ class AgentPlannerTest {
     }
 
     @Test
-    void invalidCandidateWithAuthoritativeWorkflowStopsModelRepairAndDefersToRuntime() {
+    void authoritativeFinalBarrierRepairsMissingIndependentMandatoryBranch() {
         AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
         String firstTool = "workflow_first_lookup";
         String secondTool = "workflow_second_lookup";
@@ -171,16 +171,21 @@ class AgentPlannerTest {
             Map.of("plannerMaxRepairAttempts", 3, "authoritativeWorkflowDag", authoritativeDag));
 
         assertThat(calls).hasValue(1);
-        assertThat(result.decision().reason()).isEqualTo("invalid_interpretation_plan");
+        assertThat(result.plan().valid()).isTrue();
+        InterpretationPlan.Step finalStep = result.decision().interpretationPlan().steps().stream()
+            .filter(InterpretationPlan.Step::finalAnswerAction)
+            .findFirst()
+            .orElseThrow();
+        assertThat(finalStep.dependsOn()).containsExactlyInAnyOrder(1, 2);
         assertThat(result.decision().executionPlan())
             .containsEntry("eventKind", "DAG_REPAIR")
-            .containsEntry("eventState", "REJECTED")
+            .containsEntry("eventState", "APPLIED")
             .containsEntry("plannerGenerationCount", 1);
         Map<?, ?> repairEvent = (Map<?, ?>) result.decision().executionPlan().get("repairEvent");
         assertThat(repairEvent.get("repairCode"))
-            .isEqualTo("AUTHORITATIVE_WORKFLOW_DAG_RESTORED_PLAN_INVALID");
+            .isEqualTo("AUTHORITATIVE_WORKFLOW_DAG_RESTORED");
         assertThat(repairEvent.get("topologyRestored")).isEqualTo(true);
-        assertThat(repairEvent.get("candidateValid")).isEqualTo(false);
+        assertThat(repairEvent.get("candidateValid")).isEqualTo(true);
     }
 
     @Test

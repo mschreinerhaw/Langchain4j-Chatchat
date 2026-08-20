@@ -96,7 +96,7 @@ class ProductionAssetRoutingContinuityE2E {
                     Map.of("originalUserQuery", "Analyze this Docker database simulator disk usage")));
 
             assertThat(result.success()).as(result.errorMessage()).isTrue();
-            assertThat(assetReviewerCalls).hasValue(0);
+            assertThat(assetReviewerCalls).hasValue(1);
             assertThat(commandArguments.get()).isNotNull();
             Map<?, ?> context = (Map<?, ?>) commandArguments.get().get("executionContext");
             assertThat(context.get("assetId")).isEqualTo("asset-e2e-17");

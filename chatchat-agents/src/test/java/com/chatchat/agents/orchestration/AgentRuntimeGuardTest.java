@@ -43,4 +43,26 @@ class AgentRuntimeGuardTest {
         assertThat(guard.maxSteps(Map.of())).isEqualTo(3);
         assertThat(guard.hasConfiguredMaxSteps(Map.of())).isFalse();
     }
+
+    @Test
+    void onlyExplicitRequestTimeoutCreatesInitialDeadline() {
+        long before = System.currentTimeMillis();
+        Map<String, Object> attributes = guard.attributesWithDeadline(Map.of(
+            "timeoutMs", 10_000,
+            "mcpWorkflow", Map.of(
+                "executionStrategy", Map.of("latencyBudgetMs", 2_000)
+            )
+        ));
+        long initialDeadline = ((Number) attributes.get("deadlineAt")).longValue();
+
+        assertThat(initialDeadline).isBetween(before + 9_500, before + 10_500);
+
+        assertThat(guard.attributesWithDeadline(Map.of(
+            "mcpWorkflow", Map.of(
+                "executionStrategy", Map.of("latencyBudgetMs", 2_000)
+            )
+        ))).doesNotContainKey("deadlineAt");
+
+        assertThat(guard.remainingTimeMs(attributes)).isBetween(9_000L, 10_000L);
+    }
 }

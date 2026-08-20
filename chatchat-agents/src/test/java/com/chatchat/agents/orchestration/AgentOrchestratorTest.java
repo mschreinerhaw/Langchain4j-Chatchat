@@ -3571,7 +3571,7 @@ class AgentOrchestratorTest {
     }
 
     @Test
-    void executeRuntimeRequestCancelsRunWhenTimeoutExpires() {
+    void executeRuntimeRequestProjectsTimeoutAsCompletedBudgetExhaustion() {
         ChatModel chatModel = new SlowChatModel(
             20L,
             "{\"action\":\"final\",\"answer\":\"This answer should arrive too late.\"}"
@@ -3602,17 +3602,20 @@ class AgentOrchestratorTest {
             .timeoutMs(1L)
             .build());
 
-        assertThat(result.status()).isEqualTo(AgentRunStatus.CANCELLED);
-        assertThat(result.stopReason()).isEqualTo("cancelled");
-        assertThat(result.errorMessage()).isEqualTo("Agent run timed out");
+        assertThat(result.status()).isEqualTo(AgentRunStatus.COMPLETED);
+        assertThat(result.stopReason()).isEqualTo("time_budget_exhausted");
+        assertThat(result.errorMessage()).contains("time budget exhausted");
+        assertThat(result.metadata())
+            .containsEntry("publicStatus", "TIME_BUDGET_EXHAUSTED")
+            .containsEntry("workflowStatus", "BUDGET_EXHAUSTED");
         assertThat(result.events()).extracting(event -> event.type().name())
-            .contains("RUN_STARTED", "RUN_CANCELLED");
+            .contains("RUN_STARTED", "RUN_COMPLETED");
         assertThat(runStore.find("run-timeout-1")).isPresent();
-        assertThat(runStore.find("run-timeout-1").orElseThrow().status()).isEqualTo(AgentRunStatus.CANCELLED);
+        assertThat(runStore.find("run-timeout-1").orElseThrow().status()).isEqualTo(AgentRunStatus.COMPLETED);
     }
 
     @Test
-    void executeRuntimeRequestKeepsDisplayableReportProducedAtDeadline() {
+    void executeRuntimeRequestDoesNotAcceptReportProducedAfterDeadline() {
         String report = """
             # 持仓分析报告
 
@@ -3656,11 +3659,58 @@ class AgentOrchestratorTest {
             .build());
 
         assertThat(result.status()).isEqualTo(AgentRunStatus.COMPLETED);
-        assertThat(result.answer()).contains("持仓分析报告", "600839");
-        assertThat(result.stopReason()).isEqualTo("answer_completed_after_cancellation");
+        assertThat(result.answer()).isEmpty();
+        assertThat(result.stopReason()).isEqualTo("time_budget_exhausted");
         assertThat(result.metadata())
-            .containsEntry("answerCompletedAfterCancellation", true)
-            .containsEntry("resultRecoveredAtDeadline", true);
+            .containsEntry("publicStatus", "TIME_BUDGET_EXHAUSTED")
+            .containsEntry("answerStatus", "EMPTY");
+    }
+
+    @Test
+    void executeRuntimeRequestPreservesToolEvidenceWhenFinalSynthesisExceedsDeadline() {
+        String toolName = "deadline_evidence_tool";
+        ChatModel chatModel = new SlowFinalSynthesisChatModel(
+            interpretationPlan("Summarize preserved evidence.", toolName));
+        InMemoryAgentRunStore runStore = new InMemoryAgentRunStore();
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.hasTool(toolName)).thenReturn(true);
+        when(registry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName).title("Deadline evidence tool").description("Returns durable evidence")
+            .riskLevel("low").build());
+        when(registry.executeEnhancedTool(eq(toolName), any())).thenReturn(
+            ToolOutput.success(Map.of("evidence", "durable-result")));
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            chatModel,
+            registry,
+            new ToolRuntimeService(
+                registry, new ObjectMapper(), toolRuntimeProperties(), List.of(), List.of()),
+            new ObjectMapper(),
+            new ModelsConfig(),
+            new EvidenceTrustEvaluator(),
+            runStore
+        );
+
+        AgentRunResult result = orchestrator.execute(AgentRunRequest.builder()
+            .runId("run-timeout-with-evidence-1")
+            .query("Collect evidence before the deadline")
+            .tenantId("tenant-1")
+            .availableTools(List.of(toolName))
+            .requestId("req-timeout-with-evidence-1")
+            .timeoutMs(5_000L)
+            .build());
+
+        assertThat(result.status()).isEqualTo(AgentRunStatus.COMPLETED);
+        assertThat(result.stopReason()).isEqualTo("time_budget_exhausted");
+        assertThat(result.answer()).contains("证据和检查点均已保留");
+        assertThat(result.observations()).anySatisfy(observation -> {
+            assertThat(observation.type()).isEqualTo("tool");
+            assertThat(observation.source()).isEqualTo(toolName);
+        });
+        assertThat(result.metadata())
+            .containsEntry("completedEvidencePreservedAfterTimeout", true)
+            .containsEntry("answerStatus", "PARTIAL");
+        assertThat(((Number) result.metadata().get("preservedCheckpointCount")).longValue())
+            .isGreaterThan(0L);
     }
 
     @Test
@@ -4412,11 +4462,9 @@ class AgentOrchestratorTest {
             .extracting(InteractionToolTrace::getToolName)
             .containsExactly(firstTool, secondTool);
         assertThat(result.metadata())
-            .containsEntry("authoritativeRuntimeFallbackAfterInvalidPlan", true)
-            .containsEntry("authoritativeRuntimeFallbackStep", 1)
-            .containsEntry("mandatoryWorkflowRecoveredAfterPlan", true);
-        assertThat((List<String>) result.metadata().get("authoritativeWorkflowCandidateInputTools"))
-            .containsExactlyInAnyOrder(firstTool, secondTool);
+            .containsEntry("interpretationPlanDagStored", true)
+            .containsEntry("mandatoryWorkflowCompleted", true)
+            .doesNotContainKey("authoritativeRuntimeFallbackAfterInvalidPlan");
         assertThat(executionInputs.get(firstTool)).containsEntry("semanticScope", "oracle-dev");
         assertThat(executionInputs.get(secondTool)).containsEntry("analysisMode", "health");
         assertThat(chatModel.messages().stream()
@@ -4450,12 +4498,12 @@ class AgentOrchestratorTest {
               ],"dependency_contracts":[],"edge_contracts":[],"bindings":[]},
               "execution_policy":{"max_steps":3,"allow_parallel":false,
                 "allow_tool":["mcp_chatchat_mcp_server_database_asset_search","mcp_chatchat_mcp_server_database_ops_template_search"],
-                "deny_tool":[]},
+                "deny_tool":[],"max_rewrite_times":0},
               "review":{"self_check":{"completeness_score":0.4,"hallucination_risk":0.1,
                 "tool_sufficiency":false,"missing_steps":["template discovery"]},"fallback_plan":[]}
             }
             """;
-        CapturingQueueChatModel chatModel = new CapturingQueueChatModel(invalidPlan);
+        StrictDocumentReviewChatModel chatModel = new StrictDocumentReviewChatModel(invalidPlan);
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         for (String tool : List.of(assetTool, templateTool)) {
             when(toolRegistry.hasTool(tool)).thenReturn(true);
@@ -4498,14 +4546,11 @@ class AgentOrchestratorTest {
         assertThat(result.toolTraces()).extracting(InteractionToolTrace::getToolName)
             .containsExactly(assetTool);
         verify(toolRegistry, never()).executeEnhancedTool(eq(templateTool), any());
-        assertThat((List<Map<String, Object>>) result.metadata().get("mandatoryWorkflowResultReviews"))
-            .anySatisfy(review -> assertThat(review)
-                .containsEntry("resultCode", "NO_MATCHING_ASSET")
-                .containsEntry("satisfied", false));
         assertThat(result.metadata())
-            .containsEntry("mandatoryWorkflowStoppedOnFailure", assetTool);
-        assertThat((List<String>) result.metadata().get("authoritativeWorkflowCandidateInputTools"))
-            .containsExactlyInAnyOrder(assetTool, templateTool);
+            .containsEntry("mandatoryWorkflowCompleted", false)
+            .containsEntry("errorCode", "MANDATORY_TOOL_NOT_SCHEDULED");
+        assertThat((List<String>) result.metadata().get("unattemptedMandatoryTools"))
+            .containsExactly(templateTool);
     }
 
     @Test
@@ -4730,8 +4775,8 @@ class AgentOrchestratorTest {
         );
 
         assertThat(result.answer())
-            .contains("mandatory_fetch_alert_template, mandatory_query_execute")
-            .contains("未执行到终态")
+            .contains("mandatory_fetch_alert_template 已执行并失败")
+            .contains("mandatory_query_execute 尚未调度或因前置依赖失败而跳过")
             .doesNotContain("This answer must not be used");
         assertThat(result.toolTraces())
             .extracting(InteractionToolTrace::getToolName)
@@ -4740,10 +4785,29 @@ class AgentOrchestratorTest {
             .containsEntry("fatalExecutionBlocked", true)
             .containsEntry("mandatoryWorkflowBlocked", true)
             .containsEntry("mandatoryWorkflowCompleted", false)
-            .containsEntry("errorCode", "PLAN_INVALID_REQUIRED_TOOL_NOT_EXECUTED")
+            .containsEntry("errorCode", "MANDATORY_TOOL_EXECUTION_FAILED")
             .containsEntry("stopReason", "mandatory_workflow_incomplete");
         assertThat((List<String>) result.metadata().get("missingMandatoryTools"))
             .containsExactly(templateSearch, sqlExecute);
+        assertThat((List<String>) result.metadata().get("failedMandatoryTools"))
+            .containsExactly(templateSearch);
+        assertThat((List<String>) result.metadata().get("terminalMandatoryTools"))
+            .containsExactly(templateSearch);
+        assertThat((List<String>) result.metadata().get("unattemptedMandatoryTools"))
+            .containsExactly(sqlExecute);
+        assertThat((Map<String, Object>) result.metadata().get("mandatoryToolStates"))
+            .containsEntry(templateSearch, Map.of(
+                "attempted", true,
+                "terminal", true,
+                "successful", false,
+                "evidenceAccepted", false
+            ))
+            .containsEntry(sqlExecute, Map.of(
+                "attempted", false,
+                "terminal", false,
+                "successful", false,
+                "evidenceAccepted", false
+            ));
         verify(toolRegistry, never()).executeEnhancedTool(eq(sqlExecute), any());
     }
 
@@ -5160,6 +5224,34 @@ class AgentOrchestratorTest {
                 Thread.currentThread().interrupt();
             }
             return response;
+        }
+    }
+
+    private static final class SlowFinalSynthesisChatModel implements ChatModel {
+        private final String plan;
+
+        private SlowFinalSynthesisChatModel(String plan) {
+            this.plan = plan;
+        }
+
+        @Override
+        public String chat(String message) {
+            assertThat(message).isNotBlank();
+            if (message.contains("runtime reviewer for one completed MCP tool call")) {
+                return "{\"satisfied\":true,\"reason\":\"evidence accepted\",\"confidence\":1.0}";
+            }
+            if (message.contains("final step-by-step answer synthesizer")) {
+                try {
+                    Thread.sleep(15_000L);
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                }
+                return "late synthesis must not replace preserved evidence";
+            }
+            if (message.contains("final answer quality reviewer")) {
+                return "{\"accepted\":true,\"feedback\":\"grounded\",\"revisedAnswer\":\"\"}";
+            }
+            return plan;
         }
     }
 }

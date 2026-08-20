@@ -30,6 +30,138 @@ import static org.mockito.Mockito.when;
 class ToolRuntimeServiceTest {
 
     @Test
+    void runtimeCompilesPublishedToolContractForEveryExecutionPath() {
+        String toolName = "mcp_dynamic_metadata_search";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName)
+            .title("Dynamic metadata search")
+            .categories(List.of("mcp"))
+            .metadata(Map.of("inputSchema", Map.of(
+                "type", "object",
+                "properties", Map.of(
+                    "query", Map.of("type", "string"),
+                    "queryTerms", Map.of(
+                        "type", "array",
+                        "items", Map.of("type", "string"),
+                        "aliases", List.of("keywords")
+                    ),
+                    "limit", Map.of("type", "integer")
+                ),
+                "additionalProperties", false
+            )))
+            .build());
+        AtomicReference<ToolInput> capturedInput = new AtomicReference<>();
+        when(registry.executeEnhancedTool(eq(toolName), any())).thenAnswer(invocation -> {
+            capturedInput.set(invocation.getArgument(1));
+            return ToolOutput.success(Map.of("results", List.of()));
+        });
+        ToolRuntimeService service = new ToolRuntimeService(
+            registry, new ObjectMapper(), properties(), List.of(), List.of());
+        try {
+            ToolRuntimeExecution execution = service.execute(ToolRuntimeRequest.builder()
+                .toolName(toolName)
+                .runtimeMode("agent_chat")
+                .requestId("contract-compile-1")
+                .conversationId("conversation-1")
+                .tenantId("tenant-1")
+                .userId("user-1")
+                .allowedTools(List.of(toolName))
+                .toolInput(ToolInput.builder().parameters(Map.of(
+                    "filters", Map.of(
+                        "query", "discover metadata",
+                        "keywords", List.of("position", "market value")
+                    ),
+                    "limit", "100"
+                )).build())
+                .build());
+
+            assertThat(execution.output().isSuccess()).isTrue();
+            assertThat(capturedInput.get().getParameters())
+                .containsEntry("query", "discover metadata")
+                .containsEntry("queryTerms", List.of("position", "market value"))
+                .containsEntry("limit", 100)
+                .doesNotContainKey("filters");
+            assertThat(capturedInput.get().getContext())
+                .containsKey("runtimeToolArgumentRepairs");
+        } finally {
+            service.shutdown();
+        }
+    }
+
+    @Test
+    void runtimeRepairsStructuredInputContractFailureExactlyOnce() {
+            String toolName = "mcp_dynamic_contract_search";
+            ToolRegistry registry = mock(ToolRegistry.class);
+            when(registry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+                .id(toolName)
+                .title("Dynamic contract search")
+                .categories(List.of("mcp"))
+                .metadata(Map.of("inputSchema", Map.of(
+                    "type", "object",
+                    "properties", Map.of(
+                        "query", Map.of("type", "string"),
+                        "queryTerms", Map.of(
+                            "type", "array",
+                            "items", Map.of("type", "string"),
+                            "aliases", List.of("keywords")
+                        )
+                    ),
+                    "additionalProperties", false
+                )))
+                .build());
+            AtomicReference<ToolInput> secondInput = new AtomicReference<>();
+            java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
+            when(registry.executeEnhancedTool(eq(toolName), any())).thenAnswer(invocation -> {
+                int call = calls.incrementAndGet();
+                if (call == 1) {
+                    ToolOutput failure = ToolOutput.failure("Input contract rejected");
+                    failure.setExceptionType("MCP_TOOL_ERROR");
+                    failure.setData(Map.of(
+                        "category", "INPUT_CONTRACT_ERROR",
+                        "errorCode", "METADATA_INPUT_REQUIRED"
+                    ));
+                    failure.setMetadata(new LinkedHashMap<>(Map.of("retryable", false)));
+                    return failure;
+                }
+                secondInput.set(invocation.getArgument(1));
+                return ToolOutput.success(Map.of("results", List.of()));
+            });
+            ToolRuntimeProperties runtimeProperties = properties();
+            runtimeProperties.setDefaultRetryAttempts(0);
+            ToolRuntimeService service = new ToolRuntimeService(
+                registry, new ObjectMapper(), runtimeProperties, List.of(), List.of());
+            try {
+                ToolRuntimeExecution execution = service.execute(ToolRuntimeRequest.builder()
+                    .toolName(toolName)
+                    .runtimeMode("agent_chat")
+                    .requestId("contract-repair-1")
+                    .conversationId("conversation-1")
+                    .tenantId("tenant-1")
+                    .userId("user-1")
+                    .allowedTools(List.of(toolName))
+                    .toolInput(ToolInput.builder().parameters(Map.of(
+                        "filters", Map.of(
+                            "query", "discover metadata",
+                            "keywords", List.of("position")
+                        )
+                    )).build())
+                    .build());
+
+                assertThat(execution.output().isSuccess()).isTrue();
+                assertThat(calls).hasValue(2);
+                assertThat(secondInput.get().getParameters())
+                    .containsEntry("query", "discover metadata")
+                    .containsEntry("queryTerms", List.of("position"))
+                    .doesNotContainKey("filters");
+                assertThat(secondInput.get().getContext())
+                    .containsKey("runtimeContractRepair");
+            } finally {
+                service.shutdown();
+        }
+    }
+
+    @Test
     void runtimeAppliesConfiguredRequiredParameterWhenDeclaredByToolSchema() {
         String toolName = "mcp_dynamic_service_search";
         ToolRegistry registry = mock(ToolRegistry.class);
@@ -68,6 +200,50 @@ class ToolRuntimeServiceTest {
             assertThat(execution.output().getMetadata().get("mcpEvidenceResult").toString())
                 .contains("tenantId=tenant-1", "requestId=required-parameter-1")
                 .contains("crossTenantMergeAllowed=false");
+        } finally {
+            service.shutdown();
+        }
+    }
+
+    @Test
+    void runtimeInjectsRequiredParameterBeforePublishedContractValidation() {
+        String toolName = "mcp_runtime_governed_search";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName).title("Governed search").categories(List.of("mcp"))
+            .parameters(List.of(ToolParameter.builder()
+                .name("strict_mode").type("boolean").required(true).build()))
+            .metadata(Map.of("inputSchema", Map.of(
+                "type", "object",
+                "properties", Map.of(
+                    "query", Map.of("type", "string"),
+                    "strict_mode", Map.of("type", "boolean")
+                ),
+                "required", List.of("query", "strict_mode"),
+                "additionalProperties", false
+            )))
+            .build());
+        AtomicReference<ToolInput> capturedInput = new AtomicReference<>();
+        when(registry.executeEnhancedTool(eq(toolName), any())).thenAnswer(invocation -> {
+            capturedInput.set(invocation.getArgument(1));
+            return ToolOutput.success(Map.of("results", List.of()));
+        });
+        ToolRuntimeService service = new ToolRuntimeService(
+            registry, new ObjectMapper(), properties(), List.of(), List.of());
+        try {
+            ToolRuntimeExecution execution = service.execute(ToolRuntimeRequest.builder()
+                .toolName(toolName).runtimeMode("agent_chat").requestId("runtime-injection-1")
+                .conversationId("conversation-1").tenantId("tenant-1").userId("user-1")
+                .allowedTools(List.of(toolName))
+                .attributes(Map.of("requiredToolParameters", Map.of(
+                    toolName, Map.of("strict_mode", true))))
+                .toolInput(ToolInput.builder().parameters(Map.of("query", "governed query")).build())
+                .build());
+
+            assertThat(execution.output().isSuccess()).isTrue();
+            assertThat(capturedInput.get().getParameters())
+                .containsEntry("query", "governed query")
+                .containsEntry("strict_mode", true);
         } finally {
             service.shutdown();
         }
@@ -330,8 +506,8 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
-    void diagnosticAndToolTimeoutDefaultsAreThirtyMinutes() {
-        assertThat(AgentRunRequest.DEFAULT_TIMEOUT_MS).isEqualTo(1_800_000L);
+    void diagnosticHasNoImplicitDeadlineWhileToolTimeoutRemainsBounded() {
+        assertThat(AgentRunRequest.DEFAULT_TIMEOUT_MS).isZero();
         assertThat(new ToolRuntimeProperties().safeDefaultToolTimeoutMs()).isEqualTo(1_800_000L);
     }
 

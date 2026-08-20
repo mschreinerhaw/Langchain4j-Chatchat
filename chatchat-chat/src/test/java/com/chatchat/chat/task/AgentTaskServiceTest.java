@@ -321,7 +321,7 @@ class AgentTaskServiceTest {
     }
 
     @Test
-    void taskRuntimeAttributesContainConfiguredExecutionTimeout() throws Exception {
+    void taskRuntimeAttributesDoNotImposeConfiguredExecutionTimeout() throws Exception {
         AgentTaskProperties properties = new AgentTaskProperties();
         properties.setExecutionTimeoutMs(123_456);
         AgentTaskService service = new AgentTaskService(
@@ -349,7 +349,7 @@ class AgentTaskServiceTest {
         assertThat(request.getToolInput())
             .containsEntry("__agentTaskId", "task-timeout")
             .containsEntry("__agentRunId", "task-timeout")
-            .containsEntry("__agentTimeoutMs", 123_456L);
+            .doesNotContainKey("__agentTimeoutMs");
     }
 
     @Test

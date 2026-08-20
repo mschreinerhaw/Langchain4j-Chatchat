@@ -15,6 +15,7 @@ import com.chatchat.agents.runtime.ToolRuntimeService;
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.chatchat.agents.runtime.toolcall.ContextualToolArgumentResolver;
 import com.chatchat.agents.runtime.toolcall.ToolArgumentCompiler;
+import com.chatchat.agents.runtime.toolcall.ToolInputSchemaResolver;
 import com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge;
 import com.chatchat.agents.protocol.AgentProtocolCatalog;
 import com.chatchat.agents.routing.McpToolRouter;
@@ -22,7 +23,6 @@ import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolMetadata;
-import com.chatchat.common.tool.ToolParameter;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -91,6 +91,7 @@ public class InterpretationPlanRuntime {
     );
     private static final ObjectMapper RESULT_OBJECT_MAPPER = new ObjectMapper();
     private static final ToolArgumentCompiler TOOL_ARGUMENT_COMPILER = new ToolArgumentCompiler();
+    private static final ToolInputSchemaResolver TOOL_INPUT_SCHEMA_RESOLVER = new ToolInputSchemaResolver();
     private static final String RUNTIME_WORKER_ID = "worker-" + UUID.randomUUID();
     private static final long DEFAULT_NODE_LEASE_MS = 30_000L;
     private static final ScheduledExecutorService LEASE_HEARTBEATS = Executors.newScheduledThreadPool(1, runnable -> {
@@ -4597,10 +4598,7 @@ public class InterpretationPlanRuntime {
         if (metadata == null) {
             return;
         }
-        Map<String, Object> schema = publishedInputSchema(metadata);
-        if (schema.isEmpty()) {
-            schema = inputSchemaFromParameters(metadata.getParameters());
-        }
+        Map<String, Object> schema = TOOL_INPUT_SCHEMA_RESOLVER.resolve(metadata);
         if (schema.isEmpty()) {
             return;
         }
@@ -4718,51 +4716,6 @@ public class InterpretationPlanRuntime {
             }
         }
         return List.copyOf(promoted);
-    }
-
-    private Map<String, Object> publishedInputSchema(ToolMetadata metadata) {
-        if (metadata == null || metadata.getMetadata() == null) {
-            return Map.of();
-        }
-        Map<String, Object> schema = asStringMap(metadata.getMetadata().get("inputSchema"));
-        return schema.get("properties") instanceof Map<?, ?> ? schema : Map.of();
-    }
-
-    private Map<String, Object> inputSchemaFromParameters(List<ToolParameter> parameters) {
-        if (parameters == null || parameters.isEmpty()) {
-            return Map.of();
-        }
-        Map<String, Object> properties = new LinkedHashMap<>();
-        List<String> required = new ArrayList<>();
-        for (ToolParameter parameter : parameters) {
-            if (parameter == null || parameter.getName() == null || parameter.getName().isBlank()) {
-                continue;
-            }
-            Map<String, Object> property = new LinkedHashMap<>();
-            property.put("type", parameter.getType() == null ? "string" : parameter.getType());
-            if (parameter.getDefaultValue() != null) {
-                property.put("default", parameter.getDefaultValue());
-            }
-            if (parameter.getEnumValues() != null && parameter.getEnumValues().length > 0) {
-                property.put("enum", List.of(parameter.getEnumValues()));
-            }
-            if (parameter.getMetadata() != null) {
-                copyIfPresent(parameter.getMetadata(), property, "format", "aliases", "acceptedSources");
-            }
-            properties.put(parameter.getName(), property);
-            if (parameter.isRequired()) {
-                required.add(parameter.getName());
-            }
-        }
-        if (properties.isEmpty()) {
-            return Map.of();
-        }
-        return Map.of(
-            "type", "object",
-            "properties", properties,
-            "required", required,
-            "additionalProperties", false
-        );
     }
 
     private void copyIfPresent(Map<String, Object> source, Map<String, Object> target, String... keys) {

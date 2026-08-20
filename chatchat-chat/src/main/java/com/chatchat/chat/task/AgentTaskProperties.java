@@ -19,7 +19,8 @@ public class AgentTaskProperties {
     private int feedbackQueueCapacity = 1000;
     private int maxConcurrentTasksPerTenant = 4;
     private int keepAliveSeconds = 60;
-    private long executionTimeoutMs = 3_600_000;
+    /** Legacy compatibility setting; Agent tasks do not impose an implicit Runtime deadline. */
+    private long executionTimeoutMs = 0L;
     private int listLimit = 50;
     private int recoveryBatchSize = 200;
     private int confirmationWaitSeconds = 600;

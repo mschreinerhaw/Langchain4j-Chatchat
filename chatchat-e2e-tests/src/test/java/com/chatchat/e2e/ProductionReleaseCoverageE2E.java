@@ -108,6 +108,7 @@ class ProductionReleaseCoverageE2E {
                 .filter(Files::isRegularFile)
                 .filter(path -> path.toString().contains("src" + java.io.File.separator + "main"))
                 .filter(path -> !path.toString().contains(java.io.File.separator + "target" + java.io.File.separator))
+                .filter(this::isTextSource)
                 .filter(path -> {
                     try {
                         return Files.readString(path).contains(forbiddenNamespace);
@@ -133,6 +134,16 @@ class ProductionReleaseCoverageE2E {
                 .toList();
             assertThat(maintainedSampleTemplateViolations).isEmpty();
         }
+    }
+
+    private boolean isTextSource(Path path) {
+        String name = path == null || path.getFileName() == null
+            ? ""
+            : path.getFileName().toString().toLowerCase(java.util.Locale.ROOT);
+        return List.of(
+            ".java", ".js", ".ts", ".vue", ".css", ".html", ".xml",
+            ".yml", ".yaml", ".properties", ".json", ".md", ".sql"
+        ).stream().anyMatch(name::endsWith);
     }
 
     @Test

@@ -352,6 +352,53 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 runtimeAttributesFor(request)
             );
             AgentRunResult runtimeResult = runResultAdapter.toAgentRunResult(run.runId(), result);
+            if (runtimeResult.status() == AgentRunStatus.RUNNING) {
+                AgentRun current = runStore.find(run.runId()).orElse(run);
+                return runtimeResult.withStatusAndEvents(current.status(), current.events());
+            }
+            AgentRun completed = runStore.complete(run.runId(), runtimeResult);
+            return runtimeResult.withStatusAndEvents(completed.status(), completed.events());
+        } catch (AgentDeadlineExceededException ex) {
+            AgentRun current = runStore.find(run.runId()).orElse(run);
+            List<com.chatchat.agents.runtime.AgentObservation> preservedObservations =
+                runStore.observations(run.runId());
+            List<com.chatchat.agents.runtime.plan.PlanStepCheckpoint> preservedCheckpoints =
+                runStore.planStepCheckpoints(run.runId());
+            long evidenceObservationCount = preservedObservations.stream()
+                .filter(this::isEvidenceObservation)
+                .count();
+            boolean hasPreservedEvidence = evidenceObservationCount > 0
+                || !preservedCheckpoints.isEmpty();
+            String answer = hasPreservedEvidence
+                ? "执行时间预算已耗尽；已完成步骤的证据和检查点均已保留，可从最近一致检查点继续执行。"
+                : "";
+            List<String> observationTexts = preservedObservations.stream()
+                .map(com.chatchat.agents.runtime.AgentObservation::content)
+                .filter(Objects::nonNull)
+                .filter(content -> !content.isBlank())
+                .toList();
+            Map<String, Object> deadlineMetadata = new LinkedHashMap<>();
+            deadlineMetadata.put("stopReason", "time_budget_exhausted");
+            deadlineMetadata.put("errorCode", "TIME_BUDGET_EXHAUSTED");
+            deadlineMetadata.put("errorMessage", ex.getMessage());
+            deadlineMetadata.put("completedEvidencePreservedAfterTimeout", hasPreservedEvidence);
+            deadlineMetadata.put("preservedObservationCount", evidenceObservationCount);
+            deadlineMetadata.put("preservedCheckpointCount", preservedCheckpoints.size());
+            deadlineMetadata.put("observations", observationTexts);
+            Map<String, Object> metadata = new com.chatchat.agents.runtime.AgentOutcomeProjection().enrich(
+                deadlineMetadata,
+                answer
+            );
+            AgentRunResult runtimeResult = AgentRunResult.builder()
+                .runId(run.runId())
+                .status(AgentRunStatus.COMPLETED)
+                .answer(answer)
+                .stopReason("time_budget_exhausted")
+                .errorMessage(ex.getMessage())
+                .steps(current.steps())
+                .observations(preservedObservations)
+                .metadata(metadata)
+                .build();
             AgentRun completed = runStore.complete(run.runId(), runtimeResult);
             return runtimeResult.withStatusAndEvents(completed.status(), completed.events());
         } catch (CancellationException ex) {
@@ -363,6 +410,17 @@ public class AgentOrchestrator implements AgentRunExecutor {
             AgentRun failed = runStore.fail(run.runId(), ex);
             return failedAgentRunResult(failed);
         }
+    }
+
+    private boolean isEvidenceObservation(com.chatchat.agents.runtime.AgentObservation observation) {
+        if (observation == null || observation.type() == null) {
+            return false;
+        }
+        String type = observation.type().trim().toLowerCase(Locale.ROOT);
+        return "tool".equals(type)
+            || "tool_failure".equals(type)
+            || "batch".equals(type)
+            || "batch_tool".equals(type);
     }
 
     private AgentRunResult cancelledAgentRunResult(AgentRun run) {
@@ -557,6 +615,10 @@ public class AgentOrchestrator implements AgentRunExecutor {
         ChatModel activeChatModel = chatModelResolver.resolveChatModel(modelName);
         requestRuntimeAttributes.putIfAbsent("checkpointModelConfig",
             chatModelResolver.checkpointModelConfiguration(modelName, activeChatModel));
+        activeChatModel = new DeadlineAwareChatModel(
+            activeChatModel,
+            () -> runtimeGuard.remainingTimeMs(requestRuntimeAttributes)
+        );
         List<InteractionToolTrace> traces = new ArrayList<>();
         List<String> observations = runResultAdapter.runtimeObservationList(stringValue(requestRuntimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE)));
         Map<String, Object> metadata = new LinkedHashMap<>();
@@ -685,6 +747,13 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 requestRuntimeAttributes
             );
             AgentDecision decision = plannerResult.decision();
+            if (decision.interpretationPlan() != null
+                && decision.interpretationPlan().executionPolicy() != null) {
+                metadata.put("modelDeclaredLatencyBudgetMs",
+                    decision.interpretationPlan().executionPolicy().latencyBudgetMs());
+                metadata.put("modelDeclaredLatencyBudgetAdvisory", true);
+                metadata.put("remainingTimeMs", runtimeGuard.remainingTimeMs(requestRuntimeAttributes));
+            }
             metadata.put("taskContract", plannerResult.taskContract());
             metadata.put("taskContractVersion", plannerResult.taskContract().contractVersion());
             metadata.put("taskType", plannerResult.taskContract().taskType());
@@ -1876,7 +1945,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
         } catch (CancellationException ex) {
             String message = firstNonBlank(ex.getMessage(), "");
             if (!hasBatchExecutionResult(result)
-                || !message.toLowerCase(Locale.ROOT).contains("timed out")) {
+                || (!(ex instanceof AgentDeadlineExceededException)
+                    && !message.toLowerCase(Locale.ROOT).contains("timed out"))) {
                 throw ex;
             }
             metadata.put("stopReason", "time_budget_exhausted");
@@ -1941,16 +2011,51 @@ public class AgentOrchestrator implements AgentRunExecutor {
         metadata.put("stopReason", stopReason);
         metadata.put("mandatoryWorkflowBlocked", true);
         metadata.put("fatalExecutionBlocked", true);
-        metadata.put("errorCode", "PLAN_INVALID_REQUIRED_TOOL_NOT_EXECUTED");
-        metadata.put("errorMessage", "PLAN_INVALID_REQUIRED_TOOL_NOT_EXECUTED: " + reason
-            + " Missing mandatory tools: " + missingMandatoryTools);
+        List<String> failedMandatoryTools = missingMandatoryTools.stream()
+            .filter(tool -> workflowTools.hasToolTrace(traces, tool))
+            .toList();
+        List<String> pendingMandatoryTools = missingMandatoryTools.stream()
+            .filter(tool -> !workflowTools.hasToolTrace(traces, tool))
+            .filter(tool -> workflowTools.hasAnyToolTrace(traces, tool))
+            .toList();
+        List<String> unattemptedMandatoryTools = missingMandatoryTools.stream()
+            .filter(tool -> !workflowTools.hasAnyToolTrace(traces, tool))
+            .toList();
+        String workflowErrorCode = !failedMandatoryTools.isEmpty()
+            ? "MANDATORY_TOOL_EXECUTION_FAILED"
+            : (!pendingMandatoryTools.isEmpty()
+                ? "MANDATORY_TOOL_CONFIRMATION_PENDING"
+                : "MANDATORY_TOOL_NOT_SCHEDULED");
+        metadata.put("errorCode", workflowErrorCode);
+        metadata.put("errorMessage", workflowErrorCode + ": " + reason
+            + " Unsuccessful mandatory tools: " + missingMandatoryTools);
         metadata.put("missingMandatoryTools", missingMandatoryTools);
+        metadata.put("failedMandatoryTools", failedMandatoryTools);
+        metadata.put("pendingMandatoryTools", pendingMandatoryTools);
+        metadata.put("unattemptedMandatoryTools", unattemptedMandatoryTools);
+        metadata.put("terminalMandatoryTools", failedMandatoryTools);
+        Map<String, Object> mandatoryToolStates = new LinkedHashMap<>();
+        for (String tool : mandatoryTools) {
+            boolean successful = workflowTools.missingMandatoryTools(List.of(tool), completedTools).isEmpty();
+            boolean failed = failedMandatoryTools.contains(tool);
+            boolean pending = pendingMandatoryTools.contains(tool);
+            mandatoryToolStates.put(tool, Map.of(
+                "attempted", successful || failed || pending,
+                "terminal", successful || failed,
+                "successful", successful,
+                "evidenceAccepted", successful
+            ));
+        }
+        boolean mandatoryWorkflowTerminal = pendingMandatoryTools.isEmpty()
+            && unattemptedMandatoryTools.isEmpty();
+        metadata.put("mandatoryToolStates", mandatoryToolStates);
+        metadata.put("mandatoryWorkflowTerminal", mandatoryWorkflowTerminal);
         metadata.put("mandatoryWorkflowCompleted", false);
-        metadata.put("mandatoryWorkflowPending", true);
-        observations.add(reason + " Missing mandatory tools: " + missingMandatoryTools);
-        observations.add("PLAN_INVALID_REQUIRED_TOOL_NOT_EXECUTED: Required tools were not executed to a terminal observation. Missing tools: "
-            + String.join(", ", missingMandatoryTools)
-            + ".");
+        metadata.put("mandatoryWorkflowPending", !mandatoryWorkflowTerminal);
+        observations.add(reason + " Unsuccessful mandatory tools: " + missingMandatoryTools);
+        observations.add(workflowErrorCode + ": failed=" + failedMandatoryTools
+            + ", pending=" + pendingMandatoryTools
+            + ", unattempted=" + unattemptedMandatoryTools + ".");
         metadata.put("failureSummaryRequiresToolCompletionContext", true);
         metadata.put("deterministicMandatoryWorkflowFailure", true);
         String workflowContractError = stringValue(metadata.get("mandatoryWorkflowContractError"));
@@ -1961,10 +2066,20 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 + " 技术原因：" + workflowContractError;
             return answerFinalizer.finishExecution(contractFailure, traces, metadata, observations);
         }
-        String deterministicFailure = "必需工具 "
-            + String.join(", ", missingMandatoryTools)
-            + " 未执行到终态，本次执行被工作流依赖校验阻断。"
-            + " 已完成的工具证据和失败原因均已保留，可在补齐依赖后继续诊断。";
+        List<String> failureParts = new ArrayList<>();
+        if (!failedMandatoryTools.isEmpty()) {
+            failureParts.add("必需工具 " + String.join(", ", failedMandatoryTools) + " 已执行并失败");
+        }
+        if (!pendingMandatoryTools.isEmpty()) {
+            failureParts.add("必需工具 " + String.join(", ", pendingMandatoryTools) + " 正在等待确认");
+        }
+        if (!unattemptedMandatoryTools.isEmpty()) {
+            failureParts.add("必需工具 " + String.join(", ", unattemptedMandatoryTools)
+                + " 尚未调度或因前置依赖失败而跳过");
+        }
+        String deterministicFailure = String.join("；", failureParts)
+            + "。本次工作流未满足必需证据条件。"
+            + " 已完成的工具证据和失败原因均已保留，可在修复失败节点后继续诊断。";
         return answerFinalizer.finishExecution(deterministicFailure, traces, metadata, observations);
     }
 
@@ -2549,6 +2664,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
         try {
             answer = activeChatModel.chat(prompt);
         } catch (RuntimeException ex) {
+            if (ex instanceof AgentDeadlineExceededException deadlineExceeded) {
+                throw deadlineExceeded;
+            }
             metadata.put("interpretationPlanSummaryGenerated", false);
             metadata.put("interpretationPlanSummaryFailure",
                 firstNonBlank(ex.getMessage(), ex.getClass().getSimpleName()));
@@ -4682,8 +4800,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
             ModelProtocolJson.prettyJsonForLog(raw));
         Map<String, Object> payload = parseJsonObject(raw);
         if (payload.isEmpty()) {
-            return InterpretationPlanRuntime.StepReview.rejected(
-                "Tool result review did not return valid JSON.",
+            return InterpretationPlanRuntime.StepReview.accepted(
+                "Tool result reviewer was unavailable; preserving successful tool evidence.",
                 Map.of(
                     "toolResultReviewRaw", preview(raw),
                     "toolResultReviewUnavailable", true
@@ -4692,11 +4810,12 @@ public class AgentOrchestrator implements AgentRunExecutor {
         }
         if (payload.containsKey("error")
             && firstObject(payload, "satisfied", "accepted", "sufficient") == null) {
-            return InterpretationPlanRuntime.StepReview.rejected(
-                "Tool result reviewer was unavailable: " + preview(stringify(payload.get("error"))),
+            return InterpretationPlanRuntime.StepReview.accepted(
+                "Tool result reviewer was unavailable; preserving successful tool evidence.",
                 Map.of(
                     "toolResultReviewRaw", preview(raw),
-                    "toolResultReviewUnavailable", true
+                    "toolResultReviewUnavailable", true,
+                    "toolResultReviewError", preview(stringify(payload.get("error")))
                 )
             );
         }

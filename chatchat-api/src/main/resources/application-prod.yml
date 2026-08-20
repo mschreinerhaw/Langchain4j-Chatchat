@@ -108,7 +108,7 @@ chatchat:
       core-pool-size: 16
       max-pool-size: 16
       max-concurrent-tasks-per-tenant: 4
-      execution-timeout-ms: 3600000
+      execution-timeout-ms: 0
       database-queue-enabled: ${CHATCHAT_AGENT_DATABASE_QUEUE_ENABLED:true}
       database-queue-poll-ms: ${CHATCHAT_AGENT_DATABASE_QUEUE_POLL_MS:250}
       database-quota-reconcile-ms: ${CHATCHAT_AGENT_DATABASE_QUOTA_RECONCILE_MS:30000}

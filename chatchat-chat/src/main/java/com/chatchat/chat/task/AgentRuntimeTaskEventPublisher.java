@@ -157,7 +157,7 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
         payload.put("createdAt", event.createdAt());
         payload.put("payload", runtimePayload);
         if (answer != null && !answer.isBlank()) {
-            payload.put("contractVersion", "ui_response_v1");
+            payload.put("contractVersion", "ui_response_v2");
             payload.put("status", status);
             payload.put("answer", answer);
             payload.put("uiResponse", uiResponse);
@@ -236,7 +236,7 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
             return Map.of();
         }
         Map<String, Object> uiResponse = new LinkedHashMap<>();
-        uiResponse.put("contractVersion", "ui_response_v1");
+        uiResponse.put("contractVersion", "ui_response_v2");
         uiResponse.put("status", firstText(status, "FAILED"));
         uiResponse.put("answer", answer);
         uiResponse.put("citations", List.of());

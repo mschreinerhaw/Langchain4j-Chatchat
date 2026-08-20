@@ -45,6 +45,57 @@ class InterpretationPlanOptimizerTest {
     }
 
     @Test
+    void finalBarrierDependsOnEveryAuthoritativeWorkflowTerminalNode() {
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("workflow", "run configured workflow", "low"),
+            new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", "asset_search", Map.of(), List.of(), null, null),
+                new InterpretationPlan.Step(2, "mcp_tool", "sql_metadata_search", Map.of(), List.of(1), null, null),
+                new InterpretationPlan.Step(3, "mcp_tool", "enterprise_metadata_search", Map.of(), List.of(2), null, null),
+                new InterpretationPlan.Step(4, "final_answer", "", Map.of("answer", "done"), List.of(3), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                4, false, List.of(
+                    "asset_search", "sql_metadata_search", "enterprise_metadata_search"), List.of(), 30000),
+            new InterpretationPlan.Review(
+                new InterpretationPlan.SelfCheck(0.8, 0.1, true, List.of()), List.of())
+        );
+        List<Map<String, Object>> configuredDag = List.of(
+            Map.of("tool", "asset_search", "dependsOnTools", List.of()),
+            Map.of("tool", "sql_metadata_search", "dependsOnTools", List.of("asset_search")),
+            Map.of("tool", "enterprise_metadata_search", "dependsOnTools", List.of())
+        );
+
+        InterpretationPlanOptimizer.OptimizationResult result =
+            new InterpretationPlanOptimizer().optimize(plan, configuredDag);
+
+        InterpretationPlan.Step asset = stepByTool(result.plan(), "asset_search");
+        InterpretationPlan.Step sqlMetadata = stepByTool(result.plan(), "sql_metadata_search");
+        InterpretationPlan.Step enterpriseMetadata = stepByTool(result.plan(), "enterprise_metadata_search");
+        InterpretationPlan.Step finalStep = result.plan().steps().stream()
+            .filter(InterpretationPlan.Step::finalAnswerAction)
+            .findFirst()
+            .orElseThrow();
+        assertThat(sqlMetadata.dependsOn()).containsExactly(asset.id());
+        assertThat(enterpriseMetadata.dependsOn()).isEmpty();
+        assertThat(finalStep.dependsOn()).containsExactlyInAnyOrder(
+            sqlMetadata.id(), enterpriseMetadata.id());
+        assertThat(result.plan().plan().dependencyContracts())
+            .anySatisfy(contract -> {
+                assertThat(contract.from()).isEqualTo(sqlMetadata.id());
+                assertThat(contract.to()).isEqualTo(finalStep.id());
+                assertThat(contract.required()).isTrue();
+            })
+            .anySatisfy(contract -> {
+                assertThat(contract.from()).isEqualTo(enterpriseMetadata.id());
+                assertThat(contract.to()).isEqualTo(finalStep.id());
+                assertThat(contract.required()).isTrue();
+            });
+    }
+
+    @Test
     void repairsMisorderedTemplateExecutionChainAndRemovesModelOwnedTemplateIds() {
         String assetTool = "mcp_chatchat_mcp_server_api_asset_query";
         String templateTool = "mcp_chatchat_mcp_server_api_template_query";
@@ -322,4 +373,3 @@ class InterpretationPlanOptimizerTest {
             .containsEntry("strict_document_scope", true);
     }
 }
-

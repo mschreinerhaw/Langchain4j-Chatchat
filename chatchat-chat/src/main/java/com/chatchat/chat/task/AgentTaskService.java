@@ -1182,9 +1182,6 @@ public class AgentTaskService {
         toolInput.put("__agentTaskId", taskId);
         toolInput.put("__agentRunId", taskId);
         toolInput.put("__agentCancellation", cancellationCheck);
-        if (properties.getExecutionTimeoutMs() > 0) {
-            toolInput.put("__agentTimeoutMs", properties.getExecutionTimeoutMs());
-        }
         request.setToolInput(toolInput);
     }
 
@@ -2367,12 +2364,18 @@ public class AgentTaskService {
         boolean hasObservations = metadataList(response == null ? null : response.getMetadata(), "observations");
         boolean hasArtifact = hasAnswer || hasSources || hasToolOutput || hasObservations;
         String explicitTerminalStatus = explicitExecutionTerminalStatus(response, agentMetadata);
+        String projectedPublicStatus = normalizeStatus(firstTextValue(
+            agentMetadata.get("publicStatus"),
+            valueAt(agentMetadata, "outcomeProjection", "publicStatus")
+        ));
         String status = explicitTerminalStatus != null
             ? explicitTerminalStatus
-            : ((fatalExecutionBlocked || hasFailedToolOutput) && hasArtifact
+            : (TERMINAL_STATUSES.contains(projectedPublicStatus)
+                ? projectedPublicStatus
+                : ((fatalExecutionBlocked || hasFailedToolOutput) && hasArtifact
                 ? "PARTIAL_SUCCESS"
                 : (fatalExecutionBlocked ? "FAILED"
-                    : (hasAnswer ? "SUCCESS" : (hasArtifact ? "PARTIAL" : "NO_PRESENTABLE_RESULT"))));
+                    : (hasAnswer ? "SUCCESS" : (hasArtifact ? "PARTIAL" : "NO_PRESENTABLE_RESULT")))));
         String message = switch (status) {
             case "SUCCESS" -> "Agent task completed";
             case "FAILED" -> "Agent task failed before required tool workflow completed";
@@ -2455,7 +2458,7 @@ public class AgentTaskService {
         flags.put("hasSources", false);
         flags.put("hasArtifact", true);
         UiResponseContract uiResponse = new UiResponseContract(
-            "ui_response_v1",
+            "ui_response_v2",
             "FAILED",
             answer,
             "",
@@ -2514,7 +2517,7 @@ public class AgentTaskService {
         );
         Map<String, Object> visualization = visualization(visualizationSpec, reasoningPayload);
         return new UiResponseContract(
-            "ui_response_v1",
+            "ui_response_v2",
             status,
             firstText(cleanDisplayAnswer(answer), ""),
             reportHtml == null ? "" : reportHtml,

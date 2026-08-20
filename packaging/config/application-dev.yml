@@ -136,7 +136,7 @@ chatchat:
       core-pool-size: 16
       max-pool-size: 16
       max-concurrent-tasks-per-tenant: 4
-      execution-timeout-ms: 3600000
+      execution-timeout-ms: 0
       keep-alive-seconds: 60
       list-limit: 50
       event-store:

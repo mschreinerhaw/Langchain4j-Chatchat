@@ -89,4 +89,26 @@ class EvidenceBasedAssetCandidateEvaluatorTest {
         assertThat(evaluation.applied()).isFalse();
         assertThat(evaluation.selectedCount()).isZero();
     }
+
+    @Test
+    void usesToolDeclaredSelectionWhenReviewerIsUnavailable() {
+        EvidenceBasedAssetCandidateEvaluator.Evaluation evaluation =
+            new EvidenceBasedAssetCandidateEvaluator().evaluate(
+                Map.of(
+                    "queryIr", Map.of("asset", Map.of(
+                        "selected", Map.of("id", "oracle-risk"))),
+                    "assets", List.of(
+                        Map.of("asset", Map.of("id", "oracle-risk")),
+                        Map.of("asset", Map.of("id", "mysql-dev"))
+                    )
+                ),
+                Map.of("toolResultReviewUnavailable", true)
+            );
+
+        assertThat(evaluation.applied()).isTrue();
+        assertThat(evaluation.selectedIds()).containsExactly("oracle-risk");
+        assertThat(evaluation.output().toString())
+            .contains("selectionAuthority=runtime_tool_declared_selection")
+            .doesNotContain("id=mysql-dev");
+    }
 }

@@ -229,6 +229,13 @@ class ProductionMcpDiagnosticRequestContinuityE2E {
             "success", true,
             "returnedCount", assets.size(),
             "assets", assets,
+            "queryIr", Map.of("asset", Map.of(
+                "selected", Map.of(
+                    "id", assetId,
+                    "name", assetName,
+                    "environment", environment
+                )
+            )),
             "unrelatedLargeMetadata", "x".repeat(30_000)
         );
     }
@@ -261,16 +268,19 @@ class ProductionMcpDiagnosticRequestContinuityE2E {
             "schemaVersion", "template_query_result.v1",
             "success", true,
             "returnedCount", templates.size(),
-            "queryIr", Map.of("asset", Map.of(
-                "scoped", true,
-                "selected", Map.of(
-                    "id", assetId,
-                    "name", assetName,
-                    "title", assetName,
-                    "environment", environment,
-                    "toolName", registeredTransport
-                )
-            )),
+            "queryIr", Map.of(
+                "asset", Map.of(
+                    "scoped", true,
+                    "selected", Map.of(
+                        "id", assetId,
+                        "name", assetName,
+                        "title", assetName,
+                        "environment", environment,
+                        "toolName", registeredTransport
+                    )
+                ),
+                "templates", Map.of("selectedIds", templateIds)
+            ),
             "templates", templates
         );
     }

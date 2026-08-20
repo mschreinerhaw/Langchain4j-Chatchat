@@ -2,6 +2,7 @@ package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.runtime.AgentObservation;
 import com.chatchat.agents.runtime.AgentObservationPipeline;
+import com.chatchat.agents.runtime.AgentOutcomeProjection;
 import com.chatchat.agents.runtime.AgentRunResult;
 import com.chatchat.agents.runtime.AgentRunStatus;
 import com.chatchat.agents.runtime.AgentRunStep;
@@ -20,6 +21,7 @@ class AgentRunResultAdapter {
 
     private final AgentRunStore runStore;
     private final AgentObservationPipeline observationPipeline;
+    private final AgentOutcomeProjection outcomeProjection = new AgentOutcomeProjection();
 
     AgentRunResultAdapter(AgentRunStore runStore, AgentObservationPipeline observationPipeline) {
         this.runStore = runStore;
@@ -27,13 +29,15 @@ class AgentRunResultAdapter {
     }
 
     AgentRunResult toAgentRunResult(String runId, AgentOrchestrator.AgentExecutionResult result) {
-        Map<String, Object> metadata = result == null || result.metadata() == null
+        Map<String, Object> sourceMetadata = result == null || result.metadata() == null
             ? Map.of()
             : new LinkedHashMap<>(result.metadata());
+        String answer = result == null ? "" : result.answer();
+        Map<String, Object> metadata = outcomeProjection.enrich(sourceMetadata, answer);
         return AgentRunResult.builder()
             .runId(runId)
             .status(resolveStatus(metadata))
-            .answer(result == null ? "" : result.answer())
+            .answer(answer)
             .stopReason(stringValue(metadata.get("stopReason")))
             .confirmationRequired(booleanValue(metadata.get("confirmationRequired")))
             .errorMessage(stringValue(metadata.get("errorMessage")))
@@ -46,14 +50,13 @@ class AgentRunResultAdapter {
     }
 
     private AgentRunStatus resolveStatus(Map<String, Object> metadata) {
-        if (booleanValue(metadata == null ? null : metadata.get("confirmationRequired"))) {
-            return AgentRunStatus.WAITING_CONFIRMATION;
-        }
-        if (booleanValue(firstPresent(
-            metadata == null ? null : metadata.get("fatalExecutionBlocked"),
-            metadata == null ? null : metadata.get("mandatoryWorkflowBlocked")
-        ))) {
-            return AgentRunStatus.FAILED;
+        String projected = stringValue(metadata == null ? null : metadata.get("runStatus"));
+        if (projected != null) {
+            try {
+                return AgentRunStatus.valueOf(projected);
+            } catch (IllegalArgumentException ignored) {
+                // Fall through to the stable completed state for unknown future projections.
+            }
         }
         return AgentRunStatus.COMPLETED;
     }

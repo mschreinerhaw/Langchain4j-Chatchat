@@ -10,6 +10,29 @@ import static org.assertj.core.api.Assertions.assertThat;
 class EvidenceBasedTemplateCandidateEvaluatorTest {
 
     @Test
+    void usesToolDeclaredTemplateSelectionWhenReviewerIsUnavailable() {
+        EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
+            new EvidenceBasedTemplateCandidateEvaluator().evaluate(
+                Map.of(
+                    "queryIr", Map.of("templates", Map.of(
+                        "selectedIds", List.of("template-a", "template-b"))),
+                    "templates", List.of(
+                        Map.of("templateId", "template-a"),
+                        Map.of("templateId", "template-b"),
+                        Map.of("templateId", "template-c")
+                    )
+                ),
+                Map.of("toolResultReviewUnavailable", true)
+            );
+
+        assertThat(evaluation.applied()).isTrue();
+        assertThat(evaluation.selectedIds()).containsExactly("template-a", "template-b");
+        assertThat(evaluation.output().toString())
+            .contains("selectionAuthority=runtime_tool_declared_selection")
+            .doesNotContain("templateId=template-c");
+    }
+
+    @Test
     void admitsCandidatesByEvidenceScoreWhenModelDoesNotProvideSelectedIds() {
         EvidenceBasedTemplateCandidateEvaluator evaluator =
             new EvidenceBasedTemplateCandidateEvaluator();

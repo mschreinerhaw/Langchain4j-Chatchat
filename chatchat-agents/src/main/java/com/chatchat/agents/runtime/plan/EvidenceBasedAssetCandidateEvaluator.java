@@ -20,7 +20,16 @@ public final class EvidenceBasedAssetCandidateEvaluator {
         boolean reviewerUnavailable = reviewMetadata != null
             && (Boolean.TRUE.equals(reviewMetadata.get("toolResultReviewUnavailable"))
             || Boolean.TRUE.equals(reviewMetadata.get("toolResultReviewSkipped")));
-        Projection projection = project(output, selected, rejected, evaluations, reviewerUnavailable, 0);
+        List<String> toolDeclaredSelection = reviewerUnavailable && selected.isEmpty()
+            ? declaredSelection(output)
+            : List.of();
+        boolean toolSelectionApplied = !toolDeclaredSelection.isEmpty();
+        if (toolSelectionApplied) {
+            selected = toolDeclaredSelection;
+        }
+        Projection projection = project(
+            output, selected, rejected, evaluations,
+            reviewerUnavailable && !toolSelectionApplied, toolSelectionApplied, 0);
         if (!projection.applied()) {
             return new Evaluation(output, 0, 0, List.of(), evaluations, false,
                 "No evidence-reviewed asset selection could be projected onto the authorized candidate set.");
@@ -34,6 +43,7 @@ public final class EvidenceBasedAssetCandidateEvaluator {
     private Projection project(Object output, List<String> selectedIds, List<String> rejectedIds,
                                List<Map<String, Object>> evaluations,
                                boolean reviewerUnavailable,
+                               boolean toolSelectionApplied,
                                int depth) {
         if (!(output instanceof Map<?, ?> raw) || depth > 7) return Projection.none(output);
         Map<String, Object> map = new LinkedHashMap<>((Map<String, Object>) raw);
@@ -64,7 +74,9 @@ public final class EvidenceBasedAssetCandidateEvaluator {
                 "selectedAssetIds", ids,
                 "rejectedAssetIds", rejectedIds,
                 "candidateEvaluations", evaluations,
-                "selectionAuthority", admission.authority(),
+                "selectionAuthority", toolSelectionApplied
+                    ? "runtime_tool_declared_selection"
+                    : admission.authority(),
                 "candidateIsObservation", false
             ));
             return new Projection(map, assets.size(), ids, true);
@@ -72,13 +84,37 @@ public final class EvidenceBasedAssetCandidateEvaluator {
         for (String key : List.of("structuredContent", "structured_content", "data", "result", "payload",
             "body", "output", "routingProjection")) {
             Projection nested = project(
-                map.get(key), selectedIds, rejectedIds, evaluations, reviewerUnavailable, depth + 1);
+                map.get(key), selectedIds, rejectedIds, evaluations,
+                reviewerUnavailable, toolSelectionApplied, depth + 1);
             if (nested.applied()) {
                 map.put(key, nested.output());
                 return new Projection(map, nested.candidateCount(), nested.selectedIds(), true);
             }
         }
         return Projection.none(output);
+    }
+
+    private List<String> declaredSelection(Object output) {
+        if (!(output instanceof Map<?, ?> raw)) {
+            return List.of();
+        }
+        Map<String, Object> values = cast(raw);
+        Map<String, Object> queryIr = nestedMap(values, "queryIr");
+        if (queryIr.isEmpty()) {
+            queryIr = nestedMap(nestedMap(values, "routingProjection"), "queryIr");
+        }
+        Map<String, Object> selected = nestedMap(nestedMap(queryIr, "asset"), "selected");
+        for (String key : List.of("id", "assetId", "name", "assetName")) {
+            Object value = selected.get(key);
+            if (value != null && !String.valueOf(value).isBlank()) {
+                return List.of(String.valueOf(value));
+            }
+        }
+        return List.of();
+    }
+
+    private Map<String, Object> nestedMap(Map<String, Object> source, String key) {
+        return source != null && source.get(key) instanceof Map<?, ?> map ? cast(map) : Map.of();
     }
 
     private String identity(Map<String, Object> candidate) {

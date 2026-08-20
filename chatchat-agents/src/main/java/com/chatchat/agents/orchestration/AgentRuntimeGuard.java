@@ -35,7 +35,6 @@ class AgentRuntimeGuard {
     BooleanSupplier cancellationCheck(Map<String, Object> runtimeAttributes) {
         Object value = runtimeAttributes == null ? null : runtimeAttributes.get(cancellationAttribute);
         BooleanSupplier externalCancellation = value instanceof BooleanSupplier supplier ? supplier : null;
-        long deadlineAt = runtimeLong(runtimeAttributes == null ? null : runtimeAttributes.get(deadlineAtAttribute), 0L);
         return () -> {
             if (Thread.currentThread().isInterrupted()) {
                 return true;
@@ -43,8 +42,10 @@ class AgentRuntimeGuard {
             if (externalCancellation != null && externalCancellation.getAsBoolean()) {
                 return true;
             }
-            if (deadlineAt > 0 && System.currentTimeMillis() > deadlineAt) {
-                throw new CancellationException("Agent run timed out");
+            long deadlineAt = runtimeLong(
+                runtimeAttributes == null ? null : runtimeAttributes.get(deadlineAtAttribute), 0L);
+            if (deadlineAt > 0 && System.currentTimeMillis() >= deadlineAt) {
+                throw new AgentDeadlineExceededException("Agent execution time budget exhausted");
             }
             return false;
         };
@@ -55,11 +56,18 @@ class AgentRuntimeGuard {
         if (runtimeAttributes != null) {
             attributes.putAll(runtimeAttributes);
         }
+        long startedAt = System.currentTimeMillis();
         long timeoutMs = runtimeLong(attributes.get(timeoutMsAttribute), 0L);
         if (timeoutMs > 0 && !attributes.containsKey(deadlineAtAttribute)) {
-            attributes.put(deadlineAtAttribute, System.currentTimeMillis() + timeoutMs);
+            attributes.put(deadlineAtAttribute, startedAt + timeoutMs);
         }
         return attributes;
+    }
+
+    long remainingTimeMs(Map<String, Object> runtimeAttributes) {
+        long deadlineAt = runtimeLong(
+            runtimeAttributes == null ? null : runtimeAttributes.get(deadlineAtAttribute), 0L);
+        return deadlineAt <= 0L ? -1L : Math.max(0L, deadlineAt - System.currentTimeMillis());
     }
 
     int maxSteps(Map<String, Object> runtimeAttributes) {

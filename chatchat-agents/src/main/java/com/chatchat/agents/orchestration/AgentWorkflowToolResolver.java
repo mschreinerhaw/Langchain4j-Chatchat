@@ -54,6 +54,14 @@ class AgentWorkflowToolResolver {
                 && toolNames.sameToolName(toolName, trace.getToolName()));
     }
 
+    boolean hasAnyToolTrace(List<InteractionToolTrace> traces, String toolName) {
+        if (traces == null || traces.isEmpty() || toolName == null || toolName.isBlank()) {
+            return false;
+        }
+        return traces.stream()
+            .anyMatch(trace -> trace != null && toolNames.sameToolName(toolName, trace.getToolName()));
+    }
+
     List<String> missingMandatoryTools(List<String> mandatoryTools, List<InteractionToolTrace> traces) {
         return normalizeList(mandatoryTools).stream()
             .filter(toolName -> !hasToolTrace(traces, toolName))

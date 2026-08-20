@@ -10,6 +10,8 @@ import com.chatchat.agents.runtime.batch.ToolCallResult;
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.chatchat.agents.runtime.batch.ToolEvidencePolicy;
 import com.chatchat.agents.runtime.plan.DiagnosticRunStateMachine;
+import com.chatchat.agents.runtime.toolcall.ToolArgumentCompiler;
+import com.chatchat.agents.runtime.toolcall.ToolInputSchemaResolver;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.tool.ToolInput;
@@ -70,6 +72,8 @@ public class ToolRuntimeService {
     private final List<ToolRuntimeAuditSink> auditSinks;
     private final TemplateExecutionLayer templateExecutionLayer = new TemplateExecutionLayer();
     private final McpEvidenceGovernanceBridge evidenceGovernanceBridge = new McpEvidenceGovernanceBridge();
+    private final ToolArgumentCompiler toolArgumentCompiler = new ToolArgumentCompiler();
+    private final ToolInputSchemaResolver toolInputSchemaResolver = new ToolInputSchemaResolver();
     private final ToolRuntimeUserPolicyStore userPolicyStore;
     private final ExecutorService toolExecutionExecutor;
     private final ExecutorService auditExecutor;
@@ -242,25 +246,124 @@ public class ToolRuntimeService {
             return executeBatchRequest(batch, request);
         }
         int retryAttempts = resolveToolRetryAttempts(request);
-        int maxCalls = retryAttempts + 1;
+        int maxCalls = retryAttempts + 2;
+        int regularRetriesRemaining = retryAttempts;
+        boolean contractRepairAttempted = false;
+        Map<String, Object> originalSemanticArguments = request == null
+            || request.getToolInput() == null
+            || request.getToolInput().getParameters() == null
+            ? Map.of()
+            : new LinkedHashMap<>(request.getToolInput().getParameters());
         ToolRuntimeExecution lastExecution = null;
         for (int callAttempt = 1; callAttempt <= maxCalls; callAttempt++) {
-            ToolRuntimeRequest attemptRequest = toolRetryRequest(request, callAttempt, maxCalls, retryAttempts);
+            int declaredMaxCalls = retryAttempts + 1 + (contractRepairAttempted ? 1 : 0);
+            ToolRuntimeRequest attemptRequest = toolRetryRequest(
+                request, callAttempt, declaredMaxCalls, retryAttempts);
             lastExecution = executeOnce(attemptRequest);
-            enrichRetryMetadata(lastExecution, callAttempt, maxCalls, retryAttempts);
-            if (!shouldRetry(lastExecution, callAttempt, maxCalls)) {
+            enrichRetryMetadata(lastExecution, callAttempt, declaredMaxCalls, retryAttempts);
+            if (!contractRepairAttempted
+                && inputContractFailure(lastExecution)
+                && repairToolArguments(request, originalSemanticArguments, lastExecution)) {
+                contractRepairAttempted = true;
+                log.info("Retrying tool call after deterministic contract repair tool={} callAttempt={}/{} error={}",
+                    request == null ? null : request.getToolName(),
+                    callAttempt + 1,
+                    retryAttempts + 2,
+                    lastExecution == null || lastExecution.output() == null
+                        ? null
+                        : lastExecution.output().getErrorMessage());
+                continue;
+            }
+            if (regularRetriesRemaining <= 0 || !shouldRetry(lastExecution)) {
                 return lastExecution;
             }
+            regularRetriesRemaining--;
             log.info("Retrying tool call tool={} callAttempt={}/{} outcome={} error={}",
                 request == null ? null : request.getToolName(),
                 callAttempt + 1,
-                maxCalls,
+                declaredMaxCalls,
                 lastExecution == null ? null : lastExecution.outcome(),
                 lastExecution == null || lastExecution.output() == null
                     ? null
                     : lastExecution.output().getErrorMessage());
         }
         return lastExecution;
+    }
+
+    private boolean repairToolArguments(ToolRuntimeRequest request,
+                                        Map<String, Object> originalSemanticArguments,
+                                        ToolRuntimeExecution failedExecution) {
+        if (request == null || request.getToolInput() == null) {
+            return false;
+        }
+        ToolMetadata metadata = toolRegistry.getToolMetadata(request.getToolName());
+        Map<String, Object> schema = toolInputSchemaResolver.resolvePublished(metadata);
+        if (schema.isEmpty()) {
+            return false;
+        }
+        ToolArgumentCompiler.CompilationResult compilation = toolArgumentCompiler.compile(
+            originalSemanticArguments,
+            schema
+        );
+        if (!compilation.valid()) {
+            return false;
+        }
+        request.getToolInput().setParameters(new LinkedHashMap<>(compilation.parameters()));
+        request.getToolInput().getContext().put("runtimeContractRepair", Map.of(
+            "category", "INPUT_CONTRACT_ERROR",
+            "trigger", contractFailureCode(failedExecution),
+            "repairs", compilation.repairs()
+        ));
+        return true;
+    }
+
+    private boolean inputContractFailure(ToolRuntimeExecution execution) {
+        String code = contractFailureCode(execution).toUpperCase(Locale.ROOT);
+        return code.contains("INPUT_CONTRACT")
+            || code.contains("INPUT_REQUIRED")
+            || code.contains("INVALID_ARGUMENT")
+            || code.contains("INVALID_TOOL_ARGUMENTS")
+            || code.contains("PARAMETER_REQUIRED")
+            || code.contains("SCHEMA_VALIDATION");
+    }
+
+    private String contractFailureCode(ToolRuntimeExecution execution) {
+        if (execution == null || execution.output() == null) {
+            return "";
+        }
+        ToolOutput output = execution.output();
+        List<Object> candidates = new ArrayList<>();
+        candidates.add(output.getExceptionType());
+        candidates.add(output.getErrorMessage());
+        if (output.getMetadata() != null) {
+            candidates.add(output.getMetadata().get("errorCode"));
+            candidates.add(output.getMetadata().get("runtimeErrorCode"));
+            candidates.add(output.getMetadata().get("category"));
+        }
+        collectContractFailureSignals(output.getData(), candidates, 0);
+        return candidates.stream()
+            .filter(Objects::nonNull)
+            .map(String::valueOf)
+            .filter(value -> !value.isBlank())
+            .collect(Collectors.joining(" "));
+    }
+
+    private void collectContractFailureSignals(Object value, List<Object> candidates, int depth) {
+        if (value == null || depth > 4) {
+            return;
+        }
+        if (value instanceof Map<?, ?> map) {
+            for (String key : List.of("errorCode", "code", "category", "error", "message")) {
+                if (map.get(key) != null) {
+                    candidates.add(map.get(key));
+                }
+            }
+            for (Object nested : map.values()) {
+                collectContractFailureSignals(nested, candidates, depth + 1);
+            }
+        } else if (value instanceof Collection<?> collection) {
+            collection.forEach(item -> collectContractFailureSignals(item, candidates, depth + 1));
+        }
     }
 
     public ToolCallBatchResult executeBatch(ToolCallBatch batch, ToolRuntimeRequest context) {
@@ -301,7 +404,7 @@ public class ToolRuntimeService {
                         firstText(call.preflightMessage(), "Runtime preflight blocked this admitted template")
                     );
                 }
-                if (diagnosticRemainingTimeMs(context) == 0L) {
+                if (requestRemainingTimeMs(context) == 0L) {
                     return TemplateExecutionLayer.Invocation.terminal(
                         DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue(),
                         DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue(),
@@ -573,6 +676,27 @@ public class ToolRuntimeService {
         ToolInput toolInput = request.getToolInput() == null ? new ToolInput() : request.getToolInput();
         enrichToolInputContext(request, toolInput);
         applyRequiredToolParameters(toolName, metadata, request, toolInput);
+        ToolArgumentCompiler.CompilationResult argumentCompilation = toolArgumentCompiler.compile(
+            toolInput.getParameters(),
+            toolInputSchemaResolver.resolvePublished(metadata)
+        );
+        if (!argumentCompilation.valid()) {
+            return deniedExecution(
+                toolName,
+                request,
+                metadata,
+                argumentCompilation.structuredError(toolName, "execute"),
+                "INVALID_TOOL_ARGUMENTS",
+                null,
+                null
+            );
+        }
+        toolInput.setParameters(new LinkedHashMap<>(argumentCompilation.parameters()));
+        if (!argumentCompilation.repairs().isEmpty()) {
+            toolInput.getContext().put("runtimeToolArgumentRepairs", argumentCompilation.repairs());
+            log.info("Runtime compiled tool arguments tool={} repairs={} compiledKeys={}",
+                toolName, argumentCompilation.repairs(), toolInput.getParameters().keySet());
+        }
         if (isParamBindingDenied(toolInput)) {
             return deniedExecution(toolName, request, metadata,
                 firstText(paramBindingError(toolInput), "Tool parameter binding was denied by runtime policy"),
@@ -633,9 +757,9 @@ public class ToolRuntimeService {
                 executionPlan,
                 policyDecision);
         }
-        if (diagnosticRemainingTimeMs(request) == 0L) {
+        if (requestRemainingTimeMs(request) == 0L) {
             return rejectedExecution(toolName, request, metadata,
-                "Diagnostic execution time budget exhausted before tool invocation: " + toolName,
+                "Agent execution time budget exhausted before tool invocation: " + toolName,
                 DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue(),
                 "time_budget_exhausted",
                 executionPlan,
@@ -784,8 +908,8 @@ public class ToolRuntimeService {
         execution.output().getMetadata().put("toolCallMaxAttempts", maxCalls);
     }
 
-    private boolean shouldRetry(ToolRuntimeExecution execution, int callAttempt, int maxCalls) {
-        if (callAttempt >= maxCalls || execution == null || execution.output() == null) {
+    private boolean shouldRetry(ToolRuntimeExecution execution) {
+        if (execution == null || execution.output() == null) {
             return false;
         }
         if (execution.output().isSuccess() || !"failed".equalsIgnoreCase(execution.outcome())) {
@@ -853,12 +977,19 @@ public class ToolRuntimeService {
             return;
         }
         Set<String> supportedParameters = metadata == null || metadata.getParameters() == null
-            ? Set.of()
+            ? new LinkedHashSet<>()
             : metadata.getParameters().stream()
                 .filter(Objects::nonNull)
                 .map(ToolParameter::getName)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
+        Map<String, Object> publishedSchema = toolInputSchemaResolver.resolvePublished(metadata);
+        if (publishedSchema.get("properties") instanceof Map<?, ?> properties) {
+            properties.keySet().stream()
+                .filter(Objects::nonNull)
+                .map(String::valueOf)
+                .forEach(supportedParameters::add);
+        }
         Map<String, Object> parameters = toolInput.getParameters() == null
             ? new LinkedHashMap<>()
             : new LinkedHashMap<>(toolInput.getParameters());
@@ -914,8 +1045,8 @@ public class ToolRuntimeService {
                                               ToolRuntimePolicy policy,
                                               ToolMetadata metadata) {
         long timeoutMs = resolveToolTimeoutMs(request, policy, metadata);
-        if (timeoutMs == 0L && diagnosticRemainingTimeMs(request) == 0L) {
-            ToolOutput output = ToolOutput.failure("Diagnostic execution time budget exhausted before tool invocation: " + toolName);
+        if (timeoutMs == 0L && requestRemainingTimeMs(request) == 0L) {
+            ToolOutput output = ToolOutput.failure("Agent execution time budget exhausted before tool invocation: " + toolName);
             output.setExceptionType(DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue());
             return output;
         }
@@ -935,7 +1066,7 @@ public class ToolRuntimeService {
         } catch (TimeoutException ex) {
             future.cancel(true);
             ToolOutput output = ToolOutput.failure("Tool execution timed out after " + timeoutMs + " ms: " + toolName);
-            output.setExceptionType(diagnosticRemainingTimeMs(request) == 0L
+            output.setExceptionType(requestRemainingTimeMs(request) == 0L
                 ? DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue()
                 : "TOOL_TIMEOUT");
             output.setMetadata(new LinkedHashMap<>(Map.of("retryable", false, "terminalReason", "deadline_exceeded")));
@@ -974,14 +1105,14 @@ public class ToolRuntimeService {
         if (configuredTimeoutMs <= 0L) {
             configuredTimeoutMs = properties.safeDefaultToolTimeoutMs();
         }
-        long remainingMs = diagnosticRemainingTimeMs(request);
+        long remainingMs = requestRemainingTimeMs(request);
         if (remainingMs < 0L) {
             return Math.max(0L, configuredTimeoutMs);
         }
         return Math.max(0L, Math.min(configuredTimeoutMs, remainingMs));
     }
 
-    private long diagnosticRemainingTimeMs(ToolRuntimeRequest request) {
+    private long requestRemainingTimeMs(ToolRuntimeRequest request) {
         Map<String, Object> attributes = request == null || request.getAttributes() == null
             ? Map.of()
             : request.getAttributes();

@@ -43,8 +43,16 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
                 .filter(Objects::nonNull)
                 .toList();
         }
+        List<String> toolDeclaredSelection = reviewerUnavailable && selectedIds.isEmpty()
+            ? declaredSelection(output)
+            : List.of();
+        boolean toolSelectionApplied = !toolDeclaredSelection.isEmpty();
+        if (toolSelectionApplied) {
+            selectedIds = toolDeclaredSelection;
+        }
         Projection projection = project(
-            output, selectedIds, rejectedIds, evaluations, reviewerUnavailable, 0);
+            output, selectedIds, rejectedIds, evaluations,
+            reviewerUnavailable && !toolSelectionApplied, toolSelectionApplied, 0);
         if (!projection.applied()) {
             return Evaluation.notApplied(output,
                 "model-selected template ids were not present in the authorized MCP candidate set");
@@ -67,6 +75,7 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
                                List<String> rejectedIds,
                                List<Map<String, Object>> evaluations,
                                boolean reviewerUnavailable,
+                               boolean toolSelectionApplied,
                                int depth) {
         if (depth > 8) {
             return Projection.notApplied(output);
@@ -79,7 +88,8 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
             boolean applied = false;
             for (Object item : list) {
                 Projection nested = project(
-                    item, selectedIds, rejectedIds, evaluations, reviewerUnavailable, depth + 1);
+                    item, selectedIds, rejectedIds, evaluations,
+                    reviewerUnavailable, toolSelectionApplied, depth + 1);
                 projectedItems.add(nested.output());
                 if (nested.applied()) {
                     applied = true;
@@ -132,7 +142,9 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
                     "selectedTemplateIds", List.of(),
                     "rejectedTemplateIds", rejectedIds,
                     "candidateEvaluations", evaluations,
-                    "selectionAuthority", "runtime_evidence_model_review",
+                    "selectionAuthority", toolSelectionApplied
+                        ? "runtime_tool_declared_selection"
+                        : "runtime_evidence_model_review",
                     "mcpScoresAreWeakPriors", true
                 ));
                 return new Projection(map, templates.size(), 0, List.of(), true);
@@ -150,7 +162,9 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
                 "selectedTemplateIds", projectedIds,
                 "rejectedTemplateIds", rejectedIds,
                 "candidateEvaluations", evaluations,
-                "selectionAuthority", admission.authority(),
+                "selectionAuthority", toolSelectionApplied
+                    ? "runtime_tool_declared_selection"
+                    : admission.authority(),
                 "mcpScoresAreWeakPriors", true
             ));
             return new Projection(map, templates.size(), selected.size(), projectedIds, true);
@@ -160,7 +174,8 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
             "routingProjection", "coverage"
         )) {
             Projection nested = project(
-                map.get(key), selectedIds, rejectedIds, evaluations, reviewerUnavailable, depth + 1);
+                map.get(key), selectedIds, rejectedIds, evaluations,
+                reviewerUnavailable, toolSelectionApplied, depth + 1);
             if (nested.applied()) {
                 map.put(key, nested.output());
                 return new Projection(
@@ -173,6 +188,39 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
             }
         }
         return Projection.notApplied(output);
+    }
+
+    private List<String> declaredSelection(Object output) {
+        if (!(output instanceof Map<?, ?> raw)) {
+            return List.of();
+        }
+        Map<String, Object> values = cast(raw);
+        List<String> direct = strings(values.get("selectedTemplateIds"));
+        if (!direct.isEmpty()) {
+            return direct;
+        }
+        Map<String, Object> queryIr = nestedMap(values, "queryIr");
+        if (queryIr.isEmpty()) {
+            queryIr = nestedMap(nestedMap(values, "routingProjection"), "queryIr");
+        }
+        for (String key : List.of("template", "templates")) {
+            Map<String, Object> selection = nestedMap(queryIr, key);
+            List<String> selected = strings(first(
+                selection, "selectedTemplateIds", "selectedIds", "templateIds"));
+            if (!selected.isEmpty()) {
+                return selected;
+            }
+        }
+        return List.of();
+    }
+
+    private Map<String, Object> nestedMap(Map<String, Object> source, String key) {
+        return source != null && source.get(key) instanceof Map<?, ?> map ? cast(map) : Map.of();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> cast(Map<?, ?> value) {
+        return new LinkedHashMap<>((Map<String, Object>) value);
     }
 
     private boolean acceptedEvaluation(Map<String, Object> evaluation) {

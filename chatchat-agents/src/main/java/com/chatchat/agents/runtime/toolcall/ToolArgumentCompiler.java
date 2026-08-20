@@ -30,6 +30,7 @@ public final class ToolArgumentCompiler {
         Map<String, Object> compiled = new LinkedHashMap<>();
         List<ValidationError> errors = new ArrayList<>();
         List<Repair> repairs = new ArrayList<>();
+        promoteArgumentEnvelopes(source, rawProperties, repairs);
         Set<String> consumed = new LinkedHashSet<>();
         Set<String> requiredFields = new LinkedHashSet<>(stringList(schema.get("required")));
         for (Map.Entry<?, ?> entry : rawProperties.entrySet()) {
@@ -99,6 +100,64 @@ public final class ToolArgumentCompiler {
         }
         return new CompilationResult(errors.isEmpty() ? "READY" : "INVALID_TOOL_ARGUMENTS",
             compiled, List.copyOf(errors), List.copyOf(repairs));
+    }
+
+    private void promoteArgumentEnvelopes(Map<String, Object> source,
+                                          Map<?, ?> rawProperties,
+                                          List<Repair> repairs) {
+        Map<String, String> acceptedFields = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> propertyEntry : rawProperties.entrySet()) {
+            if (propertyEntry.getKey() == null) {
+                continue;
+            }
+            String propertyName = String.valueOf(propertyEntry.getKey());
+            acceptedFields.putIfAbsent(canonical(propertyName), propertyName);
+            Map<String, Object> property = objectMap(propertyEntry.getValue());
+            stringList(property.get("aliases"))
+                .forEach(alias -> acceptedFields.putIfAbsent(canonical(alias), propertyName));
+            stringList(property.get("acceptedSources"))
+                .forEach(alias -> acceptedFields.putIfAbsent(canonical(alias), propertyName));
+        }
+        Set<String> publishedFields = rawProperties.keySet().stream()
+            .filter(java.util.Objects::nonNull)
+            .map(String::valueOf)
+            .map(this::canonical)
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        for (Map.Entry<String, Object> candidate : new ArrayList<>(source.entrySet())) {
+            String wrapper = candidate.getKey();
+            if (publishedFields.contains(canonical(wrapper))
+                || !(candidate.getValue() instanceof Map<?, ?> nested)) {
+                continue;
+            }
+            Set<String> occupied = source.keySet().stream()
+                .filter(key -> !key.equals(wrapper))
+                .map(this::canonical)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+            boolean contractFieldFound = false;
+            for (Map.Entry<?, ?> nestedEntry : nested.entrySet()) {
+                if (nestedEntry.getKey() == null || !hasValue(nestedEntry.getValue())) {
+                    continue;
+                }
+                String nestedName = String.valueOf(nestedEntry.getKey());
+                String targetName = acceptedFields.get(canonical(nestedName));
+                if (targetName == null) {
+                    continue;
+                }
+                contractFieldFound = true;
+                if (occupied.add(canonical(targetName))) {
+                    source.put(targetName, nestedEntry.getValue());
+                    repairs.add(new Repair(
+                        targetName,
+                        "NESTED_SOURCE_PROMOTED",
+                        wrapper + "." + nestedName,
+                        nestedEntry.getValue()
+                    ));
+                }
+            }
+            if (contractFieldFound) {
+                source.remove(wrapper);
+            }
+        }
     }
 
     private Conversion convert(String field, Object value, Map<String, Object> property) {

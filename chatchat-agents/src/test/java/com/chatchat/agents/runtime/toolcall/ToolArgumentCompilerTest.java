@@ -96,6 +96,45 @@ class ToolArgumentCompilerTest {
     }
 
     @Test
+    void promotesSchemaRecognizedValuesFromAnUnpublishedEnvelope() {
+        Map<String, Object> schema = Map.of(
+            "type", "object",
+            "additionalProperties", false,
+            "properties", Map.of(
+                "query", Map.of("type", "string"),
+                "queryTerms", Map.of(
+                    "type", "array",
+                    "items", Map.of("type", "string"),
+                    "aliases", List.of("keywords")
+                ),
+                "locale", Map.of("type", "string"),
+                "limit", Map.of("type", "integer")
+            )
+        );
+
+        ToolArgumentCompiler.CompilationResult result = compiler.compile(Map.of(
+            "filters", Map.of(
+                "query", "discover enterprise metadata",
+                "keywords", List.of("position", "market value"),
+                "locale", "zh-CN",
+                "unknown", "discard"
+            ),
+            "limit", 100
+        ), schema);
+
+        assertThat(result.valid()).isTrue();
+        assertThat(result.parameters())
+            .containsEntry("query", "discover enterprise metadata")
+            .containsEntry("queryTerms", List.of("position", "market value"))
+            .containsEntry("locale", "zh-CN")
+            .containsEntry("limit", 100)
+            .doesNotContainKeys("filters", "keywords", "unknown");
+        assertThat(result.repairs())
+            .extracting(ToolArgumentCompiler.Repair::repairCode)
+            .contains("NESTED_SOURCE_PROMOTED");
+    }
+
+    @Test
     void invalidOverridesFallBackToDefaultsOrAreOmittedWithoutBlockingExecution() {
         Map<String, Object> schema = Map.of(
             "type", "object",

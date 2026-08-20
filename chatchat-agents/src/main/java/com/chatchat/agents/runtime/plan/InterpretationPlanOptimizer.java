@@ -205,6 +205,40 @@ public class InterpretationPlanOptimizer {
                 semanticToolName(from.toolName()) + "->" + semanticToolName(to.toolName()));
         });
         changed |= before != contracts.size();
+        Set<String> dependencyTools = nodes.stream()
+            .flatMap(node -> node.dependsOnTools().stream())
+            .map(this::semanticToolName)
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        Set<Integer> terminalWorkflowStepIds = nodes.stream()
+            .filter(node -> !dependencyTools.contains(semanticToolName(node.toolName())))
+            .map(node -> planStepsByTool.get(semanticToolName(node.toolName())))
+            .filter(Objects::nonNull)
+            .map(InterpretationPlan.Step::id)
+            .filter(Objects::nonNull)
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        for (int index = 0; index < steps.size(); index++) {
+            InterpretationPlan.Step finalStep = steps.get(index);
+            if (finalStep == null || !finalStep.finalAnswerAction() || finalStep.id() == null) {
+                continue;
+            }
+            List<Integer> finalDependencies = new ArrayList<>(
+                finalStep.dependsOn() == null ? List.of() : finalStep.dependsOn());
+            for (Integer terminalStepId : terminalWorkflowStepIds) {
+                if (!finalDependencies.contains(terminalStepId)) {
+                    finalDependencies.add(terminalStepId);
+                    changed = true;
+                }
+                changed |= addRequiredDependencyContract(
+                    contracts,
+                    terminalStepId,
+                    finalStep.id(),
+                    "Required by the authoritative workflow final barrier."
+                );
+            }
+            if (!finalDependencies.equals(finalStep.dependsOn() == null ? List.of() : finalStep.dependsOn())) {
+                steps.set(index, withDependencies(finalStep, List.copyOf(finalDependencies)));
+            }
+        }
         return new ConfiguredDagRepairResult(steps, contracts, changed);
     }
 

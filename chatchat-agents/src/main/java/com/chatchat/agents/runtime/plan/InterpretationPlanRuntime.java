@@ -5087,6 +5087,11 @@ public class InterpretationPlanRuntime {
         if (checks.size() < 2) {
             return null;
         }
+        if (shouldUseReviewedTemplateBatch(checks, completed)) {
+            // A coarse diagnostic check may expand into several model-reviewed templates.
+            // Preserve that authorized set instead of guessing a one-to-one semantic match.
+            return null;
+        }
 
         List<Map<String, Object>> templates = new ArrayList<>();
         for (StepExecution execution : completed.values()) {
@@ -5277,6 +5282,17 @@ public class InterpretationPlanRuntime {
                 .toList(),
             missingCheckIds);
         return new TemplateExecutorInvocation(outerTool, batch);
+    }
+
+    private boolean shouldUseReviewedTemplateBatch(
+        List<InterpretationPlan.DiagnosticCheck> checks,
+        Map<Integer, StepExecution> completed
+    ) {
+        StepExecution reviewedSelection = reviewedTemplateSelectionExecution(completed);
+        return reviewedSelection != null
+            && Boolean.TRUE.equals(reviewedSelection.metadata().get("semanticCandidateReviewSatisfied"))
+            && templateCandidates(reviewedSelection.output()).size()
+                > (checks == null ? 0 : checks.size());
     }
 
     /**
@@ -6933,7 +6949,7 @@ public class InterpretationPlanRuntime {
             return;
         }
         Object existing = target.get(key);
-        if (existing == null || String.valueOf(existing).isBlank() || isJsonPathPlaceholder(existing)) {
+        if (existing == null || String.valueOf(existing).isBlank() || isPlannerPlaceholder(existing)) {
             target.put(key, value);
         }
     }
@@ -6944,19 +6960,23 @@ public class InterpretationPlanRuntime {
         }
         for (String key : keys) {
             Object value = input.get(key);
-            if (value != null && !String.valueOf(value).isBlank() && !isJsonPathPlaceholder(value)) {
+            if (value != null && !String.valueOf(value).isBlank() && !isPlannerPlaceholder(value)) {
                 return true;
             }
         }
         return false;
     }
 
-    private boolean isJsonPathPlaceholder(Object value) {
+    private boolean isPlannerPlaceholder(Object value) {
         if (!(value instanceof String text)) {
             return false;
         }
         String trimmed = text.trim();
-        return trimmed.startsWith("$.") || trimmed.startsWith("$[");
+        return trimmed.startsWith("$.")
+            || trimmed.startsWith("$[")
+            || trimmed.matches("^<[^<>]+>$")
+            || trimmed.matches("^\\$\\{[^{}]+}$")
+            || trimmed.matches("^\\{\\{[^{}]+}}$");
     }
 
     private Map<String, Object> firstCompletedAssetExecutionContext(Map<Integer, StepExecution> completed) {

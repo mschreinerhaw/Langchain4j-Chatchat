@@ -3705,6 +3705,58 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void prefersExpandedReviewedTemplateSetOverOneToOneDiagnosticGuessing() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        List<InterpretationPlan.DiagnosticCheck> checks = List.of(
+            new InterpretationPlan.DiagnosticCheck(
+                "runtime_state", "runtime_state", "availability", true, 1, List.of(3)),
+            new InterpretationPlan.DiagnosticCheck(
+                "resource_state", "resource_state", "capacity", true, 2, List.of(3))
+        );
+        InterpretationPlanRuntime.StepExecution reviewedDiscovery =
+            new InterpretationPlanRuntime.StepExecution(
+                2,
+                "mcp_tool",
+                "mcp_tenant_ssh_template_query",
+                true,
+                Map.of("templates", List.of(
+                    Map.of("templateId", "TEMPLATE_ALPHA"),
+                    Map.of("templateId", "TEMPLATE_BETA"),
+                    Map.of("templateId", "TEMPLATE_GAMMA")
+                )),
+                null,
+                null,
+                null,
+                10,
+                Map.of("semanticCandidateReviewSatisfied", true)
+            );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "shouldUseReviewedTemplateBatch", List.class, Map.class);
+        method.setAccessible(true);
+
+        assertThat((boolean) method.invoke(runtime, checks, Map.of(2, reviewedDiscovery))).isTrue();
+
+        InterpretationPlanRuntime.StepExecution unreviewedDiscovery =
+            new InterpretationPlanRuntime.StepExecution(
+                reviewedDiscovery.stepId(),
+                reviewedDiscovery.actionType(),
+                reviewedDiscovery.toolName(),
+                reviewedDiscovery.success(),
+                reviewedDiscovery.output(),
+                reviewedDiscovery.errorMessage(),
+                reviewedDiscovery.toolExecution(),
+                reviewedDiscovery.finalAnswer(),
+                reviewedDiscovery.durationMs(),
+                Map.of("semanticCandidateReviewSatisfied", false)
+            );
+        assertThat((boolean) method.invoke(runtime, checks, Map.of(2, unreviewedDiscovery))).isFalse();
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void correctsTemplateDiscoveryAssetFromEvidenceBackedReviewSelection() throws Exception {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
@@ -5834,7 +5886,7 @@ class InterpretationPlanRuntimeTest {
                         Map.of("filters", Map.of("assetName", "docker_service"), "limit", 10), List.of(), null, null),
                     new InterpretationPlan.Step(2, "mcp_tool", "mcp_chatchat_mcp_server_linux_command_execute",
                         Map.of("template", "CHECK_SYSTEM_OVERVIEW", "executionContext",
-                            Map.of("assetName", "docker_service")), List.of(1), null, null),
+                            Map.of("assetName", "<to-be-bound-from-step1>")), List.of(1), null, null),
                     new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
                 ),
                 List.of(),
@@ -9048,6 +9100,3 @@ class InterpretationPlanRuntimeTest {
         }
     }
 }
-
-
-

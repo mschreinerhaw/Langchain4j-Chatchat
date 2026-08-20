@@ -1526,6 +1526,70 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void sqlCoveragePreservesNullColumnValues() {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("WAITING_SID", 9);
+        row.put("LOCK_OWNER", null);
+        Map<String, Object> output = Map.of(
+            "dataSchema", "sql_result.v1",
+            "data", Map.of(
+                "possiblyTruncated", false,
+                "rows", List.of(row)
+            )
+        );
+        InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
+            "success", true, false, null, null,
+            List.of(new InterpretationPlanRuntime.StepExecution(
+                1, "mcp_tool", "sql_query_execute", true,
+                output, null, null, null, 10L, Map.of()
+            )),
+            Map.of(), 10L
+        );
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(any(String.class))).thenReturn("SQL null value analysis");
+
+        AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
+            .buildRecordCoverageBundle(
+                model, "analyze sql result", result, Map.of(), new LinkedHashMap<>(), () -> false);
+
+        assertThat(coverage.returnedRecordCount()).isEqualTo(1);
+        assertThat(coverage.processedRecordCount()).isEqualTo(1);
+        assertThat(coverage.promptEvidence()).contains("LOCK_OWNER", "null");
+    }
+
+    @Test
+    void sqlScriptCoveragePreservesNullColumnValues() {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("SID", 1);
+        row.put("WAIT_EVENT", null);
+        Map<String, Object> output = Map.of(
+            "dataSchema", "sql_script_result.v1",
+            "data", Map.of("results", List.of(Map.of(
+                "statementIndex", 1,
+                "rows", List.of(row)
+            )))
+        );
+        InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
+            "success", true, false, null, null,
+            List.of(new InterpretationPlanRuntime.StepExecution(
+                1, "mcp_tool", "sql_script_execute", true,
+                output, null, null, null, 10L, Map.of()
+            )),
+            Map.of(), 10L
+        );
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(any(String.class))).thenReturn("SQL script null value analysis");
+
+        AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
+            .buildRecordCoverageBundle(
+                model, "analyze sql script", result, Map.of(), new LinkedHashMap<>(), () -> false);
+
+        assertThat(coverage.returnedRecordCount()).isEqualTo(1);
+        assertThat(coverage.processedRecordCount()).isEqualTo(1);
+        assertThat(coverage.promptEvidence()).contains("WAIT_EVENT", "null");
+    }
+
+    @Test
     void usesStructuredEvidenceCapsuleWithoutReplayingCompleteJmxDataset() {
         Map<String, Object> output = Map.of(
             "structuredData", List.of(Map.of(

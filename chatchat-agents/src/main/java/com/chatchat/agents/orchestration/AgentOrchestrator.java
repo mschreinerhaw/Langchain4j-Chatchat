@@ -58,6 +58,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -3837,7 +3838,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 Map<String, Object> row = new LinkedHashMap<>(rows.get(index));
                 row.put("_resultRowIndex", index + 1);
                 row.put("sourceComplete", sourceComplete);
-                annotated.add(Map.copyOf(row));
+                annotated.add(Collections.unmodifiableMap(row));
             }
             return List.of(new BatchRecordSet(reference, rootAnalysisContext, List.copyOf(annotated)));
         }
@@ -3870,7 +3871,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 }
                 row.put("_resultRowIndex", index + 1);
                 row.put("sourceComplete", sourceComplete);
-                annotated.add(Map.copyOf(row));
+                annotated.add(Collections.unmodifiableMap(row));
             }
             Map<String, Object> resultSetAnalysisContext =
                 mcpAnalysisContextAdapter.adaptDataset(rootAnalysisContext, resultSet);

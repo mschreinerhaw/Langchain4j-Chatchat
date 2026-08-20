@@ -6825,6 +6825,12 @@ public class InterpretationPlanRuntime {
         if (canonicalValue == null || suppliedValue == null) {
             return;
         }
+        if (isPlannerPlaceholder(suppliedValue)) {
+            target.put("assetName", canonicalValue);
+            target.remove("asset_name");
+            target.remove("name");
+            return;
+        }
         String canonicalName = String.valueOf(canonicalValue);
         String suppliedName = String.valueOf(suppliedValue);
         if (!sameAssetIdentityText(canonicalName, suppliedName)) {
@@ -6924,6 +6930,7 @@ public class InterpretationPlanRuntime {
                                           Object suppliedValue,
                                           InterpretationPlan.Step step) {
         if (canonicalValue == null || suppliedValue == null
+            || isPlannerPlaceholder(suppliedValue)
             || String.valueOf(canonicalValue).equals(String.valueOf(suppliedValue))) {
             return;
         }
@@ -6936,6 +6943,7 @@ public class InterpretationPlanRuntime {
                                                 Object suppliedValue,
                                                 InterpretationPlan.Step step) {
         if (canonicalValue == null || suppliedValue == null
+            || isPlannerPlaceholder(suppliedValue)
             || String.valueOf(canonicalValue).equalsIgnoreCase(String.valueOf(suppliedValue))) {
             return;
         }

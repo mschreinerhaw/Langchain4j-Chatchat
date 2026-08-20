@@ -18,7 +18,7 @@
       <div v-else ref="workspace" class="ds-ide" :class="{'explorer-collapsed':!explorerOpen,'ai-collapsed':!aiOpen,fullscreen:isFullscreen}">
         <header class="ide-commandbar">
           <div class="ide-brand"><span class="python-mark">Py</span><div><strong>Python Studio</strong><small>安全隔离开发环境</small></div></div>
-          <div class="ide-context"><label><span>运行环境</span><select v-model="form.assetId"><option v-for="asset in readyAssets" :value="asset.id" :key="asset.id">{{ asset.name }}</option></select></label><span class="ide-runtime"><i></i> Docker Ready</span></div>
+          <div class="ide-context"><label><span>运行环境</span><select v-model="form.assetId"><option v-for="asset in readyAssets" :value="asset.id" :key="asset.id">{{ asset.name }}</option></select></label><span class="ide-runtime"><i></i> Ready</span></div>
           <div class="ide-actions"><button title="Ctrl/Cmd + S" @click="save" :disabled="busy"><span>⌘S</span> 保存</button><button title="Ctrl/Cmd + Enter" @click="run" :disabled="busy||!form.id" class="run">{{ runState==='running'?'◌ 执行中…':'▶ 运行' }}</button><button class="publish" @click="publishOpen=true" :disabled="busy||!canPublish">发布能力</button><button class="icon-button sidebar-toggle" :class="{active:explorerOpen}" :title="explorerOpen?'收起脚本栏':'展开脚本栏'" @click="toggleExplorer">☰</button><button class="expand-button" :title="isFullscreen?'退出沉浸编辑':'放大为沉浸编辑器'" @click="toggleFullscreen">{{ isFullscreen?'↙ 退出全屏':'⛶ 放大编辑' }}</button></div>
         </header>
 

@@ -229,6 +229,51 @@ class AgentPlannerTest {
     }
 
     @Test
+    void parsesInterpretationPlanWhoseFinalAnswerContainsMarkdownCodeFence() throws Exception {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        String raw = """
+            {
+              "version": "1.0",
+              "intent": {"type": "design", "goal": "design a table", "risk_level": "low"},
+              "context": {"key_facts": [], "assumptions": [], "missing_info": [], "constraints": []},
+              "plan": {
+                "steps": [{
+                  "id": 1,
+                  "action_type": "final_answer",
+                  "tool_name": "",
+                  "input": {"answer": "## Draft\\n\\n```sql\\nCREATE TABLE position (id BIGINT);\\n```"},
+                  "depends_on": []
+                }],
+                "edge_contracts": [],
+                "dependency_contracts": [],
+                "bindings": []
+              },
+              "execution_policy": {
+                "max_steps": 1,
+                "allow_parallel": false,
+                "allow_tool": [],
+                "deny_tool": [],
+                "timeout_ms": 30000
+              },
+              "review": {
+                "self_check": {"tool_sufficiency": true, "missing_steps": []},
+                "fallback_plan": []
+              }
+            }
+            """;
+
+        Method parseDecision = AgentPlanner.class.getDeclaredMethod(
+            "parseDecision", String.class, PlannerValidationContext.class);
+        parseDecision.setAccessible(true);
+        AgentDecision decision = (AgentDecision) parseDecision.invoke(planner, raw, null);
+
+        assertThat(decision).isNotNull();
+        assertThat(decision.interpretationPlan()).isNotNull();
+        assertThat(decision.reason()).isEqualTo("interpretation_plan_final_answer");
+        assertThat(decision.answer()).contains("```sql", "CREATE TABLE position");
+    }
+
+    @Test
     void quoteRepairDoesNotHideMissingJsonPropertyComma() throws Exception {
         AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
         Method parseDecision = AgentPlanner.class.getDeclaredMethod(

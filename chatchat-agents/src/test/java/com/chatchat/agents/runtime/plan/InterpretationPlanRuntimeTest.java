@@ -6005,6 +6005,67 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void canonicalAssetContinuityReplacesPlannerPlaceholders() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            3,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_linux_command_execute",
+            Map.of(),
+            List.of(2),
+            null,
+            null
+        );
+        Map<String, Object> target = new LinkedHashMap<>(Map.of(
+            "assetName", "<to-be-bound-from-step1>",
+            "assetId", "${bindings.assetId}",
+            "env", "{{bindings.env}}"
+        ));
+        Map<String, Object> input = new LinkedHashMap<>();
+        input.put("executionContext", target);
+        InterpretationPlanRuntime.StepExecution assetDiscovery = new InterpretationPlanRuntime.StepExecution(
+            1,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_ssh_asset_query",
+            true,
+            Map.of(
+                "schemaVersion", "asset_query_result.v1",
+                "returnedCount", 1,
+                "assets", List.of(Map.of("asset", Map.of(
+                    "id", "worker11-id",
+                    "name", "CDH DataNode 节点 worker11",
+                    "environment", "DEV"
+                )))
+            ),
+            null,
+            null,
+            null,
+            1,
+            Map.of()
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "enforceCanonicalAssetContinuity",
+            InterpretationPlan.Step.class,
+            Map.class,
+            Map.class
+        );
+        method.setAccessible(true);
+
+        method.invoke(runtime, step, Map.of(1, assetDiscovery), input);
+
+        Map<String, Object> resolved = (Map<String, Object>) input.get("executionContext");
+        assertThat(resolved)
+            .containsEntry("assetId", "worker11-id")
+            .containsEntry("assetName", "CDH DataNode 节点 worker11")
+            .containsEntry("env", "DEV");
+    }
+
+    @Test
     void compilesFixedModelInvocationEnvelopeByResolvingMcpTemplateContract() {
         String discoveryTool = "mcp_chatchat_mcp_server_database_ops_template_search";
         String executorTool = "mcp_chatchat_mcp_server_sql_query_execute";

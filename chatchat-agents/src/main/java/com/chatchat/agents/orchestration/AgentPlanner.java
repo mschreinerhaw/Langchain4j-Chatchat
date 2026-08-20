@@ -3008,6 +3008,10 @@ class AgentPlanner {
 
     private String extractJson(String raw) {
         String text = raw.trim();
+        if (text.startsWith("{")) {
+            int lastBrace = text.lastIndexOf('}');
+            return lastBrace > 0 ? text.substring(0, lastBrace + 1) : text;
+        }
         int blockStart = text.indexOf("```");
         if (blockStart >= 0) {
             int firstBrace = text.indexOf('{', blockStart);

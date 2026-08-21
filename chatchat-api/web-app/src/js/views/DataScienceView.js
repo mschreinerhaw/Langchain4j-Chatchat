@@ -84,6 +84,17 @@ export default {
     systemExamples: [],
     expandedFolders: {},
     systemExamplesOpen: true,
+    ideDialog: {
+      open: false,
+      mode: "confirm",
+      title: "",
+      message: "",
+      value: "",
+      placeholder: "",
+      confirmText: "确定",
+      danger: false,
+      resolve: null
+    },
     executions: [],
     dataFiles: [],
     selectedDataFileId: "",
@@ -381,6 +392,7 @@ export default {
     this.clearErrorTimer();
     this.clearMessageTimer();
     this.disposeEditor();
+    this.finishIdeDialog(false);
   },
   methods: {
     navigateToSection(section) {
@@ -611,7 +623,7 @@ export default {
       }
     },
     async downloadData(file) { await this.action(() => downloadPythonDataFile(file.id, file.fileName)); },
-    async removeData(file) { if (!globalThis.confirm(`确认删除“${file.fileName}”？删除后脚本将无法读取。`)) return; await this.action(async () => { await deletePythonDataFile(file.id); this.message = "数据文件已删除"; await this.load(true); }); },
+    async removeData(file) { if (!await this.openIdeConfirm({ title: "删除数据文件", message: `确认删除“${file.fileName}”？删除后脚本将无法读取。`, confirmText: "删除", danger: true })) return; await this.action(async () => { await deletePythonDataFile(file.id); this.message = "数据文件已删除"; await this.load(true); }); },
     formatBytes(value) { const bytes = Number(value || 0); if (bytes < 1024) return `${bytes} B`; if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`; return `${(bytes / 1024 ** 2).toFixed(1)} MB`; },
     dataStatusLabel(status) { return ({ AVAILABLE: "可用", TRANSFERRING: "传输中", TRANSFER_FAILED: "传输失败" })[status] || status; },
     async createAsset() {
@@ -725,14 +737,18 @@ export default {
       if (editorTab.key === this.activeEditorTabKey) this.captureActiveEditorTab();
       const index = this.editorTabs.findIndex((item) => item.key === editorTab.key);
       if (index < 0) return;
-      if (
-        this.editorTabDirty(editorTab) &&
-        !globalThis.confirm(
-          `“${editorTab.form.fileName || "未命名脚本"}”有未保存修改，仍要关闭吗？`
-        )
-      )
+      if (this.editorTabDirty(editorTab)) {
+        this.openIdeConfirm({ title: "关闭未保存脚本", message: `“${editorTab.form.fileName || "未命名脚本"}”有未保存修改，关闭后修改将丢失。`, confirmText: "仍然关闭", danger: true }).then((confirmed) => {
+          if (confirmed) this.closeEditorTabNow(editorTab);
+        });
         return;
+      }
+      this.closeEditorTabNow(editorTab);
+    },
+    closeEditorTabNow(editorTab) {
       const wasActive = editorTab.key === this.activeEditorTabKey;
+      const index = this.editorTabs.findIndex((item) => item.key === editorTab.key);
+      if (index < 0) return;
       this.editorTabs.splice(index, 1);
       if (!wasActive) return;
       this.activeEditorTabKey = "";
@@ -768,7 +784,7 @@ export default {
       });
     },
     async createFolder() {
-      const name = globalThis.prompt("新建逻辑文件夹", "数据分析");
+      const name = await this.openIdePrompt({ title: "新建逻辑文件夹", message: "文件夹仅用于脚本分类，不会改变 Python 运行路径。", value: "数据分析", placeholder: "请输入文件夹名称", confirmText: "创建" });
       if (name == null || !name.trim()) return;
       await this.action(async () => {
         const folder = await savePythonScriptFolder({ name: name.trim(), parentId: null, sortOrder: this.folders.length });
@@ -779,7 +795,7 @@ export default {
     },
     async renameFolder(folder) {
       if (folder.virtual) return;
-      const name = globalThis.prompt("重命名逻辑文件夹", folder.name);
+      const name = await this.openIdePrompt({ title: "重命名逻辑文件夹", message: "文件夹中的脚本和发布状态不会受到影响。", value: folder.name, placeholder: "请输入文件夹名称", confirmText: "保存" });
       if (name == null || !name.trim() || name.trim() === folder.name) return;
       await this.action(async () => {
         await savePythonScriptFolder({ id: folder.id, parentId: folder.parentId, name: name.trim(), sortOrder: folder.sortOrder });
@@ -787,8 +803,38 @@ export default {
       });
     },
     async removeFolder(folder) {
-      if (folder.virtual || !globalThis.confirm(`删除空文件夹“${folder.name}”？`)) return;
+      if (folder.virtual || !await this.openIdeConfirm({ title: "删除逻辑文件夹", message: `确认删除空文件夹“${folder.name}”？`, confirmText: "删除", danger: true })) return;
       await this.action(async () => { await deletePythonScriptFolder(folder.id); await this.load(true); });
+    },
+    openIdePrompt(options = {}) { return this.openIdeDialog({ ...options, mode: "prompt" }); },
+    openIdeConfirm(options = {}) { return this.openIdeDialog({ ...options, mode: "confirm" }); },
+    openIdeDialog(options) {
+      if (this.ideDialog.open) this.finishIdeDialog(false);
+      return new Promise((resolve) => {
+        this.ideDialog = {
+          open: true,
+          mode: options.mode || "confirm",
+          title: options.title || "请确认",
+          message: options.message || "",
+          value: options.value || "",
+          placeholder: options.placeholder || "",
+          confirmText: options.confirmText || "确定",
+          danger: options.danger === true,
+          resolve
+        };
+        nextTick(() => (this.$refs.ideDialogInput || this.$refs.ideDialogBackdrop)?.focus());
+      });
+    },
+    submitIdeDialog() {
+      if (this.ideDialog.mode === "prompt" && !String(this.ideDialog.value || "").trim()) return;
+      this.finishIdeDialog(true);
+    },
+    finishIdeDialog(confirmed) {
+      if (!this.ideDialog?.open) return;
+      const resolve = this.ideDialog.resolve;
+      const result = confirmed ? (this.ideDialog.mode === "prompt" ? String(this.ideDialog.value || "").trim() : true) : (this.ideDialog.mode === "prompt" ? null : false);
+      this.ideDialog = { open: false, mode: "confirm", title: "", message: "", value: "", placeholder: "", confirmText: "确定", danger: false, resolve: null };
+      if (typeof resolve === "function") resolve(result);
     },
     toggleFolder(folder) { this.expandedFolders[folder.id || "__unfiled"] = !this.folderExpanded(folder); },
     folderExpanded(folder) { const key = folder.id || "__unfiled"; return this.expandedFolders[key] !== false; },
@@ -840,6 +886,7 @@ export default {
           this.form = { ...this.form, ...saved };
           this.savedSource = saved.sourceCode || this.form.sourceCode;
           this.savedFileName = saved.fileName || this.form.fileName;
+          this.savedFolderId = saved.folderId || "";
           this.captureActiveEditorTab();
         }
         this.consoleText += `\n启动 ${this.form.fileName}…\n`;

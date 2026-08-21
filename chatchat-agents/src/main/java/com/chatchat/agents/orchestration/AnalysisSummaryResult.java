@@ -95,6 +95,59 @@ public record AnalysisSummaryResult(
         return finalSummary(isolationScope, stage, content, outcome, coverage, inputs, List.of());
     }
 
+    public static AnalysisSummaryResult intermediateSummary(
+        GovernanceIsolationScope isolationScope,
+        String scope,
+        String summaryKey,
+        String content,
+        String outcome,
+        Map<String, Object> position,
+        Map<String, Object> analysisContext,
+        Map<String, Object> coverage,
+        List<AnalysisSummaryResult> inputs,
+        Map<String, Object> evidence
+    ) {
+        GovernanceIsolationScope safeScope = isolationScope == null
+            ? GovernanceIsolationScope.runtime(null, null, null, null, null)
+            : isolationScope;
+        List<AnalysisSummaryResult> safeInputs = inputs == null ? List.of() : List.copyOf(inputs);
+        safeInputs.forEach(input -> safeScope.requireSamePartition(input.isolationScope()));
+        String safeKey = text(summaryKey, "intermediate");
+        Map<String, Object> lineage = new LinkedHashMap<>();
+        lineage.put("schemaVersion", "intermediate_evidence_lineage.v1");
+        lineage.put("upstreamEvidenceProtocol", "traceable_chunk_evidence.v1");
+        lineage.put("evidenceId", safeScope.partitionKey() + ":" + safeKey);
+        lineage.put("inputEvidenceIds", safeInputs.stream()
+            .map(AnalysisSummaryResult::evidence)
+            .map(item -> item.get("evidenceId"))
+            .filter(java.util.Objects::nonNull)
+            .map(String::valueOf)
+            .filter(id -> !id.isBlank())
+            .distinct()
+            .toList());
+        lineage.put("inputSummaryResultIds", safeInputs.stream()
+            .map(AnalysisSummaryResult::resultId).toList());
+        if (evidence != null) {
+            evidence.forEach((key, value) -> {
+                if (key != null && value != null) lineage.put(key, value);
+            });
+        }
+        return new AnalysisSummaryResult(
+            SCHEMA_VERSION,
+            safeScope.partitionKey() + ":" + safeKey,
+            text(scope, "DATASET_SYNTHESIS"),
+            content,
+            outcome,
+            safeScope,
+            position,
+            analysisContext,
+            coverage,
+            safeInputs.stream().map(AnalysisSummaryResult::resultId).toList(),
+            lineage,
+            governanceContract()
+        );
+    }
+
     public static AnalysisSummaryResult finalSummary(GovernanceIsolationScope isolationScope,
                                                      String stage,
                                                      String content,

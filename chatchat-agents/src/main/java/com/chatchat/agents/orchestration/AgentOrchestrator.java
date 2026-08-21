@@ -140,6 +140,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
     private final ContextEvidenceAggregator contextEvidenceAggregator = new ContextEvidenceAggregator();
     private final AnalysisSummaryGovernanceBridge analysisSummaryGovernanceBridge =
         new AnalysisSummaryGovernanceBridge();
+    private final HierarchicalAnalysisReducer hierarchicalAnalysisReducer =
+        new HierarchicalAnalysisReducer();
     private final DeterministicInsightEngine deterministicInsightEngine =
         new DeterministicInsightEngine();
     private final McpAnalysisContextAdapter mcpAnalysisContextAdapter;
@@ -2788,7 +2790,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         );
         AnalysisSummaryResult summaryResult = analysisSummaryGovernanceBridge.finalResult(
             summaryIsolationScope(coverage, metadata),
-            stage, content, outcome, coverageMap, coverage.summaryResults());
+            stage, content, outcome, coverageMap, coverage.synthesisInputs());
         if (metadata != null) {
             metadata.put("analysisSummaryResult", summaryResult.toMap());
             metadata.put("analysisSummaryResultSchemaVersion", AnalysisSummaryResult.SCHEMA_VERSION);
@@ -3397,9 +3399,35 @@ public class AgentOrchestrator implements AgentRunExecutor {
     ) {
         GovernanceIsolationScope isolationScope = governanceIsolationScope(metadata, runtimeAttributes);
         List<BatchRecordSet> recordSets = executionRecordSets(result);
+        List<Map<String, Object>> excludedDatasets = excludedExecutionDatasets(result);
+        if (metadata != null) {
+            metadata.put("recordAnalysisExcludedDatasets", excludedDatasets);
+            metadata.put("recordAnalysisExcludedDatasetCount", excludedDatasets.size());
+        }
+        for (Map<String, Object> excluded : excludedDatasets) {
+            runResultAdapter.recordRuntimeObservation(
+                runtimeAttributes, AGENT_RUN_ID_ATTRIBUTE,
+                "数据集未进入分析：" + excluded.get("datasetReference") + "（未返回非空结构化记录）。",
+                "analysis_summary_governance",
+                metadataOf("type", "analysis_dataset_excluded", "exclusion", excluded,
+                    "tenantId", isolationScope.tenantId(), "runId", isolationScope.runId()));
+        }
         if (recordSets.isEmpty()) {
             return RecordCoverageBundle.empty();
         }
+        DatasetRelationshipPlan relationshipPlan = buildDatasetRelationshipPlan(recordSets);
+        runResultAdapter.recordRuntimeObservation(
+            runtimeAttributes,
+            AGENT_RUN_ID_ATTRIBUTE,
+            "已完成数据集关系分析，共形成 " + relationshipPlan.groups().size() + " 个分析组。",
+            "analysis_summary_governance",
+            metadataOf(
+                "type", "dataset_relationship_plan",
+                "relationshipPlan", relationshipPlan.toMap(),
+                "tenantId", isolationScope.tenantId(),
+                "runId", isolationScope.runId()
+            )
+        );
         ParallelAnalysisSummaryBatch parallelSummaries = prepareParallelAnalysisSummaries(
             activeChatModel, query, recordSets, isolationScope, cancellationCheck);
         if (metadata != null) {
@@ -3483,8 +3511,6 @@ public class AgentOrchestrator implements AgentRunExecutor {
                         "result", insightResult.toMap(), "tenantId", isolationScope.tenantId(),
                         "runId", isolationScope.runId()));
             }
-            promptEvidence.append("- ").append(evidenceReference)
-                .append(" analysisContext: ").append(stringify(governedContext)).append("\n");
             appendix.append("### ").append(evidenceReference).append("\n\n");
             int from = 1;
             for (int chunkOffset = 0; chunkOffset < chunkPlan.ranges().size(); chunkOffset++) {
@@ -3595,12 +3621,6 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 }
                 processedRecordCount += chunk.size();
                 String range = "records[" + from + ".." + to + "]";
-                promptEvidence.append("- ").append(evidenceReference).append(' ')
-                    .append(range).append(" position=")
-                    .append(ModelProtocolJson.compact(position.toMap()))
-                    .append(" evidence=")
-                    .append(ModelProtocolJson.compact(governedSummary.evidence()))
-                    .append(": ").append(analysis).append("\n");
                 appendix.append("- ").append(range).append("：")
                     .append(analysis).append("\n");
                 if (requiresRawEvidenceReplay(governedSummary)) {
@@ -3642,10 +3662,35 @@ public class AgentOrchestrator implements AgentRunExecutor {
             .append(", sourceContentComplete=").append(sourceContentComplete)
             .append(", evidenceTraceComplete=").append(evidenceTraceComplete)
             .append(", rawReplayChunkCount=").append(rawReplayChunkCount).append(".\n");
+        HierarchicalAnalysisReducer.Result hierarchicalResult = hierarchicalAnalysisReducer.reduce(
+            activeChatModel, isolationScope, relationshipPlan, governedSummaryResults, query);
+        promptEvidence.append(hierarchicalResult.promptEvidence());
         if (!rawReplayEvidence.isEmpty()) {
             promptEvidence.append("Raw evidence replay (lossless, selected by generic integrity rules). "
-                    + "These records are authoritative and override an inconsistent chunk narrative:\n")
+                    + "Use only when an intermediate summary is incomplete or inconsistent:\n")
                 .append(rawReplayEvidence);
+        }
+        if (!hierarchicalResult.uncoveredDatasets().isEmpty()) {
+            promptEvidence.append("Runtime relationship coverage recovery retained uncovered datasets "
+                    + "as standalone final inputs: ")
+                .append(ModelProtocolJson.compact(hierarchicalResult.uncoveredDatasets())).append("\n");
+        }
+        for (AnalysisSummaryResult datasetSummary : hierarchicalResult.datasetSummaries()) {
+            runResultAdapter.recordRuntimeObservation(
+                runtimeAttributes, AGENT_RUN_ID_ATTRIBUTE,
+                "数据集归并分析完成：" + datasetSummary.position().get("datasetReference") + "。",
+                "analysis_summary_governance",
+                metadataOf("type", "dataset_synthesis", "analysisSummaryResult", datasetSummary.toMap(),
+                    "tenantId", isolationScope.tenantId(), "runId", isolationScope.runId()));
+        }
+        for (AnalysisSummaryResult groupSummary : hierarchicalResult.relationshipGroupSummaries()) {
+            runResultAdapter.recordRuntimeObservation(
+                runtimeAttributes, AGENT_RUN_ID_ATTRIBUTE,
+                "关系组归并分析完成：" + groupSummary.position().get("groupId") + "。",
+                "analysis_summary_governance",
+                metadataOf("type", "relationship_group_synthesis",
+                    "analysisSummaryResult", groupSummary.toMap(),
+                    "tenantId", isolationScope.tenantId(), "runId", isolationScope.runId()));
         }
         if (metadata != null) {
             metadata.put("recordAnalysisContractVersion", "record_grounded_analysis.v1");
@@ -3663,6 +3708,28 @@ public class AgentOrchestrator implements AgentRunExecutor {
             metadata.put("analysisSummaryGovernanceBridge",
                 analysisSummaryGovernanceBridge.ledger(governedSummaryResults,
                     returnedRecordCount, processedRecordCount, coverageComplete));
+            metadata.put("datasetRelationshipPlan", relationshipPlan.toMap());
+            metadata.put("datasetRelationshipGroupCount", relationshipPlan.groups().size());
+            metadata.put("datasetRelationshipEdgeCount", relationshipPlan.edges().size());
+            metadata.put("datasetRelationshipUnresolvedReferences",
+                relationshipPlan.unresolvedReferences());
+            metadata.put("hierarchicalDatasetSummaryCount",
+                hierarchicalResult.datasetSummaries().size());
+            metadata.put("hierarchicalRelationshipGroupSummaryCount",
+                hierarchicalResult.relationshipGroupSummaries().size());
+            metadata.put("hierarchicalFinalInputCount", hierarchicalResult.finalInputs().size());
+            metadata.put("hierarchicalUncoveredDatasets", hierarchicalResult.uncoveredDatasets());
+            metadata.put("hierarchicalAnalysisReduce", metadataOf(
+                "schemaVersion", HierarchicalAnalysisReducer.SCHEMA_VERSION,
+                "relationshipPlan", relationshipPlan.toMap(),
+                "datasetSummaries", hierarchicalResult.datasetSummaries().stream()
+                    .map(AnalysisSummaryResult::toMap).toList(),
+                "relationshipGroupSummaries", hierarchicalResult.relationshipGroupSummaries().stream()
+                    .map(AnalysisSummaryResult::toMap).toList(),
+                "finalInputSummaryResultIds", hierarchicalResult.finalInputs().stream()
+                    .map(AnalysisSummaryResult::resultId).toList(),
+                "uncoveredDatasets", hierarchicalResult.uncoveredDatasets()
+            ));
             metadata.put("deterministicInsightContractVersion", DeterministicInsightEngine.RESULT_VERSION);
             metadata.put("deterministicInsightResults", List.copyOf(deterministicInsightResults));
             metadata.put("deterministicInsightApplicability", List.copyOf(deterministicInsightDecisions));
@@ -3678,10 +3745,24 @@ public class AgentOrchestrator implements AgentRunExecutor {
             promptEvidence.toString(), appendix.toString(), List.copyOf(recordValueGroups),
             returnedRecordCount, processedRecordCount, iterations, iterative, coverageComplete,
             sourceContentComplete, evidenceTraceComplete, rawReplayChunkCount,
-            List.copyOf(governedSummaryResults));
+            List.copyOf(governedSummaryResults), hierarchicalResult.finalInputs());
         } finally {
             parallelSummaries.close();
         }
+    }
+
+    private DatasetRelationshipPlan buildDatasetRelationshipPlan(List<BatchRecordSet> recordSets) {
+        Map<String, Integer> occurrences = new LinkedHashMap<>();
+        List<DatasetRelationshipPlan.Dataset> datasets = new ArrayList<>();
+        for (BatchRecordSet recordSet : recordSets) {
+            int occurrence = occurrences.merge(recordSet.reference(), 1, Integer::sum);
+            String reference = occurrence == 1
+                ? recordSet.reference() : recordSet.reference() + "#occurrence-" + occurrence;
+            datasets.add(new DatasetRelationshipPlan.Dataset(reference,
+                analysisSummaryGovernanceBridge.govern(
+                    reference, recordSet.analysisContext(), recordSet.records())));
+        }
+        return DatasetRelationshipPlan.create(datasets);
     }
 
     private ParallelAnalysisSummaryBatch prepareParallelAnalysisSummaries(
@@ -3841,6 +3922,33 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 resolvedStepOutput, step.toolName(), toolMetadataOrNull(step.toolName())));
         }
         return List.copyOf(sets);
+    }
+
+    private List<Map<String, Object>> excludedExecutionDatasets(
+        InterpretationPlanRuntime.ExecutionResult result
+    ) {
+        if (result == null || result.steps() == null) return List.of();
+        List<Map<String, Object>> excluded = new ArrayList<>();
+        for (InterpretationPlanRuntime.StepExecution step : result.steps()) {
+            if (step == null || !step.success()) continue;
+            Object resolvedStepOutput = resolvedEvidenceData(step);
+            if (!(resolvedStepOutput instanceof ToolCallBatchResult batch)) continue;
+            for (ToolCallResult child : batch.results()) {
+                if (!"SUCCESS".equalsIgnoreCase(child.status()) || !child.evidenceUsable()) continue;
+                String reference = firstNonBlank(child.templateId(),
+                    firstNonBlank(child.templateCode(), firstNonBlank(child.callId(), "result")));
+                if (outputRecordSets(child.output(), reference,
+                    toolMetadataOrNull(child.toolName())).isEmpty()) {
+                    excluded.add(metadataOf(
+                        "datasetReference", reference,
+                        "toolName", child.toolName(),
+                        "reason", "NO_NON_EMPTY_STRUCTURED_RECORDS",
+                        "executionStatus", child.status()
+                    ));
+                }
+            }
+        }
+        return List.copyOf(excluded);
     }
 
     private ToolMetadata toolMetadataOrNull(String toolName) {
@@ -4315,11 +4423,12 @@ public class AgentOrchestrator implements AgentRunExecutor {
         boolean sourceContentComplete,
         boolean evidenceTraceComplete,
         int rawReplayChunkCount,
-        List<AnalysisSummaryResult> summaryResults
+        List<AnalysisSummaryResult> summaryResults,
+        List<AnalysisSummaryResult> synthesisInputs
     ) {
         private static RecordCoverageBundle empty() {
             return new RecordCoverageBundle(
-                "", "", List.of(), 0, 0, 0, false, true, true, true, 0, List.of());
+                "", "", List.of(), 0, 0, 0, false, true, true, true, 0, List.of(), List.of());
         }
     }
 

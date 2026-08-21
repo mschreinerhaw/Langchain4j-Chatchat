@@ -32,11 +32,11 @@ const SNIPPETS = [
   ["读取运行参数", 'params = json.loads(os.environ.get("CHATCHAT_INPUT_JSON", "{}"))', "读取 Agent 传入的 JSON 对象"],
   ["输出 JSON 结果", "print(json.dumps(${1:result}, ensure_ascii=False))", "向 Agent 输出 UTF-8 JSON"],
   ["main 函数", "def main(${1:data}):\n    ${2:result} = {}\n    return ${2:result}", "创建分析模板入口"],
-  ["读取 CSV", 'df = pd.read_csv(${1:file_path}, encoding="${2:utf-8}")', "使用 pandas 读取 CSV"],
-  ["读取 Excel", "df = pd.read_excel(${1:file_path}, sheet_name=${2:0})", "使用 pandas 读取 XLS/XLSX"],
-  ["读取 JSON", "df = pd.read_json(${1:file_path})", "使用 pandas 读取 JSON"],
-  ["读取 Parquet", "df = pd.read_parquet(${1:file_path})", "使用 pandas 读取 Parquet"],
-  ["读取 ORC", "df = pd.read_orc(${1:file_path})", "使用 pandas 读取 ORC"],
+  ["读取 CSV", 'df = pd.read_csv(${1:source_file}, encoding="${2:utf-8}")', "读取动态 FILE 参数对应的 CSV"],
+  ["读取 Excel", "df = pd.read_excel(${1:source_file}, sheet_name=${2:0})", "读取动态 FILE 参数对应的 XLS/XLSX"],
+  ["读取 JSON", "df = pd.read_json(${1:source_file})", "读取动态 FILE 参数对应的 JSON"],
+  ["读取 Parquet", "df = pd.read_parquet(${1:source_file})", "读取动态 FILE 参数对应的 Parquet"],
+  ["读取 ORC", "df = pd.read_orc(${1:source_file})", "读取动态 FILE 参数对应的 ORC"],
   ["异常处理", "try:\n    ${1:pass}\nexcept ${2:Exception} as exc:\n    ${3:raise}", "创建 try/except 结构"],
   ["遍历数据", "for ${1:item} in ${2:items}:\n    ${3:pass}", "创建 for 循环"]
 ];
@@ -122,4 +122,3 @@ export function pythonCompletionItems(source, linePrefix = "", dataFiles = []) {
     ...KEYWORDS.map((label) => item(label, label, "Python 关键字", "keyword"))
   ];
 }
-

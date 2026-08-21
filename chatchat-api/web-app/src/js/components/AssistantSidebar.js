@@ -128,6 +128,7 @@ export default {
       collapsedGroups: {
         platform: true
       },
+      collapsedNavItems: {},
       agentRuntimeLogo: "/lingdong-insight-logo.svg",
       historyKeyword: "",
       historyManagerOpen: false,
@@ -249,6 +250,25 @@ export default {
       this.collapsedGroups = {
         ...this.collapsedGroups,
         [group.id]: !this.collapsedGroups[group.id]
+      };
+    },
+    isNavItemActive(item) {
+      return item.id === this.activeView
+        || (Array.isArray(item.children) && item.children.some((child) => child.id === this.activeView));
+    },
+    isNavItemCollapsed(item) {
+      if (this.collapsed) return true;
+      return !!this.collapsedNavItems[item.id];
+    },
+    activateNavItem(item) {
+      if (this.collapsed) {
+        const target = item.children?.[0]?.id || item.id;
+        this.$emit("navigate", target);
+        return;
+      }
+      this.collapsedNavItems = {
+        ...this.collapsedNavItems,
+        [item.id]: !this.isNavItemCollapsed(item)
       };
     },
     conversationKey(conversation) {

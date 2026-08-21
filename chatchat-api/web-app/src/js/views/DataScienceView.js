@@ -40,28 +40,46 @@ import os
 
 # “运行参数”中的 JSON 对象会完整注入此环境变量
 params = json.loads(os.environ.get("CHATCHAT_INPUT_JSON", "{}"))
-file_path = params.get("file_path")
+source_file = params.get("source_file")  # FILE 参数在这里已经是容器内只读路径
 limit = int(params.get("limit", 100))
 include_detail = bool(params.get("include_detail", False))`;
 
+const defaultInputSchema = `{
+  "type": "object",
+  "properties": {
+    "source_file": { "type": "FILE", "description": "需要分析的用户数据文件" },
+    "limit": { "type": "integer", "default": 100 },
+    "include_detail": { "type": "boolean", "default": true }
+  },
+  "required": ["source_file"],
+  "additionalProperties": false
+}`;
+
+const workspaceLayoutDefaults = { explorer: 238, ai: 330, bottom: 250 };
+const workspaceLayoutStorageKey = "chatchat.python-studio.layout.v1";
+
 export default {
   name: "DataScienceView",
+  props: {
+    initialTab: {
+      type: String,
+      default: "environment"
+    }
+  },
+  emits: ["navigate"],
   data: () => ({
-    tabs: [
-      { id: "environment", label: "Python 环境" },
-      { id: "develop", label: "Python 开发" },
-      { id: "data", label: "我的数据" },
-      { id: "scripts", label: "我的脚本" }
-    ],
     tab: "environment",
     loading: true,
     busy: false,
     error: "",
+    errorTimer: null,
     message: "",
+    messageTimer: null,
     assets: [],
     scripts: [],
     executions: [],
     dataFiles: [],
+    selectedDataFileId: "",
     dataQuery: "",
     dataPage: 1,
     dataPageSize: 10,
@@ -73,6 +91,7 @@ export default {
     publishOpen: false,
     consoleText: "",
     parametersText: "{}",
+    inputSchemaText: defaultInputSchema,
     bottomTab: "console",
     bottomOpen: false,
     editorTabs: [],
@@ -83,6 +102,10 @@ export default {
     explorerPageSize: 7,
     editor: null,
     completionProvider: null,
+    explorerWidth: workspaceLayoutDefaults.explorer,
+    aiWidth: workspaceLayoutDefaults.ai,
+    bottomHeight: workspaceLayoutDefaults.bottom,
+    resizeState: null,
     environmentQuery: "",
     environmentPage: 1,
     environmentPageSize: 4,
@@ -132,16 +155,32 @@ export default {
       keywords: "",
       domain: "",
       version: "1.0.0",
-      inputSchema: '{"type":"object","properties":{}}',
+      inputSchema: defaultInputSchema,
       outputSchema: '{"type":"object"}'
     }
   }),
   computed: {
+    currentSectionLabel() {
+      return {
+        environment: "Python 环境",
+        develop: "Python 开发",
+        data: "我的数据",
+        scripts: "我的脚本"
+      }[this.tab] || "Python 环境";
+    },
     readyAssets() {
       return this.assets.filter((asset) => asset.status === "READY");
     },
     selectedEnvironment() {
       return this.environmentCatalog.find((env) => env.id === this.assetForm.environmentId);
+    },
+    workspaceStyle() {
+      return {
+        "--explorer-width": this.explorerOpen ? `${this.explorerWidth}px` : "0px",
+        "--ai-width": this.aiOpen ? `${this.aiWidth}px` : "0px",
+        "--bottom-height": this.bottomOpen ? `${this.bottomHeight}px` : "34px",
+        "--bottom-resizer-size": this.bottomOpen ? "5px" : "0px"
+      };
     },
     canPublish() {
       return this.form.id && this.form.status === "TESTED";
@@ -271,6 +310,12 @@ export default {
     }
   },
   watch: {
+    initialTab: {
+      immediate: true,
+      handler(value) {
+        if (["environment", "develop", "data", "scripts"].includes(value)) this.tab = value;
+      }
+    },
     environmentQuery() {
       this.environmentPage = 1;
     },
@@ -302,6 +347,7 @@ export default {
     }
   },
   mounted() {
+    this.restoreWorkspaceLayout();
     this.load();
   },
   activated() {
@@ -313,9 +359,23 @@ export default {
   },
   beforeUnmount() {
     this.stopAiProgress();
+    this.stopPaneResize();
+    this.clearErrorTimer();
+    this.clearMessageTimer();
     this.disposeEditor();
   },
   methods: {
+    navigateToSection(section) {
+      const routes = {
+        environment: "dataScienceEnvironment",
+        develop: "dataScienceDevelop",
+        data: "dataScienceData",
+        scripts: "dataScienceScripts"
+      };
+      if (!routes[section]) return;
+      this.tab = section;
+      this.$emit("navigate", routes[section]);
+    },
     async load(silent = false) {
       const background = silent === true;
       if (!background) this.loading = true;
@@ -330,6 +390,8 @@ export default {
         this.scripts = data?.scripts || [];
         this.executions = data?.executions || [];
         this.dataFiles = data?.dataFiles || [];
+        if (!this.dataFiles.some((file) => file.id === this.selectedDataFileId && file.status === "AVAILABLE"))
+          this.selectedDataFileId = this.dataFiles.find((file) => file.status === "AVAILABLE")?.id || "";
         this.environmentCatalog = environments || [];
         this.aiModels = models || [];
         if (!this.aiModels.some((model) => model.value === this.aiModel))
@@ -488,9 +550,45 @@ export default {
     dropDataFile(event) { this.dataUploadFile = event.dataTransfer?.files?.[0] || null; },
     async uploadData() {
       if (!this.dataUploadFile) { this.error = "请选择需要上传的数据文件"; return; }
-      await this.action(async () => { const form = new FormData(); form.append("file", this.dataUploadFile); form.append("purpose", this.dataUploadForm.purpose); form.append("retention", this.dataUploadForm.retention); await uploadPythonDataFile(form); this.dataUploadOpen = false; this.message = "数据已加密传输到 MCP，可在 Python 中只读访问"; await this.load(true); });
+      await this.action(async () => { const form = new FormData(); form.append("file", this.dataUploadFile); form.append("purpose", this.dataUploadForm.purpose); form.append("retention", this.dataUploadForm.retention); await uploadPythonDataFile(form); this.dataUploadOpen = false; this.showTransientMessage("数据已加密传输到 MCP，可在 Python 中只读访问"); await this.load(true); });
     },
-    async copyDataPath(file) { try { await navigator.clipboard.writeText(file.pythonPath); this.message = `已复制：${file.pythonPath}`; } catch { this.error = "复制失败，请手动复制路径"; } },
+    async copyDataPath(file) {
+      try {
+        await this.copyTextToClipboard(file.pythonPath);
+        this.clearErrorTimer();
+        this.error = "";
+        this.showTransientMessage("Python 路径已复制", 2000);
+      } catch {
+        this.showTransientError("浏览器限制了剪贴板访问，请选中 Python 路径后手动复制", 4000);
+      }
+    },
+    async copyTextToClipboard(value) {
+      const text = String(value || "");
+      if (!text) throw new Error("没有可复制的内容");
+      try {
+        if (globalThis.navigator?.clipboard?.writeText) {
+          await globalThis.navigator.clipboard.writeText(text);
+          return;
+        }
+      } catch {
+        // HTTP 页面或浏览器权限策略可能拒绝 Clipboard API，继续使用兼容方案。
+      }
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      textarea.style.pointerEvents = "none";
+      document.body.appendChild(textarea);
+      try {
+        textarea.focus();
+        textarea.select();
+        textarea.setSelectionRange(0, text.length);
+        if (!document.execCommand?.("copy")) throw new Error("浏览器不支持兼容复制");
+      } finally {
+        textarea.remove();
+      }
+    },
     async downloadData(file) { await this.action(() => downloadPythonDataFile(file.id, file.fileName)); },
     async removeData(file) { if (!globalThis.confirm(`确认删除“${file.fileName}”？删除后脚本将无法读取。`)) return; await this.action(async () => { await deletePythonDataFile(file.id); this.message = "数据文件已删除"; await this.load(true); }); },
     formatBytes(value) { const bytes = Number(value || 0); if (bytes < 1024) return `${bytes} B`; if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`; return `${(bytes / 1024 ** 2).toFixed(1)} MB`; },
@@ -526,6 +624,7 @@ export default {
         savedFileName: preferredName,
         consoleText: "",
         parametersText: "{}",
+        inputSchemaText: defaultInputSchema,
         runState: "idle",
         runFeedback: null
       };
@@ -553,6 +652,7 @@ export default {
         savedFileName: script.fileName || "",
         consoleText: "",
         parametersText: "{}",
+        inputSchemaText: defaultInputSchema,
         runState: "idle",
         runFeedback: null
       };
@@ -561,7 +661,7 @@ export default {
     },
     activateEditorTab(editorTab, options = {}) {
       if (!editorTab || editorTab.key === this.activeEditorTabKey) {
-        if (options.navigate !== false) this.tab = "develop";
+        if (options.navigate !== false) this.navigateToSection("develop");
         nextTick(() => this.editor?.focus());
         return;
       }
@@ -572,9 +672,10 @@ export default {
       this.savedFileName = editorTab.savedFileName || editorTab.form.fileName || "";
       this.consoleText = editorTab.consoleText || "";
       this.parametersText = editorTab.parametersText || "{}";
+      this.inputSchemaText = editorTab.inputSchemaText || defaultInputSchema;
       this.runState = editorTab.runState || "idle";
       this.runFeedback = editorTab.runFeedback || null;
-      if (options.navigate !== false) this.tab = "develop";
+      if (options.navigate !== false) this.navigateToSection("develop");
       this.resetAiSuggestion();
       nextTick(() => {
         this.editor?.layout();
@@ -589,6 +690,7 @@ export default {
       activeTab.savedFileName = this.savedFileName;
       activeTab.consoleText = this.consoleText;
       activeTab.parametersText = this.parametersText;
+      activeTab.inputSchemaText = this.inputSchemaText;
       activeTab.runState = this.runState;
       activeTab.runFeedback = this.runFeedback;
     },
@@ -666,7 +768,13 @@ export default {
           this.captureActiveEditorTab();
         }
         this.consoleText += `\n启动 ${this.form.fileName}…\n`;
-        const result = await executePythonScript(this.form.id, parameters);
+        let inputSchema;
+        try {
+          inputSchema = parsePythonExecutionParameters(this.inputSchemaText);
+        } catch (error) {
+          throw new Error(`输入 Schema 无效：${error?.message || "必须是 JSON 对象"}`);
+        }
+        const result = await executePythonScript(this.form.id, parameters, inputSchema);
         const succeeded = result.status === "SUCCEEDED";
         this.runState = succeeded ? "succeeded" : "failed";
         this.runFeedback = result;
@@ -698,11 +806,16 @@ export default {
     },
     async publish() {
       await this.action(async () => {
+        this.inputSchemaText = this.publishForm.inputSchema;
         await publishPythonScript(this.form.id, this.publishForm);
         this.publishOpen = false;
         this.message = "Python 模板已发布并注册到 Agent Runtime";
         await this.load();
       });
+    },
+    openPublishDialog() {
+      this.publishForm.inputSchema = this.inputSchemaText || defaultInputSchema;
+      this.publishOpen = true;
     },
     useAiExample(value) {
       this.aiPrompt = value;
@@ -880,13 +993,116 @@ export default {
       this.runFeedback = null;
       this.captureActiveEditorTab();
     },
+    restoreWorkspaceLayout() {
+      try {
+        const stored = JSON.parse(globalThis.localStorage?.getItem(workspaceLayoutStorageKey) || "{}");
+        this.explorerWidth = this.clamp(Number(stored.explorer), 180, 480, workspaceLayoutDefaults.explorer);
+        this.aiWidth = this.clamp(Number(stored.ai), 260, 620, workspaceLayoutDefaults.ai);
+        this.bottomHeight = this.clamp(Number(stored.bottom), 100, 520, workspaceLayoutDefaults.bottom);
+      } catch {
+        this.explorerWidth = workspaceLayoutDefaults.explorer;
+        this.aiWidth = workspaceLayoutDefaults.ai;
+        this.bottomHeight = workspaceLayoutDefaults.bottom;
+      }
+    },
+    persistWorkspaceLayout() {
+      try {
+        globalThis.localStorage?.setItem(workspaceLayoutStorageKey, JSON.stringify({
+          explorer: this.explorerWidth,
+          ai: this.aiWidth,
+          bottom: this.bottomHeight
+        }));
+      } catch {
+        // 浏览器禁用本地存储时仍保留当前会话中的拖拽结果。
+      }
+    },
+    clamp(value, minimum, maximum, fallback = minimum) {
+      return Number.isFinite(value) ? Math.min(maximum, Math.max(minimum, value)) : fallback;
+    },
+    startPaneResize(type, event) {
+      if (event.button !== 0 || globalThis.innerWidth < 900) return;
+      event.preventDefault();
+      const startSize = type === "explorer"
+        ? this.explorerWidth
+        : type === "ai"
+          ? this.aiWidth
+          : this.bottomHeight;
+      this.resizeState = { type, startX: event.clientX, startY: event.clientY, startSize };
+      document.body.classList.add("ds-pane-resizing", `ds-pane-resizing-${type}`);
+      globalThis.addEventListener("pointermove", this.resizePane);
+      globalThis.addEventListener("pointerup", this.stopPaneResize);
+      globalThis.addEventListener("pointercancel", this.stopPaneResize);
+    },
+    resizePane(event) {
+      const state = this.resizeState;
+      const workspace = this.$refs.workspace;
+      if (!state || !workspace) return;
+      const bounds = workspace.getBoundingClientRect();
+      if (state.type === "explorer") {
+        const maximum = Math.max(180, Math.min(480, bounds.width - this.aiWidth - 420));
+        this.explorerWidth = this.clamp(state.startSize + event.clientX - state.startX, 180, maximum);
+      } else if (state.type === "ai") {
+        const maximum = Math.max(260, Math.min(620, bounds.width - this.explorerWidth - 420));
+        this.aiWidth = this.clamp(state.startSize - event.clientX + state.startX, 260, maximum);
+      } else {
+        const mainHeight = this.editor?.getDomNode()?.parentElement?.clientHeight || bounds.height - 58;
+        const maximum = Math.max(100, Math.min(520, mainHeight - 220));
+        this.bottomHeight = this.clamp(state.startSize - event.clientY + state.startY, 100, maximum);
+      }
+      this.editor?.layout();
+    },
+    stopPaneResize() {
+      if (!this.resizeState) return;
+      this.resizeState = null;
+      document.body.classList.remove("ds-pane-resizing", "ds-pane-resizing-explorer", "ds-pane-resizing-ai", "ds-pane-resizing-bottom");
+      globalThis.removeEventListener("pointermove", this.resizePane);
+      globalThis.removeEventListener("pointerup", this.stopPaneResize);
+      globalThis.removeEventListener("pointercancel", this.stopPaneResize);
+      this.persistWorkspaceLayout();
+      nextTick(() => this.editor?.layout());
+    },
+    resetPaneSize(type) {
+      if (type === "explorer") this.explorerWidth = workspaceLayoutDefaults.explorer;
+      else if (type === "ai") this.aiWidth = workspaceLayoutDefaults.ai;
+      else this.bottomHeight = workspaceLayoutDefaults.bottom;
+      this.persistWorkspaceLayout();
+      nextTick(() => this.editor?.layout());
+    },
+    clearMessageTimer() {
+      if (this.messageTimer) clearTimeout(this.messageTimer);
+      this.messageTimer = null;
+    },
+    clearErrorTimer() {
+      if (this.errorTimer) clearTimeout(this.errorTimer);
+      this.errorTimer = null;
+    },
+    showTransientError(text, durationMs = 4000) {
+      this.clearErrorTimer();
+      this.error = text;
+      this.errorTimer = setTimeout(() => {
+        if (this.error === text) this.error = "";
+        this.errorTimer = null;
+      }, durationMs);
+    },
+    showTransientMessage(text, durationMs = 3000) {
+      this.clearMessageTimer();
+      this.message = text;
+      this.messageTimer = setTimeout(() => {
+        if (this.message === text) this.message = "";
+        this.messageTimer = null;
+      }, durationMs);
+    },
     useParameterExample() {
       const availableFile = this.dataFiles.find(
-        (file) => file.status === "AVAILABLE" && file.pythonPath
-      );
+        (file) => file.status === "AVAILABLE" && file.id === this.selectedDataFileId
+      ) || this.dataFiles.find((file) => file.status === "AVAILABLE" && file.id);
+      if (!availableFile) {
+        this.showTransientError("请先在“我的数据”中上传一个可用文件");
+        return;
+      }
       this.parametersText = JSON.stringify(
         {
-          file_path: availableFile?.pythonPath || "/data/input/example.csv",
+          source_file: availableFile.id,
           limit: 100,
           include_detail: true
         },

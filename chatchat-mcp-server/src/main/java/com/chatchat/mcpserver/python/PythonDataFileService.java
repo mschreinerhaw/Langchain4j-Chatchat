@@ -37,7 +37,18 @@ public class PythonDataFileService {
     public void delete(String tenant,String owner,String fileId){try{Path dir=fileDirectory(tenant,owner,fileId);if(!Files.exists(dir))return;try(var files=Files.list(dir)){for(Path file:files.toList())Files.deleteIfExists(file);}Files.deleteIfExists(dir);}catch(java.io.IOException ex){throw new IllegalStateException("MCP 数据文件删除失败："+ex.getMessage(),ex);}}
     public Path uploads(String tenant,String owner){try{Path root=root();Path path=root.resolve(component(tenant)).resolve(component(owner)).resolve("uploads").normalize();if(!path.startsWith(root))throw new IllegalArgumentException("非法数据目录");Files.createDirectories(path);return path;}catch(java.io.IOException ex){throw new IllegalStateException("无法创建用户数据目录",ex);}}
     @SuppressWarnings("unchecked") public Map<String,Object> resolveFileArguments(String schemaJson,Map<String,Object> values,String tenant,String owner){
-        try{Map<String,Object> schema=objectMapper.readValue(schemaJson,Map.class);Object raw=schema.get("properties");if(!(raw instanceof Map<?,?> propertiesMap))return values;Map<String,Object> resolved=new LinkedHashMap<>(values==null?Map.of():values);for(var entry:propertiesMap.entrySet()){if(!(entry.getValue() instanceof Map<?,?> definition))continue;String type=String.valueOf(definition.get("type"));if(!"FILE".equalsIgnoreCase(type))continue;String key=String.valueOf(entry.getKey());Object value=resolved.get(key);if(value==null)continue;String id=scope(String.valueOf(value));Path file=onlyFile(fileDirectory(tenant,owner,id));resolved.put(key,"/data/input/"+id+"/"+file.getFileName());}return resolved;}catch(java.io.IOException ex){throw new IllegalArgumentException("FILE 参数解析失败："+ex.getMessage(),ex);}
+        try{Map<String,Object> schema=objectMapper.readValue(schemaJson,Map.class);Object raw=schema.get("properties");if(!(raw instanceof Map<?,?> propertiesMap))return values;Map<String,Object> resolved=new LinkedHashMap<>(values==null?Map.of():values);for(var entry:propertiesMap.entrySet()){if(!(entry.getValue() instanceof Map<?,?> definition))continue;String type=String.valueOf(definition.get("type"));if(!"FILE".equalsIgnoreCase(type))continue;String key=String.valueOf(entry.getKey());Object value=resolved.get(key);if(value==null)continue;resolved.put(key,resolveFileReference(String.valueOf(value),tenant,owner));}return resolved;}catch(java.io.IOException ex){throw new IllegalArgumentException("FILE 参数解析失败："+ex.getMessage(),ex);}
+    }
+    private String resolveFileReference(String value,String tenant,String owner)throws java.io.IOException{
+        String prefix="/data/input/";String reference=value==null?"":value.trim();
+        if(reference.startsWith(prefix)){
+            String relative=reference.substring(prefix.length());String[] parts=relative.split("/",-1);
+            if(parts.length!=2)throw new IllegalArgumentException("FILE 路径必须是 /data/input/{fileId}/{fileName}");
+            String id=scope(parts[0]);Path file=onlyFile(fileDirectory(tenant,owner,id));
+            if(!file.getFileName().toString().equals(parts[1]))throw new IllegalArgumentException("FILE 路径不存在或不属于当前用户");
+            return prefix+id+"/"+file.getFileName();
+        }
+        String id=scope(reference);Path file=onlyFile(fileDirectory(tenant,owner,id));return prefix+id+"/"+file.getFileName();
     }
     private Path fileDirectory(String tenant,String owner,String id){Path uploads=uploads(tenant,owner);Path path=uploads.resolve(scope(id)).normalize();if(!path.startsWith(uploads))throw new IllegalArgumentException("非法数据文件路径");return path;}
     private Path onlyFile(Path directory)throws java.io.IOException{if(!Files.isDirectory(directory))throw new IllegalArgumentException("数据文件不存在");try(var files=Files.list(directory)){return files.filter(Files::isRegularFile).findFirst().orElseThrow(()->new IllegalArgumentException("数据文件不存在"));}}

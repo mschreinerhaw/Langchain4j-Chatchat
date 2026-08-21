@@ -22,6 +22,8 @@ class PythonDataFileServiceTest {
         var result=service.store("tenant_1","张三@example.com","file_1",name,hash,InternalSecretCipher.encryptBytes(content,"secret"));
         assertThat(result.pythonPath()).isEqualTo("/data/input/file_1/交易.csv");assertThat(Path.of(result.storagePath())).hasContent("name,amount\nA,12\n");
         assertThat(service.resolveFileArguments("{\"type\":\"object\",\"properties\":{\"source_file\":{\"type\":\"FILE\"}}}",Map.of("source_file","file_1"),"tenant_1","张三@example.com")).containsEntry("source_file","/data/input/file_1/交易.csv");
+        assertThat(service.resolveFileArguments("{\"type\":\"object\",\"properties\":{\"source_file\":{\"type\":\"FILE\"}}}",Map.of("source_file","/data/input/file_1/交易.csv"),"tenant_1","张三@example.com")).containsEntry("source_file","/data/input/file_1/交易.csv");
+        assertThatThrownBy(()->service.resolveFileArguments("{\"type\":\"object\",\"properties\":{\"source_file\":{\"type\":\"FILE\"}}}",Map.of("source_file","/data/input/file_1/other.csv"),"tenant_1","张三@example.com")).isInstanceOf(IllegalArgumentException.class);
         assertThat(InternalSecretCipher.decryptBytes(service.content("tenant_1","张三@example.com","file_1"),"secret")).isEqualTo(content);
         service.delete("tenant_1","张三@example.com","file_1");assertThat(Path.of(result.storagePath())).doesNotExist();
     }

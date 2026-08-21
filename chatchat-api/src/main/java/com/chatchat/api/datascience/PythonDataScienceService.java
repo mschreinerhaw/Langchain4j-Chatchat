@@ -47,7 +47,7 @@ public class PythonDataScienceService {
     }
 
     @Transactional
-    public PythonExecutionEntity testScript(String tenant,String owner,String scriptId,Map<String,Object> parameters){PythonScriptEntity script=ownedScript(scriptId,tenant,owner);PythonAssetEntity asset=ownedReadyAsset(script.getAssetId(),tenant,owner);var result=mcp.preview(asset.getMcpEnvironmentId(),tenant,owner,asset.getId(),script.getFileName(),script.getSourceCode(),parameters);PythonExecutionEntity execution=recordExecution(asset,script.getId(),null,tenant,owner,parameters,result);if("SUCCEEDED".equals(execution.getStatus())){script.setStatus("TESTED");script.setLastTestSucceeded(true);script.setLastTestedAt(Instant.now());scriptRepository.save(script);}return execution;}
+    public PythonExecutionEntity testScript(String tenant,String owner,String scriptId,Map<String,Object> parameters,String inputSchema){PythonScriptEntity script=ownedScript(scriptId,tenant,owner);PythonAssetEntity asset=ownedReadyAsset(script.getAssetId(),tenant,owner);validateJsonObject(inputSchema,"输入 Schema");var result=mcp.preview(asset.getMcpEnvironmentId(),tenant,owner,asset.getId(),script.getFileName(),script.getSourceCode(),parameters,inputSchema);PythonExecutionEntity execution=recordExecution(asset,script.getId(),null,tenant,owner,parameters,result);if("SUCCEEDED".equals(execution.getStatus())){script.setStatus("TESTED");script.setLastTestSucceeded(true);script.setLastTestedAt(Instant.now());scriptRepository.save(script);}return execution;}
 
     @Transactional
     public PythonTemplateEntity publish(String tenant,String owner,String scriptId,PublishRequest request){

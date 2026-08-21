@@ -33,17 +33,49 @@
             />
           </button>
           <div v-show="!isGroupCollapsed(group)" class="nav-group-list">
-            <button
-              v-for="item in group.items"
-              :key="item.id"
-              :class="{ active: activeView === item.id }"
-              type="button"
-              :title="collapsed ? item.label : ''"
-              @click="$emit('navigate', item.id)"
-            >
-              <component :is="iconComponent(item.icon)" class="nav-symbol" :size="18" stroke-width="2" />
-              <span>{{ item.label }}</span>
-            </button>
+            <template v-for="item in group.items" :key="item.id">
+              <div v-if="item.children?.length" class="nav-submenu" :class="{ active: isNavItemActive(item) }">
+                <button
+                  class="nav-submenu-trigger"
+                  type="button"
+                  :title="collapsed ? item.label : ''"
+                  :aria-expanded="!isNavItemCollapsed(item)"
+                  @click="activateNavItem(item)"
+                >
+                  <component :is="iconComponent(item.icon)" class="nav-symbol" :size="18" stroke-width="2" />
+                  <span>{{ item.label }}</span>
+                  <ChevronDown
+                    v-if="!collapsed"
+                    class="nav-submenu-caret"
+                    :class="{ collapsed: isNavItemCollapsed(item) }"
+                    :size="14"
+                    stroke-width="2"
+                  />
+                </button>
+                <div v-show="!isNavItemCollapsed(item)" class="nav-submenu-list">
+                  <button
+                    v-for="child in item.children"
+                    :key="child.id"
+                    :class="{ active: activeView === child.id }"
+                    type="button"
+                    @click="$emit('navigate', child.id)"
+                  >
+                    <component :is="iconComponent(child.icon)" class="nav-symbol" :size="16" stroke-width="2" />
+                    <span>{{ child.label }}</span>
+                  </button>
+                </div>
+              </div>
+              <button
+                v-else
+                :class="{ active: activeView === item.id }"
+                type="button"
+                :title="collapsed ? item.label : ''"
+                @click="$emit('navigate', item.id)"
+              >
+                <component :is="iconComponent(item.icon)" class="nav-symbol" :size="18" stroke-width="2" />
+                <span>{{ item.label }}</span>
+              </button>
+            </template>
           </div>
         </section>
       </nav>

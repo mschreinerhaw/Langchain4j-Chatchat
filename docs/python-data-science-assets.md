@@ -46,7 +46,7 @@ Asset 和用户 workspace 持久化，容器不持久化。每次调试或 MCP T
 
 默认限制为 2 CPU、4 GB 内存、256 个进程、只读根文件系统、丢弃全部 Linux capabilities、禁止提权、以 `10001:10001` 非 root 用户运行并关闭网络。用户 workspace 只读挂载到 `/workspace`，用户上传根目录只读挂载到 `/data/input`，`/tmp` 和 `/workspace/output` 使用带大小限制的 tmpfs。若需要访问数据库或内部 API，只能选择平台预先创建的 `NAMED` Docker 白名单网络。
 
-数据文件通过内部 AES-GCM 二进制信封传输，MCP 解密落盘前后使用 SHA-256 校验。真实目录为 `{data-root}/{tenant}/{user}/uploads/{fileId}/{fileName}`，脚本得到的稳定路径为 `/data/input/{fileId}/{fileName}`。输入 Schema 使用 `{"type":"FILE"}` 时，Runtime 会把调用参数中的 `fileId` 解析成该路径；不存在或跨用户的文件会拒绝执行。原始数据卷始终为 `ro`，脚本产生的内容只能先写入 `/workspace/output` tmpfs。
+数据文件通过内部 AES-GCM 二进制信封传输，MCP 解密落盘前后使用 SHA-256 校验。真实目录为 `{data-root}/{tenant}/{user}/uploads/{fileId}/{fileName}`，容器只看到 `/data/input/{fileId}/{fileName}`，不会暴露租户、用户或宿主机目录。输入 Schema 使用 `{"type":"FILE"}` 时，Agent 和调用方传递 `fileId`，Runtime 校验文件归属后把对应参数替换成容器内只读路径；脚本始终从 `CHATCHAT_INPUT_JSON` 动态读取该参数，不应写死具体文件。开发调试也允许输入当前用户复制的 `/data/input/{fileId}/{fileName}`，并执行同样的归属校验。不存在、路径不匹配或跨用户的文件都会拒绝执行。原始数据卷始终为 `ro`，脚本产生的内容只能先写入 `/workspace/output` tmpfs。
 
 Runtime 镜像必须使用固定标签或 digest，禁止 `latest` 和无标签镜像。环境发布后不可修改；升级 Python 或依赖需要构建新镜像并创建新的 MCP 环境。依赖清单只接受 `package==version`，作为镜像能力契约保存，执行期间不会调用 `pip install`。参考镜像位于 `deploy/docker/python-runtime`。
 

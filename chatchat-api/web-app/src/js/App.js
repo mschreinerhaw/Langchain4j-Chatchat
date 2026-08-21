@@ -63,6 +63,13 @@ const EvidenceDebuggerView = asyncView(() => import("../views/EvidenceDebuggerVi
 const SystemManagementView = asyncView(() => import("../views/SystemManagementView.vue"));
 const TasksView = asyncView(() => import("../views/TasksView.vue"));
 const AccessDeniedView = asyncView(() => import("../views/AccessDeniedView.vue"));
+const DATA_SCIENCE_TABS = {
+  dataScience: "environment",
+  dataScienceEnvironment: "environment",
+  dataScienceDevelop: "develop",
+  dataScienceData: "data",
+  dataScienceScripts: "scripts"
+};
 const VIEW_PERMISSIONS = {
   chat: "workspace:chat",
   search: "workspace:search",
@@ -71,6 +78,10 @@ const VIEW_PERMISSIONS = {
   library: "capability:library",
   mcp: "mcp",
   dataScience: "capability:library",
+  dataScienceEnvironment: "capability:library",
+  dataScienceDevelop: "capability:library",
+  dataScienceData: "capability:library",
+  dataScienceScripts: "capability:library",
   agents: "platform:agents",
   schedules: "platform:schedules",
   runtime: "platform:tasks",
@@ -87,6 +98,10 @@ const views = {
   library: LibraryView,
   mcp: McpCenterView,
   dataScience: DataScienceView,
+  dataScienceEnvironment: DataScienceView,
+  dataScienceDevelop: DataScienceView,
+  dataScienceData: DataScienceView,
+  dataScienceScripts: DataScienceView,
   agents: AgentWorkshopView,
   schedules: AgentScheduleView,
   runtime: AgentRuntimeView,
@@ -105,6 +120,7 @@ function currentHashRoute() {
 
 function viewFromHash() {
   const route = currentHashRoute();
+  if (route === "dataScience") return "dataScienceEnvironment";
   return views[route] ? route : "";
 }
 
@@ -182,7 +198,18 @@ export default {
           items: [
             { id: "market", label: "能力市场", icon: "grid", permissionCode: "capability:market" },
             { id: "library", label: "文档库", icon: "book", permissionCode: "capability:library" },
-            { id: "dataScience", label: "数据科学", icon: "code", permissionCode: "capability:library" }
+            {
+              id: "dataScience",
+              label: "数据科学",
+              icon: "code",
+              permissionCode: "capability:library",
+              children: [
+                { id: "dataScienceEnvironment", label: "Python 环境", icon: "runtime", permissionCode: "capability:library" },
+                { id: "dataScienceDevelop", label: "Python 开发", icon: "code", permissionCode: "capability:library" },
+                { id: "dataScienceData", label: "我的数据", icon: "file", permissionCode: "capability:library" },
+                { id: "dataScienceScripts", label: "我的脚本", icon: "book", permissionCode: "capability:library" }
+              ]
+            }
           ]
         },
         {
@@ -206,7 +233,14 @@ export default {
       return this.navItems.map((group) => ({
         ...group,
         items: Array.isArray(group.items)
-          ? group.items.filter((item) => item.id !== "debugger" && this.hasPermission(item.permissionCode))
+          ? group.items
+              .filter((item) => item.id !== "debugger" && this.hasPermission(item.permissionCode))
+              .map((item) => ({
+                ...item,
+                children: Array.isArray(item.children)
+                  ? item.children.filter((child) => this.hasPermission(child.permissionCode))
+                  : undefined
+              }))
           : []
       })).filter((group) => group.items.length > 0);
     },
@@ -224,6 +258,9 @@ export default {
         : {
             userId: this.userId,
             tenantId: this.tenantId,
+            ...(DATA_SCIENCE_TABS[this.activeView]
+              ? { initialTab: DATA_SCIENCE_TABS[this.activeView] }
+              : {}),
             ...(this.activeView === "tasks" ? { tenantName: this.tenantName } : {}),
             pendingDocumentShortcut: this.activeView === "search" ? this.pendingDocumentShortcut : null
           };

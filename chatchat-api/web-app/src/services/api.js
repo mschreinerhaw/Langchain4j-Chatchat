@@ -78,7 +78,7 @@ export function fetchMcpPythonEnvironments() { return apiRequest("/data-science/
 export function fetchPythonCodeModels() { return apiRequest("/data-science/python/models"); }
 export function createPythonAsset(payload) { return apiRequest("/data-science/python/assets", { method: "POST", body: JSON.stringify(payload) }); }
 export function savePythonScript(payload) { return apiRequest("/data-science/python/scripts", { method: "POST", body: JSON.stringify(payload) }); }
-export function executePythonScript(scriptId, parameters = {}) { return apiRequest(`/data-science/python/scripts/${encodeURIComponent(scriptId)}/execute`, { method: "POST", body: JSON.stringify(parameters) }); }
+export function executePythonScript(scriptId, parameters = {}, inputSchema = {}) { return apiRequest(`/data-science/python/scripts/${encodeURIComponent(scriptId)}/execute`, { method: "POST", body: JSON.stringify({ parameters, inputSchema: typeof inputSchema === "string" ? inputSchema : JSON.stringify(inputSchema) }) }); }
 export function publishPythonScript(scriptId, payload) { return apiRequest(`/data-science/python/scripts/${encodeURIComponent(scriptId)}/publish`, { method: "POST", body: JSON.stringify(payload) }); }
 export function fetchPythonScriptVersions(scriptId) { return apiRequest(`/data-science/python/scripts/${encodeURIComponent(scriptId)}/versions`); }
 export function requestPythonCodeAssist(payload) { return apiRequest("/data-science/python/assist", { method: "POST", body: JSON.stringify(payload) }); }

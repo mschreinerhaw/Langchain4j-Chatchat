@@ -4,6 +4,26 @@ import AiSearchView from "./views/AiSearchView.js";
 import ChatAssistantView from "./views/ChatAssistantView.js";
 
 describe("document Ask AI conversation isolation", () => {
+  it("exposes data science sections as sidebar child routes", () => {
+    const state = App.data();
+    const capability = state.navItems.find((group) => group.id === "capability");
+    const dataScience = capability.items.find((item) => item.id === "dataScience");
+
+    expect(dataScience.children.map((item) => item.id)).toEqual([
+      "dataScienceEnvironment",
+      "dataScienceDevelop",
+      "dataScienceData",
+      "dataScienceScripts"
+    ]);
+
+    const props = App.computed.activeComponentProps.call({
+      activeView: "dataScienceData",
+      userId: "user-1",
+      tenantId: "tenant-1"
+    });
+    expect(props.initialTab).toBe("data");
+  });
+
   it("marks document result questions as new-session drafts", () => {
     const emit = vi.fn();
     const result = { docId: "doc-1", title: "Spark document", summary: "Document summary" };

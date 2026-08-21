@@ -21,6 +21,51 @@ import static org.mockito.Mockito.when;
 class AgentAnswerFinalizerEvidenceAnswerTest {
 
     @Test
+    @SuppressWarnings("unchecked")
+    void reportsFailedBatchAsFailureEvenWhenTransportSucceeded() {
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            (chatModel, query, systemPrompt, observations, answer) ->
+                new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok"),
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        InteractionToolTrace trace = InteractionToolTrace.builder()
+            .toolName("mcp_chatchat_mcp_server_python_template_execute")
+            .success(true)
+            .output("""
+                {
+                  "batchId":"log-analysis",
+                  "status":"FAILED",
+                  "results":[{
+                    "callId":"log-analysis-1",
+                    "templateCode":"template-log",
+                    "status":"FAILED",
+                    "evidenceUsable":false,
+                    "error":{"code":"MCP_TOOL_ERROR","message":"data file does not exist"}
+                  }]
+                }
+                """)
+            .build();
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishExecution(
+            "The analysis could not be completed.",
+            List.of(trace),
+            new LinkedHashMap<>(),
+            List.of()
+        );
+
+        assertThat(result.answer())
+            .contains("：失败")
+            .contains("批处理执行失败，未产生可用结果集");
+        List<Map<String, Object>> evidence =
+            (List<Map<String, Object>>) result.metadata().get("toolResultEvidence");
+        assertThat(evidence).singleElement().satisfies(item -> {
+            assertThat(item).containsEntry("success", false)
+                .containsEntry("batchStatus", "FAILED")
+                .containsEntry("usableResultSetCount", 0);
+        });
+    }
+
+    @Test
     void keepsMixedToolEvidenceInMetadataWithoutPrependingEvidenceStatus() {
         AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
             (chatModel, query, systemPrompt, observations, answer) ->

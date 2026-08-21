@@ -55,8 +55,10 @@ public class PythonAnalysisBridge {
             .filter(value -> "PUBLISHED".equals(value.getStatus()))
             .orElseThrow(() -> new IllegalArgumentException(
                 "Python template not found in the current tenant or disabled"));
+        FileBinding binding = bindFiles(template, tenantId, ownerId, arguments);
+        if (binding.result() != null) return binding.result();
         Map<String, Object> parameters = argumentResolver.resolve(
-            template.getInputSchemaJson(), map(arguments.get("parameters")));
+            template.getInputSchemaJson(), binding.parameters());
         PythonExecution execution = serviceProvider.getObject()
                 .executeTemplateForUser(template.getId(), tenantId, ownerId, parameters);
         Map<String, Object> body = base("EXECUTED", false);

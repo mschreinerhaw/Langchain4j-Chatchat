@@ -1424,6 +1424,9 @@ class AgentAnswerFinalizer {
         Map<String, Object> batchEvidence = batchResultSetEvidence(output);
         if (!batchEvidence.isEmpty()) {
             item.putAll(batchEvidence);
+            if ("FAILED".equalsIgnoreCase(stringValue(batchEvidence.get("batchStatus")))) {
+                item.put("success", false);
+            }
             return compactEvidence(item);
         }
 
@@ -1901,6 +1904,9 @@ class AgentAnswerFinalizer {
             return "HTTP 调用完成";
         }
         if ("result_set_batch".equals(type)) {
+            if ("FAILED".equalsIgnoreCase(stringValue(item.get("batchStatus")))) {
+                return "批处理执行失败，未产生可用结果集";
+            }
             return "已按模板返回 " + firstPresent(item.get("resultSetCount"), 0) + " 个独立结果集";
         }
         if ("json".equals(type)) {

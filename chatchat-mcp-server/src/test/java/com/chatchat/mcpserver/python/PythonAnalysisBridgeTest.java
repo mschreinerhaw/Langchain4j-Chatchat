@@ -55,7 +55,7 @@ class PythonAnalysisBridgeTest {
 
         PythonAnalysisBridge.Result result = bridge.execute(Map.of(
             "tenantId", "tenant-a", "username", "alice", "templateId", "template-log",
-            "parameters", Map.of("source_file", "file-42")));
+            "parameters", Map.of("source_file", "1786342932178.log")));
 
         assertThat(result.error()).isFalse();
         assertThat(result.body()).containsEntry("status", "SUCCEEDED")

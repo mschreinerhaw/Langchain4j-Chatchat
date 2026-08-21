@@ -63,9 +63,18 @@ public class PythonMcpToolPublisher {
 
     private McpServerFeatures.SyncToolSpecification analysisRunSpec() {
         Map<String, Object> properties = new LinkedHashMap<>();
-        properties.put("query", Map.of("type", "string", "description", "The user's complete analysis request"));
-        properties.put("script", Map.of("type", "string", "description", "Published script filename or template name"));
-        properties.put("file", Map.of("type", "string", "description", "User-visible filename or opaque fileId"));
+        properties.put("query", Map.of(
+            "type", "string",
+            "description", "The user's complete analysis request",
+            "aliases", List.of("query_intent", "intent")));
+        properties.put("script", Map.of(
+            "type", "string",
+            "description", "Published script filename or template name",
+            "aliases", List.of("script_name", "scriptFileName")));
+        properties.put("file", Map.of(
+            "type", "string",
+            "description", "User-visible filename or opaque fileId",
+            "aliases", List.of("file_target", "file_name", "fileName")));
         properties.put("templateId", Map.of("type", "string", "description", "Optional exact template selection after clarification"));
         properties.put("assetId", Map.of("type", "string", "description", "Optional exact Python asset selection"));
         properties.put("environmentId", Map.of("type", "string", "description", "Optional exact environment selection"));

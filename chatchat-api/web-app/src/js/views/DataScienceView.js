@@ -446,7 +446,7 @@ export default {
           else this.newScript(false);
         }
       } catch (error) {
-        this.error = errorMessage(error, "工作台加载失败");
+        this.showTransientError(errorMessage(error, "工作台加载失败"));
       } finally {
         if (!background) this.loading = false;
         if (this.tab === "develop")
@@ -469,7 +469,7 @@ export default {
           if (this.expandedFolders[folder.id] === undefined)
             this.expandedFolders[folder.id] = true;
       } catch (error) {
-        this.error = errorMessage(error, "脚本文件列表刷新失败");
+        this.showTransientError(errorMessage(error, "脚本文件列表刷新失败"));
       } finally {
         this.explorerRefreshing = false;
       }
@@ -606,7 +606,7 @@ export default {
     chooseDataFile(event) { this.dataUploadFile = event.target.files?.[0] || null; },
     dropDataFile(event) { this.dataUploadFile = event.dataTransfer?.files?.[0] || null; },
     async uploadData() {
-      if (!this.dataUploadFile) { this.error = "请选择需要上传的数据文件"; return; }
+      if (!this.dataUploadFile) { this.showTransientError("请选择需要上传的数据文件"); return; }
       await this.action(async () => { const form = new FormData(); form.append("file", this.dataUploadFile); form.append("purpose", this.dataUploadForm.purpose); form.append("retention", this.dataUploadForm.retention); await uploadPythonDataFile(form); this.dataUploadOpen = false; this.showTransientMessage("数据已加密传输到 MCP，可在 Python 中只读访问"); await this.load(true); });
     },
     async copyDataPath(file) {
@@ -647,17 +647,18 @@ export default {
       }
     },
     async downloadData(file) { await this.action(() => downloadPythonDataFile(file.id, file.fileName)); },
-    async removeData(file) { if (!await this.openIdeConfirm({ title: "删除数据文件", message: `确认删除“${file.fileName}”？删除后脚本将无法读取。`, confirmText: "删除", danger: true })) return; await this.action(async () => { await deletePythonDataFile(file.id); this.message = "数据文件已删除"; await this.load(true); }); },
+    async removeData(file) { if (!await this.openIdeConfirm({ title: "删除数据文件", message: `确认删除“${file.fileName}”？删除后脚本将无法读取。`, confirmText: "删除", danger: true })) return; await this.action(async () => { await deletePythonDataFile(file.id); this.showTransientMessage("数据文件已删除"); await this.load(true); }); },
     formatBytes(value) { const bytes = Number(value || 0); if (bytes < 1024) return `${bytes} B`; if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`; return `${(bytes / 1024 ** 2).toFixed(1)} MB`; },
     dataStatusLabel(status) { return ({ AVAILABLE: "可用", TRANSFERRING: "传输中", TRANSFER_FAILED: "传输失败" })[status] || status; },
     async createAsset() {
       await this.action(async () => {
         const asset = await createPythonAsset(this.assetForm);
         this.assetOpen = false;
-        this.message =
+        this.showTransientMessage(
           asset.status === "READY"
             ? "Python Asset 已就绪"
-            : "环境创建失败，请检查 Docker 服务和镜像配置";
+            : "环境创建失败，请检查 Docker 服务和镜像配置"
+        );
         await this.load();
       });
     },
@@ -791,7 +792,7 @@ export default {
     async save() {
       const fileName = String(this.form.fileName || "").trim();
       if (!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,170}\.py$/.test(fileName)) {
-        this.error = "脚本文件名只能包含字母、数字、点、下划线或短横线，并且必须以 .py 结尾";
+        this.showTransientError("脚本文件名只能包含字母、数字、点、下划线或短横线，并且必须以 .py 结尾");
         this.focusFileNameEditor();
         return;
       }
@@ -803,7 +804,7 @@ export default {
         this.savedFileName = saved.fileName || this.form.fileName;
         this.savedFolderId = saved.folderId || "";
         this.captureActiveEditorTab();
-        this.message = "脚本已保存为新版本";
+        this.showTransientMessage("脚本已保存为新版本");
         await this.load(true);
       });
     },
@@ -822,7 +823,7 @@ export default {
       if (name == null || name.trim() === current.fileName) return;
       const fileName = name.trim();
       if (!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,170}\.py$/.test(fileName)) {
-        this.error = "脚本文件名只能包含字母、数字、点、下划线或短横线，并且必须以 .py 结尾";
+        this.showTransientError("脚本文件名只能包含字母、数字、点、下划线或短横线，并且必须以 .py 结尾");
         return;
       }
       await this.action(async () => {
@@ -947,7 +948,7 @@ export default {
           parameters = { ...parameters, source_file: this.selectedDataFileId };
         }
       } catch (error) {
-        this.error = error?.message || "执行参数必须是合法 JSON 对象";
+        this.showTransientError(error?.message || "执行参数必须是合法 JSON 对象");
         this.bottomTab = "parameters";
         this.bottomOpen = true;
         return;
@@ -1009,7 +1010,7 @@ export default {
         this.inputSchemaText = this.publishForm.inputSchema;
         await publishPythonScript(this.form.id, this.publishForm);
         this.publishOpen = false;
-        this.message = "Python 模板已发布并注册到 Agent Runtime";
+        this.showTransientMessage("Python 模板已发布并注册到 Agent Runtime");
         await this.load();
       });
     },
@@ -1023,7 +1024,7 @@ export default {
     },
     async askAi() {
       if (!this.aiPrompt.trim()) {
-        this.error = "请先输入代码生成提示词";
+        this.showTransientError("请先输入代码生成提示词");
         return;
       }
       const selection = this.editor?.getSelection();
@@ -1057,7 +1058,7 @@ export default {
         this.aiProgressStep = 4;
       } catch (error) {
         this.aiStage = "failed";
-        this.error = errorMessage(error, "AI 代码补全失败");
+        this.showTransientError(errorMessage(error, "AI 代码补全失败"));
       } finally {
         this.aiBusy = false;
         this.stopAiProgress();
@@ -1099,7 +1100,7 @@ export default {
       this.editor.pushUndoStop();
       if (!applied) {
         this.aiStage = "failed";
-        this.error = "AI 代码写入编辑器失败，请重新生成后再试";
+        this.showTransientError("AI 代码写入编辑器失败，请重新生成后再试");
         return;
       }
       this.form.sourceCode = model.getValue();
@@ -1157,7 +1158,7 @@ export default {
       await this.editor.getAction("editor.action.reindentlines")?.run();
       this.editor.pushUndoStop();
       this.form.sourceCode = model.getValue();
-      this.message = this.form.sourceCode === before ? "代码格式已符合规范" : "代码格式化完成";
+      this.showTransientMessage(this.form.sourceCode === before ? "代码格式已符合规范" : "代码格式化完成");
       this.editor.focus();
     },
     focusFileNameEditor() {
@@ -1276,7 +1277,7 @@ export default {
       if (this.errorTimer) clearTimeout(this.errorTimer);
       this.errorTimer = null;
     },
-    showTransientError(text, durationMs = 4000) {
+    showTransientError(text, durationMs = 5000) {
       this.clearErrorTimer();
       this.error = text;
       this.errorTimer = setTimeout(() => {
@@ -1284,7 +1285,7 @@ export default {
         this.errorTimer = null;
       }, durationMs);
     },
-    showTransientMessage(text, durationMs = 3000) {
+    showTransientMessage(text, durationMs = 5000) {
       this.clearMessageTimer();
       this.message = text;
       this.messageTimer = setTimeout(() => {
@@ -1324,7 +1325,7 @@ export default {
       ]);
       editor.pushUndoStop();
       this.form.sourceCode = model.getValue();
-      this.message = "运行参数读取示例已插入脚本，可根据字段名调整";
+      this.showTransientMessage("运行参数读取示例已插入脚本，可根据字段名调整");
       editor.focus();
     },
     toggleBottom() {
@@ -1350,7 +1351,7 @@ export default {
       try {
         await fn();
       } catch (error) {
-        this.error = errorMessage(error, "操作失败");
+        this.showTransientError(errorMessage(error, "操作失败"));
       } finally {
         this.busy = false;
       }

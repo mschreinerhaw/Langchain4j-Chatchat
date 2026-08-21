@@ -834,8 +834,10 @@ public class McpAuthorizationService {
             case "api_asset_query" -> new ToolScope("api_service", "asset", "query");
             case "api_template_query" -> new ToolScope("api_service", "template", "query");
             case "api_template_execute" -> new ToolScope("api_service", "template", "execute");
+            case "api_service_query" -> new ToolScope("api_service", "service", "read");
             case "python_data_file_query" -> new ToolScope("python_runtime", "data_file", "query");
             case "python_template_execute" -> new ToolScope("python_runtime", "template", "execute");
+            case "python_analysis_query" -> new ToolScope("python_runtime", "analysis", "read");
             case "api_requirement_analyze" -> new ToolScope("api_service", "requirement", "query");
             case "document_search" -> new ToolScope("document", "document", "search");
             case "database_query" -> new ToolScope("database_query", "execute", "query");
@@ -843,9 +845,14 @@ public class McpAuthorizationService {
             case "http_request_execute" -> new ToolScope("http_endpoint", "execute", "request");
             case "jmx_monitor_execute" -> new ToolScope("jmx_endpoint", "execute", "monitor");
             case "http_requirement_analyze" -> new ToolScope("http_endpoint", "requirement", "query");
+            case "server_capability_query" -> new ToolScope("ssh_host", "capability", "query");
+            case "http_capability_query" -> new ToolScope("http_endpoint", "capability", "query");
+            case "jmx_capability_query" -> new ToolScope("jmx_endpoint", "capability", "query");
+            case "database_capability_query" -> new ToolScope("sql_datasource", "capability", "query");
             case "sql_query_execute" -> new ToolScope("sql_datasource", "execute", "query");
             case "sql_script_execute" -> new ToolScope("sql_datasource", "execute", "script");
             case "sql_metadata_search" -> new ToolScope("sql_datasource", "metadata", "search");
+            case "data_query_query" -> new ToolScope("sql_datasource", "data", "query");
             case "enterprise_metadata_search" -> new ToolScope("enterprise_metadata", "metadata", "search");
             default -> new ToolScope(null, null, null);
         };

@@ -13,6 +13,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -97,34 +98,15 @@ class TemplateDiscoveryMcpToolPublisherTest {
     }
 
     @Test
-    void refreshPublishesAllTypedTemplateDiscoveryTools() {
+    void refreshKeepsTypedTemplateDiscoveryInternal() {
         McpSyncServer server = mock(McpSyncServer.class);
         TemplateDiscoveryMcpToolPublisher publisher = publisher(server);
 
         publisher.refresh();
 
-        ArgumentCaptor<McpServerFeatures.SyncToolSpecification> tools =
-            ArgumentCaptor.forClass(McpServerFeatures.SyncToolSpecification.class);
-        verify(server, times(5)).addTool(tools.capture());
-        McpSchema.Tool jmxTool = tools.getAllValues().stream()
-            .map(McpServerFeatures.SyncToolSpecification::tool)
-            .filter(tool -> TemplateDiscoveryMcpToolPublisher.JMX_TEMPLATE_TOOL_NAME.equals(tool.name()))
-            .findFirst()
-            .orElseThrow();
-        assertThat(jmxTool.meta().toString())
-            .contains("jmx_endpoint", "java", "read_only", "rawExecutionSpecReturned=false");
-        McpSchema.Tool databaseQueryTool = tools.getAllValues().stream()
-            .map(McpServerFeatures.SyncToolSpecification::tool)
-            .filter(tool -> TemplateDiscoveryMcpToolPublisher.DATABASE_QUERY_TEMPLATE_TOOL_NAME.equals(tool.name()))
-            .findFirst()
-            .orElseThrow();
-        assertThat(databaseQueryTool.title())
-            .isEqualTo("Categorized database query template discovery");
-        assertThat(databaseQueryTool.description())
-            .contains("Searches published database query templates by data capability category")
-            .contains("without executing a query");
-        assertThat(databaseQueryTool.description().codePoints().allMatch(character -> character < 128)).isTrue();
-        verify(server).notifyToolsListChanged();
+        verify(server, never()).addTool(org.mockito.ArgumentMatchers.any());
+        verify(server).removeTool(TemplateDiscoveryMcpToolPublisher.JMX_TEMPLATE_TOOL_NAME);
+        verify(server).removeTool(TemplateDiscoveryMcpToolPublisher.DATABASE_QUERY_TEMPLATE_TOOL_NAME);
     }
 
     private TemplateDiscoveryMcpToolPublisher publisher(McpSyncServer server) {

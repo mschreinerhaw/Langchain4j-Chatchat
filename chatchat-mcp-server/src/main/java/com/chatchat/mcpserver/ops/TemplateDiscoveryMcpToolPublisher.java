@@ -49,57 +49,7 @@ public class TemplateDiscoveryMcpToolPublisher {
         remove(HTTP_ENDPOINT_TEMPLATE_TOOL_NAME);
         remove(JMX_TEMPLATE_TOOL_NAME);
         remove(DATABASE_QUERY_TEMPLATE_TOOL_NAME);
-        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
-            mcpSyncServer, domainTemplateQueryTool(
-            SSH_TEMPLATE_TOOL_NAME,
-            "SSH command template discovery",
-            "Read-only MCP tool for retrieving SSH host command templates only.",
-            "ssh_host",
-            "host",
-            "host command templates"
-        ));
-        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
-            mcpSyncServer, domainTemplateQueryTool(
-            SQL_DATASOURCE_TEMPLATE_TOOL_NAME,
-            "Database maintenance template search",
-            "Read-only MCP tool for retrieving database maintenance, metadata, and diagnostic templates only.",
-            "sql_datasource",
-            "database",
-            "database maintenance templates"
-        ));
-        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
-            mcpSyncServer, domainTemplateQueryTool(
-            HTTP_ENDPOINT_TEMPLATE_TOOL_NAME,
-            "HTTP endpoint template discovery",
-            "Read-only MCP tool for retrieving HTTP endpoint request templates only.",
-            "http_endpoint",
-            "http",
-            "HTTP endpoint templates"
-        ));
-        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
-            mcpSyncServer, domainTemplateQueryTool(
-            JMX_TEMPLATE_TOOL_NAME,
-            "JMX monitoring template discovery",
-            "Read-only MCP tool for retrieving governed Java and Kafka JMX monitoring templates only.",
-            "jmx_endpoint",
-            "java",
-            "JMX monitoring templates"
-        ));
-        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
-            mcpSyncServer, domainTemplateQueryTool(
-            DATABASE_QUERY_TEMPLATE_TOOL_NAME,
-            "Categorized database query template discovery",
-            "Searches published database query templates by data capability category, business intent, "
-                + "and query constraints. Returns template identifiers, parameter contracts, and the "
-                + "authorized execution tool without executing a query.",
-            "database_query",
-            "business_database_query",
-            "categorized database query template"
-        ));
-        mcpSyncServer.notifyToolsListChanged();
-        log.info("Template discovery MCP tools refreshed: {}, {}, {}, {}, {}",
-            SSH_TEMPLATE_TOOL_NAME, SQL_DATASOURCE_TEMPLATE_TOOL_NAME,
-            HTTP_ENDPOINT_TEMPLATE_TOOL_NAME, JMX_TEMPLATE_TOOL_NAME, DATABASE_QUERY_TEMPLATE_TOOL_NAME);
+        log.info("Operations template discovery is internal to the domain-specific server, HTTP, JMX and database capability queries");
     }
 
     private McpServerFeatures.SyncToolSpecification domainTemplateQueryTool(String toolName,

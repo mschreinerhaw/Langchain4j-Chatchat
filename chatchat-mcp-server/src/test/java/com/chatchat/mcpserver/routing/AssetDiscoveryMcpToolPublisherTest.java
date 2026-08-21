@@ -12,13 +12,14 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 class AssetDiscoveryMcpToolPublisherTest {
 
     @Test
-    void refreshExposesSqlDatasourceAssetQueryTool() {
+    void refreshKeepsTypedAssetDiscoveryInternal() {
         McpSyncServer server = mock(McpSyncServer.class);
         AssetDiscoveryMcpToolPublisher publisher = new AssetDiscoveryMcpToolPublisher(
             server,
@@ -28,21 +29,8 @@ class AssetDiscoveryMcpToolPublisherTest {
 
         publisher.refresh();
 
-        ArgumentCaptor<McpServerFeatures.SyncToolSpecification> captor =
-            ArgumentCaptor.forClass(McpServerFeatures.SyncToolSpecification.class);
-        verify(server, times(4)).addTool(captor.capture());
-        List<String> toolNames = captor.getAllValues().stream()
-            .map(spec -> spec.tool().name())
-            .toList();
-        assertThat(toolNames)
-            .containsExactlyInAnyOrder(
-                AssetDiscoveryMcpToolPublisher.SSH_ASSET_TOOL_NAME,
-                AssetDiscoveryMcpToolPublisher.SQL_DATASOURCE_ASSET_TOOL_NAME,
-                AssetDiscoveryMcpToolPublisher.HTTP_ENDPOINT_ASSET_TOOL_NAME,
-                AssetDiscoveryMcpToolPublisher.MICROSERVICE_ASSET_TOOL_NAME
-            );
+        verify(server, never()).addTool(org.mockito.ArgumentMatchers.any());
         verify(server).removeTool(AssetDiscoveryMcpToolPublisher.SQL_DATASOURCE_ASSET_TOOL_NAME);
-        verify(server).notifyToolsListChanged();
     }
 
     @Test

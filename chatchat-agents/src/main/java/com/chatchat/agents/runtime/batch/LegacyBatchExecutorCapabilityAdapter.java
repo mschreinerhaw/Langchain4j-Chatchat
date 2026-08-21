@@ -18,6 +18,7 @@ final class LegacyBatchExecutorCapabilityAdapter {
         "linux_command_execute",
         "api_query_execute",
         "api_template_execute",
+        "python_template_execute",
         "http_request_execute"
     );
 

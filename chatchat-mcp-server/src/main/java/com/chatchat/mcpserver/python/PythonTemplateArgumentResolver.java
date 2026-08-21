@@ -47,22 +47,29 @@ class PythonTemplateArgumentResolver {
             default -> value;
         };
         if (definition.get("enum") instanceof List<?> choices
-            && choices.stream().noneMatch(choice -> Objects.equals(choice, converted))) {
+                && choices.stream().noneMatch(choice -> Objects.equals(choice, converted))) {
             throw new IllegalArgumentException("Python template parameter " + name + " is not an allowed enum value");
         }
         return converted;
     }
 
     private Object integer(String name, Object value) {
-        if (value instanceof Byte || value instanceof Short || value instanceof Integer || value instanceof Long) return value;
-        try { return Long.parseLong(String.valueOf(value).trim()); }
-        catch (Exception ex) { throw invalid(name, "整数", value); }
+        if (value instanceof Byte || value instanceof Short || value instanceof Integer || value instanceof Long)
+            return value;
+        try {
+            return Long.parseLong(String.valueOf(value).trim());
+        } catch (Exception ex) {
+            throw invalid(name, "整数", value);
+        }
     }
 
     private Object number(String name, Object value) {
         if (value instanceof Number) return value;
-        try { return Double.parseDouble(String.valueOf(value).trim()); }
-        catch (Exception ex) { throw invalid(name, "数字", value); }
+        try {
+            return Double.parseDouble(String.valueOf(value).trim());
+        } catch (Exception ex) {
+            throw invalid(name, "数字", value);
+        }
     }
 
     private Object bool(String name, Object value) {
@@ -79,7 +86,8 @@ class PythonTemplateArgumentResolver {
             try {
                 Object parsed = objectMapper.readValue(text, Object.class);
                 if (expected.isInstance(parsed)) return parsed;
-            } catch (Exception ignored) { }
+            } catch (Exception ignored) {
+            }
         }
         throw invalid(name, label, value);
     }
@@ -90,13 +98,18 @@ class PythonTemplateArgumentResolver {
 
     Map<String, Object> schema(String schemaJson) {
         if (schemaJson == null || schemaJson.isBlank()) return Map.of("type", "object", "properties", Map.of());
-        try { return objectMapper.readValue(schemaJson, new TypeReference<>() {}); }
-        catch (Exception ex) { throw new IllegalArgumentException("Invalid Python template input schema", ex); }
+        try {
+            return objectMapper.readValue(schemaJson, new TypeReference<>() {
+            });
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Invalid Python template input schema", ex);
+        }
     }
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> map(Object value) {
-        return value instanceof Map<?, ?> ? objectMapper.convertValue(value, new TypeReference<>() {}) : Map.of();
+        return value instanceof Map<?, ?> ? objectMapper.convertValue(value, new TypeReference<>() {
+        }) : Map.of();
     }
 
 }

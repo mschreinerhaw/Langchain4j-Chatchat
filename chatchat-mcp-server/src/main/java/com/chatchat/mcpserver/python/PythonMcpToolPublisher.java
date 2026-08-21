@@ -27,9 +27,10 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 @RequiredArgsConstructor
 public class PythonMcpToolPublisher {
-    public static final String ANALYSIS_RUN_TOOL = "python_analysis_run";
+    public static final String ANALYSIS_RUN_TOOL = "python_analysis_query";
+    public static final String TEMPLATE_EXECUTE_TOOL = "python_template_execute";
     static final List<String> LEGACY_PROTOCOL_TOOLS = List.of(
-        "python_asset_query", "python_template_query", "python_data_file_query", "python_template_execute");
+        "python_asset_query", "python_template_query", "python_data_file_query", "python_analysis_run");
 
     private final ObjectProvider<McpSyncServer> serverProvider;
     private final PythonTemplateAssetRepository templates;
@@ -53,8 +54,11 @@ public class PythonMcpToolPublisher {
         managed.clear();
         McpToolPublicationReviewer.addReviewedTool(server, analysisRunSpec());
         managed.add(ANALYSIS_RUN_TOOL);
+        McpToolPublicationReviewer.addReviewedTool(server, templateExecuteSpec());
+        managed.add(TEMPLATE_EXECUTE_TOOL);
         server.notifyToolsListChanged();
-        log.info("Unified Python MCP bridge published: {}; legacy protocol tools removed", ANALYSIS_RUN_TOOL);
+        log.info("Unified Python discovery bridge published: {}; Runtime executor retained: {}",
+            ANALYSIS_RUN_TOOL, TEMPLATE_EXECUTE_TOOL);
     }
 
     private McpServerFeatures.SyncToolSpecification analysisRunSpec() {
@@ -69,8 +73,8 @@ public class PythonMcpToolPublisher {
             "description", "Business parameters; supplied values override defaults"));
         McpSchema.Tool tool = McpSchema.Tool.builder()
             .name(ANALYSIS_RUN_TOOL)
-            .title("Python 数据分析")
-            .description("统一解析当前用户的 Python 脚本、执行环境、数据文件和运行参数，并执行已发布模板。存在歧义时返回候选项，不猜测用户选择。")
+            .title("Python 分析能力查询")
+            .description("统一发现当前租户的 Python 脚本模板、环境和用户数据绑定。该工具不执行脚本；模型选择后由 python_template_execute 进入 Agent Runtime 治理链路。")
             .inputSchema(new McpSchema.JsonSchema("object", properties, List.of(), false, null, null))
             .meta(meta()).build();
         return McpServerFeatures.SyncToolSpecification.builder().tool(tool).callHandler((exchange, request) -> {
@@ -80,26 +84,59 @@ public class PythonMcpToolPublisher {
         }).build();
     }
 
+    private McpServerFeatures.SyncToolSpecification templateExecuteSpec() {
+        McpSchema.Tool tool = McpSchema.Tool.builder()
+            .name(TEMPLATE_EXECUTE_TOOL)
+            .title("Python 模板执行")
+            .description("Execute one published Python template selected from python_analysis_query. Multiple accepted templates use Agent Runtime's ordered batch envelope.")
+            .inputSchema(new McpSchema.JsonSchema("object", Map.of(
+                "templateId", Map.of("type", "string"),
+                "parameters", Map.of("type", "object", "additionalProperties", true),
+                "purpose", Map.of("type", "string")
+            ), List.of("templateId", "parameters"), false, null, null))
+            .meta(executeMeta()).build();
+        return McpServerFeatures.SyncToolSpecification.builder().tool(tool).callHandler((exchange, request) -> {
+            Map<String, Object> arguments = request.arguments() == null ? Map.of() : request.arguments();
+            return concurrencyManager.execute(TEMPLATE_EXECUTE_TOOL, "python", arguments,
+                () -> callResult(bridge.execute(arguments)));
+        }).build();
+    }
+
     private Map<String, Object> meta() {
         Map<String, Object> meta = new LinkedHashMap<>();
-        meta.put("schemaVersion", "python_analysis_run.v1");
+        meta.put("schemaVersion", "python_analysis_query.v1");
         meta.put("assetType", "python_runtime");
-        meta.put("runtime_action", "execute");
-        meta.put("runtimeAction", "execute");
+        meta.put("runtime_action", "read_only");
+        meta.put("runtimeAction", "read_only");
         meta.put("templateGoverned", true);
         meta.put("bridgeManaged", true);
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta(ANALYSIS_RUN_TOOL, "python"));
         meta.put(ToolProtocolDriverContract.METADATA_KEY, ToolProtocolDriverContract.of(
             "mcp.python-analysis-bridge.v1",
             List.of(
-                "Call python_analysis_run once with the user's complete intent, mentioned script, file and business parameters.",
-                "The bridge selects the tenant-scoped published template, its bound environment and the current user's file; never call internal discovery steps.",
-                "If requiresClarification is true, ask the user to choose from the returned candidates and call this same tool again with the selected id.",
+                "Call python_analysis_query with the user's complete intent and review every returned template candidate.",
+                "Call python_analysis_query again with an accepted templateId only when file binding must be resolved into executionArguments.",
+                "Execute accepted templates through python_template_execute; use Agent Runtime's ordered batch envelope for multiple templates.",
                 "Supplied parameter values override schema defaults; omitted values remain available for script code-level defaults."),
             List.of(
                 "Preserve explicit templateId, assetId and environmentId selections during retry.",
                 "Never invent a host path, container path, fileId, templateId or environmentId.",
                 "Never rewrite a governed template into raw source or bypass the Python bridge.")));
+        return Map.copyOf(meta);
+    }
+
+    private Map<String, Object> executeMeta() {
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("schemaVersion", "python_template_execute.v1");
+        meta.put("assetType", "python_runtime");
+        meta.put("runtime_action", "execute");
+        meta.put("runtimeAction", "execute");
+        meta.put("templateGoverned", true);
+        meta.put("templateDiscoveryTool", ANALYSIS_RUN_TOOL);
+        meta.put("capabilities", List.of("template_execution", "batch_execution"));
+        meta.put("template_execution", true);
+        meta.put("batch_execution", true);
+        meta.put("mcp_tool_limit", concurrencyManager.limitMeta(TEMPLATE_EXECUTE_TOOL, "python"));
         return Map.copyOf(meta);
     }
 

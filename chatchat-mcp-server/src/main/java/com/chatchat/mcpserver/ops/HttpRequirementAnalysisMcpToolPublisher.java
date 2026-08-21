@@ -41,7 +41,7 @@ public class HttpRequirementAnalysisMcpToolPublisher {
         com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
             mcpSyncServer, toolSpecification());
         mcpSyncServer.notifyToolsListChanged();
-        log.info("HTTP requirement analysis MCP tool refreshed: {}", TOOL_NAME);
+        log.info("HTTP requirement analysis published as an HTTP-specific discovery contract: {}", TOOL_NAME);
     }
 
     private McpServerFeatures.SyncToolSpecification toolSpecification() {

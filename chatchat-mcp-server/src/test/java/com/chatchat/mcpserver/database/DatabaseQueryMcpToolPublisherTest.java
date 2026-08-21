@@ -16,7 +16,7 @@ import static org.mockito.Mockito.when;
 class DatabaseQueryMcpToolPublisherTest {
 
     @Test
-    void refreshKeepsMarketDataInTemplateIndexAndPublishesOtherCategories() {
+    void refreshKeepsAllDatabaseQueriesBehindDataBridge() {
         McpSyncServer mcpSyncServer = mock(McpSyncServer.class);
         DatabaseQueryConfigService configService = mock(DatabaseQueryConfigService.class);
         DatabaseQueryToolSpecFactory toolSpecFactory = mock(DatabaseQueryToolSpecFactory.class);
@@ -43,8 +43,11 @@ class DatabaseQueryMcpToolPublisherTest {
 
         publisher.refresh();
 
-        verify(mcpSyncServer).addTool(validationSpec);
+        verify(mcpSyncServer, never()).addTool(org.mockito.ArgumentMatchers.any());
+        verify(mcpSyncServer).removeTool("data_validation_validate_customer_asset");
+        verify(mcpSyncServer).removeTool("market_data_bond_yield");
         verify(mcpSyncServer, never()).addTool(marketSpec);
+        verify(toolSpecFactory, never()).toToolSpecification(validation);
         verify(toolSpecFactory, never()).toToolSpecification(market);
         verify(mcpSyncServer).notifyToolsListChanged();
     }

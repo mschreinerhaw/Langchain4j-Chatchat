@@ -7,6 +7,8 @@ import com.chatchat.mcpserver.database.DatabaseQueryConfigService;
 import com.chatchat.mcpserver.database.DatabaseQueryInvokeService;
 import com.chatchat.mcpserver.routing.AssetMetadataFactory;
 import com.chatchat.mcpserver.routing.ExecutionTargetRouter;
+import com.chatchat.mcpserver.routing.TargetKindRegistry;
+import com.chatchat.mcpserver.ops.CommandTemplateDiscoveryService;
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import com.chatchat.mcpserver.tool.StandardToolExecutionResultFactory;
@@ -14,6 +16,7 @@ import com.chatchat.tools.builtin.DatabaseToolProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.server.McpServerFeatures;
+import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -44,7 +47,7 @@ class SqlMcpToolPublisherTest {
     private final McpToolConcurrencyManager concurrencyManager = mock(McpToolConcurrencyManager.class);
 
     @Test
-    void refreshPublishesOnlyUnifiedSqlExecutionGateway() {
+    void refreshPublishesOnlyUnifiedDataQueryBridge() {
         SqlQueryExecuteService executeService = mock(SqlQueryExecuteService.class);
         when(executeService.minRowsLimit()).thenReturn(1);
         when(executeService.maxRowsLimit()).thenReturn(1000);
@@ -73,10 +76,38 @@ class SqlMcpToolPublisherTest {
             ArgumentCaptor.forClass(McpServerFeatures.SyncToolSpecification.class);
         verify(mcpSyncServer, times(2)).addTool(tools.capture());
         assertThat(tools.getAllValues().stream().map(tool -> tool.tool().name()).toList())
-            .containsExactly("sql_metadata_search", "sql_query_execute")
-            .doesNotContain("sql_script_execute");
+            .containsExactly(SqlMcpToolPublisher.DATA_QUERY_BRIDGE_TOOL, "sql_query_execute")
+            .doesNotContain("sql_metadata_search", "sql_script_execute");
         verify(mcpSyncServer).removeTool("sql_script_execute");
         verify(mcpSyncServer).notifyToolsListChanged();
+    }
+
+    @Test
+    void dataBridgeReturnsOnlyBusinessTemplatesForModelReview() throws Exception {
+        CommandTemplateDiscoveryService discovery = mock(CommandTemplateDiscoveryService.class);
+        when(discovery.query(org.mockito.ArgumentMatchers.anyMap())).thenAnswer(invocation -> {
+            Map<String, Object> request = invocation.getArgument(0);
+            String kind = String.valueOf(request.get("finalDecision"));
+            return Map.of("returnedCount", 1, "templates", List.of(Map.of(
+                "templateId", kind + "_template", "title", kind)));
+        });
+        SqlMcpToolPublisher publisher = new SqlMcpToolPublisher(
+            mcpSyncServer, datasourceConfigService, sqlTemplateService, mock(SqlQueryExecuteService.class), scriptExecuteService,
+            metadataSearchService, databaseQueryConfigService, databaseQueryInvokeService, executionTargetRouter,
+            assetMetadataFactory, governanceFactory, concurrencyManager,
+            new StandardToolExecutionResultFactory(new DatabaseToolProperties()),
+            new ChatChatMcpServerProperties(), new ObjectMapper());
+        publisher.configureDataQueryBridge(discovery, new TargetKindRegistry());
+        Method method = SqlMcpToolPublisher.class.getDeclaredMethod("executeDataQueryBridge", Map.class);
+        method.setAccessible(true);
+
+        McpSchema.CallToolResult result = (McpSchema.CallToolResult) method.invoke(publisher,
+            Map.of("query", "analyze customer trading data"));
+
+        assertThat(result.structuredContent().toString())
+            .contains("CANDIDATES_FOUND", "business_database_query_template", "requiresModelReview=true")
+            .doesNotContain("database_template");
+        verify(discovery).query(org.mockito.ArgumentMatchers.anyMap());
     }
 
     @Test

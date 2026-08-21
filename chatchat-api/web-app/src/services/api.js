@@ -78,6 +78,7 @@ export function fetchMcpPythonEnvironments() { return apiRequest("/data-science/
 export function fetchPythonCodeModels() { return apiRequest("/data-science/python/models"); }
 export function createPythonAsset(payload) { return apiRequest("/data-science/python/assets", { method: "POST", body: JSON.stringify(payload) }); }
 export function savePythonScript(payload) { return apiRequest("/data-science/python/scripts", { method: "POST", body: JSON.stringify(payload) }); }
+export function deletePythonScript(id) { return apiRequest(`/data-science/python/scripts/${encodeURIComponent(id)}`, { method: "DELETE" }); }
 export function savePythonScriptFolder(payload) { return apiRequest("/data-science/python/script-folders", { method: "POST", body: JSON.stringify(payload) }); }
 export function deletePythonScriptFolder(id) { return apiRequest(`/data-science/python/script-folders/${encodeURIComponent(id)}`, { method: "DELETE" }); }
 export function importPythonSystemExampleData(id) { return apiRequest(`/data-science/python/system-examples/${encodeURIComponent(id)}/data`, { method: "POST" }); }

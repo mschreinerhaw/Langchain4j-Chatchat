@@ -12,6 +12,8 @@ import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import com.chatchat.mcpserver.tool.StandardToolExecutionResultFactory;
 import com.chatchat.mcpserver.routing.AssetMetadataFactory;
 import com.chatchat.mcpserver.routing.ExecutionTargetRouter;
+import com.chatchat.mcpserver.routing.TargetKindRegistry;
+import com.chatchat.mcpserver.ops.CommandTemplateDiscoveryService;
 import com.chatchat.mcpserver.template.AgentRuntimeTemplateDsl;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,6 +27,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -39,6 +42,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 @RequiredArgsConstructor
 public class SqlMcpToolPublisher {
+
+    public static final String DATA_QUERY_BRIDGE_TOOL = "data_query_query";
 
     private final McpSyncServer mcpSyncServer;
     private final SqlDatasourceConfigService datasourceConfigService;
@@ -56,6 +61,15 @@ public class SqlMcpToolPublisher {
     private final ChatChatMcpServerProperties serverProperties;
     private final ObjectMapper objectMapper;
     private final Set<String> managedToolNames = ConcurrentHashMap.newKeySet();
+    private CommandTemplateDiscoveryService templateDiscoveryService;
+    private TargetKindRegistry targetKindRegistry;
+
+    @Autowired
+    void configureDataQueryBridge(CommandTemplateDiscoveryService templateDiscoveryService,
+                                  TargetKindRegistry targetKindRegistry) {
+        this.templateDiscoveryService = templateDiscoveryService;
+        this.targetKindRegistry = targetKindRegistry;
+    }
 
     @Order(Ordered.LOWEST_PRECEDENCE)
     @EventListener(ApplicationReadyEvent.class)
@@ -67,16 +81,158 @@ public class SqlMcpToolPublisher {
         remove("sql_query_execute");
         remove("sql_script_execute");
         remove("sql_metadata_search");
+        remove(DATA_QUERY_BRIDGE_TOOL);
         datasourceConfigService.listAll().forEach(datasource -> remove(datasource.getToolName()));
         managedToolNames.forEach(this::remove);
         managedToolNames.clear();
         com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
-            mcpSyncServer, sqlMetadataSearchTool());
+            mcpSyncServer, dataQueryBridgeTool());
         com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
             mcpSyncServer, sqlQueryGatewayTool());
         mcpSyncServer.notifyToolsListChanged();
-        log.info("SQL MCP gateway tools refreshed: sql_metadata_search, sql_query_execute "
-            + "(single-query and internal script/workflow bridge)");
+        log.info("Unified data discovery bridge refreshed: {}; Runtime SQL executor retained: sql_query_execute",
+            DATA_QUERY_BRIDGE_TOOL);
+    }
+
+    private McpServerFeatures.SyncToolSpecification dataQueryBridgeTool() {
+        McpSchema.Tool tool = McpSchema.Tool.builder()
+            .name(DATA_QUERY_BRIDGE_TOOL)
+            .title("数据查询与元数据分析")
+            .description("One read-only facade for governed SQL template and metadata discovery. "
+                + "It never executes a query; selected templates remain owned by sql_query_execute and Agent Runtime batch governance. "
+                + "Writes, DDL, permissions and concrete connection information are forbidden.")
+            .inputSchema(dataQueryBridgeInputSchema())
+            .meta(dataQueryBridgeMeta())
+            .build();
+        return McpServerFeatures.SyncToolSpecification.builder()
+            .tool(tool)
+            .callHandler((exchange, request) -> concurrencyManager.execute(
+                DATA_QUERY_BRIDGE_TOOL,
+                "read_only",
+                request.arguments(),
+                () -> executeDataQueryBridge(request.arguments())))
+            .build();
+    }
+
+    private McpSchema.CallToolResult executeDataQueryBridge(Map<String, Object> rawArguments) {
+        Map<String, Object> arguments = rawArguments == null ? Map.of() : rawArguments;
+        if (!"metadata".equalsIgnoreCase(text(arguments, "stage"))) {
+            return discoverDataQueryTemplates(arguments);
+        }
+        Map<String, Object> metadataArguments = new LinkedHashMap<>(arguments);
+        Object intent = metadataArguments.get("intent");
+        if (!metadataArguments.containsKey("query") && intent != null) {
+            metadataArguments.put("query", intent);
+        }
+        Map<String, Object> result = metadataSearchService.search(metadataArguments);
+        Map<String, Object> structured = new LinkedHashMap<>(result == null ? Map.of() : result);
+        structured.put("schemaVersion", "data_query_bridge_result.v1");
+        structured.put("status", "METADATA_FOUND");
+        structured.put("bridgeManaged", true);
+        return McpSchema.CallToolResult.builder()
+            .addTextContent(summarizeMetadataSearchResultV2(result))
+            .structuredContent(structured)
+            .isError(false)
+            .build();
+    }
+
+    private McpSchema.CallToolResult discoverDataQueryTemplates(Map<String, Object> arguments) {
+        if (templateDiscoveryService == null || targetKindRegistry == null) {
+            throw new IllegalStateException("Data query template discovery bridge is unavailable");
+        }
+        String requestedKind = text(arguments, "targetKind");
+        String normalizedKind = requestedKind == null
+            ? "business_database_query"
+            : targetKindRegistry.normalizeTargetKind(requestedKind);
+        if (!"business_database_query".equals(normalizedKind)) {
+            throw new IllegalArgumentException(
+                "data_query_query only discovers business data-query templates; use database_capability_query for database operations");
+        }
+        List<String> targetKinds = List.of(normalizedKind);
+        List<Map<String, Object>> candidates = new ArrayList<>();
+        List<Map<String, Object>> diagnostics = new ArrayList<>();
+        for (String targetKind : targetKinds) {
+            String assetType = targetKindRegistry.assetTypeForTargetKind(targetKind);
+            if (assetType == null || (!"sql_datasource".equals(assetType) && !"database_query".equals(assetType))) {
+                throw new IllegalArgumentException("Unsupported data query targetKind: " + targetKind);
+            }
+            Map<String, Object> filters = new LinkedHashMap<>();
+            Object suppliedFilters = arguments.get("filters");
+            if (suppliedFilters instanceof Map<?, ?> map) map.forEach((key, value) -> filters.put(String.valueOf(key), value));
+            String query = firstText(text(arguments, "query"), text(arguments, "intent"));
+            if (query != null) filters.putIfAbsent("intent", query);
+            Map<String, Object> discoveryArguments = new LinkedHashMap<>();
+            discoveryArguments.put("assetType", assetType);
+            discoveryArguments.put("finalDecision", targetKind);
+            discoveryArguments.put("confidence", 1.0D);
+            discoveryArguments.put("candidates", List.of(Map.of("targetKind", targetKind, "confidence", 1.0D)));
+            discoveryArguments.put("trace", Map.of("source", DATA_QUERY_BRIDGE_TOOL, "bridgeManaged", true));
+            discoveryArguments.put("filters", filters);
+            discoveryArguments.put("limit", 20);
+            Map<String, Object> discovered = templateDiscoveryService.query(discoveryArguments);
+            for (Map<String, Object> candidate : maps(discovered.get("templates"))) {
+                Map<String, Object> enriched = new LinkedHashMap<>(candidate);
+                enriched.put("targetKind", targetKind);
+                candidates.add(enriched);
+            }
+            diagnostics.add(Map.of("targetKind", targetKind,
+                "returnedCount", discovered.getOrDefault("returnedCount", 0)));
+        }
+        Map<String, Object> structured = new LinkedHashMap<>();
+        structured.put("schemaVersion", "data_query_bridge_result.v2");
+        structured.put("success", true);
+        structured.put("status", candidates.isEmpty() ? "NO_CANDIDATE" : "CANDIDATES_FOUND");
+        structured.put("requiresModelReview", !candidates.isEmpty());
+        structured.put("candidateCount", candidates.size());
+        structured.put("candidates", candidates);
+        structured.put("diagnostics", diagnostics);
+        structured.put("executionTool", "sql_query_execute");
+        structured.put("bridgeManaged", true);
+        return McpSchema.CallToolResult.builder().addTextContent(
+                candidates.isEmpty() ? "No governed data query template matched" : "Review data query template candidates before execution")
+            .structuredContent(structured).isError(false).build();
+    }
+
+    private McpSchema.JsonSchema dataQueryBridgeInputSchema() {
+        Map<String, Object> properties = new LinkedHashMap<>();
+        properties.put("query", Map.of("type", "string", "description", "Complete natural-language metadata or data question"));
+        properties.put("intent", Map.of("type", "string", "description", "Alias of query"));
+        properties.put("stage", Map.of("type", "string", "enum", List.of("templates", "metadata"),
+            "description", "templates by default; metadata searches tables and columns only"));
+        properties.put("targetKind", Map.of("type", "string", "enum", List.of("business_database_query"),
+            "description", "Optional explicit business data-query scope; database operations use database_capability_query"));
+        properties.put("tableName", Map.of("type", "string"));
+        properties.put("database", Map.of("type", "string"));
+        properties.put("assetId", Map.of("type", "string", "description", "Logical datasource asset id; never a connection string"));
+        properties.put("catalogLimit", Map.of("type", "integer", "minimum", 1));
+        properties.put("detailLimit", Map.of("type", "integer", "minimum", 1));
+        properties.put("includeColumns", Map.of("type", "boolean"));
+        return new McpSchema.JsonSchema("object", properties, List.of(), false, null, null);
+    }
+
+    private Map<String, Object> dataQueryBridgeMeta() {
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("schemaVersion", "data_query_query.v1");
+        meta.put("assetType", "sql_datasource");
+        meta.put("runtime_action", "read_only");
+        meta.put("runtimeAction", "read_only");
+        meta.put("bridgeManaged", true);
+        meta.put("readOnly", true);
+        meta.put("allowedStatements", List.of("SELECT", "SHOW", "DESCRIBE", "EXPLAIN"));
+        meta.put("forbiddenTargetFields", List.of("datasourceId", "jdbcUrl", "url", "connectionString"));
+        meta.put("executionTool", "sql_query_execute");
+        meta.put("mcp_tool_limit", concurrencyManager.limitMeta(DATA_QUERY_BRIDGE_TOOL, "read_only"));
+        meta.put(ToolProtocolDriverContract.METADATA_KEY, ToolProtocolDriverContract.of(
+            "mcp.data-query-bridge.v1",
+            List.of(
+                "Call data_query_query with the complete question to retrieve multiple governed template candidates.",
+                "Semantically review all candidates, then execute accepted templates through sql_query_execute using Agent Runtime's standard ordered batch envelope.",
+                "Use stage=metadata only for table and column discovery; retrieval rank is not semantic acceptance."),
+            List.of(
+                "Never invent datasource ids, database endpoints, table names, columns, SQL templates or parameter values.",
+                "Never submit writes, DDL, permission changes or connection information.",
+                "If routing or required values remain ambiguous, ask the user instead of guessing.")));
+        return Map.copyOf(meta);
     }
 
     private McpServerFeatures.SyncToolSpecification toToolSpecification(SqlDatasourceConfig datasource) {
@@ -1152,6 +1308,13 @@ public class SqlMcpToolPublisher {
         }
         Object value = values.get(key);
         return value == null || String.valueOf(value).isBlank() ? null : String.valueOf(value).trim();
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> maps(Object value) {
+        if (!(value instanceof List<?> list)) return List.of();
+        return list.stream().filter(Map.class::isInstance)
+            .map(item -> (Map<String, Object>) item).toList();
     }
 
     private boolean equalsIgnoreCase(String left, String right) {

@@ -43,46 +43,7 @@ public class AssetDiscoveryMcpToolPublisher {
         remove(LEGACY_SQL_DATASOURCE_ASSET_TOOL_NAME);
         remove(HTTP_ENDPOINT_ASSET_TOOL_NAME);
         remove(MICROSERVICE_ASSET_TOOL_NAME);
-        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
-            mcpSyncServer, assetQueryTool(
-            SSH_ASSET_TOOL_NAME,
-            "SSH asset metadata discovery",
-            "Read-only discovery tool for querying redacted SSH host asset metadata and routing hints.",
-            "ssh_host",
-            "host",
-            null
-        ));
-        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
-            mcpSyncServer, assetQueryTool(
-            SQL_DATASOURCE_ASSET_TOOL_NAME,
-            "Database asset search",
-            "Read-only discovery tool for confirming redacted database datasource assets and routing hints.",
-            "sql_datasource",
-            "database",
-            null
-        ));
-        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
-            mcpSyncServer, assetQueryTool(
-            HTTP_ENDPOINT_ASSET_TOOL_NAME,
-            "Ordinary HTTP asset search",
-            "Read-only discovery tool exclusively for ordinary HTTP endpoint assets. It never returns microservice assets.",
-            "http_endpoint",
-            "http",
-            "HTTP"
-        ));
-        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
-            mcpSyncServer, assetQueryTool(
-            MICROSERVICE_ASSET_TOOL_NAME,
-            "Microservice asset search",
-            "Read-only discovery tool exclusively for microservice gateway assets. It never returns ordinary HTTP assets.",
-            "http_endpoint",
-            "http",
-            "MICROSERVICE"
-        ));
-        mcpSyncServer.notifyToolsListChanged();
-        log.info("Asset discovery MCP tools refreshed: {}, {}, {}, {}",
-            SSH_ASSET_TOOL_NAME, SQL_DATASOURCE_ASSET_TOOL_NAME,
-            HTTP_ENDPOINT_ASSET_TOOL_NAME, MICROSERVICE_ASSET_TOOL_NAME);
+        log.info("Operations asset discovery is internal to the domain-specific server, HTTP and database capability queries");
     }
 
     private McpServerFeatures.SyncToolSpecification assetQueryTool(String toolName,

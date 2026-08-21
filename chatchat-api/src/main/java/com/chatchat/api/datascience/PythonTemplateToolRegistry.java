@@ -7,7 +7,9 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-/** Removes legacy per-template Agent tools. Python execution is MCP protocol governed. */
+/**
+ * Removes legacy per-template Agent tools. Python execution is MCP protocol governed.
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor

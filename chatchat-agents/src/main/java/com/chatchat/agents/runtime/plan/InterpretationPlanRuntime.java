@@ -8031,15 +8031,23 @@ public class InterpretationPlanRuntime {
             && ("api_template_execute".equals(semantic) || semantic.endsWith("_api_template_execute"));
     }
 
+    private boolean isPythonTemplateExecuteTool(String toolName) {
+        String semantic = toolSemanticKey(toolName);
+        return "python_template_execute".equals(semantic)
+            || semantic.endsWith("_python_template_execute");
+    }
+
     private boolean isTemplateExecutionTool(String toolName) {
         return isSqlQueryExecuteTool(toolName)
             || isLinuxCommandExecuteTool(toolName)
             || isHttpRequestExecuteTool(toolName)
-            || isApiTemplateExecuteTool(toolName);
+            || isApiTemplateExecuteTool(toolName)
+            || isPythonTemplateExecuteTool(toolName);
     }
 
     private boolean requiresTemplateId(String toolName) {
-        return isLinuxCommandExecuteTool(toolName) || isHttpRequestExecuteTool(toolName) || isApiTemplateExecuteTool(toolName);
+        return isLinuxCommandExecuteTool(toolName) || isHttpRequestExecuteTool(toolName)
+            || isApiTemplateExecuteTool(toolName) || isPythonTemplateExecuteTool(toolName);
     }
 
     private boolean isSqlMetadataSearchTool(String toolName) {

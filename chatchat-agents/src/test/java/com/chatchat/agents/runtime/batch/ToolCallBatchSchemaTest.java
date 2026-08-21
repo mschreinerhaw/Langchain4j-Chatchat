@@ -47,6 +47,14 @@ class ToolCallBatchSchemaTest {
     }
 
     @Test
+    void keepsPythonDiscoveryOutsideBatchAndAdmitsNativePythonExecutor() {
+        assertThat(ToolCallBatchSchema.supports("python_analysis_query")).isFalse();
+        assertThat(ToolCallBatchSchema.supports("python_template_execute")).isTrue();
+        assertThat(ToolCallBatchSchema.augment("python_template_execute", Map.of("type", "object")))
+            .containsKey("x-chatchat-batch");
+    }
+
+    @Test
     void admitsArbitraryExecutorThroughDeclaredCapabilityInsteadOfToolName() {
         ToolMetadata metadata = ToolMetadata.builder()
             .id("tenant_operation_gateway")

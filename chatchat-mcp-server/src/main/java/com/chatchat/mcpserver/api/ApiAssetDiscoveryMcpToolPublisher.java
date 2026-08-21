@@ -61,10 +61,7 @@ public class ApiAssetDiscoveryMcpToolPublisher {
 
     public synchronized void refresh() {
         remove(TOOL_NAME);
-        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
-            mcpSyncServer, apiAssetQueryTool());
-        mcpSyncServer.notifyToolsListChanged();
-        log.info("API asset discovery MCP tool refreshed: {}", TOOL_NAME);
+        log.info("API asset discovery is internal to {}", ApiMcpToolPublisher.BRIDGE_TOOL_NAME);
     }
 
     private McpServerFeatures.SyncToolSpecification apiAssetQueryTool() {

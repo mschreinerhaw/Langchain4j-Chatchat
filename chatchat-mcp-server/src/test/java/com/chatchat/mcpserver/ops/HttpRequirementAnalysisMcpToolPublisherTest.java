@@ -16,19 +16,21 @@ import static org.mockito.Mockito.when;
 class HttpRequirementAnalysisMcpToolPublisherTest {
 
     @Test
-    void publishesQueryShorthandWithoutIncorrectlyRequiringStructuredRequirements() {
+    void publishesRequirementAnalysisAsAnHttpSpecificContract() {
         McpSyncServer server = mock(McpSyncServer.class);
         HttpRequirementAnalysisMcpToolPublisher publisher = new HttpRequirementAnalysisMcpToolPublisher(
             server, mock(CommandTemplateDiscoveryService.class));
 
         publisher.refresh();
 
+        verify(server).removeTool(HttpRequirementAnalysisMcpToolPublisher.TOOL_NAME);
         ArgumentCaptor<io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification> specification =
             ArgumentCaptor.forClass(io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification.class);
         verify(server).addTool(specification.capture());
         assertThat(specification.getValue().tool().inputSchema().properties())
             .containsKeys("query", "requirements");
         assertThat(specification.getValue().tool().inputSchema().required()).isEmpty();
+        verify(server).notifyToolsListChanged();
     }
 
     @Test

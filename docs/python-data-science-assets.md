@@ -19,11 +19,11 @@
 - MCP 侧 `mcp_python_template_asset` 是运行时权威快照；执行时才在 MCP 进程内存中解密源码。
 - 两端必须配置相同的内部加密凭据。未配置凭据时客户端拒绝发送源码，MCP 也拒绝明文载荷。
 
-## 多环境发现与执行绑定
+## Python 分析桥接层与多环境绑定
 
-用户意图依次经过 `python_asset_query`、`python_template_query` 和 `python_template_execute`。模板发布时会把 Asset 业务名称、描述、`assetId` 和 `environmentId` 同步到 MCP；执行环境是模板快照的一部分，调用方只能提交 `templateId` 和业务 `parameters`，不能在执行阶段覆盖环境。
+Agent 使用统一发现入口 `python_analysis_query` 获取模板、环境和文件绑定候选；选定模板后仍通过原生执行网关 `python_template_execute` 进入 Agent Runtime。桥接层不执行脚本、不实现批量循环，也不替代 Runtime 的参数证据校验、默认值编译、限流、审计和失败隔离。
 
-`python_asset_query` 使用业务意图、Asset 元数据、环境元数据和所属模板场景进行候选过滤与排序，也支持用 `assetId` 或 `environmentId` 精确过滤。唯一候选或首位候选分数更高时返回 `recommendedAssetId`；多个候选同分时返回 `requiresClarification: true`，模型必须先让用户选择环境。后续调用必须保留选中的 `assetId`，执行结果同时返回实际使用的 `assetId` 和 `environmentId` 供审计。
+模板发布时会把 Asset 业务名称、描述、`assetId` 和 `environmentId` 同步到 MCP；执行环境是模板快照的一部分，调用方不能在执行阶段任意覆盖环境。桥接层使用完整用户意图、脚本文件名和模板元数据进行排序；也接受 `templateId`、`assetId` 或 `environmentId` 精确选择。多个候选无法唯一确定时返回 `requiresClarification: true` 和候选项，Agent 必须询问用户后再次调用同一个工具。执行结果返回实际使用的模板、Asset 和环境 ID 供审计。
 
 ## 脚本输入输出约定
 
@@ -48,7 +48,7 @@ Asset 和用户 workspace 持久化，容器不持久化。每次调试或 MCP T
 
 数据文件通过内部 AES-GCM 二进制信封传输，MCP 解密落盘前后使用 SHA-256 校验。真实目录为 `{data-root}/{tenant}/{user}/uploads/{fileId}/{fileName}`，容器只看到 `/data/input/{fileId}/{fileName}`，不会暴露租户、用户或宿主机目录。输入 Schema 使用 `{"type":"FILE"}` 时，Agent 和调用方传递 `fileId`，Runtime 校验文件归属后把对应参数替换成容器内只读路径；脚本始终从 `CHATCHAT_INPUT_JSON` 动态读取该参数，不应写死具体文件。开发调试也允许输入当前用户复制的 `/data/input/{fileId}/{fileName}`，并执行同样的归属校验。不存在、路径不匹配或跨用户的文件都会拒绝执行。原始数据卷始终为 `ro`，脚本产生的内容只能先写入 `/workspace/output` tmpfs。
 
-自然语言执行遵循运行时协议链：`python_asset_query` 根据意图或发布时同步的脚本文件名选择环境，`python_template_query` 返回模板及 FILE 参数契约，`python_data_file_query` 在当前租户和当前用户目录中把用户提到的文件名解析成不透明 `fileId`，最后 `python_template_execute` 将 `templateId` 与业务参数绑定执行。文件重名或环境无法唯一确定时必须澄清；Agent 不得拼接路径、读取宿主机目录或绕过已发布模板执行源码。
+自然语言分析先进入 `python_analysis_query`。桥接层返回匹配的已发布模板及其固有环境，并可在明确 `templateId` 后把用户文件解析为不透明 `fileId`。模型完成候选判断后调用 `python_template_execute`；多个模板由 Agent Runtime 标准批处理执行。文件重名或环境无法唯一确定时必须澄清；Agent 不得拼接路径、读取宿主机目录或绕过已发布模板执行源码。
 
 Runtime 镜像必须使用固定标签或 digest，禁止 `latest` 和无标签镜像。环境发布后不可修改；升级 Python 或依赖需要构建新镜像并创建新的 MCP 环境。依赖清单只接受 `package==version`，作为镜像能力契约保存，执行期间不会调用 `pip install`。参考镜像位于 `deploy/docker/python-runtime`。
 

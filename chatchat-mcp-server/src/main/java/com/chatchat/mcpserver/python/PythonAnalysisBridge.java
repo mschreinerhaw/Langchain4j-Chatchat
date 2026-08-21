@@ -25,15 +25,40 @@ public class PythonAnalysisBridge {
     public Result run(Map<String, Object> rawArguments) {
         Map<String, Object> arguments = rawArguments == null ? Map.of() : rawArguments;
         String tenantId = tenantId(arguments);
+        String explicitTemplateId = text(arguments.get("templateId"));
+        if (explicitTemplateId == null) {
+            return candidates(tenantId, arguments);
+        }
         String ownerId = ownerId(arguments);
         Selection selection = selectTemplate(tenantId, arguments);
         if (selection.result() != null) return selection.result();
         PythonTemplate template = selection.template();
         FileBinding binding = bindFiles(template, tenantId, ownerId, arguments);
         if (binding.result() != null) return binding.result();
-        Map<String, Object> parameters = argumentResolver.resolve(template.getInputSchemaJson(), binding.parameters());
+        Map<String, Object> body = base("READY_FOR_EXECUTION", false);
+        body.put("requiresModelReview", false);
+        body.put("executionTool", PythonMcpToolPublisher.TEMPLATE_EXECUTE_TOOL);
+        body.put("template", templateChoice(new ScoredTemplate(template, 0D)));
+        body.put("executionArguments", Map.of(
+            "templateId", template.getId(),
+            "parameters", binding.parameters()));
+        return new Result(Map.copyOf(body), false);
+    }
+
+    public Result execute(Map<String, Object> rawArguments) {
+        Map<String, Object> arguments = rawArguments == null ? Map.of() : rawArguments;
+        String tenantId = tenantId(arguments);
+        String ownerId = ownerId(arguments);
+        String templateId = text(arguments.get("templateId"));
+        if (templateId == null) throw new IllegalArgumentException("templateId is required");
+        PythonTemplate template = templates.findByIdAndTenantId(templateId, tenantId)
+            .filter(value -> "PUBLISHED".equals(value.getStatus()))
+            .orElseThrow(() -> new IllegalArgumentException(
+                "Python template not found in the current tenant or disabled"));
+        Map<String, Object> parameters = argumentResolver.resolve(
+            template.getInputSchemaJson(), map(arguments.get("parameters")));
         PythonExecution execution = serviceProvider.getObject()
-            .executeTemplateForUser(template.getId(), tenantId, ownerId, parameters);
+                .executeTemplateForUser(template.getId(), tenantId, ownerId, parameters);
         Map<String, Object> body = base("EXECUTED", false);
         body.put("templateId", template.getId());
         body.put("templateName", nullable(template.getTemplateName()));
@@ -51,6 +76,29 @@ public class PythonAnalysisBridge {
         return new Result(body, failed);
     }
 
+    private Result candidates(String tenantId, Map<String, Object> arguments) {
+        String assetId = text(arguments.get("assetId"));
+        String environmentId = text(arguments.get("environmentId"));
+        String script = firstText(text(arguments.get("script")), text(arguments.get("scriptFileName")));
+        String query = firstText(text(arguments.get("query")), text(arguments.get("intent")));
+        List<ScoredTemplate> ranked = templates.findByTenantIdAndStatus(tenantId, "PUBLISHED").stream()
+            .filter(value -> assetId == null || assetId.equals(value.getAssetId()))
+            .filter(value -> environmentId == null || environmentId.equals(value.getEnvironmentId()))
+            .map(value -> new ScoredTemplate(value, score(value, script, query)))
+            .filter(value -> script == null && query == null || value.score() > 0)
+            .sorted(Comparator.comparingDouble(ScoredTemplate::score).reversed()
+                .thenComparing(value -> nullable(value.template().getTemplateName())))
+            .limit(20)
+            .toList();
+        Map<String, Object> body = base(ranked.isEmpty() ? "NOT_FOUND" : "CANDIDATES_FOUND", false);
+        body.put("requiresModelReview", !ranked.isEmpty());
+        body.put("candidateCount", ranked.size());
+        body.put("candidates", ranked.stream().map(this::templateChoice).toList());
+        body.put("executionTool", PythonMcpToolPublisher.TEMPLATE_EXECUTE_TOOL);
+        body.put("selectionPolicy", "Review every candidate; invoke the Runtime executor once per accepted template");
+        return new Result(Map.copyOf(body), ranked.isEmpty());
+    }
+
     private Selection selectTemplate(String tenantId, Map<String, Object> arguments) {
         String templateId = text(arguments.get("templateId"));
         String assetId = text(arguments.get("assetId"));
@@ -58,23 +106,23 @@ public class PythonAnalysisBridge {
         String script = firstText(text(arguments.get("script")), text(arguments.get("scriptFileName")));
         String query = firstText(text(arguments.get("query")), text(arguments.get("intent")));
         List<PythonTemplate> candidates = templates.findByTenantIdAndStatus(tenantId, "PUBLISHED").stream()
-            .filter(value -> templateId == null || templateId.equals(value.getId()))
-            .filter(value -> assetId == null || assetId.equals(value.getAssetId()))
-            .filter(value -> environmentId == null || environmentId.equals(value.getEnvironmentId()))
-            .toList();
+                .filter(value -> templateId == null || templateId.equals(value.getId()))
+                .filter(value -> assetId == null || assetId.equals(value.getAssetId()))
+                .filter(value -> environmentId == null || environmentId.equals(value.getEnvironmentId()))
+                .toList();
         if (script != null) {
             List<PythonTemplate> exact = candidates.stream().filter(value ->
-                equalsIgnoreCase(script, value.getScriptFileName()) || equalsIgnoreCase(script, value.getTemplateName())).toList();
+                    equalsIgnoreCase(script, value.getScriptFileName()) || equalsIgnoreCase(script, value.getTemplateName())).toList();
             if (!exact.isEmpty()) candidates = exact;
         }
         String requestedScript = script;
         String requestedQuery = query;
         List<ScoredTemplate> ranked = candidates.stream()
-            .map(value -> new ScoredTemplate(value, score(value, requestedScript, requestedQuery)))
-            .filter(value -> templateId != null || requestedScript == null && requestedQuery == null || value.score() > 0)
-            .sorted(Comparator.comparingDouble(ScoredTemplate::score).reversed()
-                .thenComparing(value -> nullable(value.template().getTemplateName())))
-            .toList();
+                .map(value -> new ScoredTemplate(value, score(value, requestedScript, requestedQuery)))
+                .filter(value -> templateId != null || requestedScript == null && requestedQuery == null || value.score() > 0)
+                .sorted(Comparator.comparingDouble(ScoredTemplate::score).reversed()
+                        .thenComparing(value -> nullable(value.template().getTemplateName())))
+                .toList();
         if (ranked.isEmpty()) return new Selection(null, notFound("没有找到匹配的已发布 Python 脚本模板"));
         boolean uniqueTop = ranked.size() == 1 || ranked.get(0).score() > ranked.get(1).score();
         if (templateId == null && !uniqueTop) {
@@ -90,15 +138,15 @@ public class PythonAnalysisBridge {
         Map<String, Object> schema = argumentResolver.schema(template.getInputSchemaJson());
         Map<String, Object> properties = map(schema.get("properties"));
         List<String> fileFields = properties.entrySet().stream()
-            .filter(entry -> "FILE".equalsIgnoreCase(String.valueOf(map(entry.getValue()).get("type"))))
-            .map(Map.Entry::getKey).toList();
+                .filter(entry -> "FILE".equalsIgnoreCase(String.valueOf(map(entry.getValue()).get("type"))))
+                .map(Map.Entry::getKey).toList();
         String genericFile = firstText(text(arguments.get("file")), text(arguments.get("fileName")));
         if (genericFile != null && fileFields.size() > 1
-            && fileFields.stream().noneMatch(parameters::containsKey)) {
+                && fileFields.stream().noneMatch(parameters::containsKey)) {
             List<Map<String, Object>> choices = fileFields.stream()
-                .map(field -> Map.<String, Object>of("parameter", field)).toList();
+                    .map(field -> Map.<String, Object>of("parameter", field)).toList();
             return new FileBinding(Map.of(), clarification("file_parameter",
-                "模板包含多个 FILE 参数，请明确文件绑定到哪个参数", choices));
+                    "模板包含多个 FILE 参数，请明确文件绑定到哪个参数", choices));
         }
         if (genericFile != null && fileFields.size() == 1 && !parameters.containsKey(fileFields.get(0)))
             parameters.put(fileFields.get(0), genericFile);
@@ -122,13 +170,13 @@ public class PythonAnalysisBridge {
         if (reference.startsWith("/data/input/")) return new FileResolution(reference, null);
         List<PythonDataFileService.DataFileView> files = dataFiles.discover(tenantId, ownerId, reference, 20);
         List<PythonDataFileService.DataFileView> exact = files.stream()
-            .filter(file -> file.fileName().equalsIgnoreCase(reference)).toList();
+                .filter(file -> file.fileName().equalsIgnoreCase(reference)).toList();
         PythonDataFileService.DataFileView selected = exact.size() == 1 ? exact.get(0)
-            : exact.isEmpty() && files.size() == 1 ? files.get(0) : null;
+                : exact.isEmpty() && files.size() == 1 ? files.get(0) : null;
         if (selected != null) return new FileResolution(selected.fileId(), null);
         if (files.size() > 1) {
             List<Map<String, Object>> choices = files.stream().map(file -> Map.<String, Object>of(
-                "fileId", file.fileId(), "fileName", file.fileName(), "fileSize", file.fileSize())).toList();
+                    "fileId", file.fileId(), "fileName", file.fileName(), "fileSize", file.fileSize())).toList();
             return new FileResolution(null, clarification("file", "存在多个匹配的数据文件，请选择一个", choices));
         }
         return new FileResolution(explicit ? reference : null, null);
@@ -163,9 +211,12 @@ public class PythonAnalysisBridge {
         choice.put("templateId", template.getId());
         choice.put("templateName", nullable(template.getTemplateName()));
         choice.put("scriptFileName", nullable(template.getScriptFileName()));
-        choice.put("assetId", template.getAssetId());
+        choice.put("assetId", nullable(template.getAssetId()));
         choice.put("assetName", nullable(template.getAssetName()));
-        choice.put("environmentId", template.getEnvironmentId());
+        choice.put("environmentId", nullable(template.getEnvironmentId()));
+        choice.put("version", nullable(template.getVersion()));
+        choice.put("parameterSchema", argumentResolver.schema(template.getInputSchemaJson()));
+        choice.put("outputSchema", argumentResolver.schema(template.getOutputSchemaJson()));
         choice.put("score", candidate.score());
         return Map.copyOf(choice);
     }
@@ -187,7 +238,8 @@ public class PythonAnalysisBridge {
     private Map<String, Object> base(String status, boolean clarification) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("schemaVersion", "python_analysis_bridge_result.v1");
-        body.put("success", "EXECUTED".equals(status));
+        body.put("success", "EXECUTED".equals(status) || "CANDIDATES_FOUND".equals(status)
+            || "READY_FOR_EXECUTION".equals(status));
         body.put("status", status);
         body.put("requiresClarification", clarification);
         body.put("bridgeManaged", true);
@@ -199,7 +251,7 @@ public class PythonAnalysisBridge {
         Map<String, Object> context = map(arguments.get("mcpContext"));
         Map<String, Object> tenant = map(context.get("tenant"));
         String value = firstText(invocation == null ? null : text(invocation.tenantId()),
-            text(arguments.get("tenantId")), text(context.get("tenantId")), text(tenant.get("tenantId")));
+                text(arguments.get("tenantId")), text(context.get("tenantId")), text(tenant.get("tenantId")));
         if (value == null) throw new IllegalArgumentException("tenantId is required for Python asset governance");
         return value;
     }
@@ -209,9 +261,9 @@ public class PythonAnalysisBridge {
         Map<String, Object> context = map(arguments.get("mcpContext"));
         Map<String, Object> user = map(context.get("user"));
         String value = firstText(invocation == null ? null : text(invocation.username()),
-            invocation == null ? null : text(invocation.userId()), text(arguments.get("username")),
-            text(context.get("username")), text(user.get("username")), text(arguments.get("userId")),
-            text(context.get("userId")), text(user.get("userId")));
+                invocation == null ? null : text(invocation.userId()), text(arguments.get("username")),
+                text(context.get("username")), text(user.get("username")), text(arguments.get("userId")),
+                text(context.get("userId")), text(user.get("userId")));
         if (value == null || "anonymous".equalsIgnoreCase(value))
             throw new IllegalArgumentException("Authenticated user identity is required for Python data access");
         return value;
@@ -220,25 +272,42 @@ public class PythonAnalysisBridge {
     private boolean equalsIgnoreCase(String left, String right) {
         return left != null && right != null && left.equalsIgnoreCase(right);
     }
+
     private boolean contains(String value, String needle) {
         return value != null && needle != null && value.toLowerCase(Locale.ROOT).contains(needle.toLowerCase(Locale.ROOT));
     }
+
     private String text(Object value) {
         return value == null || String.valueOf(value).isBlank() ? null : String.valueOf(value).trim();
     }
+
     private String firstText(String... values) {
         for (String value : values) if (value != null && !value.isBlank()) return value;
         return null;
     }
-    private String nullable(String value) { return value == null ? "" : value; }
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> map(Object value) {
-        return value instanceof Map<?, ?> ? objectMapper.convertValue(value, new TypeReference<>() {}) : Map.of();
+
+    private String nullable(String value) {
+        return value == null ? "" : value;
     }
 
-    public record Result(Map<String, Object> body, boolean error) {}
-    private record Selection(PythonTemplate template, Result result) {}
-    private record FileBinding(Map<String, Object> parameters, Result result) {}
-    private record FileResolution(String fileId, Result result) {}
-    private record ScoredTemplate(PythonTemplate template, double score) {}
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> map(Object value) {
+        return value instanceof Map<?, ?> ? objectMapper.convertValue(value, new TypeReference<>() {
+        }) : Map.of();
+    }
+
+    public record Result(Map<String, Object> body, boolean error) {
+    }
+
+    private record Selection(PythonTemplate template, Result result) {
+    }
+
+    private record FileBinding(Map<String, Object> parameters, Result result) {
+    }
+
+    private record FileResolution(String fileId, Result result) {
+    }
+
+    private record ScoredTemplate(PythonTemplate template, double score) {
+    }
 }

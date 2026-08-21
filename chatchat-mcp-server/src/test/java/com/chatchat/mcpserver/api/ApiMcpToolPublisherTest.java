@@ -2,6 +2,8 @@ package com.chatchat.mcpserver.api;
 
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;
+import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import static org.mockito.Mockito.mock;
@@ -13,18 +15,25 @@ class ApiMcpToolPublisherTest {
     @Test
     void refreshDoesNotPublishPerApiServiceTools() {
         McpSyncServer mcpSyncServer = mock(McpSyncServer.class);
-        ApiToolSpecFactory factory = mock(ApiToolSpecFactory.class);
-        var specification = mock(io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification.class);
-        McpSchema.Tool tool = mock(McpSchema.Tool.class);
-        when(specification.tool()).thenReturn(tool);
-        when(tool.name()).thenReturn(ApiMcpToolPublisher.EXECUTE_TOOL_NAME);
+        ApiServiceBridge bridge = mock(ApiServiceBridge.class);
+        ApiToolSpecFactory toolSpecFactory = mock(ApiToolSpecFactory.class);
+        io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification executor =
+            mock(io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification.class);
+        McpSchema.Tool executorTool = mock(McpSchema.Tool.class);
+        when(executor.tool()).thenReturn(executorTool);
+        when(executorTool.name()).thenReturn(ApiMcpToolPublisher.EXECUTE_TOOL_NAME);
+        when(toolSpecFactory.toGatewayToolSpecification()).thenReturn(executor);
+        McpToolConcurrencyManager concurrencyManager = mock(McpToolConcurrencyManager.class);
+        when(concurrencyManager.limitMeta(ApiMcpToolPublisher.BRIDGE_TOOL_NAME, "read_only")).thenReturn(java.util.Map.of());
         when(mcpSyncServer.listTools()).thenReturn(java.util.List.of());
-        when(factory.toGatewayToolSpecification()).thenReturn(specification);
-        ApiMcpToolPublisher publisher = new ApiMcpToolPublisher(mcpSyncServer, factory);
+        ApiMcpToolPublisher publisher = new ApiMcpToolPublisher(
+            mcpSyncServer, bridge, toolSpecFactory, concurrencyManager, new ObjectMapper());
 
         publisher.refresh();
 
-        verify(mcpSyncServer).addTool(specification);
+        verify(mcpSyncServer).addTool(org.mockito.ArgumentMatchers.argThat(specification ->
+            ApiMcpToolPublisher.BRIDGE_TOOL_NAME.equals(specification.tool().name())));
+        verify(mcpSyncServer).addTool(executor);
         verify(mcpSyncServer).notifyToolsListChanged();
     }
 }

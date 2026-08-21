@@ -39,27 +39,11 @@ public class DatabaseQueryMcpToolPublisher {
     public synchronized void refresh() {
         managedToolNames.forEach(this::remove);
         managedToolNames.clear();
-
-        int published = 0;
-        int indexedOnly = 0;
         for (DatabaseQueryConfig config : configService.listEnabled()) {
-            if (!publishAsDedicatedTool(config)) {
-                indexedOnly++;
-                continue;
-            }
-            try {
-                com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
-                    mcpSyncServer, toolSpecFactory.toToolSpecification(config));
-                managedToolNames.add(namingPolicy.toolName(config));
-                published++;
-            } catch (Exception ex) {
-                log.error("Database query specialized MCP tool publication failed tool={} category={}: {}",
-                    config.getToolName(), config.getCapabilityCategory(), ex.getMessage(), ex);
-            }
+            remove(namingPolicy.toolName(config));
         }
         mcpSyncServer.notifyToolsListChanged();
-        log.info("Database query MCP publication refreshed published={} templateIndexOnly={} tools={}",
-            published, indexedOnly, managedToolNames.stream().sorted().toList());
+        log.info("Database query templates remain index-only and execute through sql_query_execute");
     }
 
     boolean publishAsDedicatedTool(DatabaseQueryConfig config) {

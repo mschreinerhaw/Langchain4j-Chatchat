@@ -16,6 +16,7 @@ import {
   publishPythonScript,
   requestPythonCodeAssist,
   savePythonScript,
+  deletePythonScript,
   savePythonScriptFolder,
   deletePythonScriptFolder,
   importPythonSystemExampleData
@@ -804,6 +805,62 @@ export default {
         this.captureActiveEditorTab();
         this.message = "脚本已保存为新版本";
         await this.load(true);
+      });
+    },
+    async renameScript(script) {
+      const editorTab = this.editorTabs.find((item) => item.form.id === script.id);
+      const current = editorTab?.form || script;
+      const name = await this.openIdePrompt({
+        title: "重命名 Python 脚本",
+        message: editorTab && this.editorTabDirty(editorTab)
+          ? "重命名时会一并保存此页签中尚未保存的代码修改。"
+          : "脚本内容和所属逻辑文件夹不会改变。",
+        value: current.fileName,
+        placeholder: "请输入以 .py 结尾的文件名",
+        confirmText: "保存"
+      });
+      if (name == null || name.trim() === current.fileName) return;
+      const fileName = name.trim();
+      if (!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,170}\.py$/.test(fileName)) {
+        this.error = "脚本文件名只能包含字母、数字、点、下划线或短横线，并且必须以 .py 结尾";
+        return;
+      }
+      await this.action(async () => {
+        const saved = await savePythonScript({ ...current, fileName });
+        if (editorTab) {
+          editorTab.form = { ...editorTab.form, ...saved };
+          editorTab.savedSource = saved.sourceCode || editorTab.form.sourceCode;
+          editorTab.savedFileName = saved.fileName;
+          editorTab.savedFolderId = saved.folderId || "";
+          if (editorTab.key === this.activeEditorTabKey) {
+            this.form = { ...editorTab.form };
+            this.savedSource = editorTab.savedSource;
+            this.savedFileName = editorTab.savedFileName;
+            this.savedFolderId = editorTab.savedFolderId;
+          }
+        }
+        await this.refreshExplorer();
+      });
+    },
+    async removeScript(script) {
+      if (!script?.id || !await this.openIdeConfirm({
+        title: "删除 Python 脚本",
+        message: `确认删除“${script.fileName}”及其历史版本？此操作不可撤销。`,
+        confirmText: "删除",
+        danger: true
+      })) return;
+      await this.action(async () => {
+        await deletePythonScript(script.id);
+        const removedIndex = this.editorTabs.findIndex((item) => item.form.id === script.id);
+        const removedWasActive = removedIndex >= 0 && this.editorTabs[removedIndex].key === this.activeEditorTabKey;
+        if (removedIndex >= 0) this.editorTabs.splice(removedIndex, 1);
+        await this.refreshExplorer();
+        if (!removedWasActive) return;
+        this.activeEditorTabKey = "";
+        const nextTab = this.editorTabs[removedIndex] || this.editorTabs[removedIndex - 1];
+        if (nextTab) this.activateEditorTab(nextTab, { capture: false });
+        else if (this.scripts[0]) this.selectScript(this.scripts[0]);
+        else this.newScript();
       });
     },
     async createFolder() {

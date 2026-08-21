@@ -40,6 +40,22 @@
 @media(max-width:900px){.ds-page.develop-mode{display:block;overflow-y:auto;padding-bottom:16px}.develop-mode .ds-develop-pane{display:block}.develop-mode .ds-ide{height:auto;min-height:760px;border:1px solid #d9e2ef;border-radius:10px}}
 @media(max-width:650px){.ds-list-toolbar{align-items:stretch;flex-direction:column;gap:7px}.ds-list-search{width:100%}.ds-pagination{justify-content:center}}
 
+/* Script lifecycle actions in the workspace explorer. */
+.script-entry{position:relative;display:flex;align-items:center;border-radius:5px;color:#576a83}
+.script-entry:hover,.script-entry.active{background:#e8f1ff}
+.script-entry.active{color:#1f3c66;box-shadow:inset 2px 0 #3b82f6}
+.script-entry .script-open{width:100%;height:44px;display:grid;grid-template-columns:22px minmax(0,1fr) 7px;align-items:center;gap:7px;padding:5px 54px 5px 25px;border:0;border-radius:5px;background:transparent;color:inherit;text-align:left}
+.script-entry .script-open>span:nth-child(2){display:flex;min-width:0;flex-direction:column}
+.script-entry .script-open strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}
+.script-entry .script-open small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#71839a;font-size:9px}
+.script-entry .script-open>i{width:6px;height:6px;border-radius:50%;background:#64748b}
+.script-entry .script-open>i.tested,.script-entry .script-open>i.published{background:#22c55e}
+.script-actions{position:absolute;right:5px;display:none;align-items:center;gap:1px}
+.script-entry:hover .script-actions,.script-entry:focus-within .script-actions{display:flex}
+.script-actions button{width:22px;height:24px;padding:0;border:0;border-radius:4px;background:#f8fbff;color:#607795;font-size:12px}
+.script-actions button:hover{background:#dbe8fa}
+.script-actions button.danger{color:#b42318}
+
 /* Multi-document tabs and compact bottom drawer. */
 .ds-ide{position:relative}
 .ds-page .ds-header-action{min-height:36px;padding:7px 12px;border-radius:8px;font-size:13px;font-weight:600;line-height:1.2;box-shadow:0 2px 8px rgba(37,99,235,.16)}

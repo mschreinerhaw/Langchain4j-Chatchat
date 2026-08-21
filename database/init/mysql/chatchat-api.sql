@@ -1165,6 +1165,17 @@
     ) engine=InnoDB;
     create index idx_python_asset_owner on ds_python_asset (tenant_id, owner_id, status);
 
+    create table ds_python_data_file (
+        created_at datetime(6) not null, expire_at datetime(6), file_size bigint not null,
+        updated_at datetime(6) not null, file_type varchar(24) not null, status varchar(24) not null,
+        file_hash varchar(64) not null, id varchar(64) not null, owner_id varchar(64) not null,
+        tenant_id varchar(64) not null, purpose varchar(1000), python_path varchar(1000) not null,
+        status_message varchar(1000), storage_path varchar(1000), file_name varchar(255) not null,
+        primary key (id)
+    ) engine=InnoDB;
+    create index idx_python_data_owner on ds_python_data_file (tenant_id, owner_id, created_at);
+    create index idx_python_data_expiry on ds_python_data_file (status, expire_at);
+
     create table ds_python_script (
         current_version integer not null, last_test_succeeded bit not null, created_at datetime(6) not null,
         last_tested_at datetime(6), updated_at datetime(6) not null, status varchar(24) not null,

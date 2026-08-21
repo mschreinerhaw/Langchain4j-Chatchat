@@ -82,6 +82,21 @@ export function executePythonScript(scriptId, parameters = {}) { return apiReque
 export function publishPythonScript(scriptId, payload) { return apiRequest(`/data-science/python/scripts/${encodeURIComponent(scriptId)}/publish`, { method: "POST", body: JSON.stringify(payload) }); }
 export function fetchPythonScriptVersions(scriptId) { return apiRequest(`/data-science/python/scripts/${encodeURIComponent(scriptId)}/versions`); }
 export function requestPythonCodeAssist(payload) { return apiRequest("/data-science/python/assist", { method: "POST", body: JSON.stringify(payload) }); }
+export async function uploadPythonDataFile(formData) {
+  const session = getStoredAuthSession();
+  const path = "/data-science/python/data-files";
+  const response = await fetch(`${API_BASE}${path}`, { method: "POST", headers: { ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}) }, body: formData });
+  const payload = await readJsonSafely(response); notifyAuthRequiredIfNeeded(response, payload, path);
+  if (!response.ok) throw new Error(payload?.message || `上传失败：${response.status}`);
+  return unwrapApiPayload(payload, path);
+}
+export async function downloadPythonDataFile(id, fileName) {
+  const session = getStoredAuthSession(); const path = `/data-science/python/data-files/${encodeURIComponent(id)}/download`;
+  const response = await fetch(`${API_BASE}${path}`, { headers: { ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}) } });
+  if (!response.ok) { const payload = await readJsonSafely(response); throw new Error(payload?.message || `下载失败：${response.status}`); }
+  const url = URL.createObjectURL(await response.blob()); const link = document.createElement("a"); link.href = url; link.download = fileName || "data-file"; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+}
+export function deletePythonDataFile(id) { return apiRequest(`/data-science/python/data-files/${encodeURIComponent(id)}`, { method: "DELETE" }); }
 
 export function fetchTrendSemanticConfig() {
   return apiRequest("/ui-display/trend-semantics");

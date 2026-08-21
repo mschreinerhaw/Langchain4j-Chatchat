@@ -10,4 +10,6 @@ public class PythonRuntimeProperties {
     private String workspaceRoot="./data/python-assets";
     private String dockerCommand="docker";
     private int outputLimitBytes=1_000_000;
+    private String dataRoot="./data/python-user-data";
+    private long maxDataFileBytes=50L*1024*1024;
 }

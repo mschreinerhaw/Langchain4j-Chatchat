@@ -36,6 +36,33 @@ server:
   shutdown: graceful
 
 chatchat:
+  data-science:
+    workspace-root: ${CHATCHAT_PYTHON_WORKSPACE_ROOT:./data/python-assets}
+    max-data-file-bytes: ${CHATCHAT_PYTHON_MAX_DATA_FILE_BYTES:52428800}
+    data-cleanup-interval-ms: ${CHATCHAT_PYTHON_DATA_CLEANUP_INTERVAL_MS:3600000}
+    docker-command: ${CHATCHAT_PYTHON_DOCKER_COMMAND:docker}
+    default-image: ${CHATCHAT_PYTHON_DEFAULT_IMAGE:python:3.12-slim}
+    cpu-limit: ${CHATCHAT_PYTHON_CPU_LIMIT:2}
+    memory-limit: ${CHATCHAT_PYTHON_MEMORY_LIMIT:4g}
+    timeout-seconds: ${CHATCHAT_PYTHON_TIMEOUT_SECONDS:300}
+    output-limit-bytes: ${CHATCHAT_PYTHON_OUTPUT_LIMIT_BYTES:1000000}
+    index-name: ${CHATCHAT_PYTHON_INDEX_NAME:mcp_python_template_index}
+  audit:
+    default-query-window-days: ${CHATCHAT_AUDIT_DEFAULT_QUERY_WINDOW_DAYS:7}
+  ui-artifact:
+    enabled: ${CHATCHAT_UI_ARTIFACT_ENABLED:true}
+    # local and shared both use Java NIO. For shared mode, storage-path must be an OS-mounted NFSv4/SMB3/CephFS path.
+    store-type: ${CHATCHAT_UI_ARTIFACT_STORE_TYPE:local}
+    storage-path: ${CHATCHAT_UI_ARTIFACT_STORAGE_PATH:./data/ui-artifacts}
+    shared-marker-file: ${CHATCHAT_UI_ARTIFACT_SHARED_MARKER:.chatchat-artifact-store}
+    migrate-legacy-on-read: ${CHATCHAT_UI_ARTIFACT_MIGRATE_LEGACY_ON_READ:true}
+    # Render every non-empty UI response through the governed artifact renderer by default.
+    always-externalize: ${CHATCHAT_UI_ARTIFACT_ALWAYS_EXTERNALIZE:true}
+    # Used only when always-externalize is false.
+    externalize-threshold-bytes: ${CHATCHAT_UI_ARTIFACT_THRESHOLD_BYTES:131072}
+    answer-preview-characters: ${CHATCHAT_UI_ARTIFACT_PREVIEW_CHARACTERS:4000}
+    ttl-seconds: ${CHATCHAT_UI_ARTIFACT_TTL_SECONDS:2592000}
+    cleanup-interval-ms: ${CHATCHAT_UI_ARTIFACT_CLEANUP_INTERVAL_MS:3600000}
   http:
     json-request:
       enabled: ${CHATCHAT_JSON_REQUEST_LIMIT_ENABLED:true}

@@ -77,6 +77,44 @@ public final class InternalSecretCipher {
         }
     }
 
+    /** Encrypts arbitrary internal payloads. The returned envelope is IV || AES-GCM ciphertext. */
+    public static byte[] encryptBytes(byte[] value, String keyMaterial) {
+        if (keyMaterial == null || keyMaterial.isBlank()) {
+            throw new IllegalArgumentException("crypto key is required");
+        }
+        try {
+            byte[] iv = new byte[IV_BYTES];
+            new SecureRandom().nextBytes(iv);
+            Cipher cipher = Cipher.getInstance(ALGORITHM);
+            cipher.init(Cipher.ENCRYPT_MODE, key(keyMaterial), new GCMParameterSpec(GCM_TAG_BITS, iv));
+            byte[] cipherText = cipher.doFinal(value == null ? new byte[0] : value);
+            byte[] envelope = new byte[iv.length + cipherText.length];
+            System.arraycopy(iv, 0, envelope, 0, iv.length);
+            System.arraycopy(cipherText, 0, envelope, iv.length, cipherText.length);
+            return envelope;
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Failed to encrypt internal payload: " + ex.getMessage(), ex);
+        }
+    }
+
+    public static byte[] decryptBytes(byte[] envelope, String keyMaterial) {
+        if (keyMaterial == null || keyMaterial.isBlank()) {
+            throw new IllegalStateException("Internal payload decryption key is not configured");
+        }
+        if (envelope == null || envelope.length <= IV_BYTES + 16) {
+            throw new IllegalArgumentException("Encrypted internal payload is invalid");
+        }
+        try {
+            byte[] iv = java.util.Arrays.copyOfRange(envelope, 0, IV_BYTES);
+            byte[] cipherText = java.util.Arrays.copyOfRange(envelope, IV_BYTES, envelope.length);
+            Cipher cipher = Cipher.getInstance(ALGORITHM);
+            cipher.init(Cipher.DECRYPT_MODE, key(keyMaterial), new GCMParameterSpec(GCM_TAG_BITS, iv));
+            return cipher.doFinal(cipherText);
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Failed to decrypt internal payload: " + ex.getMessage(), ex);
+        }
+    }
+
     private static SecretKeySpec key(String keyMaterial) throws Exception {
         byte[] digest = MessageDigest.getInstance("SHA-256")
             .digest(keyMaterial.trim().getBytes(StandardCharsets.UTF_8));

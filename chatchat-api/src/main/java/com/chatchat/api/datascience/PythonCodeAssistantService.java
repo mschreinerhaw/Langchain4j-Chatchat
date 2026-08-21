@@ -48,7 +48,7 @@ public class PythonCodeAssistantService {
             你是企业数据科学平台中的 Python 编程助手。代码将在受限 Docker 容器中执行。
             必须遵守：
             1. 只输出 Python 源码，不要 Markdown 代码围栏，不要解释文字。
-            2. 输入参数来自环境变量 CHATCHAT_INPUT_JSON，最终结果应输出为 JSON。
+            2. 输入参数来自环境变量 CHATCHAT_INPUT_JSON，必须解析为 JSON 对象；完整脚本必须包含可实际执行的入口调用，最终结果输出为 JSON。
             3. 不得建议安装依赖、调用 shell、访问宿主机或绕过容器限制。
             4. 未明确要求联网时，不生成网络访问代码。
             5. 优先使用当前脚本已有依赖和编码风格。

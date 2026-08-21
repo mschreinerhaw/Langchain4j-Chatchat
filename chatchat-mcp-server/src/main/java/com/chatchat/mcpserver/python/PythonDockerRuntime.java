@@ -16,6 +16,7 @@ import java.util.concurrent.*;
 public class PythonDockerRuntime {
     private final PythonRuntimeProperties properties;
     private final ObjectMapper objectMapper;
+    private final PythonDataFileService dataFiles;
 
     public ProvisionResult provision(PythonEnvironment environment,String tenantId,String ownerId,String assetId){
         try{
@@ -35,7 +36,7 @@ public class PythonDockerRuntime {
         try{
             ProvisionResult ready=provision(env,tenant,owner,asset);
             if(!ready.ready())return new ExecResult(container,-1,"",ready.message(),0,false);
-            Path assetWorkspace=workspace(tenant,owner,asset);Path scripts=assetWorkspace.resolve("scripts");
+            Path assetWorkspace=workspace(tenant,owner,asset);Path scripts=assetWorkspace.resolve("scripts");Path inputRoot=dataFiles.uploads(tenant,owner);
             Path script=scripts.resolve(fileName).normalize();
             if(!script.startsWith(scripts))throw new IllegalArgumentException("非法脚本路径");
             Files.writeString(script,source,StandardCharsets.UTF_8,StandardOpenOption.CREATE,StandardOpenOption.TRUNCATE_EXISTING);
@@ -46,7 +47,8 @@ public class PythonDockerRuntime {
                 "--read-only","--cap-drop","ALL","--security-opt","no-new-privileges:true",
                 "--user",env.getRuntimeUser(),"--tmpfs","/tmp:rw,noexec,nosuid,size="+env.getTmpfsLimit(),
                 "--tmpfs","/workspace/output:rw,noexec,nosuid,size="+env.getDiskLimit(),
-                "-v",assetWorkspace.toAbsolutePath()+":/workspace:ro","-w","/workspace","-e","CHATCHAT_INPUT_JSON="+input));
+                "-v",assetWorkspace.toAbsolutePath()+":/workspace:ro","-v",inputRoot.toAbsolutePath()+":/data/input:ro",
+                "-w","/workspace","-e","CHATCHAT_INPUT_JSON="+input));
             if("NONE".equals(env.getNetworkPolicy()))command.addAll(List.of("--network","none"));
             else command.addAll(List.of("--network",env.getNetworkName()));
             command.addAll(List.of(env.getDockerImage(),"python","/workspace/scripts/"+fileName));

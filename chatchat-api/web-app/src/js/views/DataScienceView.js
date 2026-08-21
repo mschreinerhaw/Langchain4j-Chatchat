@@ -10,11 +10,16 @@ import {
   fetchMcpPythonEnvironments,
   fetchPythonCodeModels,
   fetchPythonWorkbench,
+  uploadPythonDataFile,
+  downloadPythonDataFile,
+  deletePythonDataFile,
   publishPythonScript,
   requestPythonCodeAssist,
   savePythonScript
 } from "../../services/api";
 import { errorMessage, formatDateTime } from "../utils/uiFormatters";
+import { formatPythonSource, parsePythonExecutionParameters } from "../utils/pythonWorkbench";
+import { pythonCompletionItems } from "../utils/pythonCompletions";
 
 globalThis.MonacoEnvironment = { getWorker: () => new EditorWorker() };
 
@@ -30,16 +35,14 @@ def main(data):
 print(json.dumps(main(params), ensure_ascii=False))
 `;
 
-const completions = [
-  ["CHATCHAT_INPUT_JSON", 'os.environ.get("CHATCHAT_INPUT_JSON", "{}")', "Agent 传入的 JSON 参数"],
-  [
-    "读取 Agent 参数",
-    'params = json.loads(os.environ.get("CHATCHAT_INPUT_JSON", "{}"))',
-    "读取运行参数"
-  ],
-  ["输出 JSON 结果", "print(json.dumps(result, ensure_ascii=False))", "向 Agent 返回 JSON"],
-  ["main 函数", "def main(data):\n    ${1:result} = {}\n    return ${1:result}", "数据科学模板入口"]
-];
+const parameterReaderExample = `import json
+import os
+
+# “运行参数”中的 JSON 对象会完整注入此环境变量
+params = json.loads(os.environ.get("CHATCHAT_INPUT_JSON", "{}"))
+file_path = params.get("file_path")
+limit = int(params.get("limit", 100))
+include_detail = bool(params.get("include_detail", False))`;
 
 export default {
   name: "DataScienceView",
@@ -47,6 +50,7 @@ export default {
     tabs: [
       { id: "environment", label: "Python 环境" },
       { id: "develop", label: "Python 开发" },
+      { id: "data", label: "我的数据" },
       { id: "scripts", label: "我的脚本" }
     ],
     tab: "environment",
@@ -57,6 +61,13 @@ export default {
     assets: [],
     scripts: [],
     executions: [],
+    dataFiles: [],
+    dataQuery: "",
+    dataPage: 1,
+    dataPageSize: 10,
+    dataUploadOpen: false,
+    dataUploadFile: null,
+    dataUploadForm: { purpose: "", retention: "PERMANENT" },
     environmentCatalog: [],
     assetOpen: false,
     publishOpen: false,
@@ -71,6 +82,7 @@ export default {
     explorerPage: 1,
     explorerPageSize: 7,
     editor: null,
+    completionProvider: null,
     environmentQuery: "",
     environmentPage: 1,
     environmentPageSize: 4,
@@ -82,6 +94,7 @@ export default {
     runState: "idle",
     runFeedback: null,
     savedSource: starter,
+    savedFileName: "analysis.py",
     cursorPosition: { lineNumber: 1, column: 1 },
     aiOpen: true,
     aiPrompt: "",
@@ -134,7 +147,10 @@ export default {
       return this.form.id && this.form.status === "TESTED";
     },
     dirty() {
-      return this.form.sourceCode !== this.savedSource;
+      return (
+        this.form.sourceCode !== this.savedSource ||
+        String(this.form.fileName || "").trim() !== this.savedFileName
+      );
     },
     filteredEnvironmentAssets() {
       const query = this.environmentQuery.trim().toLowerCase();
@@ -161,6 +177,13 @@ export default {
       const start = (this.environmentCurrentPage - 1) * this.environmentPageSize;
       return this.filteredEnvironmentAssets.slice(start, start + this.environmentPageSize);
     },
+    filteredDataFiles() {
+      const query = this.dataQuery.trim().toLowerCase();
+      return query ? this.dataFiles.filter((file) => `${file.fileName || ""} ${file.fileType || ""} ${file.status || ""}`.toLowerCase().includes(query)) : this.dataFiles;
+    },
+    dataPageCount() { return Math.max(1, Math.ceil(this.filteredDataFiles.length / this.dataPageSize)); },
+    dataCurrentPage() { return Math.min(this.dataPage, this.dataPageCount); },
+    pagedDataFiles() { const start = (this.dataCurrentPage - 1) * this.dataPageSize; return this.filteredDataFiles.slice(start, start + this.dataPageSize); },
     filteredScripts() {
       const query = this.explorerQuery.trim().toLowerCase();
       return query
@@ -233,6 +256,18 @@ export default {
         this.aiModel ||
         "系统默认模型"
       );
+    },
+    parameterValidation() {
+      try {
+        const value = parsePythonExecutionParameters(this.parametersText);
+        const keys = Object.keys(value);
+        return {
+          valid: true,
+          text: keys.length ? `JSON 有效，将传入 ${keys.length} 个字段：${keys.join("、")}` : "JSON 有效，当前不传入业务字段"
+        };
+      } catch (error) {
+        return { valid: false, text: error?.message || "请输入合法的 JSON 对象" };
+      }
     }
   },
   watch: {
@@ -245,6 +280,7 @@ export default {
     scriptCatalogQuery() {
       this.scriptCatalogPage = 1;
     },
+    dataQuery() { this.dataPage = 1; },
     tab(value) {
       if (value !== "develop") return;
       if (!this.editorTabs.length) {
@@ -293,6 +329,7 @@ export default {
         this.assets = data?.assets || [];
         this.scripts = data?.scripts || [];
         this.executions = data?.executions || [];
+        this.dataFiles = data?.dataFiles || [];
         this.environmentCatalog = environments || [];
         this.aiModels = models || [];
         if (!this.aiModels.some((model) => model.value === this.aiModel))
@@ -345,7 +382,8 @@ export default {
           "editorIndentGuide.background1": "#edf1f7"
         }
       });
-      monaco.languages.registerCompletionItemProvider("python", {
+      this.completionProvider = markRaw(monaco.languages.registerCompletionItemProvider("python", {
+        triggerCharacters: ["."],
         provideCompletionItems: (model, position) => {
           const word = model.getWordUntilPosition(position);
           const range = new monaco.Range(
@@ -355,17 +393,33 @@ export default {
             word.endColumn
           );
           return {
-            suggestions: completions.map(([label, insertText, detail]) => ({
-              label,
+            suggestions: pythonCompletionItems(
+              model.getValue(),
+              model.getLineContent(position.lineNumber).slice(0, position.column - 1),
+              this.dataFiles
+            ).map((completion) => ({
+              label: completion.label,
               range,
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              insertText,
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              detail
+              kind: ({
+                class: monaco.languages.CompletionItemKind.Class,
+                file: monaco.languages.CompletionItemKind.File,
+                function: monaco.languages.CompletionItemKind.Function,
+                keyword: monaco.languages.CompletionItemKind.Keyword,
+                method: monaco.languages.CompletionItemKind.Method,
+                module: monaco.languages.CompletionItemKind.Module,
+                snippet: monaco.languages.CompletionItemKind.Snippet,
+                variable: monaco.languages.CompletionItemKind.Variable
+              })[completion.category] || monaco.languages.CompletionItemKind.Text,
+              insertText: completion.insertText,
+              insertTextRules: completion.snippet
+                ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+                : undefined,
+              detail: completion.detail,
+              sortText: completion.category === "variable" || completion.category === "function" ? "0" : "1"
             }))
           };
         }
-      });
+      }));
       this.editor = markRaw(
         monaco.editor.create(this.$refs.codeEditor, {
           value: this.form.sourceCode || "",
@@ -385,7 +439,19 @@ export default {
           renderWhitespace: "selection",
           bracketPairColorization: { enabled: true },
           guides: { bracketPairs: true, indentation: true },
-          suggest: { showWords: true, preview: true },
+          suggest: {
+            showWords: true,
+            showSnippets: true,
+            showMethods: true,
+            showFunctions: true,
+            showVariables: true,
+            preview: true,
+            snippetsPreventQuickSuggestions: false
+          },
+          suggestOnTriggerCharacters: true,
+          acceptSuggestionOnEnter: "on",
+          tabCompletion: "on",
+          wordBasedSuggestions: "currentDocument",
           quickSuggestions: { other: true, comments: false, strings: false },
           tabSize: 4,
           scrollBeyondLastLine: false,
@@ -408,6 +474,8 @@ export default {
     disposeEditor() {
       this.aiDecoration?.clear();
       this.aiDecoration = null;
+      this.completionProvider?.dispose();
+      this.completionProvider = null;
       this.editor?.dispose();
       this.editor = null;
     },
@@ -415,6 +483,18 @@ export default {
       this.assetOpen = true;
       this.error = "";
     },
+    openDataUpload() { this.dataUploadFile = null; this.dataUploadForm = { purpose: "", retention: "PERMANENT" }; this.dataUploadOpen = true; },
+    chooseDataFile(event) { this.dataUploadFile = event.target.files?.[0] || null; },
+    dropDataFile(event) { this.dataUploadFile = event.dataTransfer?.files?.[0] || null; },
+    async uploadData() {
+      if (!this.dataUploadFile) { this.error = "请选择需要上传的数据文件"; return; }
+      await this.action(async () => { const form = new FormData(); form.append("file", this.dataUploadFile); form.append("purpose", this.dataUploadForm.purpose); form.append("retention", this.dataUploadForm.retention); await uploadPythonDataFile(form); this.dataUploadOpen = false; this.message = "数据已加密传输到 MCP，可在 Python 中只读访问"; await this.load(true); });
+    },
+    async copyDataPath(file) { try { await navigator.clipboard.writeText(file.pythonPath); this.message = `已复制：${file.pythonPath}`; } catch { this.error = "复制失败，请手动复制路径"; } },
+    async downloadData(file) { await this.action(() => downloadPythonDataFile(file.id, file.fileName)); },
+    async removeData(file) { if (!globalThis.confirm(`确认删除“${file.fileName}”？删除后脚本将无法读取。`)) return; await this.action(async () => { await deletePythonDataFile(file.id); this.message = "数据文件已删除"; await this.load(true); }); },
+    formatBytes(value) { const bytes = Number(value || 0); if (bytes < 1024) return `${bytes} B`; if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`; return `${(bytes / 1024 ** 2).toFixed(1)} MB`; },
+    dataStatusLabel(status) { return ({ AVAILABLE: "可用", TRANSFERRING: "传输中", TRANSFER_FAILED: "传输失败" })[status] || status; },
     async createAsset() {
       await this.action(async () => {
         const asset = await createPythonAsset(this.assetForm);
@@ -443,6 +523,7 @@ export default {
         key: `draft-${Date.now()}-${this.draftSequence}`,
         form,
         savedSource: starter,
+        savedFileName: preferredName,
         consoleText: "",
         parametersText: "{}",
         runState: "idle",
@@ -450,6 +531,7 @@ export default {
       };
       this.editorTabs.push(editorTab);
       this.activateEditorTab(editorTab, { capture: false, navigate: navigate !== false });
+      nextTick(() => this.focusFileNameEditor());
     },
     selectScript(script, navigate = true) {
       const existingTab = this.editorTabs.find((item) => item.form.id === script.id);
@@ -468,6 +550,7 @@ export default {
           status: script.status
         },
         savedSource: script.sourceCode || "",
+        savedFileName: script.fileName || "",
         consoleText: "",
         parametersText: "{}",
         runState: "idle",
@@ -486,6 +569,7 @@ export default {
       this.activeEditorTabKey = editorTab.key;
       this.form = { ...editorTab.form };
       this.savedSource = editorTab.savedSource || "";
+      this.savedFileName = editorTab.savedFileName || editorTab.form.fileName || "";
       this.consoleText = editorTab.consoleText || "";
       this.parametersText = editorTab.parametersText || "{}";
       this.runState = editorTab.runState || "idle";
@@ -502,6 +586,7 @@ export default {
       if (!activeTab) return;
       activeTab.form = { ...this.form };
       activeTab.savedSource = this.savedSource;
+      activeTab.savedFileName = this.savedFileName;
       activeTab.consoleText = this.consoleText;
       activeTab.parametersText = this.parametersText;
       activeTab.runState = this.runState;
@@ -512,7 +597,7 @@ export default {
       const index = this.editorTabs.findIndex((item) => item.key === editorTab.key);
       if (index < 0) return;
       if (
-        editorTab.form.sourceCode !== editorTab.savedSource &&
+        this.editorTabDirty(editorTab) &&
         !globalThis.confirm(
           `“${editorTab.form.fileName || "未命名脚本"}”有未保存修改，仍要关闭吗？`
         )
@@ -527,13 +612,25 @@ export default {
       else this.newScript();
     },
     editorTabDirty(editorTab) {
-      return editorTab.form.sourceCode !== editorTab.savedSource;
+      return (
+        editorTab.form.sourceCode !== editorTab.savedSource ||
+        String(editorTab.form.fileName || "").trim() !==
+          (editorTab.savedFileName || editorTab.form.fileName || "")
+      );
     },
     async save() {
+      const fileName = String(this.form.fileName || "").trim();
+      if (!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,170}\.py$/.test(fileName)) {
+        this.error = "脚本文件名只能包含字母、数字、点、下划线或短横线，并且必须以 .py 结尾";
+        this.focusFileNameEditor();
+        return;
+      }
+      this.form.fileName = fileName;
       await this.action(async () => {
         const saved = await savePythonScript(this.form);
         this.form = { ...this.form, ...saved };
         this.savedSource = saved.sourceCode || this.form.sourceCode;
+        this.savedFileName = saved.fileName || this.form.fileName;
         this.captureActiveEditorTab();
         this.message = "脚本已保存为新版本";
         await this.load(true);
@@ -542,9 +639,9 @@ export default {
     async run() {
       let parameters;
       try {
-        parameters = JSON.parse(this.parametersText || "{}");
+        parameters = parsePythonExecutionParameters(this.parametersText);
       } catch (error) {
-        this.error = "执行参数必须是合法 JSON";
+        this.error = error?.message || "执行参数必须是合法 JSON 对象";
         this.bottomTab = "parameters";
         this.bottomOpen = true;
         return;
@@ -565,6 +662,7 @@ export default {
           const saved = await savePythonScript(this.form);
           this.form = { ...this.form, ...saved };
           this.savedSource = saved.sourceCode || this.form.sourceCode;
+          this.savedFileName = saved.fileName || this.form.fileName;
           this.captureActiveEditorTab();
         }
         this.consoleText += `\n启动 ${this.form.fileName}…\n`;
@@ -734,8 +832,31 @@ export default {
       this.aiStage = "idle";
       this.aiProgressStep = 0;
     },
-    formatDocument() {
-      this.editor?.getAction("editor.action.formatDocument")?.run();
+    async formatDocument() {
+      const model = this.editor?.getModel();
+      if (!model) return;
+      const before = model.getValue();
+      const normalized = formatPythonSource(before);
+      this.editor.pushUndoStop();
+      this.editor.executeEdits("python-format", [
+        { range: model.getFullModelRange(), text: normalized, forceMoveMarkers: true }
+      ]);
+      await this.editor.getAction("editor.action.reindentlines")?.run();
+      this.editor.pushUndoStop();
+      this.form.sourceCode = model.getValue();
+      this.message = this.form.sourceCode === before ? "代码格式已符合规范" : "代码格式化完成";
+      this.editor.focus();
+    },
+    focusFileNameEditor() {
+      nextTick(() => {
+        const input = this.$el?.querySelector(".editor-tab.active .file-name-input");
+        input?.focus();
+        input?.select();
+      });
+    },
+    restoreFileName() {
+      this.form.fileName = this.savedFileName || "analysis.py";
+      this.editor?.focus();
     },
     executionLog(result, startedAt) {
       const duration = result.durationMs ?? Date.now() - startedAt;
@@ -758,6 +879,37 @@ export default {
       this.runState = "idle";
       this.runFeedback = null;
       this.captureActiveEditorTab();
+    },
+    useParameterExample() {
+      const availableFile = this.dataFiles.find(
+        (file) => file.status === "AVAILABLE" && file.pythonPath
+      );
+      this.parametersText = JSON.stringify(
+        {
+          file_path: availableFile?.pythonPath || "/data/input/example.csv",
+          limit: 100,
+          include_detail: true
+        },
+        null,
+        2
+      );
+    },
+    insertParameterReaderExample() {
+      const editor = this.editor;
+      const selection = editor?.getSelection();
+      if (!editor || !selection) return;
+      const model = editor.getModel();
+      const prefix = selection.startLineNumber > 1 && model.getLineContent(selection.startLineNumber - 1).trim()
+        ? "\n\n"
+        : "";
+      editor.pushUndoStop();
+      editor.executeEdits("parameter-reader-example", [
+        { range: selection, text: `${prefix}${parameterReaderExample}\n`, forceMoveMarkers: true }
+      ]);
+      editor.pushUndoStop();
+      this.form.sourceCode = model.getValue();
+      this.message = "运行参数读取示例已插入脚本，可根据字段名调整";
+      editor.focus();
     },
     toggleBottom() {
       this.bottomOpen = !this.bottomOpen;

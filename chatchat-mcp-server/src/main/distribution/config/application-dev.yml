@@ -23,7 +23,15 @@ chatchat:
     license-file: ./data/license/license.dat
     server-id-file: ./data/license/server.id
     public-key-path: ./data/license/license-public.pem
+  audit:
+    default-query-window-days: ${CHATCHAT_AUDIT_DEFAULT_QUERY_WINDOW_DAYS:7}
   mcp:
+    python:
+      workspace-root: ${CHATCHAT_MCP_PYTHON_WORKSPACE_ROOT:./data/python-assets}
+      data-root: ${CHATCHAT_MCP_PYTHON_DATA_ROOT:./data/python-user-data}
+      max-data-file-bytes: ${CHATCHAT_MCP_PYTHON_MAX_DATA_FILE_BYTES:52428800}
+      docker-command: ${CHATCHAT_MCP_PYTHON_DOCKER_COMMAND:docker}
+      output-limit-bytes: ${CHATCHAT_MCP_PYTHON_OUTPUT_LIMIT_BYTES:1000000}
     market:
       require-dedicated-storage: true
       query-timeout-seconds: ${CHATCHAT_MARKET_QUERY_TIMEOUT_SECONDS:15}

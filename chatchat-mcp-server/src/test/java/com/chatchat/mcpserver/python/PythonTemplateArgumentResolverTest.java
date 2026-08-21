@@ -3,6 +3,7 @@ package com.chatchat.mcpserver.python;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -34,5 +35,38 @@ class PythonTemplateArgumentResolverTest {
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("customerId")
             .hasMessageNotContaining("mode]");
+    }
+
+    @Test
+    void parsesStringValuesAccordingToThePublishedInputSchema() {
+        String schema = """
+            {"type":"object","properties":{
+              "limit":{"type":"integer"},"ratio":{"type":"number"},"enabled":{"type":"boolean"},
+              "columns":{"type":"array"},"filters":{"type":"object"},"source_file":{"type":"FILE"}
+            }}
+            """;
+
+        Map<String, Object> result = resolver.resolve(schema, Map.of(
+            "limit", "25", "ratio", "1.5", "enabled", "true",
+            "columns", "[\"name\",\"amount\"]", "filters", "{\"region\":\"CN\"}",
+            "source_file", "file_123"
+        ));
+
+        assertThat(result.get("limit")).isEqualTo(25L);
+        assertThat(result.get("ratio")).isEqualTo(1.5d);
+        assertThat(result.get("enabled")).isEqualTo(true);
+        assertThat(result.get("columns")).isEqualTo(List.of("name", "amount"));
+        assertThat(result.get("filters")).isEqualTo(Map.of("region", "CN"));
+        assertThat(result.get("source_file")).isEqualTo("file_123");
+    }
+
+    @Test
+    void rejectsValuesThatCannotBeParsedAsTheDeclaredType() {
+        String schema = "{\"type\":\"object\",\"properties\":{\"limit\":{\"type\":\"integer\"}}}";
+
+        assertThatThrownBy(() -> resolver.resolve(schema, Map.of("limit", "many")))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("limit")
+            .hasMessageContaining("整数");
     }
 }

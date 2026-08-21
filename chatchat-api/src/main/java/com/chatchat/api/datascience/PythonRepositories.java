@@ -26,3 +26,8 @@ interface PythonTemplateRepository extends JpaRepository<PythonTemplateEntity,St
 interface PythonExecutionRepository extends JpaRepository<PythonExecutionEntity,String> {
     List<PythonExecutionEntity> findTop50ByTenantIdAndOwnerIdOrderByStartedAtDesc(String tenantId,String ownerId);
 }
+interface PythonDataFileRepository extends JpaRepository<PythonDataFileEntity,String> {
+    List<PythonDataFileEntity> findByTenantIdAndOwnerIdOrderByCreatedAtDesc(String tenantId,String ownerId);
+    Optional<PythonDataFileEntity> findByIdAndTenantIdAndOwnerId(String id,String tenantId,String ownerId);
+    List<PythonDataFileEntity> findByStatusAndExpireAtBefore(String status,java.time.Instant expireAt);
+}

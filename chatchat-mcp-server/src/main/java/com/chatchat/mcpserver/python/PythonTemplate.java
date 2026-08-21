@@ -12,6 +12,8 @@ public class PythonTemplate {
     @Column(name="tenant_id",length=64,nullable=false) private String tenantId;
     @Column(name="owner_id",length=64,nullable=false) private String ownerId;
     @Column(name="asset_id",length=64,nullable=false) private String assetId;
+    @Column(name="asset_name",length=160) private String assetName;
+    @Column(name="asset_description",length=2000) private String assetDescription;
     @Column(name="environment_id",length=64,nullable=false) private String environmentId;
     @Column(name="template_name",length=200,nullable=false) private String templateName;
     @Column(name="tool_name",length=200,nullable=false,unique=true) private String toolName;

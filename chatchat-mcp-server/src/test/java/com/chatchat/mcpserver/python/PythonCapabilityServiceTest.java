@@ -26,13 +26,14 @@ class PythonCapabilityServiceTest {
     @Mock private PythonMcpToolPublisher publisher;
     @Mock private PythonTemplateArgumentResolver argumentResolver;
     @Mock private PythonTemplateSearchService templateSearch;
+    @Mock private PythonDataFileService dataFiles;
 
     private PythonCapabilityService service;
 
     @BeforeEach
     void setUp() {
         service = new PythonCapabilityService(environments, templates, executions, runtime, credentials,
-            publisher, new ObjectMapper(), argumentResolver, templateSearch);
+            publisher, new ObjectMapper(), argumentResolver, templateSearch, dataFiles);
     }
 
     @Test

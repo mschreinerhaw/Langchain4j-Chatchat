@@ -750,6 +750,8 @@
         status varchar(24) not null,
         version varchar(40) not null,
         asset_id varchar(64) not null,
+        asset_name varchar(160),
+        asset_description varchar(2000),
         environment_id varchar(64) not null,
         id varchar(64) not null,
         owner_id varchar(64) not null,

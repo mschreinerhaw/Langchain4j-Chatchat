@@ -7,6 +7,8 @@ import com.chatchat.common.response.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.*;
 
 import java.util.*;
 
@@ -24,6 +26,9 @@ public class PythonDataScienceController {
     @PostMapping("/scripts/{id}/publish") public ApiResponse<?> publish(@PathVariable("id") String id,@RequestBody PythonDataScienceService.PublishRequest body,HttpServletRequest request){ return call(()->{Scope s=scope(request);return service.publish(s.tenant(),s.user(),id,body);}); }
     @GetMapping("/models") public ApiResponse<?> models(){return ApiResponse.success(codeAssistant.models());}
     @PostMapping("/assist") public ApiResponse<?> assist(@RequestBody PythonCodeAssistantService.AssistRequest body){return call(()->codeAssistant.assist(body));}
+    @PostMapping(value="/data-files",consumes=MediaType.MULTIPART_FORM_DATA_VALUE) public ApiResponse<?> uploadDataFile(@RequestPart("file") MultipartFile file,@RequestParam(name="purpose",defaultValue="") String purpose,@RequestParam(name="retention",defaultValue="PERMANENT") String retention,HttpServletRequest request){return call(()->{Scope s=scope(request);return service.uploadDataFile(s.tenant(),s.user(),file,purpose,retention);});}
+    @GetMapping("/data-files/{id}/download") public ResponseEntity<byte[]> downloadDataFile(@PathVariable("id") String id,HttpServletRequest request){Scope s=scope(request);var data=service.downloadDataFile(s.tenant(),s.user(),id);return ResponseEntity.ok().contentType(MediaType.APPLICATION_OCTET_STREAM).contentLength(data.content().length).header(HttpHeaders.CONTENT_DISPOSITION,ContentDisposition.attachment().filename(data.fileName(),java.nio.charset.StandardCharsets.UTF_8).build().toString()).body(data.content());}
+    @DeleteMapping("/data-files/{id}") public ApiResponse<?> deleteDataFile(@PathVariable("id") String id,HttpServletRequest request){return call(()->{Scope s=scope(request);service.deleteDataFile(s.tenant(),s.user(),id);return true;});}
 
     private Scope scope(HttpServletRequest r){ return new Scope(attr(r,ApiAuthenticationFilter.CURRENT_TENANT_ID,"default"),first(attr(r,ApiAuthenticationFilter.CURRENT_USERNAME,""),attr(r,ApiAuthenticationFilter.CURRENT_USER_ID,"default"))); }
     private String attr(HttpServletRequest r,String key,String fallback){Object value=r.getAttribute(key);return value==null||String.valueOf(value).isBlank()?fallback:String.valueOf(value);}

@@ -73,26 +73,50 @@ public class PythonMcpToolPublisher {
     private McpServerFeatures.SyncToolSpecification assetQuerySpec() {
         McpSchema.Tool tool = McpSchema.Tool.builder().name(ASSET_QUERY_TOOL)
             .title("Python runtime asset discovery")
-            .description("Discover tenant-scoped logical Python runtime assets. This step never executes a script.")
+            .description("Discover and disambiguate tenant-scoped Python runtime assets by business intent and environment. This step never executes a script.")
             .inputSchema(querySchema())
-            .meta(protocolMeta("python_asset_query.v1", "discover_asset"))
+            .meta(protocolMeta("python_asset_query.v2", "discover_asset"))
             .build();
         return McpServerFeatures.SyncToolSpecification.builder().tool(tool).callHandler((exchange, request) -> {
-            Map<String, Object> arguments = safe(request.arguments());
-            String tenantId = tenantId(arguments);
-            List<PythonTemplate> published = templates.findByTenantIdAndStatus(tenantId, "PUBLISHED");
-            Map<String, List<PythonTemplate>> grouped = new LinkedHashMap<>();
-            published.forEach(template -> grouped.computeIfAbsent(template.getAssetId(), ignored -> new ArrayList<>()).add(template));
-            List<Map<String, Object>> assets = grouped.values().stream().map(this::assetView).toList();
-            Map<String, Object> result = new LinkedHashMap<>();
-            result.put("schemaVersion", "python_asset_query_ir.v1");
-            result.put("success", true);
-            result.put("tenantScoped", true);
-            result.put("returnedCount", assets.size());
-            result.put("assets", assets);
-            result.put("nextTool", TEMPLATE_QUERY_TOOL);
-            return callResult(result, false);
+            return callResult(discoverAssets(safe(request.arguments())), false);
         }).build();
+    }
+
+    Map<String, Object> discoverAssets(Map<String, Object> arguments) {
+        String tenantId = tenantId(arguments);
+        Map<String, Object> filters = map(arguments.get("filters"));
+        String assetId = firstText(text(arguments.get("assetId")), text(filters.get("assetId")));
+        String environmentId = firstText(text(arguments.get("environmentId")), text(filters.get("environmentId")));
+        String query = firstText(text(arguments.get("query")), text(filters.get("query")),
+            text(filters.get("intent")), text(filters.get("goal")));
+        int limit = Math.max(1, Math.min(integer(arguments.get("limit"), 20), 100));
+        Map<String, List<PythonTemplate>> grouped = new LinkedHashMap<>();
+        templates.findByTenantIdAndStatus(tenantId, "PUBLISHED").stream()
+            .filter(template -> assetId == null || assetId.equals(template.getAssetId()))
+            .filter(template -> environmentId == null || environmentId.equals(template.getEnvironmentId()))
+            .forEach(template -> grouped.computeIfAbsent(template.getAssetId(), ignored -> new ArrayList<>()).add(template));
+        List<AssetCandidate> candidates = grouped.values().stream().map(values -> assetCandidate(values, query))
+            .filter(candidate -> query == null || query.isBlank() || candidate.score() > 0)
+            .sorted(Comparator.comparingDouble(AssetCandidate::score).reversed()
+                .thenComparing(candidate -> String.valueOf(candidate.view().get("name"))))
+            .limit(limit).toList();
+        boolean uniquelyRanked = candidates.size() == 1 || candidates.size() > 1
+            && candidates.get(0).score() > candidates.get(1).score();
+        boolean requiresClarification = candidates.size() > 1 && !uniquelyRanked;
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("schemaVersion", "python_asset_query_ir.v2");
+        result.put("success", true);
+        result.put("tenantScoped", true);
+        result.put("returnedCount", candidates.size());
+        result.put("assets", candidates.stream().map(AssetCandidate::view).toList());
+        result.put("requiresClarification", requiresClarification);
+        result.put("recommendedAssetId", uniquelyRanked && !candidates.isEmpty()
+            ? candidates.get(0).view().get("assetId") : "");
+        result.put("selectionPolicy", requiresClarification
+            ? "Multiple equally relevant runtime assets remain; ask the user to select an environment before execution."
+            : "Preserve the recommended assetId when querying and executing its template.");
+        result.put("nextTool", TEMPLATE_QUERY_TOOL);
+        return Map.copyOf(result);
     }
 
     private McpServerFeatures.SyncToolSpecification templateQuerySpec() {
@@ -107,11 +131,13 @@ public class PythonMcpToolPublisher {
             String tenantId = tenantId(arguments);
             Map<String, Object> filters = map(arguments.get("filters"));
             String assetId = firstText(text(arguments.get("assetId")), text(filters.get("assetId")));
+            String environmentId = firstText(text(arguments.get("environmentId")), text(filters.get("environmentId")));
             String query = firstText(text(arguments.get("query")), text(filters.get("query")),
                 text(filters.get("intent")), text(filters.get("goal")));
             int limit = Math.max(1, Math.min(integer(arguments.get("limit"), 20), 100));
             List<Map<String, Object>> candidates = templates.findByTenantIdAndStatus(tenantId, "PUBLISHED").stream()
                 .filter(template -> assetId == null || assetId.equals(template.getAssetId()))
+                .filter(template -> environmentId == null || environmentId.equals(template.getEnvironmentId()))
                 .filter(template -> matches(template, query))
                 .sorted(Comparator.comparing(PythonTemplate::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
                 .limit(limit).map(this::templateView).toList();
@@ -150,6 +176,7 @@ public class PythonMcpToolPublisher {
                 result.put("schemaVersion", "python_template_execute_result.v1");
                 result.put("templateId", template.getId());
                 result.put("assetId", template.getAssetId());
+                result.put("environmentId", template.getEnvironmentId());
                 result.put("executionId", execution.getId());
                 result.put("status", execution.getStatus());
                 result.put("stdout", execution.getStdout());
@@ -161,19 +188,54 @@ public class PythonMcpToolPublisher {
         }).build();
     }
 
-    private Map<String, Object> assetView(List<PythonTemplate> values) {
+    private AssetCandidate assetCandidate(List<PythonTemplate> values, String query) {
         PythonTemplate first = values.get(0);
         PythonEnvironment environment = environments.findById(first.getEnvironmentId()).orElse(null);
         Map<String, Object> asset = new LinkedHashMap<>();
         asset.put("assetId", first.getAssetId());
-        asset.put("name", environment == null ? "Python runtime asset" : environment.getName());
-        asset.put("description", environment == null ? "Tenant Python runtime" : nullable(environment.getDescription()));
+        asset.put("name", firstText(text(first.getAssetName()), environment == null ? null : text(environment.getName()), "Python runtime asset"));
+        asset.put("description", firstText(text(first.getAssetDescription()), environment == null ? null : text(environment.getDescription()), "Tenant Python runtime"));
         asset.put("assetType", "python_runtime");
         asset.put("environmentId", first.getEnvironmentId());
+        asset.put("environmentName", environment == null ? "" : nullable(environment.getName()));
+        asset.put("environmentDescription", environment == null ? "" : nullable(environment.getDescription()));
+        asset.put("pythonVersion", environment == null ? "" : nullable(environment.getPythonVersion()));
+        asset.put("requirements", environment == null ? "[]" : nullable(environment.getRequirementsJson()));
         asset.put("templateCount", values.size());
+        asset.put("templates", values.stream().map(template -> Map.of(
+            "templateId", template.getId(), "name", template.getTemplateName(),
+            "scenario", nullable(template.getScenario()))).toList());
         asset.put("capabilities", Map.of("allowedTemplateIds", values.stream().map(PythonTemplate::getId).toList()));
         asset.put("routing", Map.of("nextTool", TEMPLATE_QUERY_TOOL, "assetId", first.getAssetId()));
-        return Map.copyOf(asset);
+        double score = relevance(values, environment, query);
+        asset.put("relevanceScore", score);
+        return new AssetCandidate(Map.copyOf(asset), score);
+    }
+
+    private double relevance(List<PythonTemplate> values, PythonEnvironment environment, String query) {
+        if (query == null || query.isBlank()) return 0;
+        PythonTemplate first = values.get(0);
+        String normalized = query.toLowerCase(Locale.ROOT);
+        List<String> terms = List.of(normalized.split("[\\s,;，；]+" )).stream().filter(term -> !term.isBlank()).toList();
+        double score = 0;
+        for (String term : terms) {
+            score += contains(first.getAssetName(), term) ? 6 : 0;
+            score += contains(first.getAssetDescription(), term) ? 3 : 0;
+            score += environment != null && contains(environment.getName(), term) ? 4 : 0;
+            score += environment != null && contains(environment.getDescription(), term) ? 2 : 0;
+            for (PythonTemplate template : values) {
+                score += contains(template.getTemplateName(), term) ? 5 : 0;
+                score += contains(template.getScenario(), term) ? 3 : 0;
+                score += contains(template.getDescription(), term) ? 2 : 0;
+                score += contains(template.getKeywords(), term) ? 2 : 0;
+                score += contains(template.getDomain(), term) ? 2 : 0;
+            }
+        }
+        return score;
+    }
+
+    private boolean contains(String value, String term) {
+        return value != null && value.toLowerCase(Locale.ROOT).contains(term);
     }
 
     private Map<String, Object> templateView(PythonTemplate template) {
@@ -188,6 +250,8 @@ public class PythonMcpToolPublisher {
         view.put("domain", nullable(template.getDomain()));
         view.put("version", template.getVersion());
         view.put("assetId", template.getAssetId());
+        view.put("assetName", nullable(template.getAssetName()));
+        view.put("assetDescription", nullable(template.getAssetDescription()));
         view.put("environmentId", template.getEnvironmentId());
         view.put("parameterSchema", schema);
         view.put("outputSchema", argumentResolver.schema(template.getOutputSchemaJson()));
@@ -206,6 +270,7 @@ public class PythonMcpToolPublisher {
         return new McpSchema.JsonSchema("object", Map.of(
             "query", Map.of("type", "string"),
             "assetId", Map.of("type", "string"),
+            "environmentId", Map.of("type", "string"),
             "filters", Map.of("type", "object", "additionalProperties", true),
             "limit", Map.of("type", "integer", "minimum", 1, "maximum", 100)
         ), List.of(), false, null, null);
@@ -236,7 +301,8 @@ public class PythonMcpToolPublisher {
 
     private Map<String, Object> driver() {
         return ToolProtocolDriverContract.of("mcp.python-template.v1", List.of(
-            "Discover a tenant Python asset, discover a published template under that asset, then execute only the selected templateId through python_template_execute.",
+            "Pass the user's analysis intent to python_asset_query. Preserve its recommended assetId; if requiresClarification is true, ask the user to choose an environment before execution.",
+            "Discover a published template under the selected assetId, then execute only that templateId through python_template_execute.",
             "Pass business inputs only under parameters. Supplied values override schema defaults; omitted values retain defaults.",
             "Template discovery is routing evidence, not execution evidence; never invent a direct per-template tool name."
         ), List.of(
@@ -275,4 +341,5 @@ public class PythonMcpToolPublisher {
     private String text(Object value) { return value == null || String.valueOf(value).isBlank() ? null : String.valueOf(value).trim(); }
     private String firstText(String... values) { for (String value : values) if (value != null && !value.isBlank()) return value; return null; }
     private String nullable(String value) { return value == null ? "" : value; }
+    private record AssetCandidate(Map<String, Object> view, double score) {}
 }

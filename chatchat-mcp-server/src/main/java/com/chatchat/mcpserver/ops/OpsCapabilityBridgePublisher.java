@@ -3,6 +3,7 @@ package com.chatchat.mcpserver.ops;
 import com.chatchat.common.tool.ToolProtocolDriverContract;
 import com.chatchat.mcpserver.routing.AssetDiscoveryMcpToolPublisher;
 import com.chatchat.mcpserver.routing.AssetDiscoveryService;
+import com.chatchat.mcpserver.templatepublication.TemplateQueryMcpToolPublisher;
 import com.chatchat.mcpserver.tool.McpToolPublicationReviewer;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
@@ -10,6 +11,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -59,6 +61,12 @@ public class OpsCapabilityBridgePublisher {
     private final McpSyncServer server;
     private final AssetDiscoveryService assetDiscovery;
     private final CommandTemplateDiscoveryService templateDiscovery;
+    private TemplateQueryMcpToolPublisher dynamicTemplateQueries;
+
+    @Autowired
+    void configureDynamicTemplateQueries(TemplateQueryMcpToolPublisher dynamicTemplateQueries) {
+        this.dynamicTemplateQueries = dynamicTemplateQueries;
+    }
     @Order(Ordered.LOWEST_PRECEDENCE)
     @EventListener(ApplicationReadyEvent.class)
     public void ready() {
@@ -114,6 +122,10 @@ public class OpsCapabilityBridgePublisher {
         if (assetStage && !domain.assetDiscoverySupported()) {
             throw new IllegalArgumentException(domain.toolName() + " supports template discovery only");
         }
+        String childToolName = TemplateQueryMcpToolPublisher.childToolName(arguments);
+        if (!childToolName.isBlank() && assetStage) {
+            throw new IllegalArgumentException("Custom template queries support template discovery only");
+        }
         Map<String, Object> normalized = new LinkedHashMap<>(arguments);
         normalized.remove("targetKind");
         normalized.remove("target_kind");
@@ -127,9 +139,13 @@ public class OpsCapabilityBridgePublisher {
         normalized.put("confidence", 1.0D);
         normalized.put("candidates", List.of(Map.of("targetKind", domain.targetKind(), "confidence", 1.0D)));
         normalized.put("trace", Map.of("source", domain.toolName(), "bridgeManaged", true));
-        Map<String, Object> discovered = assetStage
-            ? assetDiscovery.query(normalized)
-            : templateDiscovery.query(normalized);
+        Map<String, Object> discovered;
+        if (!childToolName.isBlank()) {
+            discovered = requireDynamicTemplateQueries().queryFromParent(
+                childToolName, persistedParent(domain), normalized);
+        } else {
+            discovered = assetStage ? assetDiscovery.query(normalized) : templateDiscovery.query(normalized);
+        }
         Map<String, Object> result = new LinkedHashMap<>(discovered == null ? Map.of() : discovered);
         result.put("bridgeManaged", true);
         result.put("bridgeTool", domain.toolName());
@@ -138,6 +154,23 @@ public class OpsCapabilityBridgePublisher {
         result.put("stage", assetStage ? "asset" : "template");
         result.put("executionTool", domain.executionTool());
         return result;
+    }
+
+    private TemplateQueryMcpToolPublisher requireDynamicTemplateQueries() {
+        if (dynamicTemplateQueries == null) {
+            throw new IllegalStateException("Dynamic template query routing is unavailable");
+        }
+        return dynamicTemplateQueries;
+    }
+
+    private String persistedParent(Domain domain) {
+        return switch (domain.toolName()) {
+            case SERVER_QUERY_TOOL -> TemplateDiscoveryMcpToolPublisher.SSH_TEMPLATE_TOOL_NAME;
+            case HTTP_QUERY_TOOL -> TemplateDiscoveryMcpToolPublisher.HTTP_ENDPOINT_TEMPLATE_TOOL_NAME;
+            case DATABASE_QUERY_TOOL -> TemplateDiscoveryMcpToolPublisher.SQL_DATASOURCE_TEMPLATE_TOOL_NAME;
+            default -> throw new IllegalArgumentException(
+                domain.toolName() + " does not support custom template-query publication");
+        };
     }
 
     private Domain domain(String toolName) {

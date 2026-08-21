@@ -1,6 +1,7 @@
 package com.chatchat.mcpserver.ops;
 
 import com.chatchat.mcpserver.routing.AssetDiscoveryService;
+import com.chatchat.mcpserver.templatepublication.TemplateQueryMcpToolPublisher;
 import io.modelcontextprotocol.server.McpSyncServer;
 import org.junit.jupiter.api.Test;
 
@@ -11,6 +12,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class OpsCapabilityBridgePublisherTest {
@@ -69,6 +71,27 @@ class OpsCapabilityBridgePublisherTest {
         verify(server).removeTool(OpsCapabilityBridgePublisher.JMX_QUERY_TOOL);
         verify(server).removeTool(OpsCapabilityBridgePublisher.DATABASE_QUERY_TOOL);
         verify(server).notifyToolsListChanged();
+    }
+
+    @Test
+    void serverBridgeDelegatesCustomQueryToPersistedSshParentPolicy() {
+        CommandTemplateDiscoveryService discovery = mock(CommandTemplateDiscoveryService.class);
+        TemplateQueryMcpToolPublisher dynamic = mock(TemplateQueryMcpToolPublisher.class);
+        when(dynamic.queryFromParent(org.mockito.ArgumentMatchers.eq("team_ops_template_query"),
+            org.mockito.ArgumentMatchers.eq(TemplateDiscoveryMcpToolPublisher.SSH_TEMPLATE_TOOL_NAME),
+            org.mockito.ArgumentMatchers.anyMap())).thenReturn(Map.of(
+                "templates", java.util.List.of(Map.of("templateId", "disk_check"))));
+        OpsCapabilityBridgePublisher publisher = publisher(discovery);
+        publisher.configureDynamicTemplateQueries(dynamic);
+
+        Map<String, Object> result = publisher.query(OpsCapabilityBridgePublisher.SERVER_QUERY_TOOL,
+            Map.of(TemplateQueryMcpToolPublisher.CHILD_TOOL_ARGUMENT, "team_ops_template_query"));
+
+        assertThat(result.get("templates").toString()).contains("disk_check");
+        verify(dynamic).queryFromParent(org.mockito.ArgumentMatchers.eq("team_ops_template_query"),
+            org.mockito.ArgumentMatchers.eq(TemplateDiscoveryMcpToolPublisher.SSH_TEMPLATE_TOOL_NAME),
+            org.mockito.ArgumentMatchers.anyMap());
+        verifyNoInteractions(discovery);
     }
 
     private OpsCapabilityBridgePublisher publisher(CommandTemplateDiscoveryService discovery) {

@@ -9,6 +9,7 @@ import com.chatchat.mcpserver.routing.AssetMetadataFactory;
 import com.chatchat.mcpserver.routing.ExecutionTargetRouter;
 import com.chatchat.mcpserver.routing.TargetKindRegistry;
 import com.chatchat.mcpserver.ops.CommandTemplateDiscoveryService;
+import com.chatchat.mcpserver.templatepublication.TemplateQueryMcpToolPublisher;
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import com.chatchat.mcpserver.tool.StandardToolExecutionResultFactory;
@@ -30,6 +31,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class SqlMcpToolPublisherTest {
@@ -108,6 +110,38 @@ class SqlMcpToolPublisherTest {
             .contains("CANDIDATES_FOUND", "business_database_query_template", "requiresModelReview=true")
             .doesNotContain("database_template");
         verify(discovery).query(org.mockito.ArgumentMatchers.anyMap());
+    }
+
+    @Test
+    void dataBridgeDelegatesCustomQueryThroughBusinessTemplatePublicationPolicy() throws Exception {
+        CommandTemplateDiscoveryService discovery = mock(CommandTemplateDiscoveryService.class);
+        TemplateQueryMcpToolPublisher dynamic = mock(TemplateQueryMcpToolPublisher.class);
+        when(dynamic.queryFromParent(org.mockito.ArgumentMatchers.eq("finance_template_query"),
+            org.mockito.ArgumentMatchers.eq(
+                com.chatchat.mcpserver.ops.TemplateDiscoveryMcpToolPublisher.DATABASE_QUERY_TEMPLATE_TOOL_NAME),
+            org.mockito.ArgumentMatchers.anyMap())).thenReturn(Map.of(
+                "templates", List.of(Map.of("templateId", "finance_summary_v2"))));
+        SqlMcpToolPublisher publisher = new SqlMcpToolPublisher(
+            mcpSyncServer, datasourceConfigService, sqlTemplateService, mock(SqlQueryExecuteService.class), scriptExecuteService,
+            metadataSearchService, databaseQueryConfigService, databaseQueryInvokeService, executionTargetRouter,
+            assetMetadataFactory, governanceFactory, concurrencyManager,
+            new StandardToolExecutionResultFactory(new DatabaseToolProperties()),
+            new ChatChatMcpServerProperties(), new ObjectMapper());
+        publisher.configureDataQueryBridge(discovery, new TargetKindRegistry());
+        publisher.configureDynamicTemplateQueries(dynamic);
+        Method method = SqlMcpToolPublisher.class.getDeclaredMethod("executeDataQueryBridge", Map.class);
+        method.setAccessible(true);
+
+        McpSchema.CallToolResult result = (McpSchema.CallToolResult) method.invoke(publisher, Map.of(
+            TemplateQueryMcpToolPublisher.CHILD_TOOL_ARGUMENT, "finance_template_query"));
+
+        assertThat(result.structuredContent().toString())
+            .contains("finance_summary_v2", "requiresModelReview=true");
+        verify(dynamic).queryFromParent(org.mockito.ArgumentMatchers.eq("finance_template_query"),
+            org.mockito.ArgumentMatchers.eq(
+                com.chatchat.mcpserver.ops.TemplateDiscoveryMcpToolPublisher.DATABASE_QUERY_TEMPLATE_TOOL_NAME),
+            org.mockito.ArgumentMatchers.anyMap());
+        verifyNoInteractions(discovery);
     }
 
     @Test

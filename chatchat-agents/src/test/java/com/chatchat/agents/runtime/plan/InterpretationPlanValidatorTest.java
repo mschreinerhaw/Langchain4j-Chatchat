@@ -135,6 +135,47 @@ class InterpretationPlanValidatorTest {
     }
 
     @Test
+    void acceptsAuthoritativeApiBridgeWorkflowWithoutLegacyAssetQuery() {
+        String bridge = "mcp_chatchat_mcp_server_api_service_query";
+        String publishedQuery = "mcp_chatchat_mcp_server_customer_service_template_query";
+        String execute = "mcp_chatchat_mcp_server_api_template_execute";
+        Set<String> availableTools = Set.of(bridge, publishedQuery, execute);
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("customer_query", "Query governed customer facts", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", bridge,
+                        Map.of("query", "customer analysis"), List.of(), null, null),
+                    new InterpretationPlan.Step(2, "mcp_tool", publishedQuery,
+                        Map.of("query", "customer analysis"), List.of(), null, null),
+                    new InterpretationPlan.Step(3, "mcp_tool", execute,
+                        Map.of("parameters", Map.of("customerNo", "070200046604")),
+                        List.of(2), null, null),
+                    finalStep(4, List.of(1, 3))
+                ),
+                List.of(),
+                List.of(new InterpretationPlan.Binding(
+                    2, "$.templates[0].templateId", 3, "templateId", "jsonpath", true)),
+                null
+            ),
+            new InterpretationPlan.ExecutionPolicy(4, false, List.copyOf(availableTools), List.of(), 30000),
+            review(true)
+        );
+        List<Map<String, Object>> authoritativeDag = List.of(
+            Map.of("tool", bridge, "dependsOnTools", List.of()),
+            Map.of("tool", publishedQuery, "dependsOnTools", List.of()),
+            Map.of("tool", execute, "dependsOnTools", List.of(publishedQuery))
+        );
+
+        InterpretationPlanValidator.ValidationResult result = validator.validate(
+            plan, mock(ToolRegistry.class), availableTools, authoritativeDag, "customer-analysis");
+
+        assertThat(result.valid()).isTrue();
+    }
+
+    @Test
     void validPlanIsExecutableAndTopologicallyOrdered() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("document_search")).thenReturn(true);

@@ -191,7 +191,9 @@ public class McpAuthorizationService {
     private boolean isTemplateQueryParent(String toolName) {
         String normalized = normalize(toolName);
         return Set.of("ssh_template_query", "database_ops_template_search",
-                "http_endpoint_template_query", "database_query_template_query", "api_template_query")
+                "http_endpoint_template_query", "database_query_template_query", "api_template_query",
+                "server_capability_query", "database_capability_query", "http_capability_query",
+                "data_query_query", "api_service_query")
             .contains(normalized);
     }
 

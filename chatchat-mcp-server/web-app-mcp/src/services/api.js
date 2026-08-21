@@ -61,12 +61,30 @@ export const pythonApi = {
     apiFetch(`${API_BASE}/python/templates/${encodeURIComponent(id)}/enabled?enabled=${enabled}`, {
       method: 'POST'
     }),
-  executeTemplate: (id, parameters = {}) =>
-    apiFetch(`${API_BASE}/python/templates/${encodeURIComponent(id)}/execute`, {
+  executeTemplate: (id, tenantId, ownerId, parameters = {}) => {
+    const tenantScope = encodeScopeHeader(tenantId, 'tenantId');
+    const ownerScope = encodeScopeHeader(ownerId, 'ownerId');
+    return apiFetch(`${API_BASE}/python/templates/${encodeURIComponent(id)}/execute`, {
       method: 'POST',
+      headers: {
+        'X-Tenant-Scope': tenantScope,
+        'X-Owner-Scope': ownerScope
+      },
       body: JSON.stringify(parameters)
-    })
+    });
+  }
 };
+
+function encodeScopeHeader(value, fieldName) {
+  const scope = String(value || '').trim();
+  if (!scope) {
+    throw new Error(`Python 模板缺少 ${fieldName}，无法确定执行作用域`);
+  }
+  const bytes = new TextEncoder().encode(scope);
+  let binary = '';
+  bytes.forEach(byte => { binary += String.fromCharCode(byte); });
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
 
 export const businessCategoriesApi = {
   list: () => apiFetch(`${API_BASE}/business-categories`),

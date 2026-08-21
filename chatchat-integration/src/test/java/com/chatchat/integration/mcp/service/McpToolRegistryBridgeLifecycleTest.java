@@ -195,7 +195,7 @@ class McpToolRegistryBridgeLifecycleTest {
         when(configService.listEnabled()).thenReturn(List.of(service));
         when(configService.getById("chatchat-mcp-server")).thenReturn(service);
         when(gateway.discoverTools(service, 0)).thenReturn(List.of(child));
-        when(gateway.invokeTool(eq(service), eq("api_template_query"), anyMap(), eq(null)))
+        when(gateway.invokeTool(eq(service), eq("api_service_query"), anyMap(), eq(null)))
             .thenReturn(new com.chatchat.integration.mcp.model.McpToolInvokeResult(
                 true, Map.of("templates", List.of()), null, null));
         McpToolRegistryBridge bridge = new McpToolRegistryBridge(
@@ -211,7 +211,7 @@ class McpToolRegistryBridgeLifecycleTest {
             .build());
 
         ArgumentCaptor<Map<String, Object>> arguments = ArgumentCaptor.forClass(Map.class);
-        verify(gateway).invokeTool(eq(service), eq("api_template_query"), arguments.capture(), eq(null));
+        verify(gateway).invokeTool(eq(service), eq("api_service_query"), arguments.capture(), eq(null));
         assertThat(arguments.getValue())
             .containsEntry("_templateQueryChildToolName", "customer_service_template_query")
             .containsEntry("limit", 10);
@@ -221,7 +221,7 @@ class McpToolRegistryBridgeLifecycleTest {
         bridge.invoke("chatchat-mcp-server", "customer_service_template_query",
             Map.of("_templateQueryChildToolName", "spoofed_template_query", "limit", 5));
         ArgumentCaptor<Map<String, Object>> adminArguments = ArgumentCaptor.forClass(Map.class);
-        verify(gateway).invokeTool(eq(service), eq("api_template_query"), adminArguments.capture());
+        verify(gateway).invokeTool(eq(service), eq("api_service_query"), adminArguments.capture());
         assertThat(adminArguments.getValue())
             .containsEntry("_templateQueryChildToolName", "customer_service_template_query")
             .containsEntry("limit", 5);

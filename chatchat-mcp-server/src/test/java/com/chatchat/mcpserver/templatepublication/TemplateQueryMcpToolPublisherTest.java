@@ -63,7 +63,7 @@ class TemplateQueryMcpToolPublisherTest {
         assertThat(captor.getValue().tool().name()).isEqualTo("customer_template_query");
         assertThat(captor.getValue().tool().meta().toString())
             .contains("governanceEditable=false", "only_selected_templates=true", "allow_user_override=false",
-                "parentToolName=api_template_query", "routingMode=api_parent_mcp_policy_filter");
+                "parentToolName=api_service_query", "routingMode=api_parent_mcp_policy_filter");
         assertThat(captor.getValue().tool().inputSchema().properties())
             .doesNotContainKeys("templateIds", "serviceId", "roleId", "governance");
     }

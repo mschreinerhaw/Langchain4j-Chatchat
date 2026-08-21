@@ -41,7 +41,7 @@ export default {
     },
     async toggleEnvironment(row) { await this.perform(async () => { await pythonApi.publishEnvironment(row.id, row.status !== 'PUBLISHED'); await this.load(); }, row.status === 'PUBLISHED' ? '环境已取消发布，现在可以编辑' : '环境已发布'); },
     async toggleTemplate(row) { await this.perform(async () => { await pythonApi.setTemplateEnabled(row.id, row.status !== 'PUBLISHED'); await this.load(); this.clearSearch(); }, row.status === 'PUBLISHED' ? '模板已停用' : '模板已启用'); },
-    async testTemplate(row) { await this.perform(async () => { const result = await pythonApi.executeTemplate(row.id, {}); this.resultText = JSON.stringify(result, null, 2); this.resultOpen = true; }, '模板试运行完成'); },
+    async testTemplate(row) { await this.perform(async () => { const result = await pythonApi.executeTemplate(row.id, row.tenantId, row.ownerId, {}); this.resultText = JSON.stringify(result, null, 2); this.resultOpen = true; }, '模板试运行完成'); },
     async perform(fn, message) { this.busy = true; try { await fn(); this.$emit('notify', { title: '操作成功', message, type: 'success' }); } catch (error) { this.$emit('error', error); } finally { this.busy = false; } }
   }
 };

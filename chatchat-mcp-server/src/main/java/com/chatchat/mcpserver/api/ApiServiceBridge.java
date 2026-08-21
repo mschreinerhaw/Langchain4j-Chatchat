@@ -1,6 +1,8 @@
 package com.chatchat.mcpserver.api;
 
+import com.chatchat.mcpserver.templatepublication.TemplateQueryMcpToolPublisher;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
@@ -12,10 +14,20 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ApiServiceBridge {
     private final ApiTemplateDiscoveryMcpToolPublisher templateDiscovery;
+    private TemplateQueryMcpToolPublisher dynamicTemplateQueries;
+
+    @Autowired
+    void configureDynamicTemplateQueries(TemplateQueryMcpToolPublisher dynamicTemplateQueries) {
+        this.dynamicTemplateQueries = dynamicTemplateQueries;
+    }
 
     public Result query(Map<String, Object> rawArguments) {
         Map<String, Object> arguments = rawArguments == null ? Map.of() : rawArguments;
-        Map<String, Object> discovery = templateDiscovery.query(discoveryArguments(arguments));
+        String childToolName = TemplateQueryMcpToolPublisher.childToolName(arguments);
+        Map<String, Object> discovery = childToolName.isBlank()
+            ? templateDiscovery.query(discoveryArguments(arguments))
+            : requireDynamicTemplateQueries().queryFromParent(
+                childToolName, ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME, arguments);
         Map<String, Object> body = new LinkedHashMap<>(discovery);
         List<Map<String, Object>> candidates = maps(discovery.get("templates"));
         body.put("schemaVersion", "api_service_query_result.v1");
@@ -25,6 +37,13 @@ public class ApiServiceBridge {
         body.put("bridgeTool", ApiMcpToolPublisher.BRIDGE_TOOL_NAME);
         body.put("executionTool", ApiMcpToolPublisher.EXECUTE_TOOL_NAME);
         return new Result(Map.copyOf(body), false);
+    }
+
+    private TemplateQueryMcpToolPublisher requireDynamicTemplateQueries() {
+        if (dynamicTemplateQueries == null) {
+            throw new IllegalStateException("Dynamic template query routing is unavailable");
+        }
+        return dynamicTemplateQueries;
     }
 
     private Map<String, Object> discoveryArguments(Map<String, Object> arguments) {

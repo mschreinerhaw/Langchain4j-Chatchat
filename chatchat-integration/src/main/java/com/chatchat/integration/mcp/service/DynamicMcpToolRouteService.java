@@ -37,7 +37,8 @@ public class DynamicMcpToolRouteService {
 
         String normalizedServiceId = required(serviceId, "MCP service id");
         String childToolName = required(definition.name(), "dynamic child tool name");
-        String parentToolName = required(definition.meta().get("parentToolName"), "parent tool name");
+        String parentToolName = publicBridgeParent(
+            required(definition.meta().get("parentToolName"), "parent tool name"));
         if (childToolName.equalsIgnoreCase(parentToolName)) {
             throw new IllegalArgumentException("Dynamic MCP child tool cannot route to itself");
         }
@@ -109,6 +110,18 @@ public class DynamicMcpToolRouteService {
             throw new IllegalArgumentException(label + " is required");
         }
         return result;
+    }
+
+    private String publicBridgeParent(String parentToolName) {
+        return switch (parentToolName) {
+            case "api_template_query" -> "api_service_query";
+            case "ssh_template_query" -> "server_capability_query";
+            case "http_endpoint_template_query" -> "http_capability_query";
+            case "database_ops_template_search", "sql_datasource_template_query" ->
+                "database_capability_query";
+            case "database_query_template_query" -> "data_query_query";
+            default -> parentToolName;
+        };
     }
 
     private String text(Object value) {

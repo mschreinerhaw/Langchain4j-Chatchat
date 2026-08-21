@@ -302,7 +302,8 @@ public class TemplateQueryMcpToolPublisher {
             "template_query_publication", "system-managed", governance));
         meta.put("schemaVersion", CommandTemplateDiscoveryService.QUERY_SCHEMA_VERSION);
         meta.put("kind", "dynamic_authorized_template_discovery");
-        meta.put("parentToolName", bindingService.parentToolName(toolName));
+        meta.put("parentToolName", TemplateQueryBridgeRoutingPolicy.publicBridge(
+            bindingService.parentToolName(toolName)));
         meta.put("routingMode", "api_parent_mcp_policy_filter");
         meta.put("readOnly", true);
         meta.put("runtimeAction", "read_only");

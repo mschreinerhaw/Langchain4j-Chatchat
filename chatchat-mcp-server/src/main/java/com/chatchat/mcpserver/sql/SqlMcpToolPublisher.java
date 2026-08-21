@@ -14,6 +14,7 @@ import com.chatchat.mcpserver.routing.AssetMetadataFactory;
 import com.chatchat.mcpserver.routing.ExecutionTargetRouter;
 import com.chatchat.mcpserver.routing.TargetKindRegistry;
 import com.chatchat.mcpserver.ops.CommandTemplateDiscoveryService;
+import com.chatchat.mcpserver.templatepublication.TemplateQueryMcpToolPublisher;
 import com.chatchat.mcpserver.template.AgentRuntimeTemplateDsl;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -63,12 +64,18 @@ public class SqlMcpToolPublisher {
     private final Set<String> managedToolNames = ConcurrentHashMap.newKeySet();
     private CommandTemplateDiscoveryService templateDiscoveryService;
     private TargetKindRegistry targetKindRegistry;
+    private TemplateQueryMcpToolPublisher dynamicTemplateQueries;
 
     @Autowired
     void configureDataQueryBridge(CommandTemplateDiscoveryService templateDiscoveryService,
                                   TargetKindRegistry targetKindRegistry) {
         this.templateDiscoveryService = templateDiscoveryService;
         this.targetKindRegistry = targetKindRegistry;
+    }
+
+    @Autowired
+    void configureDynamicTemplateQueries(TemplateQueryMcpToolPublisher dynamicTemplateQueries) {
+        this.dynamicTemplateQueries = dynamicTemplateQueries;
     }
 
     @Order(Ordered.LOWEST_PRECEDENCE)
@@ -116,6 +123,17 @@ public class SqlMcpToolPublisher {
 
     private McpSchema.CallToolResult executeDataQueryBridge(Map<String, Object> rawArguments) {
         Map<String, Object> arguments = rawArguments == null ? Map.of() : rawArguments;
+        String childToolName = TemplateQueryMcpToolPublisher.childToolName(arguments);
+        if (!childToolName.isBlank()) {
+            if (dynamicTemplateQueries == null) {
+                throw new IllegalStateException("Dynamic template query routing is unavailable");
+            }
+            Map<String, Object> discovery = dynamicTemplateQueries.queryFromParent(
+                childToolName,
+                com.chatchat.mcpserver.ops.TemplateDiscoveryMcpToolPublisher.DATABASE_QUERY_TEMPLATE_TOOL_NAME,
+                arguments);
+            return dataQueryDiscoveryResult(discovery, "business_database_query");
+        }
         if (!"metadata".equalsIgnoreCase(text(arguments, "stage"))) {
             return discoverDataQueryTemplates(arguments);
         }
@@ -134,6 +152,27 @@ public class SqlMcpToolPublisher {
             .structuredContent(structured)
             .isError(false)
             .build();
+    }
+
+    private McpSchema.CallToolResult dataQueryDiscoveryResult(Map<String, Object> discovery, String targetKind) {
+        List<Map<String, Object>> candidates = new ArrayList<>();
+        for (Map<String, Object> candidate : maps(discovery == null ? null : discovery.get("templates"))) {
+            Map<String, Object> enriched = new LinkedHashMap<>(candidate);
+            enriched.putIfAbsent("targetKind", targetKind);
+            candidates.add(enriched);
+        }
+        Map<String, Object> structured = new LinkedHashMap<>(discovery == null ? Map.of() : discovery);
+        structured.put("schemaVersion", "data_query_bridge_result.v2");
+        structured.put("success", true);
+        structured.put("status", candidates.isEmpty() ? "NO_CANDIDATE" : "CANDIDATES_FOUND");
+        structured.put("requiresModelReview", !candidates.isEmpty());
+        structured.put("candidateCount", candidates.size());
+        structured.put("candidates", candidates);
+        structured.put("executionTool", "sql_query_execute");
+        structured.put("bridgeManaged", true);
+        return McpSchema.CallToolResult.builder().addTextContent(
+                candidates.isEmpty() ? "No governed data query template matched" : "Review data query template candidates before execution")
+            .structuredContent(structured).isError(false).build();
     }
 
     private McpSchema.CallToolResult discoverDataQueryTemplates(Map<String, Object> arguments) {

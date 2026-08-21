@@ -18,3 +18,5 @@ A bridge does not collapse semantic selection into automatic top-1 execution and
 Notification sends and metadata-governance mutations remain separate side-effect tools. A bridge must not weaken tenant scope, user scope, template governance, confirmation, auditing, or target redaction.
 
 There is intentionally no generic `ops_capability_query`. Choosing a public query tool is the business-domain decision; a request cannot override that decision with `targetKind`. Shared publisher code is an implementation detail and does not merge the MCP contracts.
+
+Custom governed `<domain>_template_query` tools remain public business-facing tools. Their persisted publication bindings keep the historical parent tool name for backward compatibility, while discovery metadata routes them through the corresponding public domain bridge. The API injects the trusted child-tool identity; the bridge delegates to the original parent authorization contract so service, tenant, role and template allow-list filtering remain mandatory. Existing publication rows do not require migration.

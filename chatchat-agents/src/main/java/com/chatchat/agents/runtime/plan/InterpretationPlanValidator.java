@@ -73,6 +73,15 @@ public class InterpretationPlanValidator {
     private static final Set<String> RUNTIME_OWNED_TEMPLATE_INPUT_KEYS = Set.of(
         "parameters", "params", "arguments"
     );
+    private static final Set<String> DOMAIN_DISCOVERY_BRIDGE_TOOLS = Set.of(
+        "api_service_query",
+        "server_capability_query",
+        "http_capability_query",
+        "jmx_capability_query",
+        "database_capability_query",
+        "data_query_query",
+        "python_analysis_query"
+    );
 
     /**
      * Validates a plan against the current tool registry.
@@ -1182,7 +1191,7 @@ public class InterpretationPlanValidator {
         }
     }
 
-    /** Every governed executor must prove asset -> template -> execution provenance. */
+    /** Every governed executor must prove governed discovery -> template -> execution provenance. */
     private void validateTemplateExecutionEvidenceChains(InterpretationPlan plan,
                                                          Map<Integer, InterpretationPlan.Step> stepsById,
                                                          Object authoritativeWorkflowDag,
@@ -1201,29 +1210,29 @@ public class InterpretationPlanValidator {
         }
         boolean authoritativeWorkflow = authoritativeWorkflowDag instanceof Collection<?> nodes
             && !nodes.isEmpty();
-        // A task-configured workflow is the only source that can require missing workflow
-        // nodes. Direct Runtime callers and legacy plans may start at an already-resolved
-        // asset or template boundary; validate the complete provenance chain only when the
-        // plan actually carries both discovery stages. Runtime still rejects an executor
-        // without a usable templateId through its argument contract.
+        // A task-configured workflow is the authority for its required nodes and edges.
+        // Do not overlay the legacy asset -> template topology on a bridge workflow: a
+        // domain bridge can perform governed asset/template discovery itself, and a
+        // published custom query can be an independent workflow node. Runtime still
+        // requires the executor to depend on discovery and receive templateId via a
+        // Runtime-owned binding, so this does not permit model-authored template ids.
         if (!authoritativeWorkflow && (assetSteps.isEmpty() || templateSteps.isEmpty())) {
             return;
-        }
-        if (assetSteps.isEmpty()) {
-            state.error("plan.steps",
-                "Template-governed execution requires an asset-discovery step in the current DAG.");
         }
         if (templateSteps.isEmpty()) {
             state.error("plan.steps",
                 "Template-governed execution requires a template-discovery step in the current DAG.");
+            return;
         }
 
-        for (InterpretationPlan.Step templateStep : templateSteps) {
-            boolean dependsOnAsset = assetSteps.stream()
-                .anyMatch(asset -> dependsOnTransitively(templateStep.id(), asset.id(), stepsById, new HashSet<>()));
-            if (!dependsOnAsset) {
-                state.error("plan.steps[" + templateStep.id() + "].depends_on",
-                    "Template discovery must depend on asset discovery in the current task execution scope.");
+        if (!authoritativeWorkflow) {
+            for (InterpretationPlan.Step templateStep : templateSteps) {
+                boolean dependsOnAsset = assetSteps.stream()
+                    .anyMatch(asset -> dependsOnTransitively(templateStep.id(), asset.id(), stepsById, new HashSet<>()));
+                if (!dependsOnAsset) {
+                    state.error("plan.steps[" + templateStep.id() + "].depends_on",
+                        "Template discovery must depend on asset discovery in the current task execution scope.");
+                }
             }
         }
         for (InterpretationPlan.Step executeStep : executeSteps) {
@@ -1494,7 +1503,8 @@ public class InterpretationPlanValidator {
     private boolean templateDiscoveryTool(String toolName) {
         String semantic = semanticToolName(toolName);
         return McpToolProtocolRole.TEMPLATE_QUERY.matches(semantic)
-            || semantic.endsWith("_template_search");
+            || semantic.endsWith("_template_search")
+            || DOMAIN_DISCOVERY_BRIDGE_TOOLS.contains(semantic);
     }
 
     private boolean routingDiscoveryTool(String toolName) {

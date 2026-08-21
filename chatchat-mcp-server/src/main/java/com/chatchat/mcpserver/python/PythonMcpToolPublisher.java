@@ -73,8 +73,8 @@ public class PythonMcpToolPublisher {
             "description", "Business parameters; supplied values override defaults"));
         McpSchema.Tool tool = McpSchema.Tool.builder()
             .name(ANALYSIS_RUN_TOOL)
-            .title("Python 分析能力查询")
-            .description("统一发现当前租户的 Python 脚本模板、环境和用户数据绑定。该工具不执行脚本；模型选择后由 python_template_execute 进入 Agent Runtime 治理链路。")
+            .title("Python analysis capability query")
+            .description("Discover Python script templates, execution environments, and user data bindings available to the current tenant. This tool does not execute scripts. After the model selects a template, python_template_execute runs it through the Agent Runtime governance pipeline.")
             .inputSchema(new McpSchema.JsonSchema("object", properties, List.of(), false, null, null))
             .meta(meta()).build();
         return McpServerFeatures.SyncToolSpecification.builder().tool(tool).callHandler((exchange, request) -> {

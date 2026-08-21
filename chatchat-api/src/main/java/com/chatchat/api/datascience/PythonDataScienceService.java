@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
+import java.io.IOException;
 import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.*;
@@ -21,6 +22,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 public class PythonDataScienceService {
     private final PythonAssetRepository assetRepository;
     private final PythonScriptRepository scriptRepository;
+    private final PythonScriptFolderRepository folderRepository;
     private final PythonScriptVersionRepository versionRepository;
     private final PythonTemplateRepository templateRepository;
     private final PythonExecutionRepository executionRepository;
@@ -30,8 +32,9 @@ public class PythonDataScienceService {
     private final ObjectMapper objectMapper;
     private final PythonDataFileRepository dataFileRepository;
     private final PythonDataScienceProperties properties;
+    private final PythonSystemExampleCatalog exampleCatalog;
 
-    public Workbench workbench(String tenant,String owner){return new Workbench(assetRepository.findByTenantIdAndOwnerIdOrderByCreatedAtDesc(tenant,owner),scriptRepository.findByTenantIdAndOwnerIdOrderByUpdatedAtDesc(tenant,owner),executionRepository.findTop50ByTenantIdAndOwnerIdOrderByStartedAtDesc(tenant,owner),dataFileRepository.findByTenantIdAndOwnerIdOrderByCreatedAtDesc(tenant,owner));}
+    public Workbench workbench(String tenant,String owner){return new Workbench(assetRepository.findByTenantIdAndOwnerIdOrderByCreatedAtDesc(tenant,owner),folderRepository.findByTenantIdAndOwnerIdOrderBySortOrderAscNameAsc(tenant,owner),scriptRepository.findByTenantIdAndOwnerIdOrderByUpdatedAtDesc(tenant,owner),executionRepository.findTop50ByTenantIdAndOwnerIdOrderByStartedAtDesc(tenant,owner),dataFileRepository.findByTenantIdAndOwnerIdOrderByCreatedAtDesc(tenant,owner),exampleCatalog.list());}
     public List<McpPythonControlPlaneClient.EnvironmentView> publishedEnvironments(){return mcp.environments();}
 
     @Transactional
@@ -45,7 +48,8 @@ public class PythonDataScienceService {
     @Transactional
     public PythonScriptEntity saveScript(String tenant,String owner,ScriptRequest request){
         PythonAssetEntity asset=ownedReadyAsset(request.assetId(),tenant,owner);requireText(request.fileName(),"脚本文件名不能为空");requireText(request.sourceCode(),"脚本代码不能为空");String file=request.fileName().trim();if(!file.matches("[A-Za-z0-9][A-Za-z0-9_.-]{0,170}\\.py"))throw new IllegalArgumentException("脚本文件名必须是安全的 .py 文件名");
-        PythonScriptEntity script=request.id()==null||request.id().isBlank()?scriptRepository.findByAssetIdAndFileName(asset.getId(),file).orElseGet(PythonScriptEntity::new):ownedScript(request.id(),tenant,owner);if(script.getId()!=null){String currentScriptId=script.getId();scriptRepository.findByAssetIdAndFileName(asset.getId(),file).filter(existing->!existing.getId().equals(currentScriptId)).ifPresent(existing->{throw new IllegalArgumentException("当前环境已存在同名脚本："+file);});}if(script.getId()==null){script.setTenantId(tenant);script.setOwnerId(owner);script.setAssetId(asset.getId());script.setCurrentVersion(0);}script.setFileName(file);script.setTitle(or(request.title(),file));script.setSourceCode(request.sourceCode());script.setStatus("DRAFT");script.setLastTestSucceeded(false);script.setCurrentVersion(script.getCurrentVersion()+1);script=scriptRepository.saveAndFlush(script);
+        String folderId=trim(request.folderId());if(!folderId.isBlank())ownedFolder(folderId,tenant,owner);
+        PythonScriptEntity script=request.id()==null||request.id().isBlank()?scriptRepository.findByAssetIdAndFileName(asset.getId(),file).orElseGet(PythonScriptEntity::new):ownedScript(request.id(),tenant,owner);if(script.getId()!=null){String currentScriptId=script.getId();scriptRepository.findByAssetIdAndFileName(asset.getId(),file).filter(existing->!existing.getId().equals(currentScriptId)).ifPresent(existing->{throw new IllegalArgumentException("当前环境已存在同名脚本："+file);});}if(script.getId()==null){script.setTenantId(tenant);script.setOwnerId(owner);script.setAssetId(asset.getId());script.setCurrentVersion(0);}script.setFolderId(folderId.isBlank()?null:folderId);script.setFileName(file);script.setTitle(or(request.title(),file));script.setSourceCode(request.sourceCode());script.setStatus("DRAFT");script.setLastTestSucceeded(false);script.setCurrentVersion(script.getCurrentVersion()+1);script=scriptRepository.saveAndFlush(script);
         PythonScriptVersionEntity version=new PythonScriptVersionEntity();version.setScriptId(script.getId());version.setVersionNumber(script.getCurrentVersion());version.setSourceCode(script.getSourceCode());version.setSourceHash(sha256(script.getSourceCode()));versionRepository.save(version);return script;
     }
 
@@ -78,9 +82,17 @@ public class PythonDataScienceService {
         if(file==null||file.isEmpty())throw new IllegalArgumentException("请选择需要上传的数据文件");
         String name=safeDataFileName(file.getOriginalFilename());String type=fileType(name);
         if(file.getSize()>properties.getMaxDataFileBytes())throw new IllegalArgumentException("数据文件不能超过 "+(properties.getMaxDataFileBytes()/1024/1024)+" MB");
-        PythonDataFileEntity data=new PythonDataFileEntity();data.setTenantId(tenant);data.setOwnerId(owner);data.setFileName(name);data.setFileType(type);data.setFileSize(file.getSize());data.setPurpose(trim(purpose));data.setStatus("TRANSFERRING");data.setExpireAt(expireAt(retention));data.setFileHash("pending");data.setPythonPath("pending");data=dataFileRepository.saveAndFlush(data);
-        try{byte[] content=file.getBytes();String hash=sha256(content);data.setFileHash(hash);var stored=mcp.uploadDataFile(tenant,owner,data.getId(),name,hash,content);if(!hash.equalsIgnoreCase(stored.fileHash())||stored.fileSize()!=content.length)throw new IllegalStateException("MCP 文件回执校验失败");data.setStoragePath(stored.storagePath());data.setPythonPath(stored.pythonPath());data.setStatus("AVAILABLE");data.setStatusMessage("已加密传输并通过完整性校验");return dataFileRepository.save(data);}catch(Exception ex){data.setStatus("TRANSFER_FAILED");data.setStatusMessage(ex.getMessage());dataFileRepository.save(data);throw new IllegalStateException("数据文件传输到 MCP 失败："+ex.getMessage(),ex);}
+        try{return storeDataFile(tenant,owner,name,type,file.getBytes(),purpose,retention);}catch(IOException ex){throw new IllegalStateException("无法读取上传的数据文件",ex);}
     }
+    public PythonDataFileEntity importExampleData(String tenant,String owner,String exampleId){var example=exampleCatalog.get(exampleId);byte[] content=exampleCatalog.data(exampleId);return storeDataFile(tenant,owner,example.dataFileName(),example.format(),content,"系统示例数据："+example.name(),"PERMANENT");}
+    private PythonDataFileEntity storeDataFile(String tenant,String owner,String name,String type,byte[] content,String purpose,String retention){
+        if(content.length>properties.getMaxDataFileBytes())throw new IllegalArgumentException("数据文件不能超过 "+(properties.getMaxDataFileBytes()/1024/1024)+" MB");
+        PythonDataFileEntity data=new PythonDataFileEntity();data.setTenantId(tenant);data.setOwnerId(owner);data.setFileName(name);data.setFileType(type);data.setFileSize(content.length);data.setPurpose(trim(purpose));data.setStatus("TRANSFERRING");data.setExpireAt(expireAt(retention));data.setFileHash("pending");data.setPythonPath("pending");data=dataFileRepository.saveAndFlush(data);
+        try{String hash=sha256(content);data.setFileHash(hash);var stored=mcp.uploadDataFile(tenant,owner,data.getId(),name,hash,content);if(!hash.equalsIgnoreCase(stored.fileHash())||stored.fileSize()!=content.length)throw new IllegalStateException("MCP 文件回执校验失败");data.setStoragePath(stored.storagePath());data.setPythonPath(stored.pythonPath());data.setStatus("AVAILABLE");data.setStatusMessage("已加密传输并通过完整性校验");return dataFileRepository.save(data);}catch(Exception ex){data.setStatus("TRANSFER_FAILED");data.setStatusMessage(ex.getMessage());dataFileRepository.save(data);throw new IllegalStateException("数据文件传输到 MCP 失败："+ex.getMessage(),ex);}
+    }
+
+    public PythonScriptFolderEntity saveFolder(String tenant,String owner,FolderRequest request){if(request==null)throw new IllegalArgumentException("文件夹信息不能为空");String name=trim(request.name());if(name.isBlank()||name.length()>120||name.contains("/")||name.contains("\\")||name.equals(".")||name.equals(".."))throw new IllegalArgumentException("文件夹名称不合法");String parentId=trim(request.parentId());if(!parentId.isBlank())ownedFolder(parentId,tenant,owner);PythonScriptFolderEntity folder=trim(request.id()).isBlank()?new PythonScriptFolderEntity():ownedFolder(request.id(),tenant,owner);String currentId=folder.getId();folderRepository.findByTenantIdAndOwnerIdAndParentIdAndNameIgnoreCase(tenant,owner,parentId.isBlank()?null:parentId,name).filter(existing->!existing.getId().equals(currentId)).ifPresent(existing->{throw new IllegalArgumentException("当前目录已存在同名文件夹");});folder.setTenantId(tenant);folder.setOwnerId(owner);folder.setParentId(parentId.isBlank()?null:parentId);folder.setName(name);folder.setSortOrder(request.sortOrder()==null?0:request.sortOrder());return folderRepository.save(folder);}
+    public void deleteFolder(String tenant,String owner,String id){PythonScriptFolderEntity folder=ownedFolder(id,tenant,owner);if(scriptRepository.existsByFolderId(id)||folderRepository.existsByParentId(id))throw new IllegalArgumentException("文件夹非空，请先移动其中的脚本或子文件夹");folderRepository.delete(folder);}
     public DataDownload downloadDataFile(String tenant,String owner,String id){PythonDataFileEntity data=ownedDataFile(id,tenant,owner);if(!"AVAILABLE".equals(data.getStatus()))throw new IllegalArgumentException("数据文件当前不可下载");byte[] content=mcp.downloadDataFile(tenant,owner,id);if(!sha256(content).equalsIgnoreCase(data.getFileHash()))throw new IllegalStateException("MCP 下载文件完整性校验失败");return new DataDownload(data.getFileName(),content);}
     public void deleteDataFile(String tenant,String owner,String id){PythonDataFileEntity data=ownedDataFile(id,tenant,owner);mcp.deleteDataFile(tenant,owner,id);dataFileRepository.delete(data);}
     @Scheduled(fixedDelayString="${chatchat.data-science.data-cleanup-interval-ms:3600000}") public void cleanupExpiredDataFiles(){for(PythonDataFileEntity data:dataFileRepository.findByStatusAndExpireAtBefore("AVAILABLE",Instant.now())){try{mcp.deleteDataFile(data.getTenantId(),data.getOwnerId(),data.getId());dataFileRepository.delete(data);}catch(RuntimeException ignored){/* retain metadata and retry next cycle */}}}
@@ -91,6 +103,7 @@ public class PythonDataScienceService {
     private PythonExecutionEntity recordExecution(PythonAssetEntity asset,String scriptId,String templateId,String tenant,String owner,Map<String,Object> params,McpPythonControlPlaneClient.ExecutionResult r){PythonExecutionEntity e=new PythonExecutionEntity();e.setTenantId(tenant);e.setOwnerId(owner);e.setAssetId(asset.getId());e.setScriptId(scriptId);e.setTemplateId(templateId);e.setContainerId(r.containerId());e.setParametersJson(json(params==null?Map.of():params));e.setStatus(r.status());e.setExitCode(r.exitCode());e.setStdout(r.stdout());e.setStderr(r.stderr());e.setDurationMs(r.durationMs());e.setFinishedAt(Instant.now());e.setResultJson(r.stdout());return executionRepository.save(e);}
     private PythonAssetEntity ownedReadyAsset(String id,String tenant,String owner){PythonAssetEntity asset=assetRepository.findByIdAndTenantIdAndOwnerId(id,tenant,owner).orElseThrow(()->new IllegalArgumentException("Python Asset 不存在或不属于当前用户"));if(!"READY".equals(asset.getStatus()))throw new IllegalArgumentException("只有 READY 状态的 Python Asset 才能开发和发布");return asset;}
     private PythonScriptEntity ownedScript(String id,String tenant,String owner){return scriptRepository.findByIdAndTenantIdAndOwnerId(id,tenant,owner).orElseThrow(()->new IllegalArgumentException("Python 脚本不存在或不属于当前用户"));}
+    private PythonScriptFolderEntity ownedFolder(String id,String tenant,String owner){return folderRepository.findByIdAndTenantIdAndOwnerId(id,tenant,owner).orElseThrow(()->new IllegalArgumentException("脚本文件夹不存在或不属于当前用户"));}
     private PythonDataFileEntity ownedDataFile(String id,String tenant,String owner){return dataFileRepository.findByIdAndTenantIdAndOwnerId(id,tenant,owner).orElseThrow(()->new IllegalArgumentException("数据文件不存在或不属于当前用户"));}
     private String searchText(PythonTemplateEntity t){return "模板名称：\n"+t.getTemplateName()+"\n\n使用场景：\n"+t.getScenario()+"\n\n功能：\n"+t.getDescription()+"\n\n关键词：\n"+t.getKeywords()+"\n\n领域：\n"+t.getDomain()+"\n\n输入：\n"+t.getInputSchemaJson()+"\n\n输出：\n"+t.getOutputSchemaJson();}
     private String toolName(String name){String slug=name.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+","_").replaceAll("^_|_$","");if(slug.isBlank())slug="python_template";return "python_"+slug+"_"+UUID.randomUUID().toString().substring(0,8);}
@@ -103,9 +116,10 @@ public class PythonDataScienceService {
     private Instant expireAt(String retention){return switch(or(retention,"PERMANENT").toUpperCase(Locale.ROOT)){case "7_DAYS"->Instant.now().plusSeconds(7L*86400);case "30_DAYS"->Instant.now().plusSeconds(30L*86400);case "PERMANENT"->null;default->throw new IllegalArgumentException("数据保留期限不合法");};}
     private void requireText(String value,String message){if(value==null||value.isBlank())throw new IllegalArgumentException(message);}private String trim(String value){return value==null?"":value.trim();}private String or(String value,String fallback){return value==null||value.isBlank()?fallback:value.trim();}
 
-    public record Workbench(List<PythonAssetEntity> assets,List<PythonScriptEntity> scripts,List<PythonExecutionEntity> executions,List<PythonDataFileEntity> dataFiles){}
+    public record Workbench(List<PythonAssetEntity> assets,List<PythonScriptFolderEntity> folders,List<PythonScriptEntity> scripts,List<PythonExecutionEntity> executions,List<PythonDataFileEntity> dataFiles,List<PythonSystemExampleCatalog.Example> systemExamples){}
     public record DataDownload(String fileName,byte[] content){}
     public record AssetRequest(String name,String description,String environmentId){}
-    public record ScriptRequest(String id,String assetId,String fileName,String title,String sourceCode){}
+    public record ScriptRequest(String id,String assetId,String folderId,String fileName,String title,String sourceCode){}
+    public record FolderRequest(String id,String parentId,String name,Integer sortOrder){}
     public record PublishRequest(String templateName,String scenario,String description,String keywords,String domain,String version,String inputSchema,String outputSchema){}
 }

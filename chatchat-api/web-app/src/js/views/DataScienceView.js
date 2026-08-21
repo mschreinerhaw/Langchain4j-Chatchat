@@ -15,7 +15,10 @@ import {
   deletePythonDataFile,
   publishPythonScript,
   requestPythonCodeAssist,
-  savePythonScript
+  savePythonScript,
+  savePythonScriptFolder,
+  deletePythonScriptFolder,
+  importPythonSystemExampleData
 } from "../../services/api";
 import { errorMessage, formatDateTime } from "../utils/uiFormatters";
 import { formatPythonSource, parsePythonExecutionParameters } from "../utils/pythonWorkbench";
@@ -77,6 +80,10 @@ export default {
     messageTimer: null,
     assets: [],
     scripts: [],
+    folders: [],
+    systemExamples: [],
+    expandedFolders: {},
+    systemExamplesOpen: true,
     executions: [],
     dataFiles: [],
     selectedDataFileId: "",
@@ -118,6 +125,7 @@ export default {
     runFeedback: null,
     savedSource: starter,
     savedFileName: "analysis.py",
+    savedFolderId: "",
     cursorPosition: { lineNumber: 1, column: 1 },
     aiOpen: true,
     aiPrompt: "",
@@ -143,6 +151,7 @@ export default {
     form: {
       id: "",
       assetId: "",
+      folderId: "",
       fileName: "analysis.py",
       title: "",
       sourceCode: starter,
@@ -188,7 +197,8 @@ export default {
     dirty() {
       return (
         this.form.sourceCode !== this.savedSource ||
-        String(this.form.fileName || "").trim() !== this.savedFileName
+        String(this.form.fileName || "").trim() !== this.savedFileName ||
+        String(this.form.folderId || "") !== this.savedFolderId
       );
     },
     filteredEnvironmentAssets() {
@@ -232,6 +242,14 @@ export default {
               .includes(query)
           )
         : this.scripts;
+    },
+    explorerFolders() {
+      const groups = this.folders.map((folder) => ({
+        ...folder,
+        scripts: this.filteredScripts.filter((script) => script.folderId === folder.id)
+      }));
+      const unfiled = this.filteredScripts.filter((script) => !script.folderId || !this.folders.some((folder) => folder.id === script.folderId));
+      return unfiled.length ? [...groups, { id: "", name: "未分类", scripts: unfiled, virtual: true }] : groups;
     },
     explorerPageCount() {
       return Math.max(1, Math.ceil(this.filteredScripts.length / this.explorerPageSize));
@@ -387,7 +405,10 @@ export default {
           fetchPythonCodeModels()
         ]);
         this.assets = data?.assets || [];
+        this.folders = data?.folders || [];
         this.scripts = data?.scripts || [];
+        this.systemExamples = data?.systemExamples || [];
+        for (const folder of this.folders) if (this.expandedFolders[folder.id] === undefined) this.expandedFolders[folder.id] = true;
         this.executions = data?.executions || [];
         this.dataFiles = data?.dataFiles || [];
         if (!this.dataFiles.some((file) => file.id === this.selectedDataFileId && file.status === "AVAILABLE"))
@@ -612,6 +633,7 @@ export default {
       const form = {
         id: "",
         assetId: this.readyAssets[0]?.id || "",
+        folderId: "",
         fileName: preferredName,
         title: "",
         sourceCode: starter,
@@ -622,6 +644,7 @@ export default {
         form,
         savedSource: starter,
         savedFileName: preferredName,
+        savedFolderId: "",
         consoleText: "",
         parametersText: "{}",
         inputSchemaText: defaultInputSchema,
@@ -643,6 +666,7 @@ export default {
         form: {
           id: script.id,
           assetId: script.assetId,
+          folderId: script.folderId || "",
           fileName: script.fileName,
           title: script.title,
           sourceCode: script.sourceCode,
@@ -650,6 +674,7 @@ export default {
         },
         savedSource: script.sourceCode || "",
         savedFileName: script.fileName || "",
+        savedFolderId: script.folderId || "",
         consoleText: "",
         parametersText: "{}",
         inputSchemaText: defaultInputSchema,
@@ -670,6 +695,7 @@ export default {
       this.form = { ...editorTab.form };
       this.savedSource = editorTab.savedSource || "";
       this.savedFileName = editorTab.savedFileName || editorTab.form.fileName || "";
+      this.savedFolderId = editorTab.savedFolderId || "";
       this.consoleText = editorTab.consoleText || "";
       this.parametersText = editorTab.parametersText || "{}";
       this.inputSchemaText = editorTab.inputSchemaText || defaultInputSchema;
@@ -688,6 +714,7 @@ export default {
       activeTab.form = { ...this.form };
       activeTab.savedSource = this.savedSource;
       activeTab.savedFileName = this.savedFileName;
+      activeTab.savedFolderId = this.savedFolderId;
       activeTab.consoleText = this.consoleText;
       activeTab.parametersText = this.parametersText;
       activeTab.inputSchemaText = this.inputSchemaText;
@@ -717,7 +744,8 @@ export default {
       return (
         editorTab.form.sourceCode !== editorTab.savedSource ||
         String(editorTab.form.fileName || "").trim() !==
-          (editorTab.savedFileName || editorTab.form.fileName || "")
+          (editorTab.savedFileName || editorTab.form.fileName || "") ||
+        String(editorTab.form.folderId || "") !== String(editorTab.savedFolderId || "")
       );
     },
     async save() {
@@ -733,9 +761,56 @@ export default {
         this.form = { ...this.form, ...saved };
         this.savedSource = saved.sourceCode || this.form.sourceCode;
         this.savedFileName = saved.fileName || this.form.fileName;
+        this.savedFolderId = saved.folderId || "";
         this.captureActiveEditorTab();
         this.message = "脚本已保存为新版本";
         await this.load(true);
+      });
+    },
+    async createFolder() {
+      const name = globalThis.prompt("新建逻辑文件夹", "数据分析");
+      if (name == null || !name.trim()) return;
+      await this.action(async () => {
+        const folder = await savePythonScriptFolder({ name: name.trim(), parentId: null, sortOrder: this.folders.length });
+        this.expandedFolders[folder.id] = true;
+        await this.load(true);
+        this.showTransientMessage(`文件夹“${folder.name}”已创建`);
+      });
+    },
+    async renameFolder(folder) {
+      if (folder.virtual) return;
+      const name = globalThis.prompt("重命名逻辑文件夹", folder.name);
+      if (name == null || !name.trim() || name.trim() === folder.name) return;
+      await this.action(async () => {
+        await savePythonScriptFolder({ id: folder.id, parentId: folder.parentId, name: name.trim(), sortOrder: folder.sortOrder });
+        await this.load(true);
+      });
+    },
+    async removeFolder(folder) {
+      if (folder.virtual || !globalThis.confirm(`删除空文件夹“${folder.name}”？`)) return;
+      await this.action(async () => { await deletePythonScriptFolder(folder.id); await this.load(true); });
+    },
+    toggleFolder(folder) { this.expandedFolders[folder.id || "__unfiled"] = !this.folderExpanded(folder); },
+    folderExpanded(folder) { const key = folder.id || "__unfiled"; return this.expandedFolders[key] !== false; },
+    newScriptInFolder(folder) { this.newScript(); this.form.folderId = folder?.id || ""; this.captureActiveEditorTab(); },
+    useSystemExample(example) {
+      this.newScript();
+      this.form.fileName = example.scriptFileName;
+      this.form.title = example.name;
+      this.form.sourceCode = example.sourceCode;
+      this.inputSchemaText = example.inputSchema;
+      this.savedSource = "";
+      this.savedFileName = "";
+      this.captureActiveEditorTab();
+      nextTick(() => { this.editor?.setValue(example.sourceCode); this.editor?.focus(); });
+      this.showTransientMessage(`${example.format} 示例已复制到未保存脚本`);
+    },
+    async importExampleData(example) {
+      await this.action(async () => {
+        const dataFile = await importPythonSystemExampleData(example.id);
+        await this.load(true);
+        this.selectedDataFileId = dataFile.id;
+        this.showTransientMessage(`示例数据 ${dataFile.fileName} 已导入“我的数据”`);
       });
     },
     async run() {

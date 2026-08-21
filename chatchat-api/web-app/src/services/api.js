@@ -78,6 +78,9 @@ export function fetchMcpPythonEnvironments() { return apiRequest("/data-science/
 export function fetchPythonCodeModels() { return apiRequest("/data-science/python/models"); }
 export function createPythonAsset(payload) { return apiRequest("/data-science/python/assets", { method: "POST", body: JSON.stringify(payload) }); }
 export function savePythonScript(payload) { return apiRequest("/data-science/python/scripts", { method: "POST", body: JSON.stringify(payload) }); }
+export function savePythonScriptFolder(payload) { return apiRequest("/data-science/python/script-folders", { method: "POST", body: JSON.stringify(payload) }); }
+export function deletePythonScriptFolder(id) { return apiRequest(`/data-science/python/script-folders/${encodeURIComponent(id)}`, { method: "DELETE" }); }
+export function importPythonSystemExampleData(id) { return apiRequest(`/data-science/python/system-examples/${encodeURIComponent(id)}/data`, { method: "POST" }); }
 export function executePythonScript(scriptId, parameters = {}, inputSchema = {}) { return apiRequest(`/data-science/python/scripts/${encodeURIComponent(scriptId)}/execute`, { method: "POST", body: JSON.stringify({ parameters, inputSchema: typeof inputSchema === "string" ? inputSchema : JSON.stringify(inputSchema) }) }); }
 export function publishPythonScript(scriptId, payload) { return apiRequest(`/data-science/python/scripts/${encodeURIComponent(scriptId)}/publish`, { method: "POST", body: JSON.stringify(payload) }); }
 export function fetchPythonScriptVersions(scriptId) { return apiRequest(`/data-science/python/scripts/${encodeURIComponent(scriptId)}/versions`); }

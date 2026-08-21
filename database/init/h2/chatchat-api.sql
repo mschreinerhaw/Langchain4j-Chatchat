@@ -1146,12 +1146,19 @@
         current_version integer not null, last_test_succeeded boolean not null,
         created_at timestamp(6) with time zone not null, last_tested_at timestamp(6) with time zone,
         updated_at timestamp(6) with time zone not null, status varchar(24) not null,
-        asset_id varchar(64) not null, id varchar(64) not null, container_id varchar(128), owner_id varchar(64) not null,
+        asset_id varchar(64) not null, folder_id varchar(64), id varchar(64) not null, container_id varchar(128), owner_id varchar(64) not null,
         tenant_id varchar(64) not null, file_name varchar(180) not null, title varchar(300),
         source_code LONGTEXT not null, primary key (id),
         constraint uk_python_script_name unique (asset_id, file_name)
     );
     create index idx_python_script_owner on ds_python_script (tenant_id, owner_id, updated_at);
+
+    create table ds_python_script_folder (
+        sort_order integer not null, created_at timestamp(6) with time zone not null, updated_at timestamp(6) with time zone not null,
+        id varchar(64) not null, owner_id varchar(64) not null, parent_id varchar(64), tenant_id varchar(64) not null,
+        name varchar(120) not null, primary key (id)
+    );
+    create index idx_python_script_folder_owner on ds_python_script_folder (tenant_id, owner_id, sort_order, name);
 
     create table ds_python_script_version (
         version_number integer not null, created_at timestamp(6) with time zone not null,

@@ -13,6 +13,13 @@ interface PythonScriptRepository extends JpaRepository<PythonScriptEntity,String
     List<PythonScriptEntity> findByTenantIdAndOwnerIdOrderByUpdatedAtDesc(String tenantId,String ownerId);
     Optional<PythonScriptEntity> findByIdAndTenantIdAndOwnerId(String id,String tenantId,String ownerId);
     Optional<PythonScriptEntity> findByAssetIdAndFileName(String assetId,String fileName);
+    boolean existsByFolderId(String folderId);
+}
+interface PythonScriptFolderRepository extends JpaRepository<PythonScriptFolderEntity,String> {
+    List<PythonScriptFolderEntity> findByTenantIdAndOwnerIdOrderBySortOrderAscNameAsc(String tenantId,String ownerId);
+    Optional<PythonScriptFolderEntity> findByIdAndTenantIdAndOwnerId(String id,String tenantId,String ownerId);
+    Optional<PythonScriptFolderEntity> findByTenantIdAndOwnerIdAndParentIdAndNameIgnoreCase(String tenantId,String ownerId,String parentId,String name);
+    boolean existsByParentId(String parentId);
 }
 interface PythonScriptVersionRepository extends JpaRepository<PythonScriptVersionEntity,String> {
     List<PythonScriptVersionEntity> findByScriptIdOrderByVersionNumberDesc(String scriptId);

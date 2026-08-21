@@ -65,6 +65,14 @@ Runtime 镜像必须使用固定标签或 digest，禁止 `latest` 和无标签�
 
 生产 MCP 节点需要安装 Docker，并授予 MCP 服务账户访问 Docker daemon 的权限；API 节点不直接访问 Docker。如果 MCP 本身运行在容器中，`CHATCHAT_MCP_PYTHON_DATA_ROOT` 必须填写 Docker 宿主机可见的绝对路径，并把同一路径 bind mount 到 MCP 容器，否则 MCP 创建的子容器无法挂载数据。建议使用平台审核过、预装依赖的镜像；当前页面不开放任意在线 `pip install`。
 
+## Web IDE 工作区与系统示例
+
+- “我的脚本”使用租户、用户隔离的逻辑文件夹分类。文件夹不改变 MCP 执行路径，脚本发布和运行仍以脚本 ID、环境 ID 为准。
+- 编辑器页签中的 `+` 用于新建脚本；资源管理器标题栏中的 `+` 只新建逻辑文件夹，避免两个入口语义混淆。
+- 系统示例提供 CSV、XLS、XLSX、JSON、TXT、LOG、PARQUET、ORC、ZIP 九种格式。示例脚本为只读参考，打开时复制为当前用户的未保存草稿。
+- 示例数据必须由用户明确点击“导入数据”，随后走与普通上传相同的 MCP 加密传输、哈希校验和租户/用户隔离流程。
+- 所有示例均通过 `CHATCHAT_INPUT_JSON` 读取动态 `source_file`，模板源码不包含用户文件名、`fileId` 或 `/data` 路径硬编码。
+
 ## 检索
 
 OpenSearch 启用时分别执行字段增强的 BM25 与 KNN 搜索，再使用 RRF 合并排名。Embedding 文本由模板名、场景、功能、关键词、领域以及输入输出 Schema 组成。未启用 OpenSearch 的开发环境会降级到数据库词法检索，并将模板索引状态标记为 `LOCAL_ONLY`。

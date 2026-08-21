@@ -15,6 +15,7 @@ public class PythonScriptEntity {
     @Column(name="tenant_id",length=64,nullable=false) private String tenantId;
     @Column(name="owner_id",length=64,nullable=false) private String ownerId;
     @Column(name="asset_id",length=64,nullable=false) private String assetId;
+    @Column(name="folder_id",length=64) private String folderId;
     @Column(name="file_name",length=180,nullable=false) private String fileName;
     @Column(length=300) private String title;
     @Lob @Column(name="source_code",nullable=false,columnDefinition="LONGTEXT") private String sourceCode;

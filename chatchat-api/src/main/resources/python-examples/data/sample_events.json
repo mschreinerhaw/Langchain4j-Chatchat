@@ -1,0 +1,5 @@
+[
+  {"event_id":"E-001","event":"login","user":"alice","duration_ms":128},
+  {"event_id":"E-002","event":"query","user":"alice","duration_ms":842},
+  {"event_id":"E-003","event":"export","user":"bob","duration_ms":1530}
+]

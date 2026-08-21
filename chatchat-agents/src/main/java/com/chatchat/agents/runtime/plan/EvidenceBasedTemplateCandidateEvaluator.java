@@ -107,7 +107,9 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
             return Projection.notApplied(output);
         }
         Map<String, Object> map = new LinkedHashMap<>((Map<String, Object>) raw);
-        if (map.get("templates") instanceof List<?> templates) {
+        String candidateField = map.get("templates") instanceof List<?> ? "templates"
+            : map.get("candidates") instanceof List<?> ? "candidates" : null;
+        if (candidateField != null && map.get(candidateField) instanceof List<?> templates) {
             Map<String, Map<String, Object>> byId = new LinkedHashMap<>();
             for (Object item : templates) {
                 if (!(item instanceof Map<?, ?> templateRaw)) {
@@ -133,7 +135,7 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
                 }
             }
             if (selected.isEmpty()) {
-                map.put("templates", List.of());
+                map.put(candidateField, List.of());
                 map.put("returnedCount", 0);
                 map.put("runtimeTemplateSelection", Map.of(
                     "schemaVersion", "runtime_template_selection.v2",
@@ -153,7 +155,7 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
                 .map(this::templateId)
                 .filter(Objects::nonNull)
                 .toList();
-            map.put("templates", List.copyOf(selected));
+            map.put(candidateField, List.copyOf(selected));
             map.put("returnedCount", selected.size());
             map.put("runtimeTemplateSelection", Map.of(
                 "schemaVersion", "runtime_template_selection.v2",
@@ -171,7 +173,7 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
         }
         for (String key : List.of(
             "structuredContent", "structured_content", "data", "result", "payload", "body", "output",
-            "routingProjection", "coverage"
+            "routingProjection", "coverage", "preview"
         )) {
             Projection nested = project(
                 map.get(key), selectedIds, rejectedIds, evaluations,

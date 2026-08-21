@@ -3211,7 +3211,9 @@ public class InterpretationPlanRuntime {
                     )
                 );
             }
-            int returnedCount = discoveredAssetCount(execution.output(), "templates");
+            int returnedCount = discoveredAssetCount(
+                execution.output(), isPythonAnalysisQueryTool(execution.toolName())
+                    ? "candidates" : "templates");
             if (returnedCount <= 0) {
                 return StepReview.rejected(
                     "NO_MATCHING_TEMPLATE: template discovery completed without an executable template; dependent execution must not continue.",
@@ -6646,7 +6648,8 @@ public class InterpretationPlanRuntime {
         }
         if (!(output instanceof Map<?, ?> raw)) return;
         Map<String, Object> map = new LinkedHashMap<>((Map<String, Object>) raw);
-        addIterable(values, firstMapValue(map, "templates", "associatedTemplates", "associated_templates"));
+        addIterable(values, firstMapValue(
+            map, "templates", "associatedTemplates", "associated_templates", "candidates"));
         Object results = firstMapValue(map, "results", "items");
         if (results instanceof Iterable<?> iterable) {
             for (Object result : iterable) {
@@ -6659,7 +6662,7 @@ public class InterpretationPlanRuntime {
         }
         for (String key : List.of(
             "structuredContent", "structured_content", "data", "result", "payload", "body", "output",
-            "routingProjection"
+            "routingProjection", "preview"
         )) {
             collectTemplateCandidates(map.get(key), values, depth + 1);
         }
@@ -7787,6 +7790,9 @@ public class InterpretationPlanRuntime {
                 "$.templates[0].templateId",
                 "$.templates[0].id",
                 "$.templates[0].code",
+                "$.candidates[0].templateId",
+                "$.candidates[0].id",
+                "$.candidates[0].code",
                 "$.results[0].associatedTemplates[0].templateId",
                 "$.results[0].associatedTemplates[0].id",
                 "$.results[0].associatedTemplates[0].code",
@@ -8001,7 +8007,14 @@ public class InterpretationPlanRuntime {
     private boolean isTemplateDiscoveryTool(String toolName) {
         String semantic = toolSemanticKey(toolName);
         return McpToolProtocolRole.TEMPLATE_QUERY.matches(semantic)
-            || semantic.endsWith("_template_search");
+            || semantic.endsWith("_template_search")
+            || isPythonAnalysisQueryTool(toolName);
+    }
+
+    private boolean isPythonAnalysisQueryTool(String toolName) {
+        String semantic = toolSemanticKey(toolName);
+        return "python_analysis_query".equals(semantic)
+            || semantic.endsWith("_python_analysis_query");
     }
 
     private boolean isSqlQueryExecuteTool(String toolName) {
@@ -8477,6 +8490,9 @@ public class InterpretationPlanRuntime {
                 "$.templates[0].templateId",
                 "$.templates[0].id",
                 "$.templates[0].code",
+                "$.candidates[0].templateId",
+                "$.candidates[0].id",
+                "$.candidates[0].code",
                 "$.results[0].associatedTemplates[0].templateId",
                 "$.results[0].associatedTemplates[0].id",
                 "$.results[0].associatedTemplates[0].code",

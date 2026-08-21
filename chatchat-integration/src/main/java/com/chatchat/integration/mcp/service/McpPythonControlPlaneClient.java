@@ -58,5 +58,5 @@ public class McpPythonControlPlaneClient {
     public record ExecutionResult(String id,String containerId,String status,String stdout,String stderr,Integer exitCode,Long durationMs){}
     public record SyncResult(String id,String status,String toolName,String environmentId,String sourceHash){}
     public record DataFileResult(String id,String storagePath,String pythonPath,long fileSize,String fileHash,String status){}
-    public record TemplatePayload(String tenantId,String ownerId,String assetId,String assetName,String assetDescription,String environmentId,String templateName,String toolName,String version,String scenario,String description,String keywords,String domain,String inputSchemaJson,String outputSchemaJson,String source){}
+    public record TemplatePayload(String tenantId,String ownerId,String assetId,String assetName,String assetDescription,String environmentId,String scriptFileName,String templateName,String toolName,String version,String scenario,String description,String keywords,String domain,String inputSchemaJson,String outputSchemaJson,String source){}
 }

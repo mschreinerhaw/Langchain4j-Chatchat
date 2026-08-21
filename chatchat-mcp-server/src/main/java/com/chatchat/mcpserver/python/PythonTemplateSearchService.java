@@ -65,7 +65,7 @@ public class PythonTemplateSearchService {
     }
 
     private LuceneMcpSearchService.TemplateDoc document(PythonTemplate template) {
-        String semantic = String.join(" ", text(template.getTemplateName()), text(template.getScenario()),
+        String semantic = String.join(" ", text(template.getScriptFileName()), text(template.getTemplateName()), text(template.getScenario()),
             text(template.getDescription()), text(template.getKeywords()), text(template.getDomain()),
             text(template.getInputSchemaJson()), text(template.getOutputSchemaJson()));
         List<String> tags = List.of(text(template.getKeywords()), text(template.getDomain())).stream()
@@ -83,7 +83,7 @@ public class PythonTemplateSearchService {
     }
 
     private float lexicalScore(PythonTemplate template, String query) {
-        String searchable = String.join(" ", text(template.getTemplateName()), text(template.getToolName()),
+        String searchable = String.join(" ", text(template.getScriptFileName()), text(template.getTemplateName()), text(template.getToolName()),
             text(template.getScenario()), text(template.getDescription()), text(template.getKeywords()),
             text(template.getDomain())).toLowerCase(Locale.ROOT);
         if (searchable.contains(query)) return 1F;

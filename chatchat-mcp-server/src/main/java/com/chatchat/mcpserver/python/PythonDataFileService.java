@@ -10,6 +10,10 @@ import java.security.MessageDigest;
 import java.util.HexFormat;
 import java.util.Map;
 import java.util.LinkedHashMap;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service @RequiredArgsConstructor
@@ -36,6 +40,20 @@ public class PythonDataFileService {
     public byte[] content(String tenant,String owner,String fileId){try{Path dir=fileDirectory(tenant,owner,fileId);Path file=onlyFile(dir);return InternalSecretCipher.encryptBytes(Files.readAllBytes(file),secret());}catch(java.io.IOException ex){throw new IllegalArgumentException("数据文件不存在",ex);}}
     public void delete(String tenant,String owner,String fileId){try{Path dir=fileDirectory(tenant,owner,fileId);if(!Files.exists(dir))return;try(var files=Files.list(dir)){for(Path file:files.toList())Files.deleteIfExists(file);}Files.deleteIfExists(dir);}catch(java.io.IOException ex){throw new IllegalStateException("MCP 数据文件删除失败："+ex.getMessage(),ex);}}
     public Path uploads(String tenant,String owner){try{Path root=root();Path path=root.resolve(component(tenant)).resolve(component(owner)).resolve("uploads").normalize();if(!path.startsWith(root))throw new IllegalArgumentException("非法数据目录");Files.createDirectories(path);return path;}catch(java.io.IOException ex){throw new IllegalStateException("无法创建用户数据目录",ex);}}
+    public List<DataFileView> discover(String tenant,String owner,String query,int requestedLimit){
+        String needle=query==null?"":query.trim().toLowerCase(Locale.ROOT);int limit=Math.max(1,Math.min(requestedLimit,100));
+        try{List<DataFileCandidate> candidates=new ArrayList<>();Path root=uploads(tenant,owner);try(var directories=Files.list(root)){
+            for(Path directory:directories.filter(Files::isDirectory).toList()){
+                String fileId=directory.getFileName().toString();if(!fileId.matches("[A-Za-z0-9_.-]{1,64}"))continue;
+                Path file;try{file=onlyFile(directory);}catch(IllegalArgumentException ignored){continue;}
+                String fileName=file.getFileName().toString();String normalized=fileName.toLowerCase(Locale.ROOT);
+                int score=needle.isBlank()?1:normalized.equals(needle)?4:needle.contains(normalized)?3:normalized.contains(needle)?2:0;
+                if(score>0)candidates.add(new DataFileCandidate(new DataFileView(fileId,fileName,Files.size(file),Files.getLastModifiedTime(file).toMillis()),score));
+            }
+        }
+        return candidates.stream().sorted(Comparator.comparingInt(DataFileCandidate::score).reversed().thenComparing(candidate->candidate.view().lastModifiedAt(),Comparator.reverseOrder())).limit(limit).map(DataFileCandidate::view).toList();
+        }catch(java.io.IOException ex){throw new IllegalStateException("无法查询当前用户的数据文件",ex);}
+    }
     @SuppressWarnings("unchecked") public Map<String,Object> resolveFileArguments(String schemaJson,Map<String,Object> values,String tenant,String owner){
         try{Map<String,Object> schema=objectMapper.readValue(schemaJson,Map.class);Object raw=schema.get("properties");if(!(raw instanceof Map<?,?> propertiesMap))return values;Map<String,Object> resolved=new LinkedHashMap<>(values==null?Map.of():values);for(var entry:propertiesMap.entrySet()){if(!(entry.getValue() instanceof Map<?,?> definition))continue;String type=String.valueOf(definition.get("type"));if(!"FILE".equalsIgnoreCase(type))continue;String key=String.valueOf(entry.getKey());Object value=resolved.get(key);if(value==null)continue;resolved.put(key,resolveFileReference(String.valueOf(value),tenant,owner));}return resolved;}catch(java.io.IOException ex){throw new IllegalArgumentException("FILE 参数解析失败："+ex.getMessage(),ex);}
     }
@@ -58,5 +76,7 @@ public class PythonDataFileService {
     private String component(String value){if(value==null||value.isBlank()||value.length()>256||value.chars().anyMatch(Character::isISOControl))throw new IllegalArgumentException("非法数据作用域");return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));}
     private String secret(){String value=credentials.resolvedSecret();if(value.isBlank())throw new IllegalStateException("内部加密凭据未配置");return value;}
     private String sha256(byte[] content){try{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content));}catch(Exception ex){throw new IllegalStateException(ex);}}
+    private record DataFileCandidate(DataFileView view,int score){}
+    public record DataFileView(String fileId,String fileName,long fileSize,long lastModifiedAt){}
     public record DataFileResult(String id,String storagePath,String pythonPath,long fileSize,String fileHash,String status){}
 }

@@ -15,6 +15,7 @@ public class PythonTemplate {
     @Column(name="asset_name",length=160) private String assetName;
     @Column(name="asset_description",length=2000) private String assetDescription;
     @Column(name="environment_id",length=64,nullable=false) private String environmentId;
+    @Column(name="script_file_name",length=180) private String scriptFileName;
     @Column(name="template_name",length=200,nullable=false) private String templateName;
     @Column(name="tool_name",length=200,nullable=false,unique=true) private String toolName;
     @Column(length=40,nullable=false) private String version;

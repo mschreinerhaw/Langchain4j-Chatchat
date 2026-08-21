@@ -834,6 +834,7 @@ public class McpAuthorizationService {
             case "api_asset_query" -> new ToolScope("api_service", "asset", "query");
             case "api_template_query" -> new ToolScope("api_service", "template", "query");
             case "api_template_execute" -> new ToolScope("api_service", "template", "execute");
+            case "python_data_file_query" -> new ToolScope("python_runtime", "data_file", "query");
             case "python_template_execute" -> new ToolScope("python_runtime", "template", "execute");
             case "api_requirement_analyze" -> new ToolScope("api_service", "requirement", "query");
             case "document_search" -> new ToolScope("document", "document", "search");

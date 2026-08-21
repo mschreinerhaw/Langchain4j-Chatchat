@@ -34,15 +34,16 @@ class PythonMcpToolPublisherTest {
         ObjectMapper objectMapper = new ObjectMapper();
         PythonMcpToolPublisher publisher = new PythonMcpToolPublisher(servers, templates,
             mock(PythonEnvironmentRepository.class), services, new PythonTemplateArgumentResolver(objectMapper),
-            concurrency, objectMapper);
+            mock(PythonDataFileService.class), concurrency, objectMapper);
 
         publisher.refresh();
 
         verify(server).removeTool("python_direct_template_1234");
         verify(server).addTool(argThat(spec -> PythonMcpToolPublisher.ASSET_QUERY_TOOL.equals(spec.tool().name())));
         verify(server).addTool(argThat(spec -> PythonMcpToolPublisher.TEMPLATE_QUERY_TOOL.equals(spec.tool().name())));
+        verify(server).addTool(argThat(spec -> PythonMcpToolPublisher.DATA_FILE_QUERY_TOOL.equals(spec.tool().name())));
         verify(server).addTool(argThat(spec -> PythonMcpToolPublisher.TEMPLATE_EXECUTE_TOOL.equals(spec.tool().name())));
-        verify(server, times(3)).addTool(org.mockito.ArgumentMatchers.any());
+        verify(server, times(4)).addTool(org.mockito.ArgumentMatchers.any());
         verify(server).notifyToolsListChanged();
     }
 
@@ -54,6 +55,7 @@ class PythonMcpToolPublisherTest {
         PythonEnvironmentRepository environments = mock(PythonEnvironmentRepository.class);
         PythonTemplate finance = template("template-finance", "asset-finance", "财务分析环境", "env-cpu",
             "财务日报分析", "汇总财务日报和部门金额");
+        finance.setScriptFileName("log_analysis.py");
         PythonTemplate research = template("template-research", "asset-research", "研究计算环境", "env-gpu",
             "模型训练分析", "执行实验数据和模型指标分析");
         when(templates.findByTenantIdAndStatus("tenant-a", "PUBLISHED"))
@@ -63,7 +65,7 @@ class PythonMcpToolPublisherTest {
         McpToolConcurrencyManager concurrency = mock(McpToolConcurrencyManager.class);
         ObjectMapper objectMapper = new ObjectMapper();
         PythonMcpToolPublisher publisher = new PythonMcpToolPublisher(servers, templates, environments,
-            services, new PythonTemplateArgumentResolver(objectMapper), concurrency, objectMapper);
+            services, new PythonTemplateArgumentResolver(objectMapper), mock(PythonDataFileService.class), concurrency, objectMapper);
 
         Map<String, Object> ambiguous = publisher.discoverAssets(Map.of("tenantId", "tenant-a"));
         assertThat(ambiguous.get("returnedCount")).isEqualTo(2);
@@ -85,6 +87,33 @@ class PythonMcpToolPublisherTest {
             "tenantId", "tenant-a", "environmentId", "env-gpu"));
         assertThat(filtered.get("returnedCount")).isEqualTo(1);
         assertThat(filtered.get("recommendedAssetId")).isEqualTo("asset-research");
+
+        Map<String, Object> scriptMatched = publisher.discoverAssets(Map.of(
+            "tenantId", "tenant-a", "query", "帮我运行log_analysis.py 并分析1786342932178.log日志文件"));
+        assertThat(scriptMatched.get("returnedCount")).isEqualTo(1);
+        assertThat(scriptMatched.get("recommendedAssetId")).isEqualTo("asset-finance");
+    }
+
+    @Test
+    void dataFileDiscoveryUsesAuthenticatedOwnerAndReturnsOpaqueFileId() {
+        @SuppressWarnings("unchecked") ObjectProvider<McpSyncServer> servers = mock(ObjectProvider.class);
+        @SuppressWarnings("unchecked") ObjectProvider<PythonCapabilityService> services = mock(ObjectProvider.class);
+        PythonDataFileService dataFiles = mock(PythonDataFileService.class);
+        when(dataFiles.discover("tenant-a", "alice", "帮我运行log_analysis.py 并分析1786342932178.log日志文件", 20)).thenReturn(List.of(
+            new PythonDataFileService.DataFileView("file-42", "1786342932178.log", 128L, 1000L)));
+        ObjectMapper objectMapper = new ObjectMapper();
+        PythonMcpToolPublisher publisher = new PythonMcpToolPublisher(servers,
+            mock(PythonTemplateAssetRepository.class), mock(PythonEnvironmentRepository.class), services,
+            new PythonTemplateArgumentResolver(objectMapper), dataFiles, mock(McpToolConcurrencyManager.class), objectMapper);
+
+        Map<String, Object> result = publisher.discoverDataFiles(Map.of(
+            "tenantId", "tenant-a", "username", "alice",
+            "query", "帮我运行log_analysis.py 并分析1786342932178.log日志文件"));
+
+        assertThat(result).containsEntry("recommendedFileId", "file-42")
+            .containsEntry("requiresClarification", false)
+            .containsEntry("userScoped", true);
+        assertThat(String.valueOf(result)).doesNotContain("/data/input");
     }
 
     private PythonTemplate template(String id, String assetId, String assetName, String environmentId,

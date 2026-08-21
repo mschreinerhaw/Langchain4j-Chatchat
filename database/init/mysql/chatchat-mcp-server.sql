@@ -753,6 +753,7 @@
         asset_name varchar(160),
         asset_description varchar(2000),
         environment_id varchar(64) not null,
+        script_file_name varchar(180),
         id varchar(64) not null,
         owner_id varchar(64) not null,
         source_hash varchar(64) not null,

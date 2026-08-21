@@ -24,6 +24,11 @@ class PythonDataFileServiceTest {
         assertThat(service.resolveFileArguments("{\"type\":\"object\",\"properties\":{\"source_file\":{\"type\":\"FILE\"}}}",Map.of("source_file","file_1"),"tenant_1","张三@example.com")).containsEntry("source_file","/data/input/file_1/交易.csv");
         assertThat(service.resolveFileArguments("{\"type\":\"object\",\"properties\":{\"source_file\":{\"type\":\"FILE\"}}}",Map.of("source_file","/data/input/file_1/交易.csv"),"tenant_1","张三@example.com")).containsEntry("source_file","/data/input/file_1/交易.csv");
         assertThatThrownBy(()->service.resolveFileArguments("{\"type\":\"object\",\"properties\":{\"source_file\":{\"type\":\"FILE\"}}}",Map.of("source_file","/data/input/file_1/other.csv"),"tenant_1","张三@example.com")).isInstanceOf(IllegalArgumentException.class);
+        assertThat(service.discover("tenant_1","张三@example.com","交易.csv",20))
+            .extracting(PythonDataFileService.DataFileView::fileId).containsExactly("file_1");
+        assertThat(service.discover("tenant_1","张三@example.com","请分析交易.csv文件",20))
+            .extracting(PythonDataFileService.DataFileView::fileId).containsExactly("file_1");
+        assertThat(service.discover("tenant_1","李四@example.com","交易.csv",20)).isEmpty();
         assertThat(InternalSecretCipher.decryptBytes(service.content("tenant_1","张三@example.com","file_1"),"secret")).isEqualTo(content);
         service.delete("tenant_1","张三@example.com","file_1");assertThat(Path.of(result.storagePath())).doesNotExist();
     }

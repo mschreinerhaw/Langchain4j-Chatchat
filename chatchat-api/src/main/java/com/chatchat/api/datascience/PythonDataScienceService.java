@@ -4,6 +4,9 @@ import com.chatchat.integration.mcp.service.McpPythonControlPlaneClient;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,7 +17,7 @@ import java.util.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.scheduling.annotation.Scheduled;
 
-@Service @RequiredArgsConstructor
+@Slf4j @Service @RequiredArgsConstructor
 public class PythonDataScienceService {
     private final PythonAssetRepository assetRepository;
     private final PythonScriptRepository scriptRepository;
@@ -53,11 +56,21 @@ public class PythonDataScienceService {
     public PythonTemplateEntity publish(String tenant,String owner,String scriptId,PublishRequest request){
         PythonScriptEntity script=ownedScript(scriptId,tenant,owner);PythonAssetEntity asset=ownedReadyAsset(script.getAssetId(),tenant,owner);if(!script.isLastTestSucceeded()||!"TESTED".equals(script.getStatus()))throw new IllegalArgumentException("脚本必须先在 MCP 环境成功测试后才能发布");requireText(request.templateName(),"模板名称不能为空");requireText(request.scenario(),"场景描述是发布和检索的必填依据");requireText(request.description(),"功能描述不能为空");validateJsonObject(request.inputSchema(),"输入 Schema");validateJsonObject(request.outputSchema(),"输出 Schema");
         PythonTemplateEntity t=new PythonTemplateEntity();t.setTenantId(tenant);t.setOwnerId(owner);t.setAssetId(asset.getId());t.setScriptId(script.getId());t.setScriptVersion(script.getCurrentVersion());t.setTemplateName(request.templateName().trim());t.setVersion(or(request.version(),"1.0.0"));t.setScenario(request.scenario().trim());t.setDescription(request.description().trim());t.setKeywords(trim(request.keywords()));t.setDomain(trim(request.domain()));t.setInputSchemaJson(or(request.inputSchema(),"{}"));t.setOutputSchemaJson(or(request.outputSchema(),"{}"));t.setSourceSnapshot(script.getSourceCode());t.setSearchText(searchText(t));t.setStatus("PUBLISHING");t.setIndexStatus("PENDING");t.setRuntimeStatus("PENDING");t.setMcpSyncStatus("PENDING");t.setToolName(toolName(t.getTemplateName()));t=templateRepository.saveAndFlush(t);
-        try{var synced=mcp.synchronizeTemplate(t.getId(),new McpPythonControlPlaneClient.TemplatePayload(tenant,owner,asset.getId(),asset.getName(),asset.getDescription(),asset.getMcpEnvironmentId(),t.getTemplateName(),t.getToolName(),t.getVersion(),t.getScenario(),t.getDescription(),t.getKeywords(),t.getDomain(),t.getInputSchemaJson(),t.getOutputSchemaJson(),script.getSourceCode()));t.setMcpSyncStatus("SYNCED");t.setMcpSyncMessage("MCP tool: "+synced.toolName());t.setRuntimeStatus("READY");}catch(RuntimeException ex){t.setStatus("DISABLED");t.setRuntimeStatus("DISABLED");t.setMcpSyncStatus("FAILED");t.setMcpSyncMessage(ex.getMessage());templateRepository.save(t);throw new IllegalStateException("MCP 模板同步失败："+ex.getMessage(),ex);}
+        try{var synced=mcp.synchronizeTemplate(t.getId(),new McpPythonControlPlaneClient.TemplatePayload(tenant,owner,asset.getId(),asset.getName(),asset.getDescription(),asset.getMcpEnvironmentId(),script.getFileName(),t.getTemplateName(),t.getToolName(),t.getVersion(),t.getScenario(),t.getDescription(),t.getKeywords(),t.getDomain(),t.getInputSchemaJson(),t.getOutputSchemaJson(),script.getSourceCode()));t.setMcpSyncStatus("SYNCED");t.setMcpSyncMessage("MCP tool: "+synced.toolName());t.setRuntimeStatus("READY");}catch(RuntimeException ex){t.setStatus("DISABLED");t.setRuntimeStatus("DISABLED");t.setMcpSyncStatus("FAILED");t.setMcpSyncMessage(ex.getMessage());templateRepository.save(t);throw new IllegalStateException("MCP 模板同步失败："+ex.getMessage(),ex);}
         PythonTemplateIndexService.IndexResult indexed=indexService.index(t);if(!indexed.success()){mcp.setTemplateEnabled(t.getId(),false);t.setStatus("DISABLED");t.setIndexStatus("FAILED");t.setRuntimeStatus("DISABLED");templateRepository.save(t);throw new IllegalStateException("模板索引失败："+indexed.message());}t.setStatus("PUBLISHED");t.setIndexStatus(indexed.mode());t=templateRepository.save(t);registry.register(t);return t;
     }
 
     public List<PythonTemplateEntity> templates(String tenant){return templateRepository.findByTenantIdOrderByPublishedAtDesc(tenant);}
+    @EventListener(ApplicationReadyEvent.class)
+    public void reconcilePublishedTemplatesWithMcp(){
+        for(PythonTemplateEntity template:templateRepository.findByStatus("PUBLISHED")){
+            try{
+                PythonScriptEntity script=scriptRepository.findById(template.getScriptId()).orElseThrow(()->new IllegalStateException("脚本不存在"));
+                PythonAssetEntity asset=assetRepository.findById(template.getAssetId()).orElseThrow(()->new IllegalStateException("运行环境不存在"));
+                mcp.synchronizeTemplate(template.getId(),new McpPythonControlPlaneClient.TemplatePayload(template.getTenantId(),template.getOwnerId(),asset.getId(),asset.getName(),asset.getDescription(),asset.getMcpEnvironmentId(),script.getFileName(),template.getTemplateName(),template.getToolName(),template.getVersion(),template.getScenario(),template.getDescription(),template.getKeywords(),template.getDomain(),template.getInputSchemaJson(),template.getOutputSchemaJson(),template.getSourceSnapshot()));
+            }catch(RuntimeException ex){log.warn("Unable to reconcile published Python template {} with MCP: {}",template.getId(),ex.getMessage());}
+        }
+    }
     public List<PythonScriptVersionEntity> versions(String tenant,String owner,String scriptId){ownedScript(scriptId,tenant,owner);return versionRepository.findByScriptIdOrderByVersionNumberDesc(scriptId);}
     public List<PythonTemplateIndexService.SearchHit> search(String tenant,String query,int limit){return indexService.search(tenant,query,Math.max(1,Math.min(limit,50)));}
 

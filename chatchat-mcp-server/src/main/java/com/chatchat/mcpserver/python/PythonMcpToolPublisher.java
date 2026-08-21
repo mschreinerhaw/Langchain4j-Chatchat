@@ -1,6 +1,7 @@
 package com.chatchat.mcpserver.python;
 
 import com.chatchat.common.tool.ToolProtocolDriverContract;
+import com.chatchat.mcpserver.mcp.McpInvocationContext;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import com.chatchat.mcpserver.tool.McpToolPublicationReviewer;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -33,6 +34,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class PythonMcpToolPublisher {
     public static final String ASSET_QUERY_TOOL = "python_asset_query";
     public static final String TEMPLATE_QUERY_TOOL = "python_template_query";
+    public static final String DATA_FILE_QUERY_TOOL = "python_data_file_query";
     public static final String TEMPLATE_EXECUTE_TOOL = "python_template_execute";
 
     private final ObjectProvider<McpSyncServer> serverProvider;
@@ -40,6 +42,7 @@ public class PythonMcpToolPublisher {
     private final PythonEnvironmentRepository environments;
     private final ObjectProvider<PythonCapabilityService> serviceProvider;
     private final PythonTemplateArgumentResolver argumentResolver;
+    private final PythonDataFileService dataFiles;
     private final McpToolConcurrencyManager concurrencyManager;
     private final ObjectMapper objectMapper;
     private final Set<String> managed = ConcurrentHashMap.newKeySet();
@@ -54,15 +57,16 @@ public class PythonMcpToolPublisher {
         Set<String> obsolete = new LinkedHashSet<>(managed);
         templates.findByStatus("PUBLISHED").stream().map(PythonTemplate::getToolName)
             .filter(name -> name != null && !name.isBlank()).forEach(obsolete::add);
-        obsolete.addAll(List.of(ASSET_QUERY_TOOL, TEMPLATE_QUERY_TOOL, TEMPLATE_EXECUTE_TOOL));
+        obsolete.addAll(List.of(ASSET_QUERY_TOOL, TEMPLATE_QUERY_TOOL, DATA_FILE_QUERY_TOOL, TEMPLATE_EXECUTE_TOOL));
         obsolete.forEach(name -> { try { server.removeTool(name); } catch (Exception ignored) { } });
         managed.clear();
         add(server, assetQuerySpec());
         add(server, templateQuerySpec());
+        add(server, dataFileQuerySpec());
         add(server, templateExecuteSpec());
         server.notifyToolsListChanged();
-        log.info("Python MCP protocol published: {} -> {} -> {}; per-template tools disabled",
-            ASSET_QUERY_TOOL, TEMPLATE_QUERY_TOOL, TEMPLATE_EXECUTE_TOOL);
+        log.info("Python MCP protocol published: {} -> {} + {} -> {}; per-template tools disabled",
+            ASSET_QUERY_TOOL, TEMPLATE_QUERY_TOOL, DATA_FILE_QUERY_TOOL, TEMPLATE_EXECUTE_TOOL);
     }
 
     private void add(McpSyncServer server, McpServerFeatures.SyncToolSpecification specification) {
@@ -165,13 +169,14 @@ public class PythonMcpToolPublisher {
         return McpServerFeatures.SyncToolSpecification.builder().tool(tool).callHandler((exchange, request) -> {
             Map<String, Object> arguments = safe(request.arguments());
             String tenantId = tenantId(arguments);
+            String ownerId = ownerId(arguments);
             String templateId = requiredText(arguments.get("templateId"), "templateId");
             PythonTemplate template = templates.findByIdAndTenantId(templateId, tenantId)
                 .filter(value -> "PUBLISHED".equals(value.getStatus()))
                 .orElseThrow(() -> new IllegalArgumentException("Python template not found in the current tenant or disabled"));
             Map<String, Object> parameters = argumentResolver.resolve(template.getInputSchemaJson(), map(arguments.get("parameters")));
             return concurrencyManager.execute(TEMPLATE_EXECUTE_TOOL, "python", arguments, () -> {
-                PythonExecution execution = serviceProvider.getObject().executeTemplateForTenant(template.getId(), tenantId, parameters);
+                PythonExecution execution = serviceProvider.getObject().executeTemplateForUser(template.getId(), tenantId, ownerId, parameters);
                 Map<String, Object> result = new LinkedHashMap<>();
                 result.put("schemaVersion", "python_template_execute_result.v1");
                 result.put("templateId", template.getId());
@@ -186,6 +191,48 @@ public class PythonMcpToolPublisher {
                 return callResult(result, execution.getExitCode() == null || execution.getExitCode() != 0);
             });
         }).build();
+    }
+
+    private McpServerFeatures.SyncToolSpecification dataFileQuerySpec() {
+        McpSchema.Tool tool = McpSchema.Tool.builder().name(DATA_FILE_QUERY_TOOL)
+            .title("Current user Python data file discovery")
+            .description("Resolve a user-mentioned data filename to an opaque fileId for a FILE template parameter. This tool is tenant- and user-scoped and never exposes host paths.")
+            .inputSchema(new McpSchema.JsonSchema("object", Map.of(
+                "query", Map.of("type", "string", "description", "Natural-language request or filename"),
+                "fileName", Map.of("type", "string", "description", "Exact filename when the user supplied one"),
+                "limit", Map.of("type", "integer", "minimum", 1, "maximum", 100)
+            ), List.of(), false, null, null))
+            .meta(protocolMeta("python_data_file_query.v1", "discover_data_file"))
+            .build();
+        return McpServerFeatures.SyncToolSpecification.builder().tool(tool).callHandler((exchange, request) ->
+            callResult(discoverDataFiles(safe(request.arguments())), false)).build();
+    }
+
+    Map<String, Object> discoverDataFiles(Map<String, Object> arguments) {
+        String tenantId = tenantId(arguments);
+        String ownerId = ownerId(arguments);
+        String requestedName = firstText(text(arguments.get("fileName")), text(arguments.get("query")));
+        int limit = Math.max(1, Math.min(integer(arguments.get("limit"), 20), 100));
+        List<PythonDataFileService.DataFileView> files = dataFiles.discover(tenantId, ownerId, requestedName, limit);
+        String exactName = text(arguments.get("fileName"));
+        List<PythonDataFileService.DataFileView> exact = exactName == null ? List.of() : files.stream()
+            .filter(file -> file.fileName().equalsIgnoreCase(exactName)).toList();
+        PythonDataFileService.DataFileView recommended = exact.size() == 1 ? exact.get(0)
+            : exact.isEmpty() && files.size() == 1 ? files.get(0) : null;
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("schemaVersion", "python_data_file_query_result.v1");
+        result.put("success", true);
+        result.put("tenantScoped", true);
+        result.put("userScoped", true);
+        result.put("returnedCount", files.size());
+        result.put("files", files.stream().map(file -> Map.of(
+            "fileId", file.fileId(), "fileName", file.fileName(),
+            "fileSize", file.fileSize(), "lastModifiedAt", file.lastModifiedAt())).toList());
+        result.put("requiresClarification", files.size() > 1 && recommended == null);
+        result.put("recommendedFileId", recommended == null ? "" : recommended.fileId());
+        result.put("bindingPolicy", "Pass the selected fileId as the FILE field under python_template_execute.parameters; never construct a host or container path.");
+        result.put("nextTool", TEMPLATE_EXECUTE_TOOL);
+        return Map.copyOf(result);
     }
 
     private AssetCandidate assetCandidate(List<PythonTemplate> values, String query) {
@@ -204,6 +251,7 @@ public class PythonMcpToolPublisher {
         asset.put("templateCount", values.size());
         asset.put("templates", values.stream().map(template -> Map.of(
             "templateId", template.getId(), "name", template.getTemplateName(),
+            "scriptFileName", nullable(template.getScriptFileName()),
             "scenario", nullable(template.getScenario()))).toList());
         asset.put("capabilities", Map.of("allowedTemplateIds", values.stream().map(PythonTemplate::getId).toList()));
         asset.put("routing", Map.of("nextTool", TEMPLATE_QUERY_TOOL, "assetId", first.getAssetId()));
@@ -224,6 +272,7 @@ public class PythonMcpToolPublisher {
             score += environment != null && contains(environment.getName(), term) ? 4 : 0;
             score += environment != null && contains(environment.getDescription(), term) ? 2 : 0;
             for (PythonTemplate template : values) {
+                score += queryMentions(query, template.getScriptFileName()) ? 20 : 0;
                 score += contains(template.getTemplateName(), term) ? 5 : 0;
                 score += contains(template.getScenario(), term) ? 3 : 0;
                 score += contains(template.getDescription(), term) ? 2 : 0;
@@ -245,6 +294,7 @@ public class PythonMcpToolPublisher {
         view.put("schemaVersion", "python_command_template.v1");
         view.put("templateId", template.getId());
         view.put("title", template.getTemplateName());
+        view.put("scriptFileName", nullable(template.getScriptFileName()));
         view.put("description", template.getDescription());
         view.put("scenario", template.getScenario());
         view.put("domain", nullable(template.getDomain()));
@@ -260,6 +310,7 @@ public class PythonMcpToolPublisher {
             "executionTool", TEMPLATE_EXECUTE_TOOL,
             "argumentContainer", TEMPLATE_EXECUTE_TOOL + ".parameters",
             "mustPassUnderParameters", true,
+            "fileDiscoveryTool", DATA_FILE_QUERY_TOOL,
             "defaultPolicy", "provided values override defaults; omitted values retain template defaults"
         ));
         view.put("routing", Map.of("callTool", TEMPLATE_EXECUTE_TOOL, "templateId", template.getId()));
@@ -286,6 +337,7 @@ public class PythonMcpToolPublisher {
         String toolName = switch (action) {
             case "discover_asset" -> ASSET_QUERY_TOOL;
             case "discover_template" -> TEMPLATE_QUERY_TOOL;
+            case "discover_data_file" -> DATA_FILE_QUERY_TOOL;
             default -> TEMPLATE_EXECUTE_TOOL;
         };
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta(toolName, "python"));
@@ -303,6 +355,7 @@ public class PythonMcpToolPublisher {
         return ToolProtocolDriverContract.of("mcp.python-template.v1", List.of(
             "Pass the user's analysis intent to python_asset_query. Preserve its recommended assetId; if requiresClarification is true, ask the user to choose an environment before execution.",
             "Discover a published template under the selected assetId, then execute only that templateId through python_template_execute.",
+            "For every FILE parameter named by the selected template, resolve the user-mentioned filename through python_data_file_query and pass only its returned fileId under python_template_execute.parameters.",
             "Pass business inputs only under parameters. Supplied values override schema defaults; omitted values retain defaults.",
             "Template discovery is routing evidence, not execution evidence; never invent a direct per-template tool name."
         ), List.of(
@@ -314,6 +367,7 @@ public class PythonMcpToolPublisher {
 
     private boolean matches(PythonTemplate template, String query) {
         if (query == null || query.isBlank()) return true;
+        if (queryMentions(query, template.getScriptFileName())) return true;
         String haystack = String.join(" ", nullable(template.getTemplateName()), nullable(template.getScenario()),
             nullable(template.getDescription()), nullable(template.getKeywords()), nullable(template.getDomain())).toLowerCase(Locale.ROOT);
         return List.of(query.toLowerCase(Locale.ROOT).split("[\\s,;，；]+" )).stream()
@@ -321,11 +375,31 @@ public class PythonMcpToolPublisher {
     }
 
     private String tenantId(Map<String, Object> arguments) {
+        McpInvocationContext.Context invocation = McpInvocationContext.current();
         Map<String, Object> context = map(arguments.get("mcpContext"));
         Map<String, Object> tenant = map(context.get("tenant"));
-        String value = firstText(text(arguments.get("tenantId")), text(context.get("tenantId")), text(tenant.get("tenantId")));
+        String value = firstText(invocation == null ? null : text(invocation.tenantId()),
+            text(arguments.get("tenantId")), text(context.get("tenantId")), text(tenant.get("tenantId")));
         if (value == null) throw new IllegalArgumentException("tenantId is required for Python asset governance");
         return value;
+    }
+
+    private String ownerId(Map<String, Object> arguments) {
+        McpInvocationContext.Context invocation = McpInvocationContext.current();
+        Map<String, Object> context = map(arguments.get("mcpContext"));
+        Map<String, Object> user = map(context.get("user"));
+        String value = firstText(invocation == null ? null : text(invocation.username()),
+            invocation == null ? null : text(invocation.userId()), text(arguments.get("username")), text(context.get("username")),
+            text(user.get("username")), text(arguments.get("userId")), text(context.get("userId")),
+            text(user.get("userId")));
+        if (value == null || "anonymous".equalsIgnoreCase(value))
+            throw new IllegalArgumentException("Authenticated user identity is required for Python data access");
+        return value;
+    }
+
+    private boolean queryMentions(String query, String value) {
+        return query != null && value != null && !value.isBlank()
+            && query.toLowerCase(Locale.ROOT).contains(value.toLowerCase(Locale.ROOT));
     }
 
     private McpSchema.CallToolResult callResult(Map<String, Object> structured, boolean error) {

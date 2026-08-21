@@ -360,7 +360,7 @@ public class PythonMcpToolPublisher {
             "Template discovery is routing evidence, not execution evidence; never invent a direct per-template tool name."
         ), List.of(
             "Preserve the selected assetId and templateId across repair.",
-            "Only a required template parameter without a usable default may block execution.",
+            "Omitted parameters stay absent after schema defaults are applied so the running script may use its own code-level defaults; do not invent values.",
             "Never rewrite a governed Python template into raw source, container, image, file path, or direct tool invocation."
         ));
     }

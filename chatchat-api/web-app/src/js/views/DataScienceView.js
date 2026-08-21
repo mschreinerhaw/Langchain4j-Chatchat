@@ -118,6 +118,7 @@ export default {
     explorerQuery: "",
     explorerPage: 1,
     explorerPageSize: 7,
+    explorerRefreshing: false,
     editor: null,
     completionProvider: null,
     explorerWidth: workspaceLayoutDefaults.explorer,
@@ -138,7 +139,7 @@ export default {
     savedFileName: "analysis.py",
     savedFolderId: "",
     cursorPosition: { lineNumber: 1, column: 1 },
-    aiOpen: true,
+    aiOpen: false,
     aiPrompt: "",
     aiAction: "generate",
     aiBusy: false,
@@ -331,7 +332,11 @@ export default {
         const keys = Object.keys(value);
         return {
           valid: true,
-          text: keys.length ? `JSON 有效，将传入 ${keys.length} 个字段：${keys.join("、")}` : "JSON 有效，当前不传入业务字段"
+          text: keys.length
+            ? `JSON 有效，将传入 ${keys.length} 个字段：${keys.join("、")}`
+            : this.selectedDataFileId
+              ? "JSON 有效；运行时会自动把所选数据绑定到 source_file"
+              : "JSON 有效；不传业务字段，脚本将使用 Schema 或代码默认值"
         };
       } catch (error) {
         return { valid: false, text: error?.message || "请输入合法的 JSON 对象" };
@@ -424,7 +429,7 @@ export default {
         this.executions = data?.executions || [];
         this.dataFiles = data?.dataFiles || [];
         if (!this.dataFiles.some((file) => file.id === this.selectedDataFileId && file.status === "AVAILABLE"))
-          this.selectedDataFileId = this.dataFiles.find((file) => file.status === "AVAILABLE")?.id || "";
+          this.selectedDataFileId = "";
         this.environmentCatalog = environments || [];
         this.aiModels = models || [];
         if (!this.aiModels.some((model) => model.value === this.aiModel))
@@ -448,6 +453,24 @@ export default {
             this.initializeEditor();
             this.editor?.layout();
           });
+      }
+    },
+    async refreshExplorer() {
+      if (this.explorerRefreshing) return;
+      this.explorerRefreshing = true;
+      this.error = "";
+      try {
+        const data = await fetchPythonWorkbench();
+        this.folders = data?.folders || [];
+        this.scripts = data?.scripts || [];
+        this.systemExamples = data?.systemExamples || [];
+        for (const folder of this.folders)
+          if (this.expandedFolders[folder.id] === undefined)
+            this.expandedFolders[folder.id] = true;
+      } catch (error) {
+        this.error = errorMessage(error, "脚本文件列表刷新失败");
+      } finally {
+        this.explorerRefreshing = false;
       }
     },
     initializeEditor() {
@@ -863,6 +886,9 @@ export default {
       let parameters;
       try {
         parameters = parsePythonExecutionParameters(this.parametersText);
+        if (this.selectedDataFileId && parameters.source_file == null) {
+          parameters = { ...parameters, source_file: this.selectedDataFileId };
+        }
       } catch (error) {
         this.error = error?.message || "执行参数必须是合法 JSON 对象";
         this.bottomTab = "parameters";
@@ -901,10 +927,6 @@ export default {
         this.runState = succeeded ? "succeeded" : "failed";
         this.runFeedback = result;
         this.consoleText = this.executionLog(result, startedAt);
-        if (!succeeded)
-          this.error = `测试执行失败${
-            result.exitCode == null ? "" : `（退出码 ${result.exitCode}）`
-          }`;
         await this.load(true);
         const refreshed = this.scripts.find((script) => script.id === this.form.id);
         if (refreshed)
@@ -919,7 +941,6 @@ export default {
         const message = errorMessage(error, "脚本执行失败");
         this.runFeedback = { status: "FAILED", durationMs: Date.now() - startedAt };
         this.consoleText += `\n\n[执行失败] ${message}`;
-        this.error = message;
       } finally {
         this.busy = false;
         this.captureActiveEditorTab();

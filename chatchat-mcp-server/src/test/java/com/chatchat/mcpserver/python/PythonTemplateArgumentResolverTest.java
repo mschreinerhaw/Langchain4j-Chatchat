@@ -25,16 +25,15 @@ class PythonTemplateArgumentResolverTest {
     }
 
     @Test
-    void onlyRequiredParameterWithoutDefaultBlocksExecution() {
+    void omittedParameterWithoutSchemaDefaultIsLeftToTheRunningScript() {
         String schema = """
             {"type":"object","properties":{"customerId":{"type":"string"},"mode":{"type":"string","default":"safe"}},
              "required":["customerId","mode"]}
             """;
 
-        assertThatThrownBy(() -> resolver.resolve(schema, Map.of()))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("customerId")
-            .hasMessageNotContaining("mode]");
+        assertThat(resolver.resolve(schema, Map.of()))
+            .containsExactlyInAnyOrderEntriesOf(Map.of("mode", "safe"))
+            .doesNotContainKey("customerId");
     }
 
     @Test

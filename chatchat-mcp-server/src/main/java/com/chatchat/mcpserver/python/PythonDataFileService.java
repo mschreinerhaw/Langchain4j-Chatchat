@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.nio.file.*;
+import java.nio.file.attribute.PosixFilePermission;
 import java.security.MessageDigest;
 import java.util.HexFormat;
 import java.util.Map;
@@ -14,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service @RequiredArgsConstructor
@@ -29,17 +31,17 @@ public class PythonDataFileService {
         if(content.length>properties.getMaxDataFileBytes())throw new IllegalArgumentException("数据文件超过 MCP 限制");
         String actualHash=sha256(content);if(expectedHash==null||!actualHash.equalsIgnoreCase(expectedHash))throw new IllegalArgumentException("数据文件 SHA-256 校验失败");
         try{
-            Path directory=fileDirectory(tenant,owner,fileId);Files.createDirectories(directory);
+            Path directory=fileDirectory(tenant,owner,fileId);Files.createDirectories(directory);makeRuntimeTraversable(directory);
             Path target=directory.resolve(fileName).normalize();if(!target.getParent().equals(directory))throw new IllegalArgumentException("非法数据文件名");
             Path temporary=Files.createTempFile(directory,"upload-",".part");
-            try{Files.write(temporary,content,StandardOpenOption.TRUNCATE_EXISTING);try{Files.move(temporary,target,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);}catch(AtomicMoveNotSupportedException ex){Files.move(temporary,target,StandardCopyOption.REPLACE_EXISTING);}}finally{Files.deleteIfExists(temporary);}
+            try{Files.write(temporary,content,StandardOpenOption.TRUNCATE_EXISTING);try{Files.move(temporary,target,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);}catch(AtomicMoveNotSupportedException ex){Files.move(temporary,target,StandardCopyOption.REPLACE_EXISTING);}makeRuntimeReadable(target);}finally{Files.deleteIfExists(temporary);}
             return new DataFileResult(fileId,target.toString(),"/data/input/"+fileId+"/"+fileName,content.length,actualHash,"AVAILABLE");
         }catch(java.io.IOException ex){throw new IllegalStateException("MCP 数据文件落盘失败："+ex.getMessage(),ex);}
     }
 
     public byte[] content(String tenant,String owner,String fileId){try{Path dir=fileDirectory(tenant,owner,fileId);Path file=onlyFile(dir);return InternalSecretCipher.encryptBytes(Files.readAllBytes(file),secret());}catch(java.io.IOException ex){throw new IllegalArgumentException("数据文件不存在",ex);}}
     public void delete(String tenant,String owner,String fileId){try{Path dir=fileDirectory(tenant,owner,fileId);if(!Files.exists(dir))return;try(var files=Files.list(dir)){for(Path file:files.toList())Files.deleteIfExists(file);}Files.deleteIfExists(dir);}catch(java.io.IOException ex){throw new IllegalStateException("MCP 数据文件删除失败："+ex.getMessage(),ex);}}
-    public Path uploads(String tenant,String owner){try{Path root=root();Path path=root.resolve(component(tenant)).resolve(component(owner)).resolve("uploads").normalize();if(!path.startsWith(root))throw new IllegalArgumentException("非法数据目录");Files.createDirectories(path);return path;}catch(java.io.IOException ex){throw new IllegalStateException("无法创建用户数据目录",ex);}}
+    public Path uploads(String tenant,String owner){try{Path root=root();Path path=root.resolve(component(tenant)).resolve(component(owner)).resolve("uploads").normalize();if(!path.startsWith(root))throw new IllegalArgumentException("非法数据目录");Files.createDirectories(path);makeRuntimeTraversable(path);return path;}catch(java.io.IOException ex){throw new IllegalStateException("无法创建用户数据目录",ex);}}
     public List<DataFileView> discover(String tenant,String owner,String query,int requestedLimit){
         String needle=query==null?"":query.trim().toLowerCase(Locale.ROOT);int limit=Math.max(1,Math.min(requestedLimit,100));
         try{List<DataFileCandidate> candidates=new ArrayList<>();Path root=uploads(tenant,owner);try(var directories=Files.list(root)){
@@ -69,7 +71,23 @@ public class PythonDataFileService {
         String id=scope(reference);Path file=onlyFile(fileDirectory(tenant,owner,id));return prefix+id+"/"+file.getFileName();
     }
     private Path fileDirectory(String tenant,String owner,String id){Path uploads=uploads(tenant,owner);Path path=uploads.resolve(scope(id)).normalize();if(!path.startsWith(uploads))throw new IllegalArgumentException("非法数据文件路径");return path;}
-    private Path onlyFile(Path directory)throws java.io.IOException{if(!Files.isDirectory(directory))throw new IllegalArgumentException("数据文件不存在");try(var files=Files.list(directory)){return files.filter(Files::isRegularFile).findFirst().orElseThrow(()->new IllegalArgumentException("数据文件不存在"));}}
+    private Path onlyFile(Path directory)throws java.io.IOException{if(!Files.isDirectory(directory))throw new IllegalArgumentException("数据文件不存在");makeRuntimeTraversable(directory);try(var files=Files.list(directory)){Path file=files.filter(Files::isRegularFile).findFirst().orElseThrow(()->new IllegalArgumentException("数据文件不存在"));makeRuntimeReadable(file);return file;}}
+    private void makeRuntimeReadable(Path file)throws java.io.IOException{
+        try{
+            Files.setPosixFilePermissions(file,Set.of(PosixFilePermission.OWNER_READ,PosixFilePermission.GROUP_READ,PosixFilePermission.OTHERS_READ));
+        }catch(UnsupportedOperationException ex){
+            java.io.File local=file.toFile();
+            if(!local.setReadable(true,false))throw new java.io.IOException("无法授予 Runtime 数据文件读取权限");
+        }
+    }
+    private void makeRuntimeTraversable(Path directory)throws java.io.IOException{
+        try{
+            Files.setPosixFilePermissions(directory,Set.of(PosixFilePermission.OWNER_READ,PosixFilePermission.OWNER_WRITE,PosixFilePermission.OWNER_EXECUTE,PosixFilePermission.GROUP_READ,PosixFilePermission.GROUP_EXECUTE,PosixFilePermission.OTHERS_READ,PosixFilePermission.OTHERS_EXECUTE));
+        }catch(UnsupportedOperationException ex){
+            java.io.File local=directory.toFile();
+            if(!local.setReadable(true,false)||!local.setExecutable(true,false))throw new java.io.IOException("无法授予 Runtime 数据目录访问权限");
+        }
+    }
     private Path root()throws java.io.IOException{Path root=Paths.get(properties.getDataRoot()).toAbsolutePath().normalize();Files.createDirectories(root);return root;}
     private String decodeName(String encoded){try{String name=new String(java.util.Base64.getUrlDecoder().decode(encoded),java.nio.charset.StandardCharsets.UTF_8);if(name.isBlank()||name.length()>255||name.contains("/")||name.contains("\\")||name.chars().anyMatch(Character::isISOControl))throw new IllegalArgumentException("非法数据文件名");return name;}catch(IllegalArgumentException ex){throw new IllegalArgumentException("非法数据文件名",ex);}}
     private String scope(String value){if(value==null||!value.matches("[A-Za-z0-9_.-]{1,64}"))throw new IllegalArgumentException("非法数据作用域");return value;}

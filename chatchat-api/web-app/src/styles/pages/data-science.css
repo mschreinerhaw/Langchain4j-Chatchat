@@ -56,9 +56,16 @@
 .editor-tab .tab-close:hover{background:#e4ebf4;color:#26364d}
 .editor-tabs .new-tab{flex:0 0 38px;height:39px}
 .editor-tools{flex:0 0 auto}
+.editor-tools button.active{border-bottom:2px solid #2563eb;background:#eaf2ff;color:#24589f}
 
 .ide-main{position:relative;grid-template-rows:39px 29px minmax(220px,1fr) var(--bottom-resizer-size,5px) var(--bottom-height,250px) 24px}
 .ide-main.bottom-collapsed{grid-template-rows:39px 29px minmax(250px,1fr) 0 34px 24px}
+.ide-main>.editor-tabs{grid-row:1}
+.ide-main>.editor-breadcrumb{grid-row:2}
+.ide-main>.monaco-host{grid-row:3}
+.ide-main>.bottom-resizer{grid-row:4}
+.ide-main>.ide-bottom{grid-row:5}
+.ide-main>.ide-statusbar{grid-row:6}
 .pane-resizer{z-index:30;touch-action:none;background:transparent}
 .pane-resizer:after{content:"";position:absolute;background:#cbd8e8;opacity:0;transition:opacity .15s,background .15s}
 .pane-resizer:hover:after,.ds-ide.resizing .pane-resizer:after{opacity:1;background:#4f8ee8}

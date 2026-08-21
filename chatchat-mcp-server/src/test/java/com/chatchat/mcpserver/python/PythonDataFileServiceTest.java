@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.nio.file.Files;
+import java.nio.file.attribute.PosixFilePermission;
 import java.security.MessageDigest;
 import java.util.*;
 import static org.assertj.core.api.Assertions.*;
@@ -21,6 +23,8 @@ class PythonDataFileServiceTest {
         String name=Base64.getUrlEncoder().withoutPadding().encodeToString("交易.csv".getBytes(StandardCharsets.UTF_8));String hash=HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content));
         var result=service.store("tenant_1","张三@example.com","file_1",name,hash,InternalSecretCipher.encryptBytes(content,"secret"));
         assertThat(result.pythonPath()).isEqualTo("/data/input/file_1/交易.csv");assertThat(Path.of(result.storagePath())).hasContent("name,amount\nA,12\n");
+        try{assertThat(Files.getPosixFilePermissions(Path.of(result.storagePath()))).contains(PosixFilePermission.OTHERS_READ).doesNotContain(PosixFilePermission.OTHERS_WRITE);}catch(UnsupportedOperationException ignored){assertThat(Path.of(result.storagePath()).toFile().canRead()).isTrue();}
+        try{assertThat(Files.getPosixFilePermissions(Path.of(result.storagePath()).getParent())).contains(PosixFilePermission.OTHERS_EXECUTE).doesNotContain(PosixFilePermission.OTHERS_WRITE);}catch(UnsupportedOperationException ignored){assertThat(Path.of(result.storagePath()).getParent().toFile().canExecute()).isTrue();}
         assertThat(service.resolveFileArguments("{\"type\":\"object\",\"properties\":{\"source_file\":{\"type\":\"FILE\"}}}",Map.of("source_file","file_1"),"tenant_1","张三@example.com")).containsEntry("source_file","/data/input/file_1/交易.csv");
         assertThat(service.resolveFileArguments("{\"type\":\"object\",\"properties\":{\"source_file\":{\"type\":\"FILE\"}}}",Map.of("source_file","/data/input/file_1/交易.csv"),"tenant_1","张三@example.com")).containsEntry("source_file","/data/input/file_1/交易.csv");
         assertThatThrownBy(()->service.resolveFileArguments("{\"type\":\"object\",\"properties\":{\"source_file\":{\"type\":\"FILE\"}}}",Map.of("source_file","/data/input/file_1/other.csv"),"tenant_1","张三@example.com")).isInstanceOf(IllegalArgumentException.class);

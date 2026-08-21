@@ -32,12 +32,6 @@ class PythonTemplateArgumentResolver {
                 resolved.put(name, properties.containsKey(name) ? convert(name, value, map(properties.get(name))) : value);
             }
         });
-        List<String> missing = strings(schema.get("required")).stream()
-            .filter(name -> !resolved.containsKey(name) || resolved.get(name) == null
-                || resolved.get(name) instanceof String text && text.isBlank())
-            .toList();
-        if (!missing.isEmpty()) throw new IllegalArgumentException(
-            "Python template required parameters have no value or default: " + missing);
         return Map.copyOf(resolved);
     }
 
@@ -105,7 +99,4 @@ class PythonTemplateArgumentResolver {
         return value instanceof Map<?, ?> ? objectMapper.convertValue(value, new TypeReference<>() {}) : Map.of();
     }
 
-    private List<String> strings(Object value) {
-        return value instanceof List<?> values ? values.stream().map(String::valueOf).toList() : List.of();
-    }
 }

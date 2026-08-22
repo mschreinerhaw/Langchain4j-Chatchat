@@ -1300,6 +1300,74 @@ class AgentToolArgumentResolverTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void mandatoryRecoveryResolvesJsonPathTemplateAndCarriesCanonicalAssetIdentity() {
+        String discoveryTool = "mcp_runtime_server_capability_query";
+        String executionTool = "mcp_runtime_linux_command_execute";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getWorkflowRole(discoveryTool)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(executionTool)).thenReturn(ToolWorkflowRole.TEMPLATE_EXECUTION);
+        when(registry.getToolMetadata(executionTool)).thenReturn(ToolMetadata.builder()
+            .id(executionTool)
+            .parameters(List.of(
+                ToolParameter.builder().name("template").type("string").required(true).build(),
+                ToolParameter.builder().name("executionContext").type("object").required(true).build()))
+            .build());
+        AgentToolArgumentResolver contractResolver =
+            new AgentToolArgumentResolver(new AgentToolNameResolver(), 5, registry);
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .toolName(discoveryTool)
+            .success(true)
+            .output("""
+                {
+                  "routingProjection": {
+                    "queryIr": {"asset":{"selected":{
+                      "id":"asset-docker-1",
+                      "name":"Docker database host",
+                      "environment":"DEV",
+                      "toolName":"ssh_container_service"
+                    }}},
+                    "templates":[
+                      {"templateId":"CHECK_IMAGES","parameterContract":{"executionTool":"linux_command_execute"},
+                       "parameterSchema":{"type":"object","properties":{},"required":[],"additionalProperties":false}},
+                      {"templateId":"CHECK_CONTAINERS","parameterContract":{"executionTool":"linux_command_execute"},
+                       "parameterSchema":{"type":"object","properties":{},"required":[],"additionalProperties":false}}
+                    ]
+                  }
+                }
+                """)
+            .build();
+
+        Map<String, Object> result = contractResolver.applyDeterministicDependencyContracts(
+            executionTool,
+            Map.of(
+                "template", "$.templates[0].templateId",
+                "executionContext", Map.of("env", "DEV", "targetType", "host"),
+                "parameters", Map.of("command", "docker images")),
+            List.of(discovery),
+            "inspect the discovered host"
+        );
+
+        assertThat(result).containsEntry("executionMode", "SEQUENTIAL");
+        assertThat(result.toString()).doesNotContain("$.templates", "docker images");
+        assertThat(result.get("calls")).isInstanceOfSatisfying(List.class, calls -> {
+            assertThat(calls).hasSize(2);
+            for (Object rawCall : calls) {
+                Map<String, Object> call = (Map<String, Object>) rawCall;
+                Map<String, Object> arguments = (Map<String, Object>) call.get("arguments");
+                assertThat(arguments.get("template").toString()).isIn("CHECK_IMAGES", "CHECK_CONTAINERS");
+                assertThat(arguments.get("parameters")).isEqualTo(Map.of());
+                assertThat(arguments.get("executionContext")).isEqualTo(Map.of(
+                    "env", "DEV",
+                    "targetType", "host",
+                    "assetId", "asset-docker-1",
+                    "assetName", "Docker database host",
+                    "assetToolName", "ssh_container_service"));
+            }
+        });
+    }
+
+    @Test
     void mandatoryRecoveryRejectsExecutorWithoutCompatibleDiscoveredTemplate() {
         InteractionToolTrace discovery = InteractionToolTrace.builder()
             .toolName("mcp_runtime_database_template_search")

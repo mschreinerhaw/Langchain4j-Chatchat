@@ -351,8 +351,10 @@ class AgentToolArgumentResolver {
         if (canonicalId != null && suppliedId != null
             && !canonicalId.equals(suppliedId)
             && !canonicalAssetReference(suppliedId, "id", "assetId")) {
-            return "Asset continuation supplied assetId=" + suppliedId
-                + " but prior unique discovery established assetId=" + canonicalId;
+            String canonicalName = scalarText(firstPresent(canonical, "name", "assetName", "asset_name"));
+            String suppliedName = scalarText(firstPresent(supplied, "assetName", "asset_name", "name"));
+            return "Asset continuation supplied assetId=" + suppliedId + " (" + suppliedName + ")"
+                + " but prior unique discovery established assetId=" + canonicalId + " (" + canonicalName + ")";
         }
         String canonicalName = scalarText(firstPresent(canonical, "name", "assetName", "asset_name"));
         String suppliedName = scalarText(firstPresent(supplied, "assetName", "asset_name", "name"));
@@ -570,6 +572,8 @@ class AgentToolArgumentResolver {
         Map<String, Object> selectedAsset = selectedAsset(output);
         putIfText(context, "assetName", firstPresent(selectedAsset, "name", "assetName", "asset_name"));
         putIfText(context, "env", firstPresent(selectedAsset, "environment", "env"));
+        putIfText(context, "assetId", firstPresent(selectedAsset, "id", "assetId", "asset_id"));
+        putIfText(context, "assetToolName", firstPresent(selectedAsset, "toolName", "tool_name"));
         if (!context.isEmpty()) {
             values.put("executionContext", context);
         }
@@ -811,7 +815,7 @@ class AgentToolArgumentResolver {
     ) {
         Map<String, Object> values = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
         if (traces == null || traces.isEmpty() || batchCalls(values) != null
-            || scalarText(firstPresent(values, "template", "templateId", "template_id",
+            || runtimeScalarText(firstPresent(values, "template", "templateId", "template_id",
                 "commandTemplate", "command_template")) != null) {
             return null;
         }
@@ -868,7 +872,11 @@ class AgentToolArgumentResolver {
             if (calls.size() < 2) {
                 continue;
             }
-            Map<String, Object> batch = new LinkedHashMap<>(values);
+            // A batch executor consumes only its compiled calls and batch controls.
+            // Do not retain planner-authored scalar template references, execution
+            // context, or parameters at the envelope level: child calls below are
+            // the metadata-validated authoritative requests.
+            Map<String, Object> batch = new LinkedHashMap<>();
             batch.put("executionMode", "SEQUENTIAL");
             batch.put("stopOnFailure", false);
             batch.put("calls", List.copyOf(calls));
@@ -940,7 +948,17 @@ class AgentToolArgumentResolver {
 
     private String runtimeScalarText(Object value) {
         String text = scalarText(value);
-        return text != null && (text.contains("${") || text.contains("{{")) ? null : text;
+        return isUnresolvedRuntimeReference(text) ? null : text;
+    }
+
+    private boolean isUnresolvedRuntimeReference(String text) {
+        if (text == null) {
+            return true;
+        }
+        String normalized = text.trim();
+        return normalized.startsWith("$.") || normalized.startsWith("$[")
+            || normalized.contains("${") || normalized.contains("{{")
+            || (normalized.startsWith("<") && normalized.endsWith(">"));
     }
 
     private boolean usesTemplateIdField(String toolName) {

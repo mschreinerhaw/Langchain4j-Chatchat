@@ -6502,6 +6502,10 @@ public class InterpretationPlanRuntime {
             throw new IllegalStateException("TEMPLATE_ARGUMENT_CONTRACT_FAILED: templateId and template must be "
                 + "the same non-empty scalar string");
         }
+        if (isPlannerPlaceholder(templateId) || isPlannerPlaceholder(template)) {
+            throw new IllegalStateException("TEMPLATE_ARGUMENT_CONTRACT_FAILED: unresolved template reference "
+                + "cannot cross the runtime execution boundary");
+        }
         Object parameters = input.get("parameters");
         if (parameters != null && !(parameters instanceof Map<?, ?>)) {
             throw new IllegalStateException("TEMPLATE_ARGUMENT_CONTRACT_FAILED: parameters must be an object "

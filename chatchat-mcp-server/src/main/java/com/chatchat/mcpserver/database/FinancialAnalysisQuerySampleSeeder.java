@@ -48,17 +48,8 @@ public class FinancialAnalysisQuerySampleSeeder {
         ensureStateTable();
         retireRemovedSamples();
         int created = 0;
-        int upgraded = 0;
         for (Sample sample : FinancialAnalysisQuerySamples.all()) {
             if (seedRecorded(sample.id())) {
-                Optional<DatabaseQueryConfig> existing = repository.findById(sample.id());
-                if (existing.isPresent() && requiresManagedDefinitionUpgrade(existing.get(), sample)) {
-                    DatabaseQueryConfig config = existing.get();
-                    config.setSqlTemplate(sample.sql());
-                    config.setSqlStepsJson(writeJson(List.of(sqlStep(sample))));
-                    repository.save(config);
-                    upgraded++;
-                }
                 continue;
             }
             if (repository.findById(sample.id()).isEmpty()
@@ -68,8 +59,8 @@ public class FinancialAnalysisQuerySampleSeeder {
             }
             recordSeed(sample.id());
         }
-        log.info("Financial database analysis samples initialized created={} upgraded={} total={} enabled=false",
-            created, upgraded, FinancialAnalysisQuerySamples.all().size());
+        log.info("Financial database analysis samples initialized created={} total={} enabled=false",
+            created, FinancialAnalysisQuerySamples.all().size());
     }
 
     private void retireRemovedSamples() {
@@ -83,22 +74,6 @@ public class FinancialAnalysisQuerySampleSeeder {
         if (!retired.isEmpty()) {
             log.info("Retired obsolete financial database query samples ids={}", retired.keySet());
         }
-    }
-
-    private boolean requiresManagedDefinitionUpgrade(DatabaseQueryConfig existing, Sample sample) {
-        if (!FinancialAnalysisQuerySamples.INTERNAL_DATASOURCE_ID.equals(existing.getDatasourceId())
-            || !"system".equalsIgnoreCase(existing.getOwner())) {
-            return false;
-        }
-        String currentSql = existing.getSqlTemplate() == null ? "" : existing.getSqlTemplate();
-        String expectedSteps = writeJson(List.of(sqlStep(sample)));
-        String currentSteps = existing.getSqlStepsJson() == null ? "" : existing.getSqlStepsJson();
-        return !normalizeSql(currentSql).equals(normalizeSql(sample.sql()))
-            || !currentSteps.equals(expectedSteps);
-    }
-
-    private String normalizeSql(String value) {
-        return value == null ? "" : value.trim().replaceAll("\\s+", " ");
     }
 
     private DatabaseQueryConfig toConfig(Sample sample) {

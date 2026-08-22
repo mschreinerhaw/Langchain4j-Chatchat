@@ -38,6 +38,7 @@ public class StandardToolExecutionResultFactory {
     public static final String SCHEMA_VERSION = "tool_execution_result.v1";
     static final int MODEL_SAFE_TEXT_LIMIT = 4_000;
     public static final int MODEL_SAFE_COLLECTION_LIMIT = 200;
+    static final int STRUCTURED_JSON_TEXT_LIMIT = 1_000_000;
     private static final ObjectMapper JSON = new ObjectMapper();
 
     private final DatabaseToolProperties databaseToolProperties;
@@ -739,6 +740,7 @@ public class StandardToolExecutionResultFactory {
             "truncationStrategy", "DATABASE_QUERY_MAX_ROWS"
         ));
         Map<String, Object> canonicalData = new LinkedHashMap<>(runtimeSafeEvidenceMap(resultData));
+        synchronizeResultColumns(canonicalData);
         canonicalData.put("resultSetMode", "ONE_PER_TEMPLATE_EXECUTION");
         canonicalData.put("resultSetId", firstText(
             sha256(statement),
@@ -780,6 +782,73 @@ public class StandardToolExecutionResultFactory {
             workflow ? databaseQueryWorkflowGraphEdges(resultData) : List.of()
         ));
         return payload;
+    }
+
+    /**
+     * Keeps the tabular schema aligned with rows after generic JSON-cell promotion.
+     * Consumers intentionally use {@code columns} as their evidence boundary, so a
+     * field discovered dynamically in a row must also be declared there.  The same
+     * rule is applied to nested result sets and workflow nodes without knowing any
+     * tool, table, or business field names.
+     */
+    private void synchronizeResultColumns(Map<String, Object> result) {
+        if (result == null || result.isEmpty()) {
+            return;
+        }
+        Object rowsValue = result.get("rows");
+        if (rowsValue instanceof Iterable<?> rows) {
+            java.util.LinkedHashSet<String> columns = new java.util.LinkedHashSet<>();
+            if (result.get("columns") instanceof Iterable<?> declared) {
+                declared.forEach(column -> {
+                    if (column != null) {
+                        columns.add(String.valueOf(column));
+                    }
+                });
+            }
+            for (Object rowValue : rows) {
+                if (rowValue instanceof Map<?, ?> row) {
+                    row.keySet().stream()
+                        .filter(java.util.Objects::nonNull)
+                        .map(String::valueOf)
+                        .forEach(columns::add);
+                }
+            }
+            result.put("columns", List.copyOf(columns));
+            synchronizeColumnMetadata(result, columns);
+        }
+        for (String childKey : List.of("results", "resultSets", "nodeExecutions")) {
+            Object children = result.get(childKey);
+            if (children instanceof Iterable<?> iterable) {
+                for (Object child : iterable) {
+                    if (child instanceof Map<?, ?> map) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> nested = (Map<String, Object>) map;
+                        synchronizeResultColumns(nested);
+                    }
+                }
+            }
+        }
+    }
+
+    private void synchronizeColumnMetadata(Map<String, Object> result, Set<String> columns) {
+        List<Map<String, Object>> existing = listOfMaps(result.get("columnMetadata"));
+        Map<String, Map<String, Object>> byName = new LinkedHashMap<>();
+        for (Map<String, Object> metadata : existing) {
+            String name = firstText(stringValue(metadata.get("name")), stringValue(metadata.get("label")));
+            if (name != null) {
+                byName.putIfAbsent(name, metadata);
+            }
+        }
+        for (String column : columns) {
+            byName.computeIfAbsent(column, key -> mapOf(
+                "name", key,
+                "label", key,
+                "comment", null,
+                "masked", false,
+                "dynamic", true
+            ));
+        }
+        result.put("columnMetadata", List.copyOf(byName.values()));
     }
 
     private List<Map<String, Object>> databaseQueryMultiSqlSteps(Map<String, Object> resultData,
@@ -1267,7 +1336,15 @@ public class StandardToolExecutionResultFactory {
             map.forEach((key, item) -> {
                 String name = String.valueOf(key);
                 if (!isDatabaseConnectionUrlKey(name)) {
-                    safe.put(name, runtimeSafeEvidenceValue(item));
+                    Object normalized = runtimeSafeEvidenceValue(item);
+                    safe.put(name, normalized);
+                    if (item instanceof CharSequence && normalized instanceof Map<?, ?> structured) {
+                        structured.forEach((structuredKey, structuredValue) -> {
+                            if (structuredKey != null) {
+                                safe.putIfAbsent(String.valueOf(structuredKey), structuredValue);
+                            }
+                        });
+                    }
                 }
             });
             return safe;
@@ -1278,9 +1355,38 @@ public class StandardToolExecutionResultFactory {
             return safe;
         }
         if (value instanceof CharSequence text) {
-            return text.toString();
+            String raw = text.toString();
+            Object structured = structuredJsonValue(raw);
+            return structured == null ? raw : runtimeSafeEvidenceValue(structured);
         }
         return value;
+    }
+
+    /**
+     * Promotes JSON object/array strings returned by any integration into native
+     * structures before the evidence crosses the model boundary. This is deliberately
+     * schema- and tool-agnostic: published tools remain free to add fields without a
+     * matching Runtime code change.
+     */
+    private Object structuredJsonValue(String value) {
+        if (value == null) {
+            return null;
+        }
+        String candidate = value.trim();
+        if (candidate.length() < 2 || candidate.length() > STRUCTURED_JSON_TEXT_LIMIT) {
+            return null;
+        }
+        boolean object = candidate.charAt(0) == '{' && candidate.charAt(candidate.length() - 1) == '}';
+        boolean array = candidate.charAt(0) == '[' && candidate.charAt(candidate.length() - 1) == ']';
+        if (!object && !array) {
+            return null;
+        }
+        try {
+            Object decoded = JSON.readValue(candidate, Object.class);
+            return decoded instanceof Map<?, ?> || decoded instanceof List<?> ? decoded : null;
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private Set<String> maskedColumnNames(List<Map<String, Object>> columnMetadata) {

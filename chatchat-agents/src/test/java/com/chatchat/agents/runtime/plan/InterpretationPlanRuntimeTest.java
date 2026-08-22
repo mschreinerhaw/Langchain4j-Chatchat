@@ -1484,6 +1484,10 @@ class InterpretationPlanRuntimeTest {
                 data = Map.of(
                     "status", "CANDIDATES_FOUND",
                     "candidateCount", 1,
+                    "metadataNarrative", "x".repeat(5_000),
+                    "diagnostics", List.of(
+                        "a".repeat(600), "b".repeat(600), "c".repeat(600), "d".repeat(600),
+                        "e".repeat(600), "f".repeat(600), "g".repeat(600), "h".repeat(600)),
                     "candidates", List.of(Map.of(
                         "templateId", templateId,
                         "scriptFileName", "log_analysis.py",
@@ -1574,6 +1578,80 @@ class InterpretationPlanRuntimeTest {
             .containsEntry("template", templateId);
         assertThat(executionInput.get().get("parameters"))
             .isEqualTo(Map.of("source_file", "1787187818764.log"));
+    }
+
+    @Test
+    void bindingFallbackReadsCompleteRuntimeOutputWhenDisplaySummaryIsTruncated() {
+        String discoveryTool = "mcp_future_template_query";
+        String templateId = "metadata-owned-template";
+        Object completeOutput = Map.of(
+            "executionTool", "future_template_execute",
+            "candidates", List.of(Map.of("templateId", templateId))
+        );
+        InterpretationPlanRuntime.StepExecution source = new InterpretationPlanRuntime.StepExecution(
+            1,
+            "mcp_tool",
+            discoveryTool,
+            true,
+            Map.of(
+                "schemaVersion", "tool_result_summary.v1",
+                "summaryTruncated", true,
+                "preview", "{executionTool=future_template_execute, ...}"
+            ),
+            null,
+            new ToolRuntimeExecution(
+                ToolOutput.success(completeOutput),
+                ToolMetadata.builder().id(discoveryTool).build(),
+                null,
+                "success",
+                Map.of()
+            ),
+            null,
+            10L
+        );
+        InterpretationPlan.Binding binding = new InterpretationPlan.Binding(
+            1, "$.templates[0].templateId", 2, "templateId", "jsonpath", true);
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+
+        assertThat(runtime.bindingValue(source, binding, null)).isEqualTo(templateId);
+    }
+
+    @Test
+    void genericTemplateDiscoveryAcceptsCandidateCollectionFromPublishedProtocol() {
+        String discoveryTool = "mcp_chatchat_mcp_server_data_query_query";
+        InterpretationPlanRuntime.StepExecution execution = new InterpretationPlanRuntime.StepExecution(
+            1,
+            "mcp_tool",
+            discoveryTool,
+            true,
+            Map.of(
+                "status", "CANDIDATES_FOUND",
+                "executionTool", "sql_query_execute",
+                "candidates", List.of(Map.of("templateId", "published-template"))
+            ),
+            null,
+            null,
+            null,
+            10L
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+
+        InterpretationPlanRuntime.StepReview review = runtime.localToolResultReview(
+            new InterpretationPlan.Step(1, "mcp_tool", discoveryTool, Map.of(), List.of(), null, null),
+            execution
+        );
+
+        assertThat(review).isNotNull();
+        assertThat(review.satisfied()).isTrue();
+        assertThat(review.metadata()).containsEntry("templateDiscoveryReturnedCount", 1);
     }
 
     @Test
@@ -6923,6 +7001,57 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void injectsMetadataDrivenStrictDocumentScopeIntoPlanRuntimeExecution() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("document_search")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("document_search"))
+            .thenReturn(ToolMetadata.builder().id("document_search").riskLevel("low")
+                .parameters(List.of(ToolParameter.builder().name("query").type("string").build(),
+                    ToolParameter.builder().name("fileIds").type("array").build()))
+                .build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of("items", List.of("manual evidence"))),
+            ToolMetadata.builder().id("document_search").build(), null, "success", Map.of()));
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("document_retrieval", "Collect scoped evidence", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", "document_search",
+                    Map.of("query", "report development"), List.of(), null, null),
+                new InterpretationPlan.Step(2, "final_answer", "",
+                    Map.of("answer", "done"), List.of(1), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(2, false, List.of("document_search"), List.of(), 30_000),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService, new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2))));
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, toolRegistry, List.of("document_search"), "tenant-1", "req-scoped-doc",
+                "conv-scoped-doc", "user-1", Map.of(
+                    "documentSearchTool", "document_search",
+                    "documentScopeMode", "strict",
+                    "boundDocumentIds", List.of("doc-manual"),
+                    "boundDocumentTags", List.of("product-manual")
+                )));
+
+        assertThat(result.success()).isTrue();
+        ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
+        verify(toolRuntimeService).execute(captor.capture());
+        assertThat(captor.getValue().getToolInput().getParameters())
+            .containsEntry("fileIds", List.of("doc-manual"))
+            .containsEntry("selectedDocumentIds", List.of("doc-manual"))
+            .containsEntry("documentVisibilityEnforced", true)
+            .containsEntry("tags", List.of("product-manual"))
+            .containsEntry("strict_document_scope", true);
+    }
+
+    @Test
     void failsWhenEdgeContractRequiredFieldIsMissing() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("document_search")).thenReturn(true);
@@ -8430,7 +8559,11 @@ class InterpretationPlanRuntimeTest {
                         Map.of(
                             "templateId", firstTemplate,
                             "parameterContract", Map.of("executionTool", executionTool),
-                            "parameterSchema", Map.of("type", "object", "properties", Map.of(), "required", List.of())
+                            "parameterSchema", Map.of("type", "object", "properties", Map.of(), "required", List.of()),
+                            "evidencePolicy", Map.of(
+                                "emptyResultIsSuccess", true,
+                                "purpose", "tenant_snapshot_health"
+                            )
                         ),
                         Map.of(
                             "templateId", secondTemplate,
@@ -8462,9 +8595,16 @@ class InterpretationPlanRuntimeTest {
                     new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
                 ),
                 List.of(),
+                List.of(),
                 List.of(new InterpretationPlan.Binding(1, "$.templates[0].templateId", 2,
                     "$.templateId", "jsonpath", true)),
-                null
+                null,
+                new InterpretationPlan.DiagnosticProfile(
+                    "tenant_snapshot_profile",
+                    "api",
+                    List.of(new InterpretationPlan.DiagnosticCheck(
+                        "primary_snapshot", "tenant_snapshot", "availability", true, 1, List.of(2)))
+                )
             ),
             new InterpretationPlan.ExecutionPolicy(3, false,
                 List.of(discoveryTool, executionTool), List.of(), 30_000),
@@ -8503,6 +8643,13 @@ class InterpretationPlanRuntimeTest {
                 .doesNotContain("templates[0]");
         });
         List<Map<String, Object>> calls = (List<Map<String, Object>>) executionInput.get().get("calls");
+        assertThat(calls).extracting(call -> call.get("callId"))
+            .contains("primary_snapshot", secondTemplate);
+        assertThat(calls.stream()
+            .filter(call -> "primary_snapshot".equals(call.get("callId")))
+            .findFirst().orElseThrow())
+            .containsEntry("emptyResultIsSuccess", true)
+            .containsEntry("purpose", "tenant_snapshot_health");
         assertThat(calls).allSatisfy(call -> assertThat(call.get("arguments"))
             .isInstanceOfSatisfying(Map.class, arguments ->
                 assertThat(arguments).containsEntry("parameters", Map.of())));

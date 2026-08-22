@@ -67,7 +67,7 @@ class FinancialAnalysisQuerySampleSeederTest {
     }
 
     @Test
-    void upgradesSeededSystemSamplesToTheMaintainedH2Definition() {
+    void preservesPublishedSystemMetadataAfterTheOneTimeSeed() {
         DatabaseQueryConfigRepository repository = mock(DatabaseQueryConfigRepository.class);
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
         when(jdbc.queryForObject(anyString(), eq(Integer.class), anyString())).thenReturn(1);
@@ -86,19 +86,13 @@ class FinancialAnalysisQuerySampleSeederTest {
             """);
         when(repository.findById(anyString())).thenReturn(Optional.empty());
         when(repository.findById("builtin-market-latest-movers")).thenReturn(Optional.of(existing));
-        when(repository.save(any(DatabaseQueryConfig.class))).thenAnswer(invocation -> invocation.getArgument(0));
         FinancialAnalysisQuerySampleSeeder seeder =
             new FinancialAnalysisQuerySampleSeeder(repository, jdbc, new ObjectMapper());
 
         seeder.seedOnce();
 
-        ArgumentCaptor<DatabaseQueryConfig> captor = ArgumentCaptor.forClass(DatabaseQueryConfig.class);
-        verify(repository).save(captor.capture());
-        assertThat(captor.getValue().isEnabled()).isTrue();
-        assertThat(captor.getValue().getSqlTemplate())
-            .contains("ROW_NUMBER() OVER", "observation_rank", "market_quote_daily")
-            .doesNotContain("QUALIFY ");
-        assertThat(captor.getValue().getSqlStepsJson()).contains("observation_rank");
+        verify(repository, times(0)).save(any(DatabaseQueryConfig.class));
+        assertThat(existing.getSqlTemplate()).contains("QUALIFY ");
         verify(jdbc, times(0)).update(anyString(), any(), any());
     }
 

@@ -12,6 +12,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -321,6 +323,34 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
             .hasSize(2)
             .extracting(row -> row.get("pd_name"))
             .containsExactly("示例标的A", "示例标的B");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void markdownPreviewCapsRowsAndCompactsStructuredCellsWithoutDroppingVisualizationData() {
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            (chatModel, query, systemPrompt, observations, answer) ->
+                new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok"),
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        String rows = IntStream.rangeClosed(1, 25)
+            .mapToObj(index -> "{\"name\":\"row-" + index + "\",\"payload\":{\"metric\":" + index + "}}")
+            .collect(Collectors.joining(","));
+        InteractionToolTrace trace = InteractionToolTrace.builder()
+            .toolName("dynamic_query")
+            .success(true)
+            .output("{\"columns\":[\"name\",\"payload\"],\"rowCount\":25,\"rows\":[" + rows + "]}")
+            .build();
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishExecution(
+            "analysis", List.of(trace), new LinkedHashMap<>(), List.of("returned rows"));
+
+        assertThat(result.answer())
+            .contains("row-20", "[结构化对象：1 个字段]")
+            .doesNotContain("row-21", "row-25");
+        Map<String, Object> visualization = (Map<String, Object>) result.metadata().get("visualizationSpec");
+        Map<String, Object> dataset = (Map<String, Object>) visualization.get("dataset");
+        assertThat((List<Map<String, Object>>) dataset.get("rows")).hasSize(25);
     }
 
     @Test

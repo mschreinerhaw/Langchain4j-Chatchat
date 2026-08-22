@@ -41,6 +41,23 @@ class SkillCatalogServiceTest {
     }
 
     @Test
+    void persistsMetadataDrivenStrictDocumentScopeMode() {
+        SkillConfigRepository repository = mock(SkillConfigRepository.class);
+        SkillConfigVersionRepository versionRepository = mock(SkillConfigVersionRepository.class);
+        when(repository.findById("db_ops_assistant")).thenReturn(Optional.empty());
+        when(repository.save(any(SkillConfigEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(versionRepository.save(any(SkillConfigVersionEntity.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        SkillCatalogService service = new SkillCatalogService(
+            repository, versionRepository, new ObjectMapper(), mock(JdbcTemplate.class), summaryContractService());
+
+        SkillDefinition saved = service.upsert(draftWithWorkflow(Map.of(
+            "enabled", true, "document_scope_mode", "STRICT")));
+
+        assertThat(saved.workflowConfig()).containsEntry("documentScopeMode", "strict");
+    }
+
+    @Test
     void persistsRequiredToolParametersAsGenericRuntimeContract() {
         SkillConfigRepository repository = mock(SkillConfigRepository.class);
         SkillConfigVersionRepository versionRepository = mock(SkillConfigVersionRepository.class);

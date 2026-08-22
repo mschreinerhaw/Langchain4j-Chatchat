@@ -58,6 +58,7 @@ class AgentAnswerFinalizer {
     private static final String ANSWER_EVIDENCE_AUDIT_CONTRACT = "answer_evidence_audit_v1";
     private static final String INSUFFICIENT_EVIDENCE_ANSWER = "根据当前文档证据不足，无法确认。";
     private static final int TOOL_DATA_INLINE_CELL_LIMIT = 240;
+    private static final int TOOL_DATA_MARKDOWN_ROW_LIMIT = 20;
     private static final Pattern DOCUMENT_REF_PATTERN =
         Pattern.compile("doc://([^\\s\"',;\\]\\)}]+)#chunk=([^\\s\"',;\\]\\)}]+)");
     private static final Pattern WEB_REF_PATTERN =
@@ -1748,7 +1749,7 @@ class AgentAnswerFinalizer {
             return base;
         }
         int rowCount = firstInt(dataset.get("rowCount"), rows.size());
-        int displayCount = rows.size();
+        int displayCount = Math.min(rows.size(), TOOL_DATA_MARKDOWN_ROW_LIMIT);
         StringBuilder table = new StringBuilder();
         List<LongTextCell> longTextCells = new ArrayList<>();
         table.append("## 查询结果明细\n\n");
@@ -1764,12 +1765,18 @@ class AgentAnswerFinalizer {
         }
         table.append("\n");
         int displayedRowIndex = 0;
-        for (Map<String, Object> row : rows) {
+        for (Map<String, Object> row : rows.subList(0, displayCount)) {
             displayedRowIndex++;
             table.append("| ");
             for (String column : columns) {
                 Object value = row.get(column);
-                if (isLongTextCell(value)) {
+                if (value instanceof Map<?, ?> map) {
+                    table.append(escapeTableCell("[结构化对象：" + map.size() + " 个字段]"))
+                        .append(" | ");
+                } else if (value instanceof List<?> list) {
+                    table.append(escapeTableCell("[结构化数组：" + list.size() + " 项]"))
+                        .append(" | ");
+                } else if (isLongTextCell(value)) {
                     String text = String.valueOf(value);
                     longTextCells.add(new LongTextCell(displayedRowIndex, column, text));
                     table.append(escapeTableCell(longTextReference(displayedRowIndex, column, text.length()))).append(" | ");

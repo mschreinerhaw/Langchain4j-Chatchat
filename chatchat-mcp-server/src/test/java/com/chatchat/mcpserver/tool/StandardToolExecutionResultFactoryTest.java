@@ -618,6 +618,41 @@ class StandardToolExecutionResultFactoryTest {
     }
 
     @Test
+    void databaseQueryPromotesJsonTextCellsWithoutToolOrBusinessFieldRules() {
+        DatabaseQueryConfig config = new DatabaseQueryConfig();
+        config.setId("query-json");
+        config.setToolName("dynamic_payload_query");
+        config.setTitle("Dynamic payload query");
+        config.setSqlTemplate("select payload from observations");
+        ToolOutput output = ToolOutput.success(Map.of(
+            "rowCount", 1,
+            "columns", List.of("payload"),
+            "rows", List.of(Map.of(
+                "payload", "{\"newMetric\":12.5,\"labels\":[\"alpha\",\"beta\"]}",
+                "plainText", "not-json"
+            ))
+        ));
+
+        Map<String, Object> envelope = factory.fromDatabaseQuery(config, Map.of(), output);
+        Map<?, ?> data = (Map<?, ?>) envelope.get("data");
+        Map<?, ?> row = (Map<?, ?>) ((List<?>) data.get("rows")).get(0);
+        Map<?, ?> payload = (Map<?, ?>) row.get("payload");
+
+        assertThat(payload.get("newMetric")).isEqualTo(12.5);
+        assertThat(payload.get("labels")).isEqualTo(List.of("alpha", "beta"));
+        assertThat(row.get("newMetric")).isEqualTo(12.5);
+        assertThat(row.get("labels")).isEqualTo(List.of("alpha", "beta"));
+        assertThat(row.get("plainText")).isEqualTo("not-json");
+        assertThat(((List<?>) data.get("columns")).stream().map(String::valueOf).toList())
+            .containsExactlyInAnyOrder("payload", "newMetric", "labels", "plainText");
+        assertThat((List<?>) data.get("columnMetadata")).anySatisfy(item -> {
+            Map<?, ?> metadata = (Map<?, ?>) item;
+            assertThat(metadata.get("name")).isEqualTo("newMetric");
+            assertThat(metadata.get("dynamic")).isEqualTo(true);
+        });
+    }
+
+    @Test
     void databaseQueryOutputIsWrappedInStandardSqlExecutionUnit() {
         DatabaseQueryConfig config = new DatabaseQueryConfig();
         config.setId("query-1");

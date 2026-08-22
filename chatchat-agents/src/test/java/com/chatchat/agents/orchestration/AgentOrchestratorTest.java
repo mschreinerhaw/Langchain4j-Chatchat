@@ -63,6 +63,75 @@ import static org.mockito.Mockito.when;
 class AgentOrchestratorTest {
 
     @Test
+    void discoveryExecutionContractCreatesRequiredRefinementWithoutBusinessRules() {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+
+        List<Map<String, Object>> actions = orchestrator.discoveredExecutorActions(
+            Map.of(
+                "schemaVersion", "tool_result_summary.v1",
+                "preview", Map.of(
+                    "executionTool", "future_template_execute",
+                    "templates", List.of(Map.of(
+                        "templateId", "metadata-owned-template",
+                        "parameterContract", Map.of("executionTool", "future_template_execute")
+                    ))
+                )
+            ),
+            "future_capability_query",
+            2
+        );
+
+        assertThat(actions).singleElement().satisfies(action -> {
+            assertThat(action)
+                .containsEntry("tool", "future_template_execute")
+                .containsEntry("requiredExecution", true)
+                .containsEntry("source", "tool_output_execution_contract")
+                .containsEntry("discoveryStepId", 2);
+            assertThat(action.get("dependsOnTools"))
+                .isEqualTo(List.of("future_capability_query"));
+        });
+    }
+
+    @Test
+    void discoveryExecutionContractUsesCompleteRuntimeOutputWhenDisplaySummaryIsTruncated() {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        Map<String, Object> completeOutput = Map.of(
+            "schemaVersion", "future_query_result.v1",
+            "executionTool", "future_template_execute",
+            "templates", List.of(Map.of("templateId", "metadata-owned-template"))
+        );
+        ToolRuntimeExecution execution = new ToolRuntimeExecution(
+            ToolOutput.success(completeOutput), null, null, "success", Map.of());
+        InterpretationPlanRuntime.StepExecution step = new InterpretationPlanRuntime.StepExecution(
+            1,
+            "mcp_tool",
+            "future_capability_query",
+            true,
+            Map.of(
+                "schemaVersion", "tool_result_summary.v1",
+                "summaryTruncated", true,
+                "preview", "{executionTool=future_template_execute, ...}"
+            ),
+            null,
+            execution,
+            null,
+            12L,
+            Map.of("evidenceIterationSufficient", false)
+        );
+        InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
+            "success", true, false, null, null, List.of(step), Map.of(), 12L);
+
+        List<Map<String, Object>> evidence = orchestrator.interpretationToolEvidence(null, result, 1);
+
+        assertThat(evidence).singleElement().satisfies(item ->
+            assertThat((List<Map<String, Object>>) item.get("nextActions"))
+                .singleElement()
+                .satisfies(action -> assertThat(action)
+                    .containsEntry("tool", "future_template_execute")
+                    .containsEntry("requiredExecution", true)));
+    }
+
+    @Test
     void summarizesIndependentDatasetsWithBoundedParallelWorkersAndPreservesDriverOrder()
         throws Exception {
         CountDownLatch workersStarted = new CountDownLatch(2);
@@ -613,6 +682,23 @@ class AgentOrchestratorTest {
             "shouldExpandQuery", true,
             "nextActions", List.of(pendingAction)
         )))).containsExactly(pendingAction);
+    }
+
+    @Test
+    void requiredDiscoveredExecutionIsNotSuppressedByQueryExpansionDecision() {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        Map<String, Object> execution = Map.of(
+            "tool", "future_template_execute",
+            "requiredExecution", true,
+            "source", "tool_output_execution_contract"
+        );
+
+        assertThat(orchestrator.pendingEvidenceNextActions(List.of(Map.of(
+            "tool", "future_capability_query",
+            "success", true,
+            "shouldExpandQuery", false,
+            "nextActions", List.of(execution)
+        )))).containsExactly(execution);
     }
 
     @Test
@@ -2626,6 +2712,38 @@ class AgentOrchestratorTest {
             .contains("SparkCausedRetryException")
             .contains("2026-08-20 06:37:57.414", "2026-08-20 06:53:03.557")
             .doesNotContain("Stored RunStore/RocksDB observations");
+    }
+
+    @Test
+    void answerReviewerReceivesRecordGroundedAnalysisAppendedAfterSummaryPrompt() {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        String prompt = """
+            Authoritative Summary Evidence Ledger (runtime-generated):
+            [{"executionState":"EXECUTED_RESULT","returnedEvidence":{"rowCount":101}}]
+
+            Executed plan attempts (1):
+            - evidenceId=iteration:1:step:2:tool:sql_query_execute
+
+            Stored RunStore/RocksDB observations:
+            - compact observation
+
+            Return only the final user-facing Markdown answer, no JSON.
+
+            Complete returned-record evidence (record_grounded_analysis.v1). Every range below is processed evidence.
+            - dataset final synthesis: financingBuyCny=104349775344, financingRepaymentCny=105570122417
+            Coverage: returnedRecordCount=101, processedRecordCount=101, complete=true.
+            """;
+
+        String reviewerEvidence = orchestrator.interpretationPlanReviewEvidenceContext(prompt);
+
+        assertThat(reviewerEvidence)
+            .contains("Authoritative Summary Evidence Ledger")
+            .contains("Executed plan attempts")
+            .contains("Reviewer returned-record evidence")
+            .contains("financingBuyCny=104349775344")
+            .contains("financingRepaymentCny=105570122417")
+            .contains("processedRecordCount=101")
+            .doesNotContain("compact observation");
     }
 
     @Test

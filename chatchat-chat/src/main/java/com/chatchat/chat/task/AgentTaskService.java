@@ -176,12 +176,30 @@ public class AgentTaskService {
         if (!(workflow instanceof Map<?, ?>) && !(workflow instanceof List<?>)) {
             return;
         }
+        if (!containsExecutableWorkflow(workflow)) {
+            return;
+        }
         Map<String, Object> toolInput = new LinkedHashMap<>(
             request.getToolInput() == null ? Map.of() : request.getToolInput());
         toolInput.put("__taskWorkflowDefinition", objectMapper.convertValue(workflow, Object.class));
         toolInput.put("__taskWorkflowTaskId", taskId);
         toolInput.put("__taskWorkflowSource", "user_defined_mcp_workflow");
         request.setToolInput(toolInput);
+    }
+
+    private boolean containsExecutableWorkflow(Object workflow) {
+        if (workflow instanceof List<?> steps) {
+            return steps.stream().anyMatch(Map.class::isInstance);
+        }
+        if (!(workflow instanceof Map<?, ?> map)) {
+            return false;
+        }
+        Object steps = map.get("steps");
+        if (steps instanceof List<?> list && list.stream().anyMatch(Map.class::isInstance)) {
+            return true;
+        }
+        Object nested = map.get("mcpWorkflow");
+        return nested != workflow && containsExecutableWorkflow(nested);
     }
 
     public Optional<String> finalAnswer(String tenantId, String taskId) {
@@ -470,10 +488,18 @@ public class AgentTaskService {
         AgentTaskLatestEntity task = getTaskForTenant(tenantId, taskId);
         try {
             long normalizedTimeout = Math.max(0, Math.min(timeoutMs, 5000));
-            AgentEvent event = eventBus.pollResult(taskId, normalizedTimeout, TimeUnit.MILLISECONDS);
-            if (event != null) {
-                return Optional.of(event);
-            }
+            long deadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(normalizedTimeout);
+            do {
+                long remainingNanos = Math.max(0L, deadlineNanos - System.nanoTime());
+                AgentEvent event = eventBus.pollResult(
+                    taskId, TimeUnit.NANOSECONDS.toMillis(remainingNanos), TimeUnit.MILLISECONDS);
+                if (event == null) {
+                    break;
+                }
+                if (isResultEvent(event)) {
+                    return Optional.of(event);
+                }
+            } while (System.nanoTime() < deadlineNanos);
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
@@ -501,6 +527,16 @@ public class AgentTaskService {
             .filter(event -> "COMPLETE".equalsIgnoreCase(event.getType())
                 || ("STATUS".equalsIgnoreCase(event.getType()) && TERMINAL_STATUSES.contains(normalizeStatus(event.getStatus()))))
             .reduce((previous, current) -> current);
+    }
+
+    private boolean isResultEvent(AgentEvent event) {
+        if (event == null || event.getType() == null) {
+            return false;
+        }
+        return "ANSWER".equalsIgnoreCase(event.getType())
+            || "RESULT".equalsIgnoreCase(event.getType())
+            || "ERROR".equalsIgnoreCase(event.getType())
+            || "NEEDS_CONFIRMATION".equalsIgnoreCase(event.getType());
     }
 
     /**

@@ -3647,11 +3647,15 @@ public class ToolRuntimeService {
         ))));
         workflow.setParallelSteps(stringList(firstPresent(config.get("parallelSteps"), config.get("parallel_steps"))));
         workflow.setSteps(workflowStepsFromList(config.get("steps")));
-        String explicitName = agentWorkflowName(config, executionPlan);
-        boolean explicitMatched = explicitName != null && sameTool(explicitName, executionPlan == null ? null : executionPlan.workflow());
         boolean toolMatched = workflow.getSteps() != null
             && workflow.getSteps().stream().anyMatch(step -> stepContainsTool(step, toolName));
-        if (!toolMatched && !explicitMatched) {
+        // Runtime settings (environment, result handling, budgets) are persisted in
+        // the same JSON object as an optional static workflow.  A generated
+        // InterpretationPlan must not turn that settings-only object into an empty
+        // workflow merely because executionPlan.workflow is "interpretation_plan".
+        // Membership is authoritative only when the persisted workflow actually
+        // declares the current tool as one of its steps.
+        if (!toolMatched) {
             return null;
         }
         return workflow;

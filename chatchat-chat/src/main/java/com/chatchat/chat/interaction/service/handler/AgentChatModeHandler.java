@@ -468,6 +468,13 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             if (semanticInsightContractIds instanceof List<?> ids && !ids.isEmpty()) {
                 attributes.put("semanticInsightContractIds", List.copyOf(ids));
             }
+            Object documentScopeMode = firstPresent(
+                skill.workflowConfig().get("documentScopeMode"),
+                skill.workflowConfig().get("document_scope_mode")
+            );
+            if (documentScopeMode != null && !String.valueOf(documentScopeMode).isBlank()) {
+                attributes.put("documentScopeMode", String.valueOf(documentScopeMode).trim());
+            }
         }
         if (skill != null && skill.workflowConfig() != null
             && skill.workflowConfig().get("requiredToolParameters") instanceof Map<?, ?> requiredToolParameters) {

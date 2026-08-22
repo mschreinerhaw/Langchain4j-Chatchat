@@ -1167,6 +1167,49 @@ class AgentToolArgumentResolverTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void mandatoryRecoveryUsesPublishedTemplateExecutionRoleWhenOptionalMcpMetadataIsAbsent() {
+        String discoveryTool = "mcp_runtime_dynamic_discovery";
+        String executionTool = "mcp_runtime_dynamic_executor";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getWorkflowRole(discoveryTool)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(executionTool)).thenReturn(ToolWorkflowRole.TEMPLATE_EXECUTION);
+        when(registry.getToolMetadata(executionTool)).thenReturn(ToolMetadata.builder()
+            .id(executionTool)
+            .parameters(List.of(ToolParameter.builder()
+                .name("executionContext").type("object").required(true).build()))
+            .build());
+        AgentToolArgumentResolver contractResolver =
+            new AgentToolArgumentResolver(new AgentToolNameResolver(), 5, registry);
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .toolName(discoveryTool)
+            .success(true)
+            .output("""
+                {"candidates":[
+                  {"templateId":"dynamic-a","parameterContract":{"executionTool":"dynamic_executor"},
+                   "parameterSchema":{"type":"object","properties":{},"required":[]},
+                   "sqlExecutionBinding":{"toolName":"dynamic_executor","executionContext":{"assetName":"asset-a","env":"DEV"}}},
+                  {"templateId":"dynamic-b","parameterContract":{"executionTool":"dynamic_executor"},
+                   "parameterSchema":{"type":"object","properties":{},"required":[]},
+                   "sqlExecutionBinding":{"toolName":"dynamic_executor","executionContext":{"assetName":"asset-b","env":"TEST"}}}
+                ]}
+                """)
+            .build();
+
+        Map<String, Object> result = contractResolver.applyDeterministicDependencyContracts(
+            executionTool, Map.of("purpose", "execute admitted dynamic templates"),
+            List.of(discovery), "execute admitted dynamic templates");
+
+        assertThat(result.get("calls")).isInstanceOfSatisfying(List.class, calls -> {
+            assertThat(calls).hasSize(2);
+            Map<String, Object> first = (Map<String, Object>) calls.get(0);
+            Map<String, Object> arguments = (Map<String, Object>) first.get("arguments");
+            assertThat(arguments.get("executionContext")).isEqualTo(Map.of("assetName", "asset-a", "env", "DEV"));
+        });
+        assertThat(result).doesNotContainKeys("__runtimeParamBindingStatus", "__runtimeParamBindingError");
+    }
+
+    @Test
     void mandatoryRecoveryCompilesEveryCompatibleAdmittedTemplateIntoBatch() {
         String firstId = "runtime_health_a_" + System.nanoTime();
         String secondId = "runtime_health_b_" + System.nanoTime();

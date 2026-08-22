@@ -1157,6 +1157,16 @@ public class SkillCatalogService {
         if (runtimeEnvironment != null) {
             normalized.put("runtimeEnvironment", runtimeEnvironment);
         }
+        String documentScopeMode = normalizeText(String.valueOf(firstObject(
+            source, "documentScopeMode", "document_scope_mode")));
+        if (documentScopeMode != null && !"null".equalsIgnoreCase(documentScopeMode)) {
+            String canonicalScopeMode = documentScopeMode.toLowerCase(Locale.ROOT);
+            if (!Set.of("open", "strict").contains(canonicalScopeMode)) {
+                throw new IllegalArgumentException(
+                    "workflowConfig.documentScopeMode must be one of open, strict");
+            }
+            normalized.put("documentScopeMode", canonicalScopeMode);
+        }
         Object requiredToolParameters = firstObject(source, "requiredToolParameters", "required_tool_parameters");
         if (requiredToolParameters instanceof Map<?, ?>) {
             normalized.put("requiredToolParameters", requiredToolParameters);

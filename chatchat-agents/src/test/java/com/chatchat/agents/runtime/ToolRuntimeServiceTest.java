@@ -1121,6 +1121,50 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
+    void runtimeSettingsOnlyDoNotBecomeEmptyInterpretationPlanWorkflow() {
+        String toolName = "mcp_chatchat_mcp_server_data_query_query";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName)
+            .title("Data query discovery")
+            .build());
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.success("ok"));
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry,
+            new ObjectMapper(),
+            properties(),
+            new McpPolicyProperties(),
+            new McpWorkflowProperties(),
+            List.of(),
+            List.of()
+        );
+        Map<String, Object> settingsOnly = Map.of(
+            "enabled", true,
+            "runtimeEnvironment", "DEV",
+            "resultHandlingPolicy", Map.of("mode", "SUMMARIZE_AVAILABLE")
+        );
+        ToolRuntimeRequest request = ToolRuntimeRequest.builder()
+            .toolName(toolName)
+            .runtimeMode("interpretation_plan")
+            .requestId("req-dynamic-plan")
+            .conversationId("conv-dynamic-plan")
+            .tenantId("tenant-1")
+            .userId("user-1")
+            .allowedTools(List.of(toolName))
+            .toolInput(ToolInput.builder().userId("user-1").parameters(Map.of()).build())
+            .attributes(Map.of(
+                "mcpWorkflow", settingsOnly,
+                "executionPlan", Map.of("workflow", "interpretation_plan", "tool", toolName)
+            ))
+            .build();
+
+        ToolRuntimeExecution execution = service.execute(request);
+
+        assertThat(execution.output().isSuccess()).isTrue();
+        verify(toolRegistry).executeEnhancedTool(any(), any());
+    }
+
+    @Test
     void authoritativeDagOverridesStaleSequentialOrderForTemplateProtocol() {
         String asset = "mcp_chatchat_mcp_server_api_asset_query";
         String query = "mcp_chatchat_mcp_server_api_template_query";

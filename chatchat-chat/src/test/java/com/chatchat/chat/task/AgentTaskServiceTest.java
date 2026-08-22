@@ -170,6 +170,37 @@ class AgentTaskServiceTest {
     }
 
     @Test
+    void doesNotSnapshotRuntimeSettingsAsUserDefinedWorkflow() throws Exception {
+        AgentTaskService service = taskService(
+            mock(AgentEventBus.class), mock(AgentEventStore.class), mock(AgentTaskLatestRepository.class),
+            mock(TaskConfirmRepository.class), new ObjectMapper());
+        SkillCatalogService catalog = mock(SkillCatalogService.class);
+        SkillDefinition skill = new SkillDefinition(
+            "dynamic", "Dynamic", "", List.of(), List.of(), "agent_chat", null, "", "",
+            List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), null,
+            Map.of(
+                "enabled", true,
+                "runtimeEnvironment", "DEV",
+                "resultHandlingPolicy", Map.of("mode", "SUMMARIZE_AVAILABLE")
+            ),
+            null, null, List.of(), "published", false
+        );
+        when(catalog.resolve("dynamic")).thenReturn(skill);
+        Field catalogField = AgentTaskService.class.getDeclaredField("skillCatalogService");
+        catalogField.setAccessible(true);
+        catalogField.set(service, catalog);
+        Method snapshot = AgentTaskService.class.getDeclaredMethod(
+            "snapshotUserDefinedWorkflow", AgentTaskSubmitRequest.class, String.class);
+        snapshot.setAccessible(true);
+        AgentTaskSubmitRequest request = new AgentTaskSubmitRequest();
+        request.setSkillId("dynamic");
+
+        snapshot.invoke(service, request, "task-dynamic");
+
+        assertThat(request.getToolInput()).isNullOrEmpty();
+    }
+
+    @Test
     void repeatedIdempotentSubmissionReturnsSameTaskAndQueuesOnlyOnce() {
         AgentEventBus eventBus = mock(AgentEventBus.class);
         AgentEventStore eventStore = mock(AgentEventStore.class);
@@ -970,6 +1001,36 @@ class AgentTaskServiceTest {
             mock(InterpretationPlanStore.class),
             mock(ThreadPoolTaskExecutor.class)
         );
+    }
+
+    @Test
+    void pollResultSkipsQueuedRuntimeEventsAndReturnsAnswer() throws Exception {
+        AgentEventBus eventBus = mock(AgentEventBus.class);
+        AgentEventStore eventStore = mock(AgentEventStore.class);
+        AgentTaskLatestRepository repository = mock(AgentTaskLatestRepository.class);
+        AgentTaskLatestEntity task = new AgentTaskLatestEntity();
+        task.setTaskId("task-result-filter");
+        task.setTenantId("tenant-1");
+        task.setSessionId("session-1");
+        task.setStatus("SUCCESS");
+        AgentEvent runtimeStarted = AgentEvent.builder()
+            .taskId(task.getTaskId()).type("RUNTIME_STARTED").status("RUNNING").build();
+        AgentEvent answer = AgentEvent.builder()
+            .taskId(task.getTaskId()).type("ANSWER").status("SUCCESS")
+            .payload("{\"answer\":\"final\"}").build();
+        when(repository.findById(task.getTaskId())).thenReturn(Optional.of(task));
+        when(eventBus.pollResult(org.mockito.ArgumentMatchers.eq(task.getTaskId()), anyLong(),
+            org.mockito.ArgumentMatchers.eq(TimeUnit.MILLISECONDS)))
+            .thenReturn(runtimeStarted, answer);
+        AgentTaskService service = taskService(
+            eventBus, eventStore, repository, mock(TaskConfirmRepository.class), new ObjectMapper());
+
+        Optional<AgentEvent> result = service.pollResult("tenant-1", task.getTaskId(), 1000);
+
+        assertThat(result).contains(answer);
+        verify(eventBus, times(2)).pollResult(
+            org.mockito.ArgumentMatchers.eq(task.getTaskId()), anyLong(),
+            org.mockito.ArgumentMatchers.eq(TimeUnit.MILLISECONDS));
     }
 
     private AgentTaskSubmitRequest idempotentRequest(String key, String query) {

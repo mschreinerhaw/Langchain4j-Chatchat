@@ -713,6 +713,12 @@ class AgentToolArgumentResolver {
             || toolNames.isTemplateDiscoveryToolName(toolName)) {
             return false;
         }
+        // The normalized workflow role is the authoritative execution contract.
+        // MCP transports are allowed to omit optional extension metadata, but that
+        // must not make a declared template executor lose its discovery binding.
+        if (workflowRole(toolName) == ToolWorkflowRole.TEMPLATE_EXECUTION) {
+            return true;
+        }
         // Legacy/unit registries did not publish applicability metadata. Preserve
         // their fail-closed behaviour; production MCP tools publish the contract.
         if (toolRegistry == null) {

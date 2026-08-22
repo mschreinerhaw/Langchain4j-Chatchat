@@ -569,6 +569,11 @@ public class AgentOrchestrator implements AgentRunExecutor {
         List<String> documentIds = normalizeList(boundDocumentIds);
         List<String> documentTags = normalizeList(boundDocumentTags);
         String documentSearchTool = toolNames.resolveDocumentSearchTool(tools);
+        requestRuntimeAttributes.put("boundDocumentIds", documentIds);
+        requestRuntimeAttributes.put("boundDocumentTags", documentTags);
+        if (documentSearchTool != null && !documentSearchTool.isBlank()) {
+            requestRuntimeAttributes.put("documentSearchTool", documentSearchTool);
+        }
         String verificationWebSearchTool = toolNames.resolveVerificationWebSearchTool(tools);
         boolean requireDocumentWebVerification = workflowTools.shouldRequireDocumentWebVerification(
             tools,
@@ -1286,8 +1291,10 @@ public class AgentOrchestrator implements AgentRunExecutor {
         evidenceHistory.add(firstEvidence);
         int configuredMaxRewriteTimes = maxRewriteTimes(plan);
         boolean firstEvidenceAvailable = usableEvidenceAvailable(firstEvidence);
+        boolean actionableEvidenceRefinementAvailable =
+            !evidenceRefinementRequiredTools(evidenceHistory, tools).isEmpty();
         boolean augmentationOverrideAvailable = configuredMaxRewriteTimes == 0
-            && firstEvidenceAvailable
+            && (firstEvidenceAvailable || actionableEvidenceRefinementAvailable)
             && MAX_INTERPRETATION_PLAN_ATTEMPTS > 1;
         EvidenceAugmentationPolicy.Outcome latestAugmentationDecision = decideEvidenceAugmentation(
             firstEvidence,
@@ -2957,10 +2964,11 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 end = synthesisPrompt.length();
             }
             if (end > start) {
-                return "Reviewer evidence contract: the ledger classifies execution state, while the "
+                String context = "Reviewer evidence contract: the ledger classifies execution state, while the "
                     + "executed-plan evidence below contains the authoritative returned values. Review both; "
                     + "never infer that values are missing merely because the ledger is a compact index.\n"
                     + synthesisPrompt.substring(start, end);
+                return appendRecordGroundedReviewerEvidence(context, synthesisPrompt);
             }
         }
         start = synthesisPrompt.indexOf("Executed plan attempts (");
@@ -2971,7 +2979,21 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (end <= start) {
             end = synthesisPrompt.length();
         }
-        return synthesisPrompt.substring(start, end);
+        return appendRecordGroundedReviewerEvidence(synthesisPrompt.substring(start, end), synthesisPrompt);
+    }
+
+    private String appendRecordGroundedReviewerEvidence(String context, String synthesisPrompt) {
+        String marker = "Complete returned-record evidence (record_grounded_analysis.v1).";
+        int recordEvidenceStart = synthesisPrompt.indexOf(marker);
+        if (recordEvidenceStart < 0) {
+            return context;
+        }
+        String recordEvidence = synthesisPrompt.substring(recordEvidenceStart).trim();
+        if (recordEvidence.isBlank() || context.contains(recordEvidence)) {
+            return context;
+        }
+        return context + "\n\nReviewer returned-record evidence (authoritative analyzed values):\n"
+            + recordEvidence;
     }
 
     private boolean hasBatchExecutionResult(InterpretationPlanRuntime.ExecutionResult result) {
@@ -5909,7 +5931,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
             }
         }
         nextActions.addAll(pendingEvidenceNextActions(toolEvidence));
-        if (diagnosticCoverageComplete && result != null && result.success()) {
+        if (diagnosticRun != null && diagnosticCoverageComplete && result != null && result.success()) {
             // Per-step reviewers run before downstream dependencies. Their interim
             // "not executed yet" gaps are therefore stale once the Runtime-owned
             // diagnostic contract proves that every required check is covered by
@@ -6114,7 +6136,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         }
     }
 
-    private List<Map<String, Object>> interpretationToolEvidence(
+    List<Map<String, Object>> interpretationToolEvidence(
         InterpretationPlan plan,
         InterpretationPlanRuntime.ExecutionResult result,
         int iteration
@@ -6158,8 +6180,19 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 : step.metadata().getOrDefault("missingEvidence", List.of()));
             item.put("conflicts", step.metadata() == null ? List.of()
                 : step.metadata().getOrDefault("evidenceConflicts", List.of()));
-            item.put("nextActions", step.metadata() == null ? List.of()
-                : step.metadata().getOrDefault("nextActions", List.of()));
+            List<Object> stepNextActions = new ArrayList<>();
+            if (step.metadata() != null) {
+                addEvidenceAnalysisItems(stepNextActions,
+                    step.metadata().getOrDefault("nextActions", List.of()));
+            }
+            Object executionContractSource = step.toolExecution() != null
+                && step.toolExecution().output() != null
+                && step.toolExecution().output().getData() != null
+                ? step.toolExecution().output().getData()
+                : step.output();
+            stepNextActions.addAll(discoveredExecutorActions(
+                executionContractSource, step.toolName(), step.stepId()));
+            item.put("nextActions", List.copyOf(stepNextActions));
             Map<String, Object> evidenceEvaluation = step.metadata() == null
                 ? Map.of()
                 : asMap(step.metadata().get("evidenceEvaluation"));
@@ -6195,6 +6228,58 @@ public class AgentOrchestrator implements AgentRunExecutor {
             evidence.add(item);
         }
         return List.copyOf(evidence);
+    }
+
+    /**
+     * Converts a discovery result's published execution contract into a deterministic
+     * evidence-refinement action. The Runtime reads the executor role from returned metadata;
+     * it does not infer an executor from business intent, template names, or tool-name families.
+     */
+    List<Map<String, Object>> discoveredExecutorActions(Object output,
+                                                        String sourceTool,
+                                                        Integer sourceStepId) {
+        Set<String> executionTools = new LinkedHashSet<>();
+        collectExecutionTools(output, executionTools, 0);
+        List<Map<String, Object>> actions = new ArrayList<>();
+        for (String executionTool : executionTools) {
+            if (executionTool == null || executionTool.isBlank()
+                || toolNames.sameToolName(sourceTool, executionTool)) {
+                continue;
+            }
+            actions.add(metadataOf(
+                "action", "execute_discovered_template",
+                "tool", executionTool,
+                "requiredExecution", true,
+                "source", "tool_output_execution_contract",
+                "discoveryStepId", sourceStepId,
+                "dependsOnTools", sourceTool == null ? List.of() : List.of(sourceTool),
+                "reason", "Discovery metadata declares an executor; discovery alone is not business evidence."
+            ));
+        }
+        return List.copyOf(actions);
+    }
+
+    private void collectExecutionTools(Object value, Set<String> target, int depth) {
+        if (value == null || target == null || depth > 10 || target.size() >= 16) {
+            return;
+        }
+        if (value instanceof Map<?, ?> map) {
+            map.forEach((key, nested) -> {
+                String field = key == null ? "" : String.valueOf(key);
+                if (("executionTool".equals(field) || "execution_tool".equals(field))
+                    && nested != null && !String.valueOf(nested).isBlank()) {
+                    target.add(String.valueOf(nested).trim());
+                } else {
+                    collectExecutionTools(nested, target, depth + 1);
+                }
+            });
+            return;
+        }
+        if (value instanceof Iterable<?> items) {
+            for (Object item : items) {
+                collectExecutionTools(item, target, depth + 1);
+            }
+        }
     }
 
     private Map<String, Object> evidenceQuality(
@@ -6816,7 +6901,10 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 Map<String, Object> action = asStringObjectMap(rawActionMap);
                 String requestedTool = stringValue(firstObject(action,
                     "tool", "toolName", "tool_name"));
+                boolean requiredExecution = booleanValue(firstObject(action,
+                    "requiredExecution", "required_execution"));
                 if (requestedTool != null
+                    && !requiredExecution
                     && Boolean.FALSE.equals(source.get("shouldExpandQuery"))) {
                     continue;
                 }

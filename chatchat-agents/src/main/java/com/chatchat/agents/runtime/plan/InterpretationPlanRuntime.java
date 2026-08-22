@@ -1682,6 +1682,7 @@ public class InterpretationPlanRuntime {
         if (step.mcpToolAction()) {
             try {
                 Map<String, Object> resolvedInput = resolvedStepInput(step, request, completed);
+                applyBoundDocumentScope(step, request, resolvedInput);
                 Map<String, Object> contextParameterRecovery = new LinkedHashMap<>(
                     asStringMap(resolvedInput.remove(CONTEXT_PARAMETER_RECOVERY_KEY)));
                 boolean templateCompletenessRepairApplied = false;
@@ -1710,7 +1711,7 @@ public class InterpretationPlanRuntime {
                 );
                 if (templateInvocation == null) {
                     templateInvocation = reviewedTemplateBatchInvocation(
-                        step, completed, resolvedInput, allowedTools, request.toolRegistry()
+                        step, request.plan(), completed, resolvedInput, allowedTools, request.toolRegistry()
                     );
                 }
                 if (templateInvocation == null) {
@@ -3156,7 +3157,7 @@ public class InterpretationPlanRuntime {
         return false;
     }
 
-    private StepReview localToolResultReview(InterpretationPlan.Step step, StepExecution execution) {
+    StepReview localToolResultReview(InterpretationPlan.Step step, StepExecution execution) {
         if (execution == null || !execution.success()) {
             return null;
         }
@@ -3213,9 +3214,9 @@ public class InterpretationPlanRuntime {
                     )
                 );
             }
-            int returnedCount = discoveredAssetCount(
-                execution.output(), isPythonAnalysisQueryTool(execution.toolName())
-                    ? "candidates" : "templates");
+            int returnedCount = Math.max(
+                discoveredAssetCount(execution.output(), "templates"),
+                discoveredAssetCount(execution.output(), "candidates"));
             if (returnedCount <= 0) {
                 return StepReview.rejected(
                     "NO_MATCHING_TEMPLATE: template discovery completed without an executable template; dependent execution must not continue.",
@@ -5260,6 +5261,7 @@ public class InterpretationPlanRuntime {
      */
     private TemplateExecutorInvocation reviewedTemplateBatchInvocation(
         InterpretationPlan.Step step,
+        InterpretationPlan plan,
         Map<Integer, StepExecution> completed,
         Map<String, Object> input,
         List<String> allowedTools,
@@ -5269,19 +5271,38 @@ public class InterpretationPlanRuntime {
             return null;
         }
         List<String> selectedIds = reviewedSelectedTemplateIds(completed);
+        List<Map<String, Object>> selectedTemplates = selectedIds.stream()
+            .map(templateId -> completedTemplateMetadata(completed, templateId))
+            .toList();
+        List<InterpretationPlan.DiagnosticCheck> checks = requiredChecksForStep(step, plan);
+        Map<Integer, Integer> assignments = checks.isEmpty()
+            ? Map.of()
+            : diagnosticTemplateAssignments(
+                checks,
+                selectedTemplates,
+                resolvedDiagnosticTemplateHints(step.input(), input),
+                resolvedDiagnosticCallContexts(step.input(), input));
+        Map<Integer, String> checkIdByTemplateIndex = new LinkedHashMap<>();
+        assignments.forEach((checkIndex, templateIndex) -> {
+            if (checkIndex >= 0 && checkIndex < checks.size()) {
+                checkIdByTemplateIndex.put(templateIndex, checks.get(checkIndex).checkId());
+            }
+        });
         Map<String, Object> batchInput = new LinkedHashMap<>(input == null ? Map.of() : input);
         mergeReviewedTemplateExecutionInputChanges(completed, step.toolName(), batchInput);
         List<Map<String, Object>> calls = new ArrayList<>();
         String outerTool = null;
-        for (String templateId : selectedIds) {
-            Map<String, Object> template = completedTemplateMetadata(completed, templateId);
+        for (int templateIndex = 0; templateIndex < selectedIds.size(); templateIndex++) {
+            String templateId = selectedIds.get(templateIndex);
+            Map<String, Object> template = selectedTemplates.get(templateIndex);
             String declaredExecutor = firstText(templateExecutorTool(template), step.toolName());
             String childTool = resolveExecutionToolName(declaredExecutor, allowedTools);
             Map<String, Object> arguments = diagnosticBatchArguments(batchInput, template, templateId);
             Map<String, Object> call = new LinkedHashMap<>();
-            call.put("callId", templateId);
+            call.put("callId", firstText(checkIdByTemplateIndex.get(templateIndex), templateId));
             call.put("toolName", firstText(childTool, step.toolName()));
             call.put("arguments", arguments);
+            applyTemplateEvidenceContract(call, template);
             if (template.isEmpty()) {
                 call.put("preflightErrorCode", "ADMITTED_TEMPLATE_METADATA_UNAVAILABLE");
                 call.put("preflightMessage", "The admitted template metadata was unavailable at execution preflight");
@@ -5322,6 +5343,147 @@ public class InterpretationPlanRuntime {
             calls.stream().filter(call -> call.containsKey("preflightErrorCode")).count(),
             calls.stream().map(call -> call.get("callId")).toList());
         return new TemplateExecutorInvocation(outerTool, batch);
+    }
+
+    private void applyBoundDocumentScope(InterpretationPlan.Step step,
+                                         ExecutionRequest request,
+                                         Map<String, Object> input) {
+        if (step == null || request == null || input == null || request.attributes() == null) {
+            return;
+        }
+        String configuredTool = stringValue(request.attributes().get("documentSearchTool"));
+        if (configuredTool == null || !configuredTool.equalsIgnoreCase(step.toolName())) {
+            return;
+        }
+        String scopeMode = stringValue(firstPresent(request.attributes(),
+            "documentScopeMode", "document_scope_mode"));
+        if (!"strict".equalsIgnoreCase(scopeMode)) {
+            return;
+        }
+        List<String> documentIds = stringValues(firstPresent(request.attributes(),
+            "boundDocumentIds", "bound_document_ids"));
+        List<String> documentTags = stringValues(firstPresent(request.attributes(),
+            "boundDocumentTags", "bound_document_tags"));
+        if (!documentIds.isEmpty()) {
+            String documentIdParameter = supportedToolParameter(
+                request, step.toolName(), "fileIds", "document_ids", "documentIds", "file_ids");
+            input.put(documentIdParameter, documentIds);
+            input.put("selectedDocumentIds", documentIds);
+            input.put("documentVisibilityEnforced", true);
+        }
+        if (!documentTags.isEmpty()) {
+            input.put("tags", documentTags);
+        }
+        input.put("strict_document_scope", true);
+    }
+
+    private String supportedToolParameter(ExecutionRequest request,
+                                          String toolName,
+                                          String fallback,
+                                          String... aliases) {
+        if (request != null && request.toolRegistry() != null && toolName != null) {
+            ToolMetadata metadata = request.toolRegistry().getToolMetadata(toolName);
+            if (metadata != null && metadata.getParameters() != null) {
+                Set<String> publishedNames = metadata.getParameters().stream()
+                    .filter(Objects::nonNull)
+                    .map(parameter -> stringValue(parameter.getName()))
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+                List<String> candidates = new ArrayList<>();
+                candidates.add(fallback);
+                if (aliases != null) {
+                    Collections.addAll(candidates, aliases);
+                }
+                for (String candidate : candidates) {
+                    if (publishedNames.contains(candidate)) {
+                        return candidate;
+                    }
+                }
+            }
+        }
+        return fallback;
+    }
+
+    private List<InterpretationPlan.DiagnosticCheck> requiredChecksForStep(
+        InterpretationPlan.Step step,
+        InterpretationPlan plan
+    ) {
+        if (step == null || step.id() == null || plan == null || plan.plan() == null
+            || plan.plan().diagnosticProfile() == null
+            || plan.plan().diagnosticProfile().checks() == null) {
+            return List.of();
+        }
+        return plan.plan().diagnosticProfile().checks().stream()
+            .filter(Objects::nonNull)
+            .filter(check -> !Boolean.FALSE.equals(check.required()))
+            .filter(check -> check.stepIds() != null && check.stepIds().contains(step.id()))
+            .sorted(java.util.Comparator.comparingInt(check ->
+                check.priority() == null ? Integer.MAX_VALUE : check.priority()))
+            .toList();
+    }
+
+    /**
+     * Copies template-owned evidence semantics into every Runtime-generated batch call.
+     * Both one-to-one diagnostic batches and larger reviewer-admitted batches must honor
+     * the same relational template contract; otherwise an intentional empty health result
+     * can be downgraded to missing evidence merely because a different batching path ran.
+     */
+    private void applyTemplateEvidenceContract(Map<String, Object> call,
+                                               Map<String, Object> template) {
+        Boolean emptyResultIsSuccess = booleanObject(firstValueAtAnyPath(template,
+            "$.emptyResultIsSuccess",
+            "$.resultPolicy.emptyResultIsSuccess",
+            "$.evidencePolicy.emptyResultIsSuccess"));
+        if (emptyResultIsSuccess != null) {
+            call.put("emptyResultIsSuccess", emptyResultIsSuccess);
+        }
+        List<String> requiredFields = stringValues(firstValueAtAnyPath(template,
+            "$.requiredFields", "$.required_fields", "$.outputSchema.required",
+            "$.output_schema.required", "$.resultPolicy.requiredFields",
+            "$.evidencePolicy.requiredFields", "$.qualityPolicy.requiredFields"));
+        if (!requiredFields.isEmpty()) {
+            call.put("requiredFields", requiredFields);
+        }
+        List<String> requiredMetrics = stringValues(firstValueAtAnyPath(template,
+            "$.requiredMetrics", "$.required_metrics", "$.evidencePolicy.requiredMetrics",
+            "$.qualityPolicy.requiredMetrics"));
+        if (requiredMetrics.isEmpty()) {
+            requiredMetrics = requiredFields;
+        }
+        if (!requiredMetrics.isEmpty()) {
+            call.put("requiredMetrics", requiredMetrics);
+        }
+        Object purpose = firstValueAtAnyPath(template,
+            "$.purpose", "$.diagnosticPurpose", "$.evidencePolicy.purpose",
+            "$.qualityPolicy.purpose");
+        if (purpose != null && !String.valueOf(purpose).isBlank()) {
+            call.put("purpose", String.valueOf(purpose));
+        }
+        Boolean healthCapability = booleanObject(firstValueAtAnyPath(template,
+            "$.healthCapability", "$.health_capability", "$.evidencePolicy.healthCapability",
+            "$.qualityPolicy.healthCapability"));
+        if (healthCapability != null) {
+            call.put("healthCapability", healthCapability);
+        }
+        Object timeSemantics = firstValueAtAnyPath(template,
+            "$.timeSemantics", "$.time_semantics", "$.evidencePolicy.timeSemantics",
+            "$.qualityPolicy.timeSemantics");
+        if (timeSemantics != null && !String.valueOf(timeSemantics).isBlank()) {
+            call.put("timeSemantics", String.valueOf(timeSemantics));
+        }
+        List<String> requiresContext = stringValues(firstValueAtAnyPath(template,
+            "$.requiresContext", "$.requires_context", "$.evidencePolicy.requiresContext",
+            "$.qualityPolicy.requiresContext"));
+        if (!requiresContext.isEmpty()) {
+            call.put("requiresContext", requiresContext);
+        }
+        Integer freshnessMaxAgeSeconds = integerValue(firstValueAtAnyPath(template,
+            "$.freshnessMaxAgeSeconds", "$.freshness_max_age_seconds",
+            "$.evidencePolicy.freshnessMaxAgeSeconds",
+            "$.qualityPolicy.freshnessMaxAgeSeconds"));
+        if (freshnessMaxAgeSeconds != null && freshnessMaxAgeSeconds >= 0) {
+            call.put("freshnessMaxAgeSeconds", freshnessMaxAgeSeconds);
+        }
     }
 
     private boolean batchCapable(String toolName,
@@ -7781,19 +7943,39 @@ public class InterpretationPlanRuntime {
             : null;
     }
 
-    private Object bindingValue(StepExecution source,
-                                InterpretationPlan.Binding binding,
-                                ExecutionRequest request) {
+    Object bindingValue(StepExecution source,
+                        InterpretationPlan.Binding binding,
+                        ExecutionRequest request) {
         if (source == null || binding == null) {
             return null;
         }
-        Object value = valueAtPath(source.output(), binding.outputPath());
+        Object reviewedOutput = source.output();
+        Object value = valueAtPath(reviewedOutput, binding.outputPath());
         if (value != null) {
             return value;
         }
-        value = canonicalProtocolValue(source.output(), binding.inputField());
+        value = canonicalProtocolValue(reviewedOutput, binding.inputField());
         if (value != null) {
             return value;
+        }
+        if (bindingTargetsTemplateId(binding)) {
+            value = firstValueAtAnyPath(reviewedOutput,
+                "$.runtimeTemplateSelection.selectedTemplateIds[0]",
+                "$.routingProjection.runtimeTemplateSelection.selectedTemplateIds[0]");
+            if (value != null) {
+                return value;
+            }
+        }
+        Object sourceData = completeStepOutput(source);
+        if (sourceData != reviewedOutput) {
+            value = valueAtPath(sourceData, binding.outputPath());
+            if (value != null) {
+                return value;
+            }
+            value = canonicalProtocolValue(sourceData, binding.inputField());
+            if (value != null) {
+                return value;
+            }
         }
         if (environmentContractField(binding.outputPath()) || environmentContractField(binding.inputField())) {
             value = environmentContractValue(source, request, binding.from());
@@ -7805,7 +7987,7 @@ public class InterpretationPlanRuntime {
             }
         }
         if (isTemplateDiscoveryTool(source.toolName()) && bindingTargetsTemplateId(binding)) {
-            return firstValueAtAnyPath(source.output(),
+            return firstValueAtAnyPath(sourceData,
                 "$.templates[0].templateId",
                 "$.templates[0].id",
                 "$.templates[0].code",
@@ -7820,6 +8002,15 @@ public class InterpretationPlanRuntime {
                 "$.code");
         }
         return null;
+    }
+
+    private Object completeStepOutput(StepExecution source) {
+        if (source != null && source.toolExecution() != null
+            && source.toolExecution().output() != null
+            && source.toolExecution().output().getData() != null) {
+            return source.toolExecution().output().getData();
+        }
+        return source == null ? null : source.output();
     }
 
     private boolean bindingTargetsTemplateId(InterpretationPlan.Binding binding) {

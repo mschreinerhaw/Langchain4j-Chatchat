@@ -36,7 +36,7 @@ import java.util.stream.IntStream;
 public class StandardToolExecutionResultFactory {
 
     public static final String SCHEMA_VERSION = "tool_execution_result.v1";
-    static final int MODEL_SAFE_TEXT_LIMIT = 4_000;
+    /** Maximum requested batch size; this is input governance, never output truncation. */
     public static final int MODEL_SAFE_COLLECTION_LIMIT = 200;
     static final int STRUCTURED_JSON_TEXT_LIMIT = 1_000_000;
     private static final ObjectMapper JSON = new ObjectMapper();
@@ -1167,6 +1167,12 @@ public class StandardToolExecutionResultFactory {
         payload.put("status", success ? "success" : "failed");
         payload.put("durationMs", durationMs);
         payload.put("generatedAt", Instant.now().toString());
+        payload.put("dataCompleteness", mapOf(
+            "contractVersion", "mcp_complete_result.v1",
+            "complete", true,
+            "gatewayTruncated", false,
+            "projectionRequiredByConsumer", true
+        ));
         payload.put("error", errorMessage == null || errorMessage.isBlank()
             ? null
             : mapOf("message", errorMessage));
@@ -1266,45 +1272,6 @@ public class StandardToolExecutionResultFactory {
                 "category", category
             )
         );
-    }
-
-    @SuppressWarnings("unchecked")
-    private Object modelSafeValue(Object value) {
-        if (value instanceof Map<?, ?> map) {
-            Map<String, Object> safe = new LinkedHashMap<>();
-            int included = 0;
-            for (Map.Entry<?, ?> entry : map.entrySet()) {
-                if (included >= MODEL_SAFE_COLLECTION_LIMIT) {
-                    safe.put("_truncatedEntries", map.size() - included);
-                    break;
-                }
-                Object key = entry.getKey();
-                Object item = entry.getValue();
-                String name = String.valueOf(key);
-                if (!isDatabaseConnectionUrlKey(name)) {
-                    safe.put(name, modelSafeValue(item));
-                    included++;
-                }
-            }
-            return safe;
-        }
-        if (value instanceof Iterable<?> iterable) {
-            List<Object> safe = new java.util.ArrayList<>();
-            int included = 0;
-            for (Object item : iterable) {
-                if (included >= MODEL_SAFE_COLLECTION_LIMIT) {
-                    safe.add("...[collection truncated]...");
-                    break;
-                }
-                safe.add(modelSafeValue(item));
-                included++;
-            }
-            return safe;
-        }
-        if (value instanceof CharSequence text) {
-            return boundedText(text.toString(), MODEL_SAFE_TEXT_LIMIT).value();
-        }
-        return value;
     }
 
     private Map<String, Object> runtimeSafeSqlRow(Map<String, Object> row,
@@ -1412,7 +1379,11 @@ public class StandardToolExecutionResultFactory {
         if (value == null || value.isEmpty()) {
             return Map.of();
         }
-        return (Map<String, Object>) modelSafeValue(value);
+        // MCP is the lossless fact boundary. It may redact connection secrets, but it
+        // must never shorten strings or collections for a model context window.
+        // Context projection belongs to Runtime/Agent after this complete value has
+        // been persisted as evidence.
+        return (Map<String, Object>) runtimeSafeEvidenceValue(value);
     }
 
     private boolean isDatabaseConnectionUrlKey(String key) {
@@ -1510,25 +1481,6 @@ public class StandardToolExecutionResultFactory {
 
     private int textLength(String value) {
         return value == null ? 0 : value.length();
-    }
-
-    private BoundedText boundedText(String value, int limit) {
-        String text = value == null ? "" : value;
-        int max = Math.max(256, limit);
-        if (text.length() <= max) {
-            return new BoundedText(text, text.length(), false);
-        }
-        String markerTemplate = "\n...[truncated %d chars; preserving tail]...\n";
-        String marker = markerTemplate.formatted(Math.max(0, text.length() - max));
-        for (int attempt = 0; attempt < 3; attempt++) {
-            int retained = Math.max(2, max - marker.length());
-            marker = markerTemplate.formatted(Math.max(0, text.length() - retained));
-        }
-        int available = Math.max(2, max - marker.length());
-        int headLength = available / 2;
-        int tailLength = available - headLength;
-        String bounded = text.substring(0, headLength) + marker + text.substring(text.length() - tailLength);
-        return new BoundedText(bounded, text.length(), true);
     }
 
     private BoundedText completeCapturedText(String value) {

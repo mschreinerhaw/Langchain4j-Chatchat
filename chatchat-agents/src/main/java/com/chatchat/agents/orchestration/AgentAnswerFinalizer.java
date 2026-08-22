@@ -1479,6 +1479,7 @@ class AgentAnswerFinalizer {
             return Map.of();
         }
         List<String> templateIds = new ArrayList<>();
+        List<Map<String, Object>> resultSetEvidence = new ArrayList<>();
         int returnedRows = 0;
         int usableResultSets = 0;
         for (Object value : results) {
@@ -1502,6 +1503,14 @@ class AgentAnswerFinalizer {
             if (!table.isEmpty()) {
                 returnedRows += rowMaps(table.get("rows"), table.get("columns")).size();
             }
+            Map<String, Object> childEvidence = new LinkedHashMap<>();
+            childEvidence.put("templateId", templateId);
+            childEvidence.put("callId", result.get("callId"));
+            childEvidence.put("status", result.get("status"));
+            childEvidence.put("success", !"FAILED".equalsIgnoreCase(stringValue(result.get("status"))));
+            childEvidence.put("outputPreview", previewStructured(
+                rawOutput == null ? result : rawOutput));
+            resultSetEvidence.add(compactEvidence(childEvidence));
         }
         Map<String, Object> evidence = new LinkedHashMap<>();
         evidence.put("evidenceType", "result_set_batch");
@@ -1509,6 +1518,7 @@ class AgentAnswerFinalizer {
         evidence.put("usableResultSetCount", usableResultSets);
         evidence.put("returnedRowCount", returnedRows);
         evidence.put("templateIds", List.copyOf(templateIds));
+        evidence.put("resultSetEvidence", List.copyOf(resultSetEvidence));
         if (output.get("status") != null) {
             evidence.put("batchStatus", output.get("status"));
         }

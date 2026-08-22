@@ -496,6 +496,17 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
             .hasSize(2)
             .extracting(row -> row.get("DIAGNOSTIC_CHECK"))
             .containsExactly("instance_status", "session_overview");
+        List<Map<String, Object>> toolEvidence =
+            (List<Map<String, Object>>) result.metadata().get("toolResultEvidence");
+        assertThat(toolEvidence).singleElement().satisfies(item -> {
+            List<Map<String, Object>> resultSets =
+                (List<Map<String, Object>>) item.get("resultSetEvidence");
+            assertThat(resultSets).hasSize(2);
+            assertThat(resultSets.get(0).get("outputPreview").toString())
+                .contains("oraclewind", "OPEN");
+            assertThat(resultSets.get(1).get("outputPreview").toString())
+                .contains("TOTAL_SESSIONS", "18");
+        });
     }
 
     @Test

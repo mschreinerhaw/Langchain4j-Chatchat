@@ -200,6 +200,14 @@ class StandardToolExecutionResultFactoryTest {
     @Test
     void sqlResultPreservesAllFetchedRowsForRuntimeChunkAnalysis() throws Exception {
         String fullCell = "SQL_CELL_HEAD\n" + "x".repeat(10_000) + "\nSQL_CELL_TAIL";
+        Map<String, Object> completeDiagnostics = new LinkedHashMap<>();
+        completeDiagnostics.put("connection", Map.of(
+            "jdbcUrl", "jdbc:mysql://db.internal:3306/customer",
+            "catalog", "customer"
+        ));
+        IntStream.range(0, 250).forEach(index ->
+            completeDiagnostics.put("diagnostic-" + index, "value-" + index));
+        completeDiagnostics.put("longDiagnostic", "DIAGNOSTIC_HEAD" + "z".repeat(5_000) + "DIAGNOSTIC_TAIL");
         List<Map<String, Object>> rows = IntStream.rangeClosed(1, 60)
             .mapToObj(index -> Map.<String, Object>of("id", index, "payload", fullCell + index))
             .toList();
@@ -228,10 +236,7 @@ class StandardToolExecutionResultFactoryTest {
             "debug",
             "task-1",
             null,
-            Map.of("connection", Map.of(
-                "jdbcUrl", "jdbc:mysql://db.internal:3306/customer",
-                "catalog", "customer"
-            ))
+            completeDiagnostics
         );
 
         Map<String, Object> envelope = factory.fromSql(result);
@@ -247,11 +252,22 @@ class StandardToolExecutionResultFactoryTest {
         Map<?, ?> sourceMetadata = (Map<?, ?>) envelope.get("sourceMetadata");
         Map<?, ?> sourceOperation = (Map<?, ?>) sourceMetadata.get("operation");
         Map<?, ?> sourceBusiness = (Map<?, ?>) sourceMetadata.get("business");
+        Map<?, ?> diagnostics = (Map<?, ?>) data.get("diagnostics");
+        Map<?, ?> completeness = (Map<?, ?>) envelope.get("dataCompleteness");
 
         assertThat(envelope).containsEntry("schemaVersion", StandardToolExecutionResultFactory.SCHEMA_VERSION);
         assertThat(envelope).containsEntry("kind", "sql_query");
         assertThat(envelope).containsEntry("dataSchema", "sql_result.v1");
         assertThat(envelope).containsEntry("payloadType", "structured");
+        assertThat(completeness.get("contractVersion")).isEqualTo("mcp_complete_result.v1");
+        assertThat(completeness.get("complete")).isEqualTo(true);
+        assertThat(completeness.get("gatewayTruncated")).isEqualTo(false);
+        assertThat(diagnostics.get("diagnostic-249")).isEqualTo("value-249");
+        assertThat(String.valueOf(diagnostics.get("longDiagnostic")))
+            .startsWith("DIAGNOSTIC_HEAD")
+            .endsWith("DIAGNOSTIC_TAIL")
+            .hasSize("DIAGNOSTIC_HEAD".length() + 5_000 + "DIAGNOSTIC_TAIL".length());
+        assertThat(String.valueOf(diagnostics)).doesNotContain("truncated");
         assertThat(execution.get("schemaVersion")).isEqualTo("execution_unit.v1");
         assertThat(execution.get("toolName")).isEqualTo("sql_main");
         assertThat(step.get("stepType")).isEqualTo("sql");

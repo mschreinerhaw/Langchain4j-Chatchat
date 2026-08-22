@@ -29,6 +29,10 @@ final class AnswerEvidenceLedgerCompiler {
     private static final Pattern NUMBER_OR_DATE = Pattern.compile(
         "(?:\\d+(?:[.,]\\d+)?%?|\\d{4}(?:[-/年]\\d{1,2}(?:[-/月]\\d{1,2}日?)?))");
     private static final Pattern WORD = Pattern.compile("[a-z][a-z0-9_-]{2,}|[\\p{IsHan}]{2,}");
+    private static final Pattern AGGREGATE_COUNT = Pattern.compile(
+        "(?i)(?:\\b(?:count|total)\\s*(?:is|=|:)?\\s*\\d+"
+            + "|\\b\\d+\\s+(?:records?|rows?|items?|images?|containers?|sessions?|errors?)\\b"
+            + "|\\d+\\s*(?:个|条|行|项|台|张|笔|次)(?:[\\p{IsHan}]{0,8})?)");
 
     Result compile(String answer, Map<String, Object> metadata, List<String> observations,
                    List<Map<String, Object>> toolEvidence) {
@@ -92,7 +96,25 @@ final class AnswerEvidenceLedgerCompiler {
             String content = firstNonBlank(tool.get("outputPreview"), tool.get("bodyPreview"),
                 tool.get("stdoutPreview"), tool.get("sampleRows"));
             boolean trusted = Boolean.TRUE.equals(tool.get("success"));
-            items.putIfAbsent(ref, evidence(ref, "TOOL", content, toolName, trusted));
+            Object rawChildren = tool.get("resultSetEvidence");
+            boolean hasChildren = rawChildren instanceof List<?> && !((List<?>) rawChildren).isEmpty();
+            if (!content.isBlank() || !hasChildren) {
+                items.putIfAbsent(ref, evidence(ref, "TOOL", content, toolName, trusted));
+            }
+            if (rawChildren instanceof List<?> children) {
+                int childIndex = 0;
+                for (Object rawChild : children) {
+                    Map<String, Object> child = map(rawChild);
+                    if (child.isEmpty()) continue;
+                    childIndex++;
+                    String childRef = ref + "/child=" + childIndex;
+                    String childContent = firstNonBlank(child.get("outputPreview"), child.get("bodyPreview"),
+                        child.get("stdoutPreview"), child.get("sampleRows"));
+                    boolean childTrusted = trusted && !Boolean.FALSE.equals(child.get("success"));
+                    items.putIfAbsent(childRef, evidence(childRef, "TOOL_RESULT_SET", childContent,
+                        firstNonBlank(child.get("templateId"), child.get("callId"), toolName), childTrusted));
+                }
+            }
         }
         return items;
     }
@@ -130,7 +152,7 @@ final class AnswerEvidenceLedgerCompiler {
                 continue;
             }
             line = line.replaceFirst("^\\s*(?:[-*+]\\s+|\\d+[.)\\u3001]\\s*)", "").trim();
-            for (String sentence : line.split("(?<=[\\u3002\\uFF01\\uFF1F!?])")) {
+            for (String sentence : line.split("(?<=[\\u3002\\uFF01\\uFF1F!?])|(?<=\\.)\\s+")) {
                 String claimText = sentence.trim();
                 if (!isMaterial(claimText)) continue;
                 id++;
@@ -143,7 +165,8 @@ final class AnswerEvidenceLedgerCompiler {
                     : !known.isEmpty() ? "VERIFIED"
                     : !inferred.isEmpty() ? "VERIFIED_VALUE_MATCH"
                     : manifest.isEmpty() ? "NO_EXTERNAL_EVIDENCE" : "UNBOUND";
-                String risk = NUMBER_OR_DATE.matcher(claimText).find() || strongClaim(claimText) ? "HIGH" : "NORMAL";
+                String risk = NUMBER_OR_DATE.matcher(claimText).find()
+                    || (strongClaim(claimText) && !isNormativeGuidance(claimText)) ? "HIGH" : "NORMAL";
                 Map<String, Object> claim = new LinkedHashMap<>();
                 claim.put("claimId", "C" + id);
                 claim.put("text", claimText);
@@ -166,21 +189,85 @@ final class AnswerEvidenceLedgerCompiler {
         List<String> claimValues = matchedValues(claimText);
         if (claimValues.isEmpty()) return List.of();
         Set<String> claimTerms = terms(claimText);
-        long trustedEvidenceCount = manifest.values().stream()
+        List<EvidenceItem> eligibleEvidence = eligibleFactEvidence(manifest);
+        if (!aggregateCountsSupported(claimText, eligibleEvidence)) return List.of();
+        long trustedEvidenceCount = eligibleEvidence.stream()
             .filter(item -> "TRUSTED".equals(item.trustStatus()) && !item.contentPreview().isBlank())
             .count();
         List<String> matches = new ArrayList<>();
-        for (EvidenceItem item : manifest.values()) {
+        for (EvidenceItem item : eligibleEvidence) {
             if (!"TRUSTED".equals(item.trustStatus()) || item.contentPreview().isBlank()) continue;
-            String evidenceText = normalizedComparable(item.contentPreview());
-            boolean allValuesPresent = claimValues.stream().map(this::normalizedComparable).allMatch(evidenceText::contains);
             Set<String> evidenceTerms = terms(item.contentPreview());
-            if (allValuesPresent && (trustedEvidenceCount == 1
+            if (allValuesHaveLocalContext(claimValues, claimTerms, item.contentPreview())
+                && (trustedEvidenceCount == 1
                 || claimTerms.stream().anyMatch(evidenceTerms::contains))) {
                 matches.add(item.evidenceId());
             }
         }
+        if (!matches.isEmpty()) return List.copyOf(matches);
+
+        // A factual sentence may synthesize values from several result sets of the
+        // same governed batch. Bind it to every contributing child when the trusted
+        // evidence union contains all values and every selected child also shares a
+        // meaningful domain term. This keeps the gate strict without requiring the
+        // model to force one sentence per physical result set.
+        List<EvidenceItem> contributors = eligibleEvidence.stream()
+            .filter(item -> "TRUSTED".equals(item.trustStatus()) && !item.contentPreview().isBlank())
+            .filter(item -> {
+                Set<String> evidenceTerms = terms(item.contentPreview());
+                return hasAnyValueWithLocalContext(claimValues, claimTerms, item.contentPreview())
+                    && claimTerms.stream().anyMatch(evidenceTerms::contains);
+            })
+            .toList();
+        boolean unionContainsAllValues = claimValues.stream().allMatch(value -> contributors.stream()
+            .anyMatch(item -> valueHasLocalContext(value, claimTerms, item.contentPreview())));
+        if (unionContainsAllValues) {
+            return contributors.stream().map(EvidenceItem::evidenceId).toList();
+        }
         return List.copyOf(matches);
+    }
+
+    /** Runtime result sets take precedence over discovery/catalog payloads for factual value binding. */
+    private List<EvidenceItem> eligibleFactEvidence(Map<String, EvidenceItem> manifest) {
+        List<EvidenceItem> resultSets = manifest.values().stream()
+            .filter(item -> "TOOL_RESULT_SET".equals(item.type()))
+            .toList();
+        return resultSets.isEmpty() ? List.copyOf(manifest.values()) : resultSets;
+    }
+
+    /** Aggregate counts are verified only by the same count phrase/field, never by scattered digits. */
+    private boolean aggregateCountsSupported(String claimText, List<EvidenceItem> evidence) {
+        Matcher matcher = AGGREGATE_COUNT.matcher(claimText == null ? "" : claimText);
+        while (matcher.find()) {
+            String aggregate = normalizedComparable(matcher.group());
+            boolean supported = evidence.stream()
+                .filter(item -> "TRUSTED".equals(item.trustStatus()))
+                .map(EvidenceItem::contentPreview)
+                .map(this::normalizedComparable)
+                .anyMatch(content -> content.contains(aggregate));
+            if (!supported) return false;
+        }
+        return true;
+    }
+
+    /** Every value must occur on a physical evidence line that also carries a claim-domain term. */
+    private boolean allValuesHaveLocalContext(List<String> values, Set<String> claimTerms, String evidence) {
+        return values.stream().allMatch(value -> valueHasLocalContext(value, claimTerms, evidence));
+    }
+
+    private boolean hasAnyValueWithLocalContext(List<String> values, Set<String> claimTerms, String evidence) {
+        return values.stream().anyMatch(value -> valueHasLocalContext(value, claimTerms, evidence));
+    }
+
+    private boolean valueHasLocalContext(String value, Set<String> claimTerms, String evidence) {
+        String expected = normalizedComparable(value);
+        if (expected.isBlank()) return false;
+        for (String line : (evidence == null ? "" : evidence).split("\\R")) {
+            if (!normalizedComparable(line).contains(expected)) continue;
+            Set<String> lineTerms = terms(line);
+            if (claimTerms.stream().anyMatch(lineTerms::contains)) return true;
+        }
+        return false;
     }
 
     private List<String> matchedValues(String value) {
@@ -232,8 +319,14 @@ final class AnswerEvidenceLedgerCompiler {
             + "must|proves?|causes?|always|never).*" );
     }
 
+    private boolean isNormativeGuidance(String value) {
+        String text = value == null ? "" : value.toLowerCase(Locale.ROOT);
+        return text.matches(".*(建议|应当|应该|需要|必须|避免|严禁|不要|可清理|先检查|再启动|"
+            + "recommend|should|must|avoid|do not|never).*");
+    }
+
     private EvidenceItem evidence(String ref, String type, String content, String toolName, boolean trusted) {
-        String normalized = normalize(content);
+        String normalized = content == null ? "" : content.trim();
         return new EvidenceItem(ref, firstNonBlank(type, "UNKNOWN"), toolName == null ? "" : toolName,
             trusted ? "TRUSTED" : "UNAVAILABLE", normalized, sha256(normalized));
     }

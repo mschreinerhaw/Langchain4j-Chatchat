@@ -1,6 +1,8 @@
 package com.chatchat.agents.runtime.plan;
 
-import com.chatchat.agents.protocol.McpToolProtocolRole;
+import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.common.tool.ToolWorkflowRole;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -15,6 +17,32 @@ import java.util.Set;
  * Lightweight optimization passes for InterpretationPlan before DAG execution.
  */
 public class InterpretationPlanOptimizer {
+
+    private final ToolRegistry toolRegistry;
+    private final Map<String, ToolWorkflowRole> workflowRoles;
+
+    public InterpretationPlanOptimizer() {
+        this(null);
+    }
+
+    public InterpretationPlanOptimizer(ToolRegistry toolRegistry) {
+        this.toolRegistry = toolRegistry;
+        Map<String, ToolWorkflowRole> snapshot = new LinkedHashMap<>();
+        if (toolRegistry != null) {
+            try {
+                Set<String> names = toolRegistry.getAllToolNames();
+                if (names != null) {
+                    names.stream().filter(Objects::nonNull).forEach(name -> {
+                        ToolWorkflowRole role = toolRegistry.getWorkflowRole(name);
+                        if (role != null) snapshot.put(name, role);
+                    });
+                }
+            } catch (RuntimeException ignored) {
+                // A registry being refreshed must not create a partially live role view.
+            }
+        }
+        this.workflowRoles = Map.copyOf(snapshot);
+    }
 
     public OptimizationResult optimize(InterpretationPlan plan) {
         return optimize(plan, null);
@@ -530,24 +558,28 @@ public class InterpretationPlanOptimizer {
     }
 
     private boolean isAssetDiscoveryStep(InterpretationPlan.Step step) {
-        String semantic = step == null ? "" : semanticToolName(step.toolName());
         return step != null && step.mcpToolAction()
-            && (McpToolProtocolRole.ASSET_QUERY.matches(semantic)
-                || semantic.equals("asset_discovery") || semantic.endsWith("_asset_search"));
+            && workflowRole(step.toolName()) == ToolWorkflowRole.ASSET_DISCOVERY;
     }
 
     private boolean isTemplateDiscoveryStep(InterpretationPlan.Step step) {
-        String semantic = step == null ? "" : semanticToolName(step.toolName());
         return step != null && step.mcpToolAction()
-            && (McpToolProtocolRole.TEMPLATE_QUERY.matches(semantic)
-                || semantic.equals("template_discovery") || semantic.endsWith("_template_search"));
+            && workflowRole(step.toolName()) == ToolWorkflowRole.TEMPLATE_DISCOVERY;
     }
 
     private boolean isTemplateExecutionStep(InterpretationPlan.Step step) {
-        String semantic = step == null ? "" : semanticToolName(step.toolName());
         return step != null && step.mcpToolAction()
-            && (McpToolProtocolRole.TEMPLATE_EXECUTE.matches(semantic)
-                || semantic.equals("execute") || semantic.endsWith("_execute"));
+            && workflowRole(step.toolName()) == ToolWorkflowRole.TEMPLATE_EXECUTION;
+    }
+
+    private ToolWorkflowRole workflowRole(String toolName) {
+        ToolWorkflowRole snapshotted = workflowRoles.get(toolName);
+        if (snapshotted != null) return snapshotted;
+        return ToolWorkflowContract.resolveRole(toolName, null);
+    }
+
+    ToolWorkflowRole workflowRoleFor(String toolName) {
+        return workflowRole(toolName);
     }
 
     private String semanticToolName(String toolName) {

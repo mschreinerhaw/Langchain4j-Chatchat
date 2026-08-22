@@ -4278,6 +4278,102 @@ class InterpretationPlanRuntimeTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void compilesServerCapabilityBridgeTargetInsteadOfDroppingItToEmptyInput() throws Exception {
+        String toolName = "mcp_chatchat_mcp_server_server_capability_query";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName)
+            .metadata(Map.of("inputSchema", Map.of(
+                "type", "object",
+                "properties", Map.of(
+                    "query", Map.of("type", "string"),
+                    "stage", Map.of("type", "string"),
+                    "filters", Map.of("type", "object", "additionalProperties", true),
+                    "templateIds", Map.of("type", "array", "items", Map.of("type", "string")),
+                    "limit", Map.of("type", "integer")
+                ),
+                "required", List.of(),
+                "additionalProperties", false
+            )))
+            .build());
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class), new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class));
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            1, "mcp_tool", toolName,
+            Map.of("executionContext", Map.of(
+                "env", "DEV",
+                "targetType", "docker_sim_db_server",
+                "target", "Docker 数据库模拟服务器"
+            )),
+            List.of(), null, null);
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0", new InterpretationPlan.Intent("system_operation", "分析 Docker 镜像和容器", "low"),
+            context(), new InterpretationPlan.Plan(List.of(step)),
+            new InterpretationPlan.ExecutionPolicy(1, false, List.of(toolName), List.of(), 30_000), review());
+        InterpretationPlanRuntime.ExecutionRequest request = new InterpretationPlanRuntime.ExecutionRequest(
+            plan, toolRegistry, List.of(toolName), "tenant-1", "req-server-capability",
+            "conv-server-capability", "user-1", Map.of(
+                "originalUserQuery", "分析 Docker 数据库模拟服务器管理的镜像和容器运行情况",
+                "agentRuntimeEnvironment", "DEV"
+            ));
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedStepInput", InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class, Map.class);
+        method.setAccessible(true);
+
+        Map<String, Object> resolved = (Map<String, Object>) method.invoke(runtime, step, request, Map.of());
+
+        assertThat(resolved)
+            .containsEntry("query", "分析 Docker 数据库模拟服务器管理的镜像和容器运行情况")
+            .isNotEmpty();
+        assertThat((Map<String, Object>) resolved.get("filters"))
+            .containsEntry("env", "DEV")
+            .containsEntry("targetType", "docker_sim_db_server")
+            .containsEntry("target", "Docker 数据库模拟服务器");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void carriesServerCapabilitySelectedAssetIntoLinuxExecutionContext() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class), new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class));
+        InterpretationPlanRuntime.StepExecution discovery = new InterpretationPlanRuntime.StepExecution(
+            1,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_server_capability_query",
+            true,
+            Map.of("queryIr", Map.of("asset", Map.of(
+                "scoped", true,
+                "selected", Map.of(
+                    "id", "asset-docker-db",
+                    "name", "docker-database-simulator",
+                    "displayName", "Docker 数据库模拟服务器",
+                    "environment", "DEV",
+                    "toolName", "ssh_container_test_service"
+                )
+            ))),
+            null, null, null, 10, Map.of());
+        Map<String, Object> linuxInput = new LinkedHashMap<>(Map.of(
+            "executionContext", Map.of("env", "DEV")
+        ));
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "hydrateDiagnosticBatchAssetContext", Map.class, Map.class);
+        method.setAccessible(true);
+
+        method.invoke(runtime, Map.of(1, discovery), linuxInput);
+
+        assertThat((Map<String, Object>) linuxInput.get("executionContext"))
+            .containsEntry("assetId", "asset-docker-db")
+            .containsEntry("assetName", "docker-database-simulator")
+            .containsEntry("assetDisplayName", "Docker 数据库模拟服务器")
+            .containsEntry("assetToolName", "ssh_container_test_service")
+            .containsEntry("env", "DEV");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void injectsRetrievalIntentForDatabaseDiscoveryWhenPlannerOmittedFilter() throws Exception {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             mock(ToolRuntimeService.class),

@@ -1,5 +1,8 @@
 package com.chatchat.agents.routing;
 
+import com.chatchat.common.tool.McpToolNamePolicy;
+import com.chatchat.common.tool.ToolWorkflowRole;
+
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -30,7 +33,16 @@ public class McpToolRouter {
                                  List<String> availableTools,
                                  String tenantId,
                                  List<String> roles) {
-        String capability = requestedCapability(requestedToolName, arguments);
+        return route(requestedToolName, arguments, availableTools, tenantId, roles, null);
+    }
+
+    public RoutingDecision route(String requestedToolName,
+                                 Map<String, Object> arguments,
+                                 List<String> availableTools,
+                                 String tenantId,
+                                 List<String> roles,
+                                 ToolWorkflowRole publishedRole) {
+        String capability = requestedCapability(requestedToolName, arguments, publishedRole);
         if (capability == null) {
             return RoutingDecision.unrouted(requestedToolName);
         }
@@ -61,25 +73,25 @@ public class McpToolRouter {
     }
 
     public boolean isTypedAssetQuery(String toolName) {
-        String semantic = semantic(toolName);
-        return semantic.equals(ASSET_DISCOVERY)
-            || semantic.equals(LEGACY_ASSET_QUERY)
-            || semantic.endsWith("_asset_query")
-            || semantic.equals("database_asset_search");
+        return McpToolNamePolicy.isAssetDiscovery(toolName);
     }
 
     public boolean isTypedTemplateQuery(String toolName) {
-        String semantic = semantic(toolName);
-        return semantic.equals(TEMPLATE_DISCOVERY)
-            || semantic.equals(LEGACY_TEMPLATE_QUERY)
-            || semantic.endsWith("_template_query")
-            || semantic.endsWith("_template_search");
+        return McpToolNamePolicy.isTemplateDiscovery(toolName);
     }
 
-    private String requestedCapability(String requestedToolName, Map<String, Object> arguments) {
+    private String requestedCapability(String requestedToolName,
+                                       Map<String, Object> arguments,
+                                       ToolWorkflowRole publishedRole) {
         String explicit = normalizeCapability(firstText(arguments, "routerCapability", "capability"));
         if (explicit != null) {
             return explicit;
+        }
+        if (publishedRole == ToolWorkflowRole.ASSET_DISCOVERY) {
+            return ASSET_DISCOVERY;
+        }
+        if (publishedRole == ToolWorkflowRole.TEMPLATE_DISCOVERY) {
+            return TEMPLATE_DISCOVERY;
         }
         if (isTypedAssetQuery(requestedToolName)) {
             return ASSET_DISCOVERY;

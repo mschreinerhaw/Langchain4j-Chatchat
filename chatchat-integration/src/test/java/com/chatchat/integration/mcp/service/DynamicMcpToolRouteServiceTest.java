@@ -25,7 +25,7 @@ class DynamicMcpToolRouteServiceTest {
         );
 
         assertThat(plan.routed()).isTrue();
-        assertThat(plan.remoteToolName()).isEqualTo("api_service_query");
+        assertThat(plan.remoteToolName()).isEqualTo("api_template_query");
         assertThat(plan.childToolName()).isEqualTo("sales_template_query");
         assertThat(plan.arguments())
             .containsEntry("limit", 10)

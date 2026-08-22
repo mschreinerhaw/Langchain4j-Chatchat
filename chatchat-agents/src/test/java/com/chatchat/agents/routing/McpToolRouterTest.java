@@ -4,10 +4,21 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import com.chatchat.common.tool.ToolWorkflowRole;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class McpToolRouterTest {
+
+    private static final List<String> PUBLIC_TEMPLATE_DISCOVERY_BRIDGES = List.of(
+        "api_service_query",
+        "server_capability_query",
+        "http_capability_query",
+        "jmx_capability_query",
+        "database_capability_query",
+        "data_query_query",
+        "python_analysis_query"
+    );
 
     private final McpToolRouter router = new McpToolRouter();
 
@@ -80,5 +91,37 @@ class McpToolRouterTest {
 
         assertThat(decision.routed()).isFalse();
         assertThat(decision.resolvedToolName()).isEqualTo("sql_query_execute");
+    }
+
+    @Test
+    void routesEveryPublicCapabilityBridgeAsTemplateDiscovery() {
+        for (String bridge : PUBLIC_TEMPLATE_DISCOVERY_BRIDGES) {
+            String requested = "mcp_chatchat_mcp_server_" + bridge;
+            McpToolRouter.RoutingDecision decision = router.route(
+                requested,
+                Map.of("query", "inspect target"),
+                List.of(requested),
+                "tenant-a",
+                List.of()
+            );
+
+            assertThat(router.isTypedTemplateQuery(requested)).as(requested).isTrue();
+            assertThat(decision.allowed()).as(requested).isTrue();
+            assertThat(decision.routed()).as(requested).isTrue();
+            assertThat(decision.capability()).as(requested).isEqualTo("template_discovery");
+        }
+    }
+
+    @Test
+    void routesArbitraryPublishedToolNameFromWorkflowRole() {
+        String requested = "mcp_vendor_x9f37";
+
+        McpToolRouter.RoutingDecision decision = router.route(
+            requested, Map.of("query", "inspect"), List.of(requested),
+            "tenant-a", List.of(), ToolWorkflowRole.TEMPLATE_DISCOVERY);
+
+        assertThat(decision.allowed()).isTrue();
+        assertThat(decision.routed()).isTrue();
+        assertThat(decision.capability()).isEqualTo("template_discovery");
     }
 }

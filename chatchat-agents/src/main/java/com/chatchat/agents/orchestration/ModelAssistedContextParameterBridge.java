@@ -1,10 +1,10 @@
 package com.chatchat.agents.orchestration;
 
-import com.chatchat.agents.protocol.McpToolProtocolRole;
 import com.chatchat.agents.runtime.toolcall.ContextualToolArgumentResolver;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolParameter;
+import com.chatchat.common.tool.ToolWorkflowRole;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
@@ -33,8 +33,12 @@ class ModelAssistedContextParameterBridge {
                                 Map<String, Object> arguments,
                                 ModelAssistedRetrievalBridge.RetrievalEvidenceContext evidence) {
         Map<String, Object> result = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
+        ToolWorkflowRole workflowRole = toolRegistry == null || toolName == null
+            ? ToolWorkflowRole.DIRECT : toolRegistry.getWorkflowRole(toolName);
         if (model == null || toolRegistry == null || toolName == null
-            || McpToolProtocolRole.resolve(toolName).isPresent()) return result;
+            || workflowRole == ToolWorkflowRole.ASSET_DISCOVERY
+            || workflowRole == ToolWorkflowRole.TEMPLATE_DISCOVERY
+            || workflowRole == ToolWorkflowRole.TEMPLATE_EXECUTION) return result;
         Map<String, Object> schema = schema(toolRegistry.getToolMetadata(toolName));
         List<String> missing = required(schema).stream()
             .filter(field -> !meaningful(result.get(field)))

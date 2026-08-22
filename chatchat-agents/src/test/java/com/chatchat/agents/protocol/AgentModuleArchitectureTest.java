@@ -28,6 +28,7 @@ class AgentModuleArchitectureTest {
             "orchestration -> routing",
             "orchestration -> runtime",
             "orchestration -> tool",
+            "protocol -> tool",
             "runtime -> evidence",
             "runtime -> protocol",
             "runtime -> routing",

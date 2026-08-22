@@ -10,10 +10,14 @@ import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolParameter;
+import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.common.tool.ToolWorkflowContractCatalog;
+import com.chatchat.common.tool.ToolWorkflowContractSnapshot;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.Ordered;
@@ -35,7 +39,6 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class McpToolRegistryBridge {
 
     private final ToolRegistry toolRegistry;
@@ -43,9 +46,45 @@ public class McpToolRegistryBridge {
     private final McpGatewayClient gatewayClient;
     private final ObjectMapper objectMapper;
     private final DynamicMcpToolRouteService routeService;
+    private final ToolWorkflowContractCatalog contractCatalog;
 
     private final Set<String> managedToolNames = ConcurrentHashMap.newKeySet();
     private final Map<String, RegisteredMcpTool> registeredTools = new ConcurrentHashMap<>();
+    private final Map<String, String> registeredContractChecksums = new ConcurrentHashMap<>();
+
+    public McpToolRegistryBridge(ToolRegistry toolRegistry,
+                                 McpServiceConfigService configService,
+                                 McpGatewayClient gatewayClient,
+                                 ObjectMapper objectMapper,
+                                 DynamicMcpToolRouteService routeService) {
+        this(toolRegistry, configService, gatewayClient, objectMapper, routeService,
+            (ToolWorkflowContractCatalog) null);
+    }
+
+    @Autowired
+    public McpToolRegistryBridge(ToolRegistry toolRegistry,
+                                 McpServiceConfigService configService,
+                                 McpGatewayClient gatewayClient,
+                                 ObjectMapper objectMapper,
+                                 DynamicMcpToolRouteService routeService,
+                                 ObjectProvider<ToolWorkflowContractCatalog> catalogProvider) {
+        this(toolRegistry, configService, gatewayClient, objectMapper, routeService,
+            catalogProvider.getIfAvailable());
+    }
+
+    private McpToolRegistryBridge(ToolRegistry toolRegistry,
+                                  McpServiceConfigService configService,
+                                  McpGatewayClient gatewayClient,
+                                  ObjectMapper objectMapper,
+                                  DynamicMcpToolRouteService routeService,
+                                  ToolWorkflowContractCatalog contractCatalog) {
+        this.toolRegistry = toolRegistry;
+        this.configService = configService;
+        this.gatewayClient = gatewayClient;
+        this.objectMapper = objectMapper;
+        this.routeService = routeService;
+        this.contractCatalog = contractCatalog;
+    }
 
     /**
      * Performs the initialize operation.
@@ -71,38 +110,67 @@ public class McpToolRegistryBridge {
      * Refreshes the registry with an optional discovery timeout override.
      */
     public synchronized void refreshRegistry(int discoveryTimeoutMs) {
-        managedToolNames.forEach(toolRegistry::unregisterTool);
-        managedToolNames.clear();
-        registeredTools.clear();
-        routeService.clear();
-
         List<McpServiceConfig> services = configService.listEnabled();
         if (services.isEmpty()) {
+            managedToolNames.forEach(toolRegistry::unregisterTool);
+            managedToolNames.clear();
+            registeredTools.clear();
+            registeredContractChecksums.clear();
+            routeService.clear();
             log.info("No enabled MCP service found, skip MCP tool registration");
             return;
         }
 
+        Set<String> discoveredNames = new LinkedHashSet<>();
+        Set<String> refreshedServiceIds = new LinkedHashSet<>();
+        Set<String> enabledServiceIds = new LinkedHashSet<>();
         for (McpServiceConfig service : services) {
+            enabledServiceIds.add(service.getId());
             try {
                 List<McpToolDefinition> tools = gatewayClient.discoverTools(
                     service, Math.max(0, discoveryTimeoutMs));
                 if (tools.isEmpty()) {
+                    refreshedServiceIds.add(service.getId());
                     log.info("No MCP tools discovered for service {}", service.getName());
                     continue;
                 }
                 for (McpToolDefinition definition : tools) {
                     try {
-                        registerSingleTool(service, definition);
+                        String registered = registerSingleTool(service, definition);
+                        if (registered != null) discoveredNames.add(registered);
                     } catch (IllegalArgumentException ex) {
                         log.warn("Skip invalid MCP tool route serviceId={} toolName={}: {}",
                             service.getId(), definition == null ? null : definition.name(), ex.getMessage());
                     }
                 }
+                refreshedServiceIds.add(service.getId());
             } catch (Exception ex) {
                 log.warn("Skip MCP service {} (id={}) during refresh: {}",
                     service.getName(), service.getId(), ex.getMessage());
             }
         }
+        Set<String> stale = new LinkedHashSet<>(managedToolNames);
+        stale.removeAll(discoveredNames);
+        stale.removeIf(name -> {
+            RegisteredMcpTool prior = registeredTools.get(name);
+            return prior == null || (!enabledServiceIds.contains(prior.serviceId())
+                || refreshedServiceIds.contains(prior.serviceId()));
+        });
+        // stale now contains tools belonging to failed services. Preserve them only while
+        // the database still declares the exact registered contract ACTIVE. A publication
+        // that races with a discovery outage must fail closed instead of serving an old contract.
+        Set<String> preserved = stale;
+        preserved.removeIf(name -> !registeredContractStillActive(name));
+        Set<String> removable = new LinkedHashSet<>(managedToolNames);
+        removable.removeAll(discoveredNames);
+        removable.removeAll(preserved);
+        removable.forEach(name -> {
+            RegisteredMcpTool prior = registeredTools.remove(name);
+            registeredContractChecksums.remove(name);
+            toolRegistry.unregisterTool(name);
+            if (prior != null) routeService.unregister(prior.serviceId(), prior.remoteToolName());
+            managedToolNames.remove(name);
+        });
         log.info("MCP tool registry refreshed, registered {} tools", managedToolNames.size());
     }
 
@@ -149,32 +217,62 @@ public class McpToolRegistryBridge {
      * @param service the service value
      * @param definition the definition value
      */
-    private void registerSingleTool(McpServiceConfig service, McpToolDefinition definition) {
+    private String registerSingleTool(McpServiceConfig service, McpToolDefinition definition) {
         String localName = toLocalToolName(service.getName(), definition.name());
         String candidate = localName;
         int suffix = 2;
-        while (toolRegistry.hasTool(candidate)) {
+        while (toolRegistry.hasTool(candidate) && !managedToolNames.contains(candidate)) {
             candidate = localName + "_" + suffix;
             suffix += 1;
         }
         localName = candidate;
+
+        Map<String, Object> discoveredInput = definition.inputSchema() == null
+            ? Map.of() : definition.inputSchema();
+        Map<String, Object> discoveredOutput = outputSchema(definition.meta());
+        ToolWorkflowContractSnapshot activeContract = null;
+        if (contractCatalog != null) {
+            activeContract = contractCatalog.synchronizeDiscovery(
+                service.getId(), service.getName(), localName, definition.name(),
+                definition.description(), discoveredInput, discoveredOutput, definition.meta())
+                .orElse(null);
+            if (activeContract == null) {
+                log.info("MCP tool staged as DRAFT and excluded from runtime registry: {}", localName);
+                return null;
+            }
+        }
+        Map<String, Object> runtimeInput = activeContract == null
+            ? discoveredInput : activeContract.inputSchema();
+        Map<String, Object> runtimeOutput = activeContract == null
+            ? discoveredOutput : activeContract.outputSchema();
+        Map<String, Object> effectiveMeta = activeContract == null
+            ? definition.meta() : activeContract.extensions();
+        McpToolDefinition runtimeDefinition = withRuntimeContract(
+            definition, runtimeInput, effectiveMeta);
 
         Map<String, Object> extraMetadata = new LinkedHashMap<>();
         extraMetadata.put("serviceId", service.getId());
         extraMetadata.put("remoteToolName", definition.name());
         extraMetadata.put("inputSchema", ToolCallBatchSchema.augment(
             definition.name(),
-            definition.inputSchema() == null ? Map.of() : definition.inputSchema()
+            runtimeInput
         ));
-        if (definition.meta() != null && !definition.meta().isEmpty()) {
-            extraMetadata.put("mcpToolMeta", definition.meta());
-            copyToolResultInstruction(extraMetadata, definition.meta());
+        if (activeContract != null) {
+            extraMetadata.put(ToolWorkflowContract.METADATA_KEY, activeContract.asMetadata());
+            extraMetadata.put("workflowContractVersion", activeContract.version());
+            extraMetadata.put("workflowContractChecksum", activeContract.checksum());
         }
+        if (effectiveMeta != null && !effectiveMeta.isEmpty()) {
+            extraMetadata.put("mcpToolMeta", effectiveMeta);
+            copyToolResultInstruction(extraMetadata, effectiveMeta);
+        }
+        // The ACTIVE database snapshot wins over newly discovered schemas.
+        if (!runtimeOutput.isEmpty()) extraMetadata.put("toolResultSchema", runtimeOutput);
         if (definition.timeoutMillis() != null) {
             extraMetadata.put("remoteTimeoutMs", definition.timeoutMillis());
         }
         DynamicMcpToolRouteService.RouteDefinition route =
-            routeService.register(service.getId(), definition).orElse(null);
+            routeService.register(service.getId(), runtimeDefinition).orElse(null);
         if (route != null) {
             extraMetadata.put("parentRemoteToolName", route.parentToolName());
             extraMetadata.put("routingMode", route.routingMode());
@@ -183,9 +281,9 @@ public class McpToolRegistryBridge {
         String category = firstText(definition.category(), "mcp_external");
         List<String> categories = distinctStrings(List.of("mcp", "external", category));
         List<String> tags = new ArrayList<>(List.of("mcp", sanitize(service.getName())));
-        tags.addAll(stringList(definition.meta() == null ? null : definition.meta().get("tags")));
+        tags.addAll(stringList(effectiveMeta == null ? null : effectiveMeta.get("tags")));
         tags = distinctStrings(tags);
-        Map<String, Object> applicability = applicability(definition);
+        Map<String, Object> applicability = applicability(runtimeDefinition);
 
         ToolMetadata metadata = ToolMetadata.builder()
             .id(localName)
@@ -206,7 +304,7 @@ public class McpToolRegistryBridge {
             .outputType("json")
             .timeoutMillis(definition.timeoutMillis())
             .agentCompatible(true)
-            .parameters(toolParameters(definition.inputSchema()))
+            .parameters(toolParameters(runtimeInput))
             .tags(tags)
             .metadata(extraMetadata)
             .build();
@@ -224,12 +322,56 @@ public class McpToolRegistryBridge {
             service.getName(),
             definition.name(),
             definition.description(),
-            backendServiceType(definition),
+            backendServiceType(runtimeDefinition),
             category,
             categories,
             tags,
             applicability
         ));
+        if (activeContract != null) {
+            registeredContractChecksums.put(localName, activeContract.checksum());
+        } else {
+            registeredContractChecksums.remove(localName);
+        }
+        return localName;
+    }
+
+    private boolean registeredContractStillActive(String localName) {
+        if (contractCatalog == null) {
+            return true;
+        }
+        RegisteredMcpTool registered = registeredTools.get(localName);
+        String registeredChecksum = registeredContractChecksums.get(localName);
+        if (registered == null || registeredChecksum == null || registeredChecksum.isBlank()) {
+            return false;
+        }
+        try {
+            return contractCatalog.findActive(
+                    registered.serviceId(), registered.localToolName(), registered.remoteToolName())
+                .map(active -> registeredChecksum.equals(active.checksum()))
+                .orElse(false);
+        } catch (RuntimeException ex) {
+            log.warn("Unable to verify ACTIVE MCP contract for {}, preserving current runtime snapshot: {}",
+                localName, ex.getMessage());
+            return true;
+        }
+    }
+
+    private Map<String, Object> outputSchema(Map<String, Object> meta) {
+        if (meta == null) return Map.of();
+        return mapValue(firstPresent(meta.get("outputSchema"), meta.get("resultSchema"),
+            meta.get("output_schema"), meta.get("result_schema")));
+    }
+
+    private McpToolDefinition withRuntimeContract(McpToolDefinition definition,
+                                                  Map<String, Object> inputSchema,
+                                                  Map<String, Object> metadata) {
+        return new McpToolDefinition(
+            definition.name(), definition.description(), inputSchema,
+            definition.category(), definition.riskLevel(), definition.operationType(),
+            definition.runtimeLevel(), definition.userVisible(), definition.confirmation(),
+            definition.permissions(), definition.inputPolicy(), definition.outputPolicy(),
+            definition.timeoutMillis(), metadata == null ? Map.of() : metadata);
     }
 
     /**

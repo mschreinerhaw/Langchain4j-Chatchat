@@ -1,5 +1,11 @@
 package com.chatchat.agents.runtime.plan;
 
+import com.chatchat.agents.tool.DefaultToolRegistry;
+import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.common.tool.ToolInput;
+import com.chatchat.common.tool.ToolMetadata;
+import com.chatchat.common.tool.ToolOutput;
+import com.chatchat.common.tool.ToolWorkflowContract;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -8,6 +14,65 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class InterpretationPlanOptimizerTest {
+
+    @Test
+    void repairsArbitraryNamedWorkflowEntirelyFromPublishedRoles() {
+        DefaultToolRegistry registry = new DefaultToolRegistry();
+        register(registry, "opaque-a91", "ASSET_DISCOVERY");
+        register(registry, "opaque-b27", "TEMPLATE_DISCOVERY");
+        register(registry, "opaque-c53", "TEMPLATE_EXECUTION");
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("tool_execution", "metadata driven", "low"),
+            new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(3, "mcp_tool", "opaque-c53",
+                    Map.of("templateId", "invented"), List.of(), null, null),
+                new InterpretationPlan.Step(2, "mcp_tool", "opaque-b27",
+                    Map.of(), List.of(), null, null),
+                new InterpretationPlan.Step(1, "mcp_tool", "opaque-a91",
+                    Map.of(), List.of(), null, null),
+                new InterpretationPlan.Step(4, "final_answer", "", Map.of("answer", "done"),
+                    List.of(3), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                4, false, List.of("opaque-a91", "opaque-b27", "opaque-c53"), List.of(), 30000),
+            new InterpretationPlan.Review(
+                new InterpretationPlan.SelfCheck(0.8, 0.1, true, List.of()), List.of())
+        );
+
+        InterpretationPlan optimized = new InterpretationPlanOptimizer(registry).optimize(plan).plan();
+
+        InterpretationPlan.Step asset = stepByTool(optimized, "opaque-a91");
+        InterpretationPlan.Step template = stepByTool(optimized, "opaque-b27");
+        InterpretationPlan.Step execute = stepByTool(optimized, "opaque-c53");
+        assertThat(template.dependsOn()).contains(asset.id());
+        assertThat(execute.dependsOn()).contains(template.id());
+        assertThat(stepByTool(optimized, "opaque-c53").input())
+            .doesNotContainKeys("templateId", "template", "template_id");
+    }
+
+    private void register(DefaultToolRegistry registry, String name, String role) {
+        ToolMetadata metadata = ToolMetadata.builder()
+            .id(name)
+            .metadata(Map.of(ToolWorkflowContract.METADATA_KEY, Map.of(
+                "schemaVersion", ToolWorkflowContract.SCHEMA_VERSION,
+                "workflowRole", role,
+                "protocolFamily", "opaque-family"
+            )))
+            .build();
+        registry.registerTool(name, metadata, new ToolRegistry.EnhancedTool() {
+            @Override
+            public ToolMetadata getMetadata() {
+                return metadata;
+            }
+
+            @Override
+            public ToolOutput execute(ToolInput input) {
+                return ToolOutput.builder().success(true).build();
+            }
+        });
+    }
 
     @Test
     void userDefinedTaskWorkflowOverridesModelToolEdges() {

@@ -22,7 +22,7 @@ import {
   importPythonSystemExampleData
 } from "../../services/api";
 import { errorMessage, formatDateTime } from "../utils/uiFormatters";
-import { formatPythonSource, parsePythonExecutionParameters } from "../utils/pythonWorkbench";
+import { calculateBottomPanelMaximum, formatPythonSource, parsePythonExecutionParameters } from "../utils/pythonWorkbench";
 import { pythonCompletionItems } from "../utils/pythonCompletions";
 
 globalThis.MonacoEnvironment = { getWorker: () => new EditorWorker() };
@@ -201,7 +201,7 @@ export default {
         "--explorer-width": this.explorerOpen ? `${this.explorerWidth}px` : "0px",
         "--ai-width": this.aiOpen ? `${this.aiWidth}px` : "0px",
         "--bottom-height": this.bottomOpen ? `${this.bottomHeight}px` : "34px",
-        "--bottom-resizer-size": this.bottomOpen ? "5px" : "0px"
+        "--bottom-resizer-size": this.bottomOpen ? "9px" : "0px"
       };
     },
     canPublish() {
@@ -1246,8 +1246,10 @@ export default {
         const maximum = Math.max(260, Math.min(620, bounds.width - this.explorerWidth - 420));
         this.aiWidth = this.clamp(state.startSize - event.clientX + state.startX, 260, maximum);
       } else {
-        const mainHeight = this.editor?.getDomNode()?.parentElement?.clientHeight || bounds.height - 58;
-        const maximum = Math.max(100, Math.min(520, mainHeight - 220));
+        const mainHeight = this.$refs.codeEditor?.parentElement?.clientHeight || bounds.height - 58;
+        // Computing this from Monaco's current height made the maximum shrink as the
+        // bottom panel grew, which effectively prevented upward resizing.
+        const maximum = calculateBottomPanelMaximum(mainHeight);
         this.bottomHeight = this.clamp(state.startSize - event.clientY + state.startY, 100, maximum);
       }
       this.editor?.layout();

@@ -3,6 +3,8 @@ package com.chatchat.agents.tool;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolMetadata;
+import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.common.tool.ToolWorkflowRole;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 
 /**
@@ -39,6 +41,11 @@ public interface ToolRegistry {
      */
     ToolMetadata getToolMetadata(String toolName);
 
+    /** Resolve the publisher-declared workflow role in this registry scope. */
+    default ToolWorkflowRole getWorkflowRole(String toolName) {
+        return ToolWorkflowContract.resolveRole(toolName, getToolMetadata(toolName));
+    }
+
     /**
      * Execute a tool request (LangChain4j compatible)
      */
@@ -68,6 +75,11 @@ public interface ToolRegistry {
      * Get all registered tool names (simple + enhanced)
      */
     java.util.Set<String> getAllToolNames();
+
+    /** Monotonic registry revision used to prevent mixed-contract executions. */
+    default long getRevision() {
+        return 0L;
+    }
 
     /**
      * Unregister a tool

@@ -2,11 +2,19 @@ package com.chatchat.enterprise.repository;
 
 import com.chatchat.enterprise.entity.McpToolAsset;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
 
 public interface McpToolAssetRepository extends JpaRepository<McpToolAsset, String> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select tool from McpToolAsset tool where tool.id = :id")
+    Optional<McpToolAsset> findLockedById(@Param("id") String id);
     /**
      * Finds the by local tool name.
      *

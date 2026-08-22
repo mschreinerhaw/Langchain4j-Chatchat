@@ -3,6 +3,9 @@ package com.chatchat.agents.orchestration;
 import com.chatchat.agents.runtime.AgentRunEvent;
 import com.chatchat.agents.runtime.AgentRunEventType;
 import com.chatchat.common.interaction.InteractionToolTrace;
+import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.common.tool.ToolWorkflowRole;
+import com.chatchat.agents.tool.ToolRegistry;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -15,6 +18,16 @@ import java.util.Set;
  * Maintains workflow completion state derived from terminal tool observations.
  */
 class AgentWorkflowStateTracker {
+
+    private final ToolRegistry toolRegistry;
+
+    AgentWorkflowStateTracker() {
+        this(null);
+    }
+
+    AgentWorkflowStateTracker(ToolRegistry toolRegistry) {
+        this.toolRegistry = toolRegistry;
+    }
 
     Map<String, Object> attributesWithCompletedTools(Map<String, Object> runtimeAttributes,
                                                      Set<String> completedTools) {
@@ -118,14 +131,13 @@ class AgentWorkflowStateTracker {
     }
 
     private boolean isAssetDiscoveryTool(String toolName) {
-        if (toolName == null || toolName.isBlank()) {
-            return false;
+        ToolWorkflowRole role = toolRegistry == null ? null : toolRegistry.getWorkflowRole(toolName);
+        // Null is possible for compatibility registries and test doubles that predate the
+        // metadata contract. Published registries always return the database-declared role.
+        if (role == null) {
+            role = ToolWorkflowContract.resolveRole(toolName, null);
         }
-        String semantic = toolName.trim().toLowerCase();
-        return semantic.equals("asset_query")
-            || semantic.endsWith("_asset_query")
-            || semantic.equals("database_asset_search")
-            || semantic.endsWith("_database_asset_search");
+        return role == ToolWorkflowRole.ASSET_DISCOVERY;
     }
 
     private String workflowTargetRef(Map<String, Object> values) {

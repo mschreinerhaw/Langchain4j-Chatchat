@@ -1,6 +1,5 @@
 package com.chatchat.agents.runtime.plan;
 
-import com.chatchat.agents.protocol.McpToolProtocolRole;
 import com.chatchat.agents.evidence.EvidenceExecutionLock;
 import com.chatchat.agents.evidence.EvidenceLockGraph;
 import com.chatchat.agents.runtime.evidence.DiagnosticEvidenceNormalizer;
@@ -23,6 +22,8 @@ import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolMetadata;
+import com.chatchat.common.tool.McpToolNamePolicy;
+import com.chatchat.common.tool.ToolWorkflowRole;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -1694,7 +1695,8 @@ public class InterpretationPlanRuntime {
                     resolvedInput,
                     safeList(request.allowedTools()),
                     request.tenantId(),
-                    List.of()
+                    List.of(),
+                    request.toolRegistry() == null ? null : request.toolRegistry().getWorkflowRole(step.toolName())
                 );
                 if (routingDecision.routed() && !routingDecision.allowed()) {
                     throw new IllegalStateException(routingDecision.errorCode() + ": " + routingDecision.reason());
@@ -7091,7 +7093,7 @@ public class InterpretationPlanRuntime {
                                                 ExecutionRequest request,
                                                 Map<Integer, StepExecution> completed,
                                                 Map<String, Object> input) {
-        if (step == null || input == null || !isRoutingDiscoveryTool(step.toolName())) {
+        if (step == null || input == null || !isRoutingDiscoveryTool(step.toolName(), request)) {
             return;
         }
         Object filters = firstMapValue(input, "filters", "executionContext", "mcpExecutionContext");
@@ -7118,6 +7120,13 @@ public class InterpretationPlanRuntime {
             }
         }
         sanitizeDiscoveryFilters(step, request, input);
+        if (isDomainTemplateDiscoveryBridge(step.toolName())
+            || isTemplateDiscoveryTool(step.toolName(), request)) {
+            String searchText = discoverySearchText(request);
+            if (searchText != null && !searchText.isBlank()) {
+                input.putIfAbsent("query", searchText);
+            }
+        }
         input.putIfAbsent("filtersSchemaVersion", AgentProtocolCatalog.TARGET_FILTERS);
         Object trace = firstMapValue(input, "trace", "routingTrace", "routing_trace");
         if (trace instanceof Map<?, ?> traceMap && !traceMap.isEmpty()) {
@@ -7998,17 +8007,28 @@ public class InterpretationPlanRuntime {
     }
 
     private boolean isAssetDiscoveryTool(String toolName) {
-        String semantic = toolSemanticKey(toolName);
-        return McpToolProtocolRole.ASSET_QUERY.matches(semantic)
-            || "database_asset_search".equals(semantic)
-            ;
+        return optimizer.workflowRoleFor(toolName) == ToolWorkflowRole.ASSET_DISCOVERY;
     }
 
     private boolean isTemplateDiscoveryTool(String toolName) {
-        String semantic = toolSemanticKey(toolName);
-        return McpToolProtocolRole.TEMPLATE_QUERY.matches(semantic)
-            || semantic.endsWith("_template_search")
-            || isPythonAnalysisQueryTool(toolName);
+        return optimizer.workflowRoleFor(toolName) == ToolWorkflowRole.TEMPLATE_DISCOVERY;
+    }
+
+    private boolean isTemplateDiscoveryTool(String toolName, ExecutionRequest request) {
+        return workflowRole(toolName, request) == ToolWorkflowRole.TEMPLATE_DISCOVERY;
+    }
+
+    private boolean isRoutingDiscoveryTool(String toolName, ExecutionRequest request) {
+        ToolWorkflowRole role = workflowRole(toolName, request);
+        return role == ToolWorkflowRole.ASSET_DISCOVERY || role == ToolWorkflowRole.TEMPLATE_DISCOVERY;
+    }
+
+    private ToolWorkflowRole workflowRole(String toolName, ExecutionRequest request) {
+        return optimizer.workflowRoleFor(toolName);
+    }
+
+    private boolean isDomainTemplateDiscoveryBridge(String toolName) {
+        return McpToolNamePolicy.isTemplateDiscoveryBridge(toolName);
     }
 
     private boolean isPythonAnalysisQueryTool(String toolName) {
@@ -8040,8 +8060,7 @@ public class InterpretationPlanRuntime {
 
     private boolean isApiTemplateExecuteTool(String toolName) {
         String semantic = toolSemanticKey(toolName);
-        return McpToolProtocolRole.TEMPLATE_EXECUTE.matches(semantic)
-            && ("api_template_execute".equals(semantic) || semantic.endsWith("_api_template_execute"));
+        return "api_template_execute".equals(semantic) || semantic.endsWith("_api_template_execute");
     }
 
     private boolean isPythonTemplateExecuteTool(String toolName) {
@@ -8051,11 +8070,7 @@ public class InterpretationPlanRuntime {
     }
 
     private boolean isTemplateExecutionTool(String toolName) {
-        return isSqlQueryExecuteTool(toolName)
-            || isLinuxCommandExecuteTool(toolName)
-            || isHttpRequestExecuteTool(toolName)
-            || isApiTemplateExecuteTool(toolName)
-            || isPythonTemplateExecuteTool(toolName);
+        return optimizer.workflowRoleFor(toolName) == ToolWorkflowRole.TEMPLATE_EXECUTION;
     }
 
     private boolean requiresTemplateId(String toolName) {

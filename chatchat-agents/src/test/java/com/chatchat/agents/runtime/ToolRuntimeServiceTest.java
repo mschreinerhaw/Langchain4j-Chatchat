@@ -30,6 +30,27 @@ import static org.mockito.Mockito.when;
 class ToolRuntimeServiceTest {
 
     @Test
+    void rejectsExecutionWhenPublishedRegistryRevisionChangedMidWorkflow() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getRevision()).thenReturn(12L);
+        ToolRuntimeService service = new ToolRuntimeService(
+            registry, new ObjectMapper(), properties(), List.of(), List.of());
+        try {
+            ToolRuntimeExecution execution = service.execute(ToolRuntimeRequest.builder()
+                .toolName("opaque-tool")
+                .attributes(Map.of("toolRegistryRevision", 11L))
+                .toolInput(ToolInput.builder().parameters(Map.of()).build())
+                .build());
+
+            assertThat(execution.outcome()).isEqualTo("denied");
+            assertThat(execution.output().getExceptionType()).isEqualTo("TOOL_REGISTRY_SNAPSHOT_STALE");
+            verify(registry, never()).executeEnhancedTool(any(), any());
+        } finally {
+            service.shutdown();
+        }
+    }
+
+    @Test
     void runtimeCompilesPublishedToolContractForEveryExecutionPath() {
         String toolName = "mcp_dynamic_metadata_search";
         ToolRegistry registry = mock(ToolRegistry.class);

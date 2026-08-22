@@ -30,10 +30,10 @@ public class McpToolAsset extends EnterpriseAuditable {
     @Column(length = 32, nullable = false)
     private String resourceType = "tool";
 
-    @Column(length = 4000)
+    @Column(columnDefinition = "TEXT")
     private String inputSchemaJson;
 
-    @Column(length = 4000)
+    @Column(columnDefinition = "TEXT")
     private String outputSchemaJson;
 
     @Column(nullable = false)

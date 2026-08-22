@@ -31,4 +31,29 @@ class McpToolNamePolicyTest {
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("whitespace");
     }
+
+    @Test
+    void classifiesEveryPublicDomainBridgeAsTemplateDiscoveryAcrossTransportNames() {
+        assertThat(List.of(
+            "api_service_query",
+            "server_capability_query",
+            "http_capability_query",
+            "jmx_capability_query",
+            "database_capability_query",
+            "data_query_query",
+            "python_analysis_query"
+        )).allSatisfy(name -> {
+            assertThat(McpToolNamePolicy.isTemplateDiscovery(name)).isTrue();
+            assertThat(McpToolNamePolicy.isTemplateDiscovery("mcp_chatchat_mcp_server_" + name)).isTrue();
+            assertThat(McpToolNamePolicy.isTemplateDiscoveryBridge(name)).isTrue();
+        });
+    }
+
+    @Test
+    void keepsDiscoveryAndExecutionRolesMutuallyAccurate() {
+        assertThat(McpToolNamePolicy.isAssetDiscovery("mcp_vendor_ssh_asset_query")).isTrue();
+        assertThat(McpToolNamePolicy.isTemplateDiscovery("mcp_vendor_ssh_template_query")).isTrue();
+        assertThat(McpToolNamePolicy.isTemplateExecution("mcp_vendor_linux_command_execute")).isTrue();
+        assertThat(McpToolNamePolicy.isTemplateDiscovery("mcp_vendor_linux_command_execute")).isFalse();
+    }
 }

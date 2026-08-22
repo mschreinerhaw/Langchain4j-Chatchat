@@ -3,7 +3,6 @@ package com.chatchat.agents.orchestration;
 import com.chatchat.agents.assessment.RuntimeAnswerCandidate;
 import com.chatchat.agents.assessment.TaskContract;
 import com.chatchat.agents.protocol.ModelProtocolJson;
-import com.chatchat.agents.protocol.McpToolProtocolRole;
 import com.chatchat.agents.protocol.ToolProtocolContractResolver;
 import com.chatchat.agents.runtime.AgentRuntimeFactGroundingContract;
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
@@ -14,6 +13,8 @@ import com.chatchat.agents.runtime.plan.InterpretationPlanOptimizer;
 import com.chatchat.agents.runtime.plan.InterpretationPlanValidator;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolMetadata;
+import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.common.tool.ToolWorkflowRole;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
@@ -998,7 +999,7 @@ class AgentPlanner {
         );
         interpretationPlan = budgetResult.plan();
         InterpretationPlanOptimizer.OptimizationResult optimization =
-            new InterpretationPlanOptimizer().optimize(
+            new InterpretationPlanOptimizer(toolRegistry).optimize(
                 interpretationPlan,
                 validationContext == null ? null : validationContext.authoritativeWorkflowDag()
             );
@@ -1264,10 +1265,10 @@ class AgentPlanner {
             return input;
         }
         String semanticTool = toolSemanticKey(toolName);
-        if (isAssetDiscoverySemantic(semanticTool)) {
+        if (workflowRole(toolName) == ToolWorkflowRole.ASSET_DISCOVERY) {
             normalizeDiscoveryQueryInput(input);
         }
-        if (isTemplateDiscoverySemantic(semanticTool)) {
+        if (workflowRole(toolName) == ToolWorkflowRole.TEMPLATE_DISCOVERY) {
             normalizeDiscoveryQueryInput(input);
         }
         if ("linux_command_execute".equals(semanticTool)) {
@@ -1550,8 +1551,7 @@ class AgentPlanner {
             return;
         }
         boolean hasAssetQueryStep = toolStepIds.keySet().stream()
-            .map(this::toolSemanticKey)
-            .anyMatch(this::isAssetDiscoverySemantic);
+            .anyMatch(tool -> workflowRole(tool) == ToolWorkflowRole.ASSET_DISCOVERY);
         if (!hasAssetQueryStep && contextClaimsGuessedAssetRouting(plan.context())) {
             issues.add("Asset routing context must come from typed asset discovery, user-provided executionContext, or observations; plan context must not assume assetName/env/datasource registration.");
             return;
@@ -3061,19 +3061,19 @@ class AgentPlanner {
         if (semantic.contains("search_and_extract")) {
             return "search_and_extract";
         }
+        if (workflowRole(toolName) == ToolWorkflowRole.ASSET_DISCOVERY) {
+            return "asset_discovery";
+        }
         if ("asset_query".equals(semantic)
             || "asset_search".equals(semantic)
             || "asset_discovery".equals(semantic)) {
             return "asset_discovery";
         }
-        if ("template_query".equals(semantic) || "template_discovery".equals(semantic)) {
+        if (workflowRole(toolName) == ToolWorkflowRole.TEMPLATE_DISCOVERY) {
             return "template_discovery";
         }
         if (semantic.endsWith("_asset_query") || semantic.endsWith("_asset_search")) {
             return "asset_discovery";
-        }
-        if (semantic.endsWith("_template_query") || semantic.endsWith("_template_search")) {
-            return "template_discovery";
         }
         return toolName.trim();
     }
@@ -3084,7 +3084,11 @@ class AgentPlanner {
         }
         for (String availableTool : availableTools) {
             String semantic = toolSemanticKey(availableTool);
-            if (semanticToolName.equals(semantic)
+            ToolWorkflowRole role = workflowRole(availableTool);
+            if (("asset_discovery".equals(semanticToolName) && role == ToolWorkflowRole.ASSET_DISCOVERY)
+                || (("template_discovery".equals(semanticToolName) || "template_query".equals(semanticToolName))
+                    && role == ToolWorkflowRole.TEMPLATE_DISCOVERY)
+                || semanticToolName.equals(semantic)
                 || ("asset_discovery".equals(semanticToolName) && "asset_query".equals(semantic))
                 || ("asset_discovery".equals(semanticToolName) && "asset_search".equals(semantic))
                 || ("template_discovery".equals(semanticToolName) && "template_query".equals(semantic))
@@ -3095,7 +3099,9 @@ class AgentPlanner {
                 || ("asset_query".equals(semanticToolName) && semantic.endsWith("_asset_query"))
                 || ("asset_query".equals(semanticToolName) && semantic.endsWith("_asset_search"))
                 || ("template_query".equals(semanticToolName) && semantic.endsWith("_template_query"))
-                || ("template_query".equals(semanticToolName) && semantic.endsWith("_template_search"))) {
+                || ("template_query".equals(semanticToolName) && semantic.endsWith("_template_search"))
+                || (("template_discovery".equals(semanticToolName) || "template_query".equals(semanticToolName))
+                    && workflowRole(availableTool) == ToolWorkflowRole.TEMPLATE_DISCOVERY)) {
                 return availableTool;
             }
         }
@@ -3128,18 +3134,13 @@ class AgentPlanner {
         return normalized;
     }
 
-    private boolean isAssetDiscoverySemantic(String semantic) {
-        return "asset_discovery".equals(semantic)
-            || McpToolProtocolRole.ASSET_QUERY.matches(semantic)
-            || "asset_search".equals(semantic)
-            || (semantic != null
-                && semantic.endsWith("_asset_search"));
-    }
-
-    private boolean isTemplateDiscoverySemantic(String semantic) {
-        return "template_discovery".equals(semantic)
-            || McpToolProtocolRole.TEMPLATE_QUERY.matches(semantic)
-            || (semantic != null && semantic.endsWith("_template_search"));
+    private ToolWorkflowRole workflowRole(String toolName) {
+        if (toolRegistry != null) {
+            ToolWorkflowRole role = toolRegistry.getWorkflowRole(toolName);
+            if (role != null) return role;
+            return ToolWorkflowContract.resolveRole(toolName, toolRegistry.getToolMetadata(toolName));
+        }
+        return ToolWorkflowContract.resolveRole(toolName, null);
     }
 
     private Map<String, Object> asMap(Object data) {

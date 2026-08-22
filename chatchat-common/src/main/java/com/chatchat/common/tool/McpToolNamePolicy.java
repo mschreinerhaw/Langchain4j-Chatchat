@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -18,6 +19,26 @@ public final class McpToolNamePolicy {
         "chatchat_",
         "xxx_"
     };
+    private static final Set<String> TEMPLATE_DISCOVERY_BRIDGES = Set.of(
+        "api_service_query",
+        "server_capability_query",
+        "http_capability_query",
+        "jmx_capability_query",
+        "database_capability_query",
+        "data_query_query",
+        "python_analysis_query"
+    );
+    private static final Set<String> TEMPLATE_EXECUTION_TOOLS = Set.of(
+        "template_execute",
+        "sql_query_execute",
+        "sql_script_execute",
+        "linux_command_execute",
+        "ssh_linux_execute",
+        "http_request_execute",
+        "api_template_execute",
+        "python_template_execute",
+        "jmx_monitor_execute"
+    );
 
     private McpToolNamePolicy() {
     }
@@ -44,6 +65,45 @@ public final class McpToolNamePolicy {
             }
         }
         return normalized;
+    }
+
+    public static boolean isAssetDiscovery(String toolName) {
+        String semantic = workflowSemanticKey(toolName);
+        return "asset_discovery".equals(semantic)
+            || "asset_query".equals(semantic)
+            || semantic.endsWith("_asset_query")
+            || "asset_search".equals(semantic)
+            || semantic.endsWith("_asset_search")
+            || "database_asset_search".equals(semantic);
+    }
+
+    public static boolean isTemplateDiscovery(String toolName) {
+        String semantic = workflowSemanticKey(toolName);
+        return "template_discovery".equals(semantic)
+            || "template_query".equals(semantic)
+            || semantic.endsWith("_template_query")
+            || semantic.endsWith("_template_search")
+            || matchesRoleFamily(semantic, TEMPLATE_DISCOVERY_BRIDGES);
+    }
+
+    public static boolean isTemplateDiscoveryBridge(String toolName) {
+        return matchesRoleFamily(workflowSemanticKey(toolName), TEMPLATE_DISCOVERY_BRIDGES);
+    }
+
+    public static boolean isRoutingDiscovery(String toolName) {
+        return isAssetDiscovery(toolName) || isTemplateDiscovery(toolName);
+    }
+
+    public static boolean isTemplateExecution(String toolName) {
+        String semantic = workflowSemanticKey(toolName);
+        return "execute".equals(semantic)
+            || semantic.endsWith("_template_execute")
+            || matchesRoleFamily(semantic, TEMPLATE_EXECUTION_TOOLS);
+    }
+
+    private static boolean matchesRoleFamily(String semantic, Set<String> roles) {
+        return semantic != null && roles.stream()
+            .anyMatch(role -> semantic.equals(role) || semantic.endsWith("_" + role));
     }
 
     public static String requirePublishableName(String toolName) {

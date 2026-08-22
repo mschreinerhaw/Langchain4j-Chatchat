@@ -22,6 +22,8 @@ import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
 import com.chatchat.agents.runtime.batch.ToolCallResult;
 import com.chatchat.common.tool.ToolOutput;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -339,7 +341,70 @@ class ToolObservationBuilder {
         if (protocolEvidence != null) {
             return buildStructuredProtocolObservation(toolName, null, protocolEvidence);
         }
-        return null;
+        return buildDynamicStructuredObservation(toolName, null, data);
+    }
+
+    /**
+     * Last-resort evidence projection for result schemas unknown to Runtime. Tool
+     * outputs are allowed to evolve independently, so a non-empty result must not
+     * disappear merely because it does not match one of the specialized adapters.
+     * JSON encoded inside a string (for example Python stdout) is decoded recursively
+     * so the final synthesis and reviewer can reason over its actual fields.
+     */
+    private String buildDynamicStructuredObservation(String toolName, ToolOutput output, Object data) {
+        Object normalized = normalizeDynamicResult(data, 0);
+        String serialized = ModelProtocolJson.compact(normalized);
+        if (serialized == null || serialized.isBlank()
+            || "null".equals(serialized) || "{}".equals(serialized) || "[]".equals(serialized)) {
+            return null;
+        }
+        StringBuilder observation = successObservationHeader(toolName, output);
+        observation.append("\nDynamic structured tool result (authoritative non-empty output; schema-independent):\n")
+            .append(serialized)
+            .append("\nDynamic extraction rule: every non-empty scalar, object, and array above is returned tool evidence. ")
+            .append("Values marked as decodedJsonString were JSON-encoded strings and must be analyzed as structured content; ")
+            .append("do not reduce this evidence to transport status or execution metadata only.");
+        return observation.toString();
+    }
+
+    private Object normalizeDynamicResult(Object value, int depth) {
+        if (value == null || depth > 12) {
+            return value;
+        }
+        if (value instanceof Map<?, ?> map) {
+            Map<String, Object> normalized = new LinkedHashMap<>();
+            map.forEach((key, nested) -> {
+                if (key != null && nested != null) {
+                    normalized.put(String.valueOf(key), normalizeDynamicResult(nested, depth + 1));
+                }
+            });
+            return normalized;
+        }
+        if (value instanceof Collection<?> collection) {
+            List<Object> normalized = new ArrayList<>();
+            for (Object nested : collection) {
+                if (nested != null) {
+                    normalized.add(normalizeDynamicResult(nested, depth + 1));
+                }
+            }
+            return normalized;
+        }
+        if (value instanceof String text) {
+            String trimmed = text.trim();
+            if ((trimmed.startsWith("{") && trimmed.endsWith("}"))
+                || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+                try {
+                    JsonElement parsed = JsonParser.parseString(trimmed);
+                    return Map.of(
+                        "decodedJsonString", true,
+                        "value", parsed
+                    );
+                } catch (RuntimeException ignored) {
+                    // Preserve malformed or plain text exactly as returned.
+                }
+            }
+        }
+        return value;
     }
 
     private String buildBatchExecutionObservation(String toolName,

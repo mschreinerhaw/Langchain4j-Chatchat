@@ -105,7 +105,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
     private final EvidenceTrustEvaluator evidenceTrustEvaluator;
     private final AgentRunStore runStore;
     private final AgentObservationPipeline observationPipeline;
-    private final AgentWorkflowDecisionEngine workflowDecisionEngine = new AgentWorkflowDecisionEngine();
+    private final AgentWorkflowDecisionEngine workflowDecisionEngine;
     private final AgentRuntimeGuard runtimeGuard = new AgentRuntimeGuard(
         DEFAULT_MAX_STEPS,
         AGENT_CANCELLATION_ATTRIBUTE,
@@ -124,7 +124,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
     private final ModelAssistedRetrievalBridge modelAssistedRetrievalBridge;
     private final ModelAssistedContextParameterBridge modelAssistedContextParameterBridge;
     private final AnswerCandidateCollector answerCandidateCollector = new AnswerCandidateCollector();
-    private final AgentWorkflowStateTracker workflowStateTracker = new AgentWorkflowStateTracker();
+    private final AgentWorkflowStateTracker workflowStateTracker;
     private final AgentAnswerFinalizer answerFinalizer;
     private final InterpretationPlanStore interpretationPlanStore;
     private final InterpretationPlanDagConverter interpretationPlanDagConverter = new InterpretationPlanDagConverter();
@@ -239,6 +239,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
                              InterpretationPlanStore interpretationPlanStore,
                              AgentRuntimeProperties agentRuntimeProperties) {
         this.toolRegistry = toolRegistry;
+        this.workflowDecisionEngine = new AgentWorkflowDecisionEngine(toolRegistry);
+        this.workflowStateTracker = new AgentWorkflowStateTracker(toolRegistry);
         this.toolRuntimeService = toolRuntimeService;
         this.objectMapper = objectMapper;
         this.mcpAnalysisContextAdapter = new McpAnalysisContextAdapter(objectMapper);
@@ -1199,7 +1201,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         List<String> authoritativeWorkflowDagPasses = List.of();
         if (hasAuthoritativeWorkflowDag) {
             InterpretationPlanOptimizer.OptimizationResult workflowDagOptimization =
-                new InterpretationPlanOptimizer().optimize(plan, authoritativeWorkflowDag);
+                new InterpretationPlanOptimizer(toolRegistry).optimize(plan, authoritativeWorkflowDag);
             plan = workflowDagOptimization.plan() == null ? plan : workflowDagOptimization.plan();
             authoritativeWorkflowDagPasses = workflowDagOptimization.appliedPasses();
         }
@@ -1217,6 +1219,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             toolRuntimeService,
             validator,
+            new InterpretationPlanOptimizer(toolRegistry),
             runStore,
             request -> reviewInterpretationPlanToolResult(activeChatModel, query, systemPrompt, cancellationCheck, request),
             request -> decideInterpretationPlanDagStep(activeChatModel, query, systemPrompt, cancellationCheck, request),
@@ -1444,7 +1447,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
             );
             if (rewrittenPlan != null && hasAuthoritativeWorkflowDag) {
                 InterpretationPlanOptimizer.OptimizationResult authoritativeRewrite =
-                    new InterpretationPlanOptimizer().optimize(rewrittenPlan, rewriteWorkflowDag);
+                    new InterpretationPlanOptimizer(toolRegistry).optimize(rewrittenPlan, rewriteWorkflowDag);
                 rewrittenPlan = authoritativeRewrite.plan() == null ? rewrittenPlan : authoritativeRewrite.plan();
                 authoritativeRewritePasses = authoritativeRewrite.appliedPasses();
                 rewrittenValidation = validator.validate(
@@ -2109,6 +2112,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
                                                                             Map<String, Object> runtimeAttributes) {
         Map<String, Object> executionAttributes = new LinkedHashMap<>(runtimeAttributes == null ? Map.of() : runtimeAttributes);
         executionAttributes.put("requireTemplateParameterProtocol", true);
+        executionAttributes.put("toolRegistryRevision", toolRegistry == null ? 0L : toolRegistry.getRevision());
         return new InterpretationPlanRuntime.ExecutionRequest(
             plan,
             toolRegistry,
@@ -3151,7 +3155,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
                         ? toolObservationBuilder.buildAuthoritativeExecutionEvidence(step.toolName(), step.output())
                         : null;
                     if (executionEvidence != null && !executionEvidence.isBlank()) {
-                        prompt.append("  authoritativeToolResultEvidence (runtime evidence projection; operation inputs omitted):\n")
+                        prompt.append("  toolResult (complete Runtime input):\n")
+                            .append("  authoritativeToolResultEvidence (runtime evidence projection; operation inputs omitted):\n")
                             .append(executionEvidence)
                             .append("\n  promptPreviewTruncated=false\n");
                     } else {
@@ -5131,7 +5136,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (authoritativeEvidence != null && !authoritativeEvidence.isBlank()) {
             prompt.append("Authoritative tool result evidence (formatted under the tool's reasoning-selection contract; complete raw results remain in the tool trace):\n")
                 .append(authoritativeEvidence)
-                .append("\nPrompt preview truncated: false");
+                .append("\nPrompt preview truncated: false")
+                .append("\nRuntime truncation applied: false");
         } else {
             String serializedOutput = stringify(redactExecutionStatementText(request.execution().output()));
             prompt.append("Complete tool result:\n")

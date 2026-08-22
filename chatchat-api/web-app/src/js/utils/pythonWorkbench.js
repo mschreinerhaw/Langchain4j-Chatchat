@@ -24,3 +24,10 @@ export function formatPythonSource(value) {
   while (formatted.length && !formatted.at(-1)) formatted.pop();
   return `${formatted.join("\n")}\n`;
 }
+
+export function calculateBottomPanelMaximum(mainHeight) {
+  const fixedRowsHeight = 39 + 29 + 24 + 9;
+  const minimumEditorHeight = 120;
+  const availableHeight = Number(mainHeight) - fixedRowsHeight - minimumEditorHeight;
+  return Math.max(100, Math.min(520, Number.isFinite(availableHeight) ? availableHeight : 100));
+}

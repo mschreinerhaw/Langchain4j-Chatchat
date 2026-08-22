@@ -228,6 +228,8 @@ public class ToolRuntimeService {
      * @return the operation result
      */
     public ToolRuntimeExecution execute(ToolRuntimeRequest request) {
+        ToolRuntimeExecution revisionConflict = registryRevisionConflict(request);
+        if (revisionConflict != null) return revisionConflict;
         BatchValidation batchValidation = validateBatchEnvelope(request);
         if (batchValidation.present() && !batchValidation.valid()) {
             String toolName = normalizeText(request == null ? null : request.getToolName());
@@ -288,6 +290,19 @@ public class ToolRuntimeService {
                     : lastExecution.output().getErrorMessage());
         }
         return lastExecution;
+    }
+
+    private ToolRuntimeExecution registryRevisionConflict(ToolRuntimeRequest request) {
+        if (request == null || request.getAttributes() == null) return null;
+        Object rawExpected = request.getAttributes().get("toolRegistryRevision");
+        if (!(rawExpected instanceof Number expected)) return null;
+        long actual = toolRegistry.getRevision();
+        if (expected.longValue() == actual) return null;
+        String toolName = normalizeText(request.getToolName());
+        return deniedExecution(
+            firstText(toolName, "tool_call"), request, toolRegistry.getToolMetadata(toolName),
+            "Tool registry changed during this workflow; retry against one published contract snapshot.",
+            "TOOL_REGISTRY_SNAPSHOT_STALE", null, null);
     }
 
     private boolean repairToolArguments(ToolRuntimeRequest request,

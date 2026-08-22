@@ -81,6 +81,10 @@ public class DynamicMcpToolRouteService {
         routes.clear();
     }
 
+    public void unregister(String serviceId, String childToolName) {
+        routes.remove(routeKey(serviceId, childToolName));
+    }
+
     private InvocationPlan directPlan(String serviceId, String requestedToolName,
                                       Map<String, Object> arguments) {
         Map<String, Object> directArguments = mutableArguments(arguments);
@@ -113,15 +117,9 @@ public class DynamicMcpToolRouteService {
     }
 
     private String publicBridgeParent(String parentToolName) {
-        return switch (parentToolName) {
-            case "api_template_query" -> "api_service_query";
-            case "ssh_template_query" -> "server_capability_query";
-            case "http_endpoint_template_query" -> "http_capability_query";
-            case "database_ops_template_search", "sql_datasource_template_query" ->
-                "database_capability_query";
-            case "database_query_template_query" -> "data_query_query";
-            default -> parentToolName;
-        };
+        // The publisher declares the actual invocation target. Routing never derives
+        // business semantics from a tool name.
+        return parentToolName;
     }
 
     private String text(Object value) {

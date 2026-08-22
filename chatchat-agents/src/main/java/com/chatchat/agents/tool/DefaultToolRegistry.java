@@ -4,12 +4,14 @@ import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
+import com.chatchat.common.tool.ToolWorkflowContract;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Default implementation of ToolRegistry with support for both
@@ -22,6 +24,7 @@ public class DefaultToolRegistry implements ToolRegistry {
     private final Map<String, Tool> simpleTools = new ConcurrentHashMap<>();
     private final Map<String, EnhancedTool> enhancedTools = new ConcurrentHashMap<>();
     private final Map<String, ToolMetadata> toolMetadata = new ConcurrentHashMap<>();
+    private final AtomicLong revision = new AtomicLong();
 
     /**
      * Registers the tool.
@@ -39,7 +42,8 @@ public class DefaultToolRegistry implements ToolRegistry {
         }
 
         log.info("Registering simple tool: {}", toolName);
-        simpleTools.put(toolName, tool);
+        Tool previous = simpleTools.put(toolName, tool);
+        if (previous != tool) revision.incrementAndGet();
     }
 
     /**
@@ -60,10 +64,12 @@ public class DefaultToolRegistry implements ToolRegistry {
         if (tool == null) {
             throw new IllegalArgumentException("Enhanced tool cannot be null");
         }
+        ToolWorkflowContract.validate(toolName, metadata);
 
         log.info("Registering enhanced tool: {} (v{})", toolName, metadata.getVersion());
+        ToolMetadata previousMetadata = toolMetadata.put(toolName, metadata);
         enhancedTools.put(toolName, tool);
-        toolMetadata.put(toolName, metadata);
+        if (!samePublishedContract(previousMetadata, metadata)) revision.incrementAndGet();
     }
 
     /**
@@ -233,6 +239,11 @@ public class DefaultToolRegistry implements ToolRegistry {
         return names;
     }
 
+    @Override
+    public long getRevision() {
+        return revision.get();
+    }
+
     /**
      * Performs the unregister tool operation.
      *
@@ -242,8 +253,21 @@ public class DefaultToolRegistry implements ToolRegistry {
     public void unregisterTool(String toolName) {
         if (toolName == null || toolName.isBlank()) return;
         log.info("Unregistering tool: {}", toolName);
-        simpleTools.remove(toolName);
-        enhancedTools.remove(toolName);
-        toolMetadata.remove(toolName);
+        boolean changed = simpleTools.remove(toolName) != null;
+        changed |= enhancedTools.remove(toolName) != null;
+        changed |= toolMetadata.remove(toolName) != null;
+        if (changed) revision.incrementAndGet();
+    }
+
+    private boolean samePublishedContract(ToolMetadata left, ToolMetadata right) {
+        if (left == null || right == null) return left == right;
+        Object leftChecksum = left.getMetadata() == null ? null
+            : left.getMetadata().get("workflowContractChecksum");
+        Object rightChecksum = right.getMetadata() == null ? null
+            : right.getMetadata().get("workflowContractChecksum");
+        if (leftChecksum != null || rightChecksum != null) {
+            return Objects.equals(leftChecksum, rightChecksum);
+        }
+        return left.equals(right);
     }
 }

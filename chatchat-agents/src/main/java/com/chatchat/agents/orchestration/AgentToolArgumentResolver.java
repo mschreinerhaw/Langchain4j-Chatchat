@@ -5,6 +5,8 @@ import com.chatchat.agents.protocol.AgentProtocolCatalog;
 import com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.tool.ToolMetadata;
+import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.common.tool.ToolWorkflowRole;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 
@@ -450,13 +452,20 @@ class AgentToolArgumentResolver {
     }
 
     private boolean assetDiscoveryTool(String toolName) {
-        String normalized = toolName == null ? "" : toolName.trim().toLowerCase(Locale.ROOT);
-        return normalized.contains("asset_query") || normalized.contains("asset_search");
+        return workflowRole(toolName) == ToolWorkflowRole.ASSET_DISCOVERY;
     }
 
     private boolean templateDiscoveryTool(String toolName) {
-        String normalized = toolName == null ? "" : toolName.trim().toLowerCase(Locale.ROOT);
-        return normalized.contains("template_query") || normalized.contains("template_search");
+        return workflowRole(toolName) == ToolWorkflowRole.TEMPLATE_DISCOVERY;
+    }
+
+    private ToolWorkflowRole workflowRole(String toolName) {
+        if (toolRegistry != null) {
+            ToolWorkflowRole role = toolRegistry.getWorkflowRole(toolName);
+            if (role != null) return role;
+            return ToolWorkflowContract.resolveRole(toolName, toolRegistry.getToolMetadata(toolName));
+        }
+        return ToolWorkflowContract.resolveRole(toolName, null);
     }
 
     private List<Map<String, Object>> eligibleTemplates(List<Map<String, Object>> candidates,

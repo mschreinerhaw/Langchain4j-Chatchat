@@ -1,10 +1,10 @@
 package com.chatchat.agents.runtime.plan;
 
-import com.chatchat.agents.protocol.McpToolProtocolRole;
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolParameter;
+import com.chatchat.common.tool.ToolWorkflowRole;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -73,15 +73,6 @@ public class InterpretationPlanValidator {
     private static final Set<String> RUNTIME_OWNED_TEMPLATE_INPUT_KEYS = Set.of(
         "parameters", "params", "arguments"
     );
-    private static final Set<String> DOMAIN_DISCOVERY_BRIDGE_TOOLS = Set.of(
-        "api_service_query",
-        "server_capability_query",
-        "http_capability_query",
-        "jmx_capability_query",
-        "database_capability_query",
-        "data_query_query",
-        "python_analysis_query"
-    );
 
     /**
      * Validates a plan against the current tool registry.
@@ -132,9 +123,9 @@ public class InterpretationPlanValidator {
         validateDependencyContracts(plan, stepsById, state);
         validateConditionalRouting(plan, stepsById, state);
         validateEdgeContracts(plan, stepsById, state);
-        validateBindings(plan, stepsById, state);
+        validateBindings(plan, stepsById, toolRegistry, state);
         validateTemplateExecutionEvidenceChains(
-            plan, stepsById, authoritativeWorkflowDag, state);
+            plan, stepsById, authoritativeWorkflowDag, toolRegistry, state);
         validateAuthoritativeWorkflowDag(
             stepsById, authoritativeWorkflowDag, taskId, state);
         List<InterpretationPlan.Step> orderedSteps = validateDag(stepsById, state);
@@ -313,14 +304,14 @@ public class InterpretationPlanValidator {
             state.error(path + ".tool_name", "Tool is denied by execution_policy.deny_tool: " + step.toolName());
         }
         if (!toolExists(step.toolName(), toolRegistry, availableTools)
-            && !templatePlaceholderStep(plan, step, availableTools)) {
+            && !templatePlaceholderStep(plan, step, availableTools, toolRegistry)) {
             state.error(path + ".tool_name", "Tool is not registered or available: " + step.toolName());
         }
         if (batchToolInput(step.input())) {
             validateBatchToolInput(step, path, toolRegistry, availableTools, allowTools, state);
         } else {
             validateToolInput(plan, step, path, toolRegistry, state);
-            validateSqlTemplateExecutionContract(plan, step, path, state);
+            validateSqlTemplateExecutionContract(plan, step, path, toolRegistry, state);
             validateHttpTemplateExecutionContract(step, path, state);
             validateSshTemplateExecutionContract(step, path, state);
             validateTemplateArgumentShape(plan, step, path, state);
@@ -348,7 +339,7 @@ public class InterpretationPlanValidator {
             if (missingRequiredValue(value)
                 && missingRequiredValue(toolCallParameter(input, parameter))
                 && !hasBindingForInput(plan, step.id(), parameter.getName())
-                && !runtimeBindableRequiredInput(plan, step, parameter.getName())) {
+                && !runtimeBindableRequiredInput(plan, step, parameter.getName(), toolRegistry)) {
                 state.error(
                     path + ".input." + parameter.getName(),
                     "Required tool input is missing for " + step.toolName() + ": " + parameter.getName()
@@ -360,6 +351,7 @@ public class InterpretationPlanValidator {
     private void validateSqlTemplateExecutionContract(InterpretationPlan plan,
                                                       InterpretationPlan.Step step,
                                                       String path,
+                                                      ToolRegistry toolRegistry,
                                                       ValidationState state) {
         if (step == null || !isSqlQueryExecuteTool(step.toolName()) || step.input() == null || step.input().isEmpty()) {
             return;
@@ -377,8 +369,8 @@ public class InterpretationPlanValidator {
         if (!hasConcreteExecutionContext(executionContext)
             && !hasBindingForInput(plan, step.id(), "executionContext")
             && !hasBindingForInput(plan, step.id(), "mcpExecutionContext")
-            && !dependsOnAssetDiscovery(plan, step)
-            && !dependsOnTemplateDiscovery(plan, step)) {
+            && !dependsOnAssetDiscovery(plan, step, toolRegistry)
+            && !dependsOnTemplateDiscovery(plan, step, toolRegistry)) {
             state.error(path + ".input.executionContext",
                 "sql_query_execute requires logical executionContext, for example {assetName, env}, from user context, template routing metadata, sql_metadata_search/table-location evidence, or an observed invocationExample; do not rely on template parameters for datasource routing.");
         }
@@ -670,13 +662,15 @@ public class InterpretationPlanValidator {
         return trimmed.startsWith("$.") || trimmed.startsWith("$[");
     }
 
-    private boolean dependsOnAssetDiscovery(InterpretationPlan plan, InterpretationPlan.Step step) {
+    private boolean dependsOnAssetDiscovery(InterpretationPlan plan,
+                                            InterpretationPlan.Step step,
+                                            ToolRegistry toolRegistry) {
         if (plan == null || step == null || step.dependsOn() == null || step.dependsOn().isEmpty()) {
             return false;
         }
         return plan.steps().stream()
             .filter(candidate -> candidate != null && step.dependsOn().contains(candidate.id()))
-            .anyMatch(candidate -> isAssetDiscoveryTool(candidate.toolName()));
+            .anyMatch(candidate -> isAssetDiscoveryTool(candidate.toolName(), toolRegistry));
     }
 
     private boolean missingRequiredValue(Object value) {
@@ -1111,6 +1105,7 @@ public class InterpretationPlanValidator {
 
     private void validateBindings(InterpretationPlan plan,
                                   Map<Integer, InterpretationPlan.Step> stepsById,
+                                  ToolRegistry toolRegistry,
                                   ValidationState state) {
         if (plan == null || plan.plan() == null || plan.plan().bindings() == null) {
             return;
@@ -1149,7 +1144,7 @@ public class InterpretationPlanValidator {
                     "Required binding on a locked-edge plan must have a matching edge_contract with the same from, to, and canonical source field.");
             }
             if (target != null
-                && templateExecutionTool(target.toolName())
+                && templateExecutionTool(target.toolName(), toolRegistry)
                 && targetsExecutionParameters(binding.inputField())
                 && schemaMetadataOutputPath(binding.outputPath())) {
                 state.error(path,
@@ -1157,7 +1152,7 @@ public class InterpretationPlanValidator {
             }
             if (target != null
                 && source != null
-                && isAssetDiscoveryTool(source.toolName())
+                && isAssetDiscoveryTool(source.toolName(), toolRegistry)
                 && targetsAssetName(binding.inputField())
                 && !canonicalAssetNameOutputPath(binding.outputPath())) {
                 state.error(path + ".output_path",
@@ -1177,7 +1172,7 @@ public class InterpretationPlanValidator {
             if (target != null
                 && source != null
                 && isSqlQueryExecuteTool(target.toolName())
-                && isAssetDiscoveryTool(source.toolName())
+                && isAssetDiscoveryTool(source.toolName(), toolRegistry)
                 && sameField(binding.inputField(), "parameters.schemaName")
                 && containsNormalized(binding.outputPath(), "asset.name")) {
                 state.error(path + ".input_field",
@@ -1195,15 +1190,16 @@ public class InterpretationPlanValidator {
     private void validateTemplateExecutionEvidenceChains(InterpretationPlan plan,
                                                          Map<Integer, InterpretationPlan.Step> stepsById,
                                                          Object authoritativeWorkflowDag,
+                                                         ToolRegistry toolRegistry,
                                                          ValidationState state) {
         List<InterpretationPlan.Step> assetSteps = stepsById.values().stream()
-            .filter(step -> isAssetDiscoveryTool(step.toolName()))
+            .filter(step -> isAssetDiscoveryTool(step.toolName(), toolRegistry))
             .toList();
         List<InterpretationPlan.Step> templateSteps = stepsById.values().stream()
-            .filter(step -> templateDiscoveryTool(step.toolName()))
+            .filter(step -> templateDiscoveryTool(step.toolName(), toolRegistry))
             .toList();
         List<InterpretationPlan.Step> executeSteps = stepsById.values().stream()
-            .filter(step -> templateExecutionTool(step.toolName()))
+            .filter(step -> templateExecutionTool(step.toolName(), toolRegistry))
             .toList();
         if (executeSteps.isEmpty()) {
             return;
@@ -1274,14 +1270,8 @@ public class InterpretationPlanValidator {
                 dependency, requiredDependencyId, stepsById, visited));
     }
 
-    private boolean isAssetDiscoveryTool(String toolName) {
-        if (toolName == null || toolName.isBlank()) {
-            return false;
-        }
-        String normalized = toolName.trim().toLowerCase(Locale.ROOT);
-        return McpToolProtocolRole.ASSET_QUERY.matches(normalized)
-            || normalized.endsWith("_asset_search")
-            || "asset_search".equals(normalized);
+    private boolean isAssetDiscoveryTool(String toolName, ToolRegistry registry) {
+        return workflowRole(toolName, registry) == ToolWorkflowRole.ASSET_DISCOVERY;
     }
 
     private boolean targetsExecutionParameters(String inputField) {
@@ -1449,17 +1439,20 @@ public class InterpretationPlanValidator {
 
     private boolean templatePlaceholderStep(InterpretationPlan plan,
                                             InterpretationPlan.Step step,
-                                            Set<String> availableTools) {
+                                            Set<String> availableTools,
+                                            ToolRegistry toolRegistry) {
         if (plan == null || plan.plan() == null || step == null || step.dependsOn() == null
             || step.dependsOn().isEmpty() || availableTools == null || availableTools.isEmpty()) {
             return false;
         }
-        return dependsOnTemplateDiscovery(plan, step) && availableTools.stream().anyMatch(this::templateExecutionTool);
+        return dependsOnTemplateDiscovery(plan, step, toolRegistry)
+            && availableTools.stream().anyMatch(tool -> templateExecutionTool(tool, toolRegistry));
     }
 
     private boolean runtimeBindableRequiredInput(InterpretationPlan plan,
                                                  InterpretationPlan.Step step,
-                                                 String parameterName) {
+                                                 String parameterName,
+                                                 ToolRegistry toolRegistry) {
         if (plan == null || step == null || blank(parameterName)) {
             return false;
         }
@@ -1469,11 +1462,11 @@ public class InterpretationPlanValidator {
         // fields before published-schema compilation and MCP invocation. Treating them as model
         // requirements here makes the preflight validator reject a plan that the executor can
         // deterministically compile (most visibly for the required routing trace).
-        if (routingDiscoveryTool(step.toolName())
+        if (routingDiscoveryTool(step.toolName(), toolRegistry)
             && RUNTIME_OWNED_DISCOVERY_INPUT_KEYS.contains(key)) {
             return true;
         }
-        if (!templateExecutionTool(step.toolName())) {
+        if (!templateExecutionTool(step.toolName(), toolRegistry)) {
             return false;
         }
         // The parameter container is compiled only after template discovery has selected and
@@ -1481,40 +1474,49 @@ public class InterpretationPlanValidator {
         // means "no model-supplied overrides", not "required input missing". The Runtime will
         // retain it for a zero-argument template or populate it from verified user/tool evidence.
         if (RUNTIME_OWNED_TEMPLATE_INPUT_KEYS.contains(key)
-            && dependsOnTemplateDiscovery(plan, step)) {
+            && dependsOnTemplateDiscovery(plan, step, toolRegistry)) {
             return true;
         }
         if (!"template".equals(key) && !"templateid".equals(key) && !"templatecode".equals(key)) {
             return invocationValue(step.input(), "arguments", "parameters", "params", "target", "executionContext") != null;
         }
-        return dependsOnTemplateDiscovery(plan, step)
+        return dependsOnTemplateDiscovery(plan, step, toolRegistry)
             || invocationValue(step.input(), "templateRef", "template_ref", "templateId", "template") != null;
     }
 
-    private boolean dependsOnTemplateDiscovery(InterpretationPlan plan, InterpretationPlan.Step step) {
+    private boolean dependsOnTemplateDiscovery(InterpretationPlan plan,
+                                               InterpretationPlan.Step step,
+                                               ToolRegistry toolRegistry) {
         if (plan == null || step == null || step.dependsOn() == null || step.dependsOn().isEmpty()) {
             return false;
         }
         return plan.steps().stream()
             .filter(candidate -> candidate != null && candidate.id() != null && step.dependsOn().contains(candidate.id()))
-            .anyMatch(candidate -> candidate.mcpToolAction() && templateDiscoveryTool(candidate.toolName()));
+            .anyMatch(candidate -> candidate.mcpToolAction()
+                && templateDiscoveryTool(candidate.toolName(), toolRegistry));
     }
 
-    private boolean templateDiscoveryTool(String toolName) {
-        String semantic = semanticToolName(toolName);
-        return McpToolProtocolRole.TEMPLATE_QUERY.matches(semantic)
-            || semantic.endsWith("_template_search")
-            || DOMAIN_DISCOVERY_BRIDGE_TOOLS.contains(semantic);
+    private boolean templateDiscoveryTool(String toolName, ToolRegistry registry) {
+        return workflowRole(toolName, registry) == ToolWorkflowRole.TEMPLATE_DISCOVERY;
     }
 
-    private boolean routingDiscoveryTool(String toolName) {
-        return isAssetDiscoveryTool(toolName) || templateDiscoveryTool(toolName);
+    private boolean routingDiscoveryTool(String toolName, ToolRegistry registry) {
+        ToolWorkflowRole role = workflowRole(toolName, registry);
+        return role == ToolWorkflowRole.ASSET_DISCOVERY || role == ToolWorkflowRole.TEMPLATE_DISCOVERY;
     }
 
-    private boolean templateExecutionTool(String toolName) {
-        String semantic = semanticToolName(toolName);
-        return McpToolProtocolRole.TEMPLATE_EXECUTE.matches(semantic)
-            || "execute".equals(semantic) || semantic.endsWith("_execute");
+    private boolean templateExecutionTool(String toolName, ToolRegistry registry) {
+        return workflowRole(toolName, registry) == ToolWorkflowRole.TEMPLATE_EXECUTION;
+    }
+
+    private ToolWorkflowRole workflowRole(String toolName, ToolRegistry registry) {
+        if (registry != null) {
+            ToolWorkflowRole role = registry.getWorkflowRole(toolName);
+            if (role != null) return role;
+            return com.chatchat.common.tool.ToolWorkflowContract.resolveRole(
+                toolName, registry.getToolMetadata(toolName));
+        }
+        return com.chatchat.common.tool.ToolWorkflowContract.resolveRole(toolName, null);
     }
 
     private String semanticToolName(String toolName) {

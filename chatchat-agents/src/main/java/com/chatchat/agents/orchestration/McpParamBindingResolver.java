@@ -2,6 +2,9 @@ package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.protocol.AgentProtocolCatalog;
 import com.chatchat.common.tool.ToolMetadata;
+import com.chatchat.common.tool.McpToolNamePolicy;
+import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.common.tool.ToolWorkflowRole;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -141,21 +144,26 @@ class McpParamBindingResolver {
             return values;
         }
         String remoteToolName = remoteToolName(toolName, metadata);
-        if (sameTool(remoteToolName, "linux_command_execute")
+        String protocolFamily = ToolWorkflowContract.declaredProtocolFamily(metadata)
+            .map(value -> value.toLowerCase(Locale.ROOT)).orElse("");
+        if (protocolFamily.contains("ssh") || protocolFamily.contains("shell")
+            || sameTool(remoteToolName, "linux_command_execute")
             || sameTool(remoteToolName, "ssh_linux_execute")) {
             return bindLinuxCommand(values, userQuery);
         }
-        if (sameTool(remoteToolName, "http_request_execute")
+        if (protocolFamily.contains("http") || protocolFamily.contains("api")
+            || sameTool(remoteToolName, "http_request_execute")
             || sameTool(remoteToolName, "api_query_execute")) {
             return bindHttpRequest(values, userQuery);
         }
-        if (sameTool(remoteToolName, "sql_query_execute")) {
+        if (protocolFamily.contains("sql") || protocolFamily.contains("database")
+            || sameTool(remoteToolName, "sql_query_execute")) {
             return bindSqlQuery(values, userQuery);
         }
-        if (isAssetDiscoveryTool(remoteToolName)) {
+        if (workflowRole(remoteToolName, metadata) == ToolWorkflowRole.ASSET_DISCOVERY) {
             return bindDiscoveryQuery(toolName, metadata, values, userQuery, false);
         }
-        if (isTemplateDiscoveryTool(remoteToolName)) {
+        if (workflowRole(remoteToolName, metadata) == ToolWorkflowRole.TEMPLATE_DISCOVERY) {
             return bindDiscoveryQuery(toolName, metadata, values, userQuery, true);
         }
         return values;
@@ -1221,19 +1229,8 @@ class McpParamBindingResolver {
         return normalizeToolName(first).equals(normalizeToolName(second));
     }
 
-    private boolean isAssetDiscoveryTool(String toolName) {
-        String normalized = normalizeToolName(toolName);
-        return "asset_query".equals(normalized)
-            || normalized.endsWith("_asset_query")
-            || "database_asset_search".equals(normalized)
-            || normalized.endsWith("_database_asset_search");
-    }
-
-    private boolean isTemplateDiscoveryTool(String toolName) {
-        String normalized = normalizeToolName(toolName);
-        return "template_query".equals(normalized)
-            || normalized.endsWith("_template_query")
-            || normalized.endsWith("_template_search");
+    private ToolWorkflowRole workflowRole(String toolName, ToolMetadata metadata) {
+        return ToolWorkflowContract.resolveRole(toolName, metadata);
     }
 
     private String normalizeToolName(String value) {

@@ -1443,7 +1443,7 @@ class AgentAnswerFinalizer {
         }
 
         Map<String, Object> data = primaryData(output);
-        if (isLinuxEvidence(data)) {
+        if (isLinuxEvidence(trace.getToolName(), data)) {
             item.put("evidenceType", "linux_command");
             item.put("exitCode", firstPresent(data.get("exitCode"), output.get("exitCode")));
             item.put("commandSuccess", firstPresent(data.get("commandSuccess"), output.get("commandSuccess")));
@@ -1524,15 +1524,21 @@ class AgentAnswerFinalizer {
         return output == null ? Map.of() : output;
     }
 
-    private boolean isLinuxEvidence(Map<String, Object> data) {
+    private boolean isLinuxEvidence(String toolName, Map<String, Object> data) {
+        String normalizedTool = firstNonBlank(toolName, "").toLowerCase(Locale.ROOT);
+        if (normalizedTool.endsWith("linux_command_execute")
+            || normalizedTool.endsWith("ssh_linux_execute")) {
+            return true;
+        }
         if (data == null || data.isEmpty()) {
             return false;
         }
-        return data.containsKey("exitCode")
-            || data.containsKey("stdout")
-            || data.containsKey("stderr")
+        return data.containsKey("commandSuccess")
+            || data.containsKey("transportSuccess")
             || data.containsKey("steps")
-            || data.containsKey("commandSuccess");
+            || "ssh_command".equalsIgnoreCase(stringValue(data.get("kind")))
+            || firstNonBlank(stringValue(data.get("dataSchema")), "")
+                .toLowerCase(Locale.ROOT).startsWith("ssh_");
     }
 
     private boolean isHttpEvidence(Map<String, Object> data) {

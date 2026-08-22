@@ -16,6 +16,29 @@ class ToolObservationBuilderEvidenceTest {
     private final ToolObservationBuilder builder = new ToolObservationBuilder(new EvidenceTrustEvaluator());
 
     @Test
+    void unknownResultSchemaRecursivelyExtractsJsonEncodedStdoutForFinalReview() {
+        Map<String, Object> result = Map.of(
+            "schemaVersion", "python_analysis_bridge_result.v1",
+            "success", true,
+            "status", "SUCCEEDED",
+            "exitCode", 0,
+            "stdout", """
+                {"status":"SUCCESS","result":{"total_lines":111,"total_error_count":7,
+                "statistics":{"exceptions":{"SparkCausedRetryException":1}}}}
+                """
+        );
+
+        String evidence = builder.buildAuthoritativeExecutionEvidence(
+            "mcp_chatchat_mcp_server_python_template_execute", result);
+
+        assertThat(evidence)
+            .contains("Dynamic structured tool result")
+            .contains("decodedJsonString", "total_lines", "111", "total_error_count", "7")
+            .contains("SparkCausedRetryException")
+            .doesNotContain("Linux command execution facts");
+    }
+
+    @Test
     void apiTemplateObservationSurfacesCommandDescriptionAndCanonicalBodyReferenceOnce() {
         Map<String, Object> commandContext = Map.of(
             "schemaVersion", "template_result_context.v1",

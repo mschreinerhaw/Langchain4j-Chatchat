@@ -3,6 +3,9 @@ package com.chatchat.agents.orchestration;
 import com.chatchat.agents.protocol.McpToolProtocolRole;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.tool.McpToolNamePolicy;
+import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.common.tool.ToolWorkflowRole;
+import com.chatchat.agents.tool.ToolRegistry;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -19,6 +22,16 @@ import java.util.Set;
  * Central decision engine for MCP workflow tool execution and final-answer gates.
  */
 class AgentWorkflowDecisionEngine {
+
+    private final ToolRegistry toolRegistry;
+
+    AgentWorkflowDecisionEngine() {
+        this(null);
+    }
+
+    AgentWorkflowDecisionEngine(ToolRegistry toolRegistry) {
+        this.toolRegistry = toolRegistry;
+    }
 
     private static final String DOCUMENT_SEARCH_TOOL = "document_search";
     private static final String WEB_SEARCH_TOOL = "web_search";
@@ -122,19 +135,17 @@ class AgentWorkflowDecisionEngine {
         List<WorkflowToolStep> augmented = new ArrayList<>(steps);
         for (int index = 0; index < augmented.size(); index++) {
             WorkflowToolStep step = augmented.get(index);
-            String family = McpToolProtocolRole.TEMPLATE_QUERY.family(step.toolName());
-            if (family != null) {
-                List<WorkflowToolStep> assets = matchingTemplateFamily(
-                    augmented, family, McpToolProtocolRole.ASSET_QUERY);
+            if (workflowRole(step.toolName()) == ToolWorkflowRole.TEMPLATE_DISCOVERY) {
+                List<WorkflowToolStep> assets = matchingProtocolPredecessors(
+                    augmented, step.toolName(), McpToolProtocolRole.ASSET_QUERY);
                 if (assets.size() == 1) {
                     augmented.set(index, withWorkflowDependency(step, workflowStepLabel(assets.get(0))));
                 }
                 continue;
             }
-            family = McpToolProtocolRole.TEMPLATE_EXECUTE.family(step.toolName());
-            if (family != null) {
-                List<WorkflowToolStep> queries = matchingTemplateFamily(
-                    augmented, family, McpToolProtocolRole.TEMPLATE_QUERY);
+            if (workflowRole(step.toolName()) == ToolWorkflowRole.TEMPLATE_EXECUTION) {
+                List<WorkflowToolStep> queries = matchingProtocolPredecessors(
+                    augmented, step.toolName(), McpToolProtocolRole.TEMPLATE_QUERY);
                 if (queries.size() == 1) {
                     augmented.set(index, withWorkflowDependency(step, workflowStepLabel(queries.get(0))));
                 }
@@ -143,12 +154,44 @@ class AgentWorkflowDecisionEngine {
         return augmented;
     }
 
+    private List<WorkflowToolStep> matchingProtocolPredecessors(List<WorkflowToolStep> steps,
+                                                                 String toolName,
+                                                                 McpToolProtocolRole predecessorRole) {
+        McpToolProtocolRole currentRole = predecessorRole == McpToolProtocolRole.ASSET_QUERY
+            ? McpToolProtocolRole.TEMPLATE_QUERY : McpToolProtocolRole.TEMPLATE_EXECUTE;
+        String declaredFamily = protocolFamily(toolName);
+        String resolvedFamily = declaredFamily == null ? currentRole.family(toolName) : declaredFamily;
+        if (resolvedFamily != null) {
+            List<WorkflowToolStep> familyMatches = matchingTemplateFamily(steps, resolvedFamily, predecessorRole);
+            if (!familyMatches.isEmpty()) {
+                return familyMatches;
+            }
+        }
+        return steps.stream()
+            .filter(candidate -> predecessorRole == McpToolProtocolRole.ASSET_QUERY
+                ? workflowRole(candidate.toolName()) == ToolWorkflowRole.ASSET_DISCOVERY
+                : workflowRole(candidate.toolName()) == ToolWorkflowRole.TEMPLATE_DISCOVERY)
+            .toList();
+    }
+
     private List<WorkflowToolStep> matchingTemplateFamily(List<WorkflowToolStep> steps,
                                                            String family,
                                                            McpToolProtocolRole role) {
         return steps.stream()
-            .filter(candidate -> family.equals(role.family(candidate.toolName())))
+            .filter(candidate -> family.equals(protocolFamily(candidate.toolName()))
+                || family.equals(role.family(candidate.toolName())))
             .toList();
+    }
+
+    private ToolWorkflowRole workflowRole(String toolName) {
+        return toolRegistry == null
+            ? ToolWorkflowContract.resolveRole(toolName, null)
+            : toolRegistry.getWorkflowRole(toolName);
+    }
+
+    private String protocolFamily(String toolName) {
+        if (toolRegistry == null) return null;
+        return ToolWorkflowContract.declaredProtocolFamily(toolRegistry.getToolMetadata(toolName)).orElse(null);
     }
 
     private WorkflowToolStep withWorkflowDependency(WorkflowToolStep step, String dependency) {

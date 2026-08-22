@@ -3,6 +3,7 @@ package com.chatchat.enterprise.entity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Index;
+import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
@@ -47,13 +48,16 @@ public class McpToolWorkflowContract extends EnterpriseAuditable {
     @Column(name = "contract_checksum", length = 64, nullable = false)
     private String contractChecksum;
 
-    @Column(name = "input_schema_json", columnDefinition = "TEXT")
+    @Lob
+    @Column(name = "input_schema_json")
     private String inputSchemaJson;
 
-    @Column(name = "output_schema_json", columnDefinition = "TEXT")
+    @Lob
+    @Column(name = "output_schema_json")
     private String outputSchemaJson;
 
-    @Column(name = "extensions_json", columnDefinition = "TEXT")
+    @Lob
+    @Column(name = "extensions_json")
     private String extensionsJson;
 
     @Column(name = "published_at")

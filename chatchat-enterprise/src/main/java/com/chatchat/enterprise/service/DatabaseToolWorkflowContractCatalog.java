@@ -61,7 +61,8 @@ public class DatabaseToolWorkflowContractCatalog implements ToolWorkflowContract
                                                                        String description,
                                                                        Map<String, Object> inputSchema,
                                                                        Map<String, Object> outputSchema,
-                                                                       Map<String, Object> discoveredMeta) {
+                                                                       Map<String, Object> discoveredMeta,
+                                                                       boolean autoPublish) {
         Optional<McpToolAsset> stored = tools.findByLocalToolName(localToolName);
         boolean existingCatalogTool = stored.isPresent();
         McpToolAsset tool = stored.orElseGet(McpToolAsset::new);
@@ -76,6 +77,10 @@ public class DatabaseToolWorkflowContractCatalog implements ToolWorkflowContract
         tool.setEnabled(true);
         tool.setStatus("online");
         tool = tools.saveAndFlush(tool);
+        String synchronizedToolId = tool.getId();
+        // Serialize discovery/publication for this tool across scheduler threads and nodes.
+        tools.findLockedById(synchronizedToolId).orElseThrow(() ->
+            new IllegalStateException("MCP tool disappeared during contract synchronization: " + synchronizedToolId));
 
         Map<String, Object> metadataMap = new LinkedHashMap<>();
         metadataMap.put("mcpToolMeta", discoveredMeta == null ? Map.of() : discoveredMeta);
@@ -115,18 +120,40 @@ public class DatabaseToolWorkflowContractCatalog implements ToolWorkflowContract
             candidate.setInputSchemaJson(json(inputSchema));
             candidate.setOutputSchemaJson(json(outputSchema));
             candidate.setExtensionsJson(json(published));
-            // Existing catalog rows are migrated without downtime. Brand-new discoveries remain
-            // DRAFT until explicitly published and cannot enter the runtime registry.
-            candidate.setStatus(existingCatalogTool && history.isEmpty() ? ACTIVE : DRAFT);
+            // Existing catalog rows are migrated without downtime. Trusted services may opt in
+            // to atomic publication; strict services keep newly discovered contracts as DRAFT.
+            boolean publishNow = autoPublish || (existingCatalogTool && history.isEmpty());
+            if (publishNow) {
+                retireActive(tool.getId());
+            }
+            candidate.setStatus(publishNow ? ACTIVE : DRAFT);
             if (ACTIVE.equals(candidate.getStatus())) {
                 candidate.setPublishedAt(Instant.now());
-                candidate.setPublishedBy("system-legacy-migration");
+                candidate.setPublishedBy(autoPublish
+                    ? "system-trusted-service-discovery" : "system-legacy-migration");
             }
+            contracts.saveAndFlush(candidate);
+        } else if (autoPublish && !ACTIVE.equals(same.get().getStatus())) {
+            // Recover a DRAFT left behind by an earlier database/storage failure or by a
+            // service whose publication policy was subsequently enabled.
+            retireActive(tool.getId());
+            McpToolWorkflowContract candidate = same.get();
+            candidate.setStatus(ACTIVE);
+            candidate.setPublishedAt(Instant.now());
+            candidate.setPublishedBy("system-trusted-service-discovery");
             contracts.saveAndFlush(candidate);
         }
         return contracts.findFirstByToolIdAndStatusOrderByContractVersionDesc(tool.getId(), ACTIVE)
             .filter(active -> checksum.equals(active.getContractChecksum()))
             .map(this::snapshot);
+    }
+
+    private void retireActive(String toolId) {
+        List<McpToolWorkflowContract> active = contracts.findByToolIdAndStatus(toolId, ACTIVE);
+        active.forEach(item -> item.setStatus(RETIRED));
+        if (!active.isEmpty()) {
+            contracts.saveAllAndFlush(active);
+        }
     }
 
     @Transactional(readOnly = true)

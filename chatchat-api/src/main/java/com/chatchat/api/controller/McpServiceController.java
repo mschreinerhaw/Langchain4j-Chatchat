@@ -131,6 +131,7 @@ public class McpServiceController {
                 v.protocol(),
                 v.baseUrl(),
                 v.enabled(),
+                v.contractAutoPublish(),
                 v.toolDiscoveryPath(),
                 v.toolInvokePath(),
                 v.timeoutMs(),
@@ -322,6 +323,7 @@ public class McpServiceController {
         config.setToolInvokePath(request.toolInvokePath());
         config.setAuthToken(request.authToken());
         config.setEnabled(request.enabled() == null || request.enabled());
+        config.setContractAutoPublish(request.contractAutoPublish() == null || request.contractAutoPublish());
         config.setTimeoutMs(request.timeoutMs() == null ? 0 : Math.max(0, request.timeoutMs()));
         config.setCustomHeadersJson(writeHeadersJson(request.customHeaders()));
         config.setProtocol(request.protocol());
@@ -758,6 +760,7 @@ public class McpServiceController {
             config.getStdioEnvJson(),
             config.getStdioWorkingDirectory(),
             config.isEnabled(),
+            config.isContractAutoPublish(),
             config.getTimeoutMs(),
             readHeaders(config.getCustomHeadersJson()),
             config.isProxyEnabled(),
@@ -818,6 +821,7 @@ public class McpServiceController {
         String authToken,
         Integer timeoutMs,
         Boolean enabled,
+        Boolean contractAutoPublish,
         Map<String, String> customHeaders,
         Boolean proxyEnabled,
         String proxyType,
@@ -840,6 +844,7 @@ public class McpServiceController {
         String stdioEnvJson,
         String stdioWorkingDirectory,
         boolean enabled,
+        boolean contractAutoPublish,
         int timeoutMs,
         Map<String, String> customHeaders,
         boolean proxyEnabled,
@@ -863,6 +868,7 @@ public class McpServiceController {
         String protocol,
         String baseUrl,
         boolean enabled,
+        boolean contractAutoPublish,
         String toolDiscoveryPath,
         String toolInvokePath,
         Integer timeoutMs,

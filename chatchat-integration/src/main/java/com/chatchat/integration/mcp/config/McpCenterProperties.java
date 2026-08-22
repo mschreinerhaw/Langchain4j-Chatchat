@@ -50,6 +50,9 @@ public class McpCenterProperties {
 
     private int maxAutoSyncAttempts = 5;
 
+    /** Cooldown before an exhausted recovery circuit automatically starts a new bounded cycle. */
+    private long autoRecoveryRearmDelayMs = 300000;
+
     public String resolvedAdminUsername(InternalCredentialProperties internalCredentialProperties) {
         String configured = text(adminUsername);
         if (!configured.isBlank()) {

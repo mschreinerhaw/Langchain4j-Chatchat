@@ -1,6 +1,8 @@
 package com.chatchat.mcpserver.ops;
 
 import com.chatchat.common.tool.ToolProtocolDriverContract;
+import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import com.chatchat.mcpserver.tool.StandardToolExecutionResultFactory;
@@ -341,6 +343,8 @@ public class OpsMcpToolPublisher {
             List.of("hostId", "host", "hostname", "ip", "ipAddress", "address")
         ));
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta("linux_command_execute", "ssh"));
+        meta.put(ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
+            ToolWorkflowRole.TEMPLATE_EXECUTION, "mcp.ssh-template.v1", "executionContext"));
         meta.put(ToolProtocolDriverContract.METADATA_KEY, ToolProtocolDriverContract.of(
             "mcp.ssh-template.v1",
             List.of(
@@ -382,6 +386,8 @@ public class OpsMcpToolPublisher {
             List.of("endpointId", "url", "uri", "host", "hostname", "ip", "ipAddress", "address")
         ));
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta("http_request_execute", "http"));
+        meta.put(ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
+            ToolWorkflowRole.TEMPLATE_EXECUTION, "mcp.http-template.v1", "executionContext"));
         meta.put(ToolProtocolDriverContract.METADATA_KEY, ToolProtocolDriverContract.of(
             "mcp.http-template.v1",
             List.of(

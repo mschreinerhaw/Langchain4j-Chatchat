@@ -227,6 +227,7 @@
     );
 
     create table mcp_service_config (
+        contract_auto_publish boolean default true not null,
         enabled boolean not null,
         proxy_enabled boolean not null,
         proxy_port integer,
@@ -253,6 +254,7 @@
     );
 
     create table mcp_service_config_version (
+        contract_auto_publish boolean default true not null,
         enabled boolean not null,
         proxy_enabled boolean not null,
         proxy_port integer,

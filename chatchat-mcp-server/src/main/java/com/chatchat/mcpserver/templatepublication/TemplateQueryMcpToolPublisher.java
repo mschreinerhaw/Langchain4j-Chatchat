@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.templatepublication;
 
+import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.mcpserver.api.ApiTemplateDiscoveryMcpToolPublisher;
 import com.chatchat.mcpserver.mcp.McpInvocationContext;
 import com.chatchat.mcpserver.mcp.McpToolApplicability;
@@ -310,6 +312,8 @@ public class TemplateQueryMcpToolPublisher {
         meta.put("controlPlane", "server_managed");
         meta.put("governanceEditable", false);
         meta.put("rawExecutionSpecReturned", false);
+        meta.put(ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
+            ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.authorized-template-query.v1", "filters"));
         meta.put(McpToolApplicability.META_KEY, McpToolApplicability.of(
             "template_query:authorized_discovery",
             "Authorized template discovery",

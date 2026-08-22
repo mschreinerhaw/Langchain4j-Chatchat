@@ -1,6 +1,8 @@
 package com.chatchat.mcpserver.api;
 
 import com.chatchat.common.tool.ToolProtocolDriverContract;
+import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import com.chatchat.mcpserver.tool.McpToolPublicationReviewer;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -96,6 +98,8 @@ public class ApiMcpToolPublisher {
         meta.put("bridgeManaged", true);
         meta.put("executionTool", EXECUTE_TOOL_NAME);
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta(BRIDGE_TOOL_NAME, "read_only"));
+        meta.put(ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
+            ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.api-service-bridge.v1", "intent+filters"));
         meta.put(ToolProtocolDriverContract.METADATA_KEY, ToolProtocolDriverContract.of(
             "mcp.api-service-bridge.v1",
             List.of(

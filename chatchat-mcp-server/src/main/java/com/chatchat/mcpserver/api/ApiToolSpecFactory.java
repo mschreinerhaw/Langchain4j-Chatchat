@@ -3,6 +3,8 @@ package com.chatchat.mcpserver.api;
 import com.chatchat.mcpserver.mcp.McpToolApplicability;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.common.tool.ToolProtocolDriverContract;
+import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.common.tool.ToolWorkflowRole;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -76,6 +78,8 @@ public class ApiToolSpecFactory {
         meta.put("runtimeAction", "execute");
         meta.put("templateGoverned", true);
         meta.put("templateDiscoveryTool", ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME);
+        meta.put(ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
+            ToolWorkflowRole.TEMPLATE_EXECUTION, "mcp.api-template.v1", "templateId+parameters"));
         meta.put(ToolProtocolDriverContract.METADATA_KEY, ToolProtocolDriverContract.of(
             "mcp.api-template.v1",
             List.of(

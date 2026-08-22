@@ -47,7 +47,7 @@ class DatabaseToolWorkflowContractCatalogTest {
         ));
 
         assertThat(catalog.synchronizeDiscovery("service-a", "Service A", "random_7f31", "opaque-x",
-            "first", schemaV1, Map.of("type", "object"), metadata)).isEmpty();
+            "first", schemaV1, Map.of("type", "object"), metadata, false)).isEmpty();
         McpToolAsset tool = tools.findByLocalToolName("random_7f31").orElseThrow();
         McpToolWorkflowContract version1 = catalog.listContracts(tool.getId()).get(0);
         assertThat(version1.getStatus()).isEqualTo("DRAFT");
@@ -59,7 +59,7 @@ class DatabaseToolWorkflowContractCatalogTest {
         Map<String, Object> schemaV2 = Map.of("type", "object", "required", List.of("target"));
         assertThat(catalog.synchronizeDiscovery(
             "service-a", "Service A", "random_7f31", "opaque-x", "second",
-            schemaV2, Map.of("type", "array"), metadata)).isEmpty();
+            schemaV2, Map.of("type", "array"), metadata, false)).isEmpty();
         assertThat(catalog.findActive("service-a", "random_7f31", "opaque-x").orElseThrow().version())
             .isEqualTo(1);
 
@@ -93,12 +93,38 @@ class DatabaseToolWorkflowContractCatalogTest {
             "legacy-service", "Legacy", "legacy_capability_query", "remote-anything",
             "legacy", Map.of(), Map.of(), Map.of(
                 "kind", "dynamic_authorized_template_discovery",
-                "parentToolName", "published-parent")).orElseThrow();
+                "parentToolName", "published-parent"), false).orElseThrow();
 
         assertThat(migrated.version()).isEqualTo(1);
         assertThat(catalog.listContracts(legacy.getId()).get(0).getPublishedBy())
             .isEqualTo("system-legacy-migration");
         assertThat(migrated.extensions()).containsEntry("parentToolName", "published-parent");
+    }
+
+    @Test
+    void trustedServicePublishesLargeContractAndRecoversAnExistingDraft() {
+        String largePublisherMetadata = "x".repeat(96 * 1024);
+        Map<String, Object> metadata = Map.of(ToolWorkflowContract.METADATA_KEY, Map.of(
+            "schemaVersion", ToolWorkflowContract.SCHEMA_VERSION,
+            "workflowRole", "template_execution",
+            "protocolFamily", "ssh-template",
+            "publisherMetadata", largePublisherMetadata
+        ));
+
+        assertThat(catalog.synchronizeDiscovery(
+            "trusted-service", "Trusted", "opaque_large_tool", "opaque-remote", "large",
+            Map.of("type", "object"), Map.of(), metadata, false)).isEmpty();
+
+        ToolWorkflowContractSnapshot active = catalog.synchronizeDiscovery(
+            "trusted-service", "Trusted", "opaque_large_tool", "opaque-remote", "large",
+            Map.of("type", "object"), Map.of(), metadata, true).orElseThrow();
+
+        assertThat(active.version()).isEqualTo(1);
+        assertThat(active.workflowRole()).isEqualTo(ToolWorkflowRole.TEMPLATE_EXECUTION);
+        assertThat(active.extensions().get("publisherMetadata")).isEqualTo(largePublisherMetadata);
+        McpToolWorkflowContract stored = catalog.listContracts(active.toolId()).get(0);
+        assertThat(stored.getStatus()).isEqualTo("ACTIVE");
+        assertThat(stored.getPublishedBy()).isEqualTo("system-trusted-service-discovery");
     }
 
     @SpringBootConfiguration

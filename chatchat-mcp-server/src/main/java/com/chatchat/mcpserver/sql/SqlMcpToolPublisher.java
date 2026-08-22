@@ -2,6 +2,8 @@ package com.chatchat.mcpserver.sql;
 
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolProtocolDriverContract;
+import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.mcpserver.config.ChatChatMcpServerProperties;
 import com.chatchat.mcpserver.database.DatabaseQueryConfig;
 import com.chatchat.mcpserver.database.DatabaseQueryConfigService;
@@ -261,6 +263,8 @@ public class SqlMcpToolPublisher {
         meta.put("forbiddenTargetFields", List.of("datasourceId", "jdbcUrl", "url", "connectionString"));
         meta.put("executionTool", "sql_query_execute");
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta(DATA_QUERY_BRIDGE_TOOL, "read_only"));
+        meta.put(ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
+            ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.data-query-bridge.v1", "intent+filters"));
         meta.put(ToolProtocolDriverContract.METADATA_KEY, ToolProtocolDriverContract.of(
             "mcp.data-query-bridge.v1",
             List.of(
@@ -896,6 +900,8 @@ public class SqlMcpToolPublisher {
             List.of("datasourceId", "jdbcUrl", "url", "connectionString")
         ));
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta("sql_query_execute", "sql"));
+        meta.put(ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
+            ToolWorkflowRole.TEMPLATE_EXECUTION, "mcp.sql-template.v1", "executionContext"));
         meta.put(ToolProtocolDriverContract.METADATA_KEY, sqlProtocolDriver());
         return meta;
     }

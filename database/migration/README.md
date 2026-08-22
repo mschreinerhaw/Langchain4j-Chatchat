@@ -5,9 +5,15 @@ Apply the script for the target database before deploying the matching applicati
 - MySQL: `mysql/V20260822_01__mcp_tool_workflow_contract.sql`
 - H2: `h2/V20260822_01__mcp_tool_workflow_contract.sql`
 
+Installations that already deployed the first contract build must then apply:
+
+- MySQL: `mysql/V20260822_02__mcp_contract_payload_and_publication_policy.sql`
+- H2: `h2/V20260822_02__mcp_contract_payload_and_publication_policy.sql`
+
 The application keeps existing `mcp_tool` rows online by creating one ACTIVE version during
-their first successful discovery. A newly discovered tool is stored as DRAFT and is not exposed
-to agents until an administrator publishes it.
+their first successful discovery. Trusted MCP services default to `contract_auto_publish=true`,
+so newly discovered or changed contracts are published atomically. Set the database flag to
+`false` for services that require manual DRAFT review before agent exposure.
 
 Publication uses optimistic compare-and-set semantics:
 

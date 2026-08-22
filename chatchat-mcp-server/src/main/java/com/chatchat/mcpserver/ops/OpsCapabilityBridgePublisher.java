@@ -1,6 +1,8 @@
 package com.chatchat.mcpserver.ops;
 
 import com.chatchat.common.tool.ToolProtocolDriverContract;
+import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.mcpserver.routing.AssetDiscoveryMcpToolPublisher;
 import com.chatchat.mcpserver.routing.AssetDiscoveryService;
 import com.chatchat.mcpserver.templatepublication.TemplateQueryMcpToolPublisher;
@@ -194,6 +196,8 @@ public class OpsCapabilityBridgePublisher {
         meta.put("readOnly", true);
         meta.put("bridgeManaged", true);
         meta.put("executionTool", domain.executionTool());
+        meta.put(ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
+            ToolWorkflowRole.TEMPLATE_DISCOVERY, domain.protocolId(), "intent+filters"));
         meta.put(ToolProtocolDriverContract.METADATA_KEY, ToolProtocolDriverContract.of(
             domain.protocolId(),
             List.of(

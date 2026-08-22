@@ -79,6 +79,13 @@ public class McpServiceConfig {
     @Column(nullable = false)
     private boolean enabled = true;
 
+    /**
+     * Whether contracts discovered from this administratively trusted service are
+     * atomically published. Disable it to require manual DRAFT review.
+     */
+    @Column(nullable = false)
+    private boolean contractAutoPublish = true;
+
     @Column(nullable = false)
     private int timeoutMs = 0;
 

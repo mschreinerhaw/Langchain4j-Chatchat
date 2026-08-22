@@ -43,4 +43,19 @@ class ToolWorkflowContractTest {
         assertThat(ToolWorkflowContract.resolveRole("plain_calculator", null))
             .isEqualTo(ToolWorkflowRole.DIRECT);
     }
+
+    @Test
+    void publisherDeclarationRoundTripsWithoutToolNameInference() {
+        ToolMetadata metadata = ToolMetadata.builder().metadata(Map.of(
+            ToolWorkflowContract.METADATA_KEY,
+            ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_EXECUTION,
+                "vendor.protocol.v3", "executionContext")
+        )).build();
+
+        ToolWorkflowContract.validate("arbitrary_new_tool", metadata);
+        assertThat(ToolWorkflowContract.declaredRole(metadata))
+            .contains(ToolWorkflowRole.TEMPLATE_EXECUTION);
+        assertThat(ToolWorkflowContract.declaredProtocolFamily(metadata)).contains("vendor.protocol.v3");
+        assertThat(ToolWorkflowContract.declaredInputEnvelope(metadata)).contains("executionContext");
+    }
 }

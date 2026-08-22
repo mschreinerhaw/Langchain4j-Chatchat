@@ -85,6 +85,9 @@ public class McpServiceConfigVersion {
     private boolean enabled = true;
 
     @Column(nullable = false)
+    private boolean contractAutoPublish = true;
+
+    @Column(nullable = false)
     private int timeoutMs = 0;
 
     @Column(nullable = false)

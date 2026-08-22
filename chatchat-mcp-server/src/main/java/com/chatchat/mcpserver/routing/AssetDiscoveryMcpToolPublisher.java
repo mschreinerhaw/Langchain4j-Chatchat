@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.routing;
 
+import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.mcpserver.mcp.McpToolApplicability;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
@@ -168,6 +170,8 @@ public class AssetDiscoveryMcpToolPublisher {
             "targetKind", targetKind,
             "assetType", assetType,
             "technicalType", technicalType,
+            ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
+                ToolWorkflowRole.ASSET_DISCOVERY, "mcp.asset-discovery.v1", "filters"),
             McpToolApplicability.META_KEY, McpToolApplicability.of(
                 assetType + (technicalSuffix == null ? "" : ":" + technicalSuffix) + ":asset_discovery",
                 "Asset discovery for " + (technicalSuffix == null ? assetType : technicalSuffix),

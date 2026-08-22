@@ -29,3 +29,10 @@ create table if not exists mcp_tool_workflow_contract (
     index idx_mcp_tool_contract_active (tool_id, status),
     index idx_mcp_tool_contract_checksum (contract_checksum)
 ) engine=InnoDB;
+
+-- The table may already have been created by Hibernate before this migration was
+-- introduced. Always widen JSON payloads; TEXT is limited to 64 KiB.
+alter table mcp_tool_workflow_contract
+    modify input_schema_json longtext,
+    modify output_schema_json longtext,
+    modify extensions_json longtext;

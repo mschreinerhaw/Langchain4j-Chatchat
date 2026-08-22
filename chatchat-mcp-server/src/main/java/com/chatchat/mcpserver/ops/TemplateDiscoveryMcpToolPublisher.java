@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.ops;
 
+import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.mcpserver.mcp.McpToolApplicability;
 import com.chatchat.mcpserver.routing.TargetKindRegistry;
 import com.chatchat.mcpserver.templatepublication.TemplateQueryMcpToolPublisher;
@@ -408,6 +410,8 @@ public class TemplateDiscoveryMcpToolPublisher {
             "riskLevel", "low",
             "targetKind", targetKind,
             "assetType", assetType,
+            ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
+                ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.template-discovery.v1", "filters"),
             McpToolApplicability.META_KEY, McpToolApplicability.of(
                 assetType + ":template_discovery",
                 domainLabel + " template discovery",

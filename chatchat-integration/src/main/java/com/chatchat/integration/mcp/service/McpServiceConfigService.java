@@ -111,6 +111,7 @@ public class McpServiceConfigService {
         current.setProxyUsername(blankToNull(draft.getProxyUsername()));
         current.setProxyPassword(blankToNull(draft.getProxyPassword()));
         current.setEnabled(draft.isEnabled());
+        current.setContractAutoPublish(draft.isContractAutoPublish());
         current.setTimeoutMs(Math.max(0, draft.getTimeoutMs()));
         validate(current);
         McpServiceConfig saved = repository.save(current);
@@ -146,6 +147,7 @@ public class McpServiceConfigService {
         current.setProxyUsername(blankToNull(draft.getProxyUsername()));
         current.setProxyPassword(blankToNull(draft.getProxyPassword()));
         current.setEnabled(draft.isEnabled());
+        current.setContractAutoPublish(draft.isContractAutoPublish());
         current.setTimeoutMs(Math.max(0, draft.getTimeoutMs()));
         validate(current);
         McpServiceConfig saved = repository.save(current);
@@ -238,6 +240,7 @@ public class McpServiceConfigService {
         current.setProxyUsername(target.getProxyUsername());
         current.setProxyPassword(target.getProxyPassword());
         current.setEnabled(target.isEnabled());
+        current.setContractAutoPublish(target.isContractAutoPublish());
         current.setTimeoutMs(Math.max(0, target.getTimeoutMs()));
         validate(current);
         McpServiceConfig saved = repository.save(current);
@@ -414,6 +417,7 @@ public class McpServiceConfigService {
         version.setProxyUsername(source.getProxyUsername());
         version.setProxyPassword(source.getProxyPassword());
         version.setEnabled(source.isEnabled());
+        version.setContractAutoPublish(source.isContractAutoPublish());
         version.setTimeoutMs(source.getTimeoutMs());
         versionRepository.save(version);
     }
@@ -433,6 +437,7 @@ public class McpServiceConfigService {
             entity.getProtocol(),
             entity.getBaseUrl(),
             entity.isEnabled(),
+            entity.isContractAutoPublish(),
             entity.getToolDiscoveryPath(),
             entity.getToolInvokePath(),
             entity.getTimeoutMs(),
@@ -448,6 +453,7 @@ public class McpServiceConfigService {
         String protocol,
         String baseUrl,
         boolean enabled,
+        boolean contractAutoPublish,
         String toolDiscoveryPath,
         String toolInvokePath,
         int timeoutMs,

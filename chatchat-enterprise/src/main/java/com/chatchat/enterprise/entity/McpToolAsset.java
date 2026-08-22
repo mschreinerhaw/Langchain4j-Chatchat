@@ -2,6 +2,7 @@ package com.chatchat.enterprise.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -30,10 +31,12 @@ public class McpToolAsset extends EnterpriseAuditable {
     @Column(length = 32, nullable = false)
     private String resourceType = "tool";
 
-    @Column(columnDefinition = "TEXT")
+    @Lob
+    @Column
     private String inputSchemaJson;
 
-    @Column(columnDefinition = "TEXT")
+    @Lob
+    @Column
     private String outputSchemaJson;
 
     @Column(nullable = false)

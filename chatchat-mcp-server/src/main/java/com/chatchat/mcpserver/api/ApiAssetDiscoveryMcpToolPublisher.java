@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.api;
 
+import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.mcpserver.routing.AssetDiscoveryService;
 import com.chatchat.mcpserver.routing.AssetMetadataFactory;
 import com.chatchat.mcpserver.routing.TargetKindRegistry;
@@ -175,6 +177,8 @@ public class ApiAssetDiscoveryMcpToolPublisher {
             "riskLevel", "low",
             "targetKind", "api_service",
             "assetType", "api_service",
+            ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
+                ToolWorkflowRole.ASSET_DISCOVERY, "mcp.api-asset-discovery.v1", "filters"),
             "toolBoundary", mapOf(
                 "toolName", TOOL_NAME,
                 "forcedAssetType", "api_service",

@@ -1,6 +1,8 @@
 package com.chatchat.mcpserver.tool;
 
 import com.chatchat.common.tool.ToolProtocolDriverContract;
+import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.mcpserver.api.ApiInvokeService;
 import com.chatchat.mcpserver.api.ApiServiceConfigService;
 import com.chatchat.mcpserver.api.ApiToolSpecFactory;
@@ -62,11 +64,10 @@ class ProtocolDriverPublicationTest {
             mock(ApiInvokeService.class), mock(ApiServiceConfigService.class), new ObjectMapper(), governance,
             mock(McpToolConcurrencyManager.class), mock(StandardToolExecutionResultFactory.class));
 
-        assertDriver(meta(sql, "gatewayMeta"), "mcp.sql-template.v1");
-        assertDriver(meta(sql, "scriptGatewayMeta"), "mcp.sql-template.v1");
-        assertDriver(meta(ops, "linuxCommandGatewayMeta"), "mcp.ssh-template.v1");
-        assertDriver(meta(ops, "httpRequestGatewayMeta"), "mcp.http-template.v1");
-        assertDriver(meta(api, "apiTemplateGatewayMeta"), "mcp.api-template.v1");
+        assertExecutionContract(meta(sql, "gatewayMeta"), "mcp.sql-template.v1");
+        assertExecutionContract(meta(ops, "linuxCommandGatewayMeta"), "mcp.ssh-template.v1");
+        assertExecutionContract(meta(ops, "httpRequestGatewayMeta"), "mcp.http-template.v1");
+        assertExecutionContract(meta(api, "apiTemplateGatewayMeta"), "mcp.api-template.v1");
     }
 
     @SuppressWarnings("unchecked")
@@ -85,5 +86,16 @@ class ProtocolDriverPublicationTest {
             .containsEntry("driverId", id);
         assertThat((java.util.List<String>) driver.get("plannerRules")).isNotEmpty();
         assertThat((java.util.List<String>) driver.get("rewriterRules")).isNotEmpty();
+    }
+
+    @SuppressWarnings("unchecked")
+    private void assertExecutionContract(Map<String, Object> metadata, String protocolFamily) {
+        assertDriver(metadata, protocolFamily);
+        assertThat(metadata).containsKey(ToolWorkflowContract.METADATA_KEY);
+        Map<String, Object> workflow = (Map<String, Object>) metadata.get(ToolWorkflowContract.METADATA_KEY);
+        assertThat(workflow)
+            .containsEntry("schemaVersion", ToolWorkflowContract.SCHEMA_VERSION)
+            .containsEntry("workflowRole", ToolWorkflowRole.TEMPLATE_EXECUTION.name())
+            .containsEntry("protocolFamily", protocolFamily);
     }
 }

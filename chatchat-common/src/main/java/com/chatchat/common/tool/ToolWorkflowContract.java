@@ -1,6 +1,7 @@
 package com.chatchat.common.tool;
 
 import java.util.Locale;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -14,6 +15,22 @@ public final class ToolWorkflowContract {
     public static final String METADATA_KEY = "workflowContract";
 
     private ToolWorkflowContract() {
+    }
+
+    /**
+     * Builds the publisher-owned metadata envelope consumed by the persistent catalog.
+     * Workflow publishers must declare their role; runtime code must not infer it from a tool name.
+     */
+    public static Map<String, Object> declaration(ToolWorkflowRole role,
+                                                   String protocolFamily,
+                                                   String inputEnvelope) {
+        if (role == null) throw new IllegalArgumentException("workflow role is required");
+        Map<String, Object> contract = new LinkedHashMap<>();
+        contract.put("schemaVersion", SCHEMA_VERSION);
+        contract.put("workflowRole", role.name());
+        if (text(protocolFamily) != null) contract.put("protocolFamily", text(protocolFamily));
+        if (text(inputEnvelope) != null) contract.put("inputEnvelope", text(inputEnvelope));
+        return Map.copyOf(contract);
     }
 
     public static Optional<ToolWorkflowRole> declaredRole(ToolMetadata metadata) {

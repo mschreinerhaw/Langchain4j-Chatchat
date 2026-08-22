@@ -29,6 +29,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
@@ -44,12 +45,13 @@ class McpToolRegistryBridgeLifecycleTest {
         ToolWorkflowContractCatalog catalog = mock(ToolWorkflowContractCatalog.class);
         ObjectProvider<ToolWorkflowContractCatalog> provider = mock(ObjectProvider.class);
         McpServiceConfig service = service("service-draft", "Vendor");
+        service.setContractAutoPublish(false);
         McpToolDefinition definition = new McpToolDefinition("opaque-91", "draft", Map.of());
         when(provider.getIfAvailable()).thenReturn(catalog);
         when(configService.listEnabled()).thenReturn(List.of(service));
         when(gateway.discoverTools(service, 0)).thenReturn(List.of(definition));
         when(catalog.synchronizeDiscovery(anyString(), anyString(), anyString(), anyString(),
-            anyString(), anyMap(), anyMap(), anyMap())).thenReturn(Optional.empty());
+            anyString(), anyMap(), anyMap(), anyMap(), anyBoolean())).thenReturn(Optional.empty());
         McpToolRegistryBridge bridge = new McpToolRegistryBridge(
             registry, configService, gateway, new ObjectMapper(),
             new DynamicMcpToolRouteService(), provider);
@@ -80,7 +82,7 @@ class McpToolRegistryBridgeLifecycleTest {
         when(configService.listEnabled()).thenReturn(List.of(service));
         when(gateway.discoverTools(service, 0)).thenReturn(List.of(definition));
         when(catalog.synchronizeDiscovery(anyString(), anyString(), anyString(), anyString(),
-            anyString(), anyMap(), anyMap(), anyMap())).thenReturn(Optional.of(snapshot));
+            anyString(), anyMap(), anyMap(), anyMap(), anyBoolean())).thenReturn(Optional.of(snapshot));
         McpToolRegistryBridge bridge = new McpToolRegistryBridge(
             registry, configService, gateway, new ObjectMapper(),
             new DynamicMcpToolRouteService(), provider);
@@ -133,7 +135,7 @@ class McpToolRegistryBridgeLifecycleTest {
             .thenReturn(List.of(definition))
             .thenThrow(new IllegalStateException("temporary discovery timeout"));
         when(catalog.synchronizeDiscovery(anyString(), anyString(), anyString(), anyString(),
-            anyString(), anyMap(), anyMap(), anyMap())).thenReturn(Optional.of(v1));
+            anyString(), anyMap(), anyMap(), anyMap(), anyBoolean())).thenReturn(Optional.of(v1));
         when(catalog.findActive("service-governed", "mcp_governed_opaque_41", "opaque-41"))
             .thenReturn(Optional.of(v2));
         McpToolRegistryBridge bridge = new McpToolRegistryBridge(

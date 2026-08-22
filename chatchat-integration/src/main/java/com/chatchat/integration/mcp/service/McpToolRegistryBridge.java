@@ -234,7 +234,8 @@ public class McpToolRegistryBridge {
         if (contractCatalog != null) {
             activeContract = contractCatalog.synchronizeDiscovery(
                 service.getId(), service.getName(), localName, definition.name(),
-                definition.description(), discoveredInput, discoveredOutput, definition.meta())
+                definition.description(), discoveredInput, discoveredOutput, definition.meta(),
+                service.isContractAutoPublish())
                 .orElse(null);
             if (activeContract == null) {
                 log.info("MCP tool staged as DRAFT and excluded from runtime registry: {}", localName);

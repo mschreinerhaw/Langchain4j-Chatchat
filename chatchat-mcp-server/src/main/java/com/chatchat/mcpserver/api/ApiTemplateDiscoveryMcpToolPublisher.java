@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.api;
 
+import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.mcpserver.category.BusinessCategory;
 import com.chatchat.mcpserver.category.BusinessCategoryService;
 import com.chatchat.mcpserver.ops.CommandTemplateDiscoveryService;
@@ -299,6 +301,8 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             "riskLevel", "low",
             "targetKind", "api_service",
             "assetType", "api_service",
+            ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
+                ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.api-template-discovery.v1", "filters"),
             "confirmation", mapOf("default", "auto_execute", "allow_user_override", false),
             "resultShape", mapOf(
                 "canonical", "templates[]",

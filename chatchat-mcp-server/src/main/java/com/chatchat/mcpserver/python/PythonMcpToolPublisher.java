@@ -1,6 +1,8 @@
 package com.chatchat.mcpserver.python;
 
 import com.chatchat.common.tool.ToolProtocolDriverContract;
+import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import com.chatchat.mcpserver.tool.McpToolPublicationReviewer;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -120,6 +122,8 @@ public class PythonMcpToolPublisher {
         meta.put("templateGoverned", true);
         meta.put("bridgeManaged", true);
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta(ANALYSIS_RUN_TOOL, "python"));
+        meta.put(ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
+            ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.python-analysis-bridge.v1", "intent+filters"));
         meta.put(ToolProtocolDriverContract.METADATA_KEY, ToolProtocolDriverContract.of(
             "mcp.python-analysis-bridge.v1",
             List.of(
@@ -146,6 +150,8 @@ public class PythonMcpToolPublisher {
         meta.put("template_execution", true);
         meta.put("batch_execution", true);
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta(TEMPLATE_EXECUTE_TOOL, "python"));
+        meta.put(ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
+            ToolWorkflowRole.TEMPLATE_EXECUTION, "mcp.python-template.v1", "templateId+parameters"));
         return Map.copyOf(meta);
     }
 

@@ -56,9 +56,18 @@ public class McpCenterRecoveryService {
         state = retryExhausted ? "RETRY_EXHAUSTED" : "UNHEALTHY";
         lastFailure = health.message();
         if (retryExhausted) {
-            log.debug("MCP auto recovery remains stopped after {} failed attempts: {}",
-                autoSyncAttempts, lastFailure);
-            return;
+            long rearmDelayMs = Math.max(1000L, properties.getAutoRecoveryRearmDelayMs());
+            long elapsedMs = Math.max(0L, System.currentTimeMillis() - lastAutoSyncAt);
+            if (elapsedMs < rearmDelayMs) {
+                log.debug("MCP auto recovery circuit is cooling down after {} failed attempts; "
+                        + "next bounded cycle in {} ms: {}",
+                    autoSyncAttempts, rearmDelayMs - elapsedMs, lastFailure);
+                return;
+            }
+            log.warn("MCP auto recovery cooldown elapsed; starting a new bounded recovery cycle");
+            autoSyncAttempts = 0;
+            retryExhausted = false;
+            state = "UNHEALTHY";
         }
 
         int maxAttempts = Math.max(1, properties.getMaxAutoSyncAttempts());
@@ -86,9 +95,9 @@ public class McpCenterRecoveryService {
         if (autoSyncAttempts >= maxAttempts) {
             retryExhausted = true;
             state = "RETRY_EXHAUSTED";
-            log.error("MCP center auto recovery stopped after {} failed attempts. "
-                + "A manual center sync or application restart is required to re-arm it. Last error: {}",
-                autoSyncAttempts, lastFailure);
+            log.error("MCP center auto recovery entered cooldown after {} failed attempts. "
+                    + "It will automatically re-arm after {} ms; manual sync can retry immediately. Last error: {}",
+                autoSyncAttempts, Math.max(1000L, properties.getAutoRecoveryRearmDelayMs()), lastFailure);
         } else {
             state = "RECOVERING";
         }

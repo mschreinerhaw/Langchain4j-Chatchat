@@ -18,5 +18,6 @@ public interface ToolWorkflowContractCatalog {
                                                                 String description,
                                                                 Map<String, Object> inputSchema,
                                                                 Map<String, Object> outputSchema,
-                                                                Map<String, Object> discoveredMeta);
+                                                                Map<String, Object> discoveredMeta,
+                                                                boolean autoPublish);
 }

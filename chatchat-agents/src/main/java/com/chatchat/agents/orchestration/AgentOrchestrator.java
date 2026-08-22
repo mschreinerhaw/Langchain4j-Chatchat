@@ -1616,6 +1616,22 @@ public class AgentOrchestrator implements AgentRunExecutor {
             );
             recordEvidenceAugmentationDecision(
                 latestAugmentationDecision, rewriteCount + 1, runtimeAttributes, metadata);
+            int revisedEvidenceLimit = evidenceDrivenRewriteLimit(
+                configuredMaxRewriteTimes,
+                latestAugmentationDecision,
+                evidenceHistory,
+                tools
+            );
+            if (revisedEvidenceLimit > maxRewriteTimes) {
+                maxRewriteTimes = revisedEvidenceLimit;
+                metadata.put("evidenceDrivenRewriteBudgetApplied", true);
+                metadata.put("evidenceDrivenRewriteBudgetExpandedAfterDiscovery", true);
+                metadata.put("interpretationPlanMaxRewriteTimes", maxRewriteTimes);
+                metadata.put("evidenceDrivenRewriteBudgetReason",
+                    "A completed discovery step exposed an available execution tool for the remaining evidence gap.");
+                observations.add("InterpretationPlan retained another bounded evidence round because discovery "
+                    + "returned an actionable tool that is present in the pinned runtime registry.");
+            }
             if ("DAG_NO_PROGRESS".equals(currentResult.status())) {
                 usablePartialAnalysis = evidenceHistory.stream().anyMatch(this::usableEvidenceAvailable);
                 metadata.put("interpretationPlanNoProgressStopped", true);

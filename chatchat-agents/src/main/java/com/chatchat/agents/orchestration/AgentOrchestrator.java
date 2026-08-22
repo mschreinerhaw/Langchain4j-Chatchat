@@ -877,6 +877,12 @@ public class AgentOrchestrator implements AgentRunExecutor {
 
             if (decision.interpretationPlan() != null
                 && Boolean.TRUE.equals(decision.executionPlan().get("interpretationPlanValid"))) {
+                Map<String, Map<String, Object>> candidateInputs =
+                    authoritativeWorkflowCandidateInputs(decision.interpretationPlan(), authoritativeWorkflowDag);
+                if (!candidateInputs.isEmpty()) {
+                    requestRuntimeAttributes.put("authoritativeWorkflowCandidateInputs", candidateInputs);
+                    metadata.put("authoritativeWorkflowCandidateInputTools", List.copyOf(candidateInputs.keySet()));
+                }
                 Set<String> eventCompletedTools = completedWorkflowToolsFromEvents(
                     requestRuntimeAttributes,
                     completedWorkflowToolsWithTraces(completedWorkflowTools, traces)
@@ -7944,8 +7950,14 @@ public class AgentOrchestrator implements AgentRunExecutor {
                                               Map<String, Object> plannerExecutionPlan,
                                               List<InteractionToolTrace> priorTraces,
                                               Map<String, Object> runtimeAttributes) {
-        Map<String, Object> safeArguments = new LinkedHashMap<>(
-            toolArguments.applyObservedTemplateContract(toolName, arguments, priorTraces));
+        String originalUserQuery = stringValue(runtimeAttributes == null
+            ? null
+            : runtimeAttributes.get("originalUserQuery"));
+        Map<String, Object> compiledArguments = originalUserQuery == null || originalUserQuery.isBlank()
+            ? toolArguments.applyObservedTemplateContract(toolName, arguments, priorTraces)
+            : toolArguments.applyObservedTemplateContract(
+                toolName, arguments, priorTraces, originalUserQuery);
+        Map<String, Object> safeArguments = new LinkedHashMap<>(compiledArguments);
         safeArguments = new LinkedHashMap<>(
             toolArguments.enforceObservedAssetContinuity(toolName, safeArguments, priorTraces));
         Map<String, Object> attributes = new LinkedHashMap<>(runtimeAttributes == null ? Map.of() : runtimeAttributes);

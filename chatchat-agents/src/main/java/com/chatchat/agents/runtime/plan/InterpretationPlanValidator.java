@@ -1243,11 +1243,37 @@ public class InterpretationPlanValidator {
                         && containsNormalized(binding.outputPath(), "templateId")
                         && (containsNormalized(binding.inputField(), "templateId")
                             || "template".equals(normalizeField(binding.inputField()))));
-            if (!dependsOnTemplate || !selectedTemplateBinding) {
+            boolean runtimeOwnedDiagnosticBatch = runtimeOwnedDiagnosticBatch(
+                plan, executeStep, toolRegistry);
+            if (!dependsOnTemplate || (!selectedTemplateBinding && !runtimeOwnedDiagnosticBatch)) {
                 state.error("plan.steps[" + executeStep.id() + "]",
                     "Template-governed execution requires a dependency and Runtime-owned scalar templateId binding from template discovery; a model literal is not provenance.");
             }
         }
+    }
+
+    /**
+     * A diagnostic profile assigning multiple required checks to one batch-capable executor is
+     * an explicit Runtime-owned compilation contract. In that shape the model must not choose a
+     * template id: Runtime maps the reviewed discovery metadata to checks and creates every child
+     * invocation after discovery. Requiring a model-authored scalar binding here would contradict
+     * that contract and can also collapse distinct checks onto {@code templates[0]}.
+     */
+    private boolean runtimeOwnedDiagnosticBatch(InterpretationPlan plan,
+                                                InterpretationPlan.Step executeStep,
+                                                ToolRegistry toolRegistry) {
+        if (plan == null || plan.plan() == null || executeStep == null
+            || executeStep.id() == null || !batchCapable(executeStep.toolName(), toolRegistry)
+            || plan.plan().diagnosticProfile() == null
+            || plan.plan().diagnosticProfile().checks() == null) {
+            return false;
+        }
+        long requiredChecks = plan.plan().diagnosticProfile().checks().stream()
+            .filter(java.util.Objects::nonNull)
+            .filter(check -> !Boolean.FALSE.equals(check.required()))
+            .filter(check -> check.stepIds() != null && check.stepIds().contains(executeStep.id()))
+            .count();
+        return requiredChecks >= 2;
     }
 
     private boolean dependsOnTransitively(Integer stepId,

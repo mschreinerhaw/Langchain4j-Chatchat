@@ -176,6 +176,69 @@ class InterpretationPlanValidatorTest {
     }
 
     @Test
+    void acceptsRuntimeOwnedDiagnosticBatchWithoutModelSelectedTemplateId() {
+        String discovery = "mcp_chatchat_mcp_server_server_capability_query";
+        String execute = "mcp_chatchat_mcp_server_linux_command_execute";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        for (String tool : List.of(discovery, execute)) {
+            when(toolRegistry.hasTool(tool)).thenReturn(true);
+        }
+        when(toolRegistry.getToolMetadata(discovery)).thenReturn(ToolMetadata.builder()
+            .id(discovery)
+            .metadata(Map.of("workflowRole", "template_discovery"))
+            .build());
+        when(toolRegistry.getToolMetadata(execute)).thenReturn(ToolMetadata.builder()
+            .id(execute)
+            .metadata(Map.of("capabilities", List.of("template_execution", "batch_execution")))
+            .build());
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("host_diagnostic", "inspect registered host", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", discovery,
+                        Map.of("filters", Map.of("env", "DEV", "assetName", "registered-host")),
+                        List.of(), null, null),
+                    new InterpretationPlan.Step(2, "mcp_tool", execute,
+                        Map.of("executionMode", "SEQUENTIAL", "calls", List.of(
+                            Map.of("callId", "inventory", "toolName", execute,
+                                "arguments", Map.of("template", "{{step1.templates[0].templateId}}")),
+                            Map.of("callId", "status", "toolName", execute,
+                                "arguments", Map.of("template", "{{step1.templates[0].templateId}}"))
+                        )), List.of(1), null, null),
+                    finalStep(3, List.of(2))
+                ),
+                List.of(),
+                List.of(new InterpretationPlan.DependencyContract(
+                    1, 2, true, null, "discover governed templates", "stop")),
+                List.of(),
+                null,
+                new InterpretationPlan.DiagnosticProfile(
+                    "registered-host-diagnostic", "host", List.of(
+                        new InterpretationPlan.DiagnosticCheck(
+                            "inventory", "inventory", "inventory", true, 1, List.of(2), null),
+                        new InterpretationPlan.DiagnosticCheck(
+                            "status", "status", "status", true, 1, List.of(2), null)
+                    ), null),
+                List.of(), List.of()
+            ),
+            new InterpretationPlan.ExecutionPolicy(
+                3, false, List.of(discovery, execute), List.of(), 30_000),
+            review(true)
+        );
+        List<Map<String, Object>> authoritativeDag = List.of(
+            Map.of("tool", discovery, "dependsOnTools", List.of()),
+            Map.of("tool", execute, "dependsOnTools", List.of(discovery))
+        );
+
+        InterpretationPlanValidator.ValidationResult result = validator.validate(
+            plan, toolRegistry, Set.of(discovery, execute), authoritativeDag, "host-diagnostic");
+
+        assertThat(result.valid()).isTrue();
+    }
+
+    @Test
     void validPlanIsExecutableAndTopologicallyOrdered() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("document_search")).thenReturn(true);

@@ -1167,6 +1167,60 @@ class AgentToolArgumentResolverTest {
     }
 
     @Test
+    void repeatedExecutionCompilationKeepsUserQueryBackedRequiredParameter() {
+        String discoveryTool = "mcp_runtime_any_discovery";
+        String executionTool = "mcp_runtime_python_template_execute";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getWorkflowRole(discoveryTool)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(executionTool)).thenReturn(ToolWorkflowRole.TEMPLATE_EXECUTION);
+        when(registry.getToolMetadata(executionTool)).thenReturn(ToolMetadata.builder()
+            .id(executionTool)
+            .parameters(List.of(ToolParameter.builder()
+                .name("templateId").type("string").required(true).build()))
+            .build());
+        AgentToolArgumentResolver contractResolver =
+            new AgentToolArgumentResolver(new AgentToolNameResolver(), 5, registry);
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .toolName(discoveryTool)
+            .success(true)
+            .output("""
+                {
+                  "executionTool":"python_template_execute",
+                  "candidates":[{
+                    "templateId":"template-log",
+                    "parameterSchema":{
+                      "type":"object",
+                      "properties":{
+                        "source_file":{"type":"FILE"},
+                        "limit":{"type":"integer","default":100}
+                      },
+                      "required":["source_file"]
+                    }
+                  }]
+                }
+                """)
+            .build();
+        String userQuery = "帮我执行 log_analysis.py 程序 分析 1787187818764.log 日志文件";
+
+        Map<String, Object> firstPass = contractResolver.applyDeterministicDependencyContracts(
+            executionTool,
+            Map.of("purpose", "log_analysis", "parameters",
+                Map.of("source_file", "1787187818764.log")),
+            List.of(discovery),
+            userQuery
+        );
+        Map<String, Object> executionPass = contractResolver.applyObservedTemplateContract(
+            executionTool, firstPass, List.of(discovery), userQuery);
+
+        assertThat(firstPass)
+            .containsEntry("parameters", Map.of("source_file", "1787187818764.log", "limit", 100));
+        assertThat(executionPass)
+            .containsEntry("templateId", "template-log")
+            .containsEntry("parameters", Map.of("source_file", "1787187818764.log", "limit", 100))
+            .doesNotContainKeys("__runtimeParamBindingStatus", "__runtimeParamBindingError");
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void mandatoryRecoveryUsesPublishedTemplateExecutionRoleWhenOptionalMcpMetadataIsAbsent() {
         String discoveryTool = "mcp_runtime_dynamic_discovery";

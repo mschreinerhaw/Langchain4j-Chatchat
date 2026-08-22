@@ -145,6 +145,14 @@ public class OpsCapabilityBridgePublisher {
         normalized.put("confidence", 1.0D);
         normalized.put("candidates", List.of(Map.of("targetKind", domain.targetKind(), "confidence", 1.0D)));
         normalized.put("trace", Map.of("source", domain.toolName(), "bridgeManaged", true));
+        // A domain bridge feeds Runtime-owned candidate review, not a user-facing search page.
+        // Always expose the complete bounded review window so a small model-authored limit cannot
+        // hide a second required capability and collapse a multi-check request into templates[0].
+        // Exact templateIds remain a registry-governed filter; this only widens candidates up to
+        // the discovery service's published hard maximum.
+        if (!assetStage && !normalized.containsKey("templateIds")) {
+            normalized.put("limit", CommandTemplateDiscoveryService.MAX_LIMIT);
+        }
         Map<String, Object> discovered;
         if (!childToolName.isBlank()) {
             discovered = requireDynamicTemplateQueries().queryFromParent(
@@ -159,6 +167,13 @@ public class OpsCapabilityBridgePublisher {
         result.put("assetType", domain.assetType());
         result.put("stage", assetStage ? "asset" : "template");
         result.put("executionTool", domain.executionTool());
+        if (!assetStage && !normalized.containsKey("templateIds")) {
+            result.put("candidateWindowPolicy", Map.of(
+                "mode", "FULL_BOUNDED_REVIEW_WINDOW",
+                "limit", CommandTemplateDiscoveryService.MAX_LIMIT,
+                "runtimeOwned", true
+            ));
+        }
         return result;
     }
 

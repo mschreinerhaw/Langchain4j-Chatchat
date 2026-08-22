@@ -48,6 +48,23 @@ class OpsCapabilityBridgePublisherTest {
     }
 
     @Test
+    void templateBridgeUsesFullBoundedCandidateWindowForRuntimeReview() {
+        CommandTemplateDiscoveryService discovery = mock(CommandTemplateDiscoveryService.class);
+        when(discovery.query(org.mockito.ArgumentMatchers.anyMap()))
+            .thenReturn(Map.of("templates", java.util.List.of()));
+        OpsCapabilityBridgePublisher publisher = publisher(discovery);
+
+        Map<String, Object> result = publisher.query(
+            OpsCapabilityBridgePublisher.SERVER_QUERY_TOOL,
+            Map.of("query", "inspect two independent capabilities", "limit", 3));
+
+        verify(discovery).query(argThat(query ->
+            Integer.valueOf(CommandTemplateDiscoveryService.MAX_LIMIT).equals(query.get("limit"))));
+        assertThat(result.get("candidateWindowPolicy").toString())
+            .contains("FULL_BOUNDED_REVIEW_WINDOW", "runtimeOwned=true");
+    }
+
+    @Test
     void jmxDoesNotPretendToSupportAssetDiscovery() {
         OpsCapabilityBridgePublisher publisher = publisher(mock(CommandTemplateDiscoveryService.class));
 

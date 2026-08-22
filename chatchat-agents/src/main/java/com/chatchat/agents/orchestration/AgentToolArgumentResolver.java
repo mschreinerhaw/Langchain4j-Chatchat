@@ -147,7 +147,7 @@ class AgentToolArgumentResolver {
         if (traces == null || traces.isEmpty()) {
             return values;
         }
-        String requestedTemplateId = scalarText(firstPresent(
+        String requestedTemplateId = runtimeScalarText(firstPresent(
             values, "template", "templateId", "template_id", "commandTemplate", "command_template"));
         for (int index = traces.size() - 1; index >= 0; index--) {
             InteractionToolTrace trace = traces.get(index);
@@ -177,7 +177,7 @@ class AgentToolArgumentResolver {
                     continue;
                 }
                 Map<String, Object> candidateInput = new LinkedHashMap<>(values);
-                if (apiTemplateExecutor(toolName)) {
+                if (usesTemplateIdField(toolName)) {
                     candidateInput.put("templateId", templateId);
                 } else {
                     candidateInput.put("template", templateId);
@@ -561,7 +561,7 @@ class AgentToolArgumentResolver {
     }
 
     private void finishObservedTemplateInput(String toolName, Map<String, Object> values, Object output) {
-        if (apiTemplateExecutor(toolName)) {
+        if (usesTemplateIdField(toolName)) {
             values.remove("template");
         } else {
             values.remove("templateId");
@@ -833,7 +833,7 @@ class AgentToolArgumentResolver {
             for (Map<String, Object> template : uniqueCandidates.values()) {
                 String templateId = templateId(template);
                 Map<String, Object> candidateInput = new LinkedHashMap<>(values);
-                if (apiTemplateExecutor(toolName)) {
+                if (usesTemplateIdField(toolName)) {
                     candidateInput.put("templateId", templateId);
                 } else {
                     candidateInput.put("template", templateId);
@@ -890,36 +890,69 @@ class AgentToolArgumentResolver {
 
     @SuppressWarnings("unchecked")
     private void collectDiscoveredTemplates(Object value, List<Map<String, Object>> templates, int depth) {
+        collectDiscoveredTemplates(value, templates, depth, null);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void collectDiscoveredTemplates(Object value, List<Map<String, Object>> templates,
+                                             int depth, String inheritedExecutor) {
         if (value == null || depth > 8) {
             return;
         }
         if (value instanceof List<?> list) {
-            list.forEach(item -> collectDiscoveredTemplates(item, templates, depth + 1));
+            list.forEach(item -> collectDiscoveredTemplates(item, templates, depth + 1, inheritedExecutor));
             return;
         }
         if (!(value instanceof Map<?, ?> raw)) {
             return;
         }
         Map<String, Object> map = (Map<String, Object>) raw;
+        String executor = firstNonBlank(discoveredExecutor(map), inheritedExecutor);
         Object templateId = firstPresent(map, "templateId", "template_id", "id", "code");
-        if (scalarText(templateId) != null && discoveredExecutor(map) != null) {
-            templates.add(map);
+        if (scalarText(templateId) != null && executor != null) {
+            Map<String, Object> candidate = new LinkedHashMap<>(map);
+            candidate.putIfAbsent("executionTool", executor);
+            templates.add(candidate);
             return;
         }
-        for (String key : List.of("templates", "associatedTemplates", "associated_templates", "results", "items",
+        for (String key : List.of("templates", "candidates", "associatedTemplates", "associated_templates", "results", "items",
             "data", "result", "payload", "structuredContent", "structured_content", "routingProjection")) {
-            collectDiscoveredTemplates(map.get(key), templates, depth + 1);
+            collectDiscoveredTemplates(map.get(key), templates, depth + 1, executor);
         }
     }
 
     private String discoveredExecutor(Map<String, Object> template) {
         return firstNonBlank(
+            scalarText(firstPresent(template, "executionTool", "execution_tool", "executorTool", "executor_tool")),
             scalarText(nested(template, "parameterContract", "executionTool")),
             scalarText(nested(template, "parameter_contract", "execution_tool")),
             scalarText(nested(template, "invocationExample", "tool")),
             scalarText(nested(template, "execution", "executorTool")),
             scalarText(nested(template, "sqlExecutionBinding", "toolName"))
         );
+    }
+
+    private String runtimeScalarText(Object value) {
+        String text = scalarText(value);
+        return text != null && (text.contains("${") || text.contains("{{")) ? null : text;
+    }
+
+    private boolean usesTemplateIdField(String toolName) {
+        ToolMetadata metadata = toolRegistry == null || toolName == null
+            ? null : toolRegistry.getToolMetadata(toolName);
+        if (metadata != null && metadata.getParameters() != null) {
+            boolean acceptsTemplateId = metadata.getParameters().stream()
+                .filter(Objects::nonNull)
+                .map(parameter -> parameter.getName() == null ? "" : parameter.getName())
+                .anyMatch(name -> "templateid".equals(name.replace("_", "").toLowerCase(Locale.ROOT)));
+            if (acceptsTemplateId) return true;
+            boolean acceptsTemplate = metadata.getParameters().stream()
+                .filter(Objects::nonNull)
+                .map(parameter -> parameter.getName() == null ? "" : parameter.getName())
+                .anyMatch(name -> "template".equals(name.replace("_", "").toLowerCase(Locale.ROOT)));
+            if (acceptsTemplate) return false;
+        }
+        return apiTemplateExecutor(toolName);
     }
 
     private boolean sameExecutor(String actualTool, String declaredExecutor) {

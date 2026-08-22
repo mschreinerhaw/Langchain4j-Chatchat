@@ -4358,11 +4358,15 @@ class InterpretationPlanRuntimeTest {
         Map<String, Object> linuxInput = new LinkedHashMap<>(Map.of(
             "executionContext", Map.of("env", "DEV")
         ));
+        InterpretationPlan.Step executionStep = new InterpretationPlan.Step(
+            2, "mcp_tool", "mcp_chatchat_mcp_server_linux_command_execute",
+            linuxInput, List.of(1), null, null);
         Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
-            "hydrateDiagnosticBatchAssetContext", Map.class, Map.class);
+            "hydrateExecutionContextFromCompletedAssets",
+            InterpretationPlan.Step.class, Map.class, Map.class);
         method.setAccessible(true);
 
-        method.invoke(runtime, Map.of(1, discovery), linuxInput);
+        method.invoke(runtime, executionStep, Map.of(1, discovery), linuxInput);
 
         assertThat((Map<String, Object>) linuxInput.get("executionContext"))
             .containsEntry("assetId", "asset-docker-db")

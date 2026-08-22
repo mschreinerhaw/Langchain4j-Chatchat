@@ -125,6 +125,43 @@ class CommandTemplateDiscoveryServiceTest {
     }
 
     @Test
+    void infersUniqueLogicalAssetFromUserIntentUsingRegisteredMetadata() {
+        CommandTemplateService templateService = mock(CommandTemplateService.class);
+        SshHostConfigService hostService = mock(SshHostConfigService.class);
+        CommandTemplateDiscoveryService service = service(templateService, hostService);
+        when(templateService.listEnabled()).thenReturn(List.of(
+            template("CHECK_DOCKER_CONTAINERS", "docker ps -a", "Docker containers",
+                "Read Docker image and container running status", "[\"docker\",\"images\",\"container\"]"),
+            template("CHECK_SYSTEM_OVERVIEW", "uptime")
+        ));
+        SshHostConfig docker = host("docker-host", "Docker 数据库模拟服务器", "DEV",
+            "[\"CHECK_DOCKER_CONTAINERS\"]");
+        SshHostConfig unrelated = host("db-host", "ADP 平台开发数据库", "DEV",
+            "[\"CHECK_SYSTEM_OVERVIEW\"]");
+        when(hostService.listEnabled()).thenReturn(List.of(unrelated, docker));
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "host",
+            "confidence", 0.95,
+            "filters", Map.of(
+                "env", "DEV",
+                "intent", "分析 Docker 数据库模拟服务器管理的镜像和容器运行情况",
+                "keywords", List.of("docker", "images", "container")
+            ),
+            "trace", trace(),
+            "limit", 10
+        ));
+
+        assertThat(result.get("filters").toString()).contains("assetName=Docker 数据库模拟服务器");
+        assertThat(result.get("queryIr").toString())
+            .contains("Docker 数据库模拟服务器", "method=exact")
+            .doesNotContain("ADP 平台开发数据库");
+        assertThat(result.get("templates").toString())
+            .contains("CHECK_DOCKER_CONTAINERS")
+            .doesNotContain("CHECK_SYSTEM_OVERVIEW");
+    }
+
+    @Test
     void admitsStrongVectorOnlyEvidenceForOrdinaryTemplates() {
         CommandTemplateService templateService = mock(CommandTemplateService.class);
         SshHostConfigService hostService = mock(SshHostConfigService.class);

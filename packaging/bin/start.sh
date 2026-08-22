@@ -12,15 +12,15 @@ EXT_LIB_DIR="$LIB_DIR/ext"
 DRIVERS_DIR="$LIB_DIR/drivers"
 LAUNCHER_CLASS="org.springframework.boot.loader.launch.PropertiesLauncher"
 
+mkdir -p "$APP_HOME/logs" "$APP_HOME/run" "$APP_HOME/data" "$EXT_LIB_DIR" "$DRIVERS_DIR"
+
+. "$APP_HOME/bin/load-env.sh"
+
 if [ -n "${JAVA_HOME:-}" ]; then
   JAVA_CMD="$JAVA_HOME/bin/java"
 else
   JAVA_CMD="java"
 fi
-
-mkdir -p "$APP_HOME/logs" "$APP_HOME/run" "$APP_HOME/data" "$EXT_LIB_DIR" "$DRIVERS_DIR"
-
-. "$APP_HOME/bin/load-env.sh"
 
 # Keep all relative storage and heap-dump paths anchored to the release directory.
 cd "$APP_HOME"

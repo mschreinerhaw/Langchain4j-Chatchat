@@ -215,6 +215,7 @@ public class CommandTemplateDiscoveryService {
             filters.put("excludeTemplateIds", rejectedTemplateIds);
         }
         String assetType = target.definition().assetType();
+        inferAssetScopeFromRegisteredMetadata(filters, assetType);
         filters.putIfAbsent("filtersSchemaVersion", target.filtersSchemaVersion());
         int limit = limit(arguments);
         if (target.reviewRequired()) {
@@ -3427,6 +3428,106 @@ public class CommandTemplateDiscoveryService {
         return databaseTypes.size() == 1 ? databaseTypes.get(0) : null;
     }
 
+    /**
+     * Restores an omitted logical asset constraint from the user's retrieval text by matching
+     * it against registered asset metadata. This is deliberately metadata-driven: names are
+     * never derived from business keywords, and an ambiguous longest match is left unresolved.
+     */
+    private void inferAssetScopeFromRegisteredMetadata(Map<String, Object> filters, String assetType) {
+        if (filters == null || text(firstValue(filters, "assetName", "asset_name", "name")) != null) {
+            return;
+        }
+        List<LogicalAssetIdentity> assets = switch (assetType == null ? "" : assetType) {
+            case "ssh_host" -> hostConfigService.listEnabled().stream()
+                .map(host -> new LogicalAssetIdentity(host.getName(),
+                    java.util.Arrays.asList(host.getName(), host.getTitle(), host.getToolName()), host.getEnvironment()))
+                .toList();
+            case "sql_datasource", "database_query" -> datasourceConfigService.listEnabled().stream()
+                .map(datasource -> new LogicalAssetIdentity(datasource.getName(),
+                    java.util.Arrays.asList(datasource.getName(), datasource.getTitle(), datasource.getToolName()),
+                    datasource.getEnvironment()))
+                .toList();
+            case "http_endpoint" -> httpEndpointConfigService.listEnabled().stream()
+                .map(endpoint -> new LogicalAssetIdentity(endpoint.getName(),
+                    java.util.Arrays.asList(endpoint.getName(), endpoint.getTitle(), endpoint.getToolName()),
+                    endpoint.getEnvironment()))
+                .toList();
+            default -> List.of();
+        };
+        String requestedEnvironment = text(firstValue(filters, "env", "environment"));
+        List<String> retrievalTexts = retrievalValues(filters).stream()
+            .map(this::normalizeForIdentityMatch)
+            .filter(value -> value != null && !value.isBlank())
+            .toList();
+        if (retrievalTexts.isEmpty() || assets.isEmpty()) {
+            return;
+        }
+        List<LogicalAssetMatch> matches = assets.stream()
+            .filter(asset -> requestedEnvironment == null
+                || equalsNormalized(requestedEnvironment, asset.environment()))
+            .map(asset -> bestLogicalAssetMatch(asset, retrievalTexts))
+            .filter(match -> match.matchedLength() >= 3)
+            .sorted(Comparator.comparingInt(LogicalAssetMatch::matchedLength).reversed())
+            .toList();
+        if (matches.isEmpty()) {
+            return;
+        }
+        int bestLength = matches.get(0).matchedLength();
+        List<LogicalAssetMatch> best = matches.stream()
+            .filter(match -> match.matchedLength() == bestLength)
+            .toList();
+        if (best.stream().map(match -> normalize(match.asset().canonicalName())).distinct().count() != 1) {
+            log.info("template_query logical asset inference remained ambiguous assetType={} matchLength={} candidates={}",
+                assetType, bestLength, best.stream().map(match -> match.asset().canonicalName()).toList());
+            return;
+        }
+        String canonicalName = best.get(0).asset().canonicalName();
+        if (canonicalName != null && !canonicalName.isBlank()) {
+            filters.put("assetName", canonicalName);
+            log.info("template_query inferred logical asset from registered metadata assetType={} assetName={} matchedAlias={}",
+                assetType, canonicalName, best.get(0).matchedAlias());
+        }
+    }
+
+    private LogicalAssetMatch bestLogicalAssetMatch(LogicalAssetIdentity asset, List<String> retrievalTexts) {
+        String bestAlias = null;
+        int bestLength = 0;
+        for (String rawAlias : asset.aliases()) {
+            String alias = normalizeForIdentityMatch(rawAlias);
+            if (alias == null || alias.length() < 3) {
+                continue;
+            }
+            boolean present = retrievalTexts.stream().anyMatch(text -> text.contains(alias));
+            if (present && alias.length() > bestLength) {
+                bestAlias = rawAlias;
+                bestLength = alias.length();
+            }
+        }
+        return new LogicalAssetMatch(asset, bestAlias, bestLength);
+    }
+
+    private List<String> retrievalValues(Map<String, Object> filters) {
+        List<String> values = new ArrayList<>();
+        for (String key : List.of("intent", "goal", "query", "q", "intentZh", "intentEn",
+            "bilingualIntent", "bilingualQuery", "intentAliases", "keywords", "keyword",
+            "queryTerms", "searchTerms", "retrievalSignals", "intentCandidates", "intent_candidates")) {
+            Object value = filters.get(key);
+            if (value instanceof Iterable<?> iterable) {
+                iterable.forEach(item -> {
+                    if (item != null) values.add(String.valueOf(item));
+                });
+            } else if (value != null) {
+                values.add(String.valueOf(value));
+            }
+        }
+        return values;
+    }
+
+    private String normalizeForIdentityMatch(String value) {
+        String normalized = normalize(value);
+        return normalized == null ? null : normalized.replaceAll("[^\\p{L}\\p{N}_-]+", "");
+    }
+
     private String requestedDatabaseType(Map<String, Object> filters) {
         String value = text(firstValue(filters, "databaseType", "dbType", "dialect"));
         if (value != null) {
@@ -3722,6 +3823,12 @@ public class CommandTemplateDiscoveryService {
     }
 
     private record TemplateSignal(boolean luceneActive, int hitCount, String mode) {
+    }
+
+    private record LogicalAssetIdentity(String canonicalName, List<String> aliases, String environment) {
+    }
+
+    private record LogicalAssetMatch(LogicalAssetIdentity asset, String matchedAlias, int matchedLength) {
     }
 
     private record TemplateScoringFeature(String name,

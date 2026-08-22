@@ -38,13 +38,17 @@ public class OpsCapabilityBridgePublisher {
     public static final String DATABASE_QUERY_TOOL = "database_capability_query";
 
     private static final Domain SERVER = new Domain(SERVER_QUERY_TOOL, "Server operations capability query",
-        "host", "ssh_host", "linux_command_execute", true, "mcp.server-capability-query.v1");
+        "host", "ssh_host", "linux_command_execute", true,
+        "mcp.server-capability-query.v1", "mcp.ssh-template.v1");
     private static final Domain HTTP = new Domain(HTTP_QUERY_TOOL, "HTTP capability query",
-        "http", "http_endpoint", "http_request_execute", true, "mcp.http-capability-query.v1");
+        "http", "http_endpoint", "http_request_execute", true,
+        "mcp.http-capability-query.v1", "mcp.http-template.v1");
     private static final Domain JMX = new Domain(JMX_QUERY_TOOL, "Java/JMX monitoring capability query",
-        "java", "jmx_endpoint", "jmx_monitor_execute", false, "mcp.jmx-capability-query.v1");
+        "java", "jmx_endpoint", "jmx_monitor_execute", false,
+        "mcp.jmx-capability-query.v1", "mcp.jmx-template.v1");
     private static final Domain DATABASE = new Domain(DATABASE_QUERY_TOOL, "Database operations capability query",
-        "database", "sql_datasource", "sql_query_execute", true, "mcp.database-capability-query.v1");
+        "database", "sql_datasource", "sql_query_execute", true,
+        "mcp.database-capability-query.v1", "mcp.sql-template.v1");
     private static final List<Domain> DOMAINS = List.of(SERVER, HTTP, JMX, DATABASE);
 
     private static final List<String> INTERNAL_DISCOVERY_TOOLS = List.of(
@@ -197,7 +201,7 @@ public class OpsCapabilityBridgePublisher {
         meta.put("bridgeManaged", true);
         meta.put("executionTool", domain.executionTool());
         meta.put(ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
-            ToolWorkflowRole.TEMPLATE_DISCOVERY, domain.protocolId(), "intent+filters"));
+            ToolWorkflowRole.TEMPLATE_DISCOVERY, domain.workflowFamily(), "intent+filters"));
         meta.put(ToolProtocolDriverContract.METADATA_KEY, ToolProtocolDriverContract.of(
             domain.protocolId(),
             List.of(
@@ -230,6 +234,7 @@ public class OpsCapabilityBridgePublisher {
     }
 
     private record Domain(String toolName, String title, String targetKind, String assetType,
-                          String executionTool, boolean assetDiscoverySupported, String protocolId) {
+                          String executionTool, boolean assetDiscoverySupported, String protocolId,
+                          String workflowFamily) {
     }
 }

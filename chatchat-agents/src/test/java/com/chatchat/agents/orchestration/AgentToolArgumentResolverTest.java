@@ -4,6 +4,8 @@ import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.tool.ToolMetadata;
+import com.chatchat.common.tool.ToolParameter;
+import com.chatchat.common.tool.ToolWorkflowRole;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
@@ -1114,6 +1116,54 @@ class AgentToolArgumentResolverTest {
             .containsEntry("templateId", "runtime_customer_snapshot")
             .containsEntry("parameters", Map.of())
             .doesNotContainKeys("__runtimeParamBindingStatus", "__runtimeParamBindingError");
+    }
+
+    @Test
+    void mandatoryRecoveryProjectsReviewedCandidateAndSchemaDrivenFileAlias() {
+        String discoveryTool = "mcp_runtime_any_discovery";
+        String executionTool = "mcp_runtime_python_template_execute";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getWorkflowRole(discoveryTool)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(executionTool)).thenReturn(ToolWorkflowRole.TEMPLATE_EXECUTION);
+        when(registry.getToolMetadata(executionTool)).thenReturn(ToolMetadata.builder()
+            .id(executionTool)
+            .parameters(List.of(ToolParameter.builder()
+                .name("templateId").type("string").required(true).build()))
+            .build());
+        AgentToolArgumentResolver contractResolver =
+            new AgentToolArgumentResolver(new AgentToolNameResolver(), 5, registry);
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .toolName(discoveryTool)
+            .success(true)
+            .output("""
+                {
+                  "executionTool":"python_template_execute",
+                  "candidates":[{
+                    "templateId":"template-log",
+                    "parameterSchema":{
+                      "type":"object",
+                      "properties":{"source_file":{"type":"FILE"}},
+                      "required":["source_file"],
+                      "additionalProperties":false
+                    }
+                  }]
+                }
+                """)
+            .build();
+
+        Map<String, Object> result = contractResolver.applyDeterministicDependencyContracts(
+            executionTool,
+            Map.of(
+                "templateId", "${step1.templates[0].templateId}",
+                "parameters", Map.of("logFileName", "1787187818764.log")),
+            List.of(discovery),
+            "分析日志文件 1787187818764.log"
+        );
+
+        assertThat(result)
+            .containsEntry("templateId", "template-log")
+            .containsEntry("parameters", Map.of("source_file", "1787187818764.log"))
+            .doesNotContainKeys("template", "__runtimeParamBindingStatus", "__runtimeParamBindingError");
     }
 
     @Test

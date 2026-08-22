@@ -12,15 +12,15 @@ CONFIG_DIR="$APP_HOME/config/"
 PLUGINS_DIR="${CHATCHAT_MCP_PLUGIN_PATH:-$APP_HOME/lib/plugins}"
 LAUNCHER_CLASS="org.springframework.boot.loader.launch.PropertiesLauncher"
 
+mkdir -p "$APP_HOME/logs" "$APP_HOME/lib/drivers" "$PLUGINS_DIR"
+
+. "$APP_HOME/bin/load-env.sh"
+
 if [ -n "${JAVA_HOME:-}" ]; then
   JAVA_CMD="$JAVA_HOME/bin/java"
 else
   JAVA_CMD="java"
 fi
-
-mkdir -p "$APP_HOME/logs" "$APP_HOME/lib/drivers" "$PLUGINS_DIR"
-
-. "$APP_HOME/bin/load-env.sh"
 
 REMAINING_ARGS=""
 while [ "$#" -gt 0 ]; do

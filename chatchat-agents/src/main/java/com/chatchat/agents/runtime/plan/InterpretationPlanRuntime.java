@@ -6734,6 +6734,16 @@ public class InterpretationPlanRuntime {
             ? new LinkedHashMap<>((Map<String, Object>) map)
             : new LinkedHashMap<>();
         Map<String, Object> assetContext = firstCompletedAssetExecutionContext(completed);
+        Map<String, Object> templateAssetContext = firstCompletedTemplateAssetExecutionContext(completed);
+        String assetId = stringValue(assetContext.get("assetId"));
+        String templateAssetId = stringValue(templateAssetContext.get("assetId"));
+        if (assetId != null && templateAssetId != null && !assetId.equals(templateAssetId)) {
+            throw new IllegalStateException(
+                "ASSET_CONTEXT_MISMATCH: asset discovery and template discovery resolved different canonical assets");
+        }
+        if (assetContext.isEmpty()) {
+            assetContext = templateAssetContext;
+        }
         if (assetContext.isEmpty()) {
             return;
         }

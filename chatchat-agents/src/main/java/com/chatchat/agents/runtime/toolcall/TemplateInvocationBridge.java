@@ -237,12 +237,48 @@ public final class TemplateInvocationBridge {
                 value
             ));
         }
+        recoverUniqueRequiredFileAlias(
+            proposed, properties, schema, userQuery, recovered, evidence, denied);
         // Execution is the primary objective. Unknown or unverified controller/model
         // overrides are not forwarded, but they also must not poison a template whose
         // authoritative schema defaults are sufficient. Required fields without a
         // default are checked after default compilation and still fail this child only.
         return new ParameterAudit(
             Map.copyOf(recovered), Map.copyOf(evidence), List.copyOf(denied));
+    }
+
+    private void recoverUniqueRequiredFileAlias(Map<String, Object> proposed,
+                                                Map<String, Object> properties,
+                                                Map<String, Object> schema,
+                                                String userQuery,
+                                                Map<String, Object> recovered,
+                                                Map<String, ParameterEvidence> evidence,
+                                                List<String> denied) {
+        List<String> unresolvedFileFields = strings(schema.get("required")).stream()
+            .filter(name -> !recovered.containsKey(name))
+            .filter(name -> "FILE".equalsIgnoreCase(
+                text(objectMap(properties.get(name)).get("type"))))
+            .toList();
+        if (unresolvedFileFields.size() != 1) return;
+        List<Map.Entry<String, Object>> candidates = proposed.entrySet().stream()
+            .filter(entry -> !properties.containsKey(entry.getKey()))
+            .filter(entry -> entry.getValue() instanceof String)
+            .filter(entry -> userQueryEvidenceQuote(userQuery, entry.getValue()) != null)
+            .toList();
+        if (candidates.size() != 1) return;
+        String field = unresolvedFileFields.get(0);
+        Map.Entry<String, Object> candidate = candidates.get(0);
+        String quote = userQueryEvidenceQuote(userQuery, candidate.getValue());
+        recovered.put(field, candidate.getValue());
+        evidence.put(field, new ParameterEvidence(
+            USER_QUERY_SOURCE,
+            Map.of(
+                "quote", quote,
+                "recoveredBy", "runtime_unique_required_file_alias",
+                "sourceField", candidate.getKey()),
+            candidate.getValue()
+        ));
+        denied.remove(candidate.getKey());
     }
 
     private String userQueryEvidenceQuote(String userQuery, Object value) {

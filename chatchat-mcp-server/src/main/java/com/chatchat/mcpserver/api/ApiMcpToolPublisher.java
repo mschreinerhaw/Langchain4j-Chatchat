@@ -99,7 +99,7 @@ public class ApiMcpToolPublisher {
         meta.put("executionTool", EXECUTE_TOOL_NAME);
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta(BRIDGE_TOOL_NAME, "read_only"));
         meta.put(ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
-            ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.api-service-bridge.v1", "intent+filters"));
+            ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.api-template.v1", "intent+filters"));
         meta.put(ToolProtocolDriverContract.METADATA_KEY, ToolProtocolDriverContract.of(
             "mcp.api-service-bridge.v1",
             List.of(

@@ -162,7 +162,8 @@ class AgentWorkflowDecisionEngine {
         String declaredFamily = protocolFamily(toolName);
         String resolvedFamily = declaredFamily == null ? currentRole.family(toolName) : declaredFamily;
         if (resolvedFamily != null) {
-            List<WorkflowToolStep> familyMatches = matchingTemplateFamily(steps, resolvedFamily, predecessorRole);
+            List<WorkflowToolStep> familyMatches = matchingTemplateFamily(
+                steps, toolName, resolvedFamily, predecessorRole);
             if (!familyMatches.isEmpty()) {
                 return familyMatches;
             }
@@ -175,9 +176,14 @@ class AgentWorkflowDecisionEngine {
     }
 
     private List<WorkflowToolStep> matchingTemplateFamily(List<WorkflowToolStep> steps,
+                                                           String currentToolName,
                                                            String family,
                                                            McpToolProtocolRole role) {
+        ToolWorkflowRole requiredRole = role == McpToolProtocolRole.ASSET_QUERY
+            ? ToolWorkflowRole.ASSET_DISCOVERY : ToolWorkflowRole.TEMPLATE_DISCOVERY;
         return steps.stream()
+            .filter(candidate -> !candidate.toolName().equalsIgnoreCase(currentToolName))
+            .filter(candidate -> workflowRole(candidate.toolName()) == requiredRole)
             .filter(candidate -> family.equals(protocolFamily(candidate.toolName()))
                 || family.equals(role.family(candidate.toolName())))
             .toList();

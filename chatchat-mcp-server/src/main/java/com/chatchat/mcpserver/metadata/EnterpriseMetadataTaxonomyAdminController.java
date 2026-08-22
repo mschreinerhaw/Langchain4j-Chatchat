@@ -34,13 +34,13 @@ public class EnterpriseMetadataTaxonomyAdminController {
     }
 
     @PutMapping("/domains/{id}")
-    public MetadataDomain updateDomain(@PathVariable String id, @RequestBody MetadataDomain request) {
+    public MetadataDomain updateDomain(@PathVariable("id") String id, @RequestBody MetadataDomain request) {
         request.setId(id);
         return refresh(taxonomyService.saveDomain(request));
     }
 
     @DeleteMapping("/domains/{id}")
-    public Map<String, Object> deleteDomain(@PathVariable String id) {
+    public Map<String, Object> deleteDomain(@PathVariable("id") String id) {
         taxonomyService.deleteDomain(id);
         catalog.refresh();
         return Map.of("deleted", true, "id", id);
@@ -58,13 +58,13 @@ public class EnterpriseMetadataTaxonomyAdminController {
     }
 
     @PutMapping("/scenarios/{id}")
-    public MetadataScenario updateScenario(@PathVariable String id, @RequestBody MetadataScenario request) {
+    public MetadataScenario updateScenario(@PathVariable("id") String id, @RequestBody MetadataScenario request) {
         request.setId(id);
         return refresh(taxonomyService.saveScenario(request));
     }
 
     @DeleteMapping("/scenarios/{id}")
-    public Map<String, Object> deleteScenario(@PathVariable String id) {
+    public Map<String, Object> deleteScenario(@PathVariable("id") String id) {
         taxonomyService.deleteScenario(id);
         catalog.refresh();
         return Map.of("deleted", true, "id", id);
@@ -83,14 +83,14 @@ public class EnterpriseMetadataTaxonomyAdminController {
     }
 
     @PutMapping("/terms/{id}")
-    public MetadataTermMapping updateTerm(@PathVariable String id,
+    public MetadataTermMapping updateTerm(@PathVariable("id") String id,
                                           @RequestBody MetadataTermMapping request) {
         request.setId(id);
         return refresh(taxonomyService.saveTerm(request));
     }
 
     @DeleteMapping("/terms/{id}")
-    public Map<String, Object> deleteTerm(@PathVariable String id) {
+    public Map<String, Object> deleteTerm(@PathVariable("id") String id) {
         taxonomyService.deleteTerm(id);
         catalog.refresh();
         return Map.of("deleted", true, "id", id);

@@ -2940,20 +2940,34 @@ public class AgentOrchestrator implements AgentRunExecutor {
         );
     }
 
-    private String interpretationPlanReviewEvidenceContext(String synthesisPrompt) {
+    String interpretationPlanReviewEvidenceContext(String synthesisPrompt) {
         if (synthesisPrompt == null || synthesisPrompt.isBlank()) {
             return "";
         }
         int start = synthesisPrompt.indexOf("Authoritative Summary Evidence Ledger (runtime-generated):");
-        int end = synthesisPrompt.indexOf("Executed plan attempts (", start);
-        if (start >= 0 && end > start) {
-            return synthesisPrompt.substring(start, end);
+        if (start >= 0) {
+            int end = synthesisPrompt.indexOf("\nStored RunStore/RocksDB observations:", start);
+            if (end < 0) {
+                end = synthesisPrompt.indexOf("\nIn-memory observations:", start);
+            }
+            if (end < 0) {
+                end = synthesisPrompt.lastIndexOf("\nReturn only the final user-facing Markdown answer");
+            }
+            if (end < 0) {
+                end = synthesisPrompt.length();
+            }
+            if (end > start) {
+                return "Reviewer evidence contract: the ledger classifies execution state, while the "
+                    + "executed-plan evidence below contains the authoritative returned values. Review both; "
+                    + "never infer that values are missing merely because the ledger is a compact index.\n"
+                    + synthesisPrompt.substring(start, end);
+            }
         }
         start = synthesisPrompt.indexOf("Executed plan attempts (");
         if (start < 0) {
             return "";
         }
-        end = synthesisPrompt.lastIndexOf("\nReturn only the final user-facing Markdown answer");
+        int end = synthesisPrompt.lastIndexOf("\nReturn only the final user-facing Markdown answer");
         if (end <= start) {
             end = synthesisPrompt.length();
         }
@@ -3197,8 +3211,11 @@ public class AgentOrchestrator implements AgentRunExecutor {
                         : observation.content())
                     .append("\n");
                 if (observation.metadata() != null && !observation.metadata().isEmpty()) {
+                    String metadataEvidence = stringify(summaryObservationMetadata(observation.metadata()));
                     prompt.append("  metadata: ")
-                        .append(stringify(summaryObservationMetadata(observation.metadata())))
+                        .append(compressionEnabled
+                            ? shortObservationText(metadataEvidence, SUMMARY_COMPRESSED_OBSERVATION_CHARS)
+                            : metadataEvidence)
                         .append("\n");
                 }
             }
@@ -3214,6 +3231,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("\nReturn only the final user-facing Markdown answer, no JSON.");
         return prompt.toString();
     }
+
 
     private List<Map<String, Object>> summaryEvidenceLedger(
         List<InterpretationPlanRuntime.ExecutionResult> results
@@ -5826,6 +5844,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         List<Object> missingEvidence = new ArrayList<>();
         List<Object> conflicts = new ArrayList<>();
         List<Object> nextActions = new ArrayList<>();
+        List<Object> supersededMissingEvidence = new ArrayList<>();
         List<String> conclusions = new ArrayList<>();
         List<Map<String, Object>> currentHypotheses = new ArrayList<>();
         boolean explicitIterationDecision = false;
@@ -5880,7 +5899,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 stringValue(item.get("evidenceId"))
             ));
             String reason = stringValue(item.get("reviewReason"));
-            if (reason != null && !reason.isBlank()) {
+            if (reason != null && !reason.isBlank()
+                && (!diagnosticCoverageComplete || satisfiedTemplateExecutionEvidence(item))) {
                 conclusions.add(reason);
             }
             if (item.get("iterationSufficient") != null) {
@@ -5889,6 +5909,17 @@ public class AgentOrchestrator implements AgentRunExecutor {
             }
         }
         nextActions.addAll(pendingEvidenceNextActions(toolEvidence));
+        if (diagnosticCoverageComplete && result != null && result.success()) {
+            // Per-step reviewers run before downstream dependencies. Their interim
+            // "not executed yet" gaps are therefore stale once the Runtime-owned
+            // diagnostic contract proves that every required check is covered by
+            // successful execution evidence. Preserve them for audit, but never let
+            // them override the authoritative completion state.
+            supersededMissingEvidence.addAll(missingEvidence);
+            missingEvidence.clear();
+            nextActions.clear();
+            iterationSufficient = true;
+        }
         analysis.put("sufficient", explicitIterationDecision ? iterationSufficient : fallbackSufficient);
         analysis.put("conclusion", conclusions.isEmpty()
             ? (fallbackSufficient ? "The round returned usable evidence." : "The round did not return sufficient evidence.")
@@ -5924,6 +5955,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
             "evidence_used", "evidenceUsed", "basis", "based_on"));
         snapshot.put("missingEvidence", evidenceAnalysisValue(analysis,
             "missing_evidence", "missingEvidence", "missing", "gaps"));
+        snapshot.put("supersededMissingEvidence", supersededMissingEvidence);
         snapshot.put("conflicts", evidenceAnalysisValue(analysis,
             "conflicts", "contradictions", "uncertainty"));
         snapshot.put("hypotheses", hypotheses);
@@ -6015,6 +6047,15 @@ public class AgentOrchestrator implements AgentRunExecutor {
             );
         }
         return snapshot;
+    }
+
+    private boolean satisfiedTemplateExecutionEvidence(Map<String, Object> evidence) {
+        if (evidence == null || evidence.isEmpty()) {
+            return false;
+        }
+        Map<String, Object> contract = asMap(evidence.get("templateExecutionReview"));
+        return Boolean.TRUE.equals(booleanValue(contract.get("satisfied")))
+            && Boolean.TRUE.equals(booleanValue(evidence.get("success")));
     }
 
     private DiagnosticRun diagnosticRun(InterpretationPlanRuntime.ExecutionResult result) {

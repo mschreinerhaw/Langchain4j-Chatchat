@@ -264,7 +264,7 @@ public class SqlMcpToolPublisher {
         meta.put("executionTool", "sql_query_execute");
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta(DATA_QUERY_BRIDGE_TOOL, "read_only"));
         meta.put(ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
-            ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.data-query-bridge.v1", "intent+filters"));
+            ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.sql-template.v1", "intent+filters"));
         meta.put(ToolProtocolDriverContract.METADATA_KEY, ToolProtocolDriverContract.of(
             "mcp.data-query-bridge.v1",
             List.of(

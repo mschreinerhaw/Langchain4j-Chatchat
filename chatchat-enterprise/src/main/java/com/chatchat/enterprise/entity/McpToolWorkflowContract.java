@@ -49,15 +49,15 @@ public class McpToolWorkflowContract extends EnterpriseAuditable {
     private String contractChecksum;
 
     @Lob
-    @Column(name = "input_schema_json")
+    @Column(name = "input_schema_json", columnDefinition = "LONGTEXT")
     private String inputSchemaJson;
 
     @Lob
-    @Column(name = "output_schema_json")
+    @Column(name = "output_schema_json", columnDefinition = "LONGTEXT")
     private String outputSchemaJson;
 
     @Lob
-    @Column(name = "extensions_json")
+    @Column(name = "extensions_json", columnDefinition = "LONGTEXT")
     private String extensionsJson;
 
     @Column(name = "published_at")

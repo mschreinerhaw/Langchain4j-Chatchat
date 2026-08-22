@@ -36,14 +36,14 @@ public class McpToolContractController {
 
     @GetMapping
     @Operation(summary = "List all contract versions for an MCP tool")
-    public ApiResponse<List<McpToolWorkflowContract>> list(@PathVariable String toolId) {
+    public ApiResponse<List<McpToolWorkflowContract>> list(@PathVariable("toolId") String toolId) {
         return ApiResponse.success(catalog.listContracts(toolId));
     }
 
     @PutMapping("/{version}")
     @Operation(summary = "Revise a DRAFT MCP tool contract")
-    public ApiResponse<McpToolWorkflowContract> revise(@PathVariable String toolId,
-                                                       @PathVariable long version,
+    public ApiResponse<McpToolWorkflowContract> revise(@PathVariable("toolId") String toolId,
+                                                       @PathVariable("version") long version,
                                                        @RequestBody RevisionRequest request) {
         RevisionRequest value = request == null ? new RevisionRequest(null, null, null, null) : request;
         return ApiResponse.success(catalog.reviseDraft(toolId, version,
@@ -55,9 +55,9 @@ public class McpToolContractController {
     @PostMapping("/{version}/publish")
     @Operation(summary = "Atomically publish or roll back to an MCP tool contract version")
     public ApiResponse<ToolWorkflowContractSnapshot> publish(HttpServletRequest servletRequest,
-                                                             @PathVariable String toolId,
-                                                             @PathVariable long version,
-                                                             @RequestParam long expectedActiveVersion) {
+                                                             @PathVariable("toolId") String toolId,
+                                                             @PathVariable("version") long version,
+                                                             @RequestParam("expectedActiveVersion") long expectedActiveVersion) {
         Object authenticatedUsername = servletRequest.getAttribute(ApiAuthenticationFilter.CURRENT_USERNAME);
         String actor = authenticatedUsername == null ? null : String.valueOf(authenticatedUsername);
         if (actor == null || actor.isBlank()) actor = servletRequest.getRemoteUser();

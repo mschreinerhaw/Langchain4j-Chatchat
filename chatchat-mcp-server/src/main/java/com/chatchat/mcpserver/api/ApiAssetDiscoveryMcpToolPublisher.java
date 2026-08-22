@@ -178,7 +178,7 @@ public class ApiAssetDiscoveryMcpToolPublisher {
             "targetKind", "api_service",
             "assetType", "api_service",
             ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
-                ToolWorkflowRole.ASSET_DISCOVERY, "mcp.api-asset-discovery.v1", "filters"),
+                ToolWorkflowRole.ASSET_DISCOVERY, "mcp.api-template.v1", "filters"),
             "toolBoundary", mapOf(
                 "toolName", TOOL_NAME,
                 "forcedAssetType", "api_service",

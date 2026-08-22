@@ -175,6 +175,71 @@ class DiagnosticRunTest {
     }
 
     @Test
+    void completesSharedChecksFromReviewedTemplateExecutionContract() {
+        InterpretationPlan plan = plan(
+            List.of(
+                check("first_check", "first_capability", "first", 1, List.of(1)),
+                check("second_check", "second_capability", "second", 2, List.of(1))
+            ),
+            2
+        );
+        InterpretationPlanRuntime.StepExecution execution = new InterpretationPlanRuntime.StepExecution(
+            1,
+            "mcp_tool",
+            "arbitrary_registered_template_executor",
+            true,
+            Map.of("result", Map.of("arbitraryNestedValue", 7)),
+            null,
+            null,
+            null,
+            5,
+            Map.of("templateExecutionReview", Map.of(
+                "schemaVersion", "template_execution_satisfaction.v1",
+                "satisfied", true
+            ))
+        );
+
+        DiagnosticRun run = DiagnosticRun.evaluate(plan, List.of(execution), Set.of(), 1);
+
+        assertThat(run.coverage()).isEqualTo(new DiagnosticRun.Coverage(2, 2, 0, 0, 1.0));
+        assertThat(run.checks()).allSatisfy(check -> {
+            assertThat(check.status()).isEqualTo("completed");
+            assertThat(check.evidenceRefs())
+                .containsExactly("iteration:1:step:1:tool:arbitrary_registered_template_executor");
+        });
+    }
+
+    @Test
+    void doesNotCreditRejectedTemplateExecutionContract() {
+        InterpretationPlan plan = plan(
+            List.of(
+                check("first_check", "first_capability", "first", 1, List.of(1)),
+                check("second_check", "second_capability", "second", 2, List.of(1))
+            ),
+            2
+        );
+        InterpretationPlanRuntime.StepExecution execution = new InterpretationPlanRuntime.StepExecution(
+            1,
+            "mcp_tool",
+            "arbitrary_registered_template_executor",
+            true,
+            Map.of("result", Map.of("arbitraryNestedValue", 7)),
+            null,
+            null,
+            null,
+            5,
+            Map.of("templateExecutionReview", Map.of(
+                "schemaVersion", "template_execution_satisfaction.v1",
+                "satisfied", false
+            ))
+        );
+
+        DiagnosticRun run = DiagnosticRun.evaluate(plan, List.of(execution), Set.of(), 1);
+
+        assertThat(run.coverage()).isEqualTo(new DiagnosticRun.Coverage(2, 0, 0, 2, 0.0));
+    }
+
+    @Test
     void completesSharedChecksOnlyFromTheirOrderedBatchChildEvidence() {
         InterpretationPlan plan = plan(
             List.of(

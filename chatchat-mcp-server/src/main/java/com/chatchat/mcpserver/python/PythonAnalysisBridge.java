@@ -9,9 +9,11 @@ import org.springframework.stereotype.Component;
 
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 @Component
 @RequiredArgsConstructor
@@ -195,8 +197,7 @@ public class PythonAnalysisBridge {
         if (query != null) {
             if (contains(query, template.getScriptFileName())) score += 500;
             if (contains(query, template.getTemplateName())) score += 200;
-            for (String term : query.toLowerCase(Locale.ROOT).split("[\\s,;，；]+")) {
-                if (term.isBlank()) continue;
+            for (String term : semanticTerms(query)) {
                 score += contains(template.getTemplateName(), term) ? 10 : 0;
                 score += contains(template.getScenario(), term) ? 6 : 0;
                 score += contains(template.getDescription(), term) ? 4 : 0;
@@ -205,6 +206,49 @@ public class PythonAnalysisBridge {
             }
         }
         return score;
+    }
+
+    /**
+     * Produces language-neutral lookup terms without relying on a business vocabulary.
+     * Latin/numeric runs remain whole while consecutive Han text is represented by
+     * overlapping bigrams, so natural phrases can match differently worded metadata.
+     */
+    private Set<String> semanticTerms(String value) {
+        Set<String> terms = new LinkedHashSet<>();
+        if (value == null || value.isBlank()) return terms;
+        StringBuilder latin = new StringBuilder();
+        StringBuilder han = new StringBuilder();
+        value.toLowerCase(Locale.ROOT).codePoints().forEach(codePoint -> {
+            if (Character.UnicodeScript.of(codePoint) == Character.UnicodeScript.HAN) {
+                flushLatinTerm(latin, terms);
+                han.appendCodePoint(codePoint);
+            } else {
+                flushHanTerms(han, terms);
+                if (Character.isLetterOrDigit(codePoint)
+                    || codePoint == '_' || codePoint == '-' || codePoint == '.') {
+                    latin.appendCodePoint(codePoint);
+                } else {
+                    flushLatinTerm(latin, terms);
+                }
+            }
+        });
+        flushLatinTerm(latin, terms);
+        flushHanTerms(han, terms);
+        return terms;
+    }
+
+    private void flushLatinTerm(StringBuilder value, Set<String> terms) {
+        if (value.length() >= 2) terms.add(value.toString());
+        value.setLength(0);
+    }
+
+    private void flushHanTerms(StringBuilder value, Set<String> terms) {
+        int[] codePoints = value.codePoints().toArray();
+        if (codePoints.length == 1) terms.add(new String(codePoints, 0, 1));
+        for (int index = 0; index + 1 < codePoints.length; index++) {
+            terms.add(new String(codePoints, index, 2));
+        }
+        value.setLength(0);
     }
 
     private Map<String, Object> templateChoice(ScoredTemplate candidate) {

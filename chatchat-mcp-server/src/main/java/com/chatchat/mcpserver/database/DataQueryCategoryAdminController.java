@@ -36,12 +36,12 @@ public class DataQueryCategoryAdminController {
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<CategoryView> update(@PathVariable String id, @RequestBody CategoryRequest request) {
+    public ApiResponse<CategoryView> update(@PathVariable("id") String id, @RequestBody CategoryRequest request) {
         return ApiResponse.success(view(service.save(entity(id, request))));
     }
 
     @DeleteMapping("/{id}")
-    public ApiResponse<Void> delete(@PathVariable String id) {
+    public ApiResponse<Void> delete(@PathVariable("id") String id) {
         service.delete(id);
         return ApiResponse.success(null);
     }

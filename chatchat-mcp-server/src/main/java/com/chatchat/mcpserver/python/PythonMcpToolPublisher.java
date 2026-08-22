@@ -123,7 +123,7 @@ public class PythonMcpToolPublisher {
         meta.put("bridgeManaged", true);
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta(ANALYSIS_RUN_TOOL, "python"));
         meta.put(ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
-            ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.python-analysis-bridge.v1", "intent+filters"));
+            ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.python-template.v1", "intent+filters"));
         meta.put(ToolProtocolDriverContract.METADATA_KEY, ToolProtocolDriverContract.of(
             "mcp.python-analysis-bridge.v1",
             List.of(

@@ -2191,6 +2191,86 @@ class AgentOrchestratorTest {
             .contains("databaseavailability");
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void completedDiagnosticContractSupersedesInterimDiscoveryGaps() throws Exception {
+        DiagnosticRun diagnosticRun = new DiagnosticRun(
+            "generic_profile",
+            "generic_target",
+            List.of(
+                new DiagnosticRun.CheckResult(
+                    "first_check", "first_capability", "first", true, 1,
+                    List.of(2), "completed", null,
+                    List.of("iteration:1:step:2:tool:arbitrary_template_executor"), null, null
+                ),
+                new DiagnosticRun.CheckResult(
+                    "second_check", "second_capability", "second", true, 2,
+                    List.of(2), "completed", null,
+                    List.of("iteration:1:step:2:tool:arbitrary_template_executor"), null, null
+                )
+            ),
+            new DiagnosticRun.Coverage(2, 2, 0, 0, 1.0),
+            new DiagnosticRun.Assessment(Map.of(), null, null, "INSUFFICIENT_EVIDENCE")
+        );
+        InterpretationPlanRuntime.StepExecution discovery = new InterpretationPlanRuntime.StepExecution(
+            1, "mcp_tool", "arbitrary_template_discovery", true,
+            Map.of("candidates", List.of(Map.of("id", "template-1"))), null, null, null, 1L,
+            Map.of(
+                "missingEvidence", List.of("downstream execution has not run yet"),
+                "evidenceIterationSufficient", false,
+                "toolResultReviewReason", "Discovery completed, but execution has not run yet."
+            )
+        );
+        InterpretationPlanRuntime.StepExecution executor = new InterpretationPlanRuntime.StepExecution(
+            2, "mcp_tool", "arbitrary_template_executor", true,
+            Map.of("result", Map.of("nested", List.of(1, 2, 3))), null, null, null, 1L,
+            Map.of(
+                "evidenceIterationSufficient", true,
+                "toolResultReviewReason", "Execution returned all required evidence.",
+                "templateExecutionReview", Map.of(
+                    "schemaVersion", "template_execution_satisfaction.v1",
+                    "satisfied", true
+                )
+            )
+        );
+        InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
+            "completed", true, false, null, null, List.of(discovery, executor),
+            Map.of("diagnosticRun", diagnosticRun), 2L
+        );
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        Method method = AgentOrchestrator.class.getDeclaredMethod(
+            "analyzeInterpretationPlanEvidence",
+            ChatModel.class,
+            String.class,
+            String.class,
+            com.chatchat.agents.runtime.plan.InterpretationPlan.class,
+            InterpretationPlanRuntime.ExecutionResult.class,
+            int.class,
+            List.class,
+            Map.class,
+            Map.class,
+            BooleanSupplier.class
+        );
+        method.setAccessible(true);
+
+        Map<String, Object> snapshot = (Map<String, Object>) method.invoke(
+            orchestrator, null, "generic request", null, null, result, 1,
+            List.of(), Map.of(), new LinkedHashMap<>(), (BooleanSupplier) () -> false
+        );
+
+        assertThat(snapshot)
+            .containsEntry("sufficient", true)
+            .containsEntry("diagnosticCoverageComplete", true);
+        assertThat((List<?>) snapshot.get("missingEvidence")).isEmpty();
+        assertThat((List<?>) snapshot.get("remainingMissing")).isEmpty();
+        assertThat(((List<?>) snapshot.get("supersededMissingEvidence")).stream()
+            .map(String::valueOf).toList())
+            .containsExactly("downstream execution has not run yet");
+        assertThat(String.valueOf(snapshot.get("conclusion")))
+            .contains("Execution returned all required evidence.")
+            .doesNotContain("execution has not run yet");
+    }
+
     private DiagnosticRun diagnosticRunForChecks(String databaseStatus,
                                                   String lockStatus,
                                                   String missingReason) {
@@ -2510,6 +2590,42 @@ class AgentOrchestratorTest {
             .contains("completed_with_partial_evidence")
             .doesNotContain(repeatedPayload)
             .hasSizeLessThan(100_000);
+    }
+
+    @Test
+    void answerReviewerReceivesDynamicExecutedValuesInsteadOfLedgerIndexOnly() {
+        Map<String, Object> output = Map.of(
+            "schemaVersion", "python_analysis_bridge_result.v1",
+            "success", true,
+            "status", "SUCCEEDED",
+            "stdout", """
+                {"status":"SUCCESS","result":{"total_lines":111,"total_error_count":7,
+                "statistics":{"exceptions":{"SparkCausedRetryException":1}},
+                "time_context":{"first":"2026-08-20 06:37:57.414","last":"2026-08-20 06:53:03.557"}}}
+                """
+        );
+        InterpretationPlanRuntime.StepExecution step = new InterpretationPlanRuntime.StepExecution(
+            2, "mcp_tool", "mcp_chatchat_mcp_server_python_template_execute", true,
+            output, null, null, null, 10L
+        );
+        InterpretationPlanRuntime.ExecutionResult result =
+            new InterpretationPlanRuntime.ExecutionResult(
+                "success", true, false, null, null, List.of(step), Map.of(), 10L
+            );
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+
+        String prompt = orchestrator.buildInterpretationPlanSummaryPrompt(
+            "analyze log", null, result, List.of(), List.of()
+        );
+        String reviewerEvidence = orchestrator.interpretationPlanReviewEvidenceContext(prompt);
+
+        assertThat(reviewerEvidence)
+            .contains("Authoritative Summary Evidence Ledger")
+            .contains("Executed plan attempts")
+            .contains("total_lines", "111", "total_error_count", "7")
+            .contains("SparkCausedRetryException")
+            .contains("2026-08-20 06:37:57.414", "2026-08-20 06:53:03.557")
+            .doesNotContain("Stored RunStore/RocksDB observations");
     }
 
     @Test

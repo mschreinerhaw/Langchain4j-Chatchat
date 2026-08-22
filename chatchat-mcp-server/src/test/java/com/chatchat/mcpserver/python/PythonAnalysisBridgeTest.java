@@ -85,6 +85,28 @@ class PythonAnalysisBridgeTest {
         assertThat((List<?>) result.body().get("candidates")).hasSize(2);
     }
 
+    @Test
+    void discoversPublishedTemplateFromNaturalChinesePhraseWithoutBusinessAliases() {
+        PythonTemplateAssetRepository templates = mock(PythonTemplateAssetRepository.class);
+        @SuppressWarnings("unchecked") ObjectProvider<PythonCapabilityService> services = mock(ObjectProvider.class);
+        PythonTemplate template = template("template-log", "asset-log", "env-python", "analysis.py");
+        template.setTemplateName("log_analysis");
+        template.setScenario("\u7528\u4e8e\u670d\u52a1\u5668\u65e5\u5fd7\u5206\u6790\u548c\u5f02\u5e38\u8bc6\u522b");
+        template.setDescription("\u63d0\u53d6\u9519\u8bef\u5806\u6808\u548c\u65f6\u95f4\u4e0a\u4e0b\u6587");
+        when(templates.findByTenantIdAndStatus("tenant-a", "PUBLISHED")).thenReturn(List.of(template));
+        ObjectMapper mapper = new ObjectMapper();
+        PythonAnalysisBridge bridge = new PythonAnalysisBridge(templates, services,
+            new PythonTemplateArgumentResolver(mapper), mock(PythonDataFileService.class), mapper);
+
+        PythonAnalysisBridge.Result result = bridge.run(Map.of(
+            "tenantId", "tenant-a",
+            "query", "\u5206\u6790\u65e5\u5fd7\u6587\u4ef6 1787187818764.log\uff0c\u7edf\u8ba1\u9519\u8bef\u548c\u5f02\u5e38\u7c7b\u578b"));
+
+        assertThat(result.error()).isFalse();
+        assertThat(result.body()).containsEntry("status", "CANDIDATES_FOUND")
+            .containsEntry("candidateCount", 1);
+    }
+
     private PythonTemplate template(String id, String assetId, String environmentId, String script) {
         PythonTemplate template = new PythonTemplate();
         template.setId(id);

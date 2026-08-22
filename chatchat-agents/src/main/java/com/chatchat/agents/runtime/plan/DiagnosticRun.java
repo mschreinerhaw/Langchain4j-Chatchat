@@ -337,7 +337,8 @@ public record DiagnosticRun(
             return CheckEvidenceState.FAILED;
         }
         if (matchesCheckIdentity(execution.metadata() == null ? null : execution.metadata().get("resolvedInput"), check)
-            || matchesCheckIdentity(execution.output(), check)) {
+            || matchesCheckIdentity(execution.output(), check)
+            || reviewedTemplateExecutionEvidence(execution)) {
             return CheckEvidenceState.SUCCESS;
         }
         Object results = property(execution.output(), "results");
@@ -364,6 +365,49 @@ public record DiagnosticRun(
             }
         }
         return CheckEvidenceState.UNKNOWN;
+    }
+
+    /**
+     * A scalar template may intentionally satisfy several diagnostic checks in one
+     * execution. The check-to-step mapping remains the planner's declaration, while
+     * this Runtime-owned satisfaction contract proves that the selected template
+     * returned substantive output and passed result review. This avoids guessing
+     * business-specific output keys and does not credit discovery-only responses.
+     */
+    private static boolean reviewedTemplateExecutionEvidence(
+        InterpretationPlanRuntime.StepExecution execution
+    ) {
+        if (execution == null || execution.output() == null || execution.metadata() == null) {
+            return false;
+        }
+        Object rawContract = execution.metadata().get("templateExecutionReview");
+        if (!(rawContract instanceof Map<?, ?> contract)
+            || !Boolean.TRUE.equals(booleanProperty(contract.get("satisfied")))) {
+            return false;
+        }
+        return substantiveEvidence(execution.output());
+    }
+
+    private static Boolean booleanProperty(Object value) {
+        if (value instanceof Boolean booleanValue) {
+            return booleanValue;
+        }
+        if (value == null) {
+            return null;
+        }
+        String text = String.valueOf(value).trim();
+        return "true".equalsIgnoreCase(text) ? Boolean.TRUE
+            : "false".equalsIgnoreCase(text) ? Boolean.FALSE : null;
+    }
+
+    private static boolean substantiveEvidence(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            return !map.isEmpty();
+        }
+        if (value instanceof Iterable<?> iterable) {
+            return iterable.iterator().hasNext();
+        }
+        return hasText(value);
     }
 
     private static boolean matchesCheckIdentity(Object value, InterpretationPlan.DiagnosticCheck check) {

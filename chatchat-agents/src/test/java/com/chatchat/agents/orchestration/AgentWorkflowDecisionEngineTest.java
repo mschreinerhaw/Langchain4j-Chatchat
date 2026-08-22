@@ -1,5 +1,9 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.common.tool.ToolMetadata;
+import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.common.tool.ToolWorkflowRole;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -7,10 +11,44 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class AgentWorkflowDecisionEngineTest {
 
     private final AgentWorkflowDecisionEngine engine = new AgentWorkflowDecisionEngine();
+
+    @Test
+    void metadataFamilyMatchingCannotSelectTheCurrentStepAsItsOwnPredecessor() {
+        String query = "mcp_vendor_server_capability";
+        String execute = "mcp_vendor_linux_execute";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getWorkflowRole(query)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(execute)).thenReturn(ToolWorkflowRole.TEMPLATE_EXECUTION);
+        when(registry.getToolMetadata(query)).thenReturn(metadata(
+            ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.ssh-template.v1"));
+        when(registry.getToolMetadata(execute)).thenReturn(metadata(
+            ToolWorkflowRole.TEMPLATE_EXECUTION, "mcp.ssh-template.v1"));
+        AgentWorkflowDecisionEngine metadataEngine = new AgentWorkflowDecisionEngine(registry);
+        Map<String, Object> workflow = Map.of("steps", List.of(
+            Map.of("step", 1, "tool", query, "required", true),
+            Map.of("step", 2, "tool", execute, "required", true)
+        ));
+
+        WorkflowMandatoryResolution result = metadataEngine.resolveWorkflowMandatoryTools(
+            List.of(query, execute), Map.of("mcpWorkflow", workflow), "inspect docker server");
+
+        assertThat(result.tools()).containsExactly(query, execute);
+        assertThat(result.authoritativeDag().get(0).dependsOnTools()).isEmpty();
+        assertThat(result.authoritativeDag().get(1).dependsOnTools()).containsExactly(query);
+    }
+
+    private ToolMetadata metadata(ToolWorkflowRole role, String family) {
+        return ToolMetadata.builder().metadata(Map.of(
+            ToolWorkflowContract.METADATA_KEY,
+            ToolWorkflowContract.declaration(role, family, "executionContext")
+        )).build();
+    }
 
     @Test
     void dependencyGraphOverridesMisorderedAndDuplicateStepNumbers() {

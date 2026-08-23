@@ -73,6 +73,11 @@ public class DefaultAgentRuntime implements AgentRuntime {
                         runningThreads.remove(submitted.runId());
                         cancellationSignals.remove(submitted.runId());
                     }
+                }, rejection -> {
+                    cancellationSignals.remove(submitted.runId());
+                    AgentRun failed = runStore.fail(submitted.runId(),
+                        new RejectedExecutionException("Agent runtime executor rejected run", rejection));
+                    completion.complete(failedRunResult(failed));
                 });
             return new AgentRunHandle(submitted.runId(), completion);
         } catch (RejectedExecutionException ex) {

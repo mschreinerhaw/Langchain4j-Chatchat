@@ -211,6 +211,8 @@ class AgentAnswerFinalizer {
                 values.put("finalAnswerPreview", shortText(finalAnswer, 1000));
             }
         }
+        finalAnswer = bindReturnedEvidenceReferences(
+            finalAnswer, values, observations, toolEvidence, "final_assembly");
         if (!finalAnswer.equals(selectedAnswer == null ? "" : selectedAnswer)) {
             values.put("finalAnswerSanitized", true);
             values.put("finalAnswerPreview", shortText(finalAnswer, 1000));
@@ -524,6 +526,8 @@ class AgentAnswerFinalizer {
             activeChatModel, query, systemPrompt, finalAnswer, observations, traces, metadata);
         List<String> effectiveObservations = enhancement.observations();
         List<InteractionToolTrace> effectiveTraces = enhancement.traces();
+        finalAnswer = bindReturnedEvidenceReferences(finalAnswer, metadata, effectiveObservations,
+            toolResultEvidence(effectiveTraces), "pre_review");
         recordCancellationAfterAnswer(cancellationCheck, metadata, "after_summary");
         AgentAnswerReview review = reviewAnswer(activeChatModel, query, systemPrompt,
             effectiveObservations, finalAnswer, metadata);
@@ -560,6 +564,8 @@ class AgentAnswerFinalizer {
             activeChatModel, query, systemPrompt, finalAnswer, observations, traces, metadata);
         List<String> effectiveObservations = enhancement.observations();
         List<InteractionToolTrace> effectiveTraces = enhancement.traces();
+        finalAnswer = bindReturnedEvidenceReferences(finalAnswer, metadata, effectiveObservations,
+            toolResultEvidence(effectiveTraces), "pre_review");
         recordCancellationAfterAnswer(cancellationCheck, metadata, "after_summary");
         AgentAnswerReview review = reviewAnswer(activeChatModel, query, systemPrompt,
             effectiveObservations, finalAnswer, metadata);
@@ -597,6 +603,8 @@ class AgentAnswerFinalizer {
             activeChatModel, query, systemPrompt, finalAnswer, observations, traces, metadata);
         List<String> effectiveObservations = enhancement.observations();
         List<InteractionToolTrace> effectiveTraces = enhancement.traces();
+        finalAnswer = bindReturnedEvidenceReferences(finalAnswer, metadata, effectiveObservations,
+            toolResultEvidence(effectiveTraces), "pre_review");
         recordCancellationAfterAnswer(cancellationCheck, metadata, "after_answer");
         AgentAnswerReview review = reviewAnswer(activeChatModel, query, systemPrompt,
             effectiveObservations, finalAnswer, metadata);
@@ -995,6 +1003,7 @@ class AgentAnswerFinalizer {
         prompt.append("Preserve successful structured results even when incomplete or unexpected; present observed data before limitations and next checks.\n");
         prompt.append("Keep execution success separate from evidence sufficiency. A successful result remains reportable while weak coverage lowers confidence.\n");
         prompt.append("Respect evidence semantics supplied at runtime, including scope, time basis, completeness, capability and source role. Do not infer beyond them.\n");
+        prompt.append("Keep an exact returned evidence URI (tool://, doc://, web://, or http(s)://) near every factual numeric, date, causal, comparative, or definitive claim. A tool display name alone is not an evidence reference.\n");
         prompt.append("If any tool observation reports failure, explicitly state that this source was unavailable and do not treat it as evidence.\n");
         prompt.append("If observations include evidence_v1 Unified evidence context, use only those EvidenceChunk entries as grounded evidence and keep the matching citation near every claim that relies on that evidence.\n");
         prompt.append("When both internal document and web search observations are available, separate internal document evidence from web verification evidence and explain conflicts instead of merging them silently.\n");
@@ -2355,6 +2364,23 @@ class AgentAnswerFinalizer {
             }
         }
         return answer;
+    }
+
+    private String bindReturnedEvidenceReferences(String answer,
+                                                  Map<String, Object> metadata,
+                                                  List<String> observations,
+                                                  List<Map<String, Object>> toolEvidence,
+                                                  String phase) {
+        AnswerEvidenceLedgerCompiler.BindingResult binding = answerEvidenceLedgerCompiler.bindReturnedEvidence(
+            answer, metadata, observations, toolEvidence);
+        if (metadata != null && binding.boundClaimCount() > 0) {
+            metadata.put("answerEvidenceBindingApplied", true);
+            metadata.put("answerEvidenceBindingContractVersion", AnswerEvidenceLedgerCompiler.CLAIM_LEDGER_VERSION);
+            metadata.merge("answerEvidenceBoundClaimCount", binding.boundClaimCount(),
+                (left, right) -> ((Number) left).intValue() + ((Number) right).intValue());
+            metadata.put("answerEvidenceBindingPhase", firstNonBlank(phase, "unknown"));
+        }
+        return binding.answer();
     }
 
     private boolean nonBlankString(Object value) {

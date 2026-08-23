@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.function.Consumer;
 
 /**
  * Bounded round-robin admission layer over the shared Agent executor.
@@ -32,8 +33,21 @@ final class TenantFairExecutor {
     }
 
     void execute(String tenantId, Runnable task) {
+        execute(tenantId, task, failure -> {
+            throw failure;
+        });
+    }
+
+    void execute(String tenantId, Runnable task, Consumer<RejectedExecutionException> rejectionHandler) {
+        Consumer<RejectedExecutionException> safeHandler = rejectionHandler == null
+            ? failure -> { throw failure; }
+            : rejectionHandler;
         if (!enabled) {
-            delegate.execute(task);
+            try {
+                delegate.execute(task);
+            } catch (RejectedExecutionException ex) {
+                safeHandler.accept(ex);
+            }
             return;
         }
         String tenant = tenantId == null || tenantId.isBlank() ? "default" : tenantId.trim();
@@ -45,7 +59,7 @@ final class TenantFairExecutor {
             if (queuedTotal >= maxQueuedTotal) {
                 throw new RejectedExecutionException("Global Agent queue is full");
             }
-            queue.waiting.addLast(task);
+            queue.waiting.addLast(new QueuedTask(task, safeHandler));
             queuedTotal++;
             if (!roundRobin.contains(tenant)) {
                 roundRobin.addLast(tenant);
@@ -73,7 +87,7 @@ final class TenantFairExecutor {
                 }
                 continue;
             }
-            Runnable task = queue.waiting.removeFirst();
+            QueuedTask task = queue.waiting.removeFirst();
             queuedTotal--;
             queue.active++;
             if (!queue.waiting.isEmpty()) {
@@ -89,12 +103,14 @@ final class TenantFairExecutor {
                 });
             } catch (RejectedExecutionException ex) {
                 queue.active--;
-                queue.waiting.addFirst(task);
-                queuedTotal++;
-                if (!roundRobin.contains(tenant)) {
-                    roundRobin.addFirst(tenant);
+                task.rejectionHandler().accept(ex);
+                if (queue.active == 0 && queue.waiting.isEmpty()) {
+                    tenants.remove(tenant);
+                    roundRobin.remove(tenant);
+                } else if (!queue.waiting.isEmpty() && !roundRobin.contains(tenant)) {
+                    roundRobin.addLast(tenant);
                 }
-                return;
+                candidates = roundRobin.size();
             }
             candidates = roundRobin.size();
         }
@@ -120,7 +136,15 @@ final class TenantFairExecutor {
     }
 
     private static final class TenantQueue {
-        private final Deque<Runnable> waiting = new ArrayDeque<>();
+        private final Deque<QueuedTask> waiting = new ArrayDeque<>();
         private int active;
+    }
+
+    private record QueuedTask(Runnable task, Consumer<RejectedExecutionException> rejectionHandler)
+        implements Runnable {
+        @Override
+        public void run() {
+            task.run();
+        }
     }
 }

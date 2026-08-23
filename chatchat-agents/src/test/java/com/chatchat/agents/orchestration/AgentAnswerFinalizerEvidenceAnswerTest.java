@@ -1132,7 +1132,10 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
                 """)
         );
 
-        assertThat(result.answer()).contains(candidate);
+        assertThat(result.answer())
+            .contains("文档中的证据不足以确认部署端口，但确认使用了独立运行包")
+            .contains("doc://deployment#chunk=1")
+            .doesNotContain("证据完整性提示");
         assertThat(result.metadata())
             .containsEntry("answerDecision", AnswerDecisionEngine.NO_REWRITE);
         assertThat((Map<String, Object>) result.metadata().get("answerQualityAssessment"))

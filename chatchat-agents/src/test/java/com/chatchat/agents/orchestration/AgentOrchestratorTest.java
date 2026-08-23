@@ -3030,7 +3030,9 @@ class AgentOrchestratorTest {
             false
         );
 
-        assertThat(result.answer()).contains("Use the internal definition handbook.");
+        assertThat(result.answer())
+            .contains("Use the internal definition handbook")
+            .contains("tool://document_search#result=1");
         assertThat(result.toolTraces()).extracting(InteractionToolTrace::getToolName)
             .containsExactly("document_search");
         assertThat(result.metadata())
@@ -3515,7 +3517,9 @@ class AgentOrchestratorTest {
             false
         );
 
-        assertThat(result.answer()).contains("Use web evidence fallback.");
+        assertThat(result.answer())
+            .contains("Use web evidence fallback")
+            .contains("web://example.com/audit#result=1");
         assertThat(result.toolTraces()).extracting(InteractionToolTrace::getToolName)
             .containsExactly("document_search", "web_search");
         assertThat(result.metadata())
@@ -3639,7 +3643,9 @@ class AgentOrchestratorTest {
             .webSearchResultLimit(10)
             .build());
 
-        assertThat(result.answer()).contains("Use the internal definition handbook.");
+        assertThat(result.answer())
+            .contains("Use the internal definition handbook")
+            .contains("tool://document_search#result=1");
         assertThat(result.stopReason()).isEqualTo("final_answer");
         assertThat(result.toolTraces())
             .extracting(InteractionToolTrace::getToolName)
@@ -3701,7 +3707,9 @@ class AgentOrchestratorTest {
             Map.of()
         );
 
-        assertThat(result.answer()).contains("Use the required document evidence.");
+        assertThat(result.answer())
+            .contains("Use the required document evidence")
+            .contains("doc://unknown#chunk=1");
         assertThat(result.toolTraces())
             .extracting(InteractionToolTrace::getToolName)
             .containsExactly("document_search");

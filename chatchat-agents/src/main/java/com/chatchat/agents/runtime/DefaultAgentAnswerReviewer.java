@@ -111,6 +111,7 @@ public class DefaultAgentAnswerReviewer implements AgentAnswerReviewer {
         prompt.append("If observations include web citation labels such as [网页1], web-derived claims in the answer must keep the matching labels; reject and revise answers that omit those labels.\n");
         prompt.append("Do not remove citation markers that prove which web page supports a statement.\n");
         prompt.append("If observations contain claim_ledger_v1 Answer evidence preflight with FAIL or PARTIAL status, reject any numeric, date, causal, comparative, or definitive claim that lacks a returned evidence reference near that claim. Never approve an unknown reference.\n");
+        prompt.append("When revising for claim_ledger_v1, copy exact returned evidence URIs such as tool://...#result=.../child=..., doc://...#chunk=..., or web://...#result=... next to the supported claim. A tool name or friendly source label is not sufficient.\n");
         prompt.append("Report concrete issues and optional enhancement suggestions. Missing optional context is a limitation, not automatic grounds for refusal.\n\n");
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             prompt.append("System instruction:\n").append(systemPrompt).append("\n\n");
@@ -131,7 +132,9 @@ public class DefaultAgentAnswerReviewer implements AgentAnswerReviewer {
     private boolean modelAnalysisRepairEnabled(List<String> observations) {
         return observations != null && observations.stream()
             .filter(value -> value != null && !value.isBlank())
-            .anyMatch(value -> value.contains("model_analysis_repair_v1"));
+            .anyMatch(value -> value.contains("model_analysis_repair_v1")
+                || (value.contains("claim_ledger_v1")
+                && (value.contains("status=FAIL") || value.contains("status=PARTIAL"))));
     }
 
     private String reviewFeedback(Map<String, Object> payload) {

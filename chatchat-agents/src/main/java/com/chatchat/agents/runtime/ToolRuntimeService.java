@@ -1803,6 +1803,9 @@ public class ToolRuntimeService {
         }
         Set<String> callIds = new HashSet<>();
         boolean diagnosticBatch = batchAttributeInt(request, "diagnosticDeclaredCheckCount", 0) > 0;
+        boolean templateAssetAuthorizationRequired = batchAttributeBoolean(
+            request, "diagnosticTemplateAssetAuthorizationRequired");
+        Map<String, String> authorizedTemplateAssets = batchAuthorizedTemplateAssets(request);
         String diagnosticAssetId = null;
         for (int index = 0; index < calls.size(); index++) {
             Object item = calls.get(index);
@@ -1844,7 +1847,15 @@ public class ToolRuntimeService {
                     return BatchValidation.invalid("BATCH_ASSET_ID_REQUIRED",
                         "Diagnostic batch call " + callId + " must contain the canonical assetId");
                 }
-                if (diagnosticAssetId == null) {
+                String authorizationError = validateDiagnosticTemplateAsset(
+                    callId, childArguments, childAssetId,
+                    templateAssetAuthorizationRequired, authorizedTemplateAssets);
+                if (authorizationError != null) {
+                    return BatchValidation.invalid("BATCH_TEMPLATE_ASSET_MISMATCH", authorizationError);
+                }
+                if (templateAssetAuthorizationRequired) {
+                    continue;
+                } else if (diagnosticAssetId == null) {
                     diagnosticAssetId = childAssetId;
                 } else if (!diagnosticAssetId.equals(childAssetId)) {
                     return BatchValidation.invalid("BATCH_ASSET_MISMATCH",
@@ -1870,6 +1881,9 @@ public class ToolRuntimeService {
         }
         Set<String> callIds = new HashSet<>();
         boolean diagnosticBatch = batchAttributeInt(context, "diagnosticDeclaredCheckCount", 0) > 0;
+        boolean templateAssetAuthorizationRequired = batchAttributeBoolean(
+            context, "diagnosticTemplateAssetAuthorizationRequired");
+        Map<String, String> authorizedTemplateAssets = batchAuthorizedTemplateAssets(context);
         String diagnosticAssetId = null;
         for (int index = 0; index < batch.calls().size(); index++) {
             ToolCallRequest call = batch.calls().get(index);
@@ -1892,7 +1906,15 @@ public class ToolRuntimeService {
                     return BatchValidation.invalid("BATCH_ASSET_ID_REQUIRED",
                         "Diagnostic batch call " + callId + " must contain the canonical assetId");
                 }
-                if (diagnosticAssetId == null) {
+                String authorizationError = validateDiagnosticTemplateAsset(
+                    callId, call.arguments(), childAssetId,
+                    templateAssetAuthorizationRequired, authorizedTemplateAssets);
+                if (authorizationError != null) {
+                    return BatchValidation.invalid("BATCH_TEMPLATE_ASSET_MISMATCH", authorizationError);
+                }
+                if (templateAssetAuthorizationRequired) {
+                    continue;
+                } else if (diagnosticAssetId == null) {
                     diagnosticAssetId = childAssetId;
                 } else if (!diagnosticAssetId.equals(childAssetId)) {
                     return BatchValidation.invalid("BATCH_ASSET_MISMATCH",
@@ -1914,6 +1936,47 @@ public class ToolRuntimeService {
                 "The outer batch tool must be a registered batch-capable executor");
         }
         return BatchValidation.accepted();
+    }
+
+    private String validateDiagnosticTemplateAsset(String callId,
+                                                   Map<String, Object> arguments,
+                                                   String childAssetId,
+                                                   boolean authorizationRequired,
+                                                   Map<String, String> authorization) {
+        if (!authorizationRequired) {
+            return null;
+        }
+        String templateId = templateId(arguments);
+        String authorizedAssetId = templateId == null ? null : authorization.get(templateId);
+        if (authorizedAssetId == null || authorizedAssetId.isBlank()) {
+            return "Diagnostic batch call " + callId
+                + " has no discovery-authorized template-to-asset binding";
+        }
+        if (!authorizedAssetId.equals(childAssetId)) {
+            return "Diagnostic batch call " + callId
+                + " does not target the asset authorized for template " + templateId;
+        }
+        return null;
+    }
+
+    private boolean batchAttributeBoolean(ToolRuntimeRequest request, String name) {
+        return request != null && request.getAttributes() != null
+            && Boolean.TRUE.equals(request.getAttributes().get(name));
+    }
+
+    private Map<String, String> batchAuthorizedTemplateAssets(ToolRuntimeRequest request) {
+        if (request == null || request.getAttributes() == null
+            || !(request.getAttributes().get("diagnosticAuthorizedTemplateAssets") instanceof Map<?, ?> raw)) {
+            return Map.of();
+        }
+        Map<String, String> authorized = new LinkedHashMap<>();
+        raw.forEach((key, value) -> {
+            if (key != null && value != null
+                && !String.valueOf(key).isBlank() && !String.valueOf(value).isBlank()) {
+                authorized.put(String.valueOf(key), String.valueOf(value));
+            }
+        });
+        return authorized;
     }
 
     private boolean containsBatchEnvelope(Map<?, ?> values) {

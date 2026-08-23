@@ -2054,6 +2054,77 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
+    void diagnosticBatchAllowsMultipleEndpointAssetsOnlyThroughDiscoveryTemplateAuthorization() {
+        String toolName = "http_request_execute";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName).title(toolName).categories(List.of("mcp")).build());
+        when(toolRegistry.executeEnhancedTool(any(), any()))
+            .thenReturn(ToolOutput.success(Map.of("ok", true)));
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), properties(), new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of());
+        List<Map<String, Object>> calls = List.of(
+            Map.of(
+                "callId", "cluster_metrics",
+                "toolName", toolName,
+                "arguments", Map.of(
+                    "templateId", "HTTP_CLUSTER_METRICS",
+                    "executionContext", Map.of("assetId", "endpoint-cluster"))),
+            Map.of(
+                "callId", "node_metrics",
+                "toolName", toolName,
+                "arguments", Map.of(
+                    "templateId", "HTTP_NODE_METRICS",
+                    "executionContext", Map.of("assetId", "endpoint-nodes")))
+        );
+        Map<String, Object> attributes = Map.of(
+            "diagnosticDeclaredCheckCount", 2,
+            "diagnosticTemplateAssetAuthorizationRequired", true,
+            "diagnosticAuthorizedTemplateAssets", Map.of(
+                "HTTP_CLUSTER_METRICS", "endpoint-cluster",
+                "HTTP_NODE_METRICS", "endpoint-nodes")
+        );
+
+        ToolRuntimeExecution execution = service.execute(batchRequest(calls, false, attributes));
+
+        assertThat(execution.output().isSuccess()).isTrue();
+        assertThat(((ToolCallBatchResult) execution.output().getData()).results()).hasSize(2);
+        verify(toolRegistry, times(2)).executeEnhancedTool(any(), any());
+    }
+
+    @Test
+    void diagnosticBatchRejectsEndpointAssetThatDoesNotMatchItsDiscoveredTemplate() {
+        String toolName = "http_request_execute";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName).title(toolName).categories(List.of("mcp")).build());
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), properties(), new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of());
+        List<Map<String, Object>> calls = List.of(Map.of(
+            "callId", "cluster_metrics",
+            "toolName", toolName,
+            "arguments", Map.of(
+                "templateId", "HTTP_CLUSTER_METRICS",
+                "executionContext", Map.of("assetId", "endpoint-injected"))
+        ));
+        Map<String, Object> attributes = Map.of(
+            "diagnosticDeclaredCheckCount", 1,
+            "diagnosticTemplateAssetAuthorizationRequired", true,
+            "diagnosticAuthorizedTemplateAssets", Map.of(
+                "HTTP_CLUSTER_METRICS", "endpoint-cluster")
+        );
+
+        ToolRuntimeExecution execution = service.execute(batchRequest(calls, false, attributes));
+
+        assertThat(execution.output().isSuccess()).isFalse();
+        assertThat(execution.output().getExceptionType()).isEqualTo("BATCH_TEMPLATE_ASSET_MISMATCH");
+        assertThat(execution.output().getErrorMessage()).contains("asset authorized for template");
+        verify(toolRegistry, never()).executeEnhancedTool(any(), any());
+    }
+
+    @Test
     void emptyDiagnosticResultUsesPerCheckTemplatePolicy() {
         String toolName = "sql_query_execute";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
@@ -2550,7 +2621,7 @@ class ToolRuntimeServiceTest {
             .distinct()
             .toList();
         return ToolRuntimeRequest.builder()
-            .toolName("sql_query_execute")
+            .toolName(allowedTools.get(0))
             .runtimeMode("interpretation_plan")
             .requestId("req-batch")
             .conversationId("conv-batch")

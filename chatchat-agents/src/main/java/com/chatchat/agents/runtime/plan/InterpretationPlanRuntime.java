@@ -2366,7 +2366,7 @@ public class InterpretationPlanRuntime {
         }
         attributes.put("executionPlan", executionPlan);
         appendWorkflowTargetContinuity(attributes, request.plan(), step, completed);
-        appendDiagnosticBatchAttributes(attributes, request.plan(), step, resolvedInput);
+        appendDiagnosticBatchAttributes(attributes, request.plan(), step, completed, resolvedInput);
         attributes.put("completedPlanStepIds", new ArrayList<>(completed.keySet()));
         Set<String> completedToolSet = new LinkedHashSet<>();
         Object priorCompletedTools = attributes.get("workflowCompletedTools");
@@ -2479,6 +2479,7 @@ public class InterpretationPlanRuntime {
         Map<String, Object> attributes,
         InterpretationPlan plan,
         InterpretationPlan.Step step,
+        Map<Integer, StepExecution> completed,
         Map<String, Object> resolvedInput
     ) {
         if (attributes == null || plan == null || plan.plan() == null
@@ -2529,6 +2530,58 @@ public class InterpretationPlanRuntime {
         attributes.put("diagnosticDeclaredCheckCount", declared.size());
         attributes.put("diagnosticCompiledCallCount", compiled.size());
         attributes.put("diagnosticMissingAuthorizedCheckIds", missing);
+        appendDiagnosticTemplateAssetAuthorization(attributes, completed, resolvedInput);
+    }
+
+    /**
+     * Carries the discovery-owned template-to-asset relationship into ToolRuntime without
+     * exposing it as model/tool input. HTTP diagnostics legitimately span several endpoint
+     * assets, while every child must still execute against the exact asset published for its
+     * template. The same contract also strengthens single-asset SQL/SSH batches.
+     */
+    private void appendDiagnosticTemplateAssetAuthorization(
+        Map<String, Object> attributes,
+        Map<Integer, StepExecution> completed,
+        Map<String, Object> resolvedInput
+    ) {
+        if (attributes == null || completed == null || completed.isEmpty()
+            || !batchToolInput(resolvedInput)) {
+            return;
+        }
+        boolean governedDiscoveryAvailable = completed.values().stream()
+            .anyMatch(execution -> execution != null && execution.success()
+                && isTemplateDiscoveryTool(execution.toolName()));
+        if (!governedDiscoveryAvailable) {
+            return;
+        }
+        String discoveryAssetId = stringValue(
+            firstCompletedTemplateAssetExecutionContext(completed).get("assetId"));
+        Map<String, String> authorization = new LinkedHashMap<>();
+        Object rawCalls = firstPresent(resolvedInput, "calls", "toolCalls", "tool_calls");
+        if (rawCalls instanceof Iterable<?> calls) {
+            for (Object value : calls) {
+                if (!(value instanceof Map<?, ?> rawCall)) {
+                    continue;
+                }
+                Map<String, Object> call = asStringMap(rawCall);
+                Object rawArguments = firstPresent(call, "arguments", "input", "parameters");
+                if (!(rawArguments instanceof Map<?, ?> arguments)) {
+                    continue;
+                }
+                String templateId = stringValue(firstPresent(asStringMap(arguments),
+                    "templateId", "template_id", "templateCode", "template_code", "template"));
+                if (templateId == null) {
+                    continue;
+                }
+                Map<String, Object> template = completedTemplateMetadata(completed, templateId);
+                String assetId = firstText(templateAssetId(template), discoveryAssetId);
+                if (assetId != null) {
+                    authorization.put(templateId, assetId);
+                }
+            }
+        }
+        attributes.put("diagnosticTemplateAssetAuthorizationRequired", true);
+        attributes.put("diagnosticAuthorizedTemplateAssets", authorization);
     }
 
     private StepExecution reviewToolResult(ExecutionRequest request,

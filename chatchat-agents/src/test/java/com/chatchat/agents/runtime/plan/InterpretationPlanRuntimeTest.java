@@ -9177,6 +9177,13 @@ class InterpretationPlanRuntimeTest {
             .filter(request -> executorTool.equals(request.getToolName()))
             .findFirst()
             .orElseThrow();
+        assertThat(batchRequest.getAttributes())
+            .containsEntry("diagnosticTemplateAssetAuthorizationRequired", true);
+        assertThat((Map<String, String>) batchRequest.getAttributes()
+            .get("diagnosticAuthorizedTemplateAssets"))
+            .containsOnlyKeys(templateIds.toArray(String[]::new))
+            .allSatisfy((templateId, assetId) -> assertThat(assetId)
+                .isEqualTo("asset-oracle-dev"));
         assertThat(batchRequest.getToolInput().getParameters())
             .containsEntry("executionMode", "SEQUENTIAL");
         assertThat((List<?>) batchRequest.getToolInput().getParameters().get("calls")).hasSize(5);

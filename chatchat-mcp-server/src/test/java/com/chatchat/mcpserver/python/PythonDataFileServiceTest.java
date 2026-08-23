@@ -36,6 +36,23 @@ class PythonDataFileServiceTest {
         assertThat(InternalSecretCipher.decryptBytes(service.content("tenant_1","张三@example.com","file_1"),"secret")).isEqualTo(content);
         service.delete("tenant_1","张三@example.com","file_1");assertThat(Path.of(result.storagePath())).doesNotExist();
     }
+    @Test void discoversStoredFileByFileId() throws Exception {
+        PythonRuntimeProperties properties = new PythonRuntimeProperties();
+        properties.setDataRoot(temp.toString());
+        InternalCredentialProperties credentials = mock(InternalCredentialProperties.class);
+        when(credentials.resolvedSecret()).thenReturn("secret");
+        PythonDataFileService service = new PythonDataFileService(properties, credentials, new ObjectMapper());
+        byte[] content = "line one\n".getBytes(StandardCharsets.UTF_8);
+        String name = Base64.getUrlEncoder().withoutPadding()
+            .encodeToString("error.log".getBytes(StandardCharsets.UTF_8));
+        String hash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content));
+        service.store("tenant_1", "alice", "file_error", name, hash,
+            InternalSecretCipher.encryptBytes(content, "secret"));
+
+        assertThat(service.discover("tenant_1", "alice", "file_error", 20))
+            .extracting(PythonDataFileService.DataFileView::fileName).containsExactly("error.log");
+    }
+
     @Test void rejectsHashMismatchAndPathTraversal(){
         PythonRuntimeProperties properties=new PythonRuntimeProperties();properties.setDataRoot(temp.toString());InternalCredentialProperties credentials=mock(InternalCredentialProperties.class);when(credentials.resolvedSecret()).thenReturn("secret");PythonDataFileService service=new PythonDataFileService(properties,credentials,new ObjectMapper());
         byte[] content="x".getBytes(StandardCharsets.UTF_8);String traversal=Base64.getUrlEncoder().withoutPadding().encodeToString("../x.csv".getBytes(StandardCharsets.UTF_8));

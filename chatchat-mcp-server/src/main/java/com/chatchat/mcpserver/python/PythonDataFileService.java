@@ -117,7 +117,12 @@ public class PythonDataFileService {
                     }
                     String fileName = file.getFileName().toString();
                     String normalized = fileName.toLowerCase(Locale.ROOT);
-                    int score = needle.isBlank() ? 1 : normalized.equals(needle) ? 4 : needle.contains(normalized) ? 3 : normalized.contains(needle) ? 2 : 0;
+                    String normalizedId = fileId.toLowerCase(Locale.ROOT);
+                    int score = needle.isBlank() ? 1
+                            : normalizedId.equals(needle) ? 5
+                            : normalized.equals(needle) ? 4
+                            : needle.contains(normalized) ? 3
+                            : normalized.contains(needle) ? 2 : 0;
                     if (score > 0)
                         candidates.add(new DataFileCandidate(new DataFileView(fileId, fileName, Files.size(file), Files.getLastModifiedTime(file).toMillis()), score));
                 }

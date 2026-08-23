@@ -4498,13 +4498,21 @@ public class InterpretationPlanRuntime {
                 throw new IllegalStateException("TOOL_CALL_CONTRACT_FAILED: toolCall.toolName " + selectedTool
                     + " does not match the planned workflow tool " + step.toolName());
             }
-            Object action = firstMapValue(toolCall, "action", "capability", "templateRef", "templateId");
-            if (action != null) {
-                if (isTemplateExecutionTool(step.toolName())) {
-                    input.put("templateId", action);
-                } else {
-                    input.put("action", action);
+            Object action = firstMapValue(toolCall, "action", "capability");
+            if (isTemplateExecutionTool(step.toolName())) {
+                Object templateRef = firstMapValue(toolCall,
+                    "templateRef", "template_ref", "templateId", "template_id", "template");
+                if (templateRef == null && action != null && !isGenericTemplateExecutionAction(action)) {
+                    // Some legacy plans put a concrete template id in action. Generic verbs such
+                    // as "execute" are operation names, however, and must never cross the MCP
+                    // boundary as a template id.
+                    templateRef = action;
                 }
+                if (templateRef != null) {
+                    input.put("templateId", templateRef);
+                }
+            } else if (action != null) {
+                input.put("action", action);
             }
             Object parameters = firstMapValue(toolCall, "parameters", "arguments");
             if (parameters instanceof Map<?, ?> map && !isTemplateExecutionTool(step.toolName())) {
@@ -4557,6 +4565,18 @@ public class InterpretationPlanRuntime {
         input.remove("modelInvocation");
         input.remove("model_invocation");
         enforceRuntimeTemplateBinding(step, input);
+    }
+
+    private boolean isGenericTemplateExecutionAction(Object value) {
+        if (value == null) {
+            return false;
+        }
+        String normalized = String.valueOf(value).trim().toLowerCase(Locale.ROOT)
+            .replace('-', '_').replace(' ', '_');
+        return Set.of(
+            "execute", "run", "invoke", "call",
+            "execute_template", "run_template", "invoke_template", "template_execute"
+        ).contains(normalized);
     }
 
     @SuppressWarnings("unchecked")
@@ -6592,12 +6612,13 @@ public class InterpretationPlanRuntime {
             if (execution == null || !execution.success() || !isTemplateDiscoveryTool(execution.toolName())) {
                 continue;
             }
+            boolean discoveryExecutorMatches = templateDiscoveryExecutorMatches(execution.output(), toolName);
             for (Object item : templateCandidates(execution.output())) {
                 if (!(item instanceof Map<?, ?> map)) {
                     continue;
                 }
                 Map<String, Object> template = new LinkedHashMap<>((Map<String, Object>) map);
-                if (!templateExecutorMatches(template, toolName)) {
+                if (!discoveryExecutorMatches && !templateExecutorMatches(template, toolName)) {
                     continue;
                 }
                 String templateId = stringValue(firstValueAtAnyPath(template,
@@ -6611,6 +6632,29 @@ public class InterpretationPlanRuntime {
             }
         }
         return templateIds.size() == 1 ? templateIds.iterator().next() : null;
+    }
+
+    private boolean templateDiscoveryExecutorMatches(Object output, String toolName) {
+        if (!(output instanceof Map<?, ?> raw) || toolName == null || toolName.isBlank()) {
+            return false;
+        }
+        @SuppressWarnings("unchecked")
+        Map<String, Object> result = new LinkedHashMap<>((Map<String, Object>) raw);
+        Object[] candidates = new Object[] {
+            firstValueAtAnyPath(result, "$.executionTool"),
+            firstValueAtAnyPath(result, "$.execution_tool"),
+            firstValueAtAnyPath(result, "$.execution.toolName"),
+            firstValueAtAnyPath(result, "$.execution.executorTool"),
+            firstValueAtAnyPath(result, "$.routingProjection.executionTool"),
+            firstValueAtAnyPath(result, "$.data.executionTool"),
+            firstValueAtAnyPath(result, "$.structuredContent.executionTool")
+        };
+        for (Object value : candidates) {
+            if (executorToolNameMatches(value == null ? null : String.valueOf(value), toolName)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean templateExecutorMatches(Map<String, Object> template, String toolName) {

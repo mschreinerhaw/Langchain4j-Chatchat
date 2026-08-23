@@ -18,6 +18,10 @@ import java.util.Set;
 @Component
 @RequiredArgsConstructor
 public class PythonAnalysisBridge {
+    private static final Set<String> FILE_PARAMETER_ALIASES = Set.of(
+        "file", "filename", "filepath", "sourcefile", "inputfile", "datafile", "logfile"
+    );
+
     private final PythonTemplateAssetRepository templates;
     private final ObjectProvider<PythonCapabilityService> serviceProvider;
     private final PythonTemplateArgumentResolver argumentResolver;
@@ -154,6 +158,26 @@ public class PythonAnalysisBridge {
         }
         if (genericFile != null && fileFields.size() == 1 && !parameters.containsKey(fileFields.get(0)))
             parameters.put(fileFields.get(0), genericFile);
+        if (genericFile == null && fileFields.size() == 1 && !parameters.containsKey(fileFields.get(0))) {
+            List<Map.Entry<String, Object>> aliases = parameters.entrySet().stream()
+                    .filter(entry -> !properties.containsKey(entry.getKey()))
+                    .filter(entry -> entry.getValue() instanceof String value && !value.isBlank())
+                    .filter(entry -> isFileParameterAlias(entry.getKey()))
+                    .toList();
+            if (aliases.size() > 1) {
+                List<Map<String, Object>> choices = aliases.stream()
+                        .map(entry -> Map.<String, Object>of(
+                                "parameter", entry.getKey(), "value", entry.getValue()))
+                        .toList();
+                return new FileBinding(Map.of(), clarification("file_parameter",
+                        "Multiple Python file parameter aliases were supplied; choose one file binding.", choices));
+            }
+            if (aliases.size() == 1) {
+                Map.Entry<String, Object> alias = aliases.get(0);
+                parameters.remove(alias.getKey());
+                parameters.put(fileFields.get(0), alias.getValue());
+            }
+        }
         String query = text(arguments.get("query"));
         if (genericFile == null && fileFields.size() == 1 && !parameters.containsKey(fileFields.get(0)) && query != null) {
             FileResolution resolution = resolveFile(query, tenantId, ownerId, false);
@@ -170,6 +194,12 @@ public class PythonAnalysisBridge {
         return new FileBinding(Map.copyOf(parameters), null);
     }
 
+    private boolean isFileParameterAlias(String name) {
+        if (name == null || name.isBlank()) return false;
+        String normalized = name.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
+        return FILE_PARAMETER_ALIASES.contains(normalized);
+    }
+
     private FileResolution resolveFile(String reference, String tenantId, String ownerId, boolean explicit) {
         if (reference.startsWith("/data/input/")) return new FileResolution(reference, null);
         List<PythonDataFileService.DataFileView> files = dataFiles.discover(tenantId, ownerId, reference, 20);
@@ -183,7 +213,15 @@ public class PythonAnalysisBridge {
                     "fileId", file.fileId(), "fileName", file.fileName(), "fileSize", file.fileSize())).toList();
             return new FileResolution(null, clarification("file", "存在多个匹配的数据文件，请选择一个", choices));
         }
-        return new FileResolution(explicit ? reference : null, null);
+        if (!explicit) return new FileResolution(null, null);
+        List<Map<String, Object>> available = dataFiles.discover(tenantId, ownerId, "", 20).stream()
+                .map(file -> Map.<String, Object>of(
+                        "fileId", file.fileId(), "fileName", file.fileName(), "fileSize", file.fileSize()))
+                .toList();
+        String message = available.isEmpty()
+                ? "\u5f53\u524d MCP \u6267\u884c\u8282\u70b9\u4e2d\u6ca1\u6709\u627e\u5230\u5f53\u524d\u7528\u6237\u7684\u53ef\u7528\u6570\u636e\u6587\u4ef6\uff0c\u8bf7\u68c0\u67e5\u6587\u4ef6\u662f\u5426\u5df2\u4f20\u8f93\u5230\u8be5\u8282\u70b9"
+                : "\u672a\u627e\u5230\u6307\u5b9a\u7684\u6570\u636e\u6587\u4ef6\uff0c\u8bf7\u4ece\u5f53\u524d\u7528\u6237\u7684\u53ef\u7528\u6587\u4ef6\u4e2d\u9009\u62e9";
+        return new FileResolution(null, clarification("file", message, available));
     }
 
     private double score(PythonTemplate template, String script, String query) {

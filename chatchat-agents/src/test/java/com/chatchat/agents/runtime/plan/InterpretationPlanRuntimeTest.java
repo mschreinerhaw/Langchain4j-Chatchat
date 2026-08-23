@@ -1581,6 +1581,119 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void bindsReviewedPythonCandidateFromDiscoveryExecutorAndIgnoresGenericExecuteAction() {
+        String discoveryTool = "mcp_chatchat_mcp_server_python_analysis_query";
+        String executionTool = "mcp_chatchat_mcp_server_python_template_execute";
+        String selectedTemplateId = "abf8b81b-f59d-4307-ad00-1c519486716c";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(any())).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenAnswer(invocation ->
+            ToolMetadata.builder().id(invocation.getArgument(0)).riskLevel("low").build());
+        java.util.concurrent.atomic.AtomicReference<Map<String, Object>> executionInput =
+            new java.util.concurrent.atomic.AtomicReference<>();
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest request = invocation.getArgument(0);
+            Object data;
+            if (discoveryTool.equals(request.getToolName())) {
+                data = Map.of(
+                    "executionTool", "python_template_execute",
+                    "status", "CANDIDATES_FOUND",
+                    "candidates", List.of(
+                        Map.of(
+                            "templateId", selectedTemplateId,
+                            "scriptFileName", "log_analysis.py",
+                            "parameterSchema", Map.of(
+                                "type", "object",
+                                "properties", Map.of("source_file", Map.of("type", "string")),
+                                "required", List.of("source_file")
+                            )
+                        ),
+                        Map.of("templateId", "75b8d87d-4c0d-4d0b-b288-ded8a4be3a11",
+                            "scriptFileName", "smoke_test.py"),
+                        Map.of("templateId", "d70699b9-8572-42bb-ba93-b8a7ed6cca17",
+                            "scriptFileName", "smoke_test.py")
+                    )
+                );
+            } else {
+                executionInput.set(request.getToolInput().getParameters());
+                data = Map.of("analysis", "completed");
+            }
+            return new ToolRuntimeExecution(
+                ToolOutput.success(data),
+                ToolMetadata.builder().id(request.getToolName()).riskLevel("low").build(),
+                null,
+                "success",
+                Map.of()
+            );
+        });
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("python_analysis", "analyze the log file", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(
+                        1, "mcp_tool", discoveryTool,
+                        Map.of("query", "run log_analysis.py"), List.of(), null, null
+                    ),
+                    new InterpretationPlan.Step(
+                        2, "mcp_tool", executionTool,
+                        Map.of("toolCall", Map.of(
+                            "toolName", executionTool,
+                            "action", "execute",
+                            "parameters", Map.of("source_file", "1787187818764.log")
+                        )),
+                        List.of(1), null, null
+                    ),
+                    new InterpretationPlan.Step(
+                        3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null
+                    )
+                ),
+                List.of(),
+                List.of(),
+                null
+            ),
+            new InterpretationPlan.ExecutionPolicy(
+                3, false, List.of(discoveryTool, executionTool), List.of(), 30_000
+            ),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            null,
+            request -> discoveryTool.equals(request.execution().toolName())
+                ? InterpretationPlanRuntime.StepReview.accepted(
+                    "selected requested script", Map.of("selectedTemplateIds", List.of(selectedTemplateId)))
+                : InterpretationPlanRuntime.StepReview.accepted("execution accepted", Map.of()),
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan,
+                toolRegistry,
+                List.of(discoveryTool, executionTool),
+                "tenant-1",
+                "req-python-discovery-executor-binding",
+                "conv-python-discovery-executor-binding",
+                "user-1",
+                Map.of("originalUserQuery",
+                    "帮我执行 log_analysis.py 程序分析 1787187818764.log 日志文件")
+            )
+        );
+
+        assertThat(result.success()).isTrue();
+        assertThat(executionInput.get())
+            .containsEntry("templateId", selectedTemplateId)
+            .containsEntry("template", selectedTemplateId);
+        assertThat(executionInput.get().get("templateId")).isNotEqualTo("execute");
+        assertThat(executionInput.get().get("parameters"))
+            .isEqualTo(Map.of("source_file", "1787187818764.log"));
+    }
+
+    @Test
     void bindingFallbackReadsCompleteRuntimeOutputWhenDisplaySummaryIsTruncated() {
         String discoveryTool = "mcp_future_template_query";
         String templateId = "metadata-owned-template";
@@ -5960,6 +6073,30 @@ class InterpretationPlanRuntimeTest {
             assertThat(input.get("parameterProtocol")).isNotNull();
             assertThat(input).doesNotContainKey("runtimeParameterProtocolApplied");
         }
+    }
+
+    @Test
+    void doesNotPromoteGenericExecuteActionToTemplateId() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class), new InterpretationPlanValidator(), scriptedController(List.of()));
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "normalizeModelInvocationEnvelope", InterpretationPlan.Step.class, Map.class);
+        method.setAccessible(true);
+        Map<String, Object> input = new java.util.LinkedHashMap<>();
+        input.put("toolCall", Map.of(
+            "toolName", "mcp_chatchat_mcp_server_python_template_execute",
+            "action", "execute",
+            "parameters", Map.of("source_file", "1787187818764.log")
+        ));
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            2, "mcp_tool", "mcp_chatchat_mcp_server_python_template_execute",
+            Map.of(), List.of(), null, null);
+
+        method.invoke(runtime, step, input);
+
+        assertThat(input).doesNotContainKey("templateId");
+        assertThat(input.get("parameters"))
+            .isEqualTo(Map.of("source_file", "1787187818764.log"));
     }
 
     @Test

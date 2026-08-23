@@ -145,11 +145,17 @@ public class PythonDataScienceService {
         requireText(request.description(), "功能描述不能为空");
         validateJsonObject(request.inputSchema(), "输入 Schema");
         validateJsonObject(request.outputSchema(), "输出 Schema");
-        PythonTemplateEntity t = new PythonTemplateEntity();
-        t.setTenantId(tenant);
-        t.setOwnerId(owner);
-        t.setAssetId(asset.getId());
-        t.setScriptId(script.getId());
+        Optional<PythonTemplateEntity> existing = templateRepository
+                .findFirstByScriptIdOrderByPublishedAtDesc(script.getId());
+        PythonTemplateEntity t = existing.orElseGet(PythonTemplateEntity::new);
+        PythonTemplateEntity previous = existing.map(this::copyTemplate).orElse(null);
+        if (existing.isEmpty()) {
+            t.setTenantId(tenant);
+            t.setOwnerId(owner);
+            t.setAssetId(asset.getId());
+            t.setScriptId(script.getId());
+            t.setToolName(toolName(request.templateName()));
+        }
         t.setScriptVersion(script.getCurrentVersion());
         t.setTemplateName(request.templateName().trim());
         t.setVersion(or(request.version(), "1.0.0"));
@@ -165,32 +171,34 @@ public class PythonDataScienceService {
         t.setIndexStatus("PENDING");
         t.setRuntimeStatus("PENDING");
         t.setMcpSyncStatus("PENDING");
-        t.setToolName(toolName(t.getTemplateName()));
         t = templateRepository.saveAndFlush(t);
+        boolean mcpUpdated = false;
         try {
-            var synced = mcp.synchronizeTemplate(t.getId(), new McpPythonControlPlaneClient.TemplatePayload(tenant, owner, asset.getId(), asset.getName(), asset.getDescription(), asset.getMcpEnvironmentId(), script.getFileName(), t.getTemplateName(), t.getToolName(), t.getVersion(), t.getScenario(), t.getDescription(), t.getKeywords(), t.getDomain(), t.getInputSchemaJson(), t.getOutputSchemaJson(), script.getSourceCode()));
+            String expectedSourceHash = sha256(script.getSourceCode());
+            var synced = mcp.synchronizeTemplate(t.getId(), templatePayload(t, asset,
+                    script.getFileName(), script.getSourceCode()));
+            mcpUpdated = true;
+            if (!expectedSourceHash.equalsIgnoreCase(or(synced.sourceHash(), "")))
+                throw new IllegalStateException("MCP Python template source hash verification failed");
             t.setMcpSyncStatus("SYNCED");
             t.setMcpSyncMessage("MCP tool: " + synced.toolName());
             t.setRuntimeStatus("READY");
         } catch (RuntimeException ex) {
-            t.setStatus("DISABLED");
-            t.setRuntimeStatus("DISABLED");
-            t.setMcpSyncStatus("FAILED");
-            t.setMcpSyncMessage(ex.getMessage());
-            templateRepository.save(t);
+            if (previous != null) restorePublishedTemplate(previous, asset, script.getFileName(), ex);
+            else disableTemplateAfterFailedPublication(t.getId(), ex);
             throw new IllegalStateException("MCP 模板同步失败：" + ex.getMessage(), ex);
         }
         PythonTemplateIndexService.IndexResult indexed = indexService.index(t);
         if (!indexed.success()) {
-            mcp.setTemplateEnabled(t.getId(), false);
-            t.setStatus("DISABLED");
-            t.setIndexStatus("FAILED");
-            t.setRuntimeStatus("DISABLED");
-            templateRepository.save(t);
+            if (previous != null) restorePublishedTemplate(previous, asset, script.getFileName(),
+                    new IllegalStateException(indexed.message()));
+            else if (mcpUpdated) disableTemplateAfterFailedPublication(t.getId(),
+                    new IllegalStateException(indexed.message()));
             throw new IllegalStateException("模板索引失败：" + indexed.message());
         }
         t.setStatus("PUBLISHED");
         t.setIndexStatus(indexed.mode());
+        t.setPublishedAt(Instant.now());
         t = templateRepository.save(t);
         registry.register(t);
         return t;
@@ -221,8 +229,7 @@ public class PythonDataScienceService {
     @Transactional
     public void deleteScript(String tenant, String owner, String scriptId) {
         PythonScriptEntity script = ownedScript(scriptId, tenant, owner);
-        if (templateRepository.existsByScriptId(scriptId))
-            throw new IllegalArgumentException("脚本已发布为模板，当前不能删除，以免破坏 Agent Runtime");
+        offlineTemplatesBeforeScriptDeletion(scriptId);
         versionRepository.deleteByScriptId(scriptId);
         scriptRepository.delete(script);
     }
@@ -348,6 +355,8 @@ public class PythonDataScienceService {
     @Transactional
     public PythonTemplateEntity setTemplateEnabled(String tenant, String templateId, boolean enabled) {
         PythonTemplateEntity t = templateRepository.findByIdAndTenantId(templateId, tenant).orElseThrow(() -> new IllegalArgumentException("Python 模板不存在"));
+        if ("DELETED".equals(t.getStatus()))
+            throw new IllegalArgumentException("已删除的 Python 模板不能重新启用");
         mcp.setTemplateEnabled(t.getId(), enabled);
         if (enabled) {
             PythonTemplateIndexService.IndexResult result = indexService.index(t);
@@ -408,6 +417,112 @@ public class PythonDataScienceService {
 
     private PythonDataFileEntity ownedDataFile(String id, String tenant, String owner) {
         return dataFileRepository.findByIdAndTenantIdAndOwnerId(id, tenant, owner).orElseThrow(() -> new IllegalArgumentException("数据文件不存在或不属于当前用户"));
+    }
+
+    private void offlineTemplatesBeforeScriptDeletion(String scriptId) {
+        List<PythonTemplateEntity> templates = templateRepository.findByScriptIdOrderByPublishedAtDesc(scriptId);
+        List<PythonTemplateEntity> disabled = new ArrayList<>();
+        try {
+            for (PythonTemplateEntity template : templates) {
+                if ("DELETED".equals(template.getStatus())) continue;
+                mcp.setTemplateEnabled(template.getId(), false);
+                disabled.add(template);
+            }
+        } catch (RuntimeException ex) {
+            for (PythonTemplateEntity template : disabled) {
+                if (!"PUBLISHED".equals(template.getStatus())) continue;
+                try {
+                    mcp.setTemplateEnabled(template.getId(), true);
+                } catch (RuntimeException rollbackFailure) {
+                    log.error("Unable to restore Python template {} after script deletion failed: {}",
+                            template.getId(), rollbackFailure.getMessage());
+                }
+            }
+            throw new IllegalStateException("MCP 模板下线失败，Python 脚本未删除："
+                    + ex.getMessage(), ex);
+        }
+        for (PythonTemplateEntity template : templates) {
+            if ("DELETED".equals(template.getStatus())) continue;
+            indexService.remove(template.getId());
+            registry.unregister(template);
+            template.setStatus("DELETED");
+            template.setRuntimeStatus("DISABLED");
+            template.setIndexStatus("REMOVED");
+            template.setMcpSyncStatus("SYNCED");
+            template.setMcpSyncMessage("源脚本删除时已自动停用 MCP 模板");
+            templateRepository.save(template);
+        }
+    }
+
+    private McpPythonControlPlaneClient.TemplatePayload templatePayload(PythonTemplateEntity template,
+                                                                         PythonAssetEntity asset,
+                                                                         String scriptFileName,
+                                                                         String source) {
+        return new McpPythonControlPlaneClient.TemplatePayload(template.getTenantId(), template.getOwnerId(),
+                asset.getId(), asset.getName(), asset.getDescription(), asset.getMcpEnvironmentId(),
+                scriptFileName, template.getTemplateName(), template.getToolName(), template.getVersion(),
+                template.getScenario(), template.getDescription(), template.getKeywords(), template.getDomain(),
+                template.getInputSchemaJson(), template.getOutputSchemaJson(), source);
+    }
+
+    private void disableTemplateAfterFailedPublication(String templateId, RuntimeException cause) {
+        try {
+            mcp.setTemplateEnabled(templateId, false);
+        } catch (RuntimeException cleanupFailure) {
+            cause.addSuppressed(cleanupFailure);
+            log.error("Unable to disable Python template {} after publication failed: {}",
+                    templateId, cleanupFailure.getMessage());
+        }
+    }
+
+    private void restorePublishedTemplate(PythonTemplateEntity previous, PythonAssetEntity asset,
+                                          String scriptFileName, RuntimeException cause) {
+        if (previous == null) return;
+        try {
+            mcp.synchronizeTemplate(previous.getId(), templatePayload(previous, asset,
+                    scriptFileName, previous.getSourceSnapshot()));
+            if (!"PUBLISHED".equals(previous.getStatus()))
+                mcp.setTemplateEnabled(previous.getId(), false);
+            else {
+                PythonTemplateIndexService.IndexResult restored = indexService.index(previous);
+                if (!restored.success())
+                    log.error("Unable to restore Python template index {}: {}", previous.getId(), restored.message());
+                registry.register(previous);
+            }
+        } catch (RuntimeException rollbackFailure) {
+            cause.addSuppressed(rollbackFailure);
+            log.error("Unable to restore Python template {} after publication failed: {}",
+                    previous.getId(), rollbackFailure.getMessage());
+        }
+    }
+
+    private PythonTemplateEntity copyTemplate(PythonTemplateEntity source) {
+        PythonTemplateEntity copy = new PythonTemplateEntity();
+        copy.setId(source.getId());
+        copy.setTenantId(source.getTenantId());
+        copy.setOwnerId(source.getOwnerId());
+        copy.setAssetId(source.getAssetId());
+        copy.setScriptId(source.getScriptId());
+        copy.setScriptVersion(source.getScriptVersion());
+        copy.setTemplateName(source.getTemplateName());
+        copy.setVersion(source.getVersion());
+        copy.setScenario(source.getScenario());
+        copy.setDescription(source.getDescription());
+        copy.setKeywords(source.getKeywords());
+        copy.setDomain(source.getDomain());
+        copy.setInputSchemaJson(source.getInputSchemaJson());
+        copy.setOutputSchemaJson(source.getOutputSchemaJson());
+        copy.setSourceSnapshot(source.getSourceSnapshot());
+        copy.setSearchText(source.getSearchText());
+        copy.setStatus(source.getStatus());
+        copy.setIndexStatus(source.getIndexStatus());
+        copy.setRuntimeStatus(source.getRuntimeStatus());
+        copy.setMcpSyncStatus(source.getMcpSyncStatus());
+        copy.setMcpSyncMessage(source.getMcpSyncMessage());
+        copy.setToolName(source.getToolName());
+        copy.setPublishedAt(source.getPublishedAt());
+        copy.setUpdatedAt(source.getUpdatedAt());
+        return copy;
     }
 
     private String searchText(PythonTemplateEntity t) {

@@ -48,6 +48,10 @@ interface PythonTemplateRepository extends JpaRepository<PythonTemplateEntity, S
 
     Optional<PythonTemplateEntity> findByToolName(String toolName);
 
+    Optional<PythonTemplateEntity> findFirstByScriptIdOrderByPublishedAtDesc(String scriptId);
+
+    List<PythonTemplateEntity> findByScriptIdOrderByPublishedAtDesc(String scriptId);
+
     boolean existsByScriptId(String scriptId);
 }
 

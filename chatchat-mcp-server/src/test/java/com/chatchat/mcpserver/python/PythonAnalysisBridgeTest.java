@@ -9,9 +9,93 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class PythonAnalysisBridgeTest {
+    @Test
+    void stopsExecutionAndReturnsCurrentFileListWhenNamedFileIsMissing() {
+        PythonTemplateAssetRepository templates = mock(PythonTemplateAssetRepository.class);
+        PythonDataFileService dataFiles = mock(PythonDataFileService.class);
+        @SuppressWarnings("unchecked") ObjectProvider<PythonCapabilityService> services = mock(ObjectProvider.class);
+        PythonTemplate template = template("template-log", "asset-log", "env-python", "log_analysis.py");
+        template.setInputSchemaJson("""
+            {"type":"object","properties":{"source_file":{"type":"FILE"}},
+             "required":["source_file"],"additionalProperties":false}
+            """);
+        when(templates.findByIdAndTenantId("template-log", "tenant-a"))
+            .thenReturn(java.util.Optional.of(template));
+        when(dataFiles.discover("tenant-a", "alice", "error.log", 20)).thenReturn(List.of());
+        when(dataFiles.discover("tenant-a", "alice", "", 20)).thenReturn(List.of(
+            new PythonDataFileService.DataFileView("file-old", "old.log", 128L, 1000L)));
+        ObjectMapper mapper = new ObjectMapper();
+        PythonAnalysisBridge bridge = new PythonAnalysisBridge(templates, services,
+            new PythonTemplateArgumentResolver(mapper), dataFiles, mapper);
+
+        PythonAnalysisBridge.Result result = bridge.execute(Map.of(
+            "tenantId", "tenant-a", "username", "alice", "templateId", "template-log",
+            "parameters", Map.of("source_file", "error.log")));
+
+        assertThat(result.error()).isFalse();
+        assertThat(result.body()).containsEntry("status", "NEEDS_CLARIFICATION")
+            .containsEntry("requiresClarification", true);
+        assertThat(result.body().get("choices").toString()).contains("file-old", "old.log");
+        verify(dataFiles).discover("tenant-a", "alice", "error.log", 20);
+        verify(dataFiles).discover("tenant-a", "alice", "", 20);
+        verify(services, never()).getObject();
+    }
+
+    @Test
+    void mapsLegacyLogFileAliasOnlyInsidePythonFileBinding() {
+        PythonTemplateAssetRepository templates = mock(PythonTemplateAssetRepository.class);
+        PythonDataFileService dataFiles = mock(PythonDataFileService.class);
+        @SuppressWarnings("unchecked") ObjectProvider<PythonCapabilityService> services = mock(ObjectProvider.class);
+        PythonCapabilityService service = mock(PythonCapabilityService.class);
+        PythonTemplate template = template("template-log", "asset-log", "env-python", "log_analysis.py");
+        template.setInputSchemaJson("""
+            {"type":"object","properties":{
+              "source_file":{"type":"FILE"},
+              "limit":{"type":"integer","default":100},
+              "include_detail":{"type":"boolean","default":true}
+            },"required":["source_file"],"additionalProperties":false}
+            """);
+        when(templates.findByIdAndTenantId("template-log", "tenant-a"))
+            .thenReturn(java.util.Optional.of(template));
+        when(dataFiles.discover("tenant-a", "alice", "error.log", 20)).thenReturn(List.of(
+            new PythonDataFileService.DataFileView("file-error", "error.log", 76_595L, 1000L)));
+        when(services.getObject()).thenReturn(service);
+        PythonExecution execution = new PythonExecution();
+        execution.setId("execution-error-log");
+        execution.setStatus("SUCCEEDED");
+        execution.setExitCode(0);
+        execution.setStdout("{\"status\":\"SUCCESS\",\"log_file\":\"error.log\"}");
+        execution.setDurationMs(100L);
+        when(service.executeTemplateForUser("template-log", "tenant-a", "alice", Map.of(
+            "source_file", "file-error", "limit", 100, "include_detail", true
+        ))).thenReturn(execution);
+        ObjectMapper mapper = new ObjectMapper();
+        PythonAnalysisBridge bridge = new PythonAnalysisBridge(templates, services,
+            new PythonTemplateArgumentResolver(mapper), dataFiles, mapper);
+
+        PythonAnalysisBridge.Result result = bridge.execute(Map.of(
+            "tenantId", "tenant-a",
+            "username", "alice",
+            "templateId", "template-log",
+            "parameters", Map.of(
+                "log_file", "error.log",
+                "purpose", "日志故障分析"
+            )
+        ));
+
+        assertThat(result.error()).isFalse();
+        assertThat(result.body()).containsEntry("status", "SUCCEEDED");
+        verify(dataFiles).discover("tenant-a", "alice", "error.log", 20);
+        verify(service).executeTemplateForUser("template-log", "tenant-a", "alice", Map.of(
+            "source_file", "file-error", "limit", 100, "include_detail", true
+        ));
+    }
+
     @Test
     void discoveryAndBindingDoNotExecuteBeforeRuntimeGatewayCall() {
         PythonTemplateAssetRepository templates = mock(PythonTemplateAssetRepository.class);

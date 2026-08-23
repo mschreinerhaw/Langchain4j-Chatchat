@@ -197,8 +197,8 @@ class AgentToolArgumentResolver {
                         )
                     );
                     values = new LinkedHashMap<>(bridged.executorInput());
-                    mergeObservedExecutionContext(values, template);
-                    finishObservedTemplateInput(toolName, values, output);
+                    boolean templateBoundContext = mergeObservedExecutionContext(values, template);
+                    finishObservedTemplateInput(toolName, values, output, templateBoundContext);
                     logObservedTemplateContract(toolName, requestedTemplateId, templateId, trace,
                         values, bridged.protocolTrace(), bridged.repairs(), true);
                     return values;
@@ -521,8 +521,8 @@ class AgentToolArgumentResolver {
                     )
                 );
                 Map<String, Object> compiledInput = new LinkedHashMap<>(bridged.executorInput());
-                mergeObservedExecutionContext(compiledInput, template);
-                finishObservedTemplateInput(childTool, compiledInput, output);
+                boolean templateBoundContext = mergeObservedExecutionContext(compiledInput, template);
+                finishObservedTemplateInput(childTool, compiledInput, output, templateBoundContext);
                 call.put("arguments", compiledInput);
                 call.remove("input");
                 compiledCalls.add(call);
@@ -533,7 +533,8 @@ class AgentToolArgumentResolver {
         values.put("calls", compiledCalls);
         values.remove("toolCalls");
         values.remove("tool_calls");
-        finishObservedTemplateInput(toolName, values, output);
+        values.remove("executionContext");
+        values.remove("mcpExecutionContext");
         log.info("Agent batch arguments compiled from observed template contracts: tool={}, sourceTool={}, callCount={}",
             toolName, trace.getToolName(), compiledCalls.size());
         return values;
@@ -562,7 +563,10 @@ class AgentToolArgumentResolver {
         return scalarText(firstPresent(template, "templateId", "template_id", "id", "code"));
     }
 
-    private void finishObservedTemplateInput(String toolName, Map<String, Object> values, Object output) {
+    private void finishObservedTemplateInput(String toolName,
+                                             Map<String, Object> values,
+                                             Object output,
+                                             boolean templateBoundContext) {
         if (usesTemplateIdField(toolName)) {
             values.remove("template");
         } else {
@@ -570,10 +574,18 @@ class AgentToolArgumentResolver {
         }
         Map<String, Object> context = mutableMap(values.get("executionContext"));
         Map<String, Object> selectedAsset = selectedAsset(output);
-        putIfText(context, "assetName", firstPresent(selectedAsset, "name", "assetName", "asset_name"));
-        putIfText(context, "env", firstPresent(selectedAsset, "environment", "env"));
-        putIfText(context, "assetId", firstPresent(selectedAsset, "id", "assetId", "asset_id"));
-        putIfText(context, "assetToolName", firstPresent(selectedAsset, "toolName", "tool_name"));
+        if (templateBoundContext) {
+            // A template-owned binding is already the complete routing identity for
+            // this child. Only a neutral environment default may be inherited.
+            putIfTextAbsent(context, "env", firstPresent(selectedAsset, "environment", "env"));
+        } else {
+            // Without a template-owned binding, the reviewed unique discovery asset
+            // remains authoritative over planner-authored routing text.
+            putIfText(context, "assetName", firstPresent(selectedAsset, "name", "assetName", "asset_name"));
+            putIfText(context, "env", firstPresent(selectedAsset, "environment", "env"));
+            putIfText(context, "assetId", firstPresent(selectedAsset, "id", "assetId", "asset_id"));
+            putIfText(context, "assetToolName", firstPresent(selectedAsset, "toolName", "tool_name"));
+        }
         if (!context.isEmpty()) {
             values.put("executionContext", context);
         }
@@ -585,7 +597,7 @@ class AgentToolArgumentResolver {
      * envelopes, so resolve them structurally instead of coupling this bridge to a
      * particular datasource, environment, or template id.
      */
-    private void mergeObservedExecutionContext(Map<String, Object> values, Map<String, Object> template) {
+    private boolean mergeObservedExecutionContext(Map<String, Object> values, Map<String, Object> template) {
         Object observedValue = null;
         for (Object candidate : new Object[] {
             nested(template, "sqlExecutionBinding", "executionContext"),
@@ -600,11 +612,12 @@ class AgentToolArgumentResolver {
         }
         Map<String, Object> observed = mutableMap(observedValue);
         if (observed.isEmpty()) {
-            return;
+            return false;
         }
         Map<String, Object> context = mutableMap(values.get("executionContext"));
         context.putAll(observed);
         values.put("executionContext", context);
+        return true;
     }
 
     private void logObservedTemplateContract(String toolName,
@@ -814,9 +827,7 @@ class AgentToolArgumentResolver {
         String userQuery
     ) {
         Map<String, Object> values = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
-        if (traces == null || traces.isEmpty() || batchCalls(values) != null
-            || runtimeScalarText(firstPresent(values, "template", "templateId", "template_id",
-                "commandTemplate", "command_template")) != null) {
+        if (traces == null || traces.isEmpty() || batchCalls(values) != null) {
             return null;
         }
         for (int traceIndex = traces.size() - 1; traceIndex >= 0; traceIndex--) {
@@ -843,6 +854,14 @@ class AgentToolArgumentResolver {
             for (Map<String, Object> template : uniqueCandidates.values()) {
                 String templateId = templateId(template);
                 Map<String, Object> candidateInput = new LinkedHashMap<>(values);
+                // The reviewed discovery set is authoritative in recovery. Remove any
+                // planner-authored scalar (including literal placeholders) before binding
+                // this child to the published template contract.
+                for (String key : List.of(
+                    "template", "templateId", "template_id",
+                    "commandTemplate", "command_template")) {
+                    candidateInput.remove(key);
+                }
                 if (usesTemplateIdField(toolName)) {
                     candidateInput.put("templateId", templateId);
                 } else {
@@ -857,8 +876,8 @@ class AgentToolArgumentResolver {
                         )
                     );
                     Map<String, Object> compiledInput = new LinkedHashMap<>(bridged.executorInput());
-                    mergeObservedExecutionContext(compiledInput, template);
-                    finishObservedTemplateInput(toolName, compiledInput, output);
+                    boolean templateBoundContext = mergeObservedExecutionContext(compiledInput, template);
+                    finishObservedTemplateInput(toolName, compiledInput, output, templateBoundContext);
                     calls.add(Map.of(
                         "callId", "template-" + callIndex++,
                         "toolName", toolName,
@@ -942,6 +961,7 @@ class AgentToolArgumentResolver {
             scalarText(nested(template, "parameter_contract", "execution_tool")),
             scalarText(nested(template, "invocationExample", "tool")),
             scalarText(nested(template, "execution", "executorTool")),
+            scalarText(nested(template, "executionBinding", "toolName")),
             scalarText(nested(template, "sqlExecutionBinding", "toolName"))
         );
     }
@@ -1033,6 +1053,13 @@ class AgentToolArgumentResolver {
         if (text != null) {
             target.put(key, text);
         }
+    }
+
+    private void putIfTextAbsent(Map<String, Object> target, String key, Object value) {
+        if (target.containsKey(key)) {
+            return;
+        }
+        putIfText(target, key, value);
     }
 
     private String scalarText(Object value) {

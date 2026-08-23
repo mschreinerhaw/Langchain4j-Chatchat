@@ -8117,14 +8117,12 @@ public class AgentOrchestrator implements AgentRunExecutor {
             runtimeAttributes,
             workflowStateTracker.completedToolsFromTraces(traces)
         );
-        String nextTool = workflowTools.nextMandatoryTool(mandatoryTools, completedTools);
-        while (nextTool != null && !fallbackTools.contains(nextTool)) {
-            fallbackTools.add(nextTool);
-            nextTool = workflowTools.missingMandatoryTools(mandatoryTools, completedTools).stream()
-                .filter(tool -> !fallbackTools.contains(tool))
-                .findFirst()
-                .orElse(null);
-        }
+        fallbackTools.addAll(dependencyOrderedMandatoryFallbackTools(
+            runtimeAttributes == null ? null : runtimeAttributes.get("authoritativeWorkflowDag"),
+            runtimeAttributes == null ? null : runtimeAttributes.get("mcpWorkflow"),
+            mandatoryTools,
+            completedTools
+        ));
         if (fallbackTools.isEmpty()) {
             return;
         }
@@ -8336,6 +8334,137 @@ public class AgentOrchestrator implements AgentRunExecutor {
         }
     }
 
+    /**
+     * Orders mandatory recovery calls by the authoritative DAG instead of by the
+     * incidental order of a bound-tool collection. The latter may be sorted by a
+     * repository, UI, or set implementation and is therefore not an execution
+     * contract. Dependencies are tool identities published in workflow metadata;
+     * no business domain or concrete tool name is encoded here.
+     */
+    List<String> dependencyOrderedMandatoryFallbackTools(Object authoritativeWorkflowDag,
+                                                          Object mcpWorkflow,
+                                                          List<String> mandatoryTools,
+                                                          Set<String> completedTools) {
+        List<String> missing = workflowTools.missingMandatoryTools(mandatoryTools, completedTools);
+        if (missing.size() < 2) {
+            return missing;
+        }
+        List<String> remaining = new ArrayList<>(missing);
+        List<String> ordered = new ArrayList<>(missing.size());
+        while (!remaining.isEmpty()) {
+            String ready = remaining.stream()
+                .filter(tool -> {
+                    Set<String> dependencies = new LinkedHashSet<>();
+                    List<String> authoritative = authoritativeWorkflowDependencies(
+                        authoritativeWorkflowDag, tool);
+                    if (authoritative != null) {
+                        dependencies.addAll(authoritative);
+                    }
+                    dependencies.addAll(configuredWorkflowDependencies(mcpWorkflow, tool));
+                    if (dependencies.isEmpty()) {
+                        return true;
+                    }
+                    return dependencies.stream().noneMatch(dependency ->
+                        remaining.stream().anyMatch(candidate ->
+                            toolNames.sameToolName(dependency, candidate)));
+                })
+                .findFirst()
+                .orElse(null);
+            if (ready == null) {
+                // The authoritative workflow is validated before orchestration. Keep
+                // deterministic behavior if a corrupt/cyclic snapshot nevertheless
+                // reaches recovery; predecessor review will fail closed.
+                ordered.addAll(remaining);
+                break;
+            }
+            ordered.add(ready);
+            remaining.remove(ready);
+        }
+        return List.copyOf(ordered);
+    }
+
+    List<String> dependencyOrderedMandatoryFallbackTools(Object authoritativeWorkflowDag,
+                                                          List<String> mandatoryTools,
+                                                          Set<String> completedTools) {
+        return dependencyOrderedMandatoryFallbackTools(
+            authoritativeWorkflowDag, null, mandatoryTools, completedTools);
+    }
+
+    private List<String> configuredWorkflowDependencies(Object rawWorkflow, String toolName) {
+        Map<String, Object> workflow = asMap(rawWorkflow);
+        if (workflow.isEmpty() || toolName == null || toolName.isBlank()) {
+            return List.of();
+        }
+        Map<String, String> aliases = new LinkedHashMap<>();
+        List<Map<String, Object>> steps = new ArrayList<>();
+        Object rawSteps = workflow.get("steps");
+        if (rawSteps instanceof Iterable<?> values) {
+            for (Object value : values) {
+                Map<String, Object> step = asMap(value);
+                String stepTool = firstNonBlank(
+                    stringValue(step.get("tool")), stringValue(step.get("toolName")));
+                if (stepTool == null) {
+                    continue;
+                }
+                steps.add(step);
+                for (Object alias : new Object[] {
+                    step.get("step"), step.get("order"), step.get("id"),
+                    step.get("name"), stepTool}) {
+                    String text = stringValue(alias);
+                    if (text != null && !text.isBlank()) {
+                        aliases.putIfAbsent(text.trim().toLowerCase(Locale.ROOT), stepTool);
+                    }
+                }
+            }
+        }
+        LinkedHashSet<String> dependencies = new LinkedHashSet<>();
+        for (Map<String, Object> step : steps) {
+            String stepTool = firstNonBlank(
+                stringValue(step.get("tool")), stringValue(step.get("toolName")));
+            if (!toolNames.sameToolName(toolName, stepTool)) {
+                continue;
+            }
+            collectConfiguredDependencies(dependencies,
+                firstObject(step, "dependsOn", "depends_on"), aliases);
+        }
+        Map<String, Object> toolDependencies = asMap(firstObject(
+            workflow, "toolDependencies", "tool_dependencies"));
+        for (Map.Entry<String, Object> entry : toolDependencies.entrySet()) {
+            if (!toolNames.sameToolName(toolName, entry.getKey())) {
+                continue;
+            }
+            Map<String, Object> contract = asMap(entry.getValue());
+            if (contract.isEmpty()) {
+                collectConfiguredDependencies(dependencies, entry.getValue(), aliases);
+            } else {
+                collectConfiguredDependencies(dependencies,
+                    firstObject(contract, "dependsOn", "depends_on"), aliases);
+                collectConfiguredDependencies(dependencies,
+                    firstObject(contract, "requiredDependsOn", "required_depends_on",
+                        "requiredDependencies", "required_dependencies"), aliases);
+            }
+        }
+        return List.copyOf(dependencies);
+    }
+
+    private void collectConfiguredDependencies(Set<String> target,
+                                                Object rawDependencies,
+                                                Map<String, String> aliases) {
+        if (target == null || rawDependencies == null) {
+            return;
+        }
+        Collection<?> values = rawDependencies instanceof Collection<?> collection
+            ? collection : List.of(rawDependencies);
+        for (Object value : values) {
+            String dependency = stringValue(value);
+            if (dependency == null || dependency.isBlank()) {
+                continue;
+            }
+            target.add(aliases.getOrDefault(
+                dependency.trim().toLowerCase(Locale.ROOT), dependency.trim()));
+        }
+    }
+
     MandatoryCandidateReview reviewMandatoryDiscoveryCandidates(
         ChatModel activeChatModel,
         String query,
@@ -8531,12 +8660,39 @@ public class AgentOrchestrator implements AgentRunExecutor {
         return false;
     }
 
-    private List<String> missingRequiredToolInputs(String toolName, Map<String, Object> arguments) {
+    @SuppressWarnings("unchecked")
+    List<String> missingRequiredToolInputs(String toolName, Map<String, Object> arguments) {
+        Map<String, Object> input = arguments == null ? Map.of() : arguments;
+        Object rawCalls = firstObject(input, "calls", "toolCalls", "tool_calls");
+        if (rawCalls instanceof List<?> calls && !calls.isEmpty()) {
+            List<String> missing = new ArrayList<>();
+            for (int index = 0; index < calls.size(); index++) {
+                Object rawCall = calls.get(index);
+                if (!(rawCall instanceof Map<?, ?> call)) {
+                    missing.add("calls[" + index + "]");
+                    continue;
+                }
+                String childTool = firstNonBlank(
+                    firstNonBlank(stringValue(call.get("toolName")), stringValue(call.get("tool_name"))),
+                    toolName
+                );
+                Object rawChildArguments = firstObject(
+                    new LinkedHashMap<>((Map<String, Object>) call), "arguments", "input");
+                if (!(rawChildArguments instanceof Map<?, ?> childArguments)) {
+                    missing.add("calls[" + index + "].arguments");
+                    continue;
+                }
+                for (String childMissing : missingRequiredToolInputs(
+                    childTool, new LinkedHashMap<>((Map<String, Object>) childArguments))) {
+                    missing.add("calls[" + index + "].arguments." + childMissing);
+                }
+            }
+            return List.copyOf(missing);
+        }
         ToolMetadata toolMetadata = toolRegistry.getToolMetadata(toolName);
         if (toolMetadata == null || toolMetadata.getParameters() == null) {
             return List.of();
         }
-        Map<String, Object> input = arguments == null ? Map.of() : arguments;
         List<String> missing = new ArrayList<>();
         for (ToolParameter parameter : toolMetadata.getParameters()) {
             if (parameter == null || !parameter.isRequired()
@@ -8545,9 +8701,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
             }
             Object value = requiredToolInputValue(input, parameter.getName());
             if (value == null
-                || value instanceof CharSequence text && text.toString().isBlank()
-                || value instanceof Map<?, ?> map && map.isEmpty()
-                || value instanceof java.util.Collection<?> collection && collection.isEmpty()) {
+                || value instanceof CharSequence text && text.toString().isBlank()) {
                 missing.add(parameter.getName());
             }
         }

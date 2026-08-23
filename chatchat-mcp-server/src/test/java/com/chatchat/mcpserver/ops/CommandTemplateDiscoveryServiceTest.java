@@ -1357,6 +1357,10 @@ class CommandTemplateDiscoveryServiceTest {
         assertThat(first.get("templateId")).isEqualTo("http_order_status");
         assertThat(first.get("requiredParameters")).isEqualTo(List.of("orderId"));
         assertThat(first.get("parameterContract").toString()).contains("http_request_execute.parameters", "orderId");
+        assertThat(first.get("executionContext").toString())
+            .contains("http-1", "http_order_status", "DEV");
+        assertThat(first.get("executionBinding").toString())
+            .contains("http_request_execute", "http_order_status", "http-1");
         assertThat(first.get("invocationExample").toString()).contains("http_request_execute", "orderId");
         assertThat(first.get("capabilitySpec").toString()).contains("order_status");
         assertThat(first.get("outputSchema").toString()).contains("status");

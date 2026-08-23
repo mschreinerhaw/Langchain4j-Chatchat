@@ -1369,6 +1369,13 @@ public class CommandTemplateDiscoveryService {
         String templateId = firstText(endpoint.getToolName(), firstText(endpoint.getName(), endpoint.getId()));
         Map<String, Object> parameterSchema = parameterSchema(endpoint.getInputSchemaJson());
         List<String> requiredParameters = requiredParameters(parameterSchema);
+        Map<String, Object> executionContext = mapOf(
+            "assetId", endpoint.getId(),
+            "assetName", endpoint.getName(),
+            "assetDisplayName", firstText(endpoint.getTitle(), endpoint.getName()),
+            "assetToolName", endpoint.getToolName(),
+            "env", endpoint.getEnvironment()
+        );
         return mapOf(
             "schemaVersion", TEMPLATE_SCHEMA_VERSION,
             "id", templateId,
@@ -1396,6 +1403,13 @@ public class CommandTemplateDiscoveryService {
             "parameterSchema", parameterSchema,
             "requiredParameters", requiredParameters,
             "parameterContract", parameterContract(templateId, parameterSchema, "http_request_execute.parameters", "http_request_execute"),
+            "executionContext", executionContext,
+            "executionBinding", mapOf(
+                "toolName", "http_request_execute",
+                "templateId", templateId,
+                "executionContext", executionContext,
+                "parametersPath", "parameters"
+            ),
             "invocationExample", invocationExample(templateId, parameterSchema, "http_request_execute", "<assetName from http_endpoint_asset_query>", "<env>"),
             "enabled", endpoint.isEnabled()
         );

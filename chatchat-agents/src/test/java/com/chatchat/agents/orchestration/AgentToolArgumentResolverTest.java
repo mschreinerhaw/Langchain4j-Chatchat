@@ -1239,26 +1239,36 @@ class AgentToolArgumentResolverTest {
             .toolName(discoveryTool)
             .success(true)
             .output("""
-                {"candidates":[
+                {"queryIr":{"asset":{"selected":{"id":"asset-unrelated","name":"unrelated-first-candidate","environment":"PROD","toolName":"http_unrelated"}}},
+                 "candidates":[
                   {"templateId":"dynamic-a","parameterContract":{"executionTool":"dynamic_executor"},
                    "parameterSchema":{"type":"object","properties":{},"required":[]},
-                   "sqlExecutionBinding":{"toolName":"dynamic_executor","executionContext":{"assetName":"asset-a","env":"DEV"}}},
+                   "executionBinding":{"toolName":"dynamic_executor","executionContext":{"assetId":"id-a","assetName":"asset-a","env":"DEV"}}},
                   {"templateId":"dynamic-b","parameterContract":{"executionTool":"dynamic_executor"},
                    "parameterSchema":{"type":"object","properties":{},"required":[]},
-                   "sqlExecutionBinding":{"toolName":"dynamic_executor","executionContext":{"assetName":"asset-b","env":"TEST"}}}
+                   "executionBinding":{"toolName":"dynamic_executor","executionContext":{"assetId":"id-b","assetName":"asset-b","env":"TEST"}}}
                 ]}
                 """)
             .build();
 
         Map<String, Object> result = contractResolver.applyDeterministicDependencyContracts(
-            executionTool, Map.of("purpose", "execute admitted dynamic templates"),
+            executionTool, Map.of(
+                "template", "PENDING_DISCOVERY",
+                "executionContext", Map.of("assetId", "asset-unrelated", "assetName", "unrelated-first-candidate"),
+                "purpose", "execute admitted dynamic templates"),
             List.of(discovery), "execute admitted dynamic templates");
 
         assertThat(result.get("calls")).isInstanceOfSatisfying(List.class, calls -> {
             assertThat(calls).hasSize(2);
             Map<String, Object> first = (Map<String, Object>) calls.get(0);
-            Map<String, Object> arguments = (Map<String, Object>) first.get("arguments");
-            assertThat(arguments.get("executionContext")).isEqualTo(Map.of("assetName", "asset-a", "env", "DEV"));
+            Map<String, Object> second = (Map<String, Object>) calls.get(1);
+            Map<String, Object> firstArguments = (Map<String, Object>) first.get("arguments");
+            Map<String, Object> secondArguments = (Map<String, Object>) second.get("arguments");
+            assertThat(firstArguments.get("executionContext"))
+                .isEqualTo(Map.of("assetId", "id-a", "assetName", "asset-a", "env", "DEV"));
+            assertThat(secondArguments.get("executionContext"))
+                .isEqualTo(Map.of("assetId", "id-b", "assetName", "asset-b", "env", "TEST"));
+            assertThat(calls.toString()).doesNotContain("PENDING_DISCOVERY", "unrelated-first-candidate");
         });
         assertThat(result).doesNotContainKeys("__runtimeParamBindingStatus", "__runtimeParamBindingError");
     }

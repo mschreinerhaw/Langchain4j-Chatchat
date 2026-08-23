@@ -31,6 +31,7 @@ import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolOutput;
+import com.chatchat.common.tool.ToolParameter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
 import org.junit.jupiter.api.Test;
@@ -61,6 +62,56 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentOrchestratorTest {
+
+    @Test
+    void mandatoryPreflightValidatesCompiledBatchChildrenInsteadOfScalarEnvelope() {
+        String executor = "mcp_runtime_future_template_execute";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getToolMetadata(executor)).thenReturn(ToolMetadata.builder()
+            .id(executor)
+            .parameters(List.of(
+                ToolParameter.builder().name("template").type("string").required(true).build(),
+                ToolParameter.builder().name("executionContext").type("object").required(true).build(),
+                ToolParameter.builder().name("parameters").type("object").required(true).build()))
+            .build());
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class), registry);
+        Map<String, Object> context = Map.of(
+            "assetId", "runtime-asset-1",
+            "assetName", "Runtime asset",
+            "env", "PROD",
+            "assetToolName", "runtime_transport");
+        Map<String, Object> batch = Map.of(
+            "executionMode", "SEQUENTIAL",
+            "calls", List.of(
+                Map.of("toolName", executor, "arguments", Map.of(
+                    "template", "runtime-template-a",
+                    "executionContext", context,
+                    "parameters", Map.of())),
+                Map.of("toolName", executor, "arguments", Map.of(
+                    "template", "runtime-template-b",
+                    "executionContext", context,
+                    "parameters", Map.of()))));
+
+        assertThat(orchestrator.missingRequiredToolInputs(executor, batch)).isEmpty();
+    }
+
+    @Test
+    void mandatoryPreflightReportsMissingInputAtBatchChildPath() {
+        String executor = "mcp_runtime_future_template_execute";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getToolMetadata(executor)).thenReturn(ToolMetadata.builder()
+            .id(executor)
+            .parameters(List.of(
+                ToolParameter.builder().name("template").type("string").required(true).build(),
+                ToolParameter.builder().name("executionContext").type("object").required(true).build()))
+            .build());
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class), registry);
+        Map<String, Object> batch = Map.of("calls", List.of(
+            Map.of("toolName", executor, "arguments", Map.of("template", "runtime-template-a"))));
+
+        assertThat(orchestrator.missingRequiredToolInputs(executor, batch))
+            .containsExactly("calls[0].arguments.executionContext");
+    }
 
     @Test
     void discoveryExecutionContractCreatesRequiredRefinementWithoutBusinessRules() {
@@ -422,6 +473,47 @@ class AgentOrchestratorTest {
             .extracting(InteractionToolTrace::getToolName).containsExactly(template);
         assertThat(orchestrator.mandatoryPredecessorTraces(dag, tools, script, traces))
             .extracting(InteractionToolTrace::getToolName).containsExactly(template);
+    }
+
+    @Test
+    void mandatoryFallbackExecutionOrderFollowsAuthoritativeDagNotBoundToolOrder() {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        String genericDiscovery = "generic_capability_query";
+        String domainDiscovery = "domain_template_query";
+        String executor = "generic_template_execute";
+        List<String> boundOrder = List.of(genericDiscovery, executor, domainDiscovery);
+        List<Map<String, Object>> dag = List.of(
+            Map.of("tool", genericDiscovery, "dependsOnTools", List.of()),
+            Map.of("tool", domainDiscovery, "dependsOnTools", List.of()),
+            Map.of("tool", executor, "dependsOnTools",
+                List.of(genericDiscovery, domainDiscovery))
+        );
+
+        assertThat(orchestrator.dependencyOrderedMandatoryFallbackTools(
+            dag, boundOrder, Set.of()))
+            .containsExactly(genericDiscovery, domainDiscovery, executor);
+        assertThat(orchestrator.dependencyOrderedMandatoryFallbackTools(
+            dag, boundOrder, Set.of(genericDiscovery)))
+            .containsExactly(domainDiscovery, executor);
+
+        List<Map<String, Object>> incompleteDag = List.of(
+            Map.of("tool", genericDiscovery, "dependsOnTools", List.of()),
+            Map.of("tool", domainDiscovery, "dependsOnTools", List.of()),
+            Map.of("tool", executor, "dependsOnTools", List.of(genericDiscovery))
+        );
+        Map<String, Object> persistedWorkflow = Map.of(
+            "steps", List.of(
+                Map.of("step", 1, "tool", genericDiscovery),
+                Map.of("step", 2, "tool", domainDiscovery),
+                Map.of("step", 3, "tool", executor,
+                    "dependsOn", List.of(domainDiscovery))
+            ),
+            "toolDependencies", Map.of(
+                executor, Map.of("dependsOn", List.of(domainDiscovery)))
+        );
+        assertThat(orchestrator.dependencyOrderedMandatoryFallbackTools(
+            incompleteDag, persistedWorkflow, boundOrder, Set.of()))
+            .containsExactly(genericDiscovery, domainDiscovery, executor);
     }
 
 

@@ -4356,6 +4356,54 @@ class InterpretationPlanRuntimeTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void templateOwnedExecutionContextOverridesUnrelatedDiscoveryCandidateInBatch() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        Map<String, Object> input = Map.of(
+            "parameters", Map.of(),
+            "executionContext", Map.of(
+                "assetId", "asset-first-candidate",
+                "assetName", "unrelated-discovery-candidate",
+                "assetToolName", "http_query_unrelated",
+                "env", "PROD",
+                "targetType", "yarn_cluster"
+            )
+        );
+        Map<String, Object> template = Map.of(
+            "templateId", "http_query_cluster_metrics",
+            "executionBinding", Map.of(
+                "toolName", "http_request_execute",
+                "templateId", "http_query_cluster_metrics",
+                "executionContext", Map.of(
+                    "assetId", "asset-cluster-metrics",
+                    "assetName", "cluster-metrics-endpoint",
+                    "assetToolName", "http_query_cluster_metrics",
+                    "env", "PROD"
+                )
+            )
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "diagnosticBatchArguments", Map.class, Map.class, String.class);
+        method.setAccessible(true);
+
+        Map<String, Object> arguments = (Map<String, Object>) method.invoke(
+            runtime, input, template, "http_query_cluster_metrics");
+        Map<String, Object> executionContext =
+            (Map<String, Object>) arguments.get("executionContext");
+
+        assertThat(executionContext)
+            .containsEntry("assetId", "asset-cluster-metrics")
+            .containsEntry("assetName", "cluster-metrics-endpoint")
+            .containsEntry("assetToolName", "http_query_cluster_metrics")
+            .containsEntry("env", "PROD")
+            .containsEntry("targetType", "yarn_cluster");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void compilesServerCapabilityBridgeTargetInsteadOfDroppingItToEmptyInput() throws Exception {
         String toolName = "mcp_chatchat_mcp_server_server_capability_query";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);

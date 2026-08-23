@@ -6038,7 +6038,11 @@ public class InterpretationPlanRuntime {
         if (templateContext instanceof Map<?, ?> map) {
             map.forEach((key, value) -> {
                 if (key != null && value != null) {
-                    executionContext.putIfAbsent(String.valueOf(key), value);
+                    // The selected template's published execution binding is the
+                    // authoritative routing identity for this child call. Discovery-level
+                    // context may describe a different candidate from the same result set
+                    // and must never override the template owner in a reviewed batch.
+                    executionContext.put(String.valueOf(key), value);
                 }
             });
         }

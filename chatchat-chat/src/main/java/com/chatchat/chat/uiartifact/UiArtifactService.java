@@ -1,5 +1,6 @@
 package com.chatchat.chat.uiartifact;
 
+import com.chatchat.chat.presentation.UserFacingContentSanitizer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -59,8 +60,10 @@ public class UiArtifactService {
         Map<String, Object> elements = new LinkedHashMap<>();
         List<String> reportChildren = new ArrayList<>();
 
-        String answer = text(uiResponse.get("answer"));
-        String explicitHtml = explicitReportHtml(uiResponse);
+        String answer = UserFacingContentSanitizer.removeInternalEvidenceMarkers(
+            text(uiResponse.get("answer")));
+        String explicitHtml = UserFacingContentSanitizer.removeInternalEvidenceMarkers(
+            explicitReportHtml(uiResponse));
         if (!answer.isBlank()) {
             // Keep authored Markdown as the canonical report resource. Converting it to an opaque
             // HTML blob here loses semantics and makes evidence/report styling much harder to control.
@@ -207,9 +210,17 @@ public class UiArtifactService {
             normalizedTenant(tenantId), artifactId,
             objectKey.isBlank() ? resourceKey(resourceId) : objectKey);
         if ("text/html".equalsIgnoreCase(mediaType)) {
-            return readText(location).map(value -> (Object) value);
+            return readText(location)
+                .map(UserFacingContentSanitizer::removeInternalEvidenceMarkers)
+                .map(value -> (Object) value);
         }
-        return readObject(location, Object.class);
+        Optional<Object> resource = readObject(location, Object.class);
+        if ("text/markdown".equalsIgnoreCase(mediaType)) {
+            return resource.map(value -> value instanceof String content
+                ? UserFacingContentSanitizer.removeInternalEvidenceMarkers(content)
+                : value);
+        }
+        return resource;
     }
 
     @Transactional

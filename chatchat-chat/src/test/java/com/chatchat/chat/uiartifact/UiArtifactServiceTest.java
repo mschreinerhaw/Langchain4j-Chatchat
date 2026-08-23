@@ -112,6 +112,27 @@ class UiArtifactServiceTest {
     }
 
     @Test
+    void removesInternalEvidenceMarkersFromStoredDynamicReport() {
+        Fixture fixture = fixture(64);
+        String answer = "客户总资产为 847,174.25 元 "
+            + "[evidence: tool://mcp_chatchat_mcp_server_api_template_execute#result=3/child=1]。";
+
+        UiArtifactService.Presentation presentation = fixture.service().externalizeIfNeeded(
+            "tenant-a", "task-evidence-report", Map.of(
+                "answer", answer.repeat(10),
+                "status", "SUCCESS"
+            ));
+
+        String artifactId = String.valueOf(presentation.reference().get("artifactId"));
+        assertThat(fixture.service().resource("tenant-a", artifactId, "answer"))
+            .hasValueSatisfying(value -> assertThat(String.valueOf(value))
+                .contains("客户总资产为 847,174.25 元。")
+                .doesNotContain("[evidence:", "tool://"));
+        assertThat(String.valueOf(presentation.uiResponse().get("answer")))
+            .doesNotContain("[evidence:", "tool://");
+    }
+
+    @Test
     void prefersExplicitHtmlAndPersistsItAsAnHtmlFile() {
         Fixture fixture = fixture(64);
         String html = "<section class=\"custom-report\"><h1>Dynamic report</h1></section>";

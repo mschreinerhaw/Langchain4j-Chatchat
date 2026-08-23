@@ -7,6 +7,7 @@ import com.chatchat.agents.runtime.plan.InterpretationPlanStore;
 import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.chat.interaction.model.InteractionResponse;
 import com.chatchat.chat.interaction.service.InteractionOrchestrationService;
+import com.chatchat.chat.presentation.UserFacingContentSanitizer;
 import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.chat.skills.SkillDefinition;
 import com.chatchat.chat.uiartifact.UiArtifactService;
@@ -2556,7 +2557,7 @@ public class AgentTaskService {
             "ui_response_v2",
             status,
             firstText(cleanDisplayAnswer(answer), ""),
-            reportHtml == null ? "" : reportHtml,
+            removeInternalEvidenceMarkers(reportHtml),
             citations,
             evidencePremises,
             confidence,
@@ -2707,7 +2708,14 @@ public class AgentTaskService {
         }
         String text = JSON_FENCE_PATTERN.matcher(value).replaceAll("").trim();
         text = text.replaceAll("(?is)reasoningPayload:\\s*```json\\s*.*?\\s*```", "").trim();
+        // Evidence bindings remain available in the runtime claim ledger and citation metadata.
+        // This internal protocol must not leak into user-facing Markdown or HTML.
+        text = removeInternalEvidenceMarkers(text);
         return text;
+    }
+
+    private static String removeInternalEvidenceMarkers(String value) {
+        return UserFacingContentSanitizer.removeInternalEvidenceMarkers(value);
     }
 
     private Map<String, Object> debugPayload(InteractionResponse response, Map<String, Object> reasoningPayload) {

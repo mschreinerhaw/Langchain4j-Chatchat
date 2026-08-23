@@ -1,5 +1,6 @@
 package com.chatchat.chat.conversation;
 
+import com.chatchat.chat.presentation.UserFacingContentSanitizer;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
@@ -765,7 +766,10 @@ public class ConversationService {
             .agentName(session.getAgentName())
             .createdAt(toLocalDateTime(session.getCreatedAt()))
             .updatedAt(toLocalDateTime(session.getUpdatedAt()))
-            .messages(messages)
+            // Agent runtime snapshots and conversation memory can persist the same assistant
+            // turn independently. Always collapse those copies on the read boundary as well:
+            // a failed/late client snapshot must not make historical conversations look doubled.
+            .messages(collapseDuplicateAssistantResults(messages))
             .build();
     }
 
@@ -779,7 +783,7 @@ public class ConversationService {
         return Conversation.Message.builder()
             .id(detail.getMessageId())
             .role(detail.getRole())
-            .content(detail.getContent())
+            .content(UserFacingContentSanitizer.removeInternalEvidenceMarkers(detail.getContent()))
             .timestamp(toLocalDateTime(detail.getCreatedAt()))
             .toolsUsed(detail.getToolsUsed())
             .sourceKnowledgeBase(detail.getSourceKnowledgeBase())
@@ -787,7 +791,7 @@ public class ConversationService {
             .traces(copyMaps(detail.getTraces()))
             .steps(copyMaps(detail.getSteps()))
             .visualizationSpec(copyMap(detail.getVisualizationSpec()))
-            .uiResponse(copyMap(detail.getUiResponse()))
+            .uiResponse(UserFacingContentSanitizer.sanitizeUiResponse(copyMap(detail.getUiResponse())))
             .evidencePremises(copyMaps(detail.getEvidencePremises()))
             .memoryContext(copyMap(detail.getMemoryContext()))
             .agentName(detail.getAgentName())

@@ -840,6 +840,24 @@ class AgentTaskServiceTest {
     }
 
     @Test
+    void cleanDisplayAnswerRemovesInternalEvidenceMarkers() {
+        String answer = """
+            # 客户交易分析
+
+            - 总资产 847,174.25 元 [evidence: tool://mcp_chatchat_mcp_server_api_template_execute#result=3/child=1, tool://mcp_chatchat_mcp_server_api_template_execute#result=3/child=2]。
+            - 当日交易活跃 [EVIDENCE: tool://api_template_execute#result=4]，但正文应保留。
+            """;
+
+        String cleaned = AgentTaskService.cleanDisplayAnswer(answer);
+
+        assertThat(cleaned)
+            .contains("总资产 847,174.25 元。")
+            .contains("当日交易活跃，但正文应保留。")
+            .doesNotContainIgnoringCase("[evidence:")
+            .doesNotContain("tool://");
+    }
+
+    @Test
     void compileExecutionResultPreservesLongReportBeforeArtifactExternalization() throws Exception {
         AgentTaskService service = taskService(
             mock(AgentEventBus.class), mock(AgentEventStore.class), mock(AgentTaskLatestRepository.class),

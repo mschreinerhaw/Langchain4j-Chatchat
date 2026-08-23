@@ -2,10 +2,15 @@ package com.chatchat.chat.conversation;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class ConversationServiceResultDeduplicationTest {
 
@@ -85,6 +90,78 @@ class ConversationServiceResultDeduplicationTest {
 
         assertThat(ConversationService.collapseDuplicateAssistantResults(List.of(first, second)))
             .containsExactly(first, second);
+    }
+
+    @Test
+    void conversationDetailCollapsesAlreadyPersistedRuntimeAndMemoryCopies() {
+        ChatSessionRepository sessions = mock(ChatSessionRepository.class);
+        ChatMessageIndexRepository indexes = mock(ChatMessageIndexRepository.class);
+        ConversationSummaryRepository summaries = mock(ConversationSummaryRepository.class);
+        ChatMessageDetailStore details = mock(ChatMessageDetailStore.class);
+        ConversationService service = new ConversationService(sessions, indexes, summaries, details);
+
+        ChatSessionEntity session = new ChatSessionEntity();
+        session.setSessionId("conversation-1");
+        session.setTenantId("tenant-1");
+        session.setUserId("user-1");
+        session.setTitle("客户交易分析");
+        session.setStatus("completed");
+        session.setCreatedAt(Instant.parse("2026-07-31T01:00:00Z"));
+        session.setUpdatedAt(Instant.parse("2026-07-31T01:01:00Z"));
+
+        ChatMessageIndexEntity userIndex = index("user-1", "user", "key-user", Instant.parse("2026-07-31T01:00:00Z"));
+        ChatMessageIndexEntity memoryIndex = index("assistant-memory", "assistant", "key-memory", Instant.parse("2026-07-31T01:00:01Z"));
+        ChatMessageIndexEntity runtimeIndex = index("assistant-runtime", "assistant", "key-runtime", Instant.parse("2026-07-31T01:00:02Z"));
+        Map<String, ChatMessageDetail> stored = new LinkedHashMap<>();
+        stored.put("key-user", detail("user-1", "user", "分析客户 070200046604", null));
+        String answer = "完整的客户交易分析报告 [evidence: tool://api_template_execute#result=3/child=1]。";
+        stored.put("key-memory", detail("assistant-memory", "assistant", answer, null));
+        stored.put("key-runtime", detail("assistant-runtime", "assistant", answer, "task-1"));
+
+        when(sessions.findBySessionIdAndTenantId("conversation-1", "tenant-1"))
+            .thenReturn(Optional.of(session));
+        when(indexes.findByTenantIdAndSessionIdOrderByCreatedAtAsc("tenant-1", "conversation-1"))
+            .thenReturn(List.of(userIndex, memoryIndex, runtimeIndex));
+        when(details.getAll(List.of("key-user", "key-memory", "key-runtime"))).thenReturn(stored);
+
+        Conversation conversation = service.getConversation("tenant-1", "conversation-1").orElseThrow();
+
+        assertThat(conversation.getMessages())
+            .extracting(Conversation.Message::getId)
+            .containsExactly("user-1", "assistant-runtime");
+        Conversation.Message assistant = conversation.getMessages().get(1);
+        assertThat(assistant.getContent())
+            .isEqualTo("完整的客户交易分析报告。")
+            .doesNotContain("[evidence:", "tool://");
+        assertThat(String.valueOf(assistant.getUiResponse().get("answer")))
+            .isEqualTo("完整的客户交易分析报告。")
+            .doesNotContain("[evidence:", "tool://");
+    }
+
+    private ChatMessageIndexEntity index(String id, String role, String rocksKey, Instant createdAt) {
+        ChatMessageIndexEntity index = new ChatMessageIndexEntity();
+        index.setMessageId(id);
+        index.setSessionId("conversation-1");
+        index.setTenantId("tenant-1");
+        index.setUserId("user-1");
+        index.setRole(role);
+        index.setRocksKey(rocksKey);
+        index.setCreatedAt(createdAt);
+        return index;
+    }
+
+    private ChatMessageDetail detail(String id, String role, String content, String taskId) {
+        return ChatMessageDetail.builder()
+            .messageId(id)
+            .sessionId("conversation-1")
+            .tenantId("tenant-1")
+            .userId("user-1")
+            .role(role)
+            .content(content)
+            .uiResponse("assistant".equals(role) ? Map.of("answer", content) : Map.of())
+            .createdAt(Instant.parse("2026-07-31T01:00:00Z"))
+            .taskId(taskId)
+            .build();
     }
 
     private Conversation.Message message(String id, String role, String content) {
